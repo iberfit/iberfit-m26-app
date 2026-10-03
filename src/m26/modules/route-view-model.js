@@ -3,6 +3,7 @@ import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js'
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
+import {adminClientContextBaseArea} from '../admin/navigation.js';
 import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
@@ -251,7 +252,7 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     experience,
     { role }
   );
-  const adaptiveContext=state&&client.id
+  const adaptiveContext=experience.serviceKind!=='iri_only'&&state&&client.id
     ?buildAdaptiveSessionContext(state,client.id,{now})
     :null;
   const adaptiveExperience=deriveAdaptiveExperience({
@@ -411,6 +412,14 @@ function routeClientId(shellVm, state) {
     ? state.identity?.clientId
     : state.selectedClientId;
 }
+function clientRecord(state,clientId){
+  const id=String(clientId||'').trim();
+  return (state?.collections?.clients||[]).find((item)=>String(item?.id||'').trim()===id)||null;
+}
+function isIriOnlyClient(state,clientId){
+  const client=clientRecord(state,clientId);
+  return String(client?.lifecycleStatus||client?.lifecycle_status||client?.lifecycle?.status||'').trim().toLowerCase()==='iri_only';
+}
 
 function installedCommands(state) {
   const candidates = [
@@ -464,7 +473,8 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const overview = todayOverview(state, now);
     qaStage('rc64-hoy-overview-ready');
     const clientId = routeClientId(shellVm, state);
-    const alerts = clientId
+    const selectedIriOnly=clientId?isIriOnlyClient(state,clientId):false;
+    const alerts = clientId&&!selectedIriOnly
       ? deriveAdherenceAlerts(state, clientId, { now })
       : [];
 
@@ -484,18 +494,20 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         ?deriveCoachCockpit(
             clients.map((client)=>({
               client,
-              alerts:deriveAdherenceAlerts(
-                state,
-                client.id,
-                {now}
-              ),
+              alerts:client.experience?.serviceKind==='iri_only'
+                ?[]
+                :deriveAdherenceAlerts(
+                    state,
+                    client.id,
+                    {now}
+                  ),
             }))
           )
         :null;
     qaStage('rc64-hoy-cockpit-ready');
 
     const challengeSnapshot=
-      overview.role==='client'&&clientId
+      overview.role==='client'&&clientId&&!selectedIriOnly
         ?rc71ChallengeSnapshot(state,clientId,now)
         :null;
     const challengePreview=
@@ -507,7 +519,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         )
       )||null;
     const clientProgressSummary=
-      overview.role==='client'&&clientId
+      overview.role==='client'&&clientId&&!selectedIriOnly
         ?computeProgressSummary(state,clientId,{now,days:28})
         :null;
     const clientGuide=
@@ -543,8 +555,9 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
   // RC70_1_1_FOLLOWUP_HELPER_BEGIN
 function buildClientFollowUpSummary(summary,state,now){
   const client=compactSummary(summary);
-  const progress=computeProgressSummary(state,client.id,{now,days:28});
-  const alerts=deriveAdherenceAlerts(state,client.id,{now,summary:progress});
+  const iriOnly=client.experience?.serviceKind==='iri_only';
+  const progress=iriOnly?null:computeProgressSummary(state,client.id,{now,days:28});
+  const alerts=iriOnly?[]:deriveAdherenceAlerts(state,client.id,{now,summary:progress});
   const signal=adherenceSignal(alerts);
   const topAlert=alerts[0]||null;
   return Object.freeze({
@@ -557,10 +570,10 @@ function buildClientFollowUpSummary(summary,state,now){
         title:topAlert.title,
         source:topAlert.source,
       }):null,
-      adherence:Number.isFinite(progress?.adherence)?progress.adherence:null,
-      completedSessions:Number(progress?.completedSessions||0),
-      plannedSessions:Number(progress?.plannedSessions||0),
-      dataQuality:progress?.dataQuality||null,
+      adherence:iriOnly?null:(Number.isFinite(progress?.adherence)?progress.adherence:null),
+      completedSessions:iriOnly?null:Number(progress?.completedSessions||0),
+      plannedSessions:iriOnly?null:Number(progress?.plannedSessions||0),
+      dataQuality:iriOnly?null:(progress?.dataQuality||null),
     }),
   });
 }
@@ -578,11 +591,12 @@ if (area === 'clientes') {
   }
 
   if (area === 'expediente') {
+    const iriOnly=isIriOnlyClient(state,state.selectedClientId);
     const summary = clientHealthSummary(state, state.selectedClientId, now);
-    const progress = state.selectedClientId
+    const progress = state.selectedClientId&&!iriOnly
       ? computeProgressSummary(state, state.selectedClientId, { now })
       : null;
-    const alerts = state.selectedClientId
+    const alerts = state.selectedClientId&&!iriOnly
       ? deriveAdherenceAlerts(state, state.selectedClientId, { now, summary: progress })
       : [];
     const role = String(shellVm.identity?.role || '');
@@ -602,13 +616,14 @@ if (area === 'clientes') {
     const exerciseOwnerId=
       String(state.selectedClientId||'').trim();
 
-    const exercisePerformance=
-      buildExercisePerformanceProjection(
-        state,
-        exerciseOwnerId,
-        role,
-        options,
-      );
+    const exercisePerformance=iriOnly
+      ?Object.freeze([])
+      :buildExercisePerformanceProjection(
+          state,
+          exerciseOwnerId,
+          role,
+          options,
+        );
 
     const catalogNames=new Map(
       (options.catalog||[])
@@ -619,7 +634,7 @@ if (area === 'clientes') {
         ]),
     );
     const nextSessionPreparation=
-      exerciseOwnerId&&['admin','coach'].includes(role)
+      exerciseOwnerId&&!iriOnly&&['admin','coach'].includes(role)
         ?buildNextSessionPreparation(
             state,
             exerciseOwnerId,
@@ -635,6 +650,7 @@ if (area === 'clientes') {
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'expediente',
       role,
+      serviceKind:iriOnly?'iri_only':'training',
       summary: compact,
       progress,
       exercisePerformance,
@@ -648,15 +664,17 @@ if (area === 'clientes') {
   if (area === 'progreso') {
     const clientId = routeClientId(shellVm, state);
     const role = String(shellVm.identity?.role || '');
-    const longitudinal = clientId
+    const iriOnly=isIriOnlyClient(state,clientId);
+    const longitudinal = clientId&&!iriOnly
       ? buildLongitudinalAggregation(state, clientId, { now })
       : null;
-    const summary = longitudinal?.progress?.d28
-      ?? (clientId ? computeProgressSummary(state, clientId, { now, days: 28 }) : null);
-    const planExecution = buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
-    const alerts = deriveAdherenceAlerts(state, clientId, { now, summary });
-    const exercisePerformance=
-      buildExercisePerformanceProjection(
+    const summary = iriOnly?null:(longitudinal?.progress?.d28
+      ?? (clientId ? computeProgressSummary(state, clientId, { now, days: 28 }) : null));
+    const planExecution = iriOnly?null:buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
+    const alerts = iriOnly?[]:deriveAdherenceAlerts(state, clientId, { now, summary });
+    const exercisePerformance=iriOnly
+      ?Object.freeze([])
+      :buildExercisePerformanceProjection(
         state,
         clientId,
         role,
@@ -666,11 +684,12 @@ if (area === 'clientes') {
       kind: 'progreso',
       clientId,
       role,
+      serviceKind:iriOnly?'iri_only':'training',
       summary,
       exercisePerformance,
       planExecution,
       longitudinal,
-      timeline: Object.freeze(buildProgressTimeline(state, clientId, { now })),
+      timeline: Object.freeze(iriOnly?[]:buildProgressTimeline(state, clientId, { now })),
       alerts: Object.freeze(alerts),
       signal: Object.freeze(adherenceSignal(alerts)),
     });
@@ -679,6 +698,7 @@ if (area === 'clientes') {
   if (area === 'actividad') {
     const clientId = routeClientId(shellVm, state);
     const role = String(shellVm.identity?.role || '');
+    const iriOnly=isIriOnlyClient(state,clientId);
     const capabilities = engagementCapabilities(installedCommands(state));
     const wearables = buildWearableViewModel({
       records: recordsForClient(state, 'wearableDailySummaries', clientId),
@@ -690,7 +710,8 @@ if (area === 'clientes') {
       kind: 'actividad',
       clientId,
       role,
-      canManageHabits: ['admin', 'coach'].includes(role),
+      serviceKind:iriOnly?'iri_only':'training',
+      canManageHabits: !iriOnly&&['admin', 'coach'].includes(role),
       capabilities,
       wearables,
       checkins: Object.freeze(
@@ -730,6 +751,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'notas',
       clientId,
+      role:String(shellVm.identity?.role||''),
       capability: capabilities.privateNotes,
       notes: Object.freeze(
         recordsForClient(state, 'privateNotes', clientId).map(compactActivity)
@@ -783,10 +805,11 @@ if (area === 'clientes') {
 
   if (area === 'planificacion') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const cycles = recordsForClient(state, 'trainingCycles', clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const role = String(shellVm.identity?.role || '');
-    const canEdit=['admin','coach'].includes(role);
+    const canEdit=!iriOnly&&['admin','coach'].includes(role);
     const rawProfile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
     const client=(state?.collections?.clients||[]).find((item)=>item.id===clientId);
     const profile=normalizeClientProfile(rawProfile||{},client||{});
@@ -805,6 +828,7 @@ if (area === 'clientes') {
       kind: 'planificacion',
       clientId,
       role,
+      serviceKind:iriOnly?'iri_only':'training',
       canEdit,
       iriPlanningSeed,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
@@ -831,6 +855,7 @@ if (area === 'clientes') {
 
   if (area === 'sesion') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
@@ -843,7 +868,7 @@ if (area === 'clientes') {
         ]),
     );
     const nextSessionPreparation=
-      clientId&&['admin','coach'].includes(role)
+      clientId&&!iriOnly&&['admin','coach'].includes(role)
         ?buildNextSessionPreparation(
             state,
             clientId,
@@ -859,7 +884,8 @@ if (area === 'clientes') {
       kind: 'sesion',
       clientId,
       role,
-      canBuild: ['admin', 'coach'].includes(role),
+      serviceKind:iriOnly?'iri_only':'training',
+      canBuild: !iriOnly&&['admin', 'coach'].includes(role),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
@@ -869,6 +895,7 @@ if (area === 'clientes') {
 
   if (area === 'informes') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
     const iriAssessments = recordsForClient(state, 'iriAssessments', clientId)
@@ -886,6 +913,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'informes',
       clientId,
+      serviceKind:iriOnly?'iri_only':'training',
       role,
       canManage: ['admin', 'coach'].includes(role),
       reports: Object.freeze(
@@ -906,11 +934,12 @@ if (area === 'clientes') {
 
   if (area === 'inteligencia') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const runs = recordsForClient(state, 'intelligenceRuns', clientId);
-    const summary = clientId
+    const summary = clientId&&!iriOnly
       ? computeProgressSummary(state, clientId, { now })
       : null;
-    const alerts = clientId
+    const alerts = clientId&&!iriOnly
       ? deriveAdherenceAlerts(state, clientId, { now, summary })
       : [];
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
@@ -932,6 +961,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'inteligencia',
       clientId,
+      serviceKind:iriOnly?'iri_only':'training',
       role: shellVm.identity?.role,
       runs: Object.freeze(runs.map(compactActivity)),
       summary,
@@ -940,7 +970,7 @@ if (area === 'clientes') {
       profile,
       ageYears,
       birthDate: birthDate || null,
-      canGenerate: ['admin', 'coach'].includes(
+      canGenerate: !iriOnly&&['admin', 'coach'].includes(
         String(shellVm.identity?.role || '')
       ),
     });
@@ -1190,12 +1220,27 @@ function rc71SettingsSnapshot(
 
 
 export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
+  const adminContextBase=String(shellVm?.identity?.role||'')==='admin'
+    ?adminClientContextBaseArea(shellVm?.activeArea)
+    :null;
+  const effectiveShellVm=adminContextBase
+    ?Object.freeze({...shellVm,activeArea:adminContextBase})
+    :shellVm;
   const rc39=augmentRc39ViewModel(
-    createRouteViewModelBase(shellVm,state,now,options),
-    shellVm,
+    createRouteViewModelBase(effectiveShellVm,state,now,options),
+    effectiveShellVm,
     state,
     now
   );
-  const communication=createCommunicationRouteViewModel(rc39,shellVm,state);
+  const communication=createCommunicationRouteViewModel(rc39,effectiveShellVm,state);
+  if(adminContextBase){
+    return Object.freeze({
+      ...communication,
+      role:'admin',
+      adminContext:true,
+      adminContextArea:String(shellVm.activeArea),
+      adminContextBase,
+    });
+  }
   return createAdminRouteViewModel(communication,shellVm,state,now);
 }

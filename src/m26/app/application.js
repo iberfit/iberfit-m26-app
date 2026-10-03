@@ -958,6 +958,15 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
     else if(mountedShellRole==='admin')qaStage('rc64-shell-role-admin');
     else qaStage('rc64-shell-role-missing');
+
+    // Admin forms are role-critical. Mount their delegated handlers before the
+    // shell is advertised as interactive so a fast service-intent change can
+    // never occur in the progressive-controller gap and be lost on final render.
+    if(mountedShellRole==='admin'){
+      admin?.mount?.();
+      qaStage('rc64-admin-critical-controller-ready');
+    }
+
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     if(root?.dataset)root.dataset.m26Interactive='ready';

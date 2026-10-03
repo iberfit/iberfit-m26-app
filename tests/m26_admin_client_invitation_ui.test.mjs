@@ -6,17 +6,20 @@ const controller = await readFile(new URL('../src/m26/admin/controller.js', impo
 const render = await readFile(new URL('../src/m26/admin/route-render.js', import.meta.url), 'utf8');
 const state = await readFile(new URL('../src/m26/admin/admin-state.js', import.meta.url), 'utf8');
 
-test('ADMIN clients surface exposes a guided create-and-invite flow', () => {
+test('ADMIN clients surface exposes a guided service-aware create and access flow', () => {
   assert.match(render, /form\('client-create'/);
   assert.match(render, /data-client-create-wizard/u);
   assert.match(render, /Crear persona y preparar acceso/u);
+  assert.match(render, /Expediente interno · no enviar invitación/u);
+  assert.match(render, /Acceso IBERFIT · enviar invitación/u);
   assert.match(render, /Solo IRI · evaluación e informe/u);
   assert.match(render, /data-client-step="1"/u);
   assert.match(render, /data-client-step="5"/u);
   assert.match(render, /data-client-wizard-prev/u);
   assert.match(render, /data-client-wizard-next/u);
   assert.match(render, /name="email"[^>]*required/u);
-  assert.match(render, /name="phone"[^>]*required/u);
+  assert.match(render, /name="phone"/u);
+  assert.doesNotMatch(render, /name="phone"[^>]*required/u);
   assert.match(render, /name="modality"[^>]*required/u);
   assert.match(render, /name="weeklyFrequency"[^>]*required/u);
   assert.match(render, /name="sessionDurationMinutes"[^>]*required/u);
@@ -41,7 +44,8 @@ test('ADMIN client access state remains visible after bootstrap refresh', () => 
   assert.match(render, /Error de invitación/);
 });
 
-test('ADMIN creation feedback distinguishes provider delivery result', () => {
+test('ADMIN creation feedback distinguishes internal record and provider delivery result', () => {
+  assert.match(controller, /creado sin enviar invitación/u);
   assert.match(controller, /Invitación enviada correctamente/);
   assert.match(controller, /invitación no pudo enviarse/);
   assert.match(controller, /Invitación en proceso/);

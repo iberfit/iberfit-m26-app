@@ -65,3 +65,32 @@ test('Admin team renders an accessible Coach 360 profile without privilege escal
   assert.match(markup,/data-m26-area="admin-agenda"/u);
   assert.doesNotMatch(markup,/onclick=|javascript:/iu);
 });
+
+
+test('Solo IRI appointment does not inflate Coach training metrics',()=>{
+  const now=new Date('2026-09-20T12:00:00Z');
+  const rows=buildCoach360Rows({
+    coaches:[{id:'coach-1',userId:'coach-1',name:'Coach Uno',status:'active'}],
+    users:[{id:'coach-1',userId:'coach-1',name:'Coach Uno',status:'active',primaryRole:'coach',roles:['coach']}],
+    clients:[
+      {id:'training-1',name:'Cliente activo',status:'active'},
+      {id:'iri-1',name:'Persona IRI',status:'iri_only',lifecycle:{status:'iri_only'}},
+    ],
+    assignments:[
+      {id:'a1',coachUserId:'coach-1',clientId:'training-1',status:'active'},
+      {id:'a2',coachUserId:'coach-1',clientId:'iri-1',status:'active'},
+    ],
+    appointments:[
+      {id:'s1',coachUserId:'coach-1',clientId:'training-1',startAt:'2026-09-21T10:00:00Z',status:'confirmed',title:'Entrenamiento'},
+      {id:'iri-visit',coachUserId:'coach-1',clientId:'iri-1',startAt:'2026-09-21T11:00:00Z',status:'confirmed',title:'Evaluación IRI'},
+    ],
+    planningSessions:[],
+    sessionExecutions:[],
+    now,
+  });
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].clientCount,1);
+  assert.equal(rows[0].upcomingCount,1);
+  assert.equal(rows[0].upcomingSessions[0].clientId,'training-1');
+  assert.equal(rows[0].upcomingSessions.some((item)=>item.clientId==='iri-1'),false);
+});

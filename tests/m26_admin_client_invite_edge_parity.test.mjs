@@ -6,7 +6,7 @@ const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/in
 const config=fs.readFileSync('supabase/config.toml','utf8').replace(/\r\n/g,'\n');
 
 test('client invite edge derives an exact origin from the deployed Supabase project',()=>{
-  assert.match(edge,/FUNCTION_VERSION='admin-client-invite-v26\.4'/u);
+  assert.match(edge,/FUNCTION_VERSION='admin-client-invite-v26\.5'/u);
   assert.match(edge,/QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
   assert.match(edge,/PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
   assert.match(edge,/deploymentProjectRef\(Deno\.env\.get\('SUPABASE_URL'\)\|\|''\)/u);
@@ -21,15 +21,15 @@ test('client invite edge validates the bearer itself before any service-role ope
   const userClient=edge.indexOf('const userClient=createClient');
   const getUser=edge.indexOf('await userClient.auth.getUser()');
   const authReject=edge.indexOf("code:'V26_AUTH_REQUIRED'",getUser);
-  const serviceClient=edge.indexOf('const service=createClient',getUser);
   const privilegedRpc=edge.indexOf("userClient.rpc('iberfit_admin_execute_v14'",getUser);
+  const serviceClient=edge.indexOf('const service=createClient',privilegedRpc);
 
   assert.ok(authHeader>=0);
   assert.ok(userClient>authHeader);
   assert.ok(getUser>userClient);
   assert.ok(authReject>getUser);
-  assert.ok(serviceClient>authReject);
-  assert.ok(privilegedRpc>serviceClient);
+  assert.ok(privilegedRpc>authReject);
+  assert.ok(serviceClient>privilegedRpc);
   assert.match(edge,/actorAuthError\|\|!UUID\.test\(actorUserId\)/u);
 });
 
@@ -50,4 +50,13 @@ test('service-role cleanup remains bounded to a newly-created auth user',()=>{
   assert.match(edge,/createdAuthUserId=authUserId/u);
   assert.match(edge,/if\(createdAuthUserId&&UUID\.test\(createdAuthUserId\)\)/u);
   assert.match(edge,/service\.auth\.admin\.deleteUser\(createdAuthUserId\)/u);
+});
+
+
+test('internal records short-circuit before any service-role Auth operation',()=>{
+  const internal=edge.indexOf("accessMode==='internal'");
+  const internalReason=edge.indexOf("reason:'internal_record'",internal);
+  const service=edge.indexOf('const service=createClient',internalReason);
+  assert.ok(internal>=0&&internalReason>internal);
+  assert.ok(service>internalReason);
 });

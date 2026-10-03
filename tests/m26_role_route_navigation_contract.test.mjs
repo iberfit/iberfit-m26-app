@@ -78,18 +78,59 @@ test('Cliente conserva Retos y Ajustes permitidos',()=>{
   }
 });
 
-test('Admin mantiene aislamiento salvo Biblioteca compartida explícitamente autorizada',()=>{
+test('Admin mantiene namespace propio y sólo abre contexto profesional acotado',()=>{
   assert.equal(M26_AREAS.retos.roles.includes('admin'),false);
   assert.equal(M26_AREAS.ajustes.roles.includes('admin'),false);
   assert.deepEqual(M26_AREAS.biblioteca.roles,['coach','admin']);
-  assert.equal(areaAllowedForRole('retos','admin'),false);
-  assert.equal(areaAllowedForRole('ajustes','admin'),false);
-  assert.equal(areaAllowedForRole('biblioteca','admin'),true);
+
+  for(const area of ['biblioteca','admin-expediente','admin-iri','admin-informes','admin-notas']){
+    assert.equal(areaAllowedForRole(area,'admin'),true,area);
+  }
+  for(const area of ['expediente','iri','informes','notas','retos','ajustes','planificacion','sesion','progreso','actividad','inteligencia']){
+    assert.equal(areaAllowedForRole(area,'admin'),false,area);
+  }
+
   assert.equal(resolveM26Route(readyState('admin'),'retos').area,'admin-inicio');
-  assert.equal(resolveM26Route(readyState('admin'),'ajustes').area,'admin-inicio');
-  const library=resolveM26Route(readyState('admin'),'biblioteca');
+  assert.equal(resolveM26Route(readyState('admin'),'planificacion').area,'admin-inicio');
+  assert.equal(resolveM26Route(readyState('admin'),'iri').area,'admin-inicio');
+
+  const state=readyState('admin');
+  const adminNav=navigationKeys('admin');
+  for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
+    assert.equal(adminNav.context.includes(area),true,`${area} must be discoverable in Admin navigation`);
+  }
+  const contextual=resolveM26Route(state,'admin-iri');
+  assert.equal(contextual.area,'admin-iri');
+  assert.equal(contextual.allowed,true);
+  const withoutClient=readyState('admin',{selectedClientId:null,collections:{clients:[]}});
+  assert.deepEqual(
+    resolveM26Route(withoutClient,'admin-iri'),
+    {area:'admin-clientes',allowed:false,reason:'M26_CLIENT_CONTEXT_REQUIRED',contextClientId:null},
+  );
+  const library=resolveM26Route(state,'biblioteca');
   assert.equal(library.area,'biblioteca');
   assert.equal(library.allowed,true);
+});
+
+test('Solo IRI bloquea rutas de entrenamiento aunque se soliciten directamente',()=>{
+  const coach=readyState('coach',{
+    collections:{clients:[{id:CLIENT_ID,name:'Persona Solo IRI',lifecycleStatus:'iri_only'}]},
+  });
+  for(const area of ['planificacion','sesion','progreso','actividad','retos','inteligencia']){
+    const decision=resolveM26Route(coach,area);
+    assert.equal(decision.allowed,false,area);
+    assert.equal(decision.area,'iri',area);
+    assert.equal(decision.reason,'M26_IRI_ONLY_TRAINING_ROUTE_FORBIDDEN',area);
+  }
+
+  const client=readyState('client',{
+    collections:{clients:[{id:CLIENT_ID,name:'Persona Solo IRI',lifecycleStatus:'iri_only'}]},
+  });
+  for(const area of ['planificacion','sesion','progreso','actividad','retos']){
+    const decision=resolveM26Route(client,area);
+    assert.equal(decision.allowed,false,area);
+    assert.equal(decision.area,'informes',area);
+  }
 });
 
 test('La corrección no altera la navegación móvil Coach ni la navegación Cliente canónica',()=>{

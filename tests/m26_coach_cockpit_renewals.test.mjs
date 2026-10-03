@@ -4,9 +4,25 @@ import {
   deriveCoachCockpit,
   augmentCoachCockpitWithCrm,
 } from '../src/m26/experience/coach-cockpit.js';
-import {applyCommercialCoachCockpit} from '../src/m26/communication/view-model.js';
+import {applyCommercialCoachCockpit,applyCommercialPortfolio} from '../src/m26/communication/view-model.js';
 
 const NOW=new Date('2026-09-06T18:00:00Z');
+
+test('Solo IRI never enters the commercial renewal portfolio or Coach CRM projection',()=>{
+  const state={collections:{
+    clients:[{id:'iri',name:'Persona IRI',lifecycleStatus:'iri_only'}],
+    clientProfiles:[],trainingCycles:[],domainEvents:[],
+    m26Entities:[{id:'old',clientId:'iri',entityType:'commercial',renewalDate:'2026-09-01'}],
+  }};
+  const view={
+    kind:'clientes',
+    role:'coach',
+    clients:[{id:'iri',name:'Persona IRI',lifecycleStatus:'iri_only',experience:{serviceKind:'iri_only'}}],
+  };
+  const projected=applyCommercialPortfolio(view,state,NOW);
+  assert.equal(projected.commercialPortfolio.total,0);
+  assert.equal(projected.clients[0].commercial,null);
+});
 
 test('Solo IRI is excluded from training attention even when old renewal evidence exists',()=>{
   const entries=[{client:{id:'iri',lifecycleStatus:'iri_only',experience:{stage:'iri_only'}},alerts:[{severity:'warning',title:'Missing training'}]}];

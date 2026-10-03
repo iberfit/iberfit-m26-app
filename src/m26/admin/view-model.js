@@ -41,7 +41,7 @@ function clientRows(state){
     const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
     const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
-    const nextAction=String(life.get(id)?.status||'')==='iri_only'?{key:'review_iri',label:'Revisar IRI e informe',area:'iri',reason:'Persona evaluada · Solo IRI'}:adaptiveExperience.action;
+    const nextAction=String(life.get(id)?.status||'')==='iri_only'?structuralNextAction:adaptiveExperience.action;
     const rawProfile=profiles.get(id)||null;
     const profile=rawProfile?.profile&&typeof rawProfile.profile==='object'&&!Array.isArray(rawProfile.profile)?clone(rawProfile.profile):{};
     const access=clone(accessByClient.get(id)||null);
@@ -257,7 +257,10 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
       nextActionLabel:String(client.nextAction?.label||client.adaptiveExperience?.action?.label||'Seguimiento'),
     })));
     const sessions=(appointments||[])
-      .filter((appointment)=>appointmentCoachId(appointment)===coachId)
+      .filter((appointment)=>
+        appointmentCoachId(appointment)===coachId&&
+        clientIdSet.has(appointmentClientId(appointment))
+      )
       .map((appointment)=>{
         const clientId=appointmentClientId(appointment);
         const client=clientById.get(clientId);
@@ -308,9 +311,10 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
 export function augmentAdminShellViewModel(vm,state){
   if(vm?.mode!=='authenticated'||vm?.identity?.role!=='admin')return vm;
   const preferenceScope=String(vm?.identity?.id||state?.identity?.id||'');
+  const contextual=/^admin-(?:expediente|iri|informes|notas)$/u.test(String(vm?.activeArea||''));
   return Object.freeze({
     ...vm,
-    selectedClient:null,
+    selectedClient:contextual?vm.selectedClient:null,
     clientOptions:Object.freeze([]),
     canChangeClient:false,
     experiencePreferences:readIberfitExperiencePreferences(preferenceScope),

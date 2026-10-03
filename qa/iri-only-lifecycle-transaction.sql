@@ -37,7 +37,7 @@ begin
   perform set_config('request.headers','{"origin":"https://m26-canary.iberfit.cl"}',true);
   command:=jsonb_build_object('operationId',operation,'type','ADMIN_CLIENTE_CREAR','payload',jsonb_build_object(
     'name','QA Solo IRI transaction','email',operation||'@example.invalid',
-    'initialLifecycleStatus','iri_only','initialAssessmentMode','iri',
+    'initialLifecycleStatus','iri_only','initialAssessmentMode','iri','accessMode','internal',
     'coachUserId',coach,'modality','Presencial','objective','Evaluación independiente'));
   select (e->>'clientCount')::integer into coach_before from jsonb_array_elements(public.iberfit_admin_bootstrap_v14()#>'{data,coachProfiles}') e where e->>'userId'=coach::text;
   result:=public.iberfit_admin_execute_v14(command);
@@ -45,6 +45,21 @@ begin
   if client is null or result->>'initialLifecycleStatus'<>'iri_only' then raise exception 'QA_IRI_ONLY_CREATE_FAILED'; end if;
   if (public.iberfit_admin_execute_v14(command)->>'kind')<>'duplicate' then raise exception 'QA_IRI_ONLY_REPLAY_FAILED'; end if;
   if not exists(select 1 from public.iberfit_client_lifecycle_events where client_id=client and status='iri_only') then raise exception 'QA_IRI_ONLY_LIFECYCLE_FAILED'; end if;
+  if exists(select 1 from public.iberfit_client_lifecycle_events where client_id=client and status='inactive') then raise exception 'QA_IRI_ONLY_INACTIVE_POLLUTION'; end if;
+  if result->>'accessMode'<>'internal' then raise exception 'QA_IRI_ONLY_ACCESS_MODE_FAILED'; end if;
+  if result#>>'{invitation,accessStatus}'<>'sin_acceso' then raise exception 'QA_IRI_ONLY_ACCESS_STATUS_FAILED'; end if;
+  if result#>>'{invitation,reason}'<>'internal_record' then raise exception 'QA_IRI_ONLY_ACCESS_REASON_FAILED'; end if;
+  if not exists(
+    select 1 from public.client_access_v26 a
+    where a.client_id=client::uuid
+      and a.status='sin_acceso'
+      and a.invitation_attempt_count=0
+      and a.invitation_sent_at is null
+      and a.last_invitation_attempt_at is null
+      and a.invitation_delivery_status is null
+      and a.last_invitation_operation_id is null
+      and a.auth_user_id is null
+  ) then raise exception 'QA_IRI_ONLY_INTERNAL_ACCESS_TELEMETRY_FAILED'; end if;
   snapshot:=public.iberfit_admin_bootstrap_v14();
   if coach is not null and (select (e->>'clientCount')::integer from jsonb_array_elements(snapshot#>'{data,coachProfiles}') e where e->>'userId'=coach::text) is distinct from coach_before then raise exception 'QA_IRI_ONLY_COACH_COUNT_POLLUTED'; end if;
   if not exists(select 1 from jsonb_array_elements(snapshot#>'{data,clientLifecycle}') e where e->>'client_id'=client and e->>'status'='iri_only') then raise exception 'QA_IRI_ONLY_ADMIN_PROJECTION_FAILED'; end if;
@@ -70,5 +85,5 @@ begin
   if has_function_privilege('anon','public.iberfit_admin_create_client_v26_pre_privileged_assurance(jsonb,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.iberfit_admin_create_client_v26_pre_privileged_assurance(jsonb,jsonb)','EXECUTE') then raise exception 'QA_INTERNAL_HELPER_EXPOSED'; end if;
 end
 $test$;
-select 'iri_only create/replay/convert/metrics/assignment/unique IRI/scoped projection/QA guards/private helper: PASS; fixtures rolled back' as certification;
+select 'iri_only internal-access create/replay/no-invite/no-inactive/convert/metrics/assignment/unique IRI/scoped projection/QA guards/private helper: PASS; fixtures rolled back' as certification;
 rollback;

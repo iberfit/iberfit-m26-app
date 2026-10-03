@@ -9,6 +9,7 @@ const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const css=fs.readFileSync('src/m26/admin/admin.css','utf8');
 const sw=fs.readFileSync('public/m26/sw.js','utf8');
 const wizardSource=fs.readFileSync('src/m26/admin/client-create-wizard.js','utf8');
+const application=fs.readFileSync('src/m26/app/application.js','utf8');
 
 test('client create wizard has stable bounded steps and scoped local draft keys',()=>{
   assert.equal(internals.MAX_STEP,5);
@@ -78,13 +79,38 @@ test('client create payload captures richer profile data needed by IRI 2.0 witho
   assert.match(controller,/trainingAddress/u);
 });
 
-test('alta distingue entrenamiento de Solo IRI sin exigir frecuencia de entrenamiento',()=>{
-  assert.match(render,/name="serviceIntent"/);
-  assert.match(render,/Solo IRI · evaluación e informe/);
-  assert.match(wizardSource,/updateServiceIntent/);
-  assert.match(wizardSource,/field\.required=!iriOnly/);
-  assert.match(wizardSource,/assessment\.value='iri'/);
-  assert.match(controller,/initialLifecycleStatus:text\(data,'serviceIntent',40\)==='iri_only'\?'iri_only':'onboarding'/);
+test('alta distingue entrenamiento de Solo IRI como modo de producto estable y reversible',()=>{
+  assert.match(render,/name="serviceIntent"/u);
+  assert.match(render,/Solo IRI · evaluación e informe/u);
+  assert.match(render,/data-client-training-only/u);
+  assert.match(render,/name="accessMode"/u);
+  assert.match(render,/Expediente interno · no enviar invitación/u);
+  assert.match(render,/Acceso IBERFIT · enviar invitación/u);
+  assert.match(wizardSource,/function updateServiceIntent/u);
+  assert.match(wizardSource,/wrapper\.hidden=iriOnly/u);
+  assert.match(wizardSource,/field\.disabled=iriOnly/u);
+  assert.match(wizardSource,/assessment\.value='iri'/u);
+  assert.match(wizardSource,/deferred\.disabled=iriOnly/u);
+  assert.match(wizardSource,/deferred\.hidden=iriOnly/u);
+  assert.match(wizardSource,/accessMode\.value=iriOnly\?'internal':'app'/u);
+  assert.match(wizardSource,/Crear persona Solo IRI/u);
+  assert.match(wizardSource,/Se creará una persona con expediente IRI, sin entrenamiento activo/u);
+  assert.match(controller,/const serviceIntent=text\(data,'serviceIntent',40\)==='iri_only'\?'iri_only':'training'/u);
+  assert.match(controller,/initialLifecycleStatus:iriOnly\?'iri_only':'onboarding'/u);
+  assert.match(controller,/weeklyFrequency=iriOnly\?'':/u);
+  assert.match(controller,/sessionDurationMinutes=iriOnly\?null:/u);
+  assert.match(controller,/initialAssessmentMode:iriOnly\?'iri'/u);
+  assert.match(controller,/accessMode,/u);
+});
+
+test('Admin mounts the critical client wizard before the shell is advertised as interactive',()=>{
+  const criticalMount=application.indexOf("qaStage('rc64-admin-critical-controller-ready')");
+  const interactive=application.indexOf("root.dataset.m26Interactive='ready'");
+  assert.ok(criticalMount>=0,'critical Admin controller mount must be explicit');
+  assert.ok(interactive>criticalMount,'Admin controller must be ready before the shell becomes interactive');
+  assert.match(application,/if\(mountedShellRole==='admin'\)\{[\s\S]*?admin\?\.mount\?\.\(\);[\s\S]*?rc64-admin-critical-controller-ready/u);
+  assert.match(controller,/let mounted=false/u);
+  assert.match(controller,/mount\(\)\{\s*if\(mounted\)return;/u);
 });
 
 test('wizard stays premium/responsive and ships inside the installed PWA release shell',()=>{

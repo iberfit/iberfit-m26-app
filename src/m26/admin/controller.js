@@ -108,7 +108,19 @@ function closeClientEditDialog(root){
   return true;
 }
 
-function invitationSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();if(delivery==='sent')return 'Cliente creado. Invitación enviada correctamente.';if(delivery==='error')return 'Cliente creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.';if(delivery==='pending')return 'Cliente creado. Invitación en proceso.';return 'Cliente creado y acceso preparado.';}
+function creationSuccess(result={},context={}){
+  const invitation=result?.response?.invitation||result?.invitation||{};
+  const delivery=String(invitation.deliveryStatus||'').toLowerCase();
+  const reason=String(invitation.reason||'').toLowerCase();
+  const internal=context.accessMode==='internal'||reason==='internal_record'||String(invitation.accessStatus||'').toLowerCase()==='sin_acceso';
+  const subject=context.iriOnly?'Persona Solo IRI':'Cliente';
+  if(internal)return `${subject} creado sin enviar invitación. El acceso puede habilitarse después.`;
+  if(delivery==='sent')return `${subject} creado. Invitación enviada correctamente.`;
+  if(delivery==='error')return `${subject} creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.`;
+  if(delivery==='pending')return `${subject} creado. Invitación en proceso.`;
+  return `${subject} creado y acceso preparado.`;
+}
+function invitationSuccess(result={}){return creationSuccess(result,{iriOnly:false,accessMode:'app'});}
 function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(delivery==='sent')return 'Invitación reenviada correctamente.';if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(delivery==='pending')return 'Reenvío solicitado. La invitación queda pendiente de confirmación.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
 function createdClientId(result={}){
   const response=Array.isArray(result?.response)?result.response[0]:result?.response;
@@ -124,6 +136,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   const pendingLocks=new Set();
   const submitLabels=new WeakMap();
+  let mounted=false;
   let clientEditReturnFocus=null;
   let pendingCreatedClientId='';
   const clientWizard=createClientCreateWizard({
@@ -284,10 +297,14 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
 
     if(kind==='client-create'){
       if(!clientWizard.validateForSubmit(form))return false;
-      const weeklyFrequency=text(data,'weeklyFrequency',20);
-      const frequency=text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
+      const serviceIntent=text(data,'serviceIntent',40)==='iri_only'?'iri_only':'training';
+      const iriOnly=serviceIntent==='iri_only';
+      const accessMode=text(data,'accessMode',20)==='internal'?'internal':'app';
+      const weeklyFrequency=iriOnly?'':text(data,'weeklyFrequency',20);
+      const sessionDurationMinutes=iriOnly?null:(Number(text(data,'sessionDurationMinutes',20))||null);
+      const frequency=iriOnly?'':(text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:''));
       const profile={
-        initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
+        initialAssessmentMode:iriOnly?'iri':(text(data,'initialAssessmentMode',30)||'iri'),
         birthDate:text(data,'birthDate',20),
         sexForNorms:text(data,'sexForNorms',20),
         email:text(data,'email',254),
@@ -296,8 +313,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         preferredContactTime:text(data,'preferredContactTime',120),
         timezone:'America/Santiago',
         modality:text(data,'modality',40),
-        weeklyFrequency:Number(weeklyFrequency)||null,
-        sessionDurationMinutes:Number(text(data,'sessionDurationMinutes',20))||null,
+        weeklyFrequency:iriOnly?null:(Number(weeklyFrequency)||null),
+        sessionDurationMinutes,
         preferredSchedule:text(data,'preferredSchedule',240),
         commune:text(data,'zone',120),
         trainingAddress:text(data,'address',300),
@@ -327,7 +344,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
-          initialLifecycleStatus:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'onboarding',
+          initialLifecycleStatus:iriOnly?'iri_only':'onboarding',
+          accessMode,
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
           weeklyFrequency:profile.weeklyFrequency,
@@ -357,7 +375,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           emergencyContactPhone:profile.emergencyContactPhone,
           profile,
         },
-      },invitationSuccess,{onSuccess:(result)=>{
+      },(result)=>creationSuccess(result,{iriOnly,accessMode}),{onSuccess:(result)=>{
         const clientId=createdClientId(result);
         if(clientId)pendingCreatedClientId=clientId;
         clientWizard.clear();
@@ -429,6 +447,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
   }
   return Object.freeze({
     mount(){
+      if(mounted)return;
+      mounted=true;
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('input',onDirectoryFilter);
       root.addEventListener('change',onDirectoryFilter);
@@ -438,6 +458,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       applyUserDirectoryFilters(root);
     },
     destroy(){
+      if(!mounted)return;
+      mounted=false;
       clientWizard.destroy();
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('input',onDirectoryFilter);

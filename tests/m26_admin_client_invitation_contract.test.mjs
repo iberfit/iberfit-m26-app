@@ -56,7 +56,7 @@ test('invitation Edge Function isolates canonical origins by deployed project', 
   assert.match(edge, /DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF[\s\S]{0,180}\['https:\/\/app\.iberfit\.cl'\]/u);
   assert.match(edge, /:[\s\n]*\[\],[\s\n]*\);/u);
   assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
-  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.4';/u);
+  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.5';/u);
 });
 
 
@@ -66,4 +66,16 @@ test('OPTIONS 204 never carries a response body and preserves environment-bound 
   assert.match(edge, /'https:\/\/app\.iberfit\.cl'/u);
   assert.match(edge, /'https:\/\/m26-canary\.iberfit\.cl'/u);
   assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
+});
+
+
+test('internal Solo IRI records do not invoke Hosted Auth or send an invitation', () => {
+  assert.match(edge, /accessMode==='internal'/u);
+  assert.match(edge, /reason:'internal_record'/u);
+  const internalReturn=edge.indexOf("reason:'internal_record'");
+  const serviceClient=edge.indexOf('const service=createClient',internalReturn);
+  const invite=edge.indexOf('inviteUserByEmail',internalReturn);
+  assert.ok(internalReturn>=0);
+  assert.ok(serviceClient>internalReturn,'service-role Auth client must be created only after the internal-record early return');
+  assert.ok(invite>serviceClient);
 });

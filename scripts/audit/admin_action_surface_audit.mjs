@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import {M26_AREAS,areaAllowedForRole} from '../../src/m26/shell/navigation.js';
+import {M26_AREAS,areaAllowedForRole,areaDefinition} from '../../src/m26/shell/navigation.js';
 import {projectAdminSnapshot} from '../../src/m26/admin/admin-state.js';
 import {adminMediaReviewEnabled} from '../../src/m26/admin/media-review.js';
 import {auditInteractiveMarkup} from '../../src/m26/ui/interactive-audit.js';
@@ -29,6 +29,8 @@ const CAPABILITIES=Object.freeze([
   'message.read','message.manage_templates','automation.read','automation.manage',
   'analytics.read','audit.read',
 ]);
+
+const ADMIN_CONTEXT_AREAS=new Set(['admin-expediente','admin-iri','admin-informes','admin-notas']);
 
 const ACTIONABLE_AREAS=Object.freeze([
   'admin-inicio','admin-usuarios','admin-equipo','admin-clientes',
@@ -82,7 +84,7 @@ function stateFor(area){
     environment:'AUDIT_READ_ONLY',
     canary:{active:false,scope:null,version:'admin-action-audit'},
     admin,
-    selectedClientId:null,
+    selectedClientId:['selected-client','client-context'].includes(areaDefinition(area)?.scope)?CLIENT_ID:null,
     activeArea:area,
     collections:{
       ...base.collections,
@@ -107,7 +109,8 @@ function auditRoute(area){
   const shell=createShellViewModel(state);
   const vm=createRouteViewModel(shell,state,NOW,{catalog:[]});
   const sharedAdminLibrary=area==='biblioteca'&&vm?.kind==='biblioteca'&&vm?.role==='admin';
-  if(!sharedAdminLibrary&&vm?.admin!==true)throw new Error(`ADMIN_VM_NOT_ADMIN:${area}`);
+  const sharedAdminContext=ADMIN_CONTEXT_AREAS.has(area)&&vm?.role==='admin';
+  if(!sharedAdminLibrary&&!sharedAdminContext&&vm?.admin!==true)throw new Error(`ADMIN_VM_NOT_ADMIN:${area}`);
   if(['admin-unavailable','admin-forbidden','placeholder'].includes(String(vm?.kind||''))){
     throw new Error(`ADMIN_VM_NOT_OPERATIONAL:${area}:${vm?.kind||'unknown'}`);
   }

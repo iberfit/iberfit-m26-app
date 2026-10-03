@@ -42,6 +42,9 @@ function plainDateLabel(value){
   const match=String(value||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})/u);
   return match?`${match[3]}/${match[2]}/${match[1]}`:'';
 }
+function isIriOnlyCommercialClient(client){
+  return String(client?.experience?.serviceKind||client?.lifecycleStatus||client?.lifecycle?.status||'').trim().toLowerCase()==='iri_only';
+}
 function commercialClientName(vm,state,clientIdValue){
   const id=String(clientIdValue||'').trim();
   const fromVm=list(vm?.clients).find((client)=>String(client?.id||'').trim()===id);
@@ -55,6 +58,7 @@ function commercialClientIds(vm,state){
   if(vm.kind==='hoy'){
     return [...new Set(
       list(vm.clients)
+        .filter((client)=>!isIriOnlyCommercialClient(client))
         .map((client)=>String(client?.id||'').trim())
         .filter(Boolean)
     )];
@@ -105,7 +109,10 @@ export function applyCommercialPortfolio(vm,state,now=new Date()){
     commercialPortfolioSnapshot=portfolioSnapshot([]);
     return vm;
   }
-  const rows=list(vm.clients).map((client)=>portfolioRow(vm,state,client,now)).filter(Boolean);
+  const rows=list(vm.clients)
+    .filter((client)=>!isIriOnlyCommercialClient(client))
+    .map((client)=>portfolioRow(vm,state,client,now))
+    .filter(Boolean);
   const snapshot=portfolioSnapshot(rows);
   commercialPortfolioSnapshot=snapshot;
   scheduleCommercialPortfolioEnhancement();

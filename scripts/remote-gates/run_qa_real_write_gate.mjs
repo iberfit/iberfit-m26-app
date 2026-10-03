@@ -160,7 +160,7 @@ const invalidInviteAuth=await requestResult(`${base}/functions/v1/iberfit-admin-
 if(
   invalidInviteAuth.status!==401||
   String(invalidInviteAuth.body?.code||'')!=='V26_AUTH_REQUIRED'||
-  String(invalidInviteAuth.body?.version||'')!=='admin-client-invite-v26.4'
+  String(invalidInviteAuth.body?.version||'')!=='admin-client-invite-v26.5'
 ){
   throw new Error(
     `QA_WRITE_INVITE_CUSTOM_AUTH_FAIL_CLOSED_MISMATCH:${invalidInviteAuth.status}:${String(invalidInviteAuth.body?.code||'unknown')}`,

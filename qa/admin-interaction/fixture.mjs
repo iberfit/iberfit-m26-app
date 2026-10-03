@@ -89,6 +89,7 @@ function clientsVm(){
     canManage:true,
     leads:[],
     clients:structuredClone(people),
+    coaches:[{id:COACH,userId:COACH,name:'Coach Interacción',email:'coach.interaccion@iberfit.cl',status:'active'}],
   };
 }
 
@@ -141,4 +142,5 @@ globalThis.__IBERFIT_ADMIN_INTERACTION_QA__=Object.freeze({
   mounted:true,
   ids:Object.freeze({CURRENT_ADMIN,COACH,CLIENT,CLIENT_ID,ORG}),
   commands:()=>structuredClone(commands),
+  forceRender:()=>{render();root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:true}));},
 });

@@ -7,7 +7,7 @@ export const M26_AREAS = Object.freeze({
   clientes: Object.freeze({ key: 'clientes', label: 'Clientes', title: 'Clientes', scope: 'global', roles: ['coach'] }),
   expediente: Object.freeze({ key: 'expediente', label: 'Expediente', title: 'Expediente IBERFIT', scope: 'selected-client', roles: ['coach'] }),
   iri: Object.freeze({ key: 'iri', label: 'Diagnóstico IRI', title: 'Diagnóstico IRI', scope: 'selected-client', roles: ['coach'] }),
-  informes: Object.freeze({ key: 'informes', label: 'Informes', title: 'Informes', scope: 'client-context', roles: ['coach', 'client'] }),
+  informes: Object.freeze({ key: 'informes', label: 'Informes', title: 'Informes', scope: 'client-context', roles: ['coach','client'] }),
   planificacion: Object.freeze({ key: 'planificacion', label: 'Planificación', title: 'Planificación', scope: 'client-context', roles: ['coach', 'client'] }),
   agenda: Object.freeze({ key: 'agenda', label: 'Agenda', title: 'Agenda', scope: 'global', roles: ['coach'] }),
   sesion: Object.freeze({ key: 'sesion', label: 'Sesiones', title: 'Sesiones', scope: 'client-context', roles: ['coach', 'client'] }),
@@ -53,7 +53,18 @@ export function areaDefinition(value){const key=canonicalArea(value);return key?
 function resolveItems(keys){return keys.map((key)=>M26_AREAS[key]);}
 export function navigationForRole(value){const role=assertKnownRole(value);const model=NAVIGATION[role];return Object.freeze({role,primary:Object.freeze(resolveItems(model.primary)),context:Object.freeze(resolveItems(model.context)),tools:Object.freeze(resolveItems(model.tools)),mobile:Object.freeze(resolveItems(model.mobile))});}
 export function roleHome(value){const role=assertKnownRole(value);return role==='admin'?'admin-inicio':'hoy';}
-export function areaAllowedForRole(area,role){const definition=areaDefinition(area);const normalized=assertKnownRole(role);if(normalized==='admin')return Boolean((definition?.key?.startsWith('admin-')||definition?.key==='biblioteca')&&definition?.roles?.includes('admin'));return Boolean(definition?.roles?.includes(normalized));}
+export function areaAllowedForRole(area,role){
+  const definition=areaDefinition(area);
+  const normalized=assertKnownRole(role);
+  if(normalized==='admin'){
+    const key=definition?.key||'';
+    return Boolean(
+      definition?.roles?.includes('admin')&&
+      (key.startsWith('admin-')||key==='biblioteca')
+    );
+  }
+  return Boolean(definition?.roles?.includes(normalized));
+}
 
 const MOBILE_MORE_SELECTOR='details.m26-mobile-more';
 const ADMIN_SHELL_SELECTOR='.m26-shell[data-m26-role="admin"]';

@@ -328,7 +328,18 @@ function explicitBool(raw,key){return Object.prototype.hasOwnProperty.call(raw||
 function number(value){const parsed=Number(value);return Number.isFinite(parsed)?parsed:null;}
 function resultExists(value){if(Array.isArray(value))return value.some(resultExists);if(value&&typeof value==='object')return Object.values(value).some(resultExists);return value!==null&&value!==undefined&&value!==''&&value!==false;}
 function protocolApplies(protocolId,parts){
-  const selected=String(parts.cardio?.protocol||'');
+  if(protocolId==='body-composition')return !parts.bodyComposition?.skipped;
+  if(['weight-bearing-lunge','back-saver','modified-thomas','hip-rotation-observation','assisted-squat'].includes(protocolId)&&parts.mobility?.skipped)return false;
+  if(protocolId==='weight-bearing-lunge'&&parts.mobility?.ankle?.skipped)return false;
+  if(protocolId==='back-saver'&&parts.mobility?.posteriorChain?.skipped)return false;
+  if(protocolId==='hip-rotation-observation'&&parts.mobility?.hipRotation?.skipped)return false;
+  if(protocolId==='assisted-squat'&&parts.mobility?.assistedSquat?.skipped)return false;
+  if(['chair-stand-30s','push-test','trx-row','core-plank','bodyweight-squat-60s','posterior-chain-endurance'].includes(protocolId)&&parts.strength?.skipped)return false;
+  if(['chair-stand-30s','bodyweight-squat-60s'].includes(protocolId)&&parts.strength?.lowerBody?.skipped)return false;
+  if(protocolId==='push-test'&&parts.strength?.push?.skipped)return false;
+  if(protocolId==='trx-row'&&parts.strength?.trxRow?.skipped)return false;
+  if(protocolId==='core-plank'&&parts.strength?.core?.skipped)return false;
+  const selected=parts.cardio?.skipped?'':String(parts.cardio?.protocol||'');
   if(protocolId==='one-minute-sit-to-stand')return selected==='1msts-standard';
   if(protocolId==='ymca-three-minute-step')return selected==='ymca-3min-standard';
   if(protocolId==='treadmill-three-minute-field')return selected==='treadmill-3min-field';
