@@ -178,7 +178,7 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
 }
 
 function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,value.fatMassKg,value.leanMassKg,value.muscleMassKg,value.waistCm].some((item)=>item!==null);}
-export export function coreDomainCoverage(draft={}){
+export function coreDomainCoverage(draft={}){
   const ankleMeasured=!draft.mobility?.ankle?.skipped&&draft.mobility?.ankle?.leftBest!==null&&draft.mobility?.ankle?.rightBest!==null;
   const posteriorMeasured=!draft.mobility?.posteriorChain?.skipped&&draft.mobility?.posteriorChain?.leftBest!==null&&draft.mobility?.posteriorChain?.rightBest!==null;
   const mobilityMeasured=!draft.mobility?.skipped&&(ankleMeasured||posteriorMeasured);
