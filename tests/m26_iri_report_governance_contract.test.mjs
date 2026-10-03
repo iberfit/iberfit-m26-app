@@ -185,7 +185,7 @@ test('production promotion deploys the exact self-contained IRI report broker',(
   const workflow=fs.readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
   assert.match(workflow,/Deploy exact IRI report broker to production/u);
   assert.match(workflow,/supabase@2\.117\.0 functions deploy iberfit-iri-report-emission-v1/u);
-  assert.match(workflow,/--project-ref "\\$\{PROD_SUPABASE_REF\}"/u);
+  assert.ok(workflow.includes('--project-ref "${PROD_SUPABASE_REF}"'));
   assert.match(workflow,/supabase@2\.117\.0 functions list/u);
   assert.doesNotMatch(workflow,/IBERFIT_IRI_RENDERER_/u);
 });
