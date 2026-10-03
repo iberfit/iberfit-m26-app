@@ -215,12 +215,15 @@ async function renderPdf(html:string,accountId:string,apiToken:string){
     headers:{authorization:`Bearer ${apiToken}`,'content-type':'application/json'},
     body:JSON.stringify({
       html,
-      printBackground:true,
-      preferCSSPageSize:true,
-      tagged:true,
-      outline:true,
-      timeout:60_000,
-      waitForTimeout:500,
+      waitForSelector:{selector:'.pdf-page',visible:true,timeout:10_000},
+      waitForTimeout:750,
+      pdfOptions:{
+        printBackground:true,
+        preferCSSPageSize:true,
+        tagged:true,
+        outline:true,
+        timeout:60_000,
+      },
     }),
   });
   if(!response.ok){

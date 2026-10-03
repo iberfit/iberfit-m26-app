@@ -117,6 +117,8 @@ test('server report renderer is decoupled from browser-only external-report cont
 test('emission broker uses current Cloudflare PDF API contract without unsupported actionTimeout',()=>{
   const source=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
   assert.match(source,/browser-rendering\/pdf/u);
+  assert.match(source,/pdfOptions:\s*\{/u);
+  assert.match(source,/waitForSelector:\{selector:'\\.pdf-page'/u);
   assert.match(source,/preferCSSPageSize:true/u);
   assert.match(source,/printBackground:true/u);
   assert.match(source,/tagged:true/u);
