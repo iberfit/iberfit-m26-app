@@ -4,22 +4,22 @@ import fs from 'node:fs';
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('baseline IRI report never queries or injects iriAssessments history',()=>{
+test('informe IRI inicial no consulta ni inyecta historial iriAssessments',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
   assert.doesNotMatch(workflow,/confirmedIriHistoryForReport/u);
   assert.doesNotMatch(workflow,/longitudinalHistory/u);
   assert.match(
     workflow,
-    /openIriReportPrint\(\{\.\.\.reportContext\(draft\),variant,externalReport,printTarget\}\)/u
+    /openIriReportPrint\(\{\.\.\.reportContext\(draft\),variant,externalReport,photogrammetryReport,printTarget\}\)/u
   );
 });
 
-test('report document contract is baseline-only and independent from longitudinal engine',()=>{
+test('el contrato del informe representa la referencia inicial y es independiente del motor longitudinal',()=>{
   const report=read('src/m26/workflows/iri-report-document.js');
   assert.doesNotMatch(report,/from '.\/iri-2-longitudinal\.js'/u);
   assert.doesNotMatch(report,/longitudinalHistory/u);
-  assert.match(report,/Baseline inicial/u);
-  assert.match(report,/seguimiento longitudinal se mantiene fuera del Diagnóstico IRI/u);
+  assert.match(report,/referencia inicial/u);
+  assert.match(report,/seguimiento y la evolución se registran por separado/u);
 });
 
 test('longitudinal comparison remains a separate follow-up capability rather than report input',()=>{
