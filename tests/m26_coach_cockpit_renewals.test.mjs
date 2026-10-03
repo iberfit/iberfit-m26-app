@@ -4,7 +4,7 @@ import {
   deriveCoachCockpit,
   augmentCoachCockpitWithCrm,
 } from '../src/m26/experience/coach-cockpit.js';
-import {applyCommercialCoachCockpit} from '../src/m26/communication/view-model.js';
+import {applyCommercialCoachCockpit,applyCommercialPortfolio} from '../src/m26/communication/view-model.js';
 
 const NOW=new Date('2026-09-06T18:00:00Z');
 
@@ -19,7 +19,6 @@ test('Solo IRI never enters the commercial renewal portfolio or Coach CRM projec
     role:'coach',
     clients:[{id:'iri',name:'Persona IRI',lifecycleStatus:'iri_only',experience:{serviceKind:'iri_only'}}],
   };
-  const {applyCommercialPortfolio}=await import('../src/m26/communication/view-model.js');
   const projected=applyCommercialPortfolio(view,state,NOW);
   assert.equal(projected.commercialPortfolio.total,0);
   assert.equal(projected.clients[0].commercial,null);
