@@ -1,9 +1,0 @@
-{
-  "name": "iberfit-iri-report-renderer-qa-v3",
-  "main": "./worker.mjs",
-  "compatibility_date": "2026-10-03",
-  "workers_dev": true,
-  "browser": {
-    "binding": "BROWSER"
-  }
-}
