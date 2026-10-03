@@ -208,17 +208,60 @@ async function annexInfo(externalBytes:any){
   if(['image/jpeg','image/png'].includes(externalBytes.mimeType))return {kind:'image',totalPages:1,displayPages:1,truncated:false};
   throw new Error('IRI_REPORT_EXTERNAL_MIME_UNSUPPORTED');
 }
-async function renderPdf(html:string,rendererUrl:string,rendererSecret:string){
-  if(!rendererUrl||!rendererSecret)throw new Error('IRI_REPORT_RENDERER_CONFIG_MISSING');
+function b64Bytes(value:string){
+  const normalized=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
+  const padded=normalized+'='.repeat((4-normalized.length%4)%4);
+  const binary=atob(padded);
+  return Uint8Array.from(binary,(char)=>char.charCodeAt(0));
+}
+function b64Url(bytes:Uint8Array){
+  let binary='';
+  for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/u,'');
+}
+async function rendererSignature(raw:string,privateKeyB64:string,audience:string){
+  if(!privateKeyB64||privateKeyB64.length>16_000||!audience)throw new Error('IRI_REPORT_RENDERER_CONFIG_MISSING');
+  let privateKey:CryptoKey;
+  try{
+    privateKey=await crypto.subtle.importKey(
+      'pkcs8',
+      b64Bytes(privateKeyB64),
+      {name:'ECDSA',namedCurve:'P-256'},
+      false,
+      ['sign'],
+    );
+  }catch{throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');}
+  const timestamp=String(Math.floor(Date.now()/1000));
+  const nonce=crypto.randomUUID();
+  const bodySha256=await sha256(raw);
+  const signedPayload=`v1\n${timestamp}\n${nonce}\n${audience}\n${bodySha256}`;
+  const signature=new Uint8Array(await crypto.subtle.sign(
+    {name:'ECDSA',hash:'SHA-256'},
+    privateKey,
+    new TextEncoder().encode(signedPayload),
+  ));
+  return {timestamp,nonce,signature:b64Url(signature)};
+}
+async function renderPdf(html:string,rendererUrl:string,rendererPrivateKey:string,rendererAudience:string){
+  if(!rendererUrl||!rendererPrivateKey||!rendererAudience)throw new Error('IRI_REPORT_RENDERER_CONFIG_MISSING');
   let endpoint:URL;
   try{endpoint=new URL(rendererUrl);}catch{throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');}
   if(endpoint.protocol!=='https:'||!endpoint.hostname.endsWith('.workers.dev')||endpoint.username||endpoint.password){
     throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');
   }
+  const raw=JSON.stringify({html});
+  const signed=await rendererSignature(raw,rendererPrivateKey,rendererAudience);
   const response=await fetch(endpoint.toString(),{
     method:'POST',
-    headers:{authorization:`Bearer ${rendererSecret}`,'content-type':'application/json'},
-    body:JSON.stringify({html}),
+    headers:{
+      'content-type':'application/json',
+      'x-iberfit-renderer-version':'1',
+      'x-iberfit-renderer-ts':signed.timestamp,
+      'x-iberfit-renderer-nonce':signed.nonce,
+      'x-iberfit-renderer-audience':rendererAudience,
+      'x-iberfit-renderer-signature':signed.signature,
+    },
+    body:raw,
   });
   if(!response.ok){
     const detail=text(await response.text().catch(()=>''),600);
@@ -259,7 +302,7 @@ function reportDraft(assessment:any){
   if(!record.assessmentDate&&assessment.evaluated_at)record.assessmentDate=String(assessment.evaluated_at).slice(0,10);
   return confirmedFirstSessionDraft(record,assessment.client_id);
 }
-async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin,rendererUrl,rendererSecret}:any){
+async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin,rendererUrl,rendererPrivateKey,rendererAudience}:any){
   const authz=await userClient.rpc('iberfit_authorize_iri_report_issue_v1',{p_assessment_id:assessmentId,p_audience:audience});
   if(authz.error)throw authz.error;
   if(!authz.data?.ok)throw new Error('IRI_REPORT_ISSUE_NOT_AUTHORIZED');
@@ -326,7 +369,7 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const sourceHash=await sha256(sourceJson);
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
-  let pdf=await renderPdf(html,rendererUrl,rendererSecret);
+  let pdf=await renderPdf(html,rendererUrl,rendererPrivateKey,rendererAudience);
   pdf=await appendExternal(pdf,externalBytes,annex);
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
@@ -425,10 +468,11 @@ Deno.serve(async(req:Request)=>{
       const roles=Array.isArray(context.data?.roles)?context.data.roles.map((value:unknown)=>String(value||'').toLowerCase()):[];
       if(!roles.some((role:string)=>role==='admin'||role==='coach'))throw new Error('IRI_REPORT_HEALTH_SCOPE_FORBIDDEN');
       const rendererUrl=String(Deno.env.get('IBERFIT_IRI_RENDERER_URL')||'').trim();
-      const rendererSecret=String(Deno.env.get('IBERFIT_IRI_RENDERER_SHARED_SECRET')||'').trim();
+      const rendererPrivateKey=String(Deno.env.get('IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64')||'').trim();
+      const rendererAudience=String(Deno.env.get('IBERFIT_IRI_RENDERER_AUDIENCE')||'').trim();
       return json(200,{
         ok:true,version:FUNCTION_VERSION,projectRef,
-        rendererConfigured:Boolean(rendererUrl&&rendererSecret),
+        rendererConfigured:Boolean(rendererUrl&&rendererPrivateKey&&rendererAudience),
         issuedBucket:ISSUED_BUCKET,
       },origin,allowed);
     }
@@ -438,7 +482,8 @@ Deno.serve(async(req:Request)=>{
       const result=await issueReport({
         userClient,service,actorUserId,assessmentId,audience,appOrigin,
         rendererUrl:String(Deno.env.get('IBERFIT_IRI_RENDERER_URL')||'').trim(),
-        rendererSecret:String(Deno.env.get('IBERFIT_IRI_RENDERER_SHARED_SECRET')||'').trim(),
+        rendererPrivateKey:String(Deno.env.get('IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64')||'').trim(),
+        rendererAudience:String(Deno.env.get('IBERFIT_IRI_RENDERER_AUDIENCE')||'').trim(),
       });
       return json(200,{ok:true,version:FUNCTION_VERSION,...result},origin,allowed);
     }

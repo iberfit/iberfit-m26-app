@@ -1,10 +1,14 @@
 interface Env {
   BROWSER: BrowserRun;
-  IRI_RENDERER_SHARED_SECRET: string;
+  IRI_RENDERER_PUBLIC_KEY_SPKI_B64: string;
+  IRI_RENDERER_AUDIENCE: string;
 }
 
 const MAX_BODY_BYTES=4_000_000;
-const MAX_SECRET_CHARS=256;
+const MAX_KEY_CHARS=4096;
+const MAX_SIGNATURE_CHARS=256;
+const MAX_SKEW_SECONDS=120;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function response(status:number,body:string,contentType='text/plain; charset=utf-8'){
   return new Response(body,{
@@ -16,36 +20,64 @@ function response(status:number,body:string,contentType='text/plain; charset=utf
     },
   });
 }
+function b64Bytes(value:string){
+  const normalized=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
+  const padded=normalized+'='.repeat((4-normalized.length%4)%4);
+  const binary=atob(padded);
+  return Uint8Array.from(binary,(char)=>char.charCodeAt(0));
+}
+async function sha256Hex(value:string){
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte)=>byte.toString(16).padStart(2,'0')).join('');
+}
+async function verifyRequest(request:Request,env:Env,raw:string){
+  const publicKeyB64=String(env.IRI_RENDERER_PUBLIC_KEY_SPKI_B64||'').trim();
+  const expectedAudience=String(env.IRI_RENDERER_AUDIENCE||'').trim();
+  if(!publicKeyB64||publicKeyB64.length>MAX_KEY_CHARS||!expectedAudience)return false;
 
-async function secureEqual(left:string,right:string){
-  const encoder=new TextEncoder();
-  const [a,b]=await Promise.all([
-    crypto.subtle.digest('SHA-256',encoder.encode(left)),
-    crypto.subtle.digest('SHA-256',encoder.encode(right)),
-  ]);
-  const x=new Uint8Array(a),y=new Uint8Array(b);
-  let diff=x.length^y.length;
-  for(let i=0;i<Math.max(x.length,y.length);i+=1)diff|=(x[i%x.length]??0)^(y[i%y.length]??0);
-  return diff===0;
+  const version=String(request.headers.get('x-iberfit-renderer-version')||'').trim();
+  const timestamp=String(request.headers.get('x-iberfit-renderer-ts')||'').trim();
+  const nonce=String(request.headers.get('x-iberfit-renderer-nonce')||'').trim();
+  const audience=String(request.headers.get('x-iberfit-renderer-audience')||'').trim();
+  const signature=String(request.headers.get('x-iberfit-renderer-signature')||'').trim();
+  if(version!=='1'||audience!==expectedAudience||!UUID.test(nonce)||!signature||signature.length>MAX_SIGNATURE_CHARS)return false;
+
+  const timestampSeconds=Number(timestamp);
+  const nowSeconds=Math.floor(Date.now()/1000);
+  if(!Number.isInteger(timestampSeconds)||Math.abs(nowSeconds-timestampSeconds)>MAX_SKEW_SECONDS)return false;
+
+  let publicKey:CryptoKey;
+  try{
+    publicKey=await crypto.subtle.importKey(
+      'spki',
+      b64Bytes(publicKeyB64),
+      {name:'ECDSA',namedCurve:'P-256'},
+      false,
+      ['verify'],
+    );
+  }catch{return false;}
+
+  const bodySha256=await sha256Hex(raw);
+  const signedPayload=`v1\n${timestamp}\n${nonce}\n${audience}\n${bodySha256}`;
+  try{
+    return await crypto.subtle.verify(
+      {name:'ECDSA',hash:'SHA-256'},
+      publicKey,
+      b64Bytes(signature),
+      new TextEncoder().encode(signedPayload),
+    );
+  }catch{return false;}
 }
 
 export default {
   async fetch(request:Request,env:Env):Promise<Response>{
     if(request.method!=='POST')return response(405,'METHOD_NOT_ALLOWED');
 
-    const expected=String(env.IRI_RENDERER_SHARED_SECRET||'').trim();
-    if(!expected)return response(503,'RENDERER_NOT_CONFIGURED');
-    const authorization=String(request.headers.get('authorization')||'').trim();
-    if(!authorization.startsWith('Bearer ')||authorization.length>MAX_SECRET_CHARS+7){
-      return response(401,'UNAUTHORIZED');
-    }
-    const supplied=authorization.slice(7).trim();
-    if(!supplied||!(await secureEqual(supplied,expected)))return response(401,'UNAUTHORIZED');
-
     const declared=Number(request.headers.get('content-length')||0);
     if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)return response(413,'BODY_TOO_LARGE');
     const raw=await request.text();
     if(!raw||new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return response(413,'BODY_TOO_LARGE');
+    if(!(await verifyRequest(request,env,raw)))return response(401,'UNAUTHORIZED');
 
     let payload:{html?:unknown};
     try{payload=JSON.parse(raw);}catch{return response(400,'BODY_INVALID');}

@@ -53,7 +53,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Configure private QA PDF renderer and deploy exact IRI report broker
+      - name: Configure signed QA PDF renderer and deploy exact IRI report broker
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,27 +64,50 @@ jobs:
           test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
           test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 42; }
 
-          RENDER_SECRET="$(openssl rand -hex 32)"
-          echo "::add-mask::${RENDER_SECRET}"
+          openssl ecparam -name prime256v1 -genkey -noout -out /tmp/iri-renderer-key.pem
+          openssl pkcs8 -topk8 -nocrypt -in /tmp/iri-renderer-key.pem -outform DER | base64 -w0 > /tmp/iri-renderer-private.b64
+          openssl pkey -in /tmp/iri-renderer-key.pem -pubout -outform DER | base64 -w0 > /tmp/iri-renderer-public.b64
+          RENDER_PRIVATE_KEY="$(cat /tmp/iri-renderer-private.b64)"
+          RENDER_PUBLIC_KEY="$(cat /tmp/iri-renderer-public.b64)"
+          RENDER_AUDIENCE='iri-report-renderer-qa'
+          echo "::add-mask::${RENDER_PRIVATE_KEY}"
 
           npx --yes wrangler@4.120.0 deploy \
-            --config cloudflare/iri-report-renderer/wrangler.qa.jsonc 2>&1 | tee /tmp/iri-renderer-deploy.log
+            --config cloudflare/iri-report-renderer/wrangler.qa.jsonc \
+            --var "IRI_RENDERER_PUBLIC_KEY_SPKI_B64:${RENDER_PUBLIC_KEY}" \
+            --var "IRI_RENDERER_AUDIENCE:${RENDER_AUDIENCE}" 2>&1 | tee /tmp/iri-renderer-deploy.log
           RENDER_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' /tmp/iri-renderer-deploy.log | tail -1)"
           test -n "${RENDER_URL:-}" || { echo 'IRI_RENDERER_URL_MISSING'; exit 43; }
 
-          printf '%s' "${RENDER_SECRET}" | npx --yes wrangler@4.120.0 secret put IRI_RENDERER_SHARED_SECRET \
-            --config cloudflare/iri-report-renderer/wrangler.qa.jsonc
-
-          IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" IBERFIT_IRI_RENDERER_SHARED_SECRET="${RENDER_SECRET}" node --input-type=module <<'NODE'
+          IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64="${RENDER_PRIVATE_KEY}" IBERFIT_IRI_RENDERER_AUDIENCE="${RENDER_AUDIENCE}" node --input-type=module <<'NODE'
+          import {createHash,createPrivateKey,randomUUID,sign} from 'node:crypto';
           const url=process.env.IBERFIT_IRI_RENDERER_URL;
-          const secret=process.env.IBERFIT_IRI_RENDERER_SHARED_SECRET;
+          const privateKey=createPrivateKey({
+            key:Buffer.from(process.env.IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64,'base64'),
+            format:'der',
+            type:'pkcs8',
+          });
+          const audience=process.env.IBERFIT_IRI_RENDERER_AUDIENCE;
+          const raw=JSON.stringify({html:'<!doctype html><html><body><main class="pdf-page"><h1>IBERFIT QA renderer</h1></main></body></html>'});
+          const timestamp=String(Math.floor(Date.now()/1000));
+          const nonce=randomUUID();
+          const bodySha256=createHash('sha256').update(raw).digest('hex');
+          const signedPayload=`v1\n${timestamp}\n${nonce}\n${audience}\n${bodySha256}`;
+          const signature=sign('sha256',Buffer.from(signedPayload),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
           let response=null;
           for(let attempt=0;attempt<3;attempt+=1){
             try{
               response=await fetch(url,{
                 method:'POST',
-                headers:{authorization:`Bearer ${secret}`,'content-type':'application/json'},
-                body:JSON.stringify({html:'<!doctype html><html><body><main class="pdf-page"><h1>IBERFIT QA renderer</h1></main></body></html>'}),
+                headers:{
+                  'content-type':'application/json',
+                  'x-iberfit-renderer-version':'1',
+                  'x-iberfit-renderer-ts':timestamp,
+                  'x-iberfit-renderer-nonce':nonce,
+                  'x-iberfit-renderer-audience':audience,
+                  'x-iberfit-renderer-signature':signature,
+                },
+                body:raw,
                 signal:AbortSignal.timeout(90_000),
               });
             }catch{}
@@ -101,7 +124,8 @@ jobs:
 
           npx --yes supabase@2.117.0 secrets set \
             IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" \
-            IBERFIT_IRI_RENDERER_SHARED_SECRET="${RENDER_SECRET}" \
+            IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64="${RENDER_PRIVATE_KEY}" \
+            IBERFIT_IRI_RENDERER_AUDIENCE="${RENDER_AUDIENCE}" \
             --project-ref "${M26_PROJECT_REF}"
 
           npx --yes supabase@2.117.0 functions deploy iberfit-iri-report-emission-v1 \
