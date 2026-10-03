@@ -74,7 +74,7 @@ test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea i
   assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(page,/localStorage\.getItem\(token\)/);
   assert.match(page,/CLIENT_MIN_PAGE_COUNT=10/);
-  assert.match(page,/COACH_MIN_PAGE_COUNT=13/);
+  assert.match(page,/COACH_MIN_PAGE_COUNT=16/);
   assert.match(page,/Imprimir o guardar como PDF/);
 });
 
