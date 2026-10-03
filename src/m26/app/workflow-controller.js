@@ -852,10 +852,8 @@ export function createWorkflowController({
     const confirmedRecord=currentIriRecord();const confirmedBody=recordBody(confirmedRecord);if(!confirmedBody?.firstSessionCompletedAt&&!confirmedBody?.first_session_completed_at)throw new Error('M26_IRI_REPORT_REQUIRES_CONFIRMATION');const draft=confirmedFirstSessionDraft(confirmedRecord,clientId);const check=validateFirstSessionDraft(draft);if(!check.ok){const error=new Error(`M26_IRI_CONFIRMED_REPORT_DATA_INVALID:${check.errors.join(',')}`);error.userMessage=`El IRI confirmado no puede convertirse todavía en informe: ${check.errors.map((item)=>IRI_FIELD_LABELS[item]||item).join(', ')}.`;throw error;}
     let externalReport=null;let photogrammetryReport=null;let printTarget=null;
     try{
-      if(variant==='client'){
-        printTarget=prepareIriReportPrintTarget();
-        if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
-      }
+      printTarget=prepareIriReportPrintTarget();
+      if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
       [externalReport,photogrammetryReport]=await Promise.all([
         getIriExternalReport(draft.assessmentId,{variant}),
         getIriPhotogrammetryReport(draft.assessmentId),
