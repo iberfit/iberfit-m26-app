@@ -745,9 +745,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return request('/rest/v1/rpc/'+name,{method:'POST',token,body:JSON.stringify(params)});
   }
 
+  const REMOTE_DRAFT_SCOPES=new Set(['session-builder','iri-first-session']);
   function normalizeDraftScope(value='session-builder'){
     const scope=String(value||'').trim();
-    if(scope!=='session-builder')throw new Error('M26_RC431_DRAFT_SCOPE_INVALID');
+    if(!REMOTE_DRAFT_SCOPES.has(scope))throw new Error('M26_RC431_DRAFT_SCOPE_INVALID');
     return scope;
   }
 
