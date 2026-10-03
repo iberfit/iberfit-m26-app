@@ -354,11 +354,11 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
   if(!draft||!['client','coach'].includes(variant))throw new Error('M26_IRI_REPORT_DOCUMENT_INVALID');
   const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,signatureUrl:clean(signatureUrl,2000),externalReport,photogrammetryReport,appOrigin,iriOnly:Boolean(iriOnly)};
   const pages=variant==='client'?clientPages(draft,context):coachPages(draft,context);
-  if(variant==='client'&&pages.length<7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
-  if(variant==='coach'&&pages.length<15)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  if(variant==='client'&&pages.length<10)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
+  if(variant==='coach'&&pages.length<16)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
   const externalStylesheet=clean(stylesheetHref,2048);
-  const stylesheetHrefSafe=externalStylesheet||'/m26/iri-report.css?v=m26-iri-report-integrated-v4';
+  const stylesheetHrefSafe=externalStylesheet||'/m26/iri-report.css?v=m26-iri-report-premium-v1';
   const stylesheet=`<link rel="stylesheet" href="${escapeHtml(stylesheetHrefSafe)}" data-iri-report-stylesheet>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>${stylesheet}</head><body>${pages.join('')}</body></html>`;
 }
@@ -366,7 +366,7 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
 function reportStylesheetUrl(locationLike=globalThis.location){
   const origin=clean(locationLike?.origin,512);
   if(!/^https?:\/\//u.test(origin))throw new Error('M26_IRI_REPORT_ORIGIN_UNAVAILABLE');
-  const url=new URL('/m26/iri-report.css?v=m26-iri-report-integrated-v4',origin);
+  const url=new URL('/m26/iri-report.css?v=m26-iri-report-premium-v1',origin);
   if(url.origin!==origin)throw new Error('M26_IRI_REPORT_STYLESHEET_ORIGIN_INVALID');
   return url.href;
 }
@@ -525,8 +525,8 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   const stylesheetHref=reportStylesheetUrl(locationLike);
   const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,signatureUrl,stylesheetHref,externalReport,photogrammetryReport,appOrigin:locationLike?.origin,iriOnly});
   const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
-  if(variant==='client'&&pageCount<7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
-  if(variant==='coach'&&pageCount<15)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  if(variant==='client'&&pageCount<10)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
+  if(variant==='coach'&&pageCount<16)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const popup=printTarget||prepareIriReportPrintTarget(openWindow);
   if(!popup?.document)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
   try{
