@@ -236,7 +236,7 @@ function renderClientFollowUpPlan(draft={},photogrammetryReport=null){
 function iriExternalReportAppUrl(assessmentId,{origin}={}){
   const assessment=clean(assessmentId,80);
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(assessment))throw new Error('M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID');
-  const raw=clean(origin,512);
+  const raw=clean(origin||'https://m26-canary.iberfit.cl',512);
   let base;try{base=new URL(raw);}catch{throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');}
   const allowed=new Map([
     ['https://m26-canary.iberfit.cl','https://m26-canary.iberfit.cl'],
