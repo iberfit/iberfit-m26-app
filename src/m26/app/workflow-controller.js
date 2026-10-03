@@ -1000,6 +1000,16 @@ export function createWorkflowController({
     finally{if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}}
   }
   async function onClick(event){
+    const setupSummary=event.target.closest?.('details.m26-iri-setup > summary');
+    if(setupSummary){
+      event.preventDefault?.();
+      const details=setupSummary.parentElement;
+      if(details?.tagName==='DETAILS'){
+        details.open=!details.open;
+        setupSummary.setAttribute?.('aria-expanded',details.open?'true':'false');
+      }
+      return;
+    }
     const preset=event.target.closest?.('[data-iri-setup-preset]');
     if(preset){
       event.preventDefault?.();requireCoach();
