@@ -121,8 +121,21 @@ function evidenceStatus(labelText,status,detail,note=''){
 function domainEvidenceGrid(draft){
   const body=draft.bodyComposition||{},mobility=draft.mobility||{},strength=draft.strength||{},cardio=draft.cardio||{};
   const bodyCount=[body.weightKg,body.bodyFatPercent,body.leanMassKg,body.muscleMassKg,body.bodyWaterPercent,body.waistCm,body.visceralFatLevel].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
-  const mobilityCount=[mobility.ankle?.leftBest,mobility.ankle?.rightBest,mobility.posteriorChain?.leftBest,mobility.posteriorChain?.rightBest,mobility.hipRotation?.result,mobility.assistedSquat?.depth].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
-  const validStrength=[strength.chairStand?.valid,strength.squat60?.valid,strength.push?.valid,strength.trxRow?.valid].filter((value)=>value===true).length;
+  const mobilityCount=[
+    mobility.ankle?.skipped?null:mobility.ankle?.leftBest,
+    mobility.ankle?.skipped?null:mobility.ankle?.rightBest,
+    mobility.posteriorChain?.skipped?null:mobility.posteriorChain?.leftBest,
+    mobility.posteriorChain?.skipped?null:mobility.posteriorChain?.rightBest,
+    mobility.hipRotation?.skipped?null:mobility.hipRotation?.result,
+    mobility.assistedSquat?.skipped?null:mobility.assistedSquat?.depth,
+  ].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
+  const validStrength=[
+    strength.lowerBody?.skipped?false:strength.chairStand?.valid,
+    strength.lowerBody?.skipped?false:strength.squat60?.valid,
+    strength.push?.skipped?false:strength.push?.valid,
+    strength.trxRow?.skipped?false:strength.trxRow?.valid,
+    strength.core?.skipped?false:strength.core?.frontPlankSeconds!==null&&strength.core?.frontPlankSeconds!==undefined,
+  ].filter((value)=>value===true).length;
   const cardioReady=cardioProtocolReady(cardio);
   const bodyState=body.skipped?'No evaluado':bodyCount?'Registrado':'Pendiente';
   const mobilityState=mobility.skipped?'No evaluado':mobilityCount?'Registrado':'Pendiente';
@@ -136,13 +149,13 @@ function protocolUsage(record={}){if(record.valid===false)return 'No interpretab
 function protocolTraceRows(records=[]){return (Array.isArray(records)?records:[]).map((record)=>[record.testName,record.side==='left'?'Izquierda':record.side==='right'?'Derecha':record.side==='bilateral'?'Bilateral':'—',record.variant,record.configuration,record.protocolVersion,record.valid===true?'Válida':record.valid===false?'No válida':'Sin confirmar',protocolUsage(record),[record.adaptationReason,record.stopReason].filter(Boolean).join(' · ')||'—']);}
 
 function strengthRows(draft){const s=draft.strength||{};return [
-  ['Silla 30 s',s.chairStand?.repetitions,' rep',40,'Protocolo estandarizado'],
-  ['Sentadilla libre 60 s',s.squat60?.repetitions,' rep',60,s.squat60?.depthCriterion?`Profundidad: ${s.squat60.depthCriterion}`:'Baseline individual'],
-  [`Empuje · ${label(s.push?.variant,'variante')}`,s.push?.repetitions,' rep',35,s.push?.supportHeightCm?`Apoyo ${number(s.push.supportHeightCm)} cm`:''],
-  ['Remo TRX',s.trxRow?.repetitions,' rep',35,s.trxRow?.handleHeightCm?`Asas ${number(s.trxRow.handleHeightCm)} cm`:'Referencia individual'],
-  ['Plancha frontal',s.core?.frontPlankSeconds,' s',180,'Calidad técnica registrada'],
-  ['Plancha lateral izquierda',s.core?.sidePlankLeftSeconds,' s',180,''],
-  ['Plancha lateral derecha',s.core?.sidePlankRightSeconds,' s',180,''],
+  ['Silla 30 s',s.lowerBody?.skipped?null:s.chairStand?.repetitions,' rep',40,s.lowerBody?.skipped?`No realizado: ${label(s.lowerBody?.skipReason)}`:'Protocolo estandarizado'],
+  ['Sentadilla libre 60 s',s.lowerBody?.skipped?null:s.squat60?.repetitions,' rep',60,s.lowerBody?.skipped?`No realizada: ${label(s.lowerBody?.skipReason)}`:s.squat60?.depthCriterion?`Profundidad: ${s.squat60.depthCriterion}`:'Baseline individual'],
+  [`Empuje · ${s.push?.skipped?'no realizado':label(s.push?.variant,'variante')}`,s.push?.skipped?null:s.push?.repetitions,' rep',35,s.push?.skipped?`Motivo: ${label(s.push?.skipReason)}`:s.push?.supportHeightCm?`Apoyo ${number(s.push.supportHeightCm)} cm`:''],
+  ['Remo TRX',s.trxRow?.skipped?null:s.trxRow?.repetitions,' rep',35,s.trxRow?.skipped?`No realizado: ${label(s.trxRow?.skipReason)}`:s.trxRow?.handleHeightCm?`Asas ${number(s.trxRow.handleHeightCm)} cm`:'Referencia individual'],
+  ['Plancha frontal',s.core?.skipped?null:s.core?.frontPlankSeconds,' s',180,s.core?.skipped?`No realizada: ${label(s.core?.skipReason)}`:'Calidad técnica registrada'],
+  ['Plancha lateral izquierda',s.core?.skipped?null:s.core?.sidePlankLeftSeconds,' s',180,s.core?.skipped?'No realizada':''],
+  ['Plancha lateral derecha',s.core?.skipped?null:s.core?.sidePlankRightSeconds,' s',180,s.core?.skipped?'No realizada':''],
 ];}
 function compositionDonut(body={}){const fat=Number(body.bodyFatPercent);const fatPct=Number.isFinite(fat)?Math.max(0,Math.min(100,fat)):0;const circumference=251.33;const dash=(circumference*fatPct/100).toFixed(2);const gap=(circumference-Number(dash)).toFixed(2);return `<svg class="donut-svg" viewBox="0 0 120 120" role="img" aria-label="Porcentaje de grasa corporal"><circle cx="60" cy="60" r="40" class="donut-base"/><circle cx="60" cy="60" r="40" class="donut-value" stroke-dasharray="${dash} ${gap}" transform="rotate(-90 60 60)"/><circle cx="60" cy="60" r="27" class="donut-center"/><text x="60" y="58" text-anchor="middle" class="donut-number">${Number.isFinite(fat)?number(fat,1)+'%':'—'}</text><text x="60" y="75" text-anchor="middle" class="donut-label">grasa</text></svg>`;}
 function completionPanel(completion,draft){const valid=[draft.strength?.chairStand?.valid,draft.strength?.push?.valid,draft.strength?.trxRow?.valid,draft.cardio?.valid].filter((value)=>value===true).length;const scoring=scoreIriPerformance(draft);const global=scoring.global||{};return `<section class="completion-panel"><div><span>Completitud del proceso</span><strong>${completion.percent}%</strong><small>${completion.complete} de ${completion.total} etapas</small></div><div><span>Puntuación funcional IRI</span><strong>${global.available?number(global.score10,1)+'/10':'—'}</strong><small>${global.available?global.coverage.scoredDomains+'/3 dominios puntuables':'Cobertura insuficiente'}</small></div><div><span>Confianza de la nota</span><strong>${global.confidence==='high'?'Alta':global.confidence==='moderate'?'Moderada':'Insuficiente'}</strong><small>Composición y fotogrametría no alteran esta nota</small></div></section>`;}
