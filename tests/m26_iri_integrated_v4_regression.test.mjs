@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {normalizeFirstSessionDraft} from '../src/m26/workflows/iri-first-session.js';
+import {normalizeFirstSessionDraft,__iriFirstSessionInternals} from '../src/m26/workflows/iri-first-session.js';
 import {buildIriReportHtml,__iriReportInternals} from '../src/m26/workflows/iri-report-document.js';
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
@@ -102,4 +102,32 @@ test('el stepper no puede saltar etapas futuras y el consentimiento físico se p
   assert.match(workflow,/persistPhysicalConsentBeforeTesting/u);
   assert.match(workflow,/if\(step==='entrevista'\)await persistPhysicalConsentBeforeTesting\(form,draft\)/u);
   assert.match(workflow,/registrado antes de iniciar movilidad, fuerza y capacidad de esfuerzo/u);
+});
+
+
+test('la cobertura mínima usa Movilidad + Fuerza + Cardio y deja composición fuera de la nota funcional',()=>{
+  const client={id:'11111111-1111-4111-8111-111111111111'};
+  const draft=normalizeFirstSessionDraft(raw(),client,'CLIENT-QA');
+  const coverage=__iriFirstSessionInternals.coreDomainCoverage(draft);
+  assert.deepEqual(Object.keys(coverage.states),['mobility','strength','cardio']);
+  assert.equal(coverage.states.mobility,true);
+  assert.equal(coverage.states.strength,true);
+  assert.equal(coverage.states.cardio,false);
+  assert.equal(coverage.complete,true);
+  assert.equal(coverage.bodyCompositionRecorded,true);
+
+  const noMobility=normalizeFirstSessionDraft({
+    ...raw(),
+    mobilitySkipped:'on',
+    mobilitySkipReason:'No realizada',
+    ankleLeft1:'',ankleLeft2:'',ankleLeft3:'',ankleRight1:'',ankleRight2:'',ankleRight3:'',
+    posteriorLeft1:'',posteriorLeft2:'',posteriorLeft3:'',posteriorRight1:'',posteriorRight2:'',posteriorRight3:'',
+    hipRotationResult:'',squatDepth:'',
+  },client,'CLIENT-QA');
+  const onlyStrength=__iriFirstSessionInternals.coreDomainCoverage(noMobility);
+  assert.equal(onlyStrength.bodyCompositionRecorded,true);
+  assert.equal(onlyStrength.states.mobility,false);
+  assert.equal(onlyStrength.states.strength,true);
+  assert.equal(onlyStrength.states.cardio,false);
+  assert.equal(onlyStrength.complete,false);
 });
