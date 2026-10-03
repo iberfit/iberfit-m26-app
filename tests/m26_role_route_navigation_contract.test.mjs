@@ -95,9 +95,18 @@ test('Admin mantiene namespace propio y sólo abre contexto profesional acotado'
   assert.equal(resolveM26Route(readyState('admin'),'iri').area,'admin-inicio');
 
   const state=readyState('admin');
+  const adminNav=navigationKeys('admin');
+  for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
+    assert.equal(adminNav.context.includes(area),true,`${area} must be discoverable in Admin navigation`);
+  }
   const contextual=resolveM26Route(state,'admin-iri');
   assert.equal(contextual.area,'admin-iri');
   assert.equal(contextual.allowed,true);
+  const withoutClient=readyState('admin',{selectedClientId:null,collections:{clients:[]}});
+  assert.deepEqual(
+    resolveM26Route(withoutClient,'admin-iri'),
+    {area:'admin-clientes',allowed:false,reason:'M26_CLIENT_CONTEXT_REQUIRED',contextClientId:null},
+  );
   const library=resolveM26Route(state,'biblioteca');
   assert.equal(library.area,'biblioteca');
   assert.equal(library.allowed,true);
