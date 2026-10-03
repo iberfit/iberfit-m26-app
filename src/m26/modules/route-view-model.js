@@ -3,6 +3,7 @@ import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js'
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
+import {adminClientContextBaseArea} from '../admin/navigation.js';
 import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
@@ -1219,12 +1220,27 @@ function rc71SettingsSnapshot(
 
 
 export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
+  const adminContextBase=String(shellVm?.identity?.role||'')==='admin'
+    ?adminClientContextBaseArea(shellVm?.activeArea)
+    :null;
+  const effectiveShellVm=adminContextBase
+    ?Object.freeze({...shellVm,activeArea:adminContextBase})
+    :shellVm;
   const rc39=augmentRc39ViewModel(
-    createRouteViewModelBase(shellVm,state,now,options),
-    shellVm,
+    createRouteViewModelBase(effectiveShellVm,state,now,options),
+    effectiveShellVm,
     state,
     now
   );
-  const communication=createCommunicationRouteViewModel(rc39,shellVm,state);
+  const communication=createCommunicationRouteViewModel(rc39,effectiveShellVm,state);
+  if(adminContextBase){
+    return Object.freeze({
+      ...communication,
+      role:'admin',
+      adminContext:true,
+      adminContextArea:String(shellVm.activeArea),
+      adminContextBase,
+    });
+  }
   return createAdminRouteViewModel(communication,shellVm,state,now);
 }
