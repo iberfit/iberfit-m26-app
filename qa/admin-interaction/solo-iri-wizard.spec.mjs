@@ -29,7 +29,8 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(frequency.locator('xpath=..')).toHaveAttribute('hidden','');
   await expect(duration.locator('xpath=..')).toHaveAttribute('hidden','');
   await expect(assessment).toHaveValue('iri');
-  expect(await assessment.locator('option[value="deferred"]').isDisabled()).toBe(true);
+  await expect(assessment).toBeDisabled();
+  await expect(assessment.locator('option[value="deferred"]')).toHaveAttribute('disabled','');
   await expect(access).toHaveValue('internal');
   await expect(notice).toBeVisible();
   await expect(notice).toContainText('Se creará una persona con expediente IRI, sin entrenamiento activo.');
@@ -55,6 +56,7 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(restored.locator('[name="weeklyFrequency"]')).toBeDisabled();
   await expect(restored.locator('[name="sessionDurationMinutes"]')).toBeDisabled();
   await expect(restored.locator('[name="initialAssessmentMode"]')).toHaveValue('iri');
+  await expect(restored.locator('[name="initialAssessmentMode"]')).toBeDisabled();
   await expect(restored.locator('[name="accessMode"]')).toHaveValue('internal');
 
   await restored.locator('[name="serviceIntent"]').selectOption('training');
@@ -62,7 +64,8 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(restored.locator('[name="sessionDurationMinutes"]')).toBeEnabled();
   await expect(restored.locator('[name="weeklyFrequency"]')).toHaveAttribute('required','');
   await expect(restored.locator('[name="sessionDurationMinutes"]')).toHaveAttribute('required','');
-  expect(await restored.locator('[name="initialAssessmentMode"] option[value="deferred"]').isDisabled()).toBe(false);
+  await expect(restored.locator('[name="initialAssessmentMode"]')).toBeEnabled();
+  await expect(restored.locator('[name="initialAssessmentMode"] option[value="deferred"]')).not.toHaveAttribute('disabled');
   await expect(restored.locator('[name="accessMode"]')).toHaveValue('app');
 
   await restored.locator('[name="serviceIntent"]').selectOption('iri_only');
