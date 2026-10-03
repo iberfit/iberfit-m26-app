@@ -37,7 +37,7 @@ test('Admin audit exercises operational routes and real management actions',asyn
     const report=JSON.parse(await readFile(path.join(out,'admin-actions-latest.json'),'utf8'));
     assert.equal(report.ok,true);
     assert.equal(report.coverage.audited,report.coverage.allowed);
-    assert.equal(report.coverage.allowed,12);
+    assert.equal(report.coverage.allowed,16);
     assert.equal(report.coverage.actionableAudited,ACTIONABLE_AREAS.length);
     assert.ok(report.coverage.interactiveButtons>0);
     assert.deepEqual(report.coverage.missingFormKinds,[]);
@@ -52,6 +52,12 @@ test('Admin audit exercises operational routes and real management actions',asyn
     const library=report.routes.find((item)=>item.area==='biblioteca');
     assert.ok(library,'missing shared Admin library route');
     assert.equal(library.kind,'biblioteca');
+    for(const area of ['expediente','iri','informes','notas']){
+      const route=report.routes.find((item)=>item.area===area);
+      assert.ok(route,`missing bounded Admin context route ${area}`);
+      assert.notEqual(route.kind,'admin-unavailable');
+      assert.notEqual(route.kind,'admin-forbidden');
+    }
   }finally{
     await rm(out,{recursive:true,force:true});
   }
