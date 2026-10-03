@@ -53,8 +53,9 @@ test('visualizaciones editoriales son accesibles, CSP-safe y no fuerzan escalas 
   assert.doesNotMatch(visuals,/\sstyle="/u);
   assert.match(html,/role="img"/);
   assert.match(html,/Mapa funcional/);
+  assert.match(html,/Fotogrametría/);
   assert.match(html,/Fuerza por patrones/);
-  assert.match(html,/baseline individual/i);
+  assert.match(html,/referencia inicial individual/i);
   assert.match(html,/no hereda baremos YMCA/i);
   assert.doesNotMatch(html,/buena salud cardiovascular/i);
 });
