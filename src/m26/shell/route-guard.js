@@ -62,7 +62,7 @@ export function resolveM26Route(state, requestedArea = state?.activeArea) {
 
   if (['selected-client', 'client-context'].includes(definition.scope)) {
     if (!selectedClientId || !visible.has(selectedClientId)) {
-      return result('clientes', false, 'M26_CLIENT_CONTEXT_REQUIRED');
+      return result(role==='admin'?'admin-clientes':'clientes', false, 'M26_CLIENT_CONTEXT_REQUIRED');
     }
     return result(requested, true, null, selectedClientId);
   }
