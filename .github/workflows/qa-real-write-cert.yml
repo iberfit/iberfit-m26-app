@@ -94,5 +94,6 @@ jobs:
           path: |
             recovery/P0_QA_REAL_WRITE_EVIDENCE.json
             recovery/iri-report-emission/qa-evidence.json
+            recovery/iri-report-emission/qa-issued-report.pdf
           if-no-files-found: error
           retention-days: 30
