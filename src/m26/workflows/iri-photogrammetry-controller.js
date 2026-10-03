@@ -1,5 +1,6 @@
 import {
   IRI_PHOTO_CONSENT_VERSION,
+  IRI_PHOTO_REPORT_PERMISSION_VERSION,
   IRI_PHYSICAL_CONSENT_VERSION,
   createIriPhotogrammetryService,
   friendlyIriPhotoError,
@@ -12,12 +13,17 @@ import {
 import {
   IRI_PHOTO_LANDMARKS,
   IRI_PHOTO_VIEWS,
-  calculatePhotogrammetryMeasurements,
-  interpretPhotogrammetryMeasurements,
   normalizeManualLandmarks,
-  photogrammetryDataQuality,
   validateManualLandmarks,
 } from './iri-photogrammetry.js';
+import {
+  calculatePhotogrammetryMeasurementsV2,
+  interpretPhotogrammetryMeasurementsV2,
+  normalizePhotoCalibrations,
+  photogrammetryDataQualityV2,
+  photogrammetryOverlaySegmentsV2,
+} from './iri-photogrammetry-v2.js';
+import {buildIriPhotogrammetryDecisionSupport} from './iri-evidence-engine.js';
 
 const VIEW_LABELS=Object.freeze({
   front:'Frontal',
@@ -125,10 +131,49 @@ function interpretationRows(interpretation={}){
   return `<div class="m26-photo-findings">${signalHtml}${differenceHtml}</div><p class="m26-photo-notice">Lectura geométrica orientativa. No clasifica una postura como sana/enferma ni sustituye evaluación clínica.</p>`;
 }
 
+function metricValue(item={}){
+  const value=Number(item?.value);
+  if(!Number.isFinite(value))return '—';
+  const unit=item?.unit==='cm'?' cm':'°';
+  return `${value.toFixed(1)}${unit}`;
+}
 function metricRows(measurements={}){
   const rows=Array.isArray(measurements?.metrics)?measurements.metrics:[];
   if(!rows.length)return '<p class="m26-photo-empty">Aún no hay medidas geométricas.</p>';
-  return `<div class="m26-photo-metrics">${rows.map((item)=>`<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}°</strong><small>${escapeHtml(VIEW_LABELS[item.view]||item.view)}</small></div>`).join('')}</div>`;
+  return `<div class="m26-photo-metrics">${rows.map((item)=>`<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(metricValue(item))}</strong><small>${escapeHtml(VIEW_LABELS[item.view]||item.view)} · ${item.kind==='calibrated_geometry'?'calibrada':'angular'}</small></div>`).join('')}</div>`;
+}
+const SEGMENT_METRICS=Object.freeze({
+  shoulders:Object.freeze(['shoulderTilt','shoulderHeightDifference']),
+  pelvis:Object.freeze(['pelvisTilt','pelvisHeightDifference']),
+  head:Object.freeze(['headOffset','earShoulderHorizontal']),
+  trunk:Object.freeze(['trunkInclination','shoulderHipHorizontal']),
+  lowerAxis:Object.freeze(['bodyAxis']),
+});
+function segmentValue(view,id,measurements={}){
+  const rows=Array.isArray(measurements?.metrics)?measurements.metrics:[];
+  const suffixes=SEGMENT_METRICS[id]||[];
+  return rows.filter((item)=>item?.view===view&&suffixes.some((suffix)=>String(item.id||'').endsWith(`.${suffix}`)))
+    .map(metricValue).filter((value)=>value!=='—').join(' · ');
+}
+function overlayMarkup(view,landmarks,measurements,calibrationByView={}){
+  const segments=photogrammetryOverlaySegmentsV2(view,landmarks);
+  const segmentHtml=segments.map((segment)=>{
+    const x1=segment.a.x*1000,y1=segment.a.y*1000,x2=segment.b.x*1000,y2=segment.b.y*1000;
+    const label=segmentValue(view,segment.id,measurements);
+    const mx=(x1+x2)/2,my=(y1+y2)/2;
+    return `<g class="m26-photo-segment" data-iri-photo-segment="${escapeHtml(view)}:${escapeHtml(segment.id)}" data-from="${escapeHtml(segment.from)}" data-to="${escapeHtml(segment.to)}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line><text x="${mx}" y="${my-18}" text-anchor="middle" data-iri-photo-segment-value>${escapeHtml(label)}</text></g>`;
+  }).join('');
+  const calibration=calibrationByView?.[view];
+  const calibrationHtml=calibration
+    ?`<g class="m26-photo-calibration-line" data-iri-photo-calibration-line="${escapeHtml(view)}"><line x1="${calibration.pointA.x*1000}" y1="${calibration.pointA.y*1000}" x2="${calibration.pointB.x*1000}" y2="${calibration.pointB.y*1000}"></line><text x="${((calibration.pointA.x+calibration.pointB.x)/2)*1000}" y="${((calibration.pointA.y+calibration.pointB.y)/2)*1000-18}" text-anchor="middle">${escapeHtml(Number(calibration.knownLengthCm).toFixed(1))} cm · referencia</text></g>`
+    :'';
+  return calibrationHtml+segmentHtml;
+}
+function decisionRows(support={}){
+  if(!support?.available)return '<p class="m26-photo-notice">La lectura integrada se habilita al validar las cuatro vistas.</p>';
+  const findings=Array.isArray(support.findings)?support.findings:[];
+  if(!findings.length)return '<p class="m26-photo-notice">Sin patrones reproducidos que requieran elevarse a decisión de entrenamiento.</p>';
+  return `<div class="m26-photo-findings">${findings.map((item)=>`<article class="m26-photo-finding"><span>${item.support==='multi_source'?'Evidencia cruzada':'Evidencia descriptiva'}</span><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.meaning)}</p><small>${escapeHtml(item.action)}</small></article>`).join('')}</div>`;
 }
 
 export function createIriPhotogrammetryController({
@@ -142,7 +187,7 @@ export function createIriPhotogrammetryController({
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_IRI_PHOTO_CONTROLLER_REQUIRED');
   const service=createIriPhotogrammetryService({runtime});
   let mounted=false,observer=null,loadScheduled=false,busy=false;
-  let contextKey='',remote=null,signedUrls={},landmarks={},activeMarker=null;
+  let contextKey='',remote=null,signedUrls={},landmarks={},calibrationByView={},activeMarker=null,calibrationMarker=null;
 
   function context(){return resolveIriPhotogrammetryContext(store.getState());}
   function host(){return root.querySelector?.('[data-iri-photogrammetry-host]')||null;}
@@ -160,11 +205,31 @@ export function createIriPhotogrammetryController({
   function currentQuality(){
     const captures=Object.values(remote?.latestCaptures||{});
     const validation=validateManualLandmarks(landmarks,ALL_VIEWS.filter((view)=>remote?.latestCaptures?.[view]));
-    return photogrammetryDataQuality({
+    return photogrammetryDataQualityV2({
       captures,
       landmarks,
+      calibrationByView,
       validated:remote?.analysis?.status==='validated'&&validation.ok&&ALL_VIEWS.every((view)=>iriPhotoAnalysisMatchesCapture(remote?.analysis,remote?.latestCaptures?.[view],view)),
     });
+  }
+  function currentAssessmentDraft(){
+    const state=store.getState()||{};
+    const assessmentId=context().assessmentId;
+    const record=(state?.collections?.iriAssessments||[]).find((item)=>String(item?.id||item?.body?.id||'')===String(assessmentId||''))||{};
+    const body=record?.body&&typeof record.body==='object'?record.body:record;
+    return body?.firstSessionDraft||body?.first_session_draft||body?.firstSession||body;
+  }
+  function currentMeasurements(latest=remote?.latestCaptures||{}){
+    return calculatePhotogrammetryMeasurementsV2(landmarks,{
+      dimensionsByView:dimensionsForLatest(latest),
+      calibrationByView,
+    });
+  }
+  function currentDecisionSupport(measurements=currentMeasurements(),quality=currentQuality()){
+    return buildIriPhotogrammetryDecisionSupport({measurements,quality,draft:currentAssessmentDraft()});
+  }
+  function reportPermissionActive(){
+    return remote?.reportPermission?.status==='granted';
   }
   function photoConsentActive(){
     return granted(remote?.photographyConsent,'photography',IRI_PHOTO_CONSENT_VERSION);
@@ -188,10 +253,12 @@ export function createIriPhotogrammetryController({
     const url=signedUrls[view]||'';
     const points=landmarks?.[view]||{};
     const photoAllowed=photoConsentActive();
+    const measurements=currentMeasurements();
+    const calibration=calibrationByView?.[view]||null;
     return `<article class="m26-photo-view" data-iri-photo-view="${view}">
       <div class="m26-photo-view-head"><div><p class="m26-eyebrow">${escapeHtml(VIEW_LABELS[view])}</p><h4>${capture?'Original protegido':'Captura pendiente'}</h4></div><span class="m26-photo-state">${escapeHtml(capture?captureQualityCopy(capture):pending?'Subida incompleta':'Sin foto')}</span></div>
-      <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${url?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa un punto y pulsa sobre la imagen para marcarlo.':'Sin fotografía activa.'}">
-        ${url?`<div class="m26-photo-canvas" data-iri-photo-canvas="${view}"><img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false"><svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="false">${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg></div>`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original no se publica en el informe.</small></div>'}
+      <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${url?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa una referencia o una calibración y pulsa sobre la imagen.':'Sin fotografía activa.'}">
+        ${url?`<div class="m26-photo-canvas" data-iri-photo-canvas="${view}"><img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false"><svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="false">${overlayMarkup(view,landmarks,measurements,calibrationByView)}${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg></div>`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original permanece privado.</small></div>'}
       </div>
       <div class="m26-photo-view-actions">
         <label class="m26-photo-file ${photoAllowed?'':'is-disabled'}">Tomar o elegir foto
@@ -200,7 +267,13 @@ export function createIriPhotogrammetryController({
         ${pending?`<button type="button" data-iri-photo-recover="${escapeHtml(pending.id)}" data-view="${view}">Recuperar subida</button>`:''}
       </div>
       ${capture?`<p class="m26-photo-meta">Capturada ${escapeHtml(formatDate(capture.capturedAt))} · SHA-256 ${escapeHtml(capture.sha256.slice(0,10))}…</p>`:''}
-      ${url?`<div class="m26-photo-landmarks"><p><strong>Referencias visuales.</strong> No representan acromion, EIAS ni otros puntos anatómicos exactos sin validación profesional.</p><div>${markerButtons(view,landmarks)}</div></div>`:''}
+      ${url?`<div class="m26-photo-landmarks"><p><strong>Puntos y líneas.</strong> Coloca las referencias y la app actualiza ángulos y segmentos. El Coach valida el resultado.</p><div>${markerButtons(view,landmarks)}</div></div>
+      <div class="m26-photo-calibration">
+        <div><strong>Escala física opcional</strong><small>Para obtener centímetros, coloca una regla/objeto de longitud conocida en el mismo plano que la persona.</small></div>
+        <label>Longitud real <input type="number" min="1" max="300" step="0.1" inputmode="decimal" data-iri-photo-calibration-length="${view}" value="${calibration?escapeHtml(calibration.knownLengthCm):''}" placeholder="cm"> cm</label>
+        <button type="button" data-iri-photo-calibrate="${view}">${calibration?'Recalibrar':'Marcar 2 puntos de escala'}</button>
+        <span>${calibration?`Calibrada con ${escapeHtml(Number(calibration.knownLengthCm).toFixed(1))} cm`:'Sin escala: sólo ángulos'}</span>
+      </div>`:''}
     </article>`;
   }
   function render(){
@@ -213,8 +286,9 @@ export function createIriPhotogrammetryController({
     const physical=granted(remote.physicalConsent,'physical_assessment',IRI_PHYSICAL_CONSENT_VERSION);
     const photo=photoConsentActive();
     const quality=currentQuality();
-    const measurements=calculatePhotogrammetryMeasurements(landmarks,{dimensionsByView:dimensionsForLatest()});
-    const interpretation=interpretPhotogrammetryMeasurements(measurements,{quality});
+    const measurements=currentMeasurements();
+    const interpretation=interpretPhotogrammetryMeasurementsV2(measurements,{quality});
+    const decisionSupport=currentDecisionSupport(measurements,quality);
     const allCaptured=ALL_VIEWS.every((view)=>Boolean(remote.latestCaptures?.[view]));
     const allMarked=validateManualLandmarks(landmarks,ALL_VIEWS).ok;
     const canValidate=photo&&allCaptured&&allMarked&&!busy;
@@ -226,10 +300,16 @@ export function createIriPhotogrammetryController({
       </header>
       <section class="m26-photo-consents" aria-label="Consentimientos IRI">
         <article><div><strong>Evaluación física</strong><small>${physical?'Consentimiento registrado':'Se registrará al validar la etapa de entrevista.'}</small></div><span class="${physical?'is-ok':'is-pending'}">${physical?'Registrado':'Pendiente'}</span></article>
-        <article><div><strong>Fotografías privadas</strong><small>Uso exclusivo Coach/Admin para este IRI. No se incluyen en el informe por defecto.</small></div>
+        <article><div><strong>Fotografías privadas</strong><small>Autoriza captura, almacenamiento privado y análisis técnico para este IRI.</small></div>
           <div class="m26-photo-consent-actions">
             <span class="${photo?'is-ok':'is-pending'}">${photo?'Autorizadas':'Sin autorización'}</span>
             <button type="button" data-iri-photo-consent="${photo?'revoke':'grant'}" ${busy?'disabled':''}>${photo?'Revocar nuevas consultas':'Autorizar fotografías'}</button>
+          </div>
+        </article>
+        <article><div><strong>Fotos en informe Cliente</strong><small>Permiso independiente: el análisis puede existir sin publicar las imágenes en el documento entregable.</small></div>
+          <div class="m26-photo-consent-actions">
+            <span class="${reportPermissionActive()?'is-ok':'is-pending'}">${reportPermissionActive()?'Permitidas':'No permitidas'}</span>
+            <button type="button" data-iri-photo-report-permission="${reportPermissionActive()?'revoke':'grant'}" ${photo&&!busy?'':'disabled'}>${reportPermissionActive()?'No incluir fotos':'Permitir fotos en informe'}</button>
           </div>
         </article>
       </section>
@@ -237,15 +317,16 @@ export function createIriPhotogrammetryController({
       ${pendingCount?`<p class="m26-photo-notice is-warning">${pendingCount} subida${pendingCount===1?'':'s'} preparada${pendingCount===1?'':'s'} pendiente${pendingCount===1?'':'s'} de finalizar. Puedes recuperarla sin sobrescribir el original.</p>`:''}
       <div class="m26-photo-grid">${ALL_VIEWS.map(captureCard).join('')}</div>
       <section class="m26-photo-analysis">
-        <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado</p><h4>Medidas geométricas orientativas</h4><p>Los ángulos se calculan exclusivamente desde los puntos que el Coach coloca y valida.</p></div><span>Revisión ${Number(remote.analysis?.revision||0)}</span></div>
+        <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado · v2</p><h4>Ángulos, distancias calibradas y evidencia cruzada</h4><p>Los ángulos nacen de los puntos validados. Los centímetros sólo aparecen cuando existe una escala física explícita.</p></div><span>Revisión v2 ${Number(remote.analysisV2?.revision||0)}</span></div>
         ${metricRows(measurements)}
-        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Observaciones automáticas</p>${interpretationRows(interpretation)}</div>
+        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Observaciones geométricas</p>${interpretationRows(interpretation)}</div>
+        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Lectura IRI para decisión del Coach</p>${decisionRows(decisionSupport)}</div>
         <div class="m26-photo-analysis-actions">
           <button type="button" data-iri-photo-analysis="draft" ${photo&&!busy?'':'disabled'}>Guardar borrador</button>
           <button type="button" class="m26-primary-action" data-iri-photo-analysis="validate" ${canValidate?'':'disabled'}>Validar análisis de 4 vistas</button>
         </div>
         <p class="m26-photo-notice">Calidad: ${escapeHtml(qualityLabel(quality))}. ${allCaptured?'Las 4 vistas están presentes.':'Faltan vistas.'} ${allMarked?'Todos los puntos requeridos están marcados.':'Faltan referencias visuales.'}</p>
-        <p class="m26-photo-safety"><strong>Sin diagnóstico automático.</strong> Una asimetría geométrica no equivale por sí sola a patología, lesión ni indicación terapéutica.</p>
+        <p class="m26-photo-safety"><strong>Sin diagnóstico médico automático.</strong> IBERFIT puede relacionar medidas con movilidad y movimiento para apoyar decisiones de entrenamiento, pero una asimetría no equivale por sí sola a patología, lesión ni indicación terapéutica.</p>
       </section>
       <p data-iri-photo-status role="status" aria-live="polite"></p>
     </section>`;
@@ -257,6 +338,17 @@ export function createIriPhotogrammetryController({
       const x=Math.max(0,Math.min(1,Number(point.dataset.x)||0))*1000;
       const y=Math.max(0,Math.min(1,Number(point.dataset.y)||0))*1000;
       point.setAttribute?.('transform',`translate(${x} ${y})`);
+    }
+  }
+  function positionOverlay(view){
+    const measurements=currentMeasurements();
+    for(const group of root.querySelectorAll?.(`[data-iri-photo-segment^="${view}:"]`)||[]){
+      const from=landmarks?.[view]?.[group.dataset.from],to=landmarks?.[view]?.[group.dataset.to];
+      if(!from||!to)continue;
+      const line=group.querySelector?.('line'),label=group.querySelector?.('[data-iri-photo-segment-value]');
+      const x1=from.x*1000,y1=from.y*1000,x2=to.x*1000,y2=to.y*1000;
+      line?.setAttribute?.('x1',x1);line?.setAttribute?.('y1',y1);line?.setAttribute?.('x2',x2);line?.setAttribute?.('y2',y2);
+      if(label){label.setAttribute?.('x',(x1+x2)/2);label.setAttribute?.('y',(y1+y2)/2-18);label.textContent=segmentValue(view,String(group.dataset.iriPhotoSegment||'').split(':')[1],measurements);}
     }
   }
   function scheduleLoad(){
@@ -275,59 +367,73 @@ export function createIriPhotogrammetryController({
   async function load({force=false}={}){
     const node=host();if(!node)return null;
     const ctx=context();const key=`${ctx.role}:${ctx.clientId||''}:${ctx.assessmentId||''}`;
-    if(!ctx.canManage||!ctx.assessmentId){contextKey=key;remote=null;signedUrls={};landmarks={};render();return null;}
+    if(!ctx.canManage||!ctx.assessmentId){contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();return null;}
     if(!force&&remote&&contextKey===key){
       const node=host();
       if(node&&!node.querySelector?.('[data-iri-photo-loaded="true"]'))render();
       return remote;
     }
-    contextKey=key;remote=null;signedUrls={};landmarks={};render();
+    contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();
     const token=await getToken();
     const next=await service.state(token,{assessmentId:ctx.assessmentId});
     if(contextKey!==key)return null;
     remote=next;
     landmarks=landmarksForLatestCaptures(next.analysis,next.latestCaptures);
+    calibrationByView=normalizePhotoCalibrations(next.analysisV2?.calibration||{});
     signedUrls=await signedUrlsFor(next,token);
     if(contextKey!==key)return null;
     render();return remote;
   }
-  async function clientSnapshotForPdf(assessmentId){
+  async function clientSnapshotForPdf(assessmentId,{audience='client'}={}){
     const requested=clean(assessmentId,80);
+    const targetAudience=audience==='coach'?'coach':'client';
     const ctx=context();
     if(!requested||!ctx.canManage||ctx.assessmentId!==requested)throw new Error('M26_IRI_PHOTO_SCOPE_MISMATCH');
     if(!isOnline())throw new Error('M26_IRI_PHOTO_OFFLINE');
     const token=await getToken();
     const snapshot=await service.state(token,{assessmentId:requested});
     if(!granted(snapshot.photographyConsent,'photography',IRI_PHOTO_CONSENT_VERSION)){
-      return Object.freeze({assessmentId:requested,available:false,reason:'consent',photos:Object.freeze([]),quality:Object.freeze({level:'sin_datos',capturedViews:0,analyzedViews:0,validated:false}),interpretation:null});
+      return Object.freeze({assessmentId:requested,available:false,reason:'consent',photos:Object.freeze([]),photosAllowed:false,quality:Object.freeze({level:'sin_datos',capturedViews:0,analyzedViews:0,validated:false}),interpretation:null,decisionSupport:null});
     }
     const latest=snapshot.latestCaptures||{};
     const linkedLandmarks=landmarksForLatestCaptures(snapshot.analysis,latest);
+    const linkedCalibration=normalizePhotoCalibrations(snapshot.analysisV2?.calibration||{});
     const validation=validateManualLandmarks(linkedLandmarks,ALL_VIEWS.filter((view)=>latest?.[view]));
     const validated=Boolean(
       snapshot.analysis?.status==='validated'&&validation.ok&&ALL_VIEWS.every((view)=>iriPhotoAnalysisMatchesCapture(snapshot.analysis,latest?.[view],view))
     );
-    const quality=photogrammetryDataQuality({captures:Object.values(latest),landmarks:linkedLandmarks,validated});
-    const interpretation=interpretPhotogrammetryMeasurements(snapshot.analysis?.measurements||{}, {quality});
-    const urls=await signedUrlsFor(snapshot,token);
-    const photos=ALL_VIEWS.flatMap((view)=>{
+    const quality=photogrammetryDataQualityV2({captures:Object.values(latest),landmarks:linkedLandmarks,calibrationByView:linkedCalibration,validated});
+    const measurements=snapshot.analysis?.measurements&&typeof snapshot.analysis.measurements==='object'?structuredClone(snapshot.analysis.measurements):{};
+    const interpretation=interpretPhotogrammetryMeasurementsV2(measurements,{quality});
+    const decisionSupport=snapshot.analysisV2?.decisionSupport&&typeof snapshot.analysisV2.decisionSupport==='object'
+      ?structuredClone(snapshot.analysisV2.decisionSupport)
+      :buildIriPhotogrammetryDecisionSupport({measurements,quality,draft:currentAssessmentDraft()});
+    const photosAllowed=targetAudience==='coach'||snapshot.reportPermission?.status==='granted';
+    const urls=photosAllowed?await signedUrlsFor(snapshot,token):{};
+    const photos=photosAllowed?ALL_VIEWS.flatMap((view)=>{
       const capture=latest?.[view],url=urls?.[view];
       if(!capture||!url)return [];
       return [Object.freeze({
         view,url,capturedAt:capture.capturedAt||capture.createdAt||null,
         widthPx:Number(capture.widthPx)||null,heightPx:Number(capture.heightPx)||null,
       })];
-    });
+    }):[];
     return Object.freeze({
       assessmentId:requested,
-      available:photos.length>0,
-      reason:photos.length?'':'unavailable',
+      available:Boolean(snapshot.analysis||photos.length),
+      reason:photos.length?'':photosAllowed?'analysis-only':'report-permission',
+      audience:targetAudience,
+      photosAllowed,
       photos:Object.freeze(photos),
       landmarks:structuredClone(linkedLandmarks),
+      calibration:structuredClone(linkedCalibration),
       quality,
       analysisStatus:snapshot.analysis?.status||null,
-      measurements:snapshot.analysis?.measurements&&typeof snapshot.analysis.measurements==='object'?structuredClone(snapshot.analysis.measurements):{},
+      analysisRevision:Number(snapshot.analysisV2?.revision||snapshot.analysis?.revision||0),
+      protocolVersion:snapshot.analysisV2?.protocolVersion||snapshot.analysis?.protocolVersion||null,
+      measurements,
       interpretation,
+      decisionSupport,
     });
   }
 
@@ -349,6 +455,19 @@ export function createIriPhotogrammetryController({
     const token=await getToken();
     const statusValue=action==='grant'?'granted':'revoked';
     await service.recordConsent(token,{clientId:ctx.clientId,assessmentId:ctx.assessmentId,consentType:'photography',status:statusValue,documentVersion:IRI_PHOTO_CONSENT_VERSION,note:statusValue==='granted'?'Uso privado para fotogrametría IRI.':'Consentimiento fotográfico revocado.'});
+    await load({force:true});
+  }
+  async function setReportPermission(action){
+    const ctx=context();if(!ctx.canManage||!ctx.assessmentId)throw new Error('M26_IRI_PHOTO_SCOPE_MISMATCH');
+    if(!isOnline())throw new Error('M26_IRI_PHOTO_OFFLINE');
+    if(!photoConsentActive())throw new Error('M26_IRI_V4_PHOTOGRAPHY_CONSENT_REQUIRED');
+    const statusValue=action==='grant'?'granted':'revoked';
+    const token=await getToken();
+    await service.recordReportPermission(token,{
+      clientId:ctx.clientId,assessmentId:ctx.assessmentId,status:statusValue,
+      documentVersion:IRI_PHOTO_REPORT_PERMISSION_VERSION,
+      note:statusValue==='granted'?'Autorizada la inclusión de fotografías IRI en el informe Cliente.':'Fotografías excluidas del informe Cliente.',
+    });
     await load({force:true});
   }
   async function uploadView(input){
@@ -400,6 +519,7 @@ export function createIriPhotogrammetryController({
   function activateMarker(value){
     const [view,key]=String(value||'').split(':');
     if(!ALL_VIEWS.includes(view)||!IRI_PHOTO_LANDMARKS[view]?.includes(key))return;
+    calibrationMarker=null;
     activeMarker={view,key};
     for(const button of root.querySelectorAll?.('[data-iri-photo-mark]')||[]){
       const active=button.dataset.iriPhotoMark===`${view}:${key}`;
@@ -407,11 +527,41 @@ export function createIriPhotogrammetryController({
     }
     status(`Marca “${LANDMARK_LABELS[key]}” sobre la vista ${VIEW_LABELS[view].toLowerCase()}.`,'info');
   }
+  function beginCalibration(button){
+    const view=String(button?.dataset?.iriPhotoCalibrate||'');
+    if(!ALL_VIEWS.includes(view))return false;
+    const card=button.closest?.('[data-iri-photo-view]');
+    const input=card?.querySelector?.(`[data-iri-photo-calibration-length="${view}"]`);
+    const knownLengthCm=Number(input?.value);
+    if(!Number.isFinite(knownLengthCm)||knownLengthCm<1||knownLengthCm>300){
+      status('Introduce una longitud real entre 1 y 300 cm antes de marcar la escala.','error');return false;
+    }
+    activeMarker=null;
+    calibrationMarker={view,knownLengthCm,pointA:null};
+    status(`Calibración ${VIEW_LABELS[view].toLowerCase()}: marca el primer extremo de la referencia de ${knownLengthCm.toFixed(1)} cm.`,'info');
+    return true;
+  }
   function handleStageClick(event){
-    if(!activeMarker)return false;
-    const stage=event.target.closest?.('[data-iri-photo-stage]');if(!stage||stage.dataset.iriPhotoStage!==activeMarker.view)return false;
+    const stage=event.target.closest?.('[data-iri-photo-stage]');if(!stage)return false;
     const canvas=stage.querySelector?.('[data-iri-photo-canvas]');if(!canvas)return false;
     const point=stagePoint(canvas,event);if(!point)return false;
+    if(calibrationMarker&&stage.dataset.iriPhotoStage===calibrationMarker.view){
+      if(!calibrationMarker.pointA){
+        calibrationMarker={...calibrationMarker,pointA:point};
+        status('Primer extremo marcado. Marca ahora el segundo extremo de la referencia conocida.','info');
+      }else{
+        if(calibrationMarker.pointA.x===point.x&&calibrationMarker.pointA.y===point.y){status('Los dos puntos de calibración deben ser distintos.','error');return true;}
+        calibrationByView={...calibrationByView,[calibrationMarker.view]:{
+          knownLengthCm:calibrationMarker.knownLengthCm,
+          pointA:calibrationMarker.pointA,
+          pointB:point,
+          label:'Referencia física',
+        }};
+        calibrationMarker=null;render();status('Escala calibrada. Las medidas lineales en centímetros ya están disponibles para esta vista.','success');
+      }
+      return true;
+    }
+    if(!activeMarker||stage.dataset.iriPhotoStage!==activeMarker.view)return false;
     setPoint(activeMarker.view,activeMarker.key,point.x,point.y);activeMarker=null;render();status('Referencia visual actualizada. Guarda o valida el análisis cuando esté completo.','success');return true;
   }
   function pointKey(event){
@@ -426,7 +576,7 @@ export function createIriPhotogrammetryController({
     const [view,key]=String(button.dataset.iriPhotoPoint||'').split(':');
     const canvas=button.closest?.('[data-iri-photo-canvas]');if(!canvas)return false;
     event.preventDefault();button.setPointerCapture?.(event.pointerId);
-    const move=(moveEvent)=>{const point=stagePoint(canvas,moveEvent);if(point){setPoint(view,key,point.x,point.y);button.dataset.x=String(point.x);button.dataset.y=String(point.y);button.setAttribute?.('transform',`translate(${Math.max(0,Math.min(1,point.x))*1000} ${Math.max(0,Math.min(1,point.y))*1000})`);}}
+    const move=(moveEvent)=>{const point=stagePoint(canvas,moveEvent);if(point){setPoint(view,key,point.x,point.y);button.dataset.x=String(point.x);button.dataset.y=String(point.y);button.setAttribute?.('transform',`translate(${Math.max(0,Math.min(1,point.x))*1000} ${Math.max(0,Math.min(1,point.y))*1000})`);positionOverlay(view);}}
     const end=()=>{button.removeEventListener('pointermove',move);button.removeEventListener('pointerup',end);button.removeEventListener('pointercancel',end);render();};
     button.addEventListener('pointermove',move);button.addEventListener('pointerup',end);button.addEventListener('pointercancel',end);
     return true;
@@ -439,26 +589,32 @@ export function createIriPhotogrammetryController({
     const check=validateManualLandmarks(landmarks,validate?ALL_VIEWS:available);
     if(validate&&(!ALL_VIEWS.every((view)=>latest[view])||!check.ok))throw new Error('M26_IRI_PHOTO_ANALYSIS_INCOMPLETE');
     const normalized=normalizeManualLandmarks(landmarks);
-    const measurements=calculatePhotogrammetryMeasurements(normalized,{dimensionsByView:dimensionsForLatest(latest)});
+    const measurements=currentMeasurements(latest);
+    const quality=photogrammetryDataQualityV2({captures:Object.values(latest),landmarks:normalized,calibrationByView,validated:Boolean(validate)});
+    const decisionSupport=buildIriPhotogrammetryDecisionSupport({measurements,quality,draft:currentAssessmentDraft()});
     const token=await getToken();
-    await service.saveAnalysis(token,{
-      clientId:ctx.clientId,assessmentId:ctx.assessmentId,baseRevision:Number(remote?.analysis?.revision||0),
-      captureIds:ids,validatedLandmarks:normalized,measurements,validate,
+    await service.saveAnalysisV2(token,{
+      clientId:ctx.clientId,assessmentId:ctx.assessmentId,baseRevision:Number(remote?.analysisV2?.revision||0),
+      captureIds:ids,validatedLandmarks:normalized,calibration:calibrationByView,measurements,decisionSupport,validate,
     });
-    await load({force:true});status(validate?'Análisis validado por el Coach.':'Borrador de análisis guardado.','success');
+    await load({force:true});status(validate?'Análisis v2 validado por el Coach y conservado como nueva revisión.':'Nueva revisión de borrador v2 guardada.','success');
   }
 
   async function onClick(event){
     const consent=event.target.closest?.('[data-iri-photo-consent]');
+    const reportPermission=event.target.closest?.('[data-iri-photo-report-permission]');
+    const calibrate=event.target.closest?.('[data-iri-photo-calibrate]');
     const recover=event.target.closest?.('[data-iri-photo-recover]');
     const mark=event.target.closest?.('[data-iri-photo-mark]');
     const analysis=event.target.closest?.('[data-iri-photo-analysis]');
     if(mark){event.preventDefault();activateMarker(mark.dataset.iriPhotoMark);return;}
+    if(calibrate){event.preventDefault();beginCalibration(calibrate);return;}
     if(handleStageClick(event)){event.preventDefault();return;}
-    if(!consent&&!recover&&!analysis)return;
+    if(!consent&&!reportPermission&&!recover&&!analysis)return;
     event.preventDefault();if(busy)return;busy=true;render();
     try{
       if(consent)await setPhotoConsent(consent.dataset.iriPhotoConsent);
+      else if(reportPermission)await setReportPermission(reportPermission.dataset.iriPhotoReportPermission);
       else if(recover)await recoverCapture(recover.dataset.iriPhotoRecover);
       else if(analysis)await saveAnalysis(analysis.dataset.iriPhotoAnalysis==='validate');
     }catch(error){onDiagnostic('iri-photogrammetry-action',error);render();status(friendlyIriPhotoError(error),'error');}
@@ -491,7 +647,7 @@ export function createIriPhotogrammetryController({
     if(!mounted)return;observer?.disconnect?.();observer=null;
     root.removeEventListener('click',onClick);root.removeEventListener('change',onChange);
     root.removeEventListener('pointerdown',onPointerDown);root.removeEventListener('keydown',onKeyDown);
-    mounted=false;remote=null;signedUrls={};landmarks={};activeMarker=null;contextKey='';
+    mounted=false;remote=null;signedUrls={};landmarks={};calibrationByView={};activeMarker=null;calibrationMarker=null;contextKey='';
   }
   return Object.freeze({mount,destroy,load,ensurePhysicalConsent,clientSnapshotForPdf});
 }
