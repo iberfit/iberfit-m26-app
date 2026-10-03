@@ -132,6 +132,8 @@ test('emission broker renders immutable PDFs inside Supabase with IBERFIT tokens
   assert.doesNotMatch(source,/\.\.\/\.\.\/\.\.\/src\/m26\//u);
   assert.match(source,/artifact_sha256/u);
   assert.match(source,/source_sha256/u);
+  assert.match(source,/assessmentMeta\?\.protocolVersion/u);
+  assert.match(source,/assessmentMeta\?\.completedAt/u);
 });
 test('UI separates preview from immutable emission',()=>{
   const route=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
@@ -172,6 +174,8 @@ test('QA real-write gate deploys and certifies the exact self-contained report b
   assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
   assert.match(gate,/withdrawalRequiresPrivilegedAssurance:true/u);
+  assert.match(workflow,/qa-issued-report\.pdf/u);
+  assert.match(gate,/fs\.writeFileSync\(pdfEvidencePath,pdfBytes\)/u);
 });
 
 
