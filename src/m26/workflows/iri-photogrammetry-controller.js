@@ -319,7 +319,6 @@ export function createIriPhotogrammetryController({
       })];
     });
     return Object.freeze({
-    clientSnapshotForPdf,
       assessmentId:requested,
       available:photos.length>0,
       reason:photos.length?'':'unavailable',
@@ -493,7 +492,7 @@ export function createIriPhotogrammetryController({
     root.removeEventListener('pointerdown',onPointerDown);root.removeEventListener('keydown',onKeyDown);
     mounted=false;remote=null;signedUrls={};landmarks={};activeMarker=null;contextKey='';
   }
-  return Object.freeze({mount,destroy,load,ensurePhysicalConsent});
+  return Object.freeze({mount,destroy,load,ensurePhysicalConsent,clientSnapshotForPdf});
 }
 
 export const __iriPhotogrammetryControllerInternals=Object.freeze({
