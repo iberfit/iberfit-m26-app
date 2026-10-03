@@ -143,12 +143,12 @@ test('PDF Cliente contiene hipervínculo estable solo para informe visible de la
   const html=buildIriReportHtml({draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA',externalReport:report});
   assert.match(html,/Documento complementario/);
   assert.match(html,/Informe de bioimpedancia/);
-  assert.match(html,/Abrir informe de bioimpedancia/);
+  assert.match(html,/Abrir documento original/);
   assert.match(html,/href="https:\/\/m26-canary\.iberfit\.cl\/\?area=informes&amp;assessmentId=a82e5560-2f67-4de9-bf5b-ad3bfb289d96&amp;open=bioimpedancia"/);
   assert.doesNotMatch(html,/supabase\.co|\/storage\/v1\/object\/sign|[?&]token=/i);
   for(const externalReport of [null,{...report,visibleToClient:false},{...report,assessmentId:FOREIGN_ID}]){
     const without=buildIriReportHtml({draft,variant:'client',externalReport});
-    assert.doesNotMatch(without,/Abrir informe de bioimpedancia/);
+    assert.doesNotMatch(without,/Abrir documento original/);
   }
 });
 
@@ -217,4 +217,15 @@ test('contrato RC37 permanece intacto y el visor autoriza únicamente el origen 
   const headers=read('public/m26/_headers');
   assert.match(headers,/frame-src 'self' https:\/\/pjhmrhejsoofmouedavw\.supabase\.co/);
   assert.match(headers,/img-src 'self' data: blob: https:\/\/pjhmrhejsoofmouedavw\.supabase\.co/);
+});
+
+
+test('PDF de bioimpedancia se rasteriza de forma privada antes de imprimir el informe IRI',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/workflows/iri-external-report-controller.js',import.meta.url),'utf8');
+  assert.match(source,/pdfjs-3\.2\.146\/pdf\.min\.js/);
+  assert.match(source,/pdfjs-3\.2\.146\/pdf\.worker\.min\.js/);
+  assert.match(source,/renderPdfPrintPreview/);
+  assert.match(source,/printPreview/);
+  assert.match(source,/credentials:'omit'/);
+  assert.match(source,/cache:'no-store'/);
 });
