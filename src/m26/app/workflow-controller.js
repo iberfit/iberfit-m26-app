@@ -934,7 +934,7 @@ export function createWorkflowController({
       if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
       [externalReport,photogrammetryReport]=await Promise.all([
         getIriExternalReport(draft.assessmentId,{variant}),
-        getIriPhotogrammetryReport(draft.assessmentId),
+        getIriPhotogrammetryReport(draft.assessmentId,{variant}),
       ]);
       const result=openIriReportPrint({...reportContext(draft),variant,externalReport,photogrammetryReport,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
     }catch(error){try{printTarget?.close?.();}catch{}throw error;}
@@ -1000,6 +1000,16 @@ export function createWorkflowController({
     finally{if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}}
   }
   async function onClick(event){
+    const setupSummary=event.target.closest?.('details.m26-iri-setup > summary');
+    if(setupSummary){
+      event.preventDefault?.();
+      const details=setupSummary.parentElement;
+      if(details?.tagName==='DETAILS'){
+        details.open=!details.open;
+        setupSummary.setAttribute?.('aria-expanded',details.open?'true':'false');
+      }
+      return;
+    }
     const preset=event.target.closest?.('[data-iri-setup-preset]');
     if(preset){
       event.preventDefault?.();requireCoach();

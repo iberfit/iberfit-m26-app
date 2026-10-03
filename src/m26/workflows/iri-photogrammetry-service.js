@@ -10,6 +10,7 @@ export const IRI_PHOTO_MAX_BYTES=15_000_000;
 export const IRI_PHOTO_MIME_TYPES=Object.freeze(['image/jpeg','image/png']);
 export const IRI_PHYSICAL_CONSENT_VERSION='iri-physical-2026.10-v1';
 export const IRI_PHOTO_CONSENT_VERSION='iri-photo-2026.10-v1';
+export const IRI_PHOTO_REPORT_PERMISSION_VERSION='iri-photo-report-2026.10-v1';
 export const IRI_PHOTO_REQUEST_TIMEOUT_MS=15_000;
 export const IRI_PHOTO_UPLOAD_TIMEOUT_MS=180_000;
 
@@ -27,6 +28,16 @@ const ANALYSIS_SELECT=[
   'left_capture_id','right_capture_id','protocol_version','landmark_schema_version',
   'auto_landmarks','validated_landmarks','measurements','status','revision',
   'validated_by','validated_at','created_by','created_at','updated_at',
+].join(',');
+const ANALYSIS_V2_SELECT=[
+  'id','client_id','assessment_id','revision','front_capture_id','back_capture_id',
+  'left_capture_id','right_capture_id','protocol_version','landmark_schema_version',
+  'validated_landmarks','calibration','measurements','decision_support','status',
+  'validated_by','validated_at','created_by','created_at',
+].join(',');
+const REPORT_PERMISSION_SELECT=[
+  'id','client_id','assessment_id','status','document_version',
+  'recorded_by','recorded_at','note',
 ].join(',');
 const CONSENT_SELECT=[
   'id','client_id','assessment_id','consent_type','status','document_version',
@@ -274,6 +285,30 @@ function normalizeAnalysis(row){
     updatedAt:row.updated_at||row.updatedAt||null,
   });
 }
+function normalizeAnalysisV2(row){
+  const base=normalizeAnalysis(row);
+  if(!base)return null;
+  return Object.freeze({
+    ...base,
+    sourceVersion:'v2',
+    calibration:row.calibration&&typeof row.calibration==='object'&&!Array.isArray(row.calibration)?structuredClone(row.calibration):{},
+    decisionSupport:row.decision_support&&typeof row.decision_support==='object'&&!Array.isArray(row.decision_support)?structuredClone(row.decision_support):{},
+    createdAt:row.created_at||row.createdAt||null,
+  });
+}
+function normalizeReportPermission(row){
+  if(!row||typeof row!=='object'||Array.isArray(row))return null;
+  const id=cleanText(row.id,80),clientId=cleanText(row.client_id||row.clientId,80),assessmentId=cleanText(row.assessment_id||row.assessmentId,80);
+  if(!UUID_PATTERN.test(id)||!UUID_PATTERN.test(clientId)||!UUID_PATTERN.test(assessmentId))return null;
+  return Object.freeze({
+    id,clientId,assessmentId,
+    status:cleanText(row.status,40),
+    documentVersion:cleanText(row.document_version||row.documentVersion,80),
+    recordedBy:cleanText(row.recorded_by||row.recordedBy,80)||null,
+    recordedAt:row.recorded_at||row.recordedAt||null,
+    note:cleanText(row.note,600)||null,
+  });
+}
 export function latestIriConsent(consents=[],type){
   return (Array.isArray(consents)?consents:[])
     .filter((item)=>item?.consentType===type)
@@ -322,21 +357,28 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
   async function state(token,{assessmentId}={}){
     const assessment=validateUuid(assessmentId,'M26_IRI_PHOTO_ASSESSMENT_INVALID');
     const query=(select,extra='')=>`select=${encodeURIComponent(select)}&assessment_id=eq.${encodeURIComponent(assessment)}${extra}`;
-    const [consentRows,captureRows,analysisRows]=await Promise.all([
+    const [consentRows,captureRows,analysisRows,analysisV2Rows,permissionRows]=await Promise.all([
       request(`/rest/v1/iri_consents_v1?${query(CONSENT_SELECT,'&order=recorded_at.desc&limit=50')}`,{token}),
       request(`/rest/v1/iri_photogrammetry_captures_v1?${query(CAPTURE_SELECT,'&order=captured_at.desc&limit=40')}`,{token}),
       request(`/rest/v1/iri_photogrammetry_analyses_v1?${query(ANALYSIS_SELECT,'&limit=1')}`,{token}),
+      request(`/rest/v1/iri_photogrammetry_analyses_v2?${query(ANALYSIS_V2_SELECT,'&order=revision.desc&limit=1')}`,{token}),
+      request(`/rest/v1/iri_photo_report_permissions_v1?${query(REPORT_PERMISSION_SELECT,'&order=recorded_at.desc&limit=1')}`,{token}),
     ]);
-    if(!Array.isArray(consentRows)||!Array.isArray(captureRows)||!Array.isArray(analysisRows)||analysisRows.length>1){
+    if(!Array.isArray(consentRows)||!Array.isArray(captureRows)||!Array.isArray(analysisRows)||!Array.isArray(analysisV2Rows)||!Array.isArray(permissionRows)||analysisRows.length>1||analysisV2Rows.length>1||permissionRows.length>1){
       throw new Error('M26_IRI_PHOTO_STATE_INVALID_RESPONSE');
     }
     const consents=consentRows.map(normalizeConsent).filter(Boolean);
     const captures=captureRows.map(normalizeCapture).filter(Boolean);
-    const analysis=normalizeAnalysis(analysisRows[0]);
+    const analysisV1=normalizeAnalysis(analysisRows[0]);
+    const analysisV2=normalizeAnalysisV2(analysisV2Rows[0]);
+    const reportPermission=normalizeReportPermission(permissionRows[0]);
     return Object.freeze({
       consents:Object.freeze(consents),
       captures:Object.freeze(captures),
-      analysis,
+      analysis:analysisV2||analysisV1,
+      analysisV1,
+      analysisV2,
+      reportPermission,
       physicalConsent:latestIriConsent(consents,'physical_assessment'),
       photographyConsent:latestIriConsent(consents,'photography'),
       latestCaptures:latestIriPhotoCaptures(captures),
@@ -359,6 +401,25 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
     });
     if(!payload||payload.ok!==true||cleanText(payload.clientId||payload.client_id,80)!==client||cleanText(payload.assessmentId||payload.assessment_id,80)!==assessment){
       throw new Error('M26_IRI_CONSENT_INVALID_RESPONSE');
+    }
+    return Object.freeze({...payload});
+  }
+
+  async function recordReportPermission(token,{clientId,assessmentId,status,documentVersion=IRI_PHOTO_REPORT_PERMISSION_VERSION,note=''}={}){
+    const client=validateUuid(clientId,'M26_IRI_PHOTO_CLIENT_INVALID');
+    const assessment=validateUuid(assessmentId,'M26_IRI_PHOTO_ASSESSMENT_INVALID');
+    const nextStatus=cleanText(status,40),version=cleanText(documentVersion,80);
+    if(!['granted','declined','revoked'].includes(nextStatus))throw new Error('M26_IRI_REPORT_PERMISSION_STATUS_INVALID');
+    if(!/^[A-Za-z0-9._-]{1,40}$/u.test(version))throw new Error('M26_IRI_REPORT_PERMISSION_VERSION_INVALID');
+    const payload=await request('/rest/v1/rpc/iberfit_record_iri_photo_report_permission_v1',{
+      token,method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({
+        p_client_id:client,p_assessment_id:assessment,p_status:nextStatus,
+        p_document_version:version,p_note:cleanText(note,600)||null,
+      }),
+    });
+    if(!payload||payload.ok!==true||cleanText(payload.clientId||payload.client_id,80)!==client||cleanText(payload.assessmentId||payload.assessment_id,80)!==assessment){
+      throw new Error('M26_IRI_REPORT_PERMISSION_INVALID_RESPONSE');
     }
     return Object.freeze({...payload});
   }
@@ -458,7 +519,34 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
     return Object.freeze({...payload,revision:Number(payload.revision)});
   }
 
-  return Object.freeze({state,recordConsent,prepareCapture,uploadOriginal,finalizeCapture,signedUrl,saveAnalysis});
+  async function saveAnalysisV2(token,{clientId,assessmentId,baseRevision=0,captureIds={},validatedLandmarks={},calibration={},measurements={},decisionSupport={},validate=false}={}){
+    const client=validateUuid(clientId,'M26_IRI_PHOTO_CLIENT_INVALID');
+    const assessment=validateUuid(assessmentId,'M26_IRI_PHOTO_ASSESSMENT_INVALID');
+    const idOrNull=(value)=>value?validateUuid(value,'M26_IRI_PHOTO_CAPTURE_INVALID'):null;
+    const revision=Number(baseRevision);
+    if(!Number.isInteger(revision)||revision<0)throw new Error('M26_IRI_PHOTO_REVISION_INVALID');
+    const payload=await request('/rest/v1/rpc/iberfit_save_iri_photogrammetry_analysis_v2',{
+      token,method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({
+        p_client_id:client,p_assessment_id:assessment,p_base_revision:revision,
+        p_front_capture_id:idOrNull(captureIds.front),
+        p_back_capture_id:idOrNull(captureIds.back),
+        p_left_capture_id:idOrNull(captureIds.left),
+        p_right_capture_id:idOrNull(captureIds.right),
+        p_validated_landmarks:validatedLandmarks&&typeof validatedLandmarks==='object'?validatedLandmarks:{},
+        p_calibration:calibration&&typeof calibration==='object'?calibration:{},
+        p_measurements:measurements&&typeof measurements==='object'?measurements:{},
+        p_decision_support:decisionSupport&&typeof decisionSupport==='object'?decisionSupport:{},
+        p_validate:Boolean(validate),
+      }),
+    });
+    if(!payload||payload.ok!==true||cleanText(payload.assessmentId||payload.assessment_id,80)!==assessment||!Number.isInteger(Number(payload.revision))){
+      throw new Error('M26_IRI_PHOTO_ANALYSIS_V2_INVALID_RESPONSE');
+    }
+    return Object.freeze({...payload,revision:Number(payload.revision)});
+  }
+
+  return Object.freeze({state,recordConsent,recordReportPermission,prepareCapture,uploadOriginal,finalizeCapture,signedUrl,saveAnalysis,saveAnalysisV2});
 }
 
 export function friendlyIriPhotoError(error){

@@ -813,3 +813,19 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
   .cover main{height:297mm;min-height:297mm;padding:0 18mm}
   .pdf-page footer{position:absolute;left:17mm;right:17mm;bottom:7mm;margin:0}
 }
+
+/* IRI premium decision architecture */
+.decision-matrix{display:grid;gap:10px;margin-top:14px}
+.decision-matrix article{display:grid;grid-template-columns:42px minmax(0,1fr);gap:12px;padding:13px 14px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:12px;break-inside:avoid}
+.decision-matrix article>span{display:grid;place-items:center;width:34px;height:34px;border:1px solid color-mix(in srgb,currentColor 28%,transparent);border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.08em}
+.decision-matrix small{display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;opacity:.62}
+.decision-matrix h3{margin:0 0 6px;font-size:17px;line-height:1.15}
+.decision-matrix p{margin:4px 0;font-size:11.5px;line-height:1.45}
+.followup-plan{display:grid;gap:9px;margin-top:16px}
+.followup-plan article{display:grid;grid-template-columns:128px minmax(0,1fr);column-gap:14px;row-gap:4px;padding:12px 14px;border-bottom:1px solid color-mix(in srgb,currentColor 14%,transparent);break-inside:avoid}
+.followup-plan article>span{grid-row:1/3;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;opacity:.72}
+.followup-plan strong{font-size:12.5px;line-height:1.35}
+.followup-plan small{font-size:10.5px;line-height:1.4;opacity:.72}
+.decision-empty{padding:18px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:12px}
+.decision-empty strong{display:block;margin-bottom:6px;font-size:15px}
+@media print{.decision-matrix article,.followup-plan article,.decision-empty{break-inside:avoid}}

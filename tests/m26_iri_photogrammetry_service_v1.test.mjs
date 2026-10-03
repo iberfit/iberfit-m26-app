@@ -158,6 +158,8 @@ test('service enforces prepare -> immutable upload -> finalize and private state
     }
     if(path.startsWith('/rest/v1/iri_photogrammetry_captures_v1?'))return jsonResponse([]);
     if(path.startsWith('/rest/v1/iri_photogrammetry_analyses_v1?'))return jsonResponse([]);
+    if(path.startsWith('/rest/v1/iri_photogrammetry_analyses_v2?'))return jsonResponse([]);
+    if(path.startsWith('/rest/v1/iri_photo_report_permissions_v1?'))return jsonResponse([]);
     if(path==='/rest/v1/rpc/iberfit_prepare_iri_photo_v1'){
       return jsonResponse({ok:true,kind:'prepared',id:CAPTURE,clientId:CLIENT,assessmentId:ASSESSMENT,view:'front',status:'pending_upload',objectPath,sha256:'a'.repeat(64)});
     }

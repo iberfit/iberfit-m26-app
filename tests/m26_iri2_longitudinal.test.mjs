@@ -122,7 +122,8 @@ test('premium client report remains a 10-page initial diagnosis even if history 
   assert.match(html,/seguimiento y la evolución se registran por separado/u);
   assert.doesNotMatch(html,/Evolución y seguimiento|Evolución IRI 2\.0/u);
   assert.doesNotMatch(html,/Cambios comparables desde la evaluación anterior|Silla 30 s \+4 rep/u);
-  assert.match(html,/Puntuación funcional IRI/iu);
+  assert.match(html,/Perfil funcional/iu);
+  assert.match(html,/dominios comparables|Sin puntuación global/iu);
 });
 
 test('el primer IRI es Diagnóstico inicial y establece el punto de partida, no una evolución',()=>{

@@ -10,6 +10,7 @@ import {WEARABLE_SURFACE_ROWS} from './i18n-surface-wearables.js';
 import {WORKSPACE_SURFACE_ROWS} from './i18n-surface-workspace.js';
 import {FINAL_RESIDUAL_SURFACE_ROWS} from './i18n-surface-final-residual.js';
 import {P0_CLIENT_AUTH_SURFACE_ROWS} from './i18n-surface-p0-client-auth.js';
+import {IRI_PHOTOGRAMMETRY_V2_SURFACE_ROWS} from './i18n-surface-iri-photogrammetry-v2.js';
 
 const COACH_LAUNCH_SURFACE_ROWS=Object.freeze([
   ['Coach listo para trabajar','Coach ready to work','Coach prêt à travailler','Coach pronto para trabalhar'],
@@ -65,6 +66,7 @@ export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...WORKSPACE_SURFACE_ROWS,
   ...FINAL_RESIDUAL_SURFACE_ROWS,
   ...P0_CLIENT_AUTH_SURFACE_ROWS,
+  ...IRI_PHOTOGRAMMETRY_V2_SURFACE_ROWS,
 ]);
 
 const LANGUAGE_INDEX=Object.freeze({en:1,fr:2,pt:3});

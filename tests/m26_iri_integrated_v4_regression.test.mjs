@@ -42,8 +42,8 @@ test('cliente conserva diez páginas útiles sin una página fotográfica vacía
   const html=buildIriReportHtml({draft,variant:'client',clientName:'Patricia QA',coachName:'Carlos'});
   assert.equal((html.match(/class="pdf-page/g)||[]).length,10);
   assert.doesNotMatch(html,/No hay capturas disponibles|Fotogrametría no incorporada/u);
-  assert.match(html,/Cómo leer este IRI/u);
-  assert.match(html,/Fotogrametría/u);
+  assert.match(html,/Qué repetiremos para saber si mejoras/u);
+  assert.doesNotMatch(html,/Análisis fotogramétrico/u);
 });
 
 test('fotogrametría real añade evidencia y no sustituye el núcleo del informe',()=>{

@@ -194,14 +194,14 @@ test('physical consent DB enforcement contracts only after the new frontend is l
   assert.doesNotMatch(enforce,/\bdo\s+\$|drop trigger|drop table|delete from|truncate|update\s+public\.iri_assessments/iu);
 });
 
-test('photogrammetry persistence keeps interpretation out of the database payload',()=>{
-  const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
-  const saveStart=controller.indexOf('async function saveAnalysis(validate)');
-  const saveEnd=controller.indexOf('async function',saveStart+24);
-  const saveBlock=controller.slice(saveStart,saveEnd>saveStart?saveEnd:undefined);
-  assert.match(saveBlock,/const measurements=calculatePhotogrammetryMeasurements/);
-  assert.doesNotMatch(saveBlock,/measurements=\{\.\.\.baseMeasurements,interpretation\}/);
-  assert.doesNotMatch(saveBlock,/interpretPhotogrammetryMeasurements\(baseMeasurements/);
+test('legacy v1 photogrammetry persistence keeps interpretation out of the v1 payload',()=>{
+  const service=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-service.js',import.meta.url),'utf8');
+  const start=service.indexOf('async function saveAnalysis(token');
+  const end=service.indexOf('async function saveAnalysisV2',start);
+  const block=service.slice(start,end);
+  assert.match(block,/p_measurements:/u);
+  assert.doesNotMatch(block,/p_decision_support/u);
+  assert.doesNotMatch(block,/p_interpretation/u);
 });
 
 test('photogrammetry source contains no automated diagnosis or automatic landmark inference',()=>{
