@@ -119,6 +119,8 @@ test('emission broker uses current Cloudflare PDF API contract without unsupport
   assert.match(source,/tagged:true/u);
   assert.match(source,/outline:true/u);
   assert.doesNotMatch(source,/actionTimeout/u);
+  assert.doesNotMatch(source,/\.\.\/\.\.\/\.\.\/src\/m26\//u);
+  assert.match(source,/\.\/vendor\/workflows\/iri-report-document\.js/u);
   assert.match(source,/artifact_sha256/u);
   assert.match(source,/source_sha256/u);
 });

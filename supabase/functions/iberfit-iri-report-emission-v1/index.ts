@@ -1,17 +1,17 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument} from 'npm:pdf-lib@1.17.1';
-import {buildIriReportHtml} from '../../../src/m26/workflows/iri-report-document.js';
-import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../../../src/m26/workflows/iri-first-session.js';
+import {buildIriReportHtml} from './vendor/workflows/iri-report-document.js';
+import {confirmedFirstSessionDraft,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
 import {
   IRI_PHOTO_VIEWS,
   normalizeManualLandmarks,
   validateManualLandmarks,
-} from '../../../src/m26/workflows/iri-photogrammetry.js';
+} from './vendor/workflows/iri-photogrammetry.js';
 import {
   normalizePhotoCalibrations,
   interpretPhotogrammetryMeasurementsV2,
   photogrammetryDataQualityV2,
-} from '../../../src/m26/workflows/iri-photogrammetry-v2.js';
+} from './vendor/workflows/iri-photogrammetry-v2.js';
 
 const FUNCTION_VERSION='iri-report-emission-2026.10-v1';
 const TEMPLATE_VERSION='m26-iri-report-premium-v2';
