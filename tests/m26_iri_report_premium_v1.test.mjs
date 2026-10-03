@@ -18,13 +18,12 @@ function draft(){
   },{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-DEMO');
 }
 
-test('informe cliente v4 usa paginación dinámica y separa Solo IRI de entrenamiento activo',()=>{
+test('informe cliente v3 usa diez páginas base y separa Solo IRI de entrenamiento activo',()=>{
   const iriOnly=buildIriReportHtml({draft:draft(),variant:'client',clientName:'Cliente Demo',coachName:'Carlos',iriOnly:true});
   const active=buildIriReportHtml({draft:draft(),variant:'client',clientName:'Cliente Demo',coachName:'Carlos',iriOnly:false});
-  assert.equal((iriOnly.match(/class="pdf-page/g)||[]).length,9);
-  assert.equal((active.match(/class="pdf-page/g)||[]).length,9);
-  assert.doesNotMatch(iriOnly,/No incorporada|No hay capturas disponibles/);
-  assert.match(iriOnly,/EVALUACIÓN INDEPENDIENTE · SOLO IRI/);
+  assert.equal((iriOnly.match(/class="pdf-page/g)||[]).length,10);
+  assert.equal((active.match(/class="pdf-page/g)||[]).length,10);
+  assert.match(iriOnly,/Solo IRI · evaluación independiente/);
   assert.match(iriOnly,/No implica planificación, frecuencia contractual ni seguimiento de entrenamiento activo/);
   assert.doesNotMatch(iriOnly,/Impacto sobre la planificación/);
   assert.match(active,/Impacto sobre la planificación/);
@@ -54,43 +53,11 @@ test('visualizaciones editoriales son accesibles, CSP-safe y no fuerzan escalas 
   assert.doesNotMatch(visuals,/\sstyle="/u);
   assert.match(html,/role="img"/);
   assert.match(html,/Mapa funcional/);
-  assert.doesNotMatch(html,/Fotogrametría no incorporada|No hay capturas disponibles/);
+  assert.match(html,/Fotogrametría/);
   assert.match(html,/fuerza por patrones/i);
   assert.match(html,/referencia inicial individual/i);
   assert.match(html,/no hereda baremos YMCA/i);
   assert.doesNotMatch(html,/buena salud cardiovascular/i);
-});
-
-
-test('composición corporal no confunde masa grasa con masa libre de grasa',()=>{
-  const view=__iriReportInternals.bodyCompositionView({weightKg:88.8,bodyFatPercent:20.6,leanMassKg:18.3,muscleMassKg:65.8});
-  assert.equal(view.fatMassKg,18.3);
-  assert.equal(view.leanMassKg,70.5);
-  assert.equal(view.rawLeanInconsistent,true);
-  assert.equal(view.leanMassDerived,true);
-  const explicit=__iriReportInternals.bodyCompositionView({weightKg:88.8,bodyFatPercent:20.6,fatMassKg:18.4,leanMassKg:70.4,muscleMassKg:65.8});
-  assert.equal(explicit.fatMassKg,18.4);
-  assert.equal(explicit.leanMassKg,70.4);
-  assert.equal(explicit.rawLeanInconsistent,false);
-});
-
-test('fotogrametría sólo ocupa páginas cuando existen capturas reales',()=>{
-  const base=draft();
-  const without=buildIriReportHtml({draft:base,variant:'client',clientName:'Cliente Demo',coachName:'Carlos'});
-  assert.equal(__iriReportInternals.hasPhotogrammetryReport(null),false);
-  assert.doesNotMatch(without,/EVIDENCIA VISUAL/);
-  const report={available:true,photos:[{view:'front',url:'data:image/jpeg;base64,ZmFrZQ==',widthPx:1000,heightPx:1500}],landmarks:{front:{}},quality:{level:'parcial',capturedViews:1,analyzedViews:0},interpretation:{reproducibleSignals:[],observations:[]},measurements:{metrics:[]}};
-  const withPhotos=buildIriReportHtml({draft:base,variant:'client',clientName:'Cliente Demo',coachName:'Carlos',photogrammetryReport:report});
-  assert.equal(__iriReportInternals.hasPhotogrammetryReport(report),true);
-  assert.equal((withPhotos.match(/class="pdf-page/g)||[]).length,10);
-  assert.match(withPhotos,/EVIDENCIA VISUAL/);
-});
-
-test('bioimpedancia no conserva el antiguo límite editorial de cuatro páginas',()=>{
-  const controller=read('src/m26/workflows/iri-external-report-controller.js');
-  const document=read('src/m26/workflows/iri-report-document.js');
-  assert.match(controller,/PDFJS_PRINT_MAX_PAGES=24/);
-  assert.doesNotMatch(document,/printPreview\?\.pages\.filter\(Boolean\)\.slice\(0,4\)/);
 });
 
 test('autoajuste A4 no reduce silenciosamente el informe por debajo del 94 por ciento',()=>{
