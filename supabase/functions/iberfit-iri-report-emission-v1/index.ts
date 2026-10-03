@@ -422,6 +422,19 @@ Deno.serve(async(req:Request)=>{
   const service=createClient(supabaseUrl,secretKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 
   try{
+    if(action==='health'){
+      const context=await userClient.rpc('iberfit_application_context_v14');
+      if(context.error||context.data?.ok!==true)throw context.error||new Error('IRI_REPORT_APPLICATION_CONTEXT_REQUIRED');
+      const roles=Array.isArray(context.data?.roles)?context.data.roles.map((value:unknown)=>String(value||'').toLowerCase()):[];
+      if(!roles.some((role:string)=>role==='admin'||role==='coach'))throw new Error('IRI_REPORT_HEALTH_SCOPE_FORBIDDEN');
+      const cloudflareAccount=String(Deno.env.get('CLOUDFLARE_BROWSER_ACCOUNT_ID')||'').trim();
+      const cloudflareToken=String(Deno.env.get('CLOUDFLARE_BROWSER_API_TOKEN')||'').trim();
+      return json(200,{
+        ok:true,version:FUNCTION_VERSION,projectRef,
+        rendererConfigured:Boolean(cloudflareAccount&&cloudflareToken),
+        issuedBucket:ISSUED_BUCKET,
+      },origin,allowed);
+    }
     if(action==='issue'){
       const assessmentId=assertUuid(body?.assessmentId,'IRI_REPORT_ASSESSMENT_INVALID');
       const audience=audienceDb(body?.audience);
@@ -452,7 +465,7 @@ Deno.serve(async(req:Request)=>{
     return json(400,{ok:false,code:'IRI_REPORT_ACTION_INVALID',version:FUNCTION_VERSION},origin,allowed);
   }catch(error){
     const code=codeOf(error);
-    const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/BROWSER_RENDER|SERVER_CONFIG/u.test(code)?503:400;
+    const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE|PRIVILEGED|ASSURANCE|WEBAUTHN/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/BROWSER_RENDER|SERVER_CONFIG/u.test(code)?503:400;
     return json(status,{ok:false,code,version:FUNCTION_VERSION},origin,allowed);
   }
 });

@@ -146,3 +146,23 @@ test('report governance reuses the existing report controller module so PWA shel
   assert.doesNotMatch(app,/iri-report-governance-service\.js/u);
   assert.match(controller,/export function createIriReportGovernanceService/u);
 });
+
+
+test('issuance authorization is low-friction but withdrawal remains privileged',()=>{
+  const issueAuth=fs.readFileSync(new URL('../supabase/migrations/20261003214500_iri_document_governance_issue_auth_v2.sql',import.meta.url),'utf8');
+  const base=fs.readFileSync(new URL('../supabase/migrations/20261003213000_iri_document_governance_v1.sql',import.meta.url),'utf8');
+  assert.doesNotMatch(issueAuth,/require_privileged_assurance/u);
+  assert.match(base,/create or replace function public\.iberfit_withdraw_iri_report_issue_v1/u);
+  assert.match(base,/perform public\.iberfit_require_privileged_assurance_v65d\(\)/u);
+});
+
+test('QA real-write gate deploys and certifies the exact report broker',()=>{
+  const workflow=fs.readFileSync(new URL('../.github/workflows/qa-real-write-cert.yml',import.meta.url),'utf8');
+  const gate=fs.readFileSync(new URL('../scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',import.meta.url),'utf8');
+  assert.match(workflow,/supabase@2\.117\.0 functions deploy iberfit-iri-report-emission-v1/u);
+  assert.match(workflow,/CLOUDFLARE_BROWSER_API_TOKEN/u);
+  assert.match(workflow,/run_qa_iri_report_emission_gate\.mjs/u);
+  assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
+  assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
+  assert.match(gate,/withdrawalRequiresPrivilegedAssurance:true/u);
+});
