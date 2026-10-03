@@ -13,6 +13,7 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/functions/iberfit-admin-client-invite-v1/**'
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
+      - 'cloudflare/iri-report-renderer/**'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -25,6 +26,7 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/functions/iberfit-admin-client-invite-v1/**'
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
+      - 'cloudflare/iri-report-renderer/**'
   workflow_dispatch:
 
 permissions:
@@ -51,20 +53,57 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Configure and deploy exact QA IRI report emission broker
+      - name: Configure private QA PDF renderer and deploy exact IRI report broker
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          CLOUDFLARE_BROWSER_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_BROWSER_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
         run: |
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
-          test -n "${CLOUDFLARE_BROWSER_API_TOKEN:-}" || { echo 'CLOUDFLARE_BROWSER_API_TOKEN_MISSING'; exit 42; }
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 42; }
+
+          RENDER_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::${RENDER_SECRET}"
+
+          npx --yes wrangler@4.120.0 deploy \
+            --config cloudflare/iri-report-renderer/wrangler.qa.jsonc 2>&1 | tee /tmp/iri-renderer-deploy.log
+          RENDER_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' /tmp/iri-renderer-deploy.log | tail -1)"
+          test -n "${RENDER_URL:-}" || { echo 'IRI_RENDERER_URL_MISSING'; exit 43; }
+
+          printf '%s' "${RENDER_SECRET}" | npx --yes wrangler@4.120.0 secret put IRI_RENDERER_SHARED_SECRET \
+            --config cloudflare/iri-report-renderer/wrangler.qa.jsonc
+
+          IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" IBERFIT_IRI_RENDERER_SHARED_SECRET="${RENDER_SECRET}" node --input-type=module <<'NODE'
+          const url=process.env.IBERFIT_IRI_RENDERER_URL;
+          const secret=process.env.IBERFIT_IRI_RENDERER_SHARED_SECRET;
+          let response=null;
+          for(let attempt=0;attempt<3;attempt+=1){
+            try{
+              response=await fetch(url,{
+                method:'POST',
+                headers:{authorization:`Bearer ${secret}`,'content-type':'application/json'},
+                body:JSON.stringify({html:'<!doctype html><html><body><main class="pdf-page"><h1>IBERFIT QA renderer</h1></main></body></html>'}),
+                signal:AbortSignal.timeout(90_000),
+              });
+            }catch{}
+            if(response?.ok)break;
+            await new Promise(resolve=>setTimeout(resolve,1_000));
+          }
+          if(!response?.ok)throw new Error(`IRI_RENDERER_SMOKE_FAILED:${response?.status||0}`);
+          const bytes=new Uint8Array(await response.arrayBuffer());
+          if(bytes.byteLength<1000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-'){
+            throw new Error('IRI_RENDERER_SMOKE_PDF_INVALID');
+          }
+          console.log('IRI_RENDERER_QA_SMOKE=GREEN');
+          NODE
+
           npx --yes supabase@2.117.0 secrets set \
-            CLOUDFLARE_BROWSER_ACCOUNT_ID="${CLOUDFLARE_BROWSER_ACCOUNT_ID}" \
-            CLOUDFLARE_BROWSER_API_TOKEN="${CLOUDFLARE_BROWSER_API_TOKEN}" \
+            IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" \
+            IBERFIT_IRI_RENDERER_SHARED_SECRET="${RENDER_SECRET}" \
             --project-ref "${M26_PROJECT_REF}"
+
           npx --yes supabase@2.117.0 functions deploy iberfit-iri-report-emission-v1 \
             --project-ref "${M26_PROJECT_REF}" \
             --no-verify-jwt
