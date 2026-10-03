@@ -141,3 +141,16 @@ test('el consentimiento previo a pruebas es fail-soft sin conexión y fail-close
   assert.match(workflow,/Registrando consentimiento y confirmando la evaluación/u);
   assert.match(workflow,/M26_IRI_PHYSICAL_CONSENT_TIMEOUT/u);
 });
+
+
+test('Cliente y Coach reservan la ventana de informe antes de esperar evidencias asíncronas',()=>{
+  const workflow=read('src/m26/app/workflow-controller.js');
+  const start=workflow.indexOf('async function generateIriReport(variant)');
+  const end=workflow.indexOf('async function validatePlan()',start);
+  assert.ok(start>=0&&end>start);
+  const block=workflow.slice(start,end);
+  const reserve=block.indexOf('printTarget=prepareIriReportPrintTarget()');
+  const evidence=block.indexOf('[externalReport,photogrammetryReport]=await Promise.all');
+  assert.ok(reserve>=0&&evidence>reserve);
+  assert.doesNotMatch(block,/if\(variant==='client'\)\{\s*printTarget=prepareIriReportPrintTarget/u);
+});
