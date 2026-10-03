@@ -139,7 +139,7 @@ test('Client mature progress keeps full evidence available without forcing it op
   assert.match(html,/Tu evolución ya tiene contexto/u);
   assert.match(html,/data-client-progress-depth="mature"/u);
   assert.match(html,/Ver detalle completo/u);
-  assert.match(html,/Historial, bienestar, baseline IRI, dispositivos, alertas y ejercicios confirmados/u);
+  assert.match(html,/Historial, bienestar, punto de partida IRI, dispositivos, alertas y ejercicios confirmados/u);
   assert.match(html,/Evolución registrada/u);
   assert.ok(
     html.indexOf('m26-progress-overview')<html.indexOf('m26-client-progress-detail'),
