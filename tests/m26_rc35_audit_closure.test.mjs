@@ -226,7 +226,7 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
   const classes=new Set(['pdf-page','m26-premium-report-v3','report-page-2']);
   const classList={add:(value)=>classes.add(value),remove:(value)=>classes.delete(value)};
   const scale=()=>{const match=[...classes].map((value)=>value.match(/^iri-report-fit-(\d+)$/u)).find(Boolean);return match?Number(match[1])/100:1;};
-  const content={scrollHeight:820,getBoundingClientRect:()=>({top:100,bottom:100+820*scale(),height:820*scale(),right:700})};
+  const content={scrollHeight:760,getBoundingClientRect:()=>({top:100,bottom:100+760*scale(),height:760*scale(),right:700})};
   const footer={getBoundingClientRect:()=>({top:850,bottom:870})};
   const reportPage={className:'pdf-page m26-premium-report-v3 report-page-2',classList,getBoundingClientRect:()=>({right:793.7}),querySelector:(selector)=>selector==='.report-page-content'?content:selector==='footer'?footer:null};
   Object.defineProperty(reportPage,'className',{get:()=>[...classes].join(' ')});
@@ -256,7 +256,7 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
   assert.equal(result.mode,'direct-window');assert.equal(result.pages,10);assert.equal(openedUrl,'about:blank');
   assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-iri-report-premium-v1"/);
   assert.match(written,/data-iri-report-print disabled/);assert.doesNotMatch(written,/<style>/);
-  assert.ok([...classes].some((value)=>/^iri-report-fit-\d+$/u.test(value)));
+  assert.ok(classes.has('iri-report-fit-96'));
   assert.equal(printButton.disabled,false);assert.match(status.textContent,/Informe A4 listo/);assert.match(status.textContent,/Encabezados y pies de página/);
   await listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.ok(focused>=2);
   const source=read('src/m26/workflows/iri-report-document.js');const css=read('public/m26/iri-report.css');
