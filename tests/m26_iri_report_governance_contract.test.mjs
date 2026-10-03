@@ -271,3 +271,14 @@ test('issued IRI documents never expose raw protocol ids on user-facing pages',(
   const broker=fs.readFileSync(new URL('../supabase/functions/iberfit-qa-iri-document-fixture/index.ts',import.meta.url),'utf8');
   assert.match(broker,/testId:"treadmill-three-minute-field"/u);
 });
+
+
+test('issued IRI trace suppresses non-applicable sides and humanizes technical metadata',()=>{
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  assert.match(renderer,/Object\.prototype\.hasOwnProperty\.call\(labels,side\)/u);
+  assert.match(renderer,/function pdfTraceVersion/u);
+  assert.match(renderer,/Motor IRI/u);
+  assert.match(renderer,/function pdfTraceDateTime/u);
+  assert.match(renderer,/timeZone:'America\/Santiago'/u);
+  assert.doesNotMatch(renderer,/\[side\]\|\|pdfSafe/u);
+});
