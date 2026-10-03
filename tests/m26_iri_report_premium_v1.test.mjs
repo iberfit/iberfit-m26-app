@@ -18,11 +18,11 @@ function draft(){
   },{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-DEMO');
 }
 
-test('informe cliente v3 usa nueve páginas y separa Solo IRI de entrenamiento activo',()=>{
+test('informe cliente v3 usa diez páginas base y separa Solo IRI de entrenamiento activo',()=>{
   const iriOnly=buildIriReportHtml({draft:draft(),variant:'client',clientName:'Cliente Demo',coachName:'Carlos',iriOnly:true});
   const active=buildIriReportHtml({draft:draft(),variant:'client',clientName:'Cliente Demo',coachName:'Carlos',iriOnly:false});
-  assert.equal((iriOnly.match(/class="pdf-page/g)||[]).length,9);
-  assert.equal((active.match(/class="pdf-page/g)||[]).length,9);
+  assert.equal((iriOnly.match(/class="pdf-page/g)||[]).length,10);
+  assert.equal((active.match(/class="pdf-page/g)||[]).length,10);
   assert.match(iriOnly,/Solo IRI · evaluación independiente/);
   assert.match(iriOnly,/No implica planificación, frecuencia contractual ni seguimiento de entrenamiento activo/);
   assert.doesNotMatch(iriOnly,/Impacto sobre la planificación/);
@@ -54,7 +54,7 @@ test('visualizaciones editoriales son accesibles, CSP-safe y no fuerzan escalas 
   assert.match(html,/role="img"/);
   assert.match(html,/Mapa funcional/);
   assert.match(html,/Fotogrametría/);
-  assert.match(html,/Fuerza por patrones/);
+  assert.match(html,/fuerza por patrones/i);
   assert.match(html,/referencia inicial individual/i);
   assert.match(html,/no hereda baremos YMCA/i);
   assert.doesNotMatch(html,/buena salud cardiovascular/i);
