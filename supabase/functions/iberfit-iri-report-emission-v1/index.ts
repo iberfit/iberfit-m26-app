@@ -1,6 +1,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import {confirmedFirstSessionDraft,firstSessionCompletion,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
+import {iriProtocolById} from './vendor/workflows/iri-protocol-catalog.js';
 import {scoreIriPerformance} from './vendor/norms/iri-scoring.js';
 import {buildIriPhotogrammetryDecisionSupport} from './vendor/workflows/iri-evidence-engine.js';
 import {
@@ -369,6 +370,19 @@ function pdfStrengthVariant(value:unknown){
   if(variant==='knees'||variant==='knees-supported')return 'Apoyo de rodillas';
   return pdfSafe(value,80)||'Variante no registrada';
 }
+function pdfProtocolSide(value:unknown){
+  const side=String(value||'').trim().toLowerCase();
+  return ({left:'Izquierda',right:'Derecha',bilateral:'Bilateral',both:'Bilateral','not-applicable':''} as Record<string,string>)[side]||pdfSafe(String(value||'').replaceAll('-',' '),70);
+}
+function pdfProtocolVariant(record:any){
+  const variant=String(record?.variant||'').trim();
+  if(!variant)return '';
+  const protocol=iriProtocolById(record?.testId);
+  const catalogLabel=protocol?.variants?.find((item:any)=>String(item?.id||'')===variant)?.label;
+  if(catalogLabel)return pdfSafe(catalogLabel,120);
+  if(String(record?.testId||'')==='push-test')return pdfStrengthVariant(variant);
+  return pdfSafe(variant.replaceAll('-',' '),120);
+}
 function pdfPhotoView(value:unknown){
   const view=String(value||'').trim().toLowerCase();
   return ({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'} as Record<string,string>)[view]||pdfSafe(value,60)||'Vista';
@@ -555,7 +569,9 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     let y=650;
     for(const line of lines)y=pdfText(page,fonts.regular,line,PDF_M,y,225,8.4,11,PDF_C.ink2,2)-3;
     const decisions=pdfPhotoDecisionRows(photoReport);
-    if(decisions.length){
+    const photos=Array.isArray(photoReport?.photos)?photoReport.photos.slice(0,4):[];
+    const hasPhotos=photos.length>0;
+    if(decisions.length&&(hasPhotos||audience!=='cliente')){
       y=Math.min(y-6,455);
       page.drawText('Lectura para entrenamiento',{x:PDF_M,y,size:9.5,font:fonts.bold,color:PDF_C.ink});
       y-=17;
@@ -564,7 +580,18 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
         y=pdfText(page,fonts.regular,item,PDF_M+12,y,213,8.1,10.8,PDF_C.ink2,5)-5;
       }
     }
-    const photos=Array.isArray(photoReport?.photos)?photoReport.photos.slice(0,4):[];
+    if(!hasPhotos&&audience==='cliente'){
+      page.drawText('Privacidad de las imágenes',{x:315,y:650,size:9.5,font:fonts.bold,color:PDF_C.ink});
+      let rightY=pdfText(page,fonts.regular,'Las mediciones pueden formar parte del informe, pero las fotografías permanecen privadas mientras no exista un permiso específico para publicarlas en el documento Cliente.',315,630,225,8.5,11.4,PDF_C.ink2,7)-10;
+      if(decisions.length){
+        page.drawText('Lectura para entrenamiento',{x:315,y:rightY,size:9.5,font:fonts.bold,color:PDF_C.ink});
+        rightY-=17;
+        for(const item of decisions){
+          page.drawCircle({x:318,y:rightY+3,size:1.6,color:PDF_C.gold});
+          rightY=pdfText(page,fonts.regular,item,327,rightY,213,8.1,10.8,PDF_C.ink2,5)-5;
+        }
+      }
+    }
     const slots=[{x:315,y:510},{x:425,y:510},{x:315,y:340},{x:425,y:340}];
     for(let i=0;i<photos.length;i+=1){
       const image=await pdfImage(doc,String(photos[i]?.url||''));
@@ -713,7 +740,9 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       const records=Array.isArray(draft?.protocolRecords)?draft.protocolRecords.slice(0,12):[];
       if(!records.length)page.drawText('Sin registros adicionales.',{x:PDF_M,y,size:9,font:fonts.regular,color:PDF_C.muted});
       for(const record of records){
-        const row=[record?.testName||'Prueba',record?.side,record?.variant&&'variante '+record.variant,record?.configuration&&'config. '+record.configuration,record?.protocolVersion&&'v. '+record.protocolVersion,record?.valid===true?'válida':record?.valid===false?'no válida':'sin confirmar'].filter(Boolean).join(' · ');
+        const sideLabel=pdfProtocolSide(record?.side);
+        const variantLabel=pdfProtocolVariant(record);
+        const row=[record?.testName||'Prueba',sideLabel,variantLabel&&'variante '+variantLabel,record?.configuration&&'config. '+record.configuration,record?.protocolVersion&&'v. '+record.protocolVersion,record?.valid===true?'válida':record?.valid===false?'no válida':'sin confirmar'].filter(Boolean).join(' · ');
         y=pdfText(page,fonts.regular,row,PDF_M,y,PDF_W-PDF_M*2,8.2,10.8,PDF_C.ink2,2)-4;
         if(y<120)break;
       }
@@ -726,7 +755,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Bioimpedancia original','Anexo incorporado al documento emitido');
     page.drawText('Documento original incorporado',{x:PDF_M,y:640,size:15,font:fonts.serifBold,color:PDF_C.ink});
     pdfText(page,fonts.regular,annex.kind==='pdf'?'Se adjuntan '+String(annex.displayPages)+' de '+String(annex.totalPages)+' página(s) del documento original de bioimpedancia a continuación.':'La imagen original de bioimpedancia se incorpora como la siguiente página del informe.',PDF_M,610,PDF_W-PDF_M*2,10,15,PDF_C.ink2,5);
-    if(annex.truncated)pdfText(page,fonts.bold,'Por seguridad de tamaño, el anexo visible se limita a '+String(annex.displayPages)+' páginas. El original se conserva vinculado al IRI.',PDF_M,540,PDF_W-PDF_M*2,9.2,13,PDF_C.gold,4);
+    let annexY=535;
+    annexY=pdfField(page,fonts,'FORMATO ORIGINAL',annex.kind==='pdf'?'PDF · '+String(annex.totalPages)+' página(s)':'Imagen original',annexY);
+    annexY=pdfField(page,fonts,'TRATAMIENTO DOCUMENTAL','Se incorpora el archivo original sin reinterpretar ni reconstruir sus valores.',annexY);
+    page.drawText('Evidencia complementaria',{x:PDF_M,y:annexY-4,size:10.5,font:fonts.bold,color:PDF_C.ink});
+    pdfText(page,fonts.regular,'La bioimpedancia complementa el punto de partida. El IRI no inventa métricas a partir de esta hoja y mantiene separado el dato original de la interpretación del entrenamiento.',PDF_M,annexY-24,PDF_W-PDF_M*2,9,12.5,PDF_C.ink2,6);
+    if(annex.truncated)pdfText(page,fonts.bold,'Por seguridad de tamaño, el anexo visible se limita a '+String(annex.displayPages)+' páginas. El original se conserva vinculado al IRI.',PDF_M,205,PDF_W-PDF_M*2,9.2,13,PDF_C.gold,4);
   }
 
   return new Uint8Array(await doc.save({useObjectStreams:true,addDefaultPage:false}));

@@ -220,3 +220,41 @@ test('QA bioimpedance fixture broker is OIDC-bound and synthetic-only',()=>{
   assert.match(broker,/fixture sint/u);
   assert.doesNotMatch(broker,/pjhmrhejsoofmouedavw/u);
 });
+
+
+test('IRI user-facing protocol labels and issued traceability stay in natural Spanish',()=>{
+  const catalog=fs.readFileSync(new URL('../src/m26/workflows/iri-protocol-catalog.js',import.meta.url),'utf8');
+  const vendor=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-protocol-catalog.js',import.meta.url),'utf8');
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  for(const source of [catalog,vendor]){
+    assert.match(source,/Suelo\/colchoneta · referencia inicial adaptada/u);
+    assert.match(source,/Adaptada · 60 s · referencia individual/u);
+    assert.doesNotMatch(source,/label:'[^']*baseline/iu);
+  }
+  assert.match(renderer,/iriProtocolById/u);
+  assert.match(renderer,/function pdfProtocolSide/u);
+  assert.match(renderer,/function pdfProtocolVariant/u);
+  assert.doesNotMatch(renderer,/record\?\.variant&&'variante '\+record\.variant/u);
+  assert.match(renderer,/Privacidad de las imágenes/u);
+  assert.match(renderer,/permiso específico para publicarlas en el documento Cliente/u);
+});
+
+test('QA document fixture enriches only the fixed synthetic assessment idempotently',()=>{
+  const broker=fs.readFileSync(new URL('../supabase/functions/iberfit-qa-iri-document-fixture/index.ts',import.meta.url),'utf8');
+  assert.match(broker,/function enrichedSections/u);
+  assert.match(broker,/async function enrichAssessmentFixture/u);
+  assert.match(broker,/\.eq\("id",ASSESSMENT_ID\)\.eq\("revision",currentRevision\)/u);
+  assert.match(broker,/assessmentFixtureChanged/u);
+  assert.match(broker,/priorityRecords/u);
+  assert.match(broker,/protocolRecords/u);
+  assert.match(broker,/Fixture sintética QA/u);
+  assert.doesNotMatch(broker,/pjhmrhejsoofmouedavw/u);
+});
+
+test('bioimpedance annex divider distinguishes original evidence from IRI interpretation',()=>{
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  assert.match(renderer,/FORMATO ORIGINAL/u);
+  assert.match(renderer,/TRATAMIENTO DOCUMENTAL/u);
+  assert.match(renderer,/Evidencia complementaria/u);
+  assert.match(renderer,/no inventa métricas a partir de esta hoja/u);
+});

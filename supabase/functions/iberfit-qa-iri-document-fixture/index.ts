@@ -133,9 +133,14 @@ async function sha256(bytes:Uint8Array){
 }
 async function validateFixtureTarget(db:any){
   const assessment=await db.from("iri_assessments")
-    .select("id,client_id,assessment_type,sections")
+    .select("id,client_id,assessment_type,status,revision,sections")
     .eq("id",ASSESSMENT_ID).maybeSingle();
-  if(assessment.error||assessment.data?.client_id!==CLIENT_ID||assessment.data?.assessment_type!=="inicial"){
+  if(
+    assessment.error||
+    assessment.data?.client_id!==CLIENT_ID||
+    assessment.data?.assessment_type!=="inicial"||
+    assessment.data?.status!=="aprobado"
+  ){
     fail("IRI_QA_FIXTURE_ASSESSMENT_INVALID",409);
   }
   const marker=JSON.stringify(assessment.data?.sections||{}).toLowerCase();
@@ -144,9 +149,98 @@ async function validateFixtureTarget(db:any){
   if(user.error||String(user.data?.user?.email||"").toLowerCase()!=="qa.rc74.coach@iberfit.cl"){
     fail("IRI_QA_FIXTURE_COACH_INVALID",409);
   }
+  return assessment.data;
+}
+function stable(value:any):any{
+  if(Array.isArray(value))return value.map(stable);
+  if(value&&typeof value==="object"){
+    return Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,stable(item)]));
+  }
+  return value;
+}
+function enrichedSections(raw:any){
+  const sections=raw&&typeof raw==="object"&&!Array.isArray(raw)?structuredClone(raw):{};
+  const person=sections.personProfile||{};
+  const interview=sections.interview||{};
+  const mobility=sections.mobility||{};
+  const strength=sections.strengthAssessment||{};
+  const cardio=sections.cardio||{};
+  const diagnosis=sections.diagnosis||{};
+  return {
+    ...sections,
+    personProfile:{
+      ...person,
+      secondaryObjectives:["Mejorar fuerza global","Aumentar tolerancia al esfuerzo"],
+      preferredSchedule:"Martes y jueves por la tarde",
+      locationType:"Gimnasio privado",
+    },
+    interview:{
+      ...interview,
+      sleepScore:7,stressScore:4,energyScore:8,
+      availability:"Martes y jueves por la tarde",
+      preferences:"Sesiones estructuradas con progresión gradual.",
+      healthHistory:"Sin antecedentes relevantes declarados en la fixture sintética QA.",
+      restrictions:"Sin restricciones funcionales declaradas en la fixture sintética QA.",
+      currentPain:"Sin dolor actual registrado en la fixture sintética QA.",
+      screeningNotes:"Cribado sintético sin señales de alarma; uso exclusivo para certificación QA.",
+    },
+    mobility:{
+      ...mobility,
+      ankle:{...(mobility.ankle||{}),leftTrials:[10.8,11,11],rightTrials:[8.9,9,9],pain:"Sin dolor",compensation:"No observada"},
+      posteriorChain:{...(mobility.posteriorChain||{}),leftTrials:[24.5,25,25],rightTrials:[23.8,24,24],pain:"Sin dolor"},
+      modifiedThomas:{left:"Control conservado",right:"Control conservado",pelvicControl:"Estable",pain:"Sin dolor"},
+      hipRotation:{...(mobility.hipRotation||{}),pain:"Sin dolor",compensation:"No observada"},
+      assistedSquat:{...(mobility.assistedSquat||{}),lateralShift:"No observado",assistanceResponse:"Mejora leve del control con apoyo anterior",pain:"Sin dolor"},
+      notes:"Fixture sintética QA · mediciones repetidas y contexto de campo documentado.",
+    },
+    strengthAssessment:{
+      ...strength,
+      push:{...(strength.push||{}),notes:"Rango completo en variante con apoyo de rodillas."},
+      trxRow:{...(strength.trxRow||{}),notes:"Ángulo y altura de asas conservados durante la prueba."},
+      squat60:{...(strength.squat60||{}),repetitions:27,depthCriterion:"Muslo aproximadamente paralelo al suelo",stance:"Anchura cómoda y reproducible",valid:true,notes:"Técnica estable durante 60 s."},
+      posteriorChain:{...(strength.posteriorChain||{}),protocol:"No realizada",seconds:null,equipmentCompatible:false,notPerformedReason:"No se realizó por falta de banco compatible.",pain:"Sin dolor"},
+      notes:"Fixture sintética QA · variantes y configuraciones registradas para comparabilidad.",
+    },
+    cardio:{
+      ...cardio,
+      notes:"Sin síntomas durante la prueba; recuperación registrada con banda pectoral.",
+    },
+    diagnosis:{
+      ...diagnosis,
+      priorityRecords:[
+        {target:"Movilidad de tobillo",rationale:"Existe una diferencia bilateral reproducible en rodilla a pared.",strategy:"Mantener trabajo de movilidad y comprobar transferencia a sentadilla y tareas unilaterales."},
+        {target:"Fuerza de tracción",rationale:"La prueba TRX sirve como referencia inicial reproducible.",strategy:"Progresar la tracción manteniendo altura de asas, posición y criterio técnico registrados."},
+        {target:"Tolerancia al esfuerzo",rationale:"La recuperación de frecuencia cardiaca aporta una referencia individual útil.",strategy:"Progresar volumen de forma gradual y repetir el mismo protocolo en la reevaluación."},
+      ],
+    },
+    protocolRecords:[
+      {testId:"weight-bearing-lunge",testName:"Rodilla a pared",side:"left",variant:"standard-barefoot",configuration:"Suelo estable · misma referencia de pie",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"weight-bearing-lunge",testName:"Rodilla a pared",side:"right",variant:"standard-barefoot",configuration:"Suelo estable · misma referencia de pie",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"chair-stand-30s",testName:"Sentarse y levantarse 30 s",side:"not-applicable",variant:"standard-arms-crossed",configuration:"Silla 45 cm · brazos cruzados",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"push-test",testName:"Prueba de empuje",side:"not-applicable",variant:"knees",configuration:"60 s · apoyo de rodillas",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"trx-row",testName:"Remo TRX",side:"not-applicable",variant:"standing-row-standard",configuration:"Asas 100 cm · talones 100 cm · 45°",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"core-plank",testName:"Plancha",side:"bilateral",variant:"front-and-side-standard",configuration:"Frontal y laterales · técnica estable",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"treadmill-3min",testName:"Cinta · 3 minutos",side:"not-applicable",variant:"treadmill-3min-self-selected",configuration:"5,5 km/h · 2% · banda pectoral",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+    ],
+  };
+}
+async function enrichAssessmentFixture(db:any,assessment:any){
+  const current=assessment?.sections||{};
+  const next=enrichedSections(current);
+  if(JSON.stringify(stable(current))===JSON.stringify(stable(next))){
+    return {changed:false,revision:Number(assessment?.revision||0),sections:current};
+  }
+  const currentRevision=Number(assessment?.revision||0);
+  const update=await db.from("iri_assessments").update({
+    sections:next,revision:currentRevision+1,
+  }).eq("id",ASSESSMENT_ID).eq("revision",currentRevision)
+    .select("id,revision,sections").single();
+  if(update.error)fail("IRI_QA_FIXTURE_ASSESSMENT_ENRICH_FAILED",502);
+  return {changed:true,revision:Number(update.data?.revision||0),sections:update.data?.sections||next};
 }
 async function seed(db:any){
-  await validateFixtureTarget(db);
+  const assessment=await validateFixtureTarget(db);
+  const assessmentFixture=await enrichAssessmentFixture(db,assessment);
   const current=await db.from("iri_external_reports_v26")
     .select("id,assessment_id,object_path,file_name,version")
     .eq("assessment_id",ASSESSMENT_ID).maybeSingle();
@@ -175,7 +269,7 @@ async function seed(db:any){
     }).eq("id",current.data.id)
       .select("id,version,file_name,mime_type,size_bytes,visible_to_client").single();
     if(update.error)fail("IRI_QA_FIXTURE_EXTERNAL_UPDATE_FAILED",502);
-    return {...update.data,artifactSha256,objectPath:OBJECT_PATH,kind:"updated"};
+    return {...update.data,artifactSha256,objectPath:OBJECT_PATH,kind:"updated",assessmentRevision:assessmentFixture.revision,assessmentFixtureChanged:assessmentFixture.changed};
   }
   const insert=await db.from("iri_external_reports_v26").insert({
     client_id:CLIENT_ID,assessment_id:ASSESSMENT_ID,bucket_id:BUCKET,object_path:OBJECT_PATH,
@@ -183,7 +277,7 @@ async function seed(db:any){
     visible_to_client:true,version:1,uploaded_by:COACH_USER_ID,uploaded_at:now,updated_at:now,
   }).select("id,version,file_name,mime_type,size_bytes,visible_to_client").single();
   if(insert.error)fail("IRI_QA_FIXTURE_EXTERNAL_INSERT_FAILED",502);
-  return {...insert.data,artifactSha256,objectPath:OBJECT_PATH,kind:"created"};
+  return {...insert.data,artifactSha256,objectPath:OBJECT_PATH,kind:"created",assessmentRevision:assessmentFixture.revision,assessmentFixtureChanged:assessmentFixture.changed};
 }
 
 Deno.serve(async(req:Request)=>{
