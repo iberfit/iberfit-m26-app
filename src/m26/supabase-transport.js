@@ -857,14 +857,21 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       clientId,
       assessmentId,
       revision:Math.max(0,Number(payload.revision)||0),
+      remoteRevision:Math.max(0,Number(payload.remoteRevision)||0),
       draft:payload.draft,
     };
     const body=JSON.stringify({p_payload:safePayload});
     if(body.length<20||body.length>125000)throw new Error('M26_IRI_DRAFT_PAYLOAD_INVALID');
     const item=await iriDraftRpc(IRI_DRAFT_RPC.upsert,token,{p_payload:safePayload});
     const result=Array.isArray(item)?item[0]:item;
-    if(!result||typeof result!=='object'||result.ok!==true||result.saved!==true||!UUID_PATTERN.test(String(result.id||'')))throw new Error('M26_IRI_DRAFT_SAVE_INVALID_RESPONSE');
-    return Object.freeze({...result});
+    if(!result||typeof result!=='object'||result.ok!==true)throw new Error('M26_IRI_DRAFT_SAVE_INVALID_RESPONSE');
+    if(result.conflict===true){
+      if(!Number.isInteger(Number(result.revision))||Number(result.revision)<0)throw new Error('M26_IRI_DRAFT_CONFLICT_INVALID_RESPONSE');
+      if(result.draft!==null&&(!result.draft||typeof result.draft!=='object'||Array.isArray(result.draft)))throw new Error('M26_IRI_DRAFT_CONFLICT_INVALID_RESPONSE');
+      return Object.freeze({...result,saved:false,conflict:true,revision:Number(result.revision)});
+    }
+    if(result.saved!==true||!UUID_PATTERN.test(String(result.id||''))||!Number.isInteger(Number(result.revision))||Number(result.revision)<1)throw new Error('M26_IRI_DRAFT_SAVE_INVALID_RESPONSE');
+    return Object.freeze({...result,conflict:false,revision:Number(result.revision)});
   }
 
   async function deleteIriDraft(token,clientId,assessmentId){
