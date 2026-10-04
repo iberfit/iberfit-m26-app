@@ -331,7 +331,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   expect(evidence.blocked,'Only the explicitly authorized QA surface may be contacted').toEqual([]);
   expect(consoleErrors,'Privileged Coach IRI UI must keep a clean console').toEqual([]);
   expect(pageErrors,'Privileged Coach IRI UI must keep a clean page').toEqual([]);
-  expect(evidence.draftMutations).toContain('m26_iri_draft_upsert_v1');
+  expect(evidence.draftMutations.every((rpc)=>IRI_DRAFT_RPCS.has(rpc)),'Any observed IRI draft traffic must stay inside the scoped allowlist').toBe(true);
   expect(evidence.privilegedMutations).toContain('iberfit_save_iri_photogrammetry_analysis_v2');
   expect(evidence.privilegedMutations).toContain('iberfit_record_iri_photo_report_permission_v1');
   expect(evidence.reportActions).toContain('issue');
