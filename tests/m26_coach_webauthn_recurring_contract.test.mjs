@@ -94,6 +94,7 @@ test('trusted Canary Coach UI certifies privileged IRI document routes without c
   assert.match(privileged,/client-with-photo-permission\.pdf/u);
   assert.match(privileged,/iri_external_reports_v26/u);
   assert.match(privileged,/signedRead\('iberfit-iri-photogrammetry'\)/u);
+  assert.match(privileged,/signedRead\('iberfit-iri-external-reports'\)/u);
   assert.match(privileged,/signedRead\('iberfit-iri-issued-reports'\)/u);
   assert.match(privileged,/evidence\.blocked.*toEqual\(\[\]\)/u);
   assert.match(privileged,/status.*photo publication|photoPublicationRevoked/iu);

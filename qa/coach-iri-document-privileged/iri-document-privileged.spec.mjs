@@ -100,7 +100,7 @@ function allowedQaRequest(request,evidence){
     '/storage/v1/object/sign/'+bucket+'/',
     '/object/sign/'+bucket+'/',
   ].some((prefix)=>url.pathname.startsWith(prefix));
-  if(signedRead('iberfit-iri-photogrammetry'))return method==='GET'||method==='POST';
+  if(signedRead('iberfit-iri-photogrammetry')||signedRead('iberfit-iri-external-reports'))return method==='GET'||method==='POST';
   if(signedRead('iberfit-iri-issued-reports'))return method==='GET';
   if(method==='POST'&&url.pathname===REPORT_PATH){
     try{evidence.reportActions.push(String(request.postDataJSON()?.action||'unknown'));}catch{}

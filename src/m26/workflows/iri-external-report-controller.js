@@ -697,10 +697,13 @@ function cardMarkup(context, entry) {
   const viewAction = report
     ? `<button type="button" data-iri-external-report-action="view"${isBusy ? ' disabled aria-disabled="true"' : ''}>Ver informe de bioimpedancia</button>`
     : '';
+  const retryAction = entry.error && !isBusy
+    ? '<button type="button" data-iri-external-report-action="retry-load">Reintentar conexión</button>'
+    : '';
   const selection = canManage
     ? '<small class="m26-external-report-selection" data-iri-external-report-selection>Ningún archivo seleccionado para una nueva carga.</small>'
     : '';
-  return `<section class="m26-panel m26-panel-soft m26-external-report-card m26-wide" data-iri-external-report-card data-assessment-id="${escapeHtml(context.assessmentId || '')}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento complementario</p><h3>Informe de bioimpedancia</h3><p>${canManage ? 'PDF, JPG o PNG · máximo 50 MB · vinculado a esta evaluación IRI.' : 'Este documento complementa los resultados de composición corporal del Diagnóstico IRI.'}</p></div>${report ? `<span class="m26-badge is-success">Versión ${escapeHtml(report.version)}</span>` : '<span class="m26-badge is-neutral">Pendiente</span>'}</div>${summary}<div class="m26-external-report-actions">${manageActions}${viewAction}</div>${selection}${status}</section>`;
+  return `<section class="m26-panel m26-panel-soft m26-external-report-card m26-wide" data-iri-external-report-card data-assessment-id="${escapeHtml(context.assessmentId || '')}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento complementario</p><h3>Informe de bioimpedancia</h3><p>${canManage ? 'PDF, JPG o PNG · máximo 50 MB · vinculado a esta evaluación IRI.' : 'Este documento complementa los resultados de composición corporal del Diagnóstico IRI.'}</p></div>${report ? `<span class="m26-badge is-success">Versión ${escapeHtml(report.version)}</span>` : '<span class="m26-badge is-neutral">Pendiente</span>'}</div>${summary}<div class="m26-external-report-actions">${manageActions}${viewAction}${retryAction}</div>${selection}${status}</section>`;
 }
 
 function viewerMarkup() {
@@ -958,6 +961,7 @@ export function createIriExternalReportController({
       if (throwOnError) throw new Error('M26_IRI_EXTERNAL_REPORT_LOADING');
       return null;
     }
+    if (entry.error && !throwOnError) return null;
     entry.loading = true;
     entry.error = null;
     entry.message = '';
@@ -1142,6 +1146,14 @@ export function createIriExternalReportController({
       else if (action === 'retry-register') {
         const entry = entryFor(context.assessmentId);
         await registerPending(context, entry);
+      } else if (action === 'retry-load') {
+        const entry = entryFor(context.assessmentId);
+        entry.error = null;
+        entry.loaded = false;
+        entry.message = 'Reintentando conexión…';
+        entry.tone = 'pending';
+        repaint(context);
+        await load(context, { throwOnError: false });
       } else if (action === 'view') {
         viewerReturnFocus = button;
         await view(context);
