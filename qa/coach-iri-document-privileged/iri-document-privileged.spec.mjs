@@ -6,6 +6,7 @@ const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
 const QA_ORIGIN='https://'+QA_REF+'.supabase.co';
 const CLIENT_ID='57f56a87-d04e-47d5-b1cc-8d4939d7c804';
+const ASSESSMENT_ID='7a000000-0000-4000-8000-000000000001';
 const BUILD_ROOT=path.resolve('.tmp/rc64-current-surface');
 const PUBLIC_BUILD_ROOT=path.join(BUILD_ROOT,'public');
 const OUT_DIR=path.resolve('recovery/coach-iri-document-privileged');
@@ -18,12 +19,16 @@ const READ_ONLY_RPCS=new Set([
   'm26_backend_bootstrap_v43','m26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
 ]);
-const PHOTO_TABLES=new Set([
+const IRI_READ_TABLES=new Set([
   '/rest/v1/iri_consents_v1',
   '/rest/v1/iri_photogrammetry_captures_v1',
   '/rest/v1/iri_photogrammetry_analyses_v1',
   '/rest/v1/iri_photogrammetry_analyses_v2',
   '/rest/v1/iri_photo_report_permissions_v1',
+  '/rest/v1/iri_external_reports_v26',
+]);
+const IRI_NAVIGATION_RPCS=new Set([
+  'm26_iri_draft_upsert_v1',
 ]);
 const PHOTO_WRITE_RPCS=new Set([
   'iberfit_save_iri_photogrammetry_analysis_v2',
@@ -92,17 +97,27 @@ function allowedQaRequest(request,evidence){
   if(method==='POST'&&url.pathname.startsWith(rpcPrefix)){
     const rpc=url.pathname.slice(rpcPrefix.length);
     if(READ_ONLY_RPCS.has(rpc))return true;
+    if(IRI_NAVIGATION_RPCS.has(rpc)){evidence.navigationMutations.push(rpc);return true;}
     if(PHOTO_WRITE_RPCS.has(rpc)){evidence.privilegedMutations.push(rpc);return true;}
   }
-  if(method==='GET'&&PHOTO_TABLES.has(url.pathname))return true;
-  if(url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/')){
+  if(method==='GET'&&IRI_READ_TABLES.has(url.pathname))return true;
+  const photoFixturePrefix=CLIENT_ID+'/'+ASSESSMENT_ID+'/';
+  if(
+    url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/'+photoFixturePrefix)||
+    url.pathname.startsWith('/object/sign/iberfit-iri-photogrammetry/'+photoFixturePrefix)
+  ){
     return method==='GET'||method==='POST';
   }
   if(method==='POST'&&url.pathname===REPORT_PATH){
     try{evidence.reportActions.push(String(request.postDataJSON()?.action||'unknown'));}catch{}
     return true;
   }
-  if(method==='GET'&&url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-issued-reports/'))return true;
+  if(
+    method==='GET'&&(
+      url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-issued-reports/')||
+      url.pathname.startsWith('/object/sign/iberfit-iri-issued-reports/')
+    )
+  )return true;
   return false;
 }
 async function installPolicy(context,evidence){
@@ -150,12 +165,38 @@ async function openSyntheticClient(page){
   await button.click();
   await expect(page.locator('[data-m26-area="iri"]:visible').first()).toBeVisible({timeout:15_000});
 }
+async function dismissGuidedTour(page){
+  const skip=page.locator('[data-m26-guided-tour-skip]:visible').first();
+  if(await skip.count()){
+    await skip.click();
+    await expect(page.locator('[data-m26-guided-tour]')).toHaveCount(0,{timeout:10_000});
+  }
+}
+async function advanceIriToStep(page,targetIndex){
+  const form=page.locator('[data-workflow-form="iri"]').first();
+  await expect(form).toBeVisible({timeout:20_000});
+  let current=Number(await form.getAttribute('data-iri-step-index')||0);
+  if(current>targetIndex){
+    const target=page.locator('[data-iri-step-jump="'+targetIndex+'"]').first();
+    await expect(target).toBeVisible();
+    await target.click();
+    await expect(form).toHaveAttribute('data-iri-step-index',String(targetIndex),{timeout:20_000});
+    return;
+  }
+  while(current<targetIndex){
+    const next=current+1;
+    const jump=page.locator('[data-iri-step-jump="'+next+'"]').first();
+    await expect(jump,'IRI certification must follow the real sequential validation flow').toBeVisible();
+    await jump.click();
+    await expect(form).toHaveAttribute('data-iri-step-index',String(next),{timeout:25_000});
+    current=next;
+  }
+}
 async function openPhotography(page){
   await openArea(page,'iri');
   await expect(page.getByRole('heading',{name:'Índice de Rendimiento IBERFIT'})).toBeVisible({timeout:20_000});
-  const jump=page.locator('[data-iri-step-jump="6"]');
-  await expect(jump).toBeVisible();
-  await jump.click();
+  await dismissGuidedTour(page);
+  await advanceIriToStep(page,6);
   const shell=page.locator('[data-iri-photo-loaded="true"]');
   await expect(shell).toBeVisible({timeout:30_000});
   await expect(page.locator('[data-iri-photo-view]')).toHaveCount(4);
@@ -214,7 +255,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   const evidence={
     schema:'iberfit.qa-coach-iri-document-privileged-ui.v1',
     projectRef:QA_REF,clientId:CLIENT_ID,synthetic:true,realPersonData:false,
-    webauthnActions:[],privilegedMutations:[],reportActions:[],blocked:[],
+    webauthnActions:[],navigationMutations:[],privilegedMutations:[],reportActions:[],blocked:[],
     analysisValidated:false,photoPublicationGranted:false,clientPdfIssued:false,photoPublicationRevoked:false,
   };
   const context=await browser.newContext({
@@ -295,6 +336,8 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   }
 
   expect(evidence.blocked,'Only the explicitly authorized QA surface may be contacted').toEqual([]);
+  expect(evidence.navigationMutations.length).toBeGreaterThan(0);
+  expect(new Set(evidence.navigationMutations)).toEqual(new Set(['m26_iri_draft_upsert_v1']));
   expect(consoleErrors,'Privileged Coach IRI UI must keep a clean console').toEqual([]);
   expect(pageErrors,'Privileged Coach IRI UI must keep a clean page').toEqual([]);
   expect(evidence.privilegedMutations).toContain('iberfit_save_iri_photogrammetry_analysis_v2');
