@@ -50,6 +50,9 @@ test('Solo IRI surfaces explain evaluation-only state instead of training action
   assert.match(render,/Propuestas de entrenamiento no activadas/u);
   assert.match(render,/Abrir \/ completar IRI/u);
   assert.match(render,/Ver informe IRI/u);
+  assert.match(render,/IRI en preparación/u);
+  assert.match(render,/borrador protegido/u);
+  assert.match(render,/recupera el borrador local o remoto disponible/u);
 });
 
 test('least privilege is restored append-only after the immutable Solo IRI migration',()=>{
