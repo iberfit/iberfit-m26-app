@@ -10,8 +10,7 @@ const migrationPath = new URL(
 test('IRI external report upsert SELECT is limited to object.upload and an existing authorized IRI', async () => {
   const sql = await readFile(migrationPath, 'utf8');
 
-  assert.match(sql, /drop policy if exists iri_external_object_read_v12 on storage\.objects/i);
-  assert.match(sql, /create policy iri_external_object_read_v12[\s\S]*for select[\s\S]*to authenticated/i);
+  assert.match(sql, /alter policy iri_external_object_read_v12[\s\S]*on storage\.objects[\s\S]*using/i);
   assert.match(sql, /storage\.allow_only_operation\('object\.upload'\)/i);
   assert.match(sql, /iberfit_can_manage_iri_external_report_v12/i);
   assert.match(sql, /from public\.iri_assessments i/i);
@@ -20,6 +19,6 @@ test('IRI external report upsert SELECT is limited to object.upload and an exist
   assert.match(sql, /r\.object_path\s*=\s*storage\.objects\.name/i);
   assert.match(sql, /r\.visible_to_client[\s\S]*iberfit_can_manage_iri_external_report_v12/i);
 
-  assert.doesNotMatch(sql, /for select[\s\S]*using\s*\(\s*true\s*\)/i);
+  assert.doesNotMatch(sql, /using\s*\(\s*true\s*\)/i);
   assert.doesNotMatch(sql, /to\s+public\s+using/i);
 });
