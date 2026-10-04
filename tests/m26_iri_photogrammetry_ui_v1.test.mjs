@@ -91,6 +91,10 @@ test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP afford
   assert.match(controller,/setAttribute\?\.\('transform'/u);
   assert.doesNotMatch(controller,/\.style\.(?:left|top)/u);
   assert.match(controller,/data-iri-photo-canvas/u);
+  assert.match(controller,/data-iri-photo-view-select/u);
+  assert.match(controller,/data-iri-analysis-revision/u);
+  assert.match(css,/\.m26-photo-view-selector/u);
+  assert.match(css,/\.m26-photo-view\.is-active/u);
   assert.match(controller,/stagePoint\(canvas,event\)/u);
   assert.match(css,/\.m26-photo-canvas\{position:relative/u);
 });
