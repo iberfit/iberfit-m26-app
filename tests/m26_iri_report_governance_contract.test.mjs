@@ -293,3 +293,18 @@ test('Client reevaluation guidance stays readable while Coach trace remains comp
   assert.match(renderer,/Protocolos registrados/u);
   assert.match(renderer,/pdfProtocolVersion\(record\?\.protocolVersion\)/u);
 });
+
+test('issued IRI uses decision-useful editorial density without decorative filler',()=>{
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  assert.match(renderer,/function pdfEditorialPanel/u);
+  assert.match(renderer,/Criterio de planificación/u);
+  assert.match(renderer,/Cómo leer esta página/u);
+  assert.match(renderer,/Regla de comparabilidad/u);
+  assert.match(renderer,/Uso técnico/u);
+  assert.match(renderer,/Comparabilidad técnica/u);
+  assert.match(renderer,/Criterio de interpretación/u);
+  assert.match(renderer,/Reglas de lectura/u);
+  assert.match(renderer,/ausencia de dato se interprete como normalidad/u);
+  assert.match(renderer,/misma variante y una configuración equivalente/u);
+});
+

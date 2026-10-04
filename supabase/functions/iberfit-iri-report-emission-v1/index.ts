@@ -294,6 +294,23 @@ function pdfBullets(page:any,fonts:any,title:string,items:unknown[],x:number,y:n
   }
   return cy;
 }
+function pdfEditorialPanel(page:any,fonts:any,title:string,items:unknown[],x:number,topY:number,w:number){
+  const rows=(Array.isArray(items)?items:[]).map((item)=>pdfSafe(item,420)).filter(Boolean).slice(0,4);
+  if(!rows.length)return topY;
+  const wrapped=rows.map((item)=>pdfWrap(fonts.regular,8.45,item,w-40).slice(0,3));
+  const height=34+wrapped.reduce((sum,lines)=>sum+lines.length*11.1+7,0);
+  const bottom=topY-height;
+  page.drawRectangle({x,y:bottom,width:w,height,color:PDF_C.cream2,opacity:.13,borderColor:PDF_C.gold,borderWidth:.55,borderOpacity:.32});
+  page.drawRectangle({x,y:bottom,width:3,height,color:PDF_C.gold,opacity:.78});
+  page.drawText(pdfSafe(title,90),{x:x+15,y:topY-21,size:10,font:fonts.bold,color:PDF_C.ink});
+  let cy=topY-42;
+  for(const lines of wrapped){
+    page.drawCircle({x:x+18,y:cy+3,size:1.55,color:PDF_C.gold});
+    lines.forEach((line,index)=>page.drawText(line,{x:x+29,y:cy-index*11.1,size:8.45,font:fonts.regular,color:PDF_C.ink2}));
+    cy-=lines.length*11.1+7;
+  }
+  return bottom-8;
+}
 async function pdfImage(doc:any,url:string){
   try{
     const response=await fetch(url,{signal:AbortSignal.timeout(12_000)});
@@ -513,7 +530,14 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     y=pdfField(page,fonts,'MODALIDAD Y ENTORNO',pdfJoin([profile?.modality,profile?.locationType,profile?.trainingAddress]),y);
     y=pdfField(page,fonts,'MATERIAL DISPONIBLE',Array.isArray(profile?.equipment)&&profile.equipment.length?profile.equipment.join(' · '):'Sin material registrado',y);
     y=pdfField(page,fonts,'PREFERENCIAS',interview?.preferences||'Sin preferencias especiales registradas',y);
-    pdfField(page,fonts,'CONSIDERACIONES DECLARADAS',interview?.restrictions||'Sin restricciones declaradas',y);
+    y=pdfField(page,fonts,'CONSIDERACIONES DECLARADAS',interview?.restrictions||'Sin restricciones declaradas',y);
+    pdfEditorialPanel(page,fonts,'Criterio de planificación',[
+      'El plan se ajusta a la disponibilidad, modalidad y material realmente registrados.',
+      'Las preferencias sirven para reducir fricción y mejorar adherencia sin sustituir los criterios de seguridad y progresión.',
+      interview?.restrictions
+        ?'Las consideraciones declaradas se revisan antes de progresar y vuelven a comprobarse si cambia el contexto.'
+        :'No se declararon restricciones en esta evaluación; cualquier cambio posterior debe quedar registrado.',
+    ],PDF_M,Math.min(y-4,330),PDF_W-PDF_M*2);
     pdfText(page,fonts.regular,'El Diagnóstico IRI describe el punto de partida para decidir mejor. El seguimiento y la evolución se registran después, de forma separada.',PDF_M,82,PDF_W-PDF_M*2,8.5,11.5,PDF_C.ink2,4);
   }
 
@@ -534,7 +558,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     y=pdfField(page,fonts,'ROTACIÓN DE CADERA',mobility?.hipRotation?.skipped?'No evaluado':mobility?.hipRotation?.result,y);
     y=pdfField(page,fonts,'SENTADILLA ASISTIDA',mobility?.assistedSquat?.skipped?'No evaluado':[mobility?.assistedSquat?.depth,mobility?.assistedSquat?.heels,mobility?.assistedSquat?.knees,mobility?.assistedSquat?.trunk].filter(Boolean).join(' · ')||'Sin detalle',y);
     y=pdfField(page,fonts,'MÉTODO DE COMPOSICIÓN',body?.skipped?body?.skipReason:(body?.method||body?.device||'Sin método registrado'),y);
-    pdfField(page,fonts,'CONDICIONES DE MEDICIÓN',body?.measurementConditions||'Sin observaciones adicionales',y);
+    y=pdfField(page,fonts,'CONDICIONES DE MEDICIÓN',body?.measurementConditions||'Sin observaciones adicionales',y);
+    pdfEditorialPanel(page,fonts,'Cómo leer esta página',[
+      'La composición corporal se conserva como referencia longitudinal y no modifica por sí sola la puntuación funcional.',
+      'Las asimetrías de movilidad se interpretan junto con dolor, control, calidad del movimiento y repetibilidad.',
+      'En la reevaluación conviene repetir método y condiciones de medición para que el cambio observado sea comparable.',
+    ],PDF_M,Math.min(y-4,290),PDF_W-PDF_M*2);
   }
 
   n+=1;
@@ -566,7 +595,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       Number.isFinite(Number(strength?.trxRow?.bodyAngleDeg))&&'ángulo '+pdfNum(strength.trxRow.bodyAngleDeg)+'°',
     ].filter(Boolean).join(' · ')||strength?.trxRow?.position||'Sin detalle',y);
     y=pdfField(page,fonts,'OBSERVACIONES DE FUERZA',strength?.notes||'Sin observaciones adicionales',y);
-    pdfField(page,fonts,'OBSERVACIONES DE ESFUERZO',cardio?.notes||'Sin observaciones adicionales',y);
+    y=pdfField(page,fonts,'OBSERVACIONES DE ESFUERZO',cardio?.notes||'Sin observaciones adicionales',y);
+    pdfEditorialPanel(page,fonts,'Regla de comparabilidad',[
+      'Las repeticiones solo son comparables si se conserva la misma variante y una configuración equivalente.',
+      'En TRX deben mantenerse las referencias de altura, distancia o ángulo que definieron la prueba inicial.',
+      'La recuperación de frecuencia cardiaca se utiliza como referencia individual y se interpreta junto con el protocolo y el esfuerzo realizado.',
+    ],PDF_M,Math.min(y-4,295),PDF_W-PDF_M*2);
   }
 
   n+=1;
@@ -668,12 +702,17 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       y=pdfField(page,fonts,'DOLOR / SÍNTOMAS ACTUALES',interview?.currentPain||'Sin dolor actual registrado',y);
       y=pdfField(page,fonts,'CRIBADO ACEPTADO',pdfBool(interview?.screeningAccepted),y);
       y=pdfField(page,fonts,'NOTAS DE CRIBADO',interview?.screeningNotes||'Sin notas adicionales',y);
-      pdfField(page,fonts,'PRUEBAS OMITIDAS',pdfJoin([
+      y=pdfField(page,fonts,'PRUEBAS OMITIDAS',pdfJoin([
         body?.skipped&&('Composición: '+pdfSafe(body?.skipReason,120)),
         mobility?.skipped&&('Movilidad: '+pdfSafe(mobility?.skipReason,120)),
         strength?.skipped&&('Fuerza: '+pdfSafe(strength?.skipReason,120)),
         cardio?.skipped&&('Cardio: '+pdfSafe(cardio?.skipReason,120)),
       ],'Ninguna omisión global registrada'),y);
+      pdfEditorialPanel(page,fonts,'Uso técnico',[
+        'El cribado contextualiza la sesión y sus límites; no convierte el IRI en una evaluación clínica.',
+        'Un síntoma, restricción o cambio relevante posterior debe registrarse antes de decidir una progresión.',
+        'Las pruebas omitidas permanecen visibles para evitar que la ausencia de dato se interprete como normalidad.',
+      ],PDF_M,Math.min(y-4,300),PDF_W-PDF_M*2);
     }
 
     n+=1;
@@ -687,7 +726,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       y=pdfField(page,fonts,'THOMAS MODIFICADO',pdfJoin([mobility?.modifiedThomas?.left,mobility?.modifiedThomas?.right,mobility?.modifiedThomas?.pelvicControl,mobility?.modifiedThomas?.pain]),y);
       y=pdfField(page,fonts,'ROTACIÓN DE CADERA',pdfJoin([mobility?.hipRotation?.result,mobility?.hipRotation?.pain,mobility?.hipRotation?.compensation]),y);
       y=pdfField(page,fonts,'SENTADILLA OBSERVACIONAL',pdfJoin([mobility?.assistedSquat?.depth,mobility?.assistedSquat?.heels,mobility?.assistedSquat?.knees,mobility?.assistedSquat?.trunk,mobility?.assistedSquat?.lateralShift,mobility?.assistedSquat?.assistanceResponse,mobility?.assistedSquat?.pain]),y);
-      pdfField(page,fonts,'OBSERVACIONES',mobility?.notes||'Sin observaciones adicionales',y);
+      y=pdfField(page,fonts,'OBSERVACIONES',mobility?.notes||'Sin observaciones adicionales',y);
+      pdfEditorialPanel(page,fonts,'Comparabilidad técnica',[
+        'Conservar lado, número de intentos y mejor resultado permite distinguir cambio real de variación de la medición.',
+        'Dolor, compensaciones y respuesta a la asistencia deben revisarse junto con los centímetros o la descripción del movimiento.',
+        'La reevaluación debe reproducir la misma prueba antes de atribuir una diferencia a progreso o regresión.',
+      ],PDF_M,Math.min(y-4,300),PDF_W-PDF_M*2);
     }
 
     n+=1;
@@ -723,7 +767,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
         strength?.core?.pain,
       ]),y);
       y=pdfField(page,fonts,'CADENA POSTERIOR',pdfJoin([strength?.posteriorChain?.protocol,Number.isFinite(Number(strength?.posteriorChain?.seconds))&&pdfNum(strength.posteriorChain.seconds)+' s',strength?.posteriorChain?.notPerformedReason,strength?.posteriorChain?.pain]),y);
-      pdfField(page,fonts,'OBSERVACIONES GENERALES',strength?.notes||'Sin observaciones adicionales',y);
+      y=pdfField(page,fonts,'OBSERVACIONES GENERALES',strength?.notes||'Sin observaciones adicionales',y);
+      pdfEditorialPanel(page,fonts,'Comparabilidad técnica',[
+        'Variante, apoyo, altura, distancia y ángulo forman parte del resultado cuando modifican la dificultad de la prueba.',
+        'Una repetición válida debe conservar el mismo criterio de ejecución para que el cambio sea interpretable.',
+        'El dossier mantiene estas referencias para que la progresión no dependa de memoria ni de descripciones informales.',
+      ],PDF_M,Math.min(y-4,300),PDF_W-PDF_M*2);
     }
 
     n+=1;
@@ -751,7 +800,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       y=pdfField(page,fonts,'ESFUERZO / VALIDEZ',pdfJoin([Number.isFinite(Number(cardio?.rpe))&&'RPE '+pdfNum(cardio.rpe,1)+'/10','válida '+pdfBool(cardio?.valid),cardio?.hrMethod]),y);
       y=pdfField(page,fonts,'SÍNTOMAS',cardio?.symptoms||'Sin síntomas registrados',y);
       y=pdfField(page,fonts,'MOTIVO DE DETENCIÓN',cardio?.stopReason||'Sin detención anticipada registrada',y);
-      pdfField(page,fonts,'NOTAS',cardio?.notes||'Sin observaciones adicionales',y);
+      y=pdfField(page,fonts,'NOTAS',cardio?.notes||'Sin observaciones adicionales',y);
+      pdfEditorialPanel(page,fonts,'Criterio de interpretación',[
+        'La recuperación de frecuencia cardiaca solo se compara dentro de protocolos y condiciones suficientemente equivalentes.',
+        'RPE, síntomas y motivo de detención aportan contexto al dato de frecuencia cardiaca y evitan interpretaciones aisladas.',
+        'Si cambia el protocolo, la configuración o el método de medición, el resultado debe tratarse como una referencia distinta.',
+      ],PDF_M,Math.min(y-4,290),PDF_W-PDF_M*2);
     }
 
     n+=1;
@@ -767,7 +821,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       y=pdfField(page,fonts,'FOTOGRAMETRÍA',photoReport?.available?('Disponible · calidad '+photoQuality(photoReport)):'Sin evidencia fotogramétrica incorporada',y);
       y=pdfField(page,fonts,'BIOIMPEDANCIA ORIGINAL',annex?'Incorporada como anexo del documento emitido':'Sin documento externo incorporado',y);
       y=pdfField(page,fonts,'CRITERIO DE INTERPRETACIÓN','No se mezclan baremos incompatibles. Los protocolos adaptados se conservan como referencia individual y cada reevaluación debe respetar variante y configuración.',y);
-      pdfField(page,fonts,'LÍMITE','Evaluación de rendimiento y entrenamiento; no sustituye una evaluación clínica ni convierte una ausencia de dato en normalidad.',y);
+      y=pdfField(page,fonts,'LÍMITE','Evaluación de rendimiento y entrenamiento; no sustituye una evaluación clínica ni convierte una ausencia de dato en normalidad.',y);
+      pdfEditorialPanel(page,fonts,'Reglas de lectura',[
+        'La puntuación resume dominios con cobertura suficiente; no reemplaza la lectura de cada prueba ni de su validez.',
+        'Composición corporal y fotogrametría añaden contexto, pero permanecen separadas de la nota funcional.',
+        'Una omisión o una medición no comparable reduce la fuerza de la conclusión y debe conservarse explícitamente.',
+      ],PDF_M,Math.min(y-4,290),PDF_W-PDF_M*2);
     }
 
     n+=1;
