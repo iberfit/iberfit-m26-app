@@ -56,7 +56,7 @@ test('application normal and clear-device logout are local while all-device revo
   assert.ok(app.includes("function onLogout(){const token=currentToken();finishLogout({token,scope:'local'});}"));
 
   const clearStart=app.indexOf('async function onLogoutAndClearDevice(){');
-  const clearEnd=app.indexOf('  function destroyControllers()',clearStart);
+  const clearEnd=app.indexOf('  function destroyControllers(',clearStart);
   assert.ok(clearStart>=0&&clearEnd>clearStart);
   const clearBlock=app.slice(clearStart,clearEnd);
   assert.match(clearBlock,/scope:'local'/u);
