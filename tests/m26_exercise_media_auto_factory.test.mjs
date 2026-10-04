@@ -204,6 +204,22 @@ test('planner applies deterministic IBERFIT geometry to hard movements before se
   assert.match(planner,/canonical hard-movement phase geometry applied deterministically/);
 });
 
+test('expected image-quality rejection is quarantined with full evidence without weakening QA',()=>{
+  assert.match(workflow,/quality-rejection\.v1/);
+  assert.match(workflow,/START_PHASE_QA_FAILED\|RAW_PHASE_QA_FAILED/);
+  assert.match(workflow,/IBERFIT_FACTORY_QUALITY_REJECTED=true/);
+  assert.match(workflow,/AUTO_FACTORY_QUARANTINE_CONFIRMATION_INVALID/);
+  assert.match(workflow,/recovery\/auto-factory\/start-phase-qa\*\.json/);
+  assert.match(workflow,/recovery\/auto-factory\/raw-phase-qa\*\.json/);
+  assert.match(workflow,/recovery\/auto-factory\/\*-start\.jpg/);
+  assert.match(workflow,/recovery\/auto-factory\/\*-final\.jpg/);
+  assert.match(generator,/repairReasons\(review\)/);
+  assert.match(generator,/failed_check:/);
+  assert.match(generator,/support_observation:/);
+  assert.match(generator,/START_PHASE_QA_FAILED/);
+  assert.match(generator,/RAW_PHASE_QA_FAILED/);
+});
+
 test('claim is idempotent per workflow run and review-ready runs cannot be reclaimed',()=>{
   assert.match(broker,/const runId=String\(claims\?\.run_id\|\|""\)/);
   assert.match(broker,/const workflowSha=String\(claims\?\.sha\|\|""\)/);
