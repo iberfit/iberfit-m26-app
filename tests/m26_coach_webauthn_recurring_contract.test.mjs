@@ -114,7 +114,8 @@ test('privileged IRI certification permits only the scoped remote-draft RPCs req
   assert.match(privileged,/m26_iri_draft_upsert_v1/);
   assert.match(privileged,/m26_iri_draft_delete_v1/);
   assert.match(privileged,/evidence\.draftMutations\.push\(rpc\)/);
-  assert.match(privileged,/evidence\.draftMutations\)\.toContain\('m26_iri_draft_upsert_v1'\)/);
+  assert.match(privileged,/evidence\.draftMutations\.every\(\(rpc\)=>IRI_DRAFT_RPCS\.has\(rpc\)\)/);
+  assert.doesNotMatch(privileged,/draftMutations\)\.toContain\('m26_iri_draft_upsert_v1'\)/);
 });
 
 test('privileged IRI certification allows the private bioimpedance object read required by the final PDF flow',async()=>{
