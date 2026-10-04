@@ -68,6 +68,16 @@ async function validateStartPhase({claim,plan,startFile,outDir,proxy,token,revie
   const review=await qaRequest({proxy,token,label:'START_PHASE_QA',maxCompletionTokens:2200,content:[{type:'image_url',image_url:{url:dataUri(startFile)}},{type:'text',text:rubric}]});
   const checks={};for(const key of keys)checks[key]=review[key]===true;if(hardSupport)checks.support_topology=checks.support_topology&&supportObservationPass(exercise,review.support_observation);const confidence=Number(review.confidence);const pass=keys.every(k=>checks[k]===true)&&Number.isFinite(confidence)&&confidence>=minConfidence;const output={schema:'iberfit.exercise.media.auto.start-phase-qa.v1',exercise_id:exercise.id,pass,confidence:Number.isFinite(confidence)?confidence:0,min_confidence:minConfidence,checks,support_observation:hardSupport?(review.support_observation||null):null,issues:Array.isArray(review.issues)?review.issues.map(String).slice(0,12):[],anatomy_inferred:inferred,review_attempt:reviewAttempt,reviewed_at:new Date().toISOString()};const serialized=`${JSON.stringify(output,null,2)}\n`;fs.writeFileSync(path.join(outDir,'start-phase-qa.json'),serialized);fs.writeFileSync(path.join(outDir,`start-phase-qa-attempt-${reviewAttempt}.json`),serialized);return output;
 }
+function repairReasons(review){
+  if(!review)return[];
+  const failed=Object.entries(review.checks||{}).filter(([,ok])=>ok!==true).map(([key])=>`failed_check:${key}`);
+  const issues=Array.isArray(review.issues)?review.issues.map((issue)=>String(issue).slice(0,240)):[];
+  const observation=review.support_observation
+    ?[`support_observation:${JSON.stringify(review.support_observation).slice(0,900)}`]
+    :[];
+  return [...failed,...issues,...observation].slice(0,16);
+}
+
 async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,token,reviewAttempt=0}){
   const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportPairObservationInstruction(exercise);
   const keys=['start_matches_plan','final_matches_plan','movement_identity_lock','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(7,0,'support_topology');
@@ -127,14 +137,14 @@ async function main(){
     let generated=null;let review=null;let repairIssues=[];
     for(let attempt=0;attempt<=START_REPAIR_ATTEMPTS;attempt+=1){
       if(attempt>0&&generated)archiveRejectedPhase(generated.file,outDir,exercise.id,'start',attempt-1);
-      generated=await generateOnce(attempt,repairIssues);review=await validateStartPhase({claim,plan,startFile:generated.file,outDir,proxy,token,reviewAttempt:attempt});if(review.pass)return;repairIssues=review.issues;
+      generated=await generateOnce(attempt,repairIssues);review=await validateStartPhase({claim,plan,startFile:generated.file,outDir,proxy,token,reviewAttempt:attempt});if(review.pass)return;repairIssues=repairReasons(review);
     }
     const failed=review?Object.entries(review.checks).filter(([,ok])=>ok!==true).map(([key])=>key).join(',')||'confidence':'unknown';throw new Error(`START_PHASE_QA_FAILED:${review?.confidence??0}:${failed}`);
   }
   let generated=null;let review=null;let repairIssues=[];
   for(let attempt=0;attempt<=FINAL_REPAIR_ATTEMPTS;attempt+=1){
     if(attempt>0&&generated)archiveRejectedPhase(generated.file,outDir,exercise.id,'final',attempt-1);
-    generated=await generateOnce(attempt,repairIssues);review=await validateRawPair({claim,plan,startFile:continuityRef,finalFile:generated.file,outDir,proxy,token,reviewAttempt:attempt});if(review.pass)return;repairIssues=review.issues;
+    generated=await generateOnce(attempt,repairIssues);review=await validateRawPair({claim,plan,startFile:continuityRef,finalFile:generated.file,outDir,proxy,token,reviewAttempt:attempt});if(review.pass)return;repairIssues=repairReasons(review);
   }
   const failed=review?Object.entries(review.checks).filter(([,ok])=>ok!==true).map(([key])=>key).join(',')||'confidence':'unknown';throw new Error(`RAW_PHASE_QA_FAILED:${review?.confidence??0}:${failed}`);
 }
