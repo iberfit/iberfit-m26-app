@@ -29,7 +29,7 @@ test('IRI report governance uses a dedicated authenticated emission broker',asyn
       expiresIn:120,
     }),{status:200,headers:{'content-type':'application/json'}});
   };
-  const service=createIriReportGovernanceService({runtime:QA_RUNTIME,fetchImpl});
+  const service=createIriReportGovernanceService({runtime:QA_RUNTIME,fetchImpl,uuidFactory:()=> '44444444-4444-4444-8444-444444444444',storage:null});
   const result=await service.issue('token',{assessmentId:'33333333-3333-4333-8333-333333333333',audience:'client'});
   assert.equal(result.version,1);
   assert.equal(result.audience,'cliente');
@@ -40,7 +40,51 @@ test('IRI report governance uses a dedicated authenticated emission broker',asyn
     action:'issue',
     assessmentId:'33333333-3333-4333-8333-333333333333',
     audience:'cliente',
+    issueRequestId:'44444444-4444-4444-8444-444444444444',
   });
+  assert.equal(result.issueRequestId,'44444444-4444-4444-8444-444444444444');
+  assert.equal(result.reused,false);
+});
+
+test('IRI report governance reuses a request id after failure and rotates it only after success',async()=>{
+  const ids=[
+    '55555555-5555-4555-8555-555555555555',
+    '66666666-6666-4666-8666-666666666666',
+  ];
+  let uuidIndex=0;
+  const bodies=[];
+  let call=0;
+  const fetchImpl=async(_url,options)=>{
+    const payload=JSON.parse(options.body);bodies.push(payload);call+=1;
+    if(call===1)return new Response(JSON.stringify({ok:false,code:'IRI_REPORT_TEMPORARY_FAILURE'}),{status:503,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({
+      ok:true,
+      issuanceId:call===2?'11111111-1111-4111-8111-111111111111':'77777777-7777-4777-8777-777777777777',
+      issueRequestId:payload.issueRequestId,
+      reused:false,
+      documentId:'22222222-2222-4222-8222-222222222222',
+      assessmentId:payload.assessmentId,
+      audience:'cliente',
+      version:call===2?1:2,
+      artifactSha256:'a'.repeat(64),
+      sourceSha256:'b'.repeat(64),
+      signedUrl:'https://gjztkdwfmunnzhtvxrsu.supabase.co/storage/v1/object/sign/iberfit-iri-issued-reports/x?token=signed',
+      expiresIn:120,
+    }),{status:200,headers:{'content-type':'application/json'}});
+  };
+  const service=createIriReportGovernanceService({
+    runtime:QA_RUNTIME,fetchImpl,storage:null,uuidFactory:()=>ids[uuidIndex++],
+  });
+  const args={assessmentId:'33333333-3333-4333-8333-333333333333',audience:'client'};
+  await assert.rejects(()=>service.issue('token',args),/IRI_REPORT_TEMPORARY_FAILURE/u);
+  const retry=await service.issue('token',args);
+  const deliberate=await service.issue('token',args);
+  assert.equal(bodies[0].issueRequestId,ids[0]);
+  assert.equal(bodies[1].issueRequestId,ids[0]);
+  assert.equal(retry.issueRequestId,ids[0]);
+  assert.equal(bodies[2].issueRequestId,ids[1]);
+  assert.equal(deliberate.issueRequestId,ids[1]);
+  assert.equal(uuidIndex,2);
 });
 
 test('IRI report governance rejects signed URLs outside the active Supabase project',async()=>{
@@ -107,6 +151,17 @@ test('document-governance migration creates final client-safe immutable state wi
   assert.doesNotMatch(sql,/grant select on public\.iri_report_issuances_v1 to anon/iu);
 });
 
+test('IRI immutable issuance has request-scoped idempotency without blocking later deliberate versions',()=>{
+  const sql=fs.readFileSync(new URL('../supabase/migrations/20261004213000_iri_report_issue_idempotency_v1.sql',import.meta.url),'utf8');
+  assert.match(sql,/issue_request_id uuid/u);
+  assert.match(sql,/iri_report_issue_request_unique_v1/u);
+  assert.match(sql,/iberfit_finalize_iri_report_issue_v2/u);
+  assert.match(sql,/IRI_REPORT_IDEMPOTENCY_SOURCE_MISMATCH/u);
+  assert.match(sql,/'reused',true/u);
+  assert.match(sql,/'reused',false/u);
+  assert.doesNotMatch(sql,/\bDROP\s+(?:TABLE|COLUMN|SCHEMA|DATABASE)\b/iu);
+});
+
 test('server report renderer is decoupled from browser-only external-report controller',()=>{
   const source=fs.readFileSync(new URL('../src/m26/workflows/iri-report-document.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/iri-external-report-controller\.js/u);
@@ -131,6 +186,9 @@ test('emission broker renders immutable PDFs inside Supabase with IBERFIT tokens
   assert.doesNotMatch(source,/buildIriReportHtml/u);
   assert.doesNotMatch(source,/\.\.\/\.\.\/\.\.\/src\/m26\//u);
   assert.match(source,/artifact_sha256/u);
+  assert.match(source,/iberfit_finalize_iri_report_issue_v2/u);
+  assert.match(source,/issueRequestId/u);
+  assert.match(source,/reused===true/u);
   assert.match(source,/source_sha256/u);
   assert.match(source,/assessmentMeta\?\.protocolVersion/u);
   assert.match(source,/assessmentMeta\?\.completedAt/u);
