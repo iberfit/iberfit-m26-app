@@ -45,7 +45,7 @@ test('IRI route exposes optional four-view workspace and explicit physical conse
   assert.match(source,/iriStep\(6,'fotografia','Fotogrametría · opcional'/u);
   assert.match(source,/data-iri-photogrammetry-host/u);
   assert.match(source,/Fotografía','Revisión/u);
-  assert.match(source,/Ocho etapas/u);
+  assert.match(source,/Proceso guiado de 8 etapas/u);
 });
 
 test('authenticated application mounts and destroys photogrammetry controller',()=>{
