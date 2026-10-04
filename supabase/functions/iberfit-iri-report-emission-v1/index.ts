@@ -1083,7 +1083,7 @@ Deno.serve(async(req:Request)=>{
     if(action==='issue'){
       const assessmentId=assertUuid(body?.assessmentId,'IRI_REPORT_ASSESSMENT_INVALID');
       const audience=audienceDb(body?.audience);
-      const issueRequestId=assertUuid(body?.issueRequestId,'IRI_REPORT_ISSUE_REQUEST_INVALID');
+      const issueRequestId=body?.issueRequestId?assertUuid(body.issueRequestId,'IRI_REPORT_ISSUE_REQUEST_INVALID'):crypto.randomUUID();
       const result=await issueReport({
         userClient,service,actorUserId,actorEmail,assessmentId,audience,issueRequestId,appOrigin,
       });
