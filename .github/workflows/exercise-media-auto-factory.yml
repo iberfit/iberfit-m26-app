@@ -241,9 +241,38 @@ jobs:
         if: env.IBERFIT_FACTORY_DONE != 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          node scripts/exercise-media/auto-factory-generate.mjs --claim recovery/auto-factory/claim.json --plan recovery/auto-factory/plan.json --phase start --athlete-ref "$ATHLETE_REFERENCE" --out-dir recovery/auto-factory
-          node scripts/exercise-media/auto-factory-generate.mjs --claim recovery/auto-factory/claim.json --plan recovery/auto-factory/plan.json --phase final --athlete-ref "$ATHLETE_REFERENCE" --out-dir recovery/auto-factory
+          set -uo pipefail
+          classify_quality_rejection() {
+            local log_file="$1"
+            local phase="$2"
+            local reason
+            reason="$(grep -Eo '(START_PHASE_QA_FAILED|RAW_PHASE_QA_FAILED):[^[:space:]]+' "$log_file" | tail -n 1 || true)"
+            if [[ -z "$reason" ]]; then return 1; fi
+            jq -n --arg exercise_id "$IBERFIT_EXERCISE_ID" --arg job_id "$IBERFIT_JOB_ID" --arg phase "$phase" --arg reason "$reason" --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT"               '{schema:"iberfit.exercise.media.quality-rejection.v1",exercise_id:$exercise_id,job_id:$job_id,phase:$phase,reason:$reason,run_id:$run_id,run_attempt:$run_attempt,expected_quality_rejection:true}'               > recovery/auto-factory/quality-rejection.json
+            echo 'IBERFIT_FACTORY_QUALITY_REJECTED=true' >> "$GITHUB_ENV"
+            echo 'IBERFIT_FACTORY_DONE=true' >> "$GITHUB_ENV"
+            echo "Exercise media candidate rejected by fail-closed quality gate: $reason"
+            return 0
+          }
+
+          set +e
+          node scripts/exercise-media/auto-factory-generate.mjs --claim recovery/auto-factory/claim.json --plan recovery/auto-factory/plan.json --phase start --athlete-ref "$ATHLETE_REFERENCE" --out-dir recovery/auto-factory 2>&1 | tee recovery/auto-factory/generate-start.log
+          start_rc=${PIPESTATUS[0]}
+          set -e
+          if [[ "$start_rc" -ne 0 ]]; then
+            if classify_quality_rejection recovery/auto-factory/generate-start.log start; then exit 0; fi
+            exit "$start_rc"
+          fi
+
+          set +e
+          node scripts/exercise-media/auto-factory-generate.mjs --claim recovery/auto-factory/claim.json --plan recovery/auto-factory/plan.json --phase final --athlete-ref "$ATHLETE_REFERENCE" --out-dir recovery/auto-factory 2>&1 | tee recovery/auto-factory/generate-final.log
+          final_rc=${PIPESTATUS[0]}
+          set -e
+          if [[ "$final_rc" -ne 0 ]]; then
+            if classify_quality_rejection recovery/auto-factory/generate-final.log final; then exit 0; fi
+            exit "$final_rc"
+          fi
+
           start="$(find recovery/auto-factory -maxdepth 1 -type f -name "${IBERFIT_EXERCISE_ID}-start.*" ! -name '*.json' | head -n 1)"
           final="$(find recovery/auto-factory -maxdepth 1 -type f -name "${IBERFIT_EXERCISE_ID}-final.*" ! -name '*.json' | head -n 1)"
           test -s "$start"; test -s "$final"
@@ -370,32 +399,33 @@ jobs:
           NODE
 
       - name: Quarantine failed claimed exercise
-        if: always() && env.IBERFIT_FACTORY_DONE != 'true' && env.IBERFIT_JOB_ID != '' && env.IBERFIT_REVIEW_READY != 'true'
+        if: always() && env.IBERFIT_JOB_ID != '' && env.IBERFIT_REVIEW_READY != 'true' && (env.IBERFIT_FACTORY_DONE != 'true' || env.IBERFIT_FACTORY_QUALITY_REJECTED == 'true')
         shell: bash
         run: |
           set +e
           err="workflow_failed_run_${GITHUB_RUN_ID}_attempt_${GITHUB_RUN_ATTEMPT}"
           action='fail'
           reason=''
+          if [[ -s recovery/auto-factory/quality-rejection.json ]]; then
+            err="$(jq -r '.reason // empty' recovery/auto-factory/quality-rejection.json 2>/dev/null)"
+            [[ -n "$err" ]] || err="AUTO_FACTORY_QUALITY_REJECTED"
+          fi
           if [[ -s "$IBERFIT_FACTORY_DEFER_FILE" ]]; then
             reason="$(jq -r '.reason // empty' "$IBERFIT_FACTORY_DEFER_FILE" 2>/dev/null)"
-            if [[ "$reason" == 'AI_PROVIDER_DAILY_QUOTA_EXHAUSTED' ]]; then
-              action='defer'
-            fi
+            if [[ "$reason" == 'AI_PROVIDER_DAILY_QUOTA_EXHAUSTED' ]]; then action='defer'; fi
           fi
           if [[ "$action" == 'defer' ]]; then
             payload="$(jq -nc --arg job "$IBERFIT_JOB_ID" --arg id "$IBERFIT_EXERCISE_ID" --arg reason "$reason" '{action:"defer",job_id:$job,exercise_id:$id,reason:$reason}')"
           else
             payload="$(jq -nc --arg job "$IBERFIT_JOB_ID" --arg id "$IBERFIT_EXERCISE_ID" --arg err "$err" '{action:"fail",job_id:$job,exercise_id:$id,error:$err}')"
           fi
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
-            -H 'Content-Type: application/json' \
-            "$AUTO_FACTORY_URL" \
-            --data-binary "$payload" \
-            > recovery/auto-factory/fail.json
-          exit 0
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" -H 'Content-Type: application/json' "$AUTO_FACTORY_URL" --data-binary "$payload" > recovery/auto-factory/fail.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('recovery/auto-factory/fail.json','utf8'));
+          if(x.ok!==true||x.job_id!==process.env.IBERFIT_JOB_ID||x.exercise_id!==process.env.IBERFIT_EXERCISE_ID)throw new Error('AUTO_FACTORY_QUARANTINE_CONFIRMATION_INVALID');
+          if(!['failed','blocked'].includes(String(x.status||''))&&x.deferred!==true)throw new Error(`AUTO_FACTORY_QUARANTINE_STATE_INVALID:${String(x.status||'missing')}`);
+          NODE
 
       - name: Preserve terminal failure evidence
         if: always() && env.IBERFIT_JOB_ID != '' && env.IBERFIT_REVIEW_READY != 'true'
@@ -405,6 +435,20 @@ jobs:
           path: |
             recovery/auto-factory/fail.json
             recovery/auto-factory/provider-capacity.json
+            recovery/auto-factory/quality-rejection.json
+            recovery/auto-factory/claim.json
+            recovery/auto-factory/plan.json
+            recovery/auto-factory/generate-start.log
+            recovery/auto-factory/generate-final.log
+            recovery/auto-factory/start-phase-qa*.json
+            recovery/auto-factory/raw-phase-qa*.json
+            recovery/auto-factory/*-start.jpg
+            recovery/auto-factory/*-start.png
+            recovery/auto-factory/*-start.webp
+            recovery/auto-factory/*-final.jpg
+            recovery/auto-factory/*-final.png
+            recovery/auto-factory/*-final.webp
+            recovery/auto-factory/rejected/
           if-no-files-found: ignore
           retention-days: 30
 
