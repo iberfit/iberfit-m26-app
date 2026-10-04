@@ -150,12 +150,23 @@ async function openSyntheticClient(page){
   await button.click();
   await expect(page.locator('[data-m26-area="iri"]:visible').first()).toBeVisible({timeout:15_000});
 }
+async function dismissCoachGuide(page){
+  const dialog=page.getByRole('dialog',{name:'Tu centro Coach, sin perder tiempo'});
+  if(!await dialog.isVisible().catch(()=>false))return;
+  const skip=dialog.getByRole('button',{name:'Saltar guía'});
+  if(await skip.isVisible().catch(()=>false))await skip.click();
+  else await dialog.getByRole('button',{name:'Cerrar y continuar después'}).click();
+  await expect(dialog).toBeHidden({timeout:10_000});
+}
 async function openPhotography(page){
   await openArea(page,'iri');
   await expect(page.getByRole('heading',{name:'Índice de Rendimiento IBERFIT'})).toBeVisible({timeout:20_000});
+  await dismissCoachGuide(page);
+  const form=page.locator('[data-workflow-form="iri"]');
   const jump=page.locator('[data-iri-step-jump="6"]');
   await expect(jump).toBeVisible();
   await jump.click();
+  await expect(form).toHaveAttribute('data-iri-step-index','6',{timeout:15_000});
   const shell=page.locator('[data-iri-photo-loaded="true"]');
   await expect(shell).toBeVisible({timeout:30_000});
   await expect(page.locator('[data-iri-photo-view]')).toHaveCount(4);
