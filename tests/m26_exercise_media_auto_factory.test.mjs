@@ -198,7 +198,6 @@ test('claim transitions preserve the non-null output manifest contract',()=>{
 });
 
 test('planner applies deterministic IBERFIT geometry to hard movements before semantic validation',()=>{
-  const planner=read('scripts/exercise-media/auto-factory-plan.mjs');
   assert.match(planner,/canonicalHardMovementPlanPhases/);
   assert.match(planner,/start:canonicalHardPhases\.start/);
   assert.match(planner,/final:canonicalHardPhases\.final/);
