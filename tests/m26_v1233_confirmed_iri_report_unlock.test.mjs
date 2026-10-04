@@ -84,3 +84,16 @@ test('el controlador genera desde el IRI remoto y no vuelve a validar campos edi
   assert.doesNotMatch(block,/M26_IRI_FORM_REQUIRED|const draft=iriDraft\(form\)|assertIriRawRanges\(form\)/);
   assert.match(block,/M26_IRI_CONFIRMED_REPORT_DATA_INVALID/);
 });
+
+test('un IRI confirmado permite revisar directamente cualquier etapa sin rebajar el flujo inicial',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const start=source.indexOf('function confirmedIriAllowsDirectReview');
+  const end=source.indexOf('\n  function reportContext',start);
+  const block=source.slice(start,end);
+  assert.match(block,/firstSessionCompletedAt\|\|body\?\.first_session_completed_at/u);
+  assert.match(block,/const confirmedReview=confirmedIriAllowsDirectReview\(form\)/u);
+  assert.match(block,/const target=confirmedReview\?index:\(index>current\+1\?current\+1:index\)/u);
+  assert.match(block,/if\(!confirmedReview&&target>current\)/u);
+  assert.match(block,/if\(!confirmedReview&&index>current\+1\)/u);
+});
+

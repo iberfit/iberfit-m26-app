@@ -913,10 +913,17 @@ export function createWorkflowController({
     if(direction>0){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[index];if(step==='entrevista')assertPhysicalAssessmentConsent(form);const draft=iriDraft(form);const check=validateFirstSessionStep(draft,step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);throw new Error(`M26_IRI_STEP_INVALID:${step}:${check.errors.join(',')}`);}if(step==='entrevista')await persistPhysicalConsentBeforeTesting(form,draft);await saveIriDraft({silent:true});}
     setIriStep(form,index+direction,{focus:true});try{computed(form);}catch{}
   }
+  function confirmedIriAllowsDirectReview(form){
+    const body=recordBody(currentIriRecord(form));
+    return Boolean(body?.firstSessionCompletedAt||body?.first_session_completed_at);
+  }
   async function jumpIri(index){
-    const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)return;const current=Number(form.dataset.iriStepIndex||0);const target=index>current+1?current+1:index;
-    if(target>current){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[current];if(step==='entrevista')assertPhysicalAssessmentConsent(form);const draft=iriDraft(form);const check=validateFirstSessionStep(draft,step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);status(root,'iri','Completa la etapa actual antes de avanzar.','error');return;}if(step==='entrevista')await persistPhysicalConsentBeforeTesting(form,draft);await saveIriDraft({silent:true});}
-    if(index>current+1)status(root,'iri','El IRI avanza etapa a etapa para no omitir validaciones ni consentimientos.','info');
+    const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)return;
+    const current=Number(form.dataset.iriStepIndex||0);
+    const confirmedReview=confirmedIriAllowsDirectReview(form);
+    const target=confirmedReview?index:(index>current+1?current+1:index);
+    if(!confirmedReview&&target>current){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[current];if(step==='entrevista')assertPhysicalAssessmentConsent(form);const draft=iriDraft(form);const check=validateFirstSessionStep(draft,step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);status(root,'iri','Completa la etapa actual antes de avanzar.','error');return;}if(step==='entrevista')await persistPhysicalConsentBeforeTesting(form,draft);await saveIriDraft({silent:true});}
+    if(!confirmedReview&&index>current+1)status(root,'iri','El IRI avanza etapa a etapa para no omitir validaciones ni consentimientos.','info');
     setIriStep(form,target,{focus:true});try{computed(form);}catch{}
   }
   function reportContext(draft){const {state,clientId}=context();const client=(state.collections.clients||[]).find((item)=>item.id===clientId);const identity=state.identity||{};const lifecycle=String(client?.lifecycleStatus||client?.lifecycle_status||client?.lifecycle?.status||'').trim().toLowerCase();const coachName=String(identity.name||identity.fullName||identity.email||'Coach IBERFIT');const coachIdentity=[identity.name,identity.fullName,identity.email].filter(Boolean).join(' ').toLowerCase();let logoUrl='/public/isotipo-iberfit.png';let signatureUrl=/carlos|iberfit\.cl@gmail\.com/u.test(coachIdentity)?'/m26/assets/iberfit-signature-carlos.svg':'';try{const origin=globalThis.location?.origin||'https://m26-canary.iberfit.cl';logoUrl=new URL('/public/isotipo-iberfit.png',origin).href;if(signatureUrl)signatureUrl=new URL(signatureUrl,origin).href;}catch{}
