@@ -6,6 +6,7 @@ const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
 const QA_ORIGIN='https://'+QA_REF+'.supabase.co';
 const CLIENT_ID='57f56a87-d04e-47d5-b1cc-8d4939d7c804';
+const ASSESSMENT_ID='7a000000-0000-4000-8000-000000000001';
 const BUILD_ROOT=path.resolve('.tmp/rc64-current-surface');
 const PUBLIC_BUILD_ROOT=path.join(BUILD_ROOT,'public');
 const OUT_DIR=path.resolve('recovery/coach-iri-document-privileged');
@@ -116,7 +117,7 @@ function allowedQaRequest(request,evidence){
   if(method==='GET'&&url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-issued-reports/'))return true;
   return false;
 }
-async function installPolicy(context,evidence){
+async function installPolicy(context,evidence,session){
   await context.route('**/*',async(route)=>{
     const request=route.request();
     let url;
@@ -124,10 +125,84 @@ async function installPolicy(context,evidence){
       evidence.blocked.push('INVALID_URL');await route.abort('blockedbyclient');return;
     }
     if(url.origin===CANARY_ORIGIN){await fulfillCurrentSource(route,url);return;}
-    if(allowedQaRequest(request,evidence)){await route.continue();return;}
+    if(allowedQaRequest(request,evidence)){
+      const authorization=String(request.headers()?.authorization||'');
+      if(authorization.startsWith('Bearer ')&&authorization.length>100)session.accessToken=authorization.slice(7);
+      await route.continue();return;
+    }
     evidence.blocked.push(request.method().toUpperCase()+' '+url.origin+' '+url.pathname);
     await route.abort('blockedbyclient');
   });
+}
+async function qaRpc(context,session,name,params={}){
+  expect(session.accessToken,'Privileged QA session token must be captured from the authenticated browser').toBeTruthy();
+  const response=await context.request.post(QA_ORIGIN+'/rest/v1/rpc/'+name,{
+    headers:{
+      apikey:String(process.env.M26_SUPABASE_PUBLISHABLE_KEY),
+      authorization:'Bearer '+session.accessToken,
+      origin:CANARY_ORIGIN,
+      'content-type':'application/json',
+    },
+    data:params,
+    timeout:30_000,
+  });
+  expect(response.ok(),name+' must return an authenticated success response').toBe(true);
+  const body=await response.json();
+  return Array.isArray(body)?body[0]:body;
+}
+async function certifyRemoteDraftCas(context,session,evidence){
+  const rpcGet='m26_iri_draft_get_v1';
+  const rpcUpsert='m26_iri_draft_upsert_v1';
+  const rpcDelete='m26_iri_draft_delete_v1';
+  const draft=(marker)=>({clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,qaSynthetic:true,marker});
+  await qaRpc(context,session,rpcDelete,{p_client_id:CLIENT_ID,p_assessment_id:ASSESSMENT_ID});
+  try{
+    const first=await qaRpc(context,session,rpcUpsert,{p_payload:{
+      clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,revision:0,remoteRevision:0,draft:draft('device-a-v1'),
+    }});
+    expect(first?.saved).toBe(true);
+    expect(first?.conflict).toBe(false);
+    const r1=Number(first?.revision||0);
+    expect(r1).toBeGreaterThan(0);
+
+    const second=await qaRpc(context,session,rpcUpsert,{p_payload:{
+      clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,revision:0,remoteRevision:r1,draft:draft('device-b-v2'),
+    }});
+    expect(second?.saved).toBe(true);
+    expect(second?.conflict).toBe(false);
+    const r2=Number(second?.revision||0);
+    expect(r2).toBe(r1+1);
+
+    const stale=await qaRpc(context,session,rpcUpsert,{p_payload:{
+      clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,revision:0,remoteRevision:r1,draft:draft('device-a-stale'),
+    }});
+    expect(stale?.saved).toBe(false);
+    expect(stale?.conflict).toBe(true);
+    expect(Number(stale?.revision||0)).toBe(r2);
+    expect(stale?.draft?.marker).toBe('device-b-v2');
+
+    const afterConflict=await qaRpc(context,session,rpcGet,{p_client_id:CLIENT_ID,p_assessment_id:ASSESSMENT_ID});
+    expect(afterConflict?.found).toBe(true);
+    expect(Number(afterConflict?.revision||0)).toBe(r2);
+    expect(afterConflict?.draft?.marker).toBe('device-b-v2');
+
+    const explicitResolution=await qaRpc(context,session,rpcUpsert,{p_payload:{
+      clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,revision:0,remoteRevision:r2,draft:draft('device-a-explicit-resolution'),
+    }});
+    expect(explicitResolution?.saved).toBe(true);
+    expect(explicitResolution?.conflict).toBe(false);
+    expect(Number(explicitResolution?.revision||0)).toBe(r2+1);
+
+    evidence.remoteDraftCas={
+      certified:true,
+      staleWriteRejected:true,
+      remoteWinnerPreserved:true,
+      explicitResolutionRequired:true,
+      revisions:[r1,r2,r2+1],
+    };
+  }finally{
+    await qaRpc(context,session,rpcDelete,{p_client_id:CLIENT_ID,p_assessment_id:ASSESSMENT_ID}).catch(()=>{});
+  }
 }
 async function addAuthenticator(page){
   const cdp=await page.context().newCDPSession(page);
@@ -251,12 +326,14 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     projectRef:QA_REF,clientId:CLIENT_ID,synthetic:true,realPersonData:false,
     webauthnActions:[],draftMutations:[],privilegedMutations:[],reportActions:[],blocked:[],
     analysisValidated:false,photoPublicationGranted:false,clientPdfIssued:false,photoPublicationRevoked:false,
+    remoteDraftCas:{certified:false},
   };
   const context=await browser.newContext({
     ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',
     serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true,
   });
-  await installPolicy(context,evidence);
+  const session={accessToken:''};
+  await installPolicy(context,evidence,session);
   const page=await context.newPage();
   const consoleErrors=[];
   const pageErrors=[];
@@ -283,6 +360,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     expect(second).toContain('authentication-verify');
     expect(second).not.toContain('registration-options');
 
+    await certifyRemoteDraftCas(context,session,evidence);
     await openSyntheticClient(page);
     await openPhotography(page);
     await expect(page.locator('.m26-photo-consents')).toContainText('Autorizadas');
@@ -332,6 +410,10 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   expect(consoleErrors,'Privileged Coach IRI UI must keep a clean console').toEqual([]);
   expect(pageErrors,'Privileged Coach IRI UI must keep a clean page').toEqual([]);
   expect(evidence.draftMutations.every((rpc)=>IRI_DRAFT_RPCS.has(rpc)),'Any observed IRI draft traffic must stay inside the scoped allowlist').toBe(true);
+  expect(evidence.remoteDraftCas?.certified).toBe(true);
+  expect(evidence.remoteDraftCas?.staleWriteRejected).toBe(true);
+  expect(evidence.remoteDraftCas?.remoteWinnerPreserved).toBe(true);
+  expect(evidence.remoteDraftCas?.explicitResolutionRequired).toBe(true);
   expect(evidence.privilegedMutations).toContain('iberfit_save_iri_photogrammetry_analysis_v2');
   expect(evidence.privilegedMutations).toContain('iberfit_record_iri_photo_report_permission_v1');
   expect(evidence.reportActions).toContain('issue');

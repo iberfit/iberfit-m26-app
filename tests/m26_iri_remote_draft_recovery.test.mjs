@@ -30,6 +30,19 @@ test('RPC IRI conserva assurance, SECURITY INVOKER y permisos mínimos',()=>{
   assert.match(migration,/assessment\.client_id = p_client_id/u);
 });
 
+test('IRI remoto mantiene compatibilidad fail-closed con clientes cacheados sin remoteRevision',()=>{
+  const migration=read('supabase/migrations/20261004200000_iri_remote_draft_conflict_backward_compat_v3.sql');
+  assert.match(migration,/v_has_expected_remote_revision := p_payload \? 'remoteRevision'/u);
+  assert.match(migration,/if not v_has_expected_remote_revision then/u);
+  assert.match(migration,/'saved', false/u);
+  assert.match(migration,/'conflict', true/u);
+  assert.match(migration,/'legacyClient', true/u);
+  assert.match(migration,/'draft', v_current_draft/u);
+  assert.match(migration,/cached legacy clients may create an absent draft but cannot overwrite an existing remote draft/u);
+  assert.doesNotMatch(migration,/drop table/iu);
+  assert.doesNotMatch(migration,/delete from private\.m26_iri_drafts_v1/iu);
+});
+
 test('IRI remoto usa compare-and-swap y devuelve conflicto sin sobrescribir',()=>{
   const migration=read('supabase/migrations/20261004194500_iri_remote_draft_conflict_guard_v2.sql');
   assert.match(migration,/remoteRevision/u);
