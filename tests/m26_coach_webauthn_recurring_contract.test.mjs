@@ -84,8 +84,15 @@ test('trusted Canary Coach UI certifies privileged IRI document routes without c
   assert.match(workflow,/playwright\.coach-iri-document-privileged\.config\.mjs/u);
   assert.match(workflow,/recovery\/coach-iri-document-privileged\//u);
   assert.match(privileged,/const CLIENT_ID='57f56a87-d04e-47d5-b1cc-8d4939d7c804'/u);
+  assert.match(privileged,/const ASSESSMENT_ID='7a000000-0000-4000-8000-000000000001'/u);
   assert.match(privileged,/WebAuthn\.addVirtualAuthenticator/u);
   assert.match(privileged,/authentication-verify/u);
+  assert.match(privileged,/data-m26-guided-tour-skip/u);
+  assert.match(privileged,/advanceIriToStep/u);
+  assert.match(privileged,/data-iri-step-index/u);
+  assert.match(privileged,/m26_iri_draft_upsert_v1/u);
+  assert.match(privileged,/navigationMutations/u);
+  assert.match(privileged,/iri_external_reports_v26/u);
   assert.match(privileged,/data-iri-photo-analysis="validate"/u);
   assert.match(privileged,/data-iri-photo-report-permission/u);
   assert.match(privileged,/issue-client-iri-report/u);
