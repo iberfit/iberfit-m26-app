@@ -95,9 +95,13 @@ function allowedQaRequest(request,evidence){
     if(PHOTO_WRITE_RPCS.has(rpc)){evidence.privilegedMutations.push(rpc);return true;}
   }
   if(method==='GET'&&PHOTO_TABLES.has(url.pathname))return true;
-  if(url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/')){
-    return method==='GET'||method==='POST';
-  }
+  if(method==='GET'&&url.pathname==='/rest/v1/iri_external_reports_v26')return true;
+  const signedRead=(bucket)=>[
+    '/storage/v1/object/sign/'+bucket+'/',
+    '/object/sign/'+bucket+'/',
+  ].some((prefix)=>url.pathname.startsWith(prefix));
+  if(signedRead('iberfit-iri-photogrammetry'))return method==='GET'||method==='POST';
+  if(signedRead('iberfit-iri-issued-reports'))return method==='GET';
   if(method==='POST'&&url.pathname===REPORT_PATH){
     try{evidence.reportActions.push(String(request.postDataJSON()?.action||'unknown'));}catch{}
     return true;
