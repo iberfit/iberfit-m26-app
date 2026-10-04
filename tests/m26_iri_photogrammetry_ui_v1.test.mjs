@@ -45,7 +45,7 @@ test('IRI route exposes optional four-view workspace and explicit physical conse
   assert.match(source,/iriStep\(6,'fotografia','Fotogrametría · opcional'/u);
   assert.match(source,/data-iri-photogrammetry-host/u);
   assert.match(source,/Fotografía','Revisión/u);
-  assert.match(source,/Proceso guiado de 8 etapas/u);
+  assert.match(source,/Ocho etapas/u);
 });
 
 test('authenticated application mounts and destroys photogrammetry controller',()=>{
@@ -91,6 +91,10 @@ test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP afford
   assert.match(controller,/setAttribute\?\.\('transform'/u);
   assert.doesNotMatch(controller,/\.style\.(?:left|top)/u);
   assert.match(controller,/data-iri-photo-canvas/u);
+  assert.match(controller,/data-iri-photo-view-select/u);
+  assert.match(controller,/data-iri-analysis-revision/u);
+  assert.match(css,/\.m26-photo-view-selector/u);
+  assert.match(css,/\.m26-photo-view\.is-active/u);
   assert.match(controller,/stagePoint\(canvas,event\)/u);
   assert.match(css,/\.m26-photo-canvas\{position:relative/u);
 });

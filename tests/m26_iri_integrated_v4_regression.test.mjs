@@ -195,3 +195,17 @@ test('Cliente y Coach usan la misma lectura coherente de masa grasa y masa libre
   }
   assert.doesNotMatch(coach,/Masa magra<\/span><strong>18[,.]3 kg/u);
 });
+
+
+test('IRI final experience presents eight stages as a decision workspace and keeps mobile actions recoverable',()=>{
+  const route=read('src/m26/modules/route-render.js');
+  const css=read('src/m26/shell/shell.css');
+  assert.match(route,/m26-iri-workspace/u);
+  assert.match(route,/aria-label="Etapas del Diagnóstico IRI"/u);
+  assert.match(route,/m26-iri-field-section-heading/u);
+  assert.match(route,/m26-iri-measure-flow/u);
+  assert.match(route,/m26-iri-decision-desk/u);
+  assert.match(css,/grid-template-columns:repeat\(8,minmax\(0,1fr\)\)/u);
+  assert.match(css,/bottom:max\(\.4rem,env\(safe-area-inset-bottom\)\)/u);
+  assert.match(css,/m26-iri-prior-context/u);
+});

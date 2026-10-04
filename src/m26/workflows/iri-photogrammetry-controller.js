@@ -187,7 +187,7 @@ export function createIriPhotogrammetryController({
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_IRI_PHOTO_CONTROLLER_REQUIRED');
   const service=createIriPhotogrammetryService({runtime});
   let mounted=false,observer=null,loadScheduled=false,busy=false;
-  let contextKey='',remote=null,signedUrls={},landmarks={},calibrationByView={},activeMarker=null,calibrationMarker=null;
+  let contextKey='',remote=null,signedUrls={},landmarks={},calibrationByView={},activeMarker=null,calibrationMarker=null,activeView='front';
 
   function context(){return resolveIriPhotogrammetryContext(store.getState());}
   function host(){return root.querySelector?.('[data-iri-photogrammetry-host]')||null;}
@@ -255,7 +255,7 @@ export function createIriPhotogrammetryController({
     const photoAllowed=photoConsentActive();
     const measurements=currentMeasurements();
     const calibration=calibrationByView?.[view]||null;
-    return `<article class="m26-photo-view" data-iri-photo-view="${view}">
+    return `<article class="m26-photo-view${activeView===view?' is-active':''}" data-iri-photo-view="${view}" data-active="${activeView===view?'true':'false'}" aria-hidden="${activeView===view?'false':'true'}">
       <div class="m26-photo-view-head"><div><p class="m26-eyebrow">${escapeHtml(VIEW_LABELS[view])}</p><h4>${capture?'Original protegido':'Captura pendiente'}</h4></div><span class="m26-photo-state">${escapeHtml(capture?captureQualityCopy(capture):pending?'Subida incompleta':'Sin foto')}</span></div>
       <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${url?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa una referencia o una calibración y pulsa sobre la imagen.':'Sin fotografía activa.'}">
         ${url?`<div class="m26-photo-canvas" data-iri-photo-canvas="${view}"><img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false"><svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="false">${overlayMarkup(view,landmarks,measurements,calibrationByView)}${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg></div>`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original permanece privado.</small></div>'}
@@ -314,10 +314,13 @@ export function createIriPhotogrammetryController({
         </article>
       </section>
       <div class="m26-photo-guidance"><strong>Para repetir la captura con criterio</strong><ul><li>Cuerpo completo y pies visibles.</li><li>Cámara vertical y nivelada, sin inclinación deliberada.</li><li>Distancia y altura de cámara reproducibles.</li><li>Fondo limpio, iluminación suficiente y postura relajada.</li><li>Frontal, posterior, lateral izquierda y lateral derecha.</li></ul></div>
+      <nav class="m26-photo-view-selector" aria-label="Vistas de fotogrametría">
+        ${ALL_VIEWS.map((view)=>`<button type="button" data-iri-photo-view-select="${view}" aria-pressed="${activeView===view?'true':'false'}" class="${activeView===view?'is-active':''}"><span>${escapeHtml(VIEW_LABELS[view])}</span><small>${remote.latestCaptures?.[view]?'Capturada':'Pendiente'}</small></button>`).join('')}
+      </nav>
       ${pendingCount?`<p class="m26-photo-notice is-warning">${pendingCount} subida${pendingCount===1?'':'s'} preparada${pendingCount===1?'':'s'} pendiente${pendingCount===1?'':'s'} de finalizar. Puedes recuperarla sin sobrescribir el original.</p>`:''}
       <div class="m26-photo-grid">${ALL_VIEWS.map(captureCard).join('')}</div>
       <section class="m26-photo-analysis">
-        <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado · v2</p><h4>Ángulos, distancias calibradas y evidencia cruzada</h4><p>Los ángulos nacen de los puntos validados. Los centímetros sólo aparecen cuando existe una escala física explícita.</p></div><span>Revisión v2 ${Number(remote.analysisV2?.revision||0)}</span></div>
+        <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado · v2</p><h4>Ángulos, distancias calibradas y evidencia cruzada</h4><p>Los ángulos nacen de los puntos validados. Los centímetros sólo aparecen cuando existe una escala física explícita.</p></div><span data-iri-analysis-revision="${Number(remote.analysisV2?.revision||0)}">Motor v2 · revisión ${Number(remote.analysisV2?.revision||0)}</span></div>
         ${metricRows(measurements)}
         <div class="m26-photo-interpretation"><p class="m26-eyebrow">Observaciones geométricas</p>${interpretationRows(interpretation)}</div>
         <div class="m26-photo-interpretation"><p class="m26-eyebrow">Lectura IRI para decisión del Coach</p>${decisionRows(decisionSupport)}</div>
@@ -601,6 +604,13 @@ export function createIriPhotogrammetryController({
   }
 
   async function onClick(event){
+    const viewSelect=event.target.closest?.('[data-iri-photo-view-select]');
+    if(viewSelect){
+      event.preventDefault();
+      const view=String(viewSelect.dataset.iriPhotoViewSelect||'');
+      if(ALL_VIEWS.includes(view)){activeView=view;render();status(`Vista ${VIEW_LABELS[view].toLowerCase()} activa.`,'info');}
+      return;
+    }
     const consent=event.target.closest?.('[data-iri-photo-consent]');
     const reportPermission=event.target.closest?.('[data-iri-photo-report-permission]');
     const calibrate=event.target.closest?.('[data-iri-photo-calibrate]');

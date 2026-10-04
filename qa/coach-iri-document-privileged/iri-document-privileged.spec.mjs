@@ -262,15 +262,14 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     await openSyntheticClient(page);
     await openPhotography(page);
     await expect(page.locator('.m26-photo-consents')).toContainText('Autorizadas');
-    const revisionText=await page.locator('.m26-photo-analysis-head > span').textContent();
-    const revisionBefore=Number(String(revisionText||'').match(/(\d+)/u)?.[1]||0);
+    const revisionNode=page.locator('[data-iri-analysis-revision]');
+    const revisionBefore=Number(await revisionNode.getAttribute('data-iri-analysis-revision')||0);
     for(const view of ['front','back','left','right'])await calibrateView(page,view);
     const validate=page.locator('[data-iri-photo-analysis="validate"]');
     await expect(validate).toBeEnabled();
     await validate.click();
     await expect.poll(async()=>{
-      const value=await page.locator('.m26-photo-analysis-head > span').textContent();
-      return Number(String(value||'').match(/(\d+)/u)?.[1]||0);
+      return Number(await page.locator('[data-iri-analysis-revision]').getAttribute('data-iri-analysis-revision')||0);
     },{timeout:35_000}).toBeGreaterThan(revisionBefore);
     evidence.analysisValidated=true;
 
