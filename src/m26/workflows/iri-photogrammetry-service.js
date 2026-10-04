@@ -490,7 +490,7 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
     const raw=cleanText(payload?.signedURL||payload?.signedUrl,4000);
     if(!raw)throw new Error('M26_IRI_PHOTO_SIGN_INVALID_RESPONSE');
     const isRawStoragePath=raw.startsWith('/object/sign/')||raw.startsWith('object/sign/');
-    const value=isRawStoragePath?`/storage/v1/${raw.replace(/^\\/+/, '')}`:raw;
+    const value=isRawStoragePath?`/storage/v1/${raw.replace(/^\/+/, '')}`:raw;
     const url=new URL(value,`${config.origin}/`);
     const expectedPathPrefix=`/storage/v1/object/sign/${encodeURIComponent(IRI_PHOTO_BUCKET)}/`;
     if(
