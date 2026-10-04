@@ -30,6 +30,28 @@ test('RPC IRI conserva assurance, SECURITY INVOKER y permisos mínimos',()=>{
   assert.match(migration,/assessment\.client_id = p_client_id/u);
 });
 
+test('IRI remoto usa compare-and-swap y devuelve conflicto sin sobrescribir',()=>{
+  const migration=read('supabase/migrations/20261004194500_iri_remote_draft_conflict_guard_v2.sql');
+  assert.match(migration,/remoteRevision/u);
+  assert.match(migration,/pg_advisory_xact_lock/u);
+  assert.match(migration,/for update/u);
+  assert.match(migration,/v_expected_remote_revision <> v_current_revision/u);
+  assert.match(migration,/'saved', false/u);
+  assert.match(migration,/'conflict', true/u);
+  assert.match(migration,/'draft', v_current_draft/u);
+  assert.match(migration,/v_current_draft is not distinct from v_draft/u);
+  assert.doesNotMatch(migration,/delete from private\.m26_iri_drafts_v1/iu);
+  assert.doesNotMatch(migration,/drop table/iu);
+});
+
+test('transport conserva la revisión remota y acepta conflicto como respuesta válida',()=>{
+  const transport=read('src/m26/supabase-transport.js');
+  assert.match(transport,/remoteRevision:Math\.max\(0,Number\(payload\.remoteRevision\)\|\|0\)/u);
+  assert.match(transport,/if\(result\.conflict===true\)/u);
+  assert.match(transport,/M26_IRI_DRAFT_CONFLICT_INVALID_RESPONSE/u);
+  assert.match(transport,/saved:false,conflict:true/u);
+});
+
 test('transport de sesiones permanece session-only y el IRI usa RPC dedicadas',()=>{
   const transport=read('src/m26/supabase-transport.js');
   assert.match(transport,/if\(scope!=='session-builder'\)throw new Error\('M26_RC431_DRAFT_SCOPE_INVALID'\)/u);
@@ -55,16 +77,34 @@ test('IRI guarda local primero y sincroniza remoto sin convertir red en bloqueo'
   assert.match(workflow,/saveIriDraft\(\{silent:true,syncRemote:true\}\)/u);
 });
 
-test('IRI recupera sólo la evaluación actual y evita resucitar el borrador al confirmar',()=>{
+test('IRI recupera sólo la evaluación actual, detecta divergencia y evita resucitar el borrador al confirmar',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
   assert.match(workflow,/getRemoteDraft\(clientId,currentAssessmentId\)/u);
   assert.match(workflow,/String\(result\.assessmentId\|\|''\)===currentAssessmentId/u);
+  assert.match(workflow,/iriRemoteRevisionByAssessment\.set\(remoteKey/u);
+  assert.match(workflow,/const diverged=Boolean\(localRecord\?\.value&&remoteRecord\?\.value&&!iriDraftsEquivalent/u);
+  assert.match(workflow,/Hay un borrador distinto en otro dispositivo/u);
   assert.match(workflow,/remoteTime>=localTime/u);
   assert.match(workflow,/Borrador recuperado desde el respaldo seguro\./u);
+  assert.match(workflow,/assertNoIriRemoteConflict\(draft\.clientId,current\.id,form\)/u);
   assert.match(workflow,/clearTimeout\(iriRemoteSaveTimer\)/u);
   assert.match(workflow,/await iriRemoteSaveChain\.catch\(\(\)=>\{\}\)/u);
   assert.match(workflow,/deleteRemoteDraft\(clientId,assessmentId\)/u);
   assert.match(workflow,/await clearIriDraftBackups\(draft\.clientId,draft,form\)/u);
+});
+
+test('conflicto remoto queda bloqueado hasta una elección explícita y nunca entra en bucle de autosave',()=>{
+  const workflow=read('src/m26/app/workflow-controller.js');
+  const route=read('src/m26/modules/route-render.js');
+  assert.match(workflow,/if\(iriRemoteConflictByAssessment\.has\(key\)\)return false/u);
+  assert.match(workflow,/data-iri-remote-conflict-action/u);
+  assert.match(workflow,/resolveIriRemoteConflict\(form,action\)/u);
+  assert.match(workflow,/action==='use-remote'/u);
+  assert.match(workflow,/action==='keep-local'/u);
+  assert.match(workflow,/iriRemoteRevisionByAssessment\.set\(key,Math\.max\(0,Number\(conflict\.revision\)\|\|0\)\)/u);
+  assert.match(route,/data-iri-remote-conflict/u);
+  assert.match(route,/Usar este dispositivo/u);
+  assert.match(route,/Recuperar respaldo remoto/u);
 });
 
 test('IRI fuerza un último respaldo local antes de pagehide o desmontaje sin depender de red',()=>{
