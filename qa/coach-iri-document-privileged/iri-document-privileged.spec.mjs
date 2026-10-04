@@ -95,14 +95,16 @@ function allowedQaRequest(request,evidence){
     if(PHOTO_WRITE_RPCS.has(rpc)){evidence.privilegedMutations.push(rpc);return true;}
   }
   if(method==='GET'&&PHOTO_TABLES.has(url.pathname))return true;
-  if(url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/')){
+  if(method==='GET'&&url.pathname==='/rest/v1/iri_external_reports_v26')return true;
+  const signedObjectPath=(bucket)=>url.pathname.startsWith('/storage/v1/object/sign/'+bucket+'/')||url.pathname.startsWith('/object/sign/'+bucket+'/');
+  if(signedObjectPath('iberfit-iri-photogrammetry')||signedObjectPath('iberfit-iri-external-reports')){
     return method==='GET'||method==='POST';
   }
   if(method==='POST'&&url.pathname===REPORT_PATH){
     try{evidence.reportActions.push(String(request.postDataJSON()?.action||'unknown'));}catch{}
     return true;
   }
-  if(method==='GET'&&url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-issued-reports/'))return true;
+  if(method==='GET'&&signedObjectPath('iberfit-iri-issued-reports'))return true;
   return false;
 }
 async function installPolicy(context,evidence){
