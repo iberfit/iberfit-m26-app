@@ -167,10 +167,78 @@
   display: none !important;
 }
 
+.m26-shell .m26-iri-step input[type="file"] {
+  min-height: 3rem;
+  padding: 0.28rem 0.4rem;
+  color: var(--m26-muted, #a7bdb1);
+  background: rgba(3, 17, 11, 0.5);
+}
+
+.m26-shell .m26-iri-step input[type="file"]::file-selector-button {
+  min-height: 2.5rem;
+  margin-right: 0.75rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid rgba(227, 200, 120, 0.32);
+  border-radius: 0.58rem;
+  color: var(--m26-cream-100, #f8f0dc);
+  background: rgba(199, 164, 90, 0.1);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.m26-shell .m26-external-report-actions button:not(.m26-primary-action),
+.m26-shell .m26-document-viewer button {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(227, 200, 120, 0.28);
+  border-radius: 0.65rem;
+  color: var(--m26-cream-100, #f8f0dc);
+  background: rgba(199, 164, 90, 0.07);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.m26-shell .m26-external-report-actions button:not(.m26-primary-action):hover,
+.m26-shell .m26-document-viewer button:hover {
+  border-color: rgba(227, 200, 120, 0.5);
+  background: rgba(199, 164, 90, 0.13);
+}
+
+.m26-shell .m26-document-viewer [data-iri-external-report-action="viewer-retry"] {
+  border-color: var(--m26-gold-300, #d9bf82);
+  color: var(--m26-forest-950, #071d15);
+  background: var(--m26-gold-300, #d9bf82);
+}
+
+.m26-shell .m26-document-viewer [data-iri-external-report-action="viewer-open-new"] {
+  color: var(--m26-gold-300, #d9bf82);
+  background: transparent;
+}
+
+.m26-shell .m26-document-viewer [data-iri-external-report-action="viewer-close"] {
+  color: var(--m26-cream-300, #d9d2bf);
+  background: rgba(248, 240, 220, 0.045);
+}
+
 .m26-document-viewer button:focus-visible,
-.m26-external-report-card button:focus-visible {
+.m26-external-report-card button:focus-visible,
+.m26-shell .m26-iri-step input[type="file"]::file-selector-button:focus-visible {
   outline: 3px solid var(--m26-focus, #d9bf82);
   outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m26-shell .m26-external-report-actions button,
+  .m26-shell .m26-document-viewer button {
+    transition: none;
+  }
 }
 
 .m26-document-viewer-loading,
