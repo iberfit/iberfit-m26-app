@@ -342,3 +342,12 @@ test('release RC37 dispone de metadata, build, gate y enrutado CI propios', () =
   assert.match(ci, /refs\/heads\/canary\/rc37/);
   assert.match(ci, /rc37-evidencia-validacion/);
 });
+
+
+test('fallos de lectura del informe externo no generan reintentos automáticos por mutaciones del DOM',()=>{
+  const controller=read('src/m26/workflows/iri-external-report-controller.js');
+  assert.match(controller,/if \(entry\.error && !throwOnError\) return null;/u);
+  assert.match(controller,/data-iri-external-report-action="retry-load"/u);
+  assert.match(controller,/action === 'retry-load'/u);
+  assert.match(controller,/Reintentando conexión/u);
+});

@@ -105,3 +105,12 @@ test('trusted Canary Coach UI certifies privileged IRI document routes without c
   assert.match(config,/browserName:'chromium'/u);
   assert.match(readonly,/businessMutationsPerformed:false/u);
 });
+
+
+test('privileged IRI certification allows the private bioimpedance object read required by the final PDF flow',async()=>{
+  const privileged=await read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
+  assert.match(privileged,/signedRead\('iberfit-iri-external-reports'\)/u);
+  assert.match(privileged,/page\.waitForResponse/u);
+  assert.match(privileged,/payload\?\.signedUrl/u);
+  assert.match(privileged,/body\.subarray\(0,5\)\.toString\('utf8'\)\)\.toBe\('%PDF-'\)/u);
+});
