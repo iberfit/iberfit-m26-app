@@ -308,3 +308,12 @@ test('issued IRI uses decision-useful editorial density without decorative fille
   assert.match(renderer,/misma variante y una configuración equivalente/u);
 });
 
+
+
+test('final IRI issued template uses the premium v3 editorial identity',()=>{
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  assert.match(renderer,/const TEMPLATE_VERSION='m26-iri-report-premium-v3'/u);
+  assert.match(renderer,/Lámina fotogramétrica/u);
+  assert.match(renderer,/watermark=pdfFit\(logo,300,300\)/u);
+  assert.doesNotMatch(renderer,/page\.drawRectangle\(\{x,y:y-54,width:w,height:54/u);
+});

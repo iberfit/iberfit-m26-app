@@ -8,6 +8,7 @@ test('IRI final experience keeps product hierarchy distinct from generic SaaS ca
   const route=read('src/m26/modules/route-render.js');
   const css=read('src/m26/shell/shell.css');
   assert.match(route,/m26-iri-context-glance/u);
+  assert.match(route,/id="iri-step-title-\$\{index\}" tabindex="-1"/u);
   assert.match(route,/Mesa de decisión/u);
   assert.match(route,/Contexto confirmado/u);
   assert.match(css,/IRI FINAL EXPERIENCE V1/u);

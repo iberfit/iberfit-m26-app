@@ -16,7 +16,7 @@ import {
 } from './vendor/workflows/iri-photogrammetry-v2.js';
 
 const FUNCTION_VERSION='iri-report-emission-2026.10-v1';
-const TEMPLATE_VERSION='m26-iri-report-premium-v2';
+const TEMPLATE_VERSION='m26-iri-report-premium-v3';
 const ENGINE_VERSION='iri-document-governance-2026.10-v1';
 const ISSUED_BUCKET='iberfit-iri-issued-reports';
 const EXTERNAL_PDF_MAX_PAGES=24;
@@ -275,10 +275,10 @@ function pdfPage(doc:any,fonts:any,n:number,audience:string,index:string,title:s
   return page;
 }
 function pdfMetric(page:any,fonts:any,label:string,value:unknown,x:number,y:number,w=147,note=''){
-  page.drawRectangle({x,y:y-54,width:w,height:54,color:PDF_C.cream,borderColor:PDF_C.gold,borderWidth:.6,borderOpacity:.35});
-  page.drawText(pdfSafe(label,64).toUpperCase(),{x:x+10,y:y-16,size:6.8,font:fonts.bold,color:PDF_C.muted});
-  page.drawText(pdfSafe(value,80),{x:x+10,y:y-35,size:14,font:fonts.serifBold,color:PDF_C.ink});
-  if(note)page.drawText(pdfSafe(note,90),{x:x+10,y:y-48,size:6.1,font:fonts.regular,color:PDF_C.muted});
+  page.drawLine({start:{x,y:y-2},end:{x:x+w,y:y-2},thickness:1.05,color:PDF_C.gold,opacity:.72});
+  page.drawText(pdfSafe(label,64).toUpperCase(),{x,y:y-17,size:6.6,font:fonts.bold,color:PDF_C.muted});
+  page.drawText(pdfSafe(value,80),{x,y:y-39,size:15.2,font:fonts.serifBold,color:PDF_C.ink});
+  if(note)page.drawText(pdfSafe(note,90),{x,y:y-51,size:6.15,font:fonts.regular,color:PDF_C.muted});
 }
 function pdfField(page:any,fonts:any,label:string,value:unknown,y:number){
   page.drawText(pdfSafe(label,70),{x:PDF_M,y,size:7,font:fonts.bold,color:PDF_C.muted});
@@ -488,14 +488,18 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
   cover.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.dark});
   cover.drawRectangle({x:0,y:0,width:14,height:PDF_H,color:PDF_C.gold});
   if(logo){
+    const watermark=pdfFit(logo,300,300);
+    cover.drawImage(logo,{x:PDF_W-watermark.w-12,y:230,width:watermark.w,height:watermark.h,opacity:.034});
     const fit=pdfFit(logo,74,74);
     cover.drawImage(logo,{x:PDF_W-PDF_M-fit.w,y:PDF_H-112,width:fit.w,height:fit.h,opacity:.96});
   }
   cover.drawText('INFORME IRI',{x:48,y:671,size:11,font:fonts.bold,color:PDF_C.gold2});
+  cover.drawText(audience==='cliente'?'CLIENTE':'COACH / ADMIN',{x:48,y:651,size:7.2,font:fonts.bold,color:PDF_C.muted});
   cover.drawText(audience==='cliente'?'Diagnóstico inicial':'Dossier técnico del diagnóstico inicial',{x:48,y:618,size:25,font:fonts.serifBold,color:PDF_C.cream});
   cover.drawText(client,{x:48,y:568,size:18,font:fonts.regular,color:PDF_C.cream2});
   cover.drawText(iriOnly?'Evaluación IRI independiente':'Punto de partida para la planificación',{x:48,y:539,size:10,font:fonts.regular,color:PDF_C.gold2});
   cover.drawText(pdfDate(draft?.assessmentDate),{x:48,y:514,size:9.5,font:fonts.regular,color:PDF_C.muted});
+  cover.drawLine({start:{x:48,y:142},end:{x:PDF_W-48,y:142},thickness:.8,color:PDF_C.gold,opacity:.65});
   cover.drawText('Entrenamiento personal con criterio:',{x:48,y:115,size:10,font:fonts.bold,color:PDF_C.cream2});
   cover.drawText('diagnóstico, planificación, control y seguimiento.',{x:48,y:96,size:10,font:fonts.regular,color:PDF_C.cream2});
   cover.drawText(coach,{x:48,y:59,size:8.5,font:fonts.serifItalic,color:PDF_C.gold2});
@@ -669,6 +673,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
         }
       }
     }
+    if(hasPhotos)page.drawText('Lámina fotogramétrica',{x:315,y:674,size:9.5,font:fonts.bold,color:PDF_C.ink});
     const slots=[{x:315,y:510},{x:425,y:510},{x:315,y:340},{x:425,y:340}];
     for(let i=0;i<photos.length;i+=1){
       const image=await pdfImage(doc,String(photos[i]?.url||''));
