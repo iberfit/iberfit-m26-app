@@ -7,12 +7,8 @@
 -- is executing object.upload, for the exact canonical path of an existing IRI
 -- and only to an authorized Admin/Coach.
 
-drop policy if exists iri_external_object_read_v12 on storage.objects;
-
-create policy iri_external_object_read_v12
+alter policy iri_external_object_read_v12
 on storage.objects
-for select
-to authenticated
 using (
   bucket_id = 'iberfit-iri-external-reports'
   and name = (
