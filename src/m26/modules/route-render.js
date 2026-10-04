@@ -3733,8 +3733,8 @@ export function renderIriRoute(vm) {
     <div class="m26-panel-heading">
       <div>
         <p class="m26-eyebrow">${iriOnly?'Producto Solo IRI':'Primera sesión · diagnóstico'}</p>
-        <div class="m26-guidance-inline"><h2>${current.id?'Expediente preparado':'Evaluación todavía no preparada'}</h2>${renderGuidanceTrigger('iri',{label:'Ayuda sobre la evaluación IRI'})}</div>
-        <p>La ficha del expediente es la fuente operativa. La evaluación confirmada conserva una fotografía diagnóstica separada del seguimiento posterior.</p>
+        <div class="m26-guidance-inline"><h2>${current.id?'Evaluación vinculada al expediente':'Evaluación todavía no preparada'}</h2>${renderGuidanceTrigger('iri',{label:'Ayuda sobre la evaluación IRI'})}</div>
+        <p>La ficha del cliente es la fuente operativa. La evaluación confirmada conserva su fotografía diagnóstica; el seguimiento posterior permanece separado.</p>
       </div>
       ${current.id?badge('IRI vinculado','success'):badge('Falta entidad IRI remota','warning')}
     </div>
@@ -3762,7 +3762,7 @@ export function renderIriRoute(vm) {
   const domainCards=summary?`<div class="m26-domain-grid">${iriDomainState('Movilidad',summary.domains.mobility,summary.domainScores?.mobility?.score10)}${iriDomainState('Fuerza funcional',summary.domains.strength,summary.domainScores?.strength?.score10)}${iriDomainState('Capacidad funcional',summary.domains.cardio,summary.domainScores?.cardio?.score10)}</div>`:emptyState('Sin evaluación confirmada','Los datos ausentes se mantienen como “Sin registro”.');
   return `<div class="m26-route m26-iri-route m26-iri-workspace">
     <section class="m26-route-intro m26-iri-hero">
-      <div><p class="m26-eyebrow">${iriOnly?'Solo IRI · evaluación independiente':'Primera sesión y diagnóstico'}</p><h2>Índice de Rendimiento IBERFIT</h2><p>Evaluación guiada para convertir datos reproducibles en decisiones de entrenamiento. Ocho etapas, evidencia trazable y una entrega distinta para Cliente y Coach.</p></div>
+      <div><p class="m26-eyebrow">${iriOnly?'Solo IRI · evaluación independiente':'Primera sesión y diagnóstico'}</p><h2>Índice de Rendimiento IBERFIT</h2><p>Proceso guiado de 8 etapas. La fotogrametría es opcional. IBERFIT convierte datos reproducibles en decisiones de entrenamiento y mantiene una entrega distinta para Cliente y Coach.</p></div>
       <div class="m26-iri-hero-state">${badge(summary?summary.processLabel||summary.coverageLabel:'Pendiente',summary?.confirmed?'success':'warning')}<small>8 etapas · fotogrametría opcional</small></div>
     </section>
     ${personContext}
