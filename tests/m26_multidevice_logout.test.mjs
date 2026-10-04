@@ -52,7 +52,7 @@ test('transport logout is local by default and global revocation requires an exp
 test('application normal and clear-device logout are local while all-device revocation is explicit',()=>{
   const app=fs.readFileSync('src/m26/app/application.js','utf8');
 
-  assert.ok(app.includes("function finishLogout({token,scope='local',message='',noticeKind='status'}={})"));
+  assert.ok(app.includes("function finishLogout({token,scope='local',message='',noticeKind='status',preserveWorkflowDrafts=true}={})"));
   assert.ok(app.includes("function onLogout(){const token=currentToken();finishLogout({token,scope:'local'});}"));
 
   const clearStart=app.indexOf('async function onLogoutAndClearDevice(){');
@@ -61,6 +61,8 @@ test('application normal and clear-device logout are local while all-device revo
   const clearBlock=app.slice(clearStart,clearEnd);
   assert.match(clearBlock,/scope:'local'/u);
   assert.doesNotMatch(clearBlock,/scope:'global'/u);
+  assert.match(clearBlock,/await workflow\?\.flushLocalDrafts\?\.\(\)/u);
+  assert.match(clearBlock,/preserveWorkflowDrafts:false/u);
 
   const globalStart=app.indexOf('function onLogoutAllSessions(){');
   const globalEnd=app.indexOf('async function onLogoutAndClearDevice(){',globalStart);
