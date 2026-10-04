@@ -522,10 +522,21 @@ export function createIriExternalReportService({ runtime, fetchImpl = globalThis
         headers: { 'content-type': 'application/json' },
       }
     );
-    const value = cleanText(payload?.signedURL || payload?.signedUrl, 4_000);
-    if (!value) throw new Error('M26_IRI_EXTERNAL_REPORT_SIGN_INVALID_RESPONSE');
+    const rawValue = cleanText(payload?.signedURL || payload?.signedUrl, 4_000);
+    if (!rawValue) throw new Error('M26_IRI_EXTERNAL_REPORT_SIGN_INVALID_RESPONSE');
+    const isRawStoragePath =
+      rawValue.startsWith('/object/sign/') || rawValue.startsWith('object/sign/');
+    const value = isRawStoragePath
+      ? `/storage/v1/${rawValue.replace(/^\/+/, '')}`
+      : rawValue;
     const url = new URL(value, `${config.origin}/`);
-    if (url.origin !== config.origin) {
+    const expectedPathPrefix =
+      `/storage/v1/object/sign/${encodeURIComponent(IRI_EXTERNAL_REPORT_BUCKET)}/`;
+    if (
+      url.origin !== config.origin ||
+      !url.pathname.startsWith(expectedPathPrefix) ||
+      !cleanText(url.searchParams.get('token'), 4_000)
+    ) {
       throw new Error('M26_IRI_EXTERNAL_REPORT_SIGN_ORIGIN_INVALID');
     }
     return url.href;
