@@ -348,6 +348,17 @@ test('release RC37 dispone de metadata, build, gate y enrutado CI propios', () =
 });
 
 
+test('visor y selector de bioimpedancia usan controles IBERFIT accesibles en lugar de estilos nativos grises',()=>{
+  const css=read('src/m26/workflows/iri-external-report.css');
+  assert.match(css,/input\[type="file"\]::file-selector-button/);
+  assert.match(css,/min-height:\s*2\.75rem/);
+  assert.match(css,/viewer-retry/);
+  assert.match(css,/viewer-open-new/);
+  assert.match(css,/viewer-close/);
+  assert.match(css,/prefers-reduced-motion:\s*reduce/);
+  assert.match(css,/outline:\s*3px solid var\(--m26-focus/);
+});
+
 test('fallos de lectura del informe externo no generan reintentos automáticos por mutaciones del DOM',()=>{
   const controller=read('src/m26/workflows/iri-external-report-controller.js');
   assert.match(controller,/if \(entry\.error && !throwOnError\) return null;/u);
