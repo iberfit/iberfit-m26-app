@@ -173,6 +173,10 @@ async function openPhotography(page){
   return shell;
 }
 async function calibrateView(page,view){
+  const viewButton=page.locator('[data-iri-photo-view-select="'+view+'"]');
+  await expect(viewButton).toBeVisible();
+  await viewButton.click();
+  await expect(viewButton).toHaveAttribute('aria-pressed','true');
   const input=page.locator('[data-iri-photo-calibration-length="'+view+'"]');
   await expect(input).toBeVisible();
   await input.fill('50');
