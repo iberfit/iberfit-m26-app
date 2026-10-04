@@ -67,6 +67,19 @@ test('IRI recupera sólo la evaluación actual y evita resucitar el borrador al 
   assert.match(workflow,/await clearIriDraftBackups\(draft\.clientId,draft,form\)/u);
 });
 
+test('IRI fuerza un último respaldo local antes de pagehide o desmontaje sin depender de red',()=>{
+  const workflow=read('src/m26/app/workflow-controller.js');
+  const application=read('src/m26/app/application.js');
+  assert.match(workflow,/async function flushLocalDrafts\(\)/u);
+  assert.match(workflow,/clearTimeout\(iriSaveTimer\)/u);
+  assert.match(workflow,/clearTimeout\(iriRemoteSaveTimer\)/u);
+  assert.match(workflow,/saveIriDraft\(\{silent:true,syncRemote:false\}\)/u);
+  assert.match(workflow,/function onPageHide\(\)\{void flushLocalDrafts\(\);\}/u);
+  assert.match(workflow,/flushLocalDrafts,/u);
+  assert.match(application,/destroyControllers\(\{preserveWorkflowDrafts=true\}=\{\}\)/u);
+  assert.match(application,/if\(preserveWorkflowDrafts\)void workflow\?\.flushLocalDrafts\?\.\(\)/u);
+});
+
 test('application inyecta las RPC IRI con la sesión actual',()=>{
   const application=read('src/m26/app/application.js');
   assert.match(application,/getRemoteDraft:async\(clientId,assessmentId\)=>\{await refreshSessionIfNeeded\(\);return transport\.getIriDraft\(currentToken\(\),clientId,assessmentId\);\}/u);
