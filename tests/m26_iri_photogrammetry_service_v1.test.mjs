@@ -124,23 +124,46 @@ test('immutable upload treats an existing original as recoverable instead of ove
   assert.equal(calls[0].options.headers['x-upsert'],'false');
 });
 
-test('signed original URLs remain short-lived and same-origin',async()=>{
+test('signed original URLs normalize Supabase raw paths and stay short-lived, scoped and same-origin',async()=>{
   const objectPath=iriPhotoObjectPath(CLIENT,ASSESSMENT,'front',CAPTURE,'image/jpeg');
   const calls=[];
+  const rawSupabasePath=`/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}?token=qa`;
   const fetchImpl=async(url,options={})=>{
     calls.push({url,options});
-    return jsonResponse({signedURL:`/storage/v1/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}?token=qa`});
+    return jsonResponse({signedURL:rawSupabasePath});
   };
   const service=createIriPhotogrammetryService({runtime:runtime(),fetchImpl});
   const signed=await service.signedUrl('jwt-test',{objectPath,expiresIn:9999});
-  assert.equal(new URL(signed).origin,'https://gjztkdwfmunnzhtvxrsu.supabase.co');
+  const parsed=new URL(signed);
+  assert.equal(parsed.origin,'https://gjztkdwfmunnzhtvxrsu.supabase.co');
+  assert.equal(parsed.pathname,`/storage/v1/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}`);
+  assert.equal(parsed.searchParams.get('token'),'qa');
   assert.equal(JSON.parse(calls[0].options.body).expiresIn,600);
+
+  const canonical=createIriPhotogrammetryService({
+    runtime:runtime(),
+    fetchImpl:async()=>jsonResponse({signedURL:`/storage/v1/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}?token=canonical`}),
+  });
+  const canonicalSigned=await canonical.signedUrl('jwt-test',{objectPath});
+  assert.equal(new URL(canonicalSigned).searchParams.get('token'),'canonical');
 
   const hostile=createIriPhotogrammetryService({
     runtime:runtime(),
-    fetchImpl:async()=>jsonResponse({signedURL:'https://example.invalid/private-photo.jpg'}),
+    fetchImpl:async()=>jsonResponse({signedURL:'https://example.invalid/private-photo.jpg?token=bad'}),
   });
   await assert.rejects(()=>hostile.signedUrl('jwt-test',{objectPath}),/SIGN_ORIGIN_INVALID/);
+
+  const wrongSameOriginPath=createIriPhotogrammetryService({
+    runtime:runtime(),
+    fetchImpl:async()=>jsonResponse({signedURL:'/private-photo.jpg?token=qa'}),
+  });
+  await assert.rejects(()=>wrongSameOriginPath.signedUrl('jwt-test',{objectPath}),/SIGN_ORIGIN_INVALID/);
+
+  const missingToken=createIriPhotogrammetryService({
+    runtime:runtime(),
+    fetchImpl:async()=>jsonResponse({signedURL:`/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}`}),
+  });
+  await assert.rejects(()=>missingToken.signedUrl('jwt-test',{objectPath}),/SIGN_ORIGIN_INVALID/);
 });
 
 test('service enforces prepare -> immutable upload -> finalize and private state reads',async()=>{
