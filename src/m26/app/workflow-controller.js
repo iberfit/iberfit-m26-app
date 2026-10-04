@@ -1127,9 +1127,22 @@ export function createWorkflowController({
   }
   function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
-  function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void saveIriDraft({silent:true,syncRemote:false}).catch(()=>{});}
+  async function flushLocalDrafts(){
+    clearTimeout(iriSaveTimer);
+    clearTimeout(iriRemoteSaveTimer);
+    clearTimeout(onboardingSaveTimer);
+    const tasks=[];
+    const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');
+    if(onboardingForm)tasks.push(Promise.resolve(saveOnboardingDraft(onboardingForm)).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-onboarding-draft-local',code:String(error?.message||error||'M26_ONBOARDING_LOCAL_DRAFT_FLUSH_FAILED')});return null;}));
+    const iriForm=root.querySelector?.('[data-workflow-form="iri"]');
+    if(iriForm)tasks.push(Promise.resolve(saveIriDraft({silent:true,syncRemote:false})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_FLUSH_FAILED')});return null;}));
+    await Promise.allSettled(tasks);
+    return true;
+  }
+  function onPageHide(){void flushLocalDrafts();}
   return Object.freeze({
     mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
+    flushLocalDrafts,
     destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
   });
 }
