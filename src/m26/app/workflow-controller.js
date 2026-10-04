@@ -910,23 +910,29 @@ export function createWorkflowController({
   }
   async function initializeIriForm(form){
     if(!form||initializedIriForms.has(form))return;initializedIriForms.add(form);const {clientId}=context();if(!clientId)return;
+    const scope=iriDraftStorageScope(null,form);
+    const currentAssessmentId=String(recordId(currentIriRecord(form))||'').trim();
+    const remoteKey=iriRemoteDraftKey(clientId,currentAssessmentId);
+    let localRecord=null,remoteRecord=null,localLoadFailed=false,remoteLoadFailed=false;
     try{
-      const scope=iriDraftStorageScope(null,form);
-      let localRecord=await draftRepository?.load?.(clientId,scope);
-      if(!localRecord?.value&&scope!==IRI_DRAFT_SCOPE){
-        const legacy=await draftRepository?.load?.(clientId,IRI_DRAFT_SCOPE);
-        const legacyAssessmentId=String(legacy?.value?.assessmentId||'').trim();
-        const currentAssessmentId=recordId(currentIriRecord(form));
-        if(legacy?.value?.clientId===clientId&&(!legacyAssessmentId||legacyAssessmentId===currentAssessmentId)){
-          localRecord=legacy;
-          await draftRepository?.save?.(clientId,scope,legacy.value);
+      try{
+        localRecord=await draftRepository?.load?.(clientId,scope);
+        if(!localRecord?.value&&scope!==IRI_DRAFT_SCOPE){
+          const legacy=await draftRepository?.load?.(clientId,IRI_DRAFT_SCOPE);
+          const legacyAssessmentId=String(legacy?.value?.assessmentId||'').trim();
+          if(legacy?.value?.clientId===clientId&&(!legacyAssessmentId||legacyAssessmentId===currentAssessmentId)){
+            localRecord=legacy;
+            try{await draftRepository?.save?.(clientId,scope,legacy.value);}
+            catch(error){emit(root,'m26:workflow-error',{action:'cache-iri-draft-local-migration',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_CACHE_FAILED')});}
+          }
         }
+        if(localRecord?.value&&!iriDraftMatchesCurrent(localRecord.value,clientId,form))localRecord=null;
+      }catch(error){
+        localLoadFailed=true;
+        localRecord=null;
+        emit(root,'m26:workflow-error',{action:'load-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_LOAD_FAILED')});
       }
-      if(localRecord?.value&&!iriDraftMatchesCurrent(localRecord.value,clientId,form))localRecord=null;
 
-      let remoteRecord=null;
-      const currentAssessmentId=String(recordId(currentIriRecord(form))||'').trim();
-      const remoteKey=iriRemoteDraftKey(clientId,currentAssessmentId);
       if(currentAssessmentId&&typeof getRemoteDraft==='function'&&isOnline()){
         try{
           const result=await Promise.resolve(getRemoteDraft(clientId,currentAssessmentId));
@@ -935,6 +941,7 @@ export function createWorkflowController({
             remoteRecord={value:structuredClone(result.draft),updatedAt:result.updatedAt||null,remote:true,revision:Math.max(1,Number(result.revision)||1),clientRevision:Math.max(0,Number(result.clientRevision)||0)};
           }
         }catch(error){
+          remoteLoadFailed=true;
           emit(root,'m26:workflow-error',{action:'load-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_LOAD_FAILED')});
         }
       }
@@ -953,16 +960,24 @@ export function createWorkflowController({
         if(selected?.value){
           populateForm(form,flattenFirstSessionDraft(selected.value));
           if(selected===remoteRecord){
-            try{await draftRepository?.save?.(clientId,scope,remoteRecord.value);}catch{}
-            status(root,'iri','Borrador recuperado desde el respaldo seguro.','success');
+            try{await draftRepository?.save?.(clientId,scope,remoteRecord.value);}
+            catch(error){emit(root,'m26:workflow-error',{action:'cache-iri-draft-remote-locally',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_LOCAL_CACHE_FAILED')});}
+            status(root,'iri',localLoadFailed?'Borrador recuperado desde el respaldo seguro. El almacenamiento local de este dispositivo no respondió, pero no se perdió información.':'Borrador recuperado desde el respaldo seguro.','success');
           }else{
             status(root,'iri','Borrador recuperado desde este dispositivo.','success');
             if(isOnline()&&typeof upsertRemoteDraft==='function'&&!remoteRecord)void persistIriRemoteDraft(clientId,selected.value,form);
           }
+        }else if(localLoadFailed){
+          status(root,'iri',remoteLoadFailed?'No fue posible leer el borrador de este dispositivo ni consultar el respaldo seguro. No introduzcas datos nuevos hasta recuperar la conexión.':'No se pudo leer el borrador local y no hay un respaldo remoto disponible para esta evaluación.','error');
+        }else if(remoteLoadFailed){
+          status(root,'iri','No se pudo consultar el respaldo seguro. Si existía un borrador local, se mantiene sin sobrescribir.','pending');
         }
       }
     }
-    catch{status(root,'iri','No fue posible recuperar el borrador del IRI.','error');}
+    catch(error){
+      emit(root,'m26:workflow-error',{action:'initialize-iri-draft',code:String(error?.message||error||'M26_IRI_DRAFT_INITIALIZE_FAILED')});
+      status(root,'iri','No fue posible restaurar el borrador del IRI. Los respaldos existentes no se han sobrescrito.','error');
+    }
     computed(form);setIriStep(form,Number(form.dataset.iriStepIndex||0));
   }
   function scanRouteForms(){

@@ -90,6 +90,22 @@ test('IRI guarda local primero y sincroniza remoto sin convertir red en bloqueo'
   assert.match(workflow,/saveIriDraft\(\{silent:true,syncRemote:true\}\)/u);
 });
 
+test('un fallo del almacenamiento local no bloquea la recuperación desde el respaldo remoto',()=>{
+  const workflow=read('src/m26/app/workflow-controller.js');
+  const start=workflow.indexOf('async function initializeIriForm(form)');
+  const end=workflow.indexOf('function scanRouteForms()',start);
+  const init=workflow.slice(start,end);
+  const localFailure=init.indexOf("action:'load-iri-draft-local'");
+  const remoteLoad=init.indexOf('getRemoteDraft(clientId,currentAssessmentId)');
+  assert.ok(start>=0&&end>start);
+  assert.ok(localFailure>=0&&remoteLoad>localFailure);
+  assert.match(init,/localLoadFailed=true/u);
+  assert.match(init,/localRecord=null/u);
+  assert.match(init,/Borrador recuperado desde el respaldo seguro\. El almacenamiento local de este dispositivo no respondió, pero no se perdió información\./u);
+  assert.match(init,/cache-iri-draft-remote-locally/u);
+  assert.match(init,/Los respaldos existentes no se han sobrescrito/u);
+});
+
 test('IRI recupera sólo la evaluación actual, detecta divergencia y evita resucitar el borrador al confirmar',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
   assert.match(workflow,/getRemoteDraft\(clientId,currentAssessmentId\)/u);
