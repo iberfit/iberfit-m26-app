@@ -8,6 +8,7 @@ test('photogrammetry keeps exactly one active original per assessment and view',
   assert.match(sql,/iri_photo_one_active_view_v1/u);
   assert.match(sql,/where status='active'/u);
   assert.match(sql,/row_number\(\) over \([\s\S]*partition by assessment_id,view/u);
+  assert.doesNotMatch(sql,/with ranked as/iu);
   assert.match(sql,/set status='revoked'/u);
   assert.match(sql,/pg_advisory_xact_lock/u);
   assert.match(sql,/hashtextextended\(p_assessment_id::text\|\|':'\|\|v_view,0\)/u);
