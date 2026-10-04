@@ -752,8 +752,10 @@ export function createWorkflowController({
     if(!conflict)return;
     const copy=panel.querySelector?.('[data-iri-remote-conflict-copy]');
     if(copy)copy.textContent=conflict.missing
-      ?'El respaldo remoto cambió mientras editabas y ahora ya no existe. Tu borrador local se conserva; elige si quieres volver a publicarlo desde este dispositivo.'
+      ?'El respaldo remoto cambió mientras editabas y ahora ya no existe. Tu borrador local se conserva; puedes volver a publicarlo desde este dispositivo.'
       :'Existe otro borrador remoto más reciente o diferente. IBERFIT conserva ambos y no sobrescribirá ninguno hasta que elijas cuál continuar.';
+    const remoteButton=panel.querySelector?.('[data-iri-remote-conflict-action="use-remote"]');
+    if(remoteButton){remoteButton.disabled=conflict.missing===true||!conflict.draft;remoteButton.setAttribute?.('aria-disabled',remoteButton.disabled?'true':'false');}
   }
   function setIriRemoteConflict(clientId,assessmentId,conflict,form=null){
     const key=iriRemoteDraftKey(clientId,assessmentId);
@@ -848,6 +850,48 @@ export function createWorkflowController({
     clearTimeout(iriRemoteSaveTimer);
     iriRemoteSaveTimer=setTimeout(()=>{void saveIriDraft({silent:true,syncRemote:true}).catch(()=>{});},IRI_REMOTE_SYNC_DELAY_MS);
   }
+  function assertNoIriRemoteConflict(clientId,assessmentId,form=null){
+    const key=iriRemoteDraftKey(clientId,assessmentId);
+    if(!iriRemoteConflictByAssessment.has(key))return true;
+    paintIriRemoteConflict(form,iriRemoteConflictByAssessment.get(key));
+    const error=new Error('M26_IRI_REMOTE_DRAFT_CONFLICT');
+    error.userMessage='Hay dos borradores distintos del IRI. Elige cuál continuar antes de confirmar la evaluación.';
+    throw error;
+  }
+  async function resolveIriRemoteConflict(form,action){
+    requireCoach();
+    const {clientId}=context();
+    const assessmentId=String(recordId(currentIriRecord(form))||'').trim();
+    const key=iriRemoteDraftKey(clientId,assessmentId);
+    const conflict=iriRemoteConflictByAssessment.get(key);
+    if(!assessmentId||!conflict)return false;
+    if(action==='use-remote'){
+      if(!conflict.draft||conflict.missing===true){
+        status(root,'iri','Ese respaldo remoto ya no está disponible. El borrador de este dispositivo permanece intacto.','error');
+        return false;
+      }
+      populateForm(form,flattenFirstSessionDraft(conflict.draft));
+      try{await draftRepository?.save?.(clientId,iriDraftStorageScope(conflict.draft,form),conflict.draft);}catch(error){emit(root,'m26:workflow-error',{action:'resolve-iri-draft-conflict-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_SAVE_FAILED')});}
+      iriRemoteRevisionByAssessment.set(key,Math.max(0,Number(conflict.revision)||0));
+      setIriRemoteConflict(clientId,assessmentId,null,form);
+      try{computed(form,conflict.draft);}catch{}
+      status(root,'iri','Respaldo remoto recuperado. Este dispositivo continúa desde esa versión.','success');
+      return true;
+    }
+    if(action==='keep-local'){
+      iriRemoteRevisionByAssessment.set(key,Math.max(0,Number(conflict.revision)||0));
+      setIriRemoteConflict(clientId,assessmentId,null,form);
+      const draft=iriDraft(form);
+      const synced=await persistIriRemoteDraft(clientId,draft,form);
+      if(synced){
+        status(root,'iri','Se ha conservado este dispositivo y el respaldo remoto quedó actualizado explícitamente.','success');
+        return true;
+      }
+      if(!iriRemoteConflictByAssessment.has(key))status(root,'iri','El borrador local sigue protegido, pero la sincronización remota queda pendiente.','pending');
+      return false;
+    }
+    return false;
+  }
   function onboardingRaw(form){return values(form);}
   async function saveOnboardingDraft(form,{silent=true}={}){
     if(!form)return null;const raw=onboardingRaw(form);await draftRepository?.save?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE,raw);
@@ -882,28 +926,39 @@ export function createWorkflowController({
 
       let remoteRecord=null;
       const currentAssessmentId=String(recordId(currentIriRecord(form))||'').trim();
+      const remoteKey=iriRemoteDraftKey(clientId,currentAssessmentId);
       if(currentAssessmentId&&typeof getRemoteDraft==='function'&&isOnline()){
         try{
           const result=await Promise.resolve(getRemoteDraft(clientId,currentAssessmentId));
+          iriRemoteRevisionByAssessment.set(remoteKey,result?.found===true?Math.max(1,Number(result.revision)||1):0);
           if(result?.found===true&&String(result.assessmentId||'')===currentAssessmentId&&iriDraftMatchesCurrent(result.draft,clientId,form)){
-            remoteRecord={value:structuredClone(result.draft),updatedAt:result.updatedAt||null,remote:true};
+            remoteRecord={value:structuredClone(result.draft),updatedAt:result.updatedAt||null,remote:true,revision:Math.max(1,Number(result.revision)||1),clientRevision:Math.max(0,Number(result.clientRevision)||0)};
           }
         }catch(error){
           emit(root,'m26:workflow-error',{action:'load-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_LOAD_FAILED')});
         }
       }
 
-      const localTime=localRecord?.updatedAt?new Date(localRecord.updatedAt).getTime():0;
-      const remoteTime=remoteRecord?.updatedAt?new Date(remoteRecord.updatedAt).getTime():0;
-      const selected=remoteRecord&&(!localRecord||remoteTime>=localTime)?remoteRecord:localRecord;
-      if(selected?.value){
-        populateForm(form,flattenFirstSessionDraft(selected.value));
-        if(selected===remoteRecord){
-          try{await draftRepository?.save?.(clientId,scope,remoteRecord.value);}catch{}
-          status(root,'iri','Borrador recuperado desde el respaldo seguro.','success');
-        }else{
-          status(root,'iri','Borrador recuperado desde este dispositivo.','success');
-          if(isOnline()&&typeof upsertRemoteDraft==='function'&&(!remoteRecord||localTime>remoteTime))void persistIriRemoteDraft(clientId,selected.value,form);
+      const diverged=Boolean(localRecord?.value&&remoteRecord?.value&&!iriDraftsEquivalent(localRecord.value,remoteRecord.value));
+      if(diverged){
+        const conflict=Object.freeze({revision:remoteRecord.revision,clientRevision:remoteRecord.clientRevision,updatedAt:remoteRecord.updatedAt,draft:structuredClone(remoteRecord.value),missing:false});
+        setIriRemoteConflict(clientId,currentAssessmentId,conflict,form);
+        populateForm(form,flattenFirstSessionDraft(localRecord.value));
+        status(root,'iri','Hay un borrador distinto en otro dispositivo. IBERFIT conserva ambos; elige cuál continuar antes de sincronizar.','error');
+      }else{
+        setIriRemoteConflict(clientId,currentAssessmentId,null,form);
+        const localTime=localRecord?.updatedAt?new Date(localRecord.updatedAt).getTime():0;
+        const remoteTime=remoteRecord?.updatedAt?new Date(remoteRecord.updatedAt).getTime():0;
+        const selected=remoteRecord&&(!localRecord||remoteTime>=localTime)?remoteRecord:localRecord;
+        if(selected?.value){
+          populateForm(form,flattenFirstSessionDraft(selected.value));
+          if(selected===remoteRecord){
+            try{await draftRepository?.save?.(clientId,scope,remoteRecord.value);}catch{}
+            status(root,'iri','Borrador recuperado desde el respaldo seguro.','success');
+          }else{
+            status(root,'iri','Borrador recuperado desde este dispositivo.','success');
+            if(isOnline()&&typeof upsertRemoteDraft==='function'&&!remoteRecord)void persistIriRemoteDraft(clientId,selected.value,form);
+          }
         }
       }
     }
@@ -933,7 +988,7 @@ export function createWorkflowController({
   async function completeIri(){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');const current=currentIriRecord(form);const draft=iriDraft(form);const check=validateFirstSessionDraft(draft);
     if(!check.ok){const first=IRI_FIRST_SESSION_STEPS.find((step)=>check.byStep[step]?.length)||'revision';const pending=Object.entries(check.byStep).flatMap(([step,items])=>items.map((item)=>({step,item,label:IRI_FIELD_LABELS[item]||item})));setIriStep(form,IRI_FIRST_SESSION_STEPS.indexOf(first));showStepValidation(form,first,check.byStep[first]);focusIriValidationError(form,check.byStep[first]);const error=new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);error.userMessage=`No puedes confirmar todavía: faltan ${pending.length} ${pending.length===1?'elemento':'elementos'}. ${pending.map(({label})=>label).join(', ')}.`;throw error;}
-    assertPhysicalAssessmentConsent(form);assertNormContextAccepted(form);assertNoUnpersistedIriAttachment(form);assertIriRawRanges(form);const commandDraft=buildIriCommandDraftFromFirstSession(draft,current);await persistIriDraftBackup(draft.clientId,draft,form);
+    assertPhysicalAssessmentConsent(form);assertNormContextAccepted(form);assertNoUnpersistedIriAttachment(form);assertIriRawRanges(form);assertNoIriRemoteConflict(draft.clientId,current.id,form);const commandDraft=buildIriCommandDraftFromFirstSession(draft,current);await persistIriDraftBackup(draft.clientId,draft,form);
     if(typeof ensureIriPhysicalConsent!=='function')throw new Error('M26_IRI_PHYSICAL_CONSENT_SERVICE_UNAVAILABLE');
     status(root,'iri','Registrando consentimiento y confirmando la evaluación…','pending');
     await withTimeout(Promise.resolve(ensureIriPhysicalConsent({clientId:draft.clientId,assessmentId:current.id,accepted:true,note:'Consentimiento para evaluación física IRI registrado al confirmar el punto de partida inicial.'})),15_000,'M26_IRI_PHYSICAL_CONSENT_TIMEOUT');
@@ -1171,6 +1226,7 @@ export function createWorkflowController({
     const clearLibrary=event.target.closest?.('[data-library-clear]');if(clearLibrary){event.preventDefault?.();const search=root.querySelector?.('[data-library-search]');if(search)search.value='';for(const node of root.querySelectorAll?.('[data-library-filter]')||[])node.value='';updateLibrary();return;}
     const registerProtocol=event.target.closest?.('[data-iri-register-target]');if(registerProtocol){event.preventDefault?.();const form=registerProtocol.closest?.('[data-workflow-form="iri"]');const target=form?.elements?.namedItem?.(registerProtocol.getAttribute?.('data-iri-register-target'));const card=registerProtocol.closest?.('[data-iri-protocol]');if(card)card.open=false;target?.scrollIntoView?.({block:'center',behavior:'smooth'});target?.focus?.();return;}
     const timerButton=event.target.closest?.('[data-iri-timer-action]');if(timerButton){event.preventDefault?.();const form=timerButton.closest?.('[data-workflow-form="iri"]');controlIriTimer(form,timerButton.getAttribute?.('data-iri-timer-action'));return;}
+    const conflictButton=event.target.closest?.('[data-iri-remote-conflict-action]');if(conflictButton){event.preventDefault?.();const form=conflictButton.closest?.('[data-workflow-form="iri"]');await resolveIriRemoteConflict(form,conflictButton.getAttribute?.('data-iri-remote-conflict-action'));return;}
     const jump=event.target.closest?.('[data-iri-step-jump]');if(jump){event.preventDefault?.();await jumpIri(Number(jump.getAttribute?.('data-iri-step-jump')||0));return;}
     const button=event.target.closest?.('[data-workflow-action]');if(!button)return;
     const form=button.closest?.('form');if(form&&button.type==='submit')return;
