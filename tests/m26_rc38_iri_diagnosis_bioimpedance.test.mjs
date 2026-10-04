@@ -184,12 +184,12 @@ test('cada apertura genera una URL firmada nueva bajo el origen Supabase canóni
   const service=createIriExternalReportService({runtime:{enabled:true,projectRef:'pjhmrhejsoofmouedavw',url:'https://pjhmrhejsoofmouedavw.supabase.co',publishableKey:'sb_publishable_rc38_test',timeoutMs:5_000,version:'26.0.0-canary.38-iri-diagnosis-bioimpedance'},fetchImpl:async(_url,options)=>{
     assert.equal(options.cache,'no-store');
     sequence+=1;
-    return Response.json({signedURL:`/storage/v1/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/${OBJECT_PATH}?token=fresh-${sequence}`});
+    return Response.json({signedURL:`/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/${OBJECT_PATH}?token=fresh-${sequence}`});
   }});
   const first=await service.signedUrl('qa-token',{objectPath:OBJECT_PATH});
   const second=await service.signedUrl('qa-token',{objectPath:OBJECT_PATH});
   assert.notEqual(first,second);
-  assert.match(first,/^https:\/\/pjhmrhejsoofmouedavw\.supabase\.co/);
+  assert.match(first,/^https:\/\/pjhmrhejsoofmouedavw\.supabase\.co\/storage\/v1\/object\/sign\//);
   assert.equal(sequence,2);
 });
 

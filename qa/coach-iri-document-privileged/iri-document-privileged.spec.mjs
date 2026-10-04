@@ -6,6 +6,7 @@ const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
 const QA_ORIGIN='https://'+QA_REF+'.supabase.co';
 const CLIENT_ID='57f56a87-d04e-47d5-b1cc-8d4939d7c804';
+const ASSESSMENT_ID='7a000000-0000-4000-8000-000000000001';
 const BUILD_ROOT=path.resolve('.tmp/rc64-current-surface');
 const PUBLIC_BUILD_ROOT=path.join(BUILD_ROOT,'public');
 const OUT_DIR=path.resolve('recovery/coach-iri-document-privileged');
@@ -95,7 +96,14 @@ function allowedQaRequest(request,evidence){
     if(PHOTO_WRITE_RPCS.has(rpc)){evidence.privilegedMutations.push(rpc);return true;}
   }
   if(method==='GET'&&PHOTO_TABLES.has(url.pathname))return true;
-  if(url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/')){
+  if(
+    method==='GET'&&url.pathname==='/rest/v1/iri_external_reports_v26'&&
+    url.searchParams.get('assessment_id')==='eq.'+ASSESSMENT_ID
+  )return true;
+  if(
+    url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/')||
+    url.pathname.startsWith('/storage/v1/object/sign/iberfit-iri-external-reports/')
+  ){
     return method==='GET'||method==='POST';
   }
   if(method==='POST'&&url.pathname===REPORT_PATH){
@@ -262,16 +270,16 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     await openSyntheticClient(page);
     await openPhotography(page);
     await expect(page.locator('.m26-photo-consents')).toContainText('Autorizadas');
-    const revisionText=await page.locator('.m26-photo-analysis-head > span').textContent();
-    const revisionBefore=Number(String(revisionText||'').match(/(\d+)/u)?.[1]||0);
+    const readAnalysisRevision=async()=>{
+      const value=await page.locator('.m26-photo-analysis-head > span').textContent();
+      return Number(String(value||'').match(/Revisión v2\s+(\d+)/u)?.[1]||0);
+    };
+    const revisionBefore=await readAnalysisRevision();
     for(const view of ['front','back','left','right'])await calibrateView(page,view);
     const validate=page.locator('[data-iri-photo-analysis="validate"]');
     await expect(validate).toBeEnabled();
     await validate.click();
-    await expect.poll(async()=>{
-      const value=await page.locator('.m26-photo-analysis-head > span').textContent();
-      return Number(String(value||'').match(/(\d+)/u)?.[1]||0);
-    },{timeout:35_000}).toBeGreaterThan(revisionBefore);
+    await expect.poll(readAnalysisRevision,{timeout:35_000}).toBeGreaterThan(revisionBefore);
     evidence.analysisValidated=true;
 
     await setPhotoPublication(page,true);

@@ -4,6 +4,7 @@ import {
   M26_QA_PROJECT_REF,
   M26_QA_SUPABASE_ORIGIN,
 } from '../supabase-transport.js';
+import {resolveSupabaseStorageSignedUrl} from '../supabase-storage-url.js';
 
 export const IRI_EXTERNAL_REPORT_APP_ORIGIN = 'https://m26-canary.iberfit.cl';
 const IRI_EXTERNAL_REPORT_APP_ORIGIN_MAP = new Map([
@@ -523,12 +524,12 @@ export function createIriExternalReportService({ runtime, fetchImpl = globalThis
       }
     );
     const value = cleanText(payload?.signedURL || payload?.signedUrl, 4_000);
-    if (!value) throw new Error('M26_IRI_EXTERNAL_REPORT_SIGN_INVALID_RESPONSE');
-    const url = new URL(value, `${config.origin}/`);
-    if (url.origin !== config.origin) {
-      throw new Error('M26_IRI_EXTERNAL_REPORT_SIGN_ORIGIN_INVALID');
-    }
-    return url.href;
+    return resolveSupabaseStorageSignedUrl({
+      origin: config.origin,
+      signedPath: value,
+      bucketId: IRI_EXTERNAL_REPORT_BUCKET,
+      errorPrefix: 'M26_IRI_EXTERNAL_REPORT_SIGN',
+    });
   }
 
   return Object.freeze({ getReport, uploadObject, registerReport, signedUrl });

@@ -129,11 +129,12 @@ test('signed original URLs remain short-lived and same-origin',async()=>{
   const calls=[];
   const fetchImpl=async(url,options={})=>{
     calls.push({url,options});
-    return jsonResponse({signedURL:`/storage/v1/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}?token=qa`});
+    return jsonResponse({signedURL:`/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}?token=qa`});
   };
   const service=createIriPhotogrammetryService({runtime:runtime(),fetchImpl});
   const signed=await service.signedUrl('jwt-test',{objectPath,expiresIn:9999});
   assert.equal(new URL(signed).origin,'https://gjztkdwfmunnzhtvxrsu.supabase.co');
+  assert.ok(new URL(signed).pathname.startsWith(`/storage/v1/object/sign/${IRI_PHOTO_BUCKET}/`));
   assert.equal(JSON.parse(calls[0].options.body).expiresIn,600);
 
   const hostile=createIriPhotogrammetryService({

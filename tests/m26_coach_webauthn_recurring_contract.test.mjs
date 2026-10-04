@@ -87,6 +87,9 @@ test('trusted Canary Coach UI certifies privileged IRI document routes without c
   assert.match(privileged,/WebAuthn\.addVirtualAuthenticator/u);
   assert.match(privileged,/authentication-verify/u);
   assert.match(privileged,/data-iri-photo-analysis="validate"/u);
+  assert.match(privileged,/const ASSESSMENT_ID='7a000000-0000-4000-8000-000000000001'/u);
+  assert.match(privileged,/iri_external_reports_v26/u);
+  assert.match(privileged,/Revisión v2\\s\+\(\\d\+\)/u);
   assert.match(privileged,/data-iri-step-index/u);
   assert.match(privileged,/Saltar guía/u);
   assert.match(privileged,/data-iri-photo-report-permission/u);

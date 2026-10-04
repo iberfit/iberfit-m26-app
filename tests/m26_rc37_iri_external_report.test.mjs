@@ -103,7 +103,7 @@ test('servicio IRI separa estrictamente los backends de producción y QA', async
   const qaService = createIriExternalReportService({
     runtime: qaRuntime,
     fetchImpl: async () => Response.json({
-      signedURL: `/storage/v1/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/qa?token=test`,
+      signedURL: `/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/qa?token=test`,
     }),
   });
 
@@ -215,7 +215,7 @@ test('servicio ejecuta consulta, upload, RPC y URL firmada con contrato v12.4', 
       return Response.json([{ ...report, client_id: CLIENT_ID, assessment_id: ASSESSMENT_ID }]);
     }
     if (url.includes('/storage/v1/object/sign/')) {
-      return Response.json({ signedURL: `/storage/v1/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/${objectPath}?token=test` });
+      return Response.json({ signedURL: `/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/${objectPath}?token=test` });
     }
     if (url.includes('/rest/v1/rpc/iberfit_register_iri_external_report_v12')) {
       return Response.json(report);

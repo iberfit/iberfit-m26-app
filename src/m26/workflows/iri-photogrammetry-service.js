@@ -4,6 +4,7 @@ import {
   M26_QA_PROJECT_REF,
   M26_QA_SUPABASE_ORIGIN,
 } from '../supabase-transport.js';
+import {resolveSupabaseStorageSignedUrl} from '../supabase-storage-url.js';
 
 export const IRI_PHOTO_BUCKET='iberfit-iri-photogrammetry';
 export const IRI_PHOTO_MAX_BYTES=15_000_000;
@@ -488,10 +489,12 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
       token,method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({expiresIn:seconds}),
     });
     const raw=cleanText(payload?.signedURL||payload?.signedUrl,4000);
-    if(!raw)throw new Error('M26_IRI_PHOTO_SIGN_INVALID_RESPONSE');
-    const url=new URL(raw,`${config.origin}/`);
-    if(url.origin!==config.origin)throw new Error('M26_IRI_PHOTO_SIGN_ORIGIN_INVALID');
-    return url.href;
+    return resolveSupabaseStorageSignedUrl({
+      origin:config.origin,
+      signedPath:raw,
+      bucketId:IRI_PHOTO_BUCKET,
+      errorPrefix:'M26_IRI_PHOTO_SIGN',
+    });
   }
 
   async function saveAnalysis(token,{clientId,assessmentId,baseRevision=0,captureIds={},validatedLandmarks={},measurements={},validate=false}={}){
