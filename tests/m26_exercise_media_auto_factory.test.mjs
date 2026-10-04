@@ -197,6 +197,13 @@ test('claim transitions preserve the non-null output manifest contract',()=>{
   assert.match(broker,/output_manifest\s*:\s*\{\}/u,'claim retries must reset the manifest to an empty JSON object');
 });
 
+test('planner applies deterministic IBERFIT geometry to hard movements before semantic validation',()=>{
+  assert.match(planner,/canonicalHardMovementPlanPhases/);
+  assert.match(planner,/start:canonicalHardPhases\.start/);
+  assert.match(planner,/final:canonicalHardPhases\.final/);
+  assert.match(planner,/canonical hard-movement phase geometry applied deterministically/);
+});
+
 test('claim is idempotent per workflow run and review-ready runs cannot be reclaimed',()=>{
   assert.match(broker,/const runId=String\(claims\?\.run_id\|\|""\)/);
   assert.match(broker,/const workflowSha=String\(claims\?\.sha\|\|""\)/);

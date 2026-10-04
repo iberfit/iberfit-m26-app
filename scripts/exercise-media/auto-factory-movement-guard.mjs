@@ -24,6 +24,28 @@ export function hasHardMovementPlanGuard(exercise){
   return isBearCrawl(exercise)||isBearPlankShoulderTap(exercise)||isBirdDogBand(exercise);
 }
 
+export function canonicalHardMovementPlanPhases(exercise){
+  if(isBearCrawl(exercise)){
+    return Object.freeze({
+      start:'Ambas manos permanecen apoyadas en el suelo bajo los hombros; las puntas de ambos pies mantienen contacto con el suelo. Las rodillas permanecen elevadas y sin contacto con el suelo. La cadera se mantiene aproximadamente a la misma altura que los hombros y el tronco largo, neutral y casi horizontal.',
+      final:'La mano derecha avanza mientras la mano izquierda y las puntas de ambos pies mantienen el patrón de apoyo en el suelo. Las rodillas continúan elevadas y sin contacto con el suelo, la cadera permanece aproximadamente a la misma altura que los hombros y el tronco largo, neutral y casi horizontal.',
+    });
+  }
+  if(isBearPlankShoulderTap(exercise)){
+    return Object.freeze({
+      start:'Ambas palmas están apoyadas en el suelo bajo los hombros y las puntas de ambos pies permanecen apoyadas en el suelo. Las rodillas están flexionadas unos 90 grados, debajo o cerca de la cadera, y permanecen elevadas sin contacto con el suelo. La cadera queda cerca del nivel de los hombros y el tronco neutral y casi horizontal.',
+      final:'La palma izquierda permanece apoyada en el suelo bajo el hombro mientras la mano derecha se levanta y toca el hombro izquierdo, el hombro opuesto. Las puntas de ambos pies continúan apoyadas en el suelo; ambas rodillas siguen flexionadas unos 90 grados debajo de la cadera y elevadas sin contacto con el suelo. La pelvis se mantiene estable y el tronco neutral.',
+    });
+  }
+  if(isBirdDogBand(exercise)){
+    return Object.freeze({
+      start:'Ambas palmas y ambas rodillas permanecen apoyadas en el suelo en cuadrupedia, con columna neutral y pelvis estable. Una única banda elástica une la mano izquierda con el pie derecho contralateral; la banda está colocada antes de iniciar el movimiento y no utiliza ningún punto externo.',
+      final:'El brazo izquierdo se extiende hacia delante y la pierna derecha contralateral se extiende hacia atrás. La otra mano permanece apoyada en el suelo y la otra rodilla permanece apoyada en el suelo. La misma banda elástica mantiene tensión entre la mano izquierda y el pie derecho; la pelvis permanece nivelada y la columna neutral, sin ningún punto externo.',
+    });
+  }
+  return null;
+}
+
 function phaseHasBearSupport(text){
   const n=normalize(text);
   const hands=/(?:manos?.{0,80}(?:suelo|piso)|(?:suelo|piso).{0,80}manos?)/u.test(n);

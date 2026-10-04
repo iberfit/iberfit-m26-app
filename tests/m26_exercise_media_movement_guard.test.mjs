@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import test from 'node:test';
-import {movementVisualGuard} from '../scripts/exercise-media/auto-factory-movement-guard.mjs';
+import {canonicalHardMovementPlanPhases,movementPlanIssue,movementVisualGuard} from '../scripts/exercise-media/auto-factory-movement-guard.mjs';
 
 const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
 const qa=await readFile(new URL('../scripts/exercise-media/auto-factory-qa.mjs',import.meta.url),'utf8');
@@ -15,6 +15,30 @@ test('bear crawl movement guard encodes the defining quadrupedal support contrac
   assert.match(guard,/hips must stay approximately level with the shoulders/);
   assert.match(guard,/trunk must remain long and near-horizontal/);
   assert.match(guard,/squat, crouch, lunge, sprinter start or resting pose/);
+});
+
+test('canonical hard-movement phases are deterministic and satisfy their own movement guards',()=>{
+  const cases=[
+    {id:'IBF-BEAR-CRAWL',name_es:'Bear crawl',pattern:'locomoción',equipment:'sin equipo'},
+    {id:'IBF-BEAR-PLANK-SHOULDER-TAP',name_es:'Bear plank shoulder tap',pattern:'core',equipment:'sin equipo'},
+    {id:'IBF-BIRD-DOG-CON-BANDA',name_es:'Bird dog con banda',pattern:'core',equipment:'banda elástica'},
+  ];
+  for(const exercise of cases){
+    const phases=canonicalHardMovementPlanPhases(exercise);
+    assert.ok(phases?.start&&phases?.final,exercise.id);
+    assert.notEqual(phases.start,phases.final,exercise.id);
+    assert.equal(movementPlanIssue(exercise,phases),null,exercise.id);
+  }
+});
+
+test('canonical shoulder-tap plan preserves one-hand support and opposite-shoulder contact',()=>{
+  const phases=canonicalHardMovementPlanPhases({
+    id:'IBF-BEAR-PLANK-SHOULDER-TAP',name_es:'Bear plank shoulder tap',pattern:'core',equipment:'sin equipo',
+  });
+  assert.match(phases.start,/ambas palmas/i);
+  assert.match(phases.final,/palma izquierda permanece apoyada/i);
+  assert.match(phases.final,/mano derecha se levanta y toca el hombro izquierdo/i);
+  assert.match(phases.final,/rodillas siguen flexionadas unos 90 grados/i);
 });
 
 test('generic movement guard remains fail-closed on support and contact identity',()=>{
