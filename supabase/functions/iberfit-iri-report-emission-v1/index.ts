@@ -905,7 +905,7 @@ function reportDraft(assessment:any){
   if(!record.assessmentDate&&assessment.evaluated_at)record.assessmentDate=String(assessment.evaluated_at).slice(0,10);
   return confirmedFirstSessionDraft(record,assessment.client_id);
 }
-async function issueReport({userClient,service,actorUserId,actorEmail,assessmentId,audience,appOrigin}:any){
+async function issueReport({userClient,service,actorUserId,actorEmail,assessmentId,audience,issueRequestId,appOrigin}:any){
   const authz=await userClient.rpc('iberfit_authorize_iri_report_issue_v1',{p_assessment_id:assessmentId,p_audience:audience});
   if(authz.error)throw authz.error;
   if(!authz.data?.ok)throw new Error('IRI_REPORT_ISSUE_NOT_AUTHORIZED');
@@ -997,7 +997,8 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
     generatedAt:new Date().toISOString(),
   };
   try{
-    const final=await service.rpc('iberfit_finalize_iri_report_issue_v1',{
+    const final=await service.rpc('iberfit_finalize_iri_report_issue_v2',{
+      p_issue_request_id:issueRequestId,
       p_issuance_id:issuanceId,p_client_id:assessment.client_id,p_assessment_id:assessment.id,p_audience:audience,
       p_template_version:TEMPLATE_VERSION,p_engine_version:ENGINE_VERSION,p_source_revision:Number(assessment.revision||0),
       p_source_snapshot:sourceSnapshot,p_source_sha256:sourceHash,p_evidence_manifest:evidenceManifest,
@@ -1006,7 +1007,13 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
     });
     if(final.error)throw final.error;
     if(!final.data?.ok)throw new Error('IRI_REPORT_FINALIZE_INVALID_RESPONSE');
-    const signed=await service.storage.from(ISSUED_BUCKET).createSignedUrl(artifactPath,120);
+    const canonicalArtifactPath=text(final.data?.artifactPath,600);
+    if(!canonicalArtifactPath)throw new Error('IRI_REPORT_FINALIZE_ARTIFACT_PATH_INVALID');
+    if(final.data?.reused===true&&canonicalArtifactPath!==artifactPath){
+      const cleanup=await service.storage.from(ISSUED_BUCKET).remove([artifactPath]);
+      if(cleanup.error)throw cleanup.error;
+    }
+    const signed=await service.storage.from(ISSUED_BUCKET).createSignedUrl(canonicalArtifactPath,120);
     if(signed.error)throw signed.error;
     return {...final.data,signedUrl:signed.data?.signedUrl||null,expiresIn:120,sourceSha256:sourceHash};
   }catch(error){
@@ -1076,8 +1083,9 @@ Deno.serve(async(req:Request)=>{
     if(action==='issue'){
       const assessmentId=assertUuid(body?.assessmentId,'IRI_REPORT_ASSESSMENT_INVALID');
       const audience=audienceDb(body?.audience);
+      const issueRequestId=assertUuid(body?.issueRequestId,'IRI_REPORT_ISSUE_REQUEST_INVALID');
       const result=await issueReport({
-        userClient,service,actorUserId,actorEmail,assessmentId,audience,appOrigin,
+        userClient,service,actorUserId,actorEmail,assessmentId,audience,issueRequestId,appOrigin,
       });
       return json(200,{ok:true,version:FUNCTION_VERSION,...result},origin,allowed);
     }
