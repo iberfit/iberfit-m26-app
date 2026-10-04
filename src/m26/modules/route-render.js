@@ -2361,8 +2361,8 @@ export function renderExpedienteRoute(vm) {
   if(iriOnly){
     const iriStatus=iri?.confirmed
       ?'IRI confirmado'
-      :iri?.coverageCount>0
-        ?`IRI en preparación · ${iri.coverageLabel}`
+      :iri
+        ?`IRI en preparación · ${iri.coverageCount>0?iri.coverageLabel:'borrador protegido'}`
         :'IRI pendiente';
     const nextLabel=data.nextAction?.label||(
       iri?.confirmed?'Ver informe IRI':'Abrir / completar IRI'
@@ -2390,7 +2390,7 @@ export function renderExpedienteRoute(vm) {
       <section class="m26-content-grid">
         <article class="m26-panel">
           <div class="m26-panel-heading"><div><p class="m26-eyebrow">Siguiente acción</p><h2>${escapeHtml(nextLabel)}</h2></div>${badge(iri?.confirmed?'Evaluación confirmada':'Evaluación pendiente',iri?.confirmed?'success':'pending')}</div>
-          <p>Completa o revisa el diagnóstico inicial, consentimientos, fotografías privadas y trazabilidad del IRI.</p>
+          <p>${iri&&!iri.confirmed?'El IRI todavía no está confirmado. Al abrirlo, IBERFIT recupera el borrador local o remoto disponible sin obligarte a volver a introducir lo ya guardado.':'Completa o revisa el diagnóstico inicial, consentimientos, fotografías privadas y trazabilidad del IRI.'}</p>
           <div class="m26-action-grid">
             <button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(nextTarget)}">${escapeHtml(nextLabel)}</button>
             <button type="button" data-m26-area="${escapeHtml(iriArea)}">Abrir evaluación IRI</button>
