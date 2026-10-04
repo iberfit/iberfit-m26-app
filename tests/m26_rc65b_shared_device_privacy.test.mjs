@@ -182,6 +182,8 @@ test('RC65-B UI separa logout normal de borrado destructivo también bajo i18n',
   assert.match(controller,/m26:logout-and-clear-device/u);
   assert.match(controller,/m26:logout-all-sessions/u);
   assert.match(app,/root\.addEventListener\('m26:logout-and-clear-device',onLogoutAndClearDevice\)/u);
+  assert.match(app,/await workflow\?\.flushLocalDrafts\?\.\(\)/u);
+  assert.match(app,/preserveWorkflowDrafts:false/u);
   assert.match(app,/root\.addEventListener\('m26:logout-all-sessions',onLogoutAllSessions\)/u);
   assert.match(app,/function onLogout\(\)\{const token=currentToken\(\);finishLogout\(\{token,scope:'local'\}\);\}/u);
   assert.match(route,/data-m26-action="logout-all-sessions">Revocar sesiones en todos los dispositivos<\/button>/u);
