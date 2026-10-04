@@ -107,15 +107,21 @@ test('trusted Canary Coach UI certifies privileged IRI document routes without c
 });
 
 
-test('privileged IRI certification permits only the scoped remote-draft RPCs required by current IRI autosave',async()=>{
+test('privileged IRI certification proves remote-draft CAS rejects stale device writes',async()=>{
   const privileged=await read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
   assert.match(privileged,/const IRI_DRAFT_RPCS=new Set/);
   assert.match(privileged,/m26_iri_draft_get_v1/);
   assert.match(privileged,/m26_iri_draft_upsert_v1/);
   assert.match(privileged,/m26_iri_draft_delete_v1/);
+  assert.match(privileged,/certifyRemoteDraftCas/u);
+  assert.match(privileged,/remoteRevision:r1/u);
+  assert.match(privileged,/remoteRevision:r2/u);
+  assert.match(privileged,/expect\(stale\?\.saved\)\.toBe\(false\)/u);
+  assert.match(privileged,/expect\(stale\?\.conflict\)\.toBe\(true\)/u);
+  assert.match(privileged,/expect\(stale\?\.draft\?\.marker\)\.toBe\('device-b-v2'\)/u);
+  assert.match(privileged,/explicitResolutionRequired:true/u);
   assert.match(privileged,/evidence\.draftMutations\.push\(rpc\)/);
   assert.match(privileged,/evidence\.draftMutations\.every\(\(rpc\)=>IRI_DRAFT_RPCS\.has\(rpc\)\)/);
-  assert.doesNotMatch(privileged,/draftMutations\)\.toContain\('m26_iri_draft_upsert_v1'\)/);
 });
 
 test('privileged IRI certification allows the private bioimpedance object read required by the final PDF flow',async()=>{
