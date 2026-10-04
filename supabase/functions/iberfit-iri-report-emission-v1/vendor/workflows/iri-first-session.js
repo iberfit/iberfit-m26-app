@@ -1,0 +1,303 @@
+import {buildIriProtocolRecords,flattenIriProtocolRecords} from './iri-protocol-catalog.js';
+const SCHEMA='iberfit-iri-first-session-v1';
+export const IRI_FIRST_SESSION_STEPS=Object.freeze(['perfil','entrevista','composicion','movilidad','fuerza','cardio','fotografia','revision']);
+const IRI_REQUIRED_SESSION_STEPS=Object.freeze(IRI_FIRST_SESSION_STEPS.filter((step)=>step!=='fotografia'));
+const IRI_PRIORITY_DOMAINS=Object.freeze(['general','composition','mobility','strength','cardio','recovery','adherence','other']);
+const IRI_PRIORITY_STATUSES=Object.freeze(['active','maintain','completed','paused']);
+
+function priorityRecords(raw={},existing=[],priorities=[],fallbackReviewDate=''){
+  const previous=Array.isArray(existing)?existing:[];
+  const labels=Array.isArray(priorities)?priorities:[];
+  const records=[];
+  const count=Math.min(4,Math.max(labels.length,previous.length));
+  for(let index=0;index<count;index++){
+    const slot=index+1;
+    const prior=previous[index]&&typeof previous[index]==='object'&&!Array.isArray(previous[index])?previous[index]:{};
+    const label=text(labels[index]||prior.label,180);
+    if(!label)continue;
+    const domainRaw=text(raw[`priority${slot}Domain`]??prior.domain,40).toLowerCase();
+    const statusRaw=text(raw[`priority${slot}Status`]??prior.status,40).toLowerCase();
+    records.push(Object.freeze({
+      label,
+      domain:IRI_PRIORITY_DOMAINS.includes(domainRaw)?domainRaw:'general',
+      rationale:text(raw[`priority${slot}Rationale`]??prior.rationale,600),
+      target:text(raw[`priority${slot}Target`]??prior.target,400),
+      strategy:text(raw[`priority${slot}Strategy`]??prior.strategy,800),
+      reviewDate:text(raw[`priority${slot}ReviewDate`]||prior.reviewDate||fallbackReviewDate,10),
+      status:IRI_PRIORITY_STATUSES.includes(statusRaw)?statusRaw:'active',
+    }));
+  }
+  return Object.freeze(records);
+}
+
+function text(value,max=1200){return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
+function num(value,{min=-Infinity,max=Infinity}={}){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)&&number>=min&&number<=max?number:null;}
+function bool(value){return value===true||value==='true'||value==='1'||value==='on'||value===1;}
+function list(value,max=30){return String(value??'').split(/[,;\n]/).map((item)=>text(item,180)).filter(Boolean).slice(0,max);}
+function values(raw,prefix,count,{min=0,max=1000}={}){return Array.from({length:count},(_,index)=>num(raw[`${prefix}${index+1}`],{min,max})).filter((item)=>item!==null);}
+function best(items){return items.length?Math.max(...items):null;}
+function average(items){return items.length?Math.round((items.reduce((sum,value)=>sum+value,0)/items.length)*10)/10:null;}
+function difference(a,b){return a===null||b===null?null:Math.round(Math.abs(a-b)*10)/10;}
+function requiredReason(skipped,reason){return skipped?text(reason,500):'';}
+function assessmentBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
+function field(source,...keys){for(const key of keys){const value=source?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
+function sourceValue(raw,current,key,...aliases){const body=assessmentBody(current);return raw[key]??field(body,key,...aliases)??'';}
+
+export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
+  const body=assessmentBody(current);
+  const ankleLeftTrials=values(raw,'ankleLeft',3,{min:0,max:30});
+  const ankleRightTrials=values(raw,'ankleRight',3,{min:0,max:30});
+  const posteriorLeftTrials=values(raw,'posteriorLeft',3,{min:-50,max:80});
+  const posteriorRightTrials=values(raw,'posteriorRight',3,{min:-50,max:80});
+  const ankleSkipped=bool(raw.ankleSkipped),posteriorMobilitySkipped=bool(raw.posteriorMobilitySkipped);
+  const hipRotationSkipped=bool(raw.hipRotationSkipped),mobilitySquatSkipped=bool(raw.mobilitySquatSkipped);
+  const lowerBodySkipped=bool(raw.lowerBodySkipped),pushSkipped=bool(raw.pushSkipped),trxSkipped=bool(raw.trxSkipped),coreSkipped=bool(raw.coreSkipped);
+  const ankleLeftBest=ankleSkipped?null:best(ankleLeftTrials),ankleRightBest=ankleSkipped?null:best(ankleRightTrials);
+  const posteriorLeftBest=posteriorMobilitySkipped?null:best(posteriorLeftTrials),posteriorRightBest=posteriorMobilitySkipped?null:best(posteriorRightTrials);
+  const assessmentDate=text(sourceValue(raw,body,'assessmentDate','assessment_date'),10);
+  const personProfile={
+    birthDate:text(sourceValue(raw,body,'birthDate','birth_date'),10),
+    sexForNorms:text(sourceValue(raw,body,'sexForNorms','sex_for_norms'),20),
+    genderIdentity:text(sourceValue(raw,body,'genderIdentity','gender_identity'),120),
+    pronouns:text(sourceValue(raw,body,'pronouns'),80),
+    email:text(sourceValue(raw,body,'email'),254).toLowerCase(),
+    phone:text(sourceValue(raw,body,'phone'),40),
+    preferredContactChannel:text(sourceValue(raw,body,'preferredContactChannel','preferred_contact_channel'),80),
+    preferredContactTime:text(sourceValue(raw,body,'preferredContactTime','preferred_contact_time'),120),
+    timezone:text(sourceValue(raw,body,'timezone'),80)||'America/Santiago',
+    modality:text(sourceValue(raw,body,'modality'),30),
+    trainingAddress:text(sourceValue(raw,body,'trainingAddress','training_address'),300),
+    commune:text(sourceValue(raw,body,'commune'),120),
+    locationType:text(sourceValue(raw,body,'locationType','location_type'),80),
+    accessInstructions:text(sourceValue(raw,body,'accessInstructions','access_instructions'),500),
+    preferredSchedule:text(sourceValue(raw,body,'preferredSchedule','preferred_schedule'),240),
+    weeklyFrequency:num(sourceValue(raw,body,'weeklyFrequency','weekly_frequency'),{min:1,max:14}),
+    sessionDurationMinutes:num(sourceValue(raw,body,'sessionDurationMinutes','session_duration_minutes'),{min:20,max:240}),
+    equipment:list(sourceValue(raw,body,'equipment')),
+    primaryObjective:text(sourceValue(raw,body,'primaryObjective','primary_objective','objective'),600),
+    secondaryObjectives:list(sourceValue(raw,body,'secondaryObjectives','secondary_objectives')),
+    emergencyContactName:text(sourceValue(raw,body,'emergencyContactName','emergency_contact_name'),160),
+    emergencyContactRelation:text(sourceValue(raw,body,'emergencyContactRelation','emergency_contact_relation'),120),
+    emergencyContactPhone:text(sourceValue(raw,body,'emergencyContactPhone','emergency_contact_phone'),40),
+  };
+  const interview={
+    trainingExperience:text(sourceValue(raw,body,'trainingExperience'),120),
+    trainingHistory:text(sourceValue(raw,body,'trainingHistory'),1500),
+    currentTraining:text(sourceValue(raw,body,'currentTraining'),1000),
+    availability:text(sourceValue(raw,body,'availability'),500),
+    preferences:text(sourceValue(raw,body,'preferences'),1200),
+    healthHistory:text(sourceValue(raw,body,'healthHistory'),1500),
+    restrictions:text(sourceValue(raw,body,'restrictions'),1200),
+    currentPain:text(sourceValue(raw,body,'currentPain'),1000),
+    sleepScore:num(sourceValue(raw,body,'sleepScore'),{min:0,max:10}),
+    stressScore:num(sourceValue(raw,body,'stressScore'),{min:0,max:10}),
+    energyScore:num(sourceValue(raw,body,'energyScore'),{min:0,max:10}),
+    screeningAccepted:bool(raw.screeningAccepted??body?.interview?.screeningAccepted),
+    screeningNotes:text(sourceValue(raw,body,'screeningNotes'),1000),
+  };
+  const bodyComposition={
+    skipped:bool(raw.bodyCompositionSkipped),
+    skipReason:requiredReason(bool(raw.bodyCompositionSkipped),raw.bodyCompositionSkipReason),
+    weightKg:num(sourceValue(raw,body,'weightKg'),{min:20,max:350}),
+    heightCm:num(sourceValue(raw,body,'heightCm'),{min:100,max:230}),
+    bodyFatPercent:num(sourceValue(raw,body,'bodyFatPercent'),{min:1,max:80}),
+    fatMassKg:num(sourceValue(raw,body,'fatMassKg'),{min:0.1,max:250}),
+    leanMassKg:num(sourceValue(raw,body,'leanMassKg'),{min:1,max:250}),
+    muscleMassKg:num(sourceValue(raw,body,'muscleMassKg'),{min:1,max:250}),
+    bodyWaterPercent:num(sourceValue(raw,body,'bodyWaterPercent'),{min:10,max:80}),
+    waistCm:num(sourceValue(raw,body,'waistCm'),{min:30,max:250}),
+    visceralFatLevel:num(sourceValue(raw,body,'visceralFatLevel'),{min:0,max:100}),
+    method:text(sourceValue(raw,body,'bodyCompositionMethod'),160),
+    device:text(sourceValue(raw,body,'bodyCompositionDevice'),160),
+    measurementConditions:text(sourceValue(raw,body,'measurementConditions'),800),
+    attachmentName:text(sourceValue(raw,body,'bodyCompositionAttachmentName'),240),
+    attachmentType:text(sourceValue(raw,body,'bodyCompositionAttachmentType'),120),
+    attachmentSize:num(sourceValue(raw,body,'bodyCompositionAttachmentSize'),{min:0,max:50_000_000}),
+    notes:text(sourceValue(raw,body,'bodyCompositionNotes'),1000),
+  };
+  if(bodyComposition.weightKg&&bodyComposition.heightCm)bodyComposition.bmi=Math.round((bodyComposition.weightKg/((bodyComposition.heightCm/100)**2))*10)/10;
+  const mobility={
+    skipped:bool(raw.mobilitySkipped),skipReason:requiredReason(bool(raw.mobilitySkipped),raw.mobilitySkipReason),
+    ankle:{skipped:ankleSkipped,skipReason:requiredReason(ankleSkipped,raw.ankleSkipReason),leftTrials:ankleSkipped?[]:ankleLeftTrials,rightTrials:ankleSkipped?[]:ankleRightTrials,leftBest:ankleLeftBest,rightBest:ankleRightBest,asymmetryCm:difference(ankleLeftBest,ankleRightBest),pain:ankleSkipped?'':text(raw.anklePain,300),compensation:ankleSkipped?'':text(raw.ankleCompensation,500)},
+    posteriorChain:{skipped:posteriorMobilitySkipped,skipReason:requiredReason(posteriorMobilitySkipped,raw.posteriorMobilitySkipReason),leftTrials:posteriorMobilitySkipped?[]:posteriorLeftTrials,rightTrials:posteriorMobilitySkipped?[]:posteriorRightTrials,leftBest:posteriorLeftBest,rightBest:posteriorRightBest,asymmetryCm:difference(posteriorLeftBest,posteriorRightBest),pain:posteriorMobilitySkipped?'':text(raw.posteriorPain,300)},
+    modifiedThomas:{left:text(raw.thomasLeft,80),right:text(raw.thomasRight,80),pelvicControl:text(raw.thomasPelvicControl,160),pain:text(raw.thomasPain,300)},
+    hipRotation:{skipped:hipRotationSkipped,skipReason:requiredReason(hipRotationSkipped,raw.hipRotationSkipReason),result:hipRotationSkipped?'':text(raw.hipRotationResult,120),pain:hipRotationSkipped?'':text(raw.hipRotationPain,300),compensation:hipRotationSkipped?'':text(raw.hipRotationCompensation,500)},
+    assistedSquat:{skipped:mobilitySquatSkipped,skipReason:requiredReason(mobilitySquatSkipped,raw.mobilitySquatSkipReason),depth:mobilitySquatSkipped?'':text(raw.squatDepth,100),heels:mobilitySquatSkipped?'':text(raw.squatHeels,100),knees:mobilitySquatSkipped?'':text(raw.squatKnees,100),trunk:mobilitySquatSkipped?'':text(raw.squatTrunk,100),lateralShift:mobilitySquatSkipped?'':text(raw.squatShift,100),assistanceResponse:mobilitySquatSkipped?'':text(raw.squatAssistanceResponse,160),pain:mobilitySquatSkipped?'':text(raw.squatPain,300)},
+    notes:text(raw.mobilityNotes,1200),
+  };
+  const strength={
+    skipped:bool(raw.strengthSkipped),skipReason:requiredReason(bool(raw.strengthSkipped),raw.strengthSkipReason),
+    lowerBody:{skipped:lowerBodySkipped,skipReason:requiredReason(lowerBodySkipped,raw.lowerBodySkipReason)},
+    chairStand:{repetitions:lowerBodySkipped?null:num(sourceValue(raw,body,'chairStand30s','chair_stand_30s'),{min:0,max:100}),chairHeightCm:lowerBodySkipped?null:num(raw.chairHeightCm,{min:30,max:70}),valid:lowerBodySkipped?false:bool(raw.chairStandValid),notes:lowerBodySkipped?'':text(raw.chairStandNotes,500)},
+    push:{skipped:pushSkipped,skipReason:requiredReason(pushSkipped,raw.pushSkipReason),durationSeconds:pushSkipped?null:num(raw.pushDurationSeconds,{min:1,max:600}),variant:pushSkipped?'':text(raw.pushVariant,40),repetitions:pushSkipped?null:num(sourceValue(raw,body,'pushUps','push_ups'),{min:0,max:200}),supportHeightCm:pushSkipped?null:num(raw.pushSupportHeightCm,{min:0,max:180}),valid:pushSkipped?false:bool(raw.pushValid),notes:pushSkipped?'':text(raw.pushNotes,500)},
+    trxRow:{skipped:trxSkipped,skipReason:requiredReason(trxSkipped,raw.trxSkipReason),durationSeconds:trxSkipped?null:num(raw.trxDurationSeconds,{min:1,max:600}),repetitions:trxSkipped?null:num(raw.trxRowRepetitions,{min:0,max:200}),handleHeightCm:trxSkipped?null:num(raw.trxHandleHeightCm,{min:0,max:250}),heelDistanceCm:trxSkipped?null:num(raw.trxHeelDistanceCm,{min:0,max:300}),bodyAngleDeg:trxSkipped?null:num(raw.trxBodyAngleDeg,{min:0,max:90}),position:trxSkipped?'':text(raw.trxPosition,100),valid:trxSkipped?false:bool(raw.trxValid),notes:trxSkipped?'':text(raw.trxNotes,500)},
+    squat60:{repetitions:lowerBodySkipped?null:num(raw.squat60Repetitions,{min:0,max:200}),depthCriterion:lowerBodySkipped?'':text(raw.squat60DepthCriterion,160),stance:lowerBodySkipped?'':text(raw.squat60Stance,160),valid:lowerBodySkipped?false:bool(raw.squat60Valid),notes:lowerBodySkipped?'':text(raw.squat60Notes,500)},
+    core:{skipped:coreSkipped,skipReason:requiredReason(coreSkipped,raw.coreSkipReason),frontPlankSeconds:coreSkipped?null:num(raw.frontPlankSeconds,{min:0,max:1800}),sidePlankLeftSeconds:coreSkipped?null:num(raw.sidePlankLeftSeconds,{min:0,max:1800}),sidePlankRightSeconds:coreSkipped?null:num(raw.sidePlankRightSeconds,{min:0,max:1800}),quality:coreSkipped?'':text(raw.coreQuality,120),pain:coreSkipped?'':text(raw.corePain,300)},
+    posteriorChain:{protocol:text(raw.posteriorChainProtocol,80),seconds:num(raw.posteriorChainSeconds,{min:0,max:1800}),equipmentCompatible:bool(raw.posteriorEquipmentCompatible),notPerformedReason:text(raw.posteriorNotPerformedReason,500),pain:text(raw.posteriorChainPain,300)},
+    notes:text(raw.strengthNotes,1200),
+  };
+  const finalHr=num(sourceValue(raw,body,'stepFinalHr','step_final_hr'),{min:30,max:240});
+  const oneMinuteHr=num(sourceValue(raw,body,'stepOneMinuteHr','step_one_minute_hr'),{min:30,max:240});
+  const cardioRepetitions=num(sourceValue(raw,body,'oneMinuteSitToStandRepetitions','one_minute_sit_to_stand_repetitions'),{min:0,max:120});
+  const legacyStepHeight=num(sourceValue(raw,body,'stepHeightCm','step_height_cm'),{min:10,max:50});
+  const legacyCadence=num(sourceValue(raw,body,'cadenceBpm','cadence_bpm'),{min:40,max:160});
+  const explicitCardioProtocol=text(raw.cardioProtocol||body?.cardio?.protocol,80);
+  const inferredCardioProtocol=explicitCardioProtocol||
+    (cardioRepetitions!==null?'1msts-standard':
+      legacyStepHeight!==null?(legacyStepHeight<=22?'iberfit-3min-adapted':'ymca-3min-standard'):
+      (finalHr!==null||oneMinuteHr!==null?'ymca-3min-standard':''));
+  const cardioDurationDefault=inferredCardioProtocol==='1msts-standard'?60:
+    (['ymca-3min-standard','treadmill-3min-field','iberfit-3min-adapted'].includes(inferredCardioProtocol)?180:null);
+  const cardio={
+    skipped:bool(raw.cardioSkipped),skipReason:requiredReason(bool(raw.cardioSkipped),raw.cardioSkipReason),
+    protocol:inferredCardioProtocol,
+    chairHeightCm:num(raw.cardioChairHeightCm??body?.cardio?.chairHeightCm,{min:30,max:70}),
+    repetitions:cardioRepetitions,
+    stepHeightCm:legacyStepHeight,
+    cadenceBpm:legacyCadence,
+    durationSeconds:num(raw.cardioDurationSeconds??body?.cardio?.durationSeconds??cardioDurationDefault,{min:30,max:180}),
+    restingHr:num(raw.restingHr,{min:30,max:220}),finalHr,oneMinuteHr,
+    twoMinuteHr:num(raw.twoMinuteHr,{min:30,max:220}),rpe:num(raw.cardioRpe,{min:0,max:10}),
+    speedKmh:num(raw.treadmillSpeedKmh??body?.cardio?.speedKmh,{min:.5,max:30}),inclinePercent:num(raw.treadmillInclinePercent??body?.cardio?.inclinePercent,{min:0,max:30}),locomotionMode:text(raw.treadmillLocomotionMode??body?.cardio?.locomotionMode,40),hrMethod:text(raw.cardioHrMethod??body?.cardio?.hrMethod,80),recoveryMode:text(raw.cardioRecoveryMode??body?.cardio?.recoveryMode,120),
+    valid:bool(raw.cardioValid),symptoms:text(raw.cardioSymptoms,600),stopReason:text(raw.cardioStopReason,600),notes:text(raw.cardioNotes,1000),
+  };
+  cardio.deltaOneMinute=finalHr!==null&&oneMinuteHr!==null?finalHr-oneMinuteHr:null;
+  cardio.deltaTwoMinute=finalHr!==null&&cardio.twoMinuteHr!==null?finalHr-cardio.twoMinuteHr:null;
+  const existingDiagnosis=body.diagnosis&&typeof body.diagnosis==='object'&&!Array.isArray(body.diagnosis)?body.diagnosis:{};
+  const diagnosisPriorities=list(raw.diagnosisPriorities??(Array.isArray(existingDiagnosis.priorities)?existingDiagnosis.priorities.join('\n'):''),6);
+  const diagnosisReevaluationDate=text(raw.reevaluationDate??existingDiagnosis.reevaluationDate,10);
+  const diagnosis={
+    strengths:list(raw.diagnosisStrengths??(Array.isArray(existingDiagnosis.strengths)?existingDiagnosis.strengths.join('\n'):''),6),priorities:diagnosisPriorities,
+    priorityRecords:priorityRecords(raw,existingDiagnosis.priorityRecords,diagnosisPriorities,diagnosisReevaluationDate),
+    coachInterpretation:text(raw.coachInterpretation??existingDiagnosis.coachInterpretation,2200),trainingImplications:text(raw.trainingImplications??existingDiagnosis.trainingImplications,2200),
+    initialPlan:text(raw.initialPlan??existingDiagnosis.initialPlan,2200),recommendedFrequency:text(raw.recommendedFrequency??existingDiagnosis.recommendedFrequency,200),
+    reevaluationDate:diagnosisReevaluationDate,reviewAccepted:bool(raw.reviewAccepted),
+  };
+  const protocolRecords=buildIriProtocolRecords({raw,existingRecords:body.protocolRecords||body.protocol_records||[],assessmentDate,bodyComposition,mobility,strength,cardio});
+  return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,canonicalClientRevision:num(raw.canonicalClientRevision??body.canonicalClientRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),canonicalProfileRevision:num(raw.canonicalProfileRevision??body.canonicalProfileRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
+}
+
+function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,value.fatMassKg,value.leanMassKg,value.muscleMassKg,value.waistCm].some((item)=>item!==null);}
+export function coreDomainCoverage(draft={}){
+  const ankleMeasured=!draft.mobility?.ankle?.skipped&&draft.mobility?.ankle?.leftBest!==null&&draft.mobility?.ankle?.rightBest!==null;
+  const posteriorMeasured=!draft.mobility?.posteriorChain?.skipped&&draft.mobility?.posteriorChain?.leftBest!==null&&draft.mobility?.posteriorChain?.rightBest!==null;
+  const mobilityMeasured=!draft.mobility?.skipped&&(ankleMeasured||posteriorMeasured);
+  const lowerBodyMeasured=!draft.strength?.lowerBody?.skipped&&(
+    (draft.strength?.chairStand?.repetitions!==null&&draft.strength?.chairStand?.valid===true)||
+    (draft.strength?.squat60?.repetitions!==null&&draft.strength?.squat60?.valid===true)
+  );
+  const strengthMeasured=!draft.strength?.skipped&&lowerBodyMeasured;
+  const cardioMeasured=!draft.cardio?.skipped&&draft.cardio?.valid===true&&((draft.cardio?.protocol==='1msts-standard'&&draft.cardio?.durationSeconds===60&&draft.cardio?.repetitions!==null)||(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio?.protocol)&&draft.cardio?.durationSeconds===180&&draft.cardio?.stepHeightCm!==null&&draft.cardio?.cadenceBpm!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null)||(draft.cardio?.protocol==='treadmill-3min-field'&&draft.cardio?.durationSeconds===180&&draft.cardio?.speedKmh!==null&&draft.cardio?.inclinePercent!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null&&Boolean(draft.cardio?.recoveryMode)));
+  const states=Object.freeze({mobility:mobilityMeasured,strength:strengthMeasured,cardio:cardioMeasured});
+  const measured=Object.values(states).filter(Boolean).length;
+  return Object.freeze({
+    states,
+    measured,
+    required:2,
+    complete:measured>=2,
+    bodyCompositionRecorded:!draft.bodyComposition?.skipped&&hasBodyMeasurement(draft.bodyComposition||{}),
+  });
+}
+function stepErrors(draft,step){const errors=[];const profile=draft.personProfile;
+  if(step==='perfil'){
+    if(!draft.assessmentDate)errors.push('assessmentDate');if(!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate))errors.push('birthDate');if(!['female','male'].includes(profile.sexForNorms))errors.push('sexForNorms');if(!profile.email.includes('@'))errors.push('email');if(!profile.phone)errors.push('phone');if(!profile.modality)errors.push('modality');if(['presencial','hibrido'].includes(profile.modality)&&!profile.trainingAddress)errors.push('trainingAddress');if(!profile.primaryObjective)errors.push('primaryObjective');
+  }
+  if(step==='entrevista'){if(!draft.interview.screeningAccepted)errors.push('screeningAccepted');if(!draft.interview.trainingExperience)errors.push('trainingExperience');if(!draft.interview.availability)errors.push('availability');}
+  if(step==='composicion'){if(draft.bodyComposition.skipped){if(!draft.bodyComposition.skipReason)errors.push('bodyCompositionSkipReason');}else if(!hasBodyMeasurement(draft.bodyComposition))errors.push('bodyCompositionMeasurement');}
+  if(step==='movilidad'){if(draft.mobility.skipped){if(!draft.mobility.skipReason)errors.push('mobilitySkipReason');}else{
+    if(draft.mobility.ankle.skipped){if(!draft.mobility.ankle.skipReason)errors.push('ankleSkipReason');}else if(draft.mobility.ankle.leftBest===null||draft.mobility.ankle.rightBest===null)errors.push('ankleTrials');
+    if(draft.mobility.posteriorChain.skipped){if(!draft.mobility.posteriorChain.skipReason)errors.push('posteriorMobilitySkipReason');}else if(draft.mobility.posteriorChain.leftBest===null||draft.mobility.posteriorChain.rightBest===null)errors.push('posteriorTrials');
+    if(draft.mobility.hipRotation.skipped){if(!draft.mobility.hipRotation.skipReason)errors.push('hipRotationSkipReason');}else if(!draft.mobility.hipRotation.result)errors.push('hipRotationResult');
+    if(draft.mobility.assistedSquat.skipped){if(!draft.mobility.assistedSquat.skipReason)errors.push('mobilitySquatSkipReason');}else if(!draft.mobility.assistedSquat.depth)errors.push('squatDepth');
+  }}
+  if(step==='fuerza'){if(draft.strength.skipped){if(!draft.strength.skipReason)errors.push('strengthSkipReason');}else{
+    const lowerBodyValid=(draft.strength.chairStand.repetitions!==null&&draft.strength.chairStand.valid)||(draft.strength.squat60.repetitions!==null&&draft.strength.squat60.valid);
+    if(draft.strength.lowerBody?.skipped){if(!draft.strength.lowerBody.skipReason)errors.push('lowerBodySkipReason');}else if(!lowerBodyValid)errors.push('lowerBodyStrength');
+    if(draft.strength.push.skipped){if(!draft.strength.push.skipReason)errors.push('pushSkipReason');}else if(!draft.strength.push.variant||draft.strength.push.repetitions===null||!draft.strength.push.valid)errors.push('pushTest');
+    if(draft.strength.trxRow.skipped){if(!draft.strength.trxRow.skipReason)errors.push('trxSkipReason');}else if(draft.strength.trxRow.repetitions===null||!draft.strength.trxRow.valid)errors.push('trxRow');
+    if(draft.strength.core.skipped){if(!draft.strength.core.skipReason)errors.push('coreSkipReason');}else if(draft.strength.core.frontPlankSeconds===null)errors.push('frontPlank');
+  }}
+  if(step==='cardio'){if(draft.cardio.skipped){if(!draft.cardio.skipReason)errors.push('cardioSkipReason');}else{if(!['1msts-standard','ymca-3min-standard','treadmill-3min-field','iberfit-3min-adapted'].includes(draft.cardio.protocol))errors.push('cardioProtocol');if(!draft.cardio.valid)errors.push('cardioValid');if(draft.cardio.protocol==='1msts-standard'){if(draft.cardio.repetitions===null)errors.push('cardioRepetitions');if(draft.cardio.durationSeconds!==60)errors.push('cardioDuration');if((draft.cardio.finalHr===null)!==(draft.cardio.oneMinuteHr===null))errors.push('cardioHeartRatePair');if(draft.cardio.deltaOneMinute!==null&&draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');}else if(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio.protocol)){if(draft.cardio.stepHeightCm===null)errors.push('cardioStepHeight');if(draft.cardio.cadenceBpm===null)errors.push('cardioCadence');if(draft.cardio.durationSeconds!==180)errors.push('cardioDuration');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');if(draft.cardio.protocol==='ymca-3min-standard'&&(Math.abs(draft.cardio.stepHeightCm-30.5)>.05||draft.cardio.cadenceBpm!==96))errors.push('cardioYmcaStandard');}else if(draft.cardio.protocol==='treadmill-3min-field'){if(draft.cardio.durationSeconds!==180)errors.push('cardioDuration');if(draft.cardio.speedKmh===null||draft.cardio.inclinePercent===null)errors.push('cardioTreadmillLoad');if(!draft.cardio.locomotionMode||!draft.cardio.hrMethod||!draft.cardio.recoveryMode)errors.push('cardioTreadmillContext');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');}}}
+  if(step==='revision'){if(draft.diagnosis.strengths.length<1)errors.push('diagnosisStrengths');if(draft.diagnosis.priorities.length<1)errors.push('diagnosisPriorities');if(draft.diagnosis.coachInterpretation.length<20)errors.push('coachInterpretation');if(draft.diagnosis.initialPlan.length<20)errors.push('initialPlan');if(!draft.diagnosis.reviewAccepted)errors.push('reviewAccepted');if(!coreDomainCoverage(draft).complete)errors.push('coreDomains');}
+  return errors;
+}
+export function validateFirstSessionStep(draft,step){const errors=stepErrors(draft,step);return Object.freeze({ok:errors.length===0,errors:Object.freeze(errors)});}
+function confirmedObject(value){return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}
+function confirmedArray(value){return Array.isArray(value)?value:[];}
+export function confirmedFirstSessionDraft(record={},clientId=''){
+  const body=assessmentBody(record);
+  const personProfile=confirmedObject(body.personProfile||body.person_profile);
+  const interview=confirmedObject(body.interview);
+  const bodyComposition=confirmedObject(body.bodyComposition||body.body_composition);
+  const mobility=confirmedObject(body.mobility);
+  const strength=confirmedObject(body.strengthAssessment||body.strength_assessment||body.strengthPatterns||body.strength_patterns||body.strength);
+  const cardio=confirmedObject(body.cardio);
+  const diagnosis=confirmedObject(body.diagnosis);
+  const protocolRecords=confirmedArray(body.protocolRecords||body.protocol_records).map((record)=>Object.freeze({...record,result:{...confirmedObject(record?.result)}}));
+  const draft={
+    schema:text(body.firstSessionSchema||body.first_session_schema||SCHEMA,120),
+    clientId:text(clientId||body.clientId||body.client_id||record?.clientId||record?.client_id,200),
+    assessmentId:text(record?.id||body.id,200),
+    assessmentDate:text(body.assessmentDate||body.assessment_date,10),
+    personProfile:Object.freeze({...personProfile}),
+    interview:Object.freeze({...interview}),
+    bodyComposition:Object.freeze({...bodyComposition}),
+    mobility:Object.freeze({...mobility}),
+    strength:Object.freeze({...strength}),
+    cardio:Object.freeze({...cardio}),
+    diagnosis:Object.freeze({...diagnosis}),
+    protocolRecords:Object.freeze(protocolRecords),
+    updatedAt:text(body.firstSessionCompletedAt||body.first_session_completed_at||body.updatedAt||body.updated_at,80),
+  };
+  return Object.freeze(draft);
+}
+
+export function validateFirstSessionDraft(draft){const byStep=Object.fromEntries(IRI_FIRST_SESSION_STEPS.map((step)=>[step,stepErrors(draft,step)]));const errors=Object.values(byStep).flat();return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)]),byStep:Object.freeze(byStep),completion:Object.freeze(firstSessionCompletion(draft))});}
+export function firstSessionCompletion(draft){const steps=IRI_REQUIRED_SESSION_STEPS.map((step)=>({step,complete:stepErrors(draft,step).length===0}));const complete=steps.filter((item)=>item.complete).length;return {complete,total:steps.length,percent:Math.round((complete/steps.length)*100),steps};}
+
+export function buildIriCommandDraftFromFirstSession(draft,current={}){
+  const check=validateFirstSessionDraft(draft);if(!check.ok)throw new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);
+  if(!current?.id)throw new Error('M26_IRI_REMOTE_ENTITY_REQUIRED');
+  const coverage=coreDomainCoverage(draft);if(!coverage.complete)throw new Error('M26_IRI_MINIMUM_CORE_DOMAINS_REQUIRED');
+  const standardPush=!draft.strength.skipped&&draft.protocolRecords?.some((record)=>record.testId==='push-test'&&record.normEligible);
+  const weightBearingLunge=average([draft.mobility.ankle.leftBest,draft.mobility.ankle.rightBest].filter((value)=>value!==null));
+  return {
+    ...Object.fromEntries(Object.entries(assessmentBody(current)).filter(([key])=>key!=='pushUps'&&key!=='push_ups')),id:current.id,clientId:draft.clientId,assessmentDate:draft.assessmentDate,
+    canonicalClientRevision:draft.canonicalClientRevision,
+    canonicalProfileRevision:draft.canonicalProfileRevision,
+    birthDate:draft.personProfile.birthDate,sexForNorms:draft.personProfile.sexForNorms,
+    stepFinalHr:draft.cardio.skipped?null:draft.cardio.finalHr,stepOneMinuteHr:draft.cardio.skipped?null:draft.cardio.oneMinuteHr,oneMinuteSitToStandRepetitions:draft.cardio.skipped?null:draft.cardio.repetitions,
+    ...(standardPush?{pushUps:draft.strength.push.repetitions}:{}),
+    chairStand30s:draft.strength.skipped?null:draft.strength.chairStand.repetitions,
+    ...(weightBearingLunge!==null?{weightBearingLunge}:{}),
+    bodyComposition:{...draft.bodyComposition},
+    strengthPatterns:{skipped:draft.strength.skipped,skipReason:draft.strength.skipReason,chairStand:draft.strength.chairStand,squat60:draft.strength.squat60,push:draft.strength.push,trxRow:draft.strength.trxRow,core:draft.strength.core,posteriorChain:draft.strength.posteriorChain},
+    personProfile:{...draft.personProfile},interview:{...draft.interview},mobility:{...draft.mobility},strengthAssessment:{...draft.strength},cardio:{...draft.cardio},diagnosis:{...draft.diagnosis},coreDomainCoverage:coverage,
+    protocolRecords:(draft.protocolRecords||[]).map((record)=>({...record,result:{...(record.result||{})}})),
+    firstSessionSchema:SCHEMA,firstSessionCompletedAt:new Date().toISOString(),
+  };
+}
+
+export function flattenFirstSessionDraft(draft={}){
+  const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
+  const out={assessmentDate:draft.assessmentDate||'',...p,secondaryObjectives:(p.secondaryObjectives||[]).join(', '),equipment:(p.equipment||[]).join(', '),...i,
+    bodyCompositionSkipped:b.skipped,bodyCompositionSkipReason:b.skipReason||'',weightKg:b.weightKg??'',heightCm:b.heightCm??'',bodyFatPercent:b.bodyFatPercent??'',fatMassKg:b.fatMassKg??'',leanMassKg:b.leanMassKg??'',muscleMassKg:b.muscleMassKg??'',bodyWaterPercent:b.bodyWaterPercent??'',waistCm:b.waistCm??'',visceralFatLevel:b.visceralFatLevel??'',bodyCompositionMethod:b.method||'',bodyCompositionDevice:b.device||'',measurementConditions:b.measurementConditions||'',bodyCompositionAttachmentName:b.attachmentName||'',bodyCompositionAttachmentType:b.attachmentType||'',bodyCompositionAttachmentSize:b.attachmentSize??'',bodyCompositionNotes:b.notes||'',
+    mobilitySkipped:m.skipped,mobilitySkipReason:m.skipReason||'',ankleSkipped:m.ankle?.skipped,ankleSkipReason:m.ankle?.skipReason||'',anklePain:m.ankle?.pain||'',ankleCompensation:m.ankle?.compensation||'',posteriorMobilitySkipped:m.posteriorChain?.skipped,posteriorMobilitySkipReason:m.posteriorChain?.skipReason||'',posteriorPain:m.posteriorChain?.pain||'',thomasLeft:m.modifiedThomas?.left||'',thomasRight:m.modifiedThomas?.right||'',thomasPelvicControl:m.modifiedThomas?.pelvicControl||'',thomasPain:m.modifiedThomas?.pain||'',hipRotationSkipped:m.hipRotation?.skipped,hipRotationSkipReason:m.hipRotation?.skipReason||'',hipRotationResult:m.hipRotation?.result||'',hipRotationPain:m.hipRotation?.pain||'',hipRotationCompensation:m.hipRotation?.compensation||'',mobilitySquatSkipped:m.assistedSquat?.skipped,mobilitySquatSkipReason:m.assistedSquat?.skipReason||'',squatDepth:m.assistedSquat?.depth||'',squatHeels:m.assistedSquat?.heels||'',squatKnees:m.assistedSquat?.knees||'',squatTrunk:m.assistedSquat?.trunk||'',squatShift:m.assistedSquat?.lateralShift||'',squatAssistanceResponse:m.assistedSquat?.assistanceResponse||'',squatPain:m.assistedSquat?.pain||'',mobilityNotes:m.notes||'',
+    strengthSkipped:s.skipped,strengthSkipReason:s.skipReason||'',lowerBodySkipped:s.lowerBody?.skipped,lowerBodySkipReason:s.lowerBody?.skipReason||'',chairStand30s:s.chairStand?.repetitions??'',chairHeightCm:s.chairStand?.chairHeightCm??'',chairStandValid:s.chairStand?.valid,squat60Repetitions:s.squat60?.repetitions??'',squat60DepthCriterion:s.squat60?.depthCriterion||'',squat60Stance:s.squat60?.stance||'',squat60Valid:s.squat60?.valid,squat60Notes:s.squat60?.notes||'',pushSkipped:s.push?.skipped,pushSkipReason:s.push?.skipReason||'',pushDurationSeconds:s.push?.durationSeconds??'',pushVariant:s.push?.variant||'',pushUps:s.push?.repetitions??'',pushSupportHeightCm:s.push?.supportHeightCm??'',pushValid:s.push?.valid,trxSkipped:s.trxRow?.skipped,trxSkipReason:s.trxRow?.skipReason||'',trxDurationSeconds:s.trxRow?.durationSeconds??'',trxRowRepetitions:s.trxRow?.repetitions??'',trxHandleHeightCm:s.trxRow?.handleHeightCm??'',trxHeelDistanceCm:s.trxRow?.heelDistanceCm??'',trxBodyAngleDeg:s.trxRow?.bodyAngleDeg??'',trxPosition:s.trxRow?.position||'',trxValid:s.trxRow?.valid,coreSkipped:s.core?.skipped,coreSkipReason:s.core?.skipReason||'',frontPlankSeconds:s.core?.frontPlankSeconds??'',sidePlankLeftSeconds:s.core?.sidePlankLeftSeconds??'',sidePlankRightSeconds:s.core?.sidePlankRightSeconds??'',coreQuality:s.core?.quality||'',corePain:s.core?.pain||'',posteriorChainProtocol:s.posteriorChain?.protocol||'',posteriorChainSeconds:s.posteriorChain?.seconds??'',posteriorEquipmentCompatible:s.posteriorChain?.equipmentCompatible,posteriorNotPerformedReason:s.posteriorChain?.notPerformedReason||'',posteriorChainPain:s.posteriorChain?.pain||'',strengthNotes:s.notes||'',
+    cardioSkipped:c.skipped,cardioSkipReason:c.skipReason||'',cardioProtocol:c.protocol||'',cardioChairHeightCm:c.chairHeightCm??'',oneMinuteSitToStandRepetitions:c.repetitions??'',stepHeightCm:c.stepHeightCm??'',cadenceBpm:c.cadenceBpm??'',treadmillSpeedKmh:c.speedKmh??'',treadmillInclinePercent:c.inclinePercent??'',treadmillLocomotionMode:c.locomotionMode||'',cardioHrMethod:c.hrMethod||'',cardioRecoveryMode:c.recoveryMode||'',cardioDurationSeconds:c.durationSeconds??'',restingHr:c.restingHr??'',stepFinalHr:c.finalHr??'',stepOneMinuteHr:c.oneMinuteHr??'',twoMinuteHr:c.twoMinuteHr??'',cardioRpe:c.rpe??'',cardioValid:c.valid,cardioSymptoms:c.symptoms||'',cardioStopReason:c.stopReason||'',cardioNotes:c.notes||'',
+    diagnosisStrengths:(d.strengths||[]).join('\n'),diagnosisPriorities:(d.priorities||[]).join('\n'),coachInterpretation:d.coachInterpretation||'',trainingImplications:d.trainingImplications||'',initialPlan:d.initialPlan||'',recommendedFrequency:d.recommendedFrequency||'',reevaluationDate:d.reevaluationDate||'',reviewAccepted:d.reviewAccepted};
+  (Array.isArray(d.priorityRecords)?d.priorityRecords:[]).slice(0,4).forEach((priority,index)=>{
+    const slot=index+1;const item=priority&&typeof priority==='object'?priority:{};
+    out[`priority${slot}Domain`]=item.domain||'general';
+    out[`priority${slot}Rationale`]=item.rationale||'';
+    out[`priority${slot}Target`]=item.target||'';
+    out[`priority${slot}Strategy`]=item.strategy||'';
+    out[`priority${slot}ReviewDate`]=item.reviewDate||'';
+    out[`priority${slot}Status`]=item.status||'active';
+  });
+  Object.assign(out,flattenIriProtocolRecords(draft.protocolRecords||[]));
+  for(const [prefix,trials] of [['ankleLeft',m.ankle?.leftTrials],['ankleRight',m.ankle?.rightTrials],['posteriorLeft',m.posteriorChain?.leftTrials],['posteriorRight',m.posteriorChain?.rightTrials]])(trials||[]).slice(0,3).forEach((value,index)=>{out[`${prefix}${index+1}`]=value;});
+  return out;
+}
+
+export const __iriFirstSessionInternals=Object.freeze({SCHEMA,IRI_PRIORITY_DOMAINS,IRI_PRIORITY_STATUSES,text,num,bool,list,values,best,average,difference,priorityRecords,stepErrors,hasBodyMeasurement,coreDomainCoverage,confirmedObject,confirmedArray});

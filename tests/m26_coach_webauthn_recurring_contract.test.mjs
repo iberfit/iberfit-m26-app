@@ -72,3 +72,30 @@ test('authenticated readonly gate expects the disposable Coach fixture after cle
   assert.match(gate,/RC74_4_SERVICE_ROLE_FORBIDDEN/u);
   assert.doesNotMatch(gate,/credentialEnrolled!==true/u);
 });
+
+
+test('trusted Canary Coach UI certifies privileged IRI document routes without copying browser credentials',async()=>{
+  const workflow=await read('.github/workflows/coach-webauthn-recurring.yml');
+  const privileged=await read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
+  const config=await read('playwright.coach-iri-document-privileged.config.mjs');
+  const readonly=await read('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
+
+  assert.match(workflow,/Reset Coach QA WebAuthn fixture before privileged IRI certification/u);
+  assert.match(workflow,/playwright\.coach-iri-document-privileged\.config\.mjs/u);
+  assert.match(workflow,/recovery\/coach-iri-document-privileged\//u);
+  assert.match(privileged,/const CLIENT_ID='57f56a87-d04e-47d5-b1cc-8d4939d7c804'/u);
+  assert.match(privileged,/WebAuthn\.addVirtualAuthenticator/u);
+  assert.match(privileged,/authentication-verify/u);
+  assert.match(privileged,/data-iri-photo-analysis="validate"/u);
+  assert.match(privileged,/data-iri-photo-report-permission/u);
+  assert.match(privileged,/issue-client-iri-report/u);
+  assert.match(privileged,/client-with-photo-permission\.pdf/u);
+  assert.match(privileged,/status.*photo publication|photoPublicationRevoked/iu);
+  assert.match(privileged,/realPersonData:false/u);
+  assert.doesNotMatch(privileged,/localStorage|sessionStorage|access_token/iu);
+  assert.doesNotMatch(privileged,/SUPABASE_SERVICE_ROLE_KEY/u);
+  assert.doesNotMatch(privileged,/pjhmrhejsoofmouedavw/u);
+  assert.match(config,/workers:1/u);
+  assert.match(config,/browserName:'chromium'/u);
+  assert.match(readonly,/businessMutationsPerformed:false/u);
+});

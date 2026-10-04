@@ -1,0 +1,254 @@
+export const IRI_PHOTO_PROTOCOL_VERSION='iri-photogrammetry-2026.10-v1';
+export const IRI_PHOTO_LANDMARK_SCHEMA='manual-4-point-v1';
+export const IRI_PHOTO_VIEWS=Object.freeze(['front','back','left','right']);
+
+export const IRI_PHOTO_LANDMARKS=Object.freeze({
+  front:Object.freeze(['shoulderLeft','shoulderRight','pelvisLeft','pelvisRight']),
+  back:Object.freeze(['shoulderLeft','shoulderRight','pelvisLeft','pelvisRight']),
+  left:Object.freeze(['ear','shoulder','hip','ankle']),
+  right:Object.freeze(['ear','shoulder','hip','ankle']),
+});
+
+function finite(value){
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
+function clamp01(value){
+  const n=finite(value);
+  if(n===null)return null;
+  return Math.max(0,Math.min(1,n));
+}
+export function normalizePhotoPoint(point){
+  if(!point||typeof point!=='object'||Array.isArray(point))return null;
+  const x=clamp01(point.x),y=clamp01(point.y);
+  if(x===null||y===null)return null;
+  return Object.freeze({x,y});
+}
+export function median(values=[]){
+  const rows=(Array.isArray(values)?values:[])
+    .map(finite)
+    .filter((value)=>value!==null)
+    .sort((a,b)=>a-b);
+  if(!rows.length)return null;
+  const middle=Math.floor(rows.length/2);
+  return rows.length%2?rows[middle]:(rows[middle-1]+rows[middle])/2;
+}
+export function percentAsymmetry(left,right){
+  const a=finite(left),b=finite(right);
+  if(a===null||b===null)return null;
+  const denominator=(Math.abs(a)+Math.abs(b))/2;
+  if(denominator===0)return 0;
+  return Number((Math.abs(a-b)/denominator*100).toFixed(1));
+}
+function radiansToDegrees(value){return value*180/Math.PI;}
+function dimensionScale(dimensions={}){
+  const width=finite(dimensions?.widthPx??dimensions?.width);
+  const height=finite(dimensions?.heightPx??dimensions?.height);
+  if(width===null||height===null||width<=0||height<=0)return Object.freeze({width:1,height:1,known:false});
+  return Object.freeze({width,height,known:true});
+}
+function geometryPoint(point,dimensions={}){
+  const normalized=normalizePhotoPoint(point);
+  if(!normalized)return null;
+  const scale=dimensionScale(dimensions);
+  return Object.freeze({x:normalized.x*scale.width,y:normalized.y*scale.height});
+}
+export function angleDegrees(a,vertex,b,dimensions={}){
+  const p1=geometryPoint(a,dimensions),v=geometryPoint(vertex,dimensions),p2=geometryPoint(b,dimensions);
+  if(!p1||!v||!p2)return null;
+  const ax=p1.x-v.x,ay=p1.y-v.y,bx=p2.x-v.x,by=p2.y-v.y;
+  const ma=Math.hypot(ax,ay),mb=Math.hypot(bx,by);
+  if(ma===0||mb===0)return null;
+  const cosine=Math.max(-1,Math.min(1,(ax*bx+ay*by)/(ma*mb)));
+  return Number(radiansToDegrees(Math.acos(cosine)).toFixed(1));
+}
+export function segmentTiltDegrees(a,b,dimensions={}){
+  const p1=geometryPoint(a,dimensions),p2=geometryPoint(b,dimensions);
+  if(!p1||!p2)return null;
+  if(p1.x===p2.x&&p1.y===p2.y)return null;
+  let angle=radiansToDegrees(Math.atan2(p2.y-p1.y,p2.x-p1.x));
+  while(angle>90)angle-=180;
+  while(angle<-90)angle+=180;
+  return Number(angle.toFixed(1));
+}
+export function segmentFromVerticalDegrees(a,b,dimensions={}){
+  const tilt=segmentTiltDegrees(a,b,dimensions);
+  if(tilt===null)return null;
+  const magnitude=Math.abs(90-Math.abs(tilt));
+  return Number(magnitude.toFixed(1));
+}
+export function normalizeManualLandmarks(raw={}){
+  const out={};
+  for(const view of IRI_PHOTO_VIEWS){
+    const source=raw?.[view];
+    if(!source||typeof source!=='object'||Array.isArray(source))continue;
+    const required=IRI_PHOTO_LANDMARKS[view];
+    const points={};
+    for(const key of required){
+      const point=normalizePhotoPoint(source[key]);
+      if(point)points[key]=point;
+    }
+    if(Object.keys(points).length)out[view]=Object.freeze(points);
+  }
+  return Object.freeze(out);
+}
+export function validateManualLandmarks(raw={},availableViews=IRI_PHOTO_VIEWS){
+  const landmarks=normalizeManualLandmarks(raw);
+  const views=(Array.isArray(availableViews)?availableViews:[])
+    .filter((view)=>IRI_PHOTO_VIEWS.includes(view));
+  const missing=[];
+  for(const view of views){
+    for(const key of IRI_PHOTO_LANDMARKS[view]){
+      if(!landmarks?.[view]?.[key])missing.push(`${view}.${key}`);
+    }
+  }
+  return Object.freeze({
+    ok:missing.length===0,
+    missing:Object.freeze(missing),
+    landmarks,
+    completeViews:Object.freeze(
+      views.filter((view)=>IRI_PHOTO_LANDMARKS[view].every((key)=>landmarks?.[view]?.[key]))
+    ),
+  });
+}
+function metric(id,label,value,view){
+  return value===null?null:Object.freeze({id,label,value,unit:'deg',view,kind:'geometry'});
+}
+export function calculatePhotogrammetryMeasurements(raw={}, {dimensionsByView={}}={}){
+  const landmarks=normalizeManualLandmarks(raw);
+  const metrics=[];
+  for(const view of ['front','back']){
+    const points=landmarks[view];
+    if(!points)continue;
+    const dimensions=dimensionsByView?.[view]||{};
+    const shoulder=segmentTiltDegrees(points.shoulderLeft,points.shoulderRight,dimensions);
+    const pelvis=segmentTiltDegrees(points.pelvisLeft,points.pelvisRight,dimensions);
+    metrics.push(metric(`${view}.shoulderTilt`,'Inclinación de hombros',shoulder,view));
+    metrics.push(metric(`${view}.pelvisTilt`,'Inclinación pélvica',pelvis,view));
+  }
+  for(const view of ['left','right']){
+    const points=landmarks[view];
+    if(!points)continue;
+    const dimensions=dimensionsByView?.[view]||{};
+    const head=segmentFromVerticalDegrees(points.ear,points.shoulder,dimensions);
+    const trunk=segmentFromVerticalDegrees(points.shoulder,points.hip,dimensions);
+    const bodyAxis=segmentFromVerticalDegrees(points.shoulder,points.ankle,dimensions);
+    metrics.push(metric(`${view}.headOffset`,'Ángulo cabeza-hombro respecto a vertical',head,view));
+    metrics.push(metric(`${view}.trunkInclination`,'Inclinación de tronco respecto a vertical',trunk,view));
+    metrics.push(metric(`${view}.bodyAxis`,'Eje corporal respecto a vertical',bodyAxis,view));
+  }
+  const compact=metrics.filter(Boolean);
+  const byId=Object.fromEntries(compact.map((item)=>[item.id,item]));
+  const lateralHeadAsymmetry=percentAsymmetry(byId['left.headOffset']?.value,byId['right.headOffset']?.value);
+  const lateralTrunkAsymmetry=percentAsymmetry(byId['left.trunkInclination']?.value,byId['right.trunkInclination']?.value);
+  return Object.freeze({
+    schema:'iri-photogrammetry-measurements-v1',
+    protocolVersion:IRI_PHOTO_PROTOCOL_VERSION,
+    landmarkSchemaVersion:IRI_PHOTO_LANDMARK_SCHEMA,
+    metrics:Object.freeze(compact),
+    summaries:Object.freeze({
+      shoulderTiltMedian:median([
+        Math.abs(byId['front.shoulderTilt']?.value??NaN),
+        Math.abs(byId['back.shoulderTilt']?.value??NaN),
+      ]),
+      pelvisTiltMedian:median([
+        Math.abs(byId['front.pelvisTilt']?.value??NaN),
+        Math.abs(byId['back.pelvisTilt']?.value??NaN),
+      ]),
+      lateralHeadAsymmetryPercent:lateralHeadAsymmetry,
+      lateralTrunkAsymmetryPercent:lateralTrunkAsymmetry,
+    }),
+    interpretation:null,
+    medicalDiagnosis:null,
+    geometryBasis:Object.freeze(Object.fromEntries(IRI_PHOTO_VIEWS.filter((view)=>landmarks[view]).map((view)=>{const scale=dimensionScale(dimensionsByView?.[view]||{});return [view,Object.freeze({widthPx:scale.known?scale.width:null,heightPx:scale.known?scale.height:null,aspectCorrected:scale.known})];}))),
+  });
+}
+export function interpretPhotogrammetryMeasurements(measurements={}, {quality={}}={}){
+  const rows=Array.isArray(measurements?.metrics)?measurements.metrics:[];
+  const byId=Object.fromEntries(rows.map((item)=>[item?.id,item]).filter(([id])=>id));
+  if(quality?.level!=='completa'||quality?.validated!==true){
+    return Object.freeze({
+      schema:'iri-photogrammetry-interpretation-v1',
+      available:false,
+      reviewRequired:false,
+      observations:Object.freeze([]),
+      reproducibleSignals:Object.freeze([]),
+      limitations:Object.freeze(['Se requieren cuatro vistas, todos los landmarks y validación del Coach antes de interpretar.']),
+      medicalDiagnosis:null,
+    });
+  }
+  const observations=[];
+  const signedObservation=(id,label)=>{
+    const value=finite(byId[id]?.value);if(value===null)return;
+    const magnitude=Number(Math.abs(value).toFixed(1));
+    const direction=value>0?'derecha más baja':value<0?'izquierda más baja':'sin inclinación medible';
+    observations.push(Object.freeze({id,label,valueDeg:value,magnitudeDeg:magnitude,direction,kind:'signed_tilt'}));
+  };
+  signedObservation('front.shoulderTilt','Hombros · vista frontal');
+  signedObservation('back.shoulderTilt','Hombros · vista posterior');
+  signedObservation('front.pelvisTilt','Pelvis · vista frontal');
+  signedObservation('back.pelvisTilt','Pelvis · vista posterior');
+  const pairedObservation=(leftId,rightId,id,label)=>{
+    const left=finite(byId[leftId]?.value),right=finite(byId[rightId]?.value);
+    if(left===null||right===null)return;
+    observations.push(Object.freeze({
+      id,label,leftDeg:left,rightDeg:right,
+      differenceDeg:Number(Math.abs(left-right).toFixed(1)),
+      asymmetryPercent:percentAsymmetry(left,right),
+      kind:'bilateral_difference',
+    }));
+  };
+  pairedObservation('left.headOffset','right.headOffset','headOffsetDifference','Cabeza-hombro · diferencia lateral');
+  pairedObservation('left.trunkInclination','right.trunkInclination','trunkInclinationDifference','Tronco · diferencia lateral');
+  pairedObservation('left.bodyAxis','right.bodyAxis','bodyAxisDifference','Eje corporal · diferencia lateral');
+  const reproducibleSignals=[];
+  const reproducible=(frontId,backId,id,label)=>{
+    const front=finite(byId[frontId]?.value),back=finite(byId[backId]?.value);
+    if(front===null||back===null||front===0||back===0||Math.sign(front)!==Math.sign(back))return;
+    reproducibleSignals.push(Object.freeze({
+      id,label,
+      direction:front>0?'derecha más baja':'izquierda más baja',
+      frontDeg:Number(Math.abs(front).toFixed(1)),
+      backDeg:Number(Math.abs(back).toFixed(1)),
+      message:'La dirección de la inclinación se reproduce en las vistas frontal y posterior; revisar su relevancia junto con movimiento, síntomas y técnica.',
+    }));
+  };
+  reproducible('front.shoulderTilt','back.shoulderTilt','shoulderTiltConsistent','Inclinación de hombros reproducida');
+  reproducible('front.pelvisTilt','back.pelvisTilt','pelvisTiltConsistent','Inclinación pélvica reproducida');
+  return Object.freeze({
+    schema:'iri-photogrammetry-interpretation-v1',
+    available:true,
+    reviewRequired:reproducibleSignals.length>0,
+    observations:Object.freeze(observations),
+    reproducibleSignals:Object.freeze(reproducibleSignals),
+    limitations:Object.freeze([
+      'Interpretación geométrica de una captura estática; no establece postura ideal, lesión ni diagnóstico.',
+      'Las diferencias deben revisarse con síntomas, técnica, movilidad, fuerza y repetibilidad de la captura.',
+    ]),
+    medicalDiagnosis:null,
+  });
+}
+
+export function photogrammetryDataQuality({captures=[],landmarks={},validated=false}={}){
+  const views=new Set(
+    (Array.isArray(captures)?captures:[])
+      .filter((item)=>item?.status!=='revoked'&&IRI_PHOTO_VIEWS.includes(item?.view))
+      .map((item)=>item.view)
+  );
+  if(!views.size)return Object.freeze({level:'sin_datos',capturedViews:0,analyzedViews:0,validated:false});
+  const check=validateManualLandmarks(landmarks,[...views]);
+  const analyzed=check.completeViews.length;
+  const level=views.size===4&&analyzed===4&&validated
+    ?'completa'
+    :analyzed>0
+      ?'parcial'
+      :'capturas_sin_analisis';
+  return Object.freeze({
+    level,
+    capturedViews:views.size,
+    analyzedViews:analyzed,
+    validated:Boolean(validated&&check.ok),
+  });
+}
+
+export const __iriPhotogrammetryInternals=Object.freeze({finite,clamp01,radiansToDegrees,metric,dimensionScale,geometryPoint});
