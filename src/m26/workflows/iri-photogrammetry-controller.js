@@ -121,14 +121,14 @@ function markerButtons(view,landmarks={}){
   }).join('');
 }
 function interpretationRows(interpretation={}){
-  if(!interpretation?.available)return '<p class="m26-photo-notice">La interpretación se habilita al validar las cuatro vistas y todos los puntos manuales.</p>';
+  if(!interpretation?.available)return '<p class="m26-photo-notice">Cuando completes y valides las cuatro vistas, aquí aparecerá una lectura sencilla de lo que muestran las fotos.</p>';
   const signals=Array.isArray(interpretation.reproducibleSignals)?interpretation.reproducibleSignals:[];
   const differences=(Array.isArray(interpretation.observations)?interpretation.observations:[]).filter((item)=>item?.kind==='bilateral_difference');
   const signalHtml=signals.length
-    ?signals.map((item)=>`<article class="m26-photo-finding"><span>Revisar</span><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.direction)} · frontal ${Number(item.frontDeg).toFixed(1)}° · posterior ${Number(item.backDeg).toFixed(1)}°</p><small>${escapeHtml(item.message)}</small></article>`).join('')
-    :'<article class="m26-photo-finding"><span>Sin señal reproducida</span><strong>No hay una inclinación del mismo sentido en frontal y posterior.</strong><p>Esto no equivale a “postura perfecta”; sólo describe la consistencia de estas capturas.</p></article>';
-  const differenceHtml=differences.map((item)=>`<article class="m26-photo-finding"><span>Diferencia entre lados</span><strong>${escapeHtml(item.label)}</strong><p>${Number(item.differenceDeg).toFixed(1)}° · diferencia relativa ${item.asymmetryPercent===null?'—':Number(item.asymmetryPercent).toFixed(1)+'%'}</p></article>`).join('');
-  return `<div class="m26-photo-findings">${signalHtml}${differenceHtml}</div><p class="m26-photo-notice">Lectura geométrica orientativa. No clasifica una postura como sana/enferma ni sustituye evaluación clínica.</p>`;
+    ?signals.map((item)=>`<article class="m26-photo-finding"><span>Patrón que se repite</span><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.direction)} · frontal ${Number(item.frontDeg).toFixed(1)}° · posterior ${Number(item.backDeg).toFixed(1)}°</p><small>${escapeHtml(item.message)}</small></article>`).join('')
+    :'<article class="m26-photo-finding"><span>Sin un patrón que se repita</span><strong>Las pequeñas inclinaciones no aparecen igual en frontal y posterior.</strong><p>En conjunto, estas fotos no muestran una asimetría que se repita de forma clara.</p></article>';
+  const differenceHtml=differences.map((item)=>`<article class="m26-photo-finding"><span>Comparación entre lados</span><strong>${escapeHtml(item.label)}</strong><p>Diferencia de ${Number(item.differenceDeg).toFixed(1)}° entre ambas vistas laterales.</p></article>`).join('');
+  return `<div class="m26-photo-findings">${signalHtml}${differenceHtml}</div><p class="m26-photo-notice">Estas medidas describen la postura de este momento. Nos sirven como referencia inicial y se interpretan junto con movilidad, fuerza y movimiento.</p>`;
 }
 
 function metricValue(item={}){
@@ -322,14 +322,14 @@ export function createIriPhotogrammetryController({
       <section class="m26-photo-analysis">
         <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado · v2</p><h4>Ángulos, distancias calibradas y evidencia cruzada</h4><p>Los ángulos nacen de los puntos validados. Los centímetros sólo aparecen cuando existe una escala física explícita.</p></div><span data-iri-analysis-revision="${Number(remote.analysisV2?.revision||0)}">Motor v2 · revisión ${Number(remote.analysisV2?.revision||0)}</span></div>
         ${metricRows(measurements)}
-        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Observaciones geométricas</p>${interpretationRows(interpretation)}</div>
-        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Lectura IRI para decisión del Coach</p>${decisionRows(decisionSupport)}</div>
+        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Qué vemos en las fotos</p>${interpretationRows(interpretation)}</div>
+        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Qué significa para el entrenamiento</p>${decisionRows(decisionSupport)}</div>
         <div class="m26-photo-analysis-actions">
           <button type="button" data-iri-photo-analysis="draft" ${photo&&!busy?'':'disabled'}>Guardar borrador</button>
           <button type="button" class="m26-primary-action" data-iri-photo-analysis="validate" ${canValidate?'':'disabled'}>Validar análisis de 4 vistas</button>
         </div>
         <p class="m26-photo-notice">Calidad: ${escapeHtml(qualityLabel(quality))}. ${allCaptured?'Las 4 vistas están presentes.':'Faltan vistas.'} ${allMarked?'Todos los puntos requeridos están marcados.':'Faltan referencias visuales.'}</p>
-        <p class="m26-photo-safety"><strong>Sin diagnóstico médico automático.</strong> IBERFIT puede relacionar medidas con movilidad y movimiento para apoyar decisiones de entrenamiento, pero una asimetría no equivale por sí sola a patología, lesión ni indicación terapéutica.</p>
+        <p class="m26-photo-safety"><strong>Una foto no decide el plan por sí sola.</strong> IBERFIT usa estas medidas como una referencia más, junto con movilidad, fuerza, movimiento y evolución. Una diferencia postural aislada no significa lesión ni enfermedad.</p>
       </section>
       <p data-iri-photo-status role="status" aria-live="polite"></p>
     </section>`;
