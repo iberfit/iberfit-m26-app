@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
-import {hasHardMovementPlanGuard,movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
+import {canonicalHardMovementPlanPhases,hasHardMovementPlanGuard,movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
 import {hipHingeDowelPlanIssue,hipHingeDowelVisualGuard,isHipHingeDowelExercise} from './auto-factory-dowel-hinge-guard.mjs';
 import {bodySawPlanIssue,bodySawVisualGuard,isBodySawExercise} from './auto-factory-body-saw-guard.mjs';
 
@@ -33,7 +33,7 @@ async function main(){
   const claimPath=exact(arg('--claim'),'CLAIM');const outPath=exact(arg('--out'),'OUT');
   const claim=JSON.parse(fs.readFileSync(claimPath,'utf8'));const exercise=claim?.claim?.exercise;if(!exercise?.id)throw new Error('CLAIM_EXERCISE_MISSING');
   const proxy=exact(process.env.IBERFIT_AI_PROXY_URL,'IBERFIT_AI_PROXY_URL').replace(/\/+$/,'')+'/qa';const token=exact(process.env.IBERFIT_AI_PROXY_TOKEN,'IBERFIT_AI_PROXY_TOKEN');
-  const primary=(exercise.primary_muscles||[]).map(norm);const secondary=(exercise.secondary_muscles||[]).map(norm);const inferred=primary.some(x=>GENERIC.has(x));const cable=usesCableEquipment(exercise);const hardMovement=hasHardMovementPlanGuard(exercise);const dowelHinge=isHipHingeDowelExercise(exercise);const bodySaw=isBodySawExercise(exercise);const movementGuard=movementVisualGuard(exercise);const dowelGuard=hipHingeDowelVisualGuard(exercise);const bodySawGuard=bodySawVisualGuard(exercise);
+  const primary=(exercise.primary_muscles||[]).map(norm);const secondary=(exercise.secondary_muscles||[]).map(norm);const inferred=primary.some(x=>GENERIC.has(x));const cable=usesCableEquipment(exercise);const hardMovement=hasHardMovementPlanGuard(exercise);const canonicalHardPhases=canonicalHardMovementPlanPhases(exercise);const dowelHinge=isHipHingeDowelExercise(exercise);const bodySaw=isBodySawExercise(exercise);const movementGuard=movementVisualGuard(exercise);const dowelGuard=hipHingeDowelVisualGuard(exercise);const bodySawGuard=bodySawVisualGuard(exercise);
   const requestPlan=async(repairAttempt=0,repairReason='')=>{
     const rubric=[
       'You are the movement-visual planner for IBERFIT Exercise Media System v1. Produce a precise image-generation plan from the canonical exercise record. Do not invent a different exercise.',
@@ -63,6 +63,14 @@ async function main(){
   const maxRepair=Math.max(cable?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,hardMovement||dowelHinge||bodySaw?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0);
   for(let repairAttempt=0;repairAttempt<=maxRepair;repairAttempt+=1){
     plan=await requestPlan(repairAttempt,repairReason);
+    if(canonicalHardPhases){
+      plan={
+        ...plan,
+        start:canonicalHardPhases.start,
+        final:canonicalHardPhases.final,
+        notes:[...(Array.isArray(plan.notes)?plan.notes:[]),'IBERFIT canonical hard-movement phase geometry applied deterministically.'],
+      };
+    }
     const issues=[];
     if(cable){const issue=cablePlanIssue(plan);if(issue)issues.push(issue);}
     if(hardMovement){const issue=movementPlanIssue(exercise,plan);if(issue)issues.push(issue);}
