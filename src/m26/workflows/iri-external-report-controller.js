@@ -1390,9 +1390,29 @@ function normalizeGovernanceHistory(payload={}){
     })),
   });
 }
-export function createIriReportGovernanceService({runtime,fetchImpl=globalThis.fetch}={}){
+export function createIriReportGovernanceService({runtime,fetchImpl=globalThis.fetch,uuidFactory=()=>globalThis.crypto?.randomUUID?.(),storage=globalThis.sessionStorage}={}){
   const config=validateGovernanceRuntime(runtime);
   if(typeof fetchImpl!=='function')throw new Error('M26_IRI_REPORT_GOVERNANCE_FETCH_UNAVAILABLE');
+
+  const issueRequests=new Map();
+  const issueRequestPrefix='iberfit:m26:iri-report-issue:';
+  function issueRequestRecord(assessment,audience){
+    const key=`${issueRequestPrefix}${assessment}:${audience}`;
+    const memory=govClean(issueRequests.get(key),80);
+    if(UUID_PATTERN.test(memory))return {key,id:memory};
+    let stored='';
+    try{stored=govClean(storage?.getItem?.(key),80);}catch{}
+    if(UUID_PATTERN.test(stored)){issueRequests.set(key,stored);return {key,id:stored};}
+    const generated=govClean(uuidFactory?.(),80);
+    if(!UUID_PATTERN.test(generated))throw new Error('M26_IRI_REPORT_ISSUE_REQUEST_GENERATION_FAILED');
+    issueRequests.set(key,generated);
+    try{storage?.setItem?.(key,generated);}catch{}
+    return {key,id:generated};
+  }
+  function clearIssueRequestRecord(key,id){
+    if(issueRequests.get(key)===id)issueRequests.delete(key);
+    try{if(govClean(storage?.getItem?.(key),80)===id)storage?.removeItem?.(key);}catch{}
+  }
 
   async function request(token,payload,{timeoutMs=config.timeoutMs}={}){
     const accessToken=govClean(token,20_000);
@@ -1421,10 +1441,14 @@ export function createIriReportGovernanceService({runtime,fetchImpl=globalThis.f
   }
   async function issue(token,{assessmentId,audience:target}={}){
     const assessment=governanceUuid(assessmentId,'M26_IRI_REPORT_ASSESSMENT_INVALID');
-    const body=await request(token,{action:'issue',assessmentId:assessment,audience:governanceAudience(target)},{timeoutMs:180_000});
+    const audience=governanceAudience(target);
+    const requestRecord=issueRequestRecord(assessment,audience);
+    const body=await request(token,{action:'issue',assessmentId:assessment,audience,issueRequestId:requestRecord.id},{timeoutMs:180_000});
     const issuanceId=governanceUuid(body.issuanceId,'M26_IRI_REPORT_ISSUANCE_INVALID_RESPONSE');
+    const issueRequestId=governanceUuid(body.issueRequestId||requestRecord.id,'M26_IRI_REPORT_ISSUE_REQUEST_INVALID_RESPONSE');
+    clearIssueRequestRecord(requestRecord.key,requestRecord.id);
     return Object.freeze({
-      issuanceId,documentId:govClean(body.documentId,80),assessmentId:assessment,
+      issuanceId,issueRequestId,reused:body.reused===true,documentId:govClean(body.documentId,80),assessmentId:assessment,
       audience:govClean(body.audience,20),version:Number(body.version||0),
       artifactSha256:govClean(body.artifactSha256,64),sourceSha256:govClean(body.sourceSha256,64),
       signedUrl:governanceSafeSignedUrl(body.signedUrl,config.origin),expiresIn:Number(body.expiresIn||0),
