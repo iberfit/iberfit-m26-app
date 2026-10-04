@@ -180,6 +180,8 @@ export function createWorkflowController({
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
   let iriRemoteSaveChain=Promise.resolve();
+  const iriRemoteRevisionByAssessment=new Map();
+  const iriRemoteConflictByAssessment=new Map();
   let clientListMeasurementGrid=null;
   const clientListMeasurements=[];
   const initializedClientGrids=new WeakSet();
@@ -729,20 +731,74 @@ export function createWorkflowController({
     const savedAssessmentId=String(value.assessmentId||'').trim();
     return !currentAssessmentId||!savedAssessmentId||savedAssessmentId===currentAssessmentId;
   }
+  function iriRemoteDraftKey(clientId,assessmentId){return `${String(clientId||'').trim()}:${String(assessmentId||'').trim()}`;}
+  function iriCanonicalJson(value){
+    const normalize=(item)=>{
+      if(Array.isArray(item))return item.map(normalize);
+      if(item&&typeof item==='object'){
+        const out={};
+        for(const key of Object.keys(item).sort())out[key]=normalize(item[key]);
+        return out;
+      }
+      return item;
+    };
+    try{return JSON.stringify(normalize(value));}catch{return '';}
+  }
+  function iriDraftsEquivalent(a,b){return Boolean(a&&b)&&iriCanonicalJson(a)===iriCanonicalJson(b);}
+  function paintIriRemoteConflict(form,conflict=null){
+    const panel=form?.querySelector?.('[data-iri-remote-conflict]');
+    if(!panel)return;
+    panel.hidden=!conflict;
+    if(!conflict)return;
+    const copy=panel.querySelector?.('[data-iri-remote-conflict-copy]');
+    if(copy)copy.textContent=conflict.missing
+      ?'El respaldo remoto cambió mientras editabas y ahora ya no existe. Tu borrador local se conserva; elige si quieres volver a publicarlo desde este dispositivo.'
+      :'Existe otro borrador remoto más reciente o diferente. IBERFIT conserva ambos y no sobrescribirá ninguno hasta que elijas cuál continuar.';
+  }
+  function setIriRemoteConflict(clientId,assessmentId,conflict,form=null){
+    const key=iriRemoteDraftKey(clientId,assessmentId);
+    if(conflict)iriRemoteConflictByAssessment.set(key,Object.freeze({...conflict}));
+    else iriRemoteConflictByAssessment.delete(key);
+    paintIriRemoteConflict(form,conflict||null);
+  }
   async function persistIriRemoteDraft(clientId,draft,form=null){
     if(typeof upsertRemoteDraft!=='function'||!isOnline())return false;
     const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
     if(!assessmentId)return false;
+    const key=iriRemoteDraftKey(clientId,assessmentId);
+    if(iriRemoteConflictByAssessment.has(key))return false;
     const snapshot=structuredClone(draft);
     const payload={
       clientId,
       assessmentId,
       revision:Number(currentIriRecord(form)?.revision||0),
+      remoteRevision:Math.max(0,Number(iriRemoteRevisionByAssessment.get(key))||0),
       draft:snapshot,
     };
     const queued=iriRemoteSaveChain.catch(()=>{}).then(()=>Promise.resolve(upsertRemoteDraft(payload)));
     iriRemoteSaveChain=queued.then(()=>undefined,()=>undefined);
-    try{await queued;return true;}
+    try{
+      const result=await queued;
+      if(result?.conflict===true){
+        const conflict=Object.freeze({
+          revision:Math.max(0,Number(result.revision)||0),
+          clientRevision:Math.max(0,Number(result.clientRevision)||0),
+          updatedAt:result.updatedAt||null,
+          draft:result.draft&&typeof result.draft==='object'?structuredClone(result.draft):null,
+          missing:result.missing===true,
+        });
+        setIriRemoteConflict(clientId,assessmentId,conflict,form);
+        emit(root,'m26:workflow-error',{action:'save-iri-draft-remote-conflict',code:'M26_IRI_REMOTE_DRAFT_CONFLICT'});
+        status(root,'iri','Hay cambios distintos en otro dispositivo. Tus cambios siguen guardados aquí; elige qué borrador continuar antes de sincronizar.','error');
+        return false;
+      }
+      if(result?.saved===true){
+        iriRemoteRevisionByAssessment.set(key,Math.max(1,Number(result.revision)||1));
+        setIriRemoteConflict(clientId,assessmentId,null,form);
+        return true;
+      }
+      return false;
+    }
     catch(error){
       emit(root,'m26:workflow-error',{action:'save-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_SAVE_FAILED')});
       return false;
@@ -766,6 +822,11 @@ export function createWorkflowController({
       catch(error){emit(root,'m26:workflow-error',{action:'delete-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_DELETE_FAILED')});}
     }
     const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
+    if(assessmentId){
+      const key=iriRemoteDraftKey(clientId,assessmentId);
+      iriRemoteRevisionByAssessment.delete(key);
+      iriRemoteConflictByAssessment.delete(key);
+    }
     if(assessmentId&&typeof deleteRemoteDraft==='function'&&isOnline()){
       try{await Promise.resolve(deleteRemoteDraft(clientId,assessmentId));}
       catch(error){emit(root,'m26:workflow-error',{action:'delete-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_DELETE_FAILED')});}
