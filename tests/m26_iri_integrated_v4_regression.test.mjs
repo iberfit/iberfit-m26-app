@@ -100,9 +100,11 @@ test('el IRI activo usa la evaluación inicial más reciente y aísla el borrado
   assert.match(workflow,/await clearIriDraftBackups\(draft\.clientId,draft,form\)/u);
 });
 
-test('el stepper no puede saltar etapas futuras y el consentimiento físico se persiste antes de las pruebas',()=>{
+test('el IRI nuevo avanza secuencial y el confirmado permite revisión directa sin omitir consentimientos iniciales',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
-  assert.match(workflow,/const target=index>current\+1\?current\+1:index/u);
+  assert.match(workflow,/function confirmedIriAllowsDirectReview\(form\)/u);
+  assert.match(workflow,/const target=confirmedReview\?index:\(index>current\+1\?current\+1:index\)/u);
+  assert.match(workflow,/if\(!confirmedReview&&target>current\)/u);
   assert.match(workflow,/persistPhysicalConsentBeforeTesting/u);
   assert.match(workflow,/if\(step==='entrevista'\)await persistPhysicalConsentBeforeTesting\(form,draft\)/u);
   assert.match(workflow,/registrado antes de iniciar movilidad, fuerza y capacidad de esfuerzo/u);
