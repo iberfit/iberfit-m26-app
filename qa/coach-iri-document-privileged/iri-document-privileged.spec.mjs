@@ -205,10 +205,19 @@ async function issueClientPdf(page,context){
   const issue=page.locator('[data-workflow-action="issue-client-iri-report"]').first();
   await expect(issue).toBeVisible({timeout:20_000});
   const popupPromise=context.waitForEvent('page',{timeout:20_000});
+  const issueResponsePromise=page.waitForResponse((response)=>{
+    let url;
+    try{url=new URL(response.url());}catch{return false;}
+    if(url.origin!==QA_ORIGIN||url.pathname!==REPORT_PATH||response.request().method()!=='POST')return false;
+    try{return response.request().postDataJSON()?.action==='issue';}catch{return false;}
+  },{timeout:180_000});
   await issue.click();
-  const popup=await popupPromise;
-  await popup.waitForURL(/\/storage\/v1\/object\/sign\/iberfit-iri-issued-reports\//u,{timeout:180_000});
-  const signedUrl=popup.url();
+  const [popup,issueResponse]=await Promise.all([popupPromise,issueResponsePromise]);
+  expect(issueResponse.ok()).toBe(true);
+  const payload=await issueResponse.json();
+  expect(payload?.ok).toBe(true);
+  expect(payload?.signedUrl).toMatch(/\/storage\/v1\/object\/sign\/iberfit-iri-issued-reports\//u);
+  const signedUrl=String(payload.signedUrl);
   const response=await context.request.get(signedUrl,{timeout:60_000});
   expect(response.ok()).toBe(true);
   const body=await response.body();
