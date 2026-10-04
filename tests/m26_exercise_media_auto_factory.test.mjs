@@ -183,6 +183,11 @@ test('shirt-anchor locator is calibrated without lowering its safety threshold',
   assert.match(locator,/enable_thinking:false/,'locator should return direct structured output instead of spending budget on hidden reasoning');
 });
 
+test('claim transitions preserve the non-null output manifest contract',()=>{
+  assert.doesNotMatch(broker,/output_manifest\s*:\s*null/u,'claim must never null a NOT NULL manifest');
+  assert.match(broker,/output_manifest\s*:\s*\{\}/u,'claim retries must reset the manifest to an empty JSON object');
+});
+
 test('claim is idempotent per workflow run and review-ready runs cannot be reclaimed',()=>{
   assert.match(broker,/const runId=String\(claims\?\.run_id\|\|""\)/);
   assert.match(broker,/const workflowSha=String\(claims\?\.sha\|\|""\)/);
