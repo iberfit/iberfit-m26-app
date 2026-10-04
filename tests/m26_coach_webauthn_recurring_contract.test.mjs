@@ -107,6 +107,16 @@ test('trusted Canary Coach UI certifies privileged IRI document routes without c
 });
 
 
+test('privileged IRI certification permits only the scoped remote-draft RPCs required by current IRI autosave',async()=>{
+  const privileged=await read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
+  assert.match(privileged,/const IRI_DRAFT_RPCS=new Set/);
+  assert.match(privileged,/m26_iri_draft_get_v1/);
+  assert.match(privileged,/m26_iri_draft_upsert_v1/);
+  assert.match(privileged,/m26_iri_draft_delete_v1/);
+  assert.match(privileged,/evidence\.draftMutations\.push\(rpc\)/);
+  assert.match(privileged,/evidence\.draftMutations\)\.toContain\('m26_iri_draft_upsert_v1'\)/);
+});
+
 test('privileged IRI certification allows the private bioimpedance object read required by the final PDF flow',async()=>{
   const privileged=await read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
   assert.match(privileged,/signedRead\('iberfit-iri-external-reports'\)/u);

@@ -29,6 +29,11 @@ const PHOTO_WRITE_RPCS=new Set([
   'iberfit_save_iri_photogrammetry_analysis_v2',
   'iberfit_record_iri_photo_report_permission_v1',
 ]);
+const IRI_DRAFT_RPCS=new Set([
+  'm26_iri_draft_get_v1',
+  'm26_iri_draft_upsert_v1',
+  'm26_iri_draft_delete_v1',
+]);
 const MIME=Object.freeze({
   '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg',
@@ -92,6 +97,7 @@ function allowedQaRequest(request,evidence){
   if(method==='POST'&&url.pathname.startsWith(rpcPrefix)){
     const rpc=url.pathname.slice(rpcPrefix.length);
     if(READ_ONLY_RPCS.has(rpc))return true;
+    if(IRI_DRAFT_RPCS.has(rpc)){evidence.draftMutations.push(rpc);return true;}
     if(PHOTO_WRITE_RPCS.has(rpc)){evidence.privilegedMutations.push(rpc);return true;}
   }
   if(method==='GET'&&PHOTO_TABLES.has(url.pathname))return true;
@@ -243,7 +249,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   const evidence={
     schema:'iberfit.qa-coach-iri-document-privileged-ui.v1',
     projectRef:QA_REF,clientId:CLIENT_ID,synthetic:true,realPersonData:false,
-    webauthnActions:[],privilegedMutations:[],reportActions:[],blocked:[],
+    webauthnActions:[],draftMutations:[],privilegedMutations:[],reportActions:[],blocked:[],
     analysisValidated:false,photoPublicationGranted:false,clientPdfIssued:false,photoPublicationRevoked:false,
   };
   const context=await browser.newContext({
@@ -325,6 +331,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   expect(evidence.blocked,'Only the explicitly authorized QA surface may be contacted').toEqual([]);
   expect(consoleErrors,'Privileged Coach IRI UI must keep a clean console').toEqual([]);
   expect(pageErrors,'Privileged Coach IRI UI must keep a clean page').toEqual([]);
+  expect(evidence.draftMutations).toContain('m26_iri_draft_upsert_v1');
   expect(evidence.privilegedMutations).toContain('iberfit_save_iri_photogrammetry_analysis_v2');
   expect(evidence.privilegedMutations).toContain('iberfit_record_iri_photo_report_permission_v1');
   expect(evidence.reportActions).toContain('issue');

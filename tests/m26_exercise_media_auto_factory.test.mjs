@@ -132,6 +132,15 @@ test('private staging and artifact evidence are durable before the database swit
   assert.match(broker,/output_manifest:item/);
 });
 
+test('workflow fails before AI provisioning when the live broker drifts from the certified contract',()=>{
+  assert.match(workflow,/AUTO_FACTORY_BROKER_VERSION_MISMATCH/);
+  assert.match(workflow,/iberfit\.exercise\.media\.auto-factory\.peek\.v3/);
+  assert.match(workflow,/x\.mode!==['"]normal['"]/);
+  const driftGate=workflow.indexOf('AUTO_FACTORY_BROKER_VERSION_MISMATCH');
+  const proxy=workflow.indexOf('- name: Create isolated Workers AI proxy');
+  assert.ok(driftGate>=0&&proxy>driftGate,'broker drift must fail before paid/provider work begins');
+});
+
 test('proxy infrastructure is ready before claim so Cloudflare outages cannot consume exercise attempts',()=>{
   const proxyStart=workflow.indexOf('- name: Create isolated Workers AI proxy');
   const claimStart=workflow.indexOf('- name: Claim next missing System v1 exercise');
@@ -181,6 +190,11 @@ test('shirt-anchor locator is calibrated without lowering its safety threshold',
   assert.match(locator,/Do not default to 0\.90 or 0\.95/);
   assert.match(locator,/confidence<0\.97/,'shirt anchor threshold must remain 0.97');
   assert.match(locator,/enable_thinking:false/,'locator should return direct structured output instead of spending budget on hidden reasoning');
+});
+
+test('claim transitions preserve the non-null output manifest contract',()=>{
+  assert.doesNotMatch(broker,/output_manifest\s*:\s*null/u,'claim must never null a NOT NULL manifest');
+  assert.match(broker,/output_manifest\s*:\s*\{\}/u,'claim retries must reset the manifest to an empty JSON object');
 });
 
 test('claim is idempotent per workflow run and review-ready runs cannot be reclaimed',()=>{

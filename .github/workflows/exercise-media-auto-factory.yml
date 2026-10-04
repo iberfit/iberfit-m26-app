@@ -76,8 +76,11 @@ jobs:
           node - <<'NODE'
           const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/peek.json','utf8'));
           if(x.ok!==true||typeof x.eligible!=='boolean')throw new Error('AUTO_FACTORY_PEEK_INVALID');
+          if(x.schema!=='iberfit.exercise.media.auto-factory.peek.v3'||x.mode!=='normal'){
+            throw new Error(`AUTO_FACTORY_BROKER_VERSION_MISMATCH:${String(x.schema||'missing')}:${String(x.mode||'missing')}`);
+          }
           fs.appendFileSync(process.env.GITHUB_ENV,`IBERFIT_FACTORY_DONE=${x.eligible?'false':'true'}\n`);
-          console.log(JSON.stringify({eligible:x.eligible,eligible_count:x.eligible_count,remaining:x.remaining,blocked:x.blocked,awaiting_review:x.awaiting_review,system_v1:x.system_v1,done:x.done}));
+          console.log(JSON.stringify({schema:x.schema,mode:x.mode,eligible:x.eligible,eligible_count:x.eligible_count,remaining:x.remaining,blocked:x.blocked,awaiting_review:x.awaiting_review,system_v1:x.system_v1,done:x.done}));
           NODE
 
       - name: Create isolated Workers AI proxy
