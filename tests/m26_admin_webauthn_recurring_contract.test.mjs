@@ -69,7 +69,8 @@ test('live Media Review cert authenticates as the ephemeral Admin and remains re
   assert.match(source,/forbidden\.status===403/u);
   assert.match(source,/mutationPerformed:false/u);
   assert.match(source,/serviceRoleUsed:false/u);
-  assert.match(source,/\/auth\/v1\/logout/u);
+  assert.match(source,/\/auth\/v1\/logout\?scope=local/u);
+  assert.doesNotMatch(source,/fetch\(\`$\{QA_ORIGIN\}\/auth\/v1\/logout\`,/u);
   assert.doesNotMatch(source,/SUPABASE_SERVICE_ROLE_KEY/u);
   assert.doesNotMatch(source,/ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR|ADMIN_MEDIA_REVIEW_RECHAZAR|ADMIN_MEDIA_REVIEW_REGENERAR/u);
 });
