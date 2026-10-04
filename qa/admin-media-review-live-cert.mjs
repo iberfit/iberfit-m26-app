@@ -91,7 +91,7 @@ try{
   evidence.passed=true;
 }finally{
   if(accessToken){
-    await fetch(`${QA_ORIGIN}/auth/v1/logout`,{
+    await fetch(`${QA_ORIGIN}/auth/v1/logout?scope=local`,{
       method:'POST',
       headers:{apikey:publishable,authorization:`Bearer ${accessToken}`},
     }).catch(()=>{});
