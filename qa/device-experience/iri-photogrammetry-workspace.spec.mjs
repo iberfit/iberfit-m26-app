@@ -56,7 +56,8 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
     if(url.pathname==='/rest/v1/iri_photo_report_permissions_v1')return route.fulfill({status:200,contentType:'application/json',body:'[]'});
     if(url.pathname.startsWith('/storage/v1/object/sign/')){
       if(request.method()==='POST'){
-        return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({signedURL:`${url.pathname}?token=qa-device`})});
+        const rawStoragePath=url.pathname.replace(/^\/storage\/v1/u,'');
+        return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({signedURL:`${rawStoragePath}?token=qa-device`})});
       }
       return route.fulfill({
         status:200,
@@ -96,6 +97,10 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
   const shell=page.locator('[data-iri-photo-loaded="true"]');
   await expect(shell).toBeVisible({timeout:10_000});
   await expect(page.locator('[data-iri-photo-view]')).toHaveCount(4);
+  await expect(page.locator('[data-iri-photo-canvas] img')).toHaveCount(4);
+  await expect.poll(async()=>page.locator('[data-iri-photo-canvas] img').evaluateAll((images)=>images.every((image)=>image.complete&&image.naturalWidth>0))).toBe(true);
+  const renderedSources=await page.locator('[data-iri-photo-canvas] img').evaluateAll((images)=>images.map((image)=>new URL(image.src).pathname));
+  expect(renderedSources.every((path)=>path.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/'))).toBe(true);
   await expect(page.locator('[data-iri-photo-file]:enabled')).toHaveCount(4);
   await expect(page.locator('[name="physicalAssessmentConsent"]')).toBeChecked();
   await expect(page.locator('[data-iri-photo-analysis="validate"]')).toBeEnabled();
