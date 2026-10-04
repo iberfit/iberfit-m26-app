@@ -186,7 +186,7 @@ export function createIriPhotogrammetryController({
 }={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_IRI_PHOTO_CONTROLLER_REQUIRED');
   const service=createIriPhotogrammetryService({runtime});
-  let mounted=false,observer=null,loadScheduled=false,busy=false;
+  let mounted=false,observer=null,loadScheduled=false,loadInFlight=null,loadInFlightKey='',busy=false;
   let contextKey='',remote=null,signedUrls={},landmarks={},calibrationByView={},activeMarker=null,calibrationMarker=null,activeView='front';
 
   function context(){return resolveIriPhotogrammetryContext(store.getState());}
@@ -372,20 +372,31 @@ export function createIriPhotogrammetryController({
     const ctx=context();const key=`${ctx.role}:${ctx.clientId||''}:${ctx.assessmentId||''}`;
     if(!ctx.canManage||!ctx.assessmentId){contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();return null;}
     if(!force&&remote&&contextKey===key){
-      const node=host();
-      if(node&&!node.querySelector?.('[data-iri-photo-loaded="true"]'))render();
+      const currentHost=host();
+      if(currentHost&&!currentHost.querySelector?.('[data-iri-photo-loaded="true"]'))render();
       return remote;
     }
-    contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();
-    const token=await getToken();
-    const next=await service.state(token,{assessmentId:ctx.assessmentId});
-    if(contextKey!==key)return null;
-    remote=next;
-    landmarks=landmarksForLatestCaptures(next.analysis,next.latestCaptures);
-    calibrationByView=normalizePhotoCalibrations(next.analysisV2?.calibration||{});
-    signedUrls=await signedUrlsFor(next,token);
-    if(contextKey!==key)return null;
-    render();return remote;
+    if(!force&&loadInFlight&&loadInFlightKey===key)return loadInFlight;
+    if(force&&loadInFlight&&loadInFlightKey===key){
+      try{await loadInFlight;}catch{}
+    }
+    const run=(async()=>{
+      contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();
+      const token=await getToken();
+      const next=await service.state(token,{assessmentId:ctx.assessmentId});
+      if(contextKey!==key)return null;
+      remote=next;
+      landmarks=landmarksForLatestCaptures(next.analysis,next.latestCaptures);
+      calibrationByView=normalizePhotoCalibrations(next.analysisV2?.calibration||{});
+      signedUrls=await signedUrlsFor(next,token);
+      if(contextKey!==key)return null;
+      render();return remote;
+    })();
+    loadInFlight=run;loadInFlightKey=key;
+    try{return await run;}
+    finally{
+      if(loadInFlight===run){loadInFlight=null;loadInFlightKey='';}
+    }
   }
   async function clientSnapshotForPdf(assessmentId,{audience='client'}={}){
     const requested=clean(assessmentId,80);
@@ -657,7 +668,7 @@ export function createIriPhotogrammetryController({
     if(!mounted)return;observer?.disconnect?.();observer=null;
     root.removeEventListener('click',onClick);root.removeEventListener('change',onChange);
     root.removeEventListener('pointerdown',onPointerDown);root.removeEventListener('keydown',onKeyDown);
-    mounted=false;remote=null;signedUrls={};landmarks={};calibrationByView={};activeMarker=null;calibrationMarker=null;contextKey='';
+    mounted=false;remote=null;signedUrls={};landmarks={};calibrationByView={};activeMarker=null;calibrationMarker=null;contextKey='';loadInFlight=null;loadInFlightKey='';
   }
   return Object.freeze({mount,destroy,load,ensurePhysicalConsent,clientSnapshotForPdf});
 }

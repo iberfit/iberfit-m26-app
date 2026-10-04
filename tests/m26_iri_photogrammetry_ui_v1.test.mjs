@@ -39,6 +39,13 @@ test('photogrammetry observer ignores self-renders and reloads for route/context
   assert.equal(iriPhotoMutationRequiresReload([{target:outside}],null),true);
 });
 
+test('photogrammetry load is single-flight per dossier context',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
+  assert.match(source,/loadInFlight&&loadInFlightKey===key/u);
+  assert.match(source,/return loadInFlight/u);
+  assert.match(source,/if\(loadInFlight===run\)\{loadInFlight=null;loadInFlightKey='';\}/u);
+});
+
 test('IRI route exposes optional four-view workspace and explicit physical consent',()=>{
   const source=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(source,/name="physicalAssessmentConsent"/u);
