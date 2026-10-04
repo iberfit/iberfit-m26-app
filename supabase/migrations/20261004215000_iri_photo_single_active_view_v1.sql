@@ -2,22 +2,8 @@
 -- Historical originals remain immutable in Storage; replacement only revokes the previous active metadata row.
 begin;
 
-with ranked as (
-  select id,
-         row_number() over (
-           partition by assessment_id,view
-           order by captured_at desc,created_at desc,id desc
-         ) as rn
-  from public.iri_photogrammetry_captures_v1
-  where status='active'
-)
-update public.iri_photogrammetry_captures_v1 c
-set status='revoked',
-    revoked_at=coalesce(c.revoked_at,clock_timestamp())
-from ranked r
-where c.id=r.id
-  and r.rn>1
-  and c.status='active';
+-- Fail closed if historical duplicates exist. Existing production anomalies are repaired explicitly
+-- with auditable operational SQL before applying this migration; schema migration itself never rewrites user rows.
 
 create unique index if not exists iri_photo_one_active_view_v1
   on public.iri_photogrammetry_captures_v1(assessment_id,view)
