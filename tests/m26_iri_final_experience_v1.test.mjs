@@ -16,6 +16,15 @@ test('IRI final experience keeps product hierarchy distinct from generic SaaS ca
   assert.match(css,/\.m26-review-summary>div\{[^}]*border:0;border-top:2px/u);
 });
 
+test('IRI desktop hierarchy stays compact without sacrificing touch targets or the 8-stage workflow',()=>{
+  const css=read('src/m26/shell/shell.css');
+  assert.match(css,/\.m26-iri-hero\{min-height:0/);
+  assert.match(css,/\.m26-iri-context-strip\{padding:\.82rem 1rem/);
+  assert.match(css,/\.m26-iri-context-details\{margin-top:\.22rem/);
+  assert.match(css,/\.m26-stepper\{grid-template-columns:repeat\(8,minmax\(0,1fr\)\)/);
+  assert.match(css,/m26-iri-context-details>summary\{min-height:44px/);
+});
+
 test('photogrammetry behaves as one active technical study view with explicit revision state',()=>{
   const controller=read('src/m26/workflows/iri-photogrammetry-controller.js');
   const css=read('src/m26/workflows/iri-photogrammetry.css');
