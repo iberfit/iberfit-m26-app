@@ -133,26 +133,30 @@ export function createEngagementController({root,store,draftRepository,service,s
       const form=documentLike.createElement('form');
       form.className='m26-action-tracking-form';
       form.setAttribute('data-engagement-form','action-tracking');
+      form.setAttribute('data-guided-required-form','');
       form.dataset.clientId=clientId;
       const signalSource=createSelect(documentLike,'Origen de la señal','signalSource',[
-        ['checkin','Bienestar / check-in'],['adherence','Adherencia'],['session','Sesión'],['progress','Evolución'],
+        ['','Seleccionar origen'],['checkin','Bienestar / check-in'],['adherence','Adherencia'],['session','Sesión'],['progress','Evolución'],
         ['coach_observation','Observación del Coach'],['other','Otra señal'],
       ]);
       const signal=createTextarea(documentLike,'Señal observada','signalSummary',1200);
       const decision=createTextarea(documentLike,'Decisión profesional','decisionSummary',1200);
       const interventionType=createSelect(documentLike,'Tipo de intervención','interventionType',[
-        ['load_adjustment','Ajuste de carga'],['technique','Técnica'],['recovery','Recuperación'],['adherence','Adherencia'],
+        ['','Seleccionar intervención'],['load_adjustment','Ajuste de carga'],['technique','Técnica'],['recovery','Recuperación'],['adherence','Adherencia'],
         ['schedule','Agenda'],['communication','Comunicación'],['plan','Planificación'],['other','Otra'],
       ]);
       const intervention=createTextarea(documentLike,'Intervención realizada','interventionSummary',1600);
       const expected=createTextarea(documentLike,'Qué esperas observar','expectedOutcome',1200);
       const review=createField(documentLike,'Revisar el','reviewAt','date');review.input.value=civilDateOffset(14);
+      for(const control of [signalSource.select,signal.input,decision.input,interventionType.select,intervention.input,expected.input,review.input])control.required=true;
+      const reviewHint=documentLike.createElement('small');reviewHint.textContent='IBERFIT propone revisar en 14 días. Ajusta la fecha según tu criterio profesional.';
       const guard=documentLike.createElement('small');
       guard.className='m26-action-outcome-guard';
       guard.textContent='Seguimiento privado Coach/Admin. Registra criterio y evidencia; no cambia cargas, sesiones ni mensajes automáticamente.';
       const button=documentLike.createElement('button');button.type='submit';button.setAttribute('data-engagement-action','save-action-tracking');button.textContent='Registrar decisión y seguimiento';
       const feedback=documentLike.createElement('p');feedback.setAttribute('data-engagement-status','action-tracking');feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');
-      form.append(signalSource.label,signal.label,decision.label,interventionType.label,intervention.label,expected.label,review.label,guard,button,feedback);
+      const progress=documentLike.createElement('p');progress.className='m26-field-help';progress.setAttribute('data-guided-required-progress','');progress.setAttribute('aria-live','polite');
+      form.append(signalSource.label,signal.label,decision.label,interventionType.label,intervention.label,expected.label,review.label,reviewHint,guard,progress,button,feedback);
 
       const history=documentLike.createElement('div');
       history.className='m26-action-outcome-history';
@@ -179,18 +183,21 @@ export function createEngagementController({root,store,draftRepository,service,s
           }else{
             const outcomeForm=documentLike.createElement('form');
             outcomeForm.setAttribute('data-engagement-form','action-outcome');
+            outcomeForm.setAttribute('data-guided-required-form','');
             outcomeForm.dataset.clientId=clientId;
             outcomeForm.dataset.trackingId=item.id;
             outcomeForm.dataset.baseRevision=String(item.revision);
             const outcomeStatus=createSelect(documentLike,'Resultado observado','outcomeStatus',[
-              ['improved','Mejoró'],['stable','Estable'],['worse','Empeoró'],['mixed','Mixto'],['not_assessable','No evaluable'],
+              ['','Seleccionar resultado'],['improved','Mejoró'],['stable','Estable'],['worse','Empeoró'],['mixed','Mixto'],['not_assessable','No evaluable'],
             ]);
             const outcomeSummary=createTextarea(documentLike,'Qué ocurrió','outcomeSummary',1600);
             const evidence=createTextarea(documentLike,'Evidencia / contexto','outcomeEvidence',1600);
             const reviewed=createField(documentLike,'Revisado el','reviewedAt','date');reviewed.input.value=civilDateOffset(0);
+            for(const control of [outcomeStatus.select,outcomeSummary.input,reviewed.input])control.required=true;
             const close=documentLike.createElement('button');close.type='submit';close.setAttribute('data-engagement-action','save-action-outcome');close.textContent='Cerrar con resultado';
             const outcomeFeedback=documentLike.createElement('p');outcomeFeedback.setAttribute('data-engagement-status','action-outcome');outcomeFeedback.setAttribute('role','status');outcomeFeedback.setAttribute('aria-live','polite');
-            outcomeForm.append(outcomeStatus.label,outcomeSummary.label,evidence.label,reviewed.label,close,outcomeFeedback);
+            const outcomeProgress=documentLike.createElement('p');outcomeProgress.className='m26-field-help';outcomeProgress.setAttribute('data-guided-required-progress','');outcomeProgress.setAttribute('aria-live','polite');
+            outcomeForm.append(outcomeStatus.label,outcomeSummary.label,evidence.label,reviewed.label,outcomeProgress,close,outcomeFeedback);
             article.append(outcomeForm);
           }
           history.append(article);
