@@ -2985,7 +2985,7 @@ export function renderExpedienteRoute(vm) {
     <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>`;
 
   const coachWorkspaceSurface=
-    `<section class="m26-panel m26-coach-client-workspace" data-m26-expediente-section="resumen" data-coach-client-workspace>
+    `<section class="m26-panel m26-coach-client-workspace" data-m26-expediente-section="resumen" data-coach-client-workspace data-client-id="${escapeHtml(data.id||'')}">
       <header class="m26-coach-workspace-header">
         <div>
           <p class="m26-eyebrow">Cliente · mesa de decisión</p>
@@ -3055,6 +3055,13 @@ export function renderExpedienteRoute(vm) {
           <div>${decisionRows}</div>
           <div>${closedDecisionResult}</div>
         </div>
+        <div
+          class="m26-coach-workspace-decision-entry"
+          data-action-outcome-host
+          data-action-outcome-mode="workspace"
+          data-client-id="${escapeHtml(data.id||'')}"
+          aria-live="polite"
+        ></div>
       </section>
 
       <section class="m26-client360-evolution m26-coach-workspace-evolution">
@@ -3979,6 +3986,10 @@ function renderNextSessionPreparation(prep,{canStartSession=true}={}){
   ].filter(Boolean);
   const iri=prep.iri;
   const tone=prep.reviewRequired?'warning':'success';
+  const reviewAction=prep.reviewRequired
+    ?'<button type="button" class="m26-primary-action" data-m26-area="expediente">Revisar seguimiento antes de entrenar</button>'
+    :'';
+  const builderClass=prep.reviewRequired?'':' class="m26-primary-action"';
   return `<section class="m26-panel m26-next-session-prep" data-next-session-preparation>
     <div class="m26-panel-heading">
       <div>
@@ -4035,8 +4046,9 @@ function renderNextSessionPreparation(prep,{canStartSession=true}={}){
       ${nextSessionPrepExerciseRows(prep)}
     </article>
     <div class="m26-next-session-actions">
-      <button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Revisar sesión en constructor</button>
-      <button type="button" data-m26-area="expediente">Abrir expediente completo</button>
+      ${reviewAction}
+      <button type="button"${builderClass} data-workflow-action="open-session-builder">Revisar sesión en constructor</button>
+      ${prep.reviewRequired?'':'<button type="button" data-m26-area="expediente">Abrir expediente completo</button>'}
       ${canStartSession&&session.startable===true&&session.id?`<button type="button" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(session.id)}">Iniciar sesión preparada</button>`:''}
     </div>
     <p class="m26-data-footnote">${escapeHtml(prep.safety.note)} La revisión del Coach es obligatoria antes de convertir este contexto en una decisión.</p>

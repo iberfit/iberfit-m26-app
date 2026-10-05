@@ -911,10 +911,10 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackSummary=Number.isFinite(sessionRpe)
       ?`<p><strong>RPE de sesión ${e(sessionRpe)}/10</strong> · ${feedback.pain?'Molestia registrada para seguimiento.':'Sin dolor o molestia registrada.'}</p>`
       :'';
-    const progressActionLabel=isCoach?'Abrir expediente':'Ver mi progreso';
+    const progressActionLabel=isCoach?'Revisar seguimiento':'Ver mi progreso';
     const progressActionArea=isCoach?'expediente':'progreso';
     const continuityCopy=isCoach
-      ?'El seguimiento del cliente ya puede continuar desde su expediente.'
+      ?'La sesión está cerrada. Revisa si alguna señal requiere una decisión y deja preparada la siguiente sesión desde el expediente.'
       :'Tu seguimiento ya puede continuar desde Progreso.';
     const completedProgressAction=isCoach
       ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente">${e(progressActionLabel)}</button>`

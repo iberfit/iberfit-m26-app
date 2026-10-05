@@ -40,6 +40,37 @@ function createTextarea(documentLike,labelText,name,maxLength=1600){const label=
 function createSelect(documentLike,labelText,name,options=[]){const label=documentLike.createElement('label');const span=documentLike.createElement('span');span.textContent=labelText;const select=documentLike.createElement('select');select.name=name;for(const [value,text] of options){const option=documentLike.createElement('option');option.value=value;option.textContent=text;select.append(option);}label.append(span,select);return {label,select};}
 function civilDateOffset(days=0){const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()+Number(days||0));return date.toISOString().slice(0,10);}
 function percent(value){return Number.isFinite(Number(value))?`${Math.round(Number(value)*100)}%`:'—';}
+function actionOutcomeManagerForClient(root,clientId,{workspace=false}={}){
+  const expected=String(clientId||'').trim();
+  return Array.from(root?.querySelectorAll?.('[data-action-outcome-manager][data-client-id]')||[])
+    .find((manager)=>
+      String(manager?.dataset?.clientId||'').trim()===expected&&
+      Boolean(manager?.classList?.contains?.('is-workspace'))===Boolean(workspace)
+    )||null;
+}
+function actionOutcomeTargets(root){
+  const targets=[];
+  const seen=new Set();
+  const add=(clientId,mount,mode='compact')=>{
+    const id=String(clientId||'').trim();
+    if(!id||!mount||seen.has(mount))return;
+    seen.add(mount);
+    targets.push({clientId:id,mount,mode});
+  };
+  for(const card of root?.querySelectorAll?.('.m26-client-card')||[]){
+    const select=card.querySelector?.('[data-m26-select-client]');
+    const clientId=select?.getAttribute?.('data-m26-select-client');
+    add(clientId,card.querySelector?.('.m26-client-meta'),'compact');
+  }
+  for(const host of root?.querySelectorAll?.('[data-action-outcome-host][data-client-id]')||[]){
+    add(
+      host.getAttribute?.('data-client-id'),
+      host,
+      host.getAttribute?.('data-action-outcome-mode')||'workspace',
+    );
+  }
+  return targets;
+}
 
 export function createEngagementController({root,store,draftRepository,service,submitCheckin,savePrivateNote,refreshState}={}){
   if(!root?.addEventListener||!store?.getState||!draftRepository?.save)throw new Error('M26_ENGAGEMENT_CONTROLLER_REQUIRED');let mounted=false;let restoreScheduled=false;let renewalUiScheduled=false;let actionOutcomeUiScheduled=false;let renewalObserver=null;
@@ -88,20 +119,19 @@ export function createEngagementController({root,store,draftRepository,service,s
     if(service?.capabilities?.actionOutcomeTracking?.ready!==true)return false;
     const documentLike=root.ownerDocument||globalThis.document;
     if(!documentLike?.createElement)return false;
-    for(const card of root.querySelectorAll?.('.m26-client-card')||[]){
-      const select=card.querySelector?.('[data-m26-select-client]');
-      const clientId=String(select?.getAttribute?.('data-m26-select-client')||'').trim();
-      const meta=card.querySelector?.('.m26-client-meta');
-      if(!clientId||!meta)continue;
+    for(const target of actionOutcomeTargets(root)){
+      const {clientId,mount,mode}=target;
+      const workspaceMode=mode==='workspace';
       const records=actionOutcomeEntities(state?.collections?.m26Entities||[],clientId);
       const summaryData=summarizeActionOutcomes(records,clientId);
-      const signature=records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty';
-      let manager=meta.querySelector?.('[data-action-outcome-manager]');
+      const signature=`${mode}:${records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
+      let manager=mount.querySelector?.('[data-action-outcome-manager]');
       if(manager?.dataset?.canonicalSignature===signature)continue;
       manager?.remove?.();
       manager=documentLike.createElement('details');
-      manager.className='m26-action-outcome-manager';
+      manager.className=`m26-action-outcome-manager${workspaceMode?' is-workspace':''}`;
       manager.setAttribute('data-action-outcome-manager','true');
+      if(workspaceMode&&summaryData.overdueCount>0)manager.open=true;
       manager.dataset.clientId=clientId;
       manager.dataset.canonicalSignature=signature;
 
@@ -129,7 +159,17 @@ export function createEngagementController({root,store,draftRepository,service,s
         const small=documentLike.createElement('small');small.textContent=label;
         item.append(strong,small);metrics.append(item);
       }
+      const managerFeedback=documentLike.createElement('p');
+      managerFeedback.className='m26-action-outcome-manager-status';
+      managerFeedback.setAttribute('data-engagement-status','action-manager');
+      managerFeedback.setAttribute('role','status');
+      managerFeedback.setAttribute('aria-live','polite');
 
+      const formDisclosure=documentLike.createElement('details');
+      formDisclosure.className='m26-action-outcome-new';
+      formDisclosure.setAttribute('data-action-outcome-new','true');
+      const formSummary=documentLike.createElement('summary');
+      formSummary.textContent=records.length?'Registrar una nueva decisión':'Registrar la primera decisión';
       const form=documentLike.createElement('form');
       form.className='m26-action-tracking-form';
       form.setAttribute('data-engagement-form','action-tracking');
@@ -156,7 +196,26 @@ export function createEngagementController({root,store,draftRepository,service,s
       const button=documentLike.createElement('button');button.type='submit';button.setAttribute('data-engagement-action','save-action-tracking');button.textContent='Registrar decisión y seguimiento';
       const feedback=documentLike.createElement('p');feedback.setAttribute('data-engagement-status','action-tracking');feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');
       const progress=documentLike.createElement('p');progress.className='m26-field-help';progress.setAttribute('data-guided-required-progress','');progress.setAttribute('aria-live','polite');
-      form.append(signalSource.label,signal.label,decision.label,interventionType.label,intervention.label,expected.label,review.label,reviewHint,guard,progress,button,feedback);
+
+      const criterionGroup=documentLike.createElement('fieldset');
+      criterionGroup.className='m26-action-outcome-fieldset';
+      const criterionLegend=documentLike.createElement('legend');criterionLegend.textContent='1 · Señal y criterio';
+      const criterionHelp=documentLike.createElement('small');criterionHelp.textContent='Describe únicamente la señal confirmada y la decisión profesional que tomas a partir de ella.';
+      criterionGroup.append(criterionLegend,criterionHelp,signalSource.label,signal.label,decision.label);
+
+      const interventionGroup=documentLike.createElement('fieldset');
+      interventionGroup.className='m26-action-outcome-fieldset';
+      const interventionLegend=documentLike.createElement('legend');interventionLegend.textContent='2 · Intervención';
+      const interventionHelp=documentLike.createElement('small');interventionHelp.textContent='Registra qué cambias o qué acción realizas y qué esperas observar después.';
+      interventionGroup.append(interventionLegend,interventionHelp,interventionType.label,intervention.label,expected.label);
+
+      const reviewGroup=documentLike.createElement('fieldset');
+      reviewGroup.className='m26-action-outcome-fieldset';
+      const reviewLegend=documentLike.createElement('legend');reviewLegend.textContent='3 · Cuándo revisar';
+      reviewGroup.append(reviewLegend,review.label,reviewHint);
+
+      form.append(criterionGroup,interventionGroup,reviewGroup,guard,progress,button,feedback);
+      formDisclosure.append(formSummary,form);
 
       const history=documentLike.createElement('div');
       history.className='m26-action-outcome-history';
@@ -206,8 +265,15 @@ export function createEngagementController({root,store,draftRepository,service,s
         const empty=documentLike.createElement('p');empty.className='m26-action-outcome-empty';empty.textContent='Registra la primera decisión cuando una señal justifique una intervención y quieras comprobar después qué ocurrió.';history.append(empty);
       }
 
-      manager.append(summary,metrics,form,history);
-      meta.append(manager);
+      if(workspaceMode){
+        const intro=documentLike.createElement('p');
+        intro.className='m26-action-outcome-workspace-intro';
+        intro.textContent='Primero revisa decisiones pendientes. Abre “Registrar una nueva decisión” solo cuando una señal justifique una intervención que quieras comprobar después.';
+        manager.append(summary,metrics,managerFeedback,intro,history,formDisclosure);
+      }else{
+        manager.append(summary,metrics,managerFeedback,history,formDisclosure);
+      }
+      mount.append(manager);
     }
     return true;
   }
@@ -254,6 +320,7 @@ export function createEngagementController({root,store,draftRepository,service,s
     const clientId=String(form.dataset?.clientId||'').trim();
     if(!clientId)throw new Error('M26_CLIENT_CONTEXT_REQUIRED');
     const values=formValues(form);
+    const workspaceOrigin=Boolean(form.closest?.('[data-action-outcome-manager]')?.classList?.contains?.('is-workspace'));
     const result=await service.recordActionTracking({clientId,tracking:values});
     if(!result?.ok)throw new Error('M26_ACTION_TRACKING_NOT_CONFIRMED');
     if(typeof refreshState!=='function')throw new Error('M26_ACTION_TRACKING_REFRESH_REQUIRED');
@@ -262,8 +329,9 @@ export function createEngagementController({root,store,draftRepository,service,s
     const persisted=actionOutcomeEntities(store.getState()?.collections?.m26Entities||[],clientId).find((item)=>item.id===entityId);
     if(!persisted)throw new Error('M26_ACTION_TRACKING_NOT_PERSISTED');
     ensureActionOutcomeManagers();
-    const confirmed=root.querySelector?.(`[data-action-outcome-manager][data-client-id="${clientId}"]`);
-    setStatus(confirmed||root,'action-tracking','Decisión registrada. El resultado queda pendiente de revisión.','success');
+    const confirmed=actionOutcomeManagerForClient(root,clientId,{workspace:workspaceOrigin});
+    if(confirmed)confirmed.open=true;
+    setStatus(confirmed||root,'action-manager','Decisión registrada. El resultado queda pendiente de revisión.','success');
     return result;
   }
   async function actionOutcome(button){
@@ -278,6 +346,7 @@ export function createEngagementController({root,store,draftRepository,service,s
     const baseRevision=Number(form.dataset?.baseRevision||0);
     if(!clientId)throw new Error('M26_CLIENT_CONTEXT_REQUIRED');
     if(!trackingId)throw new Error('M26_ACTION_OUTCOME_ID_REQUIRED');
+    const workspaceOrigin=Boolean(form.closest?.('[data-action-outcome-manager]')?.classList?.contains?.('is-workspace'));
     const result=await service.recordActionOutcome({clientId,trackingId,baseRevision,outcome:formValues(form)});
     if(!result?.ok)throw new Error('M26_ACTION_OUTCOME_NOT_CONFIRMED');
     if(typeof refreshState!=='function')throw new Error('M26_ACTION_OUTCOME_REFRESH_REQUIRED');
@@ -285,8 +354,9 @@ export function createEngagementController({root,store,draftRepository,service,s
     const persisted=actionOutcomeEntities(store.getState()?.collections?.m26Entities||[],clientId).find((item)=>item.id===trackingId);
     if(!persisted||persisted.status!=='cerrado')throw new Error('M26_ACTION_OUTCOME_NOT_PERSISTED');
     ensureActionOutcomeManagers();
-    const confirmed=root.querySelector?.(`[data-action-outcome-manager][data-client-id="${clientId}"]`);
-    setStatus(confirmed||root,'action-outcome','Resultado confirmado y seguimiento cerrado.','success');
+    const confirmed=actionOutcomeManagerForClient(root,clientId,{workspace:workspaceOrigin});
+    if(confirmed)confirmed.open=true;
+    setStatus(confirmed||root,'action-manager','Resultado confirmado y seguimiento cerrado.','success');
     return result;
   }
   async function executeAction(action,button){

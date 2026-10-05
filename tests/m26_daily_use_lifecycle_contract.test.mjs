@@ -218,7 +218,7 @@ test('jornada real mantiene una sola identidad desde alta hasta progreso sin mez
     catalog,
     role:'coach',
   });
-  assert.match(coachClosure,/>Abrir expediente</u);
+  assert.match(coachClosure,/>Revisar seguimiento</u);
   assert.match(coachClosure,/data-m26-coach-action="true"/u);
   assert.match(coachClosure,new RegExp(`data-m26-client-id="${CLIENT_ID}"`,'u'));
   assert.match(coachClosure,/data-m26-target-area="expediente"/u);
