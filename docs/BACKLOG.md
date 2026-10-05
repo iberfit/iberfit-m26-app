@@ -151,7 +151,7 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 
 - [x] Revisados los 2 SECURITY DEFINER ejecutables por anon: catálogo/media públicos, lectura acotada y deliberada.
 - [x] Revisados RPC Admin críticos: privileged assurance + rol + organización + scope antes de mutar.
-- [x] SECURITY DEFINER auditados por intención en QA/PROD; decisiones KEEP/REVOKE documentadas en `docs/SECURITY_BACKEND_AUDIT_2026-10-05.md`. Hardening ACL legacy versionado y validado en QA; PROD requiere promoción posterior.
+- [x] SECURITY DEFINER auditados por intención en QA/PROD; PR #730 promovido. Migración PROD `20261005173632_security_backend_acl_hardening_v1`; authenticated SECURITY DEFINER 55→52, RPC canónicas intactas.
 - [x] RLS auditado: 0 tablas públicas sin RLS; tablas con RLS y 0 policies tienen 0 grants para `anon/authenticated`, por diseño fuera de Data API.
 - [x] FKs sin índice evaluadas contra cardinalidad, consultas reales e `EXPLAIN`; no se justifica añadir índices hoy. Reevaluar por crecimiento + hot path + plan/coste real.
 - [ ] Leaked password protection: disponible sólo con plan Supabase compatible; decidir upgrade por seguridad/operación.
