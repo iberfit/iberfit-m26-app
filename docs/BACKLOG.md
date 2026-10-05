@@ -40,7 +40,7 @@ Checkpoint: 2026-10-05. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`
 - [x] Admin Matrix Chromium/WebKit/Firefox + desktop/tablet portrait/tablet landscape/mobile GREEN.
 - [x] Pre-merge: CI, Fast Lane, Continuous Audit, Device Experience, Client Interaction, evidencia visual y WebAuthn GREEN.
 - [x] Merge exacto PR #729 → `744fe36112ff1c61e3b61772f3c74943edee08f2`; `canary/rc74-4` verificado en ese SHA.
-- [ ] Verificar Canary Exact Deploy post-merge sobre `744fe361...` antes de cualquier promoción PROD; el conector disponible no expone runs de `push` y el runtime Canary no fue resoluble desde este entorno en la comprobación actual.
+- [x] Canary Exact Deploy #172 (`37341609208`) SUCCESS sobre `744fe361...`; gates post-merge de interacción y autenticación GREEN.
 
 ## WIP CERRADO · Personas + IRI real en terreno + Solo IRI
 
