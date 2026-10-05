@@ -6,9 +6,16 @@ import {
   experienceNextAction,
 } from '../src/m26/experience/client-experience.js';
 
-test('Solo IRI completes the assessment process without training or appointment obligations',()=>{
-  const experience=deriveClientExperience({client:{lifecycleStatus:'iri_only'},profile:{phone:'ok'},iri:{status:'confirmed'},cycle:null,nextAppointment:null});
-  assert.equal(experience.stage,'iri_only');
+test('una persona evaluada sin entrenamiento completa IRI sin obligaciones de plan o agenda',()=>{
+  const experience=deriveClientExperience({
+    client:{trainingServiceStatus:'none'},
+    profile:{phone:'ok'},
+    iri:{status:'confirmed'},
+    cycle:null,
+    nextAppointment:null,
+  });
+  assert.equal(experience.serviceKind,'none');
+  assert.equal(experience.stage,'evaluation');
   assert.equal(experience.process.percentage,100);
   assert.equal(experience.attention.includes('planning'),false);
   assert.equal(experience.attention.includes('appointment'),false);
@@ -38,25 +45,29 @@ test('Experience Core detecta alta incompleta',()=>{
   assert.equal(next.area,'expediente');
 });
 
-test('IRI iniciado pero no confirmado exige continuar evaluación',()=>{
+test('IRI iniciado pero no confirmado no bloquea planificación con entrenamiento activo',()=>{
   const experience=deriveClientExperience({
+    client:{trainingServiceStatus:'active'},
     profile:{phone:'ok'},
     iri:{status:'draft'},
     cycle:null,
     nextAppointment:null,
   });
 
-  assert.equal(experience.stage,'evaluation');
+  assert.equal(experience.stage,'planning');
   assert.equal(experience.readiness.iriExists,true);
   assert.equal(experience.readiness.iriConfirmed,false);
+  assert.equal(experience.readiness.iriRequired,false);
+  assert.equal(experience.readiness.iriBlocking,false);
+  assert.equal(experience.attention.includes('iri_incomplete'),true);
 
   const next=experienceNextAction(
     experience,
     {role:'coach'}
   );
 
-  assert.equal(next.key,'continue_iri');
-  assert.equal(next.area,'iri');
+  assert.equal(next.key,'prepare_plan');
+  assert.equal(next.area,'planificacion');
 });
 
 test('IRI confirmado sin ciclo conduce a planificación',()=>{
