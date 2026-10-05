@@ -5,6 +5,7 @@ import {
   createExecution,
 } from '../src/m26/workflows/session-execution.js';
 import {
+  createSessionController,
   dispatchSessionAction,
   manualSessionSyncOutcome,
 } from '../src/m26/workflows/session-controller.js';
@@ -89,6 +90,76 @@ test('online start rejection never starts or dirties the local recovery executio
   assert.equal(execution.startedAt,null);
   assert.equal(execution.syncStatus,'clean');
   assert.equal(execution.lastSyncError,null);
+});
+
+test('controller start surfaces Coach service rejection without creating local recovery dirt',async()=>{
+  const execution=createExecution({
+    session,
+    clientId:session.clientId,
+    executionId:'execution-service-controller',
+  });
+  const actionState={status:'idle',message:'',attempt:0};
+  const errors=[];
+  let telemetryStarts=0;
+  let persists=0;
+  let renders=0;
+  const commandBus={
+    async execute(command){
+      return rejectedResult(command.operationId||'op-controller-start');
+    },
+  };
+  const root={
+    ownerDocument:{activeElement:null},
+    addEventListener(){},
+    removeEventListener(){},
+    querySelector(){return null;},
+    querySelectorAll(){return [];},
+    dispatchEvent(){},
+  };
+  const context={
+    execution,
+    session,
+    actor:{role:'coach',userId:'coach-1'},
+    commandBus,
+    appointmentId:'appointment-service-controller',
+    sessionRevision:0,
+    actionState,
+    recoveryCoordinator:{
+      async persist(){persists+=1;},
+      async settle(){},
+    },
+  };
+  const controller=createSessionController({
+    root,
+    getContext:()=>context,
+    render:()=>{renders+=1;},
+    onError:(error)=>errors.push(error),
+    liveTelemetryController:{
+      async start(){telemetryStarts+=1;},
+      async pause(){},
+      async resume(){},
+      async stop(){},
+    },
+    lifecycleTarget:{addEventListener(){},removeEventListener(){}},
+    visibilityTarget:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
+    clockTarget:{setInterval(){return 1;},clearInterval(){}},
+  });
+
+  controller.mount();
+  const started=await controller.start();
+
+  assert.equal(started,false);
+  assert.equal(execution.status,'ready');
+  assert.equal(execution.syncStatus,'clean');
+  assert.equal(execution.lastSyncError,null);
+  assert.equal(telemetryStarts,0);
+  assert.equal(persists,0);
+  assert.ok(renders>=1);
+  assert.equal(errors.length,1);
+  assert.equal(actionState.status,'error');
+  assert.match(actionState.message,/servicio de entrenamiento no está activo/u);
+  assert.match(actionState.message,/sesión no se inició/u);
+  controller.destroy();
 });
 
 test('offline rejection reconciliation keeps local progress and exposes service-aware recovery',()=>{
