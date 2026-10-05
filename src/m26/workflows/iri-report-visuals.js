@@ -37,7 +37,7 @@ export function renderMobilityMap(mobility={}){
   const posteriorDiff=finite(posterior.leftBest)&&finite(posterior.rightBest)?Math.abs(Number(posterior.leftBest)-Number(posterior.rightBest)):null;
   const ankleNote=ankleDiff===null?'Sin comparación bilateral':ankleDiff===0?'Equilibrio idéntico entre lados':ankleDiff<=1?'Diferencia muy pequeña entre lados':`Diferencia de ${fmt(ankleDiff,1)} cm entre lados`;
   const posteriorNote=posteriorDiff===null?'Sin comparación bilateral':posteriorDiff===0?'Equilibrio idéntico entre lados':posteriorDiff<=1?`Diferencia pequeña: ${fmt(posteriorDiff,1)} cm`:`Diferencia de ${fmt(posteriorDiff,1)} cm entre lados`;
-  return `<figure class="iri-mobility-comparison"><figcaption>Comparación bilateral</figcaption><div>${bilateralRow('Tobillo · rodilla a pared',ankle.leftBest,ankle.rightBest,ankleNote)}${bilateralRow('Cadena posterior',posterior.leftBest,posterior.rightBest,posteriorNote)}</div><p>La comparación muestra diferencias entre lados sin convertirlas automáticamente en un problema.</p></figure>`;
+  return `<figure class="iri-mobility-comparison" role="img" aria-label="Mapa funcional de movilidad: comparación bilateral entre lado izquierdo y derecho"><figcaption>Mapa funcional · comparación bilateral</figcaption><div>${bilateralRow('Tobillo · rodilla a pared',ankle.leftBest,ankle.rightBest,ankleNote)}${bilateralRow('Cadena posterior',posterior.leftBest,posterior.rightBest,posteriorNote)}</div><p>La comparación muestra diferencias entre lados sin convertirlas automáticamente en un problema.</p></figure>`;
 }
 function strengthVariantLabel(value){
   const raw=String(value??'').trim().toLowerCase();
