@@ -143,6 +143,87 @@
   color: color-mix(in srgb, var(--iberfit-color-text-secondary) 64%, transparent);
 }
 
+/* Global authenticated form paint.
+ * Browser autofill/password managers must never replace IBERFIT's dark field
+ * surface with a light background or hide text/caret after native autofill.
+ * Auth keeps its stricter dedicated rules in auth-native.css.
+ */
+.m26-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+) {
+  color-scheme: dark;
+}
+
+.m26-shell :is(
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="month"]
+) {
+  color-scheme: dark;
+}
+
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill,
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:hover,
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active,
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):autofill {
+  color: var(--iberfit-color-text-primary) !important;
+  -webkit-text-fill-color: var(--iberfit-color-text-primary) !important;
+  caret-color: var(--iberfit-color-accent-strong) !important;
+  border-color: var(--iberfit-color-border) !important;
+  background-color: var(--iberfit-color-surface-base) !important;
+  -webkit-box-shadow:
+    inset 0 0 0 1000px var(--iberfit-color-surface-base) !important;
+  box-shadow:
+    inset 0 0 0 1000px var(--iberfit-color-surface-base) !important;
+  transition: background-color 9999s ease-out 0s !important;
+}
+
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:focus,
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:focus-visible,
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):autofill:focus,
+.m26-shell input:not([type="checkbox"]):not([type="radio"]):autofill:focus-visible {
+  color: var(--iberfit-color-text-primary) !important;
+  -webkit-text-fill-color: var(--iberfit-color-text-primary) !important;
+  caret-color: var(--iberfit-color-accent-strong) !important;
+  border-color: var(--iberfit-color-focus) !important;
+  background-color: var(--iberfit-color-surface-base) !important;
+  -webkit-box-shadow:
+    inset 0 0 0 1000px var(--iberfit-color-surface-base),
+    0 0 0 3px color-mix(in srgb, var(--iberfit-color-focus) 16%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1000px var(--iberfit-color-surface-base),
+    0 0 0 3px color-mix(in srgb, var(--iberfit-color-focus) 16%, transparent) !important;
+}
+
+/* Native option/popover controls keep an explicit dark palette where the
+ * browser honors it, while preserving the platform picker itself. */
+.m26-shell select,
+.m26-shell select option {
+  color: var(--iberfit-color-text-primary);
+  background-color: var(--iberfit-color-surface-base);
+}
+
+/* Long authenticated forms and internal scroll surfaces keep focused controls
+ * clear of fixed navigation and virtual-keyboard edges. */
+.m26-shell :is(input,select,textarea,[contenteditable="true"]) {
+  scroll-margin-block-start: 6rem;
+  scroll-margin-block-end: calc(7rem + env(safe-area-inset-bottom));
+}
+
+.m26-shell :is(
+  [role="dialog"],
+  .m26-coach-command-dialog,
+  .m26-mobile-more-menu,
+  .m26-library-details-panel
+) {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
 .iberfit-input:focus-visible,
 .iberfit-select:focus-visible,
 .iberfit-textarea:focus-visible,
