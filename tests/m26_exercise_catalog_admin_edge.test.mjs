@@ -83,3 +83,15 @@ test('dependencias Edge están pinneadas',()=>{
     /@google\/genai@2\.21\.0/,
   );
 });
+
+
+test('catalog Admin liga CORS al proyecto desplegado y falla cerrado fuera de QA/PROD',()=>{
+  assert.match(source,/const FUNCTION_VERSION='catalog-admin-v1\.1'/u);
+  assert.match(source,/const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
+  assert.match(source,/const PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
+  assert.match(source,/DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF[\s\S]*\?\['https:\/\/m26-canary\.iberfit\.cl'\]/u);
+  assert.match(source,/DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF[\s\S]*\?\['https:\/\/app\.iberfit\.cl','https:\/\/coach\.iberfit\.cl'\]/u);
+  assert.match(source,/IBERFIT_CATALOG_ORIGIN_FORBIDDEN/u);
+  assert.doesNotMatch(source,/hostname\.endsWith\('\.iberfit-cl\.workers\.dev'\)/u);
+  assert.doesNotMatch(source,/if\(!v\)return '\*'/u);
+});
