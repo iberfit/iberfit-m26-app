@@ -39,7 +39,7 @@ test('responsible Coach assignment is optional, replay-safe and preserves least 
 test('Coach assignment stays independent from the training service and IRI relationship',()=>{
   assert.match(personServiceMigration,/entryIntent',v_entry/u);
   assert.match(personServiceMigration,/trainingServiceStatus'/u);
-  assert.match(personServiceMigration,/if v_entry='training' then/u);
+  assert.match(personServiceMigration,/if v_entry='training' and v_current_service is distinct from 'active' then/u);
   assert.doesNotMatch(personServiceMigration,/service_kind[^\n]*iri_only/u);
   assert.match(render,/No activa por sí sola un servicio de entrenamiento/u);
 });
