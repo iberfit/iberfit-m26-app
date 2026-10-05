@@ -53,14 +53,18 @@ function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
 }
 
 export function manualSessionSyncOutcome(execution,result={},error=null,{role=''}={}){
-  const specific=sessionCommandFailureOutcome(error,{role,phase:'sync'})||sessionRejectedSyncOutcome(execution,{role});
-  if(specific&&(error||String(execution?.syncStatus||'').toLowerCase()==='rejected'))return specific;
+  const errorSpecific=sessionCommandFailureOutcome(error,{role,phase:'sync'});
+  if(errorSpecific)return errorSpecific;
   if(error)return Object.freeze({status:'retry',message:'No fue posible sincronizar ahora. Tu progreso sigue guardado en este dispositivo.'});
   if(result?.online===false)return Object.freeze({status:'retry',message:'Sin conexión. Tu progreso sigue guardado en este dispositivo; vuelve a sincronizar cuando recuperes internet.'});
   const status=String(execution?.syncStatus||'clean').toLowerCase();
   if(status==='clean')return Object.freeze({status:'success',message:'Sincronización completada. Los cambios pendientes quedaron confirmados.'});
   if(status==='conflict')return Object.freeze({status:'retry',message:'La sincronización detectó una versión más reciente. Tu progreso local está protegido y requiere revisión.'});
-  if(status==='rejected')return Object.freeze({status:'error',message:'El último cambio no pudo confirmarse. Tu progreso local se conserva para revisión.'});
+  if(status==='rejected'){
+    const specific=sessionRejectedSyncOutcome(execution,{role});
+    if(specific)return specific;
+    return Object.freeze({status:'error',message:'El último cambio no pudo confirmarse. Tu progreso local se conserva para revisión.'});
+  }
   const deferred=Math.max(0,Number(result?.deferred)||0);
   const remaining=Math.max(0,Number(result?.remaining)||0);
   if(deferred>0)return Object.freeze({status:'retry',message:'Aún hay cambios pendientes de su próximo reintento. Tu progreso sigue guardado de forma segura.'});
