@@ -12,6 +12,7 @@ const COMMANDS=Object.freeze({
   ADMIN_CLIENTE_REENVIAR_INVITACION:{entityType:'client',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:false},
   ADMIN_CLIENTE_ACTUALIZAR_FICHA:{entityType:'client',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:false},
   ADMIN_CLIENTE_CAMBIAR_CICLO:{entityType:'client_lifecycle',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
+  ADMIN_CLIENTE_CAMBIAR_SERVICIO:{entityType:'training_service',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
   ADMIN_CLIENTE_ELIMINAR:{entityType:'client',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
   ADMIN_TAREA_CREAR:{entityType:'operational_task',capability:ADMIN_CAPABILITIES.OPERATION_MANAGE,reason:false},
   ADMIN_TAREA_RESOLVER:{entityType:'operational_task',capability:ADMIN_CAPABILITIES.OPERATION_MANAGE,reason:true},
