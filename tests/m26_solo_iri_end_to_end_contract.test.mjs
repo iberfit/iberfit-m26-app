@@ -11,6 +11,7 @@ import {
 import {renderSessionsRoute} from '../src/m26/modules/route-render.js';
 
 const migration=fs.readFileSync('supabase/migrations/20261005090000_person_iri_training_service_architecture_v1.sql','utf8');
+const indexHardening=fs.readFileSync('supabase/migrations/20261005091000_person_iri_training_service_fk_indexes_v1.sql','utf8');
 const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/index.ts','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/modules/route-view-model.js','utf8');
@@ -82,6 +83,17 @@ test('la pausa conserva historial y planificación pero bloquea ejecutar una ses
   assert.match(activeHtml,/data-workflow-action="start-published-session"/u);
   assert.match(workflowController,/requireActiveTrainingService\(clientId\)/u);
   assert.match(workflowController,/M26_TRAINING_SERVICE_NOT_ACTIVE/u);
+});
+
+test('las nuevas FKs de Persona/IRI/Servicio quedan cubiertas por índices aditivos',()=>{
+  for(const pattern of [
+    /iberfit_training_service_events_v1_person_idx[\s\S]*?\(person_id\)/u,
+    /iberfit_training_service_events_v1_changed_by_idx[\s\S]*?\(changed_by\)/u,
+    /iri_reevaluations_v1_initial_person_idx[\s\S]*?\(initial_assessment_id,person_id\)/u,
+    /iri_reevaluations_v1_organization_idx[\s\S]*?\(organization_id\)/u,
+    /iri_reevaluations_v1_created_by_idx[\s\S]*?\(created_by\)/u,
+  ])assert.match(indexHardening,pattern);
+  assert.doesNotMatch(indexHardening,/\bdrop\b|\bdelete\b|\bupdate\b/iu);
 });
 
 test('diagnóstico inicial y reevaluaciones quedan físicamente separados',()=>{
