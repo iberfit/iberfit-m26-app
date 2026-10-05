@@ -4,9 +4,11 @@ import fs from 'node:fs';
 
 import {
   hasTrainingService,
+  trainingServiceActive,
   trainingServiceKindFrom,
   trainingServiceStatusFrom,
 } from '../src/m26/domain/training-service.js';
+import {renderSessionsRoute} from '../src/m26/modules/route-render.js';
 
 const migration=fs.readFileSync('supabase/migrations/20261005090000_person_iri_training_service_architecture_v1.sql','utf8');
 const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/index.ts','utf8');
@@ -16,6 +18,7 @@ const experience=fs.readFileSync('src/m26/experience/client-experience.js','utf8
 const render=fs.readFileSync('src/m26/modules/route-render.js','utf8');
 const adminRender=fs.readFileSync('src/m26/admin/route-render.js','utf8');
 const routeGuard=fs.readFileSync('src/m26/shell/route-guard.js','utf8');
+const workflowController=fs.readFileSync('src/m26/app/workflow-controller.js','utf8');
 
 test('persona, IRI y servicio de entrenamiento son dimensiones independientes',()=>{
   assert.match(migration,/create table if not exists public\.iberfit_training_service_events_v1/u);
@@ -37,8 +40,48 @@ test('compatibilidad histórica nunca gana sobre el estado explícito de servici
   assert.equal(trainingServiceStatusFrom({lifecycleStatus:'onboarding'}),'active');
   assert.equal(hasTrainingService({trainingServiceStatus:'paused'}),true);
   assert.equal(hasTrainingService({trainingServiceStatus:'ended'}),false);
+  assert.equal(trainingServiceActive({trainingServiceStatus:'paused'}),false);
+  assert.equal(trainingServiceActive({trainingServiceStatus:'active'}),true);
   assert.equal(trainingServiceKindFrom({trainingServiceStatus:'none'}),'none');
   assert.equal(trainingServiceKindFrom({trainingServiceStatus:'active'}),'training');
+});
+
+test('la pausa conserva historial y planificación pero bloquea ejecutar una sesión',()=>{
+  const pausedHtml=renderSessionsRoute({
+    role:'client',
+    serviceKind:'training',
+    serviceActive:false,
+    canBuild:false,
+    sessions:[{
+      id:'SESSION-PAUSED',
+      title:'Sesión preparada',
+      clientContent:{title:'Sesión preparada',summary:'Contenido confirmado'},
+    }],
+    sessionCounts:{published:1},
+    executions:[],
+    nextSessionPreparation:null,
+  });
+  assert.match(pausedHtml,/Entrenamiento en pausa/u);
+  assert.match(pausedHtml,/consultar planificación, historial y contexto/u);
+  assert.doesNotMatch(pausedHtml,/data-workflow-action="start-published-session"/u);
+
+  const activeHtml=renderSessionsRoute({
+    role:'client',
+    serviceKind:'training',
+    serviceActive:true,
+    canBuild:false,
+    sessions:[{
+      id:'SESSION-ACTIVE',
+      title:'Sesión preparada',
+      clientContent:{title:'Sesión preparada',summary:'Contenido confirmado'},
+    }],
+    sessionCounts:{published:1},
+    executions:[],
+    nextSessionPreparation:null,
+  });
+  assert.match(activeHtml,/data-workflow-action="start-published-session"/u);
+  assert.match(workflowController,/requireActiveTrainingService\(clientId\)/u);
+  assert.match(workflowController,/M26_TRAINING_SERVICE_NOT_ACTIVE/u);
 });
 
 test('diagnóstico inicial y reevaluaciones quedan físicamente separados',()=>{
