@@ -141,9 +141,12 @@ function updateServiceIntent(form){
   }
 
   for(const field of form?.querySelectorAll?.('[data-client-iri-required]')||[]){
-    field.required=iriEntry;
-    if(iriEntry)field.setAttribute?.('required','');else field.removeAttribute?.('required');
-    field.setAttribute?.('aria-required',iriEntry?'true':'false');
+    // Recommended during person intake, but never a navigation blocker.
+    // The IRI workflow itself remains responsible for requiring normative context
+    // before a diagnosis can be confirmed.
+    field.required=false;
+    field.removeAttribute?.('required');
+    field.setAttribute?.('aria-required','false');
   }
   for(const copy of form?.querySelectorAll?.('[data-client-iri-required-copy]')||[])copy.hidden=!iriEntry;
 
