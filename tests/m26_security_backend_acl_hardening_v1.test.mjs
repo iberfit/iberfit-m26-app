@@ -46,10 +46,22 @@ test('current invitation transport depends only on canonical Admin invitation RP
   ])assert.equal(inviteEdge.includes(legacy),false,legacy);
 });
 
-test('ACL hardening is non-destructive and never revokes the canonical Admin RPCs',()=>{
-  assert.doesNotMatch(migration,/\bdrop\b|\bdelete\b|\btruncate\b|\bupdate\b|\binsert\b/iu);
-  assert.doesNotMatch(
+test('ACL hardening uses a named owner-only reconciliation routine instead of an anonymous block',()=>{
+  assert.match(migration,/create or replace function private\.iberfit_reconcile_security_backend_acl_v1\(\)/iu);
+  assert.doesNotMatch(migration,/\bdo\s+(?:language\s+\w+\s+)?(?:\$\w*\$)/iu);
+  assert.doesNotMatch(migration,/security\s+definer/iu);
+  assert.match(
     migration,
+    /revoke all on function private\.iberfit_reconcile_security_backend_acl_v1\(\)[\s\S]*from public, anon, authenticated;/iu,
+  );
+  assert.match(migration,/select private\.iberfit_reconcile_security_backend_acl_v1\(\);/iu);
+});
+
+test('ACL hardening is non-destructive and never revokes the canonical Admin RPCs',()=>{
+  const sql=migration.replace(/--[^\r\n]*/gu,' ');
+  assert.doesNotMatch(sql,/\bdrop\b|\bdelete\b|\btruncate\b|\bupdate\b|\binsert\b/iu);
+  assert.doesNotMatch(
+    sql,
     /revoke[\s\S]*iberfit_admin_client_invitation_(?:prepare|bind|finalize)_v26/iu,
   );
 });
