@@ -39,8 +39,8 @@ export function exerciseMemoryDraftSuggestion(memory){
   if(!sets&&!reps&&!plannedLoad)return null;
   return Object.freeze({sets,reps,plannedLoad});
 }
-export function applyExerciseMemorySuggestion(draft,{blockId,exerciseId=null,memory}={}){
-  const suggestion=exerciseMemoryDraftSuggestion(memory);
+export function applyExerciseMemorySuggestion(draft,{blockId,exerciseId=null,memory,suggestion:providedSuggestion=null}={}){
+  const suggestion=providedSuggestion||exerciseMemoryDraftSuggestion(memory);
   if(!suggestion)throw new Error('M26_SESSION_MEMORY_REFERENCE_UNAVAILABLE');
   const block=draft?.blocks?.find((item)=>item.id===blockId);
   if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');
