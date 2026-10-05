@@ -45,6 +45,7 @@ const evidence={
   total:null,
   canonical:null,
   external:null,
+  version:null,
   globalNameGovernance:null,
   geminiConfigured:null,
   passed:false,
@@ -83,12 +84,14 @@ try{
   assert(Number.isInteger(payload?.external)&&payload.external>=0,'ADMIN_CATALOG_EXTERNAL_INVALID',payload?.external);
   assert(payload.canonical+payload.external===payload.total,'ADMIN_CATALOG_COUNTS_INCONSISTENT');
   assert(Array.isArray(payload?.patterns)&&Array.isArray(payload?.equipment)&&Array.isArray(payload?.intents)&&Array.isArray(payload?.difficulties),'ADMIN_CATALOG_FACETS_INVALID');
+  assert(payload?.version==='catalog-admin-v1.2','ADMIN_CATALOG_VERSION_MISMATCH',payload?.version);
   assert(payload?.globalNameGovernance===true,'ADMIN_CATALOG_NAME_GOVERNANCE_INVALID');
   assert(typeof payload?.geminiConfigured==='boolean','ADMIN_CATALOG_GEMINI_STATE_INVALID');
 
   evidence.total=payload.total;
   evidence.canonical=payload.canonical;
   evidence.external=payload.external;
+  evidence.version=payload.version;
   evidence.globalNameGovernance=payload.globalNameGovernance;
   evidence.geminiConfigured=payload.geminiConfigured;
 
@@ -113,4 +116,4 @@ try{
   await writeFile(OUT,JSON.stringify(evidence,null,2)+'\n','utf8');
 }
 
-console.log(`IBERFIT_ADMIN_CATALOG_LIVE_CERT=${JSON.stringify({passed:evidence.passed,status:evidence.allowedOriginStatus,forbiddenOriginStatus:evidence.forbiddenOriginStatus,total:evidence.total,canonical:evidence.canonical,external:evidence.external,geminiConfigured:evidence.geminiConfigured})}`);
+console.log(`IBERFIT_ADMIN_CATALOG_LIVE_CERT=${JSON.stringify({passed:evidence.passed,status:evidence.allowedOriginStatus,forbiddenOriginStatus:evidence.forbiddenOriginStatus,version:evidence.version,total:evidence.total,canonical:evidence.canonical,external:evidence.external,geminiConfigured:evidence.geminiConfigured})}`);
