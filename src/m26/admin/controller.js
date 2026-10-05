@@ -1,4 +1,5 @@
 import {createClientCreateWizard} from './client-create-wizard.js';
+import {focusFirstNeededControl} from '../ui/guided-input.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(data,key,max=4000)=>String(data.get(key)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 const rev=(data)=>{const n=Number(data.get('baseRevision')||0);return Number.isInteger(n)&&n>=0?n:0;};
@@ -110,7 +111,7 @@ function openClientEditDialog(root,clientId){
   if(typeof ready.dialog.showModal==='function'){
     if(!ready.dialog.open)ready.dialog.showModal();
   }else ready.dialog.setAttribute?.('open','');
-  queueMicrotask(()=>ready.form.elements?.namedItem?.('name')?.focus?.({preventScroll:true}));
+  queueMicrotask(()=>{if(!focusFirstNeededControl(ready.form,{requiredOnly:true}))ready.form.elements?.namedItem?.('name')?.focus?.({preventScroll:true});});
   return true;
 }
 function closeClientEditDialog(root){
@@ -286,7 +287,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           modality:text(data,'modality',40),
           weeklyFrequency:Number(weeklyFrequency)||null,
           sessionDurationMinutes:Number(text(data,'sessionDurationMinutes',20))||null,
-          initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
+          initialAssessmentMode:text(data,'initialAssessmentMode',30),
           zone:text(data,'zone',120),
           address:text(data,'address',300),
           preferredSchedule:text(data,'preferredSchedule',240),
