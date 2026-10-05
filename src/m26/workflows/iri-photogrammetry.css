@@ -25,8 +25,8 @@
 .m26-photo-point{pointer-events:auto;touch-action:none;cursor:grab;outline:none}
 .m26-photo-point:active{cursor:grabbing}
 .m26-photo-point-hit{fill:transparent;stroke:none;pointer-events:all}
-.m26-photo-point-core{fill:var(--m26-gold,#c5a059);stroke:var(--m26-paper,#fffdf8);stroke-width:5;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 3px rgba(11,19,16,.8))}
-.m26-photo-point:focus-visible .m26-photo-point-core{stroke:var(--m26-gold-light,#d7ba7c);stroke-width:9}
+.m26-photo-point-core{fill:var(--m26-gold,#c5a059);stroke:var(--m26-paper,#fffdf8);stroke-width:2.4;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 2px rgba(11,19,16,.82))}
+.m26-photo-point:focus-visible .m26-photo-point-core{stroke:var(--m26-gold-light,#d7ba7c);stroke-width:4.5}
 .m26-photo-view-actions{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:.75rem}
 .m26-photo-file{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:.6rem .9rem;border-radius:.75rem;border:1px solid var(--m26-gold,#c5a059);cursor:pointer}
 .m26-photo-file input{position:absolute;inline-size:1px;block-size:1px;opacity:0;overflow:hidden}

@@ -44,10 +44,10 @@ export function buildIriPhotogrammetryDecisionSupport({measurements={},quality={
       id:'shoulder-tilt-reproduced',
       domain:'postural_geometry',
       support:'repeated_visual',
-      title:'Inclinación de hombros reproducida',
+      title:'Hombros: patrón que se repite',
       evidence:Object.freeze([`Frontal ${front}°`,`Posterior ${back}°`]),
-      meaning:'La misma dirección aparece en dos vistas independientes de la captura.',
-      action:'Revisar control escapular y comportamiento durante patrones de empuje, tracción y carga antes de decidir una corrección.',
+      meaning:'La misma dirección aparece tanto de frente como de espaldas, así que merece que la tengamos en cuenta.',
+      action:'La observaremos también durante empujes, tracciones y ejercicios con carga antes de decidir si necesita alguna adaptación.',
     });
   }
 
@@ -59,12 +59,12 @@ export function buildIriPhotogrammetryDecisionSupport({measurements={},quality={
       id:'pelvis-tilt-reproduced',
       domain:'lumbopelvic_control',
       support:movementSupport?'multi_source':'repeated_visual',
-      title:'Inclinación pélvica reproducida',
+      title:'Pelvis: patrón que se repite',
       evidence:Object.freeze(evidence),
       meaning:movementSupport
         ?'El hallazgo visual coincide con información obtenida en una tarea de movimiento, lo que aumenta su utilidad para explorar el patrón.'
         :'El hallazgo se repite en frontal y posterior, pero todavía es evidencia estática.',
-      action:'Explorar control lumbopélvico y simetría durante tareas funcionales; no restringir ejercicios sólo por la fotografía.',
+      action:'La revisaremos durante sentadillas, zancadas y otras tareas funcionales. La fotografía por sí sola no justifica limitar ejercicios.',
     });
   }
 
@@ -74,34 +74,38 @@ export function buildIriPhotogrammetryDecisionSupport({measurements={},quality={
       id:'ankle-asymmetry-context',
       domain:'mobility',
       support:'functional_measurement',
-      title:'Diferencia bilateral de tobillo registrada',
+      title:'Diferencia entre ambos tobillos',
       evidence:Object.freeze([`${ankleDifference.toFixed(1)} cm de diferencia en rodilla a pared`]),
-      meaning:'Existe una diferencia funcional cuantificada que puede ayudar a contextualizar compensaciones observadas.',
-      action:'Repetir con el mismo protocolo y comprobar su efecto real en sentadilla, zancadas y tareas unilaterales.',
+      meaning:'Hay una diferencia medida entre ambos lados que puede ayudarnos a entender mejor cómo se mueve la persona.',
+      action:'La volveremos a medir con el mismo protocolo y comprobaremos si realmente influye en sentadillas, zancadas o ejercicios a una pierna.',
     });
   }
 
-  const lateralHead=finite(measurements?.summaries?.lateralHeadAsymmetryPercent);
-  const lateralTrunk=finite(measurements?.summaries?.lateralTrunkAsymmetryPercent);
-  if((lateralHead!==null&&lateralHead>0)||(lateralTrunk!==null&&lateralTrunk>0)){
+  const lateralHeadLeft=finite(byId['left.headOffset']?.value);
+  const lateralHeadRight=finite(byId['right.headOffset']?.value);
+  const lateralTrunkLeft=finite(byId['left.trunkInclination']?.value);
+  const lateralTrunkRight=finite(byId['right.trunkInclination']?.value);
+  const lateralHeadDifference=lateralHeadLeft!==null&&lateralHeadRight!==null?Number(Math.abs(lateralHeadLeft-lateralHeadRight).toFixed(1)):null;
+  const lateralTrunkDifference=lateralTrunkLeft!==null&&lateralTrunkRight!==null?Number(Math.abs(lateralTrunkLeft-lateralTrunkRight).toFixed(1)):null;
+  if((lateralHeadDifference!==null&&lateralHeadDifference>0)||(lateralTrunkDifference!==null&&lateralTrunkDifference>0)){
     const evidence=[];
-    if(lateralHead!==null)evidence.push(`Diferencia relativa cabeza-hombro ${lateralHead.toFixed(1)}%`);
-    if(lateralTrunk!==null)evidence.push(`Diferencia relativa de tronco ${lateralTrunk.toFixed(1)}%`);
+    if(lateralHeadDifference!==null)evidence.push(`Cabeza-hombro: ${lateralHeadDifference.toFixed(1)}° de diferencia`);
+    if(lateralTrunkDifference!==null)evidence.push(`Tronco: ${lateralTrunkDifference.toFixed(1)}° de diferencia`);
     add({
       id:'lateral-view-difference',
       domain:'sagittal_geometry',
       support:'bilateral_visual',
-      title:'Diferencias entre vistas laterales',
+      title:'Diferencias entre ambos lados',
       evidence:Object.freeze(evidence),
-      meaning:'Las vistas laterales no son idénticas; la magnitud se conserva como dato descriptivo, no como umbral de patología.',
-      action:'Repetir la captura con pies y cámara estandarizados antes de atribuir importancia a cambios pequeños.',
+      meaning:'Las dos vistas laterales no son idénticas. Lo guardamos como referencia de partida, sin asumir que por sí solo sea un problema.',
+      action:'En futuras evaluaciones repetiremos la captura de la misma forma para comprobar si estas diferencias se mantienen o simplemente varían con la postura del momento.',
     });
   }
 
   const trainingConsiderations=[
-    'Priorizar decisiones que estén apoyadas también por movimiento, fuerza, síntomas o repetibilidad; la foto aislada no manda el plan.',
-    'Repetir futuras capturas con la misma distancia, altura de cámara, posición de pies y referencia de calibración.',
-    'Usar las medidas como línea de base individual para seguimiento, no como puntuación estética ni estándar universal de postura.',
+    'Tomar decisiones con el conjunto de la evaluación: movimiento, fuerza, síntomas y evolución pesan más que una foto aislada.',
+    'En próximas evaluaciones repetiremos las fotos con la misma distancia, altura de cámara y posición de los pies para poder comparar de verdad.',
+    'Usar estas medidas como punto de partida personal para seguir la evolución, no como una nota estética ni como un modelo universal de postura.',
   ];
 
   return Object.freeze({
@@ -111,9 +115,9 @@ export function buildIriPhotogrammetryDecisionSupport({measurements={},quality={
     findings:Object.freeze(findings),
     trainingConsiderations:Object.freeze(trainingConsiderations),
     limitations:Object.freeze([
-      'Motor de apoyo a decisiones de entrenamiento; no emite diagnóstico médico.',
-      'No infiere causalidad entre una asimetría estática y dolor, lesión o rendimiento.',
-      'La relevancia aumenta cuando distintas fuentes de evidencia apuntan al mismo patrón y el Coach lo valida.',
+      'Estas medidas ayudan a orientar el entrenamiento; este motor no emite diagnóstico médico.',
+      'Una diferencia observada en una foto no demuestra por sí sola la causa de dolor, lesión o rendimiento.',
+      'Una observación gana importancia cuando también aparece en el movimiento, la fuerza, los síntomas o evaluaciones repetidas y el Coach la confirma.',
     ]),
     medicalDiagnosis:null,
   });
