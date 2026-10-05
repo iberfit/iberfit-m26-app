@@ -969,27 +969,27 @@ function clientOnboardingForm() {
         <label>Nombre completo<input name="name" autocomplete="name" maxlength="160" required></label>
         <label>Correo electrónico<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
         <label>Teléfono<input name="phone" autocomplete="tel" maxlength="40" required></label>
-        <label>Fecha de nacimiento<input name="birthDate" type="date" required></label>
+        <label>Fecha de nacimiento<input name="birthDate" type="date" autocomplete="bday" required></label>
         <label>Sexo utilizado para baremos<select name="sexForNorms" required><option value="">Seleccionar</option><option value="female">Mujer</option><option value="male">Hombre</option></select></label>
         <label>Identidad de género <small>Opcional</small><input name="genderIdentity" maxlength="120"></label>
         <label>Pronombres <small>Opcional</small><input name="pronouns" maxlength="80"></label>
-        <label>Canal preferido<select name="preferredContactChannel"><option value="WhatsApp">WhatsApp</option><option value="Correo electrónico">Correo electrónico</option><option value="Teléfono">Teléfono</option></select></label>
+        <label>Canal preferido <small>Opcional</small><select name="preferredContactChannel"><option value="">Sin preferencia registrada</option><option value="WhatsApp">WhatsApp</option><option value="Correo electrónico">Correo electrónico</option><option value="Teléfono">Teléfono</option></select></label>
       </div></section>
       <section class="m26-form-section"><div class="m26-form-section-title"><span>2</span><div><h3>Servicio y logística</h3><p>Contexto real para organizar la primera sesión y las sesiones posteriores.</p></div></div><div class="m26-field-grid">
-        <label>Modalidad<select name="modality" required><option value="presencial">Presencial</option><option value="hibrido">Híbrido</option><option value="online">Online</option></select></label>
-        <label>Frecuencia semanal<input name="weeklyFrequency" type="number" min="1" max="14" value="2" required></label>
-        <label>Duración habitual<input name="sessionDurationMinutes" type="number" min="20" max="240" value="60" required></label>
-        <label>Comuna o sector<input name="commune" maxlength="120"></label>
-        <label class="m26-wide">Dirección habitual de entrenamiento<input name="trainingAddress" autocomplete="street-address" maxlength="300"></label>
-        <label>Tipo de lugar<select name="locationType"><option value="Domicilio">Domicilio</option><option value="Gimnasio de edificio">Gimnasio de edificio</option><option value="Gimnasio">Gimnasio</option><option value="Exterior">Exterior</option><option value="Online">Online</option></select></label>
+        <label>Modalidad<select name="modality" required><option value="">Seleccionar modalidad</option><option value="presencial">Presencial</option><option value="hibrido">Híbrido</option><option value="online">Online</option></select></label>
+        <label>Frecuencia semanal<input name="weeklyFrequency" type="number" inputmode="numeric" min="1" max="14" placeholder="Ej. 2" required></label>
+        <label>Duración habitual<input name="sessionDurationMinutes" type="number" inputmode="numeric" min="20" max="240" placeholder="Ej. 60 min" required></label>
+        <label data-onboarding-location-only>Comuna o sector<input name="commune" autocomplete="address-level2" maxlength="120"></label>
+        <label class="m26-wide" data-onboarding-location-only>Dirección habitual de entrenamiento<input name="trainingAddress" autocomplete="street-address" maxlength="300"></label>
+        <label data-onboarding-location-only>Tipo de lugar<select name="locationType"><option value="">Seleccionar tipo de lugar</option><option value="Domicilio">Domicilio</option><option value="Gimnasio de edificio">Gimnasio de edificio</option><option value="Gimnasio">Gimnasio</option><option value="Exterior">Exterior</option></select></label>
         <label>Horario preferido<input name="preferredSchedule" maxlength="240" placeholder="Ej. lunes y jueves por la tarde"></label>
-        <label class="m26-wide">Instrucciones de acceso<textarea name="accessInstructions" maxlength="500"></textarea></label>
+        <label class="m26-wide" data-onboarding-location-only>Instrucciones de acceso<textarea name="accessInstructions" autocomplete="off" maxlength="500"></textarea></label>
       </div></section>
       <section class="m26-form-section"><div class="m26-form-section-title"><span>3</span><div><h3>Objetivos y contexto inicial</h3><p>Información que orientará la evaluación IRI y el plan inicial.</p></div></div><div class="m26-field-grid">
         <label class="m26-wide">Objetivo principal<textarea name="primaryObjective" minlength="10" maxlength="500" required></textarea></label>
         <label class="m26-wide">Objetivos secundarios<textarea name="secondaryObjectives" maxlength="800" placeholder="Separados por comas"></textarea></label>
-        <label>Experiencia<select name="experienceLevel"><option value="Inicial">Inicial</option><option value="Intermedia">Intermedia</option><option value="Avanzada">Avanzada</option></select></label>
-        <label>Fase actual<input name="phase" value="Evaluación inicial" maxlength="100"></label>
+        <label>Experiencia <small>Opcional</small><select name="experienceLevel"><option value="">Sin nivel registrado</option><option value="Inicial">Inicial</option><option value="Intermedia">Intermedia</option><option value="Avanzada">Avanzada</option></select></label>
+        <label>Fase actual<input name="phase" value="Evaluación inicial" maxlength="100" readonly aria-readonly="true"><small>IBERFIT la ajusta según cómo empiece el expediente.</small></label>
         <label class="m26-wide">Historial de entrenamiento<textarea name="trainingHistory" maxlength="1500"></textarea></label>
         <label class="m26-wide">Entrenamiento actual<textarea name="currentTraining" maxlength="1000"></textarea></label>
         <label class="m26-wide">Material disponible<textarea name="equipment" maxlength="1200" placeholder="TRX, mancuernas, banco, bandas…"></textarea></label>
@@ -998,7 +998,7 @@ function clientOnboardingForm() {
         <label class="m26-wide">Preferencias<textarea name="preferences" maxlength="1200"></textarea></label>
       </div></section>
       <section class="m26-form-section"><div class="m26-form-section-title"><span>4</span><div><h3>Contacto de emergencia</h3><p>Opcional en el alta; recomendable antes de iniciar la evaluación física.</p></div></div><div class="m26-field-grid">
-        <label>Nombre<input name="emergencyContactName" maxlength="160"></label><label>Relación<input name="emergencyContactRelation" maxlength="120"></label><label>Teléfono<input name="emergencyContactPhone" maxlength="40"></label>
+        <label>Nombre<input name="emergencyContactName" autocomplete="section-emergency name" maxlength="160"></label><label>Relación<input name="emergencyContactRelation" maxlength="120"></label><label>Teléfono<input name="emergencyContactPhone" type="tel" autocomplete="section-emergency tel" maxlength="40"></label>
       </div></section>
       <div class="m26-sticky-actions"><p><strong>Alta protegida.</strong> Se crea el expediente, se verifica que quede visible y se prepara el acceso asociado al correo. Después continuarás al diagnóstico IRI.</p><button type="submit" class="m26-primary-action" data-workflow-action="create-client-draft">Crear expediente y abrir diagnóstico IRI</button></div>${workflowStatus('client-onboarding')}
     </form>
