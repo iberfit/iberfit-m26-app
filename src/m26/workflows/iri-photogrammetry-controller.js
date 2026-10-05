@@ -112,7 +112,7 @@ function pointMarkup(view,key,point){
   const label=LANDMARK_LABELS[key]||key;
   const x=Math.max(0,Math.min(1,Number(point.x)||0))*1000;
   const y=Math.max(0,Math.min(1,Number(point.y)||0))*1000;
-  return `<g class="m26-photo-point" data-iri-photo-point="${escapeHtml(view)}:${escapeHtml(key)}" data-x="${Number(point.x)}" data-y="${Number(point.y)}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${escapeHtml(label)}. Mueve con flechas o arrastra."><circle class="m26-photo-point-hit" r="60"></circle><circle class="m26-photo-point-core" r="16"></circle></g>`;
+  return `<g class="m26-photo-point" data-iri-photo-point="${escapeHtml(view)}:${escapeHtml(key)}" data-x="${Number(point.x)}" data-y="${Number(point.y)}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${escapeHtml(label)}. Mueve con flechas o arrastra."><circle class="m26-photo-point-hit" r="54"></circle><circle class="m26-photo-point-core" r="8"></circle></g>`;
 }
 function markerButtons(view,landmarks={}){
   return IRI_PHOTO_LANDMARKS[view].map((key)=>{
@@ -172,8 +172,8 @@ function overlayMarkup(view,landmarks,measurements,calibrationByView={}){
 function decisionRows(support={}){
   if(!support?.available)return '<p class="m26-photo-notice">La lectura integrada se habilita al validar las cuatro vistas.</p>';
   const findings=Array.isArray(support.findings)?support.findings:[];
-  if(!findings.length)return '<p class="m26-photo-notice">Sin patrones reproducidos que requieran elevarse a decisión de entrenamiento.</p>';
-  return `<div class="m26-photo-findings">${findings.map((item)=>`<article class="m26-photo-finding"><span>${item.support==='multi_source'?'Evidencia cruzada':'Evidencia descriptiva'}</span><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.meaning)}</p><small>${escapeHtml(item.action)}</small></article>`).join('')}</div>`;
+  if(!findings.length)return '<p class="m26-photo-notice">No aparece ningún patrón que necesite cambiar el entrenamiento por sí solo.</p>';
+  return `<div class="m26-photo-findings">${findings.map((item)=>`<article class="m26-photo-finding"><span>${item.support==='multi_source'?'Coincide con otras pruebas':'Dato de esta evaluación'}</span><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.meaning)}</p><small>${escapeHtml(item.action)}</small></article>`).join('')}</div>`;
 }
 
 export function createIriPhotogrammetryController({
