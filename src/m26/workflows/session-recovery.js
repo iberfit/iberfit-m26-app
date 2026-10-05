@@ -14,6 +14,23 @@ function cleanId(value){const id=String(value||'').trim();return id&&id.length<=
 function finiteInteger(value,{min=0,max=Number.MAX_SAFE_INTEGER}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:null;}
 function finiteNumber(value,{min=0,max=Number.MAX_SAFE_INTEGER}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:null;}
 function validOptionalDate(value){return value===null||value===undefined||value===''||parseDate(value)!==null;}
+function validPreparationConfirmation(value,{sessionId=null,appointmentId=null}={}){
+  if(value===null||value===undefined)return true;
+  if(!value||typeof value!=='object'||Array.isArray(value))return false;
+  if(value.schema!=='iberfit.session-preparation-confirmation.v1'||value.reviewed!==true)return false;
+  if(parseDate(value.generatedAt)===null)return false;
+  const confirmationSessionId=cleanId(value.sessionId);
+  const confirmationAppointmentId=cleanId(value.appointmentId);
+  if(!confirmationSessionId||!confirmationAppointmentId)return false;
+  if(sessionId&&confirmationSessionId!==sessionId)return false;
+  if(appointmentId&&confirmationAppointmentId!==appointmentId)return false;
+  if(typeof value.reviewRequired!=='boolean')return false;
+  if(!Array.isArray(value.reviewReasonKinds)||value.reviewReasonKinds.length>12)return false;
+  if(value.reviewReasonKinds.some((item)=>!cleanId(item)||String(item).length>64))return false;
+  if(!value.evidence||typeof value.evidence!=='object'||Array.isArray(value.evidence))return false;
+  if(containsCredentialKeys(value))return false;
+  try{return JSON.stringify(value).length<=12000;}catch{return false;}
+}
 function validateQueue(queue){
   if(!Array.isArray(queue)||queue.length===0||queue.length>1000)return false;
   return queue.every((item)=>{
@@ -54,12 +71,13 @@ export function validateExecutionSnapshot(snapshot){
   if(!cleanId(session?.id)||session.id!==execution?.sessionId)errors.push('SESSION_MISMATCH');
   if(cleanId(session?.clientId||session?.client_id)!==execution?.clientId)errors.push('SESSION_CLIENT_MISMATCH');
   if(snapshot?.appointmentId!==null&&snapshot?.appointmentId!==undefined&&!cleanId(snapshot.appointmentId))errors.push('APPOINTMENT_ID_INVALID');
+  if(!validPreparationConfirmation(snapshot?.preparationConfirmation,{sessionId:cleanId(session?.id),appointmentId:cleanId(snapshot?.appointmentId)}))errors.push('PREPARATION_CONFIRMATION_INVALID');
   if(snapshot?.containsCredentials===true||containsCredentialKeys(snapshot))errors.push('CREDENTIALS_FORBIDDEN');
   return {ok:errors.length===0,errors:[...new Set(errors)]};
 }
-export function createExecutionSnapshot({execution,session,ownerId,appointmentId=null,sessionRevision=0,savedAt=new Date(),dirty=true}={}){
+export function createExecutionSnapshot({execution,session,ownerId,appointmentId=null,sessionRevision=0,preparationConfirmation=null,savedAt=new Date(),dirty=true}={}){
   if(!execution||!session)throw new Error('M26_RECOVERY_CONTEXT_REQUIRED');
-  const snapshot={schemaVersion:VERSION,ownerId:String(ownerId||'').trim(),savedAt:safeIso(savedAt),dirty:Boolean(dirty),appointmentId:appointmentId||null,sessionRevision:Number(sessionRevision||0),execution:sanitizeExecution(execution),session:clone(session),containsCredentials:false};
+  const snapshot={schemaVersion:VERSION,ownerId:String(ownerId||'').trim(),savedAt:safeIso(savedAt),dirty:Boolean(dirty),appointmentId:appointmentId||null,sessionRevision:Number(sessionRevision||0),preparationConfirmation:clone(preparationConfirmation),execution:sanitizeExecution(execution),session:clone(session),containsCredentials:false};
   const validation=validateExecutionSnapshot(snapshot);if(!validation.ok)throw new Error(`M26_RECOVERY_SNAPSHOT_INVALID:${validation.errors.join(',')}`);return snapshot;
 }
 export function reconcileExecutionSnapshots({local,remote}={}){
