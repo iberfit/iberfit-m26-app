@@ -438,23 +438,24 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!step||executionResultForStep(context.execution,step))return null;
     const suggestion=suggestedSetDraftValues(context.execution,context.session);
     if(!suggestion?.values)return null;
-    const saved=updateActiveSetDraft(context.execution,context.session,suggestion.values);
+    for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
+      const field=node.getAttribute('data-set-field');
+      if(field==='notes'||!Object.prototype.hasOwnProperty.call(suggestion.values,field))continue;
+      if(String(node.value??'').trim())continue;
+      const value=suggestion.values[field]??'';
+      if(String(value).trim())node.value=value;
+    }
+    const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));
     if(!saved)return null;
     queueExecutionDraftPersist(context);
-    if(context?.actionState){
-      context.actionState.status='success';
-      context.actionState.message=suggestion.source==='previous'
-        ?'IBERFIT preparó esta serie con reps, tiempo y carga de la serie anterior. Registra el esfuerzo real antes de confirmar.'
-        :'IBERFIT preparó esta serie con el objetivo planificado. Registra el esfuerzo real antes de confirmar.';
-    }
     return suggestion;
   }
   const baseRender=render;
   render=()=>{
     const context=getContext();
-    primeCoachSetDraft(context);
     baseRender?.();
     hydrateActiveSetDraft(context);
+    primeCoachSetDraft(context);
     hydrateFinalFeedbackDraft(context);
     syncLiveAddExerciseControl(context);
     syncFinishControl(context);
@@ -700,5 +701,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     button.click?.();
   }
   function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;primeCoachSetDraft(getContext());hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }
