@@ -1,4 +1,9 @@
 import {isIriDeferred} from '../domain/initial-assessment.js';
+import {
+  hasTrainingService,
+  trainingServiceKindFrom,
+  trainingServiceStatusFrom,
+} from '../domain/training-service.js';
 
 export const CLIENT_EXPERIENCE_STAGES=Object.freeze({
   onboarding:Object.freeze({
@@ -8,7 +13,7 @@ export const CLIENT_EXPERIENCE_STAGES=Object.freeze({
   }),
   evaluation:Object.freeze({
     key:'evaluation',
-    label:'Evaluación pendiente',
+    label:'Evaluación IRI',
     priority:2,
   }),
   planning:Object.freeze({
@@ -106,11 +111,14 @@ function action(key,label,area,reason){
 }
 
 export function deriveClientExperience(summary={}){
-  const iriOnly=String(summary.client?.lifecycleStatus||summary.client?.lifecycle_status||'')==='iri_only';
+  const serviceSource=summary.client||summary;
+  const trainingServiceStatus=trainingServiceStatusFrom(serviceSource);
+  const trainingService=hasTrainingService(serviceSource);
   const profileReady=hasProfileEvidence(summary);
   const iri=iriReadiness(summary?.iri);
   const iriDeferred=isIriDeferred(summary);
-  const iriBlocking=!iriDeferred&&!iri.confirmed;
+  const iriRecommended=!iriDeferred;
+  const iriBlocking=false;
   const cycleReady=Boolean(summary?.cycle);
   const nextAppointmentReady=Boolean(summary?.nextAppointment);
   const executions=Math.max(
@@ -120,11 +128,9 @@ export function deriveClientExperience(summary={}){
 
   let stage;
 
-  if(iriOnly){
-    stage={key:'iri_only',label:'Solo IRI',priority:0};
-  }else if(!profileReady){
+  if(!profileReady){
     stage=CLIENT_EXPERIENCE_STAGES.onboarding;
-  }else if(iriBlocking){
+  }else if(!trainingService){
     stage=CLIENT_EXPERIENCE_STAGES.evaluation;
   }else if(!cycleReady){
     stage=CLIENT_EXPERIENCE_STAGES.planning;
@@ -140,21 +146,19 @@ export function deriveClientExperience(summary={}){
   if(iriDeferred&&!iri.confirmed)attention.push('iri_deferred');
   else if(!iri.exists)attention.push('iri_missing');
   else if(!iri.confirmed)attention.push('iri_incomplete');
-  if(!iriOnly&&!cycleReady)attention.push('planning');
-  if(!iriOnly&&!nextAppointmentReady)attention.push('appointment');
+  if(trainingService&&!cycleReady)attention.push('planning');
+  if(trainingService&&!nextAppointmentReady)attention.push('appointment');
 
-  const processSteps=iriOnly?[profileReady,iri.confirmed]:[
-    profileReady,
-    iri.confirmed||iriDeferred,
-    cycleReady,
-    nextAppointmentReady,
-  ];
+  const processSteps=trainingService
+    ?[profileReady,cycleReady,nextAppointmentReady]
+    :[profileReady,iri.confirmed];
 
   const completedSteps=
     processSteps.filter(Boolean).length;
 
   return Object.freeze({
-    serviceKind:iriOnly?'iri_only':'training',
+    serviceKind:trainingServiceKindFrom(serviceSource),
+    trainingServiceStatus,
     stage:stage.key,
     stageLabel:stage.label,
     priority:stage.priority,
@@ -163,7 +167,8 @@ export function deriveClientExperience(summary={}){
       iriExists:iri.exists,
       iriConfirmed:iri.confirmed,
       iriDeferred,
-      iriRequired:!iriDeferred,
+      iriRecommended,
+      iriRequired:false,
       iriBlocking,
       cycle:cycleReady,
       nextAppointment:nextAppointmentReady,
@@ -190,7 +195,14 @@ export function experienceNextAction(
   const normalizedRole=
     String(role||'coach').trim().toLowerCase();
 
-  if(current.serviceKind==='iri_only')return action('review_iri',current.readiness.iriConfirmed?'Ver informe IRI':'Completar evaluación IRI','iri','Evaluación e informe independientes del entrenamiento.');
+  if(current.serviceKind!=='training'){
+    return action(
+      'review_iri',
+      current.readiness.iriConfirmed?'Ver informe IRI':'Completar evaluación IRI',
+      'iri',
+      'La evaluación IRI es independiente del servicio de entrenamiento.'
+    );
+  }
 
   if(normalizedRole==='client'){
     if(current.readiness.nextAppointment){
@@ -246,27 +258,14 @@ export function experienceNextAction(
     );
   }
 
-  if(current.stage==='evaluation'){
-    return action(
-      current.readiness.iriExists
-        ?'continue_iri'
-        :'start_iri',
-      current.readiness.iriExists
-        ?'Continuar diagnóstico IRI'
-        :'Iniciar diagnóstico IRI',
-      'iri',
-      'La evaluación debe quedar confirmada antes de planificar.'
-    );
-  }
-
   if(current.stage==='planning'){
     return action(
       'prepare_plan',
       'Preparar planificación',
       'planificacion',
-      current.readiness.iriDeferred&&!current.readiness.iriConfirmed
-        ?'El expediente está listo para trabajar; el IRI puede realizarse cuando lo necesites.'
-        :'La evaluación está lista y falta una planificación.'
+      current.readiness.iriConfirmed
+        ?'El servicio de entrenamiento está activo y el IRI ya aporta contexto inicial.'
+        :'El servicio de entrenamiento está activo. El IRI puede completarse en paralelo sin bloquear la planificación.'
     );
   }
 
