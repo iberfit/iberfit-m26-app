@@ -10,10 +10,22 @@ const source=fs.readFileSync(
   'utf8',
 );
 
-test('catalog admin Edge Function mantiene auth Admin y rename explícito',()=>{
+test('catalog admin Edge Function mantiene auth Admin multiapp y rename explícito',()=>{
   assert.match(
     source,
-    /p\?\.role!=='admin'/,
+    /db\.rpc\('iberfit_application_context_v14'\)/,
+  );
+  assert.match(
+    source,
+    /context\?\.membershipStatus!=='active'/,
+  );
+  assert.match(
+    source,
+    /!roles\.includes\('admin'\)/,
+  );
+  assert.doesNotMatch(
+    source,
+    /from\('user_profiles'\)\.select\('role'\)/,
   );
 
   assert.match(
@@ -86,7 +98,7 @@ test('dependencias Edge están pinneadas',()=>{
 
 
 test('catalog Admin liga CORS al proyecto desplegado y falla cerrado fuera de QA/PROD',()=>{
-  assert.match(source,/const FUNCTION_VERSION='catalog-admin-v1\.1'/u);
+  assert.match(source,/const FUNCTION_VERSION='catalog-admin-v1\.2'/u);
   assert.match(source,/const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
   assert.match(source,/const PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
   assert.match(source,/DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF[\s\S]*\?\['https:\/\/m26-canary\.iberfit\.cl'\]/u);

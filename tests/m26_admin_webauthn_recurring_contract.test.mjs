@@ -41,6 +41,11 @@ test('trusted Canary workflow owns prepare ceremony cleanup and shared fixture l
   assert.match(workflow,/node qa\/admin-media-review-live-cert\.mjs/u);
   assert.match(workflow,/node --check qa\/admin-media-review-live-cert\.mjs/u);
   assert.match(workflow,/recovery\/admin-media-review-live-cert\.json/u);
+  assert.match(workflow,/supabase\/functions\/iberfit-catalog-admin\/\*\*/u);
+  assert.match(workflow,/Certify Admin Catalog live QA read-only/u);
+  assert.match(workflow,/node qa\/admin-catalog-live-cert\.mjs/u);
+  assert.match(workflow,/node --check qa\/admin-catalog-live-cert\.mjs/u);
+  assert.match(workflow,/recovery\/admin-catalog-live-cert\.json/u);
   assert.match(workflow,/Cleanup ephemeral Admin QA WebAuthn fixture[\s\S]*if: always\(\)/u);
   assert.match(workflow,/\{action:"reset",target:"admin"/u);
   assert.match(workflow,/\.state\.activeCredentials == 0/u);
@@ -51,6 +56,7 @@ test('trusted Canary workflow owns prepare ceremony cleanup and shared fixture l
   assert.match(workflow,/playwright\.admin-webauthn-recurring\.config\.mjs/u);
   assert.match(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED_RECURRING=GREEN/u);
   assert.match(workflow,/ADMIN_MEDIA_REVIEW_LIVE_QA=GREEN/u);
+  assert.match(workflow,/ADMIN_CATALOG_LIVE_QA=GREEN/u);
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/u);
 });
 
@@ -73,6 +79,29 @@ test('live Media Review cert authenticates as the ephemeral Admin and remains re
   assert.ok(!source.includes("await fetch(`${QA_ORIGIN}/auth/v1/logout`,{"));
   assert.doesNotMatch(source,/SUPABASE_SERVICE_ROLE_KEY/u);
   assert.doesNotMatch(source,/ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR|ADMIN_MEDIA_REVIEW_RECHAZAR|ADMIN_MEDIA_REVIEW_REGENERAR/u);
+});
+
+
+test('live Admin Catalog cert authenticates as ephemeral Admin and remains strictly read-only',async()=>{
+  const source=await read('qa/admin-catalog-live-cert.mjs');
+  assert.match(source,/const QA_REF='gjztkdwfmunnzhtvxrsu'/u);
+  assert.match(source,/const CANARY_ORIGIN='https:\/\/m26-canary\.iberfit\.cl'/u);
+  assert.match(source,/const EDGE_PATH='\/functions\/v1\/iberfit-catalog-admin'/u);
+  assert.match(source,/grant_type=password/u);
+  assert.ok(source.includes('authorization:`Bearer ${accessToken}`'));
+  assert.match(source,/origin:CANARY_ORIGIN/u);
+  assert.match(source,/JSON\.stringify\(\{action:'status'\}\)/u);
+  assert.match(source,/allowedOriginHeader===CANARY_ORIGIN/u);
+  assert.match(source,/payload\.canonical\+payload\.external===payload\.total/u);
+  assert.match(source,/payload\?\.version==='catalog-admin-v1\.2'/u);
+  assert.match(source,/globalNameGovernance===true/u);
+  assert.match(source,/origin:'https:\/\/example\.invalid'/u);
+  assert.match(source,/forbidden\.status===403/u);
+  assert.match(source,/mutationPerformed:false/u);
+  assert.match(source,/serviceRoleUsed:false/u);
+  assert.match(source,/\/auth\/v1\/logout\?scope=local/u);
+  assert.doesNotMatch(source,/SUPABASE_SERVICE_ROLE_KEY/u);
+  assert.doesNotMatch(source,/rename_exercise|sync_canonical|sync_external|enrich_external/u);
 });
 
 test('browser contract proves real registration assertion app choice and Admin shell on every device class',async()=>{

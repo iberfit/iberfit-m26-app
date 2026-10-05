@@ -8,7 +8,7 @@ const EQUIPMENT:any={'body only':'sin equipo','dumbbell':'mancuerna','barbell':'
 const LEVEL:any={beginner:'inicial',intermediate:'media',expert:'avanzada'};
 const CATEGORY:any={strength:'fuerza',stretching:'movilidad',plyometrics:'potencia',cardio:'acondicionamiento',strongman:'fuerza'};
 const MUSCLE:any={abdominals:'abdominales',abductors:'abductores',adductors:'aductores',biceps:'bíceps',calves:'gemelos',chest:'pectoral',forearms:'antebrazos',glutes:'glúteos',hamstrings:'isquiotibiales',lats:'dorsal ancho','lower back':'zona lumbar','middle back':'espalda media',neck:'cuello',quadriceps:'cuádriceps',shoulders:'hombros',traps:'trapecios',triceps:'tríceps'};
-const FUNCTION_VERSION='catalog-admin-v1.1';
+const FUNCTION_VERSION='catalog-admin-v1.2';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 
@@ -66,14 +66,17 @@ Deno.serve(async(req:Request)=>{
   const db=createClient(Deno.env.get('SUPABASE_URL')||'',key(),{global:{headers:{Authorization:h}},auth:{persistSession:false}});
   const{data:u,error:ue}=await db.auth.getUser(h.slice(7));
   if(ue||!u?.user)return reply(req,{error:'Sesión no válida'},401);
-  const{data:p}=await db.from('user_profiles').select('role').eq('user_id',u.user.id).single();
-  if(p?.role!=='admin')return reply(req,{error:'Solo Administración puede sincronizar o editar la biblioteca'},403);
+  const{data:context,error:contextError}=await db.rpc('iberfit_application_context_v14');
+  const roles=Array.isArray(context?.roles)?context.roles.map((role:any)=>String(role).toLowerCase()):[];
+  if(contextError||context?.ok!==true||context?.membershipStatus!=='active'||!roles.includes('admin')){
+    return reply(req,{error:'Solo Administración puede sincronizar o editar la biblioteca'},403);
+  }
   const body=await req.json().catch(()=>({}));
   const action=String(body.action||'status');
 
   if(action==='status'){
     const{data,error}=await db.rpc('iberfit_exercise_facets');
-    return error?reply(req,{error:error.message},400):reply(req,{...data,geminiConfigured:Boolean(Deno.env.get('GEMINI_API_KEY')||Deno.env.get('GOOGLE_API_KEY')),model:MODEL,mediaPolicy:'Los medios externos permanecen bloqueados hasta aprobación individual.',globalNameGovernance:true});
+    return error?reply(req,{error:error.message,version:FUNCTION_VERSION},400):reply(req,{...data,version:FUNCTION_VERSION,geminiConfigured:Boolean(Deno.env.get('GEMINI_API_KEY')||Deno.env.get('GOOGLE_API_KEY')),model:MODEL,mediaPolicy:'Los medios externos permanecen bloqueados hasta aprobación individual.',globalNameGovernance:true});
   }
 
   if(action==='rename_exercise'){

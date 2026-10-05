@@ -6,6 +6,8 @@ on:
     paths:
       - 'qa/admin-webauthn-recurring/**'
       - 'qa/admin-media-review-live-cert.mjs'
+      - 'qa/admin-catalog-live-cert.mjs'
+      - 'supabase/functions/iberfit-catalog-admin/**'
       - 'playwright.admin-webauthn-recurring.config.mjs'
       - 'supabase/functions/iberfit-qa-webauthn-cert-broker/**'
       - 'tests/m26_admin_webauthn_recurring_contract.test.mjs'
@@ -37,6 +39,7 @@ jobs:
       - run: npm ci
       - run: node qa/admin-webauthn-recurring/inject-mobile-event-diagnostics.mjs --check
       - run: node --check qa/admin-media-review-live-cert.mjs
+      - run: node --check qa/admin-catalog-live-cert.mjs
       - run: node --test tests/m26_admin_webauthn_recurring_contract.test.mjs tests/m26_coach_webauthn_recurring_contract.test.mjs
 
   live-admin-webauthn:
@@ -108,6 +111,15 @@ jobs:
           M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
         run: node qa/admin-media-review-live-cert.mjs
+      - name: Certify Admin Catalog live QA read-only
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: node qa/admin-catalog-live-cert.mjs
       - name: Certify Admin WebAuthn registration authentication and app choice
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -142,6 +154,7 @@ jobs:
           path: |
             recovery/admin-webauthn-recurring/
             recovery/admin-media-review-live-cert.json
+            recovery/admin-catalog-live-cert.json
             recovery-admin-prepare.json
             recovery-admin-reset-after.json
             test-results/
@@ -174,5 +187,6 @@ jobs:
             echo 'ADMIN_WEBAUTHN_AUTHENTICATION=GREEN'
             echo 'ADMIN_MULTIAPP_CHOICE=GREEN'
             echo 'ADMIN_MEDIA_REVIEW_LIVE_QA=GREEN'
+            echo 'ADMIN_CATALOG_LIVE_QA=GREEN'
             echo 'ADMIN_FIXTURE_CLEANUP=GREEN'
           fi
