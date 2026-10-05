@@ -190,11 +190,11 @@ test('Hoy prioriza una acción real y Clientes muestra filtros, estado IRI y acc
     nextAction:experienceNextAction(experience,{role:'coach'}),
   };
   const hoy=renderHoyRoute({role:'coach',clients:[client],proposals:[],appointments:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0}});
-  assert.match(hoy,/Siguiente acción/);assert.match(hoy,/Continuar diagnóstico IRI/);assert.match(hoy,/Sin cita programada/);
-  assert.doesNotMatch(hoy,/>Conflictos<|>Sin bloqueos</);
+  assert.match(hoy,/Siguiente acción/);assert.match(hoy,/Preparar planificación/);assert.match(hoy,/IRI puede completarse en paralelo sin bloquear la planificación/);assert.match(hoy,/Sin cita programada/);
+  assert.doesNotMatch(hoy,/Continuar diagnóstico IRI|>Conflictos<|>Sin bloqueos</);
   const clientes=renderClientsRoute({clients:[client],selectedClientId:'c1',canCreate:false});
   assert.match(clientes,/data-client-filter="iri"/);assert.match(clientes,/data-client-filter="modality"/);assert.match(clientes,/data-client-sort/);
-  assert.match(clientes,/Abrir expediente/);assert.match(clientes,/Siguiente: Continuar diagnóstico IRI/);assert.match(clientes,/Expediente activo/);
+  assert.match(clientes,/Abrir expediente/);assert.match(clientes,/Siguiente: Preparar planificación/);assert.match(clientes,/Expediente activo/);
   assert.doesNotMatch(clientes,/Cartera autorizada|Clientes visibles/);
 });
 
