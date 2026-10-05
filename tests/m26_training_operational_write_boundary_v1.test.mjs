@@ -16,15 +16,13 @@ test('training operational write boundary is additive and leaves legacy RC43 com
   assert.doesNotMatch(sql,/m26_training_plans_v43|m26_training_sessions_v43|m26_save_training_session_v43/u);
 });
 
-test('anon loses all direct access and authenticated retains read-only access on canonical training tables',()=>{
+test('canonical training entities and legacy session-event compatibility are read-only to authenticated',()=>{
   for(const table of [
     'public.training_cycles',
     'public.sessions',
     'public.session_executions',
-    'public.session_events',
-  ]){
-    assert.ok(sql.includes(table),table);
-  }
+  ])assert.ok(sql.includes(table),table);
+  assert.ok(sql.includes('public.session_events'),'legacy session event compatibility must remain hardened');
   assert.match(sql,/revoke all on table[\s\S]*public\.training_cycles,[\s\S]*public\.sessions,[\s\S]*public\.session_executions,[\s\S]*public\.session_events[\s\S]*from anon, authenticated;/u);
   assert.match(sql,/grant select on table[\s\S]*public\.training_cycles,[\s\S]*public\.sessions,[\s\S]*public\.session_executions,[\s\S]*public\.session_events[\s\S]*to authenticated;/u);
   assert.match(sql,/revoke all on table public\.active_execution_locks_v26[\s\S]*from anon, authenticated;/u);
