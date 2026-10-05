@@ -11,7 +11,10 @@ function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(s
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const sourceClients=arr(clients);
   const peopleWithoutTraining=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()!=='training');
-  const normalizedClients=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()==='training').map((client)=>{
+  const trainingClients=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()==='training');
+  const pausedClients=trainingClients.filter((client)=>text(client?.trainingServiceStatus).toLowerCase()==='paused');
+  const activeTrainingClients=trainingClients.filter((client)=>text(client?.trainingServiceStatus,'active').toLowerCase()==='active');
+  const normalizedClients=activeTrainingClients.map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const assignments=arr(client?.assignments);
@@ -72,15 +75,16 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
 
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
   const summary=Object.freeze({
-    totalClients:normalizedClients.length,
+    totalClients:trainingClients.length,
+    activeClients:activeTrainingClients.length,
+    pausedClients:pausedClients.length,
     peopleWithoutTraining:peopleWithoutTraining.length,
     evaluatedWithoutTraining:peopleWithoutTraining.filter((client)=>client?.experience?.readiness?.iriConfirmed===true).length,
     unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
-    iriPending:countStage('evaluation'),
+    iriPending:activeTrainingClients.filter((client)=>client?.experience?.readiness?.iriRecommended===true&&client?.experience?.readiness?.iriConfirmed!==true).length,
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
-    activeClients:countStage('active'),
     openTasks:openTasks.length,
     criticalTasks:criticalTasks.length,
     coachesNearCapacity:coachLoad.filter((coach)=>coach.status==='near'||coach.status==='full').length,
