@@ -329,7 +329,7 @@ export function createIriPhotogrammetryController({
           <button type="button" class="m26-primary-action" data-iri-photo-analysis="validate" ${canValidate?'':'disabled'}>Validar análisis de 4 vistas</button>
         </div>
         <p class="m26-photo-notice">Calidad: ${escapeHtml(qualityLabel(quality))}. ${allCaptured?'Las 4 vistas están presentes.':'Faltan vistas.'} ${allMarked?'Todos los puntos requeridos están marcados.':'Faltan referencias visuales.'}</p>
-        <p class="m26-photo-safety"><strong>Una foto no decide el plan por sí sola.</strong> IBERFIT usa estas medidas como una referencia más, junto con movilidad, fuerza, movimiento y evolución. Una diferencia postural aislada no significa lesión ni enfermedad.</p>
+        <p class="m26-photo-safety"><strong>Una foto no decide el plan por sí sola.</strong> IBERFIT usa estas medidas como una referencia más, junto con movilidad, fuerza, movimiento y evolución. Una diferencia postural aislada no significa lesión ni enfermedad. <strong>Sin diagnóstico médico automático.</strong></p>
       </section>
       <p data-iri-photo-status role="status" aria-live="polite"></p>
     </section>`;
