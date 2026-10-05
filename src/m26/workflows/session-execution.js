@@ -252,10 +252,6 @@ function exactPlannedWorkValue(value){
   if(seconds)return {reps:'',seconds:seconds[1]};
   return {reps:'',seconds:''};
 }
-function safePlannedEffort(value,{min,max}){
-  const number=Number(value);
-  return Number.isFinite(number)&&number>=min&&number<=max?String(number):'';
-}
 export function plannedSetDraftValues(execution,session){
   const step=currentStep(execution,session);
   if(!step)return null;
@@ -267,8 +263,9 @@ export function plannedSetDraftValues(execution,session){
     reps:work.reps,
     seconds:work.seconds,
     load:load.slice(0,80),
-    rpe:safePlannedEffort(planned.targetRpe,{min:1,max:10}),
-    rir:safePlannedEffort(planned.targetRir,{min:0,max:10}),
+    // RPE/RIR are observed effort, never inferred from the planned target.
+    rpe:'',
+    rir:'',
   };
   return Object.values(values).some((value)=>String(value).trim())?values:null;
 }
