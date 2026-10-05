@@ -21,6 +21,11 @@ function stat(label, value, note = '') {
 }
 function badge(text, kind = 'neutral') { return `<span class="m26-badge is-${escapeHtml(kind)}">${escapeHtml(text)}</span>`; }
 function countLabel(count,singular,plural){const value=Number(count||0);return `${value} ${value===1?singular:(plural||`${singular}s`)}`;}
+function hasTrainingSurface(serviceKind){
+  const kind=String(serviceKind??'').trim().toLowerCase();
+  return kind!=='none'&&kind!=='iri_only';
+}
+function lacksTrainingSurface(serviceKind){return !hasTrainingSurface(serviceKind);}
 function foldSearch(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();}
 function guideEventToken(...parts){
   let hash=0x811c9dc5;
@@ -64,7 +69,7 @@ function clientIriState(client={}) {
   return 'pending';
 }
 function clientCard(client, selected = false) {
-  const noTrainingService=client.experience?.serviceKind!=='training';
+  const noTrainingService=lacksTrainingSurface(client.experience?.serviceKind);
   const iriState = clientIriState(client);
   const iri = client.iri
     ? client.iri.confirmed
@@ -999,7 +1004,7 @@ function clientOnboardingForm() {
 export function renderClientsRoute(vm) {
   /* RC70_1_1_FOLLOWUP_QUEUE_BEGIN */
   const followUpRows=vm.clients
-    .filter((item)=>item.followUp&&item.experience?.serviceKind==='training')
+    .filter((item)=>item.followUp&&hasTrainingSurface(item.experience?.serviceKind))
     .slice()
     .sort((a,b)=>{
       const priority={critical:0,warning:1,info:2,clear:3};
@@ -2352,7 +2357,7 @@ export function renderExpedienteRoute(vm) {
     .join(' · ');
 
   const displayStatus=/no informado/i.test(data.status||'')?'Estado por definir':data.status;
-  const noTrainingService=String(vm.serviceKind||data.experience?.serviceKind||'none')!=='training';
+  const noTrainingService=lacksTrainingSurface(vm.serviceKind??data.experience?.serviceKind);
   const adminContext=String(vm.role||'')==='admin';
   const iriArea=adminContext?'admin-iri':'iri';
   const reportsArea=adminContext?'admin-informes':'informes';
@@ -2385,7 +2390,7 @@ export function renderExpedienteRoute(vm) {
         ${stat('Perfil esencial',`${profile.completeness??0}%`,profile.missing?.length?`${profile.missing.length} campos pendientes`:'Datos esenciales completos')}
         ${stat('Evaluación IRI',iriStatus,iri?.dateLabel||'Punto de partida')}
         ${stat('Acceso',data.accessKnown?(data.access||'Configurado'):'Sin acceso','El acceso a la app es independiente del expediente')}
-        ${stat('Coach responsable',data.experience?.serviceKind!=='training'?'Asignación técnica':'Por revisar','No computa como cliente activo de entrenamiento')}
+        ${stat('Coach responsable',lacksTrainingSurface(data.experience?.serviceKind)?'Asignación técnica':'Por revisar','No computa como cliente activo de entrenamiento')}
       </section>
       <section class="m26-content-grid">
         <article class="m26-panel">
@@ -3396,7 +3401,7 @@ function renderClientProgressStage(vm,stage){
 }
 
 export function renderProgressRoute(vm){
-  if(vm.serviceKind!=='training'){
+  if(lacksTrainingSurface(vm.serviceKind)){
     return `<div class="m26-route" data-service-kind="none">
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento de entrenamiento no activado</h2><p>El IRI inicial permanece como punto de partida. No se calcula adherencia, volumen ni progreso de sesiones mientras esta persona no tenga servicio activo de entrenamiento.</p></div>${badge('Sin entrenamiento activo','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><h3>Qué sí está disponible</h3><p>Puedes revisar el diagnóstico y sus informes. Si más adelante se convierte en cliente, el seguimiento comenzará sin modificar el IRI inicial.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir IRI</button><button type="button" data-m26-area="informes">Ver informes IRI</button></div></section>
@@ -3508,7 +3513,7 @@ function lastCheckinSummary(last){
   return `<div class="m26-wellbeing-grid m26-wellbeing-grid-compact">${wellbeingMeter('Energía',body.energy,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',body.sleep,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',body.stress,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',body.pain,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',body.fatigue,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',body.motivation,'0 ninguna · 10 máxima')}</div>`;
 }
 export function renderActivityRoute(vm){
-  if(vm.serviceKind!=='training'){
+  if(lacksTrainingSurface(vm.serviceKind)){
     return `<div class="m26-route" data-service-kind="none">
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento diario no activado</h2><p>Hábitos, adherencia, wearables y check-ins longitudinales pertenecen al acompañamiento posterior, no al diagnóstico IRI inicial.</p></div>${badge('IRI separado del seguimiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
@@ -3728,7 +3733,7 @@ function protocolGuide(protocol,{includeMeta=true}={}){
 function protocolGrid(step){const label=step==='fuerza'?'Protocolos de fuerza: tren inferior, empuje, Remo TRX y core':step==='movilidad'?'Protocolos de movilidad: Rodilla a pared y movilidad estructurada':`Protocolos de ${step}`;const protocols=iriProtocolsForStep(step).filter((protocol)=>protocol.id!=='legacy-iberfit-three-minute-step-adapted');return `<div class="m26-protocol-grid" data-iri-protocol-grid="${escapeHtml(step)}" aria-label="${escapeHtml(label)}">${protocols.map((protocol)=>protocolGuide(protocol,{includeMeta:step!=='cardio'})).join('')}</div>`;}
 
 export function renderIriRoute(vm) {
-  const noTrainingService=vm.serviceKind!=='training';const current=vm.current||{};const summary=vm.currentSummary;const profile=vm.profile||{};const sourceProfile=vm.sourceProfile?.body&&typeof vm.sourceProfile.body==='object'?vm.sourceProfile.body:(vm.sourceProfile||{});const currentBody=current?.body&&typeof current.body==='object'?current.body:current;const personProfile=currentBody?.personProfile&&typeof currentBody.personProfile==='object'?currentBody.personProfile:{};const interview=currentBody?.interview&&typeof currentBody.interview==='object'?currentBody.interview:{};const seed=(...items)=>items.find((item)=>item!==undefined&&item!==null&&item!==''&&(!Array.isArray(item)||item.length))??'';const seedList=(...items)=>{const value=seed(...items);return Array.isArray(value)?value.join(', '):value;};const sexValue=seed(current.sexForNorms,current.sex_for_norms,personProfile.sexForNorms,sourceProfile.sexForNorms,profile.sexForNorms);const iriConfirmed=Boolean(summary?.confirmed||currentBody?.firstSessionCompletedAt||currentBody?.first_session_completed_at);
+  const noTrainingService=lacksTrainingSurface(vm.serviceKind);const current=vm.current||{};const summary=vm.currentSummary;const profile=vm.profile||{};const sourceProfile=vm.sourceProfile?.body&&typeof vm.sourceProfile.body==='object'?vm.sourceProfile.body:(vm.sourceProfile||{});const currentBody=current?.body&&typeof current.body==='object'?current.body:current;const personProfile=currentBody?.personProfile&&typeof currentBody.personProfile==='object'?currentBody.personProfile:{};const interview=currentBody?.interview&&typeof currentBody.interview==='object'?currentBody.interview:{};const seed=(...items)=>items.find((item)=>item!==undefined&&item!==null&&item!==''&&(!Array.isArray(item)||item.length))??'';const seedList=(...items)=>{const value=seed(...items);return Array.isArray(value)?value.join(', '):value;};const sexValue=seed(current.sexForNorms,current.sex_for_norms,personProfile.sexForNorms,sourceProfile.sexForNorms,profile.sexForNorms);const iriConfirmed=Boolean(summary?.confirmed||currentBody?.firstSessionCompletedAt||currentBody?.first_session_completed_at);
   const personContext=`<section class="m26-panel m26-panel-soft m26-iri-person m26-iri-context-strip">
     <div class="m26-panel-heading">
       <div>
@@ -3808,7 +3813,7 @@ function iriPlanningContextPanel(seed){
 
 export function renderPlanningRoute(vm){
   const isClient=vm.role==='client';
-  if(vm.serviceKind!=='training'){
+  if(lacksTrainingSurface(vm.serviceKind)){
     return `<div class="m26-route" data-service-kind="none">
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Sin planificación de entrenamiento</h2><p>Esta persona no tiene un servicio de entrenamiento activo. Su evaluación IRI y su informe permanecen disponibles sin crear ciclos, frecuencia ni programación de entrenamiento.</p></div>${badge('Sin entrenamiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>Si posteriormente inicia entrenamiento, IBERFIT activa el servicio sobre la misma persona. El IRI inicial se conserva como punto de partida.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir IRI</button><button type="button" data-m26-area="informes">Ver informe IRI</button></div></section>
@@ -4034,7 +4039,7 @@ function renderNextSessionPreparation(prep){
 
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
-  if(vm.serviceKind!=='training'){
+  if(lacksTrainingSurface(vm.serviceKind)){
     return `<div class="m26-route" data-service-kind="none">
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Sin sesiones de entrenamiento</h2><p>El IRI puede completarse y generar sus informes sin crear, programar ni ejecutar sesiones de entrenamiento.</p></div>${badge('Sin entrenamiento activo','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir / completar IRI</button><button type="button" data-m26-area="informes">Informes IRI</button></div></section>
@@ -4056,11 +4061,11 @@ export function renderReportsRoute(vm){
   const diagnosis=vm.iriDiagnosis||(vm.latestIri?{assessmentId:iriId,dateLabel:'Fecha de evaluación confirmada',classification:'Perfil IRI por dominios',processLabel:'Evaluación confirmada',revision:Number(vm.latestIri.revision||1)}:null);
   const clientDiagnosis=isClient&&diagnosis?`<section class="m26-panel m26-iri-diagnosis-card" data-iri-diagnosis data-assessment-id="${escapeHtml(diagnosis.assessmentId)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento principal</p><h2>Diagnóstico IRI</h2><p>Evaluación confirmada · ${escapeHtml(diagnosis.dateLabel)}</p></div>${badge(`Revisión ${diagnosis.revision}`,'success')}</div><div class="m26-iri-diagnosis-meta">${field('Fecha de evaluación',diagnosis.dateLabel)}${field('Clasificación',diagnosis.classification)}${field('Estado',diagnosis.processLabel)}${field('Versión o revisión',`Revisión ${diagnosis.revision}`)}</div><div class="m26-external-report-actions"><button type="button" class="m26-primary-action" data-m26-area="iri">Ver diagnóstico</button><button type="button" data-workflow-action="generate-client-iri-report" data-assessment-id="${escapeHtml(diagnosis.assessmentId)}">Vista previa actual</button><button type="button" data-workflow-action="refresh-issued-iri-history">Ver versiones emitidas</button></div><div data-iri-issued-history aria-live="polite"></div>${workflowStatus('iri-report')}<div data-iri-external-report-host data-assessment-id="${escapeHtml(diagnosis.assessmentId)}"></div></section>`:isClient?`<section class="m26-notice"><strong>Diagnóstico IRI pendiente</strong><p>Tu diagnóstico aparecerá aquí cuando la evaluación esté confirmada.</p></section>`:'';
   const iriDocuments=!isClient&&iriId?`<section class="m26-panel m26-panel-soft m26-iri-report-access"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Diagnóstico inicial confirmado</p><h2>Documentos del IRI</h2><p>Se generan directamente desde la evaluación remota confirmada. No es necesario volver a completar el formulario.</p></div>${badge('Listos para generar','success')}</div><div class="m26-action-grid"><button type="button" data-workflow-action="generate-client-iri-report">Vista previa Cliente</button><button type="button" data-workflow-action="generate-coach-iri-report">Vista previa Coach / Admin</button><button type="button" class="m26-primary-action" data-workflow-action="issue-client-iri-report">Emitir y archivar Cliente</button><button type="button" data-workflow-action="issue-coach-iri-report">Emitir y archivar Coach / Admin</button></div><div class="m26-inline-actions"><button type="button" data-workflow-action="refresh-issued-iri-history">Actualizar versiones emitidas</button></div><div data-iri-issued-history aria-live="polite"></div>${workflowStatus('iri-report')}</section>`:'';
-  const editor=vm.canManage&&vm.serviceKind==='training'?(iriId?`<form class="m26-panel m26-panel-soft m26-report-editor" data-workflow-form="report-approval"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Edición profesional</p><h2>Preparar informe IBERFIT</h2><p>El informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.</p></div>${badge('Formato A4 premium','neutral')}</div><input type="hidden" name="assessmentId" value="${escapeHtml(iriId)}"><div class="m26-field-grid"><label class="m26-wide">Título<input name="title" maxlength="140" value="Informe de evolución IBERFIT" required></label><label>Inicio del periodo<input type="date" name="periodStart" required></label><label>Fin del periodo<input type="date" name="periodEnd" required></label><label class="m26-wide">Resumen del periodo<textarea name="summary" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Conclusiones<textarea name="conclusions" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Recomendaciones y próximos pasos<textarea name="recommendations" minlength="20" maxlength="2500" required></textarea></label></div><section class="m26-report-preview" aria-label="Criterios de revisión del informe"><p class="m26-eyebrow">Revisión previa</p><h3>Comprobación editorial</h3><p>Confirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.</p><label><input type="checkbox" name="reviewAccepted" required> He revisado íntegramente el contenido y confirmo que está listo para aprobación interna.</label></section><button type="submit" class="m26-primary-action" data-workflow-action="approve-report">Aprobar informe interno</button>${workflowStatus('report')}</form>`:`<section class="m26-notice is-warning" role="status"><strong>Falta un diagnóstico IRI confirmado</strong><p>El informe premium no puede prepararse hasta que exista una evaluación IRI trazable en el expediente.</p></section>`):'';
+  const editor=vm.canManage&&hasTrainingSurface(vm.serviceKind)?(iriId?`<form class="m26-panel m26-panel-soft m26-report-editor" data-workflow-form="report-approval"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Edición profesional</p><h2>Preparar informe IBERFIT</h2><p>El informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.</p></div>${badge('Formato A4 premium','neutral')}</div><input type="hidden" name="assessmentId" value="${escapeHtml(iriId)}"><div class="m26-field-grid"><label class="m26-wide">Título<input name="title" maxlength="140" value="Informe de evolución IBERFIT" required></label><label>Inicio del periodo<input type="date" name="periodStart" required></label><label>Fin del periodo<input type="date" name="periodEnd" required></label><label class="m26-wide">Resumen del periodo<textarea name="summary" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Conclusiones<textarea name="conclusions" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Recomendaciones y próximos pasos<textarea name="recommendations" minlength="20" maxlength="2500" required></textarea></label></div><section class="m26-report-preview" aria-label="Criterios de revisión del informe"><p class="m26-eyebrow">Revisión previa</p><h3>Comprobación editorial</h3><p>Confirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.</p><label><input type="checkbox" name="reviewAccepted" required> He revisado íntegramente el contenido y confirmo que está listo para aprobación interna.</label></section><button type="submit" class="m26-primary-action" data-workflow-action="approve-report">Aprobar informe interno</button>${workflowStatus('report')}</form>`:`<section class="m26-notice is-warning" role="status"><strong>Falta un diagnóstico IRI confirmado</strong><p>El informe premium no puede prepararse hasta que exista una evaluación IRI trazable en el expediente.</p></section>`):'';
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Documentación</p><h2>${isClient?'Tus informes IBERFIT':'Informes y publicación'}</h2><p>${isClient?'Abre tu Diagnóstico IRI y consulta dentro de él su documento complementario de bioimpedancia.':'Los documentos del IRI se generan desde la evaluación confirmada. Los informes de evolución mantienen un ciclo separado de aprobación y publicación.'}</p></div>${badge(countLabel(vm.reports.length,'informe','informes'),'neutral')}</section>${clientDiagnosis}${iriDocuments}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>${isClient?'Informes disponibles':'Informes de evolución'}</h2></div></div>${publicationList(vm.reports,'report',isClient?'Aún no hay informes disponibles':'Sin informes de evolución preparados',{clientView:isClient})}</section>${editor}${!editor?workflowStatus('report'):''}</div>`;
 }
 export function renderIntelligenceRoute(vm){
-  if(vm.serviceKind!=='training'){
+  if(lacksTrainingSurface(vm.serviceKind)){
     return `<div class="m26-route" data-service-kind="none">
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Propuestas de entrenamiento no activadas</h2><p>La inteligencia de planificación no genera sesiones ni progresiones mientras la persona no tenga un servicio de entrenamiento activo.</p></div>${badge('Sin entrenamiento activo','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Revisar IRI</button><button type="button" data-m26-area="informes">Ver informe IRI</button></div></section>
