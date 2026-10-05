@@ -3,16 +3,17 @@
 Última actualización documental: 2026-10-05
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
-## Estado actual · Entrenamiento Operativo 360 · 2026-10-05
+## Estado actual · UX/Autocompletado Global 360 · 2026-10-05
 
-- PROD y Canary comparten como último source certificado el merge SHA `1391805fd36fd40e1624e9f06ea378ec37719eb1` de PR #726.
-- Production Promotion run `37307405924`: SUCCESS. Verificó identidad exacta, runtime PROD, Hosted Auth, Chromium interactivo y auditoría read-only; rollback no fue necesario.
-- Canary post-merge quedó certificado sobre ese mismo SHA: CI, Production Data Safety, Continuous Audit, QA Real Write, Session QA, Authenticated Client Interaction, Device Experience, Coach/Admin WebAuthn, gates remotos, Final Frontend/Bundle y Canary Exact Deploy.
-- Persistencia operativa canónica: `training_cycles`, `sessions`, `session_executions`; mutaciones por Command Bus/proyección SECURITY DEFINER. Los journals `domain_events_v26`, `command_events_v26` y `command_receipts_v26` permanecen read-only para authenticated y protegidos por RLS.
-- Servicio de entrenamiento activo gobierna creación/reactivación de trabajo; una ejecución ya iniciada puede pausar/guardar/reanudar/completar/cancelar sin dejar progreso atrapado.
-- Prescripción y observación quedan separadas: “Usar objetivo y revisar” reutiliza trabajo explícito, pero RPE/RIR permanecen vacíos hasta una observación real.
-- Ruleset de repositorio `Protect Canary`: enforcement activo, PR obligatorio y required checks estrictos `validate` + `canary-policy-gate`.
-- PR #727 está en draft como macro-WIP **Experiencia Guiada 360**. No forma parte de Canary ni PROD hasta certificación y merge.
+- PROD y Canary comparten como último source certificado el merge SHA `56421d74fa52b08a949c34ef6c016162882d217b` de PR #728.
+- PR #726 cerró Entrenamiento Operativo 360; PR #727 cerró Experiencia Guiada 360; PR #728 extendió la guía/autocompletado seguro a Cliente, Coach y Admin.
+- Production Promotion #315, run `37332004338`: SUCCESS. Verificó source exacto, regresión, build, Lighthouse, Hosted Auth, preview, deploy Cloudflare, identidad/runtime PROD, Chromium interactivo y auditoría integral read-only; rollback no fue necesario.
+- Canary post-merge `56421d74...` quedó certificado con CI, Continuous Audit, Device Experience, Canary Exact Deploy, Admin/Coach WebAuthn, Client Interaction, Admin Matrix, evidencia visual, gates remotos y Final Frontend/Bundle.
+- UX guiada: dato confirmado puede proponerse; dato desconocido permanece vacío; autocompletar nunca equivale a confirmar; una edición humana prevalece y deja de ser sobrescrita.
+- Planificación usa jerarquía ciclo → IRI → perfil confirmado; Agenda reutiliza modalidad/duración/dirección confirmadas; Admin/Onboarding guían al primer dato realmente pendiente.
+- Persistencia operativa canónica continúa en `training_cycles`, `sessions`, `session_executions`; mutaciones por Command Bus. El bloque UX #728 no añadió migraciones ni alteró RLS/auth.
+- Ruleset `Protect Canary`: enforcement activo, PR obligatorio y required checks estrictos `validate` + `canary-policy-gate`.
+- WIP actual: `feat/interaction-reliability-360-v1`, centrado en autofill/focus/password/select, teclado/scroll/overlays y evidencia multidispositivo recurrente.
 
 ## WIP cerrado · Personas + IRI real en terreno + Solo IRI · 2026-10-02
 
@@ -37,13 +38,13 @@ Regla: distinguir implementación, test, Canary, PROD y LIVE; no cerrar con sól
 ## Producción LIVE
 
 - Dominio: `https://app.iberfit.cl`; PRODUCCIÓN REAL.
-- Source SHA LIVE certificado: `44f95a7905df63d5b7b69f798080e20790340abe`.
+- Source SHA LIVE certificado: `56421d74fa52b08a949c34ef6c016162882d217b`.
 - Runtime: PRODUCTION, Supabase PROD `pjhmrhejsoofmouedavw`, QA desactivado.
-- Release branch: `release/prod-44f95a7905df`; manifest commit `ea71ab30300eb6addf37dcf6af5228b9de91fa6e`.
-- Promotion run: `37073343426 = SUCCESS`.
-- Deployment productivo exacto: `116ab848-6b64-4edc-b57c-7e853965a85d`.
-- Rollback productivo reservado: deployment `16048aa0-d9ca-427b-9fbb-c41e9319e103`, source `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
-- IRI/Personas/Solo IRI de #678 está publicado. El write path de salud se certificó en QA sintético con rollback; PROD se validó sin introducir fixtures ni resultados reales/ficticios.
+- Release branch: `release/prod-56421d74fa52`; manifest commit `06e90cafdea5657d5943aacd9e75063148ebee0a`.
+- Production Promotion #315, run `37332004338 = SUCCESS`.
+- El workflow verificó Hosted Auth, source/runtime exactos, entrada Chromium interactiva y auditoría integral read-only; rollback automático quedó disponible y no fue necesario.
+- Entrenamiento Operativo 360, Experiencia Guiada 360 y UX/Autocompletado Global 360 están publicados.
+- No considerar cambios posteriores en PROD sin una nueva promoción exacta y verificación LIVE.
 
 La siguiente evidencia de Retos es histórica del release `be39ea321cd5b476066381f64e88c5ecdf78a5a7`, no el source LIVE actual.
 
@@ -64,11 +65,12 @@ No considerar releases posteriores en PROD sin otra promoción y verificación L
 ## Canary actual
 
 - Rama: `canary/rc74-4`.
-- Source funcional certificado: `44f95a7905df63d5b7b69f798080e20790340abe`.
-- PR #678 integrado.
-- Canary Exact Deploy `37071775508`: SUCCESS con identidad exacta, QA-only runtime, regresión y browser desktop/móvil read-only.
-- Los 14 workflows observados del merge SHA terminaron SUCCESS, incluidos CI, Data Safety, QA Real Write, Continuous Audit, Admin Matrix, Authenticated Client, Daily Visual, Admin/Coach WebAuthn, Device Experience, Remote Gates y deploy Canary.
-- Un commit exclusivamente documental posterior puede mover HEAD sin cambiar el runtime funcional; no confundir documentación con source PROD certificado.
+- Source funcional certificado: `56421d74fa52b08a949c34ef6c016162882d217b`.
+- PR #728 integrado; Canary Exact Deploy post-merge SUCCESS con identidad exacta.
+- CI, Continuous Audit, Device Experience, Admin/Coach WebAuthn, Authenticated Client Interaction, Admin Matrix, evidencia visual, gates remotos y Final Frontend/Bundle terminaron SUCCESS sobre el merge.
+- `QA Real Write` / `Production Data Safety` no se dispararon por path filtering en #728 porque no hubo migraciones ni cambios de write backend; no se presentan como ejecutados.
+- Ruleset `Protect Canary` activo con PR y required checks estrictos.
+- P0 funcional demostrado: 0 en la ronda actual.
 
 ## Canary certificado histórico · Retos
 
@@ -80,7 +82,7 @@ No considerar releases posteriores en PROD sin otra promoción y verificación L
 - CI, Continuous Audit, Hosted Auth Security QA y Admin/Coach WebAuthn: SUCCESS sobre el mismo SHA. Device Experience pasó sobre `09733a94e973eb61e8f3b655422e7f2fc95b8418`; #658 sólo cambió helper del gate y sus tests, sin delta src/public/qa/supabase.
 - El HEAD de trabajo puede avanzar por documentación; no confundirlo con el source LIVE certificado.
 - P0 funcional demostrado: 0 en las rondas certificadas actuales.
-- Branch protection: no disponible mediante el conector GitHub actual; deuda P1 aún abierta.
+- Gobernanza Canary: la protección clásica no refleja toda la política; el ruleset `Protect Canary` (id `23254113`) está activo sobre `canary/rc74-4`, bloquea deletion/non-fast-forward, exige PR y required checks estrictos `validate` + `canary-policy-gate`. No tratarlo como P1 abierta.
 
 ### Contexto histórico del baseline documentado el 17/09
 

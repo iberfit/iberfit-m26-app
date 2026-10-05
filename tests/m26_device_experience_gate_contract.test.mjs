@@ -28,8 +28,8 @@ test('Device Experience policy defines task semantics and records recurrent Coac
   assert.match(policy,/Coach post-WebAuthn recurrente = GREEN/u);
   assert.match(policy,/35547888935/u);
   assert.match(policy,/b079361169a22e9f019a5df02feabf0118f89f35/u);
-  assert.match(policy,/Admin autenticado real quedó certificado puntualmente/u);
-  assert.match(policy,/No declarar cobertura recurrente Admin autenticada GREEN/u);
+  assert.match(policy,/Admin autenticado real recurrente = GREEN en Canary/u);
+  assert.match(policy,/IBERFIT Admin WebAuthn Recurring/u);
 });
 
 test('Device gate cancels stale runs only within the same PR or ref',()=>{
@@ -104,6 +104,7 @@ test('Installed PWA continuity keeps desktop tablet and mobile device classes',(
   for(const token of [
     'p0-installed-pwa-desktop-chromium',
     'p0-installed-pwa-tablet-chromium',
+    'p0-installed-pwa-tablet-landscape-chromium',
     'p0-installed-pwa-mobile-chromium',
   ])assert.ok(pwa.includes(token),`missing PWA matrix token: ${token}`);
 });
@@ -136,8 +137,9 @@ test('Phase A gate is explicit about real and synthetic coverage',()=>{
   assert.match(workflow,/KNOWN_GAP_COACH_POST_WEBAUTHN=GREEN/u);
   assert.match(workflow,/COACH_POST_WEBAUTHN_RECURRING_GATE=GREEN/u);
   assert.doesNotMatch(workflow,/KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW/u);
-  assert.match(workflow,/ADMIN_AUTHENTICATED_POINT_IN_TIME=GREEN/u);
-  assert.match(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED_RECURRING=YELLOW/u);
+  assert.match(workflow,/ADMIN_SYNTHETIC_TASK_MATRIX=GREEN/u);
+  assert.match(workflow,/ADMIN_AUTHENTICATED_RECURRING_EVIDENCE=SEPARATE_TRUSTED_CANARY_GATE/u);
+  assert.doesNotMatch(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED_RECURRING=YELLOW/u);
   assert.doesNotMatch(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW/u);
 });
 

@@ -1,7 +1,7 @@
 # IBERFIT · Device Experience Policy
 
 Estado: Phase A GREEN · Phase B foundation activa
-Fecha: 2026-09-20
+Fecha: 2026-10-05
 
 ## Principio
 
@@ -64,9 +64,16 @@ Phase A certifica de forma recurrente mediante fixture sintético canónico:
 - wizard de alta de cliente;
 - layout y navegación.
 
-**Admin autenticado real quedó certificado puntualmente** el 19/09/2026 sobre el candidato exacto `38ba4f59d5e6d363fc82d2e79d683442f8870bc6` de #494, usando contraseña + WebAuthn real del flujo IBERFIT + selector explícito Client/Admin + Admin en desktop/tablet/móvil. La evidencia registró 0 mutaciones de negocio, 0 requests bloqueadas, 0 errores de consola y 0 page errors. Ese candidato se integró posteriormente en Canary.
+**Admin autenticado real recurrente = GREEN en Canary.** El workflow dedicado `IBERFIT Admin WebAuthn Recurring` ejecuta en cada push a `canary/rc74-4` una certificación aislada sobre fuente actual y QA real. La ceremonia:
+- usa GitHub OIDC limitado al workflow/branch/run autorizado para preparar temporalmente la fixture multiapp `qa.rc74.client-a@iberfit.cl`;
+- exige contraseña + registro WebAuthn real en el primer acceso y autenticación con la misma credencial en el segundo;
+- mantiene Client/Admin inaccesibles hasta completar assurance y exige elección explícita de la app Admin;
+- valida Admin autenticado en desktop, tablet portrait, tablet landscape y móvil;
+- comprueba navegación/touch real, ausencia de overflow horizontal y consola/page errors limpios;
+- permite solo bootstrap/lecturas autorizadas y registra `businessMutationsPerformed:false`;
+- ejecuta cleanup obligatorio y exige 0 credenciales, challenges, assurances y rol Admin temporal residual.
 
-Esta evidencia cierra el riesgo puntual que bloqueaba #494, pero no sustituye un gate permanente. **No declarar cobertura recurrente Admin autenticada GREEN** hasta que la ceremonia completa pueda repetirse automáticamente en CI sobre fuente actual, de forma aislada y autocontenida, sin bypass, sin service-role y sin dejar credenciales WebAuthn sintéticas persistentes entre ejecuciones.
+En pull requests no se exponen secretos ni se ejecuta la ceremonia live: únicamente se valida el contrato. La evidencia real recurrente pertenece al push confiable de Canary. Esto evita convertir una fixture sintética o un PR no confiable en prueba de autenticación.
 
 ### PWA
 Suite separada:
@@ -93,11 +100,11 @@ Nunca convertir YELLOW en GREEN por wording, screenshot o ausencia de fallos.
 Unifica en gates recurrentes:
 - Cliente QA real;
 - Coach fail-closed antes de WebAuthn y certificación post-WebAuthn real recurrente en gate dedicado;
-- Admin sintético con tareas reales;
+- Admin sintético con tareas reales + gate Admin autenticado/WebAuthn recurrente separado en push confiable de Canary;
 - PWA upgrade;
 - cuatro perfiles principales donde aplica.
 
-La certificación Admin real puntual se registra por separado y no altera por sí sola la semántica del gate recurrente.
+La matriz sintética Admin del Device Gate sigue siendo una prueba de interacción/layout. La evidencia de autenticación real recurrente procede exclusivamente de `IBERFIT Admin WebAuthn Recurring`; no se mezclan ambas semánticas.
 
 ### Phase B
 
@@ -117,13 +124,13 @@ Valida explícitamente:
 
 La UI Coach de esta capa se etiqueta `synthetic-post-assurance-ui`: valida el workspace que debe existir después del assurance, pero **no** suplanta WebAuthn ni constituye por sí sola la evidencia auth GREEN. La evidencia recurrente post-WebAuthn real procede exclusivamente de `IBERFIT Coach WebAuthn Recurring`.
 
-Admin se etiqueta `synthetic-authorized-ui`: valida tareas y responsive. La autenticación Admin real tiene certificación puntual independiente, pero esta fixture **no** se presenta como evidencia de autenticación recurrente.
+Admin se etiqueta `synthetic-authorized-ui`: valida tareas y responsive. Esta fixture **no** se presenta como evidencia auth; la autenticación Admin real recurrente queda cubierta por el workflow dedicado de Canary.
 
 #### Pendiente para cerrar Phase B
-1. Admin autenticado QA real recurrente y autocontenido en desktop/tablet/móvil, con limpieza segura del estado WebAuthn sintético entre ejecuciones.
-2. teclado virtual/orientación/modales/scroll largo.
-3. error recovery task-level con estados de red y reanudación.
-4. ampliar PWA a tablet landscape si la tarea instalada lo requiere.
+1. teclado virtual/orientación/modales/scroll largo en tareas críticas.
+2. error recovery task-level con estados de red y reanudación.
+3. ampliar PWA a tablet landscape si la tarea instalada lo requiere.
+4. mantener la ceremonia Admin/Coach recurrente alineada con la fuente actual y cleanup fail-closed.
 
 ## Regla de producto
 

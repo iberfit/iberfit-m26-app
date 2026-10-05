@@ -47,6 +47,16 @@ export default defineConfig({
       },
     },
     {
+      name:'p0-installed-pwa-tablet-landscape-chromium',
+      use:{
+        browserName:'chromium',
+        viewport:{width:1180,height:820},
+        hasTouch:true,
+        isMobile:true,
+        deviceScaleFactor:2,
+      },
+    },
+    {
       name:'p0-installed-pwa-mobile-chromium',
       use:{
         browserName:'chromium',

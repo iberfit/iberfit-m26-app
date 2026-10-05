@@ -15,6 +15,7 @@ test('P0 installed upgrade and live production entry certify desktop tablet and 
   for(const project of [
     'p0-installed-pwa-desktop-chromium',
     'p0-installed-pwa-tablet-chromium',
+    'p0-installed-pwa-tablet-landscape-chromium',
     'p0-installed-pwa-mobile-chromium',
   ])assert.ok(pwaUpgradeConfig.includes(project),`installed PWA matrix missing ${project}`);
 
