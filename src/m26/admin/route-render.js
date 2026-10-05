@@ -5,7 +5,7 @@ const empty=(t,c)=>`<section class="m26-admin-empty"><h3>${e(t)}</h3><p>${e(c)}<
 const stat=(t,v)=>`<article class="m26-admin-stat"><span>${e(t)}</span><strong>${e(v)}</strong></article>`;
 const intro=(k,t,c)=>`<section class="m26-admin-hero"><p class="m26-eyebrow">${e(k)}</p><h2>${e(t)}</h2><p>${e(c)}</p></section>`;
 const rows=(headers,items)=>`<div class="m26-admin-table"><table><thead><tr>${headers.map((h)=>`<th>${e(h)}</th>`).join('')}</tr></thead><tbody>${items.join('')}</tbody></table></div>`;
-function form(kind,fields,button,{attrs='',submitAttrs=''}={}){return `<form data-admin-form="${kind}" class="m26-admin-form" ${attrs}>${fields}<button type="submit" ${submitAttrs}>${e(button)}</button></form>`;}
+function form(kind,fields,button,{attrs='',submitAttrs=''}={}){return `<form data-admin-form="${kind}" data-guided-required-form class="m26-admin-form" ${attrs}>${fields}<p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" ${submitAttrs}>${e(button)}</button></form>`;}
 function adminStatusLabel(value){
   const key=String(value||'').trim().toLowerCase();
   return ({
