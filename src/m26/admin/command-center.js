@@ -10,8 +10,8 @@ function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(s
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const sourceClients=arr(clients);
-  const iriOnlyPeople=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()==='iri_only');
-  const normalizedClients=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()!=='iri_only').map((client)=>{
+  const peopleWithoutTraining=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()!=='training');
+  const normalizedClients=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()==='training').map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const assignments=arr(client?.assignments);
@@ -73,7 +73,8 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
   const summary=Object.freeze({
     totalClients:normalizedClients.length,
-    iriOnlyPeople:iriOnlyPeople.length,
+    peopleWithoutTraining:peopleWithoutTraining.length,
+    evaluatedWithoutTraining:peopleWithoutTraining.filter((client)=>client?.experience?.readiness?.iriConfirmed===true).length,
     unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
     iriPending:countStage('evaluation'),
