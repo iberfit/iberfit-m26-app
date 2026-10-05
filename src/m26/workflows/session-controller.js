@@ -13,6 +13,7 @@ import {setPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEnt
 import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
+import {fillEmptyControls} from '../ui/guided-input.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -438,13 +439,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!step||executionResultForStep(context.execution,step))return null;
     const suggestion=suggestedSetDraftValues(context.execution,context.session);
     if(!suggestion?.values)return null;
-    for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
-      const field=node.getAttribute('data-set-field');
-      if(field==='notes'||!Object.prototype.hasOwnProperty.call(suggestion.values,field))continue;
-      if(String(node.value??'').trim())continue;
-      const value=suggestion.values[field]??'';
-      if(String(value).trim())node.value=value;
-    }
+    fillEmptyControls(root,suggestion.values,{
+      selector:'[data-set-field]',
+      attribute:'data-set-field',
+      skip:['notes','rpe','rir'],
+    });
     const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));
     if(!saved)return null;
     queueExecutionDraftPersist(context);
