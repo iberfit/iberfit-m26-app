@@ -10,6 +10,8 @@
 -- It is intentionally left untouched: production never received it, and the canonical
 -- v1 table below has a different name. No destructive cleanup belongs in this migration.
 
+-- IBERFIT-TABLE-ACCESS: public.iberfit_training_service_events_v1 :: Canonical append-only service history; application users never access the table directly and all mutations cross the privileged Admin RPC membrane.
+-- IBERFIT-POLICY: public.iberfit_training_service_events_v1 = service-role-only
 create table if not exists public.iberfit_training_service_events_v1(
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.iberfit_organizations(id) on delete restrict,
@@ -97,6 +99,8 @@ where m.training_status is not null
 -- iri_assessments remains the protected 0..1 initial diagnosis. Follow-up/evolution
 -- uses a dedicated append-only-compatible table, avoiding any relaxation of the
 -- initial-only constraint or its unique baseline index.
+-- IBERFIT-TABLE-ACCESS: public.iri_reevaluations_v1 :: Private longitudinal assessment storage; exposed only through governed IRI workflows, never by direct client/coach table access.
+-- IBERFIT-POLICY: public.iri_reevaluations_v1 = service-role-only
 create table if not exists public.iri_reevaluations_v1(
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.iberfit_organizations(id) on delete restrict,
