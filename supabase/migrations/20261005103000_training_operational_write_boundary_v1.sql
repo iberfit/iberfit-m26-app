@@ -1,9 +1,10 @@
 -- IBERFIT · Entrenamiento Operativo 360 · direct-write boundary v1
 --
--- Canonical training state is mutated through the Command Bus / SECURITY DEFINER
--- projection path, not by direct PostgREST writes. Keep authenticated read access
--- for backwards-compatible read surfaces while removing direct mutation capability.
--- Legacy RC43 compatibility tables/RPCs are intentionally untouched in this wave.
+-- Canonical training entity state (training_cycles, sessions, session_executions)
+-- is mutated through the Command Bus / SECURITY DEFINER projection path, never by
+-- direct PostgREST writes. session_events is an older compatibility event store:
+-- it remains readable for N-1 compatibility but is hardened to read-only here.
+-- Legacy RC43 plan/session tables and RPC remain untouched in this wave.
 
 revoke all on table
   public.training_cycles,
