@@ -308,7 +308,7 @@ export function syncFlexibleOnboardingForm(form){
     else if(!deferred&&phase.value==='Inicio operativo')phase.value='Evaluación inicial';
   }
   const progress=guidedRequiredProgress(form);
-  form.dataset.onboardingPendingRequired=String(progress.pendingCount);
+  if(form.dataset)form.dataset.onboardingPendingRequired=String(progress.pendingCount);
   const submit=form.querySelector?.('[data-onboarding-submit]');
   if(submit){
     submit.textContent=progress.pendingCount
