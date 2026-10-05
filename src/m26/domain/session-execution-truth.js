@@ -1,3 +1,5 @@
+import {canonicalTrainingRecordsForClient} from './training-operational-truth.js';
+
 const COMPLETE_STATUSES=new Set([
   'completed',
   'completado',
@@ -167,7 +169,7 @@ export function confirmedSessionExecutionsForClient(
   const blocked=unconfirmedSessionExecutionIds(state);
 
   return Object.freeze(
-    arr(state?.collections?.sessionExecutions)
+    canonicalTrainingRecordsForClient(state,'executions',expected)
       .filter(
         (record)=>
           sessionExecutionClientId(record)===expected,
