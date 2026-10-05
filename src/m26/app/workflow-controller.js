@@ -143,34 +143,111 @@ export function syncIriSkippedGroup(form,{toggleName,fieldNames=[],reasonName}={
   return skipped;
 }
 
+export function appointmentEndFromDuration(startAt,durationMinutes){
+  const match=String(startAt||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/u);
+  const duration=Number(durationMinutes);
+  if(!match||!Number.isFinite(duration)||duration<1||duration>24*60)return '';
+  const [,year,month,day,hour,minute]=match;
+  const date=new Date(Number(year),Number(month)-1,Number(day),Number(hour),Number(minute),0,0);
+  if(Number.isNaN(date.getTime()))return '';
+  date.setMinutes(date.getMinutes()+duration);
+  const pad=(value)=>String(value).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function appointmentModalitySuggestion(clientModality){
+  const normalized=normalizeClientModality(clientModality);
+  return normalized==='presencial'||normalized==='online'?normalized:'';
+}
+
 export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
-  if(!form)return {modality:null,locationRequired:false,trainingAddress:null};
+  if(!form)return {modality:null,locationRequired:false,trainingAddress:null,sessionDurationMinutes:null,suggestedEndAt:null};
   clearStatus(root,'appointment');
   const modalityField=form.elements?.namedItem?.('modality')||form.querySelector?.('[name="modality"]');
   const clientField=form.elements?.namedItem?.('clientId')||form.querySelector?.('[name="clientId"]');
+  const startField=form.elements?.namedItem?.('startAt')||form.querySelector?.('[name="startAt"]');
+  const endField=form.elements?.namedItem?.('endAt')||form.querySelector?.('[name="endAt"]');
   const locationField=form.elements?.namedItem?.('location')||form.querySelector?.('[name="location"]');
   const help=form.querySelector?.('#m26-location-help');
-  const modality=normalizeAppointmentModality(modalityField?.value);
-  const locationRequired=modality==='presencial';
+  const guidance=form.querySelector?.('#m26-appointment-guidance');
   const selectedOption=clientField?.selectedOptions?.[0]||clientField?.options?.[clientField?.selectedIndex]||null;
   const trainingAddress=String(selectedOption?.dataset?.trainingAddress||'').trim();
+  const clientModality=String(selectedOption?.dataset?.clientModality||'').trim();
+  const suggestedModality=appointmentModalitySuggestion(clientModality);
+  const sessionDurationMinutes=Number(selectedOption?.dataset?.sessionDuration);
+  const validDuration=Number.isFinite(sessionDurationMinutes)&&sessionDurationMinutes>=20&&sessionDurationMinutes<=240
+    ?sessionDurationMinutes
+    :null;
+
+  if(modalityField){
+    let previousAutofill=String(modalityField.dataset?.m26AutofilledValue||'');
+    const current=String(modalityField.value||'').trim();
+    if(previousAutofill&&current&&current!==previousAutofill){
+      if(modalityField.dataset)delete modalityField.dataset.m26AutofilledValue;
+      previousAutofill='';
+    }
+    if(suggestedModality&&(!current||(previousAutofill&&current===previousAutofill))){
+      modalityField.value=suggestedModality;
+      if(modalityField.dataset)modalityField.dataset.m26AutofilledValue=suggestedModality;
+    }else if(!suggestedModality&&previousAutofill&&current===previousAutofill){
+      modalityField.value='';
+      if(modalityField.dataset)delete modalityField.dataset.m26AutofilledValue;
+    }
+  }
+
+  const suggestedEndAt=appointmentEndFromDuration(startField?.value,validDuration);
+  if(endField){
+    let previousAutofill=String(endField.dataset?.m26AutofilledValue||'');
+    const current=String(endField.value||'').trim();
+    if(previousAutofill&&current&&current!==previousAutofill){
+      if(endField.dataset)delete endField.dataset.m26AutofilledValue;
+      previousAutofill='';
+    }
+    if(suggestedEndAt&&(!current||(previousAutofill&&current===previousAutofill))){
+      endField.value=suggestedEndAt;
+      if(endField.dataset)endField.dataset.m26AutofilledValue=suggestedEndAt;
+    }else if(!suggestedEndAt&&previousAutofill&&current===previousAutofill){
+      endField.value='';
+      if(endField.dataset)delete endField.dataset.m26AutofilledValue;
+    }
+  }
+
+  const modality=normalizeAppointmentModality(modalityField?.value);
+  const locationRequired=modality==='presencial';
   if(locationField){
     const previousAutofill=String(locationField.dataset?.m26AutofilledValue||'');
     const current=String(locationField.value||'').trim();
     locationField.required=locationRequired;
     if(locationRequired)locationField.setAttribute?.('required','');else locationField.removeAttribute?.('required');
     if(locationRequired&&trainingAddress&&(!current||current===previousAutofill)){
-      locationField.value=trainingAddress;if(locationField.dataset)locationField.dataset.m26AutofilledValue=trainingAddress;
+      locationField.value=trainingAddress;
+      if(locationField.dataset)locationField.dataset.m26AutofilledValue=trainingAddress;
     }else if(!locationRequired&&previousAutofill&&current===previousAutofill){
-      locationField.value='';if(locationField.dataset)delete locationField.dataset.m26AutofilledValue;
+      locationField.value='';
+      if(locationField.dataset)delete locationField.dataset.m26AutofilledValue;
     }
+  }
+  if(guidance){
+    const suggestions=[
+      suggestedModality?'modalidad del expediente':null,
+      validDuration?'duración habitual':null,
+    ].filter(Boolean);
+    guidance.textContent=suggestions.length
+      ?`IBERFIT ha propuesto ${suggestions.join(' y ')}. Revísalas: cualquier cambio manual prevalece.`
+      :'No hay modalidad o duración confirmadas para proponer. Selecciónalas para esta cita.';
   }
   if(help){
     help.textContent=locationRequired
       ?trainingAddress?'Se ha propuesto la dirección habitual del expediente. Revísala antes de guardar.':'La ubicación es obligatoria para citas presenciales. Registra también la dirección habitual en el expediente.'
       :modality==='online'?'Añade un enlace o instrucciones únicamente cuando corresponda.':'La sesión guiada se realiza dentro de la aplicación.';
   }
-  return {modality,locationRequired,trainingAddress:trainingAddress||null};
+  return {
+    modality,
+    locationRequired,
+    trainingAddress:trainingAddress||null,
+    sessionDurationMinutes:validDuration,
+    suggestedEndAt:suggestedEndAt||null,
+  };
 }
 
 export function createWorkflowController({
