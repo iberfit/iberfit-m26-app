@@ -41,6 +41,7 @@ export function trainingServiceStatusFrom(record={}){
   // Backward compatibility while legacy lifecycle rows are still present.
   // New code must prefer the explicit training-service projection above.
   const lifecycle=legacyLifecycleStatus(record);
+  if(!lifecycle)return TRAINING_SERVICE_STATUSES.active;
   if(['active','reactivation','onboarding'].includes(lifecycle))return TRAINING_SERVICE_STATUSES.active;
   if(lifecycle==='paused')return TRAINING_SERVICE_STATUSES.paused;
   if(lifecycle==='inactive')return TRAINING_SERVICE_STATUSES.ended;
