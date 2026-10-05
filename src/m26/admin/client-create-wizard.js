@@ -1,6 +1,7 @@
 const DRAFT_SCHEMA='iberfit.admin.client-create-draft.v4';
 const DRAFT_PREFIX='iberfit:m26:admin-client-create:v4:';
 const LEGACY_DRAFT_PREFIX='iberfit:m26:admin-client-create:v3:';
+const LEGACY_DRAFT_PREFIX_V2='iberfit:m26:admin-client-create:v2:';
 const DRAFT_MAX_AGE_MS=8*60*60*1000;
 const DRAFT_FUTURE_SKEW_MS=5*60*1000;
 const INPUT_SAVE_DELAY_MS=250;
@@ -38,6 +39,9 @@ function keyFor(scopeKey){
 }
 function legacyKeyFor(scopeKey){
   return `${LEGACY_DRAFT_PREFIX}${safeScope(scopeKey)}`;
+}
+function legacyV2KeyFor(scopeKey){
+  return `${LEGACY_DRAFT_PREFIX_V2}${safeScope(scopeKey)}`;
 }
 function removeStored(storage,key){
   try{storage?.removeItem?.(key);}catch{}
@@ -265,6 +269,7 @@ export function createClientCreateWizard({
   function clearPersistentDraftResidue(){
     if(!persistentStorage||persistentStorage===storage)return;
     removeStored(persistentStorage,legacyKeyFor(getScopeKey?.()));
+    removeStored(persistentStorage,legacyV2KeyFor(getScopeKey?.()));
     removeStored(persistentStorage,keyFor(getScopeKey?.()));
   }
   function cancelScheduledSave(){
@@ -427,6 +432,6 @@ export function createClientCreateWizard({
 }
 
 export const __clientCreateWizardInternals=Object.freeze({
-  DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
-  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,updateServiceIntent,
+  DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,LEGACY_DRAFT_PREFIX_V2,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
+  clampStep,keyFor,legacyKeyFor,legacyV2KeyFor,collect,assign,setStep,readDraft,writeDraft,updateServiceIntent,
 });
