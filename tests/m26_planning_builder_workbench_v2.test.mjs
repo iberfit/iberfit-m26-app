@@ -10,9 +10,12 @@ import {
   closeTrainingGroup,
   updateSessionBlock,
   validateSessionDraft,
+  exerciseMemoryDraftSuggestion,
+  applyExerciseMemorySuggestion,
 } from '../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution} from '../src/m26/workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
+import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 import {
   createReusableSessionDraft,
   sessionTemplateSnapshot,
@@ -101,6 +104,98 @@ test('plantillas y duplicación reutilizable no pierden la prescripción extendi
   assert.equal(copy.blocks[0].plannedLoad,'22.5 kg');
   assert.equal(copy.blocks[0].prescriptionNotes,draft.blocks[0].prescriptionNotes);
   assert.equal(copy.blocks[0].progression,draft.blocks[0].progression);
+});
+
+test('memoria confirmada se convierte en borrador revisable sin copiar esfuerzo ni descanso',()=>{
+  const draft=prescribedDraft();
+  const block=draft.blocks[0];
+  const memory={
+    latest:{
+      setCount:4,
+      lastLoad:{raw:'30 kg'},
+      sets:[
+        {reps:10,seconds:null,load:{raw:'27.5 kg'}},
+        {reps:8,seconds:null,load:{raw:'30 kg'}},
+      ],
+    },
+  };
+
+  assert.deepEqual(exerciseMemoryDraftSuggestion(memory),{
+    sets:4,
+    reps:'8',
+    plannedLoad:'30 kg',
+  });
+
+  applyExerciseMemorySuggestion(draft,{
+    blockId:block.id,
+    exerciseId:block.exerciseId,
+    memory,
+  });
+
+  assert.equal(block.sets,4);
+  assert.equal(block.reps,'8');
+  assert.equal(block.plannedLoad,'30 kg');
+  assert.equal(block.restSeconds,90);
+  assert.equal(block.targetRpe,7.5);
+  assert.equal(block.targetRir,2);
+  assert.equal(draft.previewAccepted,false);
+});
+
+test('controlador aplica referencia confirmada sólo al borrador y obliga a nueva revisión',()=>{
+  const draft=prescribedDraft();
+  const block=draft.blocks[0];
+  draft.previewAccepted=true;
+
+  const result=dispatchSessionAction({
+    action:'reuse-exercise-memory',
+    draft,
+    catalog,
+    payload:{
+      blockId:block.id,
+      exerciseId:block.exerciseId,
+      suggestion:{sets:5,reps:'6',plannedLoad:'32.5 kg'},
+    },
+  });
+
+  assert.equal(result.kind,'draft');
+  assert.equal(block.sets,5);
+  assert.equal(block.reps,'6');
+  assert.equal(block.plannedLoad,'32.5 kg');
+  assert.equal(block.restSeconds,90);
+  assert.equal(block.targetRpe,7.5);
+  assert.equal(block.targetRir,2);
+  assert.equal(draft.previewAccepted,false);
+});
+
+test('constructor expone la última referencia confirmada como acción explícita de borrador',()=>{
+  const draft=prescribedDraft();
+  const block=draft.blocks[0];
+  const memory={
+    exposureCount:3,
+    latest:{
+      completedAt:'2026-10-01T10:00:00.000Z',
+      setCount:3,
+      lastLoad:{raw:'25 kg'},
+      sets:[{reps:8,load:{raw:'25 kg'},rpe:7,rir:3}],
+    },
+  };
+
+  const html=renderSessionBuilder({
+    draft,
+    catalog,
+    templates:[],
+    role:'coach',
+    exerciseMemoryFor:(exerciseId)=>exerciseId===block.exerciseId?memory:null,
+  });
+
+  assert.match(html,/data-session-action="reuse-exercise-memory"/);
+  assert.match(html,/Usar referencia y revisar/);
+  assert.match(html,/data-reference-sets="3"/);
+  assert.match(html,/data-reference-reps="8"/);
+  assert.match(html,/data-reference-load="25 kg"/);
+  assert.match(html,/Descanso y esfuerzo objetivo no cambian/);
+  assert.doesNotMatch(html,/data-reference-rpe=/);
+  assert.doesNotMatch(html,/data-reference-rir=/);
 });
 
 test('constructor V2 prioriza campos operativos y conserva toda la estructura avanzada',()=>{

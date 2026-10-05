@@ -1,9 +1,11 @@
 import { canSubstituteCurrentExercise,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
+import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
+import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function previousSetSummary(values){
   return [
@@ -40,10 +42,12 @@ function renderCurrentExerciseHistory(execution,step){
   return `<section class="m26-panel m26-panel-soft" data-session-current-exercise-history aria-label="Series registradas hoy en este ejercicio"><p class="m26-eyebrow">Hoy en este ejercicio</p><div class="m26-field-grid">${items}</div></section>`;
 }
 function groupName(type){return ({biserie:'Biserie',triserie:'Triserie',circuito:'Circuito',amrap:'AMRAP',tabata:'Tabata'})[type]||type;}
-export function renderSessionSyncBanner(execution){
+export function renderSessionSyncBanner(execution,{role=''}={}){
   const status=execution?.syncStatus||'clean';if(status==='clean')return '';
   if(status==='pending')return '<div class="m26-sync-banner is-pending" role="status"><span>Guardado en este dispositivo · pendiente de sincronización.</span><button type="button" class="m26-text-action" data-session-action="sync-now">Sincronizar ahora</button></div>';
   if(status==='conflict')return '<div class="m26-sync-banner is-conflict" role="alert">Existe una versión más reciente. Tu progreso local está protegido y requiere revisión.</div>';
+  const specific=sessionRejectedSyncOutcome(execution,{role});
+  if(specific)return `<div class="m26-sync-banner is-rejected" role="alert">${e(specific.message)}</div>`;
   return '<div class="m26-sync-banner is-rejected" role="alert">No fue posible confirmar el último cambio. El progreso local se conserva.</div>';
 }
 function timerStrip(execution){const elapsed=formatDuration(executionElapsedMs(execution));const rest=restRemainingSeconds(execution);return `<div class="m26-session-timers" aria-live="polite"><span><small>Tiempo activo</small><strong data-session-elapsed>${e(elapsed)}</strong></span><span><small>Descanso</small><strong data-session-rest>${rest?`${rest} s`:'—'}</strong></span></div>`;}
@@ -292,13 +296,9 @@ function exerciseMemoryChange(memory){
   return `vs. exposición anterior ${sign}${delta.value}${unit}${percent}`;
 }
 
-function renderExerciseMemoryInline(memory){
+function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
   const latest=memory?.latest;
-
-  if(!latest){
-    return '';
-  }
-
+  if(!latest)return '';
   const load=
     latest.lastLoad?.raw||
     (
@@ -306,12 +306,26 @@ function renderExerciseMemoryInline(memory){
         ?`${latest.totalSeconds} s acumulados`
         :'Sin carga registrada'
     );
-
   const sets=(latest.sets||[])
     .slice(0,3)
     .map(exerciseMemorySetText)
     .join(' · ');
-
+  const suggestion=exerciseMemoryDraftSuggestion(memory);
+  const action=suggestion&&blockId&&exerciseId
+    ?`<div class="m26-session-repeat-actions">
+        <button
+          type="button"
+          data-session-action="reuse-exercise-memory"
+          data-block-id="${e(blockId)}"
+          data-exercise-id="${e(exerciseId)}"
+          data-reference-sets="${e(group?'':suggestion.sets??'')}"
+          data-reference-reps="${e(suggestion.reps||'')}"
+          data-reference-load="${e(suggestion.plannedLoad||'')}"
+          aria-label="Usar la última referencia confirmada como punto de partida y revisarla"
+        >Usar referencia y revisar</button>
+      </div>
+      <small>Solo prepara el borrador · ${group?'reps y carga':'series, reps y carga'}. Descanso y esfuerzo objetivo no cambian.</small>`
+    :'';
   return `<div
     class="m26-field-grid"
     data-exercise-memory="builder"
@@ -320,10 +334,10 @@ function renderExerciseMemoryInline(memory){
       <span>Última vez · ${e(exerciseMemoryDate(memory))}</span>
       <strong>${e(load)}</strong>
     </div>
-
     <div class="m26-field">
       <span>Referencia confirmada</span>
       <strong>${e(sets||'Sin detalle de series')}</strong>
+      ${action}
     </div>
   </div>`;
 }
@@ -410,7 +424,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
         <button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button>
       </div>
     </header>
-    ${renderExerciseMemoryInline(memory)}
+    ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
       ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}
@@ -437,7 +451,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
   const memory=exerciseMemoryFor?.(exerciseId)||null;
   return `<section class="m26-group-prescription">
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
-    ${renderExerciseMemoryInline(memory)}
+    ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}
       ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
@@ -764,7 +778,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const state=actionState&&actionState.status!=='idle'
     ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
     :'';
-  const sync=renderSessionSyncBanner(execution);
+  const sync=renderSessionSyncBanner(execution,{role});
   const goal=sessionLiveGoal(session);
 
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
@@ -953,6 +967,7 @@ const setEntryFields=isCoach
         </div>
         ${coachQuickRpe}
       </div>
+      <small class="m26-session-guided-entry-note">IBERFIT completa automáticamente lo seguro. Revisa los datos y registra el RPE real.</small>
     </div>`
   :`<div class="m26-field-grid m26-session-set-fields">
       <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>

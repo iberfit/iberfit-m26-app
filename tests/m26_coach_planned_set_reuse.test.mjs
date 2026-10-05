@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   createExecution,
   plannedSetDraftValues,
+  suggestedSetDraftValues,
   recordSet,
   advanceExecution,
   startExecution,
@@ -74,6 +75,26 @@ test('plannedSetDraftValues reuses objective work only and never turns target ef
   });
 });
 
+test('suggestedSetDraftValues selects the safe planned draft on the first set',()=>{
+  const s=session();
+  const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-plan-suggested'});
+  startExecution(execution,{actor:{role:'coach',userId:'coach-1'}});
+  assert.deepEqual(suggestedSetDraftValues(execution,s),{
+    source:'planned',
+    values:{reps:'10',seconds:'',load:'40 kg',rpe:'',rir:''},
+  });
+});
+
+test('Coach Live explains automatic safe completion without implying confirmation',()=>{
+  const s=session();
+  const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-guided-copy'});
+  startExecution(execution,{actor:{role:'coach',userId:'coach-1'}});
+  const html=renderGuidedExecution({execution,session:s,catalog,role:'coach'});
+  assert.match(html,/IBERFIT completa automáticamente lo seguro/);
+  assert.match(html,/registra el RPE real/);
+  assert.doesNotMatch(html,/confirmada automáticamente|completada automáticamente/u);
+});
+
 test('Coach gets planned-draft shortcut only when no previous set is available',()=>{
   const s=session();
   const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-plan-ui'});
@@ -113,7 +134,14 @@ test('planned shortcut translations cover supported surface languages',()=>{
   assert.equal(iberfitSurfaceTranslate('Usar objetivo y revisar',{language:'pt'}),'Usar objetivo e rever');
 });
 
-function controllerHarness(){
+test('guided automatic preparation copy is translated across supported surface languages',()=>{
+  const es='IBERFIT completa automáticamente lo seguro. Revisa los datos y registra el RPE real.';
+  assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),'IBERFIT automatically fills what is safe. Review the data and record the real RPE.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),'IBERFIT remplit automatiquement ce qui est sûr. Vérifiez les données et enregistrez le RPE réel.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),'A IBERFIT preenche automaticamente o que é seguro. Reveja os dados e registe o RPE real.');
+});
+
+function controllerHarness(role='coach'){
   const listeners=[];
   const s=session();
   const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-plan-controller'});
@@ -166,7 +194,7 @@ function controllerHarness(){
       execution,
       session:s,
       catalog,
-      actor:{role:'coach',userId:'coach-1'},
+      actor:{role,userId:`${role}-1`},
       recoveryCoordinator,
       actionState,
     }),
@@ -192,9 +220,19 @@ function controllerHarness(){
   return {controller,execution,fields,actionState,click,event,get renderCalls(){return renderCalls;},get persistCalls(){return persistCalls;}};
 }
 
-test('Coach copies planned values into the recoverable draft without completing the set',async()=>{
+test('automatic set preparation is Coach-only and never silently fills Client observations',()=>{
+  const harness=controllerHarness('client');
+  assert.equal(harness.fields.get('reps').value,'');
+  assert.equal(harness.fields.get('seconds').value,'');
+  assert.equal(harness.fields.get('load').value,'');
+  assert.equal(harness.fields.get('rpe').value,'');
+  assert.equal(harness.fields.get('rir').value,'');
+  assert.equal(harness.execution.activeSetDraft,undefined);
+  harness.controller.destroy();
+});
+
+test('Coach receives a safe automatic planned draft and explicit review focuses the human decision',async()=>{
   const harness=controllerHarness();
-  await harness.click(harness.event);
 
   assert.equal(harness.fields.get('reps').value,'10');
   assert.equal(harness.fields.get('seconds').value,'');
@@ -202,11 +240,20 @@ test('Coach copies planned values into the recoverable draft without completing 
   assert.equal(harness.fields.get('rpe').value,'');
   assert.equal(harness.fields.get('rir').value,'');
   assert.equal(harness.fields.get('notes').value,'Mantener nota manual');
-  assert.equal(harness.renderCalls,0);
-  assert.equal(harness.fields.get('reps').focusCalls,1);
+  assert.equal(harness.fields.get('reps').focusCalls,0);
+  assert.equal(harness.fields.get('rpe').focusCalls,0);
   assert.equal(harness.execution.activeSetDraft?.values?.load,'40 kg');
   assert.equal(harness.execution.activeSetDraft?.values?.rpe,'');
   assert.equal(harness.execution.activeSetDraft?.values?.rir,'');
+  assert.deepEqual(harness.execution.results,{});
+  assert.equal(harness.actionState.status,'idle');
+  assert.equal(harness.actionState.message,'');
+
+  await harness.click(harness.event);
+
+  assert.equal(harness.renderCalls,0);
+  assert.equal(harness.fields.get('reps').focusCalls,0);
+  assert.equal(harness.fields.get('rpe').focusCalls,1);
   assert.deepEqual(harness.execution.results,{});
   assert.equal(harness.execution.setIndex,0);
   assert.match(harness.actionState.message,/Revísalo antes de confirmar/);

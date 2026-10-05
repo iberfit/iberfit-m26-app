@@ -1,7 +1,59 @@
 const REVIEWABLE_SYNC_STATES=new Set(['conflict','rejected']);
+export const TRAINING_SERVICE_NOT_ACTIVE='TRAINING_SERVICE_NOT_ACTIVE';
 
 function normalizedRole(role){
   return String(role||'').trim().toLowerCase();
+}
+
+function isCoachRole(role){
+  return ['coach','entrenador'].includes(normalizedRole(role));
+}
+
+export function sessionCommandFailureReason(source){
+  return String(
+    source?.result?.response?.reason
+    ||source?.response?.reason
+    ||source?.operation?.errorCode
+    ||source?.lastSyncError
+    ||source?.code
+    ||source?.message
+    ||''
+  ).trim().toUpperCase();
+}
+
+export function sessionCommandFailureOutcome(source,{role='',action='',phase='action'}={}){
+  const reason=sessionCommandFailureReason(source);
+  if(reason!==TRAINING_SERVICE_NOT_ACTIVE)return null;
+  const coach=isCoachRole(role);
+  if(phase==='sync'){
+    return Object.freeze({
+      status:'error',
+      code:reason,
+      message:coach
+        ?'El servicio de entrenamiento no está activo. El inicio pendiente no puede confirmarse. El progreso local se conserva para revisión; revisa el servicio del cliente.'
+        :'Esta sesión ya no puede sincronizarse. Tu progreso de este dispositivo se conserva para revisión.',
+    });
+  }
+  if(action==='start'){
+    return Object.freeze({
+      status:'error',
+      code:reason,
+      message:coach
+        ?'El servicio de entrenamiento no está activo. La sesión no se inició. Revisa el servicio del cliente antes de volver a intentarlo.'
+        :'Esta sesión ya no está disponible para iniciar. No se ha perdido ningún dato.',
+    });
+  }
+  return Object.freeze({
+    status:'error',
+    code:reason,
+    message:coach
+      ?'El servicio de entrenamiento no está activo. No se puede crear ni reactivar trabajo nuevo para este cliente.'
+      :'Esta acción de entrenamiento ya no está disponible.',
+  });
+}
+
+export function sessionRejectedSyncOutcome(execution,{role=''}={}){
+  return sessionCommandFailureOutcome(execution,{role,phase:'sync'});
 }
 
 export function sessionSyncNeedsRecoveryReview(execution,{role=''}={}){

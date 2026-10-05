@@ -53,7 +53,18 @@ test('la política de destino es única y mantiene IRI como fallback recomendado
 
 test('deferred relaja sólo los campos propios del IRI y mantiene identidad básica',()=>{
   const fields=new Map();
-  const control=(value='')=>({value,required:true,setAttribute(){this.required=true;},removeAttribute(){this.required=false;}});
+  const control=(value='')=>{
+    const wrapper={hidden:false,attrs:new Map(),querySelectorAll(){return [field];},setAttribute(name,next){this.attrs.set(name,next);}};
+    const field={
+      value,
+      required:true,
+      disabled:false,
+      closest(selector){return selector==='label'?wrapper:null;},
+      setAttribute(name){if(name==='required')this.required=true;},
+      removeAttribute(name){if(name==='required')this.required=false;if(name==='aria-disabled')wrapper.attrs.delete(name);},
+    };
+    return field;
+  };
   for(const name of ['sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective','trainingAddress','phase'])fields.set(name,control(name==='phase'?'Evaluación inicial':''));
   fields.set('modality',control('presencial'));
   fields.set('initialAssessmentMode',control('deferred'));
@@ -65,4 +76,42 @@ test('deferred relaja sólo los campos propios del IRI y mantiene identidad bás
   assert.equal(syncFlexibleOnboardingForm(form),'iri');
   for(const name of ['sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective','trainingAddress'])assert.equal(fields.get(name).required,true,name);
   assert.equal(fields.get('phase').value,'Evaluación inicial');
+});
+
+test('onboarding oculta dirección cuando no aplica sin borrar el valor humano',()=>{
+  const wrapper={
+    hidden:false,
+    querySelectorAll(){return [address];},
+    setAttribute(){},
+  };
+  const address={
+    value:'Av. Apoquindo 1234',
+    required:true,
+    disabled:false,
+    closest(selector){return selector==='label'?wrapper:null;},
+    setAttribute(name){if(name==='required')this.required=true;},
+    removeAttribute(name){if(name==='required')this.required=false;},
+  };
+  const controls={
+    initialAssessmentMode:{value:'iri'},
+    modality:{value:'online'},
+    trainingAddress:address,
+    sexForNorms:{required:true,setAttribute(){},removeAttribute(){}},
+    weeklyFrequency:{required:true,setAttribute(){},removeAttribute(){}},
+    sessionDurationMinutes:{required:true,setAttribute(){},removeAttribute(){}},
+    primaryObjective:{required:true,setAttribute(){},removeAttribute(){}},
+    phase:{value:'Evaluación inicial'},
+  };
+  const form={elements:{namedItem:(name)=>controls[name]||null},querySelector:()=>null};
+
+  syncFlexibleOnboardingForm(form);
+  assert.equal(wrapper.hidden,true);
+  assert.equal(address.disabled,true);
+  assert.equal(address.value,'Av. Apoquindo 1234');
+
+  controls.modality.value='presencial';
+  syncFlexibleOnboardingForm(form);
+  assert.equal(wrapper.hidden,false);
+  assert.equal(address.disabled,false);
+  assert.equal(address.value,'Av. Apoquindo 1234');
 });
