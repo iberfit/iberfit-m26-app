@@ -19,7 +19,7 @@ import {
   normalizeAppointmentRecord,
 } from '../domain/appointment.js';
 import { normalizeClientProfile } from '../domain/client-profile.js';
-import {hasTrainingService,trainingServiceStatusFrom} from '../domain/training-service.js';
+import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from '../domain/training-service.js';
 import {
   deriveClientExperience,
   experienceNextAction,
@@ -421,6 +421,10 @@ function clientRecord(state,clientId){
 function clientHasTrainingService(state,clientId){
   const client=clientRecord(state,clientId);
   return Boolean(client&&hasTrainingService(client));
+}
+function clientTrainingServiceActive(state,clientId){
+  const client=clientRecord(state,clientId);
+  return Boolean(client&&trainingServiceActive(client));
 }
 
 function installedCommands(state) {
@@ -859,6 +863,7 @@ if (area === 'clientes') {
   if (area === 'sesion') {
     const clientId = routeClientId(shellVm, state);
     const trainingActive=clientHasTrainingService(state,clientId);
+    const serviceActive=clientTrainingServiceActive(state,clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
@@ -888,6 +893,7 @@ if (area === 'clientes') {
       clientId,
       role,
       serviceKind:trainingActive?'training':'none',
+      serviceActive,
       canBuild: trainingActive&&['admin', 'coach'].includes(role),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
