@@ -15,6 +15,7 @@ import {
 } from '../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution} from '../src/m26/workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
+import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 import {
   createReusableSessionDraft,
   sessionTemplateSnapshot,
@@ -134,6 +135,32 @@ test('memoria confirmada se convierte en borrador revisable sin copiar esfuerzo 
   assert.equal(block.sets,4);
   assert.equal(block.reps,'8');
   assert.equal(block.plannedLoad,'30 kg');
+  assert.equal(block.restSeconds,90);
+  assert.equal(block.targetRpe,7.5);
+  assert.equal(block.targetRir,2);
+  assert.equal(draft.previewAccepted,false);
+});
+
+test('controlador aplica referencia confirmada sólo al borrador y obliga a nueva revisión',()=>{
+  const draft=prescribedDraft();
+  const block=draft.blocks[0];
+  draft.previewAccepted=true;
+
+  const result=dispatchSessionAction({
+    action:'reuse-exercise-memory',
+    draft,
+    catalog,
+    payload:{
+      blockId:block.id,
+      exerciseId:block.exerciseId,
+      suggestion:{sets:5,reps:'6',plannedLoad:'32.5 kg'},
+    },
+  });
+
+  assert.equal(result.kind,'draft');
+  assert.equal(block.sets,5);
+  assert.equal(block.reps,'6');
+  assert.equal(block.plannedLoad,'32.5 kg');
   assert.equal(block.restSeconds,90);
   assert.equal(block.targetRpe,7.5);
   assert.equal(block.targetRir,2);
