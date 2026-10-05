@@ -40,7 +40,8 @@ test('canonical regression locks release-to-type native-select and delayed-draft
   assert.match(spec,/pointerup/u);
   assert.match(spec,/toBeFocused\(\)/u);
   assert.match(spec,/expectSameNode/u);
-  assert.match(spec,/page\.keyboard\.type/u);
+  assert.match(spec,/\.pressSequentially\(/u);
+  assert.ok((spec.match(/expectSameNode\(/gu)||[]).length>=6,'text/select continuity must assert stable DOM identity across induced renders');
   assert.ok(spec.includes('data-client-search'),'client search coverage missing');
   assert.ok(spec.includes('data-client-filter="iri"'),'IRI filter coverage missing');
   assert.ok(spec.includes('releaseDraftLoad'),'delayed draft race release missing');
