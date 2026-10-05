@@ -221,10 +221,15 @@ test('controller copies locally, preserves current notes, persists the active dr
   const end=source.indexOf("if(action==='exit-session')",start);
   assert.ok(start>=0&&end>start);
   const branch=source.slice(start,end);
+  const helperStart=source.indexOf('function applySetDraftValues');
+  const helperEnd=source.indexOf('const baseRender=render;',helperStart);
+  assert.ok(helperStart>=0&&helperEnd>helperStart);
+  const helper=source.slice(helperStart,helperEnd);
   assert.match(branch,/previousSetDraftValues/);
-  assert.match(branch,/field==='notes'/);
-  assert.match(branch,/updateActiveSetDraft/);
-  assert.match(branch,/queueExecutionDraftPersist/);
+  assert.match(branch,/applySetDraftValues/);
+  assert.match(helper,/field==='notes'/);
+  assert.match(helper,/updateActiveSetDraft/);
+  assert.match(helper,/queueExecutionDraftPersist/);
   assert.match(branch,/Revísalos antes de confirmar/);
   assert.doesNotMatch(branch,/dispatchSessionAction/);
   assert.doesNotMatch(source,/case 'reuse-previous-set'/);
