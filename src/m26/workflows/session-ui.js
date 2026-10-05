@@ -4,6 +4,7 @@ import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise
 import {exerciseDisplayName} from '../exercises/names.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
+import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function previousSetSummary(values){
   return [
@@ -40,10 +41,12 @@ function renderCurrentExerciseHistory(execution,step){
   return `<section class="m26-panel m26-panel-soft" data-session-current-exercise-history aria-label="Series registradas hoy en este ejercicio"><p class="m26-eyebrow">Hoy en este ejercicio</p><div class="m26-field-grid">${items}</div></section>`;
 }
 function groupName(type){return ({biserie:'Biserie',triserie:'Triserie',circuito:'Circuito',amrap:'AMRAP',tabata:'Tabata'})[type]||type;}
-export function renderSessionSyncBanner(execution){
+export function renderSessionSyncBanner(execution,{role=''}={}){
   const status=execution?.syncStatus||'clean';if(status==='clean')return '';
   if(status==='pending')return '<div class="m26-sync-banner is-pending" role="status"><span>Guardado en este dispositivo · pendiente de sincronización.</span><button type="button" class="m26-text-action" data-session-action="sync-now">Sincronizar ahora</button></div>';
   if(status==='conflict')return '<div class="m26-sync-banner is-conflict" role="alert">Existe una versión más reciente. Tu progreso local está protegido y requiere revisión.</div>';
+  const specific=sessionRejectedSyncOutcome(execution,{role});
+  if(specific)return `<div class="m26-sync-banner is-rejected" role="alert">${e(specific.message)}</div>`;
   return '<div class="m26-sync-banner is-rejected" role="alert">No fue posible confirmar el último cambio. El progreso local se conserva.</div>';
 }
 function timerStrip(execution){const elapsed=formatDuration(executionElapsedMs(execution));const rest=restRemainingSeconds(execution);return `<div class="m26-session-timers" aria-live="polite"><span><small>Tiempo activo</small><strong data-session-elapsed>${e(elapsed)}</strong></span><span><small>Descanso</small><strong data-session-rest>${rest?`${rest} s`:'—'}</strong></span></div>`;}
@@ -764,7 +767,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const state=actionState&&actionState.status!=='idle'
     ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
     :'';
-  const sync=renderSessionSyncBanner(execution);
+  const sync=renderSessionSyncBanner(execution,{role});
   const goal=sessionLiveGoal(session);
 
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
