@@ -385,6 +385,8 @@ function clientEditPayload(client={}){
   return {
     clientId:String(client.id||''),
     baseRevision:Number(client.revision||0)||0,
+    serviceKind:String(client.serviceKind||'none'),
+    trainingServiceStatus:String(client.trainingServiceStatus||'none'),
     name:String(client.name||''),
     email:String(client.email||''),
     phone:String(p.phone||''),
@@ -420,7 +422,7 @@ function clientEditDialog(vm={}){
   return `<dialog class="m26-admin-client-edit-dialog" data-admin-client-edit-dialog aria-labelledby="m26-client-edit-title">
     <div class="m26-admin-client-edit-shell">
       <header>
-        <div><p class="m26-eyebrow">Expediente real</p><h3 id="m26-client-edit-title">Editar ficha de cliente</h3><p>Actualiza datos operativos sin alterar el historial IRI ya confirmado.</p></div>
+        <div><p class="m26-eyebrow">Expediente real</p><h3 id="m26-client-edit-title">Editar ficha de persona</h3><p>Actualiza datos operativos sin alterar el historial IRI ni activar entrenamiento de forma implícita.</p></div>
         <button type="button" class="m26-icon-button" data-admin-client-edit-close aria-label="Cerrar editor">×</button>
       </header>
       <form data-admin-form="client-profile-update" class="m26-admin-form m26-admin-client-edit-form" autocomplete="on">
@@ -438,8 +440,8 @@ function clientEditDialog(vm={}){
           <label>Canal preferido<select name="preferredContactChannel"><option value="">Sin preferencia</option><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="phone">Teléfono</option></select></label>
           <label>Horario preferido de contacto<input name="preferredContactTime" maxlength="120"></label>
           <label>Modalidad<select name="modality" required><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
-          <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric"></label>
-          <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric"></label>
+          <label data-client-edit-training-only>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" inputmode="numeric"></label>
+          <label data-client-edit-training-only>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" inputmode="numeric"></label>
           <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
           <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2"></label>
           <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address"></label>
