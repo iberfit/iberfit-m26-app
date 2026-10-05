@@ -43,7 +43,9 @@ test('compatibilidad histórica nunca gana sobre el estado explícito de servici
 
 test('diagnóstico inicial y reevaluaciones quedan físicamente separados',()=>{
   assert.match(migration,/create table if not exists public\.iri_reevaluations_v1/u);
-  assert.match(migration,/initial_assessment_id uuid not null references public\.iri_assessments\(id\) on delete restrict/u);
+  assert.match(migration,/initial_assessment_id uuid not null/u);
+  assert.match(migration,/create unique index if not exists iri_assessments_id_client_integrity_v1[\s\S]*?on public\.iri_assessments\(id,client_id\)/u);
+  assert.match(migration,/constraint iri_reevaluations_initial_person_fk_v1[\s\S]*?foreign key\(initial_assessment_id,person_id\)[\s\S]*?references public\.iri_assessments\(id,client_id\)/u);
   assert.match(migration,/unique\(person_id,sequence\)/u);
   assert.match(migration,/follow-up\/evolution never mutates baseline semantics/u);
   assert.doesNotMatch(migration,/drop constraint/u);
