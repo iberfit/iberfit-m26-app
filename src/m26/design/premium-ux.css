@@ -1673,6 +1673,19 @@ body {
   font-size:.72rem;
   line-height:1.5;
 }
+.m26-action-outcome-manager-status{
+  min-height:1.2rem;
+  margin:.45rem .75rem 0;
+  color:var(--m26-muted,#aaa);
+  font-size:.68rem;
+  line-height:1.4;
+}
+.m26-action-outcome-manager-status[data-status="success"]{
+  color:var(--iberfit-color-text-primary,#f7f1e4);
+}
+.m26-action-outcome-manager-status[data-status="error"]{
+  color:var(--iberfit-color-danger-text,#f4b9ae);
+}
 .m26-action-outcome-new{
   margin:.1rem .75rem .75rem;
   border-top:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 12%,transparent);
