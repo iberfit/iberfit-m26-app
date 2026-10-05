@@ -69,3 +69,8 @@ test('la compatibilidad legacy queda explícitamente clasificada fuera de la ver
   assert.equal(isLegacyTrainingPersistenceName('sessions'),false);
   assert.equal(isLegacyTrainingPersistenceName('session_executions'),false);
 });
+test('la verdad operativa canónica queda precacheada para uso offline',()=>{
+  const sw=read('public/m26/sw.js');
+  assert.match(sw,/\/src\/m26\/domain\/training-operational-truth\.js/u);
+});
+
