@@ -103,7 +103,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
         if(offlinePermit?.canStart!==true)throw new Error('M26_OFFLINE_START_NOT_ALLOWED');
         return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>startExecution(execution,{actor}),execution)};
       }
-      return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{startExecution(execution,{actor});execution.revision=executionRevision(result,1);},execution)};
+      return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{startExecution(execution,{actor});execution.revision=executionRevision(result,1);})};
     }
     case 'complete-set': {
       recordSet(execution,session,{...payload,actor});
