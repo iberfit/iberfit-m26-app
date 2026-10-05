@@ -165,14 +165,14 @@ test('Admin and Coach surfaces both retain real client-create capability',()=>{
   const workflow=fs.readFileSync('src/m26/app/workflow-controller.js','utf8');
   const application=fs.readFileSync('src/m26/app/application.js','utf8');
   const adminService=fs.readFileSync('src/m26/admin/service.js','utf8');
-  const edge=fs.readFileSync('supabase/functions/iberfit-client-onboarding-v1/index.ts','utf8');
+  const onboarding=fs.readFileSync('src/m26/workflows/client-onboarding.js','utf8');
 
   assert.match(routeVm,/canCreate:\s*\['admin',\s*'coach'\]\.includes\(role\)/u);
   assert.match(route,/data-workflow-form="client-onboarding"/u);
   assert.match(route,/Crear expediente y abrir diagnóstico IRI/u);
-  assert.match(route,/enviará la invitación al correo cuando corresponda/u);
-  assert.doesNotMatch(route,/No se envía ninguna invitación/u);
-  assert.doesNotMatch(route,/El acceso permanece desactivado/u);
+  assert.match(route,/El acceso a la app se gestiona por separado desde Administración\./u);
+  assert.match(route,/El acceso del cliente se gestiona por separado desde Administración\./u);
+  assert.doesNotMatch(route,/enviará la invitación al correo cuando corresponda/u);
 
   assert.match(workflow,/async function createClient\(\)[\s\S]*?requireCoach\(\)/u);
   assert.match(workflow,/M26_CLIENT_CREATE_NOT_PERSISTED/u);
@@ -187,5 +187,6 @@ test('Admin and Coach surfaces both retain real client-create capability',()=>{
   assert.match(application,/waitForCreatedClient/u);
 
   assert.match(adminService,/PRIVILEGED_REAUTH_COMMANDS=new Set\(\['ADMIN_CLIENTE_CREAR'/u);
-  assert.match(edge,/roles\.includes\('admin'\)[\s\S]*roles\.includes\('coach'\)/u);
+  assert.match(onboarding,/inviteClient:false/u);
+  assert.doesNotMatch(onboarding,/iberfit-client-onboarding-v1|installClientOnboardingInvitationTransport/u);
 });
