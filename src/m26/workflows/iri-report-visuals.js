@@ -19,39 +19,50 @@ export function renderFunctionalProfile(scoring={}){
   return `<figure class="iri-functional-profile is-partial"><figcaption>Perfil funcional disponible</figcaption><div class="iri-profile-list">${domains.map((item)=>`<div><span>${esc(item.label)}</span><strong>${item.score===null?'No puntuable':esc(fmt(item.score/10,1)+'/10')}</strong><i aria-hidden="true"><b class="w-pct-${item.score===null?0:Math.round(item.score)}"></b></i></div>`).join('')}</div><p>La cobertura actual no permite construir un perfil completo sin fingir comparabilidad. Los dominios ausentes permanecen como no puntuables. La composición corporal y la fotogrametría no alteran esta puntuación.</p></figure>`;
 }
 
-function marker(label,x,y,value,unit=''){
-  if(!finite(value))return '';
-  return `<g class="iri-body-marker"><circle cx="${x}" cy="${y}" r="7"/><circle cx="${x}" cy="${y}" r="2.2"/><text x="${x+11}" y="${y-2}">${esc(label)}</text><text x="${x+11}" y="${y+10}" class="iri-body-marker-value">${esc(fmt(value,1)+unit)}</text></g>`;
+function bilateralValue(value){
+  return finite(value)?fmt(value,1)+' cm':'—';
 }
-
+function bilateralPercent(value,max){
+  const n=Number(value);
+  return Number.isFinite(n)&&max>0?Math.max(0,Math.min(100,Math.round(n/max*100))):0;
+}
+function bilateralRow(label,left,right,note=''){
+  const l=Number(left),r=Number(right);
+  const max=Math.max(Number.isFinite(l)?l:0,Number.isFinite(r)?r:0,10);
+  return `<article class="iri-bilateral-row"><span>${esc(label)}</span><div class="iri-bilateral-values"><strong>Izquierda ${esc(bilateralValue(left))}</strong><strong>Derecha ${esc(bilateralValue(right))}</strong></div><div class="iri-bilateral-axis" aria-hidden="true"><i class="iri-bilateral-left w-pct-${bilateralPercent(left,max)}"></i><b></b><i class="iri-bilateral-right w-pct-${bilateralPercent(right,max)}"></i></div>${note?`<small>${esc(note)}</small>`:''}</article>`;
+}
 export function renderMobilityMap(mobility={}){
   const ankle=mobility?.ankle||{},posterior=mobility?.posteriorChain||{};
-  const markers=[
-    marker('Tobillo izq.',72,260,ankle.leftBest,' cm'),
-    marker('Tobillo der.',148,260,ankle.rightBest,' cm'),
-    marker('Cadena post. izq.',78,178,posterior.leftBest,' cm'),
-    marker('Cadena post. der.',142,178,posterior.rightBest,' cm'),
-  ].filter(Boolean).join('');
-  const labelText=markers?'Mapa funcional con marcadores únicamente en zonas con mediciones registradas':'Mapa funcional sin mediciones cuantitativas disponibles';
-  return `<figure class="iri-body-map"><figcaption>Mapa funcional</figcaption><svg viewBox="0 0 220 300" role="img" aria-label="${esc(labelText)}"><g class="iri-body-outline"><circle cx="110" cy="34" r="18"/><path d="M110 52 L110 142 M80 82 L140 82 M80 82 L63 143 M140 82 L157 143 M110 142 L78 214 M110 142 L142 214 M78 214 L72 278 M142 214 L148 278"/></g>${markers}</svg><p>Los marcadores aparecen sólo cuando existe una medición real. Una ausencia no se transforma en cero ni en hallazgo.</p></figure>`;
+  const ankleDiff=finite(ankle.leftBest)&&finite(ankle.rightBest)?Math.abs(Number(ankle.leftBest)-Number(ankle.rightBest)):null;
+  const posteriorDiff=finite(posterior.leftBest)&&finite(posterior.rightBest)?Math.abs(Number(posterior.leftBest)-Number(posterior.rightBest)):null;
+  const ankleNote=ankleDiff===null?'Sin comparación bilateral':ankleDiff===0?'Equilibrio idéntico entre lados':ankleDiff<=1?'Diferencia muy pequeña entre lados':`Diferencia de ${fmt(ankleDiff,1)} cm entre lados`;
+  const posteriorNote=posteriorDiff===null?'Sin comparación bilateral':posteriorDiff===0?'Equilibrio idéntico entre lados':posteriorDiff<=1?`Diferencia pequeña: ${fmt(posteriorDiff,1)} cm`:`Diferencia de ${fmt(posteriorDiff,1)} cm entre lados`;
+  return `<figure class="iri-mobility-comparison"><figcaption>Comparación bilateral</figcaption><div>${bilateralRow('Tobillo · rodilla a pared',ankle.leftBest,ankle.rightBest,ankleNote)}${bilateralRow('Cadena posterior',posterior.leftBest,posterior.rightBest,posteriorNote)}</div><p>La comparación muestra diferencias entre lados sin convertirlas automáticamente en un problema.</p></figure>`;
 }
-
-function strengthItem(label,value,unit,note,icon){
+function strengthVariantLabel(value){
+  const raw=String(value??'').trim().toLowerCase();
+  if(raw==='knees'||raw==='knee'||raw.includes('rodilla'))return 'Rodillas apoyadas';
+  if(raw==='standard'||raw==='full'||raw.includes('completa'))return 'Variante estándar';
+  if(raw==='incline'||raw.includes('inclin'))return 'Con apoyo elevado';
+  return String(value??'').trim();
+}
+function strengthQualityLabel(value){
+  const raw=String(value??'').trim().toLowerCase();
+  if(raw==='good'||raw==='buena'||raw.includes('buena'))return 'Buena calidad técnica';
+  if(raw==='fair'||raw.includes('aceptable'))return 'Calidad técnica aceptable';
+  return String(value??'').trim();
+}
+function strengthItem(index,label,value,unit,note){
   const shown=finite(value)?fmt(value,Number(value)%1?1:0)+unit:'No realizado / sin dato';
-  return `<article class="iri-strength-pattern"><div class="iri-strength-icon" aria-hidden="true">${icon}</div><div><span>${esc(label)}</span><strong>${esc(shown)}</strong>${note?`<small>${esc(note)}</small>`:''}</div></article>`;
+  return `<article class="iri-strength-pattern"><span class="iri-strength-index">${String(index).padStart(2,'0')}</span><div><span>${esc(label)}</span><strong>${esc(shown)}</strong>${note?`<small>${esc(note)}</small>`:''}</div></article>`;
 }
 
 export function renderStrengthPatterns(strength={}){
   const lower=strength?.lowerBody?.skipped?null:(strength?.chairStand?.repetitions??strength?.squat60?.repetitions);
-  const lowerLabel=finite(strength?.chairStand?.repetitions)?'Silla 30 s':'Sentadilla libre 60 s';
+  const lowerLabel=finite(strength?.chairStand?.repetitions)?'Silla · 30 s':'Sentadilla libre · 60 s';
   const push=strength?.push||{},trx=strength?.trxRow||{},core=strength?.core||{};
-  const iconLower='<svg viewBox="0 0 40 40"><path d="M9 31h22M14 31V20h12v11M20 8v12M14 14h12"/></svg>';
-  const iconPush='<svg viewBox="0 0 40 40"><path d="M7 29h26M10 24l20-8M13 15l8 5M27 12l-8-4"/></svg>';
-  const iconPull='<svg viewBox="0 0 40 40"><path d="M7 8h26M11 8l8 13M29 8l-8 13M14 27h12M20 21v9"/></svg>';
-  const iconCore='<svg viewBox="0 0 40 40"><path d="M7 29h26M10 24h20M13 24l5-11M27 24l-5-11"/></svg>';
-  return `<section class="iri-strength-patterns" aria-label="Resultados de fuerza por patrones">${strengthItem(strength?.lowerBody?.skipped?'Tren inferior · no realizado':lowerLabel,lower,' rep',strength?.lowerBody?.skipped?strength?.lowerBody?.skipReason:'',iconLower)}${strengthItem(push?.skipped?'Empuje · no realizado':'Empuje',push?.skipped?null:push.repetitions,' rep',push?.skipped?push.skipReason:push.variant,iconPush)}${strengthItem(trx?.skipped?'Tracción · TRX · no realizada':'Tracción · TRX',trx?.skipped?null:trx.repetitions,' rep',trx?.skipped?trx.skipReason:(finite(trx.handleHeightCm)?'Asas '+fmt(trx.handleHeightCm)+' cm':''),iconPull)}${strengthItem(core?.skipped?'Estabilidad de tronco · no realizada':'Estabilidad de tronco',core?.skipped?null:core.frontPlankSeconds,' s',core?.skipped?core.skipReason:core.quality,iconCore)}</section>`;
+  return `<section class="iri-strength-patterns" aria-label="Resultados de fuerza por patrones">${strengthItem(1,strength?.lowerBody?.skipped?'Tren inferior · no realizado':lowerLabel,lower,' rep',strength?.lowerBody?.skipped?strength?.lowerBody?.skipReason:'Capacidad de trabajo del tren inferior')}${strengthItem(2,push?.skipped?'Empuje · no realizado':'Empuje',push?.skipped?null:push.repetitions,' rep',push?.skipped?push.skipReason:strengthVariantLabel(push.variant))}${strengthItem(3,trx?.skipped?'Tracción · TRX · no realizada':'Tracción · TRX',trx?.skipped?null:trx.repetitions,' rep',trx?.skipped?trx.skipReason:(finite(trx.handleHeightCm)?'Asas a '+fmt(trx.handleHeightCm)+' cm del suelo':''))}${strengthItem(4,core?.skipped?'Estabilidad de tronco · no realizada':'Estabilidad de tronco',core?.skipped?null:core.frontPlankSeconds,' s',core?.skipped?core.skipReason:strengthQualityLabel(core.quality))}</section>`;
 }
-
 export function renderEffortCurve(cardio={}){
   const series=[['Reposo',cardio.restingHr],['Final',cardio.finalHr],['1 min',cardio.oneMinuteHr],['2 min',cardio.twoMinuteHr]].filter(([,value])=>finite(value));
   if(series.length<2)return '<div class="iri-effort-empty">Datos insuficientes para representar la recuperación.</div>';
@@ -84,7 +95,7 @@ function iriPhotoSvg(photo,landmarks={},measurements={},calibration={}){
     ?[['shoulderLeft','shoulderRight'],['pelvisLeft','pelvisRight']]
     :[['ear','shoulder'],['shoulder','hip'],['hip','ankle']];
   const lines=pairs.map(([a,b])=>{const p1=point(a),p2=point(b);return p1&&p2?`<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}"/>`:'';}).join('');
-  const dots=Object.keys(points).map((key)=>{const p=point(key);return p?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${Math.max(5,Math.min(width,height)*.008).toFixed(1)}"/>`:'';}).join('');
+  const dots=Object.keys(points).map((key)=>{const p=point(key);return p?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${Math.max(3,Math.min(width,height)*.0045).toFixed(1)}"/>`:'';}).join('');
   const scale=calibration?.[view];
   const scaleLine=scale?.pointA&&scale?.pointB
     ?`<g class="iri-photo-scale"><line x1="${Number(scale.pointA.x)*width}" y1="${Number(scale.pointA.y)*height}" x2="${Number(scale.pointB.x)*width}" y2="${Number(scale.pointB.y)*height}"/><text x="${((Number(scale.pointA.x)+Number(scale.pointB.x))/2)*width}" y="${((Number(scale.pointA.y)+Number(scale.pointB.y))/2)*height}" text-anchor="middle">${esc(fmt(scale.knownLengthCm,1))} cm</text></g>`
@@ -107,7 +118,7 @@ export function renderPhotogrammetryReport(report={}){
     ...signals.slice(0,2).map((item)=>`${item.label}: ${item.direction} · frontal ${fmt(item.frontDeg,1)}° · posterior ${fmt(item.backDeg,1)}°`),
     ...differences.slice(0,2).map((item)=>`${item.label}: diferencia ${fmt(item.differenceDeg,1)}°`),
   ];
-  const meta=`<div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas · ${Number(quality.calibratedViews||0)} calibradas`)}</small></div><div><span>Trazabilidad</span><strong>Revisión ${esc(String(report?.analysisRevision||'—'))}</strong><small>${esc(report?.protocolVersion||'Protocolo histórico')}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>Sin señales geométricas reproducibles destacadas en el análisis validado.</p>'}</div>`;
+  const meta=`<div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas · ${Number(quality.calibratedViews||0)} calibradas`)}</small></div><div><span>Trazabilidad</span><strong>Revisión ${esc(String(report?.analysisRevision||'—'))}</strong><small>${esc(report?.protocolVersion||'Protocolo histórico')}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>No aparece un patrón postural claro que se repita entre las distintas vistas.</p>'}</div>`;
   if(!photos.length){
     const permissionBlocked=report?.reason==='report-permission'||report?.photosAllowed===false;
     const detail=report?.reason==='consent'
@@ -115,9 +126,9 @@ export function renderPhotogrammetryReport(report={}){
       :permissionBlocked
         ?'El análisis técnico está disponible, pero las fotografías no están autorizadas para aparecer en este informe Cliente.'
         :'No hay capturas disponibles para incorporar a este documento.';
-    return `<section class="iri-photo-report iri-photo-report-without-images"><div class="iri-photo-report-empty"><span>Fotogrametría</span><h3>Análisis sin imágenes publicadas</h3><p>${esc(detail)}</p><small>${measurementRows.length?'Las medidas y la lectura validada se conservan sin exponer el original.':'La ausencia de fotografías no se transforma en un hallazgo.'}</small></div>${meta}<p class="iri-photo-safety"><strong>Lectura de apoyo al entrenamiento.</strong> Una captura estática no define postura ideal, lesión ni diagnóstico médico.</p></section>`;
+    return `<section class="iri-photo-report iri-photo-report-without-images"><div class="iri-photo-report-empty"><span>Fotogrametría</span><h3>Análisis sin imágenes publicadas</h3><p>${esc(detail)}</p><small>${measurementRows.length?'Las medidas y la lectura validada se conservan sin exponer el original.':'La ausencia de fotografías no se transforma en un hallazgo.'}</small></div>${meta}<p class="iri-photo-safety"><strong>Una foto es una referencia, no un diagnóstico.</strong> La interpretación cobra valor cuando también se relaciona con movilidad, fuerza y movimiento.</p></section>`;
   }
-  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>iriPhotoSvg(photo,report?.landmarks||{},report?.measurements||{},report?.calibration||{})).join('')}</div>${meta}<p class="iri-photo-safety"><strong>Lectura de apoyo al entrenamiento.</strong> Una captura estática no define una postura ideal, lesión ni diagnóstico médico. Se interpreta junto con síntomas, movilidad, fuerza, técnica y repetibilidad.</p></div>`;
+  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>iriPhotoSvg(photo,report?.landmarks||{},report?.measurements||{},report?.calibration||{})).join('')}</div>${meta}<p class="iri-photo-safety"><strong>Una foto es una referencia, no un diagnóstico.</strong> La interpretamos junto con movilidad, fuerza, técnica, síntomas y evolución.</p></div>`;
 }
 
 export function renderSignatureSlot(coachName='Entrenador IBERFIT',signatureUrl=''){
