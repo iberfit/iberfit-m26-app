@@ -1,3 +1,4 @@
+import {focusFirstNeededControl,setControlGroupApplicable} from '../ui/guided-input.js';
 const DRAFT_SCHEMA='iberfit.admin.client-create-draft.v4';
 const DRAFT_PREFIX='iberfit:m26:admin-client-create:v4:';
 const LEGACY_DRAFT_PREFIX='iberfit:m26:admin-client-create:v3:';
@@ -170,6 +171,14 @@ function updateServiceIntent(form){
   }
   const internal=String(accessMode?.value||'')==='internal';
 
+  const modality=String(form?.elements?.namedItem?.('modality')?.value||'').trim().toLowerCase();
+  const locationApplies=iriEntry||modality!=='online';
+  for(const name of ['zone','address','locationType','accessInstructions']){
+    const field=form?.elements?.namedItem?.(name);
+    const wrapper=field?.closest?.('label');
+    if(wrapper)setControlGroupApplicable(wrapper,locationApplies);
+  }
+
   const notice=form?.querySelector?.('[data-client-service-mode-notice]');
   if(notice)notice.hidden=!iriEntry;
   setCopy(form?.querySelector?.('[data-client-create-heading]'),iriEntry?'Crear persona para IRI':'Crear cliente');
@@ -217,9 +226,9 @@ function setStep(form,step,{focus=false}={}){
     item.classList?.toggle?.('is-complete',value<next);
   }
   const current=form.querySelector?.(`[data-client-step="${next}"]`);
-  if(current){
-    const heading=current.querySelector?.('h4,[data-client-step-title]');
-    if(focus)heading?.focus?.();
+  if(current&&focus){
+    const target=focusFirstNeededControl(current,{requiredOnly:true});
+    if(!target)current.querySelector?.('h4,[data-client-step-title]')?.focus?.();
   }
   updateReview(form);
   return next;
