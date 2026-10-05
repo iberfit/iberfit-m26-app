@@ -284,6 +284,7 @@ declare
   v_person uuid;
   v_created_iri uuid;
   v_cleaned_placeholder boolean:=false;
+  v_deleted integer:=0;
 begin
   perform public.iberfit_require_privileged_assurance_v65d();
   if v_actor is null then raise exception 'V26_ADMIN_CLIENT_CREATE_AUTH_REQUIRED' using errcode='28000'; end if;
@@ -362,21 +363,22 @@ begin
       delete from public.iri_assessments
       where id=v_created_iri and client_id=v_person
         and status::text='borrador' and revision=0;
-      get diagnostics v_cleaned_placeholder=row_count;
+      get diagnostics v_deleted=row_count;
+      v_cleaned_placeholder:=v_deleted>0;
     end if;
   end if;
 
-  return (v_result
-    - 'relationshipType'
-    - 'initialLifecycleStatus'
-    - 'iri_id'
-    - 'iri_entity_available')
-    ||jsonb_build_object(
-      'entryIntent',v_entry,
-      'trainingServiceStatus',case when v_entry='training' then 'active' else 'none' end,
-      'initialAssessmentMode',v_assessment,
-      'iriCreated',case when v_assessment='iri' then true else not v_cleaned_placeholder and v_had_iri end
-    );
+  v_result:=v_result-'relationshipType'-'initialLifecycleStatus';
+  if v_assessment='deferred' and v_cleaned_placeholder then
+    v_result:=v_result-'iri_id'-'iri_entity_available';
+  end if;
+
+  return v_result||jsonb_build_object(
+    'entryIntent',v_entry,
+    'trainingServiceStatus',case when v_entry='training' then 'active' else 'none' end,
+    'initialAssessmentMode',v_assessment,
+    'iriCreated',case when v_assessment='iri' then true else not v_cleaned_placeholder and v_had_iri end
+  );
 end
 $function$;
 
