@@ -318,7 +318,11 @@ begin
     'initialAssessmentMode',v_assessment,
     'initialLifecycleStatus','onboarding',
     'relationshipType','training',
-    'accessMode',v_access
+    'accessMode',v_access,
+    'frequency',case
+      when v_entry='iri' then 'Evaluación IRI puntual'
+      else coalesce(v_payload->>'frequency','')
+    end
   );
 
   v_result:=public.iberfit_admin_create_client_v26_pre_person_service_v1(
@@ -357,8 +361,14 @@ begin
           and a.status::text='borrador' and a.revision=0
       )
       and not exists(select 1 from public.iri_consents_v1 c where c.assessment_id=v_created_iri)
-      and not exists(select 1 from public.iri_report_issuances_v1 r where r.assessment_id=v_created_iri)
+      and not exists(select 1 from public.iri_external_reports_v26 r where r.assessment_id=v_created_iri)
+      and not exists(select 1 from public.iri_photo_report_permissions_v1 p where p.assessment_id=v_created_iri)
+      and not exists(select 1 from public.iri_photogrammetry_analyses_v1 a where a.assessment_id=v_created_iri)
+      and not exists(select 1 from public.iri_photogrammetry_analyses_v2 a where a.assessment_id=v_created_iri)
       and not exists(select 1 from public.iri_photogrammetry_captures_v1 p where p.assessment_id=v_created_iri)
+      and not exists(select 1 from public.iri_report_issuances_v1 r where r.assessment_id=v_created_iri)
+      and not exists(select 1 from public.documents d where d.iri_id=v_created_iri)
+      and not exists(select 1 from private.m26_iri_drafts_v1 d where d.assessment_id=v_created_iri)
     then
       delete from public.domain_entities_v26
       where entity_type='iri' and entity_id=v_created_iri and client_id=v_person
