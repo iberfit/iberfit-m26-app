@@ -3,17 +3,20 @@
 Última actualización documental: 2026-10-05
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
-## Estado actual · UX/Autocompletado Global 360 · 2026-10-05
+## Estado actual · Interaction Reliability + Security/Data Integrity 360 · 2026-10-05
 
-- PROD y Canary comparten como último source certificado el merge SHA `56421d74fa52b08a949c34ef6c016162882d217b` de PR #728.
-- PR #726 cerró Entrenamiento Operativo 360; PR #727 cerró Experiencia Guiada 360; PR #728 extendió la guía/autocompletado seguro a Cliente, Coach y Admin.
-- Production Promotion #315, run `37332004338`: SUCCESS. Verificó source exacto, regresión, build, Lighthouse, Hosted Auth, preview, deploy Cloudflare, identidad/runtime PROD, Chromium interactivo y auditoría integral read-only; rollback no fue necesario.
-- Canary post-merge `56421d74...` quedó certificado con CI, Continuous Audit, Device Experience, Canary Exact Deploy, Admin/Coach WebAuthn, Client Interaction, Admin Matrix, evidencia visual, gates remotos y Final Frontend/Bundle.
-- UX guiada: dato confirmado puede proponerse; dato desconocido permanece vacío; autocompletar nunca equivale a confirmar; una edición humana prevalece y deja de ser sobrescrita.
-- Planificación usa jerarquía ciclo → IRI → perfil confirmado; Agenda reutiliza modalidad/duración/dirección confirmadas; Admin/Onboarding guían al primer dato realmente pendiente.
-- Persistencia operativa canónica continúa en `training_cycles`, `sessions`, `session_executions`; mutaciones por Command Bus. El bloque UX #728 no añadió migraciones ni alteró RLS/auth.
+- PROD y Canary comparten como source funcional certificado el merge SHA `70dfbdc5cd3e87536338dc302d7da5f2547bba0a` de PR #730.
+- PR #729 cerró Interaction Reliability 360: autofill/focus/caret/select, scroll frente a teclado/safe areas, overlays/touch y matrices desktop/tablet/móvil sin degradar Auth.
+- PR #729 merge `744fe36112ff1c61e3b61772f3c74943edee08f2`: Canary Exact Deploy #172 run `37341609208` SUCCESS; Device Experience, Admin/Coach WebAuthn, Client Interaction, Admin Matrix, Remote Gates y evidencia visual GREEN.
+- PR #730 cerró Security/Data Integrity 360: auditoría por intención de SECURITY DEFINER, RLS/Data API e índices FK; hardening ACL legacy mínimo y no destructivo.
+- PR #730 merge `70dfbdc5cd3e87536338dc302d7da5f2547bba0a`: Canary Exact Deploy #173 run `37344540138` SUCCESS y Remote Gates #667 run `37344540094` SUCCESS; CI, QA Real Write, Data Safety, Continuous Audit, Admin/Coach WebAuthn y Final Frontend/Bundle también GREEN.
+- PROD: migración `20261005173632_security_backend_acl_hardening_v1` aplicada. El trigger de activación en `auth.users` permanece habilitado; ejecución directa del trigger helper y de tres RPC legacy de invitación quedó revocada; RPC Admin canónicas permanecen ejecutables.
+- Advisor PROD tras hardening: SECURITY DEFINER authenticated baja de 55 a 52; se mantienen 2 anon deliberados de catálogo/media; leaked-password sigue condicionado al plan disponible.
+- Production Promotion #316, run `37349796344`: SUCCESS. Verificó source exacto, regresión, Lighthouse, Hosted Auth, preview, deploy Cloudflare, identidad/runtime LIVE, Chromium interactivo, auditoría integral read-only y evidencia de rollback; rollback no fue necesario.
+- Deployment PROD exacto: `75ab5fa1-eb8a-4069-ab65-ddbc3649285b` (`https://75ab5fa1.iberfit-m26-production.pages.dev`). Rollback reservado: `14486b12-8e68-47de-8212-921573328ff4`, source anterior `56421d74fa52b08a949c34ef6c016162882d217b`.
+- UX guiada #728 continúa vigente: dato confirmado puede proponerse; dato desconocido permanece vacío; autocompletar nunca equivale a confirmar; una edición humana prevalece.
+- Persistencia operativa canónica continúa en `training_cycles`, `sessions`, `session_executions`; mutaciones por Command Bus.
 - Ruleset `Protect Canary`: enforcement activo, PR obligatorio y required checks estrictos `validate` + `canary-policy-gate`.
-- WIP actual: `feat/interaction-reliability-360-v1`, centrado en autofill/focus/password/select, teclado/scroll/overlays y evidencia multidispositivo recurrente.
 
 ## WIP cerrado · Personas + IRI real en terreno + Solo IRI · 2026-10-02
 
@@ -38,12 +41,13 @@ Regla: distinguir implementación, test, Canary, PROD y LIVE; no cerrar con sól
 ## Producción LIVE
 
 - Dominio: `https://app.iberfit.cl`; PRODUCCIÓN REAL.
-- Source SHA LIVE certificado: `56421d74fa52b08a949c34ef6c016162882d217b`.
+- Source SHA LIVE certificado: `70dfbdc5cd3e87536338dc302d7da5f2547bba0a`.
 - Runtime: PRODUCTION, Supabase PROD `pjhmrhejsoofmouedavw`, QA desactivado.
-- Release branch: `release/prod-56421d74fa52`; manifest commit `06e90cafdea5657d5943aacd9e75063148ebee0a`.
-- Production Promotion #315, run `37332004338 = SUCCESS`.
-- El workflow verificó Hosted Auth, source/runtime exactos, entrada Chromium interactiva y auditoría integral read-only; rollback automático quedó disponible y no fue necesario.
-- Entrenamiento Operativo 360, Experiencia Guiada 360 y UX/Autocompletado Global 360 están publicados.
+- Release branch: `release/prod-70dfbdc5cd3e`; manifest commit `60cd9ac1db2472963b3b8e034ab28900140de6fb`.
+- Production Promotion #316, run `37349796344 = SUCCESS`.
+- El workflow verificó Hosted Auth, source/runtime exactos con 3/3 lecturas estables, entrada Chromium interactiva y auditoría integral read-only; rollback automático quedó disponible y no fue necesario.
+- Deployment exacto LIVE: `75ab5fa1-eb8a-4069-ab65-ddbc3649285b`; rollback: `14486b12-8e68-47de-8212-921573328ff4` al source `56421d74fa52b08a949c34ef6c016162882d217b`.
+- Entrenamiento Operativo 360, Experiencia Guiada 360, UX/Autocompletado Global 360, Interaction Reliability 360 y Security/Data Integrity 360 están publicados.
 - No considerar cambios posteriores en PROD sin una nueva promoción exacta y verificación LIVE.
 
 La siguiente evidencia de Retos es histórica del release `be39ea321cd5b476066381f64e88c5ecdf78a5a7`, no el source LIVE actual.
@@ -65,10 +69,10 @@ No considerar releases posteriores en PROD sin otra promoción y verificación L
 ## Canary actual
 
 - Rama: `canary/rc74-4`.
-- Source funcional certificado: `56421d74fa52b08a949c34ef6c016162882d217b`.
-- PR #728 integrado; Canary Exact Deploy post-merge SUCCESS con identidad exacta.
-- CI, Continuous Audit, Device Experience, Admin/Coach WebAuthn, Authenticated Client Interaction, Admin Matrix, evidencia visual, gates remotos y Final Frontend/Bundle terminaron SUCCESS sobre el merge.
-- `QA Real Write` / `Production Data Safety` no se dispararon por path filtering en #728 porque no hubo migraciones ni cambios de write backend; no se presentan como ejecutados.
+- Source funcional certificado: `70dfbdc5cd3e87536338dc302d7da5f2547bba0a`.
+- PR #729: Canary Exact Deploy #172 run `37341609208` SUCCESS sobre `744fe361...`.
+- PR #730: Canary Exact Deploy #173 run `37344540138` SUCCESS y Remote Gates #667 run `37344540094` SUCCESS sobre `70dfbdc5...`.
+- CI #3498, Continuous Audit #3026, QA Real Write #782, Production Data Safety #426 y Admin/Coach WebAuthn post-merge terminaron SUCCESS sobre el merge #730.
 - Ruleset `Protect Canary` activo con PR y required checks estrictos.
 - P0 funcional demostrado: 0 en la ronda actual.
 
@@ -133,11 +137,13 @@ La aplicación mantiene WebAuthn como opción preferente de assurance privilegia
 ## Seguridad / backend
 
 - PROD y QA: `ACTIVE_HEALTHY`.
-- WebAuthn privilegiado: fail-closed.
+- WebAuthn privilegiado: fail-closed; Admin/Coach recurrentes reales certificados sobre el source actual.
 - Los dos SECURITY DEFINER anon revisados corresponden a lectura pública intencional de catálogo/media.
+- SECURITY DEFINER authenticated auditados por intención; PROD queda en 52 tras retirar 3 grants legacy de invitación. Helpers privados/runtime canónicos conservan sólo el acceso necesario.
+- 0 tablas `public` sin RLS. Las tablas RLS con 0 policies tienen 0 grants para `anon/authenticated`, deliberadamente fuera de Data API.
+- FKs sin índice evaluadas contra cardinalidad, uso real y EXPLAIN; no se añadieron índices sin beneficio demostrado.
 - RPC Admin críticos revisados exigen privileged assurance, Admin, organización y scope.
-- Las alertas generales de RLS/SECURITY DEFINER/índices no se corrigen de forma masiva; deben resolverse por intención y consultas reales.
-- Leaked-password protection continúa condicionado al plan Supabase disponible.
+- Leaked-password protection continúa condicionado al plan Supabase disponible; Promotion #316 lo evaluó sin forzar upgrade.
 
 ## Pendientes históricos del 17/09 (requieren revalidación)
 
@@ -147,10 +153,10 @@ Ninguno demostrado en el Canary actual.
 
 ### P1
 
-1. Admin autenticado QA real desktop/tablet/móvil.
+1. RESUELTO 2026-10-05: Admin autenticado QA real cubierto por matrices desktop/tablet/móvil + WebAuthn recurrente.
 2. E2E positivo Admin de invitación/reenvío y alta/edición/baja controlada.
 3. Sesión Coach real por dispositivo sin freezes y recuperación de error.
-4. Completar auditoría SECURITY DEFINER/RLS/índices por intención.
+4. RESUELTO 2026-10-05: auditoría SECURITY DEFINER/RLS/índices por intención cerrada en PR #730 y promovida a PROD.
 5. RESUELTO 2026-10-05: Canary protegido por ruleset `Protect Canary`, enforcement activo y required checks estrictos `validate` + `canary-policy-gate`.
 6. Outcome tracking, preparar próxima sesión y seguimiento longitudinal.
 
