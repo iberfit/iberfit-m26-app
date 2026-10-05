@@ -189,9 +189,6 @@ function renderCoachHoyRoute(vm) {
   const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
   const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
   const clients=Array.isArray(vm.clients)?vm.clients:[];
-  const activeServiceClientIds=new Set(
-    clients.filter((item)=>item?.serviceActive!==false).map((item)=>String(item?.id||'').trim()).filter(Boolean)
-  );
   const queueItems=(cockpit?.items||[]).slice(0,4);
   const riskFocus=cockpit?.riskFocus||null;
   const processFocus=(cockpit?.items||[]).find((item)=>item?.kind==='process')||null;
@@ -307,7 +304,10 @@ function renderCoachHoyRoute(vm) {
       :null;
 
   const agendaBody=appointments.length
-    ?appointments.slice(0,4).map((item)=>appointmentCard(item,{canStartSession:activeServiceClientIds.has(String(item?.clientId||'').trim())})).join('')
+    ?appointments.slice(0,4).map((item)=>{
+        const linkedClient=appointmentClient(item);
+        return appointmentCard(item,{canStartSession:linkedClient?.serviceActive!==false});
+      }).join('')
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">✓</span>
         <div><strong>Agenda libre hoy</strong><small>Sin sesiones confirmadas.</small></div>
