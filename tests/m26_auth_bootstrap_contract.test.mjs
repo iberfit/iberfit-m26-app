@@ -25,14 +25,17 @@ function extractDollarQuotedFunctionBody(sql,functionName){
   return tail.slice(bodyStart,bodyEnd);
 }
 
-function latestFunctionDefinition(functionName){
-  let latest=null;
+function functionDefinitions(functionName){
+  const definitions=[];
   for(const file of migrationFiles){
     const sql=fs.readFileSync(path.join(migrationsDir,file),'utf8').replace(/\r\n/gu,'\n');
     const body=extractDollarQuotedFunctionBody(sql,functionName);
-    if(body!==null)latest={file,body};
+    if(body!==null)definitions.push({file,body});
   }
-  return latest;
+  return definitions;
+}
+function latestFunctionDefinition(functionName){
+  return functionDefinitions(functionName).at(-1)||null;
 }
 
 test('latest Admin bootstrap remains a primary-auth read surface',()=>{
@@ -40,10 +43,21 @@ test('latest Admin bootstrap remains a primary-auth read surface',()=>{
   assert.ok(latest,'Admin bootstrap definition must exist in migration ledger');
   assert.doesNotMatch(latest.body,/iberfit_require_privileged_assurance_v65d/iu,
     `Read bootstrap was re-gated by privileged assurance in ${latest.file}`);
-  assert.match(latest.body,/iberfit_admin_bootstrap_v14_pre_v65e/iu,
-    `Admin bootstrap lost its canonical base projection in ${latest.file}`);
-  assert.match(latest.body,/client_access_v26/iu,
-    `Admin bootstrap lost clientAccess projection in ${latest.file}`);
+  const delegated=/iberfit_admin_bootstrap_v14_pre_person_service_v1/iu.test(latest.body);
+  if(delegated){
+    const history=functionDefinitions('iberfit_admin_bootstrap_v14');
+    const previous=history.at(-2);
+    assert.ok(previous,`Admin bootstrap wrapper in ${latest.file} lost its previous canonical definition`);
+    assert.match(previous.body,/iberfit_admin_bootstrap_v14_pre_v65e/iu,
+      `Delegated Admin bootstrap lost its canonical base projection before ${latest.file}`);
+    assert.match(previous.body,/client_access_v26/iu,
+      `Delegated Admin bootstrap lost clientAccess projection before ${latest.file}`);
+  }else{
+    assert.match(latest.body,/iberfit_admin_bootstrap_v14_pre_v65e/iu,
+      `Admin bootstrap lost its canonical base projection in ${latest.file}`);
+    assert.match(latest.body,/client_access_v26/iu,
+      `Admin bootstrap lost clientAccess projection in ${latest.file}`);
+  }
 });
 
 test('latest Admin mutation surface still requires privileged assurance',()=>{
