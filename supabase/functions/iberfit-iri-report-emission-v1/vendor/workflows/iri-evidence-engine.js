@@ -115,7 +115,7 @@ export function buildIriPhotogrammetryDecisionSupport({measurements={},quality={
     findings:Object.freeze(findings),
     trainingConsiderations:Object.freeze(trainingConsiderations),
     limitations:Object.freeze([
-      'Estas medidas ayudan a orientar el entrenamiento, pero no son un diagnóstico médico.',
+      'Estas medidas ayudan a orientar el entrenamiento; este motor no emite diagnóstico médico.',
       'Una diferencia observada en una foto no demuestra por sí sola la causa de dolor, lesión o rendimiento.',
       'Una observación gana importancia cuando también aparece en el movimiento, la fuerza, los síntomas o evaluaciones repetidas y el Coach la confirma.',
     ]),
