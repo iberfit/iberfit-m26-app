@@ -3825,17 +3825,18 @@ export function renderPlanningRoute(vm){
   }
   const cycle=vm.currentCycle?.body&&typeof vm.currentCycle.body==='object'?vm.currentCycle.body:(vm.currentCycle||{});
   const seed=!isClient?vm.iriPlanningSeed||null:null;
+  const profile=vm.profile||{};
   const cycleGoal=String(cycle.goal||cycle.objetivo||'').trim();
-  const suggestedGoal=!cycleGoal?String(seed?.suggestedGoal||'').trim():'';
-  const cycleModality=String(cycle.modality||cycle.modalidad||seed?.suggestedModality||'hibrido').toLowerCase();
-  const weeklyFrequency=cycle.weeklyFrequency||cycle.weekly_frequency||seed?.suggestedWeeklyFrequency||2;
-  const sessionDuration=cycle.sessionDurationMinutes||cycle.session_duration_minutes||seed?.suggestedSessionDurationMinutes||60;
+  const suggestedGoal=!cycleGoal?String(seed?.suggestedGoal||profile.primaryObjective||'').trim():'';
+  const cycleModality=String(cycle.modality||cycle.modalidad||seed?.suggestedModality||profile.modality||'').toLowerCase();
+  const weeklyFrequency=cycle.weeklyFrequency||cycle.weekly_frequency||seed?.suggestedWeeklyFrequency||profile.weeklyFrequency||'';
+  const sessionDuration=cycle.sessionDurationMinutes||cycle.session_duration_minutes||seed?.suggestedSessionDurationMinutes||profile.sessionDurationMinutes||'';
   const cycleName=String(cycle.name||cycle.nombre||'').trim();
   const hasCycle=Boolean(vm.currentCycle?.id||cycle.id||cycleName);
   const approvedCycles=Number(vm.cycleCounts?.approved||0);
   const publishedSessions=Number(vm.sessionCounts?.published||0);
   const totalSessions=Array.isArray(vm.sessions)?vm.sessions.length:0;
-  const editor=vm.canEdit?`<form id="m26-planning-cycle-editor" class="m26-panel m26-panel-soft m26-planning-cycle-editor" data-workflow-form="planning"${suggestedGoal?' data-iri-seeded="true"':''}>
+  const editor=vm.canEdit?`<form id="m26-planning-cycle-editor" class="m26-panel m26-panel-soft m26-planning-cycle-editor" data-workflow-form="planning" data-guided-required-form${suggestedGoal?' data-iri-seeded="true"':''}>
     <div class="m26-panel-heading">
       <div>
         <p class="m26-eyebrow">${hasCycle?'Ciclo actual':'Primer paso'}</p>
@@ -3849,11 +3850,12 @@ export function renderPlanningRoute(vm){
       <label>Nombre del ciclo<input name="name" maxlength="120" value="${escapeHtml(cycleName)}" required></label>
       <label>Inicio<input type="date" name="startDate" value="${escapeHtml(String(cycle.startDate||cycle.start_date||'').slice(0,10))}" required></label>
       <label>Fin<input type="date" name="endDate" value="${escapeHtml(String(cycle.endDate||cycle.end_date||'').slice(0,10))}" required></label>
-      <label>Modalidad<select name="modality" required><option value="presencial"${selectedOption(cycleModality,'presencial')}>Presencial</option><option value="hibrido"${selectedOption(cycleModality,'hibrido')}>Híbrido</option><option value="online"${selectedOption(cycleModality,'online')}>Online</option></select></label>
-      <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" value="${escapeHtml(weeklyFrequency)}" required></label>
-      <label>Duración habitual (min)<input type="number" name="sessionDurationMinutes" min="20" max="240" value="${escapeHtml(sessionDuration)}" required></label>
+      <label>Modalidad<select name="modality" required><option value="">Seleccionar modalidad</option><option value="presencial"${selectedOption(cycleModality,'presencial')}>Presencial</option><option value="hibrido"${selectedOption(cycleModality,'hibrido')}>Híbrido</option><option value="online"${selectedOption(cycleModality,'online')}>Online</option></select></label>
+      <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" value="${escapeHtml(weeklyFrequency)}" placeholder="Ej. 2" required></label>
+      <label>Duración habitual (min)<input type="number" name="sessionDurationMinutes" min="20" max="240" value="${escapeHtml(sessionDuration)}" placeholder="Ej. 60" required></label>
       <label class="m26-wide">Objetivo<textarea name="goal" maxlength="500" required>${escapeHtml(cycleGoal||suggestedGoal)}</textarea>${suggestedGoal?'<small>Propuesta inicial desde el IRI confirmado. Revisa y adapta antes de validar.</small>':''}</label>
     </div>
+    <p class="m26-field-help" data-guided-required-progress aria-live="polite"></p>
     <div class="m26-inline-actions">
       <button type="submit" class="m26-primary-action" data-workflow-action="validate-plan">${hasCycle?'Validar cambios':'Validar borrador'}</button>
       ${hasCycle?'<button type="button" data-workflow-action="open-session-builder">Construir sesión</button>':''}
