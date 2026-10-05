@@ -20,6 +20,46 @@ function normalizePrescription(input={},fallback={}){return {
   alternativeId:input.alternativeId||fallback.alternativeId||null,
 };}
 export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),status:'draft',previewAccepted:false,blocks:[],revision:0};}
+export function exerciseMemoryDraftSuggestion(memory){
+  const latest=memory?.latest;
+  if(!latest)return null;
+  const sets=positiveInt(latest.setCount,null,{min:1,max:100});
+  const rows=Array.isArray(latest.sets)?latest.sets:[];
+  const reference=[...rows].reverse().find((row)=>
+    Number.isFinite(Number(row?.reps))||
+    Number.isFinite(Number(row?.seconds))||
+    String(row?.load?.raw||'').trim()
+  )||null;
+  const reps=Number.isFinite(Number(reference?.reps))
+    ?String(reference.reps)
+    :Number.isFinite(Number(reference?.seconds))
+      ?`${reference.seconds} s`
+      :'';
+  const plannedLoad=optionalText(latest.lastLoad?.raw??reference?.load?.raw??'', '',80);
+  if(!sets&&!reps&&!plannedLoad)return null;
+  return Object.freeze({sets,reps,plannedLoad});
+}
+export function applyExerciseMemorySuggestion(draft,{blockId,exerciseId=null,memory}={}){
+  const suggestion=exerciseMemoryDraftSuggestion(memory);
+  if(!suggestion)throw new Error('M26_SESSION_MEMORY_REFERENCE_UNAVAILABLE');
+  const block=draft?.blocks?.find((item)=>item.id===blockId);
+  if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');
+  if(block.type==='exercise'){
+    if(exerciseId&&block.exerciseId!==exerciseId)throw new Error('M26_SESSION_MEMORY_REFERENCE_MISMATCH');
+    if(suggestion.sets)block.sets=suggestion.sets;
+    if(suggestion.reps)block.reps=suggestion.reps;
+    if(suggestion.plannedLoad)block.plannedLoad=suggestion.plannedLoad;
+  }else{
+    if(!exerciseId||!block.exerciseIds?.includes(exerciseId))throw new Error('M26_SESSION_GROUP_EXERCISE_MISSING');
+    block.prescriptions=block.prescriptions||{};
+    const current=block.prescriptions[exerciseId]||normalizePrescription({});
+    block.prescriptions[exerciseId]=normalizePrescription({
+      ...(suggestion.reps?{reps:suggestion.reps}:{}),
+      ...(suggestion.plannedLoad?{plannedLoad:suggestion.plannedLoad}:{}),
+    },current);
+  }
+  return invalidateSessionPreview(draft);
+}
 export function invalidateSessionPreview(draft){draft.previewAccepted=false;return draft;}
 export function addCatalogExercise(draft,exerciseId,catalog,prescription={}){const ex=catalog.get(exerciseId);if(!ex)throw new Error('M26_SESSION_EXERCISE_NOT_IN_CATALOG');if(draft.activeGroupId){const group=draft.blocks.find((b)=>b.id===draft.activeGroupId);if(!group)throw new Error('M26_SESSION_ACTIVE_GROUP_MISSING');group.prescriptions=group.prescriptions||{};if(!group.exerciseIds.includes(exerciseId)){group.exerciseIds.push(exerciseId);group.prescriptions[exerciseId]=normalizePrescription(prescription);}const limit=group.type==='biserie'?2:group.type==='triserie'?3:null;if(limit&&group.exerciseIds.length>=limit)delete draft.activeGroupId;return invalidateSessionPreview(draft);}draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,3),...normalizePrescription(prescription)});return invalidateSessionPreview(draft);}
 export function addTrainingGroup(draft,type,exerciseIds=[]){if(!GROUP_TYPES.has(type))throw new Error('M26_SESSION_GROUP_INVALID');const id=createM26Id();const unique=[...new Set(exerciseIds)];draft.blocks.push({id,type,exerciseIds:unique,rounds:type==='tabata'?8:3,prescriptions:Object.fromEntries(unique.map((exerciseId)=>[exerciseId,normalizePrescription({})]))});draft.activeGroupId=id;invalidateSessionPreview(draft);return draft;}
