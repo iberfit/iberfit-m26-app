@@ -203,7 +203,7 @@ test('informe Cliente explica qué se observó, por qué importa, resultado y de
   assert.match(html,/Resultado/);
   assert.match(html,/Decisión/);
   assert.match(html,/Rodilla a pared/);
-  assert.match(html,/YMCA Step Test · 3 minutos/);
+  assert.match(html,/Prueba de escalón YMCA · 3 minutos/);
   assert.doesNotMatch(html,/Trazabilidad de protocolos/);
 });
 
@@ -268,7 +268,7 @@ test('modo terreno registra sentadilla 60 s y cinta 3 min sin apropiarse de bare
   assert.match(html,/Cinta · 3 minutos/);
   assert.match(html,/Recuperación 1 min/);
   assert.match(html,/Recuperación 2 min/);
-  assert.match(html,/Sentadilla libre 60 s/);
+  assert.match(html,/Sentadilla libre · 60 s/);
 });
 
 test('subpruebas no realizadas quedan trazadas sin inventar cero ni conservar resultados antiguos',()=>{
