@@ -61,7 +61,7 @@ test('Coach and Client get role-specific truthful start rejection copy',()=>{
   assert.doesNotMatch(client.message,/servicio del cliente/u);
 });
 
-test('online start rejection never starts the local execution and preserves the exact reason',async()=>{
+test('online start rejection never starts or dirties the local recovery execution',async()=>{
   const execution=createExecution({
     session,
     clientId:session.clientId,
@@ -87,8 +87,8 @@ test('online start rejection never starts the local execution and preserves the 
   await assert.rejects(dispatched.value,/M26_COMMAND_REJECTED/u);
   assert.equal(execution.status,'ready');
   assert.equal(execution.startedAt,null);
-  assert.equal(execution.syncStatus,'rejected');
-  assert.equal(execution.lastSyncError,TRAINING_SERVICE_NOT_ACTIVE);
+  assert.equal(execution.syncStatus,'clean');
+  assert.equal(execution.lastSyncError,null);
 });
 
 test('offline rejection reconciliation keeps local progress and exposes service-aware recovery',()=>{
