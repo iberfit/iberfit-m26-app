@@ -1,5 +1,6 @@
 import { areaAllowedForRole, areaDefinition, canonicalArea, roleHome } from './navigation.js';
 import { assertClientSelectionAllowed, assertKnownRole, visibleClientIds } from './role-policy.js';
+import { hasTrainingService } from '../domain/training-service.js';
 
 function result(area, allowed, reason, contextClientId = null) {
   return Object.freeze({ area, allowed, reason, contextClientId });
@@ -7,14 +8,13 @@ function result(area, allowed, reason, contextClientId = null) {
 function mediaReviewEnabled(state,role){
   return role==='admin'&&state?.admin?.available===true&&state?.admin?.organization?.settings?.admin_media_review_enabled===true;
 }
-const IRI_ONLY_TRAINING_AREAS=new Set(['planificacion','sesion','progreso','actividad','retos','inteligencia']);
-function lifecycleStatusForClient(state,clientId){
+const TRAINING_SERVICE_AREAS=new Set(['planificacion','sesion','progreso','actividad','retos','inteligencia']);
+function clientRecord(state,clientId){
   const id=String(clientId||'').trim();
-  if(!id)return '';
-  const client=(state?.collections?.clients||[]).find((item)=>String(item?.id||'').trim()===id)||null;
-  return String(client?.lifecycleStatus||client?.lifecycle_status||client?.status||'').trim().toLowerCase();
+  if(!id)return null;
+  return (state?.collections?.clients||[]).find((item)=>String(item?.id||'').trim()===id)||null;
 }
-function iriOnlyContextClientId(state,role){
+function serviceContextClientId(state,role){
   if(role==='client')return String(state?.identity?.clientId||'').trim()||null;
   return String(state?.selectedClientId||'').trim()||null;
 }
@@ -38,16 +38,18 @@ export function resolveM26Route(state, requestedArea = state?.activeArea) {
   const visible = visibleClientIds(state);
   const selectedClientId = state.selectedClientId || null;
   const ownClientId = state.identity.clientId || null;
-  const serviceClientId=iriOnlyContextClientId(state,role);
+  const serviceClientId=serviceContextClientId(state,role);
+  const serviceClient=clientRecord(state,serviceClientId);
   if(
     serviceClientId&&
-    lifecycleStatusForClient(state,serviceClientId)==='iri_only'&&
-    IRI_ONLY_TRAINING_AREAS.has(requested)
+    serviceClient&&
+    !hasTrainingService(serviceClient)&&
+    TRAINING_SERVICE_AREAS.has(requested)
   ){
     return result(
       role==='client'?'informes':'iri',
       false,
-      'M26_IRI_ONLY_TRAINING_ROUTE_FORBIDDEN',
+      'M26_TRAINING_SERVICE_REQUIRED',
       serviceClientId
     );
   }
