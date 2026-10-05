@@ -149,7 +149,7 @@ Ninguno demostrado en el Canary actual.
 2. E2E positivo Admin de invitación/reenvío y alta/edición/baja controlada.
 3. Sesión Coach real por dispositivo sin freezes y recuperación de error.
 4. Completar auditoría SECURITY DEFINER/RLS/índices por intención.
-5. Proteger Canary con required checks cuando la configuración del repositorio esté disponible.
+5. RESUELTO 2026-10-05: Canary protegido por ruleset `Protect Canary`, enforcement activo y required checks estrictos `validate` + `canary-policy-gate`.
 6. Outcome tracking, preparar próxima sesión y seguimiento longitudinal.
 
 ## Contrato para una próxima promoción
