@@ -35,7 +35,9 @@ test('authenticated fields stay dark legible and focus-safe across browser/devic
 
   const form=page.locator('[data-admin-form="client-create"]');
   const name=form.locator('input[name="name"]');
+  const email=form.locator('input[name="email"]');
   await name.fill('Control visual IBERFIT');
+  await email.fill('control.visual.qa@example.com');
   await name.focus();
   await expect(name).toBeFocused();
 
@@ -52,6 +54,7 @@ test('authenticated fields stay dark legible and focus-safe across browser/devic
   expect(parseFloat(inputMetrics.scrollMarginBlockEnd)).toBeGreaterThanOrEqual(90);
 
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
+  await expect(form.locator('[data-client-step="2"]')).toBeVisible();
   const modality=form.locator('select[name="modality"]');
   await modality.focus();
   await expect(modality).toBeFocused();
