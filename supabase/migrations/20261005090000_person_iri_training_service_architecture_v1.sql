@@ -1,32 +1,19 @@
 -- IBERFIT · Persona → IRI → Servicio de entrenamiento v1
 -- Canonical goals:
 --   1) clients remains the physical person/record root for backward-compatible FKs.
---   2) IRI is independent and supports 0..N assessments per person.
+--   2) IRI is independent: 0..1 protected initial diagnosis + 0..N longitudinal reevaluations.
 --   3) Training service is an independent append-only dimension.
 --   4) IRI is recommended, never a technical prerequisite for training.
 --   5) Legacy iri_only remains readable historical data but is no longer written as a service state.
 
--- QA carried an experimental service table that never reached PROD.
--- It has never held records in the certified QA project. Fail closed if that assumption changes.
-drop function if exists public.iberfit_admin_set_client_service_v1(jsonb,jsonb);
-do $$
-declare
-  v_rows bigint;
-begin
-  if to_regclass('public.iberfit_client_service_events') is not null then
-    execute 'select count(*) from public.iberfit_client_service_events' into v_rows;
-    if v_rows<>0 then
-      raise exception 'IBERFIT_LEGACY_SERVICE_EVENTS_NOT_EMPTY';
-    end if;
-    execute 'drop table public.iberfit_client_service_events';
-  end if;
-end
-$$;
+-- QA contains an older experimental service table from pre-production work.
+-- It is intentionally left untouched: production never received it, and the canonical
+-- v1 table below has a different name. No destructive cleanup belongs in this migration.
 
 create table if not exists public.iberfit_training_service_events_v1(
   id uuid primary key default gen_random_uuid(),
-  organization_id uuid not null references public.iberfit_organizations(id) on delete cascade,
-  person_id uuid not null references public.clients(id) on delete cascade,
+  organization_id uuid not null references public.iberfit_organizations(id) on delete restrict,
+  person_id uuid not null references public.clients(id) on delete restrict,
   status text not null check(status in ('active','paused','ended')),
   reason text not null check(char_length(reason) between 3 and 500),
   changed_by uuid not null references auth.users(id),
@@ -106,22 +93,38 @@ where m.training_status is not null
       and s.person_id=m.person_id
   );
 
--- 1 person → N IRI. Remove both historical blockers and keep a useful chronological index.
-drop index if exists public.iri_one_initial_per_client_v1;
-alter table public.iri_assessments
-  drop constraint if exists iri_assessments_initial_only_v4,
-  drop constraint if exists iri_assessments_type_check;
-alter table public.iri_assessments
-  add constraint iri_assessments_type_check
-  check(assessment_type in ('inicial','reevaluacion'));
-create unique index if not exists iri_one_initial_per_person_v2
-  on public.iri_assessments(client_id)
-  where assessment_type='inicial';
-create index if not exists idx_iri_assessments_client_type_evaluated
-  on public.iri_assessments(client_id,assessment_type,evaluated_at desc,created_at desc);
+-- Initial diagnosis and longitudinal reassessment are intentionally separate.
+-- iri_assessments remains the protected 0..1 initial diagnosis. Follow-up/evolution
+-- uses a dedicated append-only-compatible table, avoiding any relaxation of the
+-- initial-only constraint or its unique baseline index.
+create table if not exists public.iri_reevaluations_v1(
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.iberfit_organizations(id) on delete restrict,
+  person_id uuid not null references public.clients(id) on delete restrict,
+  initial_assessment_id uuid not null references public.iri_assessments(id) on delete restrict,
+  sequence integer not null check(sequence>=1),
+  status text not null default 'borrador'
+    check(status in ('borrador','revision','completo','publicado')),
+  evaluated_at date,
+  protocol_version text not null default '1.0.0',
+  sections jsonb not null default '{}'::jsonb
+    check(jsonb_typeof(sections)='object'),
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(person_id,sequence)
+);
 
-comment on column public.iri_assessments.assessment_type is
-  'Assessment episode type. A person can have one initial IRI and any number of reevaluations; training does not require an IRI.';
+comment on table public.iri_reevaluations_v1 is
+  'Longitudinal IRI reassessments. Kept physically separate from the unique initial diagnosis so follow-up/evolution never mutates baseline semantics.';
+
+create index if not exists iri_reevaluations_v1_person_evaluated_idx
+  on public.iri_reevaluations_v1(person_id,evaluated_at desc,sequence desc);
+
+alter table public.iri_reevaluations_v1 enable row level security;
+alter table public.iri_reevaluations_v1 force row level security;
+revoke all on table public.iri_reevaluations_v1 from public,anon,authenticated;
+grant select,insert,update on table public.iri_reevaluations_v1 to service_role;
 
 create or replace function public.iberfit_admin_set_training_service_v1(
   p_command jsonb,
