@@ -228,6 +228,134 @@ $function$;
 revoke all on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) from public,anon;
 grant execute on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) to authenticated,service_role;
 
+-- Person records must remain editable without inventing training frequency/duration.
+-- Reuse the mature audited profile mutation and restore training-only fields inside
+-- the same transaction when no training service is active or paused.
+alter function public.iberfit_admin_update_client_profile_v26(jsonb,jsonb)
+  rename to iberfit_admin_update_client_profile_v26_pre_person_service_v1;
+
+create or replace function public.iberfit_admin_update_client_profile_v26(
+  p_command jsonb,
+  p_context jsonb default null::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_context jsonb:=coalesce(p_context,public.iberfit_application_context_v14());
+  v_org uuid:=nullif(v_context->>'organizationId','')::uuid;
+  v_payload jsonb:=coalesce(p_command->'payload','{}'::jsonb);
+  v_person uuid;
+  v_service text;
+  v_weekly_missing boolean;
+  v_duration_missing boolean;
+  v_profile_id uuid;
+  v_profile_before jsonb;
+  v_profile_after jsonb;
+  v_frequency_before text;
+  v_command jsonb;
+  v_result jsonb;
+begin
+  perform public.iberfit_require_privileged_assurance_v65d();
+  if auth.uid() is null then raise exception 'V26_CLIENT_PROFILE_AUTH_REQUIRED' using errcode='28000'; end if;
+  if not coalesce(v_context->'roles','[]'::jsonb)?'admin' then raise exception 'V26_CLIENT_PROFILE_ADMIN_REQUIRED' using errcode='42501'; end if;
+  if v_org is null then raise exception 'V26_CLIENT_PROFILE_ORGANIZATION_REQUIRED' using errcode='42501'; end if;
+
+  begin v_person:=(v_payload->>'clientId')::uuid;
+  exception when others then raise exception 'V26_CLIENT_PROFILE_CLIENT_INVALID' using errcode='22023'; end;
+  perform public.iberfit_assert_client_org_scope_v65e(v_org,v_person::text);
+
+  select e.status into v_service
+  from public.iberfit_training_service_events_v1 e
+  where e.organization_id=v_org and e.person_id=v_person
+  order by e.effective_at desc,e.created_at desc,e.id desc
+  limit 1;
+
+  if v_service in ('active','paused') then
+    return public.iberfit_admin_update_client_profile_v26_pre_person_service_v1(
+      p_command,v_context
+    );
+  end if;
+
+  v_weekly_missing:=nullif(btrim(coalesce(v_payload->>'weeklyFrequency','')),'') is null;
+  v_duration_missing:=nullif(btrim(coalesce(v_payload->>'sessionDurationMinutes','')),'') is null;
+
+  select p.id,coalesce(p.profile,'{}'::jsonb)
+    into v_profile_id,v_profile_before
+  from public.client_app_profiles p
+  where p.client_id=v_person
+  order by p.version desc,p.created_at desc
+  limit 1;
+
+  select i.frequency into v_frequency_before
+  from public.client_intake_profiles i
+  where i.client_id=v_person;
+
+  if v_profile_id is null or v_frequency_before is null then
+    raise exception 'V1_PERSON_PROFILE_SOURCE_MISSING' using errcode='P0001';
+  end if;
+
+  v_payload:=v_payload||jsonb_build_object(
+    'weeklyFrequency',case
+      when v_weekly_missing then 1
+      else v_payload->'weeklyFrequency'
+    end,
+    'sessionDurationMinutes',case
+      when v_duration_missing then 60
+      else v_payload->'sessionDurationMinutes'
+    end
+  );
+  v_command:=jsonb_set(p_command,'{payload}',v_payload,true);
+
+  v_result:=public.iberfit_admin_update_client_profile_v26_pre_person_service_v1(
+    v_command,v_context
+  );
+  if coalesce(v_result->>'kind','')='duplicate' then return v_result; end if;
+
+  if v_weekly_missing or v_duration_missing then
+    select coalesce(p.profile,'{}'::jsonb) into v_profile_after
+    from public.client_app_profiles p
+    where p.id=v_profile_id
+    for update;
+
+    if v_weekly_missing then
+      v_profile_after:=case
+        when v_profile_before?'weeklyFrequency'
+          then jsonb_set(v_profile_after,'{weeklyFrequency}',v_profile_before->'weeklyFrequency',true)
+        else v_profile_after-'weeklyFrequency'
+      end;
+    end if;
+    if v_duration_missing then
+      v_profile_after:=case
+        when v_profile_before?'sessionDurationMinutes'
+          then jsonb_set(v_profile_after,'{sessionDurationMinutes}',v_profile_before->'sessionDurationMinutes',true)
+        else v_profile_after-'sessionDurationMinutes'
+      end;
+    end if;
+
+    update public.client_app_profiles
+    set profile=v_profile_after
+    where id=v_profile_id;
+
+    update public.client_intake_profiles
+    set frequency=v_frequency_before
+    where client_id=v_person;
+  end if;
+
+  return v_result||jsonb_build_object(
+    'trainingFieldsRequired',false,
+    'trainingServiceStatus',coalesce(v_service,'none')
+  );
+end
+$function$;
+
+revoke all on function public.iberfit_admin_update_client_profile_v26(jsonb,jsonb)
+  from public,anon,authenticated;
+grant execute on function public.iberfit_admin_update_client_profile_v26(jsonb,jsonb)
+  to service_role;
+
 -- Dispatch the new canonical service command without copying the legacy command membrane.
 alter function public.iberfit_admin_execute_v14(jsonb)
   rename to iberfit_admin_execute_v14_pre_person_service_v1;
