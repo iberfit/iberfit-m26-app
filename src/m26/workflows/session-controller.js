@@ -451,20 +451,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return suggestion;
   }
   const baseRender=render;
-  render=()=>{
-    const context=getContext();
-    baseRender?.();
-    hydrateActiveSetDraft(context);
-    primeCoachSetDraft(context);
-    hydrateFinalFeedbackDraft(context);
-    syncLiveAddExerciseControl(context);
-    syncFinishControl(context);
-    syncManualSyncControl(context);
-    syncQuickRpeControl();
-    syncRecoveryReviewControl(context);
-    scheduleCoachRestAutoAdvance(context);
-    ensureSessionClockTicker(context);
-  };
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
