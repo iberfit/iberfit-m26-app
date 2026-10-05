@@ -4,6 +4,7 @@ import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {coachLaunchReadiness} from './coach-launch-readiness.js';
 import {deriveCoachSelfLaunchJourney} from './coach-launch-journey.js';
+import {focusFirstNeededControl,setControlGroupApplicable} from '../ui/guided-input.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
@@ -291,7 +292,11 @@ export function syncFlexibleOnboardingForm(form){
   const deferred=mode==='deferred';
   for(const name of IRI_ONLY_REQUIRED_FIELDS)setRequired(named(form,name),!deferred);
   const modality=String(named(form,'modality')?.value||'').trim().toLowerCase();
-  setRequired(named(form,'trainingAddress'),!deferred&&['presencial','hibrido'].includes(modality));
+  const locationApplies=['presencial','hibrido'].includes(modality);
+  const trainingAddress=named(form,'trainingAddress');
+  setRequired(trainingAddress,!deferred&&locationApplies);
+  const trainingAddressWrapper=trainingAddress?.closest?.('label');
+  if(trainingAddressWrapper)setControlGroupApplicable(trainingAddressWrapper,locationApplies);
   const phase=named(form,'phase');
   if(phase){
     if(deferred&&(!phase.value||phase.value==='Evaluación inicial'))phase.value='Inicio operativo';
@@ -751,9 +756,16 @@ export function createProgressiveOnboardingController({
   }
 
   function onFlexibleInput(event){
-    if(!event.target?.closest?.(FLEXIBLE_ONBOARDING_SELECTOR))return;
+    const form=event.target?.closest?.(FLEXIBLE_ONBOARDING_SELECTOR);
+    if(!form)return;
     syncFlexibleClientStart();
-    queueMicrotask(syncFlexibleClientStart);
+    const changed=String(event.target?.name||'');
+    queueMicrotask(()=>{
+      syncFlexibleClientStart();
+      if(changed==='initialAssessmentMode'){
+        focusFirstNeededControl(form,{requiredOnly:true});
+      }
+    });
   }
 
   function onFlexibleSubmit(event){
