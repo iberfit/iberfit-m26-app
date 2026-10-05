@@ -1,7 +1,18 @@
 # IBERFIT · Production State
 
-Última actualización documental: 2026-10-02
+Última actualización documental: 2026-10-05
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
+
+## Estado actual · Entrenamiento Operativo 360 · 2026-10-05
+
+- PROD y Canary comparten como último source certificado el merge SHA `1391805fd36fd40e1624e9f06ea378ec37719eb1` de PR #726.
+- Production Promotion run `37307405924`: SUCCESS. Verificó identidad exacta, runtime PROD, Hosted Auth, Chromium interactivo y auditoría read-only; rollback no fue necesario.
+- Canary post-merge quedó certificado sobre ese mismo SHA: CI, Production Data Safety, Continuous Audit, QA Real Write, Session QA, Authenticated Client Interaction, Device Experience, Coach/Admin WebAuthn, gates remotos, Final Frontend/Bundle y Canary Exact Deploy.
+- Persistencia operativa canónica: `training_cycles`, `sessions`, `session_executions`; mutaciones por Command Bus/proyección SECURITY DEFINER. Los journals `domain_events_v26`, `command_events_v26` y `command_receipts_v26` permanecen read-only para authenticated y protegidos por RLS.
+- Servicio de entrenamiento activo gobierna creación/reactivación de trabajo; una ejecución ya iniciada puede pausar/guardar/reanudar/completar/cancelar sin dejar progreso atrapado.
+- Prescripción y observación quedan separadas: “Usar objetivo y revisar” reutiliza trabajo explícito, pero RPE/RIR permanecen vacíos hasta una observación real.
+- Ruleset de repositorio `Protect Canary`: enforcement activo, PR obligatorio y required checks estrictos `validate` + `canary-policy-gate`.
+- PR #727 está en draft como macro-WIP **Experiencia Guiada 360**. No forma parte de Canary ni PROD hasta certificación y merge.
 
 ## WIP cerrado · Personas + IRI real en terreno + Solo IRI · 2026-10-02
 
