@@ -12,7 +12,7 @@ test('client creation stays on the authenticated RPC and never reroutes through 
   assert.doesNotMatch(workflow,/iberfit-client-onboarding-v1/u);
   assert.doesNotMatch(workflow,/installClientOnboardingInvitationTransport/u);
   assert.doesNotMatch(workflow,/invitationTarget/u);
-  assert.match(transport,/request\(\`\/rest\/v1\/rpc\/\$\{CLIENT_ONBOARDING_RPC\.create\}\`/u);
+  assert.ok(transport.includes('request(`/rest/v1/rpc/${CLIENT_ONBOARDING_RPC.create}`'));
   assert.match(transport,/method:'POST',token,body/u);
   assert.match(application,/transport\.clientOnboardingPreflight\(token\)/u);
   assert.match(application,/transport\.createClientDraft\(token,payload\)/u);
