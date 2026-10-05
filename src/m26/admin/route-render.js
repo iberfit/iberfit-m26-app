@@ -109,12 +109,12 @@ function renderHome(vm){
       <div class="m26-admin-priority-list">${priorities}</div>
     </section>
     <section class="m26-admin-stats m30-admin-kpis" aria-label="Indicadores de operación">
-      ${stat('Clientes',s.totalClients??vm.summary.activeClients??0)}
+      ${stat('Clientes activos',s.activeClients??vm.summary.activeClients??0)}
+      ${stat('En pausa',s.pausedClients??0)}
       ${stat('Sin Coach',s.unassignedClients??0)}
       ${stat('IRI pendientes',s.iriPending??0)}
       ${stat('Planificaciones',s.planningPending??0)}
       ${stat('Sin próxima cita',s.schedulingPending??0)}
-      ${stat('Coaches ≥85%',s.coachesNearCapacity??0)}
     </section>
     <section class="m26-admin-grid m30-admin-operations-grid">
       <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo</p><h3>Capacidad de Coaches</h3></div></div><div class="m26-admin-load-list">${loads}</div></article>
