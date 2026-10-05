@@ -3883,9 +3883,9 @@ export function renderPlanningRoute(vm){
     :'';
   const cycleSummary=!isClient&&hasCycle?`<section class="m26-planning-current-cycle" aria-label="Marco del ciclo actual">
     <div><span>Ciclo</span><strong>${escapeHtml(cycleName||'Sin nombre')}</strong></div>
-    <div><span>Modalidad</span><strong>${escapeHtml(cycleModality==='hibrido'?'Híbrido':cycleModality==='online'?'Online':'Presencial')}</strong></div>
-    <div><span>Frecuencia</span><strong>${escapeHtml(weeklyFrequency)} / semana</strong></div>
-    <div><span>Duración</span><strong>${escapeHtml(sessionDuration)} min</strong></div>
+    <div><span>Modalidad</span><strong>${escapeHtml(cycleModality?(cycleModality==='hibrido'?'Híbrido':cycleModality==='online'?'Online':'Presencial'):'Por definir')}</strong></div>
+    <div><span>Frecuencia</span><strong>${weeklyFrequency?`${escapeHtml(weeklyFrequency)} / semana`:'Por definir'}</strong></div>
+    <div><span>Duración</span><strong>${sessionDuration?`${escapeHtml(sessionDuration)} min`:'Por definir'}</strong></div>
   </section>`:'';
   const clientPlanGuideAttribute=isClient&&(hasCycle||vm.sessions.length)
     ?' data-m26-client-guide="plan-surface"'
