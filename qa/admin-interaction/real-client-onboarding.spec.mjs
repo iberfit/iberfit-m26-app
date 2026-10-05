@@ -65,7 +65,8 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await page.waitForTimeout(180);
   await expectSameNode(name,'name');
   await expect(name).toBeFocused();
-  await page.keyboard.type('Cliente foco real QA');
+  await name.pressSequentially('Cliente foco real QA');
+  await expectSameNode(name,'name');
   await expect(name).toHaveValue('Cliente foco real QA');
 
   // Release the controller's delayed stale local draft only after the user has edited.
@@ -113,11 +114,14 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await expect(channel).toHaveValue('Correo electrónico');
 
   const access=form.locator('textarea[name="accessInstructions"]');
+  await rememberNode(access,'accessInstructions');
   await queueRenderOnNextRelease(page,{direct:true});
   await activate(page,access,touch);
   await page.waitForTimeout(180);
+  await expectSameNode(access,'accessInstructions');
   await expect(access).toBeFocused();
-  await page.keyboard.type('Acceso por conserjería, llamar al llegar.');
+  await access.pressSequentially('Acceso por conserjería, llamar al llegar.');
+  await expectSameNode(access,'accessInstructions');
   await expect(access).toHaveValue('Acceso por conserjería, llamar al llegar.');
 
   const search=page.locator('[data-client-search]');
@@ -127,7 +131,8 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await page.waitForTimeout(180);
   await expectSameNode(search,'clientSearch');
   await expect(search).toBeFocused();
-  await page.keyboard.type('María');
+  await search.pressSequentially('María');
+  await expectSameNode(search,'clientSearch');
   await expect(search).toHaveValue('María');
 
   const iriFilter=page.locator('[data-client-filter="iri"]');
