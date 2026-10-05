@@ -177,6 +177,7 @@ test('Action Outcome workspace uses progressive disclosure and prioritizes pendi
     new URL('../src/m26/engagement/engagement-controller.js',import.meta.url),
     'utf8',
   );
+  assert.match(source,/function actionOutcomeManagerForClient\(root,clientId/u);
   assert.match(source,/function actionOutcomeTargets\(root\)/u);
   assert.match(source,/\[data-action-outcome-host\]\[data-client-id\]/u);
   assert.match(source,/workspaceMode&&summaryData\.overdueCount>0/u);
@@ -184,7 +185,9 @@ test('Action Outcome workspace uses progressive disclosure and prioritizes pendi
   assert.match(source,/1 · Señal y criterio/u);
   assert.match(source,/2 · Intervención/u);
   assert.match(source,/3 · Cuándo revisar/u);
-  assert.match(source,/manager\.append\(summary,metrics,intro,history,formDisclosure\)/u);
+  assert.match(source,/manager\.append\(summary,metrics,managerFeedback,intro,history,formDisclosure\)/u);
+  assert.match(source,/setStatus\(confirmed\|\|root,'action-manager','Decisión registrada/u);
+  assert.match(source,/setStatus\(confirmed\|\|root,'action-manager','Resultado confirmado/u);
 });
 
 test('decision workspace remains touch-friendly and single-column on small screens',()=>{
