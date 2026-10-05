@@ -269,6 +269,24 @@ export function plannedSetDraftValues(execution,session){
   };
   return Object.values(values).some((value)=>String(value).trim())?values:null;
 }
+export function previousSetReviewDraftValues(execution){
+  const previous=previousSetDraftValues(execution);
+  if(!previous)return null;
+  return {
+    reps:previous.reps,
+    seconds:previous.seconds,
+    load:previous.load,
+    // Previous effort is context, not a new observation.
+    rpe:'',
+    rir:'',
+  };
+}
+export function suggestedSetDraftValues(execution,session){
+  const previous=previousSetReviewDraftValues(execution);
+  if(previous)return {source:'previous',values:previous};
+  const planned=plannedSetDraftValues(execution,session);
+  return planned?{source:'planned',values:planned}:null;
+}
 export function hasNextExecutionStep(execution){return Boolean(nextUnresolvedPosition(execution));}
 export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null}={}){
   requireCoachActor(actor);
