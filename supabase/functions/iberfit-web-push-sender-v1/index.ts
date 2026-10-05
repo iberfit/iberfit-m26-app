@@ -1,15 +1,28 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import webpush from 'npm:web-push@3.6.7';
 
-const FUNCTION_VERSION='web-push-sender-v1.1';
+const FUNCTION_VERSION='web-push-sender-v1.2';
 const MAX_BODY=8_000;
 const CLAIM_LIMIT=25;
 const SEND_CONCURRENCY=5;
-const ALLOWED_ORIGINS=new Set([
-  'https://m26-canary.iberfit.cl',
-  'https://app.iberfit.cl',
-  'https://coach.iberfit.cl',
-]);
+const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
+
+function deploymentProjectRef(value:string){
+  try{
+    const host=new URL(String(value||'')).hostname.toLowerCase();
+    return host.match(/^([a-z0-9]{20})\.supabase\.co$/u)?.[1]||'';
+  }catch{return '';}
+}
+
+const DEPLOYMENT_PROJECT_REF=deploymentProjectRef(Deno.env.get('SUPABASE_URL')||'');
+const ALLOWED_ORIGINS=new Set(
+  DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF
+    ?['https://m26-canary.iberfit.cl']
+    :DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF
+      ?['https://app.iberfit.cl','https://coach.iberfit.cl']
+      :[],
+);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 type Claim={
