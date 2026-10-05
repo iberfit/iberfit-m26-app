@@ -74,14 +74,16 @@ test('evaluación QA histórica con estado confirmado habilita el Diagnóstico I
   assert.match(renderReportsRoute(vm),/data-iri-diagnosis/);
 });
 
-test('informe IRI presenta perfil por dominios y evita nota global con cobertura parcial',()=>{
+test('informe IRI separa valoración orientativa de la comparabilidad normativa',()=>{
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
-  assert.match(html,/Perfil funcional/);
-  assert.match(html,/Movilidad/);
-  assert.match(html,/Fuerza funcional/);
-  assert.match(html,/Capacidad funcional/);
+  assert.match(html,/Perfil funcional disponible/i);
+  assert.match(html,/Movimiento y movilidad/i);
+  assert.match(html,/Valoración IBERFIT por áreas/i);
+  assert.match(html,/Fuerza/i);
+  assert.match(html,/Recuperación|Sin valoración/i);
   assert.match(html,/dominios comparables|Sin puntuación global/i);
   assert.match(html,/sin nota global por cobertura parcial|3\/3 dominios comparables/i);
+  assert.match(html,/no sustituyen baremos clínicos/i);
 });
 
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
