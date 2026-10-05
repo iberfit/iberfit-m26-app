@@ -129,6 +129,8 @@ test('Admin users and client-create surfaces produce current visual evidence',as
   await form.locator('input[name="name"]').fill('Cliente QA Visual');
   await form.locator('input[name="email"]').fill('visual@example.com');
   await form.locator('input[name="phone"]').fill('+56 9 5555 1212');
+  await form.locator('input[name="birthDate"]').fill('1988-04-16');
+  await form.locator('select[name="sexForNorms"]').selectOption('female');
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await expect(form.locator('[data-client-step="2"]')).toBeVisible();
   evidence.captures.push(await shot(page,project+'-admin-client-create-step2'));

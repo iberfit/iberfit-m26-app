@@ -39,7 +39,7 @@ const ACTIONABLE_AREAS=Object.freeze([
 
 const REQUIRED_FORM_KINDS=Object.freeze([
   'user-status','role-change','user-delete','assignment-create','assignment-end',
-  'lead-create','lead-update','client-profile-update','client-lifecycle','client-delete',
+  'lead-create','lead-update','client-profile-update','client-training-service','client-delete',
   'task-create','task-resolve','template-save','automation-save','settings-save',
 ]);
 

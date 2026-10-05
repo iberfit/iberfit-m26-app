@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const migration=fs.readFileSync('supabase/migrations/20260914062000_admin_client_create_responsible_coach_v26.sql','utf8');
-const soloIriMigration=fs.readFileSync('supabase/migrations/20261002234000_solo_iri_access_mode_v1.sql','utf8');
+const personServiceMigration=fs.readFileSync('supabase/migrations/20261005090000_person_iri_training_service_architecture_v1.sql','utf8');
 const render=fs.readFileSync('src/m26/admin/route-render.js','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/admin/view-model.js','utf8');
@@ -15,7 +15,7 @@ test('real client onboarding exposes an optional responsible Coach and defaults 
   assert.match(render,/selfCoach\|\|\(eligibleCoaches\.length===1\?eligibleCoaches\[0\]:null\)/u);
   assert.match(render,/Asignar después/u);
   assert.match(controller,/coachUserId:text\(data,'coachUserId',200\)/u);
-  assert.match(wizard,/const names=iriOnly\s*\?\['serviceIntent','modality','coachUserId'\]\s*:\['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'\]/u);
+  assert.match(wizard,/const names=iriEntry\s*\?\['serviceIntent','modality','coachUserId'\]\s*:\['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'\]/u);
 });
 
 test('responsible Coach assignment is validated before client creation and written atomically',()=>{
@@ -36,9 +36,10 @@ test('responsible Coach assignment is optional, replay-safe and preserves least 
 });
 
 
-test('Solo IRI Coach assignment remains technical and does not create an inactive lifecycle event',()=>{
-  assert.match(soloIriMigration,/v_initial_lifecycle='iri_only'/u);
-  assert.match(soloIriMigration,/Asignación responsable para custodia y gestión del Diagnóstico IRI/u);
-  assert.doesNotMatch(soloIriMigration,/status,reason,changed_by[\s\S]{0,600}'inactive'/u);
-  assert.match(soloIriMigration,/return v_result\|\|jsonb_build_object\([\s\S]*?'relationshipType',v_relationship,[\s\S]*?'accessMode',v_access_mode/u);
+test('Coach assignment stays independent from the training service and IRI relationship',()=>{
+  assert.match(personServiceMigration,/entryIntent',v_entry/u);
+  assert.match(personServiceMigration,/trainingServiceStatus'/u);
+  assert.match(personServiceMigration,/if v_entry='training' and v_current_service is distinct from 'active' then/u);
+  assert.doesNotMatch(personServiceMigration,/service_kind[^\n]*iri_only/u);
+  assert.match(render,/No activa por sí sola un servicio de entrenamiento/u);
 });

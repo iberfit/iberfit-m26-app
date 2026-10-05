@@ -16,7 +16,7 @@ test('client create wizard has stable bounded steps and scoped local draft keys'
   assert.equal(internals.clampStep(-3),1);
   assert.equal(internals.clampStep(3),3);
   assert.equal(internals.clampStep(99),5);
-  assert.match(internals.keyFor('org:test'),/^iberfit:m26:admin-client-create:v3:/u);
+  assert.match(internals.keyFor('org:test'),/^iberfit:m26:admin-client-create:v4:/u);
   assert.equal(internals.DRAFT_MAX_AGE_MS,8*60*60*1000);
 });
 
@@ -66,7 +66,8 @@ test('client create payload captures richer profile data needed by IRI 2.0 witho
     'birthDate',
     'sexForNorms',
     'initialAssessmentMode',
-    'initialLifecycleStatus',
+    'entryIntent',
+    'trainingServiceStatus',
     'weeklyFrequency',
     'sessionDurationMinutes',
     'preferredSchedule',
@@ -79,28 +80,34 @@ test('client create payload captures richer profile data needed by IRI 2.0 witho
   assert.match(controller,/trainingAddress/u);
 });
 
-test('alta distingue entrenamiento de Solo IRI como modo de producto estable y reversible',()=>{
+test('alta ofrece IRI recomendado y entrenamiento directo como rutas independientes',()=>{
   assert.match(render,/name="serviceIntent"/u);
-  assert.match(render,/Solo IRI · evaluación e informe/u);
+  assert.match(render,/value="iri" selected>Diagnóstico IRI · recomendado/u);
+  assert.match(render,/value="training">Iniciar entrenamiento/u);
+  assert.match(render,/nunca bloquea el entrenamiento/u);
   assert.match(render,/data-client-training-only/u);
   assert.match(render,/name="accessMode"/u);
   assert.match(render,/Expediente interno · no enviar invitación/u);
   assert.match(render,/Acceso IBERFIT · enviar invitación/u);
   assert.match(wizardSource,/function updateServiceIntent/u);
-  assert.match(wizardSource,/wrapper\.hidden=iriOnly/u);
-  assert.match(wizardSource,/field\.disabled=iriOnly/u);
+  assert.match(wizardSource,/const iriEntry=intent==='iri'/u);
+  assert.match(wizardSource,/wrapper\.hidden=iriEntry/u);
+  assert.match(wizardSource,/field\.disabled=iriEntry/u);
   assert.match(wizardSource,/assessment\.value='iri'/u);
-  assert.match(wizardSource,/deferred\.disabled=iriOnly/u);
-  assert.match(wizardSource,/deferred\.hidden=iriOnly/u);
-  assert.match(wizardSource,/accessMode\.value=iriOnly\?'internal':'app'/u);
-  assert.match(wizardSource,/Crear persona Solo IRI/u);
-  assert.match(wizardSource,/Se creará una persona con expediente IRI, sin entrenamiento activo/u);
-  assert.match(controller,/const serviceIntent=text\(data,'serviceIntent',40\)==='iri_only'\?'iri_only':'training'/u);
-  assert.match(controller,/initialLifecycleStatus:iriOnly\?'iri_only':'onboarding'/u);
-  assert.match(controller,/weeklyFrequency=iriOnly\?'':/u);
-  assert.match(controller,/sessionDurationMinutes=iriOnly\?null:/u);
-  assert.match(controller,/initialAssessmentMode:iriOnly\?'iri'/u);
+  assert.match(wizardSource,/deferred\.disabled=iriEntry/u);
+  assert.match(wizardSource,/deferred\.hidden=iriEntry/u);
+  assert.match(wizardSource,/accessMode\.value=iriEntry\?'internal':'app'/u);
+  assert.match(wizardSource,/Crear persona para IRI/u);
+  assert.match(wizardSource,/sin servicio de entrenamiento activo/u);
+  assert.match(controller,/const serviceIntent=text\(data,'serviceIntent',40\)==='iri'\?'iri':'training'/u);
+  assert.match(controller,/entryIntent:serviceIntent/u);
+  assert.match(controller,/trainingServiceStatus:iriEntry\?'none':'active'/u);
+  assert.match(controller,/initialLifecycleStatus:'onboarding'/u);
+  assert.match(controller,/weeklyFrequency=iriEntry\?'':/u);
+  assert.match(controller,/sessionDurationMinutes=iriEntry\?null:/u);
+  assert.match(controller,/initialAssessmentMode:iriEntry\?'iri'/u);
   assert.match(controller,/accessMode,/u);
+  assert.doesNotMatch(render,/Solo IRI/u);
 });
 
 test('Admin mounts the critical client wizard before the shell is advertised as interactive',()=>{

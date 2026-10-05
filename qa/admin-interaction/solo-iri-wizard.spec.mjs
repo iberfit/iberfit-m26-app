@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 
-test('Solo IRI changes the real Admin wizard immediately, survives navigation and shell replacement',async({page},testInfo)=>{
+test('IRI entry changes the real Admin wizard immediately, survives navigation and shell replacement',async({page},testInfo)=>{
   const touch=/mobile|tablet/iu.test(testInfo.project.name);
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
@@ -8,8 +8,10 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
 
-  await form.locator('[name="name"]').fill('Persona Solo IRI QA');
-  await form.locator('[name="email"]').fill('solo.iri.qa@example.invalid');
+  await form.locator('[name="name"]').fill('Persona IRI QA');
+  await form.locator('[name="email"]').fill('iri.qa@example.invalid');
+  await form.locator('[name="birthDate"]').fill('1990-04-10');
+  await form.locator('[name="sexForNorms"]').selectOption('female');
   await form.locator('[data-client-wizard-next]').first().click();
 
   const serviceStep=form.locator('[data-client-step="2"]');
@@ -22,8 +24,8 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   const submit=form.locator('[data-client-create-submit]');
   const notice=form.locator('[data-client-service-mode-notice]');
 
-  await intent.selectOption('iri_only');
-  await expect(intent).toHaveValue('iri_only');
+  await intent.selectOption('iri');
+  await expect(intent).toHaveValue('iri');
   await expect(frequency).toBeDisabled();
   await expect(duration).toBeDisabled();
   await expect(frequency.locator('xpath=..')).toHaveAttribute('hidden','');
@@ -33,26 +35,26 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(assessment.locator('option[value="deferred"]')).toHaveAttribute('disabled','');
   await expect(access).toHaveValue('internal');
   await expect(notice).toBeVisible();
-  await expect(notice).toContainText('Se creará una persona con expediente IRI, sin entrenamiento activo.');
-  await expect(submit).toHaveText('Crear persona Solo IRI');
+  await expect(notice).toContainText('Se creará una persona con su evaluación IRI.');
+  await expect(submit).toHaveText('Crear persona para IRI');
 
   await serviceStep.locator('[data-client-wizard-prev]').click();
   await expect(form.locator('[data-client-step="1"]')).toBeVisible();
-  await expect(form.locator('[name="birthDate"]')).toHaveAttribute('required','');
-  await expect(form.locator('[name="sexForNorms"]')).toHaveAttribute('required','');
-  await form.locator('[name="birthDate"]').fill('1990-04-10');
-  await form.locator('[name="sexForNorms"]').selectOption('female');
+  await expect(form.locator('[name="birthDate"]')).not.toHaveAttribute('required');
+  await expect(form.locator('[name="sexForNorms"]')).not.toHaveAttribute('required');
+  await expect(form.locator('[name="birthDate"]')).toHaveValue('1990-04-10');
+  await expect(form.locator('[name="sexForNorms"]')).toHaveValue('female');
 
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await expect(serviceStep).toBeVisible();
-  await expect(intent).toHaveValue('iri_only');
+  await expect(intent).toHaveValue('iri');
 
   // Draft persistence across the same kind of DOM replacement that previously
   // caused the service mode to snap back to training.
   await page.waitForTimeout(350);
   await page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.forceRender?.());
   const restored=page.locator('[data-admin-form="client-create"]');
-  await expect(restored.locator('[name="serviceIntent"]')).toHaveValue('iri_only');
+  await expect(restored.locator('[name="serviceIntent"]')).toHaveValue('iri');
   await expect(restored.locator('[name="weeklyFrequency"]')).toBeDisabled();
   await expect(restored.locator('[name="sessionDurationMinutes"]')).toBeDisabled();
   await expect(restored.locator('[name="initialAssessmentMode"]')).toHaveValue('iri');
@@ -68,7 +70,7 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(restored.locator('[name="initialAssessmentMode"] option[value="deferred"]')).not.toHaveAttribute('disabled');
   await expect(restored.locator('[name="accessMode"]')).toHaveValue('app');
 
-  await restored.locator('[name="serviceIntent"]').selectOption('iri_only');
+  await restored.locator('[name="serviceIntent"]').selectOption('iri');
   await expect(restored.locator('[name="accessMode"]')).toHaveValue('internal');
 
   if(touch){

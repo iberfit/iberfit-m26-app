@@ -1,25 +1,27 @@
 import {test,expect} from '@playwright/test';
 
-test('Solo IRI filters and conversion preserve the person through the real Admin controller',async({page})=>{
+test('person without training filters and service activation preserve the same record',async({page})=>{
   const errors=capturePageErrors(page);
   await page.goto('/qa/admin-interaction/fixture.html?route=clients&lifecycle=1');
   const filter=page.locator('[data-admin-person-filter]');
   const iri=page.locator('[data-admin-client-id="iri-person"]');
   const active=page.locator('[data-admin-client-id="active-person"]');
-  await filter.selectOption('iri_only');
+  await filter.selectOption('no-training');
   await expect(iri).toBeVisible();await expect(active).toBeHidden();
-  const cycle=iri.locator('[data-admin-form="client-lifecycle"]');
-  await expect(cycle.locator('[name="status"]')).toHaveValue('iri_only');
-  await cycle.locator('[name="status"]').selectOption('active');
-  await cycle.locator('[name="reason"]').fill('Comienza entrenamiento');
-  await cycle.locator('button[type="submit"]').click();
-  await expect(iri).toHaveAttribute('data-admin-person-status','active');
+  const service=iri.locator('[data-admin-form="client-training-service"]');
+  await expect(service.locator('[name="status"]')).toHaveValue('active');
+  await service.locator('[name="reason"]').fill('Comienza entrenamiento');
+  await service.locator('button[type="submit"]').click();
+  await filter.selectOption('all');
+  await expect(page.locator('[data-admin-client-id="iri-person"]')).toHaveAttribute('data-service-kind','training');
   await expect(page.locator('[data-admin-client-id]')).toHaveCount(2);
-  expect((await page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__.commands()))[0].payload).toEqual({clientId:'iri-person',status:'active'});
+  const commands=await page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__.commands());
+  expect(commands[0].type).toBe('ADMIN_CLIENTE_CAMBIAR_SERVICIO');
+  expect(commands[0].payload).toEqual({clientId:'iri-person',status:'active'});
   expect(errors).toEqual([]);
 });
 
-test('Solo IRI wizard submits without a weekly training frequency',async({page})=>{
+test('IRI entry submits without a weekly training frequency',async({page})=>{
   await page.goto('/qa/admin-interaction/fixture.html?route=clients');
   const form=page.locator('[data-admin-form="client-create"]');
   await form.locator('[name="name"]').fill('Persona IRI QA');
@@ -28,7 +30,7 @@ test('Solo IRI wizard submits without a weekly training frequency',async({page})
   await form.locator('[name="birthDate"]').fill('1990-04-10');
   await form.locator('[name="sexForNorms"]').selectOption('female');
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
-  await form.locator('[name="serviceIntent"]').selectOption('iri_only');
+  await expect(form.locator('[name="serviceIntent"]')).toHaveValue('iri');
   await form.locator('[name="modality"]').selectOption('Presencial');
   await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
   await expect(form.locator('[name="initialAssessmentMode"]')).toHaveValue('iri');
@@ -39,7 +41,9 @@ test('Solo IRI wizard submits without a weekly training frequency',async({page})
   await form.locator('[data-client-create-submit]').click();
   const commands=await page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__.commands());
   expect(commands).toHaveLength(1);
-  expect(commands[0].payload.initialLifecycleStatus).toBe('iri_only');
+  expect(commands[0].payload.initialLifecycleStatus).toBe('onboarding');
+  expect(commands[0].payload.entryIntent).toBe('iri');
+  expect(commands[0].payload.trainingServiceStatus).toBe('none');
   expect(commands[0].payload.frequency).toBe('');
 });
 
@@ -175,6 +179,7 @@ test('Admin client-create wizard preserves entered values while selects and step
   await name.fill('Cliente QA Interacción');
   await email.fill('cliente.qa.interaccion@example.com');
   await phone.fill('+56 9 5555 0101');
+  await form.locator('input[name="birthDate"]').fill('1988-04-16');
   await form.locator('select[name="sexForNorms"]').selectOption('female');
   await form.locator('select[name="preferredContactChannel"]').selectOption('email');
 
@@ -187,18 +192,21 @@ test('Admin client-create wizard preserves entered values while selects and step
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await expect(form.locator('[data-client-step="2"]')).toBeVisible();
 
+  const intent=form.locator('select[name="serviceIntent"]');
   const modality=form.locator('select[name="modality"]');
   const frequency=form.locator('input[name="weeklyFrequency"]');
   const duration=form.locator('input[name="sessionDurationMinutes"]');
   const assessment=form.locator('select[name="initialAssessmentMode"]');
   const zone=form.locator('input[name="zone"]');
 
+  await intent.selectOption('training');
   await modality.selectOption('Híbrido');
   await frequency.fill('2');
   await duration.fill('60');
   await assessment.selectOption('iri');
   await zone.fill('Las Condes');
 
+  await expect(intent).toHaveValue('training');
   await expect(modality).toHaveValue('Híbrido');
   await expect(frequency).toHaveValue('2');
   await expect(duration).toHaveValue('60');

@@ -11,7 +11,7 @@ function adminOperationLockKey(kind,data){
   if(kind==='user-status'||kind==='role-change'||kind==='user-delete')return `user:${value('userId')||'unknown'}`;
   if(kind==='assignment-end')return `assignment:${value('assignmentId')||'unknown'}`;
   if(kind==='lead-update')return `lead:${value('leadId')||'unknown'}`;
-  if(kind==='client-lifecycle'||kind==='client-delete'||kind==='client-profile-update'||kind==='client-invite-resend')return `client:${value('clientId')||'unknown'}`;
+  if(kind==='client-lifecycle'||kind==='client-training-service'||kind==='client-delete'||kind==='client-profile-update'||kind==='client-invite-resend')return `client:${value('clientId')||'unknown'}`;
   if(kind==='task-resolve')return `task:${value('taskId')||'unknown'}`;
   if(kind==='settings-save')return `organization:${value('organizationId')||'current'}`;
   if(kind==='template-save')return `template:${value('key',80)||'unknown'}`;
@@ -85,6 +85,19 @@ function populateClientEditForm(root,record){
     if(!control)continue;
     control.value=String(record[key]??'');
   }
+  const training=String(record.serviceKind||'none')==='training';
+  for(const wrapper of form.querySelectorAll?.('[data-client-edit-training-only]')||[]){
+    wrapper.hidden=!training;
+    wrapper.setAttribute?.('aria-hidden',training?'false':'true');
+  }
+  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
+    const control=form.elements?.namedItem?.(name);
+    if(!control)continue;
+    control.disabled=!training;
+    control.required=training;
+    if(training)control.setAttribute?.('required','');
+    else control.removeAttribute?.('required');
+  }
   const email=dialog.querySelector?.('[data-admin-client-edit-email]');
   if(email)email.textContent=String(record.email||'Sin correo de acceso');
   return {dialog,form};
@@ -113,14 +126,14 @@ function creationSuccess(result={},context={}){
   const delivery=String(invitation.deliveryStatus||'').toLowerCase();
   const reason=String(invitation.reason||'').toLowerCase();
   const internal=context.accessMode==='internal'||reason==='internal_record'||String(invitation.accessStatus||'').toLowerCase()==='sin_acceso';
-  const subject=context.iriOnly?'Persona Solo IRI':'Cliente';
+  const subject=context.iriEntry?'Persona':'Cliente';
   if(internal)return `${subject} creado sin enviar invitación. El acceso puede habilitarse después.`;
   if(delivery==='sent')return `${subject} creado. Invitación enviada correctamente.`;
   if(delivery==='error')return `${subject} creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.`;
   if(delivery==='pending')return `${subject} creado. Invitación en proceso.`;
   return `${subject} creado y acceso preparado.`;
 }
-function invitationSuccess(result={}){return creationSuccess(result,{iriOnly:false,accessMode:'app'});}
+function invitationSuccess(result={}){return creationSuccess(result,{iriEntry:false,accessMode:'app'});}
 function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(delivery==='sent')return 'Invitación reenviada correctamente.';if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(delivery==='pending')return 'Reenvío solicitado. La invitación queda pendiente de confirmación.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
 function createdClientId(result={}){
   const response=Array.isArray(result?.response)?result.response[0]:result?.response;
@@ -297,14 +310,14 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
 
     if(kind==='client-create'){
       if(!clientWizard.validateForSubmit(form))return false;
-      const serviceIntent=text(data,'serviceIntent',40)==='iri_only'?'iri_only':'training';
-      const iriOnly=serviceIntent==='iri_only';
+      const serviceIntent=text(data,'serviceIntent',40)==='iri'?'iri':'training';
+      const iriEntry=serviceIntent==='iri';
       const accessMode=text(data,'accessMode',20)==='internal'?'internal':'app';
-      const weeklyFrequency=iriOnly?'':text(data,'weeklyFrequency',20);
-      const sessionDurationMinutes=iriOnly?null:(Number(text(data,'sessionDurationMinutes',20))||null);
-      const frequency=iriOnly?'':(text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:''));
+      const weeklyFrequency=iriEntry?'':text(data,'weeklyFrequency',20);
+      const sessionDurationMinutes=iriEntry?null:(Number(text(data,'sessionDurationMinutes',20))||null);
+      const frequency=iriEntry?'':(text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:''));
       const profile={
-        initialAssessmentMode:iriOnly?'iri':(text(data,'initialAssessmentMode',30)||'iri'),
+        initialAssessmentMode:iriEntry?'iri':(text(data,'initialAssessmentMode',30)||'iri'),
         birthDate:text(data,'birthDate',20),
         sexForNorms:text(data,'sexForNorms',20),
         email:text(data,'email',254),
@@ -313,7 +326,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         preferredContactTime:text(data,'preferredContactTime',120),
         timezone:'America/Santiago',
         modality:text(data,'modality',40),
-        weeklyFrequency:iriOnly?null:(Number(weeklyFrequency)||null),
+        weeklyFrequency:iriEntry?null:(Number(weeklyFrequency)||null),
         sessionDurationMinutes,
         preferredSchedule:text(data,'preferredSchedule',240),
         commune:text(data,'zone',120),
@@ -344,7 +357,9 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
-          initialLifecycleStatus:iriOnly?'iri_only':'onboarding',
+          entryIntent:serviceIntent,
+          trainingServiceStatus:iriEntry?'none':'active',
+          initialLifecycleStatus:'onboarding',
           accessMode,
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
@@ -375,7 +390,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           emergencyContactPhone:profile.emergencyContactPhone,
           profile,
         },
-      },(result)=>creationSuccess(result,{iriOnly,accessMode}),{onSuccess:(result)=>{
+      },(result)=>creationSuccess(result,{iriEntry,accessMode}),{onSuccess:(result)=>{
         const clientId=createdClientId(result);
         if(clientId)pendingCreatedClientId=clientId;
         clientWizard.clear();
@@ -391,6 +406,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       },invitationResendSuccess);
     }
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
+    if(kind==='client-training-service')return run({type:'ADMIN_CLIENTE_CAMBIAR_SERVICIO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Servicio de entrenamiento actualizado.');
     if(kind==='client-delete'){
       const clientId=text(data,'clientId',200);
       const confirmValue=text(data,'confirmValue',254);
@@ -414,7 +430,10 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(personFilter){
       const selected=String(personFilter.value||'all');let visible=0;
       for(const row of root.querySelectorAll?.('[data-admin-person-status]')||[]){
-        row.hidden=selected!=='all'&&row.getAttribute('data-admin-person-status')!==selected;
+        const personStatus=String(row.getAttribute('data-admin-person-status')||'');
+        const serviceKind=String(row.getAttribute('data-service-kind')||'');
+        const matches=selected==='all'||personStatus===selected||(selected==='training'&&serviceKind==='training')||(selected==='no-training'&&serviceKind==='none');
+        row.hidden=!matches;
         if(!row.hidden)visible+=1;
       }
       const feedback=root.querySelector?.('[data-admin-person-filter-status]');

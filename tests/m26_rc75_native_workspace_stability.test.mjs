@@ -43,7 +43,9 @@ test('RC75 mantiene alta guiada y la evolución ADMIN exige invitación real sin
   assert.match(admin,/ADMIN_LEAD_CREAR/u);
   assert.match(admin,/ADMIN_CLIENTE_CREAR/u);
   assert.match(render,/Crear persona y preparar acceso/u);
-  assert.match(render,/Solo IRI · evaluación e informe/u);
+  assert.match(render,/Diagnóstico IRI · recomendado/u);
+  assert.match(render,/Iniciar entrenamiento/u);
+  assert.match(render,/nunca bloquea el entrenamiento/u);
   assert.match(transport,/iberfit-admin-client-invite-v1/u);
   assert.doesNotMatch(admin,/activatedAt\s*:/u);
   assert.doesNotMatch(admin,/status\s*:\s*['"]activo['"]/u);

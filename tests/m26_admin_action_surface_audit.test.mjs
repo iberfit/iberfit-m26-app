@@ -10,7 +10,7 @@ const execFileAsync=promisify(execFile);
 
 const REQUIRED_FORM_KINDS=[
   'user-status','role-change','assignment-create','assignment-end',
-  'lead-create','lead-update','client-lifecycle','client-delete',
+  'lead-create','lead-update','client-training-service','client-delete',
   'task-create','task-resolve','template-save','automation-save','settings-save',
 ];
 

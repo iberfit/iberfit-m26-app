@@ -19,6 +19,7 @@ import {
   normalizeAppointmentRecord,
 } from '../domain/appointment.js';
 import { normalizeClientProfile } from '../domain/client-profile.js';
+import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from '../domain/training-service.js';
 import {
   deriveClientExperience,
   experienceNextAction,
@@ -252,7 +253,7 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     experience,
     { role }
   );
-  const adaptiveContext=experience.serviceKind!=='iri_only'&&state&&client.id
+  const adaptiveContext=experience.serviceKind==='training'&&state&&client.id
     ?buildAdaptiveSessionContext(state,client.id,{now})
     :null;
   const adaptiveExperience=deriveAdaptiveExperience({
@@ -261,7 +262,7 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     adaptiveContext,
     role,
   });
-  const nextAction=experience.serviceKind==='iri_only'?structuralNextAction:adaptiveExperience.action;
+  const nextAction=experience.serviceKind!=='training'?structuralNextAction:adaptiveExperience.action;
 
   return {
     id: client.id,
@@ -270,7 +271,9 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     modality:
       profile.modalityLabel ||
       clientModalityLabel(text(client, 'modality', 'modalidad')),
-    status: client.lifecycleStatus==='iri_only'?'Solo IRI':statusLabel(client),
+    status: experience.serviceKind==='training'?statusLabel(client):'Sin entrenamiento activo',
+    trainingServiceStatus:experience.trainingServiceStatus,
+    serviceActive:trainingServiceActive(client),
     access: summary.access
       ? statusLabel(summary.access, 'Acceso registrado')
       : 'Acceso no informado',
@@ -416,9 +419,13 @@ function clientRecord(state,clientId){
   const id=String(clientId||'').trim();
   return (state?.collections?.clients||[]).find((item)=>String(item?.id||'').trim()===id)||null;
 }
-function isIriOnlyClient(state,clientId){
+function clientHasTrainingService(state,clientId){
   const client=clientRecord(state,clientId);
-  return String(client?.lifecycleStatus||client?.lifecycle_status||client?.lifecycle?.status||'').trim().toLowerCase()==='iri_only';
+  return Boolean(client&&hasTrainingService(client));
+}
+function clientTrainingServiceActive(state,clientId){
+  const client=clientRecord(state,clientId);
+  return Boolean(client&&trainingServiceActive(client));
 }
 
 function installedCommands(state) {
@@ -473,8 +480,8 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const overview = todayOverview(state, now);
     qaStage('rc64-hoy-overview-ready');
     const clientId = routeClientId(shellVm, state);
-    const selectedIriOnly=clientId?isIriOnlyClient(state,clientId):false;
-    const alerts = clientId&&!selectedIriOnly
+    const selectedHasTraining=clientId?clientHasTrainingService(state,clientId):false;
+    const alerts = clientId&&selectedHasTraining
       ? deriveAdherenceAlerts(state, clientId, { now })
       : [];
 
@@ -494,7 +501,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         ?deriveCoachCockpit(
             clients.map((client)=>({
               client,
-              alerts:client.experience?.serviceKind==='iri_only'
+              alerts:client.experience?.serviceKind!=='training'
                 ?[]
                 :deriveAdherenceAlerts(
                     state,
@@ -507,7 +514,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     qaStage('rc64-hoy-cockpit-ready');
 
     const challengeSnapshot=
-      overview.role==='client'&&clientId&&!selectedIriOnly
+      overview.role==='client'&&clientId&&selectedHasTraining
         ?rc71ChallengeSnapshot(state,clientId,now)
         :null;
     const challengePreview=
@@ -519,7 +526,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         )
       )||null;
     const clientProgressSummary=
-      overview.role==='client'&&clientId&&!selectedIriOnly
+      overview.role==='client'&&clientId&&selectedHasTraining
         ?computeProgressSummary(state,clientId,{now,days:28})
         :null;
     const clientGuide=
@@ -555,9 +562,9 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
   // RC70_1_1_FOLLOWUP_HELPER_BEGIN
 function buildClientFollowUpSummary(summary,state,now){
   const client=compactSummary(summary);
-  const iriOnly=client.experience?.serviceKind==='iri_only';
-  const progress=iriOnly?null:computeProgressSummary(state,client.id,{now,days:28});
-  const alerts=iriOnly?[]:deriveAdherenceAlerts(state,client.id,{now,summary:progress});
+  const trainingActive=client.experience?.serviceKind==='training';
+  const progress=trainingActive?computeProgressSummary(state,client.id,{now,days:28}):null;
+  const alerts=trainingActive?deriveAdherenceAlerts(state,client.id,{now,summary:progress}):[];
   const signal=adherenceSignal(alerts);
   const topAlert=alerts[0]||null;
   return Object.freeze({
@@ -570,10 +577,10 @@ function buildClientFollowUpSummary(summary,state,now){
         title:topAlert.title,
         source:topAlert.source,
       }):null,
-      adherence:iriOnly?null:(Number.isFinite(progress?.adherence)?progress.adherence:null),
-      completedSessions:iriOnly?null:Number(progress?.completedSessions||0),
-      plannedSessions:iriOnly?null:Number(progress?.plannedSessions||0),
-      dataQuality:iriOnly?null:(progress?.dataQuality||null),
+      adherence:trainingActive?(Number.isFinite(progress?.adherence)?progress.adherence:null):null,
+      completedSessions:trainingActive?Number(progress?.completedSessions||0):null,
+      plannedSessions:trainingActive?Number(progress?.plannedSessions||0):null,
+      dataQuality:trainingActive?(progress?.dataQuality||null):null,
     }),
   });
 }
@@ -591,12 +598,12 @@ if (area === 'clientes') {
   }
 
   if (area === 'expediente') {
-    const iriOnly=isIriOnlyClient(state,state.selectedClientId);
+    const trainingActive=clientHasTrainingService(state,state.selectedClientId);
     const summary = clientHealthSummary(state, state.selectedClientId, now);
-    const progress = state.selectedClientId&&!iriOnly
+    const progress = state.selectedClientId&&trainingActive
       ? computeProgressSummary(state, state.selectedClientId, { now })
       : null;
-    const alerts = state.selectedClientId&&!iriOnly
+    const alerts = state.selectedClientId&&trainingActive
       ? deriveAdherenceAlerts(state, state.selectedClientId, { now, summary: progress })
       : [];
     const role = String(shellVm.identity?.role || '');
@@ -616,7 +623,7 @@ if (area === 'clientes') {
     const exerciseOwnerId=
       String(state.selectedClientId||'').trim();
 
-    const exercisePerformance=iriOnly
+    const exercisePerformance=!trainingActive
       ?Object.freeze([])
       :buildExercisePerformanceProjection(
           state,
@@ -634,7 +641,7 @@ if (area === 'clientes') {
         ]),
     );
     const nextSessionPreparation=
-      exerciseOwnerId&&!iriOnly&&['admin','coach'].includes(role)
+      exerciseOwnerId&&trainingActive&&['admin','coach'].includes(role)
         ?buildNextSessionPreparation(
             state,
             exerciseOwnerId,
@@ -650,7 +657,7 @@ if (area === 'clientes') {
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'expediente',
       role,
-      serviceKind:iriOnly?'iri_only':'training',
+      serviceKind:trainingActive?'training':'none',
       summary: compact,
       progress,
       exercisePerformance,
@@ -664,15 +671,15 @@ if (area === 'clientes') {
   if (area === 'progreso') {
     const clientId = routeClientId(shellVm, state);
     const role = String(shellVm.identity?.role || '');
-    const iriOnly=isIriOnlyClient(state,clientId);
-    const longitudinal = clientId&&!iriOnly
+    const trainingActive=clientHasTrainingService(state,clientId);
+    const longitudinal = clientId&&trainingActive
       ? buildLongitudinalAggregation(state, clientId, { now })
       : null;
-    const summary = iriOnly?null:(longitudinal?.progress?.d28
+    const summary = !trainingActive?null:(longitudinal?.progress?.d28
       ?? (clientId ? computeProgressSummary(state, clientId, { now, days: 28 }) : null));
-    const planExecution = iriOnly?null:buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
-    const alerts = iriOnly?[]:deriveAdherenceAlerts(state, clientId, { now, summary });
-    const exercisePerformance=iriOnly
+    const planExecution = !trainingActive?null:buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
+    const alerts = !trainingActive?[]:deriveAdherenceAlerts(state, clientId, { now, summary });
+    const exercisePerformance=!trainingActive
       ?Object.freeze([])
       :buildExercisePerformanceProjection(
         state,
@@ -684,12 +691,12 @@ if (area === 'clientes') {
       kind: 'progreso',
       clientId,
       role,
-      serviceKind:iriOnly?'iri_only':'training',
+      serviceKind:trainingActive?'training':'none',
       summary,
       exercisePerformance,
       planExecution,
       longitudinal,
-      timeline: Object.freeze(iriOnly?[]:buildProgressTimeline(state, clientId, { now })),
+      timeline: Object.freeze(!trainingActive?[]:buildProgressTimeline(state, clientId, { now })),
       alerts: Object.freeze(alerts),
       signal: Object.freeze(adherenceSignal(alerts)),
     });
@@ -698,7 +705,7 @@ if (area === 'clientes') {
   if (area === 'actividad') {
     const clientId = routeClientId(shellVm, state);
     const role = String(shellVm.identity?.role || '');
-    const iriOnly=isIriOnlyClient(state,clientId);
+    const trainingActive=clientHasTrainingService(state,clientId);
     const capabilities = engagementCapabilities(installedCommands(state));
     const wearables = buildWearableViewModel({
       records: recordsForClient(state, 'wearableDailySummaries', clientId),
@@ -710,8 +717,8 @@ if (area === 'clientes') {
       kind: 'actividad',
       clientId,
       role,
-      serviceKind:iriOnly?'iri_only':'training',
-      canManageHabits: !iriOnly&&['admin', 'coach'].includes(role),
+      serviceKind:trainingActive?'training':'none',
+      canManageHabits: trainingActive&&['admin', 'coach'].includes(role),
       capabilities,
       wearables,
       checkins: Object.freeze(
@@ -785,7 +792,8 @@ if (area === 'clientes') {
 
     return Object.freeze({
       kind: 'iri',
-      serviceKind:String(client?.lifecycleStatus||client?.lifecycle_status||'')==='iri_only'?'iri_only':'training',
+      serviceKind:hasTrainingService(client||{})?'training':'none',
+      trainingServiceStatus:trainingServiceStatusFrom(client||{}),
       clientId,
       role: shellVm.identity?.role,
       current: clone(current),
@@ -805,11 +813,11 @@ if (area === 'clientes') {
 
   if (area === 'planificacion') {
     const clientId = routeClientId(shellVm, state);
-    const iriOnly=isIriOnlyClient(state,clientId);
+    const trainingActive=clientHasTrainingService(state,clientId);
     const cycles = recordsForClient(state, 'trainingCycles', clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const role = String(shellVm.identity?.role || '');
-    const canEdit=!iriOnly&&['admin','coach'].includes(role);
+    const canEdit=trainingActive&&['admin','coach'].includes(role);
     const rawProfile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
     const client=(state?.collections?.clients||[]).find((item)=>item.id===clientId);
     const profile=normalizeClientProfile(rawProfile||{},client||{});
@@ -828,7 +836,7 @@ if (area === 'clientes') {
       kind: 'planificacion',
       clientId,
       role,
-      serviceKind:iriOnly?'iri_only':'training',
+      serviceKind:trainingActive?'training':'none',
       canEdit,
       iriPlanningSeed,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
@@ -855,7 +863,8 @@ if (area === 'clientes') {
 
   if (area === 'sesion') {
     const clientId = routeClientId(shellVm, state);
-    const iriOnly=isIriOnlyClient(state,clientId);
+    const trainingActive=clientHasTrainingService(state,clientId);
+    const serviceActive=clientTrainingServiceActive(state,clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
@@ -868,7 +877,7 @@ if (area === 'clientes') {
         ]),
     );
     const nextSessionPreparation=
-      clientId&&!iriOnly&&['admin','coach'].includes(role)
+      clientId&&trainingActive&&['admin','coach'].includes(role)
         ?buildNextSessionPreparation(
             state,
             clientId,
@@ -884,8 +893,9 @@ if (area === 'clientes') {
       kind: 'sesion',
       clientId,
       role,
-      serviceKind:iriOnly?'iri_only':'training',
-      canBuild: !iriOnly&&['admin', 'coach'].includes(role),
+      serviceKind:trainingActive?'training':'none',
+      serviceActive,
+      canBuild: trainingActive&&['admin', 'coach'].includes(role),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
@@ -895,7 +905,7 @@ if (area === 'clientes') {
 
   if (area === 'informes') {
     const clientId = routeClientId(shellVm, state);
-    const iriOnly=isIriOnlyClient(state,clientId);
+    const trainingActive=clientHasTrainingService(state,clientId);
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
     const iriAssessments = recordsForClient(state, 'iriAssessments', clientId)
@@ -913,7 +923,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'informes',
       clientId,
-      serviceKind:iriOnly?'iri_only':'training',
+      serviceKind:trainingActive?'training':'none',
       role,
       canManage: ['admin', 'coach'].includes(role),
       reports: Object.freeze(
@@ -934,12 +944,12 @@ if (area === 'clientes') {
 
   if (area === 'inteligencia') {
     const clientId = routeClientId(shellVm, state);
-    const iriOnly=isIriOnlyClient(state,clientId);
+    const trainingActive=clientHasTrainingService(state,clientId);
     const runs = recordsForClient(state, 'intelligenceRuns', clientId);
-    const summary = clientId&&!iriOnly
+    const summary = clientId&&trainingActive
       ? computeProgressSummary(state, clientId, { now })
       : null;
-    const alerts = clientId&&!iriOnly
+    const alerts = clientId&&trainingActive
       ? deriveAdherenceAlerts(state, clientId, { now, summary })
       : [];
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
@@ -961,7 +971,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'inteligencia',
       clientId,
-      serviceKind:iriOnly?'iri_only':'training',
+      serviceKind:trainingActive?'training':'none',
       role: shellVm.identity?.role,
       runs: Object.freeze(runs.map(compactActivity)),
       summary,
@@ -970,7 +980,7 @@ if (area === 'clientes') {
       profile,
       ageYears,
       birthDate: birthDate || null,
-      canGenerate: !iriOnly&&['admin', 'coach'].includes(
+      canGenerate: trainingActive&&['admin', 'coach'].includes(
         String(shellVm.identity?.role || '')
       ),
     });

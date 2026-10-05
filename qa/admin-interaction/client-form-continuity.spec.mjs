@@ -72,6 +72,7 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   await name.fill('Cliente continuidad QA');
   await email.fill('continuidad.qa@example.com');
   await phone.fill('+56 9 5555 0202');
+  await form.locator('input[name="birthDate"]').fill('1988-04-16');
 
   await email.focus();
   await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
@@ -96,6 +97,7 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   await expect(name).toHaveValue('Cliente continuidad QA');
   await expect(sex).toHaveValue('female');
 
+  await form.locator('select[name="serviceIntent"]').selectOption('training');
   await form.locator('select[name="modality"]').selectOption('Híbrido');
   await form.locator('input[name="weeklyFrequency"]').fill('2');
   await form.locator('input[name="sessionDurationMinutes"]').fill('60');

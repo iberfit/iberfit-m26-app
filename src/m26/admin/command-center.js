@@ -1,3 +1,4 @@
+import {trainingServiceStatusFrom} from '../domain/training-service.js';
 const KIND_RANK=Object.freeze({critical:0,warning:1,process:2,info:3,clear:4});
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -10,8 +11,12 @@ function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(s
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const sourceClients=arr(clients);
-  const iriOnlyPeople=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()==='iri_only');
-  const normalizedClients=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()!=='iri_only').map((client)=>{
+  const serviceStatus=(client)=>trainingServiceStatusFrom(client);
+  const peopleWithoutTraining=sourceClients.filter((client)=>serviceStatus(client)==='none'||serviceStatus(client)==='ended');
+  const trainingClients=sourceClients.filter((client)=>['active','paused'].includes(serviceStatus(client)));
+  const pausedClients=trainingClients.filter((client)=>serviceStatus(client)==='paused');
+  const activeTrainingClients=trainingClients.filter((client)=>serviceStatus(client)==='active');
+  const normalizedClients=activeTrainingClients.map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const assignments=arr(client?.assignments);
@@ -72,14 +77,22 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
 
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
   const summary=Object.freeze({
-    totalClients:normalizedClients.length,
-    iriOnlyPeople:iriOnlyPeople.length,
+    totalClients:trainingClients.length,
+    activeClients:activeTrainingClients.length,
+    pausedClients:pausedClients.length,
+    peopleWithoutTraining:peopleWithoutTraining.length,
+    evaluatedWithoutTraining:peopleWithoutTraining.filter((client)=>client?.experience?.readiness?.iriConfirmed===true).length,
     unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
-    iriPending:countStage('evaluation'),
+    iriPending:activeTrainingClients.filter((client)=>{
+      const experience=client?.experience||{};
+      return experience.stage==='evaluation'||(
+        experience?.readiness?.iriRecommended===true&&
+        experience?.readiness?.iriConfirmed!==true
+      );
+    }).length,
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
-    activeClients:countStage('active'),
     openTasks:openTasks.length,
     criticalTasks:criticalTasks.length,
     coachesNearCapacity:coachLoad.filter((coach)=>coach.status==='near'||coach.status==='full').length,
