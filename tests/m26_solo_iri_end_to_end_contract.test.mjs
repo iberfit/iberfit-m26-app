@@ -2,25 +2,81 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const migration=fs.readFileSync('supabase/migrations/20261002234000_solo_iri_access_mode_v1.sql','utf8');
-const correctiveMigration=fs.readFileSync('supabase/migrations/20261003021000_solo_iri_restore_client_create_least_privilege_v1.sql','utf8');
+import {
+  hasTrainingService,
+  trainingServiceKindFrom,
+  trainingServiceStatusFrom,
+} from '../src/m26/domain/training-service.js';
+
+const migration=fs.readFileSync('supabase/migrations/20261005090000_person_iri_training_service_architecture_v1.sql','utf8');
 const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/index.ts','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/modules/route-view-model.js','utf8');
+const experience=fs.readFileSync('src/m26/experience/client-experience.js','utf8');
 const render=fs.readFileSync('src/m26/modules/route-render.js','utf8');
+const adminRender=fs.readFileSync('src/m26/admin/route-render.js','utf8');
 const routeGuard=fs.readFileSync('src/m26/shell/route-guard.js','utf8');
 
-test('Solo IRI uses one canonical lifecycle and explicit access mode',()=>{
-  assert.match(migration,/v_initial_lifecycle not in \('onboarding','iri_only'\)/u);
-  assert.match(migration,/case when v_initial_lifecycle='iri_only' then 'internal' else 'app' end/u);
-  assert.match(migration,/v_access_mode not in \('internal','app'\)/u);
-  assert.match(migration,/case when v_access_mode='internal' then 'sin_acceso' else 'invitacion_pendiente' end/u);
-  assert.doesNotMatch(migration,/values\([\s\S]{0,180}'inactive'/u);
-  assert.match(controller,/initialLifecycleStatus:iriOnly\?'iri_only':'onboarding'/u);
-  assert.match(controller,/accessMode,/u);
+test('persona, IRI y servicio de entrenamiento son dimensiones independientes',()=>{
+  assert.match(migration,/create table if not exists public\.iberfit_training_service_events_v1/u);
+  assert.match(migration,/person_id uuid not null references public\.clients\(id\)/u);
+  assert.match(migration,/status text not null check\(status in \('active','paused','ended'\)\)/u);
+  assert.match(migration,/IRI assessments are independent and never imply an active training service/u);
+  assert.doesNotMatch(migration,/status text not null check\(status in \([^)]*iri_only/u);
+  assert.match(controller,/entryIntent:serviceIntent/u);
+  assert.match(controller,/trainingServiceStatus:iriEntry\?'none':'active'/u);
 });
 
-test('internal record never implies an invitation or Hosted Auth identity',()=>{
+test('compatibilidad histórica nunca gana sobre el estado explícito de servicio',()=>{
+  assert.equal(trainingServiceStatusFrom({trainingServiceStatus:'none',lifecycleStatus:'active'}),'none');
+  assert.equal(trainingServiceStatusFrom({trainingServiceStatus:'active',lifecycleStatus:'iri_only'}),'active');
+  assert.equal(trainingServiceStatusFrom({lifecycleStatus:'iri_only'}),'none');
+  assert.equal(trainingServiceStatusFrom({lifecycleStatus:'onboarding'}),'active');
+  assert.equal(hasTrainingService({trainingServiceStatus:'paused'}),true);
+  assert.equal(hasTrainingService({trainingServiceStatus:'ended'}),false);
+  assert.equal(trainingServiceKindFrom({trainingServiceStatus:'none'}),'none');
+  assert.equal(trainingServiceKindFrom({trainingServiceStatus:'active'}),'training');
+});
+
+test('una persona puede tener un IRI inicial y múltiples reevaluaciones',()=>{
+  assert.match(migration,/drop index if exists public\.iri_one_initial_per_client_v1/u);
+  assert.match(migration,/drop constraint if exists iri_assessments_initial_only_v4/u);
+  assert.match(migration,/check\(assessment_type in \('inicial','reevaluacion'\)\)/u);
+  assert.match(migration,/create unique index if not exists iri_one_initial_per_person_v2[\s\S]*?where assessment_type='inicial'/u);
+  assert.match(migration,/idx_iri_assessments_client_type_evaluated/u);
+  assert.match(viewModel,/return !type\|\|type==='inicial'/u);
+});
+
+test('el IRI es recomendado pero nunca bloquea el entrenamiento',()=>{
+  assert.match(experience,/const iriBlocking=false/u);
+  assert.match(experience,/iriRequired:false/u);
+  assert.match(experience,/iriRecommended/u);
+  assert.match(routeGuard,/TRAINING_SERVICE_AREAS/u);
+  assert.match(routeGuard,/!hasTrainingService\(serviceClient\)/u);
+  assert.match(routeGuard,/M26_TRAINING_SERVICE_REQUIRED/u);
+  assert.doesNotMatch(routeGuard,/M26_IRI_ONLY_TRAINING_ROUTE_FORBIDDEN/u);
+  assert.match(controller,/initialAssessmentMode:iriEntry\?'iri':/u);
+});
+
+test('alta directa con IRI diferido no conserva un IRI vacío artificial',()=>{
+  assert.match(migration,/v_entry='training' and v_assessment='deferred'/u);
+  assert.match(migration,/status::text='borrador' and a\.revision=0/u);
+  assert.match(migration,/not exists\(select 1 from public\.iri_consents_v1/u);
+  assert.match(migration,/not exists\(select 1 from public\.iri_report_issuances_v1/u);
+  assert.match(migration,/not exists\(select 1 from private\.m26_iri_drafts_v1/u);
+  assert.match(migration,/delete from public\.iri_assessments/u);
+});
+
+test('la interfaz deja de presentar Solo IRI como un tipo de cliente',()=>{
+  assert.doesNotMatch(render,/Solo IRI/u);
+  assert.doesNotMatch(adminRender,/Solo IRI/u);
+  assert.match(adminRender,/Diagnóstico IRI · recomendado/u);
+  assert.match(adminRender,/Iniciar entrenamiento/u);
+  assert.match(adminRender,/client-training-service/u);
+  assert.match(render,/Sin entrenamiento activo/u);
+});
+
+test('el acceso a la app sigue siendo independiente del servicio contratado',()=>{
   assert.match(edge,/accessMode==='internal'/u);
   assert.match(edge,/accessStatus:'sin_acceso'/u);
   assert.match(edge,/reason:'internal_record'/u);
@@ -31,35 +87,12 @@ test('internal record never implies an invitation or Hosted Auth identity',()=>{
   assert.ok(internal>=0&&returned>internal&&service>returned&&invite>service);
 });
 
-test('Solo IRI is excluded from training semantics at ViewModel and route guard level',()=>{
-  assert.match(viewModel,/experience\.serviceKind!=='iri_only'/u);
-  assert.match(viewModel,/selectedIriOnly/u);
-  assert.match(viewModel,/iriOnly\?\[\]:deriveAdherenceAlerts/u);
-  assert.match(viewModel,/canBuild: !iriOnly/u);
-  assert.match(viewModel,/canGenerate: !iriOnly/u);
-  assert.match(routeGuard,/IRI_ONLY_TRAINING_AREAS/u);
-  assert.match(routeGuard,/M26_IRI_ONLY_TRAINING_ROUTE_FORBIDDEN/u);
-});
-
-test('Solo IRI surfaces explain evaluation-only state instead of training actions',()=>{
-  assert.match(render,/Persona · Solo IRI/u);
-  assert.match(render,/Sin seguimiento de entrenamiento/u);
-  assert.match(render,/Sin planificación de entrenamiento/u);
-  assert.match(render,/Sin sesiones de entrenamiento/u);
-  assert.match(render,/Seguimiento diario no activado/u);
-  assert.match(render,/Propuestas de entrenamiento no activadas/u);
-  assert.match(render,/Abrir \/ completar IRI/u);
-  assert.match(render,/Ver informe IRI/u);
-  assert.match(render,/IRI en preparación/u);
-  assert.match(render,/pendiente de confirmar/u);
-  assert.match(render,/recupera cualquier borrador local o remoto disponible/u);
-});
-
-test('least privilege is restored append-only after the immutable Solo IRI migration',()=>{
-  assert.match(migration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) to authenticated,service_role/u);
-  assert.match(correctiveMigration,/revoke all on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?from public,anon,authenticated/u);
-  assert.match(correctiveMigration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?to service_role/u);
-  assert.match(correctiveMigration,/revoke all on function public\.iberfit_admin_create_client_v26_pre_privileged_assurance\(jsonb,jsonb\)[\s\S]*?from public,anon,authenticated/u);
-  assert.match(correctiveMigration,/grant execute on function public\.iberfit_admin_create_client_v26_pre_privileged_assurance\(jsonb,jsonb\)[\s\S]*?to service_role/u);
-  assert.doesNotMatch(correctiveMigration,/grant execute[\s\S]*?to authenticated/u);
+test('mutar el servicio exige Admin, assurance privilegiado, razón e idempotencia',()=>{
+  assert.match(migration,/iberfit_admin_set_training_service_v1/u);
+  assert.match(migration,/iberfit_require_privileged_assurance_v65d/u);
+  assert.match(migration,/V1_TRAINING_SERVICE_ADMIN_REQUIRED/u);
+  assert.match(migration,/char_length\(v_reason\)<3/u);
+  assert.match(migration,/iberfit_admin_mutation_receipts/u);
+  assert.match(migration,/revoke all on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) from public,anon/u);
+  assert.match(migration,/grant execute on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) to authenticated,service_role/u);
 });
