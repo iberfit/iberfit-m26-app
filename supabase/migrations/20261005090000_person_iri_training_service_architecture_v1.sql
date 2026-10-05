@@ -242,8 +242,8 @@ begin
 end
 $function$;
 
-revoke all on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) from public,anon;
-grant execute on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) to authenticated,service_role;
+revoke all on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) from public,anon,authenticated;
+grant execute on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) to service_role;
 
 -- Person records must remain editable without inventing training frequency/duration.
 -- Reuse the mature audited profile mutation and restore training-only fields inside
@@ -576,8 +576,8 @@ begin
 end
 $function$;
 
-revoke all on function public.iberfit_admin_create_client_v26(jsonb,jsonb) from public,anon;
-grant execute on function public.iberfit_admin_create_client_v26(jsonb,jsonb) to authenticated,service_role;
+revoke all on function public.iberfit_admin_create_client_v26(jsonb,jsonb) from public,anon,authenticated;
+grant execute on function public.iberfit_admin_create_client_v26(jsonb,jsonb) to service_role;
 
 -- Add the canonical service projection to the existing production bootstrap.
 alter function public.iberfit_bootstrap_v26()
