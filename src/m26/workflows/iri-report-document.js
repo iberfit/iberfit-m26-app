@@ -150,13 +150,21 @@ function clientAreaRatingsPanel(ratings={}){
   return `<section class="iri-area-ratings" aria-label="Valoración IBERFIT por áreas">${clientAreaRatingCard('Movimiento y movilidad',ratings.movement,'Equilibrio, rango y control observados')}${clientAreaRatingCard('Fuerza',ratings.strength,'Punto de partida según las variantes realizadas')}${clientAreaRatingCard('Recuperación',ratings.recovery,'Respuesta observada tras el esfuerzo realizado')}</section><p class="iri-area-ratings-note">Estas notas ayudan a entender tu punto de partida. No sustituyen baremos clínicos ni se combinan en una nota global cuando los protocolos no son comparables.</p>`;
 }
 function clientCardioValue(value){
-  const raw=String(value??'').trim().toLowerCase();
+  const original=String(value??'').trim();
+  const raw=original.toLowerCase();
   const labels={
     jog:'Trote suave',walk:'Caminar',run:'Correr',
     manual:'Medición manual',watch:'Reloj / sensor óptico','chest-strap':'Banda pectoral',treadmill:'Sensor de la cinta',
     'standing-passive':'De pie · pasiva','walking-active':'Caminando · activa','seated-passive':'Sentada · pasiva','other-documented':'Otra · documentada',
+    knees:'Rodillas apoyadas','knees-supported':'Rodillas apoyadas',
+    'standard-barefoot':'Descalza · protocolo estándar',
+    'box-standard':'Caja estándar',
+    'table-edge-standard':'Borde de camilla',
+    'seated-90-90':'Sentada 90/90',
+    'counterbalance-support':'Apoyo con contrapeso',
+    'bioimpedancia-tetrapolar':'Bioimpedancia tetrapolar',
   };
-  return labels[raw]||String(value??'').trim();
+  return labels[raw]||original.replaceAll('-',' ');
 }
 function clientProtocolName(value){
   const raw=clean(value,180);
@@ -232,7 +240,7 @@ function comparableFollowUpItems(draft={},photogrammetryReport=null){
     const name=clientProtocolName(record.testName||record.testId);
     if(!name||seen.has(name))continue;
     seen.add(name);
-    const configuration=[record.variant,record.configuration].map((value)=>clientCardioValue(clean(value,180))).filter(Boolean).join(' · ');
+    const configuration=[...new Set([record.variant,record.configuration].map((value)=>clientCardioValue(clean(value,180))).filter(Boolean))].join(' · ');
     items.push(Object.freeze({
       name,
       method:configuration||'Repetir la misma variante y configuración',
@@ -243,7 +251,7 @@ function comparableFollowUpItems(draft={},photogrammetryReport=null){
   if((finiteValue(body.weightKg)||finiteValue(body.bodyFatPercent))&&clean(body.method,120)){
     items.push(Object.freeze({
       name:'Composición corporal',
-      method:[clean(body.method,120),clean(body.device,120),clean(body.measurementConditions,180)].filter(Boolean).join(' · '),
+      method:[...new Set([body.method,body.device,body.measurementConditions].map((value)=>clientCardioValue(clean(value,180))).filter(Boolean))].join(' · '),
       reason:'Comparar sólo con condiciones suficientemente equivalentes de medición.',
     }));
   }
@@ -387,7 +395,7 @@ function clientPages(draft,context){
   const closingBody=iriOnly
     ?`<div class="closing-page"><span>QUÉ SABEMOS AHORA</span><h2>Tu punto de partida queda documentado.</h2><p>${escapeHtml(excerpt(d.coachInterpretation,720,'El diagnóstico resume los resultados disponibles y las prioridades identificadas.'))}</p><div class="next-step"><span>Siguiente paso</span><strong>Conservar este informe como referencia y decidir, si procede, cómo abordar las prioridades identificadas.</strong><p>Este documento corresponde a un servicio Solo IRI. No implica planificación, frecuencia contractual ni seguimiento de entrenamiento activo.</p></div>${renderSignatureSlot(coachName,signatureUrl)}</div>`
     :`<div class="closing-page"><span>QUÉ SABEMOS AHORA</span><h2>El diagnóstico orienta la planificación.</h2><p>${escapeHtml(excerpt(d.coachInterpretation,620,'La interpretación profesional queda vinculada a este punto de partida.'))}</p><div class="next-step"><span>Impacto sobre la planificación</span><strong>${escapeHtml(excerpt(d.initialPlan,620,'Plan inicial pendiente de definición'))}</strong><p>Frecuencia orientativa registrada: ${escapeHtml(label(d.recommendedFrequency,'Por definir'))}. Próxima revisión: ${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}.</p></div>${renderSignatureSlot(coachName,signatureUrl)}</div>`;
-  pages.push(page({number:nextPage++,title:'Cierre',eyebrow:'09 · SIGUIENTE PASO',logoUrl,content:closingBody}));
+  pages.push(page({number:nextPage++,title:'Cierre',eyebrow:'10 · SIGUIENTE PASO',logoUrl,content:closingBody}));
   return pages;
 }
 
