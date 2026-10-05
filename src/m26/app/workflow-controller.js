@@ -77,22 +77,24 @@ function guidedFieldLabel(control){
   const label=String(control?.labels?.[0]?.textContent||control?.closest?.('label')?.textContent||'').replace(/\s+/g,' ').trim();
   return label||name||'dato pendiente';
 }
-function syncGuidedWorkflowProgress(form){
+export function syncGuidedWorkflowProgress(form){
   if(!form?.matches?.('[data-guided-required-form]'))return null;
   const progress=guidedRequiredProgress(form);
   const node=form.querySelector?.('[data-guided-required-progress]');
   if(node){
     if(progress.total===0){
-      node.textContent='';
-      node.hidden=true;
+      if(node.textContent!=='')node.textContent='';
+      if(node.hidden!==true)node.hidden=true;
       if(node.dataset?.status!==undefined)delete node.dataset.status;
       return progress;
     }
-    node.hidden=false;
-    node.textContent=progress.complete
+    const message=progress.complete
       ?'Datos necesarios completos ('+progress.completedCount+'/'+progress.total+'). Revisa y confirma.'
       :progress.completedCount+' de '+progress.total+' datos necesarios completos · siguiente: '+guidedFieldLabel(progress.first)+'.';
-    node.dataset.status=progress.complete?'success':'pending';
+    const nextStatus=progress.complete?'success':'pending';
+    if(node.hidden===true)node.hidden=false;
+    if(node.textContent!==message)node.textContent=message;
+    if(node.dataset?.status!==nextStatus)node.dataset.status=nextStatus;
   }
   return progress;
 }
