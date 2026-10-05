@@ -104,6 +104,7 @@ test('Installed PWA continuity keeps desktop tablet and mobile device classes',(
   for(const token of [
     'p0-installed-pwa-desktop-chromium',
     'p0-installed-pwa-tablet-chromium',
+    'p0-installed-pwa-tablet-landscape-chromium',
     'p0-installed-pwa-mobile-chromium',
   ])assert.ok(pwa.includes(token),`missing PWA matrix token: ${token}`);
 });
