@@ -43,6 +43,7 @@ import {loadExerciseCatalog} from '../exercises/catalog.js';
 import {createSessionDraft} from '../workflows/session-builder.js';
 import {createReusableSessionDraft,createSessionTemplateRepository,createDraftFromSessionTemplate} from '../productivity/session-reuse.js';
 import {createExecution} from '../workflows/session-execution.js';
+import {buildNextSessionPreparation,buildSessionPreparationConfirmation} from '../intelligence/next-session-prep.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../workflows/session-ui.js';
 import {buildExercisePerformanceMemory} from '../engagement/exercise-performance-engine.js';
 import {createSessionController} from '../workflows/session-controller.js';
@@ -949,7 +950,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
-    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
+    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0,preparationConfirmation:sessionUi?.preparationConfirmation||null}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
@@ -1042,9 +1043,22 @@ export async function createM26Application({root=document.querySelector('#app'),
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
   async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft({clientId});sessionUi={draft,query:'',templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();}
   async function onStartSession(event){
-    const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
+    const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null,preparationConfirmation:recovered.preparationConfirmation||null};store.navigate('sesion');render();return;}
     const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
-    sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null};store.navigate('sesion');render();
+    let preparationConfirmation=null;
+    if(role==='coach'&&appointment?.id){
+      const prep=buildNextSessionPreparation(state,clientId,{
+        now:new Date(),
+        sessionId:normalized.id,
+        appointmentId:appointment.id,
+        exerciseName:(exerciseId)=>{
+          const exercise=catalog?.get?.(exerciseId);
+          return exercise?.name_es||exercise?.name||exerciseId;
+        },
+      });
+      preparationConfirmation=buildSessionPreparationConfirmation(prep,{sessionId:normalized.id,appointmentId:appointment.id});
+    }
+    sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null,preparationConfirmation};store.navigate('sesion');render();
   }
   function surfaceRoleSwitchError(error){
     const detail=reportDiagnostic('role-switch',error);
