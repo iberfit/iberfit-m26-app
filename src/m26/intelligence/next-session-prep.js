@@ -28,16 +28,41 @@ function feedbackOf(execution){
     painNotes:text(feedback.painNotes??feedback.pain_notes,800)||null,
   });
 }
-function nextAppointment(state,clientId,now){
+function nextAppointment(state,clientId,now,{appointmentId=null,sessionId=null}={}){
   const nowMs=(now instanceof Date?now:new Date(now)).getTime();
-  return forClient(state,'appointments',clientId)
-    .filter((item)=>!['cancelado','cancelled','anulado','annulled'].includes(statusOf(item)))
+  const candidates=forClient(state,'appointments',clientId)
+    .filter((item)=>!['cancelado','cancelled','anulado','annulled'].includes(statusOf(item)));
+  const targetAppointment=String(appointmentId||'').trim();
+  if(targetAppointment){
+    const exact=candidates.find((item)=>idOf(item)===targetAppointment);
+    if(exact)return exact;
+  }
+  const targetSession=String(sessionId||'').trim();
+  if(targetSession){
+    const linked=candidates
+      .filter((item)=>String(field(item,'sessionId','session_id')||'').trim()===targetSession)
+      .sort((a,b)=>{
+        const aConfirmed=statusOf(a)==='confirmada'?0:1;
+        const bConfirmed=statusOf(b)==='confirmada'?0:1;
+        if(aConfirmed!==bConfirmed)return aConfirmed-bConfirmed;
+        const aMs=safeDate(field(a,'startAt','start_at'))?.getTime()||0;
+        const bMs=safeDate(field(b,'startAt','start_at'))?.getTime()||0;
+        return Math.abs(aMs-nowMs)-Math.abs(bMs-nowMs);
+      })[0];
+    if(linked)return linked;
+  }
+  return candidates
     .filter((item)=>(safeDate(field(item,'startAt','start_at'))?.getTime()||0)>=nowMs)
     .sort(byDateAsc)[0]||null;
 }
 const STARTABLE_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
-function sessionForPreparation(state,clientId,appointment){
+function sessionForPreparation(state,clientId,appointment,{sessionId=null}={}){
   const sessions=forClient(state,'sessions',clientId);
+  const targetSessionId=String(sessionId||'').trim();
+  if(targetSessionId){
+    const exact=sessions.find((item)=>idOf(item)===targetSessionId);
+    if(exact)return exact;
+  }
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim();
   if(appointmentSessionId){
     const exact=sessions.find((item)=>idOf(item)===appointmentSessionId);
@@ -116,12 +141,12 @@ function reviewReasons({progress,outcomes,feedback,session}={}){
   return Object.freeze(reasons);
 }
 
-export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null}={}){
+export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,sessionId=null,appointmentId=null}={}){
   const safeClientId=String(clientId||'').trim();
   if(!safeClientId)return null;
   const progress=computeProgressSummary(state,safeClientId,{now,days:28});
-  const appointment=nextAppointment(state,safeClientId,now);
-  const session=sessionForPreparation(state,safeClientId,appointment);
+  const appointment=nextAppointment(state,safeClientId,now,{appointmentId,sessionId});
+  const session=sessionForPreparation(state,safeClientId,appointment,{sessionId});
   const execution=latestExecution(state,safeClientId);
   const feedback=feedbackOf(execution);
   const outcomes=summarizeActionOutcomes(state?.collections?.m26Entities||[],safeClientId,{now});
@@ -209,6 +234,44 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       automaticClinicalDecision:false,
       coachConfirmationRequired:true,
       note:'Resumen informativo para el Coach. No modifica cargas, ejercicios, planificación ni mensajes automáticamente.',
+    }),
+  });
+}
+
+
+export function buildSessionPreparationConfirmation(prep,{sessionId=null,appointmentId=null}={}){
+  if(!prep||prep.kind!=='next-session-preparation')throw new Error('M26_SESSION_PREPARATION_REQUIRED');
+  const expectedSessionId=String(sessionId||prep.session?.id||'').trim();
+  const expectedAppointmentId=String(appointmentId||prep.appointment?.id||'').trim();
+  if(!expectedSessionId||prep.session?.id!==expectedSessionId)throw new Error('M26_SESSION_PREPARATION_SESSION_MISMATCH');
+  if(!expectedAppointmentId||prep.appointment?.id!==expectedAppointmentId)throw new Error('M26_SESSION_PREPARATION_APPOINTMENT_MISMATCH');
+  const reviewReasonKinds=[...new Set(
+    arr(prep.reviewReasons)
+      .map((item)=>text(item?.kind,64))
+      .filter(Boolean)
+  )].slice(0,12);
+  const latestCheckinPain=finite(prep.progress?.latestCheckin?.pain);
+  return Object.freeze({
+    schema:'iberfit.session-preparation-confirmation.v1',
+    reviewed:true,
+    generatedAt:prep.generatedAt,
+    sessionId:expectedSessionId,
+    appointmentId:expectedAppointmentId,
+    reviewRequired:prep.reviewRequired===true,
+    reviewReasonKinds:Object.freeze(reviewReasonKinds),
+    evidence:Object.freeze({
+      dataQuality:text(prep.progress?.dataQuality,32)||'limitada',
+      iriBaselineAssessmentId:text(prep.iri?.assessmentId,200)||null,
+      adherencePercent:Number.isFinite(Number(prep.progress?.adherencePercent))?Number(prep.progress.adherencePercent):null,
+      lastExecutionRpe:finite(prep.progress?.lastExecutionRpe),
+      unconfirmedExecutions:Number(prep.progress?.unconfirmedExecutions||0),
+      exerciseMemoryCount:Number(prep.evidence?.exerciseMemories||0),
+      openDecisionCount:Number(prep.decisions?.openCount||0),
+      overdueDecisionCount:Number(prep.decisions?.overdueCount||0),
+      lastSessionPain:prep.lastExecution?.feedback?.pain===true,
+      latestCheckinPain:Boolean(Number.isFinite(latestCheckinPain)&&latestCheckinPain>0),
+      hasRecentExecution:prep.evidence?.hasRecentExecution===true,
+      hasRecentCheckin:prep.evidence?.hasRecentCheckin===true,
     }),
   });
 }
