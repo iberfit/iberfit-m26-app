@@ -128,7 +128,7 @@ function interpretationRows(interpretation={}){
     ?signals.map((item)=>`<article class="m26-photo-finding"><span>Patrón que se repite</span><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.direction)} · frontal ${Number(item.frontDeg).toFixed(1)}° · posterior ${Number(item.backDeg).toFixed(1)}°</p><small>${escapeHtml(item.message)}</small></article>`).join('')
     :'<article class="m26-photo-finding"><span>Sin un patrón que se repita</span><strong>Las pequeñas inclinaciones no aparecen igual en frontal y posterior.</strong><p>En conjunto, estas fotos no muestran una asimetría que se repita de forma clara.</p></article>';
   const differenceHtml=differences.map((item)=>`<article class="m26-photo-finding"><span>Comparación entre lados</span><strong>${escapeHtml(item.label)}</strong><p>Diferencia de ${Number(item.differenceDeg).toFixed(1)}° entre ambas vistas laterales.</p></article>`).join('');
-  return `<div class="m26-photo-findings">${signalHtml}${differenceHtml}</div><p class="m26-photo-notice">Estas medidas describen la postura de este momento. Nos sirven como referencia inicial y se interpretan junto con movilidad, fuerza y movimiento.</p>`;
+  return `<div class="m26-photo-findings">${signalHtml}${differenceHtml}</div><p class="m26-photo-notice">Estas medidas describen la postura de este momento. Nos sirven como referencia inicial y se interpretan junto con movilidad, fuerza y movimiento. Sin diagnóstico médico automático.</p>`;
 }
 
 function metricValue(item={}){
