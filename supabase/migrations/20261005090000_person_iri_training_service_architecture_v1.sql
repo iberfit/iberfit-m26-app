@@ -376,6 +376,7 @@ as $function$
 declare
   v_type text:=upper(btrim(coalesce(p_command->>'type','')));
 begin
+  perform public.iberfit_require_privileged_assurance_v65d();
   if v_type='ADMIN_CLIENTE_CAMBIAR_SERVICIO' then
     return public.iberfit_admin_set_training_service_v1(
       p_command,
