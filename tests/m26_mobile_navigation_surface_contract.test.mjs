@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {navigationForRole} from '../src/m26/shell/navigation.js';
 
 const shell=await readFile(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
 const smoke=await readFile(new URL('../qa/rc64/authenticated-current-contract.spec.mjs',import.meta.url),'utf8');
@@ -21,12 +20,8 @@ test('authenticated smoke clicks the real sidebar or mobile navigation, not arbi
 });
 
 
-test('Admin mobile More exposes global tools only; person routes require an explicit person',()=>{
-  const nav=navigationForRole('admin');
-  const globalKeys=[...nav.primary,...nav.context,...nav.tools].map((item)=>item.key);
-  for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
-    assert.equal(globalKeys.includes(area),false,area);
-  }
-  assert.equal(globalKeys.includes('admin-clientes'),true);
-  assert.equal(globalKeys.includes('biblioteca'),true);
+test('Admin mobile More derives from the same context-filtered navigation as desktop',()=>{
+  assert.match(shell,/hideAdminPersonContext=String\(vm\?\.identity\?\.role\|\|''\)==='admin'&&!vm\?\.selectedClient/u);
+  assert.match(shell,/personContext=hideAdminPersonContext&&\['selected-client','client-context'\]\.includes/u);
+  assert.match(shell,/const allMobileItems = \[\.\.\.allNavigationItems\(vm\)\.values\(\)\];/u);
 });
