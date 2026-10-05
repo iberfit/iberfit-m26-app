@@ -113,24 +113,32 @@ test('Admin mantiene namespace propio y sólo abre contexto profesional acotado'
   assert.equal(library.allowed,true);
 });
 
-test('Solo IRI bloquea rutas de entrenamiento aunque se soliciten directamente',()=>{
-  const coach=readyState('coach',{
-    collections:{clients:[{id:CLIENT_ID,name:'Persona Solo IRI',lifecycleStatus:'iri_only'}]},
+test('las rutas de entrenamiento dependen del servicio, no de haber realizado un IRI',()=>{
+  const noTraining=readyState('coach',{
+    collections:{clients:[{id:CLIENT_ID,name:'Persona evaluada',trainingServiceStatus:'none'}]},
   });
   for(const area of ['planificacion','sesion','progreso','actividad','retos','inteligencia']){
-    const decision=resolveM26Route(coach,area);
+    const decision=resolveM26Route(noTraining,area);
     assert.equal(decision.allowed,false,area);
     assert.equal(decision.area,'iri',area);
-    assert.equal(decision.reason,'M26_IRI_ONLY_TRAINING_ROUTE_FORBIDDEN',area);
+    assert.equal(decision.reason,'M26_TRAINING_SERVICE_REQUIRED',area);
   }
 
-  const client=readyState('client',{
-    collections:{clients:[{id:CLIENT_ID,name:'Persona Solo IRI',lifecycleStatus:'iri_only'}]},
+  const clientNoTraining=readyState('client',{
+    collections:{clients:[{id:CLIENT_ID,name:'Persona evaluada',trainingServiceStatus:'none'}]},
   });
   for(const area of ['planificacion','sesion','progreso','actividad','retos']){
-    const decision=resolveM26Route(client,area);
+    const decision=resolveM26Route(clientNoTraining,area);
     assert.equal(decision.allowed,false,area);
     assert.equal(decision.area,'informes',area);
+    assert.equal(decision.reason,'M26_TRAINING_SERVICE_REQUIRED',area);
+  }
+
+  const trainingWithoutIri=readyState('coach',{
+    collections:{clients:[{id:CLIENT_ID,name:'Cliente directo',trainingServiceStatus:'active'}]},
+  });
+  for(const area of ['planificacion','sesion','progreso','actividad','retos','inteligencia']){
+    assert.equal(resolveM26Route(trainingWithoutIri,area).allowed,true,area);
   }
 });
 
