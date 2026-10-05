@@ -28,19 +28,15 @@ test('invitation lifecycle remains privileged, scoped and audited',()=>{
   assert.match(migration,/iberfit_client_invitation_fail_v26\(uuid,text\) from public, anon, service_role/);
 });
 
-test('hosted onboarding persists the client before touching Auth and compensates only newly invited identities',()=>{
-  const createIndex=edge.indexOf("userClient.rpc('iberfit_create_client_draft_v12'");
-  const authLookupIndex=edge.indexOf('findUserByEmail(admin,email)');
-  assert.ok(createIndex>=0&&authLookupIndex>createIndex,'client persistence must precede Auth operations');
-  assert.match(edge,/admin\.auth\.admin\.inviteUserByEmail/);
-  assert.match(edge,/if\(newlyInvitedUserId&&UUID\.test\(newlyInvitedUserId\)\)\{try\{await admin\.auth\.admin\.deleteUser/);
-  assert.doesNotMatch(edge,/deleteUser\(String\(authUser/);
-  assert.match(edge,/p_delivery:delivery/);
-  assert.match(edge,/status:'error'/);
+test('retired hosted onboarding edge is inert and cannot touch Auth or service-role data',()=>{
+  assert.match(edge,/const VERSION='client-onboarding-retired-v1'/u);
+  assert.match(edge,/M26_CLIENT_ONBOARDING_RETIRED/u);
+  assert.match(edge,/status:410/u);
+  assert.doesNotMatch(edge,/createClient|SUPABASE_SERVICE_ROLE_KEY|inviteUserByEmail|deleteUser|iberfit_client_invitation_/u);
 });
 
-test('client onboarding requests invitation by default and no longer encodes a disabled invite',()=>{
-  assert.match(onboarding,/inviteClient:true/);
-  assert.doesNotMatch(onboarding,/inviteClient:false/);
-  assert.match(onboarding,/onboardingVersion:'m26-v12\.4-invitation'/);
+test('shared client creation no longer requests invitation implicitly',()=>{
+  assert.match(onboarding,/inviteClient:false/u);
+  assert.doesNotMatch(onboarding,/inviteClient:true/u);
+  assert.match(onboarding,/onboardingVersion:'m26-v12\.5-expediente'/u);
 });
