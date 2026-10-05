@@ -36,6 +36,18 @@ test('training-service guard protects only commands that create or reactivate tr
   );
 });
 
+test('guard delegates unauthorized people before reading their training-service state',()=>{
+  const guard=sql.slice(
+    sql.indexOf('create or replace function private.iberfit_training_command_guard_v1'),
+    sql.indexOf('alter function public.iberfit_command_preflight_v26(jsonb)'),
+  );
+  const access=guard.indexOf('iberfit_can_access_client_v26');
+  const context=guard.indexOf('iberfit_application_context_v14');
+  const status=guard.indexOf('iberfit_training_service_status_at_v1');
+  assert.ok(access>=0&&context>access&&status>context);
+  assert.match(guard,/delegate_client_access/u);
+});
+
 test('offline session start uses server-side appointment evidence and the 30-day recovery horizon',()=>{
   assert.match(sql,/a\.status = 'confirmada'/u);
   assert.match(sql,/a\.session_id = v_session_id/u);
