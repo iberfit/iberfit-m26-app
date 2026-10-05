@@ -17,7 +17,7 @@ import {
 } from './vendor/workflows/iri-photogrammetry-v2.js';
 
 const FUNCTION_VERSION='iri-report-emission-2026.10-v1';
-const TEMPLATE_VERSION='m26-iri-report-premium-v3';
+const TEMPLATE_VERSION='m26-iri-report-premium-v4';
 const ENGINE_VERSION='iri-document-governance-2026.10-v1';
 const ISSUED_BUCKET='iberfit-iri-issued-reports';
 const EXTERNAL_PDF_MAX_PAGES=24;
@@ -489,7 +489,372 @@ function pdfPhotoDecisionRows(report:any){
   const considerations=Array.isArray(support?.trainingConsiderations)?support.trainingConsiderations.slice(0,2):[];
   return considerations.map((item:any)=>pdfSafe(item,300));
 }
+
+function pdfClientFinite(value:unknown){
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
+function pdfClientBasisLabel(rating:any){
+  return rating?.basis==='baremo-compatible'?'Baremo compatible':'Valoración IBERFIT';
+}
+function pdfClientFooter(page:any,fonts:any,n:number){
+  page.drawLine({start:{x:PDF_M,y:38},end:{x:PDF_W-PDF_M,y:38},thickness:.45,color:PDF_C.ink,opacity:.18});
+  page.drawText('IBERFIT',{x:PDF_M,y:22,size:6.4,font:fonts.bold,color:PDF_C.ink});
+  page.drawText('Diagnóstico, planificación, control y seguimiento',{x:PDF_M+37,y:22,size:5.9,font:fonts.regular,color:PDF_C.muted});
+  page.drawText(String(n).padStart(2,'0'),{x:PDF_W-PDF_M-12,y:22,size:6.1,font:fonts.bold,color:PDF_C.muted});
+}
+function pdfClientPage(doc:any,fonts:any,n:number,kicker:string,title:string,subtitle=''){
+  const page=doc.addPage([PDF_W,PDF_H]);
+  page.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.cream});
+  page.drawText(String(Math.max(1,n-1)).padStart(2,'0'),{x:PDF_M,y:PDF_H-67,size:15,font:fonts.serifBold,color:PDF_C.gold});
+  page.drawText(pdfSafe(kicker,90).toUpperCase(),{x:PDF_M+62,y:PDF_H-49,size:6.2,font:fonts.bold,color:PDF_C.muted});
+  page.drawText(pdfSafe(title,120),{x:PDF_M+62,y:PDF_H-72,size:22.5,font:fonts.serifBold,color:PDF_C.ink});
+  page.drawLine({start:{x:PDF_M,y:PDF_H-91},end:{x:PDF_W-PDF_M,y:PDF_H-91},thickness:.55,color:PDF_C.ink,opacity:.22});
+  if(subtitle)pdfText(page,fonts.serif,subtitle,PDF_M,PDF_H-124,PDF_W-PDF_M*2,10.1,13.4,PDF_C.ink2,4);
+  pdfClientFooter(page,fonts,n);
+  return page;
+}
+function pdfClientLabel(page:any,fonts:any,label:string,value:unknown,x:number,y:number,w:number){
+  page.drawLine({start:{x,y:y+8},end:{x:x+w,y:y+8},thickness:.45,color:PDF_C.ink,opacity:.18});
+  page.drawText(pdfSafe(label,72).toUpperCase(),{x,y,size:6.1,font:fonts.bold,color:PDF_C.gold});
+  return pdfText(page,fonts.serif,value||'—',x,y-18,w,10.1,13.4,PDF_C.ink,5);
+}
+function pdfClientAreaMetric(page:any,fonts:any,label:string,rating:any,x:number,y:number,w:number){
+  page.drawLine({start:{x,y:y+8},end:{x:x+w,y:y+8},thickness:.55,color:PDF_C.gold,opacity:.7});
+  page.drawText(pdfSafe(label,72).toUpperCase(),{x,y,size:6.2,font:fonts.bold,color:PDF_C.muted});
+  page.drawText(pdfAreaRating(rating),{x:x+w-55,y:y-2,size:14.5,font:fonts.serifBold,color:PDF_C.ink});
+  page.drawText(pdfClientBasisLabel(rating),{x,y:y-20,size:6.2,font:fonts.regular,color:PDF_C.muted});
+}
+function pdfClientRecoveryGraph(page:any,fonts:any,cardio:any,x:number,y:number,w:number,h:number){
+  const points=[
+    {label:'Final',value:pdfClientFinite(cardio?.finalHr)},
+    {label:'1 min',value:pdfClientFinite(cardio?.oneMinuteHr)},
+    {label:'2 min',value:pdfClientFinite(cardio?.twoMinuteHr)},
+  ].filter((item)=>item.value!==null);
+  if(points.length<2)return;
+  const values=points.map((item)=>Number(item.value));
+  const min=Math.min(...values)-8,max=Math.max(...values)+8,range=Math.max(1,max-min);
+  const coords=points.map((item,index)=>({
+    ...item,
+    px:x+(points.length===1?0:index*(w/(points.length-1))),
+    py:y+((Number(item.value)-min)/range)*h,
+  }));
+  page.drawLine({start:{x,y},end:{x:x+w,y},thickness:.45,color:PDF_C.ink,opacity:.2});
+  for(let index=0;index<coords.length-1;index+=1){
+    page.drawLine({start:{x:coords[index].px,y:coords[index].py},end:{x:coords[index+1].px,y:coords[index+1].py},thickness:1.6,color:PDF_C.ink2,opacity:.85});
+  }
+  for(const point of coords){
+    page.drawCircle({x:point.px,y:point.py,size:3.1,color:PDF_C.gold});
+    page.drawText(String(point.value),{x:point.px-6,y:point.py+9,size:6.5,font:fonts.bold,color:PDF_C.ink});
+    page.drawText(point.label,{x:point.px-9,y:y-16,size:6,font:fonts.regular,color:PDF_C.muted});
+  }
+}
+async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta,signatureEligible}:any){
+  const doc=await PDFDocument.create();
+  doc.setTitle('Informe IRI · '+pdfSafe(clientName,120));
+  doc.setAuthor('IBERFIT');
+  doc.setSubject('Diagnóstico inicial IRI');
+  doc.setCreator('IBERFIT '+ENGINE_VERSION);
+  doc.setProducer('pdf-lib');
+  const fonts:any={
+    regular:await doc.embedFont(StandardFonts.Helvetica),
+    bold:await doc.embedFont(StandardFonts.HelveticaBold),
+    serif:await doc.embedFont(StandardFonts.TimesRoman),
+    serifBold:await doc.embedFont(StandardFonts.TimesRomanBold),
+    serifItalic:await doc.embedFont(StandardFonts.TimesRomanItalic),
+  };
+  const client=pdfSafe(clientName,140)||'Cliente IBERFIT';
+  const coach=pdfSafe(coachName,140)||'IBERFIT';
+  const scoring=scoreIriPerformance(draft);
+  const ratings=clientIriAreaRatings(draft,scoring);
+  const logo=await pdfImage(doc,appOrigin+'/public/isotipo-iberfit.png');
+  const signaturePath=signatureEligible?await pdfSvgPath(appOrigin+'/m26/assets/iberfit-signature-carlos.svg'):'';
+  if(logo)fonts.brandMark=logo;
+
+  let n=1;
+  {
+    const page=doc.addPage([PDF_W,PDF_H]);
+    page.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.dark});
+    page.drawRectangle({x:0,y:0,width:5,height:PDF_H,color:PDF_C.gold});
+    if(logo){
+      const logoFit=pdfFit(logo,72,72);
+      page.drawImage(logo,{x:PDF_M,y:PDF_H-92,width:logoFit.w,height:logoFit.h});
+      const watermark=pdfFit(logo,330,330);
+      page.drawImage(logo,{x:PDF_W-watermark.w+48,y:280,width:watermark.w,height:watermark.h,opacity:.045});
+    }else{
+      page.drawText('IBERFIT',{x:PDF_M,y:PDF_H-74,size:9,font:fonts.bold,color:PDF_C.gold2});
+    }
+    page.drawText(iriOnly?'EVALUACIÓN INDEPENDIENTE · SOLO IRI':'DIAGNÓSTICO INICIAL IRI',{x:PDF_M,y:PDF_H-158,size:6.5,font:fonts.bold,color:PDF_C.gold2});
+    page.drawText('Tu punto',{x:PDF_M,y:PDF_H-214,size:31,font:fonts.serifBold,color:PDF_C.cream});
+    page.drawText('de partida.',{x:PDF_M,y:PDF_H-249,size:31,font:fonts.serifBold,color:PDF_C.cream});
+    page.drawLine({start:{x:PDF_M,y:PDF_H-268},end:{x:PDF_M+92,y:PDF_H-268},thickness:1.2,color:PDF_C.gold});
+    pdfText(page,fonts.serif,'Una fotografía clara de dónde estás hoy y qué merece atención primero.',PDF_M,PDF_H-292,250,10.2,13.4,PDF_C.cream2,4);
+    page.drawLine({start:{x:PDF_M,y:176},end:{x:PDF_W-PDF_M,y:176},thickness:.55,color:PDF_C.cream2,opacity:.35});
+    page.drawText('PERSONA EVALUADA',{x:PDF_M,y:152,size:6.1,font:fonts.bold,color:PDF_C.gold2});
+    page.drawText(client,{x:PDF_M,y:130,size:15.5,font:fonts.serifBold,color:PDF_C.cream});
+    page.drawText(pdfDate(draft?.assessmentDate),{x:PDF_M,y:114,size:6.5,font:fonts.regular,color:PDF_C.muted});
+    page.drawLine({start:{x:PDF_M,y:92},end:{x:PDF_W-PDF_M,y:92},thickness:.55,color:PDF_C.gold,opacity:.6});
+    page.drawText('DOCUMENTO',{x:PDF_M,y:76,size:5.8,font:fonts.bold,color:PDF_C.muted});
+    page.drawText(iriOnly?'IRI independiente':'IRI · punto de partida',{x:PDF_M,y:61,size:7.8,font:fonts.bold,color:PDF_C.cream2});
+    page.drawText('Entrenamiento personal con criterio · diagnóstico · planificación · control · seguimiento',{x:PDF_M,y:43,size:5.6,font:fonts.regular,color:PDF_C.gold2});
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Síntesis','Tu punto de partida','Este informe ordena lo que sabemos hoy sobre tu punto de partida y convierte la evaluación en prioridades que puedan guiar decisiones reales.');
+    pdfClientAreaMetric(page,fonts,'Movimiento y movilidad',ratings.movement,PDF_M,650,205);
+    pdfClientAreaMetric(page,fonts,'Fuerza',ratings.strength,PDF_M,596,205);
+    pdfClientAreaMetric(page,fonts,'Recuperación',ratings.recovery,PDF_M,542,205);
+    page.drawText('FORTALEZA PRINCIPAL',{x:315,y:650,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,Array.isArray(draft?.diagnosis?.strengths)&&draft.diagnosis.strengths.length?draft.diagnosis.strengths[0]:'Fortaleza pendiente de revisión',315,628,220,12.5,15.2,PDF_C.ink,5);
+    page.drawLine({start:{x:315,y:570},end:{x:535,y:570},thickness:.45,color:PDF_C.ink,opacity:.18});
+    page.drawText('PRIORIDAD PRINCIPAL',{x:315,y:549,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,Array.isArray(draft?.diagnosis?.priorities)&&draft.diagnosis.priorities.length?draft.diagnosis.priorities[0]:'Prioridad pendiente de revisión',315,527,220,12.5,15.2,PDF_C.ink,5);
+    page.drawLine({start:{x:PDF_M,y:470},end:{x:535,y:470},thickness:.45,color:PDF_C.ink,opacity:.18});
+    page.drawText('COMPARABILIDAD NORMATIVA',{x:PDF_M,y:447,size:6.2,font:fonts.bold,color:PDF_C.gold});
+    const domains=scoring?.domainScores||{};
+    const normText=[
+      'Movilidad: '+(domains?.mobility?.scored?'baremo compatible':'valoración orientativa'),
+      'Fuerza funcional: '+(domains?.strength?.scored?'baremo compatible':'valoración orientativa'),
+      'Capacidad funcional: '+(domains?.cardio?.scored?'baremo compatible':'referencia individual'),
+    ].join(' · ');
+    pdfText(page,fonts.regular,normText,PDF_M,427,487,7.5,10.5,PDF_C.ink2,4);
+    pdfText(page,fonts.serif,'Las valoraciones IBERFIT ayudan a entender el punto de partida. No se presenta una nota global cuando la cobertura normativa es parcial y no se extrapolan baremos de una prueba a otra.',PDF_M,375,487,9.5,13,PDF_C.ink2,6);
+    page.drawText('LECTURA DEL ENTRENADOR',{x:PDF_M,y:300,size:6.2,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,draft?.diagnosis?.coachInterpretation||'Sin interpretación adicional registrada.',PDF_M,278,487,10.8,14.3,PDF_C.ink,8);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Tu contexto','Contexto y objetivos','Comprender tu realidad permite interpretar mejor los resultados y decidir qué merece atención primero.');
+    const profile=draft?.personProfile||{},interview=draft?.interview||{};
+    pdfClientLabel(page,fonts,'Objetivo principal',profile?.primaryObjective||'Sin objetivo principal registrado',PDF_M,646,225);
+    pdfClientLabel(page,fonts,'Objetivos secundarios',Array.isArray(profile?.secondaryObjectives)&&profile.secondaryObjectives.length?profile.secondaryObjectives.join(' · '):'Sin objetivos secundarios registrados',315,646,220);
+    pdfClientLabel(page,fonts,'Experiencia y actividad actual',pdfJoin([interview?.trainingExperience,interview?.currentTraining]),PDF_M,530,225);
+    pdfClientLabel(page,fonts,'Disponibilidad',pdfJoin([interview?.availability,profile?.preferredSchedule]),315,530,220);
+    pdfClientLabel(page,fonts,'Entorno de entrenamiento',pdfJoin([profile?.modality,profile?.locationType,profile?.trainingAddress]),PDF_M,414,225);
+    pdfClientLabel(page,fonts,'Material disponible',Array.isArray(profile?.equipment)&&profile.equipment.length?profile.equipment.join(' · '):'Sin material registrado',315,414,220);
+    pdfClientLabel(page,fonts,'Preferencias',interview?.preferences||'Sin preferencias especiales registradas',PDF_M,298,487);
+    pdfClientLabel(page,fonts,'Consideraciones declaradas',interview?.restrictions||'Sin restricciones declaradas',PDF_M,194,487);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Composición corporal','Composición corporal','La composición corporal describe el punto de partida medido y las condiciones de esa medición. Se utiliza para seguimiento, no como juicio estético ni como nota funcional.');
+    const body=draft?.bodyComposition||{};
+    page.drawText('GRASA CORPORAL',{x:PDF_M,y:612,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    page.drawText(body?.skipped?'—':pdfNum(body.bodyFatPercent,1)+'%',{x:PDF_M,y:558,size:39,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText('Método · '+pdfClientCardioValue(body?.method||body?.device||'Sin método registrado'),{x:PDF_M,y:536,size:6.2,font:fonts.regular,color:PDF_C.muted});
+    const lean=pdfClientFinite(body?.leanMassKg)!==null?body.leanMassKg:body?.muscleMassKg;
+    const metrics=[
+      ['Peso',body?.skipped?'No evaluado':pdfNum(body?.weightKg,1)+' kg'],
+      ['Masa grasa',body?.skipped?'No evaluado':(pdfClientFinite(body?.fatMassKg)!==null?pdfNum(body.fatMassKg,1)+' kg':'—')],
+      ['Masa libre de grasa',body?.skipped?'No evaluado':(pdfClientFinite(body?.leanMassKg)!==null?pdfNum(body.leanMassKg,1)+' kg':'—')],
+      ['Masa muscular',body?.skipped?'No evaluado':(pdfClientFinite(body?.muscleMassKg)!==null?pdfNum(body.muscleMassKg,1)+' kg':'—')],
+      ['Agua corporal',body?.skipped?'No evaluado':pdfNum(body?.bodyWaterPercent,1)+'%'],
+      ['Cintura',body?.skipped?'No evaluado':pdfNum(body?.waistCm,1)+' cm'],
+      ['Grasa visceral',body?.skipped?'No evaluado':pdfNum(body?.visceralFatLevel)],
+    ];
+    let y=618;
+    for(const [label,value] of metrics){
+      page.drawLine({start:{x:315,y:y+8},end:{x:535,y:y+8},thickness:.4,color:PDF_C.ink,opacity:.16});
+      page.drawText(label,{x:315,y,size:6.1,font:fonts.regular,color:PDF_C.muted});
+      page.drawText(String(value),{x:455,y,size:8.2,font:fonts.bold,color:PDF_C.ink});
+      y-=42;
+    }
+    page.drawLine({start:{x:PDF_M,y:290},end:{x:535,y:290},thickness:.55,color:PDF_C.gold,opacity:.6});
+    page.drawText('DOCUMENTO COMPLEMENTARIO',{x:PDF_M,y:268,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    page.drawText(annex?'Informe de bioimpedancia incorporado':'Sin documento original incorporado',{x:PDF_M,y:244,size:11.5,font:fonts.serifBold,color:PDF_C.ink});
+    pdfText(page,fonts.regular,annex?'El archivo original se incorpora íntegro al final de este informe emitido. Sus valores no se reconstruyen ni se inventan; se conserva como evidencia del punto de partida.':'La composición registrada se conserva con el método y las condiciones disponibles en la evaluación.',PDF_M,219,487,8.3,11.6,PDF_C.ink2,6);
+    if(pdfClientFinite(lean)!==null)page.drawText('Referencia de masa magra/muscular disponible: '+pdfNum(lean,1)+' kg',{x:PDF_M,y:145,size:6.4,font:fonts.regular,color:PDF_C.muted});
+    page.drawText('CONDICIONES REGISTRADAS',{x:PDF_M,y:114,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.regular,body?.measurementConditions||'Sin condiciones de medición adicionales registradas.',PDF_M,96,487,7.4,10,PDF_C.ink2,3);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Movimiento y movilidad','Movimiento y movilidad','Las mediciones se interpretan junto con control, calidad de movimiento y simetría. El objetivo es saber qué conviene preservar y qué merece trabajo.');
+    const mobility=draft?.mobility||{};
+    const al=pdfClientFinite(mobility?.ankle?.leftBest),ar=pdfClientFinite(mobility?.ankle?.rightBest);
+    const pl=pdfClientFinite(mobility?.posteriorChain?.leftBest),pr=pdfClientFinite(mobility?.posteriorChain?.rightBest);
+    pdfClientAreaMetric(page,fonts,'Valoración de movimiento',ratings.movement,PDF_M,646,205);
+    page.drawText('RODILLA A PARED',{x:PDF_M,y:568,size:6.2,font:fonts.bold,color:PDF_C.gold});
+    page.drawText('Izquierda',{x:PDF_M,y:542,size:6.2,font:fonts.regular,color:PDF_C.muted});
+    page.drawText(al===null?'—':pdfNum(al,1)+' cm',{x:PDF_M,y:513,size:18,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText('Derecha',{x:170,y:542,size:6.2,font:fonts.regular,color:PDF_C.muted});
+    page.drawText(ar===null?'—':pdfNum(ar,1)+' cm',{x:170,y:513,size:18,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText('Diferencia',{x:285,y:542,size:6.2,font:fonts.regular,color:PDF_C.muted});
+    page.drawText(al!==null&&ar!==null?pdfNum(Math.abs(al-ar),1)+' cm':'—',{x:285,y:513,size:18,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawLine({start:{x:PDF_M,y:477},end:{x:535,y:477},thickness:.45,color:PDF_C.ink,opacity:.16});
+    page.drawText('FLEXIÓN ANTERIOR SENTADO UNILATERAL',{x:PDF_M,y:451,size:6.2,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,pl!==null&&pr!==null?'Izquierda '+pdfNum(pl,1)+' cm · Derecha '+pdfNum(pr,1)+' cm · diferencia '+pdfNum(Math.abs(pl-pr),1)+' cm':'No evaluado o sin datos comparables',PDF_M,427,487,10,13.5,PDF_C.ink,4);
+    page.drawText('SENTADILLA OBSERVADA',{x:PDF_M,y:361,size:6.2,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,pdfJoin([mobility?.assistedSquat?.depth,mobility?.assistedSquat?.knees,mobility?.assistedSquat?.trunk]),PDF_M,337,487,10,13.5,PDF_C.ink,5);
+    page.drawText('LECTURA DEL ENTRENADOR',{x:PDF_M,y:252,size:6.2,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,draft?.diagnosis?.trainingImplications||draft?.diagnosis?.coachInterpretation||'Sin interpretación adicional registrada.',PDF_M,228,487,10.4,14,PDF_C.ink,7);
+  }
+
+  if(photoReport?.available){
+    n+=1;
+    const page=pdfClientPage(doc,fonts,n,'Evidencia visual','Análisis fotogramétrico','La fotogrametría documenta el punto de partida y se interpreta junto con movilidad, fuerza, síntomas y repetibilidad.');
+    const lines=pdfPhotoMeasurementRows(photoReport?.measurements||{});
+    const decisions=pdfPhotoDecisionRows(photoReport);
+    page.drawText('CALIDAD DEL REGISTRO',{x:PDF_M,y:644,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    page.drawText(photoQuality(photoReport),{x:PDF_M,y:621,size:11.5,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText('TRAZABILIDAD',{x:205,y:644,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    page.drawText('Revisión '+String(Number(photoReport.analysisRevision||0)),{x:205,y:621,size:11.5,font:fonts.serifBold,color:PDF_C.ink});
+    let y=570;
+    page.drawText('MEDICIONES VALIDADAS',{x:PDF_M,y,size:6.1,font:fonts.bold,color:PDF_C.gold});y-=23;
+    for(const line of lines.length?lines:['Sin mediciones numéricas publicables en este informe.']){
+      y=pdfText(page,fonts.serif,line,PDF_M,y,230,9.4,12.6,PDF_C.ink,3)-7;
+      if(y<320)break;
+    }
+    page.drawText('LECTURA PARA ENTRENAMIENTO',{x:315,y:570,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    let rightY=547;
+    for(const item of decisions.length?decisions:['La fotogrametría se conserva como referencia inicial y no se interpreta de forma aislada.']){
+      rightY=pdfText(page,fonts.serif,item,315,rightY,220,9.4,12.6,PDF_C.ink,5)-10;
+      if(rightY<320)break;
+    }
+    const photos=Array.isArray(photoReport?.photos)?photoReport.photos.slice(0,4):[];
+    if(photos.length){
+      page.drawText('LÁMINA AUTORIZADA',{x:PDF_M,y:274,size:6.1,font:fonts.bold,color:PDF_C.gold});
+      const slots=[{x:PDF_M,y:104},{x:171,y:104},{x:294,y:104},{x:417,y:104}];
+      for(let i=0;i<photos.length;i+=1){
+        const image=await pdfImage(doc,String(photos[i]?.url||''));
+        if(!image)continue;
+        const fit=pdfFit(image,105,145),slot=slots[i];
+        page.drawImage(image,{x:slot.x+(105-fit.w)/2,y:slot.y+(145-fit.h)/2,width:fit.w,height:fit.h});
+        page.drawText(pdfPhotoView(photos[i]?.view),{x:slot.x,y:88,size:5.8,font:fonts.bold,color:PDF_C.muted});
+      }
+    }else{
+      page.drawLine({start:{x:PDF_M,y:280},end:{x:535,y:280},thickness:.45,color:PDF_C.gold,opacity:.55});
+      page.drawText('PRIVACIDAD DE LAS IMÁGENES',{x:PDF_M,y:254,size:6.1,font:fonts.bold,color:PDF_C.gold});
+      pdfText(page,fonts.serif,'Las fotografías permanecen privadas porque no existe permiso específico para publicarlas en el documento Cliente. Las mediciones y conclusiones validadas pueden conservarse sin mostrar los originales.',PDF_M,230,487,9.4,12.8,PDF_C.ink2,6);
+    }
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Fuerza por patrones','Fuerza','Cada prueba conserva su variante y configuración real. Las cifras se presentan como resultados observados y solo son comparables cuando se repite una referencia equivalente.');
+    const strength=draft?.strength||draft?.strengthAssessment||{};
+    const squat=pdfClientFinite(strength?.squat60?.repetitions);
+    const chair=pdfClientFinite(strength?.chairStand?.repetitions);
+    const lowerLabel=squat!==null?'Sentadilla libre · 60 s':'Silla · 30 s';
+    const lowerValue=squat!==null?squat:chair;
+    const push=pdfClientFinite(strength?.push?.repetitions),trx=pdfClientFinite(strength?.trxRow?.repetitions),plank=pdfClientFinite(strength?.core?.frontPlankSeconds);
+    pdfClientAreaMetric(page,fonts,'Valoración de fuerza',ratings.strength,PDF_M,650,205);
+    const boxes=[
+      [lowerLabel,lowerValue===null?'—':pdfNum(lowerValue)+' rep',PDF_M,555],
+      ['Empuje',push===null?'—':pdfNum(push)+' rep',315,555],
+      ['Tracción · TRX',trx===null?'—':pdfNum(trx)+' rep',PDF_M,430],
+      ['Estabilidad de tronco',plank===null?'—':pdfNum(plank)+' s',315,430],
+    ];
+    for(const [label,value,x,y] of boxes){
+      page.drawLine({start:{x:Number(x),y:Number(y)+12},end:{x:Number(x)+220,y:Number(y)+12},thickness:.45,color:PDF_C.ink,opacity:.18});
+      page.drawText(String(label).toUpperCase(),{x:Number(x),y:Number(y),size:6.1,font:fonts.bold,color:PDF_C.gold});
+      page.drawText(String(value),{x:Number(x),y:Number(y)-33,size:20,font:fonts.serifBold,color:PDF_C.ink});
+    }
+    page.drawText('CÓMO SE HIZO',{x:PDF_M,y:278,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    const method=[
+      strength?.push?.variant&&'Empuje: '+pdfStrengthVariant(strength.push.variant),
+      strength?.trxRow?.handleHeightCm&&'TRX: asas '+pdfNum(strength.trxRow.handleHeightCm)+' cm',
+      strength?.trxRow?.bodyAngleDeg&&'ángulo '+pdfNum(strength.trxRow.bodyAngleDeg)+'°',
+      strength?.core?.quality&&'Plancha: '+pdfSafe(strength.core.quality,120),
+    ].filter(Boolean).join(' · ');
+    pdfText(page,fonts.serif,method||'La variante y configuración quedan registradas para poder repetir una referencia equivalente.',PDF_M,255,487,9.5,13,PDF_C.ink,6);
+    page.drawText('DECISIÓN QUE APOYA',{x:PDF_M,y:165,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,draft?.diagnosis?.trainingImplications||'Progresar la fuerza de forma gradual, manteniendo técnica y referencias comparables.',PDF_M,142,487,9.8,13.2,PDF_C.ink2,5);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Capacidad de esfuerzo','Capacidad de esfuerzo','La recuperación se lee dentro del protocolo realizado. En una prueba de campo se utiliza como referencia individual y no hereda baremos de otros protocolos.');
+    const cardio=draft?.cardio||{};
+    page.drawText(pdfProtocolName(cardio),{x:PDF_M,y:636,size:13,font:fonts.serifBold,color:PDF_C.ink});
+    pdfClientRecoveryGraph(page,fonts,cardio,PDF_M+15,510,230,90);
+    const metrics=[
+      ['Velocidad',pdfClientFinite(cardio?.speedKmh)!==null?pdfNum(cardio.speedKmh,1)+' km/h':'—'],
+      ['Inclinación',pdfClientFinite(cardio?.inclinePercent)!==null?pdfNum(cardio.inclinePercent,1)+'%':'—'],
+      ['Recuperación 1 min',pdfClientFinite(cardio?.deltaOneMinute)!==null?pdfNum(cardio.deltaOneMinute)+' lpm':'—'],
+      ['Recuperación 2 min',pdfClientFinite(cardio?.deltaTwoMinute)!==null?pdfNum(cardio.deltaTwoMinute)+' lpm':'—'],
+    ];
+    let mx=PDF_M,my=450;
+    for(let i=0;i<metrics.length;i+=1){
+      const [label,value]=metrics[i],x=i%2===0?PDF_M:170,y=i<2?my:my-76;
+      page.drawText(label.toUpperCase(),{x,y,size:5.9,font:fonts.bold,color:PDF_C.gold});
+      page.drawText(value,{x,y:y-27,size:16,font:fonts.serifBold,color:PDF_C.ink});
+    }
+    page.drawText('CÓMO SE REALIZÓ',{x:315,y:636,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    const how=[
+      cardio?.locomotionMode&&'Modo: '+pdfClientCardioValue(cardio.locomotionMode),
+      cardio?.hrMethod&&'Frecuencia cardiaca: '+pdfClientCardioValue(cardio.hrMethod),
+      cardio?.recoveryMode&&'Recuperación: '+pdfClientCardioValue(cardio.recoveryMode),
+      pdfClientFinite(cardio?.rpe)!==null&&'Esfuerzo percibido: '+pdfNum(cardio.rpe,1)+'/10',
+    ].filter(Boolean);
+    let y=610;
+    for(const item of how)y=pdfText(page,fonts.serif,item,315,y,220,9,12.2,PDF_C.ink,3)-7;
+    page.drawText('VALORACIÓN IBERFIT',{x:315,y:440,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    page.drawText(pdfAreaRating(ratings.recovery),{x:315,y:409,size:20,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText(pdfClientBasisLabel(ratings.recovery),{x:315,y:392,size:6.1,font:fonts.regular,color:PDF_C.muted});
+    page.drawLine({start:{x:PDF_M,y:300},end:{x:535,y:300},thickness:.45,color:PDF_C.ink,opacity:.18});
+    page.drawText('DECISIÓN DEL ENTRENADOR',{x:PDF_M,y:275,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,draft?.diagnosis?.trainingImplications||'Usar esta recuperación como referencia individual y repetir el mismo protocolo cuando se quiera comparar evolución.',PDF_M,250,487,10,13.5,PDF_C.ink,7);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Decisión','Qué merece atención','Una prioridad clara es más útil que una lista de defectos. El informe distingue qué conviene mejorar de lo que merece preservarse.');
+    const diagnosis=draft?.diagnosis||{};
+    page.drawText('LECTURA DEL DIAGNÓSTICO',{x:PDF_M,y:600,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,Array.isArray(diagnosis?.priorities)&&diagnosis.priorities.length?diagnosis.priorities[0]:'Prioridad pendiente de revisión',PDF_M,565,430,19,22,PDF_C.ink,5);
+    pdfText(page,fonts.serif,diagnosis?.trainingImplications||diagnosis?.coachInterpretation||'Sin estrategia adicional registrada.',PDF_M,455,430,10.5,14,PDF_C.ink2,8);
+    page.drawLine({start:{x:PDF_M,y:335},end:{x:310,y:335},thickness:.7,color:PDF_C.gold,opacity:.7});
+    page.drawText('FORTALEZA QUE CONVIENE PRESERVAR',{x:PDF_M,y:311,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,Array.isArray(diagnosis?.strengths)&&diagnosis.strengths.length?diagnosis.strengths[0]:'Fortaleza pendiente de revisión',PDF_M,286,310,11.2,14.5,PDF_C.ink,6);
+    pdfEditorialPanel(page,fonts,'Qué significa para el siguiente paso',[
+      diagnosis?.initialPlan||'Convertir la prioridad principal en trabajo progresivo y medible.',
+      iriOnly?'Este IRI documenta el punto de partida; no implica seguimiento contractual activo.':'La planificación debe transformar los hallazgos en decisiones simples, progresivas y revisables.',
+    ],PDF_M,180,487);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Comparabilidad futura','Qué repetiremos para saber si mejoras','El seguimiento solo tiene valor cuando repetimos pruebas y condiciones suficientemente equivalentes. Este IRI deja documentadas las referencias iniciales.');
+    const protocols=pdfClientProtocolRows(Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]);
+    let y=620;
+    for(const row of protocols.length?protocols:['Repetir las mismas variantes y configuraciones registradas cuando corresponda.']){
+      page.drawLine({start:{x:PDF_M,y:y+10},end:{x:535,y:y+10},thickness:.42,color:PDF_C.ink,opacity:.16});
+      y=pdfText(page,fonts.serif,row,PDF_M,y-8,487,9.4,12.8,PDF_C.ink,3)-18;
+      if(y<190)break;
+    }
+    page.drawLine({start:{x:PDF_M,y:155},end:{x:535,y:155},thickness:.55,color:PDF_C.gold,opacity:.6});
+    pdfText(page,fonts.regular,'Importante: esta página no puntúa resultados; conserva cómo se hizo la evaluación para que una reevaluación futura pueda compararse de forma válida.',PDF_M,132,487,7.6,10.6,PDF_C.ink2,5);
+  }
+
+  n+=1;
+  {
+    const page=pdfClientPage(doc,fonts,n,'Siguiente paso','Cierre','El valor del IRI no está en acumular datos, sino en dejar un punto de partida comprensible y útil para decidir mejor.');
+    page.drawText('QUÉ SABEMOS AHORA',{x:PDF_M,y:610,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,draft?.diagnosis?.coachInterpretation||'Tu punto de partida queda documentado con resultados, contexto y prioridades concretas.',PDF_M,575,430,18,21.5,PDF_C.ink,6);
+    page.drawLine({start:{x:PDF_M,y:410},end:{x:420,y:410},thickness:.7,color:PDF_C.gold,opacity:.7});
+    page.drawText('SIGUIENTE PASO',{x:PDF_M,y:384,size:6.1,font:fonts.bold,color:PDF_C.gold});
+    pdfText(page,fonts.serif,iriOnly?'Conserva este informe como referencia. Si más adelante quieres reevaluar o iniciar un proceso de entrenamiento, las prioridades y pruebas iniciales quedan documentadas para poder comparar.':(draft?.diagnosis?.initialPlan||'Convertir las prioridades identificadas en una planificación progresiva y revisable.'),PDF_M,355,430,11,14.8,PDF_C.ink2,9);
+    if(signaturePath){
+      page.drawText('FIRMA DEL ENTRENADOR',{x:PDF_M,y:215,size:5.8,font:fonts.bold,color:PDF_C.muted});
+      page.drawSvgPath(signaturePath,{x:PDF_M+5,y:118,scale:.23,color:PDF_C.ink,opacity:.92});
+      page.drawText(coach,{x:PDF_M,y:91,size:6.5,font:fonts.serifItalic,color:PDF_C.ink});
+    }else{
+      page.drawText('IBERFIT',{x:PDF_M,y:115,size:9,font:fonts.bold,color:PDF_C.ink});
+    }
+    page.drawText('Documento emitido desde la evaluación IRI confirmada.',{x:PDF_M,y:66,size:6.1,font:fonts.regular,color:PDF_C.muted});
+    if(assessmentMeta?.completedAt)page.drawText('Evaluación confirmada · '+pdfTraceDateTime(assessmentMeta.completedAt),{x:PDF_M,y:52,size:5.9,font:fonts.regular,color:PDF_C.muted});
+  }
+
+  return new Uint8Array(await doc.save({useObjectStreams:true,addDefaultPage:false}));
+}
+
 async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta,signatureEligible}:any){
+  if(audience==='cliente')return renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta,signatureEligible});
   const doc=await PDFDocument.create();
   doc.setTitle('Informe IRI · '+pdfSafe(clientName,120));
   doc.setAuthor('IBERFIT');
