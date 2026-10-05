@@ -11,6 +11,18 @@ const TERM=Object.freeze({
   'pendiente':{en:'pending',fr:'en attente',pt:'pendente'},
   'conectado':{en:'connected',fr:'connecté',pt:'ligado'},
   'sincronizando':{en:'syncing',fr:'synchronisation',pt:'a sincronizar'},
+  'nombre del ciclo':{en:'cycle name',fr:'nom du cycle',pt:'nome do ciclo'},
+  'fecha de inicio':{en:'start date',fr:'date de début',pt:'data de início'},
+  'fecha de fin':{en:'end date',fr:'date de fin',pt:'data de fim'},
+  'modalidad':{en:'modality',fr:'modalité',pt:'modalidade'},
+  'frecuencia semanal':{en:'weekly frequency',fr:'fréquence hebdomadaire',pt:'frequência semanal'},
+  'duración':{en:'duration',fr:'durée',pt:'duração'},
+  'objetivo':{en:'goal',fr:'objectif',pt:'objetivo'},
+  'cliente':{en:'client',fr:'client',pt:'cliente'},
+  'inicio':{en:'start',fr:'début',pt:'início'},
+  'fin':{en:'end',fr:'fin',pt:'fim'},
+  'experiencia':{en:'experience',fr:'expérience',pt:'experiência'},
+  'dato pendiente':{en:'missing field',fr:'champ manquant',pt:'dado pendente'},
 });
 
 function tTerm(value,language,translatePart){
