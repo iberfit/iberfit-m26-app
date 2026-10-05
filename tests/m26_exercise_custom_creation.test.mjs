@@ -36,8 +36,11 @@ test('workflow refreshes canonical catalog and verifies the created exercise is 
   assert.match(workflow,/m26:exercise-created/);
 });
 
-test('existing catalog-admin Edge function stays Admin-only',()=>{
-  assert.match(edge,/p\?\.role!=='admin'/);
+test('existing catalog-admin Edge function stays canonical multiapp Admin-only',()=>{
+  assert.match(edge,/db\.rpc\('iberfit_application_context_v14'\)/);
+  assert.match(edge,/context\?\.membershipStatus!=='active'/);
+  assert.match(edge,/!roles\.includes\('admin'\)/);
+  assert.doesNotMatch(edge,/from\('user_profiles'\)\.select\('role'\)/);
   assert.doesNotMatch(edge,/create_custom_exercise/);
   assert.doesNotMatch(edge,/iberfit_create_custom_exercise_v1/);
 });
