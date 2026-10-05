@@ -3836,7 +3836,7 @@ export function renderPlanningRoute(vm){
   const approvedCycles=Number(vm.cycleCounts?.approved||0);
   const publishedSessions=Number(vm.sessionCounts?.published||0);
   const totalSessions=Array.isArray(vm.sessions)?vm.sessions.length:0;
-  const editor=vm.canEdit?`<form id="m26-planning-cycle-editor" class="m26-panel m26-panel-soft m26-planning-cycle-editor" data-workflow-form="planning" data-guided-required-form${suggestedGoal?' data-iri-seeded="true"':''}>
+  const editor=vm.canEdit?`<form id="m26-planning-cycle-editor" class="m26-panel m26-panel-soft m26-planning-cycle-editor" data-workflow-form="planning"${suggestedGoal?' data-iri-seeded="true"':''} data-guided-required-form>
     <div class="m26-panel-heading">
       <div>
         <p class="m26-eyebrow">${hasCycle?'Ciclo actual':'Primer paso'}</p>
