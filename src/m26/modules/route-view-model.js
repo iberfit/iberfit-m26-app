@@ -273,6 +273,7 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
       clientModalityLabel(text(client, 'modality', 'modalidad')),
     status: experience.serviceKind==='training'?statusLabel(client):'Sin entrenamiento activo',
     trainingServiceStatus:experience.trainingServiceStatus,
+    serviceActive:trainingServiceActive(client),
     access: summary.access
       ? statusLabel(summary.access, 'Acceso registrado')
       : 'Acceso no informado',
