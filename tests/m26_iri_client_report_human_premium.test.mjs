@@ -69,6 +69,11 @@ test('client report uses approved human premium language and visuals',()=>{
   assert.match(html,/Medición manual/);
   assert.match(html,/De pie · pasiva/);
   assert.match(html,/Flexión anterior sentado unilateral/);
+  assert.match(html,/Caja estándar/);
+  assert.match(html,/Rodillas apoyadas/);
+  assert.doesNotMatch(html,/box-standard/);
+  assert.doesNotMatch(html,/standard-barefoot/);
+  assert.doesNotMatch(html,/counterbalance-support/);
   assert.doesNotMatch(html,/iri-strength-icon/);
   assert.doesNotMatch(html,/iri-body-outline/);
   assert.doesNotMatch(html,/>knees</);
