@@ -93,6 +93,7 @@ test('live Admin Catalog cert authenticates as ephemeral Admin and remains stric
   assert.match(source,/JSON\.stringify\(\{action:'status'\}\)/u);
   assert.match(source,/allowedOriginHeader===CANARY_ORIGIN/u);
   assert.match(source,/payload\.canonical\+payload\.external===payload\.total/u);
+  assert.match(source,/payload\?\.version==='catalog-admin-v1\.2'/u);
   assert.match(source,/globalNameGovernance===true/u);
   assert.match(source,/origin:'https:\/\/example\.invalid'/u);
   assert.match(source,/forbidden\.status===403/u);
