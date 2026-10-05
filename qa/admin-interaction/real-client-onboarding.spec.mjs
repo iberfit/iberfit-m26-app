@@ -75,12 +75,15 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await expect(name).toHaveValue('Cliente foco real QA');
 
   const email=form.locator('input[name="email"]');
+  await rememberNode(email,'email');
   await expect(email).toHaveValue('');
   await queueRenderOnNextRelease(page);
   await activate(page,email,touch);
   await page.waitForTimeout(180);
+  await expectSameNode(email,'email');
   await expect(email).toBeFocused();
-  await page.keyboard.type('foco.real.qa@example.com');
+  await email.pressSequentially('foco.real.qa@example.com');
+  await expectSameNode(email,'email');
   await expect(email).toHaveValue('foco.real.qa@example.com');
   await expect(name).toHaveValue('Cliente foco real QA');
 
