@@ -37,8 +37,8 @@ test('Admin person context maps base client routes into the Admin namespace',()=
 });
 
 test('Admin reaches person context from an explicit person action, not from global navigation',()=>{
-  assert.match(routeRender,/data-m26-open-client-area=\"\$\{e\(primaryArea\)\}\" data-m26-client-id=/u);
-  assert.match(routeRender,/data-m26-open-client-area=\"informes\" data-m26-client-id=/u);
+  assert.equal(routeRender.includes('data-m26-open-client-area="${e(primaryArea)}" data-m26-client-id='),true);
+  assert.equal(routeRender.includes('data-m26-open-client-area="informes" data-m26-client-id='),true);
   assert.match(shellController,/const contextualClientButton=event\.target\.closest\?\.\('\[data-m26-open-client-area\]'\)/u);
   assert.match(shellController,/const targetArea=roleScopedArea\(current,rawTargetArea\)/u);
   assert.match(shellController,/\?adminClientContextArea\(value\)/u);
