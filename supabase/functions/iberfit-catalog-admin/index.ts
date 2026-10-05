@@ -66,8 +66,11 @@ Deno.serve(async(req:Request)=>{
   const db=createClient(Deno.env.get('SUPABASE_URL')||'',key(),{global:{headers:{Authorization:h}},auth:{persistSession:false}});
   const{data:u,error:ue}=await db.auth.getUser(h.slice(7));
   if(ue||!u?.user)return reply(req,{error:'Sesión no válida'},401);
-  const{data:p}=await db.from('user_profiles').select('role').eq('user_id',u.user.id).single();
-  if(p?.role!=='admin')return reply(req,{error:'Solo Administración puede sincronizar o editar la biblioteca'},403);
+  const{data:context,error:contextError}=await db.rpc('iberfit_application_context_v14');
+  const roles=Array.isArray(context?.roles)?context.roles.map((role:any)=>String(role).toLowerCase()):[];
+  if(contextError||context?.ok!==true||context?.membershipStatus!=='active'||!roles.includes('admin')){
+    return reply(req,{error:'Solo Administración puede sincronizar o editar la biblioteca'},403);
+  }
   const body=await req.json().catch(()=>({}));
   const action=String(body.action||'status');
 
