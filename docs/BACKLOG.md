@@ -1,6 +1,26 @@
 # IBERFIT · Backlog Vivo
 
-Checkpoint: 2026-10-02. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`.
+Checkpoint: 2026-10-05. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`.
+
+## WIP CERRADO · Entrenamiento Operativo 360 · núcleo canónico
+
+- [x] PR #726 mergeado en Canary; SHA certificado `1391805fd36fd40e1624e9f06ea378ec37719eb1`.
+- [x] Canary post-merge certificado con CI, Data Safety, Continuous Audit, QA Real Write, Session QA, Client Interaction, Device Experience, WebAuthn y Canary Exact Deploy.
+- [x] PROD promovido mediante Production Promotion `37307405924`: SUCCESS, rollback no requerido.
+- [x] Una sola frontera moderna de mutación de entrenamiento mediante Command Bus.
+- [x] Servicio activo requerido para crear/reactivar trabajo; progreso de ejecución ya iniciada no queda atrapado.
+- [x] Journals canónicos read-only para authenticated y RLS preservado.
+- [x] Prescripción ≠ observación; objetivo planificado no inventa RPE/RIR.
+- [x] Ruleset `Protect Canary` activo con required checks estrictos `validate` + `canary-policy-gate`.
+
+## MACRO-WIP EN CURSO · Experiencia Guiada 360 · PR #727
+
+- [ ] Coach Live: autocompletar solo lo seguro, preservar trabajo humano y llevar al dato humano pendiente.
+- [ ] Planificación: reutilizar memoria confirmada de ejercicio como borrador revisable, nunca como prescripción automática irreversible.
+- [ ] Admin alta/edición: campos contextuales, borrador y foco al primer dato realmente necesario.
+- [ ] Onboarding/continuidad: no pedir lo ya conocido, ocultar lo que no aplica y guiar al siguiente paso.
+- [ ] Capa común reutilizable para autocompletado seguro y foco.
+- [ ] Recertificar i18n, PWA, offline/recovery, Client Interaction, Device Experience, Admin Matrix y Session QA sobre el HEAD exacto antes de merge.
 
 ## WIP CERRADO · Personas + IRI real en terreno + Solo IRI
 
@@ -81,7 +101,7 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 
 ## P1 · gobernanza
 
-- [ ] Proteger `canary/rc74-4` con PR + required checks. El conector GitHub disponible no expone branch-protection/rulesets; sigue pendiente de configuración del repositorio.
+- [x] `canary/rc74-4` protegido mediante ruleset `Protect Canary`, enforcement activo y required checks estrictos.
 - [x] Mantener documentación STATE/BACKLOG alineada con SHA real.
 - [ ] Retirar/rehacer PRs abiertos obsoletos con base antigua antes de reutilizarlos.
 
