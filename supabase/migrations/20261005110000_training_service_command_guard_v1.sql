@@ -89,6 +89,12 @@ begin
     return jsonb_build_object('allowed', true, 'basis', 'delegate_invalid_identifiers');
   end if;
 
+  -- Preserve the canonical access-control response and avoid leaking training
+  -- service state for people outside the caller's authorized scope.
+  if not public.iberfit_can_access_client_v26(v_client_id) then
+    return jsonb_build_object('allowed', true, 'basis', 'delegate_client_access');
+  end if;
+
   v_context := public.iberfit_application_context_v14();
   v_organization_id := nullif(v_context->>'organizationId','')::uuid;
   v_current_status := private.iberfit_training_service_status_at_v1(
