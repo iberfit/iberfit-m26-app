@@ -70,23 +70,24 @@ select
   m.person_id,
   m.training_status,
   'Migración Persona/IRI/Servicio: se conserva la relación de entrenamiento histórica conocida.',
-  coalesce((
+  (
     select e.changed_by
     from public.iberfit_client_lifecycle_events e
     where e.organization_id=m.organization_id
       and e.client_id=m.person_id::text
     order by e.effective_at desc,e.created_at desc,e.id desc
     limit 1
-  ),(
-    select p.user_id
-    from public.user_profiles p
-    where lower(p.role::text)='admin'
-    order by p.user_id
-    limit 1
-  )),
+  ),
   m.effective_at
 from mapped m
 where m.training_status is not null
+  and exists(
+    select 1
+    from public.iberfit_client_lifecycle_events e
+    where e.organization_id=m.organization_id
+      and e.client_id=m.person_id::text
+      and e.changed_by is not null
+  )
   and exists(select 1 from public.clients c where c.id=m.person_id)
   and not exists(
     select 1
