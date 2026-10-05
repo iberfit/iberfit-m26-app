@@ -1,4 +1,5 @@
 import { canSubstituteCurrentExercise,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
+import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -295,13 +296,9 @@ function exerciseMemoryChange(memory){
   return `vs. exposición anterior ${sign}${delta.value}${unit}${percent}`;
 }
 
-function renderExerciseMemoryInline(memory){
+function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
   const latest=memory?.latest;
-
-  if(!latest){
-    return '';
-  }
-
+  if(!latest)return '';
   const load=
     latest.lastLoad?.raw||
     (
@@ -309,12 +306,26 @@ function renderExerciseMemoryInline(memory){
         ?`${latest.totalSeconds} s acumulados`
         :'Sin carga registrada'
     );
-
   const sets=(latest.sets||[])
     .slice(0,3)
     .map(exerciseMemorySetText)
     .join(' · ');
-
+  const suggestion=exerciseMemoryDraftSuggestion(memory);
+  const action=suggestion&&blockId&&exerciseId
+    ?`<div class="m26-session-repeat-actions">
+        <button
+          type="button"
+          data-session-action="reuse-exercise-memory"
+          data-block-id="${e(blockId)}"
+          data-exercise-id="${e(exerciseId)}"
+          data-reference-sets="${e(group?'':suggestion.sets??'')}"
+          data-reference-reps="${e(suggestion.reps||'')}"
+          data-reference-load="${e(suggestion.plannedLoad||'')}"
+          aria-label="Usar la última referencia confirmada como punto de partida y revisarla"
+        >Usar referencia y revisar</button>
+      </div>
+      <small>Solo prepara el borrador · ${group?'reps y carga':'series, reps y carga'}. Descanso y esfuerzo objetivo no cambian.</small>`
+    :'';
   return `<div
     class="m26-field-grid"
     data-exercise-memory="builder"
@@ -323,10 +334,10 @@ function renderExerciseMemoryInline(memory){
       <span>Última vez · ${e(exerciseMemoryDate(memory))}</span>
       <strong>${e(load)}</strong>
     </div>
-
     <div class="m26-field">
       <span>Referencia confirmada</span>
       <strong>${e(sets||'Sin detalle de series')}</strong>
+      ${action}
     </div>
   </div>`;
 }
@@ -413,7 +424,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
         <button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button>
       </div>
     </header>
-    ${renderExerciseMemoryInline(memory)}
+    ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
       ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}
@@ -440,7 +451,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
   const memory=exerciseMemoryFor?.(exerciseId)||null;
   return `<section class="m26-group-prescription">
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
-    ${renderExerciseMemoryInline(memory)}
+    ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}
       ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
