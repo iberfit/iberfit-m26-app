@@ -41,11 +41,12 @@ export function trainingServiceStatusFrom(record={}){
   // Backward compatibility while legacy lifecycle rows are still present.
   // New code must prefer the explicit training-service projection above.
   const lifecycle=legacyLifecycleStatus(record);
-  if(!lifecycle)return TRAINING_SERVICE_STATUSES.active;
-  if(['active','reactivation','onboarding'].includes(lifecycle))return TRAINING_SERVICE_STATUSES.active;
+  if(lifecycle==='iri_only')return TRAINING_SERVICE_STATUSES.none;
   if(lifecycle==='paused')return TRAINING_SERVICE_STATUSES.paused;
   if(lifecycle==='inactive')return TRAINING_SERVICE_STATUSES.ended;
-  return TRAINING_SERVICE_STATUSES.none;
+  // Legacy records and fixtures predate the explicit service dimension. Any
+  // other historical/missing status must preserve their former training access.
+  return TRAINING_SERVICE_STATUSES.active;
 }
 
 export function hasTrainingService(record={}){
