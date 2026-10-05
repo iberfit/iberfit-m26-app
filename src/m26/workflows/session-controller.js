@@ -99,7 +99,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return commandBus?{kind:'command',value:executeAndApply(commandBus,command,(result)=>{draft.revision=remoteRevision(result,draft.revision);})}:{kind:'command',value:command};
     }
     case 'start': {
-      const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision});
+      const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision,preparationConfirmation:payload.preparationConfirmation||null});
       if(!commandBus){startExecution(execution,{actor});return {kind:'execution',value:execution};}
       if(!isOnline(online)){
         if(offlinePermit?.canStart!==true)throw new Error('M26_OFFLINE_START_NOT_ALLOWED');
@@ -485,7 +485,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await flushExecutionDraft(context);
     if(!context?.execution||!context?.recoveryCoordinator)return;
     if(recoveryCheckpoint)await recoveryCheckpoint;
-    await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
+    await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision,preparationConfirmation:context.preparationConfirmation||null});
     await context.recoveryCoordinator.settle(context.execution);
   }
   function persistLifecycleContext(context=getContext()){
@@ -515,7 +515,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!context?.execution||!context?.session)throw new Error('M26_SESSION_EXECUTION_REQUIRED');
     const task=async()=>{
       await flushAutosave(context);
-      const result=dispatchSessionAction({...context,action:'start',payload:{appointmentId:context.appointmentId,sessionRevision:context.sessionRevision}});
+      const result=dispatchSessionAction({...context,action:'start',payload:{appointmentId:context.appointmentId,sessionRevision:context.sessionRevision,preparationConfirmation:context.preparationConfirmation||null}});
       return await result.value;
     };
     try{
@@ -622,7 +622,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
     const actionState=context.actionState;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
-    const task=async()=>{await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();await flushExecutionDraft(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
+    const task=async()=>{await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();await flushExecutionDraft(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;payload.preparationConfirmation=context.preparationConfirmation||null;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
     if(action==='skip-exercise')payload.reason=root.querySelector?.('[data-session-skip-exercise-reason]')?.value;
     if(action==='add-live-exercise'){
