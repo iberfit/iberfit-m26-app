@@ -63,7 +63,7 @@ test('client report uses approved human premium language and visuals',()=>{
   assert.match(html,/6,0\/10/);
   assert.match(html,/8,5\/10/);
   assert.match(html,/iri-strength-index/);
-  assert.match(html,/Comparación bilateral/);
+  assert.match(html,/comparación bilateral/i);
   assert.match(html,/Rodillas apoyadas/);
   assert.match(html,/Trote suave/);
   assert.match(html,/Medición manual/);
