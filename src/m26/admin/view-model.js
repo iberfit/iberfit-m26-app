@@ -2,6 +2,7 @@ import {adminCan,ADMIN_CAPABILITIES,routeAllowedForAdmin} from './permission-pol
 import {adminCollection} from './admin-state.js';
 import {clientsOverview} from '../modules/domain-selectors.js';
 import {deriveClientExperience,experienceNextAction} from '../experience/client-experience.js';
+import {hasTrainingService,trainingServiceStatusFrom} from '../domain/training-service.js';
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
@@ -41,7 +42,7 @@ function clientRows(state){
     const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
     const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
-    const nextAction=String(life.get(id)?.status||'')==='iri_only'?structuralNextAction:adaptiveExperience.action;
+    const nextAction=experience.serviceKind!=='training'?structuralNextAction:adaptiveExperience.action;
     const rawProfile=profiles.get(id)||null;
     const profile=rawProfile?.profile&&typeof rawProfile.profile==='object'&&!Array.isArray(rawProfile.profile)?clone(rawProfile.profile):{};
     const access=clone(accessByClient.get(id)||null);
@@ -61,7 +62,8 @@ function clientRows(state){
       access,
       lifecycle:clone(life.get(id)||null),
       lifecycleStatus:String(life.get(id)?.status||x.status||''),
-      serviceKind:String(life.get(id)?.status||x.status||'')==='iri_only'?'iri_only':'training',
+      serviceKind:experience.serviceKind,
+      trainingServiceStatus:trainingServiceStatusFrom(x),
       assignments:activeAssignments,
       coachNames,
       primaryCoachName:coachNames[0]||null,
@@ -240,7 +242,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   const trainingAssignment=(assignment)=>{
     const client=clientById.get(recordId(assignment?.clientId));
-    return normalizeStatus(client?.lifecycle?.status||client?.status)!=='iri_only';
+    return hasTrainingService(client);
   };
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId&&trainingAssignment(assignment));
