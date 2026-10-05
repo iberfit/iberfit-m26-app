@@ -85,6 +85,19 @@ function populateClientEditForm(root,record){
     if(!control)continue;
     control.value=String(record[key]??'');
   }
+  const training=String(record.serviceKind||'none')==='training';
+  for(const wrapper of form.querySelectorAll?.('[data-client-edit-training-only]')||[]){
+    wrapper.hidden=!training;
+    wrapper.setAttribute?.('aria-hidden',training?'false':'true');
+  }
+  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
+    const control=form.elements?.namedItem?.(name);
+    if(!control)continue;
+    control.disabled=!training;
+    control.required=training;
+    if(training)control.setAttribute?.('required','');
+    else control.removeAttribute?.('required');
+  }
   const email=dialog.querySelector?.('[data-admin-client-edit-email]');
   if(email)email.textContent=String(record.email||'Sin correo de acceso');
   return {dialog,form};
