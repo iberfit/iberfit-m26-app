@@ -113,12 +113,16 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
   const after=Number(await page.locator('[data-iri-photo-point="front:shoulderLeft"]').first().getAttribute('data-x'));
   expect(after).toBeGreaterThan(before);
 
+  const pelvisBefore=page.locator('[data-iri-photo-point="front:pelvisLeft"]').first();
+  const pelvisBeforeX=Number(await pelvisBefore.getAttribute('data-x'));
+  const pelvisBeforeY=Number(await pelvisBefore.getAttribute('data-y'));
   await page.locator('[data-iri-photo-mark="front:pelvisLeft"]').click();
   const canvas=page.locator('[data-iri-photo-canvas="front"]');
   await canvas.scrollIntoViewIfNeeded();
   const box=await canvas.boundingBox();
   expect(box).not.toBeNull();
-  const target={x:box.x+box.width*.42,y:box.y+box.height*.62};
+  const requested={x:.42,y:.62};
+  const target={x:box.x+box.width*requested.x,y:box.y+box.height*requested.y};
   const viewport=page.viewportSize();
   expect(viewport).not.toBeNull();
   expect(target.x).toBeGreaterThanOrEqual(0);
@@ -128,7 +132,12 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
   if(testInfo.project.use.hasTouch)await page.touchscreen.tap(target.x,target.y);
   else await page.mouse.click(target.x,target.y);
   const moved=page.locator('[data-iri-photo-point="front:pelvisLeft"]').first();
-  await expect(moved).toHaveAttribute('data-x',/^(?:0\.4|0\.41|0\.42|0\.43)/u);
+  await expect.poll(async()=>Number(await moved.getAttribute('data-x'))).toBeGreaterThan(pelvisBeforeX+.02);
+  const movedX=Number(await moved.getAttribute('data-x'));
+  const movedY=Number(await moved.getAttribute('data-y'));
+  expect(Math.abs(movedX-requested.x)).toBeLessThanOrEqual(.03);
+  expect(Math.abs(movedY-requested.y)).toBeLessThanOrEqual(.03);
+  expect(Math.abs(movedY-pelvisBeforeY)).toBeGreaterThan(.02);
 
   const layout=await page.evaluate(()=>({
     viewport:innerWidth,
