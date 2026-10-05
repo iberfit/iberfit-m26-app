@@ -13,14 +13,32 @@ Checkpoint: 2026-10-05. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`
 - [x] Prescripción ≠ observación; objetivo planificado no inventa RPE/RIR.
 - [x] Ruleset `Protect Canary` activo con required checks estrictos `validate` + `canary-policy-gate`.
 
-## MACRO-WIP EN CURSO · Experiencia Guiada 360 · PR #727
+## WIP CERRADO · Experiencia Guiada 360 · PR #727
 
-- [ ] Coach Live: autocompletar solo lo seguro, preservar trabajo humano y llevar al dato humano pendiente.
-- [ ] Planificación: reutilizar memoria confirmada de ejercicio como borrador revisable, nunca como prescripción automática irreversible.
-- [ ] Admin alta/edición: campos contextuales, borrador y foco al primer dato realmente necesario.
-- [ ] Onboarding/continuidad: no pedir lo ya conocido, ocultar lo que no aplica y guiar al siguiente paso.
-- [ ] Capa común reutilizable para autocompletado seguro y foco.
-- [ ] Recertificar i18n, PWA, offline/recovery, Client Interaction, Device Experience, Admin Matrix y Session QA sobre el HEAD exacto antes de merge.
+- [x] Coach Live autocompleta solo lo seguro, preserva trabajo humano y lleva al dato humano pendiente.
+- [x] Planificación reutiliza memoria confirmada de ejercicio como borrador revisable; RPE/RIR observados no se inventan.
+- [x] Admin alta/edición usa campos contextuales, borrador y foco al primer dato necesario.
+- [x] Onboarding/continuidad evita pedir de nuevo lo conocido y oculta lo que no aplica.
+- [x] Merge SHA `bb41367341604babf018e1ea4774c368673e1189`; promoción PROD #314 SUCCESS.
+
+## WIP CERRADO · UX/Autocompletado Global 360 · PR #728
+
+- [x] Dato confirmado → puede proponerse; desconocido → permanece vacío; edición humana → prevalece.
+- [x] Planificación usa ciclo → IRI → perfil confirmado sin defaults profesionales inventados.
+- [x] Agenda reutiliza modalidad/duración/dirección confirmadas y deja de autocompletar tras edición manual.
+- [x] Admin/Onboarding/Engagement/Comunicación/Biblioteca/Informes comparten progreso guiado idempotente.
+- [x] Merge SHA `56421d74fa52b08a949c34ef6c016162882d217b`; Canary Exact Deploy y gates UX post-merge SUCCESS.
+- [x] Production Promotion #315, run `37332004338`: SUCCESS; rollback no requerido.
+
+## MACRO-WIP EN CURSO · Interaction Reliability 360
+
+- [ ] Hardening global de autofill/focus/caret/select para formularios autenticados, sin degradar el contrato Auth específico.
+- [ ] Scroll seguro de controles enfocados frente a topbar, teclado virtual, navegación inferior y safe areas.
+- [ ] Overlays/modales con overscroll contenido, touch momentum y scroll estable.
+- [ ] PWA instalada: añadir tablet landscape a la matriz N-1 → N.
+- [ ] Reconciliar Device Policy con Admin autenticado/WebAuthn recurrente real ya existente en Canary.
+- [ ] Ejecutar matriz Admin Chromium/WebKit/Firefox + desktop/tablet portrait/tablet landscape/mobile sobre controles reales.
+- [ ] Recertificar CI, Admin Matrix, Device Experience, PWA, Client Interaction, Auth/WebAuthn y Canary exacto antes de PROD.
 
 ## WIP CERRADO · Personas + IRI real en terreno + Solo IRI
 
@@ -111,10 +129,10 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 - [x] Coach autenticado + WebAuthn representativo en Device Gate.
 - [x] Admin sintético y PWA/update matrix certificados.
 - [x] Focus/input/select P0 corregido en flujos previamente certificados.
-- [ ] Corregir regresión visual global de inputs en focus/autofill/password: fondo blanco y texto/caret ilegible en login; resolver en la primitiva compartida y recertificar formularios críticos por dispositivo.
+- [ ] **En curso en Interaction Reliability 360:** hardening global de focus/autofill/password/select y recertificación por navegador/dispositivo.
 - [x] Acciones Coach de un paso portadas sobre Canary certificado.
-- [ ] Admin autenticado QA real desktop/tablet/móvil.
-- [ ] Modal, scroll largo, teclado virtual/focus, error recovery y sesión live por dispositivo con Admin real.
+- [x] Admin autenticado QA real recurrente + WebAuthn en desktop, tablet portrait, tablet landscape y móvil mediante workflow dedicado de Canary.
+- [ ] **En curso:** modal/scroll largo/teclado virtual/focus y surfaces con scroll propio; Admin real recurrente ya está GREEN.
 - [ ] Recertificar alta/edición/baja controlada de Cliente y Coach con identidad Admin QA real y sin freezes.
 
 ## P1 · producto / entrenamiento
