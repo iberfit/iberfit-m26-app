@@ -55,7 +55,7 @@ test('Admin mutation forms and critical controls remain present in source',()=>{
   const source=read('src/m26/admin/route-render.js');
   for(const form of [
     'user-status','role-change','assignment-create','assignment-end',
-    'client-create','lead-create','lead-update','client-lifecycle','client-delete',
+    'client-create','lead-create','lead-update','client-training-service','client-delete',
     'task-create','task-resolve','template-save','automation-save','settings-save'
   ]){
     assert.ok(source.includes('data-admin-form="${kind}"')||source.includes("'"+form+"'"));
