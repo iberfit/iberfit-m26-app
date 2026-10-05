@@ -1,3 +1,4 @@
+import {trainingServiceStatusFrom} from '../domain/training-service.js';
 const KIND_RANK=Object.freeze({critical:0,warning:1,process:2,info:3,clear:4});
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -10,10 +11,11 @@ function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(s
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const sourceClients=arr(clients);
-  const peopleWithoutTraining=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()!=='training');
-  const trainingClients=sourceClients.filter((client)=>text(client?.serviceKind).toLowerCase()==='training');
-  const pausedClients=trainingClients.filter((client)=>text(client?.trainingServiceStatus).toLowerCase()==='paused');
-  const activeTrainingClients=trainingClients.filter((client)=>text(client?.trainingServiceStatus,'active').toLowerCase()==='active');
+  const serviceStatus=(client)=>trainingServiceStatusFrom(client);
+  const peopleWithoutTraining=sourceClients.filter((client)=>serviceStatus(client)==='none'||serviceStatus(client)==='ended');
+  const trainingClients=sourceClients.filter((client)=>['active','paused'].includes(serviceStatus(client)));
+  const pausedClients=trainingClients.filter((client)=>serviceStatus(client)==='paused');
+  const activeTrainingClients=trainingClients.filter((client)=>serviceStatus(client)==='active');
   const normalizedClients=activeTrainingClients.map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
