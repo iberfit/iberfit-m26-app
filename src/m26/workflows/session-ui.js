@@ -956,6 +956,7 @@ const setEntryFields=isCoach
         </div>
         ${coachQuickRpe}
       </div>
+      <small class="m26-session-guided-entry-note">IBERFIT completa automáticamente lo seguro. Revisa los datos y registra el RPE real.</small>
     </div>`
   :`<div class="m26-field-grid m26-session-set-fields">
       <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
