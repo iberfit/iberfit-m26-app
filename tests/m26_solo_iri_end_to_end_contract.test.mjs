@@ -142,6 +142,8 @@ test('mutar el servicio exige Admin, assurance privilegiado, razón e idempotenc
   assert.match(migration,/V1_TRAINING_SERVICE_ADMIN_REQUIRED/u);
   assert.match(migration,/char_length\(v_reason\)<3/u);
   assert.match(migration,/iberfit_admin_mutation_receipts/u);
-  assert.match(migration,/revoke all on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) from public,anon/u);
-  assert.match(migration,/grant execute on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) to authenticated,service_role/u);
+  assert.match(migration,/revoke all on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) from public,anon,authenticated/u);
+  assert.match(migration,/grant execute on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) to service_role/u);
+  assert.match(migration,/revoke all on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) from public,anon,authenticated/u);
+  assert.match(migration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) to service_role/u);
 });
