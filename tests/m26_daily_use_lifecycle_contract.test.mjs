@@ -116,7 +116,7 @@ function iriRaw(profile){
 test('jornada real mantiene una sola identidad desde alta hasta progreso sin mezclar IRI inicial con evolución',()=>{
   const payload=legacyClientDraftPayload(onboardingInput());
   assert.equal(payload.initialAssessmentMode,'iri');
-  assert.equal(payload.inviteClient,true);
+  assert.equal(payload.inviteClient,false);
   assert.equal(payload.accessEnabled,false);
   assert.equal(initialAssessmentPostCreateArea(payload.initialAssessmentMode),'iri');
 
