@@ -189,6 +189,9 @@ function renderCoachHoyRoute(vm) {
   const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
   const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
   const clients=Array.isArray(vm.clients)?vm.clients:[];
+  const activeServiceClientIds=new Set(
+    clients.filter((item)=>item?.serviceActive!==false).map((item)=>String(item?.id||'').trim()).filter(Boolean)
+  );
   const queueItems=(cockpit?.items||[]).slice(0,4);
   const riskFocus=cockpit?.riskFocus||null;
   const processFocus=(cockpit?.items||[]).find((item)=>item?.kind==='process')||null;
@@ -304,7 +307,7 @@ function renderCoachHoyRoute(vm) {
       :null;
 
   const agendaBody=appointments.length
-    ?appointments.slice(0,4).map((item)=>appointmentCard(item,{canStartSession:true})).join('')
+    ?appointments.slice(0,4).map((item)=>appointmentCard(item,{canStartSession:activeServiceClientIds.has(String(item?.clientId||'').trim())})).join('')
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">✓</span>
         <div><strong>Agenda libre hoy</strong><small>Sin sesiones confirmadas.</small></div>
@@ -405,6 +408,7 @@ function renderCoachHoyRoute(vm) {
 
 function renderClientHoyRoute(vm) {
   const client=vm.clients?.[0]||null;
+  const serviceActive=client?.serviceActive!==false;
   const name=client?.name||'IBERFIT';
   const communicationAvailable=vm?.clientGuide?.communicationAvailable!==false;
   const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
@@ -413,7 +417,7 @@ function renderClientHoyRoute(vm) {
     ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
     :[];
   const executableIds=new Set(
-    projections
+    (serviceActive?projections:[])
       .filter(
         (item)=>
           item?.canClientExecute===true&&
@@ -549,7 +553,7 @@ function renderClientHoyRoute(vm) {
     .filter((item)=>!runnable||String(item?.id||'').trim()!==String(runnable?.id||'').trim())
     .slice(0,2);
   const appointmentMarkup=agendaItems.map((item)=>appointmentCard(item,{
-    canStartSession:executableIds.has(String(item?.sessionId||'').trim()),
+    canStartSession:serviceActive&&executableIds.has(String(item?.sessionId||'').trim()),
   })).join('');
   const iriCompleted=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
   const iriPending=Boolean(client?.iri&&!iriCompleted);
