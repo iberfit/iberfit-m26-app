@@ -84,7 +84,13 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     evaluatedWithoutTraining:peopleWithoutTraining.filter((client)=>client?.experience?.readiness?.iriConfirmed===true).length,
     unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
-    iriPending:activeTrainingClients.filter((client)=>client?.experience?.readiness?.iriRecommended===true&&client?.experience?.readiness?.iriConfirmed!==true).length,
+    iriPending:activeTrainingClients.filter((client)=>{
+      const experience=client?.experience||{};
+      return experience.stage==='evaluation'||(
+        experience?.readiness?.iriRecommended===true&&
+        experience?.readiness?.iriConfirmed!==true
+      );
+    }).length,
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
     openTasks:openTasks.length,
