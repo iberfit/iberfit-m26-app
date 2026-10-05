@@ -3,6 +3,7 @@ import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import {confirmedFirstSessionDraft,firstSessionCompletion,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
 import {iriProtocolById} from './vendor/workflows/iri-protocol-catalog.js';
 import {scoreIriPerformance} from './vendor/norms/iri-scoring.js';
+import {clientIriAreaRatings} from './vendor/workflows/iri-client-area-ratings.js';
 import {buildIriPhotogrammetryDecisionSupport} from './vendor/workflows/iri-evidence-engine.js';
 import {
   IRI_PHOTO_VIEWS,
@@ -375,10 +376,32 @@ function pdfDomainScore(scoring:any,key:string){
 function pdfProtocolName(cardio:any){
   const protocol=String(cardio?.protocol||'');
   if(protocol==='treadmill-3min-field')return 'Cinta · 3 minutos';
-  if(protocol==='ymca-3min-standard')return 'YMCA Step Test · 3 minutos';
-  if(protocol==='1msts-standard')return '1MSTS · 60 segundos';
-  if(protocol==='iberfit-3min-adapted')return 'Step 3 min adaptado';
+  if(protocol==='ymca-3min-standard')return 'Prueba de escalón YMCA · 3 minutos';
+  if(protocol==='1msts-standard')return 'Sentarse y levantarse · 1 minuto';
+  if(protocol==='iberfit-3min-adapted')return 'Escalón adaptado · 3 minutos';
   return protocol||'Protocolo no identificado';
+}
+function pdfClientProtocolName(value:unknown){
+  const raw=pdfSafe(value,100);
+  const lower=raw.toLocaleLowerCase('es');
+  if(lower.includes('back-saver')||lower.includes('sit-and-reach'))return 'Flexión anterior sentado unilateral';
+  if(lower.includes('thomas'))return 'Thomas modificado';
+  if(lower.includes('1msts'))return 'Sentarse y levantarse · 1 minuto';
+  if(lower.includes('ymca'))return 'Prueba de escalón YMCA · 3 minutos';
+  if(lower.includes('step'))return raw.replace(/step/giu,'escalón');
+  return raw||'Prueba';
+}
+function pdfClientCardioValue(value:unknown){
+  const raw=String(value||'').trim().toLowerCase();
+  const labels:Record<string,string>={
+    jog:'Trote suave',walk:'Caminar',run:'Correr',
+    manual:'Medición manual',watch:'Reloj / sensor óptico','chest-strap':'Banda pectoral',treadmill:'Sensor de la cinta',
+    'standing-passive':'De pie · pasiva','walking-active':'Caminando · activa','seated-passive':'Sentada · pasiva','other-documented':'Otra · documentada',
+  };
+  return labels[raw]||pdfSafe(value,100);
+}
+function pdfAreaRating(rating:any){
+  return rating&&Number.isFinite(Number(rating.score))?pdfNum(rating.score,1)+'/10':'—';
 }
 function pdfStrengthVariant(value:unknown){
   const variant=String(value||'').trim().toLowerCase();
@@ -427,7 +450,7 @@ function pdfClientProtocolRows(records:any[]){
   const groups=new Map<string,{name:string,sides:string[],variants:string[],configurations:string[]}>();
   for(const record of Array.isArray(records)?records:[]){
     const key=String(record?.testId||record?.testName||'prueba');
-    const group=groups.get(key)||{name:pdfSafe(record?.testName||'Prueba',100),sides:[],variants:[],configurations:[]};
+    const group=groups.get(key)||{name:pdfClientProtocolName(record?.testName||'Prueba'),sides:[],variants:[],configurations:[]};
     const side=pdfProtocolSide(record?.side),variant=pdfProtocolVariant(record),configuration=pdfSafe(record?.configuration,150);
     if(side&&!group.sides.includes(side))group.sides.push(side);
     if(variant&&!group.variants.includes(variant))group.variants.push(variant);
@@ -476,6 +499,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
   const client=pdfSafe(clientName,140)||'Cliente IBERFIT';
   const coach=pdfSafe(coachName,140)||'Coach IBERFIT';
   const scoring=scoreIriPerformance(draft);
+  const ratings=clientIriAreaRatings(draft,scoring);
   const global=scoring?.global||{};
   const completion=firstSessionCompletion(draft);
   const logo=await pdfImage(doc,appOrigin+'/public/isotipo-iberfit.png');
@@ -506,19 +530,35 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
 
   n+=1;
   {
-    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Lectura ejecutiva','Qué encontramos y cómo condiciona la planificación');
-    pdfMetric(page,fonts,'Completitud',String(Number(completion?.percent||0))+'%',PDF_M,674,147,String(completion?.complete||0)+'/'+String(completion?.total||0)+' etapas');
-    pdfMetric(page,fonts,'Puntuación funcional',global?.available?pdfNum(global.score10,1)+'/10':'—',PDF_M+160,674,147,global?.available?String(global?.coverage?.scoredDomains||0)+'/3 dominios':'Cobertura insuficiente');
-    pdfMetric(page,fonts,'Confianza',global?.confidence==='high'?'Alta':global?.confidence==='moderate'?'Moderada':'Insuficiente',PDF_M+320,674,147,'Sin sobreinterpretar datos');
-    let y=588;
-    y=pdfField(page,fonts,'OBJETIVO PRINCIPAL',draft?.personProfile?.primaryObjective||'Sin objetivo registrado',y);
-    y=pdfField(page,fonts,'FRECUENCIA RECOMENDADA',draft?.diagnosis?.recommendedFrequency||String(draft?.personProfile?.weeklyFrequency||'—')+' sesiones/semana',y);
-    y=pdfField(page,fonts,'PLAN INICIAL',draft?.diagnosis?.initialPlan,y);
-    y=pdfField(page,fonts,'IMPLICACIONES PARA EL ENTRENAMIENTO',draft?.diagnosis?.trainingImplications,y);
-    const leftY=pdfBullets(page,fonts,'Fortalezas',draft?.diagnosis?.strengths||[],PDF_M,315,230);
-    pdfBullets(page,fonts,'Prioridades',draft?.diagnosis?.priorities||[],PDF_M+270,315,230);
-    page.drawText('Interpretación del coach',{x:PDF_M,y:Math.min(leftY,195),size:10.5,font:fonts.bold,color:PDF_C.ink});
-    pdfText(page,fonts.regular,draft?.diagnosis?.coachInterpretation||'Sin interpretación adicional registrada.',PDF_M,Math.min(leftY,177),PDF_W-PDF_M*2,9,12,PDF_C.ink2,7);
+    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),audience==='cliente'?'Tu punto de partida':'Lectura ejecutiva',audience==='cliente'?'Una lectura clara de lo que haces bien y dónde tienes más margen':'Qué encontramos y cómo condiciona la planificación');
+    if(audience==='cliente'){
+      pdfMetric(page,fonts,'Movimiento',pdfAreaRating(ratings.movement),PDF_M,674,147,'Equilibrio, rango y control');
+      pdfMetric(page,fonts,'Fuerza',pdfAreaRating(ratings.strength),PDF_M+160,674,147,'Punto de partida por patrones');
+      pdfMetric(page,fonts,'Recuperación',pdfAreaRating(ratings.recovery),PDF_M+320,674,147,'Respuesta tras el esfuerzo');
+      pdfText(page,fonts.regular,'Estas valoraciones ayudan a entender tu punto de partida. Cuando existe un baremo compatible se utiliza; en pruebas de campo la nota es orientativa y no pretende compararte con una población que no corresponde.',PDF_M,607,PDF_W-PDF_M*2,8.4,11.3,PDF_C.ink2,4);
+      let y=548;
+      y=pdfField(page,fonts,'LO MEJOR DE HOY',Array.isArray(draft?.diagnosis?.strengths)&&draft.diagnosis.strengths.length?draft.diagnosis.strengths[0]:'Fortaleza pendiente de revisión',y);
+      y=pdfField(page,fonts,'DÓNDE PUEDES GANAR MÁS',Array.isArray(draft?.diagnosis?.priorities)&&draft.diagnosis.priorities.length?draft.diagnosis.priorities[0]:'Prioridad pendiente de revisión',y);
+      y=pdfField(page,fonts,'LECTURA DEL ENTRENADOR',draft?.diagnosis?.coachInterpretation||'Sin interpretación adicional registrada.',y);
+      pdfEditorialPanel(page,fonts,'Cómo leer el informe',[
+        'No buscamos una postura perfecta ni una nota global artificial.',
+        'Los resultados se interpretan junto con la variante realizada, el movimiento y el contexto real.',
+        'Este IRI es tu referencia inicial; la evolución se medirá después con pruebas comparables.',
+      ],PDF_M,Math.min(y-4,300),PDF_W-PDF_M*2);
+    }else{
+      pdfMetric(page,fonts,'Completitud',String(Number(completion?.percent||0))+'%',PDF_M,674,147,String(completion?.complete||0)+'/'+String(completion?.total||0)+' etapas');
+      pdfMetric(page,fonts,'Puntuación funcional',global?.available?pdfNum(global.score10,1)+'/10':'—',PDF_M+160,674,147,global?.available?String(global?.coverage?.scoredDomains||0)+'/3 dominios':'Cobertura insuficiente');
+      pdfMetric(page,fonts,'Confianza',global?.confidence==='high'?'Alta':global?.confidence==='moderate'?'Moderada':'Insuficiente',PDF_M+320,674,147,'Sin sobreinterpretar datos');
+      let y=588;
+      y=pdfField(page,fonts,'OBJETIVO PRINCIPAL',draft?.personProfile?.primaryObjective||'Sin objetivo registrado',y);
+      y=pdfField(page,fonts,'FRECUENCIA RECOMENDADA',draft?.diagnosis?.recommendedFrequency||String(draft?.personProfile?.weeklyFrequency||'—')+' sesiones/semana',y);
+      y=pdfField(page,fonts,'PLAN INICIAL',draft?.diagnosis?.initialPlan,y);
+      y=pdfField(page,fonts,'IMPLICACIONES PARA EL ENTRENAMIENTO',draft?.diagnosis?.trainingImplications,y);
+      const leftY=pdfBullets(page,fonts,'Fortalezas',draft?.diagnosis?.strengths||[],PDF_M,315,230);
+      pdfBullets(page,fonts,'Prioridades',draft?.diagnosis?.priorities||[],PDF_M+270,315,230);
+      page.drawText('Interpretación del coach',{x:PDF_M,y:Math.min(leftY,195),size:10.5,font:fonts.bold,color:PDF_C.ink});
+      pdfText(page,fonts.regular,draft?.diagnosis?.coachInterpretation||'Sin interpretación adicional registrada.',PDF_M,Math.min(leftY,177),PDF_W-PDF_M*2,9,12,PDF_C.ink2,7);
+    }
   }
 
   n+=1;
@@ -547,7 +587,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
 
   n+=1;
   {
-    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Composición y movilidad','Referencia inicial; no sustituye valoración clínica');
+    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),audience==='cliente'?'Composición y movimiento':'Composición y movilidad',audience==='cliente'?'Tu referencia inicial, leída con contexto':'Referencia inicial; no sustituye valoración clínica');
     const body=draft?.bodyComposition||{};
     const mobility=draft?.mobility||{};
     pdfMetric(page,fonts,'Peso',body?.skipped?'No evaluado':pdfNum(body.weightKg,1)+' kg',PDF_M,674);
@@ -556,7 +596,8 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     pdfMetric(page,fonts,'Cintura',body?.skipped?'No evaluado':pdfNum(body.waistCm,1)+' cm',PDF_M,605);
     pdfMetric(page,fonts,'Agua corporal',body?.skipped?'No evaluado':pdfNum(body.bodyWaterPercent,1)+' %',PDF_M+160,605);
     pdfMetric(page,fonts,'Grasa visceral',body?.skipped?'No evaluado':pdfNum(body.visceralFatLevel),PDF_M+320,605);
-    let y=515;
+    if(audience==='cliente')pdfMetric(page,fonts,'Valoración movimiento',pdfAreaRating(ratings.movement),PDF_M,540,147,'Orientativa · no clínica');
+    let y=audience==='cliente'?462:515;
     y=pdfField(page,fonts,'TOBILLO · RODILLA A PARED',mobility?.ankle?.skipped?'No evaluado':'Izq. '+pdfNum(mobility?.ankle?.leftBest,1)+' cm · Der. '+pdfNum(mobility?.ankle?.rightBest,1)+' cm · asimetría '+pdfNum(mobility?.ankle?.asymmetryCm,1)+' cm',y);
     y=pdfField(page,fonts,'CADENA POSTERIOR',mobility?.posteriorChain?.skipped?'No evaluado':'Izq. '+pdfNum(mobility?.posteriorChain?.leftBest,1)+' cm · Der. '+pdfNum(mobility?.posteriorChain?.rightBest,1)+' cm · asimetría '+pdfNum(mobility?.posteriorChain?.asymmetryCm,1)+' cm',y);
     y=pdfField(page,fonts,'ROTACIÓN DE CADERA',mobility?.hipRotation?.skipped?'No evaluado':mobility?.hipRotation?.result,y);
@@ -572,7 +613,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
 
   n+=1;
   {
-    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Fuerza y capacidad funcional','Comparar siempre con la misma variante y configuración');
+    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),audience==='cliente'?'Fuerza y recuperación':'Fuerza y capacidad funcional',audience==='cliente'?'Tu base de fuerza y cómo recuperaste tras el esfuerzo':'Comparar siempre con la misma variante y configuración');
     const strength=draft?.strengthAssessment||draft?.strength||{};
     const cardio=draft?.cardio||{};
     pdfMetric(page,fonts,'Silla 30 s',strength?.lowerBody?.skipped?'No evaluado':pdfNum(strength?.chairStand?.repetitions)+' rep',PDF_M,674);
@@ -581,9 +622,13 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     pdfMetric(page,fonts,'Plancha frontal',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.frontPlankSeconds)+' s',PDF_M,605);
     pdfMetric(page,fonts,'Lateral izq.',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.sidePlankLeftSeconds)+' s',PDF_M+160,605);
     pdfMetric(page,fonts,'Lateral der.',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.sidePlankRightSeconds)+' s',PDF_M+320,605);
+    if(audience==='cliente'){
+      pdfMetric(page,fonts,'Valoración fuerza',pdfAreaRating(ratings.strength),PDF_M,540,147,'Orientativa según variantes');
+      pdfMetric(page,fonts,'Valoración recuperación',pdfAreaRating(ratings.recovery),PDF_M+160,540,147,'Respuesta observada');
+    }
     const protocol=String(cardio?.protocol||'');
-    const protocolLabel=protocol==='treadmill-3min-field'?'Cinta · 3 minutos':protocol==='ymca-3min-standard'?'YMCA Step Test · 3 minutos':protocol==='1msts-standard'?'1MSTS · 60 segundos':protocol==='iberfit-3min-adapted'?'Step 3 min adaptado':'Protocolo no identificado';
-    let y=515;
+    const protocolLabel=pdfProtocolName(cardio);
+    let y=audience==='cliente'?462:515;
     y=pdfField(page,fonts,'PROTOCOLO DE ESFUERZO',cardio?.skipped?'No evaluado':protocolLabel,y);
     y=pdfField(page,fonts,'RESULTADO',cardio?.skipped?cardio?.skipReason:[
       Number.isFinite(Number(cardio?.speedKmh))&&pdfNum(cardio.speedKmh,1)+' km/h',
@@ -591,7 +636,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       Number.isFinite(Number(cardio?.repetitions))&&pdfNum(cardio.repetitions)+' rep',
       Number.isFinite(Number(cardio?.finalHr))&&'FC final '+pdfNum(cardio.finalHr)+' lpm',
       Number.isFinite(Number(cardio?.oneMinuteHr))&&'FC 1 min '+pdfNum(cardio.oneMinuteHr)+' lpm',
-      Number.isFinite(Number(cardio?.deltaOneMinute))&&'recuperación '+pdfNum(cardio.deltaOneMinute)+' lpm',
+      Number.isFinite(Number(cardio?.deltaOneMinute))&&'recuperación 1 min '+pdfNum(cardio.deltaOneMinute)+' lpm',
     ].filter(Boolean).join(' · ')||'Sin resultado interpretable',y);
     y=pdfField(page,fonts,'CONFIGURACIÓN TRX',strength?.trxRow?.skipped?'No evaluado':[
       Number.isFinite(Number(strength?.trxRow?.handleHeightCm))&&'asas '+pdfNum(strength.trxRow.handleHeightCm)+' cm',
@@ -609,10 +654,10 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
 
   n+=1;
   {
-    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),audience==='cliente'?'Dirección del entrenamiento':'Decisión y planificación','Cómo se traduce la evaluación en acciones concretas');
+    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),audience==='cliente'?'Qué merece atención':'Decisión y planificación',audience==='cliente'?'Una prioridad clara, sin convertir todo en un problema':'Cómo se traduce la evaluación en acciones concretas');
     const diagnosis=draft?.diagnosis||{};
     const records=Array.isArray(diagnosis?.priorityRecords)?diagnosis.priorityRecords.slice(0,3):[];
-    page.drawText('Prioridades',{x:PDF_M,y:674,size:11,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText(audience==='cliente'?'Tu prioridad principal':'Prioridades',{x:PDF_M,y:674,size:11,font:fonts.serifBold,color:PDF_C.ink});
     let y=650;
     if(records.length){
       for(let index=0;index<records.length;index+=1){
@@ -639,12 +684,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       page.drawSvgPath(signaturePath,{x:PDF_W-PDF_M-150,y:190,scale:.23,color:PDF_C.ink,opacity:.92});
       page.drawText('Carlos · IBERFIT',{x:PDF_W-PDF_M-142,y:116,size:7.2,font:fonts.serifItalic,color:PDF_C.muted});
     }
-    pdfText(page,fonts.regular,'La puntuación funcional no incorpora composición corporal ni fotogrametría. Las decisiones se apoyan en resultados, contexto, calidad de dato y criterio profesional.',PDF_M,78,PDF_W-PDF_M*2,8.4,11.5,PDF_C.ink2,5);
+    pdfText(page,fonts.regular,audience==='cliente'?'Este informe es una referencia inicial. Las notas por áreas ayudan a entender el punto de partida y no convierten una diferencia aislada en un diagnóstico.':'La puntuación funcional no incorpora composición corporal ni fotogrametría. Las decisiones se apoyan en resultados, contexto, calidad de dato y criterio profesional.',PDF_M,78,PDF_W-PDF_M*2,8.4,11.5,PDF_C.ink2,5);
   }
 
   if(photoReport?.available){
     n+=1;
-    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Fotogrametría','Mediciones posturales con trazabilidad y calidad de dato');
+    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),audience==='cliente'?'Análisis fotogramétrico':'Fotogrametría',audience==='cliente'?'Una referencia visual para comparar en el futuro':'Mediciones posturales con trazabilidad y calidad de dato');
     page.drawText('Estado: '+photoQuality(photoReport)+' · revisión '+String(Number(photoReport.analysisRevision||0)),{x:PDF_M,y:674,size:9.5,font:fonts.bold,color:PDF_C.gold});
     const lines=pdfPhotoMeasurementRows(photoReport?.measurements||{});
     let y=650;
@@ -683,7 +728,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       page.drawImage(image,{x:slot.x+(100-fit.w)/2,y:slot.y+(145-fit.h)/2,width:fit.w,height:fit.h});
       page.drawText(pdfPhotoView(photos[i]?.view||'Vista '+String(i+1)),{x:slot.x,y:slot.y-14,size:6.7,font:fonts.bold,color:PDF_C.muted});
     }
-    pdfText(page,fonts.regular,'La fotogrametría describe alineación y asimetrías visibles bajo las condiciones de captura. No constituye por sí sola un diagnóstico médico.',PDF_M,165,PDF_W-PDF_M*2,8.8,12,PDF_C.ink2,5);
+    pdfText(page,fonts.regular,audience==='cliente'?'Las fotos describen cómo estabas colocada en ese momento. Nos sirven como referencia inicial y ganan valor cuando se relacionan con movimiento, fuerza y futuras evaluaciones.':'La fotogrametría describe alineación y asimetrías visibles bajo las condiciones de captura. No constituye por sí sola un diagnóstico médico.',PDF_M,165,PDF_W-PDF_M*2,8.8,12,PDF_C.ink2,5);
   }
 
   if(audience==='coach'){
