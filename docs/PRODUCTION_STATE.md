@@ -82,7 +82,7 @@ No considerar releases posteriores en PROD sin otra promoción y verificación L
 - CI, Continuous Audit, Hosted Auth Security QA y Admin/Coach WebAuthn: SUCCESS sobre el mismo SHA. Device Experience pasó sobre `09733a94e973eb61e8f3b655422e7f2fc95b8418`; #658 sólo cambió helper del gate y sus tests, sin delta src/public/qa/supabase.
 - El HEAD de trabajo puede avanzar por documentación; no confundirlo con el source LIVE certificado.
 - P0 funcional demostrado: 0 en las rondas certificadas actuales.
-- Branch protection: no disponible mediante el conector GitHub actual; deuda P1 aún abierta.
+- Gobernanza Canary: la protección clásica no refleja toda la política; el ruleset `Protect Canary` (id `23254113`) está activo sobre `canary/rc74-4`, bloquea deletion/non-fast-forward, exige PR y required checks estrictos `validate` + `canary-policy-gate`. No tratarlo como P1 abierta.
 
 ### Contexto histórico del baseline documentado el 17/09
 
