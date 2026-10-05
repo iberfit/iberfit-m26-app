@@ -4,6 +4,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'logout-clear-device':{roles:['admin','coach','client'],domain:'shell'},
   'account-password-recovery':{roles:['admin','coach','client'],domain:'account'},
   'add-exercise':{roles:['admin','coach'],domain:'session'},
+  'reuse-exercise-memory':{roles:['admin','coach'],domain:'session'},
   'close-group':{roles:['admin','coach'],domain:'session'},
   'exit-session':{roles:['admin','coach','client'],domain:'session'},
   'remove-block':{roles:['admin','coach'],domain:'session'},
