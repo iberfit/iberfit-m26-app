@@ -124,7 +124,14 @@ test('planned shortcut translations cover supported surface languages',()=>{
   assert.equal(iberfitSurfaceTranslate('Usar objetivo y revisar',{language:'pt'}),'Usar objetivo e rever');
 });
 
-function controllerHarness(){
+test('guided automatic preparation copy is translated across supported surface languages',()=>{
+  const es='IBERFIT preparó esta serie con el objetivo planificado. Registra el esfuerzo real antes de confirmar.';
+  assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),'IBERFIT prepared this set with the planned target. Record the real effort before confirming.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),'IBERFIT a préparé cette série avec l’objectif planifié. Enregistrez l’effort réel avant de confirmer.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),'A IBERFIT preparou esta série com o objetivo planeado. Registe o esforço real antes de confirmar.');
+});
+
+function controllerHarness(role='coach'){
   const listeners=[];
   const s=session();
   const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-plan-controller'});
@@ -177,7 +184,7 @@ function controllerHarness(){
       execution,
       session:s,
       catalog,
-      actor:{role:'coach',userId:'coach-1'},
+      actor:{role,userId:`${role}-1`},
       recoveryCoordinator,
       actionState,
     }),
@@ -202,6 +209,17 @@ function controllerHarness(){
   };
   return {controller,execution,fields,actionState,click,event,get renderCalls(){return renderCalls;},get persistCalls(){return persistCalls;}};
 }
+
+test('automatic set preparation is Coach-only and never silently fills Client observations',()=>{
+  const harness=controllerHarness('client');
+  assert.equal(harness.fields.get('reps').value,'');
+  assert.equal(harness.fields.get('seconds').value,'');
+  assert.equal(harness.fields.get('load').value,'');
+  assert.equal(harness.fields.get('rpe').value,'');
+  assert.equal(harness.fields.get('rir').value,'');
+  assert.equal(harness.execution.activeSetDraft,undefined);
+  harness.controller.destroy();
+});
 
 test('Coach receives a safe automatic planned draft and explicit review focuses the human decision',async()=>{
   const harness=controllerHarness();
