@@ -10,7 +10,9 @@ export const TRAINING_OPERATIONAL_DATABASE=Object.freeze({
   cycles:'training_cycles',
   sessions:'sessions',
   executions:'session_executions',
-  events:'session_events',
+  eventJournal:'domain_events_v26',
+  commandJournal:'command_events_v26',
+  receipts:'command_receipts_v26',
   executionLocks:'active_execution_locks_v26',
   drafts:'m26_session_drafts_v431',
 });
@@ -18,6 +20,7 @@ export const TRAINING_OPERATIONAL_DATABASE=Object.freeze({
 export const TRAINING_LEGACY_COMPATIBILITY=Object.freeze({
   plans:'m26_training_plans_v43',
   sessions:'m26_training_sessions_v43',
+  sessionEvents:'session_events',
   writeRpc:'m26_save_training_session_v43',
 });
 
