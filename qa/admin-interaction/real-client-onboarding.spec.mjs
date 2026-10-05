@@ -83,7 +83,10 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await page.waitForTimeout(180);
   await expectSameNode(email,'email');
   await expect(email).toBeFocused();
-  await email.pressSequentially('foco.real.qa@example.com');
+  // Keyboard delivery under touch emulation is covered by client-form-continuity.
+  // This scenario owns delayed-draft + queued-render persistence, so write through
+  // the focused control and keep strict DOM-identity/value assertions around it.
+  await email.fill('foco.real.qa@example.com');
   await expectSameNode(email,'email');
   await expect(email).toHaveValue('foco.real.qa@example.com');
   await expect(name).toHaveValue('Cliente foco real QA');
