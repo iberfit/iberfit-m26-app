@@ -25,12 +25,15 @@ test('Entrenamiento Operativo declara una única topología canónica',()=>{
     cycles:'training_cycles',
     sessions:'sessions',
     executions:'session_executions',
-    events:'session_events',
+    eventJournal:'domain_events_v26',
+    commandJournal:'command_events_v26',
+    receipts:'command_receipts_v26',
     executionLocks:'active_execution_locks_v26',
     drafts:'m26_session_drafts_v431',
   });
   assert.equal(TRAINING_LEGACY_COMPATIBILITY.plans,'m26_training_plans_v43');
   assert.equal(TRAINING_LEGACY_COMPATIBILITY.sessions,'m26_training_sessions_v43');
+  assert.equal(TRAINING_LEGACY_COMPATIBILITY.sessionEvents,'session_events');
 });
 
 test('las lecturas canónicas ignoran colecciones legacy aunque coexistan',()=>{
