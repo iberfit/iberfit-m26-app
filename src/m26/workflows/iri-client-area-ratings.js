@@ -18,7 +18,7 @@ function includesAny(value,needles=[]){
 }
 function noPain(value){
   const source=text(value);
-  return !source||['no','ninguno','ninguna','sin dolor','sin síntomas','sin sintomas'].includes(source);
+  return !source||['no','ninguno','ninguna','sin dolor'].includes(source)||/^sin s[ií]ntomas?$/u.test(source);
 }
 function normScore(scoring,domain){
   const raw=scoring?.domainScores?.[domain]?.score10;
@@ -52,7 +52,7 @@ function movementRating(draft={},scoring={}){
   if(!squat?.skipped&&text(squat?.depth)){
     available+=4;
     points+=includesAny(squat.depth,['completa','profunda'])?2:includesAny(squat.depth,['parcial'])?1:0.5;
-    points+=includesAny(squat.knees,['buena','alineación','alineacion','estable'])?1:0.5;
+    points+=includesAny(squat.knees,['buena','alineaci','estable'])?1:0.5;
     points+=includesAny(squat.trunk,['bueno','buena','neutro','estable'])?1:includesAny(squat.trunk,['liger','leve'])?0:0.25;
   }
   if(al!==null&&ar!==null){
