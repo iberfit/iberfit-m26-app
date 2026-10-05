@@ -20,6 +20,7 @@ import {
 } from '../domain/appointment.js';
 import { normalizeClientProfile } from '../domain/client-profile.js';
 import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from '../domain/training-service.js';
+import {canonicalTrainingRecordsForClient} from '../domain/training-operational-truth.js';
 import {
   deriveClientExperience,
   experienceNextAction,
@@ -865,8 +866,8 @@ if (area === 'clientes') {
     const clientId = routeClientId(shellVm, state);
     const trainingActive=clientHasTrainingService(state,clientId);
     const serviceActive=clientTrainingServiceActive(state,clientId);
-    const sessions = recordsForClient(state, 'sessions', clientId);
-    const executions = recordsForClient(state, 'sessionExecutions', clientId);
+    const sessions = canonicalTrainingRecordsForClient(state,'sessions',clientId);
+    const executions = canonicalTrainingRecordsForClient(state,'executions',clientId);
     const role = String(shellVm.identity?.role || '');
     const catalogNames=new Map(
       (options.catalog||[])
