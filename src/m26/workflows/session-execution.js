@@ -241,6 +241,37 @@ export function previousSetDraftValues(execution){
     rir:previous.rir==null?'':String(previous.rir),
   };
 }
+
+function exactPlannedWorkValue(value){
+  const raw=String(value??'').trim();
+  if(!raw)return {reps:'',seconds:''};
+  const normalized=raw.replace(',','.').toLowerCase();
+  const reps=normalized.match(/^(\d+(?:\.\d+)?)$/u);
+  if(reps)return {reps:reps[1],seconds:''};
+  const seconds=normalized.match(/^(\d+(?:\.\d+)?)\s*(?:s|seg|segs|segundo|segundos)$/u);
+  if(seconds)return {reps:'',seconds:seconds[1]};
+  return {reps:'',seconds:''};
+}
+function safePlannedEffort(value,{min,max}){
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=min&&number<=max?String(number):'';
+}
+export function plannedSetDraftValues(execution,session){
+  const step=currentStep(execution,session);
+  if(!step)return null;
+  const planned=step.prescription||{};
+  const work=exactPlannedWorkValue(planned.reps);
+  const loadRaw=String(planned.plannedLoad??'').trim();
+  const load=/^(?:-|—|seg[uú]n indicaci[oó]n)$/iu.test(loadRaw)?'':loadRaw;
+  const values={
+    reps:work.reps,
+    seconds:work.seconds,
+    load:load.slice(0,80),
+    rpe:safePlannedEffort(planned.targetRpe,{min:1,max:10}),
+    rir:safePlannedEffort(planned.targetRir,{min:0,max:10}),
+  };
+  return Object.values(values).some((value)=>String(value).trim())?values:null;
+}
 export function hasNextExecutionStep(execution){return Boolean(nextUnresolvedPosition(execution));}
 export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null}={}){
   requireCoachActor(actor);
