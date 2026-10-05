@@ -10,10 +10,22 @@ const source=fs.readFileSync(
   'utf8',
 );
 
-test('catalog admin Edge Function mantiene auth Admin y rename explícito',()=>{
+test('catalog admin Edge Function mantiene auth Admin multiapp y rename explícito',()=>{
   assert.match(
     source,
-    /p\?\.role!=='admin'/,
+    /db\.rpc\('iberfit_application_context_v14'\)/,
+  );
+  assert.match(
+    source,
+    /context\?\.membershipStatus!=='active'/,
+  );
+  assert.match(
+    source,
+    /!roles\.includes\('admin'\)/,
+  );
+  assert.doesNotMatch(
+    source,
+    /from\('user_profiles'\)\.select\('role'\)/,
   );
 
   assert.match(
