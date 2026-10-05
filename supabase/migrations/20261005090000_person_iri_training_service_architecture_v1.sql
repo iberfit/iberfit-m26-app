@@ -114,6 +114,9 @@ alter table public.iri_assessments
 alter table public.iri_assessments
   add constraint iri_assessments_type_check
   check(assessment_type in ('inicial','reevaluacion'));
+create unique index if not exists iri_one_initial_per_person_v2
+  on public.iri_assessments(client_id)
+  where assessment_type='inicial';
 create index if not exists idx_iri_assessments_client_type_evaluated
   on public.iri_assessments(client_id,assessment_type,evaluated_at desc,created_at desc);
 
