@@ -33,6 +33,7 @@ test('compatibilidad histórica nunca gana sobre el estado explícito de servici
   assert.equal(trainingServiceStatusFrom({trainingServiceStatus:'none',lifecycleStatus:'active'}),'none');
   assert.equal(trainingServiceStatusFrom({trainingServiceStatus:'active',lifecycleStatus:'iri_only'}),'active');
   assert.equal(trainingServiceStatusFrom({lifecycleStatus:'iri_only'}),'none');
+  assert.equal(trainingServiceStatusFrom({}),'active');
   assert.equal(trainingServiceStatusFrom({lifecycleStatus:'onboarding'}),'active');
   assert.equal(hasTrainingService({trainingServiceStatus:'paused'}),true);
   assert.equal(hasTrainingService({trainingServiceStatus:'ended'}),false);
