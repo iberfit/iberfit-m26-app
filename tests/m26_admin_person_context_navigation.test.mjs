@@ -14,12 +14,13 @@ import {
 
 const routeRender=await readFile(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
 const shellController=await readFile(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
+const shellRender=await readFile(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
 
-test('Admin person routes are authorized but never globally discoverable',()=>{
+test('Admin person routes stay authorized and classified as contextual',()=>{
   const navigation=navigationForRole('admin');
-  const globalKeys=[...navigation.primary,...navigation.context,...navigation.tools].map((item)=>item.key);
+  const contextualKeys=navigation.context.map((item)=>item.key);
   for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
-    assert.equal(globalKeys.includes(area),false,area);
+    assert.equal(contextualKeys.includes(area),true,area);
     assert.equal(areaAllowedForRole(area,'admin'),true,area);
     assert.equal(isAdminClientContextArea(area),true,area);
   }
@@ -42,4 +43,12 @@ test('Admin reaches person context from an explicit person action, not from glob
   assert.match(shellController,/const contextualClientButton=event\.target\.closest\?\.\('\[data-m26-open-client-area\]'\)/u);
   assert.match(shellController,/const targetArea=roleScopedArea\(current,rawTargetArea\)/u);
   assert.match(shellController,/\?adminClientContextArea\(value\)/u);
+});
+
+
+test('Admin shell hides person-context destinations until a person is active and shares that rule with mobile More',()=>{
+  assert.match(shellRender,/hideAdminPersonContext=String\(vm\?\.identity\?\.role\|\|''\)==='admin'&&!vm\?\.selectedClient/u);
+  assert.match(shellRender,/personContext=hideAdminPersonContext&&\['selected-client','client-context'\]\.includes/u);
+  assert.match(shellRender,/if\(personContext\)continue;/u);
+  assert.match(shellRender,/const allMobileItems = \[\.\.\.allNavigationItems\(vm\)\.values\(\)\];/u);
 });
