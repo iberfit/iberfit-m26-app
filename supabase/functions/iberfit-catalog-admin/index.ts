@@ -8,10 +8,25 @@ const EQUIPMENT:any={'body only':'sin equipo','dumbbell':'mancuerna','barbell':'
 const LEVEL:any={beginner:'inicial',intermediate:'media',expert:'avanzada'};
 const CATEGORY:any={strength:'fuerza',stretching:'movilidad',plyometrics:'potencia',cardio:'acondicionamiento',strongman:'fuerza'};
 const MUSCLE:any={abdominals:'abdominales',abductors:'abductores',adductors:'aductores',biceps:'bíceps',calves:'gemelos',chest:'pectoral',forearms:'antebrazos',glutes:'glúteos',hamstrings:'isquiotibiales',lats:'dorsal ancho','lower back':'zona lumbar','middle back':'espalda media',neck:'cuello',quadriceps:'cuádriceps',shoulders:'hombros',traps:'trapecios',triceps:'tríceps'};
+const FUNCTION_VERSION='catalog-admin-v1.1';
+const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 
-function origin(v:string|null){if(!v)return '*';try{const u=new URL(v);if(u.protocol==='https:'&&(u.hostname==='app.iberfit.cl'||u.hostname==='coach.iberfit.cl'||u.hostname.endsWith('.iberfit-cl.workers.dev')))return v}catch{}return ''}
-function cors(r:Request){return{'access-control-allow-origin':origin(r.headers.get('origin'))||'null','access-control-allow-headers':'authorization, x-client-info, apikey, content-type','access-control-allow-methods':'POST, OPTIONS','vary':'Origin'}}
-function reply(r:Request,b:any,s=200){return new Response(JSON.stringify(b),{status:s,headers:{...cors(r),'content-type':'application/json; charset=utf-8','cache-control':'no-store'}})}
+function deploymentProjectRef(value:string){
+  try{return new URL(String(value||'')).hostname.toLowerCase().match(/^([a-z0-9]{20})\.supabase\.co$/u)?.[1]||'';}
+  catch{return '';}
+}
+const DEPLOYMENT_PROJECT_REF=deploymentProjectRef(Deno.env.get('SUPABASE_URL')||'');
+const ALLOWED_ORIGINS=new Set(
+  DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF
+    ?['https://m26-canary.iberfit.cl']
+    :DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF
+      ?['https://app.iberfit.cl','https://coach.iberfit.cl']
+      :[],
+);
+function origin(v:string|null){const value=String(v||'').trim().toLowerCase();try{const u=new URL(value);return u.protocol==='https:'&&ALLOWED_ORIGINS.has(u.origin)?u.origin:'';}catch{return '';}}
+function cors(r:Request){const allowed=origin(r.headers.get('origin'));return{...(allowed?{'access-control-allow-origin':allowed}:{}),'access-control-allow-headers':'authorization, x-client-info, apikey, content-type','access-control-allow-methods':'POST, OPTIONS','cache-control':'no-store','vary':'Origin','x-content-type-options':'nosniff'}}
+function reply(r:Request,b:any,s=200){return new Response(JSON.stringify(b),{status:s,headers:{...cors(r),'content-type':'application/json; charset=utf-8'}})}
 function key(){const m=Deno.env.get('SUPABASE_PUBLISHABLE_KEYS');if(m){try{const p=JSON.parse(m);return String(p.default||Object.values(p)[0]||'')}catch{}}return Deno.env.get('SUPABASE_ANON_KEY')||Deno.env.get('SUPABASE_PUBLISHABLE_KEY')||''}
 function slug(v:string){return v.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,90)}
 function arr(v:any,d:any){return Array.isArray(v)?v.map(x=>d[String(x)]||String(x)):[]}
@@ -42,7 +57,9 @@ async function preserveAdminNames(db:any,rows:any[]){
 }
 
 Deno.serve(async(req:Request)=>{
-  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
+  const requestOrigin=origin(req.headers.get('origin'));
+  if(req.method==='OPTIONS')return new Response(null,{status:requestOrigin?204:403,headers:cors(req)});
+  if(!requestOrigin)return reply(req,{error:'Origen no autorizado',code:'IBERFIT_CATALOG_ORIGIN_FORBIDDEN',version:FUNCTION_VERSION},403);
   if(req.method!=='POST')return reply(req,{error:'Método no permitido'},405);
   const h=req.headers.get('authorization')||'';
   if(!h.startsWith('Bearer '))return reply(req,{error:'Sesión no válida'},401);
