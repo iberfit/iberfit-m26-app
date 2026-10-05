@@ -54,21 +54,32 @@ Debe permitir:
 - observabilidad de configuración y estado;
 - gestión con densidad y precisión superiores.
 
-## IRI y seguimiento
+## Persona, IRI y servicio de entrenamiento
 
-El Diagnóstico IRI inicial y el seguimiento/evolución son conceptos distintos.
+Persona, evaluación IRI y servicio de entrenamiento son conceptos relacionados, pero independientes.
 
-- IRI = punto de partida, bienvenida y baseline inicial.
-- Seguimiento = cambio longitudinal durante el proceso.
-- El baseline IRI no debe reutilizarse como contenedor genérico de reevaluaciones.
-- La fotogrametría es una capa complementaria, privada y longitudinal; no un diagnóstico clínico automático.
+- **Persona** = identidad humana y expediente raíz. Puede existir sin contratar entrenamiento.
+- **Evaluación IRI** = episodio de evaluación realizado a una persona. Una persona puede tener cero, una o varias evaluaciones IRI.
+- **Cliente IBERFIT** = persona con un servicio de entrenamiento contratado/activo.
+- Realizar un IRI nunca convierte automáticamente a una persona en cliente activo.
+- El IRI es el camino recomendado de entrada a la metodología IBERFIT, no un requisito técnico para planificar o empezar a entrenar.
+- Un cliente puede iniciar entrenamiento con el IRI pendiente, diferido o no previsto por ahora, sin bloqueos artificiales.
+- La primera evaluación IRI constituye la **evaluación inicial / punto de partida** cuando existe.
+- Las evaluaciones IRI posteriores son **reevaluaciones** comparables cuando el protocolo lo permite.
+- Seguimiento/evolución = cambio longitudinal durante el proceso; no debe confundirse con el episodio de evaluación.
+- La categoría histórica `iri_only` / «Solo IRI» es compatibilidad de migración, no una relación de servicio futura ni un segundo motor IRI.
+- La activación del entrenamiento debe cambiar la relación de servicio de la misma persona, sin duplicarla ni recrear su IRI.
+
+La fotogrametría es una capa complementaria, privada y longitudinal; no un diagnóstico clínico automático.
 - Original fotográfico y análisis derivado deben permanecer separados.
 - Los landmarks automáticos, cuando existan, son propuestas; el Coach valida/corrige antes de convertirlos en dato interpretado.
 - La calidad del dato y el protocolo deben ser visibles.
 - Las fotos no se incluyen por defecto en reportes compartibles.
 - Protocolos de capacidad funcional distintos no comparten baremos automáticamente; 1MSTS y YMCA 3-min deben tratarse como protocolos diferentes.
 
-No mezclar IRI y seguimiento en copy, navegación, métricas ni interpretación. Separar siempre dato, interpretación y decisión.
+No usar «baseline» en UI. Preferir «evaluación inicial», «punto de partida» o «referencia inicial».
+
+No mezclar evaluación IRI y seguimiento en copy, navegación, métricas ni interpretación. Separar siempre dato, interpretación y decisión.
 
 ## Entrenamiento
 
