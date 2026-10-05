@@ -85,6 +85,16 @@ test('suggestedSetDraftValues selects the safe planned draft on the first set',(
   });
 });
 
+test('Coach Live explains automatic safe completion without implying confirmation',()=>{
+  const s=session();
+  const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-guided-copy'});
+  startExecution(execution,{actor:{role:'coach',userId:'coach-1'}});
+  const html=renderGuidedExecution({execution,session:s,catalog,role:'coach'});
+  assert.match(html,/IBERFIT completa automáticamente lo seguro/);
+  assert.match(html,/registra el RPE real/);
+  assert.doesNotMatch(html,/confirmada automáticamente|completada automáticamente/u);
+});
+
 test('Coach gets planned-draft shortcut only when no previous set is available',()=>{
   const s=session();
   const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-plan-ui'});
@@ -125,10 +135,10 @@ test('planned shortcut translations cover supported surface languages',()=>{
 });
 
 test('guided automatic preparation copy is translated across supported surface languages',()=>{
-  const es='IBERFIT preparó esta serie con el objetivo planificado. Registra el esfuerzo real antes de confirmar.';
-  assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),'IBERFIT prepared this set with the planned target. Record the real effort before confirming.');
-  assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),'IBERFIT a préparé cette série avec l’objectif planifié. Enregistrez l’effort réel avant de confirmer.');
-  assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),'A IBERFIT preparou esta série com o objetivo planeado. Registe o esforço real antes de confirmar.');
+  const es='IBERFIT completa automáticamente lo seguro. Revisa los datos y registra el RPE real.';
+  assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),'IBERFIT automatically fills what is safe. Review the data and record the real RPE.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),'IBERFIT remplit automatiquement ce qui est sûr. Vérifiez les données et enregistrez le RPE réel.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),'A IBERFIT preenche automaticamente o que é seguro. Reveja os dados e registe o RPE real.');
 });
 
 function controllerHarness(role='coach'){
@@ -236,7 +246,8 @@ test('Coach receives a safe automatic planned draft and explicit review focuses 
   assert.equal(harness.execution.activeSetDraft?.values?.rpe,'');
   assert.equal(harness.execution.activeSetDraft?.values?.rir,'');
   assert.deepEqual(harness.execution.results,{});
-  assert.match(harness.actionState.message,/IBERFIT preparó esta serie/);
+  assert.equal(harness.actionState.status,'idle');
+  assert.equal(harness.actionState.message,'');
 
   await harness.click(harness.event);
 
