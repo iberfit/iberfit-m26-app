@@ -8,10 +8,19 @@ test('sender pins dependencies and requires authenticated allowed-origin request
   assert.match(source,/npm:@supabase\/supabase-js@2\.112\.4/);
   assert.match(source,/npm:web-push@3\.6\.7/);
   assert.match(source,/authorization\.startsWith\('Bearer '\)/);
-  assert.match(source,/https:\/\/m26-canary\.iberfit\.cl/);
-  assert.match(source,/https:\/\/app\.iberfit\.cl/);
-  assert.match(source,/https:\/\/coach\.iberfit\.cl/);
   assert.match(source,/M26_ORIGIN_FORBIDDEN/);
+});
+
+test('sender binds CORS origins to the deployed Supabase project and fails closed for unknown environments',()=>{
+  assert.match(source,/const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/);
+  assert.match(source,/const PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/);
+  assert.match(source,/DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF[\s\S]*\?\['https:\/\/m26-canary\.iberfit\.cl'\]/);
+  assert.match(source,/DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF[\s\S]*\?\['https:\/\/app\.iberfit\.cl','https:\/\/coach\.iberfit\.cl'\]/);
+  assert.match(source,/:\[\],[\s\S]*\);/);
+  assert.doesNotMatch(
+    source,
+    /new Set\(\[\s*'https:\/\/m26-canary\.iberfit\.cl',[\s\S]*'https:\/\/app\.iberfit\.cl'/,
+  );
 });
 
 test('public config exposes only the public VAPID key after server configuration is complete',()=>{
