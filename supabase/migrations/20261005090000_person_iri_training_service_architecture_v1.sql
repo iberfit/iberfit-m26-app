@@ -288,6 +288,8 @@ declare
   v_created_iri uuid;
   v_cleaned_placeholder boolean:=false;
   v_deleted integer:=0;
+  v_current_service text;
+  v_current_lifecycle text;
 begin
   perform public.iberfit_require_privileged_assurance_v65d();
   if v_actor is null then raise exception 'V26_ADMIN_CLIENT_CREATE_AUTH_REQUIRED' using errcode='28000'; end if;
@@ -334,19 +336,52 @@ begin
   exception when others then raise exception 'V26_ADMIN_CLIENT_CREATE_RESULT_INVALID' using errcode='P0001'; end;
   if v_person is null then raise exception 'V26_ADMIN_CLIENT_CREATE_RESULT_INVALID' using errcode='P0001'; end if;
 
-  if v_entry='training' then
-    if not exists(
-      select 1 from public.iberfit_training_service_events_v1 s
-      where s.organization_id=v_org and s.person_id=v_person
-    ) then
-      insert into public.iberfit_training_service_events_v1(
-        organization_id,person_id,status,reason,changed_by
+  select s.status into v_current_service
+  from public.iberfit_training_service_events_v1 s
+  where s.organization_id=v_org and s.person_id=v_person
+  order by s.effective_at desc,s.created_at desc,s.id desc
+  limit 1;
+
+  if v_entry='training' and v_current_service is distinct from 'active' then
+    insert into public.iberfit_training_service_events_v1(
+      organization_id,person_id,status,reason,changed_by
+    ) values(
+      v_org,v_person,'active',
+      case
+        when v_current_service='ended' then 'Reactivación del servicio de entrenamiento desde Admin IBERFIT.'
+        when v_current_service='paused' then 'Reanudación del servicio de entrenamiento desde Admin IBERFIT.'
+        else 'Alta de servicio de entrenamiento desde Admin IBERFIT.'
+      end,
+      v_actor
+    );
+    v_current_service:='active';
+
+    select e.status into v_current_lifecycle
+    from public.iberfit_client_lifecycle_events e
+    where e.organization_id=v_org and e.client_id=v_person::text
+    order by e.effective_at desc,e.created_at desc,e.id desc
+    limit 1;
+
+    if v_current_lifecycle is distinct from
+      (case when v_current_lifecycle='inactive' then 'reactivation' else 'active' end)
+    then
+      insert into public.iberfit_client_lifecycle_events(
+        organization_id,client_id,status,reason,changed_by
       ) values(
-        v_org,v_person,'active',
-        'Alta de servicio de entrenamiento desde Admin IBERFIT.',
+        v_org,v_person::text,
+        case when v_current_lifecycle='inactive' then 'reactivation' else 'active' end,
+        'Compatibilidad de ciclo tras activar el servicio de entrenamiento.',
         v_actor
       );
     end if;
+  end if;
+
+  if v_current_service is null then
+    select s.status into v_current_service
+    from public.iberfit_training_service_events_v1 s
+    where s.organization_id=v_org and s.person_id=v_person
+    order by s.effective_at desc,s.created_at desc,s.id desc
+    limit 1;
   end if;
 
   -- The legacy helper creates a draft IRI for every new record.
@@ -388,7 +423,7 @@ begin
 
   return v_result||jsonb_build_object(
     'entryIntent',v_entry,
-    'trainingServiceStatus',case when v_entry='training' then 'active' else 'none' end,
+    'trainingServiceStatus',coalesce(v_current_service,'none'),
     'initialAssessmentMode',v_assessment,
     'iriCreated',case when v_assessment='iri' then true else not v_cleaned_placeholder and v_had_iri end
   );
