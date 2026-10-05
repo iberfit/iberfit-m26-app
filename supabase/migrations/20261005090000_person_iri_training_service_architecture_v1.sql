@@ -685,6 +685,19 @@ $function$;
 revoke all on function public.iberfit_admin_bootstrap_v14() from public,anon;
 grant execute on function public.iberfit_admin_bootstrap_v14() to authenticated,service_role;
 
+-- Renamed implementation layers are internal-only. Public app traffic must use the
+-- canonical wrappers above so context, assurance and service semantics cannot be bypassed.
+revoke all on function public.iberfit_admin_update_client_profile_v26_pre_person_service_v1(jsonb,jsonb) from public,anon,authenticated;
+grant execute on function public.iberfit_admin_update_client_profile_v26_pre_person_service_v1(jsonb,jsonb) to service_role;
+revoke all on function public.iberfit_admin_execute_v14_pre_person_service_v1(jsonb) from public,anon,authenticated;
+grant execute on function public.iberfit_admin_execute_v14_pre_person_service_v1(jsonb) to service_role;
+revoke all on function public.iberfit_admin_create_client_v26_pre_person_service_v1(jsonb,jsonb) from public,anon,authenticated;
+grant execute on function public.iberfit_admin_create_client_v26_pre_person_service_v1(jsonb,jsonb) to service_role;
+revoke all on function public.iberfit_bootstrap_v26_pre_person_service_v1() from public,anon,authenticated;
+grant execute on function public.iberfit_bootstrap_v26_pre_person_service_v1() to service_role;
+revoke all on function public.iberfit_admin_bootstrap_v14_pre_person_service_v1() from public,anon,authenticated;
+grant execute on function public.iberfit_admin_bootstrap_v14_pre_person_service_v1() to service_role;
+
 comment on function public.iberfit_admin_create_client_v26(jsonb,jsonb) is
   'Creates/reuses a person record. entryIntent controls IRI-vs-training entry; training service and IRI are independent.';
 comment on function public.iberfit_admin_set_training_service_v1(jsonb,jsonb) is
