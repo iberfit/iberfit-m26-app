@@ -650,7 +650,7 @@ begin
               order by e.effective_at desc,e.created_at desc,e.id desc
               limit 1
             ) latest
-            where latest.status in ('active','paused')
+            where latest.status='active'
           )
       )
     )
