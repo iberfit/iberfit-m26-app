@@ -2,7 +2,7 @@ import {adminCan,ADMIN_CAPABILITIES,routeAllowedForAdmin} from './permission-pol
 import {adminCollection} from './admin-state.js';
 import {clientsOverview} from '../modules/domain-selectors.js';
 import {deriveClientExperience,experienceNextAction} from '../experience/client-experience.js';
-import {hasTrainingService,trainingServiceStatusFrom} from '../domain/training-service.js';
+import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from '../domain/training-service.js';
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
@@ -40,7 +40,7 @@ function clientRows(state){
     const rawNow=state?.hydration?.serverTime;
     const parsedNow=rawNow?new Date(rawNow):new Date();
     const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
-    const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
+    const adaptiveContext=experience.serviceKind==='training'?buildAdaptiveSessionContext(state,id,{now}):null;
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
     const nextAction=experience.serviceKind!=='training'?structuralNextAction:adaptiveExperience.action;
     const rawProfile=profiles.get(id)||null;
@@ -53,7 +53,7 @@ function clientRows(state){
     }).filter(Boolean));
     return Object.freeze({
       id,
-      name:String(x.name||x.nombre||'Cliente'),
+      name:String(x.name||x.nombre||'Persona'),
       email:String(profile.email||rawProfile?.email||access?.email||x.email||'').trim(),
       revision:Number(x.revision||0)||0,
       status:String(x.status||''),
@@ -242,7 +242,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   const trainingAssignment=(assignment)=>{
     const client=clientById.get(recordId(assignment?.clientId));
-    return hasTrainingService(client);
+    return trainingServiceActive(client);
   };
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId&&trainingAssignment(assignment));
