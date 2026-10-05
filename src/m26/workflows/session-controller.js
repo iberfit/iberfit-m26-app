@@ -12,7 +12,7 @@ import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
 import {setPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
-import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget} from './session-sync-recovery-ui.js';
+import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -52,7 +52,9 @@ function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
   });
 }
 
-export function manualSessionSyncOutcome(execution,result={},error=null){
+export function manualSessionSyncOutcome(execution,result={},error=null,{role=''}={}){
+  const specific=sessionCommandFailureOutcome(error,{role,phase:'sync'})||sessionRejectedSyncOutcome(execution,{role});
+  if(specific&&(error||String(execution?.syncStatus||'').toLowerCase()==='rejected'))return specific;
   if(error)return Object.freeze({status:'retry',message:'No fue posible sincronizar ahora. Tu progreso sigue guardado en este dispositivo.'});
   if(result?.online===false)return Object.freeze({status:'retry',message:'Sin conexión. Tu progreso sigue guardado en este dispositivo; vuelve a sincronizar cuando recuperes internet.'});
   const status=String(execution?.syncStatus||'clean').toLowerCase();
@@ -486,7 +488,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     };
     try{
       const outcome=context.actionState?await runAction(context.actionState,task):{ok:true,value:await task()};
-      if(!outcome.ok){onError(outcome.error);renderSession();return false;}
+      if(!outcome.ok){
+        const mapped=sessionCommandFailureOutcome(outcome.error,{action:'start',role:context?.actor?.role,execution:context?.execution});
+        if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
+        onError(outcome.error);renderSession();return false;
+      }
       void telemetry.start(context.execution);
       await persistContext(getContext());
       renderSession();
@@ -541,11 +547,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!context?.execution||context.execution.syncStatus!=='pending')throw new Error('M26_SESSION_SYNC_NOT_PENDING');
     if(!context?.recoveryCoordinator?.synchronize)throw new Error('M26_SESSION_SYNC_UNAVAILABLE');
     const result=await context.recoveryCoordinator.synchronize();
-    const outcome=manualSessionSyncOutcome(context.execution,result);
+    const outcome=manualSessionSyncOutcome(context.execution,result,null,{role:context?.actor?.role});
     if(actionState){actionState.status=outcome.status;actionState.message=outcome.message;}
   }catch(error){
     onError(error);
-    const outcome=manualSessionSyncOutcome(context?.execution,null,error);
+    const outcome=manualSessionSyncOutcome(context?.execution,null,error,{role:context?.actor?.role});
     if(actionState){actionState.status=outcome.status;actionState.message=outcome.message;}
   }finally{
     manualSyncPending=false;
@@ -620,7 +626,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution});if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}onError(outcome.error);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
