@@ -12,7 +12,9 @@ test('ADMIN clients surface exposes a guided service-aware create and access flo
   assert.match(render, /Crear persona y preparar acceso/u);
   assert.match(render, /Expediente interno · no enviar invitación/u);
   assert.match(render, /Acceso IBERFIT · enviar invitación/u);
-  assert.match(render, /Solo IRI · evaluación e informe/u);
+  assert.match(render, /Diagnóstico IRI · recomendado/u);
+  assert.match(render, /Iniciar entrenamiento/u);
+  assert.match(render, /nunca bloquea el entrenamiento/u);
   assert.match(render, /data-client-step="1"/u);
   assert.match(render, /data-client-step="5"/u);
   assert.match(render, /data-client-wizard-prev/u);
