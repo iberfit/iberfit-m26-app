@@ -23,6 +23,8 @@ test('persona, IRI y servicio de entrenamiento son dimensiones independientes',(
   assert.match(migration,/status text not null check\(status in \('active','paused','ended'\)\)/u);
   assert.match(migration,/IRI assessments are independent and never imply an active training service/u);
   assert.doesNotMatch(migration,/status text not null check\(status in \([^)]*iri_only/u);
+  assert.doesNotMatch(migration,/\bdrop\s+(?:table|function|index|constraint)\b/iu);
+  assert.doesNotMatch(migration,/\bdo\s+\$\$/iu);
   assert.match(controller,/entryIntent:serviceIntent/u);
   assert.match(controller,/trainingServiceStatus:iriEntry\?'none':'active'/u);
 });
@@ -38,12 +40,13 @@ test('compatibilidad histórica nunca gana sobre el estado explícito de servici
   assert.equal(trainingServiceKindFrom({trainingServiceStatus:'active'}),'training');
 });
 
-test('una persona puede tener un IRI inicial y múltiples reevaluaciones',()=>{
-  assert.match(migration,/drop index if exists public\.iri_one_initial_per_client_v1/u);
-  assert.match(migration,/drop constraint if exists iri_assessments_initial_only_v4/u);
-  assert.match(migration,/check\(assessment_type in \('inicial','reevaluacion'\)\)/u);
-  assert.match(migration,/create unique index if not exists iri_one_initial_per_person_v2[\s\S]*?where assessment_type='inicial'/u);
-  assert.match(migration,/idx_iri_assessments_client_type_evaluated/u);
+test('diagnóstico inicial y reevaluaciones quedan físicamente separados',()=>{
+  assert.match(migration,/create table if not exists public\.iri_reevaluations_v1/u);
+  assert.match(migration,/initial_assessment_id uuid not null references public\.iri_assessments\(id\) on delete restrict/u);
+  assert.match(migration,/unique\(person_id,sequence\)/u);
+  assert.match(migration,/follow-up\/evolution never mutates baseline semantics/u);
+  assert.doesNotMatch(migration,/drop constraint/u);
+  assert.doesNotMatch(migration,/drop index/u);
   assert.match(viewModel,/return !type\|\|type==='inicial'/u);
 });
 
