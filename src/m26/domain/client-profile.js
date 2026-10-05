@@ -162,6 +162,18 @@ export function normalizeClientProfile(profile = {}, client = {}) {
       value(profile, 'preferredSchedule', 'preferred_schedule', 'horarioPreferido', 'horario_preferido'),
       240
     ),
+    experienceLevel: cleanText(
+      value(profile, 'experienceLevel', 'experience_level', 'level', 'nivel', 'trainingExperience', 'training_experience'),
+      100
+    ),
+    trainingHistory: cleanText(
+      value(profile, 'trainingHistory', 'training_history', 'history', 'historial'),
+      1500
+    ),
+    currentTraining: cleanText(
+      value(profile, 'currentTraining', 'current_training', 'entrenamientoActual', 'entrenamiento_actual'),
+      1000
+    ),
     sessionDurationMinutes: Number(
       value(profile, 'sessionDurationMinutes', 'session_duration_minutes', 'duracionSesionMinutos', 'duracion_sesion_minutos')
     ) || null,
