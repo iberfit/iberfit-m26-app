@@ -167,7 +167,7 @@ function updateServiceIntent(form){
   if(notice)notice.hidden=!iriEntry;
   setCopy(form?.querySelector?.('[data-client-create-heading]'),iriEntry?'Crear persona para IRI':'Crear cliente');
   setCopy(form?.querySelector?.('[data-client-create-intro]'),iriEntry
-    ?'Crea únicamente el expediente de evaluación. No se abrirán planificación, sesiones recurrentes ni seguimiento de entrenamiento.'
+    ?'Crea una persona y abre su Diagnóstico IRI. El entrenamiento es una relación independiente y podrá activarse más adelante sin recrear el expediente.'
     :'Completa el expediente por etapas. Puedes volver atrás y el borrador se conserva temporalmente durante esta sesión de IBERFIT.');
   setCopy(form?.querySelector?.('[data-client-address-label]'),iriEntry?'Dirección / lugar de evaluación':'Dirección de entrenamiento');
   setCopy(form?.querySelector?.('[data-client-schedule-label]'),iriEntry?'Disponibilidad puntual para la evaluación':'Disponibilidad recurrente / horario');
@@ -189,7 +189,7 @@ function updateServiceIntent(form){
 
   const submit=form?.querySelector?.('[data-client-create-submit]');
   if(submit)submit.textContent=iriEntry
-    ?'Crear persona Solo IRI'
+    ?'Crear persona para IRI'
     :internal?'Crear cliente sin invitar':'Crear cliente y enviar acceso';
   updateReview(form);
   return iriEntry;
