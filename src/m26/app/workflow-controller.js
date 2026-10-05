@@ -82,6 +82,13 @@ function syncGuidedWorkflowProgress(form){
   const progress=guidedRequiredProgress(form);
   const node=form.querySelector?.('[data-guided-required-progress]');
   if(node){
+    if(progress.total===0){
+      node.textContent='';
+      node.hidden=true;
+      if(node.dataset?.status!==undefined)delete node.dataset.status;
+      return progress;
+    }
+    node.hidden=false;
     node.textContent=progress.complete
       ?'Datos necesarios completos ('+progress.completedCount+'/'+progress.total+'). Revisa y confirma.'
       :progress.completedCount+' de '+progress.total+' datos necesarios completos · siguiente: '+guidedFieldLabel(progress.first)+'.';
