@@ -88,7 +88,7 @@ test('live Admin Catalog cert authenticates as ephemeral Admin and remains stric
   assert.match(source,/const CANARY_ORIGIN='https:\/\/m26-canary\.iberfit\.cl'/u);
   assert.match(source,/const EDGE_PATH='\/functions\/v1\/iberfit-catalog-admin'/u);
   assert.match(source,/grant_type=password/u);
-  assert.match(source,/authorization:\`Bearer \\${accessToken}\`/u);
+  assert.ok(source.includes('authorization:`Bearer ${accessToken}`'));
   assert.match(source,/origin:CANARY_ORIGIN/u);
   assert.match(source,/JSON\.stringify\(\{action:'status'\}\)/u);
   assert.match(source,/allowedOriginHeader===CANARY_ORIGIN/u);
