@@ -40,8 +40,8 @@ test('IRI entry changes the real Admin wizard immediately, survives navigation a
 
   await serviceStep.locator('[data-client-wizard-prev]').click();
   await expect(form.locator('[data-client-step="1"]')).toBeVisible();
-  await expect(form.locator('[name="birthDate"]')).toHaveAttribute('required','');
-  await expect(form.locator('[name="sexForNorms"]')).toHaveAttribute('required','');
+  await expect(form.locator('[name="birthDate"]')).not.toHaveAttribute('required');
+  await expect(form.locator('[name="sexForNorms"]')).not.toHaveAttribute('required');
   await expect(form.locator('[name="birthDate"]')).toHaveValue('1990-04-10');
   await expect(form.locator('[name="sexForNorms"]')).toHaveValue('female');
 
