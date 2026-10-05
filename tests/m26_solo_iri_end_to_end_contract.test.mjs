@@ -146,14 +146,14 @@ test('mutar el servicio exige Admin, assurance privilegiado, razón e idempotenc
   assert.match(migration,/grant execute on function public\.iberfit_admin_set_training_service_v1\(jsonb,jsonb\) to service_role/u);
   assert.match(migration,/revoke all on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) from public,anon,authenticated/u);
   assert.match(migration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) to service_role/u);
-  for(const helper of [
-    'iberfit_admin_update_client_profile_v26_pre_person_service_v1\\\\(jsonb,jsonb\\\\)',
-    'iberfit_admin_execute_v14_pre_person_service_v1\\\\(jsonb\\\\)',
-    'iberfit_admin_create_client_v26_pre_person_service_v1\\\\(jsonb,jsonb\\\\)',
-    'iberfit_bootstrap_v26_pre_person_service_v1\\\\(\\\\)',
-    'iberfit_admin_bootstrap_v14_pre_person_service_v1\\\\(\\\\)',
+  for(const signature of [
+    'iberfit_admin_update_client_profile_v26_pre_person_service_v1(jsonb,jsonb)',
+    'iberfit_admin_execute_v14_pre_person_service_v1(jsonb)',
+    'iberfit_admin_create_client_v26_pre_person_service_v1(jsonb,jsonb)',
+    'iberfit_bootstrap_v26_pre_person_service_v1()',
+    'iberfit_admin_bootstrap_v14_pre_person_service_v1()',
   ]){
-    assert.match(migration,new RegExp(`revoke all on function public\\\\.${helper} from public,anon,authenticated`,'u'));
-    assert.match(migration,new RegExp(`grant execute on function public\\\\.${helper} to service_role`,'u'));
+    assert.ok(migration.includes(`revoke all on function public.${signature} from public,anon,authenticated;`));
+    assert.ok(migration.includes(`grant execute on function public.${signature} to service_role;`));
   }
 });
