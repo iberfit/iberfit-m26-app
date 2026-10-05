@@ -154,7 +154,8 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 - [x] SECURITY DEFINER auditados por intención en QA/PROD; PR #730 promovido. Migración PROD `20261005173632_security_backend_acl_hardening_v1`; authenticated SECURITY DEFINER 55→52, RPC canónicas intactas.
 - [x] RLS auditado: 0 tablas públicas sin RLS; tablas con RLS y 0 policies tienen 0 grants para `anon/authenticated`, por diseño fuera de Data API.
 - [x] FKs sin índice evaluadas contra cardinalidad, consultas reales e `EXPLAIN`; no se justifica añadir índices hoy. Reevaluar por crecimiento + hot path + plan/coste real.
-- [ ] Leaked password protection: disponible sólo con plan Supabase compatible; decidir upgrade por seguridad/operación.
+- [x] Promotion #316 (`37349796344`) SUCCESS: LIVE `70dfbdc5...`, deployment `75ab5fa1-eb8a-4069-ab65-ddbc3649285b`, rollback `14486b12-8e68-47de-8212-921573328ff4`.
+- [ ] Leaked password protection: evaluada por el workflow productivo; sigue no disponible en el plan actual. No forzar upgrade sin decisión de coste/operación.
 
 ## P1 · negocio / escalabilidad
 
