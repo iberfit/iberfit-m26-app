@@ -37,7 +37,7 @@ export function isAdminClientContextArea(area){
 }
 export const ADMIN_NAVIGATION=Object.freeze({
   primary:['admin-inicio','admin-usuarios','admin-equipo','admin-clientes','admin-agenda'],
-  context:['admin-expediente','admin-iri','admin-informes','admin-notas','admin-operaciones','admin-media-review','admin-comunicacion','admin-automatizaciones','biblioteca','admin-analitica'],
+  context:['admin-operaciones','admin-media-review','admin-comunicacion','admin-automatizaciones','biblioteca','admin-analitica'],
   tools:['admin-auditoria','admin-configuracion'],
   mobile:['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones','admin-equipo'],
 });
