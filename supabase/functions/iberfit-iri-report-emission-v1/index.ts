@@ -392,13 +392,17 @@ function pdfClientProtocolName(value:unknown){
   return raw||'Prueba';
 }
 function pdfClientCardioValue(value:unknown){
-  const raw=String(value||'').trim().toLowerCase();
+  const original=String(value||'').trim();
+  const raw=original.toLowerCase();
   const labels:Record<string,string>={
     jog:'Trote suave',walk:'Caminar',run:'Correr',
     manual:'Medición manual',watch:'Reloj / sensor óptico','chest-strap':'Banda pectoral',treadmill:'Sensor de la cinta',
     'standing-passive':'De pie · pasiva','walking-active':'Caminando · activa','seated-passive':'Sentada · pasiva','other-documented':'Otra · documentada',
+    knees:'Rodillas apoyadas','knees-supported':'Rodillas apoyadas',
+    'standard-barefoot':'Descalza · protocolo estándar','box-standard':'Caja estándar','table-edge-standard':'Borde de camilla',
+    'seated-90-90':'Sentada 90/90','counterbalance-support':'Apoyo con contrapeso','bioimpedancia-tetrapolar':'Bioimpedancia tetrapolar',
   };
-  return labels[raw]||pdfSafe(value,100);
+  return labels[raw]||pdfSafe(original.replaceAll('-',' '),100);
 }
 function pdfAreaRating(rating:any){
   return rating&&Number.isFinite(Number(rating.score))?pdfNum(rating.score,1)+'/10':'—';
@@ -451,10 +455,12 @@ function pdfClientProtocolRows(records:any[]){
   for(const record of Array.isArray(records)?records:[]){
     const key=String(record?.testId||record?.testName||'prueba');
     const group=groups.get(key)||{name:pdfClientProtocolName(record?.testName||'Prueba'),sides:[],variants:[],configurations:[]};
-    const side=pdfProtocolSide(record?.side),variant=pdfProtocolVariant(record),configuration=pdfSafe(record?.configuration,150);
+    const side=pdfProtocolSide(record?.side);
+    const variant=pdfClientCardioValue(pdfProtocolVariant(record));
+    const configuration=pdfClientCardioValue(record?.configuration);
     if(side&&!group.sides.includes(side))group.sides.push(side);
     if(variant&&!group.variants.includes(variant))group.variants.push(variant);
-    if(configuration&&!group.configurations.includes(configuration))group.configurations.push(configuration);
+    if(configuration&&!group.configurations.includes(configuration)&&!group.variants.includes(configuration))group.configurations.push(configuration);
     groups.set(key,group);
   }
   return [...groups.values()].slice(0,6).map((group)=>{
