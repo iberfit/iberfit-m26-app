@@ -13,8 +13,8 @@ const CLIENT_ID='44444444-4444-4444-8444-444444444444';
 const ORG='00000000-0000-4000-8000-000000000140';
 const lifecycleQA=new URLSearchParams(location.search).has('lifecycle');
 const people=lifecycleQA?[
-  {id:'iri-person',name:'Persona Solo IRI',status:'active',lifecycle:{status:'iri_only'},coachNames:['Coach Interacción']},
-  {id:'active-person',name:'Cliente activo',status:'active',lifecycle:{status:'active'},coachNames:['Coach Interacción']},
+  {id:'iri-person',name:'Persona con IRI',status:'active',lifecycle:{status:'onboarding'},trainingServiceStatus:'none',serviceKind:'none',coachNames:['Coach Interacción']},
+  {id:'active-person',name:'Cliente activo',status:'active',lifecycle:{status:'active'},trainingServiceStatus:'active',serviceKind:'training',coachNames:['Coach Interacción']},
 ]:[];
 const commands=[];
 
@@ -104,9 +104,12 @@ const service={
   async execute(input){
     commands.push(structuredClone(input));
     const type=String(input?.type||'');
-    if(type==='ADMIN_CLIENTE_CAMBIAR_CICLO'){
+    if(type==='ADMIN_CLIENTE_CAMBIAR_SERVICIO'){
       const person=people.find((item)=>item.id===input.payload.clientId);
-      if(person)person.lifecycle.status=input.payload.status;
+      if(person){
+        person.trainingServiceStatus=input.payload.status;
+        person.serviceKind=['active','paused'].includes(input.payload.status)?'training':'none';
+      }
       vm=clientsVm();
     }
     if(type==='ADMIN_USUARIO_CAMBIAR_ESTADO'){
