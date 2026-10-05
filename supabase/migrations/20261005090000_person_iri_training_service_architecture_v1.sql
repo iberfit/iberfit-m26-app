@@ -299,11 +299,11 @@ begin
 
   v_payload:=v_payload||jsonb_build_object(
     'weeklyFrequency',case
-      when v_weekly_missing then 1
+      when v_weekly_missing then to_jsonb(1)
       else v_payload->'weeklyFrequency'
     end,
     'sessionDurationMinutes',case
-      when v_duration_missing then 60
+      when v_duration_missing then to_jsonb(60)
       else v_payload->'sessionDurationMinutes'
     end
   );
