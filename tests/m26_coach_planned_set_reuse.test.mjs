@@ -39,7 +39,7 @@ function session(overrides={}){
   };
 }
 
-test('plannedSetDraftValues only derives explicit safe values and never invents a range result',()=>{
+test('plannedSetDraftValues reuses objective work only and never turns target effort into observed RPE/RIR',()=>{
   const strength=session();
   const execution=createExecution({session:strength,clientId:strength.clientId,executionId:'execution-plan-1'});
   startExecution(execution,{actor:{role:'coach',userId:'coach-1'}});
@@ -47,8 +47,8 @@ test('plannedSetDraftValues only derives explicit safe values and never invents 
     reps:'10',
     seconds:'',
     load:'40 kg',
-    rpe:'7',
-    rir:'3',
+    rpe:'',
+    rir:'',
   });
 
   const timed=session({reps:'30 s',plannedLoad:''});
@@ -58,8 +58,8 @@ test('plannedSetDraftValues only derives explicit safe values and never invents 
     reps:'',
     seconds:'30',
     load:'',
-    rpe:'7',
-    rir:'3',
+    rpe:'',
+    rir:'',
   });
 
   const ranged=session({reps:'8-10'});
@@ -69,8 +69,8 @@ test('plannedSetDraftValues only derives explicit safe values and never invents 
     reps:'',
     seconds:'',
     load:'40 kg',
-    rpe:'7',
-    rir:'3',
+    rpe:'',
+    rir:'',
   });
 });
 
@@ -199,12 +199,14 @@ test('Coach copies planned values into the recoverable draft without completing 
   assert.equal(harness.fields.get('reps').value,'10');
   assert.equal(harness.fields.get('seconds').value,'');
   assert.equal(harness.fields.get('load').value,'40 kg');
-  assert.equal(harness.fields.get('rpe').value,'7');
-  assert.equal(harness.fields.get('rir').value,'3');
+  assert.equal(harness.fields.get('rpe').value,'');
+  assert.equal(harness.fields.get('rir').value,'');
   assert.equal(harness.fields.get('notes').value,'Mantener nota manual');
   assert.equal(harness.renderCalls,0);
   assert.equal(harness.fields.get('reps').focusCalls,1);
   assert.equal(harness.execution.activeSetDraft?.values?.load,'40 kg');
+  assert.equal(harness.execution.activeSetDraft?.values?.rpe,'');
+  assert.equal(harness.execution.activeSetDraft?.values?.rir,'');
   assert.deepEqual(harness.execution.results,{});
   assert.equal(harness.execution.setIndex,0);
   assert.match(harness.actionState.message,/Revísalo antes de confirmar/);
