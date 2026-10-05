@@ -9,7 +9,8 @@ test('official Client PDF has a dedicated premium editorial renderer',()=>{
   assert.match(source,/function renderClientPdf/u);
   assert.match(source,/if\(audience==='cliente'\)return renderClientPdf/u);
   assert.match(source,/const TEMPLATE_VERSION='m26-iri-report-premium-v4'/u);
-  assert.match(source,/page\.drawText\('Tu punto'/u);\n  assert.match(source,/page\.drawText\('de partida\.'/u);
+  assert.match(source,/page\.drawText\('Tu punto'/u);
+  assert.match(source,/page\.drawText\('de partida\.'/u);
   assert.match(source,/Movimiento y movilidad/u);
   assert.match(source,/Capacidad de esfuerzo/u);
   assert.match(source,/Qué merece atención/u);
