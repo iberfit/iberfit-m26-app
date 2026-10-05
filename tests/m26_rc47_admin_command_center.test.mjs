@@ -25,16 +25,17 @@ test('Command Center prioriza cliente sin Coach antes de recorrido pendiente',()
   assert.equal(cc.coachLoad[0].loadPercent,90);
 });
 
-test('Solo IRI permanece fuera del Command Center operativo',()=>{
+test('persona sin entrenamiento permanece fuera del Command Center operativo',()=>{
   const cc=deriveAdminCommandCenter({
     clients:[
       {id:'C-ACTIVE',name:'Activa',lifecycle:{status:'active'},assignments:[{id:'A1'}],experience:{stage:'active'}},
-      {id:'C-IRI',name:'Solo informe',lifecycle:{status:'iri_only'},assignments:[{id:'A2'}],experience:{stage:'onboarding'}},
+      {id:'C-IRI',name:'Solo informe',trainingServiceStatus:'none',assignments:[{id:'A2'}],experience:{stage:'evaluation',readiness:{iriConfirmed:true}}},
     ],
     coaches:[],tasks:[],
   });
   assert.equal(cc.summary.totalClients,1);
-  assert.equal(cc.summary.iriOnlyPeople,1);
+  assert.equal(cc.summary.peopleWithoutTraining,1);
+  assert.equal(cc.summary.evaluatedWithoutTraining,1);
   assert.equal(cc.priorities.some((item)=>item.clientId==='C-IRI'),false);
 });
 
