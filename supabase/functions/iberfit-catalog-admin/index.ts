@@ -8,7 +8,7 @@ const EQUIPMENT:any={'body only':'sin equipo','dumbbell':'mancuerna','barbell':'
 const LEVEL:any={beginner:'inicial',intermediate:'media',expert:'avanzada'};
 const CATEGORY:any={strength:'fuerza',stretching:'movilidad',plyometrics:'potencia',cardio:'acondicionamiento',strongman:'fuerza'};
 const MUSCLE:any={abdominals:'abdominales',abductors:'abductores',adductors:'aductores',biceps:'bíceps',calves:'gemelos',chest:'pectoral',forearms:'antebrazos',glutes:'glúteos',hamstrings:'isquiotibiales',lats:'dorsal ancho','lower back':'zona lumbar','middle back':'espalda media',neck:'cuello',quadriceps:'cuádriceps',shoulders:'hombros',traps:'trapecios',triceps:'tríceps'};
-const FUNCTION_VERSION='catalog-admin-v1.1';
+const FUNCTION_VERSION='catalog-admin-v1.2';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 
@@ -76,7 +76,7 @@ Deno.serve(async(req:Request)=>{
 
   if(action==='status'){
     const{data,error}=await db.rpc('iberfit_exercise_facets');
-    return error?reply(req,{error:error.message},400):reply(req,{...data,geminiConfigured:Boolean(Deno.env.get('GEMINI_API_KEY')||Deno.env.get('GOOGLE_API_KEY')),model:MODEL,mediaPolicy:'Los medios externos permanecen bloqueados hasta aprobación individual.',globalNameGovernance:true});
+    return error?reply(req,{error:error.message,version:FUNCTION_VERSION},400):reply(req,{...data,version:FUNCTION_VERSION,geminiConfigured:Boolean(Deno.env.get('GEMINI_API_KEY')||Deno.env.get('GOOGLE_API_KEY')),model:MODEL,mediaPolicy:'Los medios externos permanecen bloqueados hasta aprobación individual.',globalNameGovernance:true});
   }
 
   if(action==='rename_exercise'){
