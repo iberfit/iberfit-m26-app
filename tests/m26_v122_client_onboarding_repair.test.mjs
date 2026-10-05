@@ -18,14 +18,14 @@ const read=(path)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const runtime={enabled:true,canary:true,qaOnly:true,url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',projectRef:'gjztkdwfmunnzhtvxrsu',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'};
 const valid={name:'Adriana QA',email:'adriana.qa@example.com',phone:'+56 9 1111 2222',birthDate:'1990-01-01',sexForNorms:'female',modality:'presencial',weeklyFrequency:'2',sessionDurationMinutes:'60',primaryObjective:'Mantener la salud y desarrollar fuerza.',trainingAddress:'Dirección QA'};
 
-test('alta conserva idempotencia y acceso bloqueado mientras solicita invitación',()=>{
+test('alta conserva idempotencia y acceso bloqueado sin solicitar identidad implícita',()=>{
   const first=legacyClientDraftPayload(valid),second=legacyClientDraftPayload({...valid,name:'  Adriana QA  '});
   assert.equal(first.requestId,second.requestId);
   assert.equal(first.idempotencyKey,first.requestId);
   assert.match(first.requestId,/^onb-[0-9a-f]{8}$/);
-  assert.equal(first.onboardingVersion,'m26-v12.4-invitation');
+  assert.equal(first.onboardingVersion,'m26-v12.5-expediente');
   assert.equal(first.accessEnabled,false);
-  assert.equal(first.inviteClient,true);
+  assert.equal(first.inviteClient,false);
 });
 
 test('verificación reconoce id y correo en formas remotas compatibles',async()=>{
