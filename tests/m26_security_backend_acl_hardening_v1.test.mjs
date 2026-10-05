@@ -47,9 +47,10 @@ test('current invitation transport depends only on canonical Admin invitation RP
 });
 
 test('ACL hardening uses a named owner-only reconciliation routine instead of an anonymous block',()=>{
-  assert.match(migration,/create or replace function private\.iberfit_reconcile_security_backend_acl_v1\(\)/iu);
-  assert.doesNotMatch(migration,/\bdo\s+(?:language\s+\w+\s+)?(?:\$\w*\$)/iu);
-  assert.doesNotMatch(migration,/security\s+definer/iu);
+  const sql=migration.replace(/--[^\r\n]*/gu,' ');
+  assert.match(sql,/create or replace function private\.iberfit_reconcile_security_backend_acl_v1\(\)/iu);
+  assert.doesNotMatch(sql,/\bdo\s+(?:language\s+\w+\s+)?(?:\$\w*\$)/iu);
+  assert.doesNotMatch(sql,/security\s+definer/iu);
   assert.match(
     migration,
     /revoke all on function private\.iberfit_reconcile_security_backend_acl_v1\(\)[\s\S]*from public, anon, authenticated;/iu,
