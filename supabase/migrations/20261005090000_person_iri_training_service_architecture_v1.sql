@@ -100,13 +100,18 @@ where m.training_status is not null
 -- iri_assessments remains the protected 0..1 initial diagnosis. Follow-up/evolution
 -- uses a dedicated append-only-compatible table, avoiding any relaxation of the
 -- initial-only constraint or its unique baseline index.
+-- A composite unique key lets PostgreSQL enforce that each longitudinal
+-- reevaluation points to the initial diagnosis of the very same person.
+create unique index if not exists iri_assessments_id_client_integrity_v1
+  on public.iri_assessments(id,client_id);
+
 -- IBERFIT-TABLE-ACCESS: public.iri_reevaluations_v1 :: Private longitudinal assessment storage; exposed only through governed IRI workflows, never by direct client/coach table access.
 -- IBERFIT-POLICY: public.iri_reevaluations_v1 = service-role-only
 create table if not exists public.iri_reevaluations_v1(
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.iberfit_organizations(id) on delete restrict,
   person_id uuid not null references public.clients(id) on delete restrict,
-  initial_assessment_id uuid not null references public.iri_assessments(id) on delete restrict,
+  initial_assessment_id uuid not null,
   sequence integer not null check(sequence>=1),
   status text not null default 'borrador'
     check(status in ('borrador','revision','completo','publicado')),
@@ -117,7 +122,11 @@ create table if not exists public.iri_reevaluations_v1(
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(person_id,sequence)
+  unique(person_id,sequence),
+  constraint iri_reevaluations_initial_person_fk_v1
+    foreign key(initial_assessment_id,person_id)
+    references public.iri_assessments(id,client_id)
+    on delete restrict
 );
 
 comment on table public.iri_reevaluations_v1 is
