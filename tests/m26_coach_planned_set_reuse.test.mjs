@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   createExecution,
   plannedSetDraftValues,
+  suggestedSetDraftValues,
   recordSet,
   advanceExecution,
   startExecution,
@@ -71,6 +72,16 @@ test('plannedSetDraftValues reuses objective work only and never turns target ef
     load:'40 kg',
     rpe:'',
     rir:'',
+  });
+});
+
+test('suggestedSetDraftValues selects the safe planned draft on the first set',()=>{
+  const s=session();
+  const execution=createExecution({session:s,clientId:s.clientId,executionId:'execution-plan-suggested'});
+  startExecution(execution,{actor:{role:'coach',userId:'coach-1'}});
+  assert.deepEqual(suggestedSetDraftValues(execution,s),{
+    source:'planned',
+    values:{reps:'10',seconds:'',load:'40 kg',rpe:'',rir:''},
   });
 });
 
@@ -192,9 +203,8 @@ function controllerHarness(){
   return {controller,execution,fields,actionState,click,event,get renderCalls(){return renderCalls;},get persistCalls(){return persistCalls;}};
 }
 
-test('Coach copies planned values into the recoverable draft without completing the set',async()=>{
+test('Coach receives a safe automatic planned draft and explicit review focuses the human decision',async()=>{
   const harness=controllerHarness();
-  await harness.click(harness.event);
 
   assert.equal(harness.fields.get('reps').value,'10');
   assert.equal(harness.fields.get('seconds').value,'');
@@ -202,11 +212,19 @@ test('Coach copies planned values into the recoverable draft without completing 
   assert.equal(harness.fields.get('rpe').value,'');
   assert.equal(harness.fields.get('rir').value,'');
   assert.equal(harness.fields.get('notes').value,'Mantener nota manual');
-  assert.equal(harness.renderCalls,0);
-  assert.equal(harness.fields.get('reps').focusCalls,1);
+  assert.equal(harness.fields.get('reps').focusCalls,0);
+  assert.equal(harness.fields.get('rpe').focusCalls,0);
   assert.equal(harness.execution.activeSetDraft?.values?.load,'40 kg');
   assert.equal(harness.execution.activeSetDraft?.values?.rpe,'');
   assert.equal(harness.execution.activeSetDraft?.values?.rir,'');
+  assert.deepEqual(harness.execution.results,{});
+  assert.match(harness.actionState.message,/IBERFIT preparó esta serie/);
+
+  await harness.click(harness.event);
+
+  assert.equal(harness.renderCalls,0);
+  assert.equal(harness.fields.get('reps').focusCalls,0);
+  assert.equal(harness.fields.get('rpe').focusCalls,1);
   assert.deepEqual(harness.execution.results,{});
   assert.equal(harness.execution.setIndex,0);
   assert.match(harness.actionState.message,/Revísalo antes de confirmar/);
