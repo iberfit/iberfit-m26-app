@@ -27,6 +27,8 @@ function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en
 function applyRules(value,language,translatePart){
   let m;
   if((m=value.match(/^(\d+) pendiente(?:s)?$/u)))return pick(language,`${m[1]} pending`,`${m[1]} en attente`,`${m[1]} pendente${m[1]==='1'?'':'s'}`);
+  if((m=value.match(/^Datos necesarios completos \((\d+)\/(\d+)\)\. Revisa y confirma\.$/u)))return pick(language,`Required data complete (${m[1]}/${m[2]}). Review and confirm.`,`Données requises complètes (${m[1]}/${m[2]}). Vérifiez et confirmez.`,`Dados necessários completos (${m[1]}/${m[2]}). Reveja e confirme.`);
+  if((m=value.match(/^(\d+) de (\d+) datos necesarios completos · siguiente: (.+)\.$/u)))return pick(language,`${m[1]} of ${m[2]} required fields complete · next: ${tTerm(m[3],language,translatePart)}.`,`${m[1]} champs requis sur ${m[2]} complétés · suivant : ${tTerm(m[3],language,translatePart)}.`,`${m[1]} de ${m[2]} dados necessários completos · seguinte: ${tTerm(m[3],language,translatePart)}.`);
   if((m=value.match(/^(\d+) por revisar$/u)))return pick(language,`${m[1]} to review`,`${m[1]} à vérifier`,`${m[1]} por rever`);
   if((m=value.match(/^IRI en preparación · (.+)$/u)))return pick(language,`IRI in preparation · ${tTerm(m[1],language,translatePart)}`,`IRI en préparation · ${tTerm(m[1],language,translatePart)}`,`IRI em preparação · ${tTerm(m[1],language,translatePart)}`);
   if((m=value.match(/^Tu acompañamiento, (.+)$/u)))return pick(language,`Your coaching, ${m[1]}`,`Votre accompagnement, ${m[1]}`,`O seu acompanhamento, ${m[1]}`);
