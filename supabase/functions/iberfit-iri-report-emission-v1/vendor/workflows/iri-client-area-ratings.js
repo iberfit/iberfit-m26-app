@@ -1,4 +1,5 @@
 function finite(value){
+  if(value===null||value===undefined||value==='')return null;
   const n=Number(value);
   return Number.isFinite(n)?n:null;
 }
@@ -52,7 +53,7 @@ function movementRating(draft={},scoring={}){
     available+=4;
     points+=includesAny(squat.depth,['completa','profunda'])?2:includesAny(squat.depth,['parcial'])?1:0.5;
     points+=includesAny(squat.knees,['buena','alineación','alineacion','estable'])?1:0.5;
-    points+=includesAny(squat.trunk,['bueno','buena','neutro','estable'])?1:includesAny(squat.trunk,['liger','leve'])?0.5:0.25;
+    points+=includesAny(squat.trunk,['bueno','buena','neutro','estable'])?1:includesAny(squat.trunk,['liger','leve'])?0:0.25;
   }
   if(al!==null&&ar!==null){
     available+=1;
