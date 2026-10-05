@@ -5,7 +5,7 @@ const empty=(t,c)=>`<section class="m26-admin-empty"><h3>${e(t)}</h3><p>${e(c)}<
 const stat=(t,v)=>`<article class="m26-admin-stat"><span>${e(t)}</span><strong>${e(v)}</strong></article>`;
 const intro=(k,t,c)=>`<section class="m26-admin-hero"><p class="m26-eyebrow">${e(k)}</p><h2>${e(t)}</h2><p>${e(c)}</p></section>`;
 const rows=(headers,items)=>`<div class="m26-admin-table"><table><thead><tr>${headers.map((h)=>`<th>${e(h)}</th>`).join('')}</tr></thead><tbody>${items.join('')}</tbody></table></div>`;
-function form(kind,fields,button,{attrs='',submitAttrs=''}={}){return `<form data-admin-form="${kind}" class="m26-admin-form" ${attrs}>${fields}<button type="submit" ${submitAttrs}>${e(button)}</button></form>`;}
+function form(kind,fields,button,{attrs='',submitAttrs=''}={}){return `<form data-admin-form="${kind}" data-guided-required-form class="m26-admin-form" ${attrs}>${fields}<p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" ${submitAttrs}>${e(button)}</button></form>`;}
 function adminStatusLabel(value){
   const key=String(value||'').trim().toLowerCase();
   return ({
@@ -320,7 +320,7 @@ function clientCreateWizardForm(vm={}){
         <label>Modalidad<select name="modality" required><option value="">Selecciona</option><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
         <label data-client-training-only>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric" placeholder="2"></label>
         <label data-client-training-only>Duración habitual de sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric" placeholder="60"></label>
-        <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
+        <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="">Seleccionar situación del IRI</option><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
         <label>Coach responsable<select name="coachUserId">${coachOptions}</select><small>La asignación identifica al profesional responsable. No activa por sí sola un servicio de entrenamiento.</small></label>
         <label>Acceso del usuario<select name="accessMode" required><option value="app">Acceso IBERFIT · enviar invitación</option><option value="internal">Expediente interno · no enviar invitación</option></select><small data-client-access-copy>El acceso se enviará mediante autenticación alojada.</small></label>
         <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2" placeholder="Las Condes"></label>
@@ -425,7 +425,7 @@ function clientEditDialog(vm={}){
         <div><p class="m26-eyebrow">Expediente real</p><h3 id="m26-client-edit-title">Editar ficha de persona</h3><p>Actualiza datos operativos sin alterar el historial IRI ni activar entrenamiento de forma implícita.</p></div>
         <button type="button" class="m26-icon-button" data-admin-client-edit-close aria-label="Cerrar editor">×</button>
       </header>
-      <form data-admin-form="client-profile-update" class="m26-admin-form m26-admin-client-edit-form" autocomplete="on">
+      <form data-admin-form="client-profile-update" data-guided-required-form class="m26-admin-form m26-admin-client-edit-form" autocomplete="on">
         <input type="hidden" name="clientId">
         <input type="hidden" name="baseRevision">
         <section class="m26-admin-client-edit-access">
@@ -439,10 +439,10 @@ function clientEditDialog(vm={}){
           <label>Sexo para baremos IRI<select name="sexForNorms"><option value="">Completar después</option><option value="female">Mujer</option><option value="male">Hombre</option></select></label>
           <label>Canal preferido<select name="preferredContactChannel"><option value="">Sin preferencia</option><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="phone">Teléfono</option></select></label>
           <label>Horario preferido de contacto<input name="preferredContactTime" maxlength="120"></label>
-          <label>Modalidad<select name="modality" required><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
+          <label>Modalidad<select name="modality" required><option value="">Seleccionar modalidad</option><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
           <label data-client-edit-training-only>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" inputmode="numeric"></label>
           <label data-client-edit-training-only>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" inputmode="numeric"></label>
-          <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
+          <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="">Seleccionar situación del IRI</option><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
           <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2"></label>
           <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address"></label>
           <label class="m26-client-create-wide">Disponibilidad / horario<input name="preferredSchedule" maxlength="240"></label>
@@ -461,6 +461,7 @@ function clientEditDialog(vm={}){
           <label>Relación<input name="emergencyContactRelation" maxlength="120"></label>
           <label>Teléfono de emergencia<input name="emergencyContactPhone" maxlength="80" inputmode="tel"></label>
         </div>
+        <p class="m26-field-help" data-guided-required-progress aria-live="polite"></p>
         <footer class="m26-admin-client-edit-actions">
           <button type="button" data-admin-client-edit-close>Cancelar</button>
           <button type="submit" class="m26-primary-action">Guardar cambios</button>

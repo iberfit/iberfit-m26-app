@@ -4,7 +4,7 @@ import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {coachLaunchReadiness} from './coach-launch-readiness.js';
 import {deriveCoachSelfLaunchJourney} from './coach-launch-journey.js';
-import {focusFirstNeededControl,setControlGroupApplicable} from '../ui/guided-input.js';
+import {focusFirstNeededControl,guidedRequiredProgress,setControlGroupApplicable} from '../ui/guided-input.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
@@ -295,19 +295,32 @@ export function syncFlexibleOnboardingForm(form){
   const locationApplies=['presencial','hibrido'].includes(modality);
   const trainingAddress=named(form,'trainingAddress');
   setRequired(trainingAddress,!deferred&&locationApplies);
+  for(const wrapper of form.querySelectorAll?.('[data-onboarding-location-only]')||[]){
+    setControlGroupApplicable(wrapper,locationApplies);
+  }
   const trainingAddressWrapper=trainingAddress?.closest?.('label');
-  if(trainingAddressWrapper)setControlGroupApplicable(trainingAddressWrapper,locationApplies);
+  if(trainingAddressWrapper&&!trainingAddressWrapper.matches?.('[data-onboarding-location-only]')){
+    setControlGroupApplicable(trainingAddressWrapper,locationApplies);
+  }
   const phase=named(form,'phase');
   if(phase){
     if(deferred&&(!phase.value||phase.value==='Evaluación inicial'))phase.value='Inicio operativo';
     else if(!deferred&&phase.value==='Inicio operativo')phase.value='Evaluación inicial';
   }
+  const progress=guidedRequiredProgress(form);
+  if(form.dataset)form.dataset.onboardingPendingRequired=String(progress.pendingCount);
   const submit=form.querySelector?.('[data-onboarding-submit]');
-  if(submit)submit.textContent=deferred?'Crear expediente y empezar a trabajar':'Crear expediente y abrir evaluación IRI';
+  if(submit){
+    submit.textContent=progress.pendingCount
+      ?`Completar ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}`
+      :deferred?'Crear expediente y empezar a trabajar':'Crear expediente y abrir evaluación IRI';
+  }
   const copy=form.querySelector?.('[data-onboarding-next-copy]');
-  if(copy)copy.innerHTML=deferred
-    ?'<strong>Inicio operativo.</strong> El IRI queda disponible para realizarlo más adelante sin bloquear planificación, agenda ni sesiones.'
-    :'<strong>Evaluación IRI.</strong> Tras crear el expediente se abrirá la primera sesión de evaluación.';
+  if(copy)copy.innerHTML=progress.pendingCount
+    ?`<strong>Borrador protegido.</strong> Faltan ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}. Si intentas continuar, IBERFIT te llevará al primero pendiente.`
+    :deferred
+      ?'<strong>Inicio operativo.</strong> El IRI queda disponible para realizarlo más adelante sin bloquear planificación, agenda ni sesiones.'
+      :'<strong>Evaluación IRI.</strong> Tras crear el expediente se abrirá la primera sesión de evaluación.';
   return mode;
 }
 

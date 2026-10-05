@@ -39,6 +39,33 @@ export function fillEmptyControls(root,values={},{
   return Object.freeze(changed);
 }
 
+export function pendingRequiredControls(root,{
+  selector='input,select,textarea',
+}={}){
+  return Object.freeze(
+    [...(root?.querySelectorAll?.(selector)||[])]
+      .filter((control)=>guidedControlIsAvailable(control)&&Boolean(control.required))
+      .filter((control)=>{
+        if(typeof control.checkValidity==='function')return !control.checkValidity();
+        return guidedControlIsEmpty(control);
+      })
+  );
+}
+
+export function guidedRequiredProgress(root,options={}){
+  const controls=[...(root?.querySelectorAll?.(options.selector||'input,select,textarea')||[])]
+    .filter((control)=>guidedControlIsAvailable(control)&&Boolean(control.required));
+  const pending=pendingRequiredControls(root,options);
+  return Object.freeze({
+    total:controls.length,
+    pending:Object.freeze([...pending]),
+    pendingCount:pending.length,
+    completedCount:Math.max(0,controls.length-pending.length),
+    complete:pending.length===0,
+    first:pending[0]||null,
+  });
+}
+
 export function firstNeededControl(root,{
   selector='input,select,textarea',
   requiredOnly=false,

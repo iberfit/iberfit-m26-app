@@ -38,6 +38,7 @@ import {deriveAgeYears} from '../workflows/iri-profile.js';
 import {protocolComparabilityWarnings} from '../workflows/iri-protocol-catalog.js';
 import {rankCoachClientDocuments} from '../productivity/coach-productivity.js';
 import {classifyCoachListMeasurement,decideCoachVirtualization,markCoachListMeasurement} from '../productivity/large-list-policy.js';
+import {guidedRequiredProgress} from '../ui/guided-input.js';
 
 const IRI_DRAFT_SCOPE='iri-first-session';
 const IRI_REMOTE_SYNC_DELAY_MS=4_000;
@@ -50,6 +51,9 @@ const IRI_ERROR_FIELD_TARGET=Object.freeze({
 });
 const ONBOARDING_FIELD_LABELS=Object.freeze({
   name:'nombre completo',email:'correo electrónico',phone:'teléfono',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',primaryObjective:'objetivo principal',
+});
+const GUIDED_FORM_FIELD_LABELS=Object.freeze({
+  name:'nombre del ciclo',startDate:'fecha de inicio',endDate:'fecha de fin',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración',goal:'objetivo',clientId:'cliente',startAt:'inicio',endAt:'fin',experience:'experiencia',durationMinutes:'duración',
 });
 
 function values(form){return Object.fromEntries(new FormData(form).entries());}
@@ -67,6 +71,33 @@ function paintStatus(root,scope,entry){const node=root?.querySelector?.(`[data-w
 function status(root,scope,message,kind='info'){const entry={message:String(message||''),kind:String(kind||'info')};statusStore(root).set(scope,entry);paintStatus(root,scope,entry);}
 function clearStatus(root,scope,{forget=true}={}){const store=statusStore(root);if(forget)store.delete(scope);const node=root?.querySelector?.(`[data-workflow-status="${scope}"]`);if(!node)return false;let changed=false;if(node.textContent!==''){node.textContent='';changed=true;}if(node.dataset?.status!==undefined){delete node.dataset.status;changed=true;}return changed;}
 function clearAllStatuses(root){statusStore(root).clear();for(const node of root?.querySelectorAll?.('[data-workflow-status]')||[]){node.textContent='';if(node.dataset?.status!==undefined)delete node.dataset.status;}}
+function guidedFieldLabel(control){
+  const name=String(control?.name||'').trim();
+  if(GUIDED_FORM_FIELD_LABELS[name])return GUIDED_FORM_FIELD_LABELS[name];
+  const label=String(control?.labels?.[0]?.textContent||control?.closest?.('label')?.textContent||'').replace(/\s+/g,' ').trim();
+  return label||name||'dato pendiente';
+}
+export function syncGuidedWorkflowProgress(form){
+  if(!form?.matches?.('[data-guided-required-form]'))return null;
+  const progress=guidedRequiredProgress(form);
+  const node=form.querySelector?.('[data-guided-required-progress]');
+  if(node){
+    if(progress.total===0){
+      if(node.textContent!=='')node.textContent='';
+      if(node.hidden!==true)node.hidden=true;
+      if(node.dataset?.status!==undefined)delete node.dataset.status;
+      return progress;
+    }
+    const message=progress.complete
+      ?'Datos necesarios completos ('+progress.completedCount+'/'+progress.total+'). Revisa y confirma.'
+      :progress.completedCount+' de '+progress.total+' datos necesarios completos · siguiente: '+guidedFieldLabel(progress.first)+'.';
+    const nextStatus=progress.complete?'success':'pending';
+    if(node.hidden===true)node.hidden=false;
+    if(node.textContent!==message)node.textContent=message;
+    if(node.dataset?.status!==nextStatus)node.dataset.status=nextStatus;
+  }
+  return progress;
+}
 function restoreStatuses(root){for(const [scope,entry] of statusStore(root))paintStatus(root,scope,entry);}
 function wait(ms){return new Promise((resolve)=>setTimeout(resolve,ms));}
 async function withTimeout(promise,ms=20_000,code='M26_WORKFLOW_TIMEOUT'){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),ms);})]);}finally{clearTimeout(timer);}}
@@ -143,34 +174,111 @@ export function syncIriSkippedGroup(form,{toggleName,fieldNames=[],reasonName}={
   return skipped;
 }
 
+export function appointmentEndFromDuration(startAt,durationMinutes){
+  const match=String(startAt||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/u);
+  const duration=Number(durationMinutes);
+  if(!match||!Number.isFinite(duration)||duration<1||duration>24*60)return '';
+  const [,year,month,day,hour,minute]=match;
+  const date=new Date(Number(year),Number(month)-1,Number(day),Number(hour),Number(minute),0,0);
+  if(Number.isNaN(date.getTime()))return '';
+  date.setMinutes(date.getMinutes()+duration);
+  const pad=(value)=>String(value).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function appointmentModalitySuggestion(clientModality){
+  const normalized=normalizeClientModality(clientModality);
+  return normalized==='presencial'||normalized==='online'?normalized:'';
+}
+
 export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
-  if(!form)return {modality:null,locationRequired:false,trainingAddress:null};
+  if(!form)return {modality:null,locationRequired:false,trainingAddress:null,sessionDurationMinutes:null,suggestedEndAt:null};
   clearStatus(root,'appointment');
   const modalityField=form.elements?.namedItem?.('modality')||form.querySelector?.('[name="modality"]');
   const clientField=form.elements?.namedItem?.('clientId')||form.querySelector?.('[name="clientId"]');
+  const startField=form.elements?.namedItem?.('startAt')||form.querySelector?.('[name="startAt"]');
+  const endField=form.elements?.namedItem?.('endAt')||form.querySelector?.('[name="endAt"]');
   const locationField=form.elements?.namedItem?.('location')||form.querySelector?.('[name="location"]');
   const help=form.querySelector?.('#m26-location-help');
-  const modality=normalizeAppointmentModality(modalityField?.value);
-  const locationRequired=modality==='presencial';
+  const guidance=form.querySelector?.('#m26-appointment-guidance');
   const selectedOption=clientField?.selectedOptions?.[0]||clientField?.options?.[clientField?.selectedIndex]||null;
   const trainingAddress=String(selectedOption?.dataset?.trainingAddress||'').trim();
+  const clientModality=String(selectedOption?.dataset?.clientModality||'').trim();
+  const suggestedModality=appointmentModalitySuggestion(clientModality);
+  const sessionDurationMinutes=Number(selectedOption?.dataset?.sessionDuration);
+  const validDuration=Number.isFinite(sessionDurationMinutes)&&sessionDurationMinutes>=20&&sessionDurationMinutes<=240
+    ?sessionDurationMinutes
+    :null;
+
+  if(modalityField){
+    let previousAutofill=String(modalityField.dataset?.m26AutofilledValue||'');
+    const current=String(modalityField.value||'').trim();
+    if(previousAutofill&&current&&current!==previousAutofill){
+      if(modalityField.dataset)delete modalityField.dataset.m26AutofilledValue;
+      previousAutofill='';
+    }
+    if(suggestedModality&&(!current||(previousAutofill&&current===previousAutofill))){
+      modalityField.value=suggestedModality;
+      if(modalityField.dataset)modalityField.dataset.m26AutofilledValue=suggestedModality;
+    }else if(!suggestedModality&&previousAutofill&&current===previousAutofill){
+      modalityField.value='';
+      if(modalityField.dataset)delete modalityField.dataset.m26AutofilledValue;
+    }
+  }
+
+  const suggestedEndAt=appointmentEndFromDuration(startField?.value,validDuration);
+  if(endField){
+    let previousAutofill=String(endField.dataset?.m26AutofilledValue||'');
+    const current=String(endField.value||'').trim();
+    if(previousAutofill&&current&&current!==previousAutofill){
+      if(endField.dataset)delete endField.dataset.m26AutofilledValue;
+      previousAutofill='';
+    }
+    if(suggestedEndAt&&(!current||(previousAutofill&&current===previousAutofill))){
+      endField.value=suggestedEndAt;
+      if(endField.dataset)endField.dataset.m26AutofilledValue=suggestedEndAt;
+    }else if(!suggestedEndAt&&previousAutofill&&current===previousAutofill){
+      endField.value='';
+      if(endField.dataset)delete endField.dataset.m26AutofilledValue;
+    }
+  }
+
+  const modality=normalizeAppointmentModality(modalityField?.value);
+  const locationRequired=modality==='presencial';
   if(locationField){
     const previousAutofill=String(locationField.dataset?.m26AutofilledValue||'');
     const current=String(locationField.value||'').trim();
     locationField.required=locationRequired;
     if(locationRequired)locationField.setAttribute?.('required','');else locationField.removeAttribute?.('required');
     if(locationRequired&&trainingAddress&&(!current||current===previousAutofill)){
-      locationField.value=trainingAddress;if(locationField.dataset)locationField.dataset.m26AutofilledValue=trainingAddress;
+      locationField.value=trainingAddress;
+      if(locationField.dataset)locationField.dataset.m26AutofilledValue=trainingAddress;
     }else if(!locationRequired&&previousAutofill&&current===previousAutofill){
-      locationField.value='';if(locationField.dataset)delete locationField.dataset.m26AutofilledValue;
+      locationField.value='';
+      if(locationField.dataset)delete locationField.dataset.m26AutofilledValue;
     }
+  }
+  if(guidance){
+    const suggestions=[
+      suggestedModality?'modalidad del expediente':null,
+      validDuration?'duración habitual':null,
+    ].filter(Boolean);
+    guidance.textContent=suggestions.length
+      ?`IBERFIT ha propuesto ${suggestions.join(' y ')}. Revísalas: cualquier cambio manual prevalece.`
+      :'No hay modalidad o duración confirmadas para proponer. Selecciónalas para esta cita.';
   }
   if(help){
     help.textContent=locationRequired
       ?trainingAddress?'Se ha propuesto la dirección habitual del expediente. Revísala antes de guardar.':'La ubicación es obligatoria para citas presenciales. Registra también la dirección habitual en el expediente.'
       :modality==='online'?'Añade un enlace o instrucciones únicamente cuando corresponda.':'La sesión guiada se realiza dentro de la aplicación.';
   }
-  return {modality,locationRequired,trainingAddress:trainingAddress||null};
+  return {
+    modality,
+    locationRequired,
+    trainingAddress:trainingAddress||null,
+    sessionDurationMinutes:validDuration,
+    suggestedEndAt:suggestedEndAt||null,
+  };
 }
 
 export function createWorkflowController({
@@ -993,6 +1101,7 @@ export function createWorkflowController({
     const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(onboardingForm)void initializeOnboardingForm(onboardingForm);
     const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void initializeIriForm(iriForm);
     const appointmentForm=root.querySelector?.('[data-workflow-form="appointment"]');if(appointmentForm&&!initializedAppointmentForms.has(appointmentForm)){initializedAppointmentForms.add(appointmentForm);syncAppointmentFormState(appointmentForm,root);}
+    for(const guidedForm of root.querySelectorAll?.('[data-guided-required-form]')||[])syncGuidedWorkflowProgress(guidedForm);
     const clientGrid=root.querySelector?.('[data-client-grid]');if(clientGrid&&!initializedClientGrids.has(clientGrid)){initializedClientGrids.add(clientGrid);scheduleClientListUpdate();}
     restoreStatuses(root);
   }
@@ -1257,15 +1366,16 @@ export function createWorkflowController({
   }
   async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
+    const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       try{computed(iriForm);}catch{}clearStatus(root,'iri');queueIriSave();return;
     }
     const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
-    const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);return;}
+    const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){scheduleClientListUpdate(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
+  function onChange(event){const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
   async function flushLocalDrafts(){
     clearTimeout(iriSaveTimer);

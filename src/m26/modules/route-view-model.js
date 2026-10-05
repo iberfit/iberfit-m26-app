@@ -840,6 +840,7 @@ if (area === 'clientes') {
       serviceKind:trainingActive?'training':'none',
       canEdit,
       iriPlanningSeed,
+      profile,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),

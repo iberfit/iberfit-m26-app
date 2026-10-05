@@ -115,3 +115,75 @@ test('onboarding oculta dirección cuando no aplica sin borrar el valor humano',
   assert.equal(address.disabled,false);
   assert.equal(address.value,'Av. Apoquindo 1234');
 });
+
+
+test('onboarding guía por los datos obligatorios reales y oculta toda la logística física en online',()=>{
+  const makeControl=(name,{value='',required=false}={})=>({
+    name,
+    value,
+    required,
+    disabled:false,
+    type:'text',
+    checked:false,
+    setAttribute(attr){if(attr==='required')this.required=true;},
+    removeAttribute(attr){if(attr==='required')this.required=false;},
+    getAttribute(attr){return attr==='name'?this.name:null;},
+    closest(selector){return selector==='label'?wrappers.get(name)||null:null;},
+    checkValidity(){return !this.required||String(this.value||'').trim().length>0;},
+  });
+  const wrappers=new Map();
+  const controls={
+    initialAssessmentMode:makeControl('initialAssessmentMode',{value:'iri'}),
+    modality:makeControl('modality',{value:'online',required:true}),
+    sexForNorms:makeControl('sexForNorms',{value:'female',required:true}),
+    weeklyFrequency:makeControl('weeklyFrequency',{value:'',required:true}),
+    sessionDurationMinutes:makeControl('sessionDurationMinutes',{value:'60',required:true}),
+    primaryObjective:makeControl('primaryObjective',{value:'Mejorar fuerza general',required:true}),
+    trainingAddress:makeControl('trainingAddress',{value:'Av. Apoquindo 1234',required:true}),
+    commune:makeControl('commune',{value:'Las Condes'}),
+    locationType:makeControl('locationType',{value:'Gimnasio'}),
+    accessInstructions:makeControl('accessInstructions',{value:'Avisar en recepción'}),
+    phase:makeControl('phase',{value:'Evaluación inicial'}),
+  };
+  for(const name of ['trainingAddress','commune','locationType','accessInstructions']){
+    const wrapper={
+      hidden:false,
+      attrs:new Map(),
+      matches(selector){return selector==='[data-onboarding-location-only]';},
+      querySelectorAll(){return [controls[name]];},
+      setAttribute(name,value){this.attrs.set(name,value);},
+    };
+    wrappers.set(name,wrapper);
+  }
+  const submit={textContent:''};
+  const copy={innerHTML:''};
+  const all=Object.values(controls);
+  const form={
+    dataset:{},
+    elements:{namedItem:(name)=>controls[name]||null},
+    querySelector(selector){
+      if(selector==='[data-onboarding-submit]')return submit;
+      if(selector==='[data-onboarding-next-copy]')return copy;
+      return null;
+    },
+    querySelectorAll(selector){
+      if(selector==='[data-onboarding-location-only]')return [...wrappers.values()];
+      if(selector==='input,select,textarea')return all;
+      return [];
+    },
+  };
+
+  assert.equal(syncFlexibleOnboardingForm(form),'iri');
+  for(const wrapper of wrappers.values())assert.equal(wrapper.hidden,true);
+  for(const name of ['trainingAddress','commune','locationType','accessInstructions'])assert.equal(controls[name].disabled,true,name);
+  assert.equal(controls.trainingAddress.value,'Av. Apoquindo 1234');
+  assert.equal(form.dataset.onboardingPendingRequired,'1');
+  assert.equal(submit.textContent,'Completar 1 dato obligatorio');
+  assert.match(copy.innerHTML,/Borrador protegido/);
+
+  controls.weeklyFrequency.value='2';
+  assert.equal(syncFlexibleOnboardingForm(form),'iri');
+  assert.equal(form.dataset.onboardingPendingRequired,'0');
+  assert.equal(submit.textContent,'Crear expediente y abrir evaluación IRI');
+  assert.match(copy.innerHTML,/Evaluación IRI/);
+});

@@ -11,6 +11,18 @@ const TERM=Object.freeze({
   'pendiente':{en:'pending',fr:'en attente',pt:'pendente'},
   'conectado':{en:'connected',fr:'connecté',pt:'ligado'},
   'sincronizando':{en:'syncing',fr:'synchronisation',pt:'a sincronizar'},
+  'nombre del ciclo':{en:'cycle name',fr:'nom du cycle',pt:'nome do ciclo'},
+  'fecha de inicio':{en:'start date',fr:'date de début',pt:'data de início'},
+  'fecha de fin':{en:'end date',fr:'date de fin',pt:'data de fim'},
+  'modalidad':{en:'modality',fr:'modalité',pt:'modalidade'},
+  'frecuencia semanal':{en:'weekly frequency',fr:'fréquence hebdomadaire',pt:'frequência semanal'},
+  'duración':{en:'duration',fr:'durée',pt:'duração'},
+  'objetivo':{en:'goal',fr:'objectif',pt:'objetivo'},
+  'cliente':{en:'client',fr:'client',pt:'cliente'},
+  'inicio':{en:'start',fr:'début',pt:'início'},
+  'fin':{en:'end',fr:'fin',pt:'fim'},
+  'experiencia':{en:'experience',fr:'expérience',pt:'experiência'},
+  'dato pendiente':{en:'missing field',fr:'champ manquant',pt:'dado pendente'},
 });
 
 function tTerm(value,language,translatePart){
@@ -27,6 +39,8 @@ function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en
 function applyRules(value,language,translatePart){
   let m;
   if((m=value.match(/^(\d+) pendiente(?:s)?$/u)))return pick(language,`${m[1]} pending`,`${m[1]} en attente`,`${m[1]} pendente${m[1]==='1'?'':'s'}`);
+  if((m=value.match(/^Datos necesarios completos \((\d+)\/(\d+)\)\. Revisa y confirma\.$/u)))return pick(language,`Required data complete (${m[1]}/${m[2]}). Review and confirm.`,`Données requises complètes (${m[1]}/${m[2]}). Vérifiez et confirmez.`,`Dados necessários completos (${m[1]}/${m[2]}). Reveja e confirme.`);
+  if((m=value.match(/^(\d+) de (\d+) datos necesarios completos · siguiente: (.+)\.$/u)))return pick(language,`${m[1]} of ${m[2]} required fields complete · next: ${tTerm(m[3],language,translatePart)}.`,`${m[1]} champs requis sur ${m[2]} complétés · suivant : ${tTerm(m[3],language,translatePart)}.`,`${m[1]} de ${m[2]} dados necessários completos · seguinte: ${tTerm(m[3],language,translatePart)}.`);
   if((m=value.match(/^(\d+) por revisar$/u)))return pick(language,`${m[1]} to review`,`${m[1]} à vérifier`,`${m[1]} por rever`);
   if((m=value.match(/^IRI en preparación · (.+)$/u)))return pick(language,`IRI in preparation · ${tTerm(m[1],language,translatePart)}`,`IRI en préparation · ${tTerm(m[1],language,translatePart)}`,`IRI em preparação · ${tTerm(m[1],language,translatePart)}`);
   if((m=value.match(/^Tu acompañamiento, (.+)$/u)))return pick(language,`Your coaching, ${m[1]}`,`Votre accompagnement, ${m[1]}`,`O seu acompanhamento, ${m[1]}`);
