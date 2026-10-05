@@ -131,11 +131,11 @@ test('completed execution closes the loop into confirmed progress',()=>{
   assert.match(coachHtml,/data-m26-coach-action="true"/);
   assert.match(coachHtml,/data-m26-client-id="c1"/);
   assert.match(coachHtml,/data-m26-target-area="expediente"/);
-  assert.match(coachHtml,/>Abrir expediente</);
+  assert.match(coachHtml,/>Revisar seguimiento</);
   assert.doesNotMatch(coachHtml,/>Ver mi progreso</);
   assert.match(
     coachHtml,
-    /El seguimiento del cliente ya puede continuar desde su expediente\./
+    /La sesión está cerrada\. Revisa si alguna señal requiere una decisión y deja preparada la siguiente sesión desde el expediente\./
   );
   assert.match(
     coachHtml,
