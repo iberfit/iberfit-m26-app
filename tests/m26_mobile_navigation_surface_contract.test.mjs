@@ -18,3 +18,10 @@ test('authenticated smoke clicks the real sidebar or mobile navigation, not arbi
   assert.match(smoke,/\.m26-sidebar \[data-m26-area\]/u);
   assert.doesNotMatch(smoke,/const targetAreaButton=page\.locator\('\[data-m26-area\]:not/u);
 });
+
+
+test('Admin mobile More derives from the same context-filtered navigation as desktop',()=>{
+  assert.match(shell,/hideAdminPersonContext=String\(vm\?\.identity\?\.role\|\|''\)==='admin'&&!vm\?\.selectedClient/u);
+  assert.match(shell,/personContext=hideAdminPersonContext&&\['selected-client','client-context'\]\.includes/u);
+  assert.match(shell,/const allMobileItems = \[\.\.\.allNavigationItems\(vm\)\.values\(\)\];/u);
+});

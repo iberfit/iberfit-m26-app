@@ -54,7 +54,12 @@ function navItem(item, activeArea,{disabled=false}={}) {
 function allNavigationItems(vm){
   const source=[...vm.navigation.primary,...vm.navigation.context,...vm.navigation.tools];
   const map=new Map();
-  for(const item of source){if(item?.key&&!map.has(item.key))map.set(item.key,item);}
+  const hideAdminPersonContext=String(vm?.identity?.role||'')==='admin'&&!vm?.selectedClient;
+  for(const item of source){
+    const personContext=hideAdminPersonContext&&['selected-client','client-context'].includes(String(item?.scope||''));
+    if(personContext)continue;
+    if(item?.key&&!map.has(item.key))map.set(item.key,item);
+  }
   return map;
 }
 
@@ -183,7 +188,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   if (vm.mode !== 'authenticated') return renderM26AccessFrame(vm);
   applyIberfitDocumentLanguage(vm.language);
   const routeContent = routeMarkup || `<section class="m26-route-placeholder" data-content-state="empty" role="status" aria-live="polite"><p class="m26-eyebrow">${escapeHtml(areaText(vm.page,'label'))}</p><h2>${escapeHtml(areaText(vm.page,'title'))}</h2></section>`;
-  const allMobileItems = [...vm.navigation.primary, ...vm.navigation.context, ...vm.navigation.tools].filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index);
+  const allMobileItems = [...allNavigationItems(vm).values()];
   const quickMobileItems = vm.navigation.mobile.slice(0, 4);
   const moreMobileItems = allMobileItems.filter((item) => !quickMobileItems.some((quick) => quick.key === item.key));
   const mobileMoreActive=moreMobileItems.some((item)=>item.key===vm.activeArea);

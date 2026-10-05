@@ -97,7 +97,8 @@ test('Admin mantiene namespace propio y sólo abre contexto profesional acotado'
   const state=readyState('admin');
   const adminNav=navigationKeys('admin');
   for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
-    assert.equal(adminNav.context.includes(area),true,`${area} must be discoverable in Admin navigation`);
+    assert.equal(adminNav.context.includes(area),true,`${area} remains part of the contextual Admin navigation model`);
+    assert.equal(areaAllowedForRole(area,'admin'),true,`${area} remains authorized after explicit person selection`);
   }
   const contextual=resolveM26Route(state,'admin-iri');
   assert.equal(contextual.area,'admin-iri');
