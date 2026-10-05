@@ -1,4 +1,4 @@
-import { canSubstituteCurrentExercise,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues } from './session-execution.js';
+import { canSubstituteCurrentExercise,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -962,6 +962,10 @@ const setEntryFields=isCoach
       <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
     </div>`;
 const previousSet=previousSetDraftValues(execution);
+const plannedSetPreset=isCoach&&!previousSet?plannedSetDraftValues(execution,session):null;
+const plannedSetReuse=plannedSetPreset
+  ?`<div class="m26-field-grid" data-session-planned-set><div class="m26-field"><span>Punto de partida</span><strong>${e(previousSetSummary(plannedSetPreset))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-planned-set" aria-label="Usar el objetivo planificado como borrador y revisarlo antes de confirmar">Usar objetivo y revisar</button></div><small class="m26-session-repeat-note">Solo completa el borrador · confirma después lo que realmente se hizo.</small></div></div>`
+  :'';
 const previousSetReuse=previousSet
   ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
   :'';
@@ -1108,6 +1112,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <p class="m26-eyebrow">Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
         <h3>Registra lo que realmente hiciste</h3>
         <p class="m26-session-set-rule">Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.</p>
+        ${plannedSetReuse}
         ${previousSetReuse}
         ${setEntryFields}
         <details>

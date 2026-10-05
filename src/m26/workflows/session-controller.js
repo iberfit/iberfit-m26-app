@@ -4,7 +4,7 @@ import {
   adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
-  markExecutionSync,previousSetDraftValues,repeatPreviousSet,addExtraSetAndAdvance,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft,
+  markExecutionSync,previousSetDraftValues,plannedSetDraftValues,repeatPreviousSet,addExtraSetAndAdvance,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft,
   currentStep,executionResultForStep,hasNextExecutionStep,advanceExpiredRest
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
@@ -395,6 +395,27 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     input.focus();
     return true;
   }
+  function applySetDraftValues(context,values,{message}={}){
+    if(!values||!context?.execution||!context?.session)return false;
+    for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
+      const field=node.getAttribute('data-set-field');
+      if(field==='notes'||!Object.prototype.hasOwnProperty.call(values,field))continue;
+      node.value=values[field]??'';
+    }
+    const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));
+    if(saved)queueExecutionDraftPersist(context);
+    if(context?.actionState){
+      context.actionState.status='success';
+      context.actionState.message=message||'Borrador actualizado. Revísalo antes de confirmar.';
+    }
+    if(isCoachContext(context)){
+      syncQuickRpeControl();
+      focusCopiedSetField(values);
+      return true;
+    }
+    renderSession();
+    return true;
+  }
   const baseRender=render;
   render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
   function renderSession(){render?.();}
@@ -533,23 +554,16 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     renderSession();
   }
   return;
+}if(action==='reuse-planned-set'){
+  if(!isCoachContext(context))throw new Error('M26_EXECUTION_COACH_ACTION_REQUIRED');
+  const values=plannedSetDraftValues(context?.execution,context?.session);
+  if(!values)return;
+  applySetDraftValues(context,values,{message:'Objetivo planificado copiado como borrador. Revísalo antes de confirmar.'});
+  return;
 }if(action==='reuse-previous-set'){
   const values=previousSetDraftValues(context?.execution);
   if(!values)return;
-  for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
-    const field=node.getAttribute('data-set-field');
-    if(field==='notes'||!Object.prototype.hasOwnProperty.call(values,field))continue;
-    node.value=values[field]??'';
-  }
-  const saved=context?.execution&&context?.session?updateActiveSetDraft(context.execution,context.session,fieldValues(root)):null;
-  if(saved)queueExecutionDraftPersist(context);
-  if(context?.actionState){context.actionState.status='success';context.actionState.message='Datos de la serie anterior copiados. Revísalos antes de confirmar.';}
-  if(isCoachContext(context)){
-    syncQuickRpeControl();
-    focusCopiedSetField(values);
-    return;
-  }
-  renderSession();
+  applySetDraftValues(context,values,{message:'Datos de la serie anterior copiados. Revísalos antes de confirmar.'});
   return;
 }if(action==='set-rpe-quick'){
   const value=Number(button.getAttribute('data-rpe-value'));

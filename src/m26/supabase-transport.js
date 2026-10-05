@@ -734,11 +734,6 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return normalizeRc43Result(await rc43Rpc(RC43_RPC.recordMeasurement,token,{p_payload:payload}),'M26_RC43_MEASUREMENT_INVALID_RESPONSE');
   }
 
-  async function saveTrainingSession(token,payload={}){
-    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC43_PAYLOAD_INVALID');
-    return normalizeRc43Result(await rc43Rpc(RC43_RPC.saveTrainingSession,token,{p_payload:payload}),'M26_RC43_SESSION_INVALID_RESPONSE');
-  }
-
   async function sendMessage(token,payload={}){
     if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC43_PAYLOAD_INVALID');
     return normalizeRc43Result(await rc43Rpc(RC43_RPC.sendMessage,token,{p_payload:payload}),'M26_RC43_MESSAGE_INVALID_RESPONSE');
@@ -1247,7 +1242,6 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     deleteWearableData,
     importTelemetryBatch,
     recordMeasurement,
-    saveTrainingSession,
     sendMessage,
     createCustomExercise,
     renameExercise,
