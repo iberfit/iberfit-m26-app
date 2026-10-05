@@ -8,6 +8,7 @@ import {
   currentStep,
   executionResultForStep,
   previousSetDraftValues,
+  previousSetReviewDraftValues,
   recordSet,
   repeatPreviousSet,
   startExecution,
@@ -74,6 +75,17 @@ test('previousSetDraftValues exposes reusable metrics without copying notes',()=
     rir:'2',
   });
   assert.equal(Object.hasOwn(previousSetDraftValues(execution),'notes'),false);
+});
+
+test('previousSetReviewDraftValues keeps mechanical context but never copies observed effort',()=>{
+  const {execution}=executionOnSecondSet();
+  assert.deepEqual(previousSetReviewDraftValues(execution),{
+    reps:'10',
+    seconds:'',
+    load:'80 kg',
+    rpe:'',
+    rir:'',
+  });
 });
 
 test('previousSetDraftValues is unavailable on the first set',()=>{
@@ -225,12 +237,12 @@ test('controller copies locally, preserves current notes, persists the active dr
   const helperEnd=source.indexOf('const baseRender=render;',helperStart);
   assert.ok(helperStart>=0&&helperEnd>helperStart);
   const helper=source.slice(helperStart,helperEnd);
-  assert.match(branch,/previousSetDraftValues/);
+  assert.match(branch,/previousSetReviewDraftValues/);
   assert.match(branch,/applySetDraftValues/);
   assert.match(helper,/field==='notes'/);
   assert.match(helper,/updateActiveSetDraft/);
   assert.match(helper,/queueExecutionDraftPersist/);
-  assert.match(branch,/Revísalos antes de confirmar/);
+  assert.match(branch,/esfuerzo real antes de confirmar/);
   assert.doesNotMatch(branch,/dispatchSessionAction/);
   assert.doesNotMatch(source,/case 'reuse-previous-set'/);
 });
@@ -342,14 +354,15 @@ test('Coach reutiliza la serie anterior sin rerender y entra directamente a revi
   assert.equal(harness.fields.get('reps').value,'10');
   assert.equal(harness.fields.get('seconds').value,'');
   assert.equal(harness.fields.get('load').value,'80 kg');
-  assert.equal(harness.fields.get('rpe').value,'8');
-  assert.equal(harness.fields.get('rir').value,'2');
+  assert.equal(harness.fields.get('rpe').value,'');
+  assert.equal(harness.fields.get('rir').value,'');
   assert.equal(harness.fields.get('notes').value,'Mantener esta nota');
   assert.equal(harness.renderCalls,0);
-  assert.deepEqual(harness.fields.get('reps').focusCalls,[null]);
+  assert.equal(harness.fields.get('reps').focusCalls.length,0);
+  assert.deepEqual(harness.fields.get('rpe').focusCalls,[null]);
   assert.equal(harness.fields.get('load').focusCalls.length,0);
   assert.equal(harness.actionState.status,'success');
-  assert.match(harness.actionState.message,/Revísalos antes de confirmar/);
+  assert.match(harness.actionState.message,/esfuerzo real antes de confirmar/);
   assert.equal(harness.execution.activeSetDraft?.values?.load,'80 kg');
 
   await new Promise((resolve)=>setTimeout(resolve,80));
@@ -363,6 +376,8 @@ test('Cliente conserva el flujo compartido de reutilización con rerender existe
 
   assert.equal(harness.fields.get('reps').value,'10');
   assert.equal(harness.fields.get('load').value,'80 kg');
+  assert.equal(harness.fields.get('rpe').value,'');
+  assert.equal(harness.fields.get('rir').value,'');
   assert.equal(harness.renderCalls,1);
   assert.equal(harness.fields.get('reps').focusCalls.length,0);
   assert.equal(harness.actionState.status,'success');
