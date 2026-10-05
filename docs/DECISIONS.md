@@ -53,8 +53,8 @@ Priorizar `señal -> decisión Coach -> intervención -> outcome -> aprendizaje`
 ## D-017 · Persistencia operativa obligatoria
 Ninguna implementación material o decisión duradera puede quedar sólo en el chat. Código, estado, decisiones y evidencia deben persistir en Git/PR y contratos canónicos. Un WIP interrumpido debe dejar HEAD exacto, nivel de verificación y siguiente acción.
 
-## D-018 · IRI baseline y evolución separados
-El IRI es baseline inicial. Seguimiento y reevaluación longitudinal no deben modelarse como nuevas instancias equivalentes del IRI inicial.
+## D-018 · IRI y evolución separados
+**SUPERSEDED parcialmente por D-023.** El IRI inicial sigue siendo el punto de partida y el seguimiento longitudinal sigue siendo un dominio distinto. D-023 aclara que las reevaluaciones sí son nuevos episodios de evaluación IRI de la misma persona, no extensiones mutables del IRI inicial.
 
 ## D-019 · Fotogrametría como evidencia privada no diagnóstica
 Originales y derivados se separan; originales se protegen de mutación indebida; landmarks requieren validación del Coach; las fotos se excluyen de reportes por defecto y la fotogrametría no emite diagnóstico automático.
@@ -72,10 +72,31 @@ Resolver explícitamente; no cambiar automáticamente.
 
 ## D-021 · Solo IRI pertenece al lifecycle de la misma persona
 
-`iri_only` es un estado comercial canónico; no un booleano paralelo ni otro dominio de identidad. La asignación de Coach y el acceso autorizado al IRI/fotos se conservan. Activar entrenamiento añade un evento lifecycle para el mismo client ID sin recrear el baseline inicial. Métricas/alertas/capacidad de entrenamiento excluyen `iri_only`. Ingresos necesitan evidencia comercial explícita.
+**SUPERSEDED por D-023.** Esta decisión resolvió temporalmente la separación entre IRI y entrenamiento sin duplicar identidad. Se conserva como historial de migración, pero `iri_only` deja de ser el modelo objetivo de producto y no representa un servicio futuro.
 
 ## D-022 · Fidelidad de protocolo en terreno
 
 Validez de ejecución, elegibilidad normativa y comparabilidad longitudinal son independientes. Una adaptación válida puede ser baseline individual sin nota. Colchoneta no se rotula como banco; sentadilla libre 60 s no hereda silla 30 s/1MSTS; empuje cronometrado no usa max reps sin tiempo; TRX documenta altura, pies/ángulo, rodillas y tiempo. Presets rellenan sólo preparación y requieren ajustar al material real. HRR1/2 de cinta submáxima 3 min son descriptivas: no se trasladan puntos de corte clínicos de esfuerzo máximo ni recuperación diferente.
 
 Fuentes primarias revisadas: Cole et al., NEJM 1999, DOI 10.1056/NEJM199910283411804 (esfuerzo limitado por síntomas/recuperación definida); bent-knee push-up en mujeres universitarias, DOI 10.1207/s15327841mpee0804_2 (propiedades en población/protocolo específicos); estudio de escala de flexión estándar en mujeres 18–24, PMID 35992503; TRX cargas/posición, DOI 10.1371/journal.pone.0291608. No justifican un baremo universal para la sesión de terreno solicitada. Mantener baseline para rodillas/TRX/plancha/sentadilla libre/cinta hasta disponer de referencia aplicable, protocolo exacto y decisión profesional.
+
+
+## D-023 · Persona, evaluación IRI y servicio de entrenamiento son dominios independientes
+
+La entidad humana es la raíz estable. Una persona puede tener `0..N` evaluaciones IRI y `0..N` periodos de servicio de entrenamiento a lo largo del tiempo.
+
+Reglas duraderas:
+- realizar un IRI no crea ni activa por sí mismo un servicio de entrenamiento;
+- contratar entrenamiento no exige que exista previamente un IRI;
+- el IRI es el camino recomendado de entrada, no un bloqueo técnico;
+- la primera evaluación IRI puede actuar como evaluación inicial/punto de partida;
+- una reevaluación es un nuevo episodio IRI, con identidad, fecha, evidencia e informe propios cuando corresponda;
+- seguimiento/evolución sigue separado de los episodios IRI;
+- `iri_only` queda como estado histórico de compatibilidad y debe migrarse sin destruir su historial;
+- «Solo IRI» deja de ser una categoría estructural de producto;
+- convertir una persona en Cliente IBERFIT activa una relación de entrenamiento para el mismo identificador de persona y debe preservar IRI, fotos, fotogrametría, bioimpedancia, informes, consentimientos y auditoría;
+- métricas de clientes, capacidad Coach, planificación, agenda recurrente y pagos dependen del servicio de entrenamiento, no de haber realizado un IRI;
+- la UI debe distinguir IRI pendiente, diferido y no previsto por ahora sin presentar un expediente válido como defectuoso;
+- no usar «baseline» en UI; usar «evaluación inicial», «punto de partida» o «referencia inicial».
+
+La evolución técnica debe ser aditiva y compatible con los identificadores/ficheros existentes; no se realizará una reescritura masiva de claves foráneas para renombrar físicamente `clients`.
