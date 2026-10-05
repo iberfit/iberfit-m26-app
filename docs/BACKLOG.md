@@ -30,15 +30,17 @@ Checkpoint: 2026-10-05. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`
 - [x] Merge SHA `56421d74fa52b08a949c34ef6c016162882d217b`; Canary Exact Deploy y gates UX post-merge SUCCESS.
 - [x] Production Promotion #315, run `37332004338`: SUCCESS; rollback no requerido.
 
-## MACRO-WIP EN CURSO · Interaction Reliability 360
+## WIP INTEGRADO · Interaction Reliability 360 · PR #729
 
-- [ ] Hardening global de autofill/focus/caret/select para formularios autenticados, sin degradar el contrato Auth específico.
-- [ ] Scroll seguro de controles enfocados frente a topbar, teclado virtual, navegación inferior y safe areas.
-- [ ] Overlays/modales con overscroll contenido, touch momentum y scroll estable.
-- [ ] PWA instalada: añadir tablet landscape a la matriz N-1 → N.
-- [ ] Reconciliar Device Policy con Admin autenticado/WebAuthn recurrente real ya existente en Canary.
-- [ ] Ejecutar matriz Admin Chromium/WebKit/Firefox + desktop/tablet portrait/tablet landscape/mobile sobre controles reales.
-- [ ] Recertificar CI, Admin Matrix, Device Experience, PWA, Client Interaction, Auth/WebAuthn y Canary exacto antes de PROD.
+- [x] Hardening global de autofill/focus/caret/select para formularios autenticados, sin degradar el contrato Auth específico.
+- [x] Scroll seguro de controles enfocados frente a topbar, teclado virtual, navegación inferior y safe areas.
+- [x] Overlays/modales con overscroll contenido, touch momentum y scroll estable.
+- [x] PWA instalada: tablet landscape añadida a la matriz N-1 → N.
+- [x] Device Policy reconciliada con Admin/Coach autenticado + WebAuthn recurrente en Canary.
+- [x] Admin Matrix Chromium/WebKit/Firefox + desktop/tablet portrait/tablet landscape/mobile GREEN.
+- [x] Pre-merge: CI, Fast Lane, Continuous Audit, Device Experience, Client Interaction, evidencia visual y WebAuthn GREEN.
+- [x] Merge exacto PR #729 → `744fe36112ff1c61e3b61772f3c74943edee08f2`; `canary/rc74-4` verificado en ese SHA.
+- [ ] Verificar Canary Exact Deploy post-merge sobre `744fe361...` antes de cualquier promoción PROD; el conector disponible no expone runs de `push` y el runtime Canary no fue resoluble desde este entorno en la comprobación actual.
 
 ## WIP CERRADO · Personas + IRI real en terreno + Solo IRI
 
@@ -149,9 +151,9 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 
 - [x] Revisados los 2 SECURITY DEFINER ejecutables por anon: catálogo/media públicos, lectura acotada y deliberada.
 - [x] Revisados RPC Admin críticos: privileged assurance + rol + organización + scope antes de mutar.
-- [ ] Completar auditoría por intención de todos los SECURITY DEFINER ejecutables por authenticated y documentar la decisión grant/revoke.
-- [ ] Revisar tablas RLS sin policy y documentar cuáles son deliberadamente inaccesibles por Data API.
-- [ ] Evaluar índices de FKs sólo contra consultas reales/EXPLAIN; no añadirlos masivamente.
+- [x] SECURITY DEFINER auditados por intención en QA/PROD; decisiones KEEP/REVOKE documentadas en `docs/SECURITY_BACKEND_AUDIT_2026-10-05.md`. Hardening ACL legacy versionado y validado en QA; PROD requiere promoción posterior.
+- [x] RLS auditado: 0 tablas públicas sin RLS; tablas con RLS y 0 policies tienen 0 grants para `anon/authenticated`, por diseño fuera de Data API.
+- [x] FKs sin índice evaluadas contra cardinalidad, consultas reales e `EXPLAIN`; no se justifica añadir índices hoy. Reevaluar por crecimiento + hot path + plan/coste real.
 - [ ] Leaked password protection: disponible sólo con plan Supabase compatible; decidir upgrade por seguridad/operación.
 
 ## P1 · negocio / escalabilidad
