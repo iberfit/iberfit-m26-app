@@ -5,6 +5,8 @@ import {
   fillEmptyControls,
   firstNeededControl,
   focusFirstNeededControl,
+  guidedRequiredProgress,
+  pendingRequiredControls,
   setControlGroupApplicable,
 } from '../src/m26/ui/guided-input.js';
 
@@ -44,6 +46,23 @@ test('guided autofill only fills empty available controls and never overwrites h
   assert.equal(name.value,'Carlos');
   assert.equal(zone.value,'Las Condes');
   assert.equal(disabled.value,'');
+});
+
+test('guided required progress ignores hidden or disabled controls and exposes the first real pending field',()=>{
+  const name=control('name','Carlos',{required:true});
+  const email=control('email','',{required:true});
+  const hidden=control('trainingAddress','',{required:true});
+  hidden.closest=()=>({hidden:true});
+  const disabled=control('weeklyFrequency','',{required:true,disabled:true});
+  const root={querySelectorAll(){return [name,email,hidden,disabled];}};
+  const pending=pendingRequiredControls(root);
+  assert.deepEqual(pending,[email]);
+  const progress=guidedRequiredProgress(root);
+  assert.equal(progress.total,2);
+  assert.equal(progress.completedCount,1);
+  assert.equal(progress.pendingCount,1);
+  assert.equal(progress.first,email);
+  assert.equal(progress.complete,false);
 });
 
 test('first needed prioritizes invalid required control and focus helper targets it',()=>{
