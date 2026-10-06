@@ -25,6 +25,20 @@ function state({role='admin',enabled=true,activeArea='admin-inicio'}={}){
   };
 }
 
+test('Media Review CORS preflight always returns empty 204; QA cert executes both allowed and forbidden OPTIONS',async()=>{
+  const [edge,cert]=await Promise.all([
+    read('supabase/functions/iberfit-admin-media-review-v1/index.ts'),
+    read('qa/admin-media-review-live-cert.mjs'),
+  ]);
+  assert.match(edge,/new Response\(status===204\?null:JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
+  assert.match(edge,/if\(req\.method==="OPTIONS"\)return reply\(originAllowed\(origin\)\?204:403,\{\},origin\)/u);
+  assert.match(cert,/method:'OPTIONS'/u);
+  assert.match(cert,/MEDIA_REVIEW_PREFLIGHT_FAILED/u);
+  assert.match(cert,/MEDIA_REVIEW_PREFLIGHT_BODY_NOT_EMPTY/u);
+  assert.match(cert,/MEDIA_REVIEW_PREFLIGHT_FORBIDDEN_ORIGIN_NOT_BLOCKED/u);
+  assert.match(cert,/MEDIA_REVIEW_PREFLIGHT_FORBIDDEN_ORIGIN_LEAK/u);
+});
+
 test('Media Review is fail closed behind the Admin feature flag',()=>{
   const enabled=state({enabled:true});
   const disabled=state({enabled:false});

@@ -51,6 +51,8 @@ const evidence={
   mutationPerformed:false,
   allowedOriginStatus:null,
   forbiddenOriginStatus:null,
+  allowedPreflightStatus:null,
+  forbiddenPreflightStatus:null,
   candidateCount:null,
   inventoryCount:null,
   approvedPublished:null,
@@ -62,6 +64,23 @@ const evidence={
 const expectedVersion=await expectedEdgeVersion();
 let accessToken='';
 try{
+  // CORS preflight is unauthenticated in browsers. It must return a bodyless 204.
+  const preflightHeaders={
+    origin:CANARY_ORIGIN,
+    'access-control-request-method':'POST',
+    'access-control-request-headers':'authorization,apikey,content-type',
+  };
+  const allowedPreflight=await fetch(`${QA_ORIGIN}${EDGE_PATH}`,{method:'OPTIONS',headers:preflightHeaders});
+  evidence.allowedPreflightStatus=allowedPreflight.status;
+  assert(allowedPreflight.status===204,'MEDIA_REVIEW_PREFLIGHT_FAILED',allowedPreflight.status);
+  assert(allowedPreflight.headers.get('access-control-allow-origin')===CANARY_ORIGIN,'MEDIA_REVIEW_PREFLIGHT_CORS_ORIGIN_MISSING');
+  assert((await allowedPreflight.text())==='','MEDIA_REVIEW_PREFLIGHT_BODY_NOT_EMPTY');
+
+  const forbiddenPreflight=await fetch(`${QA_ORIGIN}${EDGE_PATH}`,{method:'OPTIONS',headers:{...preflightHeaders,origin:'https://example.invalid'}});
+  evidence.forbiddenPreflightStatus=forbiddenPreflight.status;
+  assert(forbiddenPreflight.status===403,'MEDIA_REVIEW_PREFLIGHT_FORBIDDEN_ORIGIN_NOT_BLOCKED',forbiddenPreflight.status);
+  assert(!forbiddenPreflight.headers.has('access-control-allow-origin'),'MEDIA_REVIEW_PREFLIGHT_FORBIDDEN_ORIGIN_LEAK');
+
   const authResponse=await fetch(`${QA_ORIGIN}/auth/v1/token?grant_type=password`,{
     method:'POST',
     headers:{apikey:publishable,'content-type':'application/json'},
@@ -121,4 +140,4 @@ try{
   await writeFile(OUT,JSON.stringify(evidence,null,2)+'\n','utf8');
 }
 
-console.log(`IBERFIT_ADMIN_MEDIA_REVIEW_LIVE_CERT=${JSON.stringify({passed:evidence.passed,status:evidence.allowedOriginStatus,forbiddenOriginStatus:evidence.forbiddenOriginStatus,candidateCount:evidence.candidateCount,inventoryCount:evidence.inventoryCount,approvedPublished:evidence.approvedPublished,pendingCatalog:evidence.pendingCatalog,version:evidence.version})}`);
+console.log(`IBERFIT_ADMIN_MEDIA_REVIEW_LIVE_CERT=${JSON.stringify({passed:evidence.passed,status:evidence.allowedOriginStatus,allowedPreflightStatus:evidence.allowedPreflightStatus,forbiddenPreflightStatus:evidence.forbiddenPreflightStatus,forbiddenOriginStatus:evidence.forbiddenOriginStatus,candidateCount:evidence.candidateCount,inventoryCount:evidence.inventoryCount,approvedPublished:evidence.approvedPublished,pendingCatalog:evidence.pendingCatalog,version:evidence.version})}`);

@@ -40,7 +40,7 @@ function cors(origin=""){
   if(originAllowed(origin))h["access-control-allow-origin"]=origin;
   return h;
 }
-function reply(status:number,body:unknown,origin=""){return new Response(JSON.stringify(body),{status,headers:cors(origin)});}
+function reply(status:number,body:unknown,origin=""){return new Response(status===204?null:JSON.stringify(body),{status,headers:cors(origin)});}
 function fail(code:string,status=400):never{throw Object.assign(new Error(code),{status});}
 function safe(value:unknown,max=800){return String(value??"").replace(/[\u0000-\u001f\u007f]/gu," ").trim().slice(0,max);}
 function env(name:string){const value=String(Deno.env.get(name)||"").trim();if(!value)fail(`IBERFIT_MEDIA_REVIEW_${name}_MISSING`,500);return value;}
