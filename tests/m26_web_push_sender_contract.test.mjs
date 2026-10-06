@@ -12,6 +12,10 @@ test('sender pins dependencies and requires authenticated allowed-origin request
 });
 
 test('sender binds CORS origins to the deployed Supabase project and fails closed for unknown environments',()=>{
+  assert.match(source,/new Response\(status===204\?null:JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
+  assert.match(source,/req\.method==='OPTIONS'[\s\S]*reply\(ALLOWED_ORIGINS\.has\(origin\)\?204:403/u);
+  assert.doesNotMatch(source,/new Response\(JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
+
   assert.match(source,/const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/);
   assert.match(source,/const PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/);
   assert.match(source,/DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF[\s\S]*\?\['https:\/\/m26-canary\.iberfit\.cl'\]/);

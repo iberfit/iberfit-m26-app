@@ -144,6 +144,15 @@ test('live Media Review certification follows the Edge source version and full i
   assert.doesNotMatch(cert,/admin-media-review-v1\.\d+/u);
 });
 
+test('live QA certification probes CORS preflight for all three affected Edge functions',async()=>{
+  const cert=await read('qa/admin-media-review-live-cert.mjs');
+  assert.match(cert,/iberfit-admin-user-decommission-v1/u);
+  assert.match(cert,/iberfit-web-push-sender-v1/u);
+  assert.match(cert,/EDGE_CORS_PREFLIGHT_204_REQUIRED/u);
+  assert.match(cert,/EDGE_CORS_PREFLIGHT_BODY_INVALID/u);
+  assert.match(cert,/EDGE_CORS_FOREIGN_ORIGIN_MUST_FAIL/u);
+});
+
 test('Admin Media Review Edge binds Canary to QA and live Admin origins to PROD',async()=>{
   const edge=await read('supabase/functions/iberfit-admin-media-review-v1/index.ts');
   assert.match(edge,/const PROD_REF="pjhmrhejsoofmouedavw"/u);

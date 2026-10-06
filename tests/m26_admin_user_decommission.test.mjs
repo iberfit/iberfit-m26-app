@@ -90,6 +90,9 @@ test('Database decommission is fail-closed, idempotent and preserves protected h
 
 test('Auth identity is soft-deleted only by the service-role Edge Function after the DB receipt',()=>{
   const edge=read('supabase/functions/iberfit-admin-user-decommission-v1/index.ts');
+  assert.match(edge,/new Response\(status===204\?null:JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
+  assert.match(edge,/req\.method==='OPTIONS'[\s\S]*reply\(ALLOWED_ORIGINS\.has\(origin\)\?204:403/u);
+  assert.doesNotMatch(edge,/new Response\(JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
 
   assert.match(edge,/ALLOWED_ORIGINS/u);
   assert.match(edge,/https:\/\/app\.iberfit\.cl/u);
