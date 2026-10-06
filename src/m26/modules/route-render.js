@@ -3456,14 +3456,16 @@ function renderClientProgressStage(vm,stage){
 }
 
 export function renderProgressRoute(vm){
+  const professionalRole=['coach','admin'].includes(String(vm.role||'').toLowerCase());
+  const clientContextBar=professionalRole?professionalClientContextBar(vm.clientContext,{activeArea:'progreso'}):'';
   if(lacksTrainingSurface(vm.serviceKind)){
-    return `<div class="m26-route" data-service-kind="none">
+    return `<div class="m26-route" data-service-kind="none">${clientContextBar}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento de entrenamiento no activado</h2><p>El IRI inicial permanece como punto de partida. No se calcula adherencia, volumen ni progreso de sesiones mientras esta persona no tenga servicio activo de entrenamiento.</p></div>${badge('Sin entrenamiento activo','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><h3>Qué sí está disponible</h3><p>Puedes revisar el diagnóstico y sus informes. Si más adelante se convierte en cliente, el seguimiento comenzará sin modificar el IRI inicial.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir IRI</button><button type="button" data-m26-area="informes">Ver informes IRI</button></div></section>
     </div>`;
   }
   const summary=vm.summary;
-  if(!summary)return `<div class="m26-route">${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
+  if(!summary)return `<div class="m26-route">${clientContextBar}${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
   const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>`:'';
   const wearable=summary.wearable||{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'};
@@ -3543,6 +3545,7 @@ export function renderProgressRoute(vm){
   }
 
   return `<div class="m26-route">
+    ${clientContextBar}
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     ${professionalProgressNav}
     <section id="m26-progress-summary" data-m26-progress-section="summary" class="m26-stat-grid">
