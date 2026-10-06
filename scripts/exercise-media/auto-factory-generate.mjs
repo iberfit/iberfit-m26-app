@@ -13,6 +13,7 @@ import {
   supportPairObservationInstruction,
   supportPairObservationPass,
 } from './auto-factory-movement-guard.mjs';
+import {hipHingeDowelVisualGuard,isHipHingeDowelExercise} from './auto-factory-dowel-hinge-guard.mjs';
 
 const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 const RAW_WIDTH=1024;
@@ -50,14 +51,15 @@ async function qaRequest({proxy,token,content,label,maxCompletionTokens}){
   const payload=await response.json();if(payload?.ok!==true)throw new Error(`${label}_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);return extractStructuredResponse(payload,{missingError:`${label}_RESPONSE_MISSING`,invalidError:`${label}_JSON_INVALID`});
 }
 async function validateStartPhase({claim,plan,startFile,outDir,proxy,token,reviewAttempt=0}){
-  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportObservationInstruction(exercise);
-  const keys=['start_matches_plan','movement_identity_lock','equipment_match','grip_support_setup','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(4,0,'support_topology');
+  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=[movementVisualGuard(exercise),hipHingeDowelVisualGuard(exercise)].filter(Boolean).join(' ');const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportObservationInstruction(exercise);
+  const dowelHinge=isHipHingeDowelExercise(exercise);const keys=['start_matches_plan','movement_identity_lock','equipment_match','grip_support_setup','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(4,0,'support_topology');if(dowelHinge)keys.push('dowel_three_posterior_contacts','dowel_both_hands_rear_grip');
   const rubric=[
     'You are the fail-closed START-phase reviewer for IBERFIT Exercise Media System v1. Judge the generated START photograph before it may become the continuity reference for FINAL.',
     `Exercise=${exercise.name_es}; equipment=${exercise.equipment}; pattern=${exercise.pattern}.`,
     `Planned START=${plan.start}`,
     `Canonical cues=${(exercise.cues||[]).join(' | ')}. Precautions=${(exercise.precautions||[]).join(' | ')}.`,
     movementGuard,
+    dowelHinge?'For a three-contact dowel hip hinge, dowel contact and hands BEHIND the back must be clearly visible. If the pole is held in front, if either hand hangs free, if any of the three contacts is missing or camera hides verification, report false. Do not infer invisible contact.':'',
     'Set movement_identity_lock=false whenever the defining body orientation, support/contact pattern or required START setup violates the movement lock. A visually related squat, crouch, lunge, portrait or rest pose must never pass.',
     'Verify every required floor contact, grip, handle, cable, machine support and critical joint needed by START. Reject hidden or invented supports and physically impossible setup.',
     'Raw generated pixels must be completely brand-free before composition. Set no_unapproved_branding=false for any visible logo, wordmark, brand name, letters, manufacturer mark or recognizable brand-like symbol on shirt, shorts, shoes, equipment or background. The official IBERFIT isotipo is added only after this gate.',
@@ -79,8 +81,8 @@ function repairReasons(review){
 }
 
 async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,token,reviewAttempt=0}){
-  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportPairObservationInstruction(exercise);
-  const keys=['start_matches_plan','final_matches_plan','movement_identity_lock','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(7,0,'support_topology');
+  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=[movementVisualGuard(exercise),hipHingeDowelVisualGuard(exercise)].filter(Boolean).join(' ');const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportPairObservationInstruction(exercise);
+  const dowelHinge=isHipHingeDowelExercise(exercise);const keys=['start_matches_plan','final_matches_plan','movement_identity_lock','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(7,0,'support_topology');if(dowelHinge)keys.push('dowel_three_posterior_contacts_both_phases','dowel_both_hands_rear_grip_both_phases');
   const rubric=[
     'You are the fail-closed raw phase reviewer for IBERFIT Exercise Media System v1. Judge the two generated photographs before any branding or composition.',
     'Image 1 is START. Image 2 is FINAL. They must depict the exact same exercise, athlete, scene, camera language and equipment setup while changing only the movement phase required by the plan.',
@@ -89,6 +91,7 @@ async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,toke
     `Planned FINAL=${plan.final}`,
     `Canonical cues=${(exercise.cues||[]).join(' | ')}. Precautions=${(exercise.precautions||[]).join(' | ')}.`,
     movementGuard,
+    dowelHinge?'For a three-contact dowel hip hinge, dowel contact and hands BEHIND the back must be clearly visible. If the pole is held in front, if either hand hangs free, if any of the three contacts is missing or camera hides verification, report false. Do not infer invisible contact.':'',
     'Set movement_identity_lock=false whenever the defining body orientation, support/contact pattern or START-to-FINAL relationship violates the movement lock, even if identity, scene and equipment are otherwise correct.',
     'Reject if either image becomes a portrait/rest pose, loses or invents equipment, drops required handles/supports, changes cable routing or machine geometry, hides critical joints, changes athlete identity, or no longer matches the exact planned phase.',
     'Both raw images must remain completely brand-free before composition. Set no_unapproved_branding=false for any visible logo, wordmark, brand name, letters, manufacturer mark or recognizable brand-like symbol on shirt, shorts, shoes, equipment or background in either phase. The official IBERFIT isotipo is added only after this gate.',
@@ -107,7 +110,7 @@ async function main(){
   const continuityRef=phase==='final'?findStartReference(outDir,exercise.id):null;if(phase==='final'&&!continuityRef)throw new Error('FINAL_CONTINUITY_REFERENCE_MISSING');
   const athleteModelRef=prepareModelReference(athleteRef,outDir,'athlete-model');
   const continuityModelRef=continuityRef?prepareModelReference(continuityRef,outDir,`${exercise.id}-start-model`):null;
-  const movementGuard=movementVisualGuard(exercise);
+  const movementGuard=[movementVisualGuard(exercise),hipHingeDowelVisualGuard(exercise)].filter(Boolean).join(' ');
   const generateOnce=async(repairAttempt=0,repairIssues=[])=>{
     const repairInstruction=repairAttempt>0?(phase==='start'
       ?`REPAIR PASS ${repairAttempt}: strict START QA rejected the previous START. Regenerate the canonical START from the plan and correct every listed defect. Previous QA issues: ${repairIssues.join(' | ')}. Preserve athlete identity, clothing and premium visual language, but DO NOT preserve the rejected pose or invalid support/contact geometry.`
