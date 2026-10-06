@@ -242,8 +242,9 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
       status:record.status,
       result:record.result,
     }));
-  // Main payload and registry are the required authenticated primary requests.
-  for(const required of ['main-snapshot','command-registry']){
+  // Without this check the optional RC39 extension can silently discard a
+  // permissions error and make an unavailable agenda appear empty.
+  for(const required of ['main-snapshot','command-registry','appointment-changes']){
     expect(authNetworkWaterfall.some((sample)=>sample.operation===required&&sample.status===200&&sample.result==='finished'),
       `Authenticated primary request ${required} must finish successfully`).toBe(true);
   }
