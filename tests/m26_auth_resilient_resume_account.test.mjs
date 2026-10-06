@@ -96,6 +96,23 @@ test('login feedback distinguishes credentials from transient access failures',(
   );
 });
 
+test('catalog and media start independently without changing the catalog integrity gate or offline fallback',()=>{
+  const app=read('src/m26/app/application.js');
+  const start=app.indexOf('async function fetchCatalog(');
+  const end=app.indexOf('async function hydratePass(',start);
+  assert.ok(start>=0&&end>start);
+  const block=app.slice(start,end);
+  const mediaStart=block.indexOf('const mediaPending=mediaMap?null:loadExerciseMediaMap().catch(()=>null)');
+  const catalogWait=block.indexOf("if(!catalog)catalog=await loadExerciseCatalog(");
+  const mediaWait=block.indexOf('if(!mediaMap)mediaMap=await mediaPending');
+  assert.ok(mediaStart>=0&&mediaStart<catalogWait&&catalogWait<mediaWait,'media must start before the catalog waits');
+  assert.match(block,/if\(force\)catalog=null/u);
+  assert.match(block,/\.catch\(\(\)=>null\)/u);
+  assert.match(block,/rc64-catalog-base-ready/u);
+  assert.match(block,/rc64-catalog-media-ready/u);
+  assert.doesNotMatch(block,/Promise\.all\(\[transport\.bootstrap/u);
+});
+
 test('authenticated startup overlaps independent catalog work without delaying the first secure workspace paint',()=>{
   const app=read('src/m26/app/application.js');
   const start=app.indexOf('async function setupAuthenticated()');
