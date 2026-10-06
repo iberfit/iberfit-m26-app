@@ -1,4 +1,4 @@
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
 
 const QA_REF='gjztkdwfmunnzhtvxrsu';
 const QA_ORIGIN=`https://${QA_REF}.supabase.co`;
@@ -11,6 +11,14 @@ const REQUIRED=[
 ];
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA256=/^[0-9a-f]{64}$/u;
+const EDGE_SOURCE='supabase/functions/iberfit-admin-media-review-v1/index.ts';
+
+async function expectedEdgeVersion(){
+  const source=await readFile(EDGE_SOURCE,'utf8');
+  const match=source.match(/const VERSION="([^"]+)";/u);
+  assert(match?.[1],'MEDIA_REVIEW_SOURCE_VERSION_MISSING');
+  return match[1];
+}
 
 function fail(code,detail=''){
   const suffix=detail?`:${String(detail).slice(0,180)}`:'';
@@ -44,10 +52,14 @@ const evidence={
   allowedOriginStatus:null,
   forbiddenOriginStatus:null,
   candidateCount:null,
+  inventoryCount:null,
+  approvedPublished:null,
+  pendingCatalog:null,
   version:null,
   passed:false,
 };
 
+const expectedVersion=await expectedEdgeVersion();
 let accessToken='';
 try{
   const authResponse=await fetch(`${QA_ORIGIN}/auth/v1/token?grant_type=password`,{
@@ -70,14 +82,23 @@ try{
   evidence.allowedOriginStatus=allowed.status;
   const payload=await jsonResponse(allowed,'MEDIA_REVIEW_LIST');
   assert(allowed.status===200&&payload?.ok===true,'MEDIA_REVIEW_LIST_FAILED',`${allowed.status}:${payload?.code||''}`);
-  assert(payload?.version==='admin-media-review-v1.2','MEDIA_REVIEW_VERSION_MISMATCH',payload?.version);
+  assert(payload?.version===expectedVersion,'MEDIA_REVIEW_VERSION_MISMATCH',`${payload?.version||'missing'}!=${expectedVersion}`);
   assert(Array.isArray(payload?.candidates),'MEDIA_REVIEW_CANDIDATES_INVALID');
+  assert(Array.isArray(payload?.inventory),'MEDIA_REVIEW_INVENTORY_INVALID');
+  assert(payload?.summary&&typeof payload.summary==='object'&&!Array.isArray(payload.summary),'MEDIA_REVIEW_SUMMARY_INVALID');
+  assert(Number.isInteger(Number(payload.summary?.total)),'MEDIA_REVIEW_SUMMARY_TOTAL_INVALID');
+  assert(Number.isInteger(Number(payload.summary?.approvedPublished)),'MEDIA_REVIEW_SUMMARY_APPROVED_INVALID');
+  assert(Number.isInteger(Number(payload.summary?.pendingCatalog)),'MEDIA_REVIEW_SUMMARY_PENDING_INVALID');
+  assert(payload.inventory.length===Number(payload.summary.total),'MEDIA_REVIEW_INVENTORY_TOTAL_MISMATCH',`${payload.inventory.length}!=${payload.summary.total}`);
   for(const candidate of payload.candidates){
     assert(UUID.test(String(candidate?.jobId||'')),'MEDIA_REVIEW_JOB_ID_INVALID');
     assert(SHA256.test(String(candidate?.sha256||'')),'MEDIA_REVIEW_SHA_INVALID');
     assert(String(candidate?.status||'')==='qa','MEDIA_REVIEW_STATUS_INVALID',candidate?.status);
   }
   evidence.candidateCount=payload.candidates.length;
+  evidence.inventoryCount=payload.inventory.length;
+  evidence.approvedPublished=Number(payload.summary.approvedPublished);
+  evidence.pendingCatalog=Number(payload.summary.pendingCatalog);
   evidence.version=payload.version;
 
   const forbidden=await fetch(`${QA_ORIGIN}${EDGE_PATH}`,{
@@ -100,4 +121,4 @@ try{
   await writeFile(OUT,JSON.stringify(evidence,null,2)+'\n','utf8');
 }
 
-console.log(`IBERFIT_ADMIN_MEDIA_REVIEW_LIVE_CERT=${JSON.stringify({passed:evidence.passed,status:evidence.allowedOriginStatus,forbiddenOriginStatus:evidence.forbiddenOriginStatus,candidateCount:evidence.candidateCount,version:evidence.version})}`);
+console.log(`IBERFIT_ADMIN_MEDIA_REVIEW_LIVE_CERT=${JSON.stringify({passed:evidence.passed,status:evidence.allowedOriginStatus,forbiddenOriginStatus:evidence.forbiddenOriginStatus,candidateCount:evidence.candidateCount,inventoryCount:evidence.inventoryCount,approvedPublished:evidence.approvedPublished,pendingCatalog:evidence.pendingCatalog,version:evidence.version})}`);

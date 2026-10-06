@@ -119,6 +119,17 @@ test('backend contract keeps review evidence private, audited, idempotent and se
   assert.doesNotMatch(edge,/PUBLISHER_PATH/u);
 });
 
+test('live Media Review certification follows the Edge source version and full inventory contract',async()=>{
+  const cert=await read('qa/admin-media-review-live-cert.mjs');
+  assert.match(cert,/const EDGE_SOURCE='supabase\/functions\/iberfit-admin-media-review-v1\/index\.ts'/u);
+  assert.match(cert,/expectedEdgeVersion\(\)/u);
+  assert.match(cert,/payload\?\.version===expectedVersion/u);
+  assert.match(cert,/Array\.isArray\(payload\?\.inventory\)/u);
+  assert.match(cert,/payload\?\.summary&&typeof payload\.summary==='object'/u);
+  assert.match(cert,/MEDIA_REVIEW_INVENTORY_TOTAL_MISMATCH/u);
+  assert.doesNotMatch(cert,/admin-media-review-v1\.\d+/u);
+});
+
 test('Admin Media Review Edge binds Canary to QA and live Admin origins to PROD',async()=>{
   const edge=await read('supabase/functions/iberfit-admin-media-review-v1/index.ts');
   assert.match(edge,/const PROD_REF="pjhmrhejsoofmouedavw"/u);
