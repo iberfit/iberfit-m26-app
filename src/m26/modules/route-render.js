@@ -20,6 +20,24 @@ function stat(label, value, note = '') {
   return `<article class="m26-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${note ? `<small>${escapeHtml(note)}</small>` : ''}</article>`;
 }
 function badge(text, kind = 'neutral') { return `<span class="m26-badge is-${escapeHtml(kind)}">${escapeHtml(text)}</span>`; }
+function professionalClientContextBar(clientContext,{activeArea=''}={}){
+  if(!clientContext?.id)return '';
+  const areas=[
+    ['expediente','Expediente'],
+    ['planificacion','Planificación'],
+    ['sesion','Sesiones'],
+    ['progreso','Progreso'],
+  ];
+  const nav=areas.map(([area,label])=>`<button type="button" data-m26-area="${escapeHtml(area)}"${area===activeArea?' aria-current="page"':''}>${escapeHtml(label)}</button>`).join('');
+  return `<section class="m26-professional-client-context" aria-label="Cliente de trabajo activo">
+    <div class="m26-professional-client-context-copy">
+      <p class="m26-eyebrow">Trabajando con</p>
+      <strong>${escapeHtml(clientContext.name||'Cliente')}</strong>
+      <small>${escapeHtml(clientContext.modality||'Modalidad por definir')}</small>
+    </div>
+    <nav class="m26-professional-client-context-nav" aria-label="Ruta de trabajo del cliente">${nav}</nav>
+  </section>`;
+}
 function countLabel(count,singular,plural){const value=Number(count||0);return `${value} ${value===1?singular:(plural||`${singular}s`)}`;}
 function hasTrainingSurface(serviceKind){
   const kind=String(serviceKind??'').trim().toLowerCase();
@@ -3850,8 +3868,9 @@ function iriPlanningContextPanel(seed){
 
 export function renderPlanningRoute(vm){
   const isClient=vm.role==='client';
+  const clientContextBar=!isClient?professionalClientContextBar(vm.clientContext,{activeArea:'planificacion'}):'';
   if(lacksTrainingSurface(vm.serviceKind)){
-    return `<div class="m26-route" data-service-kind="none">
+    return `<div class="m26-route" data-service-kind="none">${clientContextBar}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Sin planificación de entrenamiento</h2><p>Esta persona no tiene un servicio de entrenamiento activo. Su evaluación IRI y su informe permanecen disponibles sin crear ciclos, frecuencia ni programación de entrenamiento.</p></div>${badge('Sin entrenamiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>Si posteriormente inicia entrenamiento, IBERFIT activa el servicio sobre la misma persona. El IRI inicial se conserva como punto de partida.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir IRI</button><button type="button" data-m26-area="informes">Ver informe IRI</button></div></section>
     </div>`;
@@ -3924,6 +3943,7 @@ export function renderPlanningRoute(vm){
     ?' data-m26-client-guide="plan-surface"'
     :'';
   return `<div class="m26-route m26-planning-workbench-v2" data-planning-workbench-v2>
+    ${clientContextBar}
     <section class="m26-route-intro m26-planning-intro"${clientPlanGuideAttribute}>
       <div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>
       ${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}
@@ -4084,8 +4104,9 @@ function renderNextSessionPreparation(prep,{canStartSession=true}={}){
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
   const serviceActive=vm.serviceActive!==false;
+  const clientContextBar=!isClient?professionalClientContextBar(vm.clientContext,{activeArea:'sesion'}):'';
   if(lacksTrainingSurface(vm.serviceKind)){
-    return `<div class="m26-route" data-service-kind="none">
+    return `<div class="m26-route" data-service-kind="none">${clientContextBar}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Sin sesiones de entrenamiento</h2><p>El IRI puede completarse y generar sus informes sin crear, programar ni ejecutar sesiones de entrenamiento.</p></div>${badge('Sin entrenamiento activo','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir / completar IRI</button><button type="button" data-m26-area="informes">Informes IRI</button></div></section>
     </div>`;
@@ -4101,7 +4122,7 @@ export function renderSessionsRoute(vm){
     :directStart;
   const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation,{canStartSession:serviceActive}):'';
   const pausedNotice=!serviceActive?'<section class="m26-notice is-warning" role="status"><strong>Entrenamiento en pausa</strong><p>Puedes consultar planificación, historial y contexto. Reanuda el servicio antes de iniciar una nueva sesión.</p></section>':'';
-  return `<div class="m26-route"><section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
+  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';
