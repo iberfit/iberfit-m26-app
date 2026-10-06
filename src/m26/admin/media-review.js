@@ -18,7 +18,7 @@ const stateLabel=(value)=>({
   publishing:'Publicando',
   publish_failed:'Error de publicación',
   failed:'Generación fallida',
-  blocked:'Bloqueada por calidad',
+  blocked:'Bloqueada tras varios intentos',
 }[String(value||'')]||String(value||'Pendiente'));
 
 export function adminMediaReviewEnabled(state){return state?.identity?.role==='admin'&&state?.admin?.available===true&&state?.admin?.organization?.settings?.[FLAG]===true;}
@@ -110,9 +110,21 @@ function inventoryTone(state){
   if(['awaiting_review','publish_requested','publishing','queued','regenerating','generating'].includes(state))return 'pending';
   return 'neutral';
 }
+function mediaFailureContext(job,state){
+  if(!['failed','blocked','publish_failed'].includes(String(state||'')))return null;
+  const reason=String(job?.lastError||'').trim();
+  if(state==='publish_failed')return {cause:'publication',title:'Publicación pendiente de resolver',detail:'El candidato no se ha publicado. Conservar la revisión humana y comprobar el motivo antes de reintentar.'};
+  if(/^(START_PHASE_QA_FAILED|RAW_PHASE_QA_FAILED)(?::|$)/u.test(reason))return {cause:'quality',title:'No superó el control de calidad',detail:'Revisar la ejecución del movimiento, la anatomía y la calidad visual antes de solicitar otra generación.'};
+  if(/^AUTO_FACTORY_DEFERRED:AI_PROVIDER_DAILY_QUOTA_EXHAUSTED$/u.test(reason))return {cause:'capacity',title:'Capacidad de generación agotada',detail:'El proveedor aplazó este trabajo. No se debe publicar un resultado incompleto.'};
+  if(/^IBERFIT_AUTO_FACTORY_STAGE_[A-Z0-9_]+(?::|$)/u.test(reason))return {cause:'transfer',title:'Incidencia al preparar la imagen',detail:'La transferencia privada falló; no implica que la ejecución del ejercicio fuera incorrecta.'};
+  if(/^workflow_failed_run_[0-9]+_attempt_[0-9]+$/u.test(reason))return {cause:'unclassified',title:'Generación interrumpida',detail:'La ejecución terminó sin un diagnóstico de calidad concluyente. Consultar los registros antes de reintentar.'};
+  if(/^AUTO_FACTORY_STALE_RECOVERY$/u.test(reason))return {cause:'interrupted',title:'Proceso interrumpido',detail:'La generación anterior dejó de responder y requiere una recuperación controlada.'};
+  return {cause:'unclassified',title:state==='blocked'?'Intentos agotados':'Generación sin completar',detail:'No hay evidencia suficiente para atribuir el problema a la calidad de la imagen. Revisar el registro antes de reintentar.'};
+}
 function inventoryMarkup(item){
   const state=String(item?.state||'pending');
   const job=item?.job||null;
+  const failure=mediaFailureContext(job,state);
   const search=[item?.exerciseName,item?.exerciseId,item?.pattern,item?.equipment,item?.difficulty,stateLabel(state)].filter(Boolean).join(' ').toLowerCase();
   const canRegenerate=Boolean(job?.jobId&&['failed','blocked'].includes(state));
   const preview=item?.publicUrl
@@ -123,7 +135,7 @@ function inventoryMarkup(item){
     <div class="m26-media-inventory-copy">
       <p class="m26-eyebrow">${esc(item.exerciseId||'Ejercicio')}</p><h4>${esc(item.exerciseName||item.exerciseId||'Ejercicio')}</h4><p>${esc([item.pattern,item.equipment].filter(Boolean).join(' · ')||'Contexto por completar')}</p>
       <div class="m26-media-inventory-status"><span class="m26-badge is-${esc(inventoryTone(state))}">${esc(stateLabel(state))}</span>${job?.attempts?`<small>${esc(job.attempts)} intento${Number(job.attempts)===1?'':'s'}</small>`:''}</div>
-      ${job?.lastError?`<small class="m26-media-inventory-error">${esc(job.lastError)}</small>`:''}
+      ${failure?`<div class="m26-media-inventory-diagnosis" data-media-error-cause="${esc(failure.cause)}"><strong>${esc(failure.title)}</strong><small>${esc(failure.detail)}</small>${job?.lastError?`<details><summary>Detalle técnico</summary><code>${esc(job.lastError)}</code></details>`:''}</div>`:''}
       ${canRegenerate?`<details class="m26-media-inventory-retry"><summary>Regenerar</summary>${actionForm({jobId:job.jobId,reviewState:job.reviewState},'regenerate','Solicitar nueva generación',{reason:true})}</details>`:''}
     </div>
   </article>`;
@@ -134,7 +146,7 @@ function summaryMarkup(summary={}){
     ['Pendientes',summary.pendingCatalog||0,'Sin imagen IBERFIT publicada'],
     ['Revisión humana',summary.awaitingHumanReview||0,'QA automático superado'],
     ['En proceso',Number(summary.queued||0)+Number(summary.regenerating||0)+Number(summary.generating||0),'Cola, regeneración o generación'],
-    ['Con incidencia',Number(summary.failed||0)+Number(summary.blocked||0),'Fallidas o bloqueadas por calidad'],
+    ['Con incidencia',Number(summary.failed||0)+Number(summary.blocked||0) ,'Generaciones fallidas o intentos agotados'],
   ];
   return cells.map(([label,value,note])=>`<article><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`).join('');
 }
@@ -285,4 +297,4 @@ export function installAdminMediaReviewDomBridge({globalLike=globalThis,document
 
 installAdminMediaReviewDomBridge();
 
-export const __mediaReviewInternals=Object.freeze({candidateMarkup,inventoryMarkup,summaryMarkup,applyInventoryFilters,renderInto,friendly,actionInput,setPending,ensureMediaReviewStyle,rootPath,SERVICE_EVENT,BRIDGE_KEY});
+export const __mediaReviewInternals=Object.freeze({candidateMarkup,inventoryMarkup,mediaFailureContext,summaryMarkup,applyInventoryFilters,renderInto,friendly,actionInput,setPending,ensureMediaReviewStyle,rootPath,SERVICE_EVENT,BRIDGE_KEY});

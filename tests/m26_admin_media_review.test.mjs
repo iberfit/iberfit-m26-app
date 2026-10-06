@@ -244,3 +244,36 @@ test('Media Control Center styling stays responsive, touch-safe and never crops 
   assert.match(css,/focus-visible/u);
   assert.match(css,/safe-area-inset-bottom/u);
 });
+
+test('Admin Media Center differentiates quality rejection, upload errors, and exhausted attempts',()=>{
+  const {mediaFailureContext,inventoryMarkup,summaryMarkup}=__mediaReviewInternals;
+  const quality=mediaFailureContext({lastError:'START_PHASE_QA_FAILED:0.99:start_matches_plan'},'blocked');
+  assert.equal(quality.cause,'quality');
+  assert.match(quality.title,/control de calidad/u);
+  const remote=mediaFailureContext({lastError:'IBERFIT_AUTO_FACTORY_STAGE_MIME_INVALID'},'blocked');
+  assert.equal(remote.cause,'transfer');
+  assert.doesNotMatch(remote.title,/calidad/u);
+  const old=mediaFailureContext({lastError:'workflow_failed_run_37423916783_attempt_1'},'blocked');
+  assert.equal(old.cause,'unclassified','historical run errors do not prove biomechanical failure');
+  assert.match(old.detail,/sin un diagn[oó]stico de calidad concluyente/u);
+  assert.equal(mediaFailureContext({lastError:'AUTO_FACTORY_STALE_RECOVERY'},'failed').cause,'interrupted');
+  assert.equal(mediaFailureContext({lastError:'AUTO_FACTORY_DEFERRED:AI_PROVIDER_DAILY_QUOTA_EXHAUSTED'},'failed').cause,'capacity');
+  assert.equal(mediaFailureContext({lastError:'no error'},'approved'),null);
+  const artifact=inventoryMarkup({
+    exerciseId:'IBF-PRUEBA',exerciseName:'Prueba de ejercicio',state:'blocked',
+    job:{jobId:'11111111-1111-4111-8111-111111111111',attempts:3,lastError:'workflow_failed_run_37423916783_attempt_1'}
+  });
+  assert.match(artifact,/Bloqueada tras varios intentos/u);
+  assert.match(artifact,/Generaci[oó]n interrumpida/u);
+  assert.match(artifact,/data-media-error-cause="unclassified"/u);
+  assert.match(artifact,/<summary>Detalle t[eé]cnico<\/summary>/u);
+  assert.match(artifact,/Solicitar nueva generaci[oó]n/u);
+  assert.doesNotMatch(artifact,/Bloqueada por calidad/u);
+  const escaped=inventoryMarkup({
+    exerciseId:'IBF-X',exerciseName:'Input',state:'failed',
+    job:{lastError:'<script>alert("x")</script>'}
+  });
+  assert.doesNotMatch(escaped,/<script>/u);
+  assert.match(escaped,/&lt;script&gt;/u);
+  assert.doesNotMatch(summaryMarkup({blocked:10,failed:8}),/bloqueadas por calidad/iu);
+});
