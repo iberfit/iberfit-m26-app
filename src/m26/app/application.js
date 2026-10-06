@@ -1160,7 +1160,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         onOnline:()=>syncSessionTemplateWorkspace({renderAfter:true}).catch((error)=>{
           reportSoftDiagnostic('coach-template-sync-reconnect',error);
         }),
-        emitInitial:true,
+        emitInitial:false,
       });
       telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
       void registerM26ServiceWorker().catch(()=>{});
