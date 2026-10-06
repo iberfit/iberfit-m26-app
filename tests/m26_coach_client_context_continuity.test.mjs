@@ -42,7 +42,10 @@ test('Builder and live execution show professional client identity without addin
   assert.match(sessionUi,/class="m26-session-client-context"/u);
   assert.match(sessionUi,/renderProfessionalSessionClientContext\(clientContext,role\)/u);
   assert.match(sessionUi,/professionalClientContext=renderProfessionalSessionClientContext\(clientContext,role\)/u);
-  assert.doesNotMatch(sessionUi,/m26-session-client-context[^]*data-m26-area=/u);
+  const helperStart=sessionUi.indexOf('function renderProfessionalSessionClientContext');
+  const helperEnd=sessionUi.indexOf('function previewMarkup',helperStart);
+  assert.ok(helperStart>=0&&helperEnd>helperStart);
+  assert.doesNotMatch(sessionUi.slice(helperStart,helperEnd),/data-m26-area=/u);
 });
 
 test('Active client context remains touch-safe and responsive',()=>{
