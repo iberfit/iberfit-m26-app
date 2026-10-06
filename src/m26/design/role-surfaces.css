@@ -3641,8 +3641,8 @@ m26-echart[data-density="compact"]{
     grid-template-columns:1fr 1fr;
   }
   .m26-session-live-v2 .m26-session-live-context > .m26-exercise-media{
-    max-height:19rem;
-    overflow:hidden;
+    max-height:none;
+    overflow:visible;
   }
 }
 

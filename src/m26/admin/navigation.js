@@ -9,7 +9,7 @@ export const ADMIN_AREAS=Object.freeze({
   'admin-notas':{key:'admin-notas',label:'Notas internas',title:'Notas privadas · Admin',scope:'selected-client',roles:['admin']},
   'admin-agenda':{key:'admin-agenda',label:'Agenda global',title:'Agenda y capacidad',scope:'admin-global',roles:['admin']},
   'admin-operaciones':{key:'admin-operaciones',label:'Operaciones',title:'Centro operativo',scope:'admin-global',roles:['admin']},
-  'admin-media-review':{key:'admin-media-review',label:'Media Review',title:'Revisión de Media Factory',scope:'admin-global',roles:['admin']},
+  'admin-media-review':{key:'admin-media-review',label:'Centro de Media',title:'Biblioteca visual y Media Factory',scope:'admin-global',roles:['admin']},
   'admin-comunicacion':{key:'admin-comunicacion',label:'Comunicación',title:'Comunicación y plantillas',scope:'admin-global',roles:['admin']},
   'admin-automatizaciones':{key:'admin-automatizaciones',label:'Automatizaciones',title:'Reglas automáticas',scope:'admin-global',roles:['admin']},
   'admin-analitica':{key:'admin-analitica',label:'Analítica',title:'Analítica del servicio',scope:'admin-global',roles:['admin']},

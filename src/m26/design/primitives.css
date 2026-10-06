@@ -2157,6 +2157,70 @@
     display:none!important;
   }
 }
+/* IBERFIT Exercise Media Framing Contract v1
+   One visual viewport across Library, Builder and Live Session.
+   Preserve the full movement reference: never crop anatomical content. */
+.m26-exercise-media{
+  min-width:0;
+}
+.m26-exercise-media-frames{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(10rem,100%),1fr));
+  align-items:start;
+  gap:var(--iberfit-space-2);
+  min-width:0;
+}
+.m26-exercise-media-frame{
+  display:grid;
+  gap:.3rem;
+  min-width:0;
+  margin:0;
+}
+.m26-exercise-media-image{
+  display:block;
+  width:100%;
+  height:auto;
+  max-width:100%;
+  aspect-ratio:4/5;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-border) 82%,transparent);
+  border-radius:var(--iberfit-radius-md);
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 92%,black);
+  object-fit:contain;
+  object-position:50% 50%;
+}
+.m26-exercise-media-frame>small{
+  min-height:1.25rem;
+  color:var(--iberfit-color-text-secondary);
+  font-size:var(--iberfit-font-size-xs);
+  line-height:1.3;
+  text-align:center;
+}
+.m26-exercise-media.is-compact .m26-exercise-media-frames{
+  grid-template-columns:repeat(auto-fit,minmax(min(7rem,100%),1fr));
+}
+.m26-exercise-media.is-compact .m26-exercise-media-image{
+  max-height:18rem;
+}
+.m26-library-card .m26-exercise-media-image,
+.m26-session-builder .m26-exercise-media-image,
+.m26-session-live .m26-exercise-media-image{
+  object-fit:contain;
+  object-position:center;
+}
+@media(max-width:520px){
+  .m26-exercise-media-frames{
+    grid-template-columns:1fr;
+  }
+  .m26-exercise-media.is-compact .m26-exercise-media-image{
+    max-height:min(52dvh,22rem);
+  }
+}
+@media(forced-colors:active){
+  .m26-exercise-media-image{
+    border-color:CanvasText;
+  }
+}
+
 /* IBERFIT RC63.1 · Exercise Media Native Player */
 .m26-exercise-media-experience{
   display:grid;

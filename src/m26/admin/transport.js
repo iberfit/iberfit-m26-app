@@ -82,8 +82,15 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
 
   async function listMediaReview(token){
     const result=await request(MEDIA_REVIEW_FUNCTION,token,{action:'list'},{timeout:MEDIA_REVIEW_TIMEOUT_MS});
-    if(result?.ok!==true||!Array.isArray(result?.candidates))throw new Error('M26_ADMIN_MEDIA_REVIEW_LIST_INVALID');
-    return Object.freeze({...result,candidates:Object.freeze(result.candidates.map((item)=>Object.freeze({...item})))});
+    if(result?.ok!==true||!Array.isArray(result?.candidates)||!Array.isArray(result?.inventory)||!result?.summary||typeof result.summary!=='object'){
+      throw new Error('M26_ADMIN_MEDIA_REVIEW_LIST_INVALID');
+    }
+    return Object.freeze({
+      ...result,
+      summary:Object.freeze({...result.summary}),
+      candidates:Object.freeze(result.candidates.map((item)=>Object.freeze({...item}))),
+      inventory:Object.freeze(result.inventory.map((item)=>Object.freeze({...item,job:item?.job?Object.freeze({...item.job}):null}))),
+    });
   }
 
   async function execute(token,command){

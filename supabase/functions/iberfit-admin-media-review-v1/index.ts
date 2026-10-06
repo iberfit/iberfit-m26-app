@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js@2/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.112.4";
 
-const VERSION="admin-media-review-v1.2";
+const VERSION="admin-media-review-v1.3";
 const PROD_REF="pjhmrhejsoofmouedavw";
 const QA_REF="gjztkdwfmunnzhtvxrsu";
 const STAGING_BUCKET="iberfit-exercise-media-review";
@@ -72,23 +72,108 @@ async function authorize(authorization:string,origin:string,db:any){
 function reviewOf(job:any){return job?.visual_spec?.review&&typeof job.visual_spec.review==="object"?job.visual_spec.review:{};}
 function stagingOf(job:any){const r=reviewOf(job);return r?.staging&&typeof r.staging==="object"?r.staging:{};}
 async function signed(db:any,path:unknown){const value=safe(path,500);if(!value)return null;const res=await db.storage.from(STAGING_BUCKET).createSignedUrl(value,600);if(res.error||!res.data?.signedUrl)return null;return res.data.signedUrl;}
-async function listCandidates(db:any){
-  const jobsRes=await db.from("exercise_media_jobs")
-    .select("id,exercise_id,status,attempts,visual_spec,output_manifest,last_error,created_at,updated_at,completed_at")
-    .eq("status","qa").order("updated_at",{ascending:true}).limit(100);
+function approvedPublicUrl(db:any,exercise:any){
+  const media=exercise?.media&&typeof exercise.media==="object"?exercise.media:{};
+  const bucket=String(media?.bucket||"");
+  const path=safe(media?.movement?.path,500);
+  if(exercise?.media_status!=="aprobado"||media?.published!==true||bucket!=="iberfit-exercise-media"||!path)return null;
+  const value=db.storage.from(bucket).getPublicUrl(path)?.data?.publicUrl;
+  return typeof value==="string"&&value.startsWith("https://")?value:null;
+}
+function inventoryState(exercise:any,job:any){
+  const media=exercise?.media&&typeof exercise.media==="object"?exercise.media:{};
+  const review=reviewOf(job);
+  const reviewState=String(review?.state||"");
+  if(["publish_requested","publishing","publish_failed"].includes(reviewState))return reviewState;
+  if(job?.status==="qa"&&review?.automatic_qa==="passed")return "awaiting_review";
+  const humanRegeneration=String(job?.visual_spec?.lineage?.reason||"")==="human_regeneration";
+  if(humanRegeneration&&["queued","generating"].includes(String(job?.status||"")))return "regenerating";
+  if(["queued","generating","failed","blocked"].includes(String(job?.status||"")))return String(job.status);
+  if(exercise?.media_status==="aprobado"&&media?.published===true&&media?.movement?.path)return "approved";
+  return "pending";
+}
+async function listMediaOverview(db:any){
+  const [jobsRes,catalogRes]=await Promise.all([
+    db.from("exercise_media_jobs")
+      .select("id,exercise_id,status,attempts,visual_spec,output_manifest,last_error,created_at,updated_at,completed_at")
+      .order("updated_at",{ascending:false}).limit(1000),
+    db.from("exercise_catalog")
+      .select("id,name_es,pattern,intent,equipment,difficulty,primary_muscles,secondary_muscles,media_status,review_status,media,active,revision")
+      .eq("active",true).order("name_es",{ascending:true}).limit(1000),
+  ]);
   if(jobsRes.error)fail("IBERFIT_MEDIA_REVIEW_LIST_FAILED",502);
-  const jobs=jobsRes.data||[];
-  const ids=[...new Set(jobs.map((x:any)=>String(x.exercise_id||"")).filter((x:string)=>SAFE_ID.test(x)))];
-  const catalogRes=ids.length?await db.from("exercise_catalog").select("id,name_es,pattern,intent,equipment,difficulty,primary_muscles,secondary_muscles,media_status,review_status").in("id",ids):{data:[],error:null};
   if(catalogRes.error)fail("IBERFIT_MEDIA_REVIEW_CATALOG_FAILED",502);
-  const catalog=new Map((catalogRes.data||[]).map((x:any)=>[String(x.id),x]));
-  const candidates=[];
+
+  const jobs=jobsRes.data||[];
+  const catalog=catalogRes.data||[];
+  const latest=new Map<string,any>();
   for(const job of jobs){
-    const review=reviewOf(job),staging=stagingOf(job),exercise=catalog.get(String(job.exercise_id))||{};
+    const id=String(job?.exercise_id||"");
+    if(SAFE_ID.test(id)&&!latest.has(id))latest.set(id,job);
+  }
+
+  const candidates=[];
+  const inventory=[];
+  const summary={
+    total:catalog.length,
+    approvedPublished:0,
+    pendingCatalog:0,
+    awaitingHumanReview:0,
+    publishQueued:0,
+    queued:0,
+    regenerating:0,
+    generating:0,
+    failed:0,
+    blocked:0,
+  };
+
+  for(const exercise of catalog){
+    const exerciseId=String(exercise?.id||"");
+    if(!SAFE_ID.test(exerciseId))continue;
+    const job=latest.get(exerciseId)||null;
+    const review=reviewOf(job);
+    const state=inventoryState(exercise,job);
+    const published=exercise?.media_status==="aprobado"&&exercise?.media?.published===true&&Boolean(exercise?.media?.movement?.path);
+    if(published)summary.approvedPublished+=1;
+    else summary.pendingCatalog+=1;
+    if(state==="awaiting_review")summary.awaitingHumanReview+=1;
+    if(["publish_requested","publishing","publish_failed"].includes(state))summary.publishQueued+=1;
+    if(state==="queued")summary.queued+=1;
+    if(state==="regenerating")summary.regenerating+=1;
+    if(state==="generating")summary.generating+=1;
+    if(state==="failed")summary.failed+=1;
+    if(state==="blocked")summary.blocked+=1;
+
+    inventory.push({
+      exerciseId,
+      exerciseName:exercise.name_es||exerciseId,
+      pattern:exercise.pattern||null,
+      intent:exercise.intent||null,
+      equipment:exercise.equipment||null,
+      difficulty:exercise.difficulty||null,
+      primaryMuscles:exercise.primary_muscles||[],
+      mediaStatus:exercise.media_status||null,
+      catalogReviewStatus:exercise.review_status||null,
+      revision:Number(exercise.revision||0),
+      state,
+      publicUrl:approvedPublicUrl(db,exercise),
+      job:job?{
+        jobId:job.id,
+        status:job.status,
+        attempts:Number(job.attempts||0),
+        reviewState:String(review?.state||""),
+        lineageReason:job?.visual_spec?.lineage?.reason||null,
+        lastError:job.last_error||review?.publish_error||null,
+        updatedAt:job.updated_at||null,
+        completedAt:job.completed_at||null,
+      }:null,
+    });
+
     const sha=String(review?.sha256||job?.output_manifest?.proof?.delivery_sha256||"").toLowerCase();
-    if(review?.automatic_qa!=="passed"||!SHA256.test(sha))continue;
+    if(job?.status!=="qa"||review?.automatic_qa!=="passed"||!SHA256.test(sha))continue;
+    const staging=stagingOf(job);
     candidates.push({
-      jobId:job.id,exerciseId:job.exercise_id,exerciseName:exercise.name_es||job.exercise_id,
+      jobId:job.id,exerciseId,exerciseName:exercise.name_es||exerciseId,
       pattern:exercise.pattern||null,intent:exercise.intent||null,equipment:exercise.equipment||null,difficulty:exercise.difficulty||null,
       primaryMuscles:exercise.primary_muscles||[],secondaryMuscles:exercise.secondary_muscles||[],
       status:job.status,reviewState:String(review.state||"awaiting_human_approval"),attempts:Number(job.attempts||0),sha256:sha,
@@ -100,7 +185,8 @@ async function listCandidates(db:any){
       staging:{startSha256:staging.start_sha256||null,finalSha256:staging.final_sha256||null,deliverySha256:staging.delivery_sha256||sha},
     });
   }
-  return candidates;
+
+  return {summary,candidates,inventory};
 }
 function normalizeCommand(value:any){
   if(!value||typeof value!=="object"||Array.isArray(value))fail("IBERFIT_MEDIA_REVIEW_COMMAND_INVALID");
@@ -122,7 +208,7 @@ Deno.serve(async(req:Request)=>{
     const db=service(origin),identity=await authorize(authorization,origin,db);
     const raw=await req.text();if(raw.length>100_000)fail("IBERFIT_MEDIA_REVIEW_BODY_TOO_LARGE");
     const body=raw?JSON.parse(raw):{};
-    if(String(body?.action||"")==="list")return reply(200,{ok:true,version:VERSION,candidates:await listCandidates(db)},origin);
+    if(String(body?.action||"")==="list"){const overview=await listMediaOverview(db);return reply(200,{ok:true,version:VERSION,...overview},origin);}
     const command=normalizeCommand(body?.command);
     const claim=await db.rpc("iberfit_admin_media_review_claim_v1",{p_job_id:command.jobId,p_operation_id:command.operationId,p_actor:identity.actor,p_action:command.action,p_reason:command.reason||null});
     if(claim.error)throw claim.error;
