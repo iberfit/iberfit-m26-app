@@ -19,6 +19,42 @@ function normalizePrescription(input={},fallback={}){return {
   progression:optionalText(input.progression,fallback.progression||'',500),
   alternativeId:input.alternativeId||fallback.alternativeId||null,
 };}
+function draftSeedRecord(record){
+  return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)
+    ?{...record,...record.body}
+    :record||{};
+}
+function draftSeedClientId(record){
+  const item=draftSeedRecord(record);
+  return String(item.clientId??item.client_id??'').trim();
+}
+export function sessionDraftDefaultsFromState(state,clientId){
+  const safeClientId=String(clientId||'').trim();
+  if(!safeClientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');
+  const collections=state?.collections||{};
+  const cycle=(Array.isArray(collections.trainingCycles)?collections.trainingCycles:[])
+    .map(draftSeedRecord)
+    .find((item)=>draftSeedClientId(item)===safeClientId)||null;
+  const profile=(Array.isArray(collections.clientProfiles)?collections.clientProfiles:[])
+    .map(draftSeedRecord)
+    .find((item)=>draftSeedClientId(item)===safeClientId)||null;
+  const cycleDuration=cycle?.sessionDurationMinutes??cycle?.session_duration_minutes;
+  const profileDuration=profile?.sessionDurationMinutes??profile?.session_duration_minutes;
+  const durationMinutes=positiveInt(
+    cycleDuration,
+    positiveInt(profileDuration,50,{min:10,max:240}),
+    {min:10,max:240},
+  );
+  return Object.freeze({
+    clientId:safeClientId,
+    durationMinutes,
+    source:cycleDuration!==undefined&&cycleDuration!==null&&cycleDuration!==''
+      ?'cycle'
+      :profileDuration!==undefined&&profileDuration!==null&&profileDuration!==''
+        ?'profile'
+        :'default',
+  });
+}
 export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),status:'draft',previewAccepted:false,blocks:[],revision:0};}
 export function exerciseMemoryDraftSuggestion(memory){
   const latest=memory?.latest;
