@@ -46,6 +46,12 @@ const RC431_RPC=Object.freeze({
   upsertDraft:'m26_draft_upsert_v431',
   deleteDraft:'m26_draft_delete_v431',
 });
+const COACH_TEMPLATE_RPC=Object.freeze({
+  get:'iberfit_coach_template_workspace_get_v1',
+  upsert:'iberfit_coach_template_workspace_upsert_v1',
+});
+const COACH_TEMPLATE_SCHEMA_VERSION='iberfit.session-template.v1';
+const COACH_TEMPLATE_MAX_BYTES=900_000;
 const IRI_DRAFT_RPC=Object.freeze({
   get:'m26_iri_draft_get_v1',
   upsert:'m26_iri_draft_upsert_v1',
@@ -818,6 +824,80 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     );
   }
 
+  function coachTemplateWorkspaceBytes(workspace){
+    let serialized;
+    try{serialized=JSON.stringify(workspace);}
+    catch{throw new Error('M26_COACH_TEMPLATE_WORKSPACE_INVALID');}
+    if(serialized===undefined)throw new Error('M26_COACH_TEMPLATE_WORKSPACE_INVALID');
+    return typeof TextEncoder==='function'
+      ?new TextEncoder().encode(serialized).length
+      :serialized.length;
+  }
+
+  function validateCoachTemplateWorkspace(workspace){
+    if(
+      !workspace||
+      typeof workspace!=='object'||
+      Array.isArray(workspace)||
+      workspace.schemaVersion!==COACH_TEMPLATE_SCHEMA_VERSION||
+      !Array.isArray(workspace.templates)||
+      workspace.templates.length>20||
+      coachTemplateWorkspaceBytes(workspace)>COACH_TEMPLATE_MAX_BYTES
+    ){
+      throw new Error('M26_COACH_TEMPLATE_WORKSPACE_INVALID');
+    }
+    return workspace;
+  }
+
+  function normalizeCoachTemplateResult(result,code){
+    const item=Array.isArray(result)?result[0]:result;
+    if(!item||typeof item!=='object'||Array.isArray(item)||item.ok!==true)throw new Error(code);
+    const revision=Number(item.revision||0);
+    if(!Number.isInteger(revision)||revision<0)throw new Error(code);
+    if(item.found===true)validateCoachTemplateWorkspace(item.workspace);
+    if(item.conflict===true&&item.found===true)validateCoachTemplateWorkspace(item.workspace);
+    return Object.freeze({...item,revision});
+  }
+
+  async function getSessionTemplateWorkspace(token){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const result=await request(
+      '/rest/v1/rpc/'+COACH_TEMPLATE_RPC.get,
+      {method:'POST',token,body:'{}'},
+    );
+    const item=normalizeCoachTemplateResult(
+      result,
+      'M26_COACH_TEMPLATE_GET_INVALID_RESPONSE',
+    );
+    if(item.found!==true&&item.found!==false)throw new Error('M26_COACH_TEMPLATE_GET_INVALID_RESPONSE');
+    return item;
+  }
+
+  async function upsertSessionTemplateWorkspace(token,{workspace,remoteRevision=0}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const safeWorkspace=validateCoachTemplateWorkspace(workspace);
+    const revision=Math.max(0,Number(remoteRevision)||0);
+    if(!Number.isInteger(revision))throw new Error('M26_COACH_TEMPLATE_REVISION_INVALID');
+    const body=JSON.stringify({
+      p_payload:{
+        workspace:safeWorkspace,
+        remoteRevision:revision,
+      },
+    });
+    if(body.length>950000)throw new Error('M26_COACH_TEMPLATE_WORKSPACE_INVALID');
+    const result=await request(
+      '/rest/v1/rpc/'+COACH_TEMPLATE_RPC.upsert,
+      {method:'POST',token,body},
+    );
+    const item=normalizeCoachTemplateResult(
+      result,
+      'M26_COACH_TEMPLATE_SAVE_INVALID_RESPONSE',
+    );
+    if(item.saved===true&&item.conflict===true)throw new Error('M26_COACH_TEMPLATE_SAVE_INVALID_RESPONSE');
+    if(item.saved!==true&&item.conflict!==true)throw new Error('M26_COACH_TEMPLATE_SAVE_INVALID_RESPONSE');
+    return item;
+  }
+
   async function iriDraftRpc(name,token,params={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     if(!Object.values(IRI_DRAFT_RPC).includes(name))throw new Error('M26_IRI_DRAFT_RPC_NOT_ALLOWED');
@@ -1231,6 +1311,8 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     getSessionDraft,
     upsertSessionDraft,
     deleteSessionDraft,
+    getSessionTemplateWorkspace,
+    upsertSessionTemplateWorkspace,
     getIriDraft,
     upsertIriDraft,
     deleteIriDraft,

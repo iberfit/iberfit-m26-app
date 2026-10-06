@@ -96,24 +96,114 @@ export function sessionTemplateSnapshot(draft={}){
   });
 }
 
-function emptyWorkspace(){return {schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,templates:[]};}
+function safeIso(value){
+  const time=Date.parse(String(value||''));
+  return Number.isFinite(time)?new Date(time).toISOString():null;
+}
+function safeWorkspaceVersion(version,index=0){
+  if(!version||typeof version!=='object'||Array.isArray(version))return null;
+  try{
+    return {
+      version:positiveInt(version.version,index+1,{min:1,max:1_000_000}),
+      createdAt:safeIso(version.createdAt)||new Date(0).toISOString(),
+      snapshot:sessionTemplateSnapshot(version.snapshot||{}),
+    };
+  }catch{return null;}
+}
+function mergeWorkspaceTemplateRecords(left,right){
+  const leftUpdated=safeIso(left?.updatedAt)||new Date(0).toISOString();
+  const rightUpdated=safeIso(right?.updatedAt)||new Date(0).toISOString();
+  const preferred=rightUpdated>=leftUpdated?right:left;
+  const versions=[...(left?.versions||[]),...(right?.versions||[])]
+    .map((item,index)=>safeWorkspaceVersion(item,index))
+    .filter(Boolean)
+    .sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
+  const deduped=[];
+  const seen=new Set();
+  for(const version of versions){
+    const key=`${version.createdAt}|${JSON.stringify(version.snapshot)}`;
+    if(seen.has(key))continue;
+    seen.add(key);
+    deduped.push(version);
+  }
+  const kept=deduped.slice(-SESSION_TEMPLATE_MAX_VERSIONS).map((version,index)=>({
+    ...version,
+    version:index+1,
+  }));
+  if(!kept.length)return null;
+  return {
+    id:text(preferred?.id||left?.id||right?.id,160)||createM26Id(),
+    name:text(preferred?.name||left?.name||right?.name,60),
+    latestVersion:kept.length,
+    updatedAt:[leftUpdated,rightUpdated,kept.at(-1)?.createdAt||''].sort().at(-1),
+    versions:kept,
+  };
+}
+function safeWorkspaceTemplate(template){
+  if(!template||typeof template!=='object'||Array.isArray(template))return null;
+  const id=text(template.id,160);
+  const name=text(template.name,60);
+  if(!id||!name)return null;
+  const versions=(Array.isArray(template.versions)?template.versions:[])
+    .map((item,index)=>safeWorkspaceVersion(item,index))
+    .filter(Boolean)
+    .slice(-SESSION_TEMPLATE_MAX_VERSIONS);
+  if(!versions.length)return null;
+  const renumbered=versions.map((version,index)=>({...version,version:index+1}));
+  return {
+    id,
+    name,
+    latestVersion:renumbered.length,
+    updatedAt:safeIso(template.updatedAt)||renumbered.at(-1).createdAt,
+    versions:renumbered,
+  };
+}
+export function normalizeSessionTemplateWorkspace(input={}){
+  const remoteRevision=Math.max(0,Number(input?.remoteRevision)||0);
+  const byName=new Map();
+  for(const raw of Array.isArray(input?.templates)?input.templates:[]){
+    const template=safeWorkspaceTemplate(raw);
+    if(!template)continue;
+    const key=normalizeName(template.name);
+    const current=byName.get(key);
+    byName.set(key,current?mergeWorkspaceTemplateRecords(current,template):template);
+  }
+  const templates=[...byName.values()]
+    .filter(Boolean)
+    .sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))
+    .slice(0,SESSION_TEMPLATE_MAX_ITEMS);
+  return {
+    schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,
+    remoteRevision,
+    templates,
+  };
+}
+export function mergeSessionTemplateWorkspaces(localWorkspace={},remoteWorkspace={}){
+  return normalizeSessionTemplateWorkspace({
+    remoteRevision:Math.max(
+      Number(localWorkspace?.remoteRevision)||0,
+      Number(remoteWorkspace?.remoteRevision)||0,
+    ),
+    templates:[
+      ...(Array.isArray(localWorkspace?.templates)?localWorkspace.templates:[]),
+      ...(Array.isArray(remoteWorkspace?.templates)?remoteWorkspace.templates:[]),
+    ],
+  });
+}
+function emptyWorkspace(){return {schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,remoteRevision:0,templates:[]};}
 function readWorkspace(storage,key){
   if(!storage?.getItem)return emptyWorkspace();
   try{
     const parsed=JSON.parse(storage.getItem(key)||'null');
     if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.templates))return emptyWorkspace();
-    return {
-      schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,
-      templates:parsed.templates.slice(0,SESSION_TEMPLATE_MAX_ITEMS),
-    };
+    return normalizeSessionTemplateWorkspace(parsed);
   }catch{return emptyWorkspace();}
 }
 function writeWorkspace(storage,key,workspace){
   if(!storage?.setItem)throw new Error('M26_SESSION_TEMPLATE_STORAGE_UNAVAILABLE');
-  storage.setItem(key,JSON.stringify({
-    schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,
-    templates:(workspace.templates||[]).slice(0,SESSION_TEMPLATE_MAX_ITEMS),
-  }));
+  const normalized=normalizeSessionTemplateWorkspace(workspace);
+  storage.setItem(key,JSON.stringify(normalized));
+  return normalized;
 }
 
 export function createSessionTemplateRepository({
@@ -171,11 +261,36 @@ export function createSessionTemplateRepository({
     };
     const templates=[template,...workspace.templates.filter((item)=>item.id!==template.id)]
       .slice(0,SESSION_TEMPLATE_MAX_ITEMS);
-    writeWorkspace(storage,key,{schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,templates});
+    writeWorkspace(storage,key,{
+      schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,
+      remoteRevision:workspace.remoteRevision,
+      templates,
+    });
     return Object.freeze({id:template.id,name:template.name,version:nextVersion,updatedAt:timestamp});
   }
+  function workspace(){return structuredClone(state());}
+  function replaceWorkspace(next,{remoteRevision=next?.remoteRevision}={}){
+    const normalized=normalizeSessionTemplateWorkspace({
+      ...next,
+      remoteRevision:Math.max(0,Number(remoteRevision)||0),
+    });
+    writeWorkspace(storage,key,normalized);
+    return structuredClone(normalized);
+  }
+  function mergeWorkspace(next,{remoteRevision=next?.remoteRevision}={}){
+    const merged=mergeSessionTemplateWorkspaces(
+      state(),
+      normalizeSessionTemplateWorkspace({
+        ...next,
+        remoteRevision:Math.max(0,Number(remoteRevision)||0),
+      }),
+    );
+    merged.remoteRevision=Math.max(0,Number(remoteRevision)||0);
+    writeWorkspace(storage,key,merged);
+    return structuredClone(merged);
+  }
   function clearOwner(){try{storage?.removeItem?.(key);return true;}catch{return false;}}
-  return Object.freeze({key,list,get,save,clearOwner});
+  return Object.freeze({key,list,get,save,workspace,replaceWorkspace,mergeWorkspace,clearOwner});
 }
 
 export function createDraftFromSessionTemplate(template,{clientId,catalog}={}){
@@ -200,4 +315,6 @@ export const __sessionReuseInternals=Object.freeze({
   instantiateBlocks,
   normalizeName,
   readWorkspace,
+  safeWorkspaceTemplate,
+  mergeWorkspaceTemplateRecords,
 });
