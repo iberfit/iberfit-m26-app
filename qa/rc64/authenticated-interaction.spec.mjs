@@ -154,6 +154,19 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
+  // Only record the status of the expected, authenticated read-only RPC.
+  // Do not retain HTTP bodies, headers, URLs, tokens or account identities.
+  let communicationRpcStatus=null;
+  page.on('response',(response)=>{
+    try{
+      const target=new URL(response.url());
+      if(target.origin===SUPABASE_ORIGIN
+         && target.pathname==='/rest/v1/rpc/iberfit_communication_bootstrap_v14'){
+        communicationRpcStatus=response.status();
+      }
+    }catch{/* Ignore nonstandard browser URLs. */}
+  });
+
   const navigationStartMs=performance.now();
   const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
   const navigationUntilNetworkIdleMs=performance.now()-navigationStartMs;
@@ -181,6 +194,13 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     'QA instrumentation must observe the beginning of authenticated hydration').toBe(true);
   expect(authStageTimeline.some(({stage})=>stage==='rc64-shell-interactive-ready'),
     'QA instrumentation must observe the actual interactive boundary').toBe(true);
+  const stageMs=(stage)=>authStageTimeline.find((mark)=>mark.stage===stage)?.elapsedSinceSubmitMs;
+  const communicationStartMs=stageMs('rc64-hydrate-scope-ready');
+  const communicationReadyMs=stageMs('rc64-hydrate-secondary-ready');
+  expect(Number.isFinite(communicationStartMs)&&Number.isFinite(communicationReadyMs),
+    'QA must measure communication hydration within the existing browser-clock stage timeline').toBe(true);
+  const communicationHydrationMs=Math.max(0,communicationReadyMs-communicationStartMs);
+  expect(communicationRpcStatus,'Client hydration must use the authorized communication read RPC successfully').toBe(200);
   await expect(page.locator('.m26-role-choice[role="dialog"]'),'Client-only identity must not receive app choice').toHaveCount(0);
   await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),'Client-only identity must not be forced through privileged WebAuthn').toHaveCount(0);
   await dismissGuidance(page);
@@ -290,6 +310,8 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     navigationUntilNetworkIdleMs:Math.round(navigationUntilNetworkIdleMs),
     credentialSubmitToShellMs:Math.round(credentialSubmitToShellMs),
     credentialSubmitToInteractiveMs:Math.round(credentialSubmitToInteractiveMs),
+    communicationHydrationMs,
+    communicationRpcStatus,
     authStageTimeline,
     authenticated:true,
     interactiveReady:true,

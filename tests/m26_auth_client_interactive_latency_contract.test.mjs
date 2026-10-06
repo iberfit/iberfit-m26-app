@@ -36,5 +36,9 @@ test('QA captures a privacy-safe, browser-clock auth stage waterfall across devi
   assert.match(timeline,/\^rc64-\[a-z0-9-\]\{1,64\}\$/u);
   assert.match(timeline,/\.slice\(0,72\)/u);
   assert.doesNotMatch(timeline,/M26_QA_CLIENT_B_EMAIL|M26_QA_CLIENT_B_PASSWORD|Authorization|\.token|\.headers|\.url/u);
+  assert.match(qa,/const communicationHydrationMs=Math\.max\(0,communicationReadyMs-communicationStartMs\)/u);
+  assert.match(qa,/communicationRpcStatus,'Client hydration must use the authorized communication read RPC successfully'/u);
+  assert.match(qa,/    communicationHydrationMs,/u);
+  assert.match(qa,/    communicationRpcStatus,/u);
   assert.match(qa,/    authStageTimeline,/u);
 });
