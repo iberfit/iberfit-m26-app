@@ -69,7 +69,10 @@ test('live Media Review cert authenticates as the ephemeral Admin and remains re
   assert.match(source,/authorization:`Bearer \$\{accessToken\}`/u);
   assert.match(source,/origin:CANARY_ORIGIN/u);
   assert.match(source,/JSON\.stringify\(\{action:'list'\}\)/u);
-  assert.match(source,/payload\?\.version==='admin-media-review-v1\.2'/u);
+  assert.match(source,/payload\?\.version===expectedVersion/u);
+  assert.match(source,/expectedEdgeVersion\(\)/u);
+  assert.match(source,/Array\.isArray\(payload\?\.inventory\)/u);
+  assert.match(source,/MEDIA_REVIEW_INVENTORY_TOTAL_MISMATCH/u);
   assert.match(source,/Array\.isArray\(payload\?\.candidates\)/u);
   assert.match(source,/origin:'https:\/\/example\.invalid'/u);
   assert.match(source,/forbidden\.status===403/u);
