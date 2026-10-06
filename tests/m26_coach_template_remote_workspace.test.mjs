@@ -77,7 +77,9 @@ test('application reconciles template workspace on connectivity recovery without
   assert.match(application,/sessionTemplateRepository\.mergeWorkspace/u);
   assert.match(application,/result\.conflict===true/u);
   assert.match(application,/throw new Error\('M26_COACH_TEMPLATE_SYNC_CONFLICT'\)/u);
-  assert.match(application,/void syncSessionTemplateWorkspace\(\{renderAfter:true\}\)\.catch/u);
+  assert.match(application,/templateConnectivityStop=observeConnectivity\(globalThis,/u);
+  assert.match(application,/onOnline:\(\)=>syncSessionTemplateWorkspace\(\{renderAfter:true\}\)\.catch/u);
+  assert.match(application,/coach-template-sync-builder-open/u);
   const setup=application.indexOf('async function setupAuthenticated()');
   const interactive=application.indexOf("qaStage('rc64-shell-interactive-ready')",setup);
   const reconnect=application.indexOf('coach-template-sync-reconnect',interactive);
