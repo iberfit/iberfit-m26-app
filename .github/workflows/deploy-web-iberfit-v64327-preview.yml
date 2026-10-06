@@ -3,7 +3,7 @@ name: Preview WEB IBERFIT V6.43.27 sitemap accuracy
 on:
   push:
     branches: [infra/web-iberfit-worker]
-    paths: ['.github/workflows/deploy-web-iberfit-v64327-preview-v2.yml']
+    paths: ['.github/workflows/deploy-web-iberfit-v64327-preview.yml']
 
 permissions:
   contents: read
@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
-          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64326-preview-v2' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64327-preview' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
           curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
           node <<'NODE'
           const x=require('/tmp/deployments-before.json');
