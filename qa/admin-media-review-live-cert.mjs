@@ -81,6 +81,19 @@ try{
   assert(forbiddenPreflight.status===403,'MEDIA_REVIEW_PREFLIGHT_FORBIDDEN_ORIGIN_NOT_BLOCKED',forbiddenPreflight.status);
   assert(!forbiddenPreflight.headers.has('access-control-allow-origin'),'MEDIA_REVIEW_PREFLIGHT_FORBIDDEN_ORIGIN_LEAK');
 
+  // Other privileged and notification Edge functions must satisfy the same
+  // browser CORS contract before any authorized action is attempted.
+  for(const slug of ['iberfit-admin-user-decommission-v1','iberfit-web-push-sender-v1']){
+    const path=`/functions/v1/${slug}`;
+    const preflight=await fetch(`${QA_ORIGIN}${path}`,{method:'OPTIONS',headers:preflightHeaders});
+    assert(preflight.status===204,'EDGE_CORS_PREFLIGHT_204_REQUIRED',`${slug}:${preflight.status}`);
+    assert(preflight.headers.get('access-control-allow-origin')===CANARY_ORIGIN,'EDGE_CORS_PREFLIGHT_ORIGIN_INVALID',slug);
+    assert((await preflight.text())==='','EDGE_CORS_PREFLIGHT_BODY_INVALID',slug);
+    const denied=await fetch(`${QA_ORIGIN}${path}`,{method:'OPTIONS',headers:{...preflightHeaders,origin:'https://example.invalid'}});
+    assert(denied.status===403,'EDGE_CORS_FOREIGN_ORIGIN_MUST_FAIL',`${slug}:${denied.status}`);
+    assert(!denied.headers.has('access-control-allow-origin'),'EDGE_CORS_FOREIGN_ORIGIN_LEAK',slug);
+  }
+
   const authResponse=await fetch(`${QA_ORIGIN}/auth/v1/token?grant_type=password`,{
     method:'POST',
     headers:{apikey:publishable,'content-type':'application/json'},

@@ -51,7 +51,7 @@ function cors(origin=''){
   return headers;
 }
 function reply(status:number,body:unknown,origin=''){
-  return new Response(JSON.stringify(body),{status,headers:cors(origin)});
+  return new Response(status===204?null:JSON.stringify(body),{status,headers:cors(origin)});
 }
 function safeCode(error:unknown,fallback='M26_PUSH_DELIVERY_FAILED'){
   const raw=String((error as {message?:string})?.message||error||'').toUpperCase();
