@@ -11,7 +11,7 @@ test('default branch registers the exact human-regeneration dispatch target',asy
   ]);
   assert.match(registry,/^on:\s*\n\s+workflow_dispatch:/mu);
   assert.match(scheduler,/actions\/workflows\/exercise-media-human-regeneration\.yml\/dispatches/u);
-  assert.match(scheduler,/\{\"ref\":\"canary\/rc74-4\"\}/u);
+  assert.ok(scheduler.includes('{"ref":"canary/rc74-4"}'),'scheduled dispatcher must target the certified Canary branch');
   assert.match(registry,/IBERFIT_MEDIA_REGEN_DEFAULT_BRANCH_EXECUTION_FORBIDDEN/u);
   assert.match(registry,/exit 1/u);
   assert.doesNotMatch(registry,/id-token:\s*write/u);
