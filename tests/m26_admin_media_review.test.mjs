@@ -152,6 +152,18 @@ test('factory stages review pixels privately and regeneration reuses the existin
   assert.match(factory,/IBERFIT_AUTO_FACTORY_REGEN_WORKFLOW_FORBIDDEN/u);
 });
 
+test('failed and blocked media jobs can be explicitly regenerated without weakening publish gates',async()=>{
+  const migration=await read('supabase/migrations/20261006033000_admin_media_review_regenerate_failed_v1.sql');
+  assert.match(migration,/p_action in \('approve','reject'\)[\s\S]*v_job\.status<>'qa'/u);
+  assert.match(migration,/p_action='regenerate'[\s\S]*v_job\.status not in \('failed','blocked'\)/u);
+  assert.match(migration,/insert into public\.exercise_media_jobs[\s\S]*'queued',0/u);
+  assert.match(migration,/'reason','human_regeneration'/u);
+  assert.match(migration,/nullif\(v_sha,''\)/u);
+  assert.match(migration,/source_status/u);
+  assert.match(migration,/revoke all on function public\.iberfit_admin_media_review_claim_v1[\s\S]*from public,anon,authenticated/u);
+  assert.match(migration,/grant execute on function public\.iberfit_admin_media_review_claim_v1[\s\S]*to service_role/u);
+});
+
 test('publication stays human gated and only the canonical GitHub OIDC workflow can reach the final publisher',async()=>{
   const [publisher,adminEdge,migration,broker,workflow]=await Promise.all([
     read('supabase/functions/iberfit-exercise-media-publisher/index.ts'),
