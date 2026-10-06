@@ -36,7 +36,7 @@ jobs:
           const fs=require('fs'),m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
           const bad=x=>{throw Error(x)};
           if(m.schema!=='iberfit.web.public-production.v1'||m.repository!=='iberfit/iberfitweb'||m.domain!=='https://iberfit.cl')bad('MANIFEST_IDENTITY');
-          if(!/^6\.43\.(25|26)$/.test(m.version||''))bad('UNSUPPORTED_VERSION:'+m.version);
+          if(!/^6\.43\.(25|26|27)$/.test(m.version||''))bad('UNSUPPORTED_VERSION:'+m.version);
           if(!/^[0-9a-f]{40}$/.test(m.sha||'')||!/^[0-9a-f-]{36}$/.test(m.deploymentId||''))bad('MANIFEST_CURRENT');
           if(!m.safeRollback||!/^[0-9a-f]{40}$/.test(m.safeRollback.sha||'')||!/^[0-9a-f-]{36}$/.test(m.safeRollback.deploymentId||''))bad('MANIFEST_ROLLBACK');
           for(const k of ['qaRunId','previewRunId','productionRunId'])if(!Number.isInteger(m[k])||m[k]<=0)bad('MANIFEST_RUN_'+k);
@@ -60,8 +60,12 @@ jobs:
           grep -q "script-src-attr 'none'" /tmp/headers
           ! grep -q 'unsafe-inline' /tmp/headers
 
-          if [ "$VERSION" = '6.43.26' ]; then
-            CHECKPOINT='checkpoint/v64326-local-editorial-policy-production-2026-10-01'
+          if [ "$VERSION" = '6.43.27' ] || [ "$VERSION" = '6.43.26' ]; then
+            if [ "$VERSION" = '6.43.27' ]; then
+              CHECKPOINT='checkpoint/v64327-sitemap-accuracy-production-2026-10-06'
+            else
+              CHECKPOINT='checkpoint/v64326-local-editorial-policy-production-2026-10-01'
+            fi
             for pair in \
               'entrenador-personal-las-condes|No inferimos cómo te mueves' \
               'entrenador-personal-vitacura|No deducimos tus hábitos' \
@@ -83,6 +87,22 @@ jobs:
             grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa.' /tmp/nunoa.html
           fi
 
+          if [ "$VERSION" = '6.43.27' ]; then
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/sitemap.xml?state=${GITHUB_RUN_ID}" -o /tmp/sitemap-live.xml
+            curl -fsSL --retry 6 --retry-all-errors "https://raw.githubusercontent.com/iberfit/iberfitweb/${SHA}/candidate/v628/sitemap.xml" -o /tmp/sitemap-certified.xml
+            cmp -s /tmp/sitemap-live.xml /tmp/sitemap-certified.xml
+            python3 - <<'PY'
+          from xml.etree import ElementTree as ET
+          root=ET.parse('/tmp/sitemap-live.xml').getroot()
+          ns='{http://www.sitemaps.org/schemas/sitemap/0.9}'
+          pages={u.find(ns+'loc').text:u.find(ns+'lastmod').text for u in root.findall(ns+'url')}
+          assert len(pages)==32
+          assert pages['https://iberfit.cl/']=='2026-09-28'
+          assert pages['https://iberfit.cl/online/']=='2026-09-24'
+          assert pages['https://iberfit.cl/entrenador-personal-las-condes/']=='2026-10-01'
+          print('LIVE_SITEMAP_PER_PAGE_LASTMOD_OK',len(pages))
+          PY
+          fi
           curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/branches/${CHECKPOINT}" -o /tmp/checkpoint.json
           node <<'NODE'
           const fs=require('fs'),m=require(process.cwd()+'/.iberfit/web-public-production.json'),b=require('/tmp/checkpoint.json');
