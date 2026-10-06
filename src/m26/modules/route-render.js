@@ -2892,7 +2892,7 @@ export function renderExpedienteRoute(vm) {
 
   const nextSessionActionLabel=
     prep?.session?.startable
-      ?'Abrir sesión preparada'
+      ?'Iniciar sesión preparada'
       :prep?.session?.id
         ?'Revisar sesión'
         :'Preparar sesión';
@@ -2903,6 +2903,18 @@ export function renderExpedienteRoute(vm) {
       :prep?.session?.id
         ?badge('Revisar antes de entrenar','warning')
         :badge('Sin sesión preparada','neutral');
+
+  const nextSessionActionControl=
+    prep?.session?.startable&&prep?.session?.id
+      ?`<button
+          type="button"
+          class="${prep.reviewRequired?'m26-text-action':'m26-primary-action'}"
+          data-workflow-action="start-published-session"
+          data-entity-id="${escapeHtml(prep.session.id)}"
+        >Iniciar sesión preparada</button>`
+      :prep?.session?.id
+        ?`<button type="button" class="m26-text-action" data-m26-area="sesion">Revisar sesión</button>`
+        :`<button type="button" class="m26-text-action" data-workflow-action="open-session-builder">Preparar sesión</button>`;
 
   const decisionRows=
     openDecisions.length
@@ -3039,7 +3051,7 @@ export function renderExpedienteRoute(vm) {
             </div>
             ${nextSessionBadge}
           </div>
-          <button type="button" class="m26-text-action" data-m26-area="sesion">${escapeHtml(nextSessionActionLabel)}</button>
+          ${nextSessionActionControl}
         </article>
       </div>
 
