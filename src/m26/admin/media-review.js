@@ -195,7 +195,7 @@ export function createAdminMediaReviewController({root,store,service,onToast=()=
   const active=()=>store.getState()?.identity?.role==='admin'&&store.getState()?.activeArea===AREA&&adminMediaReviewEnabled(store.getState());
   async function load({force=false}={}){
     if(!active())return false;if(loading&&!force)return false;loading=true;const turn=++generation;renderInto(root,{status:'loading'});
-    try{const response=await service.listMediaReview();if(turn!==generation||!active())return false;renderInto(root,{status:'ready',candidates:Array.isArray(response?.candidates)?response.candidates:[]});return true;}
+    try{const response=await service.listMediaReview();if(turn!==generation||!active())return false;renderInto(root,{status:'ready',summary:response?.summary||{},candidates:Array.isArray(response?.candidates)?response.candidates:[],inventory:Array.isArray(response?.inventory)?response.inventory:[]});return true;}
     catch(error){if(turn===generation&&active())renderInto(root,{status:'error',error:friendly(error)});return false;}
     finally{if(turn===generation)loading=false;}
   }
@@ -209,8 +209,9 @@ export function createAdminMediaReviewController({root,store,service,onToast=()=
   }
   function onSubmit(event){const form=event.target?.closest?.('[data-media-review-action]');if(!form)return;event.preventDefault();void submit(form);}
   function onClick(event){if(!event.target?.closest?.('[data-media-review-retry]'))return;event.preventDefault();void load({force:true});}
+  function onFilter(event){if(!event.target?.closest?.('[data-media-inventory-search],[data-media-inventory-filter]'))return;applyInventoryFilters(root);}
   function sync(){const area=String(store.getState()?.activeArea||'');if(area===lastArea){if(area===AREA&&active()&&root.querySelector?.('[data-admin-media-review-route]')&&!root.querySelector?.('[data-media-review-job],.m26-media-review-empty,.m26-media-review-error,.m26-media-review-loading'))void load();return;}lastArea=area;if(active())queueMicrotask(()=>load({force:true}));else generation++;}
-  return Object.freeze({mount(){root.addEventListener('submit',onSubmit);root.addEventListener('click',onClick);unsubscribe=store.subscribe(sync);sync();},sync,destroy(){generation++;unsubscribe?.();unsubscribe=null;root.removeEventListener('submit',onSubmit);root.removeEventListener('click',onClick);}});
+  return Object.freeze({mount(){root.addEventListener('submit',onSubmit);root.addEventListener('click',onClick);root.addEventListener('input',onFilter);root.addEventListener('change',onFilter);unsubscribe=store.subscribe(sync);sync();},sync,destroy(){generation++;unsubscribe?.();unsubscribe=null;root.removeEventListener('submit',onSubmit);root.removeEventListener('click',onClick);root.removeEventListener('input',onFilter);root.removeEventListener('change',onFilter);}});
 }
 
 function ensureMediaReviewStyle(documentLike){
@@ -237,7 +238,7 @@ export function createAdminMediaReviewDomBridge({globalLike=globalThis,documentL
   async function load({force=false}={}){
     const host=route();if(!host||!service?.listMediaReview)return false;if(loading&&!force)return false;
     loading=true;const turn=++generation;renderInto(documentLike,{status:'loading'});
-    try{const response=await service.listMediaReview();if(turn!==generation||!route())return false;renderInto(documentLike,{status:'ready',candidates:Array.isArray(response?.candidates)?response.candidates:[]});return true;}
+    try{const response=await service.listMediaReview();if(turn!==generation||!route())return false;renderInto(documentLike,{status:'ready',summary:response?.summary||{},candidates:Array.isArray(response?.candidates)?response.candidates:[],inventory:Array.isArray(response?.inventory)?response.inventory:[]});return true;}
     catch(error){if(turn===generation&&route())renderInto(documentLike,{status:'error',error:friendly(error)});return false;}
     finally{if(turn===generation)loading=false;}
   }
@@ -261,6 +262,7 @@ export function createAdminMediaReviewDomBridge({globalLike=globalThis,documentL
     if(areaButton){const target=String(areaButton.getAttribute?.('data-m26-area')||'');if(target===AREA){const current=documentLike.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area');if(current&&current!==AREA)previousArea=current;}else if(mediaPath())replaceRootPath();}
     if(event.target?.closest?.('[data-media-review-retry]')){event.preventDefault();void load({force:true});}
   }
+  function onFilter(event){if(!event.target?.closest?.('[data-media-inventory-search],[data-media-inventory-filter]'))return;applyInventoryFilters(documentLike);}
   function onPopState(){
     queueMicrotask(()=>{
       if(mediaPath()){const button=mediaNav();if(button&&!route())button.click?.();return;}
@@ -268,11 +270,11 @@ export function createAdminMediaReviewDomBridge({globalLike=globalThis,documentL
     });
   }
   function mount(){
-    ensureMediaReviewStyle(documentLike);globalLike.addEventListener?.(SERVICE_EVENT,onService);globalLike.addEventListener?.('popstate',onPopState);documentLike.addEventListener('submit',onSubmit);documentLike.addEventListener('click',onClick,true);
+    ensureMediaReviewStyle(documentLike);globalLike.addEventListener?.(SERVICE_EVENT,onService);globalLike.addEventListener?.('popstate',onPopState);documentLike.addEventListener('submit',onSubmit);documentLike.addEventListener('click',onClick,true);documentLike.addEventListener('input',onFilter);documentLike.addEventListener('change',onFilter);
     const Observer=globalLike.MutationObserver;if(typeof Observer==='function'){observer=new Observer(()=>queueMicrotask(sync));observer.observe(documentLike.documentElement||documentLike.body,{childList:true,subtree:true});}
     sync();return true;
   }
-  function destroy(){generation++;observer?.disconnect?.();observer=null;globalLike.removeEventListener?.(SERVICE_EVENT,onService);globalLike.removeEventListener?.('popstate',onPopState);documentLike.removeEventListener('submit',onSubmit);documentLike.removeEventListener('click',onClick,true);}
+  function destroy(){generation++;observer?.disconnect?.();observer=null;globalLike.removeEventListener?.(SERVICE_EVENT,onService);globalLike.removeEventListener?.('popstate',onPopState);documentLike.removeEventListener('submit',onSubmit);documentLike.removeEventListener('click',onClick,true);documentLike.removeEventListener('input',onFilter);documentLike.removeEventListener('change',onFilter);}
   return Object.freeze({mount,destroy,sync,load});
 }
 export function installAdminMediaReviewDomBridge({globalLike=globalThis,documentLike=globalLike?.document}={}){
@@ -283,4 +285,4 @@ export function installAdminMediaReviewDomBridge({globalLike=globalThis,document
 
 installAdminMediaReviewDomBridge();
 
-export const __mediaReviewInternals=Object.freeze({candidateMarkup,renderInto,friendly,actionInput,setPending,ensureMediaReviewStyle,rootPath,SERVICE_EVENT,BRIDGE_KEY});
+export const __mediaReviewInternals=Object.freeze({candidateMarkup,inventoryMarkup,summaryMarkup,applyInventoryFilters,renderInto,friendly,actionInput,setPending,ensureMediaReviewStyle,rootPath,SERVICE_EVENT,BRIDGE_KEY});
