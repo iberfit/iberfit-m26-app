@@ -6,7 +6,20 @@ const STYLE_MARKER='data-m26-media-review-style';
 const esc=(value)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const pct=(value)=>Number.isFinite(Number(value))?`${Math.round(Number(value)*100)} %`:'—';
 const date=(value)=>{const d=value?new Date(value):null;return d&&!Number.isNaN(d.getTime())?new Intl.DateTimeFormat('es-CL',{dateStyle:'medium',timeStyle:'short'}).format(d):'—';};
-const stateLabel=(value)=>({awaiting_human_approval:'Pendiente de revisión',publish_requested:'Publicación en cola',publishing:'Publicando',publish_failed:'Error de publicación'}[String(value||'')]||String(value||'Pendiente'));
+const stateLabel=(value)=>({
+  approved:'Aprobada y publicada',
+  pending:'Pendiente de generación',
+  queued:'En cola',
+  regenerating:'Regeneración en cola',
+  generating:'Generando',
+  awaiting_review:'Pendiente de revisión humana',
+  awaiting_human_approval:'Pendiente de revisión humana',
+  publish_requested:'Publicación en cola',
+  publishing:'Publicando',
+  publish_failed:'Error de publicación',
+  failed:'Generación fallida',
+  blocked:'Bloqueada por calidad',
+}[String(value||'')]||String(value||'Pendiente'));
 
 export function adminMediaReviewEnabled(state){return state?.identity?.role==='admin'&&state?.admin?.available===true&&state?.admin?.organization?.settings?.[FLAG]===true;}
 export function filterAdminMediaReviewNavigation(navigation,state){
@@ -20,16 +33,40 @@ export function areaPath(area){return area===AREA?'/admin/media-review':'/';}
 export function renderAdminMediaReviewRoute(){
   return `<div class="m26-admin-route m26-media-review-route" data-admin-media-review-route>
     <section class="m26-admin-hero m26-media-review-hero">
-      <div><p class="m26-eyebrow">Media Factory · control humano</p><h2>Media Review</h2><p>Compara START y FINAL antes de autorizar cualquier publicación. Superar QA automático nunca publica por sí solo.</p></div>
-      <button type="button" data-media-review-retry>Actualizar bandeja</button>
+      <div>
+        <p class="m26-eyebrow">Biblioteca visual · gobierno y calidad</p>
+        <h2>Centro de Media</h2>
+        <p>Inventario completo de imágenes de ejercicios, estado de la factoría y revisión humana. Nada se publica por superar QA automático: la aprobación final sigue siendo explícita.</p>
+      </div>
+      <button type="button" data-media-review-retry>Actualizar estado</button>
     </section>
-    <div class="m26-media-review-live" data-media-review-live role="status" aria-live="polite" aria-atomic="true">Cargando candidatos pendientes…</div>
-    <section class="m26-media-review-list" data-media-review-list aria-busy="true"></section>
+    <div class="m26-media-review-live" data-media-review-live role="status" aria-live="polite" aria-atomic="true">Cargando estado de Media Factory…</div>
+    <section class="m26-media-control-summary" data-media-control-summary aria-label="Resumen del estado de imágenes"></section>
+    <section class="m26-admin-panel m26-media-control-tools" aria-label="Buscar y filtrar inventario">
+      <label><span>Buscar ejercicio</span><input type="search" data-media-inventory-search autocomplete="off" placeholder="Nombre, ID, patrón o material"></label>
+      <label><span>Estado</span><select data-media-inventory-filter>
+        <option value="all">Todos los estados</option>
+        <option value="approved">Aprobadas</option>
+        <option value="review">Revisión humana</option>
+        <option value="active">En cola / generando</option>
+        <option value="errors">Fallidas / bloqueadas</option>
+        <option value="pending">Pendientes sin imagen IBERFIT</option>
+      </select></label>
+      <small data-media-inventory-visible aria-live="polite"></small>
+    </section>
+    <section class="m26-media-control-section" aria-labelledby="m26-media-review-title">
+      <header class="m26-media-control-section-head"><div><p class="m26-eyebrow">Control humano</p><h3 id="m26-media-review-title">Pendientes de aprobación</h3></div><span data-media-review-count></span></header>
+      <section class="m26-media-review-list" data-media-review-list aria-busy="true"></section>
+    </section>
+    <section class="m26-media-control-section" aria-labelledby="m26-media-inventory-title">
+      <header class="m26-media-control-section-head"><div><p class="m26-eyebrow">Inventario</p><h3 id="m26-media-inventory-title">Todos los ejercicios</h3></div><span data-media-inventory-count></span></header>
+      <section class="m26-media-inventory-list" data-media-inventory-list aria-busy="true"></section>
+    </section>
   </div>`;
 }
 
-function emptyMarkup(){return `<div class="m26-admin-panel m26-media-review-empty"><p class="m26-eyebrow">Bandeja al día</p><h3>No hay candidatos pendientes</h3><p>Los candidatos aparecerán aquí únicamente después de superar el QA automático y antes de cualquier publicación.</p></div>`;}
-function errorMarkup(message){return `<div class="m26-admin-panel m26-media-review-error" role="alert"><p class="m26-eyebrow">No se pudo actualizar</p><h3>Media Review sigue protegida</h3><p>${esc(message||'No fue posible cargar la bandeja.')}</p><button type="button" data-media-review-retry>Reintentar</button></div>`;}
+function emptyMarkup(){return `<div class="m26-admin-panel m26-media-review-empty"><p class="m26-eyebrow">Revisión humana</p><h3>No hay candidatos esperando aprobación</h3><p>Los ejercicios aparecen aquí únicamente después de superar el QA automático. El inventario completo permanece visible debajo.</p></div>`;}
+function errorMarkup(message){return `<div class="m26-admin-panel m26-media-review-error" role="alert"><p class="m26-eyebrow">No se pudo actualizar</p><h3>Centro de Media sigue protegido</h3><p>${esc(message||'No fue posible cargar el estado de Media Factory.')}</p><button type="button" data-media-review-retry>Reintentar</button></div>`;}
 function image(label,url,exercise){return `<figure class="m26-media-review-phase"><figcaption>${esc(label)}</figcaption>${url?`<img src="${esc(url)}" alt="${esc(`${exercise} · ${label}`)}" loading="lazy" decoding="async">`:`<div class="m26-media-review-image-missing" role="img" aria-label="${esc(`${label} no disponible`)}">Evidencia no disponible</div>`}</figure>`;}
 function actionForm(candidate,action,label,{primary=false,reason=false}={}){
   const busy=['publish_requested','publishing'].includes(candidate.reviewState);
@@ -45,18 +82,10 @@ function candidateMarkup(candidate){
   const queuedPublish=state==='publish_requested'||state==='publishing';
   const muscles=Array.isArray(candidate.primaryMuscles)?candidate.primaryMuscles.filter(Boolean).join(', '):'';
   return `<article class="m26-admin-panel m26-media-review-candidate" data-media-review-job="${esc(candidate.jobId)}">
-    <header class="m26-media-review-heading">
-      <div><p class="m26-eyebrow">${esc(candidate.exerciseId)}</p><h3>${esc(exercise)}</h3><p>${esc([candidate.pattern,candidate.equipment,candidate.difficulty].filter(Boolean).join(' · '))}</p></div>
-      <span class="m26-badge" data-media-review-state>${esc(stateLabel(state))}</span>
-    </header>
+    <header class="m26-media-review-heading"><div><p class="m26-eyebrow">${esc(candidate.exerciseId)}</p><h3>${esc(exercise)}</h3><p>${esc([candidate.pattern,candidate.equipment,candidate.difficulty].filter(Boolean).join(' · '))}</p></div><span class="m26-badge" data-media-review-state>${esc(stateLabel(state))}</span></header>
     <div class="m26-media-review-compare">${image('START',candidate.startUrl,exercise)}${image('FINAL',candidate.finalUrl,exercise)}</div>
     <dl class="m26-media-review-meta">
-      <div><dt>QA biomecánica</dt><dd>${esc(pct(candidate.confidence?.biomechanics))}</dd></div>
-      <div><dt>QA visual</dt><dd>${esc(pct(candidate.confidence?.visual))}</dd></div>
-      <div><dt>Intentos</dt><dd>${esc(candidate.attempts)}</dd></div>
-      <div><dt>QA completado</dt><dd>${esc(date(candidate.timestamps?.qaCompletedAt))}</dd></div>
-      <div><dt>SHA</dt><dd><code>${esc(String(candidate.sha256||'').slice(0,16))}…</code></dd></div>
-      <div><dt>Workflow</dt><dd><code>${esc(String(candidate.provenance?.workflowSha||'').slice(0,12)||'—')}</code></dd></div>
+      <div><dt>QA biomecánica</dt><dd>${esc(pct(candidate.confidence?.biomechanics))}</dd></div><div><dt>QA visual</dt><dd>${esc(pct(candidate.confidence?.visual))}</dd></div><div><dt>Intentos</dt><dd>${esc(candidate.attempts)}</dd></div><div><dt>QA completado</dt><dd>${esc(date(candidate.timestamps?.qaCompletedAt))}</dd></div><div><dt>SHA</dt><dd><code>${esc(String(candidate.sha256||'').slice(0,16))}…</code></dd></div><div><dt>Workflow</dt><dd><code>${esc(String(candidate.provenance?.workflowSha||'').slice(0,12)||'—')}</code></dd></div>
       ${muscles?`<div><dt>Objetivo principal</dt><dd>${esc(muscles)}</dd></div>`:''}
     </dl>
     ${candidate.error?`<div class="m26-admin-notice m26-media-review-notice" role="status"><strong>Último estado</strong><p>${esc(candidate.error)}</p></div>`:''}
@@ -68,14 +97,83 @@ function candidateMarkup(candidate){
     </div>
   </article>`;
 }
-function renderInto(root,{status='loading',candidates=[],error=null}={}){
+function inventoryGroup(state){
+  if(state==='approved')return 'approved';
+  if(['awaiting_review','publish_requested','publishing','publish_failed'].includes(state))return 'review';
+  if(['queued','regenerating','generating'].includes(state))return 'active';
+  if(['failed','blocked'].includes(state))return 'errors';
+  return 'pending';
+}
+function inventoryTone(state){
+  if(state==='approved')return 'success';
+  if(['failed','blocked','publish_failed'].includes(state))return 'danger';
+  if(['awaiting_review','publish_requested','publishing','queued','regenerating','generating'].includes(state))return 'pending';
+  return 'neutral';
+}
+function inventoryMarkup(item){
+  const state=String(item?.state||'pending');
+  const job=item?.job||null;
+  const search=[item?.exerciseName,item?.exerciseId,item?.pattern,item?.equipment,item?.difficulty,stateLabel(state)].filter(Boolean).join(' ').toLowerCase();
+  const canRegenerate=Boolean(job?.jobId&&['failed','blocked'].includes(state));
+  const preview=item?.publicUrl
+    ?`<img class="m26-media-inventory-thumb" src="${esc(item.publicUrl)}" alt="${esc(item.exerciseName||item.exerciseId||'Ejercicio')}" loading="lazy" decoding="async">`
+    :`<div class="m26-media-inventory-placeholder" aria-hidden="true"><span>IBERFIT</span></div>`;
+  return `<article class="m26-admin-panel m26-media-inventory-item" data-media-inventory-item data-media-state="${esc(state)}" data-media-group="${esc(inventoryGroup(state))}" data-media-search="${esc(search)}">
+    ${preview}
+    <div class="m26-media-inventory-copy">
+      <p class="m26-eyebrow">${esc(item.exerciseId||'Ejercicio')}</p><h4>${esc(item.exerciseName||item.exerciseId||'Ejercicio')}</h4><p>${esc([item.pattern,item.equipment].filter(Boolean).join(' · ')||'Contexto por completar')}</p>
+      <div class="m26-media-inventory-status"><span class="m26-badge is-${esc(inventoryTone(state))}">${esc(stateLabel(state))}</span>${job?.attempts?`<small>${esc(job.attempts)} intento${Number(job.attempts)===1?'':'s'}</small>`:''}</div>
+      ${job?.lastError?`<small class="m26-media-inventory-error">${esc(job.lastError)}</small>`:''}
+      ${canRegenerate?`<details class="m26-media-inventory-retry"><summary>Regenerar</summary>${actionForm({jobId:job.jobId,reviewState:job.reviewState},'regenerate','Solicitar nueva generación',{reason:true})}</details>`:''}
+    </div>
+  </article>`;
+}
+function summaryMarkup(summary={}){
+  const cells=[
+    ['Aprobadas',summary.approvedPublished||0,'Listas en Biblioteca y Sesiones'],
+    ['Pendientes',summary.pendingCatalog||0,'Sin imagen IBERFIT publicada'],
+    ['Revisión humana',summary.awaitingHumanReview||0,'QA automático superado'],
+    ['En proceso',Number(summary.queued||0)+Number(summary.regenerating||0)+Number(summary.generating||0),'Cola, regeneración o generación'],
+    ['Con incidencia',Number(summary.failed||0)+Number(summary.blocked||0),'Fallidas o bloqueadas por calidad'],
+  ];
+  return cells.map(([label,value,note])=>`<article><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`).join('');
+}
+function applyInventoryFilters(root){
+  const route=root.querySelector?.('[data-admin-media-review-route]');if(!route)return 0;
+  const query=String(route.querySelector?.('[data-media-inventory-search]')?.value||'').trim().toLowerCase();
+  const filter=String(route.querySelector?.('[data-media-inventory-filter]')?.value||'all');
+  const rows=[...(route.querySelectorAll?.('[data-media-inventory-item]')||[])];
+  let visible=0;
+  for(const row of rows){
+    const matchQuery=!query||String(row.getAttribute?.('data-media-search')||'').includes(query);
+    const matchFilter=filter==='all'||String(row.getAttribute?.('data-media-group')||'')===filter;
+    row.hidden=!(matchQuery&&matchFilter);
+    if(!row.hidden)visible+=1;
+  }
+  const live=route.querySelector?.('[data-media-inventory-visible]');
+  if(live)live.textContent=`${visible} de ${rows.length} ejercicios visibles`;
+  return visible;
+}
+function renderInto(root,{status='loading',summary={},candidates=[],inventory=[],error=null}={}){
   const route=root.querySelector?.('[data-admin-media-review-route]');if(!route)return false;
-  const list=route.querySelector?.('[data-media-review-list]'),live=route.querySelector?.('[data-media-review-live]');if(!list)return false;
-  if(status==='loading'){list.setAttribute('aria-busy','true');list.innerHTML='<div class="m26-admin-panel m26-media-review-loading" aria-hidden="true"><span></span><span></span><span></span></div>';if(live)live.textContent='Cargando candidatos pendientes…';return true;}
-  list.setAttribute('aria-busy','false');
-  if(status==='error'){list.innerHTML=errorMarkup(error);if(live)live.textContent='No fue posible cargar Media Review.';return true;}
-  list.innerHTML=candidates.length?candidates.map(candidateMarkup).join(''):emptyMarkup();
-  if(live)live.textContent=candidates.length===1?'1 candidato pendiente.':`${candidates.length} candidatos pendientes.`;
+  const reviewList=route.querySelector?.('[data-media-review-list]'),inventoryList=route.querySelector?.('[data-media-inventory-list]'),summaryNode=route.querySelector?.('[data-media-control-summary]'),live=route.querySelector?.('[data-media-review-live]');
+  const reviewCount=route.querySelector?.('[data-media-review-count]'),inventoryCount=route.querySelector?.('[data-media-inventory-count]');
+  if(!reviewList||!inventoryList||!summaryNode)return false;
+  if(status==='loading'){
+    reviewList.setAttribute('aria-busy','true');inventoryList.setAttribute('aria-busy','true');
+    reviewList.innerHTML='<div class="m26-admin-panel m26-media-review-loading" aria-hidden="true"><span></span><span></span><span></span></div>';
+    inventoryList.innerHTML='<div class="m26-admin-panel m26-media-review-loading" aria-hidden="true"><span></span><span></span><span></span></div>';
+    summaryNode.innerHTML='';if(live)live.textContent='Cargando estado de Media Factory…';return true;
+  }
+  reviewList.setAttribute('aria-busy','false');inventoryList.setAttribute('aria-busy','false');
+  if(status==='error'){reviewList.innerHTML=errorMarkup(error);inventoryList.innerHTML='';summaryNode.innerHTML='';if(live)live.textContent='No fue posible cargar Centro de Media.';return true;}
+  summaryNode.innerHTML=summaryMarkup(summary);
+  reviewList.innerHTML=candidates.length?candidates.map(candidateMarkup).join(''):emptyMarkup();
+  inventoryList.innerHTML=inventory.length?inventory.map(inventoryMarkup).join(''):'<div class="m26-admin-panel m26-media-review-empty"><h3>Sin inventario disponible</h3></div>';
+  if(reviewCount)reviewCount.textContent=`${candidates.length} pendiente${candidates.length===1?'':'s'}`;
+  if(inventoryCount)inventoryCount.textContent=`${inventory.length} ejercicios`;
+  applyInventoryFilters(root);
+  if(live)live.textContent=`${Number(summary.approvedPublished||0)} aprobadas · ${Number(summary.pendingCatalog||0)} pendientes · ${candidates.length} esperando revisión humana.`;
   return true;
 }
 function friendly(error){const code=String(error?.message||error||'');if(/DISABLED|404/u.test(code))return 'La bandeja está desactivada por configuración.';if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(code))return 'Este candidato ya cambió de estado en otra sesión. La bandeja se actualizará.';if(/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'Fallo de red. No se ha perdido ninguna decisión; puedes reintentar.';return 'No fue posible completar la operación. El candidato no se ha publicado.';}
