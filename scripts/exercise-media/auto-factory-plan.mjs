@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
 import {canonicalHardMovementPlanPhases,hasHardMovementPlanGuard,movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
-import {hipHingeDowelPlanIssue,hipHingeDowelVisualGuard,isHipHingeDowelExercise} from './auto-factory-dowel-hinge-guard.mjs';
+import {hipHingeDowelCanonicalCamera,hipHingeDowelCanonicalPhases,hipHingeDowelPlanIssue,hipHingeDowelVisualGuard,isHipHingeDowelExercise} from './auto-factory-dowel-hinge-guard.mjs';
 import {bodySawPlanIssue,bodySawVisualGuard,isBodySawExercise} from './auto-factory-body-saw-guard.mjs';
 
 const ALLOWED=new Set(['core','glúteos','aductores','cuádriceps','isquiotibiales','bíceps','dorsal ancho','romboides','tríceps','oblicuos','erectores espinales','deltoides anterior','deltoides posterior','deltoides','serrato','pectoral']);
@@ -69,6 +69,19 @@ async function main(){
         start:canonicalHardPhases.start,
         final:canonicalHardPhases.final,
         notes:[...(Array.isArray(plan.notes)?plan.notes:[]),'IBERFIT canonical hard-movement phase geometry applied deterministically.'],
+      };
+    }
+    if(dowelHinge){
+      // The live run supplied mutually incompatible hand placement and three
+      // rear contacts. Normalize geometry before generation without trusting
+      // free-form model phrasing or lowering the quality gate.
+      const canonical=hipHingeDowelCanonicalPhases(exercise);
+      plan={
+        ...plan,
+        start:canonical.start,
+        final:canonical.final,
+        camera:hipHingeDowelCanonicalCamera(exercise),
+        notes:['IBERFIT exact three-contact posterior dowel posture and opposite rear-hand grip applied deterministically.'],
       };
     }
     const issues=[];
