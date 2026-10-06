@@ -56,3 +56,9 @@ test('#766 rollback restores exactly the previous snapshot-backed behavior',()=>
   assert.match(rollback,/v_snapshot#>'\{data,appointments\}'/u);
   assert.doesNotMatch(rollback,/\b(?:insert\s+into|delete\s+from|truncate\s|drop\s)\b/iu);
 });
+
+test('#766 QA login fails closed if appointment-change reads are unauthorized or unavailable',()=>{
+  const qa=readFileSync('qa/rc64/authenticated-interaction.spec.mjs','utf8');
+  assert.match(qa,/for\(const required of \['main-snapshot','command-registry','appointment-changes'\]\)/u);
+  assert.match(qa,/sample\.operation===required&&sample\.status===200&&sample\.result==='finished'/u);
+});
