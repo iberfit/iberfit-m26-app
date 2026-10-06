@@ -66,6 +66,7 @@ const ROWS=Object.freeze([
   ['Agenda','Schedule','Agenda','Agenda'],
   ['Planificación','Planning','Planification','Planeamento'],
   ['Todavía no hay sesiones preparadas en el ciclo actual','There are no sessions prepared in the current cycle yet','Aucune séance n’est encore préparée dans le cycle actuel','Ainda não há sessões preparadas no ciclo atual'],
+  ['Plantilla guardada en este dispositivo. La sincronización se reintentará al reconectar.','Template saved on this device. Sync will retry when you reconnect.','Modèle enregistré sur cet appareil. La synchronisation sera retentée à la reconnexion.','Modelo guardado neste dispositivo. A sincronização será tentada novamente ao voltar a ligar.'],
   ['Progreso','Progress','Progression','Progresso'],
   ['Seguimiento','Follow-up','Suivi','Acompanhamento'],
   ['Bienestar','Wellbeing','Bien-être','Bem-estar'],
