@@ -6,6 +6,7 @@ const workflow=await readFile(new URL('../.github/workflows/exercise-media-auto-
 const regenWorkflow=await readFile(new URL('../.github/workflows/exercise-media-human-regeneration.yml',import.meta.url),'utf8');
 const remoteGates=await readFile(new URL('../.github/workflows/remote-gates.yml',import.meta.url),'utf8');
 const broker=await readFile(new URL('../supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts',import.meta.url),'utf8');
+const promotion=await readFile(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
 const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
 const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
 const locator=await readFile(new URL('../scripts/exercise-media/auto-factory-locate.mjs',import.meta.url),'utf8');
@@ -273,4 +274,49 @@ test('private review stage pins detected image MIME and preserves only sanitized
   assert.match(broker,/IBERFIT_AUTO_FACTORY_STAGE_MIME_INVALID/);
   assert.match(broker,/IBERFIT_AUTO_FACTORY_STAGE_PROVENANCE_INVALID/);
   assert.match(broker,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
+});
+
+test('stale auto-factory recovery is single-job, fenced and does not impose an artificial cooldown',()=>{
+  const claim=broker.split('async function claim(db:any,claims:any,mode="normal"){')[1]?.split('async function markFailed(db:any,body:any){')[0]||'';
+  assert.ok(claim,'claim handler must exist');
+  const resume=claim.indexOf('const prior=jobs.find');
+  const human=claim.indexOf('if(mode==="human_regeneration"){');
+  const stale=claim.indexOf('const staleJobs=jobs.filter');
+  const normal=claim.indexOf('const candidates=catalog.filter');
+  assert.ok(resume>=0&&resume<human&&human<stale&&stale<normal,
+    'idempotent same-run and human regeneration must precede selective stale recovery');
+  assert.doesNotMatch(claim,/update\(\{status:"failed",last_error:"AUTO_FACTORY_STALE_RECOVERY"/,
+    'never reset all stale generating jobs into a new six-hour failed cooldown');
+  const recovery=claim.slice(stale,normal);
+  assert.match(recovery,/latest\.get\(job\.exercise_id\)\?\.id!==job\.id/,
+    'reclaim only the current latest attempt for an exercise');
+  assert.match(recovery,/visualSystem!==SYSTEM_V1/);
+  assert.match(recovery,/previous\.attempts\|\|0\)>=MAX_ATTEMPTS/);
+  assert.match(recovery,/AUTO_FACTORY_STALE_MAX_ATTEMPTS/);
+  assert.match(recovery,/\.eq\("id",previous\.id\)\.eq\("status","generating"\)\.eq\("attempts",previous\.attempts\)/);
+  assert.equal((recovery.match(/\.eq\("updated_at",previous\.updated_at\)\.lt\("updated_at",staleBefore\)/g)||[]).length,2,
+    'both quarantine and reclaim must fence on the exact stale timestamp');
+  assert.match(recovery,/attempts:Number\(previous\.attempts\|\|0\)\+1/);
+  assert.match(recovery,/previous_run_id:String\(previousSpec\.run_id\|\|""\)/,
+    'retain failed-run provenance for incident analysis');
+  assert.match(recovery,/stale_recovery:true/);
+  assert.doesNotMatch(recovery,/output_manifest:\{\}/,
+    'a stale reclaim must preserve previous evidence until validated review overwrites it');
+  assert.doesNotMatch(recovery,/status:"qa"|human_approved:true|publishable:true/);
+  const eligibility=broker.split('function jobEligible(job:any,now:number){')[1]?.split('async function loadQueue')[0]||'';
+  assert.match(eligibility,/status==="generating"[\s\S]*attempts\|\|0\)>=MAX_ATTEMPTS\)return false/,
+    'exhausted stale attempts must not be advertised as eligible');
+});
+
+test('official production promotion deploys the guarded broker with fail-closed OIDC smoke',()=>{
+  const step=promotion.split('- name: Deploy and verify guarded exercise media broker to production')[1]?.split('- name: Resolve privileged email OTP rollout gate')[0]||'';
+  assert.ok(step,'the official production release must deploy the broker source that CI certified');
+  assert.match(step,/SUPABASE_ACCESS_TOKEN/);
+  assert.match(step,/supabase@2\.117\.0 functions deploy iberfit-exercise-media-auto-factory-v1/);
+  assert.match(step,/--project-ref "\$\{PROD_SUPABASE_REF\}"/);
+  assert.match(step,/--no-verify-jwt/,'Supabase gateway must defer JWT validation to strict GitHub OIDC code');
+  assert.match(step,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
+  assert.match(step,/test "\$code" = '401'/);
+  assert.match(step,/IBERFIT_AUTO_FACTORY_OIDC_REQUIRED/);
+  assert.doesNotMatch(step,/SUPABASE_SERVICE_ROLE_KEY|\{action:"claim"/);
 });
