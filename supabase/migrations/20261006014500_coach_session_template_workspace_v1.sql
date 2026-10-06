@@ -193,15 +193,15 @@ with check (
 );
 
 revoke all
-on public.coach_session_template_workspaces_v1
+on table public.coach_session_template_workspaces_v1
 from public, anon, authenticated;
 
 grant select, insert, update
-on public.coach_session_template_workspaces_v1
+on table public.coach_session_template_workspaces_v1
 to authenticated;
 
 grant all
-on public.coach_session_template_workspaces_v1
+on table public.coach_session_template_workspaces_v1
 to service_role;
 
 create or replace function public.iberfit_coach_template_workspace_get_v1()
