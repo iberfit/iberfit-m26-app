@@ -1,0 +1,25 @@
+# Registration-only marker on the repository's default branch.
+# GitHub workflow_dispatch requires a workflow file on the default branch.
+# The scheduler dispatches ref=canary/rc74-4, where the fully guarded,
+# OIDC-authenticated human-regeneration implementation lives.
+# If GitHub ever resolves this default-branch file instead of Canary,
+# fail closed rather than processing production jobs here.
+name: IBERFIT Exercise Media Human Regeneration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refuse-default-branch-execution:
+    name: Reject non-canonical regeneration
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Fail closed outside certified Canary
+        shell: bash
+        run: |
+          echo 'IBERFIT_MEDIA_REGEN_DEFAULT_BRANCH_EXECUTION_FORBIDDEN' >&2
+          exit 1
