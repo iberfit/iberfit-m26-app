@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const migration=readFileSync(
-  'supabase/migrations/20261006230000_appointment_change_scoped_read_v1.sql','utf8',
+  'supabase/migrations/20261006230850_appointment_change_scoped_read_v1.sql','utf8',
 );
 const rollback=readFileSync(
-  'supabase/rollbacks/20261006230000_appointment_change_scoped_read_v1.rollback.sql','utf8',
+  'supabase/rollbacks/20261006230850_appointment_change_scoped_read_v1.rollback.sql','utf8',
 );
 const body=migration.slice(migration.indexOf('as $function$'),migration.indexOf('$function$;'));
 
