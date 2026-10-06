@@ -2904,6 +2904,15 @@ export function renderExpedienteRoute(vm) {
         ?badge('Revisar antes de entrenar','warning')
         :badge('Sin sesión preparada','neutral');
 
+  const planningTitle=
+    data.cycle?.name||
+    'Sin ciclo activo';
+
+  const planningDetail=
+    Number(data.counts?.sessions||0)>0
+      ?`${Number(data.counts.sessions)} sesión${Number(data.counts.sessions)===1?'':'es'} en el expediente`
+      :'Todavía no hay sesiones preparadas en el ciclo actual';
+
   const nextSessionActionControl=
     prep?.session?.startable&&prep?.session?.id
       ?`<button
@@ -3040,6 +3049,18 @@ export function renderExpedienteRoute(vm) {
               :badge('Sin RPE confirmado','neutral')}
           </div>
           <p>${escapeHtml(lastSessionFeedback)}</p>
+        </article>
+
+        <article class="m26-coach-workspace-brief">
+          <div class="m26-coach-workspace-brief-head">
+            <div>
+              <p class="m26-eyebrow">Plan actual</p>
+              <h3>${escapeHtml(planningTitle)}</h3>
+              <small>${escapeHtml(planningDetail)}</small>
+            </div>
+            ${data.cycle?.name?badge('Plan activo','success'):badge('Plan por preparar','neutral')}
+          </div>
+          <button type="button" class="m26-text-action" data-m26-area="planificacion">Abrir planificación</button>
         </article>
 
         <article class="m26-coach-workspace-brief">
