@@ -62,3 +62,12 @@ test('#766 QA login fails closed if appointment-change reads are unauthorized or
   assert.match(qa,/for\(const required of \['main-snapshot','command-registry','appointment-changes'\]\)/u);
   assert.match(qa,/sample\.operation===required&&sample\.status===200&&sample\.result==='finished'/u);
 });
+
+test('#766 authenticated membership and privileged assurance execute before any request-row read',()=>{
+  const authCheck=body.indexOf("if v_user is null then");
+  const membership=body.indexOf('public.iberfit_application_context_v14()');
+  const assurance=body.indexOf('perform public.iberfit_require_privileged_assurance_v65d()');
+  const rows=body.indexOf('from public.appointment_change_requests r');
+  assert.ok(authCheck>=0&&membership>authCheck&&assurance>membership&&rows>assurance,
+    'never read appointment-change rows before authentication, active membership and privileged assurance');
+});
