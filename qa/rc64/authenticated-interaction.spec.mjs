@@ -137,6 +137,19 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     readOnlyRpcs:READ_ONLY_RPCS,
     onBlocked:(label)=>blocked.push(label),
   });
+  // Capture existing application QA stages inside the browser's monotonic clock.
+  // No network bodies, tokens, identities, URLs, or user-controlled strings are captured.
+  await context.addInitScript(()=>{
+    const marks=[];
+    const previous=globalThis.__IBERFIT_M26_QA_STAGE__;
+    globalThis.__IBERFIT_AUTH_QA_STAGES__=marks;
+    globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
+      if(typeof stage==='string'&&/^rc64-[a-z0-9-]{1,64}$/u.test(stage)&&marks.length<96){
+        marks.push({stage,at:performance.now()});
+      }
+      if(typeof previous==='function')previous(stage);
+    };
+  });
   page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
@@ -148,6 +161,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_B_EMAIL);
   await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_B_PASSWORD);
   const credentialSubmitStartMs=performance.now();
+  await page.evaluate(()=>{globalThis.__IBERFIT_AUTH_QA_SUBMIT_MS__=performance.now();});
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
@@ -155,6 +169,18 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   const credentialSubmitToShellMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
   const credentialSubmitToInteractiveMs=performance.now()-credentialSubmitStartMs;
+  const authStageTimeline=await page.evaluate(()=>{
+    const submit=globalThis.__IBERFIT_AUTH_QA_SUBMIT_MS__;
+    const marks=globalThis.__IBERFIT_AUTH_QA_STAGES__;
+    if(!Number.isFinite(submit)||!Array.isArray(marks))return [];
+    return marks.filter(({stage,at})=>/^rc64-[a-z0-9-]{1,64}$/u.test(stage)&&Number.isFinite(at)&&at>=submit)
+      .slice(0,72)
+      .map(({stage,at})=>({stage,elapsedSinceSubmitMs:Math.round(at-submit)}));
+  });
+  expect(authStageTimeline.some(({stage})=>stage==='rc64-hydrate-start'),
+    'QA instrumentation must observe the beginning of authenticated hydration').toBe(true);
+  expect(authStageTimeline.some(({stage})=>stage==='rc64-shell-interactive-ready'),
+    'QA instrumentation must observe the actual interactive boundary').toBe(true);
   await expect(page.locator('.m26-role-choice[role="dialog"]'),'Client-only identity must not receive app choice').toHaveCount(0);
   await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),'Client-only identity must not be forced through privileged WebAuthn').toHaveCount(0);
   await dismissGuidance(page);
@@ -264,6 +290,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     navigationUntilNetworkIdleMs:Math.round(navigationUntilNetworkIdleMs),
     credentialSubmitToShellMs:Math.round(credentialSubmitToShellMs),
     credentialSubmitToInteractiveMs:Math.round(credentialSubmitToInteractiveMs),
+    authStageTimeline,
     authenticated:true,
     interactiveReady:true,
     mutationsPerformed:false,
