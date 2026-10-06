@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const migration=readFileSync(
-  'supabase/migrations/20261006212500_communication_bootstrap_scoped_read_v1.sql',
+  'supabase/migrations/20261006212111_communication_bootstrap_scoped_read_v1.sql',
   'utf8',
 );
 const rollback=readFileSync(
-  'supabase/rollbacks/20261006212500_communication_bootstrap_scoped_read_v1.rollback.sql',
+  'supabase/rollbacks/20261006212111_communication_bootstrap_scoped_read_v1.rollback.sql',
   'utf8',
 );
 
