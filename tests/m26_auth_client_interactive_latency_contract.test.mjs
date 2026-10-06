@@ -63,7 +63,7 @@ test('QA measures primary RPC waterfall using a fixed data-minimized operation a
   assert.match(qa,/const operation=AUTH_NETWORK_OPERATIONS\[url\.pathname\]/u);
   assert.match(qa,/startSinceSubmitMs:Math\.max\(0,Math\.round\(record\.startedAt-credentialSubmitStartMs\)\)/u);
   assert.match(qa,/authNetworkWaterfall,/u);
-  assert.match(qa,/for\(const required of \['main-snapshot','command-registry'\]\)/u);
+  assert.match(qa,/for\(const required of \['main-snapshot','command-registry','appointment-changes'\]\)/u);
   assert.match(qa,/record\.status=response\.status\(\)/u);
   const output=qa.slice(qa.indexOf('  const authNetworkWaterfall='),qa.indexOf('  const authStageTimeline='));
   assert.doesNotMatch(output,/request\.postData|response\.json|\.headers\(|\.text\(|response\.url\(|request\.url\(/u);
