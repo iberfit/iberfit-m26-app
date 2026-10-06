@@ -87,6 +87,8 @@ const ROWS=Object.freeze([
   ['Generación fallida','Generation failed','Échec de génération','Falha na geração'],
   ['Inventario completo de imágenes de ejercicios, estado de la factoría y revisión humana. Nada se publica por superar QA automático: la aprobación final sigue siendo explícita.','Complete exercise-image inventory, factory status, and human review. Passing automated QA never publishes by itself: final approval remains explicit.','Inventaire complet des images d’exercices, état de la fabrique et validation humaine. Réussir le QA automatique ne publie jamais à lui seul : l’approbation finale reste explicite.','Inventário completo de imagens de exercícios, estado da fábrica e revisão humana. Passar o QA automático nunca publica por si só: a aprovação final continua explícita.'],
   ['Revisión humana','Human review','Validation humaine','Revisão humana'],
+  ['Centro de Media','Media Center','Centre Média','Centro de Media'],
+  ['Biblioteca visual y Media Factory','Visual library and Media Factory','Bibliothèque visuelle et Media Factory','Biblioteca visual e Media Factory'],
   ['Pendientes de aprobación','Awaiting approval','En attente d’approbation','Pendentes de aprovação'],
   ['Todos los ejercicios','All exercises','Tous les exercices','Todos os exercícios'],
   ['Resumen del estado de imágenes','Image status summary','Résumé de l’état des images','Resumo do estado das imagens'],
