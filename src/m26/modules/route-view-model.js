@@ -707,6 +707,7 @@ if (area === 'clientes') {
       kind: 'progreso',
       clientId,
       role,
+      clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       serviceKind:trainingActive?'training':'none',
       summary,
       exercisePerformance,
