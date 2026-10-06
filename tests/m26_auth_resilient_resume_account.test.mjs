@@ -96,21 +96,24 @@ test('login feedback distinguishes credentials from transient access failures',(
   );
 });
 
-test('authenticated startup prioritizes a visible secure workspace before catalog loading',()=>{
+test('authenticated startup overlaps independent catalog work without delaying the first secure workspace paint',()=>{
   const app=read('src/m26/app/application.js');
   const start=app.indexOf('async function setupAuthenticated()');
   const end=app.indexOf('\n  function guardSessionNavigation',start);
   assert.ok(start>=0&&end>start);
   const block=app.slice(start,end);
+  const catalogStart=block.indexOf('const catalogSetupPromise=withAuthOperationTimeout');
   const hydrate=block.indexOf("const hydrationResult=await hydrate({reason:'login'})");
   const shell=block.indexOf('shell.mount({progressive:true})');
   const paint=block.indexOf('await yieldWorkspacePaint()');
-  const catalog=block.indexOf('()=>fetchCatalog()');
-  assert.ok(hydrate>=0);
+  const catalogAwait=block.indexOf('const catalogSetup=await catalogSetupPromise');
+  assert.ok(catalogStart>=0);
+  assert.ok(hydrate>catalogStart);
   assert.ok(shell>hydrate);
   assert.ok(paint>shell);
-  assert.ok(catalog>paint);
+  assert.ok(catalogAwait>paint);
   assert.match(block,/withAuthOperationTimeout\(\s*\(\)=>fetchCatalog\(\),\s*\{timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'\},\s*\)/u);
+  assert.match(block,/if\(!catalogSetup\.ok\)throw catalogSetup\.error/u);
   assert.doesNotMatch(block,/const \[hydrationResult\]=await Promise\.all\(\[/u);
 });
 
