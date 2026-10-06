@@ -2,6 +2,15 @@ name: IBERFIT Exercise Media Auto Factory
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Queue to process
+        required: true
+        type: choice
+        default: normal
+        options:
+          - normal
+          - human_regeneration
 
 permissions:
   contents: read
@@ -14,6 +23,7 @@ concurrency:
 env:
   AUTO_FACTORY_URL: https://pjhmrhejsoofmouedavw.supabase.co/functions/v1/iberfit-exercise-media-auto-factory-v1
   OIDC_AUDIENCE: iberfit-exercise-media-auto-factory
+  IBERFIT_FACTORY_MODE: ${{ inputs.mode || 'normal' }}
   MASTER: public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg
   OFFICIAL_ISOTIPO: public/isotipo-iberfit.png
   WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-system-v1.toml
@@ -66,17 +76,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          case "${IBERFIT_FACTORY_MODE}" in
+            normal|human_regeneration) ;;
+            *) echo 'IBERFIT_FACTORY_MODE_INVALID'; exit 42 ;;
+          esac
           curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 45 \
             -X POST \
             -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
             -H 'Content-Type: application/json' \
             "$AUTO_FACTORY_URL" \
-            -d '{"action":"peek"}' \
+            -d "$(jq -nc --arg mode "$IBERFIT_FACTORY_MODE" '{action:"peek",mode:$mode}')" \
             > recovery/auto-factory/peek.json
           node - <<'NODE'
           const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/peek.json','utf8'));
           if(x.ok!==true||typeof x.eligible!=='boolean')throw new Error('AUTO_FACTORY_PEEK_INVALID');
-          if(x.schema!=='iberfit.exercise.media.auto-factory.peek.v3'||x.mode!=='normal'){
+          if(x.schema!=='iberfit.exercise.media.auto-factory.peek.v3'||x.mode!==process.env.IBERFIT_FACTORY_MODE){
             throw new Error(`AUTO_FACTORY_BROKER_VERSION_MISMATCH:${String(x.schema||'missing')}:${String(x.mode||'missing')}`);
           }
           fs.appendFileSync(process.env.GITHUB_ENV,`IBERFIT_FACTORY_DONE=${x.eligible?'false':'true'}\n`);
@@ -197,7 +211,7 @@ jobs:
               -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
               -H 'Content-Type: application/json' \
               "$AUTO_FACTORY_URL" \
-              -d '{"action":"claim"}' \
+              -d "$(jq -nc --arg mode "$IBERFIT_FACTORY_MODE" '{action:"claim",mode:$mode}')" \
               -o recovery/auto-factory/claim.tmp; then
               mv recovery/auto-factory/claim.tmp recovery/auto-factory/claim.json
               claim_ok=true
@@ -210,6 +224,7 @@ jobs:
           node - <<'NODE'
           const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/claim.json','utf8'));
           if(x.ok!==true)throw new Error('AUTO_FACTORY_CLAIM_INVALID');
+          if(x.mode!==process.env.IBERFIT_FACTORY_MODE)throw new Error('AUTO_FACTORY_CLAIM_MODE_MISMATCH');
           const env=process.env.GITHUB_ENV;
           if(!x.claim){fs.appendFileSync(env,'IBERFIT_FACTORY_DONE=true\n');console.log(JSON.stringify({done:x.done,remaining:x.remaining,blocked:x.blocked,awaiting_review:x.awaiting_review,system_v1:x.system_v1,review_ready:x.review_ready===true}));process.exit(0);}
           fs.appendFileSync(env,`IBERFIT_FACTORY_DONE=false\nIBERFIT_JOB_ID=${x.claim.job.id}\nIBERFIT_EXERCISE_ID=${x.claim.exercise.id}\nIBERFIT_ANATOMY_INFERRED=${x.claim.inferred_anatomy===true}\n`);
