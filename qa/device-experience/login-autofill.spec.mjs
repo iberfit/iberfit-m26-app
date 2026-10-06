@@ -78,15 +78,30 @@ test('focused and hydrated login/product fields never flash to a light surface',
 
   const focused=await email.evaluate((input)=>{
     const style=getComputedStyle(input);
-    const rgb=(value)=>[...String(value).matchAll(/\d+/g)].slice(0,3).map((match)=>Number(match[0]));
+    // Chromium may serialize computed colors as color(srgb 0.2 0.1 ...)
+    // rather than rgb(51, 26, ...). Integer tokenization reads 0.2 as
+    // [0,2] and wrongly reports a light field. Sample actual painted pixels.
+    const rgb=(value)=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=canvas.height=1;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      if(!ctx)throw new Error('IBERFIT_QA_CANVAS_COLOR_SAMPLER_UNAVAILABLE');
+      ctx.fillStyle='#ff00ff';
+      ctx.fillStyle=String(value);
+      if(ctx.fillStyle==='#ff00ff')throw new Error('IBERFIT_QA_COLOR_UNPARSABLE');
+      ctx.fillRect(0,0,1,1);
+      return Array.from(ctx.getImageData(0,0,1,1).data).slice(0,3);
+    };
     return {
       background:rgb(style.backgroundColor),
       textFill:rgb(style.webkitTextFillColor||style.color),
       caret:rgb(style.caretColor),
       value:input.value,
+      colorSamplerSanity:rgb('color(srgb 0.2 0.1 0.1)'),
     };
   });
   expect(focused.value).toBe('qa.visual@example.invalid');
+  expect(focused.colorSamplerSanity).toEqual([51,26,26]);
   expect(Math.max(...focused.background)).toBeLessThan(64);
   expect(Math.min(...focused.textFill)).toBeGreaterThan(180);
   expect(Math.max(...focused.caret)).toBeGreaterThan(120);
