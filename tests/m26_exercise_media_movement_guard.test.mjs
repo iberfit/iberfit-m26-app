@@ -50,7 +50,7 @@ test('generic movement guard remains fail-closed on support and contact identity
 
 test('generation and both biomechanics gates consume the same movement identity contract',()=>{
   assert.match(generator,movementGuardImport);
-  assert.match(generator,/const movementGuard=movementVisualGuard\(exercise\)/);
+  assert.match(generator,/const movementGuard=\[movementVisualGuard\(exercise\),hipHingeDowelVisualGuard\(exercise\)\]\.filter\(Boolean\)\.join\(' '\)/u);
   assert.match(generator,/movement_identity_lock/);
   assert.match(generator,/Set movement_identity_lock=false/);
   assert.match(qa,movementGuardImport);
