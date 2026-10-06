@@ -500,6 +500,15 @@ function prescriptionPreviewDetails(p={}){
   ].join('');
   return `<p>${optional}</p>${guidance}`;
 }
+function renderProfessionalSessionClientContext(clientContext,role){
+  const normalizedRole=String(role||'').trim().toLowerCase();
+  if(!clientContext?.id||!['coach','admin'].includes(normalizedRole))return '';
+  return `<aside class="m26-session-client-context" aria-label="Cliente de trabajo activo">
+    <span>Trabajando con</span>
+    <strong>${e(clientContext.name||'Cliente')}</strong>
+    <small>${e(clientContext.modality||'Modalidad por definir')}</small>
+  </aside>`;
+}
 function previewMarkup(draft,catalog,mediaMap,role){
   const blocks=draft.blocks.map((block,index)=>{
     if(block.type==='exercise'){
@@ -526,7 +535,7 @@ function previewMarkup(draft,catalog,mediaMap,role){
     </div>
   </section>`;
 }
-export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,mediaMap,role='coach',exerciseMemoryFor=null}={}){
+export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
   const matchingExercises=catalog.search(query,filters);
   const results=matchingExercises.slice(0,24);
   const remainingResults=matchingExercises.slice(24);
@@ -564,6 +573,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
         ${primary}
       </div>
     </header>
+    ${renderProfessionalSessionClientContext(clientContext,role)}
     ${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}
     <section class="m26-builder-session-strip" aria-label="Resumen de sesión · ${e(plural(metrics.exercises,'ejercicio','ejercicios'))} · ${e(plural(metrics.workUnits,'serie/ronda','series/rondas'))}">
       <div><span>Ejercicios</span><strong>${e(metrics.exercises)}</strong></div>
@@ -774,7 +784,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
   </section>`;
 }
 
-export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',exerciseMemoryFor=null}={}){
+export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
   const state=actionState&&actionState.status!=='idle'
     ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
     :'';
@@ -782,10 +792,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const goal=sessionLiveGoal(session);
 
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
+  const professionalClientContext=renderProfessionalSessionClientContext(clientContext,role);
 
   if(execution.status==='ready'){
     return `<section class="m26-guided m26-session-live" data-session-live-state="ready">
-      ${state}
+      ${professionalClientContext}${state}
       ${sync}
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
@@ -825,7 +836,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ?'<p class="m26-notice" data-session-feedback-review-required>El entrenamiento cambió después de escribir este feedback. Revísalo antes de finalizar para confirmar que sigue representando la sesión completa.</p>'
       :'';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
-      ${state}
+      ${professionalClientContext}${state}
       ${sync}
       ${timerStrip(execution)}
       ${liveTelemetryStrip(execution,catalog)}
@@ -863,7 +874,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   if(execution.status==='paused'){
     return `<section class="m26-guided m26-session-live" data-session-live-state="paused">
-      ${state}
+      ${professionalClientContext}${state}
       ${sync}
       ${timerStrip(execution)}
       ${liveTelemetryStrip(execution,catalog)}
@@ -891,7 +902,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   if(execution.status==='cancelled'){
     return `<section class="m26-guided m26-session-live" data-session-live-state="cancelled">
-      ${state}
+      ${professionalClientContext}${state}
       ${sync}
       <div class="m26-panel m26-session-live-hero">
         <p class="m26-eyebrow">Sesión cancelada</p>
@@ -924,7 +935,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       :`<button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>`;
 
     return `<section class="m26-guided m26-session-live" data-session-live-state="completed">
-      ${state}
+      ${professionalClientContext}${state}
       ${sync}
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
@@ -1145,7 +1156,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const cues=(ex.cues||[]).join(' · ');
 
   return `<section class="m26-guided m26-session-live m26-session-live-v2 m26-session-live-v3" data-session-live-state="${restActive?'rest':'active'}" data-session-live-v3>
-    ${state}
+    ${professionalClientContext}${state}
     ${sync}
     <header class="m26-session-live-hero">
       <div class="m26-session-live-heading">
