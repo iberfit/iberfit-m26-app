@@ -177,6 +177,8 @@ test('Coach dossier acts on the prepared session without forcing a second naviga
   const html=renderExpedienteRoute(vm);
 
   assert.match(html,/data-coach-client-workspace/u);
+  assert.match(html,/Plan actual/u);
+  assert.match(html,/Abrir planificación/u);
   assert.match(
     html,
     /data-workflow-action="start-published-session"[\s\S]{0,180}?data-entity-id="session-published"/u,
