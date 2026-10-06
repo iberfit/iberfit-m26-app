@@ -2890,13 +2890,6 @@ export function renderExpedienteRoute(vm) {
       ?nextSessionPrepDate(prep.appointment.startAt)
       :'Sin cita futura confirmada';
 
-  const nextSessionActionLabel=
-    prep?.session?.startable
-      ?'Iniciar sesión preparada'
-      :prep?.session?.id
-        ?'Revisar sesión'
-        :'Preparar sesión';
-
   const nextSessionBadge=
     prep?.session?.startable
       ?badge('Preparada para abrir','success')
