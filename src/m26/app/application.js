@@ -63,7 +63,7 @@ import {createIriPhotogrammetryController} from '../workflows/iri-photogrammetry
 
 export const EMAIL_OTP_DEPLOYMENT_READY=true;
 const MFA_BACKEND_TIMEOUT_MS=10_000;
-const POST_MFA_SETUP_TIMEOUT_MS=12_000;
+const POST_MFA_SETUP_TIMEOUT_MS=16_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
 const AUTH_CATALOG_TIMEOUT_MS=6_000;
 const SESSION_DRAFT_SCOPE='session-builder';
@@ -893,6 +893,17 @@ export async function createM26Application({root=document.querySelector('#app'),
     const authAttemptId=currentAuthAttemptId;
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
+    // The catalog is independent from the authenticated snapshot. Start it in
+    // parallel so a healthy-but-slow backend does not turn a successful MFA
+    // ceremony into a false recovery screen. Keep its own hard deadline and
+    // surface any real catalog failure only when the shell is ready to use it.
+    const catalogSetupPromise=withAuthOperationTimeout(
+      ()=>fetchCatalog(),
+      {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
+    ).then(
+      ()=>Object.freeze({ok:true,error:null}),
+      (error)=>Object.freeze({ok:false,error}),
+    );
     const hydrationResult=await hydrate({reason:'login'});
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
     const {installed,runtimeRegistry}=hydrationResult;
@@ -907,10 +918,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     await yieldWorkspacePaint();
     qaStage('rc64-shell-first-paint-ready');
 
-    await withAuthOperationTimeout(
-      ()=>fetchCatalog(),
-      {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
-    );
+    const catalogSetup=await catalogSetupPromise;
+    if(!catalogSetup.ok)throw catalogSetup.error;
     qaStage('rc64-setup-catalog-ready');
 
     const ownerId=session.user.id;
