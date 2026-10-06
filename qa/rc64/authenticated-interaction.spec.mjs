@@ -1,4 +1,5 @@
 import {mkdir,writeFile} from 'node:fs/promises';
+import {performance} from 'node:perf_hooks';
 import {test,expect} from '@playwright/test';
 import {
   CANARY_ORIGIN,
@@ -140,15 +141,20 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
+  const navigationStartMs=performance.now();
   const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
+  const navigationUntilNetworkIdleMs=performance.now()-navigationStartMs;
   expect(navigation?.ok()).toBeTruthy();
   await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_B_EMAIL);
   await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_B_PASSWORD);
+  const credentialSubmitStartMs=performance.now();
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
   await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
+  const credentialSubmitToShellMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  const credentialSubmitToInteractiveMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('.m26-role-choice[role="dialog"]'),'Client-only identity must not receive app choice').toHaveCount(0);
   await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),'Client-only identity must not be forced through privileged WebAuthn').toHaveCount(0);
   await dismissGuidance(page);
@@ -246,4 +252,23 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     controls:['checkin.energy','checkin.sleep','checkin.notes','settings.language','settings.locale','settings.notification','client.mobile-more'],
   };
   await writeFile(`${OUT_DIR}/${safeSlug(testInfo.project.name)}.json`,`${JSON.stringify(evidence,null,2)}\n`,'utf8');
+
+  // Read-only baseline: QA timings are not production latency or performance budgets.
+  // Never store account identity, credentials, JWTs, headers or network responses.
+  const latencyEvidence={
+    schema:'iberfit.qa.auth-client-interactive-latency.v1',
+    environment:'canary-qa-only',
+    project:safeSlug(testInfo.project.name),
+    role:'client',
+    source:'current-source-intercepted-at-canary-origin',
+    navigationUntilNetworkIdleMs:Math.round(navigationUntilNetworkIdleMs),
+    credentialSubmitToShellMs:Math.round(credentialSubmitToShellMs),
+    credentialSubmitToInteractiveMs:Math.round(credentialSubmitToInteractiveMs),
+    authenticated:true,
+    interactiveReady:true,
+    mutationsPerformed:false,
+    productionBenchmark:false,
+  };
+  await writeFile(`${OUT_DIR}/${safeSlug(testInfo.project.name)}-auth-latency.json`,`${JSON.stringify(latencyEvidence,null,2)}\n`,'utf8');
+  console.log('IBERFIT_CLIENT_AUTH_LATENCY='+JSON.stringify(latencyEvidence));
 });
