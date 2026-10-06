@@ -6,6 +6,7 @@ const workflow=await readFile(new URL('../.github/workflows/exercise-media-auto-
 const regenWorkflow=await readFile(new URL('../.github/workflows/exercise-media-human-regeneration.yml',import.meta.url),'utf8');
 const remoteGates=await readFile(new URL('../.github/workflows/remote-gates.yml',import.meta.url),'utf8');
 const broker=await readFile(new URL('../supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts',import.meta.url),'utf8');
+const promotion=await readFile(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
 const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
 const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
 const locator=await readFile(new URL('../scripts/exercise-media/auto-factory-locate.mjs',import.meta.url),'utf8');
@@ -305,4 +306,17 @@ test('stale auto-factory recovery is single-job, fenced and does not impose an a
   const eligibility=broker.split('function jobEligible(job:any,now:number){')[1]?.split('async function loadQueue')[0]||'';
   assert.match(eligibility,/status==="generating"[\s\S]*attempts\|\|0\)>=MAX_ATTEMPTS\)return false/,
     'exhausted stale attempts must not be advertised as eligible');
+});
+
+test('official production promotion deploys the guarded broker with fail-closed OIDC smoke',()=>{
+  const step=promotion.split('- name: Deploy and verify guarded exercise media broker to production')[1]?.split('- name: Resolve privileged email OTP rollout gate')[0]||'';
+  assert.ok(step,'the official production release must deploy the broker source that CI certified');
+  assert.match(step,/SUPABASE_ACCESS_TOKEN/);
+  assert.match(step,/supabase@2\.117\.0 functions deploy iberfit-exercise-media-auto-factory-v1/);
+  assert.match(step,/--project-ref "\$\{PROD_SUPABASE_REF\}"/);
+  assert.match(step,/--no-verify-jwt/,'Supabase gateway must defer JWT validation to strict GitHub OIDC code');
+  assert.match(step,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
+  assert.match(step,/test "\$code" = '401'/);
+  assert.match(step,/IBERFIT_AUTO_FACTORY_OIDC_REQUIRED/);
+  assert.doesNotMatch(step,/SUPABASE_SERVICE_ROLE_KEY|\{action:"claim"/);
 });
