@@ -82,7 +82,6 @@ function approvedPublicUrl(db:any,exercise:any){
 }
 function inventoryState(exercise:any,job:any){
   const media=exercise?.media&&typeof exercise.media==="object"?exercise.media:{};
-  if(exercise?.media_status==="aprobado"&&media?.published===true&&media?.movement?.path)return "approved";
   const review=reviewOf(job);
   const reviewState=String(review?.state||"");
   if(["publish_requested","publishing","publish_failed"].includes(reviewState))return reviewState;
@@ -90,6 +89,7 @@ function inventoryState(exercise:any,job:any){
   const humanRegeneration=String(job?.visual_spec?.lineage?.reason||"")==="human_regeneration";
   if(humanRegeneration&&["queued","generating"].includes(String(job?.status||"")))return "regenerating";
   if(["queued","generating","failed","blocked"].includes(String(job?.status||"")))return String(job.status);
+  if(exercise?.media_status==="aprobado"&&media?.published===true&&media?.movement?.path)return "approved";
   return "pending";
 }
 async function listMediaOverview(db:any){
@@ -133,7 +133,8 @@ async function listMediaOverview(db:any){
     const job=latest.get(exerciseId)||null;
     const review=reviewOf(job);
     const state=inventoryState(exercise,job);
-    if(state==="approved")summary.approvedPublished+=1;
+    const published=exercise?.media_status==="aprobado"&&exercise?.media?.published===true&&Boolean(exercise?.media?.movement?.path);
+    if(published)summary.approvedPublished+=1;
     else summary.pendingCatalog+=1;
     if(state==="awaiting_review")summary.awaitingHumanReview+=1;
     if(["publish_requested","publishing","publish_failed"].includes(state))summary.publishQueued+=1;
