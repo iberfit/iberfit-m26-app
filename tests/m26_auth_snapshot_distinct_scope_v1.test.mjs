@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const migration=readFileSync('supabase/migrations/20261006235000_auth_snapshot_distinct_scope_v1.sql','utf8');
-const qa=readFileSync('supabase/rollbacks/20261006235000_auth_snapshot_distinct_scope_v1.qa.rollback.sql','utf8');
-const prod=readFileSync('supabase/rollbacks/20261006235000_auth_snapshot_distinct_scope_v1.prod.rollback.sql','utf8');
+const migration=readFileSync('supabase/migrations/20261006235833_auth_snapshot_distinct_scope_v1.sql','utf8');
+const qa=readFileSync('supabase/rollbacks/20261006235833_auth_snapshot_distinct_scope_v1.qa.rollback.sql','utf8');
+const prod=readFileSync('supabase/rollbacks/20261006235833_auth_snapshot_distinct_scope_v1.prod.rollback.sql','utf8');
 const occurrences=(s,p)=>(s.match(p)||[]).length;
 
 test('#768 optimizes only the private existing snapshot layers',()=>{
