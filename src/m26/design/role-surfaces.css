@@ -3851,6 +3851,122 @@ m26-echart[data-density="compact"]{
 }
 
 
+/* COACH CLIENT CONTEXT CONTINUITY V1 */
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-professional-client-context{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  min-width:0;
+  padding:.78rem 1rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent-strong) 20%,var(--iberfit-color-border));
+  border-radius:1rem;
+  background:color-mix(in srgb,var(--iberfit-color-surface-raised) 94%,var(--iberfit-color-surface-base));
+}
+.m26-professional-client-context-copy{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+.m26-professional-client-context-copy .m26-eyebrow{
+  margin:0;
+}
+.m26-professional-client-context-copy strong{
+  overflow:hidden;
+  color:var(--iberfit-color-text-primary);
+  font-size:1rem;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.m26-professional-client-context-copy small{
+  overflow:hidden;
+  color:var(--iberfit-color-text-secondary);
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.m26-professional-client-context-nav{
+  display:flex;
+  flex:0 1 auto;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:.35rem;
+  min-width:0;
+}
+.m26-professional-client-context-nav button{
+  min-height:44px;
+  padding:.55rem .72rem;
+  border:1px solid transparent;
+  border-radius:.72rem;
+  touch-action:manipulation;
+}
+.m26-professional-client-context-nav button[aria-current="page"]{
+  border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 48%,var(--iberfit-color-border));
+  color:var(--iberfit-color-accent-strong);
+  background:color-mix(in srgb,var(--iberfit-color-accent-strong) 8%,transparent);
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-client-context{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:.35rem .65rem;
+  min-width:0;
+  padding:.65rem .9rem;
+  border-block:1px solid color-mix(in srgb,var(--iberfit-color-accent-strong) 18%,var(--iberfit-color-border));
+  background:color-mix(in srgb,var(--iberfit-color-surface-raised) 92%,var(--iberfit-color-surface-base));
+}
+.m26-session-client-context span{
+  color:var(--iberfit-color-accent-strong);
+  font-size:.7rem;
+  font-weight:750;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+.m26-session-client-context strong{
+  overflow:hidden;
+  color:var(--iberfit-color-text-primary);
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.m26-session-client-context small{
+  color:var(--iberfit-color-text-secondary);
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-professional-client-context{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .m26-professional-client-context-nav{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    width:100%;
+  }
+  .m26-professional-client-context-nav button{
+    width:100%;
+    min-width:0;
+    padding-inline:.45rem;
+  }
+}
+@media(max-width:520px){
+  .m26-professional-client-context-nav{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-client-context{
+    grid-template-columns:1fr;
+    gap:.12rem;
+  }
+  .m26-session-client-context small{
+    white-space:normal;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-professional-client-context,
+  .m26-professional-client-context-nav button[aria-current="page"],
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-client-context{
+    border-color:CanvasText;
+  }
+}
+
 /* COACH CLIENT WORKSPACE V1 */
 .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-coach-client-workspace{
   display:grid;

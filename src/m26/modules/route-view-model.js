@@ -420,6 +420,21 @@ function clientRecord(state,clientId){
   const id=String(clientId||'').trim();
   return (state?.collections?.clients||[]).find((item)=>String(item?.id||'').trim()===id)||null;
 }
+function professionalClientContext(state,clientId){
+  const client=clientRecord(state,clientId);
+  if(!client)return null;
+  const id=String(client?.id||'').trim();
+  const rawProfile=recordsForClient(state,'clientProfiles',id)[0]||null;
+  const profile=normalizeClientProfile(rawProfile||{},client||{});
+  const rawName=text(client,'name','nombre')||profile?.name||'Cliente';
+  const rawModality=text(client,'modality','modalidad')||profile?.modality||'';
+  return Object.freeze({
+    id,
+    name:String(rawName||'Cliente').trim()||'Cliente',
+    modality:rawModality?clientModalityLabel(rawModality):'Modalidad por definir',
+    primaryObjective:String(profile?.primaryObjective||'').trim()||null,
+  });
+}
 function clientHasTrainingService(state,clientId){
   const client=clientRecord(state,clientId);
   return Boolean(client&&hasTrainingService(client));
@@ -692,6 +707,7 @@ if (area === 'clientes') {
       kind: 'progreso',
       clientId,
       role,
+      clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       serviceKind:trainingActive?'training':'none',
       summary,
       exercisePerformance,
@@ -841,6 +857,7 @@ if (area === 'clientes') {
       canEdit,
       iriPlanningSeed,
       profile,
+      clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),
@@ -898,6 +915,7 @@ if (area === 'clientes') {
       serviceKind:trainingActive?'training':'none',
       serviceActive,
       canBuild: trainingActive&&['admin', 'coach'].includes(role),
+      clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
