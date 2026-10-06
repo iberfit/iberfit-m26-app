@@ -22,3 +22,19 @@ test('authenticated QA captures device-specific time to interactive without stor
   assert.match(evidence,/Math\.round\(credentialSubmitToInteractiveMs\)/u);
   assert.doesNotMatch(evidence,/M26_QA_CLIENT_B_EMAIL|M26_QA_CLIENT_B_PASSWORD|\.token|refreshToken|Authorization:|\.headers/u);
 });
+
+test('QA captures a privacy-safe, browser-clock auth stage waterfall across devices',async()=>{
+  const qa=await readFile(new URL('../qa/rc64/authenticated-interaction.spec.mjs',import.meta.url),'utf8');
+  assert.match(qa,/await context\.addInitScript\(\(\)=>\{/u);
+  assert.match(qa,/globalThis\.__IBERFIT_AUTH_QA_STAGES__=marks/u);
+  assert.match(qa,/globalThis\.__IBERFIT_AUTH_QA_SUBMIT_MS__=performance\.now\(\)/u);
+  assert.match(qa,/const authStageTimeline=await page\.evaluate\(\(\)=>\{/u);
+  assert.match(qa,/authStageTimeline\.some\(\(\{stage\}\)=>stage==='rc64-hydrate-start'/u);
+  assert.match(qa,/authStageTimeline\.some\(\(\{stage\}\)=>stage==='rc64-shell-interactive-ready'/u);
+  assert.match(qa,/elapsedSinceSubmitMs:Math\.round\(at-submit\)/u);
+  const timeline=qa.slice(qa.indexOf('  const authStageTimeline='),qa.indexOf("  await expect(page.locator('.m26-role-choice"));
+  assert.match(timeline,/\^rc64-\[a-z0-9-\]\{1,64\}\$/u);
+  assert.match(timeline,/\.slice\(0,72\)/u);
+  assert.doesNotMatch(timeline,/M26_QA_CLIENT_B_EMAIL|M26_QA_CLIENT_B_PASSWORD|Authorization|\.token|\.headers|\.url/u);
+  assert.match(qa,/    authStageTimeline,/u);
+});
