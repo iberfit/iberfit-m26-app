@@ -30,7 +30,7 @@ if(claims.aud!==process.env.OIDC_AUDIENCE)throw new Error('AUTO_FACTORY_OIDC_REF
 if(!Number.isSafeInteger(claims.exp)||claims.exp-now<90)throw new Error('AUTO_FACTORY_OIDC_REFRESH_EXPIRED');
 NODE
   local validation_rc=$?
-  [[ "$validation_rc" -eq 0 ]] || return "$validation_rc"
+  [[ "$validation_rc" -eq 0 ]] || { echo 'AUTO_FACTORY_OIDC_REFRESH_VALIDATION_FAILED' >&2; return 1; }
   echo "::add-mask::$token"
   export IBERFIT_AUTO_FACTORY_OIDC="$token"
   printf 'IBERFIT_AUTO_FACTORY_OIDC=%s\n' "$token" >> "$GITHUB_ENV"
