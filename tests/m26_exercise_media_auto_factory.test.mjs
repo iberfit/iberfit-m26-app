@@ -274,3 +274,35 @@ test('private review stage pins detected image MIME and preserves only sanitized
   assert.match(broker,/IBERFIT_AUTO_FACTORY_STAGE_PROVENANCE_INVALID/);
   assert.match(broker,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
 });
+
+test('stale auto-factory recovery is single-job, fenced and does not impose an artificial cooldown',()=>{
+  const claim=broker.split('async function claim(db:any,claims:any,mode="normal"){')[1]?.split('async function markFailed(db:any,body:any){')[0]||'';
+  assert.ok(claim,'claim handler must exist');
+  const resume=claim.indexOf('const prior=jobs.find');
+  const human=claim.indexOf('if(mode==="human_regeneration"){');
+  const stale=claim.indexOf('const staleJobs=jobs.filter');
+  const normal=claim.indexOf('const candidates=catalog.filter');
+  assert.ok(resume>=0&&resume<human&&human<stale&&stale<normal,
+    'idempotent same-run and human regeneration must precede selective stale recovery');
+  assert.doesNotMatch(claim,/update\(\{status:"failed",last_error:"AUTO_FACTORY_STALE_RECOVERY"/,
+    'never reset all stale generating jobs into a new six-hour failed cooldown');
+  const recovery=claim.slice(stale,normal);
+  assert.match(recovery,/latest\.get\(job\.exercise_id\)\?\.id!==job\.id/,
+    'reclaim only the current latest attempt for an exercise');
+  assert.match(recovery,/visualSystem!==SYSTEM_V1/);
+  assert.match(recovery,/previous\.attempts\|\|0\)>=MAX_ATTEMPTS/);
+  assert.match(recovery,/AUTO_FACTORY_STALE_MAX_ATTEMPTS/);
+  assert.match(recovery,/\.eq\("id",previous\.id\)\.eq\("status","generating"\)\.eq\("attempts",previous\.attempts\)/);
+  assert.equal((recovery.match(/\.eq\("updated_at",previous\.updated_at\)\.lt\("updated_at",staleBefore\)/g)||[]).length,2,
+    'both quarantine and reclaim must fence on the exact stale timestamp');
+  assert.match(recovery,/attempts:Number\(previous\.attempts\|\|0\)\+1/);
+  assert.match(recovery,/previous_run_id:String\(previousSpec\.run_id\|\|""\)/,
+    'retain failed-run provenance for incident analysis');
+  assert.match(recovery,/stale_recovery:true/);
+  assert.doesNotMatch(recovery,/output_manifest:\{\}/,
+    'a stale reclaim must preserve previous evidence until validated review overwrites it');
+  assert.doesNotMatch(recovery,/status:"qa"|human_approved:true|publishable:true/);
+  const eligibility=broker.split('function jobEligible(job:any,now:number){')[1]?.split('async function loadQueue')[0]||'';
+  assert.match(eligibility,/status==="generating"[\s\S]*attempts\|\|0\)>=MAX_ATTEMPTS\)return false/,
+    'exhausted stale attempts must not be advertised as eligible');
+});
