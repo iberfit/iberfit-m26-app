@@ -40,7 +40,7 @@ import {runWebAuthnCeremony,webAuthnSupported} from './webauthn.js';
 import {withAuthOperationTimeout} from './auth-operation-timeout.js';
 import {inspectPasswordRecoveryHash,recoveryUrlWithoutFragment} from './password-recovery.js';
 import {loadExerciseCatalog} from '../exercises/catalog.js';
-import {createSessionDraft} from '../workflows/session-builder.js';
+import {createSessionDraft,sessionDraftDefaultsFromState} from '../workflows/session-builder.js';
 import {createReusableSessionDraft,createSessionTemplateRepository,createDraftFromSessionTemplate} from '../productivity/session-reuse.js';
 import {createExecution} from '../workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../workflows/session-ui.js';
@@ -63,7 +63,7 @@ import {createIriPhotogrammetryController} from '../workflows/iri-photogrammetry
 
 export const EMAIL_OTP_DEPLOYMENT_READY=true;
 const MFA_BACKEND_TIMEOUT_MS=10_000;
-const POST_MFA_SETUP_TIMEOUT_MS=12_000;
+const POST_MFA_SETUP_TIMEOUT_MS=16_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
 const AUTH_CATALOG_TIMEOUT_MS=6_000;
 const SESSION_DRAFT_SCOPE='session-builder';
@@ -893,6 +893,17 @@ export async function createM26Application({root=document.querySelector('#app'),
     const authAttemptId=currentAuthAttemptId;
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
+    // The catalog is independent from the authenticated snapshot. Start it in
+    // parallel so a healthy-but-slow backend does not turn a successful MFA
+    // ceremony into a false recovery screen. Keep its own hard deadline and
+    // surface any real catalog failure only when the shell is ready to use it.
+    const catalogSetupPromise=withAuthOperationTimeout(
+      ()=>fetchCatalog(),
+      {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
+    ).then(
+      ()=>Object.freeze({ok:true,error:null}),
+      (error)=>Object.freeze({ok:false,error}),
+    );
     const hydrationResult=await hydrate({reason:'login'});
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
     const {installed,runtimeRegistry}=hydrationResult;
@@ -907,10 +918,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     await yieldWorkspacePaint();
     qaStage('rc64-shell-first-paint-ready');
 
-    await withAuthOperationTimeout(
-      ()=>fetchCatalog(),
-      {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
-    );
+    const catalogSetup=await catalogSetupPromise;
+    if(!catalogSetup.ok)throw catalogSetup.error;
     qaStage('rc64-setup-catalog-ready');
 
     const ownerId=session.user.id;
@@ -1040,7 +1049,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
-  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft({clientId});sessionUi={draft,query:'',templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();}
+  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));sessionUi={draft,query:'',templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();}
   async function onStartSession(event){
     const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
     const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}

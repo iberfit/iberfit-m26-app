@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 import {buildNextSessionPreparation} from '../src/m26/intelligence/next-session-prep.js';
 import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
-import {renderSessionsRoute} from '../src/m26/modules/route-render.js';
+import {renderExpedienteRoute,renderSessionsRoute} from '../src/m26/modules/route-render.js';
 
 const clientId='11111111-1111-4111-8111-111111111111';
 const now=new Date('2026-09-13T18:00:00Z');
@@ -168,6 +168,49 @@ test('published preparation exposes explicit start action and safety copy',()=>{
   assert.match(html,/Iniciar sesión preparada/u);
   assert.match(html,/data-entity-id="session-published"/u);
   assert.match(html,/no modifica cargas, ejercicios, planificación ni mensajes automáticamente/iu);
+});
+
+test('Coach dossier acts on the prepared session without forcing a second navigation choice',()=>{
+  const state=baseState();
+  const shell={activeArea:'expediente',identity:{id:'coach-1',role:'coach'},page:{title:'Expediente'}};
+  const vm=createRouteViewModel(shell,state,now,{catalog:[{id:'squat',name:'Sentadilla'}]});
+  const html=renderExpedienteRoute(vm);
+
+  assert.match(html,/data-coach-client-workspace/u);
+  assert.match(html,/Plan actual/u);
+  assert.match(html,/Abrir planificación/u);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session"[\s\S]{0,180}?data-entity-id="session-published"/u,
+  );
+  assert.match(html,/Iniciar sesión preparada/u);
+  assert.doesNotMatch(
+    html,
+    /data-m26-area="sesion">Iniciar sesión preparada/u,
+  );
+
+  // Review signals remain visible and the direct start is secondary, so the
+  // Coach keeps the final decision instead of bypassing the review context.
+  assert.equal(vm.nextSessionPreparation.reviewRequired,true);
+  assert.match(
+    html,
+    /class="m26-text-action"[\s\S]{0,180}?data-workflow-action="start-published-session"/u,
+  );
+});
+
+test('Coach dossier opens the canonical builder directly when no session exists',()=>{
+  const state=baseState();
+  state.collections.appointments=[];
+  state.collections.sessions=[];
+  const shell={activeArea:'expediente',identity:{id:'coach-1',role:'coach'},page:{title:'Expediente'}};
+  const vm=createRouteViewModel(shell,state,now,{catalog:[{id:'squat',name:'Sentadilla'}]});
+  const html=renderExpedienteRoute(vm);
+
+  assert.equal(vm.nextSessionPreparation.session.id,null);
+  assert.match(
+    html,
+    /data-workflow-action="open-session-builder">Preparar sesión<\/button>/u,
+  );
 });
 
 test('session route VM gives preparation to Coach/Admin, never to Cliente',()=>{

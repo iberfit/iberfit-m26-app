@@ -2890,19 +2890,33 @@ export function renderExpedienteRoute(vm) {
       ?nextSessionPrepDate(prep.appointment.startAt)
       :'Sin cita futura confirmada';
 
-  const nextSessionActionLabel=
-    prep?.session?.startable
-      ?'Abrir sesión preparada'
-      :prep?.session?.id
-        ?'Revisar sesión'
-        :'Preparar sesión';
-
   const nextSessionBadge=
     prep?.session?.startable
       ?badge('Preparada para abrir','success')
       :prep?.session?.id
         ?badge('Revisar antes de entrenar','warning')
         :badge('Sin sesión preparada','neutral');
+
+  const planningTitle=
+    data.cycle?.name||
+    'Sin ciclo activo';
+
+  const planningDetail=
+    Number(data.counts?.sessions||0)>0
+      ?`${Number(data.counts.sessions)} sesión${Number(data.counts.sessions)===1?'':'es'} en el expediente`
+      :'Todavía no hay sesiones preparadas en el ciclo actual';
+
+  const nextSessionActionControl=
+    prep?.session?.startable&&prep?.session?.id
+      ?`<button
+          type="button"
+          class="${prep.reviewRequired?'m26-text-action':'m26-primary-action'}"
+          data-workflow-action="start-published-session"
+          data-entity-id="${escapeHtml(prep.session.id)}"
+        >Iniciar sesión preparada</button>`
+      :prep?.session?.id
+        ?`<button type="button" class="m26-text-action" data-m26-area="sesion">Revisar sesión</button>`
+        :`<button type="button" class="m26-text-action" data-workflow-action="open-session-builder">Preparar sesión</button>`;
 
   const decisionRows=
     openDecisions.length
@@ -3033,13 +3047,25 @@ export function renderExpedienteRoute(vm) {
         <article class="m26-coach-workspace-brief">
           <div class="m26-coach-workspace-brief-head">
             <div>
+              <p class="m26-eyebrow">Plan actual</p>
+              <h3>${escapeHtml(planningTitle)}</h3>
+              <small>${escapeHtml(planningDetail)}</small>
+            </div>
+            ${data.cycle?.name?badge('Plan activo','success'):badge('Plan por preparar','neutral')}
+          </div>
+          <button type="button" class="m26-text-action" data-m26-area="planificacion">Abrir planificación</button>
+        </article>
+
+        <article class="m26-coach-workspace-brief">
+          <div class="m26-coach-workspace-brief-head">
+            <div>
               <p class="m26-eyebrow">Próxima sesión</p>
               <h3>${escapeHtml(nextSessionTitle)}</h3>
               <small>${escapeHtml(nextSessionDate)}</small>
             </div>
             ${nextSessionBadge}
           </div>
-          <button type="button" class="m26-text-action" data-m26-area="sesion">${escapeHtml(nextSessionActionLabel)}</button>
+          ${nextSessionActionControl}
         </article>
       </div>
 

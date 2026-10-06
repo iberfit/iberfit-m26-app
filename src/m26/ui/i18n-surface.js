@@ -65,6 +65,7 @@ const ROWS=Object.freeze([
   ['Entrenamientos','Training sessions','Entraînements','Treinos'],
   ['Agenda','Schedule','Agenda','Agenda'],
   ['Planificación','Planning','Planification','Planeamento'],
+  ['Todavía no hay sesiones preparadas en el ciclo actual','There are no sessions prepared in the current cycle yet','Aucune séance n’est encore préparée dans le cycle actuel','Ainda não há sessões preparadas no ciclo atual'],
   ['Progreso','Progress','Progression','Progresso'],
   ['Seguimiento','Follow-up','Suivi','Acompanhamento'],
   ['Bienestar','Wellbeing','Bien-être','Bem-estar'],
