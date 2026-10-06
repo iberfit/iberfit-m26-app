@@ -24,6 +24,15 @@ test('auto factory is manual on Canary and scheduler is intentionally external',
   assert.match(regenWorkflow,/on:\s*\n\s*workflow_dispatch:/);
   assert.doesNotMatch(regenWorkflow,/\bschedule\s*:/);
   assert.match(regenWorkflow,/exercise-media-auto-factory\.yml\/dispatches/);
+  assert.match(regenWorkflow,/"inputs":\{"mode":"human_regeneration"\}/u);
+  assert.match(workflow,/workflow_dispatch:[\s\S]*mode:[\s\S]*type: choice[\s\S]*human_regeneration/u);
+  assert.match(workflow,/IBERFIT_FACTORY_MODE: \$\{\{ inputs\.mode \|\| 'normal' \}\}/u);
+  assert.match(workflow,/\{action:"peek",mode:\$mode\}/u);
+  assert.match(workflow,/\{action:"claim",mode:\$mode\}/u);
+  assert.match(workflow,/x\.mode!==process\.env\.IBERFIT_FACTORY_MODE/u);
+  assert.match(workflow,/AUTO_FACTORY_CLAIM_MODE_MISMATCH/u);
+  assert.doesNotMatch(workflow,/-d '\{"action":"peek"\}'/u);
+  assert.doesNotMatch(workflow,/-d '\{"action":"claim"\}'/u);
 });
 
 test('broker is pinned to exact repository, Canary ref and action-scoped workflow identities',()=>{
@@ -109,7 +118,7 @@ test('dual QA remains fail closed and review candidates stay System v1 tagged bu
 });
 
 test('one workflow run claims only one exercise and failures are quarantined unless review is registered',()=>{
-  assert.equal((workflow.match(/\"action\":\"claim\"/g)||[]).length,1);
+  assert.equal((workflow.match(/\{action:"claim",mode:\$mode\}/g)||[]).length,1);
   assert.match(workflow,/Preserve review candidate evidence/);
   assert.match(workflow,/Register candidate awaiting human approval/);
   assert.match(workflow,/Quarantine failed claimed exercise/);
@@ -135,7 +144,7 @@ test('private staging and artifact evidence are durable before the database swit
 test('workflow fails before AI provisioning when the live broker drifts from the certified contract',()=>{
   assert.match(workflow,/AUTO_FACTORY_BROKER_VERSION_MISMATCH/);
   assert.match(workflow,/iberfit\.exercise\.media\.auto-factory\.peek\.v3/);
-  assert.match(workflow,/x\.mode!==['"]normal['"]/);
+  assert.match(workflow,/x\.mode!==process\.env\.IBERFIT_FACTORY_MODE/u);
   const driftGate=workflow.indexOf('AUTO_FACTORY_BROKER_VERSION_MISMATCH');
   const proxy=workflow.indexOf('- name: Create isolated Workers AI proxy');
   assert.ok(driftGate>=0&&proxy>driftGate,'broker drift must fail before paid/provider work begins');
