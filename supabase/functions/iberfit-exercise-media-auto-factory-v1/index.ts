@@ -67,6 +67,7 @@ function jobEligible(job:any,now:number){
   if(status==="queued")return true;
   if(["qa","ready","blocked"].includes(status))return false;
   if(status==="generating"){
+    if(Number(job.attempts||0)>=MAX_ATTEMPTS)return false;
     const updated=Date.parse(String(job.updated_at||""));
     return Number.isFinite(updated)&&now-updated>=STALE_ACTIVE_MS;
   }
@@ -100,7 +101,6 @@ async function claim(db:any,claims:any,mode="normal"){
   const runId=String(claims?.run_id||"");const workflowSha=String(claims?.sha||"");
   if(!runId||!workflowSha)fail("IBERFIT_AUTO_FACTORY_RUN_ID_REQUIRED",400);
   const staleBefore=new Date(Date.now()-STALE_ACTIVE_MS).toISOString();
-  await db.from("exercise_media_jobs").update({status:"failed",last_error:"AUTO_FACTORY_STALE_RECOVERY",completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("status","generating").lt("updated_at",staleBefore);
   const {catalog,jobs,latest}=await loadQueue(db);
   const reviewed=jobs.find((job:any)=>String(job?.status||"")==="qa"&&String(job?.visual_spec?.run_id||"")===runId&&String(job?.visual_spec?.workflow_sha||"")===workflowSha&&job?.visual_spec?.visualSystem===SYSTEM_V1);
   if(reviewed)return json({ok:true,done:false,recovered:true,review_ready:true,claim:null,exercise_id:reviewed.exercise_id,job_id:reviewed.id,mode});
@@ -122,6 +122,50 @@ async function claim(db:any,claims:any,mode="normal"){
       if(!update.error&&update.data)return json({ok:true,done:false,recovered:false,mode,claim:{job:update.data,exercise,inferred_anatomy:inferredAnatomy}});
     }
     return json({ok:true,done:true,mode,claim:null,remaining:0,blocked:[...latest.values()].filter((x:any)=>x.status==="blocked").length,awaiting_review:[...latest.values()].filter((x:any)=>x.status==="qa").length,system_v1:catalog.filter((x:any)=>isSystemV1(x.media)).length});
+  }
+
+  // Recover one genuinely stale job with an atomic compare-and-swap. Never sweep
+  // all generating jobs, reset attempt counters, or touch human-review candidates.
+  // The factory workflow is capped at 48 minutes; the existing 2h stale window
+  // gives the previous run time to finish before another run may reclaim it.
+  const staleJobs=jobs.filter((job:any)=>{
+    if(job.status!=="generating"||latest.get(job.exercise_id)?.id!==job.id)return false;
+    if(job?.visual_spec?.visualSystem!==SYSTEM_V1)return false;
+    const updated=Date.parse(String(job.updated_at||""));
+    return Number.isFinite(updated)&&updated<Date.parse(staleBefore);
+  }).sort((a:any,b:any)=>String(a.updated_at).localeCompare(String(b.updated_at)));
+  for(const previous of staleJobs.slice(0,12)){
+    const exercise=catalog.find((item:any)=>item.id===previous.exercise_id&&!isSystemV1(item.media));
+    if(!exercise)continue;
+    const nowIso=new Date().toISOString();
+    if(Number(previous.attempts||0)>=MAX_ATTEMPTS){
+      const quarantine=await db.from("exercise_media_jobs")
+        .update({status:"blocked",last_error:"AUTO_FACTORY_STALE_MAX_ATTEMPTS",completed_at:nowIso,updated_at:nowIso})
+        .eq("id",previous.id).eq("status","generating").eq("attempts",previous.attempts)
+        .eq("updated_at",previous.updated_at).lt("updated_at",staleBefore)
+        .select("id").maybeSingle();
+      if(quarantine.error)fail(`IBERFIT_AUTO_FACTORY_STALE_QUARANTINE_FAILED:${quarantine.error.message}`,502);
+      if(quarantine.data)latest.set(previous.exercise_id,{...previous,status:"blocked"});
+      continue;
+    }
+    const inferredAnatomy=hasGenericAnatomy(exercise);
+    const previousSpec=previous.visual_spec||{};
+    const visualSpec={...previousSpec,schema:"iberfit.exercise.media.auto-job.v1",
+      visualSystem:SYSTEM_V1,inferredAnatomy,run_id:runId,workflow_sha:workflowSha,
+      recovery:{schema:"iberfit.exercise.media.stale-recovery.v1",
+        reason:"AUTO_FACTORY_STALE_RECOVERY",previous_run_id:String(previousSpec.run_id||""),
+        previous_workflow_sha:String(previousSpec.workflow_sha||""),
+        previous_updated_at:previous.updated_at,previous_attempts:previous.attempts}};
+    const transition=await db.from("exercise_media_jobs")
+      .update({status:"generating",attempts:Number(previous.attempts||0)+1,
+        visual_spec:visualSpec,locked_at:nowIso,completed_at:null,
+        updated_at:nowIso,last_error:null})
+      .eq("id",previous.id).eq("status","generating").eq("attempts",previous.attempts)
+      .eq("updated_at",previous.updated_at).lt("updated_at",staleBefore)
+      .select("id,exercise_id,status,attempts,visual_spec").maybeSingle();
+    if(transition.error)fail(`IBERFIT_AUTO_FACTORY_STALE_CLAIM_FAILED:${transition.error.message}`,502);
+    if(transition.data)return json({ok:true,done:false,recovered:true,stale_recovery:true,mode,
+      claim:{job:transition.data,exercise,inferred_anatomy:inferredAnatomy}});
   }
 
   const now=Date.now();
