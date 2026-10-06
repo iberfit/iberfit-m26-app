@@ -244,3 +244,33 @@ test('claim is idempotent per workflow run and review-ready runs cannot be recla
   assert.match(workflow,/--connect-timeout 10 --max-time 45/);
   assert.match(workflow,/recovered:x\.recovered===true/,'recovery must be observable in workflow logs');
 });
+
+
+test('private review stage pins detected image MIME and preserves only sanitized failure diagnostics',()=>{
+  const stage=workflow.split('      - name: Stage review pixels privately')[1]?.split('      - name: Preserve review candidate evidence')[0]||'';
+  assert.ok(stage,'stage step must exist');
+  assert.ok(stage.includes('file --brief --mime-type'),'MIME must come from actual image bytes');
+  assert.ok(stage.includes('image/jpeg|image/png|image/webp'),'only supported image MIME is allowed');
+  assert.ok(stage.includes('test "$delivery_mime" = \'image/webp\''),'delivery must be verified as real WebP');
+  assert.ok(stage.includes('-F "start=@$IBERFIT_START_IMAGE;type=$start_mime"'));
+  assert.ok(stage.includes('-F "final=@$IBERFIT_FINAL_IMAGE;type=$final_mime"'));
+  assert.ok(stage.includes('-F "delivery=@recovery/auto-factory/delivery.webp;type=image/webp"'),
+    'curl otherwise sends WebP as application/octet-stream and private staging rejects it');
+  assert.ok(stage.includes('-o "$response" -w \'%{http_code}\''),'capture status without writing raw body to logs');
+  assert.ok(stage.includes('stage-diagnostic.json'));
+  assert.ok(stage.includes("String(response?.error||'').split(':',1)[0]"));
+  assert.ok(stage.includes('/^IBERFIT_AUTO_FACTORY_[A-Z0-9_]{3,96}$/'),
+    'only an allowlisted, prefix-bound error code may reach the failure artifact');
+  assert.ok(stage.includes('fs.rmSync(rawFile,{force:true})'),'discard raw server error response');
+  assert.doesNotMatch(stage,/console\.log\([^)]*(response|rawFile|IBERFIT_AUTO_FACTORY_OIDC)/);
+  const quarantine=workflow.split('      - name: Quarantine failed claimed exercise')[1]?.split('      - name: Preserve terminal failure evidence')[0]||'';
+  assert.ok(quarantine.includes('stage-diagnostic.json'),'quarantine records sanitized stage code');
+  assert.ok(quarantine.includes('quality-rejection.json'),'quality rejections remain independently classified');
+  const failure=workflow.split('      - name: Preserve terminal failure evidence')[1]||'';
+  assert.ok(failure.includes('recovery/auto-factory/stage-diagnostic.json'));
+  assert.ok(!failure.includes('recovery/auto-factory/staging-response.tmp'),
+    'never publish raw staging error bodies in failure artifacts');
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_STAGE_MIME_INVALID/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_STAGE_PROVENANCE_INVALID/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
+});
