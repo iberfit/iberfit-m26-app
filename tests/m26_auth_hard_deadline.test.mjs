@@ -43,7 +43,8 @@ test('WebAuthn authentication bounds backend stages and avoids a redundant post-
   assert.match(block,/next\.privilegedRole!==expectedRole/u);
   assert.doesNotMatch(block,/transport\.authAssuranceContext/u);
   assert.doesNotMatch(block,/transport\.authUser/u);
-  assert.match(source,/POST_MFA_SETUP_TIMEOUT_MS=12_000/u);
+  assert.match(source,/POST_MFA_SETUP_TIMEOUT_MS=16_000/u);
+  assert.match(source,/AUTH_BUSY_WATCHDOG_MS=18_000/u);
   assert.match(source,/M26_WEBAUTHN_BACKEND_TIMEOUT/u);
   assert.match(source,/M26_POST_MFA_SETUP_TIMEOUT/u);
   assert.match(source,/OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000/u);
@@ -74,27 +75,31 @@ test('device re-enrollment also bounds backend calls so recovery cannot freeze',
 });
 
 
-test('post-MFA mobile handoff paints authenticated shell before catalog and heavy controllers',()=>{
+test('post-MFA mobile handoff overlaps catalog fetch with hydration but awaits it only after first shell paint',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
   const start=source.indexOf('async function setupAuthenticated()');
   const end=source.indexOf('function guardSessionNavigation',start);
   assert.ok(start>=0&&end>start);
   const block=source.slice(start,end);
 
+  const catalogStart=block.indexOf('const catalogSetupPromise=withAuthOperationTimeout');
+  const hydrateCall=block.indexOf("const hydrationResult=await hydrate({reason:'login'})");
   const hydrateReady=block.indexOf("qaStage('rc64-setup-hydrate-ready')");
   const progressiveMount=block.indexOf('shell.mount({progressive:true})');
   const firstPaint=block.indexOf('await yieldWorkspacePaint()');
-  const catalogLoad=block.indexOf('()=>fetchCatalog()');
+  const catalogAwait=block.indexOf('const catalogSetup=await catalogSetupPromise');
   const controllersReady=block.indexOf("qaStage('rc64-setup-controllers-ready')");
   const fullRoute=block.indexOf("qaStage('rc64-shell-route-ready')");
   const authComplete=block.indexOf('completeAuthAttempt(authAttemptId)');
   const progressiveControllers=block.indexOf('progressiveControllerMountPromise=(async()=>{');
 
-  assert.ok(hydrateReady>=0);
+  assert.ok(catalogStart>=0);
+  assert.ok(hydrateCall>catalogStart);
+  assert.ok(hydrateReady>hydrateCall);
   assert.ok(progressiveMount>hydrateReady);
   assert.ok(firstPaint>progressiveMount);
-  assert.ok(catalogLoad>firstPaint);
-  assert.ok(controllersReady>catalogLoad);
+  assert.ok(catalogAwait>firstPaint);
+  assert.ok(controllersReady>catalogAwait);
   assert.ok(fullRoute>controllersReady);
   assert.ok(authComplete>fullRoute);
   assert.ok(progressiveControllers>authComplete);
