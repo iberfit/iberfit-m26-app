@@ -67,6 +67,7 @@ const POST_MFA_SETUP_TIMEOUT_MS=16_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
 const AUTH_CATALOG_TIMEOUT_MS=6_000;
 const SESSION_DRAFT_SCOPE='session-builder';
+const SESSION_TEMPLATE_SYNC_TIMEOUT_MS=4_500;
 function qaStage(stage){
   const value=String(stage||'');
   if(!/^rc64-[a-z0-9-]{1,64}$/u.test(value))return;
@@ -735,7 +736,124 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function render(){shell?.render?.();}
   function draftOnline(){return globalThis.navigator?.onLine!==false;}
-  function saveCurrentSessionTemplate(name){if(!sessionUi?.draft||!sessionTemplateRepository)throw new Error('M26_SESSION_TEMPLATE_REPOSITORY_REQUIRED');const saved=sessionTemplateRepository.save(name,sessionUi.draft);sessionUi.templates=sessionTemplateRepository.list();sessionUi.actionState.status='success';sessionUi.actionState.message=`Plantilla “${saved.name}” guardada como versión ${saved.version}.`;return saved;}
+  function templateWorkspaceComparable(workspace){
+    return JSON.stringify({
+      schemaVersion:workspace?.schemaVersion||'',
+      templates:Array.isArray(workspace?.templates)?workspace.templates:[],
+    });
+  }
+  async function syncSessionTemplateWorkspace({renderAfter=false}={}){
+    const role=String(store.getState().identity?.role||'').trim().toLowerCase();
+    if(
+      !sessionTemplateRepository||
+      !runtime.enabled||
+      !draftOnline()||
+      !['coach','admin'].includes(role)
+    ){
+      return Object.freeze({ok:true,skipped:true,remote:false});
+    }
+
+    await refreshSessionIfNeeded();
+    const token=currentToken();
+    const remote=await transport.getSessionTemplateWorkspace(token);
+    let merged=sessionTemplateRepository.workspace();
+
+    if(remote.found===true){
+      merged=sessionTemplateRepository.mergeWorkspace(
+        remote.workspace,
+        {remoteRevision:remote.revision},
+      );
+    }else{
+      merged=sessionTemplateRepository.replaceWorkspace(
+        merged,
+        {remoteRevision:0},
+      );
+    }
+
+    const remoteAlreadyCanonical=
+      remote.found===true&&
+      templateWorkspaceComparable(remote.workspace)===templateWorkspaceComparable(merged);
+
+    let result=null;
+    if(!remoteAlreadyCanonical&&merged.templates.length){
+      result=await transport.upsertSessionTemplateWorkspace(token,{
+        workspace:merged,
+        remoteRevision:remote.found===true?remote.revision:0,
+      });
+
+      if(result.conflict===true){
+        if(result.found===true&&result.workspace){
+          merged=sessionTemplateRepository.mergeWorkspace(
+            result.workspace,
+            {remoteRevision:result.revision},
+          );
+        }else{
+          merged=sessionTemplateRepository.replaceWorkspace(
+            merged,
+            {remoteRevision:0},
+          );
+        }
+
+        result=await transport.upsertSessionTemplateWorkspace(token,{
+          workspace:merged,
+          remoteRevision:result.found===true?result.revision:0,
+        });
+
+        if(result.conflict===true){
+          throw new Error('M26_COACH_TEMPLATE_SYNC_CONFLICT');
+        }
+      }
+
+      merged=sessionTemplateRepository.replaceWorkspace(
+        result.workspace||merged,
+        {remoteRevision:result.revision},
+      );
+    }else if(remote.found===true){
+      merged=sessionTemplateRepository.replaceWorkspace(
+        merged,
+        {remoteRevision:remote.revision},
+      );
+    }
+
+    if(sessionUi?.draft){
+      sessionUi.templates=sessionTemplateRepository.list();
+      if(renderAfter)render();
+    }
+
+    return Object.freeze({
+      ok:true,
+      skipped:false,
+      remote:true,
+      revision:Number(merged.remoteRevision||0),
+      templates:merged.templates.length,
+    });
+  }
+  async function saveCurrentSessionTemplate(name){
+    if(!sessionUi?.draft||!sessionTemplateRepository)throw new Error('M26_SESSION_TEMPLATE_REPOSITORY_REQUIRED');
+    const saved=sessionTemplateRepository.save(name,sessionUi.draft);
+    sessionUi.templates=sessionTemplateRepository.list();
+    sessionUi.actionState.status='success';
+    sessionUi.actionState.message=`Plantilla “${saved.name}” guardada como versión ${saved.version}.`;
+
+    if(runtime.enabled&&draftOnline()){
+      try{
+        await withAuthOperationTimeout(
+          ()=>syncSessionTemplateWorkspace({renderAfter:false}),
+          {
+            timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,
+            code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT',
+          },
+        );
+      }catch(error){
+        reportSoftDiagnostic('coach-template-sync-after-save',error);
+        sessionUi.actionState.status='success';
+        sessionUi.actionState.message='Plantilla guardada en este dispositivo. La sincronización se reintentará al reconectar.';
+      }
+    }
+
+    sessionUi.templates=sessionTemplateRepository.list();
+    return saved;
+  }
   function loadCurrentSessionTemplate(templateId){if(!sessionUi?.draft||!sessionTemplateRepository)throw new Error('M26_SESSION_TEMPLATE_REPOSITORY_REQUIRED');const template=sessionTemplateRepository.get(templateId);if(!template)throw new Error('M26_SESSION_TEMPLATE_NOT_FOUND');sessionUi.draft=createDraftFromSessionTemplate(template,{clientId:sessionUi.draft.clientId,catalog});sessionUi.templates=sessionTemplateRepository.list();sessionUi.actionState.status='success';sessionUi.actionState.message=`Plantilla “${template.name}” v${template.version} cargada como borrador independiente.`;return sessionUi.draft;}  async function saveSessionDraft(){
     if(!sessionUi?.draft||!draftRepository)return Object.freeze({ok:true,skipped:true,local:false,remote:false});
     const draft=structuredClone(sessionUi.draft);
@@ -1032,6 +1150,9 @@ export async function createM26Application({root=document.querySelector('#app'),
         coordinator:recoveryCoordinator,
         onResult:async()=>{
           await refreshVerificationState({repository:operationRepository,store});
+          void syncSessionTemplateWorkspace({renderAfter:true}).catch((error)=>{
+            reportSoftDiagnostic('coach-template-sync-reconnect',error);
+          });
           render();
         },
       });
