@@ -85,7 +85,7 @@ from public, anon;
 
 grant execute
 on function public.iberfit_coach_template_workspace_safe_v1(jsonb)
-to authenticated;
+to authenticated, service_role;
 
 -- IBERFIT-TABLE-ACCESS: public.coach_session_template_workspaces_v1 :: Workspace personal de plantillas visible y editable sólo por su Coach/Admin propietario autenticado; service_role queda reservado a operaciones backend y QA.
 -- IBERFIT-POLICY: public.coach_session_template_workspaces_v1 = rls-client
