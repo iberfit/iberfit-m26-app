@@ -23,7 +23,9 @@ test('Coach template workspace declares least privilege and no anonymous API acc
   assert.match(migration,/grant select, insert, update[\s\S]*on table public\.coach_session_template_workspaces_v1[\s\S]*to authenticated/iu);
   assert.match(migration,/grant all[\s\S]*on table public\.coach_session_template_workspaces_v1[\s\S]*to service_role/iu);
   assert.doesNotMatch(migration,/grant delete[\s\S]*coach_session_template_workspaces_v1/iu);
-  assert.match(migration,/has_table_privilege\('anon','public\.coach_session_template_workspaces_v1','SELECT'\)/u);
+  assert.match(migration,/revoke all[\s\S]*on table public\.coach_session_template_workspaces_v1[\s\S]*from public, anon, authenticated/iu);
+  assert.match(migration,/revoke all[\s\S]*iberfit_coach_template_workspace_get_v1\(\)[\s\S]*from public, anon/iu);
+  assert.match(migration,/revoke all[\s\S]*iberfit_coach_template_workspace_upsert_v1\(jsonb\)[\s\S]*from public, anon/iu);
 });
 
 test('remote workspace RPCs use invoker permissions and explicit optimistic conflict handling',()=>{
