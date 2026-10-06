@@ -64,13 +64,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
-          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
-          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
-          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
-          test "${#token}" -gt 100
-          echo "::add-mask::$token"
-          echo "IBERFIT_AUTO_FACTORY_OIDC=$token" >> "$GITHUB_ENV"
+          source scripts/exercise-media/auto-factory-oidc-renew.sh
+          iberfit_refresh_auto_factory_oidc
 
       - name: Inspect queue before provisioning AI proxy
         shell: bash
@@ -374,6 +369,10 @@ jobs:
           delivery_mime="$(mime_for_review recovery/auto-factory/delivery.webp)"
           test "$delivery_mime" = 'image/webp'
 
+          # Workers AI generation and QA may outlast the original OIDC JWT.
+          source scripts/exercise-media/auto-factory-oidc-renew.sh
+          iberfit_refresh_auto_factory_oidc
+
           response='recovery/auto-factory/staging-response.tmp'
           set +e
           status="$(curl --silent --show-error --connect-timeout 10 --max-time 90 \
@@ -440,6 +439,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          source scripts/exercise-media/auto-factory-oidc-renew.sh
+          iberfit_refresh_auto_factory_oidc
           payload="$(jq -nc \
             --arg job "$IBERFIT_JOB_ID" \
             --arg artifact "iberfit-exercise-media-auto-factory-${GITHUB_RUN_ID}" \
@@ -467,6 +468,10 @@ jobs:
         if: always() && env.IBERFIT_JOB_ID != '' && env.IBERFIT_REVIEW_READY != 'true' && (env.IBERFIT_FACTORY_DONE != 'true' || env.IBERFIT_FACTORY_QUALITY_REJECTED == 'true')
         shell: bash
         run: |
+          # A previous multi-minute generation can expire the initial OIDC token.
+          set -euo pipefail
+          source scripts/exercise-media/auto-factory-oidc-renew.sh
+          iberfit_refresh_auto_factory_oidc
           set +e
           err="workflow_failed_run_${GITHUB_RUN_ID}_attempt_${GITHUB_RUN_ATTEMPT}"
           action='fail'
