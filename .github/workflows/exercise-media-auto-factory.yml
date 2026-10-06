@@ -356,24 +356,74 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 90 \
+          test -s "$IBERFIT_START_IMAGE"
+          test -s "$IBERFIT_FINAL_IMAGE"
+          test -s recovery/auto-factory/delivery.webp
+
+          # curl infers application/octet-stream for .webp unless MIME is explicit.
+          mime_for_review() {
+            local mime
+            mime="$(file --brief --mime-type "$1")"
+            case "$mime" in
+              image/jpeg|image/png|image/webp) printf '%s' "$mime" ;;
+              *) echo "AUTO_FACTORY_STAGE_UNSUPPORTED_IMAGE_TYPE" >&2; return 1 ;;
+            esac
+          }
+          start_mime="$(mime_for_review "$IBERFIT_START_IMAGE")"
+          final_mime="$(mime_for_review "$IBERFIT_FINAL_IMAGE")"
+          delivery_mime="$(mime_for_review recovery/auto-factory/delivery.webp)"
+          test "$delivery_mime" = 'image/webp'
+
+          response='recovery/auto-factory/staging-response.tmp'
+          set +e
+          status="$(curl --silent --show-error --connect-timeout 10 --max-time 90 \
+            -o "$response" -w '%{http_code}' \
             -X POST \
-            -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
+            -H "Authorization: Bearer $IBERFIT_AUTO_FACTORY_OIDC" \
             "$AUTO_FACTORY_URL" \
             -F action=stage_review \
-            -F job_id="$IBERFIT_JOB_ID" \
-            -F exercise_id="$IBERFIT_EXERCISE_ID" \
-            -F start=@"$IBERFIT_START_IMAGE" \
-            -F final=@"$IBERFIT_FINAL_IMAGE" \
-            -F delivery=@recovery/auto-factory/delivery.webp \
-            > recovery/auto-factory/staging.json
+            -F "job_id=$IBERFIT_JOB_ID" \
+            -F "exercise_id=$IBERFIT_EXERCISE_ID" \
+            -F "start=@$IBERFIT_START_IMAGE;type=$start_mime" \
+            -F "final=@$IBERFIT_FINAL_IMAGE;type=$final_mime" \
+            -F "delivery=@recovery/auto-factory/delivery.webp;type=image/webp")"
+          curl_rc=$?
+          set -e
+          if [[ "$curl_rc" -ne 0 || "$status" != '200' ]]; then
+            # Never print or upload raw response bodies, filenames, JWTs or pixels.
+            STAGE_HTTP_STATUS="$status" STAGE_CURL_EXIT="$curl_rc" node - <<'NODE'
+          const fs=require('node:fs');
+          const rawFile='recovery/auto-factory/staging-response.tmp';
+          let errorCode='AUTO_FACTORY_STAGE_REMOTE_ERROR';
+          try {
+            const response=JSON.parse(fs.readFileSync(rawFile,'utf8'));
+            const candidate=String(response?.error||'').split(':',1)[0];
+            if(/^IBERFIT_AUTO_FACTORY_[A-Z0-9_]{3,96}$/.test(candidate))errorCode=candidate;
+          } catch {}
+          const rawStatus=String(process.env.STAGE_HTTP_STATUS||'');
+          const status=/^[0-9]{3}$/.test(rawStatus)?Number(rawStatus):0;
+          const curlExit=Number(process.env.STAGE_CURL_EXIT);
+          const diagnostic={
+            schema:'iberfit.exercise.media.stage-diagnostic.v1',
+            stage:'stage_review',
+            http_status:status,
+            curl_exit_code:Number.isInteger(curlExit)?curlExit:-1,
+            error_code:errorCode
+          };
+          fs.writeFileSync('recovery/auto-factory/stage-diagnostic.json',JSON.stringify(diagnostic)+'\n');
+          fs.rmSync(rawFile,{force:true});
+          console.error('AUTO_FACTORY_STAGE_FAILED:'+diagnostic.http_status+':'+diagnostic.error_code);
+          NODE
+            exit 1
+          fi
+          mv "$response" recovery/auto-factory/staging.json
           node - <<'NODE'
-          const fs=require('fs');
+          const fs=require('node:fs');
           const staged=JSON.parse(fs.readFileSync('recovery/auto-factory/staging.json','utf8'));
           const item=JSON.parse(fs.readFileSync('recovery/auto-factory/item.json','utf8'));
           if(staged.ok!==true||staged.staged!==true||staged.job_id!==process.env.IBERFIT_JOB_ID||staged.exercise_id!==process.env.IBERFIT_EXERCISE_ID)throw new Error('AUTO_FACTORY_STAGE_INVALID');
           if(staged.staging?.delivery_sha256!==item.proof?.delivery_sha256)throw new Error('AUTO_FACTORY_STAGE_DELIVERY_SHA_MISMATCH');
-          for(const key of ['start_path','start_sha256','final_path','final_sha256','delivery_path','delivery_sha256'])if(!staged.staging?.[key])throw new Error(`AUTO_FACTORY_STAGE_FIELD_MISSING:${key}`);
+          for(const key of ['start_path','start_sha256','final_path','final_sha256','delivery_path','delivery_sha256'])if(!staged.staging?.[key])throw new Error('AUTO_FACTORY_STAGE_FIELD_MISSING:'+key);
           NODE
 
       - name: Preserve review candidate evidence
@@ -421,6 +471,10 @@ jobs:
           err="workflow_failed_run_${GITHUB_RUN_ID}_attempt_${GITHUB_RUN_ATTEMPT}"
           action='fail'
           reason=''
+          if [[ -s recovery/auto-factory/stage-diagnostic.json ]]; then
+            err="$(jq -r '.error_code // "AUTO_FACTORY_STAGE_REMOTE_ERROR"' recovery/auto-factory/stage-diagnostic.json 2>/dev/null)"
+            [[ "$err" =~ ^(IBERFIT_AUTO_FACTORY_[A-Z0-9_]+|AUTO_FACTORY_STAGE_REMOTE_ERROR)$ ]] || err="AUTO_FACTORY_STAGE_REMOTE_ERROR"
+          fi
           if [[ -s recovery/auto-factory/quality-rejection.json ]]; then
             err="$(jq -r '.reason // empty' recovery/auto-factory/quality-rejection.json 2>/dev/null)"
             [[ -n "$err" ]] || err="AUTO_FACTORY_QUALITY_REJECTED"
@@ -449,6 +503,7 @@ jobs:
           name: iberfit-exercise-media-auto-factory-failure-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             recovery/auto-factory/fail.json
+            recovery/auto-factory/stage-diagnostic.json
             recovery/auto-factory/provider-capacity.json
             recovery/auto-factory/quality-rejection.json
             recovery/auto-factory/claim.json
