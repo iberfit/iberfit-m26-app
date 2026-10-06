@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 import {
+  hipHingeDowelCanonicalCamera,
+  hipHingeDowelCanonicalPhases,
   hipHingeDowelPlanIssue,
   hipHingeDowelVisualGuard,
   isHipHingeDowelExercise,
@@ -50,4 +52,40 @@ test('planner wires the dowel hard guard into initial planning repair and final 
   assert.match(planner,/if\(dowelHinge\)\{const issue=hipHingeDowelPlanIssue\(plan\);if\(issue\)issues\.push\(issue\);\}/u);
   assert.match(planner,/finalDowelIssue=dowelHinge\?hipHingeDowelPlanIssue\(plan\):null/u);
   assert.match(planner,/const min=inferred\?0\.985:0\.96/u);
+});
+
+test('canonical dowel phases specify posterior two-hand grip, a real hinge and a reviewable view',()=>{
+  const phases=hipHingeDowelCanonicalPhases(EXERCISE);
+  assert.ok(phases);
+  assert.equal(hipHingeDowelCanonicalCamera(EXERCISE),'three-quarter-rear');
+  assert.equal(hipHingeDowelPlanIssue(phases),null);
+  for(const phase of ['start','final']){
+    const text=phases[phase];
+    assert.ok(text.length>=40&&text.length<=700,'phase must satisfy planner length limits');
+    assert.match(text,/mano.{0,65}(?:nuca|cuello)/iu,'upper hand must hold the dowel behind the head');
+    assert.match(text,/mano.{0,65}(?:lumbar|espalda)/iu,'lower hand must hold the dowel behind the back');
+    assert.match(text,/contacto.{0,95}(?:nuca|occipucio)|(?:nuca|occipucio).{0,95}contacto/iu,'occiput contact must be explicit');
+    assert.match(text,/tor[aá]cic/iu);
+    assert.match(text,/sacro/iu);
+    assert.doesNotMatch(text,/ambas manos a los lados del cuerpo|palo vertical delante del cuerpo/iu);
+  }
+  assert.match(phases.final,/cadera.{0,100}atr[aá]s/iu);
+  assert.equal(hipHingeDowelCanonicalPhases({id:'IBF-OTRO-EJERCICIO',name_es:'Sentadilla',equipment:'palo'}),null);
+  assert.equal(hipHingeDowelCanonicalCamera({id:'IBF-OTRO-EJERCICIO',name_es:'Sentadilla',equipment:'palo'}),null);
+});
+
+test('model imagery and both QA phases enforce the dowel movement-specific grip and contacts',async()=>{
+  const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
+  const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
+  assert.match(planner,/hipHingeDowelCanonicalPhases\(exercise\)/u);
+  assert.match(planner,/camera:hipHingeDowelCanonicalCamera\(exercise\)/u);
+  assert.match(generator,/hipHingeDowelVisualGuard\(exercise\)/u);
+  assert.match(generator,/dowel_three_posterior_contacts/u);
+  assert.match(generator,/dowel_both_hands_rear_grip/u);
+  assert.match(generator,/dowel_three_posterior_contacts_both_phases/u);
+  assert.match(generator,/dowel_both_hands_rear_grip_both_phases/u);
+  const guard=hipHingeDowelVisualGuard(EXERCISE);
+  assert.match(guard,/Exact TWO-HAND REAR GRIP/u);
+  assert.match(guard,/three-quarter REAR camera/u);
+  assert.match(guard,/three visible\/defensible contact points/u);
 });
