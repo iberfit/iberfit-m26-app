@@ -242,7 +242,7 @@ jobs:
             "${PROD_SUPABASE_URL}/functions/v1/iberfit-exercise-media-auto-factory-v1" \
             -d '{"action":"peek"}')"
           test "$code" = '401' || { echo "BROKER_AUTH_PROBE_HTTP_${code}" >&2; exit 41; }
-          node -e "const x=require(process.argv[1]);if(x.error!=='IBERFIT_AUTO_FACTORY_OIDC_REQUIRED')process.exit(1)" "$response"
+          node -e "const fs=require('node:fs');const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(x.error!=='IBERFIT_AUTO_FACTORY_OIDC_REQUIRED')process.exit(1)" "$response"
           rm -f "$response"
 
       - name: Resolve privileged email OTP rollout gate
