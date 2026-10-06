@@ -684,6 +684,17 @@ export async function createM26Application({root=document.querySelector('#app'),
       '',
     ).trim();
 
+    const memoryClient=(state?.collections?.clients||[])
+      .find((item)=>String(item?.id||'').trim()===memoryClientId)||null;
+    const sessionClientContext=
+      memoryClient&&['coach','admin'].includes(String(role||'').trim().toLowerCase())
+        ?Object.freeze({
+            id:memoryClientId,
+            name:String(memoryClient?.name||memoryClient?.nombre||'Cliente').trim()||'Cliente',
+            modality:String(memoryClient?.modality||memoryClient?.modalidad||'').trim()||'Modalidad por definir',
+          })
+        :null;
+
     const exerciseMemoryCache=new Map();
 
     const exerciseMemoryFor=(exerciseId)=>{
@@ -716,6 +727,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       actionState:sessionUi.actionState,
       mediaMap,
       role,
+      clientContext:sessionClientContext,
       exerciseMemoryFor,
     });
 
@@ -726,6 +738,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       actionState:sessionUi.actionState,
       mediaMap,
       role,
+      clientContext:sessionClientContext,
       exerciseMemoryFor,
     });
     qaStage('rc64-route-vm-start');
