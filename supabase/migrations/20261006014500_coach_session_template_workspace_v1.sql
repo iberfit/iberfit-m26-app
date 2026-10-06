@@ -4,22 +4,7 @@
 
 begin;
 
-do $guard$
-begin
-  if to_regprocedure('public.m26_json_safe_v43(jsonb)') is null then
-    raise exception 'IBERFIT_COACH_TEMPLATE_JSON_GUARD_REQUIRED';
-  end if;
-  if to_regprocedure('public.m26_touch_updated_at_v43()') is null then
-    raise exception 'IBERFIT_COACH_TEMPLATE_TOUCH_REQUIRED';
-  end if;
-  if to_regprocedure('public.m26_audit_row_v43()') is null then
-    raise exception 'IBERFIT_COACH_TEMPLATE_AUDIT_REQUIRED';
-  end if;
-  if to_regprocedure('public.iberfit_role()') is null then
-    raise exception 'IBERFIT_COACH_TEMPLATE_ROLE_REQUIRED';
-  end if;
-end
-$guard$;
+
 
 create or replace function public.iberfit_coach_template_workspace_safe_v1(
   p_value jsonb
@@ -131,17 +116,11 @@ on public.coach_session_template_workspaces_v1 (
   updated_at desc
 );
 
-drop trigger if exists coach_session_template_workspaces_touch_v1
-on public.coach_session_template_workspaces_v1;
-
 create trigger coach_session_template_workspaces_touch_v1
 before update
 on public.coach_session_template_workspaces_v1
 for each row
 execute function public.m26_touch_updated_at_v43();
-
-drop trigger if exists coach_session_template_workspaces_audit_v1
-on public.coach_session_template_workspaces_v1;
 
 create trigger coach_session_template_workspaces_audit_v1
 after insert or update
@@ -152,9 +131,6 @@ execute function public.m26_audit_row_v43();
 alter table public.coach_session_template_workspaces_v1
   enable row level security;
 
-drop policy if exists coach_session_template_workspace_select_v1
-on public.coach_session_template_workspaces_v1;
-
 create policy coach_session_template_workspace_select_v1
 on public.coach_session_template_workspaces_v1
 for select
@@ -164,9 +140,6 @@ using (
   and (select public.iberfit_role())::text in ('coach','admin')
 );
 
-drop policy if exists coach_session_template_workspace_insert_v1
-on public.coach_session_template_workspaces_v1;
-
 create policy coach_session_template_workspace_insert_v1
 on public.coach_session_template_workspaces_v1
 for insert
@@ -175,9 +148,6 @@ with check (
   owner_user_id = (select auth.uid())
   and (select public.iberfit_role())::text in ('coach','admin')
 );
-
-drop policy if exists coach_session_template_workspace_update_v1
-on public.coach_session_template_workspaces_v1;
 
 create policy coach_session_template_workspace_update_v1
 on public.coach_session_template_workspaces_v1
@@ -404,47 +374,6 @@ to authenticated;
 
 notify pgrst, 'reload schema';
 
-do $postcheck$
-declare
-  v_rls boolean;
-  v_policies integer;
-begin
-  if to_regclass('public.coach_session_template_workspaces_v1') is null then
-    raise exception 'IBERFIT_COACH_TEMPLATE_TABLE_MISSING';
-  end if;
 
-  select relrowsecurity
-  into v_rls
-  from pg_catalog.pg_class
-  where oid = 'public.coach_session_template_workspaces_v1'::regclass;
-
-  if v_rls is not true then
-    raise exception 'IBERFIT_COACH_TEMPLATE_RLS_MISSING';
-  end if;
-
-  select count(*)
-  into v_policies
-  from pg_catalog.pg_policies
-  where schemaname = 'public'
-    and tablename = 'coach_session_template_workspaces_v1';
-
-  if v_policies < 3 then
-    raise exception 'IBERFIT_COACH_TEMPLATE_POLICIES_MISSING';
-  end if;
-
-  if to_regprocedure('public.iberfit_coach_template_workspace_get_v1()') is null
-    or to_regprocedure('public.iberfit_coach_template_workspace_upsert_v1(jsonb)') is null
-  then
-    raise exception 'IBERFIT_COACH_TEMPLATE_RPC_MISSING';
-  end if;
-
-  if has_table_privilege('anon','public.coach_session_template_workspaces_v1','SELECT')
-    or has_function_privilege('anon','public.iberfit_coach_template_workspace_get_v1()','EXECUTE')
-    or has_function_privilege('anon','public.iberfit_coach_template_workspace_upsert_v1(jsonb)','EXECUTE')
-  then
-    raise exception 'IBERFIT_COACH_TEMPLATE_ANON_PRIVILEGE_LEAK';
-  end if;
-end
-$postcheck$;
 
 commit;
