@@ -102,6 +102,8 @@ grant execute
 on function public.iberfit_coach_template_workspace_safe_v1(jsonb)
 to authenticated;
 
+-- IBERFIT-TABLE-ACCESS: public.coach_session_template_workspaces_v1 :: Workspace personal de plantillas visible y editable sólo por su Coach/Admin propietario autenticado; service_role queda reservado a operaciones backend y QA.
+-- IBERFIT-POLICY: public.coach_session_template_workspaces_v1 = rls-client
 create table if not exists public.coach_session_template_workspaces_v1 (
   id uuid primary key default gen_random_uuid(),
 
@@ -197,6 +199,10 @@ from public, anon, authenticated;
 grant select, insert, update
 on public.coach_session_template_workspaces_v1
 to authenticated;
+
+grant all
+on public.coach_session_template_workspaces_v1
+to service_role;
 
 create or replace function public.iberfit_coach_template_workspace_get_v1()
 returns jsonb
