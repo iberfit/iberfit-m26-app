@@ -51,7 +51,7 @@ test('#766 retains the public RPC JSON contract, order, and a read-only function
 });
 
 test('#766 rollback restores exactly the previous snapshot-backed behavior',()=>{
-  assert.match(rollback,/create or replace function public\.iberfit_appointment_change_requests_v13_pre_v65e\(\)/u);
+  assert.match(rollback,/create or replace function public\.iberfit_appointment_change_requests_v13_pre_v65e\(\)/iu);
   assert.match(rollback,/select public\.iberfit_bootstrap_v26\(\) into v_snapshot;/u);
   assert.match(rollback,/v_snapshot#>'\{data,appointments\}'/u);
   assert.doesNotMatch(rollback,/\b(?:insert\s+into|delete\s+from|truncate\s|drop\s)\b/iu);
