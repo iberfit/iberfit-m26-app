@@ -26,6 +26,19 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_catalog_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
+// QA-only, allowlisted request timing: never persist URLs, headers, bodies,
+// credentials, account identifiers or opaque query parameters.
+const AUTH_NETWORK_OPERATIONS=Object.freeze({
+  '/auth/v1/token':'password-auth',
+  '/rest/v1/rpc/iberfit_bootstrap_v26':'main-snapshot',
+  '/rest/v1/domain_command_registry_v26':'command-registry',
+  '/rest/v1/rpc/iberfit_authorized_application_roles_v13':'authorized-roles',
+  '/rest/v1/rpc/iberfit_appointment_change_requests_v13':'appointment-changes',
+  '/rest/v1/rpc/iberfit_application_context_v14':'application-context',
+  '/rest/v1/rpc/m26_backend_bootstrap_v43':'optional-backend',
+  '/rest/v1/rpc/m26_wearable_bootstrap_v44':'optional-wearables',
+  '/rest/v1/rpc/iberfit_communication_bootstrap_v14':'scoped-communication',
+});
 const BLOCKED_NOTIFICATION_PREFERENCE_UPSERT='POST qa-supabase /rest/v1/rpc/iberfit_notification_preferences_upsert_v1';
 const BLOCKED_RESOURCE_CONSOLE_ERROR='Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector';
 
@@ -154,6 +167,42 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
+  // Observability only. A fixed operation allowlist prevents credential/PII
+  // capture while exposing which read-only request blocks interactivity.
+  const authRequestStartedAt=new WeakMap();
+  const authRequestRecords=[];
+  let traceAuthNetwork=false;
+  page.on('request',(request)=>{
+    if(!traceAuthNetwork||authRequestRecords.length>=32)return;
+    try{
+      const url=new URL(request.url());
+      if(url.origin!==SUPABASE_ORIGIN)return;
+      const operation=AUTH_NETWORK_OPERATIONS[url.pathname];
+      if(!operation)return;
+      const record={operation,startedAt:performance.now(),status:null,result:'pending'};
+      authRequestStartedAt.set(request,record);
+      authRequestRecords.push(record);
+    }catch{}
+  });
+  page.on('response',(response)=>{
+    const record=authRequestStartedAt.get(response.request());
+    if(record)record.status=response.status();
+  });
+  page.on('requestfinished',(request)=>{
+    const record=authRequestStartedAt.get(request);
+    if(record){
+      record.durationMs=Math.max(0,Math.round(performance.now()-record.startedAt));
+      record.result='finished';
+    }
+  });
+  page.on('requestfailed',(request)=>{
+    const record=authRequestStartedAt.get(request);
+    if(record){
+      record.durationMs=Math.max(0,Math.round(performance.now()-record.startedAt));
+      record.result='failed';
+    }
+  });
+
   // Only record the status of the expected, authenticated read-only RPC.
   // Do not retain HTTP bodies, headers, URLs, tokens or account identities.
   let communicationRpcStatus=null;
@@ -174,6 +223,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_B_EMAIL);
   await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_B_PASSWORD);
   const credentialSubmitStartMs=performance.now();
+  traceAuthNetwork=true;
   await page.evaluate(()=>{globalThis.__IBERFIT_AUTH_QA_SUBMIT_MS__=performance.now();});
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
@@ -182,6 +232,21 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   const credentialSubmitToShellMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
   const credentialSubmitToInteractiveMs=performance.now()-credentialSubmitStartMs;
+  traceAuthNetwork=false;
+  const authNetworkWaterfall=authRequestRecords
+    .filter((record)=>record.result!=='pending')
+    .map((record)=>Object.freeze({
+      operation:record.operation,
+      startSinceSubmitMs:Math.max(0,Math.round(record.startedAt-credentialSubmitStartMs)),
+      durationMs:record.durationMs,
+      status:record.status,
+      result:record.result,
+    }));
+  // Main payload and registry are the required authenticated primary requests.
+  for(const required of ['main-snapshot','command-registry']){
+    expect(authNetworkWaterfall.some((sample)=>sample.operation===required&&sample.status===200&&sample.result==='finished'),
+      `Authenticated primary request ${required} must finish successfully`).toBe(true);
+  }
   const authStageTimeline=await page.evaluate(()=>{
     const submit=globalThis.__IBERFIT_AUTH_QA_SUBMIT_MS__;
     const marks=globalThis.__IBERFIT_AUTH_QA_STAGES__;
@@ -312,6 +377,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     credentialSubmitToInteractiveMs:Math.round(credentialSubmitToInteractiveMs),
     communicationHydrationMs,
     communicationRpcStatus,
+    authNetworkWaterfall,
     authStageTimeline,
     authenticated:true,
     interactiveReady:true,
