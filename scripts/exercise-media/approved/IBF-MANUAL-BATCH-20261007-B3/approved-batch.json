@@ -1,0 +1,469 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-BISAGRA-DE-CADERA-A-PARED",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-fdec2c9dceec.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BISAGRA-DE-CADERA-A-PARED/movement-fdec2c9dceec.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fdec2c9dceecfd0c3c92f8637f6c3f278d10c85840bac6062154630e28ef342c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BODY-SAW",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-e27e5134839e.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BODY-SAW/movement-e27e5134839e.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "e27e5134839e85c7e02805abd5504d97815f24d2d3c88ab1fca41b947e7deace"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BUENOS-DIAS-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-11fd8c0404c5.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BUENOS-DIAS-CON-BANDA/movement-11fd8c0404c5.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "11fd8c0404c598d9838314f77870d5dbd43fc4200e8fea23c1c24803bbe8af27"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BUENOS-DIAS-CON-BARRA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-5a3dc18f8217.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BUENOS-DIAS-CON-BARRA/movement-5a3dc18f8217.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "5a3dc18f82170f1d5dac4ce685b5bcbdc6d8caffd748b973226ac2f7ca7ce2cd"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BURPEE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-d2d6a75ea5c6.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BURPEE/movement-d2d6a75ea5c6.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "d2d6a75ea5c6765fc67c6b22142f690d64334ea8540359e72bab8029fe03c772"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "global"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BURPEE-SIN-SALTO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-f7947f9f573c.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BURPEE-SIN-SALTO/movement-f7947f9f573c.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "f7947f9f573cfe1f25f0f1548fffe98782ee3cbe2ba0058a2daf93126d1fbc3b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "global"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CAMINATA-LATERAL-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-f0c8bf31c12f.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CAMINATA-LATERAL-CON-BANDA/movement-f0c8bf31c12f.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "f0c8bf31c12f2de227cec3b5264bdb2584220091cc433d6ba88655a843111487"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo medio",
+            "abductores"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PLANCHA-LATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-4654acc52a04.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-LATERAL/movement-4654acc52a04.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4654acc52a04262c4bd47918934e1dd70b0e59e77cfdb698393ead83b9ae40f7"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PUENTE-DE-GLUTEOS-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-088a023c4827.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PUENTE-DE-GLUTEOS-CON-BANDA/movement-088a023c4827.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "088a023c482735df4d235398b6b50cb2ed7a41120487ce9b6fc1284d73b2680f"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteos",
+            "isquiotibiales"
+          ],
+          "secondary": [
+            "core",
+            "abductores"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-REMO-CON-TRX-PIES-ADELANTADOS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B3/movement-cc12f051cefe.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: lote completo revisado y aprobado para integración en la biblioteca real."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-REMO-CON-TRX-PIES-ADELANTADOS/movement-cc12f051cefe.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "cc12f051cefeaf5a37be7a49fa72fab6ba0e8b72b5722db85c096adec3b0c59b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
