@@ -703,6 +703,34 @@ if (area === 'clientes') {
         role,
         options,
       );
+    const professional=['admin','coach'].includes(role);
+    const catalogNames=professional
+      ?new Map(
+          (options.catalog||[])
+            .filter((item)=>item?.id)
+            .map((item)=>[
+              String(item.id),
+              exerciseDisplayName(item,getIberfitLanguage()),
+            ]),
+        )
+      :new Map();
+    const nextSessionPreparation=
+      professional&&clientId&&trainingActive
+        ?buildNextSessionPreparation(
+            state,
+            clientId,
+            {
+              now,
+              exerciseName:(exerciseId)=>
+                catalogNames.get(String(exerciseId))||
+                String(exerciseId||'Ejercicio'),
+            },
+          )
+        :null;
+    const decisionBrief=
+      professional&&summary
+        ?buildIberfitDecisionBrief({summary,alerts})
+        :null;
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'progreso',
       clientId,
@@ -713,6 +741,8 @@ if (area === 'clientes') {
       exercisePerformance,
       planExecution,
       longitudinal,
+      nextSessionPreparation,
+      decisionBrief,
       timeline: Object.freeze(!trainingActive?[]:buildProgressTimeline(state, clientId, { now })),
       alerts: Object.freeze(alerts),
       signal: Object.freeze(adherenceSignal(alerts)),

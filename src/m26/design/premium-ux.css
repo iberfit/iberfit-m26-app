@@ -1780,6 +1780,31 @@ body {
 /* ACTION_OUTCOME_TRACKING_V1_END */
 
 
+/* PROGRESS_COACH_DECISION_BRIDGE_V1_BEGIN */
+.m26-progress-decision-bridge{display:grid;gap:.78rem;border-color:color-mix(in srgb,var(--iberfit-role-accent,#d8b96f) 26%,transparent)!important;background:linear-gradient(150deg,rgba(216,185,111,.065),rgba(5,24,15,.78))!important}
+.m26-progress-decision-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.4rem}
+.m26-progress-decision-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.52rem}
+.m26-progress-decision-summary>article{display:grid;gap:.16rem;min-width:0;padding:.68rem .74rem;border:1px solid rgba(216,185,111,.12);border-radius:.78rem;background:rgba(0,0,0,.11)}
+.m26-progress-decision-summary span,.m26-progress-decision-summary small{color:var(--m26-muted,#aaa);font-size:.68rem}
+.m26-progress-decision-summary strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m26-progress-decision-review{padding:.68rem .78rem;border:1px solid rgba(216,185,111,.11);border-radius:.78rem;background:rgba(255,255,255,.018)}
+.m26-progress-decision-review>strong{font-size:.8rem}
+.m26-progress-decision-reasons{margin:.4rem 0 0;padding-left:1.05rem;color:#c9c1b5;font-size:.73rem;line-height:1.48}
+.m26-progress-decision-clear{margin:.35rem 0 0;color:var(--m26-muted,#aaa);font-size:.73rem}
+.m26-progress-decision-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.m26-progress-decision-actions button{min-height:44px}
+.m26-progress-action-outcome-host{min-width:0}
+.m26-progress-action-outcome-host>.m26-action-outcome-manager{margin:0}
+@media(max-width:760px){.m26-progress-decision-summary{grid-template-columns:1fr}.m26-progress-decision-badges{justify-content:flex-start}}
+@media(max-width:520px){.m26-progress-decision-actions{display:grid;grid-template-columns:1fr}.m26-progress-decision-actions button{width:100%}}
+/* PROGRESS_COACH_DECISION_BRIDGE_V1_END */
+
+/* WELLBEING_CHECKIN_TOUCH_V1_BEGIN */
+.m26-wellbeing-score-control select{min-height:48px;font-variant-numeric:tabular-nums;touch-action:manipulation}
+.m26-wellbeing-score-control small{display:block;margin-top:.22rem}
+@media(max-width:520px){[data-engagement-form="checkin"] .m26-field-grid{grid-template-columns:1fr}}
+/* WELLBEING_CHECKIN_TOUCH_V1_END */
+
 /* NEXT_SESSION_PREPARATION_V1_BEGIN */
 .m26-next-session-prep{
   display:grid;
