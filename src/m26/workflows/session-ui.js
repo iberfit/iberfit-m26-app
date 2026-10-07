@@ -567,7 +567,7 @@ function builderFacetOptions(values=[],selected='',allLabel='Todos'){
 function builderActiveFilterCount(filters={}){
   return ['pattern','equipment','difficulty','intent'].reduce((count,key)=>count+(String(filters?.[key]||'').trim()?1:0),0);
 }
-export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,undoRemoval=null,templateUndo=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
+export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
   const matchingExercises=catalog.search(query,filters);
   const results=matchingExercises.slice(0,24);
   const remainingResults=matchingExercises.slice(24);
@@ -593,6 +593,19 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
   const libraryResetMarkup=(String(query||'').trim()||activeFilterCount)?`<button type="button" class="m26-builder-library-reset" data-session-action="clear-library-filters">Limpiar búsqueda y filtros</button>`:'';
   const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button><button type="button" data-session-action="publish" disabled aria-disabled="true" title="Revisa la sesión antes de publicarla">Publicar sesión</button>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
+  const adaptationSource=templateAdaptation?.source==='cycle'?'ciclo':templateAdaptation?.source==='profile'?'perfil':null;
+  const adaptationDuration=Number(templateAdaptation?.clientDurationMinutes);
+  const hasClientDuration=Boolean(adaptationSource&&Number.isInteger(adaptationDuration)&&adaptationDuration>=10&&adaptationDuration<=240);
+  const durationAligned=hasClientDuration&&Number(draft.durationMinutes)===adaptationDuration;
+  const templateAdaptationMarkup=templateAdaptation?.templateName?`<div class="m26-builder-template-adaptation" data-session-template-adaptation role="status">
+    <div>
+      <small>Adaptación al cliente</small>
+      <strong>${e(templateAdaptation.templateName)} · v${e(templateAdaptation.templateVersion||1)}</strong>
+      <p>${hasClientDuration?`Duración del ${e(adaptationSource)}: ${e(adaptationDuration)} min · borrador actual: ${e(draft.durationMinutes)} min.`:'Este cliente no tiene una duración específica definida en ciclo o perfil.'}</p>
+      <small>La plantilla aporta estructura; revisa el historial y ajusta la prescripción antes de publicar.</small>
+    </div>
+    ${hasClientDuration?(durationAligned?'<span class="m26-builder-template-aligned">Duración alineada</span>':`<button type="button" data-session-action="apply-client-duration" data-duration-minutes="${e(adaptationDuration)}">Usar duración del cliente</button>`):''}
+  </div>`:'';
   const templateControls=['coach','admin'].includes(String(role||''))?`<details class="m26-panel m26-panel-soft m26-builder-template-drawer" data-session-template-tools>
     <summary><span><small>Reutilización</small><strong>Plantillas versionadas</strong></span><span>${templates?.length||0} guardadas</span></summary>
     <div class="m26-builder-template-body">
@@ -605,6 +618,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
         <button type="button" data-session-action="load-template"${templateOptions?'':' disabled aria-disabled="true"'}>Usar plantilla</button>
         <button type="button" data-session-action="save-template">Guardar nueva versión</button>
       </div>
+      ${templateAdaptationMarkup}
     </div>
   </details>`:'';
   return `<section class="m26-session-builder m26-session-builder-v2" data-session-builder-workbench-v2 data-session-builder-has-blocks="${draft.blocks?.length?'true':'false'}">
