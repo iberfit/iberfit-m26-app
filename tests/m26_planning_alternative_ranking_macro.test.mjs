@@ -16,9 +16,8 @@ test('alternativas priorizan mismo patrón y material y separan otro material',(
   addCatalogExercise(draft,'a',catalog);
   const html=renderSessionBuilder({draft,catalog,role:'coach'});
   assert.match(html,/optgroup label="Mismo patrón y material"/u);
-  assert.match(html,/Press B · mancuernas · inicial/u);
-  assert.match(html,/optgroup label="Mismo patrón · otro material"/u);
-  assert.match(html,/Press C · TRX · intermedio/u);
+  assert.match(html,/optgroup label="Mismo patrón y material"><option value="b">/u);
+  assert.match(html,/optgroup label="Mismo patrón · otro material"><option value="c">/u);
   assert.doesNotMatch(html,/Sentadilla/u);
   assert.match(html,/IBERFIT no cambia el ejercicio automáticamente/u);
 });
