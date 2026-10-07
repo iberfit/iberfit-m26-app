@@ -1,0 +1,381 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-REMO-CON-TRX",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-4602aabc434a.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-REMO-CON-TRX/movement-4602aabc434a.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4602aabc434a209aa826abd143fe1ed6271266dea293a5899bf1844afcdddacf"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-STEP-UP-CON-IMPULSO-DE-RODILLA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-376f57eaf550.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-STEP-UP-CON-IMPULSO-DE-RODILLA/movement-376f57eaf550.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "376f57eaf550db5281c9b15f1761669aef8c24fda00d82ee875e92d8a1cb5814"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "isquiotibiales",
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-DEAD-BUG",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-05ca52773ea3.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-DEAD-BUG/movement-05ca52773ea3.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "05ca52773ea37f976baeb59b5277c542fe3e16311eb97970f9e46c69295178a5"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PUENTE-DE-GLUTEOS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-7e2c57f9db2d.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PUENTE-DE-GLUTEOS/movement-7e2c57f9db2d.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "7e2c57f9db2d5201af0b35513d25e1eaadc0c14e3d707253b9fcc98ac73f7765"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-FLEXION-INCLINADA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-7f7dda97e8b1.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-FLEXION-INCLINADA/movement-7f7dda97e8b1.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "7f7dda97e8b12e71f724e34924d489e53000e699ba6b3c78ccd4321afaa7907f"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral",
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-MOUNTAIN-CLIMBER",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-579aa7d803c2.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-MOUNTAIN-CLIMBER/movement-579aa7d803c2.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "579aa7d803c270c4577ff42d4c5ad5a654cdb6f7105b07b1601b09de10fcd78e"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PLANCHA-FRONTAL-ANTEBRAZOS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-d25d904beb94.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-FRONTAL-ANTEBRAZOS/movement-d25d904beb94.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "d25d904beb941b636179a378bb9a033c67c7b62d1309f40175da2570bab28946"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-BULGARA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B2/movement-3403e795b626.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT en revisión visual directa. Patrón golden IBERFIT confirmado; movimiento y formato aprobados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-BULGARA/movement-3403e795b626.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "3403e795b626e7a524b988e8a614c29bd83c12302a8c2b1ccd2af6310773ae60"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "isquiotibiales",
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
