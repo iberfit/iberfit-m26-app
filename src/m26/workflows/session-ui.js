@@ -1083,7 +1083,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ?'La sesión está cerrada. Revisa si alguna señal requiere una decisión y deja preparada la siguiente sesión desde el expediente.'
       :'Tu seguimiento ya puede continuar desde Progreso.';
     const completedProgressAction=isCoach
-      ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente">${e(progressActionLabel)}</button>`
+      ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente" data-m26-target-focus="action-outcome">${e(progressActionLabel)}</button>`
       :`<button type="button" class="m26-primary-action" data-m26-area="${e(progressActionArea)}">${e(progressActionLabel)}</button>`;
     const completedActions=confirmed
       ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button>${completedProgressAction}</div>`
