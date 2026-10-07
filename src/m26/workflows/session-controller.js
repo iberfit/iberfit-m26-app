@@ -1,4 +1,4 @@
-import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview,applyExerciseMemorySuggestion, buildPublishSessionCommand } from './session-builder.js';
+import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,sessionBlockRemovalSnapshot,restoreSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview,applyExerciseMemorySuggestion, buildPublishSessionCommand } from './session-builder.js';
 import {
   startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,correctSet,advanceExecution,retreatExecution,
   adjustRest,beginRest,substituteExercise,addExecutionSet,addExecutionGroupRound,addExtraGroupRoundAndAdvance,undoLastExecutionStructureChange,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
@@ -84,7 +84,8 @@ export function liveAddExerciseSelectionState(exerciseId,catalog){
 export function dispatchSessionAction({action,draft,execution,session,catalog,payload={},commandBus,appointmentId,sessionRevision=0,online=true,offlinePermit={},actor=null}={}){
   switch(action){
     case 'add-exercise': addCatalogExercise(draft,payload.exerciseId,catalog,payload.prescription); return {kind:'draft',value:draft};
-    case 'remove-block': removeSessionBlock(draft,payload.blockId); return {kind:'draft',value:draft};
+    case 'remove-block': {const undo=sessionBlockRemovalSnapshot(draft,payload.blockId);removeSessionBlock(draft,payload.blockId);return {kind:'draft',value:draft,undo};}
+    case 'restore-block': restoreSessionBlock(draft,payload.snapshot); return {kind:'draft',value:draft};
     case 'duplicate-block': duplicateSessionBlock(draft,payload.blockId); return {kind:'draft',value:draft};
     case 'move-up': moveSessionBlock(draft,payload.blockId,'up'); return {kind:'draft',value:draft};
     case 'move-down': moveSessionBlock(draft,payload.blockId,'down'); return {kind:'draft',value:draft};
@@ -688,7 +689,32 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     try{target.focus({preventScroll:false});}catch{target.focus?.();}
     return true;
   }
-  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='next'){
+  function focusBuilderBlock(blockId,{action=null,scrollOnNarrow=false}={}){
+  const safeId=String(blockId||'').trim();
+  if(!safeId)return false;
+  const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===safeId);
+  if(!target)return false;
+  const view=root?.ownerDocument?.defaultView||globalThis;
+  let narrow=false;
+  try{narrow=typeof view?.matchMedia==='function'&&view.matchMedia('(max-width: 840px)').matches;}catch{narrow=false;}
+  if(scrollOnNarrow&&narrow){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}
+  const focusTarget=action?target.querySelector?.(`[data-session-action="${action}"]`)||target:target;
+  try{focusTarget.focus?.({preventScroll:true});}catch{focusTarget.focus?.();}
+  return true;
+}
+async function click(event){
+  const jump=event.target.closest?.('[data-session-jump]');
+  if(jump){
+    event.preventDefault?.();
+    const targetKey=String(jump.getAttribute('data-session-jump')||'').trim();
+    const target=targetKey?root.querySelector?.(`[data-session-jump-target="${targetKey}"]`):null;
+    if(target){
+      try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}
+      try{target.focus?.({preventScroll:true});}catch{target.focus?.();}
+    }
+    return;
+  }
+  const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='clear-library-filters'){context.setQuery?.('');for(const key of ['pattern','equipment','difficulty','intent'])context.setFilter?.(key,'');renderSession();const search=root.querySelector?.('[data-session-search]');try{search?.focus?.({preventScroll:true});}catch{search?.focus?.();}return;}if(action==='next'){
     if(coachRestAdvancePending)return;
     cancelCoachRestAutoAdvance({suppress:true});
   }else if(action==='rest-minus'||action==='rest-plus'){
@@ -762,7 +788,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     let finishDispatched=false,finishTimedOut=false;
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
-    const actionState=context.actionState;let failureFocusSelector=null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
+    const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
     const task=async()=>{await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();await flushExecutionDraft(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='repeat-previous-set'){
       // One tap is truthful only if Coach explicitly confirms the displayed prior RPE.
@@ -784,7 +810,8 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       payload.targetRir=root.querySelector?.('[data-session-live-add-rir]')?.value;
       payload.position='next';
     }
-    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(action==='add-live-exercise')liveAddDispatched=true;if(action==='finish')finishDispatched=true;
+    if(action==='restore-block'){payload.snapshot=context.builderUndo;if(!payload.snapshot)throw new Error('M26_SESSION_BLOCK_UNDO_UNAVAILABLE');}
+    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(builderInsertContext){if(action==='add-exercise')builderFocusBlockId=builderInsertContext.activeGroupId||(context.draft?.blocks||[]).find((item)=>item?.id&&!builderInsertContext.blockIds.has(item.id))?.id||null;else builderFocusBlockId=(context.draft?.blocks||[]).find((item)=>item?.id&&!builderInsertContext.blockIds.has(item.id))?.id||null;if(builderFocusBlockId)builderFocusScroll=true;}if(['move-up','move-down'].includes(action)&&payload.blockId){builderFocusBlockId=payload.blockId;builderFocusAction=action;}if(action==='restore-block'&&payload.snapshot?.block?.id){builderFocusBlockId=payload.snapshot.block.id;builderFocusScroll=true;}if(action==='remove-block'&&result.undo)context.setBuilderUndo?.(result.undo);if(action==='restore-block')context.setBuilderUndo?.(null);if(action==='add-live-exercise')liveAddDispatched=true;if(action==='finish')finishDispatched=true;
     if(['complete-set','repeat-previous-set','correct-set','add-set','add-group-round','extra-set-now','extra-group-round-now','skip-set','skip-exercise','previous','next','rest-minus','rest-plus','substitute'].includes(action))return await settleProgressMutation(result,context);
     return await result.value;};
     function observeLateFinish(promise){
@@ -806,7 +833,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution});if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}onError(outcome.error);if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}renderSession();if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution});if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}onError(outcome.error);if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}renderSession();if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       // The whole builder is rendered on each search. Restore active text input
       // and caret to avoid losing keyboard focus, particularly on mobile.
@@ -855,6 +882,22 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     event.preventDefault?.();
     button.click?.();
   }
-  function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());if(event.target.closest?.('[data-session-feedback-pain]'))syncFeedbackPainControl();}
+  function change(event){
+    const filter=event.target.closest?.('[data-session-filter]');
+    if(filter){
+      const context=getContext();
+      const key=String(filter.getAttribute('data-session-filter')||'').trim();
+      const wasFocused=root.ownerDocument?.activeElement===filter;
+      context.setFilter?.(key,filter.value);
+      renderSession();
+      if(wasFocused&&key){
+        const replacement=root.querySelector?.(`[data-session-filter="${key}"]`);
+        try{replacement?.focus?.({preventScroll:true});}catch{replacement?.focus?.();}
+      }
+      return;
+    }
+    if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());
+    if(event.target.closest?.('[data-session-feedback-pain]'))syncFeedbackPainControl();
+  }
   return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;mountSessionStickyTop();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }
