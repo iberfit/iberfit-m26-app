@@ -69,5 +69,8 @@ test('controller y aplicación mantienen undo efímero y lo limpian al cargar pl
   assert.match(controller,/setBuilderUndo\?\.\(result\.undo\)/u);
   assert.match(controller,/setBuilderUndo\?\.\(null\)/u);
   assert.match(app,/builderUndo:sessionUi\?\.undoRemoval\|\|null/u);
-  assert.match(app,/sessionUi\.draft=createDraftFromSessionTemplate[\s\S]*?sessionUi\.undoRemoval=null/u);
+  assert.match(app,/const nextDraft=createDraftFromSessionTemplate/u);
+  const draftAssignment=app.indexOf('sessionUi.draft=nextDraft;');
+  const undoClear=app.indexOf('sessionUi.undoRemoval=null;',draftAssignment);
+  assert.ok(draftAssignment>=0&&undoClear>draftAssignment,'cargar plantilla instala el nuevo draft y limpia undo de bloque');
 });
