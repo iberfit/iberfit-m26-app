@@ -27,6 +27,8 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'set-rpe-quick':{roles:['coach'],domain:'execution'},
   'correct-set':{roles:['coach','client'],domain:'execution'},
   'add-set':{roles:['coach'],domain:'execution'},
+  'add-group-round':{roles:['coach'],domain:'execution'},
+  'extra-group-round-now':{roles:['coach'],domain:'execution'},
   'extra-set-now':{roles:['coach'],domain:'execution'},
   'skip-set':{roles:['coach','client'],domain:'execution'},
   'skip-exercise':{roles:['coach','client'],domain:'execution'},

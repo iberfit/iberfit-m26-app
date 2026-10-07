@@ -460,9 +460,13 @@ function moveForward(execution,actor=null,{reviewHistory=false}={}){
 }
 export function markExecutionSync(execution,status,{operationId=null,errorCode=null}={}){
   if(!['clean','pending','conflict','rejected'].includes(status))throw new Error('M26_EXECUTION_SYNC_STATUS_INVALID');
-  execution.syncStatus=status;execution.lastSyncError=errorCode||null;
-  const ids=new Set(execution.pendingOperationIds||[]);if(operationId&&status==='pending')ids.add(operationId);if(operationId&&status!=='pending')ids.delete(operationId);execution.pendingOperationIds=[...ids];
-  if(status==='clean'&&!operationId)execution.pendingOperationIds=[];
+  const ids=new Set(execution.pendingOperationIds||[]);
+  if(operationId&&status==='pending')ids.add(operationId);
+  if(operationId&&status!=='pending')ids.delete(operationId);
+  if(status==='clean'&&!operationId)ids.clear();
+  execution.pendingOperationIds=[...ids];
+  execution.syncStatus=status==='clean'&&ids.size?'pending':status;
+  execution.lastSyncError=execution.syncStatus==='pending'&&status==='clean'?null:(errorCode||null);
   return execution;
 }
 export function startExecution(execution,{actor=null}={}){
@@ -557,18 +561,26 @@ export function retreatExecution(execution,{actor=null}={}){
   if(execution.status==='awaiting_feedback'){execution.status='active';resumeExecutionClock(execution);}
   event(execution,'STEP_REWOUND',{index:execution.index,setIndex:execution.setIndex},actor);return execution;
 }
-function occurrenceHasResolvedSet(execution,item){
-  if(!item)return false;
+function resolvedSetPrefix(execution,item){
+  if(!item)return 0;
+  let prefix=0;
   for(let setNumber=1;setNumber<=Number(item.sets||0);setNumber+=1){
     const step={...item,setNumber,totalSets:item.sets};
-    if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))return true;
+    if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))prefix=setNumber;
+    else break;
   }
-  return false;
+  return prefix;
 }
-export function canSubstituteCurrentExercise(execution){
+function occurrenceHasResolvedSet(execution,item){return resolvedSetPrefix(execution,item)>0;}
+export function currentExerciseSubstitutionScope(execution){
   const item=execution?.queue?.[execution.index];
-  return Boolean(item)&&!occurrenceHasResolvedSet(execution,item);
+  if(!item||execution?.reviewingHistory)return 'locked';
+  const resolved=resolvedSetPrefix(execution,item);
+  if(!resolved)return 'all';
+  if(isGroupedQueueItem(item)||resolved>=Number(item.sets||0))return 'locked';
+  return 'remaining';
 }
+export function canSubstituteCurrentExercise(execution){return currentExerciseSubstitutionScope(execution)!=='locked';}
 export function substituteExercise(execution,session,{fromExerciseId,toExerciseId,catalog,reason,actor=null}={}){
   const safeReason=requireReason(reason,'M26_EXECUTION_SUBSTITUTION_REASON_REQUIRED');
   if(!catalog?.has(toExerciseId))throw new Error('M26_EXECUTION_SUBSTITUTE_NOT_IN_CATALOG');
@@ -578,11 +590,39 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   const item=execution.queue[itemIndex];
   if(itemIndex===execution.index){
     if(!canSubstituteCurrentExercise(execution))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    const resolved=resolvedSetPrefix(execution,item);
     clearActiveSetDraft(execution);
+    if(resolved>0){
+      if(isGroupedQueueItem(item))throw new Error('M26_EXECUTION_SUBSTITUTION_GROUP_PROGRESS_REQUIRES_ORDER');
+      const totalSets=Number(item.sets||0);
+      const remainingSets=totalSets-resolved;
+      if(remainingSets<1)throw new Error('M26_EXECUTION_SUBSTITUTION_NO_REMAINING_SETS');
+      const replacement={
+        ...clone(item),
+        exerciseId:toExerciseId,
+        sets:remainingSets,
+        substitutedFromExerciseId:fromExerciseId,
+      };
+      item.sets=resolved;
+      execution.queue.splice(itemIndex+1,0,replacement);
+      const currentSetNumber=Number(execution.setIndex)+1;
+      const currentResolved=currentSetNumber<=resolved;
+      if(!currentResolved){
+        execution.index=itemIndex+1;
+        execution.setIndex=0;
+        execution.restUntil=null;
+      }
+      markFinalFeedbackDraftNeedsReview(execution,'exercise_substituted_after_closeout');
+      event(execution,'EXERCISE_SUBSTITUTED',{
+        fromExerciseId,toExerciseId,reason:safeReason,
+        partial:true,preservedSets:resolved,remainingSets,
+      },actor);
+      return execution;
+    }
   }
   item.exerciseId=toExerciseId;
   markFinalFeedbackDraftNeedsReview(execution,'exercise_substituted_after_closeout');
-  event(execution,'EXERCISE_SUBSTITUTED',{fromExerciseId,toExerciseId,reason:safeReason},actor);
+  event(execution,'EXERCISE_SUBSTITUTED',{fromExerciseId,toExerciseId,reason:safeReason,partial:false},actor);
   return execution;
 }
 export function addExecutionSet(execution,{actor=null}={}){
@@ -593,6 +633,44 @@ export function addExecutionSet(execution,{actor=null}={}){
   item.sets+=1;
   markFinalFeedbackDraftNeedsReview(execution,'set_added_after_closeout');
   event(execution,'SET_ADDED',{exerciseId:item.exerciseId,totalSets:item.sets},actor);
+  return execution;
+}
+export function addExecutionGroupRound(execution,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const current=execution.queue?.[execution.index];if(!current)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(!isGroupedQueueItem(current))throw new Error('M26_EXECUTION_GROUP_ROUND_NOT_GROUPED');
+  const items=execution.queue.filter((item)=>sameExecutionGroup(current,item));
+  if(items.length<2)throw new Error('M26_EXECUTION_GROUP_ROUND_INVALID');
+  const roundCounts=[...new Set(items.map((item)=>Number(item.sets||0)))];
+  if(roundCounts.length!==1)throw new Error('M26_EXECUTION_GROUP_ROUND_ASYMMETRIC');
+  if(items.some((item)=>Number(item.sets||0)>=100))throw new Error('M26_EXECUTION_SET_LIMIT');
+  for(const item of items)item.sets=Number(item.sets||0)+1;
+  const totalRounds=Number(items[0].sets||0);
+  markFinalFeedbackDraftNeedsReview(execution,'group_round_added_after_closeout');
+  event(execution,'GROUP_ROUND_ADDED',{blockId:current.blockId,groupType:current.groupType,totalRounds},actor);
+  return execution;
+}
+export function addExtraGroupRoundAndAdvance(execution,session,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const current=execution.queue?.[execution.index];if(!current)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(!isGroupedQueueItem(current))throw new Error('M26_EXECUTION_EXTRA_GROUP_ROUND_NOT_GROUPED');
+  const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
+  ensureDeviationStores(execution);
+  if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
+  const indexes=[];for(let i=0;i<execution.queue.length;i+=1)if(sameExecutionGroup(current,execution.queue[i]))indexes.push(i);
+  if(indexes.length<2||execution.index!==indexes[indexes.length-1])throw new Error('M26_EXECUTION_EXTRA_GROUP_ROUND_ORDER_REQUIRED');
+  const totalRounds=Number(current.sets||0);
+  if(Number(execution.setIndex)+1!==totalRounds)throw new Error('M26_EXECUTION_EXTRA_GROUP_ROUND_LAST_ROUND_REQUIRED');
+  addExecutionGroupRound(execution,{actor});
+  execution.restUntil=null;
+  delete execution.reviewingHistory;
+  clearActiveSetDraft(execution);
+  execution.index=indexes[0];
+  execution.setIndex=totalRounds;
+  event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
+  event(execution,'EXTRA_GROUP_ROUND_STARTED',{blockId:current.blockId,groupType:current.groupType,previousTotalRounds:totalRounds,totalRounds:totalRounds+1,roundNumber:totalRounds+1},actor);
   return execution;
 }
 export function addExtraSetAndAdvance(execution,session,{actor=null}={}){

@@ -1,4 +1,4 @@
-import { canSubstituteCurrentExercise,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
+import { canSubstituteCurrentExercise,currentExerciseSubstitutionScope,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
@@ -1037,11 +1037,23 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     Number(execution.setIndex)+1===Number(currentQueueItem?.sets||0)&&
     Number(currentQueueItem?.sets||0)<100
   );
+  const currentGroupItems=currentQueueItem?.groupType
+    ?execution.queue.map((item,index)=>({item,index})).filter(({item})=>item.blockId===currentQueueItem.blockId&&item.groupType===currentQueueItem.groupType)
+    :[];
+  const groupRoundCounts=[...new Set(currentGroupItems.map(({item})=>Number(item.sets||0)))];
+  const coachExtraGroupRoundReady=Boolean(
+    isCoach&&recorded&&currentGroupItems.length>1&&groupRoundCounts.length===1&&
+    execution.index===currentGroupItems[currentGroupItems.length-1]?.index&&
+    Number(execution.setIndex)+1===Number(currentQueueItem?.sets||0)&&
+    Number(currentQueueItem?.sets||0)<100
+  );
+  const substitutionScope=currentExerciseSubstitutionScope(execution);
   const substitutionLocked=!canSubstituteCurrentExercise(execution);
   const substitutionDisabled=substitutionLocked||substitutionUnavailable;
   const substitutionTitle=substitutionLocked
-    ?'Este ejercicio ya tiene progreso registrado'
+    ?'Este ejercicio ya no puede sustituirse sin alterar trabajo registrado'
     :(substitutionUnavailable?'No hay alternativas compatibles disponibles':'');
+  const substitutionActionLabel=substitutionScope==='remaining'?'Usar alternativa en las series restantes':'Usar alternativa';
   const restSeconds=restRemainingSeconds(execution);
   const restActive=Boolean(recorded&&restSeconds>0);
   const nextStep=nextExecutionStep(execution,session);
@@ -1130,7 +1142,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         </details>
         <div class="m26-session-live-actions">
           ${restActive?'<button type="button" data-session-action="rest-minus">−15 s</button><button type="button" data-session-action="rest-plus">+15 s</button>':''}
-          ${coachExtraSetReady?'<button type="button" class="m26-session-fast-action m26-session-extra-set-action" data-session-action="extra-set-now" aria-label="Añadir una serie extra y continuar directamente con ella">+ 1 serie y seguir</button>':''}
+          ${coachExtraSetReady?'<button type="button" class="m26-session-fast-action m26-session-extra-set-action" data-session-action="extra-set-now" aria-label="Añadir una serie extra y continuar directamente con ella">+ 1 serie y seguir</button>':''}${coachExtraGroupRoundReady?'<button type="button" class="m26-session-fast-action m26-session-extra-set-action" data-session-action="extra-group-round-now" aria-label="Añadir una ronda extra al bloque y continuar directamente con ella">+ 1 ronda y seguir</button>':''}
           <button type="button" class="m26-primary-action" data-session-action="next">${restActive?'Continuar ahora':e(nextCopy.label)}</button>
         </div>
       </article>`
@@ -1226,12 +1238,13 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
             <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
             <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
-            <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>Usar alternativa</button>
+            <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>${e(substitutionActionLabel)}</button>
             <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
             <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
             ${isCoach?`<div class="m26-session-live-coach-tools">
               <h4>Ajuste estructural del Coach</h4>
               <button type="button" data-session-action="add-set">Añadir una serie a este ejercicio</button>
+              ${currentQueueItem?.groupType?'<button type="button" data-session-action="add-group-round">Añadir una ronda al bloque</button>':''}
               <label>Añadir ejercicio después del actual<select data-session-live-add-exercise><option value="">Seleccionar ejercicio…</option>${liveAddOptions}</select></label>
               <div class="m26-field-grid">
                 <label>Series<input type="number" min="1" max="100" value="1" data-session-live-add-sets></label>

@@ -1,7 +1,7 @@
 import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview,applyExerciseMemorySuggestion, buildPublishSessionCommand } from './session-builder.js';
 import {
   startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,correctSet,advanceExecution,retreatExecution,
-  adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
+  adjustRest,beginRest,substituteExercise,addExecutionSet,addExecutionGroupRound,addExtraGroupRoundAndAdvance,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
   markExecutionSync,previousSetDraftValues,previousSetReviewDraftValues,plannedSetDraftValues,suggestedSetDraftValues,repeatPreviousSet,addExtraSetAndAdvance,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft,
@@ -39,9 +39,12 @@ function enqueueAndApply(commandBus,command,apply,execution){
 function isOnline(value){return value!==false;}
 function progressMutation(execution,commandBus,online,operationId=null){
   if(!commandBus)return {kind:'execution',value:execution};
-  const command={...buildProgressExecutionCommand(execution,execution.revision||0),...(operationId?{operationId}:{})};
-  if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,null,execution)};
-  return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{execution.revision=remoteRevision(result,execution.revision);},execution)};
+  const safeOperationId=String(operationId||createM26Id()).trim();
+  const command={...buildProgressExecutionCommand(execution,execution.revision||0),operationId:safeOperationId};
+  const pendingIds=new Set(execution?.pendingOperationIds||[]);
+  const hasPending=execution?.syncStatus==='pending'||pendingIds.size>0;
+  if(!isOnline(online)||hasPending)return {kind:'queued',operationId:safeOperationId,command,value:enqueueAndApply(commandBus,command,null,execution)};
+  return {kind:'command',operationId:safeOperationId,command,value:executeAndApply(commandBus,command,(result)=>{execution.revision=remoteRevision(result,execution.revision);},execution)};
 }
 function sessionActionTimeout(){const error=new Error('M26_SESSION_ACTION_TIMEOUT');error.code='M26_SESSION_ACTION_TIMEOUT';return error;}
 function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
@@ -110,31 +113,39 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     case 'complete-set': {
       recordSet(execution,session,{...payload,actor});
       if(hasNextExecutionStep(execution))beginRest(execution,payload.restSeconds??60,{actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'repeat-previous-set': {
       repeatPreviousSet(execution,session,{restSeconds:payload.restSeconds??60,rpe:payload.rpe,rir:payload.rir,actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'correct-set': {
       correctSet(execution,session,{...payload,actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'add-set': {
       addExecutionSet(execution,{actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
+    }
+    case 'add-group-round': {
+      addExecutionGroupRound(execution,{actor});
+      return progressMutation(execution,commandBus,online,payload.operationId);
+    }
+    case 'extra-group-round-now': {
+      addExtraGroupRoundAndAdvance(execution,session,{actor});
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'extra-set-now': {
       addExtraSetAndAdvance(execution,session,{actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'skip-set': {
       skipExecutionSet(execution,session,{reason:payload.reason,actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'skip-exercise': {
       skipExecutionExercise(execution,session,{reason:payload.reason,actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'add-live-exercise': {
       addExecutionExercise(execution,{...payload,catalog,actor});
@@ -144,27 +155,27 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       const before=[execution.status,execution.index,execution.setIndex,execution.restUntil].join(':');
       retreatExecution(execution,{actor});
       const after=[execution.status,execution.index,execution.setIndex,execution.restUntil].join(':');
-      return before===after?{kind:'execution',value:execution}:progressMutation(execution,commandBus,online);
+      return before===after?{kind:'execution',value:execution}:progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'next': {
       advanceExecution(execution,{actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'rest-expired-auto': {
       advanceExpiredRest(execution,session,{actor,nowMs:payload.nowMs??Date.now()});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'rest-minus': {
       adjustRest(execution,-15,{actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'rest-plus': {
       adjustRest(execution,15,{actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'substitute': {
       substituteExercise(execution,session,{fromExerciseId:payload.fromExerciseId,toExerciseId:payload.toExerciseId,catalog,reason:payload.reason,actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'pause': {
       const target=structuredClone(execution);pauseExecution(target,{actor});
@@ -197,11 +208,13 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   }
 }
 
-export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,progressActionTimeoutMs=4000,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
   let executionDraftTimer=null,scheduledExecutionContext=null,executionDraftChain=Promise.resolve();
+  let pendingExecutionSyncTimer=null,pendingExecutionSyncRunning=false;
   const safeDelay=Math.max(50,Math.min(2000,Number(autosaveDelayMs)||180));
+  const safeProgressActionTimeout=Math.max(250,Math.min(12000,Number(progressActionTimeoutMs)||4000));
   const safeLiveAddTimeout=Math.max(20,Math.min(120000,Number(liveAddTimeoutMs)||20000));
   const safeFinishTimeout=Math.max(20,Math.min(120000,Number(finishTimeoutMs)||20000));
   function hydrateActiveSetDraft(context=getContext()){
@@ -317,12 +330,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       if(coachRestSignature(latest)!==signature||coachRestSuppressedSignature===signature)return;
       if(
         visibilityTarget?.visibilityState==='hidden'||
-        restCorrectionInProgress()||
-        latest?.execution?.syncStatus!=='clean'
+        restCorrectionInProgress()
       ){
         coachRestSuppressedSignature=signature;
         return;
       }
+      // Network uncertainty must defer auto-advance, not disable it for this rest forever.
+      // A later reconciliation render will reschedule the already-expired rest immediately.
+      if(latest?.execution?.syncStatus!=='clean')return;
       coachRestAdvancePending=true;
       try{
         const result=dispatchSessionAction({
@@ -330,7 +345,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
           action:'rest-expired-auto',
           payload:{nowMs:Date.now()},
         });
-        await result.value;
+        await settleProgressMutation(result,latest);
         await persistContext(getContext());
         renderSession();
       }catch(error){
@@ -496,6 +511,44 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
     await context.recoveryCoordinator.settle(context.execution);
   }
+  function schedulePendingExecutionSync(context=getContext(),delayMs=1250){
+    if(!context?.recoveryCoordinator?.synchronize||pendingExecutionSyncRunning)return false;
+    const delay=Math.max(0,Number(delayMs)||0);
+    if(pendingExecutionSyncTimer){
+      if(delay>0)return false;
+      clearTimeout(pendingExecutionSyncTimer);
+      pendingExecutionSyncTimer=null;
+    }
+    pendingExecutionSyncTimer=setTimeout(async()=>{
+      pendingExecutionSyncTimer=null;
+      const latest=getContext();
+      if(!latest?.execution||!latest?.recoveryCoordinator?.synchronize)return;
+      pendingExecutionSyncRunning=true;
+      try{
+        await latest.recoveryCoordinator.synchronize();
+        await persistContext(getContext()).catch(onError);
+      }catch(error){onError(error);}
+      finally{
+        pendingExecutionSyncRunning=false;
+        renderSession();
+      }
+    },delay);
+    return true;
+  }
+  function settleProgressMutation(result,context){
+    if(!result?.value)return Promise.resolve(result?.value);
+    if(result.kind!=='command'||!result.operationId)return Promise.resolve(result.value);
+    let uiTimedOut=false;
+    const remote=Promise.resolve(result.value);
+    void remote.then(
+      ()=>{if(uiTimedOut)schedulePendingExecutionSync(getContext(),0);},
+      ()=>{if(uiTimedOut)schedulePendingExecutionSync(getContext(),1250);},
+    );
+    return settleWithin(remote,safeProgressActionTimeout,()=>{
+      uiTimedOut=true;
+      markExecutionSync(context.execution,'pending',{operationId:result.operationId,errorCode:'M26_SESSION_PROGRESS_TIMEOUT'});
+    });
+  }
   function persistLifecycleContext(context=getContext()){
     if(!context?.execution||!context?.recoveryCoordinator)return;
     let recoveryCheckpoint=Promise.resolve();
@@ -651,7 +704,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       payload.targetRir=root.querySelector?.('[data-session-live-add-rir]')?.value;
       payload.position='next';
     }
-    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(action==='add-live-exercise')liveAddDispatched=true;if(action==='finish')finishDispatched=true;return await result.value;};
+    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(action==='add-live-exercise')liveAddDispatched=true;if(action==='finish')finishDispatched=true;
+    if(['complete-set','repeat-previous-set','correct-set','add-set','add-group-round','extra-set-now','extra-group-round-now','skip-set','skip-exercise','previous','next','rest-minus','rest-plus','substitute'].includes(action))return await settleProgressMutation(result,context);
+    return await result.value;};
     function observeLateFinish(promise){
       if(action!=='finish')return;
       void Promise.resolve(promise).then(async()=>{
@@ -671,7 +726,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution});if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}onError(outcome.error);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution});if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}onError(outcome.error);if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       // The whole builder is rendered on each search. Restore active text input
       // and caret to avoid losing keyboard focus, particularly on mobile.
@@ -721,5 +776,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     button.click?.();
   }
   function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }
