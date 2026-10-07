@@ -17,7 +17,7 @@ function safePrescription(input={}){
   return {
     reps:text(input.reps||'8–12',40)||'8–12',
     plannedLoad:text(input.plannedLoad,80),
-    restSeconds:positiveInt(input.restSeconds,60,{min:1,max:3600}),
+    restSeconds:input.restSeconds==null||input.restSeconds===''?60:positiveInt(input.restSeconds,60,{min:0,max:3600}),
     tempo:text(input.tempo||'controlado',40)||'controlado',
     targetRpe:number(input.targetRpe,7,{min:1,max:10}),
     targetRir:number(input.targetRir,3,{min:0,max:10}),
@@ -126,15 +126,22 @@ function mergeWorkspaceTemplateRecords(left,right){
     seen.add(key);
     deduped.push(version);
   }
-  const kept=deduped.slice(-SESSION_TEMPLATE_MAX_VERSIONS).map((version,index)=>({
+  const retained=deduped.slice(-SESSION_TEMPLATE_MAX_VERSIONS);
+  const versionTip=Math.max(
+    retained.length,
+    Math.min(1_000_000,Number(left?.latestVersion)||0),
+    Math.min(1_000_000,Number(right?.latestVersion)||0),
+    retained.length ? Math.min(...retained.map((entry)=>entry.version))+retained.length-1 : 0,
+  );
+  const kept=retained.map((version,index)=>({
     ...version,
-    version:index+1,
+    version:versionTip-retained.length+index+1,
   }));
   if(!kept.length)return null;
   return {
     id:text(preferred?.id||left?.id||right?.id,160)||createM26Id(),
     name:text(preferred?.name||left?.name||right?.name,60),
-    latestVersion:kept.length,
+    latestVersion:versionTip,
     updatedAt:[leftUpdated,rightUpdated,kept.at(-1)?.createdAt||''].sort().at(-1),
     versions:kept,
   };
@@ -149,11 +156,16 @@ function safeWorkspaceTemplate(template){
     .filter(Boolean)
     .slice(-SESSION_TEMPLATE_MAX_VERSIONS);
   if(!versions.length)return null;
-  const renumbered=versions.map((version,index)=>({...version,version:index+1}));
+  const versionTip=Math.max(
+    versions.length,
+    Math.min(1_000_000,Number(template.latestVersion)||0),
+    ...versions.map((entry)=>entry.version),
+  );
+  const renumbered=versions.map((version,index)=>({...version,version:versionTip-versions.length+index+1}));
   return {
     id,
     name,
-    latestVersion:renumbered.length,
+    latestVersion:versionTip,
     updatedAt:safeIso(template.updatedAt)||renumbered.at(-1).createdAt,
     versions:renumbered,
   };
@@ -247,6 +259,7 @@ export function createSessionTemplateRepository({
     const existing=workspace.templates.find((item)=>normalizeName(item.name)===normalized)||null;
     const timestamp=now() instanceof Date?now().toISOString():new Date(now()).toISOString();
     const nextVersion=Number(existing?.latestVersion||0)+1;
+    if(nextVersion>1_000_000)throw new Error('M26_SESSION_TEMPLATE_VERSION_LIMIT');
     const versionEntry={
       version:nextVersion,
       createdAt:timestamp,

@@ -62,14 +62,45 @@ export function createExecutionSnapshot({execution,session,ownerId,appointmentId
   const snapshot={schemaVersion:VERSION,ownerId:String(ownerId||'').trim(),savedAt:safeIso(savedAt),dirty:Boolean(dirty),appointmentId:appointmentId||null,sessionRevision:Number(sessionRevision||0),execution:sanitizeExecution(execution),session:clone(session),containsCredentials:false};
   const validation=validateExecutionSnapshot(snapshot);if(!validation.ok)throw new Error(`M26_RECOVERY_SNAPSHOT_INVALID:${validation.errors.join(',')}`);return snapshot;
 }
+// Explicit local execution evidence must survive a newer remote final state.
+// Keep true zero/false values; do not compare volatile sync state or timers.
+function localEvidenceIsIncluded(local,remote,depth=0){
+  if(depth>40)return false;
+  if(Object.is(local,remote))return true;
+  if(local===null||remote===null)return false;
+  if(Array.isArray(local)){
+    return Array.isArray(remote)&&local.length<=remote.length
+      &&local.every((entry,index)=>localEvidenceIsIncluded(entry,remote[index],depth+1));
+  }
+  if(local&&typeof local==='object'){
+    if(!remote||typeof remote!=='object'||Array.isArray(remote))return false;
+    return Object.keys(local).every((key)=>Object.prototype.hasOwnProperty.call(remote,key)
+      &&localEvidenceIsIncluded(local[key],remote[key],depth+1));
+  }
+  return false;
+}
+function remotePreservesLocalEvidence(local,remote){
+  for(const field of ['queue','results','events','skippedSets','skippedExercises','substitutions','feedback','activeSetDraft','finalFeedbackDraft']){
+    const value=local?.[field];
+    if(value===undefined||value===null)continue;
+    if(!localEvidenceIsIncluded(value,remote?.[field]))return false;
+  }
+  return true;
+}
 export function reconcileExecutionSnapshots({local,remote}={}){
   if(!local)return {kind:'remote',snapshot:clone(remote),conflict:null};if(!remote)return {kind:'local',snapshot:clone(local),conflict:null};
   const localValidation=validateExecutionSnapshot(local),remoteValidation=validateExecutionSnapshot(remote);
   if(!localValidation.ok&&!remoteValidation.ok)return {kind:'invalid',snapshot:null,conflict:{code:'BOTH_SNAPSHOTS_INVALID',localErrors:localValidation.errors,remoteErrors:remoteValidation.errors}};
   if(!localValidation.ok)return {kind:'remote',snapshot:clone(remote),conflict:null};if(!remoteValidation.ok)return {kind:'local',snapshot:clone(local),conflict:null};
-  if(local.ownerId!==remote.ownerId||local.execution.clientId!==remote.execution.clientId||local.execution.sessionId!==remote.execution.sessionId)return {kind:'conflict',snapshot:clone(local),conflict:{code:'SNAPSHOT_SCOPE_MISMATCH'}};
+  if(local.ownerId!==remote.ownerId||local.execution.id!==remote.execution.id||local.execution.clientId!==remote.execution.clientId||local.execution.sessionId!==remote.execution.sessionId)return {kind:'conflict',snapshot:clone(local),conflict:{code:'SNAPSHOT_SCOPE_MISMATCH'}};
   const localRevision=Number(local.execution.revision||0),remoteRevision=Number(remote.execution.revision||0);
-  if(SETTLED.has(remote.execution.status)&&remoteRevision>=localRevision)return {kind:'remote',snapshot:clone(remote),conflict:null};
+  if(SETTLED.has(remote.execution.status)&&remoteRevision>=localRevision){
+    if(SETTLED.has(local.execution.status)&&local.execution.status!==remote.execution.status)
+      return {kind:'conflict',snapshot:clone(local),conflict:{code:'SNAPSHOT_FINAL_STATUS_CONFLICT',localRevision,remoteRevision}};
+    if(local.dirty&&!remotePreservesLocalEvidence(local.execution,remote.execution))
+      return {kind:'conflict',snapshot:clone(local),conflict:{code:'REMOTE_SETTLED_LOCAL_EVIDENCE_CONFLICT',localRevision,remoteRevision}};
+    return {kind:'remote',snapshot:clone(remote),conflict:null};
+  }
   if(remoteRevision>localRevision&&local.dirty)return {kind:'conflict',snapshot:clone(local),conflict:{code:'REMOTE_REVISION_AHEAD',localRevision,remoteRevision,localStatus:local.execution.status,remoteStatus:remote.execution.status}};
   if(remoteRevision>localRevision)return {kind:'remote',snapshot:clone(remote),conflict:null};
   return {kind:'local',snapshot:clone(local),conflict:null};

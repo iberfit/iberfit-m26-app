@@ -288,7 +288,7 @@ export function suggestedSetDraftValues(execution,session){
   return planned?{source:'planned',values:planned}:null;
 }
 export function hasNextExecutionStep(execution){return Boolean(nextUnresolvedPosition(execution));}
-export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null}={}){
+export function repeatPreviousSet(execution,session,{restSeconds=null,rpe=null,rir=null,actor=null}={}){
   requireCoachActor(actor);
   if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   const values=previousSetDraftValues(execution);
@@ -299,7 +299,11 @@ export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null
   if(!Number.isFinite(rest)||rest<0||rest>3600)throw new Error('M26_EXECUTION_REST_INVALID');
   const sourceSetNumber=Number(execution.setIndex);
   const targetSetNumber=Number(step.setNumber);
-  recordSet(execution,session,{...values,actor});
+  // A prior observed RPE/RIR cannot be asserted for a new set by copying it.
+  const observedRpe=String(rpe??'').trim();
+  if(!observedRpe||!Number.isFinite(Number(observedRpe))||Number(observedRpe)<1||Number(observedRpe)>10)
+    throw new Error('M26_EXECUTION_RPE_OBSERVED_REQUIRED');
+  recordSet(execution,session,{reps:values.reps,seconds:values.seconds,load:values.load,rpe:observedRpe,rir,actor});
   if(hasNextExecutionStep(execution))beginRest(execution,rest,{actor});
   event(execution,'SET_REPEATED_FROM_PREVIOUS',{sourceSetNumber,targetSetNumber,restSeconds:rest},actor);
   return execution;

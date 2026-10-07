@@ -599,14 +599,14 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
       <main class="m26-panel m26-builder-program" aria-label="Estructura de la sesión">
         <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Sesión</p><h3>Orden y prescripción</h3></div><span>${e(metrics.blocks)} bloques</span></div>
         <div class="m26-builder-toolbar" aria-label="Añadir estructura de entrenamiento">
-          <button type="button" data-session-action="add-group" data-group-type="biserie">Biserie</button>
-          <button type="button" data-session-action="add-group" data-group-type="triserie">Triserie</button>
-          <button type="button" data-session-action="add-group" data-group-type="circuito">Circuito</button>
-          <button type="button" data-session-action="add-group" data-group-type="amrap">AMRAP</button>
-          <button type="button" data-session-action="add-group" data-group-type="tabata">Tabata</button>
+          <button type="button" ${draft.activeGroupId?'disabled title="Cierra primero el grupo activo"':''} data-session-action="add-group" data-group-type="biserie">Biserie</button>
+          <button type="button" ${draft.activeGroupId?'disabled title="Cierra primero el grupo activo"':''} data-session-action="add-group" data-group-type="triserie">Triserie</button>
+          <button type="button" ${draft.activeGroupId?'disabled title="Cierra primero el grupo activo"':''} data-session-action="add-group" data-group-type="circuito">Circuito</button>
+          <button type="button" ${draft.activeGroupId?'disabled title="Cierra primero el grupo activo"':''} data-session-action="add-group" data-group-type="amrap">AMRAP</button>
+          <button type="button" ${draft.activeGroupId?'disabled title="Cierra primero el grupo activo"':''} data-session-action="add-group" data-group-type="tabata">Tabata</button>
           ${draft.activeGroupId?'<button type="button" data-session-action="close-group">Cerrar grupo activo</button>':''}
         </div>
-        ${draft.activeGroupId?'<p class="m26-notice">Selecciona ejercicios para completar el grupo activo.</p>':''}
+        ${draft.activeGroupId?'<p class="m26-notice" role="status">Añade ejercicios o cierra el grupo actual antes de crear otro. Si cierras un grupo incompleto, los ejercicios ya añadidos pasarán a ser individuales conservando sus prescripciones.</p>':''}
         <div class="m26-builder-blocks">${blocks}</div>
       </main>
     </div>`}
@@ -993,7 +993,7 @@ const plannedSetReuse=plannedSetPreset
   ?`<div class="m26-field-grid" data-session-planned-set><div class="m26-field"><span>Punto de partida</span><strong>${e(previousSetSummary(plannedSetPreset))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-planned-set" aria-label="Usar el objetivo planificado como borrador y revisarlo antes de confirmar">Usar objetivo y revisar</button></div><small class="m26-session-repeat-note">Solo completa el borrador · confirma después lo que realmente se hizo.</small></div></div>`
   :'';
 const previousSetReuse=previousSet
-  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
   :'';
 const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
@@ -1196,7 +1196,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
               <span>Repeticiones/tiempo</span>
               <strong>${e(planned.reps||'Según indicación')}</strong>
             </div>
-            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>No se autocompleta</small></div>`:''}
+            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>${role==='coach'?'Puede prepararse como borrador editable; confirma la carga realizada':'No se autocompleta la carga realizada'}</small></div>`:''}
             <div class="m26-field">
               <span>Descanso</span>
               <strong>${e(planned.restSeconds??60)} s</strong>

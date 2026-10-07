@@ -113,7 +113,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return progressMutation(execution,commandBus,online);
     }
     case 'repeat-previous-set': {
-      repeatPreviousSet(execution,session,{restSeconds:payload.restSeconds??60,actor});
+      repeatPreviousSet(execution,session,{restSeconds:payload.restSeconds??60,rpe:payload.rpe,rir:payload.rir,actor});
       return progressMutation(execution,commandBus,online);
     }
     case 'correct-set': {
@@ -393,6 +393,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       const active=Number.isFinite(selected)&&Number.isFinite(value)&&selected===value;
       button.setAttribute?.('aria-pressed',active?'true':'false');
     }
+    const currentRpe=String(input?.value??'').trim();
+    const hasObservedRpe=Boolean(currentRpe)&&Number.isFinite(selected)&&selected>=1&&selected<=10;
+    for(const repeat of root.querySelectorAll?.('[data-session-action=\"repeat-previous-set\"]')||[]){
+      const priorRpe=String(repeat.getAttribute?.('data-rpe-value')??'').trim();
+      const priorValid=Boolean(priorRpe)&&Number.isFinite(Number(priorRpe))&&Number(priorRpe)>=1&&Number(priorRpe)<=10;
+      repeat.disabled=!(hasObservedRpe||priorValid);
+      repeat.setAttribute?.('aria-label',hasObservedRpe?'Completar con el RPE real indicado':priorValid?'Confirmar RPE '+priorRpe+' como esfuerzo real de esta serie y completar':'Indica primero el RPE real para repetir el trabajo anterior');
+    }
   }
   function focusCoachReviewField(values={}){
     const rpe=root.querySelector?.('[data-set-field="rpe"]');
@@ -623,6 +631,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(action==='finish')finishPending=true;
     const actionState=context.actionState;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
     const task=async()=>{await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();await flushExecutionDraft(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
+    if(action==='repeat-previous-set'){
+      // One tap is truthful only if Coach explicitly confirms the displayed prior RPE.
+      const enteredRpe=String(root.querySelector?.('[data-set-field="rpe"]')?.value??'').trim();
+      payload.rpe=enteredRpe||String(button.getAttribute('data-rpe-value')||'').trim();
+    }
     if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
     if(action==='skip-exercise')payload.reason=root.querySelector?.('[data-session-skip-exercise-reason]')?.value;
     if(action==='add-live-exercise'){
@@ -659,7 +672,27 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution});if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}onError(outcome.error);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
-  function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
+  function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
+      // The whole builder is rendered on each search. Restore active text input
+      // and caret to avoid losing keyboard focus, particularly on mobile.
+      const wasFocused=root.ownerDocument?.activeElement===search;
+      let range=null;
+      if(wasFocused){
+        try{range=[search.selectionStart,search.selectionEnd,search.selectionDirection];}catch{}
+      }
+      context.setQuery?.(search.value);
+      renderSession();
+      if(wasFocused){
+        const replacement=root.querySelector?.('[data-session-search]');
+        if(replacement){
+          try{
+            replacement.focus({preventScroll:true});
+            if(range&&Number.isInteger(range[0])&&Number.isInteger(range[1]))
+              replacement.setSelectionRange(range[0],range[1],range[2]||'none');
+          }catch{replacement.focus?.();}
+        }
+      }
+    }
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}

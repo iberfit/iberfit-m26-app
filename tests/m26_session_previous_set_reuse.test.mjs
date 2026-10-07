@@ -113,7 +113,9 @@ test('Session Live offers review reuse to Client and one-tap completion only to 
   assert.match(coachHtml,/data-session-action="repeat-previous-set"/);
   assert.match(coachHtml,/data-rest-seconds="60"/);
   assert.match(coachHtml,/Repetir y completar/);
-  assert.match(coachHtml,/Acción rápida del Coach · no copia notas/);
+  assert.match(coachHtml,/Si el esfuerzo fue igual, confirma RPE anterior en un toque/);
+  assert.match(coachHtml,/No copia notas ni RIR/);
+  assert.match(coachHtml,/data-rpe-value="8"/);
 
   const firstExecution=createExecution({session,clientId:session.clientId,executionId:'execution-first-ui'});
   startExecution(firstExecution);
@@ -175,14 +177,15 @@ test('repeatPreviousSet is Coach-only, copies metrics without notes and starts p
   const beforeEvents=execution.events.length;
   repeatPreviousSet(execution,session,{
     restSeconds:60,
+    rpe:9, // effort explicitly recorded for the current set
     actor:{role:'coach',userId:'coach-1'},
   });
   const step=currentStep(execution,session);
   const result=executionResultForStep(execution,step);
   assert.equal(result.reps,10);
   assert.equal(result.load,'80 kg');
-  assert.equal(result.rpe,8);
-  assert.equal(result.rir,2);
+  assert.equal(result.rpe,9);
+  assert.equal(result.rir,null);
   assert.equal(result.notes,'');
   assert.ok(new Date(execution.restUntil).getTime()>Date.now());
   assert.equal(execution.events.length,beforeEvents+3);
@@ -193,6 +196,14 @@ test('repeatPreviousSet is Coach-only, copies metrics without notes and starts p
     restSeconds:60,
   });
   assert.equal(execution.events.at(-1)?.actor?.role,'coach');
+});
+
+test('repeatPreviousSet requires real current RPE before mutating or resting',()=>{
+  const {session,execution}=executionOnSecondSet();
+  const step=currentStep(execution,session);
+  assert.throws(()=>repeatPreviousSet(execution,session,{restSeconds:60,actor:{role:'coach',userId:'coach-1'}}),/M26_EXECUTION_RPE_OBSERVED_REQUIRED/);
+  assert.equal(executionResultForStep(execution,step),null);
+  assert.equal(execution.restUntil,null);
 });
 
 test('repeatPreviousSet rejects Client actor without mutating current set',()=>{
@@ -214,7 +225,7 @@ test('controller dispatches Coach one-tap repeat through the normal execution pr
     execution,
     session,
     catalog,
-    payload:{restSeconds:60},
+    payload:{restSeconds:60,rpe:9},
     actor:{role:'coach',userId:'coach-1'},
     commandBus:null,
   });
