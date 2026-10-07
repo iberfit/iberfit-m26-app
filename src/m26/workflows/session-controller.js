@@ -704,6 +704,17 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   return true;
 }
 async function click(event){
+  const reviewBlock=event.target.closest?.('[data-session-review-block]');
+  if(reviewBlock){
+    event.preventDefault?.();
+    const blockId=String(reviewBlock.getAttribute('data-session-review-block')||'').trim();
+    const target=blockId?Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===blockId):null;
+    if(target){
+      try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}
+      focusBuilderBlock(blockId);
+    }
+    return;
+  }
   const jump=event.target.closest?.('[data-session-jump]');
   if(jump){
     event.preventDefault?.();
