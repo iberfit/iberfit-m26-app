@@ -1,0 +1,53 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-COPENHAGEN-PLANK-CORTO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B4-COPENHAGEN/movement-6902d80624e3.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT: Copenhagen plank corto en banco, patrón visual golden IBERFIT confirmado."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-COPENHAGEN-PLANK-CORTO/movement-6902d80624e3.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "6902d80624e39f35ca3412e6cf1af15024cfab80e9c889839c2ce3aa071bb63b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "aductores",
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
