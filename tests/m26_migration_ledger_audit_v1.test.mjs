@@ -33,7 +33,11 @@ test('#764 mismatched version is not treated as unapplied SQL',()=>{
   });
   assert.deepEqual(report.missingByName.prod,['beta_qa']);
   assert.deepEqual(report.historyNotInRepository.prod,['historical']);
-  assert.deepEqual(report.versionDrift.map(v=>v.name),['alpha']);
+  assert.deepEqual(report.versionDrift.map(v=>v.name),['alpha','beta_qa']);
+  const missingInProd=report.versionDrift.find(v=>v.name==='beta_qa');
+  assert.equal(missingInProd.qaAligned,false);
+  assert.equal(missingInProd.prodAligned,null);
+  assert.deepEqual(missingInProd.prodVersions,[]);
   assert.equal(report.versionDrift[0].qaAligned,true);
   assert.equal(report.versionDrift[0].prodAligned,false);
   assert.equal(report.attentionRequired,true);
