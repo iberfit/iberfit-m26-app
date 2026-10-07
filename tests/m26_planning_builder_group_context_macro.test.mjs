@@ -49,5 +49,5 @@ test('al completar el grupo desaparece el contexto de alta',()=>{
 test('el contexto de grupo mantiene touch y responsive premium',()=>{
   const css=fs.readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
   assert.match(css,/\.m26-builder-group-target button\{[\s\S]*?min-height:44px/u);
-  assert.match(css,/@media \(max-width:520px\)\{[\s\S]*?\.m26-builder-group-target\{[\s\S]*?flex-direction:column/u);
+  assert.match(css,/@media \(max-width:520px\)\{[\s\S]*?\.m26-builder-group-target(?:,\s*\.m26-builder-template-adaptation)?\{[\s\S]*?flex-direction:column/u);
 });

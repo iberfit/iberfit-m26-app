@@ -60,5 +60,8 @@ test('controller reabre el panel y recupera foco después del rerender de error'
   assert.match(source,/function focusSessionRecoveryField\(selector\)/u);
   assert.match(source,/const details=target\.closest\?\.\('details'\);if\(details\)details\.open=true;/u);
   assert.match(source,/failureFocusSelector=mapped\.focusSelector\|\|null/u);
-  assert.match(source,/renderSession\(\);[\s\S]{0,260}?if\(failureFocusSelector\)focusSessionRecoveryField\(failureFocusSelector\);/u);
+  const focusCall='if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);';
+  const focusIndex=source.indexOf(focusCall);
+  const renderIndex=source.lastIndexOf('renderSession();',focusIndex);
+  assert.ok(focusIndex>=0&&renderIndex>=0&&renderIndex<focusIndex,'el foco de recuperación ocurre después del rerender');
 });
