@@ -1,0 +1,49 @@
+{
+  "version": "iberfit.exercise.library.golden-pattern.v1",
+  "status": "canonical",
+  "production_style": "iberfit-premium-movement-pair-v1",
+  "delivery": {"width":640,"height":800,"format":"webp","aspect_ratio":"4:5"},
+  "layout": {
+    "panels":2,
+    "split":"vertical-50-50",
+    "start":"left",
+    "final":"right",
+    "divider":"thin",
+    "phase_labels":{"required":true,"start":"Inicio","final":"Final","extra_text_forbidden":true},
+    "anatomy_inset":{"required":true,"corner":"upper-right","views":["front","rear"],"text_labels":false}
+  },
+  "athlete": {
+    "same_identity_both_phases":true,
+    "approved_iberfit_male_identity":true,
+    "build":"natural-athletic",
+    "outfit":["black technical shirt","black shorts","black training shoes"],
+    "gaze":"natural-task-dependent"
+  },
+  "environment": {
+    "gym":"premium-dark-iberfit",
+    "dominant":["black","charcoal","very-dark-green"],
+    "accents":["vertical-technical-green","restrained-gold","warm-cream"],
+    "floor":"dark-reflective"
+  },
+  "movement": {
+    "canonical_id_lock":true,
+    "distinct_start_final":true,
+    "relevant_kinetic_chain_visible":true,
+    "equipment_continuity":true,
+    "camera_selected_for_biomechanics":true,
+    "pose_reuse_from_other_exercise_forbidden":true
+  },
+  "forbidden": [
+    "infographic","exercise-title","instructions","repetitions","arrows","numbered-steps",
+    "more-than-two-panels","thumbnail-strip","side-rail","edit-share-download-ui","collage",
+    "identity-change","gym-change","background-people","invented-equipment","anatomical-errors",
+    "relabelled-previous-exercise","cream-studio","bright-daylight-studio","neon-cyber"
+  ],
+  "qa_gate": [
+    "exact-canonical-exercise","correct-equipment","valid-start-final","biomechanics-valid",
+    "all-relevant-limbs-visible","same-athlete","same-gym","correct-layout","labels-only",
+    "upper-right-anatomy","natural-gaze","no-extra-ui"
+  ],
+  "human_review_required": true,
+  "publish_only_after_human_approval": true
+}
