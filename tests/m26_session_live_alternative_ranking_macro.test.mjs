@@ -22,7 +22,9 @@ function render({alternativeId=null,role='coach'}={}){
 
 test('Session Live prioriza mismo patrón y material antes de otro material',()=>{
   const html=render();
-  const select=html.match(/<select data-session-substitute[^>]*>[\\s\\S]*?<\\/select>/u)?.[0]||'';
+  const start=html.indexOf('<select data-session-substitute');
+  const end=start>=0?html.indexOf('</select>',start):-1;
+  const select=start>=0&&end>start?html.slice(start,end+'</select>'.length):'';
   assert.match(select,/optgroup label="Mismo patrón y material"><option value="b">/u);
   assert.match(select,/optgroup label="Mismo patrón · otro material"><option value="c">/u);
   assert.doesNotMatch(select,/<option value="d"/u);
