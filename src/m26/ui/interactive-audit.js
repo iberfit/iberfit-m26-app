@@ -8,6 +8,8 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'close-group':{roles:['admin','coach'],domain:'session'},
   'exit-session':{roles:['admin','coach','client'],domain:'session'},
   'remove-block':{roles:['admin','coach'],domain:'session'},
+  'restore-block':{roles:['admin','coach'],domain:'session'},
+  'clear-library-filters':{roles:['admin','coach'],domain:'session'},
   'duplicate-block':{roles:['admin','coach'],domain:'session'},
   'add-group':{roles:['admin','coach'],domain:'session'},
   'save-draft':{roles:['admin','coach'],domain:'session'},
