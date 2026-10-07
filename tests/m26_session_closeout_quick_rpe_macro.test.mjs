@@ -33,9 +33,9 @@ test('RPE final rápido es una acción exclusiva del Coach',()=>{
 });
 
 test('RPE final rápido conserva traducciones y targets táctiles útiles',()=>{
-  assert.notEqual(iberfitSurfaceTranslate('RPE final rápido',{language:'en'}),'RPE final rápido');
-  assert.notEqual(iberfitSurfaceTranslate('RPE final rápido',{language:'fr'}),'RPE final rápido');
-  assert.notEqual(iberfitSurfaceTranslate('RPE final rápido',{language:'pt'}),'RPE final rápido');
+  assert.equal(iberfitSurfaceTranslate('RPE final rápido',{language:'en'}),'Quick final RPE');
+  assert.equal(iberfitSurfaceTranslate('RPE final rápido',{language:'fr'}),'RPE final rapide');
+  assert.equal(iberfitSurfaceTranslate('RPE final rápido',{language:'pt'}),'RPE final rápido');
   const css=fs.readFileSync('src/m26/design/premium-ux.css','utf8');
   assert.match(css,/\.m26-session-feedback-rpe-quick\{[\s\S]*?grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/u);
   assert.match(css,/\.m26-session-feedback-rpe-quick button\{[\s\S]*?min-height:3rem/u);
