@@ -14,6 +14,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'add-group':{roles:['admin','coach'],domain:'session'},
   'save-draft':{roles:['admin','coach'],domain:'session'},
   'load-template':{roles:['admin','coach'],domain:'session'},
+  'apply-client-duration':{roles:['admin','coach'],domain:'session'},
   'restore-template-load':{roles:['admin','coach'],domain:'session'},
   'save-template':{roles:['admin','coach'],domain:'session'},
   'publish':{roles:['admin','coach'],domain:'session'},
