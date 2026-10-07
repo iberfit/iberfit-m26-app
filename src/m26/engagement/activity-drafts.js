@@ -3,7 +3,14 @@ const SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const SAFE_SCOPE_PATTERN=/^[a-z0-9][a-z0-9._-]{0,79}$/i;
 function clone(value){return value==null?value:structuredClone(value);}
 function number(value){const n=Number(value);return Number.isFinite(n)?n:null;}
-function score(value){const n=number(value);return n!==null&&n>=0&&n<=10?n:null;}
+function score(value){
+  // A blank form control is missing information, not a true score of zero.
+  // Also reject boolean/array/object coercion before parsing restored drafts.
+  if(value==null||typeof value==='boolean'||typeof value==='object')return null;
+  if(typeof value==='string'&&!value.trim())return null;
+  const n=number(value);
+  return n!==null&&n>=0&&n<=10?n:null;
+}
 function provided(value){return value!==undefined&&value!==null&&String(value).trim()!=='';}
 function bool(value){return value===true||value==='true'||value==='1'||value==='on'||value===1;}
 function iso(value){const ms=new Date(value||new Date()).getTime();return Number.isFinite(ms)?new Date(ms).toISOString():null;}
