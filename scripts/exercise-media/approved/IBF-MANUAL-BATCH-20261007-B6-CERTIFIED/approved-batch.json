@@ -1,0 +1,189 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-90-90-DE-CADERA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B6-CERTIFIED/movement-8f74389ca2ac.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita. Excepción deliberada: 90/90 requiere tres fases (Inicio, Fase intermedia, Final); el activo aprobado se conserva completo sobre lienzo 4:5 sin recorte."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-90-90-DE-CADERA/movement-8f74389ca2ac.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "8f74389ca2ac6181b359584a6495e5d3a3ba2f2f896ea69d06a0185886806032"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteos",
+            "aductores"
+          ],
+          "secondary": [
+            "rotadores de cadera"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-ABDUCCION-DE-CADERA-EN-MAQUINA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B6-CERTIFIED/movement-6332da7c8b6c.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ABDUCCION-DE-CADERA-EN-MAQUINA/movement-6332da7c8b6c.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "6332da7c8b6c09b7dd602bd5882fba93e360be2548de79ce5f61b5ab937f1852"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo medio",
+            "abductores"
+          ],
+          "secondary": [
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-AIR-BIKE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B6-CERTIFIED/movement-ab614320369d.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT; mismo maniquí masculino IBERFIT y mirada natural validados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-AIR-BIKE/movement-ab614320369d.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "ab614320369df8dd0bf531adf62d32373dbf5da1bfbac1114005247f9551e450"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "global"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-DEAD-BUG-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B6-CERTIFIED/movement-375d284a9302.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita previa del propietario IBERFIT; lote anterior no publicado se consolida aquí."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-DEAD-BUG-CON-BANDA/movement-375d284a9302.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "375d284a9302ad832601b6e0d2ecad2f64f3be7d397c0859c0f37086ffcbb3f4"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
