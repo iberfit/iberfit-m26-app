@@ -18,7 +18,7 @@ test('alternativas priorizan mismo patrón y material y separan otro material',(
   assert.match(html,/optgroup label="Mismo patrón y material"/u);
   assert.match(html,/optgroup label="Mismo patrón y material"><option value="b">/u);
   assert.match(html,/optgroup label="Mismo patrón · otro material"><option value="c">/u);
-  assert.doesNotMatch(html,/Sentadilla/u);
+  assert.doesNotMatch(html,/<option value="d"/u);
   assert.match(html,/IBERFIT no cambia el ejercicio automáticamente/u);
 });
 
