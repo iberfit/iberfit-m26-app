@@ -1,4 +1,5 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {normalizeAppointmentStatus} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
 import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
@@ -15,8 +16,8 @@ function titleOf(record,fallback='Sesión IBERFIT'){return String(field(record,'
 function forClient(state,key,clientId){const expected=String(clientId||'').trim();return arr(state?.collections?.[key]).filter((item)=>clientIdOf(item)===expected);}
 function byDateDesc(a,b){return (safeDate(dateOf(b))?.getTime()||0)-(safeDate(dateOf(a))?.getTime()||0);}
 function byDateAsc(a,b){return (safeDate(dateOf(a))?.getTime()||0)-(safeDate(dateOf(b))?.getTime()||0);}
-function percent(value){return Number.isFinite(Number(value))?Math.round(Number(value)*100):null;}
-function finite(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function percent(value){const measured=finite(value);return measured===null?null:Math.round(measured*100);}
+function finite(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function text(value,max=1600){return String(value??'').trim().slice(0,max);}
 function feedbackOf(execution){
   const item=unwrap(execution);
@@ -31,7 +32,7 @@ function feedbackOf(execution){
 function nextAppointment(state,clientId,now){
   const nowMs=(now instanceof Date?now:new Date(now)).getTime();
   return forClient(state,'appointments',clientId)
-    .filter((item)=>!['cancelado','cancelled','anulado','annulled'].includes(statusOf(item)))
+    .filter((item)=>normalizeAppointmentStatus(statusOf(item))==='confirmada')
     .filter((item)=>(safeDate(field(item,'startAt','start_at'))?.getTime()||0)>=nowMs)
     .sort(byDateAsc)[0]||null;
 }
@@ -61,7 +62,7 @@ function latestIri(state,clientId){
 function loadLabel(load){
   if(!load)return null;
   if(load.raw!==undefined&&load.raw!==null&&String(load.raw).trim())return String(load.raw).trim().slice(0,80);
-  if(Number.isFinite(Number(load.value))){
+  if(finite(load.value)!==null){
     const unit=String(load.unit||load.comparableKey||'').trim();
     return `${Number(load.value)}${unit?` ${unit}`:''}`;
   }
@@ -106,6 +107,7 @@ function iriContext(state,clientId,progress){
 function reviewReasons({progress,outcomes,feedback,session}={}){
   const reasons=[];
   if(!session)reasons.push(Object.freeze({kind:'session',label:'No hay una sesión preparada para revisar.'}));
+  else if(!STARTABLE_SESSION_STATES.has(statusOf(session)))reasons.push(Object.freeze({kind:'session-unpublished',label:'La sesión disponible todavía no está publicada. Revisa y publica antes de iniciar.'}));
   if(outcomes?.openCount)reasons.push(Object.freeze({kind:'decision',label:`${outcomes.openCount} decisión${outcomes.openCount===1?'':'es'} pendiente${outcomes.openCount===1?'':'s'} de resultado.`}));
   if(outcomes?.overdueCount)reasons.push(Object.freeze({kind:'decision-overdue',label:`${outcomes.overdueCount} seguimiento${outcomes.overdueCount===1?'':'s'} con revisión vencida.`}));
   if(feedback?.pain)reasons.push(Object.freeze({kind:'pain',label:'La última sesión registró dolor; revisa el contexto antes de decidir.'}));
@@ -127,14 +129,16 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const outcomes=summarizeActionOutcomes(state?.collections?.m26Entities||[],safeClientId,{now});
   const memories=recentExerciseMemory(state,safeClientId,exerciseName);
   const iri=iriContext(state,safeClientId,progress);
-  const reasons=reviewReasons({progress,outcomes,feedback,session});
+  const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
+  const reasons=[...reviewReasons({progress,outcomes,feedback,session})];
+  const sessionId=idOf(session)||null;
+  const appointmentMismatch=Boolean(appointmentSessionId&&appointmentSessionId!==sessionId);
+  if(appointmentMismatch)reasons.push(Object.freeze({kind:'appointment-session-mismatch',label:'La cita confirmada apunta a una sesión diferente o no disponible. Revisa la vinculación antes de iniciar.'}));
   const appointmentStart=field(appointment,'startAt','start_at')||null;
   const appointmentEnd=field(appointment,'endAt','end_at')||null;
-  const sessionId=idOf(session)||null;
   const sessionStatus=session?statusOf(session):null;
-  const sessionStartable=Boolean(sessionId&&STARTABLE_SESSION_STATES.has(sessionStatus));
-  const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
-  const sessionSource=sessionId&&appointmentSessionId===sessionId
+  const sessionStartable=Boolean(sessionId&&STARTABLE_SESSION_STATES.has(sessionStatus)&&!appointmentMismatch);
+  const sessionSource=appointmentMismatch?'appointment-mismatch':sessionId&&appointmentSessionId===sessionId
     ?'appointment'
     :sessionStartable
       ?'published'
@@ -194,7 +198,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       needsReview:outcomes.needsReview||null,
     }),
     reviewRequired:reasons.length>0,
-    reviewReasons:reasons,
+    reviewReasons:Object.freeze(reasons),
     evidence:Object.freeze({
       dataQuality:progress?.dataQuality||'limitada',
       exerciseMemories:memories.length,

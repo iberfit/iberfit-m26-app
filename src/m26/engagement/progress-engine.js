@@ -1,4 +1,5 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
+import {normalizeAppointmentStatus} from '../domain/appointment.js';
 import {parseDateValue} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
@@ -324,8 +325,10 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   if(!clientId)return null;
   const window=progressWindow({now,days}),{start,end}=window;
   const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
-  const planned=appointments.filter((item)=>!['cancelado','cancelled','anulado','annulled'].includes(statusOf(item)));
-  const completedAppointments=planned.filter((item)=>['completado','completed'].includes(statusOf(item)));
+  // Preserve legacy 'planned' commitments in adherence without making them client-visible confirmed appointments.
+  // No-shows count as planned but not performed. Do not count draft proposals or cancellations.
+  const planned=appointments.filter((item)=>statusOf(item)==='planned'||['confirmada','realizada','ausencia_cliente','ausencia_coach'].includes(normalizeAppointmentStatus(statusOf(item))));
+  const completedAppointments=planned.filter((item)=>normalizeAppointmentStatus(statusOf(item))==='realizada');
   const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
