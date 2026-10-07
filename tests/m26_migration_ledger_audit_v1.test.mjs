@@ -56,6 +56,7 @@ test('#764 duplicates are reported by semantic name separately from timestamp dr
 
 test('#764 rejects malformed and path-like input without guessing history',()=>{
   assert.throws(()=>parseRepositoryFiles(['foo.sql']),/INVALID_FILENAME/u);
+  assert.throws(()=>parseRepositoryFiles([{name:'20261001000000_alpha.sql'}]),/REPOSITORY_FILENAMES_REQUIRED/u);
   assert.throws(()=>parseRepositoryFiles(['../20261001000000_alpha.sql']),/INVALID_FILE/u);
   assert.throws(()=>auditMigrationLedger({
     repositoryFiles:[],
