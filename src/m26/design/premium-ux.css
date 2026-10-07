@@ -535,7 +535,8 @@ body {
   .m26-session-live .m26-session-live-entry :is(input,select) { min-height: 3.9rem; padding: .7rem .75rem; font-size: 1.22rem; }
   .m26-session-live .m26-session-rest-countdown strong { font-size: clamp(2.7rem, 13vw, 4.2rem); }
   .m26-session-live .m26-session-live-actions > * { min-height: 3.6rem; }
-  .m26-session-live .m26-session-live-entry [data-session-action="complete-set"] { position: sticky; bottom: calc(var(--iberfit-ux-mobile-nav) + env(safe-area-inset-bottom) + .6rem); z-index: 45; min-height: 4.4rem; margin-top: .35rem; box-shadow: 0 18px 38px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.06); }
+  .m26-session-live .m26-session-live-entry [data-session-action="complete-set"] { position: sticky; bottom: calc(env(safe-area-inset-bottom) + .6rem); z-index: 45; min-height: 4.4rem; margin-top: .35rem; box-shadow: 0 18px 38px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.06); }
+  [data-m26-layout="compact-touch"] .m26-session-live .m26-session-live-entry [data-session-action="complete-set"] { bottom: calc(var(--iberfit-ux-mobile-nav) + env(safe-area-inset-bottom) + .6rem); }
   .m26-session-live .m26-session-live-options { padding-top: .85rem; }
   .m26-session-live .m26-session-live-options > h3,.m26-session-live .m26-session-live-options > p { margin-top: 0; }
 }
@@ -1103,6 +1104,34 @@ body {
   line-height:1.35;
 }
 
+.m26-session-feedback-rpe-quick{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.42rem;
+  margin:.15rem 0 .35rem;
+}
+.m26-session-feedback-rpe-quick>span{
+  grid-column:1/-1;
+  color:var(--m26-muted,#aaa);
+  font-size:.72rem;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.m26-session-feedback-rpe-quick button{
+  min-width:0;
+  min-height:3rem;
+  padding:.5rem .4rem;
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 28%,transparent);
+  font-variant-numeric:tabular-nums;
+  font-weight:800;
+}
+.m26-session-feedback-rpe-quick button[aria-pressed="true"]{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 72%,transparent);
+  background:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 18%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 20%,transparent);
+}
+
 .m26-session-live-v3 .m26-session-coach-rpe-quick{
   display:flex;
   align-items:center;
@@ -1256,7 +1285,7 @@ body {
 
   .m26-session-live-v3 .m26-session-live-quick-actions{
     position:sticky;
-    top:.4rem;
+    top:var(--m26-session-sticky-top,.4rem);
     z-index:20;
     width:max-content;
     max-width:100%;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
-import {canSubstituteCurrentExercise,createExecution,startExecution,recordSet,advanceExecution,skipExecutionSet,substituteExercise} from '../src/m26/workflows/session-execution.js';
+import {canSubstituteCurrentExercise,currentExerciseSubstitutionScope,createExecution,startExecution,recordSet,advanceExecution,skipExecutionSet,substituteExercise} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../baseline_m25_2/exercise-catalog-m25.json',import.meta.url)));
@@ -46,32 +46,39 @@ test('substitution remains allowed before the occurrence has progress',()=>{
   assert.equal(execution.queue[0].exerciseId,to);
 });
 
-test('substitution is blocked after an earlier set was recorded',()=>{
+test('substitution after a recorded set preserves history and replaces only remaining sets',()=>{
   const {session,execution,from,to}=setup();
   startExecution(execution);
-  assert.equal(canSubstituteCurrentExercise(execution),true);
   recordSet(execution,session,{reps:10,rpe:7});
   advanceExecution(execution);
   assert.equal(execution.setIndex,1);
-  assert.equal(canSubstituteCurrentExercise(execution),false);
+  assert.equal(canSubstituteCurrentExercise(execution),false,'el helper histórico bloquea sustituir toda la ocurrencia tras progreso');
+  assert.equal(currentExerciseSubstitutionScope(execution),'remaining');
   const markup=renderGuidedExecution({execution,session,catalog});
   const substituteButton=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
-  assert.match(substituteButton,/disabled aria-disabled="true"/);
-  assert.throws(()=>substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Cambio tardío'}),/M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED/);
-  assert.equal(execution.queue[0].exerciseId,from);
-  assert.ok(execution.results[from+':1']);
+  assert.doesNotMatch(substituteButton,/disabled aria-disabled="true"/);
+  assert.match(markup,/Usar alternativa en las series restantes/);
+  substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Cambio por molestia'});
+  assert.deepEqual(execution.queue.map((item)=>[item.exerciseId,item.sets]),[[from,1],[to,1]]);
+  assert.ok(execution.results[from+':1'],'la primera serie registrada se conserva en el ejercicio original');
+  assert.equal(execution.index,1);
+  assert.equal(execution.setIndex,0);
 });
 
-test('substitution is blocked after an earlier set was explicitly skipped',()=>{
+test('substitution after a skipped set preserves the skip and replaces only remaining sets',()=>{
   const {session,execution,from,to}=setup();
   startExecution(execution);
   skipExecutionSet(execution,session,{reason:'Molestia puntual'});
   assert.equal(execution.setIndex,1);
-  assert.equal(canSubstituteCurrentExercise(execution),false);
+  assert.equal(canSubstituteCurrentExercise(execution),false,'el helper histórico bloquea sustituir toda la ocurrencia tras una serie omitida');
+  assert.equal(currentExerciseSubstitutionScope(execution),'remaining');
   const markup=renderGuidedExecution({execution,session,catalog});
   const substituteButton=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
-  assert.match(substituteButton,/disabled aria-disabled="true"/);
-  assert.throws(()=>substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Cambio tardío'}),/M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED/);
-  assert.equal(execution.queue[0].exerciseId,from);
-  assert.ok(execution.skippedSets[from+':1']);
+  assert.doesNotMatch(substituteButton,/disabled aria-disabled="true"/);
+  assert.match(markup,/Usar alternativa en las series restantes/);
+  substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Cambio tras molestia'});
+  assert.deepEqual(execution.queue.map((item)=>[item.exerciseId,item.sets]),[[from,1],[to,1]]);
+  assert.ok(execution.skippedSets[from+':1'],'la omisión registrada se conserva en el ejercicio original');
+  assert.equal(execution.index,1);
+  assert.equal(execution.setIndex,0);
 });

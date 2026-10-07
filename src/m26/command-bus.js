@@ -169,7 +169,6 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   }
 
   async function rebaseNextQueuedLineage(source,response){
-    if(source?.queuedOffline!==true)return null;
     const lineage=executionLineage(source),revision=ackExecutionRevision(source,response);
     if(!lineage||revision===null)return null;
     const records=(await repository.list()).filter((record)=>executionLineage(record)===lineage&&compareQueueOrder(record,source)>0).sort(compareQueueOrder);
@@ -215,7 +214,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
         }else{
           await repository.remove(command.operationId);
         }
-        if(queuedOffline===true)await rebaseNextQueuedLineage({...queued,...command},response);
+        await rebaseNextQueuedLineage({...queued,...command},response);
         if (typeof rehydrate === 'function') await rehydrate({ reason: kind, response });
         return { ok: true, kind, command: sanitizeOperation({ ...(acknowledged||queued), status: 'ack' }), response };
       }

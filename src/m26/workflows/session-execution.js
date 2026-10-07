@@ -460,9 +460,13 @@ function moveForward(execution,actor=null,{reviewHistory=false}={}){
 }
 export function markExecutionSync(execution,status,{operationId=null,errorCode=null}={}){
   if(!['clean','pending','conflict','rejected'].includes(status))throw new Error('M26_EXECUTION_SYNC_STATUS_INVALID');
-  execution.syncStatus=status;execution.lastSyncError=errorCode||null;
-  const ids=new Set(execution.pendingOperationIds||[]);if(operationId&&status==='pending')ids.add(operationId);if(operationId&&status!=='pending')ids.delete(operationId);execution.pendingOperationIds=[...ids];
-  if(status==='clean'&&!operationId)execution.pendingOperationIds=[];
+  const ids=new Set(execution.pendingOperationIds||[]);
+  if(operationId&&status==='pending')ids.add(operationId);
+  if(operationId&&status!=='pending')ids.delete(operationId);
+  if(status==='clean'&&!operationId)ids.clear();
+  execution.pendingOperationIds=[...ids];
+  execution.syncStatus=status==='clean'&&ids.size?'pending':status;
+  execution.lastSyncError=execution.syncStatus==='pending'&&status==='clean'?null:(errorCode||null);
   return execution;
 }
 export function startExecution(execution,{actor=null}={}){
@@ -557,13 +561,24 @@ export function retreatExecution(execution,{actor=null}={}){
   if(execution.status==='awaiting_feedback'){execution.status='active';resumeExecutionClock(execution);}
   event(execution,'STEP_REWOUND',{index:execution.index,setIndex:execution.setIndex},actor);return execution;
 }
-function occurrenceHasResolvedSet(execution,item){
-  if(!item)return false;
+function resolvedSetPrefix(execution,item){
+  if(!item)return 0;
+  let prefix=0;
   for(let setNumber=1;setNumber<=Number(item.sets||0);setNumber+=1){
     const step={...item,setNumber,totalSets:item.sets};
-    if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))return true;
+    if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))prefix=setNumber;
+    else break;
   }
-  return false;
+  return prefix;
+}
+function occurrenceHasResolvedSet(execution,item){return resolvedSetPrefix(execution,item)>0;}
+export function currentExerciseSubstitutionScope(execution){
+  const item=execution?.queue?.[execution.index];
+  if(!item||execution?.reviewingHistory)return 'locked';
+  const resolved=resolvedSetPrefix(execution,item);
+  if(!resolved)return 'all';
+  if(isGroupedQueueItem(item)||resolved>=Number(item.sets||0))return 'locked';
+  return 'remaining';
 }
 export function canSubstituteCurrentExercise(execution){
   const item=execution?.queue?.[execution.index];
@@ -577,12 +592,41 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
   if(itemIndex===execution.index){
-    if(!canSubstituteCurrentExercise(execution))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    const scope=currentExerciseSubstitutionScope(execution);
+    if(scope==='locked')throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    const resolved=resolvedSetPrefix(execution,item);
     clearActiveSetDraft(execution);
+    if(resolved>0){
+      if(isGroupedQueueItem(item))throw new Error('M26_EXECUTION_SUBSTITUTION_GROUP_PROGRESS_REQUIRES_ORDER');
+      const totalSets=Number(item.sets||0);
+      const remainingSets=totalSets-resolved;
+      if(remainingSets<1)throw new Error('M26_EXECUTION_SUBSTITUTION_NO_REMAINING_SETS');
+      const replacement={
+        ...clone(item),
+        exerciseId:toExerciseId,
+        sets:remainingSets,
+        substitutedFromExerciseId:fromExerciseId,
+      };
+      item.sets=resolved;
+      execution.queue.splice(itemIndex+1,0,replacement);
+      const currentSetNumber=Number(execution.setIndex)+1;
+      const currentResolved=currentSetNumber<=resolved;
+      if(!currentResolved){
+        execution.index=itemIndex+1;
+        execution.setIndex=0;
+        execution.restUntil=null;
+      }
+      markFinalFeedbackDraftNeedsReview(execution,'exercise_substituted_after_closeout');
+      event(execution,'EXERCISE_SUBSTITUTED',{
+        fromExerciseId,toExerciseId,reason:safeReason,
+        partial:true,preservedSets:resolved,remainingSets,
+      },actor);
+      return execution;
+    }
   }
   item.exerciseId=toExerciseId;
   markFinalFeedbackDraftNeedsReview(execution,'exercise_substituted_after_closeout');
-  event(execution,'EXERCISE_SUBSTITUTED',{fromExerciseId,toExerciseId,reason:safeReason},actor);
+  event(execution,'EXERCISE_SUBSTITUTED',{fromExerciseId,toExerciseId,reason:safeReason,partial:false},actor);
   return execution;
 }
 export function addExecutionSet(execution,{actor=null}={}){
@@ -593,6 +637,110 @@ export function addExecutionSet(execution,{actor=null}={}){
   item.sets+=1;
   markFinalFeedbackDraftNeedsReview(execution,'set_added_after_closeout');
   event(execution,'SET_ADDED',{exerciseId:item.exerciseId,totalSets:item.sets},actor);
+  return execution;
+}
+export function addExecutionGroupRound(execution,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const current=execution.queue?.[execution.index];if(!current)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(!isGroupedQueueItem(current))throw new Error('M26_EXECUTION_GROUP_ROUND_NOT_GROUPED');
+  const items=execution.queue.filter((item)=>sameExecutionGroup(current,item));
+  if(items.length<2)throw new Error('M26_EXECUTION_GROUP_ROUND_INVALID');
+  const roundCounts=[...new Set(items.map((item)=>Number(item.sets||0)))];
+  if(roundCounts.length!==1)throw new Error('M26_EXECUTION_GROUP_ROUND_ASYMMETRIC');
+  if(items.some((item)=>Number(item.sets||0)>=100))throw new Error('M26_EXECUTION_SET_LIMIT');
+  for(const item of items)item.sets=Number(item.sets||0)+1;
+  const totalRounds=Number(items[0].sets||0);
+  markFinalFeedbackDraftNeedsReview(execution,'group_round_added_after_closeout');
+  event(execution,'GROUP_ROUND_ADDED',{blockId:current.blockId,groupType:current.groupType,totalRounds},actor);
+  return execution;
+}
+export function addExtraGroupRoundAndAdvance(execution,session,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const current=execution.queue?.[execution.index];if(!current)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(!isGroupedQueueItem(current))throw new Error('M26_EXECUTION_EXTRA_GROUP_ROUND_NOT_GROUPED');
+  const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
+  ensureDeviationStores(execution);
+  if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
+  const indexes=[];for(let i=0;i<execution.queue.length;i+=1)if(sameExecutionGroup(current,execution.queue[i]))indexes.push(i);
+  if(indexes.length<2||execution.index!==indexes[indexes.length-1])throw new Error('M26_EXECUTION_EXTRA_GROUP_ROUND_ORDER_REQUIRED');
+  const totalRounds=Number(current.sets||0);
+  if(Number(execution.setIndex)+1!==totalRounds)throw new Error('M26_EXECUTION_EXTRA_GROUP_ROUND_LAST_ROUND_REQUIRED');
+  addExecutionGroupRound(execution,{actor});
+  execution.restUntil=null;
+  delete execution.reviewingHistory;
+  clearActiveSetDraft(execution);
+  execution.index=indexes[0];
+  execution.setIndex=totalRounds;
+  event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
+  event(execution,'EXTRA_GROUP_ROUND_STARTED',{blockId:current.blockId,groupType:current.groupType,previousTotalRounds:totalRounds,totalRounds:totalRounds+1,roundNumber:totalRounds+1},actor);
+  return execution;
+}
+export function executionStructureUndoState(execution){
+  if(execution?.status!=='active')return null;
+  const events=Array.isArray(execution?.events)?execution.events:[];
+  const last=events[events.length-1]||null;
+  const current=execution?.queue?.[execution.index]||null;
+  if(!last||!current)return null;
+  if(last.type==='EXERCISE_ADDED'){
+    const queueIndex=Number(last.payload?.queueIndex);
+    if(!Number.isInteger(queueIndex)||queueIndex<=Number(execution.index)||queueIndex<0||queueIndex>=execution.queue.length)return null;
+    const added=execution.queue[queueIndex];
+    if(!added?.liveAdded||added.exerciseId!==last.payload?.exerciseId)return null;
+    for(let setNumber=1;setNumber<=Number(added.sets||0);setNumber+=1){
+      const step={...added,setNumber,totalSets:added.sets};
+      if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))return null;
+    }
+    return Object.freeze({kind:'exercise',label:'Deshacer ejercicio añadido'});
+  }
+  if(last.type==='SET_ADDED'){
+    const totalSets=Number(last.payload?.totalSets||0);
+    if(last.payload?.exerciseId!==current.exerciseId||totalSets!==Number(current.sets||0)||totalSets<=1)return null;
+    const step={...current,setNumber:totalSets,totalSets};
+    if(executionResultForStep(execution,step,totalSets)||skippedSetForStep(execution,step,totalSets))return null;
+    return Object.freeze({kind:'set',label:'Deshacer serie añadida'});
+  }
+  if(last.type==='GROUP_ROUND_ADDED'){
+    const totalRounds=Number(last.payload?.totalRounds||0);
+    if(!isGroupedQueueItem(current)||last.payload?.blockId!==current.blockId||totalRounds<=1)return null;
+    const items=execution.queue.filter((item)=>sameExecutionGroup(current,item));
+    if(items.length<2||items.some((item)=>Number(item.sets||0)!==totalRounds))return null;
+    for(const item of items){
+      const step={...item,setNumber:totalRounds,totalSets:totalRounds};
+      if(executionResultForStep(execution,step,totalRounds)||skippedSetForStep(execution,step,totalRounds))return null;
+    }
+    return Object.freeze({kind:'round',label:'Deshacer ronda añadida'});
+  }
+  return null;
+}
+export function undoLastExecutionStructureChange(execution,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const state=executionStructureUndoState(execution);
+  if(!state)throw new Error('M26_EXECUTION_STRUCTURE_UNDO_UNAVAILABLE');
+  const current=execution.queue[execution.index];
+  if(state.kind==='exercise'){
+    const last=execution.events[execution.events.length-1];
+    const queueIndex=Number(last?.payload?.queueIndex);
+    const added=execution.queue[queueIndex];
+    if(!added?.liveAdded||added.exerciseId!==last?.payload?.exerciseId)throw new Error('M26_EXECUTION_STRUCTURE_UNDO_UNAVAILABLE');
+    execution.queue.splice(queueIndex,1);
+    markFinalFeedbackDraftNeedsReview(execution,'exercise_add_undone_after_closeout');
+    event(execution,'EXERCISE_ADD_UNDONE',{exerciseId:added.exerciseId,queueIndex},actor);
+    return execution;
+  }
+  if(state.kind==='set'){
+    current.sets=Number(current.sets||0)-1;
+    markFinalFeedbackDraftNeedsReview(execution,'set_add_undone_after_closeout');
+    event(execution,'SET_ADD_UNDONE',{exerciseId:current.exerciseId,totalSets:current.sets},actor);
+    return execution;
+  }
+  const items=execution.queue.filter((item)=>sameExecutionGroup(current,item));
+  for(const item of items)item.sets=Number(item.sets||0)-1;
+  const totalRounds=Number(items[0]?.sets||0);
+  markFinalFeedbackDraftNeedsReview(execution,'group_round_add_undone_after_closeout');
+  event(execution,'GROUP_ROUND_ADD_UNDONE',{blockId:current.blockId,groupType:current.groupType,totalRounds},actor);
   return execution;
 }
 export function addExtraSetAndAdvance(execution,session,{actor=null}={}){
@@ -680,7 +828,7 @@ export function finishExecution(execution,feedback={}, {actor=null}={}){
   if(execution.status!=='awaiting_feedback')throw new Error('M26_EXECUTION_NOT_COMPLETE');
   const sessionRpe=Number(feedback.sessionRpe||0);if(sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
-  const pain=Boolean(feedback.pain),painNotes=String(feedback.painNotes||'').trim().slice(0,1000);if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
+  const pain=Boolean(feedback.pain),painNotes=pain?String(feedback.painNotes||'').trim().slice(0,1000):'';if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
   clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);delete execution.reviewingHistory;freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
   event(execution,'SESSION_COMPLETED',execution.feedback,actor);return execution;
 }
