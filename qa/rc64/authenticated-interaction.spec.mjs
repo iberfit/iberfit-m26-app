@@ -261,6 +261,14 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   expect(authStageTimeline.some(({stage})=>stage==='rc64-shell-interactive-ready'),
     'QA instrumentation must observe the actual interactive boundary').toBe(true);
   const stageMs=(stage)=>authStageTimeline.find((mark)=>mark.stage===stage)?.elapsedSinceSubmitMs;
+  const primaryStartMs=stageMs('rc64-hydrate-start');
+  const primaryReadyMs=stageMs('rc64-hydrate-primary-ready');
+  expect(Number.isFinite(primaryStartMs)&&Number.isFinite(primaryReadyMs),
+    'QA must measure the complete primary snapshot hydration boundary').toBe(true);
+  const primaryHydrationMs=Math.max(0,primaryReadyMs-primaryStartMs);
+  const mainSnapshotRpcMs=authNetworkWaterfall.find((sample)=>sample.operation==='main-snapshot')?.durationMs;
+  expect(Number.isFinite(mainSnapshotRpcMs),
+    'QA must record the authorized snapshot RPC duration without network bodies').toBe(true);
   const communicationStartMs=stageMs('rc64-hydrate-scope-ready');
   const communicationReadyMs=stageMs('rc64-hydrate-secondary-ready');
   expect(Number.isFinite(communicationStartMs)&&Number.isFinite(communicationReadyMs),
@@ -376,6 +384,8 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     navigationUntilNetworkIdleMs:Math.round(navigationUntilNetworkIdleMs),
     credentialSubmitToShellMs:Math.round(credentialSubmitToShellMs),
     credentialSubmitToInteractiveMs:Math.round(credentialSubmitToInteractiveMs),
+    primaryHydrationMs,
+    mainSnapshotRpcMs,
     communicationHydrationMs,
     communicationRpcStatus,
     authNetworkWaterfall,
