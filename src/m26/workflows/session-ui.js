@@ -149,6 +149,19 @@ function alternativeOptions(catalog,currentExercise={},selectedId=null){
 }
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
+function templateHistoryCoverage(draft={},exerciseMemoryFor=null){
+  const items=[];
+  for(const block of draft.blocks||[]){
+    if(block.type==='exercise'&&block.exerciseId)items.push({blockId:block.id,exerciseId:block.exerciseId});
+    else for(const exerciseId of block.exerciseIds||[])items.push({blockId:block.id,exerciseId});
+  }
+  let confirmed=0,firstMissingBlockId=null;
+  for(const item of items){
+    if(exerciseMemoryFor?.(item.exerciseId)?.latest)confirmed+=1;
+    else if(!firstMissingBlockId)firstMissingBlockId=item.blockId;
+  }
+  return Object.freeze({total:items.length,confirmed,firstMissingBlockId});
+}
 function draftMetrics(draft={}){
   let exercises=0,workUnits=0,groups=0;
   for(const block of draft.blocks||[]){
@@ -577,6 +590,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
   const activeGroupTargetMarkup=activeGroup?`<div class="m26-builder-group-target" data-session-active-group-target role="status" aria-live="polite"><span><small>Añadiendo al grupo activo</small><strong>${e(groupName(activeGroup.type))} · ${e(activeGroup.exerciseIds.length)}/${e(activeGroupLimit)} ejercicios</strong></span><button type="button" data-session-action="close-group">Cerrar grupo</button></div>`:'';
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Añade ejercicios desde la biblioteca.</p>';
   const metrics=draftMetrics(draft);
+  const templateHistory=templateAdaptation?.templateName?templateHistoryCoverage(draft,exerciseMemoryFor):null;
   const undoRemovalMarkup=undoRemoval?.block?.id?`<div class="m26-notice m26-builder-undo" data-session-builder-undo role="status"><span>Bloque eliminado del borrador.</span><button type="button" data-session-action="restore-block">Deshacer</button></div>`:'';
   const templateUndoMarkup=templateUndo?.draft?.id?`<div class="m26-notice m26-builder-undo" data-session-template-undo role="status"><span>Plantilla aplicada al borrador.</span><button type="button" data-session-action="restore-template-load">Deshacer plantilla</button></div>`:'';
   const cards=results.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}>${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class="m26-exercise-result-add" aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
@@ -598,13 +612,17 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
   const hasClientDuration=Boolean(adaptationSource&&Number.isInteger(adaptationDuration)&&adaptationDuration>=10&&adaptationDuration<=240);
   const durationAligned=hasClientDuration&&Number(draft.durationMinutes)===adaptationDuration;
   const templateAdaptationMarkup=templateAdaptation?.templateName?`<div class="m26-builder-template-adaptation" data-session-template-adaptation role="status">
-    <div>
+    <div class="m26-builder-template-copy">
       <small>Adaptación al cliente</small>
       <strong>${e(templateAdaptation.templateName)} · v${e(templateAdaptation.templateVersion||1)}</strong>
       <p>${hasClientDuration?`Duración del ${e(adaptationSource)}: ${e(adaptationDuration)} min · borrador actual: ${e(draft.durationMinutes)} min.`:'Este cliente no tiene una duración específica definida en ciclo o perfil.'}</p>
+      ${templateHistory?.total?`<p data-session-template-history-coverage>${e(templateHistory.confirmed)}/${e(templateHistory.total)} ejercicios con historial confirmado.</p>`:''}
       <small>La plantilla aporta estructura; revisa el historial y ajusta la prescripción antes de publicar.</small>
     </div>
-    ${hasClientDuration?(durationAligned?'<span class="m26-builder-template-aligned">Duración alineada</span>':`<button type="button" data-session-action="apply-client-duration" data-duration-minutes="${e(adaptationDuration)}">Usar duración del cliente</button>`):''}
+    <div class="m26-inline-actions">
+      ${hasClientDuration?(durationAligned?'<span class="m26-builder-template-aligned">Duración alineada</span>':`<button type="button" data-session-action="apply-client-duration" data-duration-minutes="${e(adaptationDuration)}">Usar duración del cliente</button>`):''}
+      ${templateHistory?.firstMissingBlockId?`<button type="button" data-session-review-block="${e(templateHistory.firstMissingBlockId)}">Revisar primer bloque sin historial</button>`:templateHistory?.total?'<span class="m26-builder-template-aligned">Historial disponible para todos</span>':''}
+    </div>
   </div>`:'';
   const templateControls=['coach','admin'].includes(String(role||''))?`<details class="m26-panel m26-panel-soft m26-builder-template-drawer" data-session-template-tools>
     <summary><span><small>Reutilización</small><strong>Plantillas versionadas</strong></span><span>${templates?.length||0} guardadas</span></summary>
