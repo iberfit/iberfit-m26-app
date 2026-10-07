@@ -56,19 +56,24 @@ export function sessionDraftDefaultsFromState(state,clientId){
   });
 }
 export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),status:'draft',previewAccepted:false,blocks:[],revision:0};}
+function hasObservedQuantity(value,{integer=false}={}){
+  if(value===undefined||value===null||String(value).trim()==='')return false;
+  const quantity=Number(value);
+  return Number.isFinite(quantity)&&quantity>=0&&(!integer||Number.isInteger(quantity));
+}
 export function exerciseMemoryDraftSuggestion(memory){
   const latest=memory?.latest;
   if(!latest)return null;
   const sets=positiveInt(latest.setCount,null,{min:1,max:100});
   const rows=Array.isArray(latest.sets)?latest.sets:[];
   const reference=[...rows].reverse().find((row)=>
-    Number.isFinite(Number(row?.reps))||
-    Number.isFinite(Number(row?.seconds))||
+    hasObservedQuantity(row?.reps,{integer:true})||
+    hasObservedQuantity(row?.seconds)||
     String(row?.load?.raw||'').trim()
   )||null;
-  const reps=Number.isFinite(Number(reference?.reps))
+  const reps=hasObservedQuantity(reference?.reps,{integer:true})
     ?String(reference.reps)
-    :Number.isFinite(Number(reference?.seconds))
+    :hasObservedQuantity(reference?.seconds)
       ?`${reference.seconds} s`
       :'';
   const plannedLoad=optionalText(latest.lastLoad?.raw??reference?.load?.raw??'', '',80);
@@ -97,8 +102,39 @@ export function applyExerciseMemorySuggestion(draft,{blockId,exerciseId=null,mem
   return invalidateSessionPreview(draft);
 }
 export function invalidateSessionPreview(draft){draft.previewAccepted=false;return draft;}
-export function addCatalogExercise(draft,exerciseId,catalog,prescription={}){const ex=catalog.get(exerciseId);if(!ex)throw new Error('M26_SESSION_EXERCISE_NOT_IN_CATALOG');if(draft.activeGroupId){const group=draft.blocks.find((b)=>b.id===draft.activeGroupId);if(!group)throw new Error('M26_SESSION_ACTIVE_GROUP_MISSING');group.prescriptions=group.prescriptions||{};if(!group.exerciseIds.includes(exerciseId)){group.exerciseIds.push(exerciseId);group.prescriptions[exerciseId]=normalizePrescription(prescription);}const limit=group.type==='biserie'?2:group.type==='triserie'?3:null;if(limit&&group.exerciseIds.length>=limit)delete draft.activeGroupId;return invalidateSessionPreview(draft);}draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,3),...normalizePrescription(prescription)});return invalidateSessionPreview(draft);}
-export function addTrainingGroup(draft,type,exerciseIds=[]){if(!GROUP_TYPES.has(type))throw new Error('M26_SESSION_GROUP_INVALID');const id=createM26Id();const unique=[...new Set(exerciseIds)];draft.blocks.push({id,type,exerciseIds:unique,rounds:type==='tabata'?8:3,prescriptions:Object.fromEntries(unique.map((exerciseId)=>[exerciseId,normalizePrescription({})]))});draft.activeGroupId=id;invalidateSessionPreview(draft);return draft;}
+export function addCatalogExercise(draft,exerciseId,catalog,prescription={}){
+  const ex=catalog.get(exerciseId);
+  if(!ex)throw new Error('M26_SESSION_EXERCISE_NOT_IN_CATALOG');
+  if(draft.activeGroupId){
+    const group=draft.blocks.find((b)=>b.id===draft.activeGroupId);
+    if(!group)throw new Error('M26_SESSION_ACTIVE_GROUP_MISSING');
+    if(!GROUP_TYPES.has(group.type)||!Array.isArray(group.exerciseIds))throw new Error('M26_SESSION_GROUP_INVALID');
+    const limit=group.type==='biserie'?2:group.type==='triserie'?3:12;
+    if(!group.exerciseIds.includes(exerciseId)){
+      if(group.exerciseIds.length>=limit)throw new Error('M26_SESSION_GROUP_LIMIT_REACHED');
+      group.prescriptions=group.prescriptions||{};
+      group.exerciseIds.push(exerciseId);
+      group.prescriptions[exerciseId]=normalizePrescription(prescription);
+    }
+    if(group.exerciseIds.length>=limit)delete draft.activeGroupId;
+    return invalidateSessionPreview(draft);
+  }
+  draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,3),...normalizePrescription(prescription)});
+  return invalidateSessionPreview(draft);
+}
+export function addTrainingGroup(draft,type,exerciseIds=[]){
+  if(!GROUP_TYPES.has(type))throw new Error('M26_SESSION_GROUP_INVALID');
+  // Never orphan an unfinished group by overwriting its active identifier.
+  if(draft.activeGroupId)throw new Error('M26_SESSION_ACTIVE_GROUP_OPEN');
+  if(!Array.isArray(exerciseIds))throw new Error('M26_SESSION_GROUP_EXERCISES_INVALID');
+  const unique=[...new Set(exerciseIds)];
+  const limit=type==='biserie'?2:type==='triserie'?3:12;
+  if(unique.length>limit)throw new Error('M26_SESSION_GROUP_LIMIT_REACHED');
+  const id=createM26Id();
+  draft.blocks.push({id,type,exerciseIds:unique,rounds:type==='tabata'?8:3,prescriptions:Object.fromEntries(unique.map((exerciseId)=>[exerciseId,normalizePrescription({})]))});
+  if(unique.length<limit)draft.activeGroupId=id;
+  return invalidateSessionPreview(draft);
+}
 export function closeTrainingGroup(draft){
   if(!draft.activeGroupId)return draft;
   const groupIndex=draft.blocks.findIndex((b)=>b.id===draft.activeGroupId);

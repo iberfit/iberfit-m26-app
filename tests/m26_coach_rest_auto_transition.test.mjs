@@ -171,10 +171,11 @@ test('Coach repeat on the terminal set preserves review without starting a fake 
     session,
     catalog,
     actor:coach(),
-    payload:{restSeconds:60},
+    payload:{restSeconds:60,rpe:8}, // freshly confirmed effort, distinct from previous RPE 7
   });
 
   assert.equal(result.kind,'execution');
+  assert.equal(executionResultForStep(execution,currentStep(execution,session)).rpe,8);
   assert.equal(execution.status,'active');
   assert.equal(execution.setIndex,1);
   assert.equal(execution.restUntil,null);
