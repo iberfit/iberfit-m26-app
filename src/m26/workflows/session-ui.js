@@ -1,4 +1,4 @@
-import { currentExerciseSubstitutionScope,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
+import { currentExerciseSubstitutionScope,executionStructureUndoState,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
@@ -730,9 +730,9 @@ export function sessionAdjustmentCounts(execution){
     substitutions:count('EXERCISE_SUBSTITUTED'),
     skippedSets:count('SET_SKIPPED'),
     skippedExercises:count('EXERCISE_SKIPPED'),
-    extraSets:count('SET_ADDED'),
-    extraRounds:count('GROUP_ROUND_ADDED'),
-    addedExercises:count('EXERCISE_ADDED'),
+    extraSets:Math.max(0,count('SET_ADDED')-count('SET_ADD_UNDONE')),
+    extraRounds:Math.max(0,count('GROUP_ROUND_ADDED')-count('GROUP_ROUND_ADD_UNDONE')),
+    addedExercises:Math.max(0,count('EXERCISE_ADDED')-count('EXERCISE_ADD_UNDONE')),
   };
 }
 function renderSessionAdjustmentSummary(execution){
@@ -853,6 +853,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackPrivacyNote=isCoach
       ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
       :'';
+    const feedbackQuickRpe=isCoach
+      ?'<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="RPE final rápido"><span>RPE rápido</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="RPE '+e(value)+'" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>'
+      :'';
     const reviewLastSetAction=Array.isArray(execution?.queue)&&execution.queue.length
       ?'<button type="button" data-session-action="previous">Revisar última serie</button>'
       :'';
@@ -881,7 +884,8 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         <p class="m26-eyebrow">Feedback final</p>
         <h2>${e(feedbackTitle)}</h2>
         <div class="m26-field-grid">
-          <label>${e(rpeLabel)}<input type="number" min="1" max="10" data-session-feedback-rpe required></label>
+          <label>${e(rpeLabel)}<input type="number" min="1" max="10" inputmode="numeric" data-session-feedback-rpe required></label>
+          ${feedbackQuickRpe}
           <label>${e(commentLabel)}<textarea data-session-feedback-comment maxlength="2000" required></textarea></label>
           <label><input type="checkbox" data-session-feedback-pain aria-controls="m26-session-feedback-pain-detail" aria-expanded="false"> ${e(painLabel)}</label>
           <label data-session-feedback-pain-detail hidden>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea id="m26-session-feedback-pain-detail" data-session-feedback-pain-notes maxlength="1000"></textarea></label>
@@ -1056,6 +1060,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   });
   const recorded=executionResultForStep(execution,step);
   const currentQueueItem=execution?.queue?.[execution.index]||null;
+  const structureUndo=isCoach?executionStructureUndoState(execution):null;
   const hasNextPlannedStep=hasNextExecutionStep(execution);
   const coachExtraSetReady=Boolean(
     isCoach&&
@@ -1274,6 +1279,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
               <h4>Ajuste estructural del Coach</h4>
               <button type="button" data-session-action="add-set">Añadir una serie a este ejercicio</button>
               ${currentQueueItem?.groupType?'<button type="button" data-session-action="add-group-round">Añadir una ronda al bloque</button>':''}
+              ${structureUndo?'<button type="button" class="m26-text-action" data-session-action="undo-structure-add">'+e(structureUndo.label)+'</button>':''}
               <label>Añadir ejercicio después del actual<select data-session-live-add-exercise><option value="">Seleccionar ejercicio…</option>${liveAddOptions}</select></label>
               <div class="m26-field-grid">
                 <label>Series<input type="number" min="1" max="100" value="1" data-session-live-add-sets></label>

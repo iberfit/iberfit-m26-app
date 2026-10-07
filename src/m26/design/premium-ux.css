@@ -1104,6 +1104,34 @@ body {
   line-height:1.35;
 }
 
+.m26-session-feedback-rpe-quick{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.42rem;
+  margin:.15rem 0 .35rem;
+}
+.m26-session-feedback-rpe-quick>span{
+  grid-column:1/-1;
+  color:var(--m26-muted,#aaa);
+  font-size:.72rem;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.m26-session-feedback-rpe-quick button{
+  min-width:0;
+  min-height:3rem;
+  padding:.5rem .4rem;
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 28%,transparent);
+  font-variant-numeric:tabular-nums;
+  font-weight:800;
+}
+.m26-session-feedback-rpe-quick button[aria-pressed="true"]{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 72%,transparent);
+  background:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 18%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 20%,transparent);
+}
+
 .m26-session-live-v3 .m26-session-coach-rpe-quick{
   display:flex;
   align-items:center;

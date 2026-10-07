@@ -677,6 +677,72 @@ export function addExtraGroupRoundAndAdvance(execution,session,{actor=null}={}){
   event(execution,'EXTRA_GROUP_ROUND_STARTED',{blockId:current.blockId,groupType:current.groupType,previousTotalRounds:totalRounds,totalRounds:totalRounds+1,roundNumber:totalRounds+1},actor);
   return execution;
 }
+export function executionStructureUndoState(execution){
+  if(execution?.status!=='active')return null;
+  const events=Array.isArray(execution?.events)?execution.events:[];
+  const last=events[events.length-1]||null;
+  const current=execution?.queue?.[execution.index]||null;
+  if(!last||!current)return null;
+  if(last.type==='EXERCISE_ADDED'){
+    const queueIndex=Number(last.payload?.queueIndex);
+    if(!Number.isInteger(queueIndex)||queueIndex<=Number(execution.index)||queueIndex<0||queueIndex>=execution.queue.length)return null;
+    const added=execution.queue[queueIndex];
+    if(!added?.liveAdded||added.exerciseId!==last.payload?.exerciseId)return null;
+    for(let setNumber=1;setNumber<=Number(added.sets||0);setNumber+=1){
+      const step={...added,setNumber,totalSets:added.sets};
+      if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))return null;
+    }
+    return Object.freeze({kind:'exercise',label:'Deshacer ejercicio añadido'});
+  }
+  if(last.type==='SET_ADDED'){
+    const totalSets=Number(last.payload?.totalSets||0);
+    if(last.payload?.exerciseId!==current.exerciseId||totalSets!==Number(current.sets||0)||totalSets<=1)return null;
+    const step={...current,setNumber:totalSets,totalSets};
+    if(executionResultForStep(execution,step,totalSets)||skippedSetForStep(execution,step,totalSets))return null;
+    return Object.freeze({kind:'set',label:'Deshacer serie añadida'});
+  }
+  if(last.type==='GROUP_ROUND_ADDED'){
+    const totalRounds=Number(last.payload?.totalRounds||0);
+    if(!isGroupedQueueItem(current)||last.payload?.blockId!==current.blockId||totalRounds<=1)return null;
+    const items=execution.queue.filter((item)=>sameExecutionGroup(current,item));
+    if(items.length<2||items.some((item)=>Number(item.sets||0)!==totalRounds))return null;
+    for(const item of items){
+      const step={...item,setNumber:totalRounds,totalSets:totalRounds};
+      if(executionResultForStep(execution,step,totalRounds)||skippedSetForStep(execution,step,totalRounds))return null;
+    }
+    return Object.freeze({kind:'round',label:'Deshacer ronda añadida'});
+  }
+  return null;
+}
+export function undoLastExecutionStructureChange(execution,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const state=executionStructureUndoState(execution);
+  if(!state)throw new Error('M26_EXECUTION_STRUCTURE_UNDO_UNAVAILABLE');
+  const current=execution.queue[execution.index];
+  if(state.kind==='exercise'){
+    const last=execution.events[execution.events.length-1];
+    const queueIndex=Number(last?.payload?.queueIndex);
+    const added=execution.queue[queueIndex];
+    if(!added?.liveAdded||added.exerciseId!==last?.payload?.exerciseId)throw new Error('M26_EXECUTION_STRUCTURE_UNDO_UNAVAILABLE');
+    execution.queue.splice(queueIndex,1);
+    markFinalFeedbackDraftNeedsReview(execution,'exercise_add_undone_after_closeout');
+    event(execution,'EXERCISE_ADD_UNDONE',{exerciseId:added.exerciseId,queueIndex},actor);
+    return execution;
+  }
+  if(state.kind==='set'){
+    current.sets=Number(current.sets||0)-1;
+    markFinalFeedbackDraftNeedsReview(execution,'set_add_undone_after_closeout');
+    event(execution,'SET_ADD_UNDONE',{exerciseId:current.exerciseId,totalSets:current.sets},actor);
+    return execution;
+  }
+  const items=execution.queue.filter((item)=>sameExecutionGroup(current,item));
+  for(const item of items)item.sets=Number(item.sets||0)-1;
+  const totalRounds=Number(items[0]?.sets||0);
+  markFinalFeedbackDraftNeedsReview(execution,'group_round_add_undone_after_closeout');
+  event(execution,'GROUP_ROUND_ADD_UNDONE',{blockId:current.blockId,groupType:current.groupType,totalRounds},actor);
+  return execution;
+}
 export function addExtraSetAndAdvance(execution,session,{actor=null}={}){
   if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   requireCoachActor(actor);

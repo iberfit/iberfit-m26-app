@@ -1,7 +1,7 @@
 import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview,applyExerciseMemorySuggestion, buildPublishSessionCommand } from './session-builder.js';
 import {
   startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,correctSet,advanceExecution,retreatExecution,
-  adjustRest,beginRest,substituteExercise,addExecutionSet,addExecutionGroupRound,addExtraGroupRoundAndAdvance,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
+  adjustRest,beginRest,substituteExercise,addExecutionSet,addExecutionGroupRound,addExtraGroupRoundAndAdvance,undoLastExecutionStructureChange,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
   markExecutionSync,previousSetDraftValues,previousSetReviewDraftValues,plannedSetDraftValues,suggestedSetDraftValues,repeatPreviousSet,addExtraSetAndAdvance,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft,
@@ -133,6 +133,10 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     }
     case 'extra-group-round-now': {
       addExtraGroupRoundAndAdvance(execution,session,{actor});
+      return progressMutation(execution,commandBus,online,payload.operationId);
+    }
+    case 'undo-structure-add': {
+      undoLastExecutionStructureChange(execution,{actor});
       return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'extra-set-now': {
@@ -465,6 +469,15 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       repeat.setAttribute?.('aria-label',hasObservedRpe?'Completar con el RPE real indicado':priorValid?'Confirmar RPE '+priorRpe+' como esfuerzo real de esta serie y completar':'Indica primero el RPE real para repetir el trabajo anterior');
     }
   }
+  function syncFeedbackRpeControl(){
+    const input=root.querySelector?.('[data-session-feedback-rpe]');
+    const selected=Number(input?.value);
+    for(const button of root.querySelectorAll?.('[data-session-action="set-session-rpe-quick"]')||[]){
+      const value=Number(button.getAttribute?.('data-rpe-value'));
+      const active=Number.isFinite(selected)&&Number.isFinite(value)&&selected===value;
+      button.setAttribute?.('aria-pressed',active?'true':'false');
+    }
+  }
   function focusCoachReviewField(values={}){
     const rpe=root.querySelector?.('[data-set-field="rpe"]');
     if(typeof rpe?.focus==='function'){
@@ -522,7 +535,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return suggestion;
   }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -729,6 +742,17 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   if(saved)queueExecutionDraftPersist(context);
   syncQuickRpeControl();
   return;
+}if(action==='set-session-rpe-quick'){
+  if(!isCoachContext(context))return;
+  const value=Number(button.getAttribute('data-rpe-value'));
+  const input=root.querySelector?.('[data-session-feedback-rpe]');
+  if(!Number.isFinite(value)||value<1||value>10||!input||!context?.execution)return;
+  input.value=String(value);
+  try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}
+  syncFeedbackRpeControl();
+  const comment=root.querySelector?.('[data-session-feedback-comment]');
+  if(!String(comment?.value||'').trim())try{comment?.focus?.({preventScroll:true});}catch{comment?.focus?.();}
+  return;
 }if(action==='exit-session'){const target=sessionExitTarget(button);const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await settleWithin(persistContext(context),safeFinishTimeout);await context.onExit?.();if(target==='verificacion')queueMicrotask(()=>openSessionRecoveryReview(root));}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}
     if(sessionActionPending)return;
     sessionActionPending=true;
@@ -809,7 +833,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}
     const setField=event.target.closest?.('[data-set-field]');if(setField&&context.execution&&context.session){try{const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(setField?.getAttribute?.('data-set-field')==='rpe')syncQuickRpeControl();
-    const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}if(feedbackField.matches?.('[data-session-feedback-pain]'))syncFeedbackPainControl();}
+    const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}if(feedbackField.matches?.('[data-session-feedback-pain]'))syncFeedbackPainControl();if(feedbackField.matches?.('[data-session-feedback-rpe]'))syncFeedbackRpeControl();}
     if(draftField||blockField)queueAutosave(context);}
   function keydown(event){
     const context=getContext();

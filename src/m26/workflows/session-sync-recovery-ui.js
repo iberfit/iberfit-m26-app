@@ -27,6 +27,7 @@ const ACTIONABLE_FAILURE_MESSAGES=Object.freeze({
   M26_EXECUTION_EXTRA_SET_LAST_SET_REQUIRED:'La serie extra rápida solo puede añadirse después de completar la última serie actual.',
   M26_EXECUTION_EXTRA_SET_GROUP_ORDER_REQUIRED:'Completa primero el orden actual del grupo antes de añadir una ronda o serie extra.',
   M26_EXECUTION_PREVIOUS_SET_UNAVAILABLE:'Aún no hay una serie anterior válida para reutilizar.',
+  M26_EXECUTION_STRUCTURE_UNDO_UNAVAILABLE:'Este ajuste ya tiene trabajo registrado o dejó de ser la última modificación; no puede deshacerse de forma segura.',
 });
 
 function normalizedRole(role){
