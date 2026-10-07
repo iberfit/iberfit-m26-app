@@ -725,6 +725,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       query:sessionUi.query,
       filters:sessionUi.filters||{},
       undoRemoval:sessionUi.undoRemoval||null,
+      templateUndo:sessionUi.templateUndo||null,
       templates:sessionUi.templates||[],
       actionState:sessionUi.actionState,
       mediaMap,
@@ -870,7 +871,33 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionUi.templates=sessionTemplateRepository.list();
     return saved;
   }
-  function loadCurrentSessionTemplate(templateId){if(!sessionUi?.draft||!sessionTemplateRepository)throw new Error('M26_SESSION_TEMPLATE_REPOSITORY_REQUIRED');const template=sessionTemplateRepository.get(templateId);if(!template)throw new Error('M26_SESSION_TEMPLATE_NOT_FOUND');sessionUi.draft=createDraftFromSessionTemplate(template,{clientId:sessionUi.draft.clientId,catalog});sessionUi.undoRemoval=null;sessionUi.templates=sessionTemplateRepository.list();sessionUi.actionState.status='success';sessionUi.actionState.message=`Plantilla “${template.name}” v${template.version} cargada como borrador independiente.`;return sessionUi.draft;}  async function saveSessionDraft(){
+  function loadCurrentSessionTemplate(templateId){
+    if(!sessionUi?.draft||!sessionTemplateRepository)throw new Error('M26_SESSION_TEMPLATE_REPOSITORY_REQUIRED');
+    const template=sessionTemplateRepository.get(templateId);
+    if(!template)throw new Error('M26_SESSION_TEMPLATE_NOT_FOUND');
+    const previousDraft=structuredClone(sessionUi.draft);
+    const nextDraft=createDraftFromSessionTemplate(template,{clientId:sessionUi.draft.clientId,catalog});
+    sessionUi.templateUndo=Object.freeze({draft:previousDraft});
+    sessionUi.draft=nextDraft;
+    sessionUi.undoRemoval=null;
+    sessionUi.templates=sessionTemplateRepository.list();
+    sessionUi.actionState.status='success';
+    sessionUi.actionState.message=`Plantilla “${template.name}” v${template.version} cargada como borrador independiente.`;
+    return sessionUi.draft;
+  }
+  function restoreCurrentTemplateLoad(){
+    const previous=sessionUi?.templateUndo?.draft;
+    if(!sessionUi?.draft||!previous?.id)throw new Error('M26_SESSION_TEMPLATE_UNDO_UNAVAILABLE');
+    if(String(previous.clientId||'')!==String(sessionUi.draft.clientId||''))throw new Error('M26_SESSION_TEMPLATE_UNDO_SCOPE_MISMATCH');
+    sessionUi.draft=structuredClone(previous);
+    sessionUi.templateUndo=null;
+    sessionUi.undoRemoval=null;
+    sessionUi.actionState.status='success';
+    sessionUi.actionState.message='Borrador anterior restaurado.';
+    return sessionUi.draft;
+  }
+  function clearCurrentTemplateUndo(){if(sessionUi)sessionUi.templateUndo=null;}
+  async function saveSessionDraft(){
     if(!sessionUi?.draft||!draftRepository)return Object.freeze({ok:true,skipped:true,local:false,remote:false});
     const draft=structuredClone(sessionUi.draft);
     const clientId=String(draft.clientId||'');
@@ -1092,7 +1119,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
-    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
+    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},templateUndo:sessionUi?.templateUndo||null,restoreTemplateLoad:restoreCurrentTemplateLoad,clearTemplateUndo:clearCurrentTemplateUndo,autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
@@ -1190,7 +1217,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
-  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));sessionUi={draft,query:'',filters:{},undoRemoval:null,templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();if(runtime.enabled&&draftOnline())void withAuthOperationTimeout(()=>syncSessionTemplateWorkspace({renderAfter:true}),{timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT'}).catch((error)=>reportSoftDiagnostic('coach-template-sync-builder-open',error));}
+  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));sessionUi={draft,query:'',filters:{},undoRemoval:null,templateUndo:null,templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();if(runtime.enabled&&draftOnline())void withAuthOperationTimeout(()=>syncSessionTemplateWorkspace({renderAfter:true}),{timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT'}).catch((error)=>reportSoftDiagnostic('coach-template-sync-builder-open',error));}
   async function onStartSession(event){
     const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
     const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
