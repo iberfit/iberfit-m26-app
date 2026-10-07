@@ -32,7 +32,10 @@ function normalizeHistory(input,label){
 
 export function parseRepositoryFiles(input){
   const files=requireList(input,'repositoryFiles');
-  return files.filter(file=>String(file).endsWith('.sql')).map((name,i)=>{
+  if(files.some((file)=>typeof file!=='string')){
+    throw Error('MIGRATION_LEDGER_REPOSITORY_FILENAMES_REQUIRED');
+  }
+  return files.filter(file=>file.endsWith('.sql')).map((name,i)=>{
     if(typeof name!=='string'||name!==path.basename(name)){
       throw Error(`MIGRATION_LEDGER_INVALID_FILE:${i}`);
     }
