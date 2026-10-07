@@ -88,14 +88,16 @@ export function auditMigrationLedger({repositoryFiles,qaHistory,prodHistory}){
     const repoVersions=maps.repo.get(name);
     const qaVersions=maps.qa.get(name);
     const prodVersions=maps.prod.get(name);
-    if(!qaVersions||!prodVersions)return [];
-    const qaAligned=repoVersions.some(v=>qaVersions.includes(v));
-    const prodAligned=repoVersions.some(v=>prodVersions.includes(v));
-    return qaAligned&&prodAligned?[]:[{
+    // Compare each present environment independently. Missing names have
+    // their own category; never classify absence as an unapplied migration.
+    const qaAligned=qaVersions?repoVersions.some(v=>qaVersions.includes(v)):null;
+    const prodAligned=prodVersions?repoVersions.some(v=>prodVersions.includes(v)):null;
+    if(qaAligned!==false&&prodAligned!==false)return [];
+    return [{
       name,
       repositoryVersions:repoVersions,
-      qaVersions,
-      prodVersions,
+      qaVersions:qaVersions||[],
+      prodVersions:prodVersions||[],
       qaAligned,
       prodAligned,
     }];
