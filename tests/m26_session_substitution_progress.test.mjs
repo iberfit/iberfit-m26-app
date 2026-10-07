@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
-import {canSubstituteCurrentExercise,createExecution,startExecution,recordSet,advanceExecution,skipExecutionSet,substituteExercise} from '../src/m26/workflows/session-execution.js';
+import {canSubstituteCurrentExercise,currentExerciseSubstitutionScope,createExecution,startExecution,recordSet,advanceExecution,skipExecutionSet,substituteExercise} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../baseline_m25_2/exercise-catalog-m25.json',import.meta.url)));
@@ -52,7 +52,8 @@ test('substitution after a recorded set preserves history and replaces only rema
   recordSet(execution,session,{reps:10,rpe:7});
   advanceExecution(execution);
   assert.equal(execution.setIndex,1);
-  assert.equal(canSubstituteCurrentExercise(execution),true);
+  assert.equal(canSubstituteCurrentExercise(execution),false,'el helper histórico bloquea sustituir toda la ocurrencia tras progreso');
+  assert.equal(currentExerciseSubstitutionScope(execution),'remaining');
   const markup=renderGuidedExecution({execution,session,catalog});
   const substituteButton=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
   assert.doesNotMatch(substituteButton,/disabled aria-disabled="true"/);
@@ -69,7 +70,8 @@ test('substitution after a skipped set preserves the skip and replaces only rema
   startExecution(execution);
   skipExecutionSet(execution,session,{reason:'Molestia puntual'});
   assert.equal(execution.setIndex,1);
-  assert.equal(canSubstituteCurrentExercise(execution),true);
+  assert.equal(canSubstituteCurrentExercise(execution),false,'el helper histórico bloquea sustituir toda la ocurrencia tras una serie omitida');
+  assert.equal(currentExerciseSubstitutionScope(execution),'remaining');
   const markup=renderGuidedExecution({execution,session,catalog});
   const substituteButton=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
   assert.doesNotMatch(substituteButton,/disabled aria-disabled="true"/);

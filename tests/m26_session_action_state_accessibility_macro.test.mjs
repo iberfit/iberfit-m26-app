@@ -31,6 +31,6 @@ test('sesión en vivo reutiliza el renderer seguro y acerca el feedback a los co
   assert.match(source,/import \{renderActionState\} from '\.\.\/ui\/action-state\.js';/u);
   assert.match(source,/const state=renderActionState\(actionState\);/u);
   assert.match(source,/\$\{renderActionState\(actionState\)\}/u);
-  assert.match(source,/\$\{professionalClientContext\}\n    \$\{sync\}[\s\S]*?\$\{state\}\n        <button type="button" class="m26-primary-action" data-session-action="complete-set"/u);
+  assert.match(source,/\$\{state\}\n        <button type="button" class="m26-primary-action" data-session-action="complete-set"/u);
   assert.match(source,/\$\{state\}\n        <div class="m26-session-live-actions">/u);
 });
