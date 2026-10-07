@@ -686,6 +686,7 @@ export async function createM26Application({root=document.querySelector('#app'),
 
     const memoryClient=(state?.collections?.clients||[])
       .find((item)=>String(item?.id||'').trim()===memoryClientId)||null;
+    const clientSessionDefaults=memoryClientId?sessionDraftDefaultsFromState(state,memoryClientId):null;
     const sessionClientContext=
       memoryClient&&['coach','admin'].includes(String(role||'').trim().toLowerCase())
         ?Object.freeze({
@@ -726,6 +727,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       filters:sessionUi.filters||{},
       undoRemoval:sessionUi.undoRemoval||null,
       templateUndo:sessionUi.templateUndo||null,
+      templateAdaptation:sessionUi.templateAdaptation||null,
       templates:sessionUi.templates||[],
       actionState:sessionUi.actionState,
       mediaMap,
@@ -877,7 +879,9 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(!template)throw new Error('M26_SESSION_TEMPLATE_NOT_FOUND');
     const previousDraft=structuredClone(sessionUi.draft);
     const nextDraft=createDraftFromSessionTemplate(template,{clientId:sessionUi.draft.clientId,catalog});
+    const clientDefaults=sessionDraftDefaultsFromState(store.getState(),sessionUi.draft.clientId);
     sessionUi.templateUndo=Object.freeze({draft:previousDraft});
+    sessionUi.templateAdaptation=Object.freeze({templateName:template.name,templateVersion:template.version,templateDurationMinutes:nextDraft.durationMinutes,clientDurationMinutes:clientDefaults.durationMinutes,source:clientDefaults.source});
     sessionUi.draft=nextDraft;
     sessionUi.undoRemoval=null;
     sessionUi.templates=sessionTemplateRepository.list();
@@ -891,6 +895,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(String(previous.clientId||'')!==String(sessionUi.draft.clientId||''))throw new Error('M26_SESSION_TEMPLATE_UNDO_SCOPE_MISMATCH');
     sessionUi.draft=structuredClone(previous);
     sessionUi.templateUndo=null;
+    sessionUi.templateAdaptation=null;
     sessionUi.undoRemoval=null;
     sessionUi.actionState.status='success';
     sessionUi.actionState.message='Borrador anterior restaurado.';
@@ -1217,7 +1222,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
-  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));sessionUi={draft,query:'',filters:{},undoRemoval:null,templateUndo:null,templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();if(runtime.enabled&&draftOnline())void withAuthOperationTimeout(()=>syncSessionTemplateWorkspace({renderAfter:true}),{timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT'}).catch((error)=>reportSoftDiagnostic('coach-template-sync-builder-open',error));}
+  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));sessionUi={draft,query:'',filters:{},undoRemoval:null,templateUndo:null,templateAdaptation:null,templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();if(runtime.enabled&&draftOnline())void withAuthOperationTimeout(()=>syncSessionTemplateWorkspace({renderAfter:true}),{timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT'}).catch((error)=>reportSoftDiagnostic('coach-template-sync-builder-open',error));}
   async function onStartSession(event){
     const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
     const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
