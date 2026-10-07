@@ -1635,7 +1635,7 @@
   background:color-mix(in srgb,var(--iberfit-color-accent-strong) 5%,var(--iberfit-color-surface-base));
 }
 
-.m26-builder-template-adaptation > div{
+.m26-builder-template-copy{
   display:grid;
   gap:.12rem;
   min-width:0;
