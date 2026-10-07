@@ -580,7 +580,10 @@ export function currentExerciseSubstitutionScope(execution){
   if(isGroupedQueueItem(item)||resolved>=Number(item.sets||0))return 'locked';
   return 'remaining';
 }
-export function canSubstituteCurrentExercise(execution){return currentExerciseSubstitutionScope(execution)!=='locked';}
+export function canSubstituteCurrentExercise(execution){
+  const item=execution?.queue?.[execution.index];
+  return Boolean(item)&&!occurrenceHasResolvedSet(execution,item);
+}
 export function substituteExercise(execution,session,{fromExerciseId,toExerciseId,catalog,reason,actor=null}={}){
   const safeReason=requireReason(reason,'M26_EXECUTION_SUBSTITUTION_REASON_REQUIRED');
   if(!catalog?.has(toExerciseId))throw new Error('M26_EXECUTION_SUBSTITUTE_NOT_IN_CATALOG');
@@ -589,7 +592,8 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
   if(itemIndex===execution.index){
-    if(!canSubstituteCurrentExercise(execution))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    const scope=currentExerciseSubstitutionScope(execution);
+    if(scope==='locked')throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
     const resolved=resolvedSetPrefix(execution,item);
     clearActiveSetDraft(execution);
     if(resolved>0){
@@ -758,7 +762,7 @@ export function finishExecution(execution,feedback={}, {actor=null}={}){
   if(execution.status!=='awaiting_feedback')throw new Error('M26_EXECUTION_NOT_COMPLETE');
   const sessionRpe=Number(feedback.sessionRpe||0);if(sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
-  const pain=Boolean(feedback.pain),painNotes=String(feedback.painNotes||'').trim().slice(0,1000);if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
+  const pain=Boolean(feedback.pain),painNotes=pain?String(feedback.painNotes||'').trim().slice(0,1000):'';if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
   clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);delete execution.reviewingHistory;freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
   event(execution,'SESSION_COMPLETED',execution.feedback,actor);return execution;
 }

@@ -9,6 +9,7 @@ export const ACTION_STATE_SEMANTICS=Object.freeze({
 });
 const VALID=new Set(Object.keys(ACTION_STATE_SEMANTICS));
 const OFFLINE_CODES=new Set(['M26_NETWORK_UNAVAILABLE','M26_OFFLINE','NETWORK_UNAVAILABLE','OFFLINE']);
+function escapeActionStateText(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function errorCode(error){return String(error?.code||error?.message||error||'').trim().toUpperCase();}
 function isOfflineError(error){
   if(globalThis?.navigator?.onLine===false)return true;
@@ -39,5 +40,5 @@ export function renderActionState(state={status:'idle',message:''}){
   const semantics=ACTION_STATE_SEMANTICS[state.status];
   if(!semantics)throw new Error('M26_ACTION_STATE_INVALID');
   const busyMessage=state.status==='loading'?'Procesando…':'';
-  return `<div class="m26-action-state is-${state.status}" data-action-state="${state.status}" role="${semantics.role}" aria-live="${semantics.live}" aria-atomic="true"${semantics.busy?' aria-busy="true"':''}>${state.message||busyMessage}</div>`;
+  return `<div class="m26-action-state is-${state.status}" data-action-state="${state.status}" role="${semantics.role}" aria-live="${semantics.live}" aria-atomic="true"${semantics.busy?' aria-busy="true"':''}>${escapeActionStateText(state.message||busyMessage)}</div>`;
 }

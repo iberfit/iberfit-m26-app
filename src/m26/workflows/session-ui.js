@@ -1,4 +1,4 @@
-import { canSubstituteCurrentExercise,currentExerciseSubstitutionScope,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
+import { currentExerciseSubstitutionScope,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
@@ -6,6 +6,7 @@ import {exerciseDisplayName} from '../exercises/names.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
+import {renderActionState} from '../ui/action-state.js';
 function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function previousSetSummary(values){
   return [
@@ -574,7 +575,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
       </div>
     </header>
     ${renderProfessionalSessionClientContext(clientContext,role)}
-    ${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}
+    ${renderActionState(actionState)}
     <section class="m26-builder-session-strip" aria-label="Resumen de sesión · ${e(plural(metrics.exercises,'ejercicio','ejercicios'))} · ${e(plural(metrics.workUnits,'serie/ronda','series/rondas'))}">
       <div><span>Ejercicios</span><strong>${e(metrics.exercises)}</strong></div>
       <div><span>Trabajo</span><strong>${e(metrics.workUnits)}</strong><small>series / rondas</small></div>
@@ -722,6 +723,32 @@ function sessionLiveGoal(session){
   </div>`;
 }
 
+export function sessionAdjustmentCounts(execution){
+  const events=Array.isArray(execution?.events)?execution.events:[];
+  const count=(type)=>events.reduce((total,item)=>total+(item?.type===type?1:0),0);
+  return {
+    substitutions:count('EXERCISE_SUBSTITUTED'),
+    skippedSets:count('SET_SKIPPED'),
+    skippedExercises:count('EXERCISE_SKIPPED'),
+    extraSets:count('SET_ADDED'),
+    extraRounds:count('GROUP_ROUND_ADDED'),
+    addedExercises:count('EXERCISE_ADDED'),
+  };
+}
+function renderSessionAdjustmentSummary(execution){
+  const counts=sessionAdjustmentCounts(execution);
+  const items=[
+    ['Sustituciones',counts.substitutions],
+    ['Series omitidas',counts.skippedSets],
+    ['Ejercicios omitidos',counts.skippedExercises],
+    ['Series extra',counts.extraSets],
+    ['Rondas extra',counts.extraRounds],
+    ['Ejercicios añadidos',counts.addedExercises],
+  ].filter(([,value])=>value>0);
+  if(!items.length)return '';
+  const detail=items.map(([label,value])=>'<span><span>'+e(label)+'</span> <strong>'+e(value)+'</strong></span>').join('<span aria-hidden="true"> · </span>');
+  return '<div class="m26-notice m26-session-adjustments" data-session-adjustments><strong>'+e('Ajustes realizados')+'</strong><span>'+detail+'</span></div>';
+}
 function completedSessionSummary(execution){
   const totals=executionTotals(execution);
   const feedback=execution?.feedback||{};
@@ -785,9 +812,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
 }
 
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
-  const state=actionState&&actionState.status!=='idle'
-    ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
-    :'';
+  const state=renderActionState(actionState);
   const sync=renderSessionSyncBanner(execution,{role});
   const goal=sessionLiveGoal(session);
 
@@ -850,6 +875,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <span class="m26-session-live-status">Cierre</span>
         </div>
         ${completedSessionSummary(execution)}
+        ${renderSessionAdjustmentSummary(execution)}
       </div>
       <div class="m26-panel" data-session-live-feedback>
         <p class="m26-eyebrow">Feedback final</p>
@@ -857,8 +883,8 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         <div class="m26-field-grid">
           <label>${e(rpeLabel)}<input type="number" min="1" max="10" data-session-feedback-rpe required></label>
           <label>${e(commentLabel)}<textarea data-session-feedback-comment maxlength="2000" required></textarea></label>
-          <label><input type="checkbox" data-session-feedback-pain> ${e(painLabel)}</label>
-          <label>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label>
+          <label><input type="checkbox" data-session-feedback-pain aria-controls="m26-session-feedback-pain-detail" aria-expanded="false"> ${e(painLabel)}</label>
+          <label data-session-feedback-pain-detail hidden>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea id="m26-session-feedback-pain-detail" data-session-feedback-pain-notes maxlength="1000"></textarea></label>
         </div>
         ${feedbackPrivacyNote?`<p class="m26-notice" data-session-coach-feedback-privacy>${e(feedbackPrivacyNote)}</p>`:''}
         ${feedbackReviewNotice}
@@ -949,6 +975,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <span class="m26-session-live-status">${confirmed?'Confirmada':'Pendiente'}</span>
         </div>
         ${completedSessionSummary(execution)}
+        ${renderSessionAdjustmentSummary(execution)}
         ${feedbackSummary}
         ${confirmed?`<p>${e(continuityCopy)}</p>`:''}
         ${completedActions}
@@ -1048,7 +1075,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     Number(currentQueueItem?.sets||0)<100
   );
   const substitutionScope=currentExerciseSubstitutionScope(execution);
-  const substitutionLocked=!canSubstituteCurrentExercise(execution);
+  const substitutionLocked=substitutionScope==='locked';
   const substitutionDisabled=substitutionLocked||substitutionUnavailable;
   const substitutionTitle=substitutionLocked
     ?'Este ejercicio ya no puede sustituirse sin alterar trabajo registrado'
@@ -1140,6 +1167,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
           <button type="button" data-session-action="correct-set">Guardar corrección</button>
         </details>
+        ${state}
         <div class="m26-session-live-actions">
           ${restActive?'<button type="button" data-session-action="rest-minus">−15 s</button><button type="button" data-session-action="rest-plus">+15 s</button>':''}
           ${coachExtraSetReady?'<button type="button" class="m26-session-fast-action m26-session-extra-set-action" data-session-action="extra-set-now" aria-label="Añadir una serie extra y continuar directamente con ella">+ 1 serie y seguir</button>':''}${coachExtraGroupRoundReady?'<button type="button" class="m26-session-fast-action m26-session-extra-set-action" data-session-action="extra-group-round-now" aria-label="Añadir una ronda extra al bloque y continuar directamente con ella">+ 1 ronda y seguir</button>':''}
@@ -1157,6 +1185,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <summary>Añadir una nota a esta serie</summary>
           <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>
         </details>
+        ${state}
         <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds??60)}">Completar serie</button>
         <details class="m26-session-options">
           <summary>No realizar esta serie</summary>
@@ -1168,7 +1197,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const cues=(ex.cues||[]).join(' · ');
 
   return `<section class="m26-guided m26-session-live m26-session-live-v2 m26-session-live-v3" data-session-live-state="${restActive?'rest':'active'}" data-session-live-v3>
-    ${professionalClientContext}${state}
+    ${professionalClientContext}
     ${sync}
     <header class="m26-session-live-hero">
       <div class="m26-session-live-heading">

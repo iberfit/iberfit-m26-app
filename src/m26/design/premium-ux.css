@@ -535,7 +535,8 @@ body {
   .m26-session-live .m26-session-live-entry :is(input,select) { min-height: 3.9rem; padding: .7rem .75rem; font-size: 1.22rem; }
   .m26-session-live .m26-session-rest-countdown strong { font-size: clamp(2.7rem, 13vw, 4.2rem); }
   .m26-session-live .m26-session-live-actions > * { min-height: 3.6rem; }
-  .m26-session-live .m26-session-live-entry [data-session-action="complete-set"] { position: sticky; bottom: calc(var(--iberfit-ux-mobile-nav) + env(safe-area-inset-bottom) + .6rem); z-index: 45; min-height: 4.4rem; margin-top: .35rem; box-shadow: 0 18px 38px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.06); }
+  .m26-session-live .m26-session-live-entry [data-session-action="complete-set"] { position: sticky; bottom: calc(env(safe-area-inset-bottom) + .6rem); z-index: 45; min-height: 4.4rem; margin-top: .35rem; box-shadow: 0 18px 38px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.06); }
+  [data-m26-layout="compact-touch"] .m26-session-live .m26-session-live-entry [data-session-action="complete-set"] { bottom: calc(var(--iberfit-ux-mobile-nav) + env(safe-area-inset-bottom) + .6rem); }
   .m26-session-live .m26-session-live-options { padding-top: .85rem; }
   .m26-session-live .m26-session-live-options > h3,.m26-session-live .m26-session-live-options > p { margin-top: 0; }
 }
@@ -1256,7 +1257,7 @@ body {
 
   .m26-session-live-v3 .m26-session-live-quick-actions{
     position:sticky;
-    top:.4rem;
+    top:var(--m26-session-sticky-top,.4rem);
     z-index:20;
     width:max-content;
     max-width:100%;
