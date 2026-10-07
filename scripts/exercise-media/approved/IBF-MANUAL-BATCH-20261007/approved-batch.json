@@ -1,0 +1,329 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-AB-WHEEL-DESDE-RODILLAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-ff7084165f90.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-AB-WHEEL-DESDE-RODILLAS/movement-ff7084165f90.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "ff7084165f902fd4cb13dc37227b87f4b40162d8f180f6ecd6bca4a055b1b398"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BEAR-PLANK-SHOULDER-TAP",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-e9a291019458.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BEAR-PLANK-SHOULDER-TAP/movement-e9a291019458.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "e9a291019458e2bdd36c028384fc067c9f9f1ae64ed3116afb0bd013dcb09c47"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BIRD-DOG-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-fa16a0ce44ee.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BIRD-DOG-CON-BANDA/movement-fa16a0ce44ee.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fa16a0ce44ee7ed02db7fa0e8787b28be60cc118af278d058bb963fa88af7c1b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BISAGRA-DE-CADERA-CON-PALO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-1a68da347553.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BISAGRA-DE-CADERA-CON-PALO/movement-1a68da347553.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "1a68da34755351bc5f8e514c7d532546086f8eb80b10208b1febc12ff2179639"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BEAR-CRAWL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-5ffa3e8e5cdc.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BEAR-CRAWL/movement-5ffa3e8e5cdc.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "5ffa3e8e5cdc14a3e1ce2ce5dd47496ce2c8de23efa1e16a02ee8fe5d9257555"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BEAR-PLANK",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-a8be02a64d80.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BEAR-PLANK/movement-a8be02a64d80.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "a8be02a64d80d427b026453b588b9c18b04e043e94f93572042f798cc43450a4"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-BIRD-DOG-CON-PAUSA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007/movement-16bb77df8124.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana del propietario IBERFIT en revisión visual directa: patrón IBERFIT confirmado, ejecución aceptada y publicación solicitada a producción."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-BIRD-DOG-CON-PAUSA/movement-16bb77df8124.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "16bb77df812419af410ee368b790b3fd55370493187a3887fbeb53c3ebb2ca90"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
