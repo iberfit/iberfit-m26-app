@@ -1,0 +1,52 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PLANCHA-LATERAL-APOYO-BANCO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B4-SINGLE/movement-fc4ca6b698a2.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT. Ficha individual sin miniaturas laterales, patrón golden IBERFIT confirmado."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-LATERAL-APOYO-BANCO/movement-fc4ca6b698a2.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fc4ca6b698a2b0f289c19a641cc20bc6a4eee24085b78a9a6da2b00811d8af4b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core",
+            "oblicuos"
+          ],
+          "secondary": [
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
