@@ -3997,7 +3997,7 @@ function nextSessionPrepCheckin(prep){
     ['Dolor',row.pain],
     ['Fatiga',row.fatigue],
     ['Motivación',row.motivation],
-  ].filter(([,value])=>Number.isFinite(Number(value)));
+  ].filter(([,value])=>(typeof value==='number'&&Number.isFinite(value))||(typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value))));
   if(!parts.length)return '<p class="m26-next-session-empty">Check-in registrado sin valores comparables.</p>';
   return `<div class="m26-next-session-signal-grid">${parts.map(([label,value])=>`<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join('')}</div>`;
 }
@@ -4117,8 +4117,11 @@ export function renderSessionsRoute(vm){
   const clientSessionGuideAttribute=isClient&&vm.sessions.length
     ?' data-m26-client-guide="session-surface"'
     :'';
+  const hasPublishedSession=Array.isArray(vm.sessions)&&vm.sessions.some((item)=>isClient?Boolean(item?.id):item?.publication?.status==='published'&&item?.publication?.visibleToClient!==false);
+  const hasConflictingAppointment=vm.nextSessionPreparation?.session?.source==='appointment-mismatch';
+  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment;
   const directStart=serviceActive
-    ?`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${vm.sessions.length?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`
+    ?`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${mayStartDirectly?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`
     :`<button type="button" disabled aria-disabled="true">Entrenamiento en pausa</button>`;
   const primary=vm.canBuild
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`
