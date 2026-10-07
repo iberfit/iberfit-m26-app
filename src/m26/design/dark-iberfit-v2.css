@@ -1823,6 +1823,19 @@
   overflow-wrap:anywhere;
 }
 
+.m26-session-preview-edit{
+  min-height:44px;
+  margin-top:.5rem;
+}
+
+.m26-builder-alternative-note{
+  display:block;
+  margin-top:.3rem;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.72rem;
+  line-height:1.35;
+}
+
 .m26-session-progression{
   border:1px solid var(--iberfit-v2-line);
   border-radius:.75rem;
