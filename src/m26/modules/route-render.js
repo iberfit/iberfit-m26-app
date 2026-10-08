@@ -4342,7 +4342,9 @@ export function renderSettingsRoute(vm){
     ? (vm.wearableConnections===0?'No hay fuentes confirmadas':vm.wearableConnections+' fuente'+(vm.wearableConnections===1?'':'s')+' registrada'+(vm.wearableConnections===1?'':'s'))
     : 'No hay contexto de cliente seleccionado';
   const wearableSources=vm.role==='client'&&Array.isArray(vm.wearableSources)?vm.wearableSources:[];
-  const sourceRows=wearableSources.map(item=>'<li><strong>'+escapeHtml(item.label)+'</strong><span>'+escapeHtml(castilianStatusLabel(item.status))+' · '+escapeHtml(item.lastSyncedAt?item.lastSyncedAt.slice(0,10):'Sin sincronización confirmada')+' · '+Number(item.permissionCount||0)+' permisos de lectura</span></li>').join('');
+  const sourceRows=wearableSources.map(item=>'<li><strong>'+escapeHtml(item.label)+'</strong><span>'+escapeHtml(item.mode==='confirmed_import'?'Datos incorporados manualmente · no sincroniza solo':castilianStatusLabel(item.status))+' · '+escapeHtml(item.lastSyncedAt?item.lastSyncedAt.slice(0,10):'Sin actualización confirmada')+'</span></li>').join('');
+  const settingsSummary=vm.wearableSnapshot?.summary||null;
+  const settingsStats=settingsSummary&&Number(settingsSummary.daysWithData||0)>0?deviceConfirmedStats(settingsSummary):'';
 
   const notificationToggle=(key,label,copy)=>
     `<label class="m26-consent">
@@ -4449,11 +4451,12 @@ export function renderSettingsRoute(vm){
                   <h4>Dispositivos y salud</h4>
                   <p>${escapeHtml(wearableNote)}</p>
                 </div>
-                <button type="button" data-m26-area="actividad">${vm.role==='client'?'Gestionar fuentes':'Ver seguimiento'}</button>
+                <button type="button" data-m26-area="actividad">${vm.role==='client'?'Ver mis dispositivos':'Ver seguimiento'}</button>
               </div>
               ${vm.role==='client'
-                ?'<p class="m26-data-footnote">La importación está disponible desde el primer día. La conexión automática requiere permisos y un proveedor certificado.</p>'
-                 +(sourceRows?'<ul class="m26-settings-device-sources">'+sourceRows+'</ul>':'<p class="m26-data-footnote">Todavía no has incorporado una fuente de actividad. Es opcional y puedes hacerlo más adelante.</p>')
+                ?(settingsStats||'<p class="m26-data-footnote">Sin datos de actividad confirmados todavía.</p>')
+                 +(sourceRows?'<ul class="m26-settings-device-sources">'+sourceRows+'</ul>':'<p class="m26-data-footnote">Sin fuentes vinculadas. El cliente puede vincular una fuente certificada desde Actividad.</p>')
+                 +'<p class="m26-data-footnote">Importar un archivo no vincula el reloj. La conexión automática solo estará habilitada con una integración certificada.</p>'
                 :'<p class="m26-data-footnote">Solo el cliente controla sus fuentes y permisos. El Coach consulta únicamente el seguimiento autorizado.</p>'}
               <div class="m26-settings-privacy-note">
                 ${badge('Privacidad activa','success')}
