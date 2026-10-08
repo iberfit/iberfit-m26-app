@@ -918,6 +918,15 @@ if (area === 'clientes') {
       canBuild: trainingActive&&['admin', 'coach'].includes(role),
       clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
+      // Passive, already-confirmed activity context; never alters the prescribed session.
+      wearableContext:role==='client'
+        ?buildWearableViewModel({
+            records:recordsForClient(state,'wearableDailySummaries',clientId),
+            connections:recordsForClient(state,'wearableConnections',clientId),
+            role,
+            now,
+          })
+        :null,
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
       nextSessionPreparation,
@@ -1237,10 +1246,20 @@ function rc71SettingsSnapshot(
         preferences
       ),
     wearableConnections:connections.length,
+    // Reuse only confirmed summaries and connection grants; no provider access from Settings.
+    wearableSnapshot:String(shellVm.identity?.role||'')==='client'
+      ?buildWearableViewModel({
+          records:recordsForClient(state,'wearableDailySummaries',clientId),
+          connections,
+          role:'client',
+        })
+      :null,
     wearableSources:String(shellVm.identity?.role||'')==='client'
       ?Object.freeze(buildWearableViewModel({records:[],connections,role:'client'}).connections.map(item=>Object.freeze({
           label:item.label,
+          provider:item.provider,
           status:item.status,
+          mode:item.mode,
           lastSyncedAt:item.lastSyncedAt,
           permissionCount:item.scopes.length,
         })))
