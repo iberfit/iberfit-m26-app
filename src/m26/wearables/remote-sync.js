@@ -127,6 +127,9 @@ export function createWearableRemoteSync({
     if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
     const grant=authorizationGrant||explicitGrants.get(safeSource)||null;
     if(grant&&!GRANT_ID.test(String(grant)))throw new Error('M26_CONNECTED360_GRANT_INVALID');
+    // Never persist new file records without an explicitly obtained server grant.
+    if(safeSource==='normalized_file'&&!grant)
+      throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
     const normalized=deduplicateWearableDailyRecords(records)
       .filter((record)=>
         record.clientId===safeClientId&&
@@ -225,17 +228,16 @@ export function createWearableRemoteSync({
       const groupClientId=groupEntries[0][1].clientId;
       const groupProvider=groupEntries[0][1].provider;
 
-      // A queued v44 file must never be replayed after any server revocation
-      // (including on another phone). Keep the source blocked until consent is renewed.
-      if(groupProvider==='normalized_file'&&!groupEntries[0][1].authorizationGrant
-        &&typeof transport.wearableAuthorizationStatus==='function'){
-        const status=await transport.wearableAuthorizationStatus(token,groupProvider);
-        if(status.revocationCursor>0){
-          for(const [key] of groupEntries)await queueStore.remove(key);
-          discarded+=groupEntries.length;
-          if(!status.authorized)blockedProviders.add(groupProvider);
-          continue;
+      // All legacy v44 file entries lack a verifiable consent generation.
+      // Even a zero revocation cursor is NOT evidence of consent.
+      if(groupProvider==='normalized_file'&&!groupEntries[0][1].authorizationGrant){
+        if(typeof transport.wearableAuthorizationStatus==='function'){
+          const status=await transport.wearableAuthorizationStatus(token,groupProvider);
+          if(!status?.authorized)blockedProviders.add(groupProvider);
         }
+        for(const [key] of groupEntries)await queueStore.remove(key);
+        discarded+=groupEntries.length;
+        continue;
       }
 
       for(const batch of chunks(groupEntries,200)){
@@ -396,9 +398,11 @@ export function createWearableRemoteSync({
           expectedGrant:status.grantId||null,scopes,
         });
       }
-      // Never upgrade an old offline import to a newly granted generation.
+      // Keep pending offline data from the same current consent generation.
+      // Never upgrade any older, revoked or pre-consent queue.
       for(const [key,item] of await queuedEntries()){
-        if(item?.provider===source)await queueStore.remove(key);
+        if(item?.provider===source&&item.authorizationGrant!==result.grantId)
+          await queueStore.remove(key);
       }
       explicitGrants.set(source,result.grantId);
       blockedProviders.delete(source);

@@ -27,7 +27,11 @@ test('Consent is never auto-issued by background flush or stale offline data',as
   };
   const remote=createWearableRemoteSync({ownerId:'c360-qa',queueStore:store,transport,
     getToken:async()=>'qa-token',isOnline:()=>online});
-  await remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]});
+  await assert.rejects(remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]}),
+    /M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED/u);
+  await store.set('m26:wearable-sync:v44:owner/c360-qa/'+RECORD.clientId+':normalized_file:'+RECORD.date,
+    {ownerId:'c360-qa',clientId:RECORD.clientId,provider:'normalized_file',
+      record:RECORD,authorizationGrant:null,attempts:0});
   assert.equal(await remote.pendingCount(),1);
   assert.equal(reauthCount,0);
   const authAttempt=remote.reauthorize({provider:'normalized_file',scopes:['steps']});
@@ -92,7 +96,8 @@ test('Activity source actions require Client confirmation and imported file scop
   const c=readFileSync('src/m26/wearables/controller.js','utf8');
   const route=readFileSync('src/m26/modules/route-render.js','utf8');
   assert.match(c,/remoteSync\.reauthorize\(\{provider:'normalized_file',scopes\}\)/u);
-  assert.match(c,/currentPreview\.provider==='normalized_file'&&isOnline\(\)/u);
+  assert.match(c,/currentPreview\.provider==='normalized_file'/u);
+  assert.match(c,/if\(!isOnline\(\)\)throw new Error\('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED'\)/u);
   assert.match(c,/authorizationGrant:grant/u);
   assert.match(c,/action==='revoke-source'\|\|action==='remove-source-data'/u);
   assert.match(c,/globalThis\.confirm\?\.\(/u);
@@ -107,15 +112,16 @@ test('Activity source actions require Client confirmation and imported file scop
 test('A rejected legacy batch is quarantined, never retried automatically, and explicit consent clears it',async()=>{
   const store=createMemoryKeyValueStore();let calls=0,reattempt=0,online=true;
   const transport={
-    async importWearableSummaries(){calls++;return {accepted:0,rejected:1,stale:0};},
-    async importWearableAuthorized(){return {accepted:1,rejected:0,stale:0};},
+    async importWearableSummaries(){throw Error('legacy file import must never execute');},
+    async importWearableAuthorized(){calls++;return {accepted:0,rejected:1,stale:0};},
     async upsertWearableConnection(){return {ok:true};},
     async wearableAuthorizationStatus(){return {provider:'normalized_file',authorized:false,grantId:null,revocationCursor:0};},
     async reauthorizeWearable(){reattempt++;return {ok:true,grantId:UUIDS[0]};},
   };
   const remote=createWearableRemoteSync({ownerId:'c360-failclosed-qa',transport,
     queueStore:store,getToken:async()=>'qa-token',isOnline:()=>online});
-  await assert.rejects(remote.stage({clientId:RECORD.clientId,provider:RECORD.provider,records:[RECORD]}),
+  await assert.rejects(remote.stage({clientId:RECORD.clientId,provider:RECORD.provider,
+    records:[RECORD],authorizationGrant:UUIDS[0]}),
     /M26_WEARABLE_REMOTE_REJECTED/u);
   assert.equal(calls,1);
   assert.equal(await remote.pendingCount(),1,'data kept for explicit review');
@@ -134,7 +140,9 @@ test('Legacy offline records are erased locally once a different device revoked 
   };
   const sync=createWearableRemoteSync({ownerId:'c360-cross-device-qa',queueStore:store,
     transport,getToken:async()=>'qa-token',isOnline:()=>online});
-  await sync.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]});
+  await store.set('m26:wearable-sync:v44:owner/c360-cross-device-qa/'+RECORD.clientId+':normalized_file:'+RECORD.date,
+    {ownerId:'c360-cross-device-qa',clientId:RECORD.clientId,provider:'normalized_file',
+      record:RECORD,authorizationGrant:null,attempts:0});
   assert.equal(await sync.pendingCount(),1);
   online=true;
   const result=await sync.flush();
@@ -143,4 +151,65 @@ test('Legacy offline records are erased locally once a different device revoked 
   assert.equal(await sync.pendingCount(),0);
   await assert.rejects(sync.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]}),
     /M26_WEARABLE_SOURCE_REVOKED/u);
+});
+
+test('Ungrantable normalized files are rejected online and offline without a legacy upload',async()=>{
+  let online=false,uploads=0;
+  const remote=createWearableRemoteSync({ownerId:'c360-no-consent',queueStore:createMemoryKeyValueStore(),
+    transport:{async importWearableSummaries(){uploads++;return {accepted:1};}},
+    getToken:async()=>'qa-token',isOnline:()=>online});
+  for(const state of [false,true]){
+    online=state;
+    await assert.rejects(remote.stage({clientId:RECORD.clientId,provider:RECORD.provider,records:[RECORD]}),
+      /M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED/u);
+  }
+  assert.equal(uploads,0);
+  assert.equal(await remote.pendingCount(),0);
+});
+
+test('Legacy ungranted queue is discarded even if the revocation cursor is zero',async()=>{
+  const store=createMemoryKeyValueStore();let legacy=0;
+  await store.set('m26:wearable-sync:v44:owner/c360-cursor-zero/'+RECORD.clientId+':normalized_file:'+RECORD.date,
+    {ownerId:'c360-cursor-zero',clientId:RECORD.clientId,provider:'normalized_file',
+      record:RECORD,authorizationGrant:null,attempts:0});
+  const remote=createWearableRemoteSync({ownerId:'c360-cursor-zero',queueStore:store,
+    transport:{
+      async wearableAuthorizationStatus(){return {authorized:false,revocationCursor:0};},
+      async importWearableSummaries(){legacy++;return {accepted:1};},
+    },getToken:async()=>'qa-token',isOnline:()=>true});
+  const result=await remote.flush();
+  assert.equal(result.discarded,1);
+  assert.equal(legacy,0);
+  assert.equal(await remote.pendingCount(),0);
+});
+
+test('Repeated confirmation preserves pending data under the unchanged authorization generation',async()=>{
+  const store=createMemoryKeyValueStore();let online=false,upload=0;
+  const remote=createWearableRemoteSync({ownerId:'c360-repeat',queueStore:store,
+    transport:{
+      async wearableAuthorizationStatus(){return {authorized:true,grantId:UUIDS[0],
+        revocationCursor:0,scopes:['steps','activeMinutes']};},
+      async reauthorizeWearable(){throw Error('must not issue redundant grant');},
+      async importWearableAuthorized(_token,grant){assert.equal(grant,UUIDS[0]);upload++;return {accepted:1,rejected:0,stale:0};},
+    },getToken:async()=>'qa-token',isOnline:()=>online});
+  await remote.stage({clientId:RECORD.clientId,provider:RECORD.provider,
+    records:[RECORD],authorizationGrant:UUIDS[0]});
+  assert.equal(await remote.pendingCount(),1);
+  online=true;
+  const result=await remote.reauthorize({provider:'normalized_file',scopes:['steps']});
+  assert.equal(result.alreadyAuthorized,true);
+  assert.equal(await remote.pendingCount(),1,'active-generation queue must remain intact');
+  await remote.flush();
+  assert.equal(upload,1);
+  assert.equal(await remote.pendingCount(),0);
+});
+
+test('Server policy requires generation-bound consent for all file writes, even before any revoke',()=>{
+  const sql=readFileSync('supabase/migrations/20261008181500_connected360_file_grant_enforcement_v3.sql','utf8');
+  assert.match(sql,/v_source='normalized_file' or v_blocked/u);
+  assert.match(sql,/M26_CONNECTED360_FILE_CONSENT_REQUIRED/u);
+  assert.match(sql,/m26_wearable_authorization_v2/u);
+  assert.match(sql,/m26_wearable_revocation_events_v2/u);
+  assert.match(sql,/pg_catalog\.current_setting\('iberfit\.connected360\.grant_id',true\)/u);
+  assert.doesNotMatch(sql,/\bdrop\s+(?:table|trigger|function|policy)\b/iu);
 });

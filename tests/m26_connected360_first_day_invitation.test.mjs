@@ -195,8 +195,8 @@ test('Client revocation serializes behind in-flight import, never reactivates or
   const gate=new Promise(resolve=>{releaseImport=resolve;});
   const calls=[];
   const transport={
-    async importWearableSummaries(_token,payload){calls.push('import');startedImport();await gate;return {accepted:payload.records.length,rejected:0,stale:0};},
-    async upsertWearableConnection(){calls.push('grant');return {ok:true};},
+    async importWearableAuthorized(_token,authorization,payload){assert.equal(authorization,'11111111-1111-4111-8111-111111111111');calls.push('import');startedImport();await gate;return {accepted:payload.records.length,rejected:0,stale:0};},
+    async upsertWearableConnection(){throw Error('legacy connection write is forbidden for file import');},
     async revokeWearableConnection(){calls.push('revoke');return {ok:true};},
     async deleteWearableData(){calls.push('delete');return {ok:true};},
   };
@@ -208,7 +208,7 @@ test('Client revocation serializes behind in-flight import, never reactivates or
     clientId:'client-revocation-fixture',provider:'normalized_file',date:'2026-10-08',
     metrics:{steps:1200,activeMinutes:25},sourceUpdatedAt:'2026-10-08T12:00:00Z',quality:'media',
   };
-  await remote.stage({clientId:record.clientId,provider:record.provider,records:[record]});
+  await remote.stage({clientId:record.clientId,provider:record.provider,records:[record],authorizationGrant:'11111111-1111-4111-8111-111111111111'});
   online=true;
   const flushing=remote.flush();
   await started;
@@ -217,11 +217,11 @@ test('Client revocation serializes behind in-flight import, never reactivates or
   assert.deepEqual(calls,['import'],'Revocation must wait for import then become the final server operation');
   releaseImport();
   await flushing;await revoking;
-  assert.deepEqual(calls,['import','grant','revoke']);
+  assert.deepEqual(calls,['import','revoke']);
   assert.equal(await remote.pendingCount(),0);
   const after=await remote.flush();
   assert.equal(after.imported,0);
-  assert.deepEqual(calls,['import','grant','revoke']);
+  assert.deepEqual(calls,['import','revoke']);
 });
 test('Delete all wins over pending sync in the same identity and prevents queued resurrection',async()=>{
   const {createWearableRemoteSync}=await import('../src/m26/wearables/remote-sync.js');
@@ -238,7 +238,7 @@ test('Delete all wins over pending sync in the same identity and prevents queued
     transport,getToken:async()=>'token',isOnline:()=>online,
   });
   const record={clientId:'client-delete-fixture',provider:'normalized_file',date:'2026-10-08',metrics:{steps:20},sourceUpdatedAt:'2026-10-08T13:00:00Z',quality:'media'};
-  await remote.stage({clientId:record.clientId,provider:record.provider,records:[record]});
+  await remote.stage({clientId:record.clientId,provider:record.provider,records:[record],authorizationGrant:'11111111-1111-4111-8111-111111111111'});
   online=true;
   const clear=remote.deleteAll();
   const duplicateSync=remote.flush();

@@ -557,7 +557,8 @@ export function createWearableController({
     );
 
     let grant=null;
-    if(currentPreview.provider==='normalized_file'&&isOnline()){
+    if(currentPreview.provider==='normalized_file'){
+      if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
       const fields=['steps','activeMinutes','sleepMinutes','restingHeartRate',
         'hrvMs','activeEnergyKcal','workoutMinutes'];
       const scopes=fields.filter((field)=>

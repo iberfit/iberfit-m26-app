@@ -77,3 +77,9 @@ Se detectó y respetó la constraint existente `m26_wearable_consents_v44_policy
 - Certificar revocación entre dispositivos reales, recuperación tras mala red, cambios de sesión y autorizaciones concurrentes.
 - No prometer HealthKit/Health Connect, BLE o OAuth cloud hasta certificación real y análisis de costes.
 - Verificar rollback y diff QA/PROD de ambas migraciones; mantener PR #808 en borrador y PROD intacta hasta completar.
+
+## Checkpoint hardening v3 · archivo sin autorización previa
+
+El archivo normalizado exige generación v2 válida **desde la primera escritura**, no solo tras revocación. Las RPC RC44 heredadas conservan compatibilidad con otros proveedores, pero nunca pueden escribir archivos sin UUID vigente. La cola local de archivos antigua sin generación se descarta sin elevarla a nuevos permisos. El usuario puede revisar sin conexión, pero confirmar la importación requiere conexión para autorizar. Se conserva la cola offline que comparta la generación todavía vigente.
+
+El cambio está en `20261008181500_connected360_file_grant_enforcement_v3.sql`, con pruebas regresivas; Apple/Android y otros proveedores permanecen deshabilitados hasta certificación. Las migraciones v1/v2 se encuentran operativas en QA, pero actualmente **no figuran en `supabase_migrations.schema_migrations`**; reconciliar ese historial antes de promoción sin reaplicar cambios de esquema a ciegas.
