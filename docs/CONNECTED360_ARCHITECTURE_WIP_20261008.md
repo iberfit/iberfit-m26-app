@@ -53,3 +53,27 @@ Inspección de las definiciones reales de Supabase QA y PROD, sin ejecutarlas:
 - Costes: mantener proveedores gratuitos u opciones abiertas, documentando requisitos de cuenta/despliegue para apps nativas.
 
 No fusionar esta PR como Connected 360 terminado mientras persista el riesgo servidor de revocación o la conexión real no esté certificada.
+
+## Checkpoint v2 · reautorización y generaciones (QA · 08/10/2026)
+
+Implementado en PR #808, no en producción. Migración aditiva: `20261008173000_connected360_explicit_reauthorization_v2.sql`, instalada solo en Supabase QA.
+
+- Ledger de revocación monotónico, autorización vigente por cliente/fuente y generación UUID, ambas tablas con RLS.
+- Tres RPC autenticadas: estado, reautorización explícita CAS e importación con generación. Solo `normalized_file` habilitado.
+- La ruta v44 conserva compatibilidad, pero no puede cruzar un tombstone existente. El lote v2 necesita grantId vigente y métricas incluidas en scopes consentidos.
+- La importación en la interfaz nace del botón explícito de confirmación del archivo. El sync de fondo no puede emitir autorizaciones.
+- La cola antigua no hereda autorizaciones nuevas. Los rechazos no transitorios quedan fuera del ciclo de reintentos; revocación elimina la cola asociada.
+- UI del cliente: desconectar conservando historial o desconectar borrando historial, con confirmación.
+
+### QA transaccional autenticado (ROLLBACK)
+
+Resultado PASS en QA, sin persistir registros de prueba: importar (accepted=1), revocar, denegar grant viejo, denegar CAS desfasado, reautorizar con nuevo UUID, importar (rejected=0), denegar UUID anterior y denegar después de delete-all. Cuatro rechazos esperados confirmados.
+
+Se detectó y respetó la constraint existente `m26_wearable_consents_v44_policy_version_check`: la auditoría continúa usando `v44-zero-cost` y guarda la versión de permiso v2 por separado; ningún CHECK fue modificado.
+
+### Antes del merge / PROD
+
+- Aprobar CI real al SHA exacto, seguridad, QA de escritura, navegación Cliente/Coach/Admin y E2E móvil.
+- Certificar revocación entre dispositivos reales, recuperación tras mala red, cambios de sesión y autorizaciones concurrentes.
+- No prometer HealthKit/Health Connect, BLE o OAuth cloud hasta certificación real y análisis de costes.
+- Verificar rollback y diff QA/PROD de ambas migraciones; mantener PR #808 en borrador y PROD intacta hasta completar.
