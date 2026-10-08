@@ -95,7 +95,7 @@ test('RC21 UX comunica coste cero y evita acciones de conexión falsas',()=>{
   assert.match(html,/Plan gratuito de integraciones/);
   assert.match(html,/Solo vista previa local · gratuito/);
   assert.match(html,/No disponible/);
-  assert.match(html,/No está conectada ni comparte datos/);
+  assert.match(html,/Sin dispositivo vinculado/);
   assert.doesNotMatch(html,/data-wearable-action="connect|Conectar Apple|Conectar Garmin/);
   assert.match(html,/aria-atomic="true"/);
 });
