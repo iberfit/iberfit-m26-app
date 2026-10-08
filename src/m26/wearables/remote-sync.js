@@ -193,7 +193,7 @@ export function createWearableRemoteSync({
     const entries=(await queuedEntries()).filter(([,item])=>
       (!safeClientId||item?.clientId===safeClientId)&&
       (!safeSource||item?.provider===safeSource)&&
-      !blockedProviders.has(item?.provider)
+      !blockedProviders.has(item?.provider)&&!item?.blockedReason
     );
 
     if(!entries.length){
@@ -244,19 +244,26 @@ export function createWearableRemoteSync({
             await queueStore.remove(key);
           }
         }catch(error){
-          for(const [key,item] of batch){
-            await queueStore.set(
-              key,
-              {
-                ...item,
-                attempts:Number(item?.attempts||0)+1,
-                lastError:String(error?.message||error)
-                  .replace(/[^A-Z0-9_:-]/giu,'')
-                  .slice(0,120),
-              },
-            );
+          const code=String(error?.message||error);
+          const revoked=/M26_CONNECTED360_(?:GRANT_REVOKED|GRANT_STALE|CONSENT_REVOKED)|M26_WEARABLE_SOURCE_REVOKED/u.test(code);
+          const invalid=/M26_WEARABLE_REMOTE_REJECTED|M26_CONNECTED360_IMPORT_(?:REJECTED|SCOPE_FORBIDDEN|SCOPE_INVALID)/u.test(code);
+          if(revoked){
+            blockedProviders.add(groupProvider);
+            explicitGrants.delete(groupProvider);
           }
-
+          for(const [key,item] of batch){
+            if(revoked){
+              // On confirmed server-side revocation, erase stale personal data locally.
+              await queueStore.remove(key);
+              continue;
+            }
+            await queueStore.set(key,{
+              ...item,
+              attempts:Number(item?.attempts||0)+1,
+              blockedReason:invalid?'review-required':null,
+              lastError:code.replace(/[^A-Z0-9_:-]/giu,'').slice(0,120),
+            });
+          }
           throw error;
         }
       }
