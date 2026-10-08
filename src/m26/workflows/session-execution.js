@@ -444,11 +444,15 @@ function validatedSetResult(step,input={},previous=null){
   const cadenceRpm=measuredNumber(input.cadenceRpm,0,250,'M26_EXECUTION_CADENCE_INVALID');
   const powerWatts=measuredNumber(input.powerWatts,0,2500,'M26_EXECUTION_POWER_INVALID');
   const elevationGainM=measuredNumber(input.elevationGainM,0,15000,'M26_EXECUTION_ELEVATION_INVALID');
+  const intervalsCompleted=measuredNumber(input.intervalsCompleted,1,1000,'M26_EXECUTION_INTERVALS_INVALID',true);
+  const paceMinPerKm=String(input.paceMinPerKm??'').trim();
+  if(paceMinPerKm&&!/^[0-9]{1,2}:[0-5][0-9]$/.test(paceMinPerKm))throw new Error('M26_EXECUTION_PACE_INVALID');
   const provenance=actorSnapshot(input.actor);
   return {
     exerciseId:step.exerciseId,
     setNumber:step.setNumber,
     reps,seconds,load,rpe,rir,
+    ...((profile.cardio||profile.kind==='carry')?{distanceKm,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
     notes:String(input.notes||'').trim().slice(0,1000),
     completedAt:previous?.completedAt||now(),
     ...(previous?{correctedAt:now()}:{ }),
