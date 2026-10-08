@@ -17,6 +17,10 @@ import {
 } from './remote-sync.js';
 import {formatSleepDuration} from './duration-format.js';
 import {
+  createConnected360QaNativeChannel,
+  isConnected360QaNativeAvailable,
+} from './qa-native-channel.js';
+import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
 import {
@@ -421,6 +425,20 @@ export function createWearableController({
 
   const bridge=createWearableBridgeService({
     scope:globalThis,
+  });
+  // This isolated debug-only channel cannot mark devices as linked,
+  // persist health data, issue consent or bypass productionAllowed=false.
+  const qaNative=createConnected360QaNativeChannel({
+    scope:globalThis,
+    getIdentity:()=>{
+      const identity=store.getState().identity||{};
+      return {
+        role:identity.role,
+        clientId:identity.role==='client'?identity.clientId:null,
+        ownerId,
+      };
+    },
+    getToken,
   });
 
   async function analyze(form){
@@ -1079,6 +1097,23 @@ export function createWearableController({
       healthConnectCard.append(fieldset);
     }
 
+    // Show only inside the Android Canary QA container. Never create a
+    // production device-link button or bypass source activation policy.
+    if(isConnected360QaNativeAvailable(globalThis)){
+      const qaCard=root.querySelector?.('[data-provider="health_connect"]');
+      if(qaCard&&!qaCard.querySelector?.('[data-wearable-action="qa-health-read"]')){
+        const control=document.createElement('button');
+        control.type='button';
+        control.dataset.wearableAction='qa-health-read';
+        control.textContent='Probar lectura local Android (QA)';
+        const status=document.createElement('p');
+        status.dataset.qaHealthStatus='true';
+        status.setAttribute('role','status');
+        status.textContent='Primero autoriza una lectura en la app Android de pruebas. Esta prueba no guarda ni vincula datos.';
+        qaCard.append(control,status);
+      }
+    }
+
     const nativeLabels={apple_health:'Conectar Apple Watch',health_connect:'Autorizar Health Connect',samsung_health:'Conectar Samsung Health',wear_os_health_services:'Conectar reloj Wear OS',ble_direct:'Conectar sensor Bluetooth'};
     for(const provider of bridge.nativeProviders){
       const healthConnectAvailable=provider==='health_connect'
@@ -1132,6 +1167,22 @@ export function createWearableController({
         await confirmImport();
       }else if(action==='sync-pending'){
         await syncPending();
+      }else if(action==='qa-health-read'){
+        const card=button.closest?.('[data-provider="health_connect"]');
+        const node=card?.querySelector?.('[data-qa-health-status]');
+        if(node)node.textContent='Leyendo datos autorizados en el teléfono…';
+        const local=await qaNative.readLocal({days:7});
+        const latest=local.rows.at(-1)||null;
+        if(node){
+          const sleep=latest?.metrics?.sleepMinutes;
+          node.textContent=latest
+            ?'Vista local (no sincronizada) · '+latest.date+
+              ' · pasos: '+(latest.metrics.steps??'Sin dato')+
+              ' · sueño: '+(sleep===undefined?'Sin dato':formatSleepDuration(sleep))+
+              ' · FC reposo: '+(latest.metrics.restingHeartRate??'Sin dato')+
+              '. Ningún registro se ha enviado a IBERFIT.'
+            :'No hay datos del dispositivo en los últimos siete días. No se han enviado registros.';
+        }
       }else if(action==='connect-health-connect'){
         const capabilities=[...root.querySelectorAll?.('[data-health-connect-capability]:checked')||[]].map((input)=>input.value);
         await connectHealthConnect({capabilities});
@@ -1158,6 +1209,11 @@ export function createWearableController({
         `wearable-${action}`,
         error,
       );
+      if(action==='qa-health-read'){
+        const note=button.closest?.('[data-provider="health_connect"]')
+          ?.querySelector?.('[data-qa-health-status]');
+        if(note)note.textContent='Lectura local no completada. Revisa la sesión y la autorización en Android. Código: '+code;
+      }
 
       setStatus(
         root,
@@ -1260,6 +1316,8 @@ export function createWearableController({
 
       tasks.cancel();
       currentPreview=null;
+      qaNative.destroy();
+      root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{node.textContent='';});
       observer?.disconnect?.();
       observer=null;
 
