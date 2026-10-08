@@ -61,15 +61,15 @@ test('Offer appears only after first-day guided welcome and respects every opt-o
 });
 test('Invitation explains PWA limits, offers a real action and does not use a blocking overlay',()=>{
   const pwa=connected360InvitationMarkup(readiness());
-  assert.match(pwa,/¿Quieres conectar tu reloj o dispositivo de actividad\?/u);
-  assert.match(pwa,/Incorporar actividad/u);
+  assert.match(pwa,/¿Quieres vincular tu dispositivo de actividad\?/u);
+  assert.match(pwa,/Ver opciones de vinculación/u);
   assert.match(pwa,/Ahora no/u);
-  assert.match(pwa,/exportación compatible/u);
+  assert.match(pwa,/vinculación automática del reloj aún requiere/u);
   assert.match(pwa,/aria-modal="false"/u);
   assert.doesNotMatch(pwa,/data-m26-connected360-action="start">Conectar ahora/u);
   assert.doesNotMatch(pwa,/autorizar.*automáticamente/iu);
   const native=connected360InvitationMarkup({direct:[{key:'health_connect',label:'Android'}],importReady:true});
-  assert.match(native,/Conectar ahora/u);
+  assert.match(native,/Ver opciones de vinculación/u);
 });
 function fixture({role='client',guide='never'}={}){
   const store=createStore(),userId='qa-client';
@@ -130,7 +130,7 @@ test('A genuinely new client receives the invitation after welcome; accept opens
   f.store.setItem(f.guideKey,JSON.stringify({status:'completed'}));
   f.rootListeners.get('m26:client-guided-welcome-completed')?.();
   await Promise.resolve();
-  assert.ok(f.dialog()?.html.includes('Incorporar actividad'));
+  assert.ok(f.dialog()?.html.includes('Ver opciones de vinculación'));
   f.action('start');
   assert.equal(f.opened(),1);
   assert.equal(f.dialog(),null);
@@ -262,12 +262,12 @@ test('Connected 360 preserves mobile navigation, touch targets, safe areas and t
   assert.match(source,/aria-modal="false"/u);
 });
 
-test('First-day Activity handoff opens the actual file import instead of leaving it collapsed',()=>{
+test('First-day Activity handoff opens the real device chooser, never the advanced importer',()=>{
   const source=readFileSync('src/m26/onboarding/client-wearable-invitation.js','utf8');
-  assert.match(source,/function openImportWhenReady\(\)/u);
-  assert.match(source,/root\.querySelector\?\.\('\[data-wearable-import\]'\)/u);
-  assert.match(source,/importer\.closest\?\.\('details\.m26-optional-section'\)/u);
-  assert.match(source,/if\(section\)section\.open=true/u);
+  assert.match(source,/function openDevicePickerWhenReady\(\)/u);
+  assert.match(source,/root\.querySelector\?\.\('\[data-m26-device-link-picker\]'\)/u);
+  assert.doesNotMatch(source,/openImportWhenReady/u);
+  assert.match(source,/picker\.open=true/u);
   assert.match(source,/requestAnimationFrame\?\./u);
   assert.doesNotMatch(source,/setInterval|MutationObserver/u);
 });
