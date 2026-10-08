@@ -1,4 +1,14 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  // CONNECTED360 v2 explicit permissions and revoke controls.
+  ["Autorizar e incorporar","Authorize and add","Autoriser et importer","Autorizar e incorporar"],
+  ["Al seleccionar Autorizar e incorporar, permites guardar las métricas mostradas. Puedes revocar la autorización en esta sección.","Selecting Authorize and add allows the displayed metrics to be saved. You can revoke authorization in this section.","En sélectionnant Autoriser et importer, vous acceptez l’enregistrement des métriques affichées. Vous pouvez révoquer l’autorisation ici.","Ao selecionar Autorizar e incorporar, permite guardar as métricas apresentadas. Pode revogar a autorização nesta secção."],
+  ["Elegir una fuente indica el origen del archivo; no conecta ningún dispositivo.","Choosing a source identifies the file origin; it does not connect a device.","Choisir une source indique l’origine du fichier ; cela ne connecte aucun appareil.","Escolher uma fonte identifica a origem do ficheiro; não liga qualquer dispositivo."],
+  ["Controlar fuentes de actividad","Manage activity sources","Gérer les sources d’activité","Gerir fontes de atividade"],
+  ["Solo tú decides qué datos se conservan. Desconectar impide nuevas importaciones; eliminar también retira el historial de esa fuente.","You decide which data is kept. Disconnecting stops new imports; deleting also removes that source’s history.","Vous décidez quelles données conserver. La déconnexion arrête les importations ; la suppression efface aussi l’historique de cette source.","Só você decide que dados são guardados. Desligar impede novas importações; eliminar apaga também o histórico dessa fonte."],
+  ["Desconectar y borrar datos","Disconnect and erase data","Déconnecter et effacer les données","Desligar e apagar dados"],
+  ["Desconectar","Disconnect","Déconnecter","Desligar"],
+  ["Fuente desconectada y datos retirados.","Source disconnected and data removed.","Source déconnectée et données supprimées.","Fonte desligada e dados removidos."],
+  ["Fuente desconectada. Puedes borrar los datos guardados cuando quieras.","Source disconnected. You can erase stored data whenever you choose.","Source déconnectée. Vous pouvez effacer les données enregistrées à tout moment.","Fonte desligada. Pode apagar os dados guardados quando quiser."],
   // CONNECTED360: localized first-day consent and Client settings copy.
   ["Incorporar actividad","Add activity","Ajouter une activité","Adicionar atividade"],
   ["Conectar ahora","Connect now","Connecter maintenant","Ligar agora"],
