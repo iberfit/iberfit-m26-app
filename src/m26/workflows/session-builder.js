@@ -1,4 +1,5 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
+import {selectCurrentTrainingCycle} from './planning-workflow.js';
 import {createM26Id} from '../platform/id.js';
 import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
