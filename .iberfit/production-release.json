@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "e19533cc000ca62f3f45dd3c327f6f6bf934ea3d",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Connected 360 manual-file onboarding pilot from Canary-certified SHA; six additive PROD migrations installed and reconciled; direct native wearable/cloud connectors remain disabled. Rollback via production promotion workflow."
+}
