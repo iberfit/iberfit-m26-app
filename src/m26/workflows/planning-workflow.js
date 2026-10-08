@@ -42,6 +42,10 @@ export function selectCurrentTrainingCycle(records=[],{clientId,now=new Date()}=
   const current=[],legacy=[];
   for(const original of Array.isArray(records)?records:[]){
     const cycle=unwrappedCycle(original);
+    // A conflicting client ID in the persisted wrapper/body is not trustworthy.
+    const wrapperClient=String(original?.clientId??original?.client_id??'').trim();
+    const bodyClient=String(original?.body?.clientId??original?.body?.client_id??'').trim();
+    if((wrapperClient&&wrapperClient!==expected)||(bodyClient&&bodyClient!==expected))continue;
     if(!cycle||String(cycle.clientId??cycle.client_id??'').trim()!==expected)continue;
     const status=String(cycle.status??cycle.estado??'').trim().toLowerCase();
     if(INELIGIBLE_CYCLE_STATUSES.has(status))continue;
