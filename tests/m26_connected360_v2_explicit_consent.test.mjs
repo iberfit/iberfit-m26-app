@@ -1,0 +1,105 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createMemoryKeyValueStore} from '../src/m26/platform/key-value-store.js';
+import {createWearableRemoteSync} from '../src/m26/wearables/remote-sync.js';
+
+const UUIDS=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'];
+const RECORD={clientId:'client-connected360-qa',provider:'normalized_file',date:'2026-10-08',
+ metrics:{steps:1200,activeMinutes:40,sleepMinutes:null,restingHeartRate:null,
+ hrvMs:null,activeEnergyKcal:null,workoutMinutes:null},
+ quality:'media',sourceUpdatedAt:'2026-10-08T10:00:00Z',sourceRecordCount:1};
+
+test('Consent is never auto-issued by background flush or stale offline data',async()=>{
+  let online=false,reauthCount=0,legacy=0,v2=0,linkWrites=0;
+  const store=createMemoryKeyValueStore();
+  const transport={
+    async importWearableSummaries(){legacy++;return {accepted:1,rejected:0,stale:0};},
+    async importWearableAuthorized(_token,grant,payload){
+      v2++;assert.equal(grant,UUIDS[0]);assert.equal(payload.records[0].clientId,RECORD.clientId);
+      return {accepted:1,rejected:0,stale:0};
+    },
+    async upsertWearableConnection(){linkWrites++;return {ok:true};},
+    async wearableAuthorizationStatus(){return {provider:'normalized_file',revocationCursor:4,grantId:null,authorized:false};},
+    async reauthorizeWearable(){reauthCount++;return {ok:true,grantId:UUIDS[0],scopes:['steps','activeMinutes']};},
+    async revokeWearableConnection(){return {ok:true};},
+    async deleteWearableData(){return {ok:true};},
+  };
+  const remote=createWearableRemoteSync({ownerId:'c360-qa',queueStore:store,transport,
+    getToken:async()=>'qa-token',isOnline:()=>online});
+  await remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]});
+  assert.equal(await remote.pendingCount(),1);
+  assert.equal(reauthCount,0);
+  const authAttempt=remote.reauthorize({provider:'normalized_file',scopes:['steps']});
+  await assert.rejects(authAttempt,/M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED/u);
+  online=true;
+  const consent=await remote.reauthorize({provider:'normalized_file',scopes:['steps','activeMinutes']});
+  assert.equal(consent.grantId,UUIDS[0]);assert.equal(reauthCount,1);
+  assert.equal(await remote.pendingCount(),0,'pre-grant queue must be discarded, never upgraded');
+  await remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]});
+  assert.equal(v2,1);assert.equal(legacy,0);assert.equal(linkWrites,0,
+    'generation-bound server RPC updates connections atomically');
+  await remote.flush();
+  assert.equal(reauthCount,1,'automatic flush must never mint another grant');
+});
+
+test('Provider revocation and global erase block even an already issued file grant',async()=>{
+  let online=true,number=0,revoked=0,deletes=0;
+  const store=createMemoryKeyValueStore();
+  const transport={
+    async wearableAuthorizationStatus(){return {provider:'normalized_file',revocationCursor:number,grantId:null,authorized:false};},
+    async reauthorizeWearable(){return {ok:true,grantId:UUIDS[number],scopes:['steps']};},
+    async importWearableAuthorized(_token,grant){assert.equal(grant,UUIDS[number]);return {accepted:1,rejected:0,stale:0};},
+    async upsertWearableConnection(){throw Error('legacy-write-not-allowed');},
+    async importWearableSummaries(){throw Error('legacy-import-not-allowed');},
+    async revokeWearableConnection(){revoked++;number++;return {ok:true};},
+    async deleteWearableData(){deletes++;return {ok:true};},
+  };
+  const remote=createWearableRemoteSync({ownerId:'c360-qa-2',transport,queueStore:store,
+    isOnline:()=>online,getToken:async()=>'qa-token'});
+  await remote.reauthorize({provider:'normalized_file',scopes:['steps']});
+  await remote.revoke({provider:'normalized_file',deleteData:true});
+  assert.equal(revoked,1);
+  await assert.rejects(remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]}),
+    /M26_WEARABLE_SOURCE_REVOKED/u);
+  await remote.reauthorize({provider:'normalized_file',scopes:['steps']});
+  await remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]});
+  await remote.deleteAll();
+  assert.equal(deletes,1);
+  await assert.rejects(remote.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]}),
+    /M26_WEARABLE_SOURCE_REVOKED/u);
+});
+
+test('Postgres reauthorization is CAS, generation-specific, client-scoped and file-only',()=>{
+  const migration=readFileSync('supabase/migrations/20261008173000_connected360_explicit_reauthorization_v2.sql','utf8');
+  assert.match(migration,/M26_CONNECTED360_CONSENT_VERSION_CONFLICT/u);
+  assert.match(migration,/M26_CONNECTED360_GRANT_STALE/u);
+  assert.match(migration,/M26_CONNECTED360_GRANT_REVOKED/u);
+  assert.match(migration,/m26_wearable_import_authorized_v2/u);
+  assert.match(migration,/m26_wearable_reauthorize_v2/u);
+  assert.match(migration,/v_provider<>'normalized_file'/u);
+  assert.match(migration,/v_grant_id:=pg_catalog.current_setting/u);
+  assert.match(migration,/pg_catalog.pg_advisory_xact_lock/u);
+  assert.match(migration,/grant execute on function public.m26_wearable_reauthorize_v2\([\s\S]*?to authenticated;/u);
+  assert.match(migration,/revoke all on function public.m26_wearable_reauthorize_v2\([\s\S]*?from public,anon;/u);
+  assert.doesNotMatch(migration,/\bdrop\s+(?:table|trigger|function|policy)\b/iu);
+  assert.doesNotMatch(migration,/\bdo\s+\$/iu);
+  assert.match(migration,/insert into public.m26_wearable_revocation_events_v2\(owner_user_id,client_id,provider\)/u);
+  assert.match(migration,/m26_wearable_authorization_v2 enable row level security/u);
+});
+
+test('Activity source actions require Client confirmation and imported file scope consent',()=>{
+  const c=readFileSync('src/m26/wearables/controller.js','utf8');
+  const route=readFileSync('src/m26/modules/route-render.js','utf8');
+  assert.match(c,/remoteSync\.reauthorize\(\{provider:'normalized_file',scopes\}\)/u);
+  assert.match(c,/currentPreview\.provider==='normalized_file'&&isOnline\(\)/u);
+  assert.match(c,/authorizationGrant:grant/u);
+  assert.match(c,/action==='revoke-source'\|\|action==='remove-source-data'/u);
+  assert.match(c,/globalThis\.confirm\?\.\(/u);
+  assert.match(route,/wearable\.canControl&&wearable\.connections\?\.length/u);
+  assert.match(route,/data-wearable-action="revoke-source"/u);
+  assert.match(route,/data-wearable-action="remove-source-data"/u);
+  const sync=readFileSync('src/m26/wearables/remote-sync.js','utf8');
+  assert.match(sync,/if\(groupEntries\[0\]\[1\]\.authorizationGrant\)continue/u);
+  assert.match(sync,/authorizationGrant:grant/u);
+});
