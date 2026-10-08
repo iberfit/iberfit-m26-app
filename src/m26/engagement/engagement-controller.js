@@ -215,6 +215,11 @@ export function createEngagementController({root,store,draftRepository,service,s
         ['coach_observation','Observación del Coach'],['other','Otra señal'],
       ]);
       const signal=createTextarea(documentLike,'Señal observada','signalSummary',1200);
+      const suggestedSignal=String(mount.getAttribute?.('data-action-outcome-prefill-signal')||'').trim().slice(0,1200);
+      const suggestedSource=String(mount.getAttribute?.('data-action-outcome-prefill-source')||'').trim();
+      const allowedSuggestedSources=new Set(['checkin','adherence','session','progress','coach_observation','other']);
+      if(suggestedSignal)signal.input.value=suggestedSignal;
+      if(allowedSuggestedSources.has(suggestedSource))signalSource.select.value=suggestedSource;
       const decision=createTextarea(documentLike,'Decisión profesional','decisionSummary',1200);
       const interventionType=createSelect(documentLike,'Tipo de intervención','interventionType',[
         ['','Seleccionar intervención'],['load_adjustment','Ajuste de carga'],['technique','Técnica'],['recovery','Recuperación'],['adherence','Adherencia'],

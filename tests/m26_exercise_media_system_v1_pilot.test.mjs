@@ -16,16 +16,18 @@ test('system v1 pilot is intentionally limited to three contrasting movement fam
   assert.doesNotMatch(workflow,/IBF-PAJAROS-CON-MANCUERNAS|IBF-PULLOVER-CON-MANCUERNA/);
 });
 
-test('pilot generates a true 1280x1600 master and deterministic 640x800 derivative without baked labels',()=>{
+test('pilot generates a true 1280x1600 master and deterministic 640x800 derivative with only canonical phase labels',()=>{
   assert.match(generator,/const RAW_WIDTH=1024;/);
   assert.match(generator,/const RAW_HEIGHT=1600;/);
   assert.match(composer,/MASTER_W,MASTER_H=1280,1600/);
   assert.match(composer,/DELIVERY_W,DELIVERY_H=640,800/);
-  assert.doesNotMatch(composer,/draw\.text\(/);
-  assert.match(composer,/'phase_labels_in_pixels':False/);
-  assert.match(composer,/'embedded_text':False/);
-  assert.equal(visual.phase_labels_in_pixels,false);
-  assert.equal(visual.embedded_text,false);
+  assert.match(composer,/draw_phase_label\(master_rgba,'Inicio',0\)/);
+  assert.match(composer,/draw_phase_label\(master_rgba,'Final',PANEL_W\)/);
+  assert.match(composer,/'phase_labels_in_pixels':True/);
+  assert.match(composer,/'embedded_text':True/);
+  assert.equal(visual.phase_labels_in_pixels,true);
+  assert.equal(visual.embedded_text,true);
+  assert.deepEqual(visual.allowed_embedded_text,['Inicio','Final']);
 });
 
 test('official isotipo and anatomy placement remain locked to the current visual-system contract',()=>{
@@ -34,7 +36,7 @@ test('official isotipo and anatomy placement remain locked to the current visual
   assert.match(composer,/ANATOMY_WIDTH=180/);
   const percent=180/1280*100;
   assert.ok(percent>=visual.anatomy_inset.width_percent_min&&percent<=visual.anatomy_inset.width_percent_max);
-  assert.match(composer,/'corner':'upper-left'/);
+  assert.match(composer,/'corner':'upper-right'/);
   assert.match(composer,/'style':'analytical-anatomical-plate'/);
 });
 

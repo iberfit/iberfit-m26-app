@@ -41,14 +41,17 @@ test('system v1 is pinned to the already approved athlete and official isotipo',
   assert.match(spec,/silent drift is not allowed/i);
 });
 
-test('exercise pixels remain visual-only and semantic content belongs to UI',()=>{
-  assert.equal(visual.embedded_text,false);
+test('exercise pixels allow only deterministic Inicio/Final phase labels',()=>{
+  assert.equal(visual.embedded_text,true);
+  assert.deepEqual(visual.allowed_embedded_text,['Inicio','Final']);
   assert.equal(visual.exercise_name_in_pixels,false);
   assert.equal(visual.technical_copy_in_pixels,false);
-  assert.equal(visual.phase_labels_in_pixels,false);
-  assert.match(style,/pure visual/i);
-  assert.match(spec,/application UI owns/i);
-  assert.match(spec,/No semantic UI information is baked into pixels\./);
+  assert.equal(visual.phase_labels_in_pixels,true);
+  assert.equal(visual.phase_labels.rendering,'deterministic-compositor');
+  assert.match(style,/only semantic copy baked into pixels is the deterministic phase labels/i);
+  assert.match(spec,/Only the fixed phase labels `Inicio` and `Final` are baked into pixels/i);
+  assert.match(composer,/draw_phase_label\(rgba,'Inicio',0\)/);
+  assert.match(composer,/draw_phase_label\(rgba,'Final',PANEL_W\)/);
 });
 
 test('branding uses only the exact official isotipo in approved placements',()=>{
@@ -102,12 +105,12 @@ test('raw generated phases stay brand-free until deterministic official branding
   assert.match(generator,/FINAL_REPAIR_ATTEMPTS=1/,'FINAL repair bound must remain unchanged');
 });
 
-test('anatomy inset is required, upper-left, small, analytical and subordinate to biomechanics',()=>{
+test('anatomy inset is required, upper-right, small, analytical and subordinate to biomechanics',()=>{
   assert.equal(visual.anatomy_inset.required_by_default,true);
   assert.equal(visual.anatomy_inset.exception_requires_qa_justification,true);
   assert.equal(visual.anatomy_inset.text_labels,false);
   assert.equal(visual.anatomy_inset.zone,'upper');
-  assert.equal(visual.anatomy_inset.preferred_corner,'upper-left');
+  assert.equal(visual.anatomy_inset.preferred_corner,'upper-right');
   assert.equal(visual.anatomy_inset.width_percent_min,12);
   assert.equal(visual.anatomy_inset.width_percent_max,16);
   assert.equal(visual.anatomy_inset.rendering_style,'analytical-anatomical-plate');
@@ -117,7 +120,7 @@ test('anatomy inset is required, upper-left, small, analytical and subordinate t
   assert.equal(visual.anatomy_inset.secondary_muscle_color,'iberfit-restrained-gold');
   assert.equal(visual.anatomy_inset.remaining_anatomy,'neutral-cream-grey-low-contrast');
   assert.equal(visual.anatomy_inset.must_not_obscure_biomechanics,true);
-  assert.match(spec,/upper-left visual zone/i);
+  assert.match(spec,/upper-right visual zone/i);
   assert.match(spec,/clean analytical anatomical plate/i);
   assert.match(style,/no hyper-defined musculature/i);
 });
@@ -141,4 +144,10 @@ test('one canonical system must support library, live sessions, detail and fulls
     'fullscreen-viewer',
   ]);
   assert.match(spec,/same canonical visual language/i);
+});
+
+test('human approval remains mandatory after automatic QA',()=>{
+  assert.equal(visual.human_review_required,true);
+  assert.equal(contract.media_contract.publication_requirements.human_approved,true);
+  assert.match(composer,/'human_approval_required':True/);
 });

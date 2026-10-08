@@ -4,8 +4,8 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 
 ## Core visual contract
 
-- The exercise asset is a **pure visual**. Never bake exercise names, `Inicio`/`Final`, technical cues, instructions, metrics, badges, UI chrome or explanatory copy into the image.
-- All semantic information belongs to the application UI and accessible markup, not to pixels inside the asset.
+- The exercise asset is a **controlled visual**. The only semantic copy baked into pixels is the deterministic phase labels `Inicio` and `Final`. Never bake exercise names, technical cues, instructions, metrics, badges, UI chrome or explanatory copy into the image.
+- All semantic information except the two fixed phase labels belongs to the application UI and accessible markup, not to pixels inside the asset.
 - Canonical aspect ratio is **4:5 portrait**.
 - New generation starts from a **high-resolution 1280×1600 master** (or larger at the same ratio) and deterministically derives the current **640×800 WebP delivery asset**. Never upscale a 640×800 delivery asset to create a master.
 - The central movement must remain readable in library cards, live Client/Coach sessions and a future fullscreen viewer without manual re-cropping.
@@ -26,7 +26,7 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 
 ## Composition
 
-- The exercise is always the protagonist. Background, anatomy and branding are subordinate.
+- The exercise is always the protagonist. Background, anatomy, fixed phase labels and branding are subordinate.
 - Premium dark-gym background: dark green / near-black foundation, warm cream-neutral highlights and restrained gold accents only where they improve hierarchy.
 - No neon, generic SaaS glow, excessive gradients, visual noise or decorative lighting that competes with the movement.
 - Frame tightly enough to understand the movement at card size while keeping all relevant anatomy, equipment and support points visible.
@@ -36,7 +36,7 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 ## Anatomy inset
 
 - A compact anatomical inset is **required by default for every new system-v1 exercise visual**. An exception must be explicit and justified by QA when an inset would reduce rather than improve instructional clarity.
-- Place it in the **upper-left visual zone** using one consistent geometry across the library.
+- Place it in the **upper-right visual zone** using one consistent geometry across the library.
 - Keep the inset visually secondary: target roughly **12–16% of image width**, never large enough to compete with the athlete.
 - Render it as a clean **analytical anatomical plate**, not a bodybuilding figure: subtle muscle definition, restrained surface relief, anatomically clear forms and no hyper-defined musculature.
 - Use one or two neutral anatomical views only when that materially clarifies the target musculature. Do not add decorative arcs, badges, logos or ornament inside the inset.

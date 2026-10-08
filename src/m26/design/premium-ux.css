@@ -1800,6 +1800,12 @@ body {
 /* ACTION_OUTCOME_TRACKING_V1_END */
 
 
+/* WELLBEING_CHECKIN_TOUCH_V1_BEGIN */
+.m26-wellbeing-score-control select{min-height:48px;font-variant-numeric:tabular-nums;touch-action:manipulation}
+.m26-wellbeing-score-control small{display:block;margin-top:.22rem}
+@media(max-width:520px){[data-engagement-form="checkin"] .m26-field-grid{grid-template-columns:1fr}}
+/* WELLBEING_CHECKIN_TOUCH_V1_END */
+
 /* NEXT_SESSION_PREPARATION_V1_BEGIN */
 .m26-next-session-prep{
   display:grid;
