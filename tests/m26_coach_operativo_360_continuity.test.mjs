@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {createSessionDraft} from '../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution} from '../src/m26/workflows/session-execution.js';
 import {createSessionController} from '../src/m26/workflows/session-controller.js';
@@ -52,8 +53,8 @@ const nextTick=()=>new Promise(resolve=>setTimeout(resolve,0));
 
 test('rapid Coach draft edits persist both clients instead of discarding the first debounce',async()=>{
   const root=rootFixture(),saved=[];
-  const contextA={draft:createSessionDraft({clientId:'client-A'}),autosaveDraft:async()=>saved.push(['A',contextA.draft.title])};
-  const contextB={draft:createSessionDraft({clientId:'client-B'}),autosaveDraft:async()=>saved.push(['B',contextB.draft.title])};
+  const contextA={draft:createSessionDraft({clientId:'client-A'}),autosaveDraft:async(draft)=>saved.push(['A',draft.clientId,draft.title])};
+  const contextB={draft:createSessionDraft({clientId:'client-B'}),autosaveDraft:async(draft)=>saved.push(['B',draft.clientId,draft.title])};
   let active=contextA;const c=controller(root,()=>active);c.mount();
   const fieldA=inputNode('title','data-session-draft-field','Fuerza A');
   root.emit('input',inputEvent('[data-session-draft-field]',fieldA));
@@ -61,7 +62,7 @@ test('rapid Coach draft edits persist both clients instead of discarding the fir
   const fieldB=inputNode('title','data-session-draft-field','Fuerza B');
   root.emit('input',inputEvent('[data-session-draft-field]',fieldB));
   await new Promise(resolve=>setTimeout(resolve,95));
-  assert.deepEqual(saved,[['A','Fuerza A'],['B','Fuerza B']]);
+  assert.deepEqual(saved,[['A','client-A','Fuerza A'],['B','client-B','Fuerza B']]);
   c.destroy();
 });
 
@@ -172,4 +173,21 @@ test('an explicit start click cannot duplicate the shell-initiated start in flig
   assert.equal(await automatic,true);
   assert.equal(starts,1);
   c.destroy();
+});
+
+test('app persistence binds each queued save to a captured draft, never mutable sessionUi',async()=>{
+  const source=await readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  const start=source.indexOf('async function saveSessionDraft(draftOverride=null)');
+  const end=source.indexOf('async function loadSessionDraft(',start);
+  assert.ok(start>=0&&end>start);
+  const block=source.slice(start,end);
+  assert.match(block,/const selectedDraft=draftOverride\?\?sessionUi\?\.draft/);
+  assert.match(block,/const draft=structuredClone\(selectedDraft\)/);
+  assert.match(block,/await draftRepository\.save\(clientId,SESSION_DRAFT_SCOPE,draft\)/);
+  assert.match(block,/if\(sessionUi\?\.draft===selectedDraft\)/);
+  assert.doesNotMatch(block,/updatedAt:sessionUi\.draftPersistence\.updatedAt/);
+  const controller=await readFile(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  assert.match(controller,/previous\.autosaveDraft\(previous\.draft\)/);
+  assert.match(controller,/target\?\.autosaveDraft\?\.\(target\.draft\)/);
+  assert.match(controller,/context\.autosaveDraft\(context\.draft\)/);
 });

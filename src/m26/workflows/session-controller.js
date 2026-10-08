@@ -548,9 +548,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     // A fast client/plan switch must checkpoint the prior unsaved draft first.
     if(scheduledContext?.draft&&scheduledContext.draft!==context.draft){
       const previous=scheduledContext;
-      autosaveChain=autosaveChain.then(()=>previous.autosaveDraft()).catch(onError);
+      autosaveChain=autosaveChain.then(()=>previous.autosaveDraft(previous.draft)).catch(onError);
     }
-    scheduledContext=context;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;const target=scheduledContext;scheduledContext=null;autosaveChain=autosaveChain.then(()=>target?.autosaveDraft?.()).catch(onError);},safeDelay);
+    scheduledContext=context;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;const target=scheduledContext;scheduledContext=null;autosaveChain=autosaveChain.then(()=>target?.autosaveDraft?.(target.draft)).catch(onError);},safeDelay);
   }
   function persistExecutionDraft(context){
     if(!context?.execution||!context?.recoveryCoordinator)return Promise.resolve();
@@ -577,10 +577,10 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(autosaveTimer){
       clearTimeout(autosaveTimer);autosaveTimer=null;
       const target=scheduledContext||context;scheduledContext=null;pendingSaved=Boolean(target?.draft&&target?.autosaveDraft&&target.draft===context?.draft);
-      autosaveChain=autosaveChain.then(()=>target?.draft?target.autosaveDraft?.():undefined).catch((error)=>{onError(error);throw error;});
+      autosaveChain=autosaveChain.then(()=>target?.draft?target.autosaveDraft?.(target.draft):undefined).catch((error)=>{onError(error);throw error;});
     }
     await autosaveChain;
-    if(force&&context?.draft&&context?.autosaveDraft&&!pendingSaved)await context.autosaveDraft();
+    if(force&&context?.draft&&context?.autosaveDraft&&!pendingSaved)await context.autosaveDraft(context.draft);
   }
   async function persistContext(context,{recoveryCheckpoint=null}={}){
     if(context?.draft)await flushAutosave(context,{force:true});
