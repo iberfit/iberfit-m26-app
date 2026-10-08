@@ -142,3 +142,32 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   assert.match(controller,/isConnected360QaNativeAvailable/);
   assert.match(policy,/health_connect:policy\(\{[^]*?productionAllowed:false/);
 });
+
+test('logout immediately cancels a pending native read and drops late health responses',async()=>{
+  const f=fixture({reply:undefined});
+  const pending=f.client.readLocal();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(f.messages.length,1);
+  assert.equal(f.listeners.size,1);
+  f.client.destroy();
+  await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
+  assert.equal(f.listeners.size,0);
+  await assert.rejects(f.client.readLocal(),/M26_HEALTH_QA_DISPOSED/);
+});
+
+test('destroy while session refresh is pending never sends any native request',async()=>{
+  let release;
+  const waitForToken=new Promise(resolve=>{release=resolve;});
+  const f=fixture({reply:ok});
+  const client=createConnected360QaNativeChannel({
+    scope:f.scope,
+    getIdentity:()=>REQUESTED_ID,
+    getToken:()=>waitForToken,
+    timeoutMs:500,
+  });
+  const pending=client.readLocal();
+  client.destroy();
+  release('qa-user-session-strong');
+  await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
+  assert.equal(f.messages.length,0);
+});
