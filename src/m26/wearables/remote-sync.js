@@ -401,7 +401,7 @@ export function createWearableRemoteSync({
       // Keep pending offline data from the same current consent generation.
       // Never upgrade any older, revoked or pre-consent queue.
       for(const [key,item] of await queuedEntries()){
-        if(item?.provider===source&&item.authorizationGrant!==result.grantId)
+        if(item?.provider===source&&(item.authorizationGrant!==result.grantId||item.blockedReason))
           await queueStore.remove(key);
       }
       explicitGrants.set(source,result.grantId);
