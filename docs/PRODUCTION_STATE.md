@@ -1,5 +1,17 @@
 # IBERFIT · Production State
 
+## Macro-WIP en integración · perfiles de medición por ejercicio · 2026-10-08
+
+- **PR #803:** `feat/exercise-measurement-profiles-admin-20261008` contra `canary/rc74-4`. El frontend del nuevo motor está **fuera de Canary/LIVE** hasta fusionar y certificar el SHA de release. Último head inspeccionado al iniciar la reconciliación: `9cb0c203b4a5a95021c80bfaa140f4e55df3ae50`. No confundir presencia del esquema en PROD con despliegue del producto.
+- **Supabase PROD:** migraciones `20261008132342_exercise_measurement_profiles_admin_v1` y `20261008132350_exercise_measurement_profiles_high_confidence_v1` ya registradas; 26 perfiles, 0 ediciones auditadas. **No reaplicar**.
+- **Supabase QA:** migraciones `20261008130318`, `20261008130642` y ajuste de pertenencia activa `20261008130922` registradas; 25 perfiles, 0 ediciones auditadas. El identificador `IBF-PLANCHA-LATERAL-APOYO-BANCO` está presente en PROD, no en el catálogo QA.
+- **Seguridad observada en ambas bases:** RLS activo para perfiles y auditoría; sin SELECT/INSERT de `anon` o `authenticated` sobre tablas; RPC de lectura disponible para `anon/authenticated`, RPC de escritura solo ejecutable por `authenticated` y con verificación interna de Admin activo + CAS + auditoría. Definiciones de ambas RPC iguales entre QA/PROD (hash verificado).
+- **CI candidato inspeccionado:** 10 de 11 workflows SUCCESS, `Session QA isolated/browser-live-workout` aún en ejecución durante la inspección. El job se encontraba instalando dependencias de navegador. Reconsultar y exigir CI sobre SHA final; los estados son temporales.
+- **Concurrencia:** Canary llevaba cuatro commits exclusivos respecto al head PR, relacionados con lotes aprobados de imágenes. Nunca sobrescribirlos ni hacer force push; GitHub debe integrar mediante merge seguro y reevaluar gates.
+- **Aceptación pendiente del release:** ejecución real en Coach de Carrera suave (5 km / 30 min / 06:00 / RPE), plancha, intervalos, ciclismo y transporte; persistencia de valores observados, correcciones, reutilización de plantillas, permisos por rol, responsive y smoke Canary y LIVE. No marcar completado sin verificación de artefacto desplegado.
+- **Siguiente macro-WIP tras release:** crecimiento gobernado del catálogo deportivo (carrera continua/series/fartlek/trail, ciclismo carretera/MTB/rodillo, etc.), previa deduplicación y perfiles explícitos.
+
+
 Última actualización documental: 2026-10-08
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
