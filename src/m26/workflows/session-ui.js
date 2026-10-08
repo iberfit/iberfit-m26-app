@@ -903,6 +903,53 @@ function coachCompletionCue(execution){
     return 'Revisa las adaptaciones registradas y sus motivos antes de reutilizar la planificación.';
   return 'La sesión está cerrada. Revisa los resultados y el feedback antes de preparar la siguiente sesión.';
 }
+// Evidence is derived from the execution's immutable plan snapshot and recorded
+// results; missing sets or values remain unknown, never assumed or estimated.
+export function renderCoachCompletionEvidence(execution,session,catalog){
+  const queue=Array.isArray(execution?.queue)?execution.queue:[];
+  if(!queue.length)return '';
+  const snapshot=execution?.planSnapshot?.sessionId===execution?.sessionId
+    ?execution.planSnapshot:null;
+  const blocks=Array.isArray(snapshot?.blocks)?snapshot.blocks
+    :Array.isArray(session?.blocks)?session.blocks:[];
+  const rows=queue.map((item,index)=>{
+    if(!item?.exerciseId)return '';
+    const block=blocks.find((candidate)=>candidate?.id===item.blockId)||null;
+    const fromBlock=block?.type==='exercise'?block.name:null;
+    const fromCatalog=typeof catalog?.get==='function'?catalog.get(item.exerciseId)?.name_es:null;
+    const displayName=String(fromBlock||fromCatalog||`Ejercicio ${index+1}`).trim();
+    const safeCount=Number(item.sets);
+    const totalSets=Number.isInteger(safeCount)&&safeCount>0&&safeCount<=100?safeCount:0;
+    const actual=[];
+    for(let number=1;number<=totalSets;number+=1){
+      const result=executionResultForStep(execution,{...item,setNumber:number,totalSets},number);
+      if(result)actual.push({number,result});
+    }
+    const planned=item.prescription||{};
+    const goal=[
+      String(planned.reps??'').trim()||null,
+      String(planned.plannedLoad??'').trim()?`Carga ${String(planned.plannedLoad).trim()}`:null,
+      explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
+      explicitSessionEffort(planned.targetRir,{min:0,max:10})!==null?`RIR ${planned.targetRir}`:null,
+    ].filter(Boolean).join(' · ')||'Sin objetivo cuantitativo confirmado';
+    const actualSets=actual.map(({number,result})=>
+      `<li><span>Serie ${e(number)}</span><strong>${e(currentSetResultSummary(result))}</strong>${result.notes?`<p>${e(result.notes)}</p>`:''}</li>`
+    ).join('');
+    const pending=totalSets-actual.length;
+    return `<li class="m26-session-completion-evidence-item" data-completion-evidence-block="${e(item.blockId||'')}">
+      <div class="m26-session-completion-evidence-heading"><strong>${e(displayName)}</strong><span>${e(actual.length)} de ${e(totalSets)} series registradas</span></div>
+      <p><span>Previsto:</span> ${e(goal)}</p>
+      <ol>${actualSets||'<li>Sin series registradas</li>'}</ol>
+      ${pending>0?`<p>${e(pending)} serie${pending===1?'':'s'} sin registro realizado; consulta las omisiones en Ajustes.</p>`:''}
+    </li>`;
+  }).filter(Boolean);
+  if(!rows.length)return '';
+  return `<details class="m26-session-options m26-session-completion-evidence" data-coach-completion-evidence>
+    <summary>Revisar planificado y registrado</summary>
+    <p>Datos de esta ejecución. Las series sin registro no se tratan como realizadas y las cargas no se convierten ni se suman automáticamente.</p>
+    <ol class="m26-session-completion-evidence-list">${rows.join('')}</ol>
+  </details>`;
+}
 function completedSessionSummary(execution){
   const totals=executionTotals(execution);
   const feedback=execution?.feedback||{};
@@ -1130,6 +1177,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         ${completedSessionSummary(execution)}
         ${renderSessionAdjustmentSummary(execution)}
+        ${isCoach?renderCoachCompletionEvidence(execution,session,catalog):''}
         ${feedbackSummary}
         ${confirmed?`<p>${e(continuityCopy)}</p>`:''}
         ${completedActions}
