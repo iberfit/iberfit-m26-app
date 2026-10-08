@@ -56,7 +56,7 @@ jobs:
         with:
           gradle-version: "9.5.0"
       - name: Compile existing native phone host with Health Connect permission screen
-        run: gradle --no-daemon -p native/android-host :phone-app:assembleDebug
+        run: gradle --no-daemon -p native/android-host :phone-app:testDebugUnitTest :phone-app:assembleDebug
       - name: Enforce local-only proof and official rationale
         shell: bash
         run: |
@@ -65,5 +65,13 @@ jobs:
           K=native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360HealthPermissionsActivity.kt
           grep -Fq 'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE' "$H"
           grep -Fq 'android.intent.category.HEALTH_PERMISSIONS' "$H"
-          ! grep -Fq 'android.permission.INTERNET' "$H"
+          WEB=native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt
+          GATE=native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360OriginGate.kt
+          grep -Fq 'android.permission.INTERNET' "$H"
+          grep -Fq 'WebViewCompat.addWebMessageListener' "$WEB"
+          grep -Fq 'WebViewFeature.WEB_MESSAGE_LISTENER' "$WEB"
+          grep -Fq 'm26-canary.iberfit.cl' "$GATE"
+          grep -Fq 'isMainFrame' "$WEB"
+          ! grep -Eiq 'addJavascriptInterface|service_role|SUPABASE_SERVICE_KEY' "$WEB" "$GATE"
+          ! grep -Fq 'IBERFIT_HEALTH_BRIDGE =' "$WEB"
           ! grep -Eqi 'supabase|service_role|addJavascriptInterface|httpclient|fetch\(' "$K"
