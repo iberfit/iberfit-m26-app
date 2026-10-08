@@ -77,7 +77,7 @@ export function metricValueValid(field,value){
     (field!=='intervalRepetitions'||(n>=1&&Number.isInteger(n)));
 }
 export function hasCardioPrescription(p={}){
-  const has=(v)=>v!==undefined&&v!==null&&String(v).trim()!=='';
-  return has(p.plannedDistanceKm)||has(p.plannedDurationMinutes)||
-    (has(p.intervalRepetitions)&&has(p.intervalWorkSeconds));
+  const positive=(v)=>v!==undefined&&v!==null&&String(v).trim()!==''&&Number(String(v).replace(',','.'))>0;
+  return positive(p.plannedDistanceKm)||positive(p.plannedDurationMinutes)||
+    (positive(p.intervalRepetitions)&&positive(p.intervalWorkSeconds));
 }
