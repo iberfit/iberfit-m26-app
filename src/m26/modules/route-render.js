@@ -4321,8 +4321,10 @@ export function renderSettingsRoute(vm){
   const notifications=preferences.notifications||{};
   const checked=(value)=>value?' checked':'';
   const wearableNote=vm.hasClientContext
-    ? `${vm.wearableConnections} conexión${vm.wearableConnections===1?'':'es'} registrada${vm.wearableConnections===1?'':'s'}`
-    : 'Abre un expediente para revisar conexiones del cliente';
+    ? (vm.wearableConnections===0?'No hay fuentes confirmadas':vm.wearableConnections+' fuente'+(vm.wearableConnections===1?'':'s')+' registrada'+(vm.wearableConnections===1?'':'s'))
+    : 'No hay contexto de cliente seleccionado';
+  const wearableSources=vm.role==='client'&&Array.isArray(vm.wearableSources)?vm.wearableSources:[];
+  const sourceRows=wearableSources.map(item=>'<li><strong>'+escapeHtml(item.label)+'</strong><span>'+escapeHtml(castilianStatusLabel(item.status))+' · '+escapeHtml(item.lastSyncedAt?item.lastSyncedAt.slice(0,10):'Sin sincronización confirmada')+' · '+Number(item.permissionCount||0)+' permisos de lectura</span></li>').join('');
 
   const notificationToggle=(key,label,copy)=>
     `<label class="m26-consent">
@@ -4349,6 +4351,7 @@ export function renderSettingsRoute(vm){
         <a href="#m26-settings-experience">Experiencia</a>
         <a href="#m26-settings-notifications">Avisos</a>
         <a href="#m26-settings-privacy">Privacidad y datos</a>
+        ${vm.role==='client'?'<a href="#m26-settings-devices">Dispositivos y salud</a>':''}
         <a href="#m26-settings-account">Cuenta y acceso</a>
       </nav>
 
@@ -4422,14 +4425,18 @@ export function renderSettingsRoute(vm){
               </label>
             </div>
 
-            <div class="m26-settings-subsection">
+            <div class="m26-settings-subsection" id="m26-settings-devices">
               <div class="m26-settings-subsection-heading">
                 <div>
-                  <h4>Dispositivos y actividad</h4>
+                  <h4>Dispositivos y salud</h4>
                   <p>${escapeHtml(wearableNote)}</p>
                 </div>
-                <button type="button" data-m26-area="actividad">Gestionar</button>
+                <button type="button" data-m26-area="actividad">${vm.role==='client'?'Gestionar fuentes':'Ver seguimiento'}</button>
               </div>
+              ${vm.role==='client'
+                ?'<p class="m26-data-footnote">La importación está disponible desde el primer día. La conexión automática requiere permisos y un proveedor certificado.</p>'
+                 +(sourceRows?'<ul class="m26-settings-device-sources">'+sourceRows+'</ul>':'<p class="m26-data-footnote">Todavía no has incorporado una fuente de actividad. Es opcional y puedes hacerlo más adelante.</p>')
+                :'<p class="m26-data-footnote">Solo el cliente controla sus fuentes y permisos. El Coach consulta únicamente el seguimiento autorizado.</p>'}
               <div class="m26-settings-privacy-note">
                 ${badge('Privacidad activa','success')}
                 <p>Retos privados por defecto, preferencias aisladas por cuenta, publicación automática desactivada, ranking público desactivado y notas privadas del entrenador fuera de la vista del cliente.</p>
