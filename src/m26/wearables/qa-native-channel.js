@@ -145,8 +145,18 @@ export function createConnected360QaNativeChannel({
             finish(new Error('M26_HEALTH_QA_RESPONSE_INVALID'));
             return;
           }
-          try{finish(null,normalizeRows(parsed.records,chosen));}
-          catch(error){finish(error);}
+          try{
+            const granted=parsed.grantedMetrics;
+            if(!Array.isArray(granted)||granted.length<1||
+              granted.length>chosen.length||
+              new Set(granted).size!==granted.length||
+              granted.some(metric=>!chosen.includes(metric)))
+              throw new Error('M26_HEALTH_QA_RESPONSE_INVALID');
+            finish(null,{
+              rows:normalizeRows(parsed.records,granted),
+              grantedMetrics:Object.freeze([...granted]),
+            });
+          }catch(error){finish(error);}
         };
         rejectPending=()=>finish(new Error('M26_HEALTH_QA_DISPOSED'));
         const timer=scope.setTimeout?.(
@@ -168,7 +178,8 @@ export function createConnected360QaNativeChannel({
       if(disposed)throw new Error('M26_HEALTH_QA_DISPOSED');
       return Object.freeze({
         provider:'health_connect',
-        rows:response,
+        rows:response.rows,
+        grantedMetrics:response.grantedMetrics,
         persisted:false,
         linked:false,
         userConfirmedLocalRead:true,
