@@ -35,3 +35,15 @@ test('check-in táctil mantiene target, responsive e i18n',()=>{
   assert.equal(iberfitSurfaceTranslate('Seleccionar puntuación…',{language:'en'}),'Select score…');
   assert.equal(iberfitSurfaceTranslate('Dolor',{language:'fr'}),'Douleur');
 });
+
+test('gate autenticado ejercita selectores nativos y conserva ausencia frente a cero',()=>{
+  const qa=fs.readFileSync('qa/rc64/authenticated-interaction.spec.mjs','utf8');
+  for(const name of ['energy','sleep','pain','fatigue']){
+    assert.ok(qa.includes(`checkin.locator('select[name="${name}"]')`));
+  }
+  assert.match(qa,/energy\.selectOption\('7'\)/u);
+  assert.match(qa,/sleep\.selectOption\('8'\)/u);
+  assert.match(qa,/pain\.selectOption\('0'\)/u);
+  assert.match(qa,/expect\(fatigue\)\.toHaveValue\(''\)/u);
+  assert.doesNotMatch(qa,/checkin\.locator\('input\[name="(?:energy|sleep)"\]'\)/u);
+});
