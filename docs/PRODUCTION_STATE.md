@@ -3,7 +3,19 @@
 Última actualización documental: 2026-10-08
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
-## Checkpoint vigente · Coach Operativo 360 — Continuidad y Fiabilidad · 2026-10-08
+
+## Checkpoint vigente · Coach 360 · Contexto sesión/cita · 2026-10-08
+
+- **LIVE y Canary certificados en source** `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`, merge PR #796 desde `feat/coach-operativo-360-session-context`. El SHA de Canary se validó explícitamente.
+- **Canary Exact Deploy** run `37724506133`: SUCCESS, validaciones autenticadas read-only y superficie exacta. **Device Experience Gate** run `37724506170`, intento 2: SUCCESS; en el primer intento falló la entrada Client Genie en tablet, el rerun del mismo SHA pasó. Los 13 workflows post-merge acabaron GREEN.
+- **Production Promotion** run `37726210527`: SUCCESS. Rama de release `release/prod-d2ab5a4f405c`, manifest commit `010f52fbf28cc67c59c2de461233a2530417a9af`, source `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`. Preflight, regresión, Lighthouse, Hosted Auth, runtime PROD, identidad exacta de `app.iberfit.cl`, Chromium interactivo, auditoría read-only y evidencia de rollback GREEN. No se requirió rollback.
+- **Deployment PROD exacto:** `9bac834a-f0b2-4796-9237-1fa2a62c4c68` (`https://9bac834a.iberfit-m26-production.pages.dev`). **Deployment anterior para rollback:** `8e1c0c01-4a6f-4cf4-9947-23f5520721aa` (source `366feb554c7922e06e4e124094e4bae043ae1efe`). Datos registrados por el workflow de promoción, no inferidos de previews.
+- Producto: arranque con sesión exacta de cita, alias/estados confirmados, citas en curso, último feedback por cierre canónico y bloqueo de sesión incompatible. Sin nueva fuente de verdad ni migraciones de esquema/RLS.
+- Macro-WIP Coach funcional continúa: adaptar sesión preparada con copia independiente y guardas de publicación, PR #797; las mejoras del constructor, ejecución y cierre siguen el recorrido existente. Media Factory permanece en otro hilo.
+- Los checkpoints históricos inferiores no prevalecen sobre este SHA ni sobre la evidencia de Actions/Pages.
+
+
+## Checkpoint histórico · Coach Operativo 360 — Continuidad y Fiabilidad · 2026-10-08
 
 - Canary revalidado en `366feb554c7922e06e4e124094e4bae043ae1efe`, merge PR #795. No había PR abiertos al iniciar el siguiente bloque.
 - Última promoción observada: Production Promotion `37722367430`, **SUCCESS**, release `release/prod-366feb554c79`, manifest commit `5736084c26f9a91da432add806f56fe60837f32e`.
@@ -12,7 +24,7 @@ Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 - PR #795 está cerrado en PROD: borradores/checkpoints asociados a su propietario, confirmación UI aislada, inicio y salida serializados. Sin cambios de esquema, RLS ni Command Bus.
 - Los checkpoints inferiores son históricos y no sustituyen esta promoción.
 
-### WIP · Experiencia funcional Coach · Contexto de cita a ejecución
+### WIP histórico certificado · Experiencia funcional Coach · Contexto de cita a ejecución
 
 - Base exacta `366feb554c7922e06e4e124094e4bae043ae1efe`; rama `feat/coach-operativo-360-session-context`.
 - Implementado: CTA principal vinculado a la sesión preparada, bloqueo si la preparación no permite inicio, cita en curso conservada hasta su fin registrado, estados/aliases de agenda normalizados en arranque y último feedback ordenado por cierre canónico.
