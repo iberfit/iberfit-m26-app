@@ -975,7 +975,8 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
     const changed=Boolean(planned&&actualItems.some((item)=>item.exerciseId!==planned.exerciseId));
     const displayName=originalName||recordedNames[0]||`Ejercicio ${index+1}`;
     const prescription=planned?.prescription||{};
-    const plannedGoal=planned?[
+    const profile=exerciseMeasurementProfile({id:planned?.exerciseId||first?.exerciseId,name_es:displayName});
+    const plannedGoal=planned&&(profile.cardio||profile.kind==='carry')?metricPrescriptionSummary(prescription,{id:planned.exerciseId,name_es:displayName}):planned?[
       String(prescription.reps??'').trim()||null,
       String(prescription.plannedLoad??'').trim()?`Carga ${String(prescription.plannedLoad).trim()}`:null,
       explicitSessionEffort(prescription.targetRpe,{min:1,max:10})!==null?`RPE ${prescription.targetRpe}`:null,
