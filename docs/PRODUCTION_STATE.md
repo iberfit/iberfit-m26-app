@@ -4,14 +4,24 @@
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 
-## Checkpoint vigente · Coach 360 · Preparación y continuidad · 2026-10-08
+## Checkpoint vigente · Coach Operativo 360 · Cierre y feedback fiable · 2026-10-08
+
+- **LIVE y Canary:** `ade3de994e2e32f086bdc163d204599fb0a0a39b`, merge PR #798; 12/12 workflows posteriores SUCCESS, incluidos QA Real Write, Device Experience, Auth y Canary Exact Deploy.
+- **Production Promotion:** run `37770746465` SUCCESS (31 pasos), rama `release/prod-ade3de994e2e`, manifiesto `a62f68939af72d6528e6f8e944616da9073e990b`. Runtime PROD, Chromium, Lighthouse, seguridad, auditoría read-only y rollback comprobados; rollback no ejecutado.
+- **Deployment Cloudflare PROD exacto:** `6a6eabef-c3fc-41ca-b4c0-846eea6d8c22` (https://6a6eabef.iberfit-m26-production.pages.dev). **Rollback reservado:** `0e540a4e-b16a-4980-b17c-b6a862f5d878`, source anterior `56c485fcfa5c3f331161748111df94f4a74d4cc1`.
+- Mejoras LIVE: objetivo RPE/RIR opcional sin coerción engañosa; feedback final visible con texto escapado, molestias triestado, orientación profesional basada en señales, bloqueo de acción de seguimiento hasta sincronización confirmada.
+- **WIP todavía fuera de LIVE:** <PR #799> `feat/coach-completion-evidence-360-20261008`: comparar snapshot histórico de prescripción con series realizadas, omitidas y extras por ocurrencia. No considerar integrado antes de tests, merge protegido, Canary exacto y promoción separada.
+
+
+
+## Checkpoint histórico · Coach 360 · Preparación y continuidad · 2026-10-08
 
 - LIVE y Canary: `56c485fcfa5c3f331161748111df94f4a74d4cc1` (PR #797 integrado).
 - Canary Exact Deploy `37727148903` SUCCESS, Device Experience `37727148923` SUCCESS y 12/12 workflows posteriores correctos.
 - Production Promotion `37728220397` SUCCESS, release `release/prod-56c485fcfa5c`, manifest `296b25f811dcfed19c43767873edbebf4d90683e`; 31 pasos correctos.
 - Deployment PROD exacto `0e540a4e-b16a-4980-b17c-b6a862f5d878` (`https://0e540a4e.iberfit-m26-production.pages.dev`). Rollback reservado `9bac834a-f0b2-4796-9237-1fa2a62c4c68` (source previo `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`). Rollback no ejecutado.
 - Verificación LIVE del workflow: app.iberfit.cl, runtime de Supabase PROD, Chromium interactivo, Auth y auditoría read-only.
-- Siguiente bloque Coach en rama independiente: `feat/coach-close-feedback-truth-360-20261008` (feedback al cierre, diferencias observadas y valores opcionales RPE/RIR). Pendiente de pruebas, PR y certificación: no está en producción.
+- Este bloque de preparación es histórico: PR #798 cerró posteriormente el feedback y ya se encuentra publicado, según el checkpoint vigente.
 
 ## Checkpoint histórico · Coach 360 · Contexto sesión/cita · 2026-10-08
 

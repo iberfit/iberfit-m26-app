@@ -531,3 +531,47 @@ test('pending Coach closure never exposes the confirmed follow-up action',async(
   await expect(root.locator('[data-m26-target-focus="action-outcome"]')).toHaveCount(0);
   await expect(root.locator('[data-session-final-feedback]')).toContainText('Datos sin sincronizar');
 });
+
+
+test('Coach completed-work evidence opens with touch or keyboard and keeps occurrences isolated',async({page},testInfo)=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+  await page.evaluate(async()=>{
+    const {renderGuidedExecution}=await import('/src/m26/workflows/session-ui.js');
+    const root=document.createElement('section');
+    root.id='coach-completion-evidence-qa';
+    root.className='m26-shell';
+    document.body.append(root);
+    const clientId='synthetic-coach-evidence';
+    const session={id:'synthetic-session-evidence',clientId,title:'Sesión sintética',blocks:[
+      {id:'block-one',type:'exercise',exerciseId:'squat',name:'Sentadilla primera'},
+      {id:'block-two',type:'exercise',exerciseId:'squat',name:'Sentadilla segunda'},
+    ]};
+    const queue=[
+      {blockId:'block-one',exerciseId:'squat',sets:2,prescription:{reps:'8-10',plannedLoad:'10 kg'}},
+      {blockId:'block-two',exerciseId:'squat',sets:1,prescription:{reps:'5',plannedLoad:'20 kg'}},
+    ];
+    root.innerHTML=renderGuidedExecution({
+      role:'coach',session,
+      execution:{id:'execution-synthetic',clientId,sessionId:session.id,status:'completed',syncStatus:'clean',queue,
+        results:{'block-one:squat:1':{setNumber:1,reps:8,rpe:7,load:'10 kg',notes:'Test <script>no ejecutar</script>'},
+          'block-two:squat:1':{setNumber:1,reps:5,rpe:8,load:'20 kg'}},
+        events:[],feedback:{sessionRpe:7,comment:'Prueba sintética',pain:false},
+        planSnapshot:{sessionId:session.id,blocks:session.blocks,queue}},
+    });
+  });
+  const panel=page.locator('#coach-completion-evidence-qa [data-coach-completion-evidence]');
+  const summary=panel.locator('summary');
+  await expect(summary).toHaveText('Revisar planificado y registrado');
+  if(testInfo.project.use.hasTouch)await summary.tap();
+  else{await summary.focus();await page.keyboard.press('Enter');}
+  await expect(panel).toHaveAttribute('open','');
+  await expect(panel.locator('[data-completion-evidence-block="block-one"]')).toContainText('1 de 2 series registradas');
+  await expect(panel.locator('[data-completion-evidence-block="block-two"]')).toContainText('1 de 1 series registradas');
+  await expect(panel.locator('[data-completion-evidence-block="block-one"]')).toContainText('Test <script>no ejecutar</script>');
+  await expect(panel.locator('script')).toHaveCount(0);
+  const overflow=await panel.evaluate((node)=>node.scrollWidth-node.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(2);
+  expect(errors).toEqual([]);
+});

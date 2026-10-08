@@ -4,11 +4,15 @@ Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PR
 
 ## MACRO-WIP ACTIVO · Coach Operativo 360 — Experiencia funcional integral
 
+- **LIVE y Canary actuales:** `ade3de994e2e32f086bdc163d204599fb0a0a39b` (PR #798), Canary Exact Deploy, 12/12 workflows post-merge y Production Promotion `37770746465` SUCCESS (31/31), deployment `6a6eabef-c3fc-41ca-b4c0-846eea6d8c22`, rollback `0e540a4e-b16a-4980-b17c-b6a862f5d878`.
+- **Completado:** #795 continuidad, #796 cita/sesión exacta, #797 copia independiente, #798 cierre con feedback fiel y prescripción opcional sin inventar valores. Todos publicados.
+- **Siguiente tramo PR #799 (DRAFT):** evidencia planificado/registrado por ocurrencia, snapshot histórico, omisiones confirmadas, sustituciones y series añadidas; vista de Coach desplegable y responsive. Cambios solo read-only UI, pruebas y traducciones. Integración/publicación pendiente de gates completos.
+
 - LIVE y Canary certificados: `56c485fcfa5c3f331161748111df94f4a74d4cc1`, PR #797. Canary Exact Deploy `37727148903`, 12/12 workflows post-merge y Production Promotion `37728220397`: SUCCESS.
 - Deployment productivo exacto `0e540a4e-b16a-4980-b17c-b6a862f5d878`; rollback previsto `9bac834a-f0b2-4796-9237-1fa2a62c4c68`.
 - Coach: PR #795 continuidad de borradores/ejecución, #796 contexto exacto de cita y #797 copia segura de sesión preparada: todo publicado.
-- Próximo tramo aislado, aún sin publicar: `feat/coach-close-feedback-truth-360-20261008`. Fidelidad RPE/RIR prescrito, comentario y molestias de feedback al cierre, evidencia de adaptaciones y revisión profesional contextual. Preservar la confirmación de sincronización y no automatizar decisiones.
-- Cierre requerido: pruebas unitarias, navegador multidispositivo, revisión de regresiones, integración protegida, Canary exacto y promoción certificada a LIVE.
+- Bloque de cierre de feedback #798 cerrado en producción. El desarrollo activo es la comparación read-only #799; no alterar ni automatizar decisiones ya registradas.
+- Cierre requerido para #799: pruebas unitarias, navegador multidispositivo, revisión de regresiones, integración protegida, Canary exacto y promoción certificada a LIVE.
 
 
 - Source **PROD y Canary** `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`, PR #796 fusionado y certificado. Canary Exact Deploy `37724506133` SUCCESS, Device Gate intento 2 `37724506170` SUCCESS, promoción PROD `37726210527` SUCCESS (deployment `9bac834a-f0b2-4796-9237-1fa2a62c4c68`; rollback `8e1c0c01-4a6f-4cf4-9947-23f5520721aa`).
