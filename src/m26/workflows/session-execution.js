@@ -248,6 +248,14 @@ export function previousSetDraftValues(execution){
     load:previous.load==null?'':String(previous.load),
     rpe:previous.rpe==null?'':String(previous.rpe),
     rir:previous.rir==null?'':String(previous.rir),
+    durationMinutes:previous.seconds==null?'':String(Number(previous.seconds)/60),
+    distanceKm:previous.distanceKm==null?'':String(previous.distanceKm),
+    paceMinPerKm:previous.paceMinPerKm||'',
+    avgHeartRateBpm:previous.avgHeartRateBpm==null?'':String(previous.avgHeartRateBpm),
+    cadenceRpm:previous.cadenceRpm==null?'':String(previous.cadenceRpm),
+    powerWatts:previous.powerWatts==null?'':String(previous.powerWatts),
+    elevationGainM:previous.elevationGainM==null?'':String(previous.elevationGainM),
+    intervalsCompleted:previous.intervalsCompleted==null?'':String(previous.intervalsCompleted),
   };
 }
 
@@ -272,6 +280,9 @@ export function plannedSetDraftValues(execution,session){
     reps:work.reps,
     seconds:work.seconds,
     load:load.slice(0,80),
+    durationMinutes:planned.plannedDurationMinutes||'',
+    distanceKm:planned.plannedDistanceKm||'',
+    // Never prefill observed FC, pace, cadence or power from a planned target.
     // RPE/RIR are observed effort, never inferred from the planned target.
     rpe:'',
     rir:'',
@@ -285,6 +296,8 @@ export function previousSetReviewDraftValues(execution){
     reps:previous.reps,
     seconds:previous.seconds,
     load:previous.load,
+    durationMinutes:previous.durationMinutes,
+    distanceKm:previous.distanceKm,
     // Previous effort is context, not a new observation.
     rpe:'',
     rir:'',
