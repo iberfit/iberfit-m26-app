@@ -902,9 +902,12 @@ export async function createM26Application({root=document.querySelector('#app'),
     return sessionUi.draft;
   }
   function clearCurrentTemplateUndo(){if(sessionUi)sessionUi.templateUndo=null;}
-  async function saveSessionDraft(){
-    if(!sessionUi?.draft||!draftRepository)return Object.freeze({ok:true,skipped:true,local:false,remote:false});
-    const draft=structuredClone(sessionUi.draft);
+  async function saveSessionDraft(draftOverride=null){
+    // Each queued autosave must retain its exact client/session, even if the
+    // Coach switches workspace before this asynchronous operation executes.
+    const selectedDraft=draftOverride??sessionUi?.draft;
+    if(!selectedDraft||!draftRepository)return Object.freeze({ok:true,skipped:true,local:false,remote:false});
+    const draft=structuredClone(selectedDraft);
     const clientId=String(draft.clientId||'');
     let local=false,remote=false,remoteResult=null,localError=null,remoteError=null;
     try{
@@ -933,17 +936,12 @@ export async function createM26Application({root=document.querySelector('#app'),
       const source=remoteError||localError||new Error('M26_SESSION_DRAFT_PERSISTENCE_FAILED');
       throw Object.assign(new Error(diagnosticCode(source,'session-draft-save')),{status:source?.status});
     }
-    sessionUi.draftPersistence=Object.freeze({
-      local,
-      remote,
-      updatedAt:remoteResult?.updatedAt||new Date().toISOString(),
-    });
-    return Object.freeze({
-      ok:true,
-      local,
-      remote,
-      updatedAt:sessionUi.draftPersistence.updatedAt,
-    });
+    const updatedAt=remoteResult?.updatedAt||new Date().toISOString();
+    // Never mark a different client's current draft as saved.
+    if(sessionUi?.draft===selectedDraft){
+      sessionUi.draftPersistence=Object.freeze({local,remote,updatedAt});
+    }
+    return Object.freeze({ok:true,local,remote,updatedAt});
   }
   async function loadSessionDraft(clientId){
     let localRecord;

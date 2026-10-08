@@ -1,6 +1,15 @@
 # IBERFIT · Backlog Vivo
 
-Checkpoint: 2026-10-05. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`.
+Checkpoint: 2026-10-07. Estado verificable: GitHub Actions/Cloudflare y `docs/PRODUCTION_STATE.md` (histórico).
+
+## MACRO-WIP ACTIVO · Coach Operativo 360 — Continuidad de planificación y sesión
+
+- PR #795, base `bb9f2f56810e83a908257651aa19b5f69f4efe1a` (source de Canary/PROD certificado mediante promotion `37718656193`).
+- Alcance deliberado: reforzar una sola operación Coach existente, no duplicar fichas, editor de planificación, ejecución, cierre, seguimiento ni controles Admin.
+- Corrección en curso: al cambiar entre clientes/planes/ejecuciones durante el debounce, conservar y confirmar cada borrador con su propietario real; no sustituir el contexto pendiente por el nuevo.
+- Inicio de sesión: impedir carreras entre acceso automático desde shell y CTA explícito; bloquear salida duplicada o simultánea a una mutación.
+- Tests: cambio rápido entre dos borradores, flush forzado, checkpoints de series entre dos clientes, inicios concurrentes y salida de sesión bajo carga.
+- Cierre sólo tras CI, QA de interacción y dispositivos, deploy Canary exacto, promoción controlada y comprobación del dominio productivo. Este bloque está **en desarrollo**, no en Canary ni en PROD.
 
 ## WIP CERRADO · Entrenamiento Operativo 360 · núcleo canónico
 
