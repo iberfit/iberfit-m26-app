@@ -20,15 +20,26 @@ revoke all on public.m26_wearable_revocation_fence_v1 from public,anon,authentic
 grant select,insert on public.m26_wearable_revocation_fence_v1 to authenticated;
 grant all on public.m26_wearable_revocation_fence_v1 to service_role;
 
-create policy m26_wearable_fence_own_read_v1
-  on public.m26_wearable_revocation_fence_v1 for select to authenticated
-  using (owner_user_id=(select auth.uid())
-    and client_id=public.iberfit_client_id());
-
-create policy m26_wearable_fence_own_insert_v1
-  on public.m26_wearable_revocation_fence_v1 for insert to authenticated
-  with check (owner_user_id=(select auth.uid())
-    and client_id=public.iberfit_client_id());
+do $fence_policies$
+begin
+  if not exists (select 1 from pg_catalog.pg_policies
+    where schemaname='public' and tablename='m26_wearable_revocation_fence_v1'
+      and policyname='m26_wearable_fence_own_read_v1') then
+    create policy m26_wearable_fence_own_read_v1
+      on public.m26_wearable_revocation_fence_v1 for select to authenticated
+      using (owner_user_id=(select auth.uid())
+        and client_id=public.iberfit_client_id());
+  end if;
+  if not exists (select 1 from pg_catalog.pg_policies
+    where schemaname='public' and tablename='m26_wearable_revocation_fence_v1'
+      and policyname='m26_wearable_fence_own_insert_v1') then
+    create policy m26_wearable_fence_own_insert_v1
+      on public.m26_wearable_revocation_fence_v1 for insert to authenticated
+      with check (owner_user_id=(select auth.uid())
+        and client_id=public.iberfit_client_id());
+  end if;
+end;
+$fence_policies$;
 
 -- Un bloqueo por cliente por transacción serializa importación frente a revocación
 -- incluso si todavía no existe una fila de estado para ese proveedor.
@@ -104,17 +115,31 @@ $fn$;
 revoke all on function public.m26_wearable_fence_write_gate_v1()
   from public,anon,authenticated;
 
-create trigger m26_wearable_connections_fence_v1
-  before insert or update on public.m26_wearable_connections_v44
-  for each row execute function public.m26_wearable_fence_write_gate_v1();
-
-create trigger m26_wearable_summaries_fence_v1
-  before insert or update on public.m26_wearable_daily_summaries_v44
-  for each row execute function public.m26_wearable_fence_write_gate_v1();
-
-create trigger m26_wearable_consents_fence_v1
-  after insert on public.m26_wearable_consents_v44
-  for each row execute function public.m26_wearable_fence_write_gate_v1();
+do $fence_triggers$
+begin
+  if not exists (select 1 from pg_catalog.pg_trigger
+    where tgrelid='public.m26_wearable_connections_v44'::regclass
+      and tgname='m26_wearable_connections_fence_v1') then
+    create trigger m26_wearable_connections_fence_v1
+      before insert or update on public.m26_wearable_connections_v44
+      for each row execute function public.m26_wearable_fence_write_gate_v1();
+  end if;
+  if not exists (select 1 from pg_catalog.pg_trigger
+    where tgrelid='public.m26_wearable_daily_summaries_v44'::regclass
+      and tgname='m26_wearable_summaries_fence_v1') then
+    create trigger m26_wearable_summaries_fence_v1
+      before insert or update on public.m26_wearable_daily_summaries_v44
+      for each row execute function public.m26_wearable_fence_write_gate_v1();
+  end if;
+  if not exists (select 1 from pg_catalog.pg_trigger
+    where tgrelid='public.m26_wearable_consents_v44'::regclass
+      and tgname='m26_wearable_consents_fence_v1') then
+    create trigger m26_wearable_consents_fence_v1
+      after insert on public.m26_wearable_consents_v44
+      for each row execute function public.m26_wearable_fence_write_gate_v1();
+  end if;
+end;
+$fence_triggers$;
 
 -- Backfill de revocaciones existentes, conservando íntegro el historial.
 insert into public.m26_wearable_revocation_fence_v1(
