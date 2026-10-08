@@ -197,7 +197,7 @@ function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
 function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
-  const profile=exerciseMeasurementProfile(exercise);
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:p.measurementProfile});
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   if(profile.cardio){
     return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
@@ -215,7 +215,7 @@ function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
     ${field('restSeconds','Descanso (s)',p.restSeconds??60,'number',{min:0,max:3600})}`;
 }
 function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
-  const profile=exerciseMeasurementProfile(exercise);
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:p.measurementProfile});
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   const cardio=profile.cardio;
   const sport=profile.sport;
