@@ -1,4 +1,5 @@
 export const SESSION_SURFACE_ROWS=Object.freeze([
+['Registra distancia, tiempo o ambos; la carga sigue siendo opcional si corresponde.','Record distance, time, or both; load is optional.','Enregistrez la distance ou la durée ; la charge est facultative.','Registe a distância ou o tempo; a carga é opcional.'],
 ['Repeticiones/tiempo objetivo','Repetitions/time goal','Objectif de répétitions/temps','Objetivo de repetições/tempo'],
 ['Selecciona un ejercicio válido antes de añadirlo','Select a valid exercise before adding it','Sélectionnez un exercice valide avant de l’ajouter','Selecione um exercício válido antes de o adicionar'],
 ['Sincronizando el último ejercicio antes de permitir otra alta','Syncing the last exercise before another can be added','Synchronisation du dernier exercice avant d’en autoriser un autre','A sincronizar o último exercício antes de permitir adicionar outro'],
