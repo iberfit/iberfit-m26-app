@@ -44,7 +44,8 @@ function fixture({
 const row={provider:'health_connect',date:'2026-10-08',
   acquiredAt:'2026-10-08T18:12:00Z',steps:5200,sleepMinutes:412,restingHeartRate:56};
 const ok=message=>({schema:'iberfit.connected360.qa.read.v1',
-  requestId:message.requestId,provider:'health_connect',persisted:false,records:[row]});
+  requestId:message.requestId,provider:'health_connect',persisted:false,
+  grantedMetrics:['steps','sleepMinutes','restingHeartRate'],records:[row]});
 
 test('authenticated Client reads local Android data with no token or clientId sent to native',async()=>{
   const f=fixture({reply:ok});
@@ -170,4 +171,24 @@ test('destroy while session refresh is pending never sends any native request',a
   release('qa-user-session-strong');
   await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
   assert.equal(f.messages.length,0);
+});
+
+test('partial Android permission yields only granted metrics; denied fields remain absent',async()=>{
+  const f=fixture({reply:message=>({...ok(message),
+    grantedMetrics:['steps'],
+    records:[{provider:'health_connect',date:'2026-10-08',
+      acquiredAt:'2026-10-08T18:12:00Z',steps:5200}],
+  })});
+  const read=await f.client.readLocal();
+  assert.deepEqual(read.grantedMetrics,['steps']);
+  assert.deepEqual(read.rows[0].metrics,{steps:5200});
+  assert.equal(read.rows[0].metrics.sleepMinutes,undefined);
+  assert.equal(read.rows[0].metrics.restingHeartRate,undefined);
+});
+
+test('forged native grant scope list fails before exposing any health record',async()=>{
+  const f=fixture({reply:message=>({...ok(message),grantedMetrics:['hrvMs']})});
+  await assert.rejects(f.client.readLocal(),/M26_HEALTH_QA_RESPONSE_INVALID/);
+  const repeated=fixture({reply:message=>({...ok(message),grantedMetrics:['steps','steps']})});
+  await assert.rejects(repeated.client.readLocal(),/M26_HEALTH_QA_RESPONSE_INVALID/);
 });
