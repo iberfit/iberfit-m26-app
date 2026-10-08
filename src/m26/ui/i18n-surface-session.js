@@ -12,7 +12,7 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ["Movilidad · rango y control","Mobility · range and control","Mobilité · amplitude et contrôle","Mobilidade · amplitude e controlo"],
 ["Potencia · repeticiones de calidad","Power · quality repetitions","Puissance · répétitions de qualité","Potência · repetições de qualidade"],
 ["Guardar perfil de registro","Save recording profile","Enregistrer le profil de suivi","Guardar perfil de registo"],
-["Configuración global del ejercicio","Global exercise settings","Paramètres globaux de l'exercice","Definições globais do exercício"],
+["Editar nombre global y perfil de registro","Edit global name and recording profile","Modifier le nom global et le profil de suivi","Editar nome global e perfil de registo"],
 ["Define qué indicadores tienen prioridad en planificación y registro. El historial anterior se conserva. Solo Admin puede guardar cambios.","Choose which measurements matter most for planning and recording. Previous history is preserved. Only Admin can save changes.","Choisissez les mesures prioritaires pour la planification et le suivi. L'historique est conservé. Seul Admin peut enregistrer.","Defina as medidas prioritárias no planeamento e registo. O histórico é mantido. Só Admin pode guardar alterações."],
 ["Repeticiones · carga opcional · RPE","Repetitions · optional load · RPE","Répétitions · charge facultative · RPE","Repetições · carga opcional · RPE"],
 ["Tiempo de sostén · carga opcional","Hold duration · optional load","Temps de maintien · charge facultative","Tempo de sustentação · carga opcional"],
