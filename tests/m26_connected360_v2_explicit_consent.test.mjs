@@ -335,12 +335,25 @@ test('v4 SQL extends revocation fencing and scoped grants to every supported imp
   assert.doesNotMatch(sql,/\bdrop\s+(?:table|trigger|function|policy)\b/iu);
 });
 
-test('v5 expands only the authorization provider domain; keeps RC44 consent policy untouched',()=>{
+test('v5 uses an additive provider grant table and preserves the original source restriction',()=>{
   const sql=readFileSync('supabase/migrations/20261008190500_connected360_authorization_provider_domain_v5.sql','utf8');
-  assert.match(sql,/m26_wearable_authorization_v2_provider_check/u);
-  assert.match(sql,/provider in \(/u);
-  for(const name of ['normalized_file','health_connect','samsung_health','apple_health','strava',
-    'garmin_connect','fitbit','oura'])assert.match(sql,new RegExp("'"+name+"'"));
-  assert.doesNotMatch(sql,/m26_wearable_consents_v44_policy_version_check/u);
-  assert.doesNotMatch(sql,/\bdrop\s+(?:table|function|trigger|policy)\b/iu);
+  assert.match(sql,/create table if not exists public\.m26_wearable_authorization_sources_v3/u);
+  assert.match(sql,/m26_wearable_authorization_sources_v3 enable row level security/u);
+  assert.match(sql,/grant select on public\.m26_wearable_authorization_sources_v3 to authenticated/u);
+  for(const provider of ['strava','health_connect','samsung_health','apple_health','garmin_connect','fitbit','oura']){
+    assert.match(sql,new RegExp("'"+provider+"'"));
+  }
+  assert.doesNotMatch(sql,/alter table public\.m26_wearable_authorization_v2/u);
+  assert.doesNotMatch(sql,/\bdrop\s+(?:table|constraint|function|trigger|policy)\b/iu);
+});
+test('v6 splits consent generation by provider and leaves the revocation fence intact',()=>{
+  const sql=readFileSync('supabase/migrations/20261008192000_connected360_split_authorization_fence_v6.sql','utf8');
+  assert.match(sql,/if v_provider='normalized_file' then/u);
+  assert.match(sql,/if v_source='normalized_file' then/u);
+  assert.match(sql,/public\.m26_wearable_authorization_sources_v3/u);
+  assert.match(sql,/M26_CONNECTED360_CONSENT_VERSION_CONFLICT/u);
+  assert.match(sql,/M26_CONNECTED360_GRANT_REVOKED/u);
+  assert.match(sql,/M26_CONNECTED360_IMPORT_SCOPE_FORBIDDEN/u);
+  assert.match(sql,/pg_catalog\.pg_advisory_xact_lock/u);
+  assert.doesNotMatch(sql,/\bdrop\s+(?:table|constraint|function|trigger|policy)\b/iu);
 });

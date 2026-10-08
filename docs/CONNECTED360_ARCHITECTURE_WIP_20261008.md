@@ -124,3 +124,6 @@ Migración adicional `20261008185500_connected360_all_provider_consent_v4.sql` p
 ## Ajuste de constraint en v5
 
 La tabla de autorización v2, inicialmente limitada a `normalized_file`, tenía el `CHECK m26_wearable_authorization_v2_provider_check` que rechazaba Strava y las demás fuentes incluso después de endurecer las RPC en v4. La migración `20261008190500_connected360_authorization_provider_domain_v5.sql` extiende **exclusivamente** esa constraint a los ocho proveedores existentes en RC44. No altera el `policy_version='v44-zero-cost'`, RLS, permisos ni los datos existentes. La ampliación es necesaria para que la conexión por archivo sea voluntaria y funcione con todos los formatos enumerados.
+
+## Seguridad de migración v5 / v6
+La estructura final mantiene sin modificación la constraint original `m26_wearable_authorization_v2_provider_check`. La v5 incorpora una tabla nueva y segregada para los otros siete orígenes, con RLS y permiso SELECT de cliente; la v6 adapta las RPC a ambas tablas. El control Production Data Safety Gate había bloqueado correctamente una propuesta de sustituir la restricción. Verificar rollback del esquema QA anterior antes de certificar equivalencia final. La implementación en GitHub no implica despliegue en Canary o producción.
