@@ -33,7 +33,7 @@ import org.json.JSONObject
  *
  * Security properties:
  * - exact HTTPS Canary origin + main-frame-only messages; navigation escapes blocked
- * - no addJavascriptInterface, no tokens, no client IDs, no automatic/background reads
+ * - no legacy script-object injection, no tokens, client IDs or background reads
  * - a real, local Android button enables ONE read (7 civil days maximum)
  * - Health Connect OS read permission is rechecked on every read
  * - never writes to Supabase or grants server-side consent
