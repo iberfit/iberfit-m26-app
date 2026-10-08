@@ -114,9 +114,9 @@ test('Welcome and contextual help never compete, and Live Workout still wins',()
   const contextual=read('src/m26/onboarding/client-contextual-guide.js');
   assert.match(progressive,/createClientGuidedWelcomeController/u);
   assert.match(progressive,/syncClientContextualGuideMode\(\);\s*guidedTour\.mount/u);
-  assert.match(progressive,/clientGuidedWelcome\.mount\?\.\(\);\s*clientContextGuide\.mount/u);
-  assert.match(progressive,/clientGuidedWelcome\.destroy\?\.\(\);\s*clientContextGuide\.destroy/u);
-  assert.match(progressive,/clientGuidedWelcome\.refresh\?\.\(\);\s*clientContextGuide\.refresh/u);
+  assert.match(progressive,/clientGuidedWelcome\.mount\?\.\(\);\s*connected360Invitation\.mount\?\.\(\);\s*clientContextGuide\.mount/u);
+  assert.match(progressive,/clientGuidedWelcome\.destroy\?\.\(\);\s*connected360Invitation\.destroy\?\.\(\);\s*clientContextGuide\.destroy/u);
+  assert.match(progressive,/clientGuidedWelcome\.refresh\?\.\(\);\s*connected360Invitation\.refresh\?\.\(\);\s*clientContextGuide\.refresh/u);
   assert.match(contextual,/data-m26-client-guided-welcome-active/u);
   assert.match(contextual,/data-session-live-v3/u);
 });
