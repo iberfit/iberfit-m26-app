@@ -51,18 +51,31 @@ function actionOutcomeManagerForClient(root,clientId,{workspace=false}={}){
 function ensureCoachDecisionContinuity(manager,role){
   if(String(role||'').trim().toLowerCase()!=='coach'||!manager?.classList?.contains?.('is-workspace'))return false;
   if(manager.querySelector?.('[data-action-outcome-continuity]'))return true;
+  const clientId=String(manager?.dataset?.clientId||'').trim();
+  const nextSessionId=String(manager?.dataset?.nextSessionId||'').trim();
+  if(!clientId)return false;
   const documentLike=manager.ownerDocument||globalThis.document;
   if(!documentLike?.createElement)return false;
   const wrap=documentLike.createElement('div');
   wrap.className='m26-action-outcome-continuity';
   wrap.setAttribute('data-action-outcome-continuity','true');
   const copy=documentLike.createElement('p');
-  copy.textContent='Siguiente paso: revisa la próxima sesión y decide si necesita cambios.';
   const button=documentLike.createElement('button');
   button.type='button';
   button.className='m26-primary-action';
-  button.setAttribute('data-m26-area','sesion');
-  button.textContent='Revisar próxima sesión';
+  if(nextSessionId){
+    copy.textContent='Siguiente paso: revisa la próxima sesión y decide si necesita cambios.';
+    button.setAttribute('data-m26-coach-action','true');
+    button.setAttribute('data-m26-client-id',clientId);
+    button.setAttribute('data-m26-target-area','sesion');
+    button.setAttribute('data-m26-target-focus','next-session-preparation');
+    button.textContent='Revisar próxima sesión';
+  }else{
+    copy.textContent='Siguiente paso: prepara la próxima sesión con el criterio que acabas de registrar.';
+    button.setAttribute('data-workflow-action','open-session-builder');
+    button.setAttribute('data-client-id',clientId);
+    button.textContent='Preparar próxima sesión';
+  }
   wrap.append(copy,button);
   manager.append(wrap);
   return true;
@@ -142,9 +155,10 @@ export function createEngagementController({root,store,draftRepository,service,s
       const {clientId,mount,mode}=target;
       const workspaceMode=mode==='workspace';
       const workspacePriority=workspaceMode&&mount.getAttribute?.('data-action-outcome-priority')==='review'?'review':'normal';
+      const workspaceNextSessionId=workspaceMode?String(mount.getAttribute?.('data-action-outcome-next-session-id')||'').trim():'';
       const records=actionOutcomeEntities(state?.collections?.m26Entities||[],clientId);
       const summaryData=summarizeActionOutcomes(records,clientId);
-      const signature=`${mode}:${workspacePriority}:${records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
+      const signature=`${mode}:${workspacePriority}:${workspaceNextSessionId||'no-session'}:${records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
       let manager=mount.querySelector?.('[data-action-outcome-manager]');
       if(manager?.dataset?.canonicalSignature===signature)continue;
       manager?.remove?.();
@@ -153,6 +167,7 @@ export function createEngagementController({root,store,draftRepository,service,s
       manager.setAttribute('data-action-outcome-manager','true');
       if(workspaceMode&&(summaryData.overdueCount>0||workspacePriority==='review'))manager.open=true;
       manager.dataset.clientId=clientId;
+      manager.dataset.nextSessionId=workspaceNextSessionId;
       manager.dataset.canonicalSignature=signature;
 
       const summary=documentLike.createElement('summary');

@@ -1807,6 +1807,11 @@ body {
   border-color:color-mix(in srgb,var(--iberfit-role-accent,#d8b96f) 28%,transparent)!important;
   background:linear-gradient(155deg,rgba(216,185,111,.07),rgba(5,24,15,.84))!important;
 }
+.m26-next-session-prep:focus{
+  outline:2px solid color-mix(in srgb,var(--iberfit-role-accent,#d8b96f) 72%,transparent);
+  outline-offset:.28rem;
+  scroll-margin-top:1rem;
+}
 .m26-next-session-summary{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
