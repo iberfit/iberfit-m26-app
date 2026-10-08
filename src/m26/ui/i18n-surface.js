@@ -207,6 +207,8 @@ const ROWS=Object.freeze([
   ['Ajustar ejercicio','Adjust exercise','Ajuster l’exercice','Ajustar exercício'],
   ['Siguiente paso: revisa la próxima sesión y decide si necesita cambios.','Next step: review the next session and decide whether it needs changes.','Étape suivante : vérifiez la prochaine séance et décidez si elle nécessite des modifications.','Próximo passo: reveja a próxima sessão e decida se precisa de alterações.'],
   ['Revisar próxima sesión','Review next session','Vérifier la prochaine séance','Rever próxima sessão'],
+  ['Siguiente paso: prepara la próxima sesión con el criterio que acabas de registrar.','Next step: prepare the next session using the criteria you just recorded.','Étape suivante : préparez la prochaine séance selon le critère que vous venez d’enregistrer.','Próximo passo: prepare a próxima sessão com o critério que acabou de registar.'],
+  ['Preparar próxima sesión','Prepare next session','Préparer la prochaine séance','Preparar próxima sessão'],
   ['Motivos rápidos','Quick reasons','Motifs rapides','Motivos rápidos'],
   ['Equipo no disponible','Equipment unavailable','Matériel indisponible','Equipamento indisponível'],
   ['Molestia','Discomfort','Gêne','Desconforto'],

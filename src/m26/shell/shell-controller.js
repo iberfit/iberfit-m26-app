@@ -603,6 +603,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
   const COACH_ACTION_FOCUS_TARGETS=Object.freeze({
     'action-outcome':'[data-m26-coach-focus="action-outcome"]',
+    'next-session-preparation':'[data-next-session-preparation]',
   });
   function normalizedCoachActionFocus(value){
     const key=String(value||'').trim();

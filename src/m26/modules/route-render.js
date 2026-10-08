@@ -3104,6 +3104,7 @@ export function renderExpedienteRoute(vm) {
           data-action-outcome-host
           data-action-outcome-mode="workspace"
           data-action-outcome-priority="${prep?.reviewRequired?'review':'normal'}"
+          data-action-outcome-next-session-id="${escapeHtml(prep?.session?.id||'')}"
           data-client-id="${escapeHtml(data.id||'')}"
           aria-live="polite"
         ></div>
@@ -4043,7 +4044,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach'}={
       :'<button type="button" class="m26-primary-action" data-m26-area="expediente">Revisar seguimiento antes de entrenar</button>'
     :'';
   const builderClass=prep.reviewRequired?'':' class="m26-primary-action"';
-  return `<section class="m26-panel m26-next-session-prep" data-next-session-preparation>
+  return `<section class="m26-panel m26-next-session-prep" data-next-session-preparation tabindex="-1">
     <div class="m26-panel-heading">
       <div>
         <p class="m26-eyebrow">Preparar próxima sesión</p>
