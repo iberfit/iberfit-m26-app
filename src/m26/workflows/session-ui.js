@@ -1317,7 +1317,7 @@ const plannedSetReuse=plannedSetPreset
   ?`<div class="m26-field-grid" data-session-planned-set><div class="m26-field"><span>Punto de partida</span><strong>${e(previousSetSummary(plannedSetPreset))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-planned-set" aria-label="Usar el objetivo planificado como borrador y revisarlo antes de confirmar">Usar objetivo y revisar</button></div><small class="m26-session-repeat-note">Solo completa el borrador · confirma después lo que realmente se hizo.</small></div></div>`
   :'';
 const previousSetReuse=previousSet
-  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach&&!exerciseMeasurementProfile(ex).cardio?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
   :'';
 const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
@@ -1419,6 +1419,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     previousSet,
     exerciseMemory,
     restActive,
+    exercise:ex,
   });
   const liveTelemetry=liveTelemetryStrip(execution,catalog);
   const liveTelemetryDisclosure=liveTelemetry
