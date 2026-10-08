@@ -1,5 +1,6 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
+import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
 function boundedNumber(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
