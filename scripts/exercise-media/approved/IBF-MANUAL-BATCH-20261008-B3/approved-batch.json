@@ -1,0 +1,190 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PALLOF-PRESS-DE-PIE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B3/movement-769a4340d3ec.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Versión más reciente aprobada de Pallof press de pie, sustituye selección anterior duplicada."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PALLOF-PRESS-DE-PIE/movement-769a4340d3ec.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "769a4340d3ecb1db08896743cf81ef3c7c94f9d1c839bc77eb0d9c3997decaba"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core",
+            "oblicuos"
+          ],
+          "secondary": [
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PLANCHA-LATERAL-CON-RODILLAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B3/movement-46385ebe6c50.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Inicio con pelvis apoyada y final en plancha lateral elevada sobre antebrazo y rodillas."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-LATERAL-CON-RODILLAS/movement-46385ebe6c50.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "46385ebe6c504dd619f464a5ac101112fda2569701d851c5a819f77ee4846021"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "oblicuos",
+            "core"
+          ],
+          "secondary": [
+            "glúteo medio"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-FEMORAL-CON-FITBALL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B3/movement-dab1bb8cca85.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Desde puente supino con talones en fitball, flexión de rodillas acercando el balón sin desplomar la pelvis."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-FEMORAL-CON-FITBALL/movement-dab1bb8cca85.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "dab1bb8cca853ce65637200ba9108b1c4ae8a658bfcb6f3960401d8740734a4f"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales"
+          ],
+          "secondary": [
+            "glúteo mayor",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-HIP-THRUST-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B3/movement-6002e45691c3.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Hip thrust con banda sobre cadera, extensión hasta alinear tronco y muslos sobre banco."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-HIP-THRUST-CON-BANDA/movement-6002e45691c3.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "6002e45691c33e2d88f7cd61ce6b8309a7c823e15f219686fbc871a3c04fcb43"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo mayor"
+          ],
+          "secondary": [
+            "isquiotibiales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
