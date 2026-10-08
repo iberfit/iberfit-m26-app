@@ -47,7 +47,7 @@ test('legacy status alone never certifies native/cloud auto sync',()=>{
 test('no fabricated data or impossible permissions are offered as working links',()=>{
   assert.equal(deviceConfirmedStats({daysWithData:0,metrics:{steps:8000}}),'');
   const disabled=deviceSourceChoice({key:'apple_health',label:'Salud',nativeReady:true,usableNow:false});
-  assert.match(disabled,/En preparación/u);
+  assert.match(disabled,/No disponible por ahora/u);
   assert.doesNotMatch(disabled,/data-wearable-action/u);
   const enabled=deviceSourceChoice({key:'health_connect',label:'Health',nativeReady:true,usableNow:true});
   assert.match(enabled,/Disponible/u);
