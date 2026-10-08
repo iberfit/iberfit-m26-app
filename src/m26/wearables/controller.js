@@ -611,12 +611,12 @@ export function createWearableController({
 
     setStatus(
       root,
-      result.pending
-        ?`${result.pending} registro${result.pending===1?'':'s'} pendiente${result.pending===1?'':'s'}.`
-        :'Sincronización completada.',
-      result.pending
-        ?'pending'
-        :'success',
+      result.discarded
+        ?'Se descartaron registros locales antiguos porque la autorización fue revocada desde otro dispositivo.'
+        :result.pending
+          ?`${result.pending} registro${result.pending===1?'':'s'} pendiente${result.pending===1?'':'s'}.`
+          :'Sincronización completada.',
+      result.discarded?'info':result.pending?'pending':'success',
     );
 
     return result;
