@@ -249,3 +249,15 @@ test('Delete all wins over pending sync in the same identity and prevents queued
   assert.equal(await remote.pendingCount(),0);
   await assert.rejects(remote.stage({clientId:record.clientId,provider:record.provider,records:[record]}),/M26_WEARABLE_SOURCE_REVOKED/u);
 });
+
+test('Connected 360 preserves mobile navigation, touch targets, safe areas and the live workout',()=>{
+  const source=readFileSync('src/m26/onboarding/client-wearable-invitation.js','utf8');
+  assert.match(source,/bottom:calc\(6\.25rem \+ env\(safe-area-inset-bottom\)\)/u);
+  assert.match(source,/max-height:min\(62dvh,540px\)/u);
+  assert.match(source,/min-height:44px/u);
+  assert.match(source,/prefers-reduced-motion:reduce/u);
+  assert.match(source,/data-session-live-v3/u);
+  assert.match(source,/data-session-live-state/u);
+  assert.match(source,/data-session-touch-focus/u);
+  assert.match(source,/aria-modal="false"/u);
+});
