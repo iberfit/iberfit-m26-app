@@ -116,12 +116,12 @@ export function addCatalogExercise(draft,exerciseId,catalog,prescription={}){
       if(group.exerciseIds.length>=limit)throw new Error('M26_SESSION_GROUP_LIMIT_REACHED');
       group.prescriptions=group.prescriptions||{};
       group.exerciseIds.push(exerciseId);
-      group.prescriptions[exerciseId]=normalizePrescription(prescription);
+      group.prescriptions[exerciseId]=normalizePrescription(prescription,{},ex);
     }
     if(group.exerciseIds.length>=limit)delete draft.activeGroupId;
     return invalidateSessionPreview(draft);
   }
-  draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,3),...normalizePrescription(prescription)});
+  draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,initialExercisePrescription(ex).sets),...normalizePrescription(prescription,{},ex)});
   return invalidateSessionPreview(draft);
 }
 export function addTrainingGroup(draft,type,exerciseIds=[]){
@@ -166,7 +166,8 @@ export function moveSessionBlock(draft,blockId,direction){const index=draft.bloc
 export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}
 export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,catalog}={}){const block=draft.blocks.find((item)=>item.id===blockId);if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');if(block.type==='exercise'){
   if(field==='sets')block.sets=positiveInt(value,block.sets||3);
-  else if(['reps','tempo'].includes(field))block[field]=text(value,block[field],40);
+  else if(['reps','tempo'].includes(field))block[field]=optionalText(value,block[field],40);
+  else if(EXERCISE_METRIC_KEYS.includes(field))block[field]=optionalText(value,block[field]||'',24);
   else if(field==='plannedLoad')block.plannedLoad=optionalText(value,block.plannedLoad||'',80);
   else if(field==='prescriptionNotes')block.prescriptionNotes=optionalText(value,block.prescriptionNotes||'',1000);
   else if(field==='progression')block.progression=optionalText(value,block.progression||'',500);
@@ -177,7 +178,7 @@ export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,ca
   else throw new Error('M26_SESSION_BLOCK_FIELD_INVALID');
  }else{
   if(field==='rounds')block.rounds=positiveInt(value,block.rounds||3,{min:1,max:100});
-  else {if(!exerciseId||!block.exerciseIds?.includes(exerciseId))throw new Error('M26_SESSION_GROUP_EXERCISE_MISSING');if(field==='alternativeId'&&value&&!catalog?.has(value))throw new Error('M26_SESSION_ALTERNATIVE_NOT_IN_CATALOG');block.prescriptions=block.prescriptions||{};const current=block.prescriptions[exerciseId]||normalizePrescription({});block.prescriptions[exerciseId]=normalizePrescription({[field]:value},current);}
+  else {if(!exerciseId||!block.exerciseIds?.includes(exerciseId))throw new Error('M26_SESSION_GROUP_EXERCISE_MISSING');if(field==='alternativeId'&&value&&!catalog?.has(value))throw new Error('M26_SESSION_ALTERNATIVE_NOT_IN_CATALOG');block.prescriptions=block.prescriptions||{};const current=block.prescriptions[exerciseId]||normalizePrescription({});if(!['reps','plannedLoad','restSeconds','tempo','targetRpe','targetRir','prescriptionNotes','progression','alternativeId',...EXERCISE_METRIC_KEYS].includes(field))throw new Error('M26_SESSION_BLOCK_FIELD_INVALID');block.prescriptions[exerciseId]=normalizePrescription({[field]:value},current,catalog?.get?.(exerciseId));}
  }
  return invalidateSessionPreview(draft);}
 export function acceptSessionPreview(draft,catalog){const check=validateSessionDraft(draft,catalog);if(!check.ok)throw new Error(`M26_SESSION_DRAFT_INVALID:${check.errors.join(',')}`);draft.previewAccepted=true;return draft;}
