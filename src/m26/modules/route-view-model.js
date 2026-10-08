@@ -1237,6 +1237,14 @@ function rc71SettingsSnapshot(
         preferences
       ),
     wearableConnections:connections.length,
+    wearableSources:String(shellVm.identity?.role||'')==='client'
+      ?Object.freeze(buildWearableViewModel({records:[],connections,role:'client'}).connections.map(item=>Object.freeze({
+          label:item.label,
+          status:item.status,
+          lastSyncedAt:item.lastSyncedAt,
+          permissionCount:item.scopes.length,
+        })))
+      :Object.freeze([]),
     hasClientContext:Boolean(clientId),
     privacy:Object.freeze({
       challengesPrivateByDefault:true,
