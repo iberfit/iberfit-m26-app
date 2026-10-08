@@ -145,11 +145,7 @@ begin
     ) into v_blocked;
     if v_blocked then
       v_grant_id:=pg_catalog.current_setting('iberfit.connected360.grant_id',true);
-      if v_grant_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
-  end if;
-  return new;
-end;
-$fn$; then
+      if v_grant_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
         select exists(
           select 1 from public.m26_wearable_authorization_v2 a
           where a.owner_user_id=v_owner and a.client_id=v_client
