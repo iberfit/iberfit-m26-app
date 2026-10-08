@@ -626,12 +626,12 @@ function previewMarkup(draft,catalog,mediaMap,role){
     if(block.type==='exercise'){
       const ex=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId};
       const visual=renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true});
-      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} ${exerciseMeasurementProfile(ex).cardio?'bloque(s)':'series'} · ${e(metricPrescriptionSummary(block,ex))}${exerciseMeasurementProfile(ex).cardio?'':` · descanso ${e(block.restSeconds)} s`}</p>${prescriptionPreviewDetails(block,ex)}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
+      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} ${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'bloque(s)':'series'} · ${e(metricPrescriptionSummary(block,{...ex,measurementProfile:block.measurementProfile}))}${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'':` · descanso ${e(block.restSeconds)} s`}</p>${prescriptionPreviewDetails(block,ex)}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
     }
     const exerciseLines=(block.exerciseIds||[]).map((id)=>{
       const ex=catalog.get(id)||{id,name_es:id};
       const p=block.prescriptions?.[id]||{};
-      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(metricPrescriptionSummary(p,ex))}${!exerciseMeasurementProfile(ex).cardio&&p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
+      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(metricPrescriptionSummary(p,{...ex,measurementProfile:p.measurementProfile}))}${!exerciseMeasurementProfile(ex).cardio&&p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
     }).join('');
     return `<li class="m26-session-preview-group" data-session-preview-block="${e(block.id)}"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div><button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></li>`;
   }).join('');
@@ -1056,7 +1056,7 @@ function completedSessionSummary(execution){
 }
 
 function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false,exercise={}}={}){
-  const profile=exerciseMeasurementProfile(exercise);
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:planned?.measurementProfile});
   const target=(profile.cardio||profile.kind==='carry')
     ?metricPrescriptionSummary(planned,exercise)
     :[
@@ -1337,12 +1337,13 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
 const planned=step.prescription||{};
+const executionProfile=exerciseMeasurementProfile({...ex,measurementProfile:planned.measurementProfile});
 const coachQuickRpe=isCoach
   ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
-const setEntryFields=exerciseMeasurementProfile(ex).cardio
-  ?cardioSetEntryFields(exerciseMeasurementProfile(ex),planned,isCoach)
-  :exerciseMeasurementProfile(ex).kind==='carry'?carrySetEntryFields(planned,isCoach)
+const setEntryFields=executionProfile.cardio
+  ?cardioSetEntryFields(executionProfile,planned,isCoach)
+  :executionProfile.kind==='carry'?carrySetEntryFields(planned,isCoach)
   :isCoach
   ?`<div class="m26-session-coach-set-fields" data-session-coach-set-fields>
       <div class="m26-session-coach-work-fields" data-session-entry-group="work">
@@ -1372,7 +1373,7 @@ const plannedSetReuse=plannedSetPreset
   ?`<div class="m26-field-grid" data-session-planned-set><div class="m26-field"><span>Punto de partida</span><strong>${e(previousSetSummary(plannedSetPreset))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-planned-set" aria-label="Usar el objetivo planificado como borrador y revisarlo antes de confirmar">Usar objetivo y revisar</button></div><small class="m26-session-repeat-note">Solo completa el borrador · confirma después lo que realmente se hizo.</small></div></div>`
   :'';
 const previousSetReuse=previousSet
-  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach&&!exerciseMeasurementProfile(ex).cardio?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach&&!executionProfile.cardio?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
   :'';
 const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
@@ -1505,8 +1506,8 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <details class="m26-session-options" data-session-rest-correction>
           <summary>Corregir esta serie</summary>
           <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>
-          <div class="m26-field-grid" data-session-correction-profile="${e(exerciseMeasurementProfile(ex).kind)}">
-            ${recordedSportCorrectionFields(exerciseMeasurementProfile(ex),recorded)}
+          <div class="m26-field-grid" data-session-correction-profile="${e(executionProfile.kind)}">
+            ${recordedSportCorrectionFields(executionProfile,recorded)}
           </div>
           <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
           <button type="button" data-session-action="correct-set">Guardar corrección</button>
