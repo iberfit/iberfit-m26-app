@@ -1,6 +1,8 @@
 import {clientGuidedWelcomeLegacySeed,clientGuidedWelcomeScopeKey,normalizeClientGuidedWelcomeState} from './client-guided-welcome.js';
 import {providerReadiness} from '../wearables/contracts.js';
 import {zeroCostProviderReadiness} from '../wearables/free-policy.js';
+import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
+import {getIberfitLanguage} from '../ui/i18n.js';
 
 export const CONNECTED360_INVITATION_SCHEMA='iberfit.connected360.invitation.v1';
 const PREFIX='iberfit.m26.connected360.invitation.v1:';
@@ -48,19 +50,20 @@ export function connected360InvitationDecision({role='',userId='',recorded=null,
   const ready=Boolean(capabilities.importReady||capabilities.direct?.length);
   return Object.freeze({show:ready&&['completed','skipped'].includes(guideStatus),status:'pending',nativeReady:Boolean(capabilities.direct?.length)});
 }
-export function connected360InvitationMarkup(capabilities){
+export function connected360InvitationMarkup(capabilities,language='es'){
+  const t=(value)=>iberfitSurfaceTranslate(value,{language});
   const direct=Boolean(capabilities.direct?.length);
   const description=direct
     ?'Autoriza una fuente compatible para incorporar actividad, entrenamiento y recuperación. Tú decides qué permisos conceder.'
     :'En la web puedes revisar una exportación compatible y confirmar qué información incorporar. La conexión automática del reloj requiere una aplicación nativa o integración cloud certificada.';
   return '<section data-m26-connected360-invitation role="dialog" aria-modal="false" aria-labelledby="m26-connected360-heading" aria-describedby="m26-connected360-desc">'
-    +'<span class="m26-connected360-eyebrow">Tu actividad, desde el primer día</span>'
-    +'<h2 id="m26-connected360-heading">¿Quieres conectar tu reloj o dispositivo de actividad?</h2>'
-    +'<p id="m26-connected360-desc">'+description+'</p>'
-    +'<p class="m26-connected360-provider">'+(direct?'Conexión compatible detectada':'Disponible hoy: importación de archivo verificada')+'</p>'
-    +'<div class="m26-connected360-actions"><button type="button" data-m26-connected360-action="start">'+(direct?'Conectar ahora':'Incorporar actividad')+'</button>'
-    +'<button type="button" data-m26-connected360-action="later">Ahora no</button></div>'
-    +'<p class="m26-connected360-privacy">Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.</p></section>';
+    +'<span class="m26-connected360-eyebrow">'+t('Tu actividad, desde el primer día')+'</span>'
+    +'<h2 id="m26-connected360-heading">'+t('¿Quieres conectar tu reloj o dispositivo de actividad?')+'</h2>'
+    +'<p id="m26-connected360-desc">'+t(description)+'</p>'
+    +'<p class="m26-connected360-provider">'+t(direct?'Conexión compatible detectada':'Disponible hoy: importación de archivo verificada')+'</p>'
+    +'<div class="m26-connected360-actions"><button type="button" data-m26-connected360-action="start">'+t(direct?'Conectar ahora':'Incorporar actividad')+'</button>'
+    +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
+    +'<p class="m26-connected360-privacy">'+t('Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.')+'</p></section>';
 }
 export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,storage,scope=globalThis}={}){
   if(!root?.addEventListener)throw new Error('M26_CONNECTED360_ROOT_REQUIRED');
@@ -107,7 +110,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(!decision.show||guideIsActive()||(area&&area!=='hoy')){close();return;}
     if(dialog&&activeKey===ctx.key)return;
     close();ensureStyle();if(!doc?.body?.insertAdjacentHTML)return;
-    doc.body.insertAdjacentHTML('beforeend',connected360InvitationMarkup(capabilities));
+    doc.body.insertAdjacentHTML('beforeend',connected360InvitationMarkup(capabilities,getIberfitLanguage()));
     dialog=doc.querySelector?.('[data-m26-connected360-invitation]')||null;
     activeKey=dialog?ctx.key:null;
     // Non-modal: no focus theft, no forced permission prompt and no overlay over the app.
@@ -127,7 +130,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(action==='later'){write(ctx.key,'dismissed');close();return;}
     if(action==='start'&&navigate()){write(ctx.key,'chosen');close();return;}
     const hint=dialog.querySelector?.('.m26-connected360-provider');
-    if(hint)hint.textContent='No se ha podido abrir Actividad. Puedes encontrarla también desde Ajustes.';
+    if(hint)hint.textContent=iberfitSurfaceTranslate('No se ha podido abrir Actividad. Puedes encontrarla también desde Ajustes.',{language:getIberfitLanguage()});
   }
   function keydown(event){
     if(event?.key!=='Escape'||!dialog)return;
