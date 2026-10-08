@@ -429,6 +429,39 @@ export function createWearableRemoteSync({
     });
   }
 
+  // Used only by a previously consented native reconnect. A passive/background
+  // refresh must NEVER call reauthorizeWearable or manufacture a grant.
+  async function currentAuthorization({provider,scopes=[]}={}){
+    const source=safeProvider(provider);
+    if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+    if(deleteRequested||blockedProviders.has(source))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+    if(!Array.isArray(scopes)||!scopes.length||scopes.some((scope)=>!METRICS.includes(scope))){
+      throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
+    }
+    if(!isOnline())throw new Error('M26_WEARABLE_NETWORK_REQUIRED');
+    return serialize(async()=>{
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      if(deleteRequested||blockedProviders.has(source))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+      if(typeof transport.wearableAuthorizationStatus!=='function')
+        throw new Error('M26_CONNECTED360_REAUTHORIZE_UNAVAILABLE');
+      const status=await transport.wearableAuthorizationStatus(await getToken(),source);
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      if(deleteRequested||blockedProviders.has(source))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+      const grant=String(status?.grantId||'');
+      if(status?.authorized!==true||!GRANT_ID.test(grant))
+        throw new Error('M26_CONNECTED360_GRANT_STALE');
+      if(scopes.some((scope)=>!status.scopes?.includes(scope)))
+        throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
+      explicitGrants.set(source,grant);
+      return Object.freeze({
+        provider:source,
+        grantId:grant,
+        scopes:Object.freeze([...new Set(scopes)]),
+        alreadyAuthorized:true,
+      });
+    });
+  }
+
   function stage(params={}){
     const source=safeProvider(params.provider);
     if(deleteRequested||blockedProviders.has(source)){
@@ -444,6 +477,7 @@ export function createWearableRemoteSync({
     revoke,
     deleteAll,
     reauthorize,
+    currentAuthorization,
     pendingCount,
     clearOwner,
   });
