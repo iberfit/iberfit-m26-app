@@ -1,6 +1,7 @@
 import {resolveExerciseMedia,resolveExerciseMediaExperience,resolveExerciseMediaMetadata,REPDB_MEDIA_ATTRIBUTION} from './exercise-media.js';
 import {renderNativeExerciseVideo,renderExerciseTechnicalGuidance} from './exercise-video-player.js';
 import {exerciseDisplayName,exerciseSearchNames} from '../exercises/names.js';
+import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 
 function e(value){
   return String(value??'')
@@ -559,7 +560,17 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
   const precautions=(item.precautions||[]).slice(0,4);
   const primary=(item.primary_muscles||[]).join(' · ')||exerciseMuscleGroupLabel(item,manifest);
   const secondary=(item.secondary_muscles||[]).join(' · ');
-  const units=(item.units||[]).join(' · ');
+  const measurement=exerciseMeasurementProfile(item);
+  const metricNames={
+    strength:'Repeticiones · carga opcional · RPE',
+    isometric:'Tiempo de sostén · carga opcional',
+    endurance:'Distancia · duración · intensidad',
+    intervals:'Intervalos · trabajo · recuperación',
+    carry:'Metros · tiempo · carga',
+    mobility:'Movilidad · tiempo · control',
+    power:'Repeticiones · potencia · descanso',
+  };
+  const units=metricNames[measurement.kind]||(item.units||[]).join(' · ');
   const facts=(role==='client'
     ?[
       item.equipment?`<span><strong>Material</strong>${e(item.equipment)}</span>`:'',
@@ -577,7 +588,7 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
 
   const adminRename=role==='admin'
     ?`<details class="m26-library-details m26-library-admin-edit">
-        <summary><span>Editar nombre global</span><span class="m26-library-details-action" aria-hidden="true"></span></summary>
+        <summary><span>Configuración global del ejercicio</span><span class="m26-library-details-action" aria-hidden="true"></span></summary>
         <div class="m26-library-details-panel">
           <form data-exercise-rename-form data-exercise-id="${e(item.id)}" data-expected-revision="${e(item.revision||0)}">
             <label>
@@ -590,10 +601,30 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
             </div>
             <p class="m26-data-footnote" data-exercise-rename-status role="status" aria-live="polite"></p>
           </form>
+          ${adminMeasurement}
         </div>
       </details>`
     :'';
 
+  const adminMeasurement=role==='admin'
+    ?`<form data-exercise-measurement-form data-exercise-id="${e(item.id)}" data-expected-revision="${e(item.measurementProfileRevision??0)}">
+      <label>Perfil de registro del ejercicio
+      <select name="measurementProfile">
+        <option value=""${!item.measurement_profile?' selected':''}>Detección automática (${e(measurement.kind)})</option>
+        ${[
+          ['strength','Fuerza · repeticiones y carga'],
+          ['isometric','Isométrico · tiempo'],
+          ['endurance','Resistencia · distancia y duración'],
+          ['intervals','Intervalos · trabajo y recuperación'],
+          ['carry','Transporte · metros y carga'],
+          ['mobility','Movilidad · rango y control'],
+          ['power','Potencia · repeticiones de calidad'],
+        ].map(([value,label])=>`<option value="${value}"${item.measurement_profile===value?' selected':''}>${e(label)}</option>`).join('')}
+      </select></label>
+      <p class="m26-data-footnote">Define qué indicadores tienen prioridad en planificación y registro. El historial anterior se conserva. Solo Admin puede guardar cambios.</p>
+      <button type="submit" class="m26-primary-action">Guardar perfil de registro</button>
+      <p class="m26-data-footnote" data-exercise-measurement-status role="status" aria-live="polite"></p>
+    </form>`:'';
   const subtitle=role==='client'
     ?e(item.equipment||'Sin material')
     :`${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}`;
