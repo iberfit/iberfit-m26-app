@@ -20,15 +20,11 @@ revoke all on public.m26_wearable_revocation_fence_v1 from public,anon,authentic
 grant select,insert on public.m26_wearable_revocation_fence_v1 to authenticated;
 grant all on public.m26_wearable_revocation_fence_v1 to service_role;
 
-drop policy if exists m26_wearable_fence_own_read_v1
-  on public.m26_wearable_revocation_fence_v1;
 create policy m26_wearable_fence_own_read_v1
   on public.m26_wearable_revocation_fence_v1 for select to authenticated
   using (owner_user_id=(select auth.uid())
     and client_id=public.iberfit_client_id());
 
-drop policy if exists m26_wearable_fence_own_insert_v1
-  on public.m26_wearable_revocation_fence_v1;
 create policy m26_wearable_fence_own_insert_v1
   on public.m26_wearable_revocation_fence_v1 for insert to authenticated
   with check (owner_user_id=(select auth.uid())
@@ -108,20 +104,14 @@ $fn$;
 revoke all on function public.m26_wearable_fence_write_gate_v1()
   from public,anon,authenticated;
 
-drop trigger if exists m26_wearable_connections_fence_v1
-  on public.m26_wearable_connections_v44;
 create trigger m26_wearable_connections_fence_v1
   before insert or update on public.m26_wearable_connections_v44
   for each row execute function public.m26_wearable_fence_write_gate_v1();
 
-drop trigger if exists m26_wearable_summaries_fence_v1
-  on public.m26_wearable_daily_summaries_v44;
 create trigger m26_wearable_summaries_fence_v1
   before insert or update on public.m26_wearable_daily_summaries_v44
   for each row execute function public.m26_wearable_fence_write_gate_v1();
 
-drop trigger if exists m26_wearable_consents_fence_v1
-  on public.m26_wearable_consents_v44;
 create trigger m26_wearable_consents_fence_v1
   after insert on public.m26_wearable_consents_v44
   for each row execute function public.m26_wearable_fence_write_gate_v1();
