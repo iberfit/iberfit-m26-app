@@ -131,3 +131,21 @@ test('native controller demands server grant and never reauthorizes from passive
   const policy=readFileSync(new URL('../src/m26/wearables/free-policy.js',import.meta.url),'utf8');
   assert.match(policy,/health_connect:policy\(\{[^]*?productionAllowed:false/u);
 });
+
+test('Android QA bridge is fail-closed in release and origin pinned without unsafe JS injection',()=>{
+  const read=(name)=>readFileSync(new URL(name,import.meta.url),'utf8');
+  const manifest=read('../native/android-host/phone-app/src/main/AndroidManifest.xml');
+  const activity=read('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt');
+  const launcher=read('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/PhoneMainActivity.kt');
+  const origin=read('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360OriginGate.kt');
+  assert.match(manifest,/Connected360SecureWebViewActivity" android:exported="false"/u);
+  assert.match(origin,/QA_ORIGIN = "https:\/\/m26-canary\.iberfit\.cl"/u);
+  assert.match(activity,/WebViewCompat\.addWebMessageListener/u);
+  assert.match(activity,/isMainFrame/u);
+  assert.match(activity,/WebViewFeature\.WEB_MESSAGE_LISTENER/u);
+  assert.match(activity,/FLAG_DEBUGGABLE/u);
+  assert.match(launcher,/FLAG_DEBUGGABLE/u);
+  assert.match(activity,/\.put\("available", false\)/u);
+  assert.match(activity,/\.put\("connected", false\)/u);
+  assert.doesNotMatch(activity,/addJavascriptInterface|service_role|SUPABASE_SERVICE_KEY/u);
+});
