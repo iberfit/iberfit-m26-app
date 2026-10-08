@@ -1,0 +1,51 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B7-ADDUCTION/movement-adduccion-cadera-maquina.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita del propietario IBERFIT. Inicio con caderas abiertas y Final cerrando contra las almohadillas; correspondencia semántica verificada."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA/movement-adduccion-cadera-maquina.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "7bf8c9743d5a6f748d40f189b0220309ae6d1865053742f6527f6004984cc034"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "aductores"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
