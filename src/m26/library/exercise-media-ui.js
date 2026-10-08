@@ -607,7 +607,7 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
     </form>`:'';
   const adminRename=role==='admin'
     ?`<details class="m26-library-details m26-library-admin-edit">
-        <summary><span>Configuración global del ejercicio</span><span class="m26-library-details-action" aria-hidden="true"></span></summary>
+        <summary><span>Editar nombre global y perfil de registro</span><span class="m26-library-details-action" aria-hidden="true"></span></summary>
         <div class="m26-library-details-panel">
           <form data-exercise-rename-form data-exercise-id="${e(item.id)}" data-expected-revision="${e(item.revision||0)}">
             <label>
