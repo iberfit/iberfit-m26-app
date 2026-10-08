@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d2ab5a4f405ce6e6ace128c593bd37973b9b53b8",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #796 Coach Operativo 360: contexto exacto de cita/sesion y ejecucion. Canary Exact Deploy 37724506133 SUCCESS; 13/13 post-merge workflows GREEN; Device Experience rerun 37724506170 attempt 2 GREEN."
+}
