@@ -22,7 +22,7 @@ export function deviceSourceChoice(item){
   return `<article class="m26-device-choice m26-wearable-source" data-provider="${escapeHtml(key)}">
     <div><h3>${escapeHtml(title)}</h3>
     <p>${enabled?'Disponible: autoriza los datos en la pantalla oficial.':cloud?'Vinculación de cuenta aún no certificada.':'La conexión directa requiere una aplicación y permisos certificados.'}</p></div>
-    <span class="m26-device-availability ${enabled?'is-ready':'is-pending'}">${enabled?'Disponible':'En preparación'}</span>
+    <span class="m26-device-availability ${enabled?'is-ready':'is-pending'}">${enabled?'Disponible':'No disponible por ahora'}</span>
   </article>`;
 }
 export function deviceConfirmedStats(summary){
