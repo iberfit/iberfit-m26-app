@@ -1,5 +1,6 @@
 import { freezeExecutionClock,resumeExecutionClock } from './session-timer.js';
 import { createM26Id } from '../platform/id.js';
+import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
@@ -116,6 +117,14 @@ function previousPlannedPosition(execution){
   }
   return currentOffset>0?positions[currentOffset-1]:null;
 }
+function serializedSportTargets(source={}){
+  return Object.fromEntries(EXERCISE_METRIC_KEYS.map((key)=>[key,
+    source[key]===undefined||source[key]===null?null:String(source[key]).trim().slice(0,24)
+  ]));
+}
+function exerciseResultProfile(step){
+  return exerciseMeasurementProfile({id:step?.exerciseId,name_es:step?.exercise?.name_es||step?.exercise?.name,measurementProfile:step?.prescription?.measurementProfile||step?.exercise?.measurementProfile});
+}
 function createPlanSnapshot(session,queue){
   const rawRevision=Number(session?.revision??session?.version??0);
   const sessionRevision=Number.isInteger(rawRevision)&&rawRevision>=0?rawRevision:0;
@@ -133,8 +142,8 @@ export function createExecution({session,clientId,executionId=uid()}={}){
   if(!session?.id||!clientId)throw new Error('M26_EXECUTION_SESSION_CLIENT_REQUIRED');
   const queue=[];
   for(const block of session.blocks||[]){
-    if(block.type==='exercise'){const sets=Number(block.sets||1),restSeconds=Number(block.restSeconds??60),targetRpe=Number(block.targetRpe||7),targetRir=Number(block.targetRir??3);if(!block.exerciseId||!Number.isInteger(sets)||sets<1||sets>100||!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_BLOCK_INVALID');queue.push({blockId:block.id,exerciseId:block.exerciseId,sets,prescription:{reps:String(block.reps||'').trim().slice(0,40)||null,plannedLoad:String(block.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(block.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(block.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(block.progression||'').trim().slice(0,500)||null,alternativeId:block.alternativeId||null}});}
-    else {const sets=Number(block.rounds||1),exerciseIds=block.exerciseIds||[];if(!Number.isInteger(sets)||sets<1||sets>100||!exerciseIds.length)throw new Error('M26_EXECUTION_GROUP_INVALID');for(const [groupOrder,exerciseId] of exerciseIds.entries()){if(!exerciseId)throw new Error('M26_EXECUTION_GROUP_INVALID');const planned=block.prescriptions?.[exerciseId]||{},restSeconds=Number(planned.restSeconds??60),targetRpe=Number(planned.targetRpe||7),targetRir=Number(planned.targetRir??3);if(!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_GROUP_INVALID');queue.push({blockId:block.id,exerciseId,sets,groupType:block.type,groupOrder,groupSize:exerciseIds.length,prescription:{reps:String(planned.reps||'').trim().slice(0,40)||null,plannedLoad:String(planned.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(planned.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(planned.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(planned.progression||'').trim().slice(0,500)||null,alternativeId:planned.alternativeId||null}});}}
+    if(block.type==='exercise'){const sets=Number(block.sets||1),restSeconds=Number(block.restSeconds??60),targetRpe=Number(block.targetRpe||7),targetRir=Number(block.targetRir??3);if(!block.exerciseId||!Number.isInteger(sets)||sets<1||sets>100||!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_BLOCK_INVALID');queue.push({blockId:block.id,exerciseId:block.exerciseId,sets,prescription:{measurementProfile:exerciseMeasurementProfile({id:block.exerciseId,name_es:block.name,measurementProfile:block.measurementProfile}).kind,...serializedSportTargets(block),reps:String(block.reps||'').trim().slice(0,40)||null,plannedLoad:String(block.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(block.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(block.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(block.progression||'').trim().slice(0,500)||null,alternativeId:block.alternativeId||null}});}
+    else {const sets=Number(block.rounds||1),exerciseIds=block.exerciseIds||[];if(!Number.isInteger(sets)||sets<1||sets>100||!exerciseIds.length)throw new Error('M26_EXECUTION_GROUP_INVALID');for(const [groupOrder,exerciseId] of exerciseIds.entries()){if(!exerciseId)throw new Error('M26_EXECUTION_GROUP_INVALID');const planned=block.prescriptions?.[exerciseId]||{},restSeconds=Number(planned.restSeconds??60),targetRpe=Number(planned.targetRpe||7),targetRir=Number(planned.targetRir??3);if(!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_GROUP_INVALID');queue.push({blockId:block.id,exerciseId,sets,groupType:block.type,groupOrder,groupSize:exerciseIds.length,prescription:{measurementProfile:exerciseMeasurementProfile({id:exerciseId,measurementProfile:planned.measurementProfile}).kind,...serializedSportTargets(planned),reps:String(planned.reps||'').trim().slice(0,40)||null,plannedLoad:String(planned.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(planned.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(planned.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(planned.progression||'').trim().slice(0,500)||null,alternativeId:planned.alternativeId||null}});}}
   }
   if(!queue.length)throw new Error('M26_EXECUTION_EMPTY_SESSION');
   return {id:executionId,sessionId:session.id,clientId,status:'ready',syncStatus:'clean',pendingOperationIds:[],lastSyncError:null,revision:0,planSnapshot:createPlanSnapshot(session,queue),queue,index:0,setIndex:0,startedAt:null,activeSince:null,accumulatedActiveMs:0,completedAt:null,restUntil:null,events:[],results:{},feedback:null};
@@ -239,6 +248,15 @@ export function previousSetDraftValues(execution){
     load:previous.load==null?'':String(previous.load),
     rpe:previous.rpe==null?'':String(previous.rpe),
     rir:previous.rir==null?'':String(previous.rir),
+    ...(exerciseResultProfile(item).cardio?{durationMinutes:previous.seconds==null?'':String(Number(previous.seconds)/60),
+    distanceKm:previous.distanceKm==null?'':String(previous.distanceKm),
+    paceMinPerKm:previous.paceMinPerKm||'',
+    avgHeartRateBpm:previous.avgHeartRateBpm==null?'':String(previous.avgHeartRateBpm),
+    cadenceRpm:previous.cadenceRpm==null?'':String(previous.cadenceRpm),
+    powerWatts:previous.powerWatts==null?'':String(previous.powerWatts),
+    elevationGainM:previous.elevationGainM==null?'':String(previous.elevationGainM),
+    intervalsCompleted:previous.intervalsCompleted==null?'':String(previous.intervalsCompleted)}:{}),
+    ...(exerciseResultProfile(item).kind==='carry'?{distanceM:previous.distanceM==null?'':String(previous.distanceM)}:{}),
   };
 }
 
@@ -263,6 +281,9 @@ export function plannedSetDraftValues(execution,session){
     reps:work.reps,
     seconds:work.seconds,
     load:load.slice(0,80),
+    ...(exerciseResultProfile(step).cardio?{durationMinutes:planned.plannedDurationMinutes||'',distanceKm:planned.plannedDistanceKm||''}:{}),
+    ...(exerciseResultProfile(step).kind==='carry'?{distanceM:planned.plannedDistanceM||''}:{}),
+    // Never prefill observed FC, pace, cadence or power from a planned target.
     // RPE/RIR are observed effort, never inferred from the planned target.
     rpe:'',
     rir:'',
@@ -276,6 +297,9 @@ export function previousSetReviewDraftValues(execution){
     reps:previous.reps,
     seconds:previous.seconds,
     load:previous.load,
+    ...('durationMinutes' in previous?{durationMinutes:previous.durationMinutes,distanceKm:previous.distanceKm}:{}),
+    ...('distanceM' in previous?{distanceM:previous.distanceM}:{}),
+    ...('intervalsCompleted' in previous?{intervalsCompleted:previous.intervalsCompleted}:{}),
     // Previous effort is context, not a new observation.
     rpe:'',
     rir:'',
@@ -303,7 +327,11 @@ export function repeatPreviousSet(execution,session,{restSeconds=null,rpe=null,r
   const observedRpe=String(rpe??'').trim();
   if(!observedRpe||!Number.isFinite(Number(observedRpe))||Number(observedRpe)<1||Number(observedRpe)>10)
     throw new Error('M26_EXECUTION_RPE_OBSERVED_REQUIRED');
-  recordSet(execution,session,{reps:values.reps,seconds:values.seconds,load:values.load,rpe:observedRpe,rir,actor});
+  recordSet(execution,session,{reps:values.reps,seconds:values.seconds,load:values.load,
+    ...('distanceKm' in values?{distanceKm:values.distanceKm}:{}),
+    ...('distanceM' in values?{distanceM:values.distanceM}:{}),
+    ...('intervalsCompleted' in values?{intervalsCompleted:values.intervalsCompleted}:{}),
+    rpe:observedRpe,rir,actor});
   if(hasNextExecutionStep(execution))beginRest(execution,rest,{actor});
   event(execution,'SET_REPEATED_FROM_PREVIOUS',{sourceSetNumber,targetSetNumber,restSeconds:rest},actor);
   return execution;
@@ -323,7 +351,7 @@ export function updateActiveSetDraft(execution,session,input={}){
   if(execution?.status!=='active')return null;
   const identity=activeSetIdentity(execution,session);if(!identity)return null;
   if(executionResultForStep(execution,identity)){if(sameActiveSet(execution?.activeSetDraft,identity))delete execution.activeSetDraft;return null;}
-  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000)},updatedAt:now()};
+  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),...(exerciseResultProfile(currentStep(execution,session)).cardio?{durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)}:{}),...(exerciseResultProfile(currentStep(execution,session)).kind==='carry'?{distanceM:draftValue(input.distanceM,32)}:{})},updatedAt:now()};
   return clone(execution.activeSetDraft);
 }
 export function clearActiveSetDraft(execution){if(execution)delete execution.activeSetDraft;return execution;}
@@ -412,19 +440,40 @@ function replaceSkippedStepWithCompletion(execution,step,actor=null){
   },actor);
   return previous.value;
 }
+function measuredNumber(value,min,max,code,integer=false){
+ if(value===undefined||value===null||String(value).trim()==='')return null;
+ const n=Number(String(value).trim().replace(',','.'));
+ if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))throw new Error(code);
+ return n;
+}
 function validatedSetResult(step,input={},previous=null){
   const rawReps=input.reps??null,rawSeconds=input.seconds??null,load=input.load==null?null:String(input.load).trim().slice(0,80),rpe=Number(input.rpe),rir=input.rir==null||input.rir===''?null:Number(input.rir);
-  if((rawReps==null||rawReps==='')&&(rawSeconds==null||rawSeconds===''))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
-  const reps=rawReps==null||rawReps===''?null:Number(rawReps),seconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
+  const profile=exerciseResultProfile(step);
+  const minutes=measuredNumber(input.durationMinutes,0,1440,'M26_EXECUTION_DURATION_INVALID');
+  const distanceKm=measuredNumber(input.distanceKm,0,1000,'M26_EXECUTION_DISTANCE_INVALID');
+  const distanceM=measuredNumber(input.distanceM,0,100000,'M26_EXECUTION_DISTANCE_INVALID');
+  const avgSpeedKmh=measuredNumber(input.avgSpeedKmh,0,140,'M26_EXECUTION_SPEED_INVALID');
+  const reps=rawReps==null||rawReps===''?null:Number(rawReps),explicitSeconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
+  if(minutes!==null&&explicitSeconds!==null&&Math.abs(explicitSeconds-minutes*60)>0.01)throw new Error('M26_EXECUTION_DURATION_AMBIGUOUS');
+  const seconds=explicitSeconds??(minutes===null?null:Math.round(minutes*60));
+  if(reps===null&&seconds===null&&!((profile.cardio||profile.kind==='carry')&&(distanceKm>0||distanceM>0))&&!(profile.kind==='intervals'&&Number(input.intervalsCompleted)>0))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
   if(reps!==null&&(!Number.isFinite(reps)||reps<0||reps>10000))throw new Error('M26_EXECUTION_REPS_INVALID');
   if(seconds!==null&&(!Number.isFinite(seconds)||seconds<0||seconds>86400))throw new Error('M26_EXECUTION_SECONDS_INVALID');
   if(!Number.isFinite(rpe)||rpe<1||rpe>10)throw new Error('M26_EXECUTION_RPE_INVALID');
   if(rir!==null&&(!Number.isFinite(rir)||rir<0||rir>10))throw new Error('M26_EXECUTION_RIR_INVALID');
+  const avgHeartRateBpm=measuredNumber(input.avgHeartRateBpm,30,250,'M26_EXECUTION_HEART_RATE_INVALID',true);
+  const cadenceRpm=measuredNumber(input.cadenceRpm,0,250,'M26_EXECUTION_CADENCE_INVALID');
+  const powerWatts=measuredNumber(input.powerWatts,0,2500,'M26_EXECUTION_POWER_INVALID');
+  const elevationGainM=measuredNumber(input.elevationGainM,0,15000,'M26_EXECUTION_ELEVATION_INVALID');
+  const intervalsCompleted=measuredNumber(input.intervalsCompleted,1,1000,'M26_EXECUTION_INTERVALS_INVALID',true);
+  const paceMinPerKm=String(input.paceMinPerKm??'').trim();
+  if(paceMinPerKm&&!/^[0-9]{1,2}:[0-5][0-9]$/.test(paceMinPerKm))throw new Error('M26_EXECUTION_PACE_INVALID');
   const provenance=actorSnapshot(input.actor);
   return {
     exerciseId:step.exerciseId,
     setNumber:step.setNumber,
     reps,seconds,load,rpe,rir,
+    ...((profile.cardio||profile.kind==='carry')?{distanceKm,distanceM,avgSpeedKmh,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
     notes:String(input.notes||'').trim().slice(0,1000),
     completedAt:previous?.completedAt||now(),
     ...(previous?{correctedAt:now()}:{ }),

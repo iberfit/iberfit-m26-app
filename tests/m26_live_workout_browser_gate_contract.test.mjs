@@ -12,10 +12,28 @@ test('Session QA permanently runs the dedicated Live Workout browser gate',()=>{
   assert.match(workflow,/playwright\.live-workout\.config\.mjs/u);
   assert.match(workflow,/browser-live-workout:/u);
   assert.match(workflow,/npm ci/u);
-  assert.match(workflow,/actions\/cache@v4/u);
-  assert.match(workflow,/playwright install-deps chromium webkit/u);
-  assert.match(workflow,/cache-hit != 'true'/u);
-  assert.match(workflow,/playwright install chromium webkit/u);
+  const installedVersion=JSON.parse(fs.readFileSync('package.json','utf8')).devDependencies['@playwright/test'];
+  const imageLine=workflow.split('\n').find(line=>line.trim().startsWith('image: mcr.microsoft.com/playwright:'))||'';
+  const [image,sha256]=imageLine.trim().replace('image: ','').split('@sha256:');
+  const pinnedImage=image===`mcr.microsoft.com/playwright:v${installedVersion}-noble`&&/^[a-f0-9]{64}$/u.test(sha256||'');
+  // Either a version-locked browser image with complete dependencies or the
+  // original deterministic cache + two-browser installation is required.
+  if(pinnedImage){
+    for(const expected of [
+      'PLAYWRIGHT_BROWSERS_PATH: /ms-playwright',
+      'Verify preinstalled Live Workout browsers',
+      "'chromium',chromium",
+      "'webkit',webkit",
+      'fs.existsSync(executable)',
+    ])assert.ok(workflow.includes(expected),expected);
+  }else{
+    for(const expected of [
+      'actions/cache@v4',
+      'playwright install-deps chromium webkit',
+      "cache-hit != 'true'",
+      'playwright install chromium webkit',
+    ])assert.ok(workflow.includes(expected),expected);
+  }
   assert.match(workflow,/npx playwright test --config=playwright\.live-workout\.config\.mjs/u);
 });
 

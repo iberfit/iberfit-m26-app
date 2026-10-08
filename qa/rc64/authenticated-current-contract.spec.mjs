@@ -12,6 +12,7 @@ const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
 const OPTIONAL_READ_PATHS=new Set([
   '/rest/v1/rpc/iberfit_appointment_change_requests_v13',
   '/rest/v1/rpc/iberfit_exercise_media_manifest_v1',
+  '/rest/v1/rpc/iberfit_exercise_measurement_profiles_public_v1',
 ]);
 const AUTH_FLOW_TIMEOUT_MS=30_000;
 const required=[
@@ -30,6 +31,7 @@ const READ_ONLY_RPCS=new Set([
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1',
+  'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
 

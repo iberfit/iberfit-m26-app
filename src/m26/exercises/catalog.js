@@ -3,6 +3,8 @@ import {exerciseSearchNames} from './names.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
 const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 const DYNAMIC_PUBLIC_CATALOG_RPC='iberfit_exercise_catalog_public_v1';
+const MEASUREMENT_PROFILE_RPC='iberfit_exercise_measurement_profiles_public_v1';
+const VALID_EXERCISE_PROFILES=new Set(['strength','isometric','endurance','intervals','carry','mobility','power']);
 const DYNAMIC_PAGE_SIZE=200;
 const DYNAMIC_MAX_ROWS=5_000;
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
@@ -27,7 +29,7 @@ function nameTranslations(value){
   }
   return Object.freeze(output);
 }
-function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,name_translations:nameTranslations(raw?.name_translations),pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
+function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,measurement_profile:VALID_EXERCISE_PROFILES.has(raw?.measurement_profile)?raw.measurement_profile:null,measurementProfileRevision:Number.isSafeInteger(Number(raw?.measurementProfileRevision))&&Number(raw.measurementProfileRevision)>=0?Number(raw.measurementProfileRevision):0,name_translations:nameTranslations(raw?.name_translations),pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
 export function createExerciseCatalog(records=[]){
  if(!Array.isArray(records))throw new Error('M26_EXERCISE_CATALOG_INVALID');const map=new Map();
  for(const raw of records){const ex=freezeExercise(raw);if(!ex)continue;if(map.has(ex.id))throw new Error(`M26_EXERCISE_DUPLICATE:${ex.id}`);map.set(ex.id,ex);}
@@ -36,9 +38,10 @@ export function createExerciseCatalog(records=[]){
  function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([...exerciseSearchNames(ex),ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
  return Object.freeze({count:list.length,list:()=>list,get:id=>map.get(String(id))||null,has:id=>map.has(String(id)),search,facets});
 }
-export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrigin=''}={}){
+export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrigin='',measurementProfiles=[]}={}){
  const base=Array.isArray(baseCatalog)?baseCatalog:typeof baseCatalog?.list==='function'?baseCatalog.list():[];
  if(!Array.isArray(remoteRows))throw new Error('M26_EXERCISE_REMOTE_CATALOG_INVALID');
+ if(!Array.isArray(measurementProfiles)||measurementProfiles.length>5000)throw new Error('M26_EXERCISE_PROFILES_INVALID');
  const origin=String(mediaOrigin||'').replace(/\/$/u,'');
  if(origin&&!TRUSTED_EXERCISE_MEDIA_ORIGINS.has(origin))throw new Error('M26_EXERCISE_MEDIA_ORIGIN_INVALID');
  const merged=new Map();
@@ -51,6 +54,14 @@ export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrig
     ?Object.freeze({...item.media,...(origin?{deliveryOrigin:origin}:{})})
     :{};
   merged.set(id,{...item,aliases,media});
+ }
+ for(const row of measurementProfiles){
+  const id=String(row?.exercise_id||'').trim(),previous=merged.get(id);
+  if(!previous)continue;
+  const profile=row?.profile;
+  const rev=Number(row?.revision);
+  if((profile!==null&&!VALID_EXERCISE_PROFILES.has(profile))||!Number.isSafeInteger(rev)||rev<1)continue;
+  merged.set(id,{...previous,measurement_profile:profile,measurementProfileRevision:rev});
  }
  return createExerciseCatalog([...merged.values()]);
 }
@@ -93,6 +104,24 @@ async function fetchDynamicCatalogRows(fetchImpl=globalThis.fetch,runtimeConfig=
  }
  return rows;
 }
+async function fetchDynamicMeasurementProfiles(fetchImpl=globalThis.fetch,runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{}){
+ const runtime=dynamicCatalogRuntime(runtimeConfig);
+ if(!runtime||typeof fetchImpl!=='function')return [];
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),runtime.timeoutMs);
+ try{
+  const response=await fetchImpl(runtime.origin+'/rest/v1/rpc/'+MEASUREMENT_PROFILE_RPC,{
+   method:'POST',credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',
+   signal:controller.signal,headers:{apikey:runtime.key,authorization:'Bearer '+runtime.key,'content-type':'application/json'},
+   body:'{}',
+  });
+  // Old deployments may lack this additive RPC. Missing metadata must never block login.
+  if(!response.ok)return [];
+  const rows=await response.json();
+  if(!Array.isArray(rows)||rows.length>5000)return [];
+  return rows;
+ }catch{return [];}finally{clearTimeout(timer);}
+}
 export async function loadExerciseCatalog(source){
  let records;const browser=typeof window!=='undefined'&&typeof fetch==='function';
  if(Array.isArray(source))records=source;
@@ -106,8 +135,8 @@ export async function loadExerciseCatalog(source){
  const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);
  if(!browser)return catalog;
  try{
-  const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;const remoteRows=await fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{});if(!remoteRows.length)return catalog;
-  const merged=mergeExerciseCatalogRecords(catalog,remoteRows,{mediaOrigin:runtime.origin});return merged.count>=catalog.count?merged:catalog;
+  const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;const [remoteRows,measurementProfiles]=await Promise.all([fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{}),fetchDynamicMeasurementProfiles(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{})]);if(!remoteRows.length&&!measurementProfiles.length)return catalog;
+  const merged=mergeExerciseCatalogRecords(catalog,remoteRows,{mediaOrigin:runtime.origin,measurementProfiles});return merged.count>=catalog.count?merged:catalog;
  }catch{return catalog;}
 }
 

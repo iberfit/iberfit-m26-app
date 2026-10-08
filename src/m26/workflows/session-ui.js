@@ -3,6 +3,7 @@ import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
+import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
@@ -12,6 +13,8 @@ function previousSetSummary(values){
   return [
     values?.reps?`${values.reps} reps`:null,
     values?.seconds?`${values.seconds} s`:null,
+    values?.distanceKm?`${values.distanceKm} km`:null,
+    values?.distanceM?`${values.distanceM} m`:null,
     values?.load||null,
     values?.rpe?`RPE ${values.rpe}`:null,
     values?.rir!=null&&Number.isFinite(Number(values.rir))?`RIR ${values.rir}`:null,
@@ -28,6 +31,12 @@ function currentSetResultSummary(result){
   return [
     result?.reps!=null?`${result.reps} rep${Number(result.reps)===1?'':'s'}`:null,
     result?.seconds!=null?`${result.seconds} s`:null,
+    result?.distanceKm!=null?`${result.distanceKm} km`:null,
+    result?.distanceM!=null?`${result.distanceM} m`:null,
+    result?.avgSpeedKmh!=null?`${result.avgSpeedKmh} km/h`:null,
+    result?.paceMinPerKm?`${result.paceMinPerKm} min/km`:null,
+    result?.avgHeartRateBpm!=null?`FC media ${result.avgHeartRateBpm} lpm`:null,
+    result?.powerWatts!=null?`${result.powerWatts} W`:null,
     result?.load||null,
     result?.rpe!=null&&Number.isFinite(Number(result.rpe))?`RPE ${result.rpe}`:null,
     result?.rir!=null&&Number.isFinite(Number(result.rir))?`RIR ${result.rir}`:null,
@@ -187,6 +196,41 @@ function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=
 }
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
+function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:p.measurementProfile});
+  const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
+  if(profile.cardio){
+    return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
+      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
+      ${field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${profile.kind==='intervals'?field('intervalRepetitions','Repeticiones de intervalos',p.intervalRepetitions||'','number',{min:1,max:1000}):''}
+      ${profile.kind==='intervals'?field('intervalWorkSeconds','Trabajo por intervalo (s)',p.intervalWorkSeconds||'','number',{min:1,max:86400}):''}
+      ${profile.kind==='intervals'?field('intervalRecoverySeconds','Recuperación por intervalo (s)',p.intervalRecoverySeconds||'','number',{min:0,max:86400}):''}`;
+  }
+  const title=profile.kind==='isometric'?'Tiempo por serie (ej. 30 s)':profile.kind==='carry'?'Recorrido/tiempo objetivo':'Repeticiones/tiempo objetivo';
+  return `${grouped?'':field('sets','Series',p.sets??3,'number',{min:1,max:100})}
+    ${field('reps',title,p.reps??'', 'text',{maxLength:80})}
+    ${profile.kind==='carry'?field('plannedDistanceM','Distancia (m)',p.plannedDistanceM||'','number',{min:0,step:1,max:100000}):''}
+    ${profile.kind==='isometric'||profile.kind==='carry'||profile.kind==='strength'||profile.kind==='power'?field('plannedLoad','Carga planificada',p.plannedLoad||'','text',{maxLength:80,placeholder:'Ej. 10 kg o peso corporal'}):''}
+    ${field('restSeconds','Descanso (s)',p.restSeconds??60,'number',{min:0,max:3600})}`;
+}
+function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:p.measurementProfile});
+  const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
+  const cardio=profile.cardio;
+  const sport=profile.sport;
+  return `${cardio&&sport==='running'?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
+    ${cardio&&sport==='cycling'?field('plannedSpeedKmh','Velocidad objetivo (km/h)',p.plannedSpeedKmh||'','number',{min:0,step:0.1,max:120}):''}
+    ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
+    ${cardio?field('targetHeartRateBpm','FC objetivo (lpm o rango)',p.targetHeartRateBpm||'','text',{maxLength:24,placeholder:'Ej. 120-140'}):''}
+    ${cardio&&sport==='cycling'?field('plannedCadenceRpm','Cadencia objetivo (rpm)',p.plannedCadenceRpm||'','number',{min:0,max:250}):''}
+    ${cardio&&sport==='cycling'?field('plannedPowerWatts','Potencia objetivo (W)',p.plannedPowerWatts||'','number',{min:0,max:2500}):''}
+    ${cardio?field('plannedElevationM','Desnivel positivo (m)',p.plannedElevationM||'','number',{min:0,max:15000}):''}
+    ${!cardio&&profile.kind!=='isometric'?field('tempo','Ritmo de ejecución',p.tempo||'controlado','text',{maxLength:80}):''}
+    ${field('targetRpe','RPE objetivo',p.targetRpe??7,'number',{min:1,max:10,step:0.5})}
+    ${!cardio?field('targetRir','RIR objetivo',p.targetRir??3,'number',{min:0,max:10,step:0.5}):''}
+    ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}`;
+}
 function templateHistoryCoverage(draft={},exerciseMemoryFor=null){
   const items=[];
   for(const block of draft.blocks||[]){
@@ -502,17 +546,12 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
     </header>
     ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId})}
     <div class="m26-field-grid m26-builder-core-prescription">
-      ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
-      ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}
-      ${blockField({blockId:block.id,field:'plannedLoad',label:'Carga planificada',value:block.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
-      ${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:0,max:3600})}
+      ${prescriptionWorkFields(block.id,'',exercise,block)}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
-        ${blockField({blockId:block.id,field:'tempo',label:'Ritmo de ejecución',value:block.tempo,maxLength:80})}
-        ${blockField({blockId:block.id,field:'targetRpe',label:'RPE objetivo',value:block.targetRpe,type:'number',min:1,max:10,step:.5})}
-        ${blockField({blockId:block.id,field:'targetRir',label:'RIR objetivo',value:block.targetRir,type:'number',min:0,max:10,step:.5})}
+        ${prescriptionAdvancedFields(block.id,'',exercise,block)}
         <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,exercise,block.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
         ${blockTextarea({blockId:block.id,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:block.prescriptionNotes||'',maxLength:1000,placeholder:'Claves técnicas o ajustes específicos para esta sesión'})}
         ${blockTextarea({blockId:block.id,field:'progression',label:'Progresión prevista',value:block.progression||'',maxLength:500,placeholder:'Criterio para avanzar o retroceder en próximas exposiciones'})}
@@ -529,16 +568,12 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
     ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true})}
     <div class="m26-field-grid m26-builder-core-prescription">
-      ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}
-      ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
-      ${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds??60,type:'number',min:0,max:3600})}
+      ${prescriptionWorkFields(group.id,exerciseId,exercise,p,true)}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
-        ${blockField({blockId:group.id,exerciseId,field:'tempo',label:'Ritmo de ejecución',value:p.tempo||'controlado',maxLength:80})}
-        ${blockField({blockId:group.id,exerciseId,field:'targetRpe',label:'RPE',value:p.targetRpe||7,type:'number',min:1,max:10,step:.5})}
-        ${blockField({blockId:group.id,exerciseId,field:'targetRir',label:'RIR',value:p.targetRir??3,type:'number',min:0,max:10,step:.5})}
+        ${prescriptionAdvancedFields(group.id,exerciseId,exercise,p)}
         <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,exercise,p.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
         ${blockTextarea({blockId:group.id,exerciseId,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:p.prescriptionNotes||'',maxLength:1000})}
         ${blockTextarea({blockId:group.id,exerciseId,field:'progression',label:'Progresión prevista',value:p.progression||'',maxLength:500})}
@@ -563,18 +598,19 @@ function groupEditor(group,catalog,index,mediaMap,role,exerciseMemoryFor){
     ${exercises}
   </article>`;
 }
-function prescriptionPreviewDetails(p={}){
+function prescriptionPreviewDetails(p={},exercise={}){
+  const profile=exerciseMeasurementProfile(exercise);
   const optional=[
-    p.plannedLoad?`Carga ${e(p.plannedLoad)}`:'',
-    p.tempo?`ritmo ${e(p.tempo)}`:'',
+    !profile.cardio&&p.plannedLoad?`Carga ${e(p.plannedLoad)}`:'',
+    !profile.cardio&&p.tempo?`tempo ${e(p.tempo)}`:'',
     explicitSessionEffort(p.targetRpe,{min:1,max:10})!==null?`RPE ${e(p.targetRpe)}`:'',
-    explicitSessionEffort(p.targetRir,{min:0})!==null?`RIR ${e(p.targetRir)}`:'',
+    !profile.cardio&&explicitSessionEffort(p.targetRir,{min:0})!==null?`RIR ${e(p.targetRir)}`:'',
   ].filter(Boolean).join(' · ');
   const guidance=[
     p.prescriptionNotes?`<p><strong>Indicaciones:</strong> ${e(p.prescriptionNotes)}</p>`:'',
     p.progression?`<p><strong>Progresión:</strong> ${e(p.progression)}</p>`:'',
   ].join('');
-  return `<p>${optional}</p>${guidance}`;
+  return `<p>${e(metricPrescriptionSummary(p,exercise))}${optional?` · ${optional}`:''}</p>${guidance}`;
 }
 function renderProfessionalSessionClientContext(clientContext,role){
   const normalizedRole=String(role||'').trim().toLowerCase();
@@ -590,12 +626,12 @@ function previewMarkup(draft,catalog,mediaMap,role){
     if(block.type==='exercise'){
       const ex=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId};
       const visual=renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true});
-      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} series · ${e(block.reps)} · descanso ${e(block.restSeconds)} s</p>${prescriptionPreviewDetails(block)}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
+      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} ${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'bloque(s)':'series'} · ${e(metricPrescriptionSummary(block,{...ex,measurementProfile:block.measurementProfile}))}${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'':` · descanso ${e(block.restSeconds)} s`}</p>${prescriptionPreviewDetails(block,{...ex,measurementProfile:block.measurementProfile})}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
     }
     const exerciseLines=(block.exerciseIds||[]).map((id)=>{
       const ex=catalog.get(id)||{id,name_es:id};
       const p=block.prescriptions?.[id]||{};
-      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(p.reps||'Según indicación')}${p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
+      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(metricPrescriptionSummary(p,{...ex,measurementProfile:p.measurementProfile}))}${!exerciseMeasurementProfile({...ex,measurementProfile:p.measurementProfile}).cardio&&p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
     }).join('');
     return `<li class="m26-session-preview-group" data-session-preview-block="${e(block.id)}"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div><button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></li>`;
   }).join('');
@@ -925,7 +961,7 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
     return Number.isInteger(number)&&number>0&&number<=100?number:0;
   };
   const recorded=(result)=>Boolean(result&&typeof result==='object'&&[
-    result.reps,result.seconds,
+    result.reps,result.seconds,result.distanceKm,result.distanceM,result.intervalsCompleted,
   ].some((value)=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))));
   const nameFor=(exerciseId,block)=>{
     if(block?.type==='exercise'&&block.exerciseId===exerciseId&&block.name)return String(block.name);
@@ -940,7 +976,8 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
     const changed=Boolean(planned&&actualItems.some((item)=>item.exerciseId!==planned.exerciseId));
     const displayName=originalName||recordedNames[0]||`Ejercicio ${index+1}`;
     const prescription=planned?.prescription||{};
-    const plannedGoal=planned?[
+    const profile=exerciseMeasurementProfile({id:planned?.exerciseId||first?.exerciseId,name_es:displayName});
+    const plannedGoal=planned&&(profile.cardio||profile.kind==='carry')?metricPrescriptionSummary(prescription,{id:planned.exerciseId,name_es:displayName,measurementProfile:prescription.measurementProfile}):planned?[
       String(prescription.reps??'').trim()||null,
       String(prescription.plannedLoad??'').trim()?`Carga ${String(prescription.plannedLoad).trim()}`:null,
       explicitSessionEffort(prescription.targetRpe,{min:1,max:10})!==null?`RPE ${prescription.targetRpe}`:null,
@@ -1018,13 +1055,16 @@ function completedSessionSummary(execution){
   </div>`;
 }
 
-function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false}={}){
-  const target=[
-    planned?.reps||null,
-    planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
-    explicitSessionEffort(planned?.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
-    explicitSessionEffort(planned?.targetRir,{min:0})!==null?`RIR ${planned.targetRir}`:null,
-  ].filter(Boolean).join(' · ')||'Según indicación';
+function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false,exercise={}}={}){
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:planned?.measurementProfile});
+  const target=(profile.cardio||profile.kind==='carry')
+    ?metricPrescriptionSummary(planned,{...exercise,measurementProfile:planned?.measurementProfile})
+    :[
+      planned?.reps||null,
+      planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
+      explicitSessionEffort(planned?.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
+      explicitSessionEffort(planned?.targetRir,{min:0})!==null?`RIR ${planned.targetRir}`:null,
+    ].filter(Boolean).join(' · ')||'Según indicación';
 
   const previous=previousSet
     ?previousSetSummary(previousSet)
@@ -1052,6 +1092,102 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
       <strong>${e(planned?.restSeconds??60)} s</strong>
     </div>
   </section>`;
+}
+
+function carrySetEntryFields(planned={},isCoach=false){
+  return `<div class="${isCoach?'m26-session-coach-set-fields':'m26-field-grid m26-session-set-fields'}" data-session-carry-entry>
+    <div class="m26-field-grid">
+      <label>Distancia realizada (m)<input type="number" min="0" max="100000" step="1" inputmode="decimal" data-set-field="distanceM" placeholder="${e(planned.plannedDistanceM||'')}"></label>
+      <label>Tiempo realizado (s)<input type="number" min="0" max="86400" step="1" inputmode="decimal" data-set-field="seconds"></label>
+      <label>Carga transportada<input type="text" maxlength="80" data-set-field="load" placeholder="${e(planned.plannedLoad||'')}"></label>
+      <label>RPE real<input type="number" min="1" max="10" step="0.5" inputmode="decimal" data-set-field="rpe" required></label>
+    </div>
+    <small>Registra distancia, tiempo o ambos; la carga sigue siendo opcional si corresponde.</small>
+  </div>`;
+}
+function recordedSportCorrectionFields(profile,recorded={}){
+  const field=(name,label,options={})=>{
+    const type=options.type||'number';
+    const attrs=type==='number'?' min="'+e(options.min??0)+'" max="'+e(options.max??86400)+'" step="'+e(options.step??'any')+'"':'';
+    return '<label>'+e(label)+'<input type="'+e(type)+'"'+attrs+' value="'+e(options.value??'')+'" data-set-field="'+e(name)+'"></label>';
+  };
+  const actual=(key)=>recorded?.[key]??'';
+  const rpe=['rpe','RPE real',{min:1,max:10,step:0.5,value:actual('rpe')}];
+  if(profile.cardio){
+    const minutes=recorded.seconds==null?'':Number((Number(recorded.seconds)/60).toFixed(6));
+    const entries=[
+      ['durationMinutes','Tiempo realizado (min)',{max:1440,value:minutes}],
+      ['distanceKm','Distancia realizada (km)',{max:1000,value:actual('distanceKm')}],
+      ...(profile.kind==='intervals'?[['intervalsCompleted','Intervalos completados',{min:1,max:1000,step:1,value:actual('intervalsCompleted')}]]:[]),
+      ['avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1,value:actual('avgHeartRateBpm')}],
+      ...(profile.sport==='running'?[['paceMinPerKm','Ritmo medio (min/km)',{type:'text',value:actual('paceMinPerKm')}]]:[]),
+      ...(profile.sport==='cycling'?[
+        ['avgSpeedKmh','Velocidad media (km/h)',{max:140,value:actual('avgSpeedKmh')}],
+        ['cadenceRpm','Cadencia (rpm)',{max:250,value:actual('cadenceRpm')}],
+        ['powerWatts','Potencia (W)',{max:2500,value:actual('powerWatts')}],
+      ]:[]),
+      ['elevationGainM','Desnivel positivo (m)',{max:15000,value:actual('elevationGainM')}],rpe,
+    ];
+    return entries.map(([key,label,options])=>field(key,label,options)).join('');
+  }
+  if(profile.kind==='carry')return [
+    ['distanceM','Distancia realizada (m)',{max:100000,value:actual('distanceM')}],
+    ['seconds','Tiempo (s)',{max:86400,value:actual('seconds')}],
+    ['load','Carga transportada',{type:'text',value:actual('load')}],rpe,
+  ].map(([key,label,options])=>field(key,label,options)).join('');
+  return [
+    ['reps','Repeticiones',{max:10000,step:1,value:actual('reps')}],
+    ['seconds','Tiempo (s)',{max:86400,step:1,value:actual('seconds')}],
+    ['load','Carga',{type:'text',value:actual('load')}],rpe,
+    ['rir','RIR',{max:10,step:0.5,value:actual('rir')}],
+  ].map(([key,label,options])=>field(key,label,options)).join('');
+}
+function cardioSetEntryFields(profile,planned={},isCoach=false){
+ const field=(name,label,{max='',min=0,step='any',type='number',inputmode='decimal',placeholder=''}={})=>`<label data-session-field-priority="primary">${e(label)}<input type="${e(type)}"${max!==''?` max="${e(max)}"`:''} min="${e(min)}" step="${e(step)}" inputmode="${e(inputmode)}" enterkeyhint="next" data-set-field="${e(name)}"${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;
+ const duration=field('durationMinutes','Tiempo realizado (min)',{max:1440,step:0.1,placeholder:planned.plannedDurationMinutes||''});
+ const distance=field('distanceKm','Distancia realizada (km)',{max:1000,step:0.01,placeholder:planned.plannedDistanceKm||''});
+ const interval=profile.kind==='intervals'?field('intervalsCompleted','Intervalos completados',{max:1000,step:1,placeholder:planned.intervalRepetitions||''}):'';
+ const hr=field('avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1});
+ const pace=profile.sport==='running'?field('paceMinPerKm','Ritmo medio (min/km) · opcional',{type:'text',inputmode:'text',step:'',placeholder:'06:00'}):'';
+ const speed=profile.sport==='cycling'?field('avgSpeedKmh','Velocidad media (km/h) · opcional',{max:140,step:0.1}):'';
+ const cadence=profile.sport==='cycling'?field('cadenceRpm','Cadencia media (rpm) · opcional',{max:250,step:1}):'';
+ const power=profile.sport==='cycling'?field('powerWatts','Potencia media (W) · opcional',{max:2500,step:1}):'';
+ const elevation=field('elevationGainM','Desnivel positivo (m) · opcional',{max:15000,step:1});
+ const rpe=field('rpe','RPE real · obligatorio',{min:1,max:10,step:0.5,placeholder:planned.targetRpe||7});
+ return `<div class="${isCoach?'m26-session-coach-set-fields':'m26-field-grid m26-session-set-fields'}" data-session-cardio-entry data-session-metric-kind="${e(profile.kind)}">
+  <div class="m26-field-grid m26-session-cardio-core">${duration}${distance}${interval}${rpe}</div>
+  <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${speed}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
+ </div>`;
+}
+function renderLiveModalityPrescription(planned={},profile={},exercise={},role='client'){
+  if(profile.cardio||profile.kind==='carry'){
+    const objective=metricPrescriptionSummary(planned,{...exercise,measurementProfile:planned.measurementProfile});
+    return `<div class="m26-field-grid">
+      <div class="m26-field"><span>${profile.kind==='carry'?'Objetivo de transporte':'Objetivo de resistencia'}</span><strong>${e(objective)}</strong></div>
+      ${profile.kind==='carry'&&planned.plannedLoad?`<div class="m26-field"><span>Carga prevista</span><strong>${e(planned.plannedLoad)}</strong><small>Confirma la carga realmente utilizada durante la ejecución.</small></div>`:''}
+      ${explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`<div class="m26-field"><span>RPE objetivo</span><strong>${e(planned.targetRpe)}</strong></div>`:''}
+      ${Number(planned.restSeconds)>0?`<div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
+    </div>`;
+  }
+  return `          <div class="m26-field-grid">
+            <div class="m26-field">
+              <span>Repeticiones/tiempo</span>
+              <strong>${e(planned.reps||'Según indicación')}</strong>
+            </div>
+            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>${role==='coach'?'Puede prepararse como borrador editable; confirma la carga realizada':'No se autocompleta la carga realizada'}</small></div>`:''}
+            <div class="m26-field">
+              <span>Descanso</span>
+              <strong>${e(planned.restSeconds??60)} s</strong>
+            </div>
+            <div class="m26-field">
+              <span>Ritmo de ejecución</span>
+              <strong>${e(planned.tempo||'Controlado')}</strong>
+            </div>
+            <div class="m26-field">
+              <span>Esfuerzo</span>
+              <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
+            </div>
+          </div>`;
 }
 
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
@@ -1232,10 +1368,14 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
 const planned=step.prescription||{};
+const executionProfile=exerciseMeasurementProfile({...ex,measurementProfile:planned.measurementProfile});
 const coachQuickRpe=isCoach
   ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
-const setEntryFields=isCoach
+const setEntryFields=executionProfile.cardio
+  ?cardioSetEntryFields(executionProfile,planned,isCoach)
+  :executionProfile.kind==='carry'?carrySetEntryFields(planned,isCoach)
+  :isCoach
   ?`<div class="m26-session-coach-set-fields" data-session-coach-set-fields>
       <div class="m26-session-coach-work-fields" data-session-entry-group="work">
         <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
@@ -1264,7 +1404,7 @@ const plannedSetReuse=plannedSetPreset
   ?`<div class="m26-field-grid" data-session-planned-set><div class="m26-field"><span>Punto de partida</span><strong>${e(previousSetSummary(plannedSetPreset))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-planned-set" aria-label="Usar el objetivo planificado como borrador y revisarlo antes de confirmar">Usar objetivo y revisar</button></div><small class="m26-session-repeat-note">Solo completa el borrador · confirma después lo que realmente se hizo.</small></div></div>`
   :'';
 const previousSetReuse=previousSet
-  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach&&!executionProfile.cardio?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" data-rpe-value="${e(previousSet.rpe||'')}" aria-label="Confirmar que el esfuerzo real de esta serie fue RPE ${e(previousSet.rpe||'sin indicar')} y repetir el trabajo anterior">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Si el esfuerzo fue igual, confirma RPE anterior en un toque. Si cambió, indica el RPE real antes de repetir. No copia notas ni RIR.</small>':''}</div></div>`
   :'';
 const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
@@ -1366,6 +1506,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     previousSet,
     exerciseMemory,
     restActive,
+    exercise:ex,
   });
   const liveTelemetry=liveTelemetryStrip(execution,catalog);
   const liveTelemetryDisclosure=liveTelemetry
@@ -1396,12 +1537,8 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <details class="m26-session-options" data-session-rest-correction>
           <summary>Corregir esta serie</summary>
           <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>
-          <div class="m26-field-grid">
-            <label>Repeticiones<input type="number" min="0" max="10000" value="${e(recorded.reps??'')}" data-set-field="reps"></label>
-            <label>Tiempo (s)<input type="number" min="0" max="86400" value="${e(recorded.seconds??'')}" data-set-field="seconds"></label>
-            <label>Carga<input type="text" maxlength="80" value="${e(recorded.load??'')}" data-set-field="load"></label>
-            <label>RPE<input type="number" min="1" max="10" step="0.5" value="${e(recorded.rpe??'')}" data-set-field="rpe" required></label>
-            <label>RIR<input type="number" min="0" max="10" step="0.5" value="${e(recorded.rir??'')}" data-set-field="rir"></label>
+          <div class="m26-field-grid" data-session-correction-profile="${e(executionProfile.kind)}">
+            ${recordedSportCorrectionFields(executionProfile,recorded)}
           </div>
           <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
           <button type="button" data-session-action="correct-set">Guardar corrección</button>
@@ -1472,25 +1609,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${restActive?'':visual}
         <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
           <p class="m26-eyebrow">Objetivo de esta serie</p>
-          <div class="m26-field-grid">
-            <div class="m26-field">
-              <span>Repeticiones/tiempo</span>
-              <strong>${e(planned.reps||'Según indicación')}</strong>
-            </div>
-            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>${role==='coach'?'Puede prepararse como borrador editable; confirma la carga realizada':'No se autocompleta la carga realizada'}</small></div>`:''}
-            <div class="m26-field">
-              <span>Descanso</span>
-              <strong>${e(planned.restSeconds??60)} s</strong>
-            </div>
-            <div class="m26-field">
-              <span>Ritmo de ejecución</span>
-              <strong>${e(planned.tempo||'Controlado')}</strong>
-            </div>
-            <div class="m26-field">
-              <span>Esfuerzo</span>
-              <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
-            </div>
-          </div>
+          ${renderLiveModalityPrescription(planned,executionProfile,ex,role)}
         </section>
         ${planned.prescriptionNotes?`<section class="m26-session-live-cues" aria-label="Indicaciones planificadas"><span>Indicaciones del Coach</span><strong>${e(planned.prescriptionNotes)}</strong></section>`:''}
         ${planned.progression?`<details class="m26-session-options m26-session-progression"><summary>Progresión prevista</summary><p>${e(planned.progression)}</p><small>Referencia de planificación; no modifica automáticamente la ejecución de hoy.</small></details>`:''}

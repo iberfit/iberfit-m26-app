@@ -1,6 +1,7 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
-import {createM26Id} from '../platform/id.js';
 import {selectCurrentTrainingCycle} from './planning-workflow.js';
+import {createM26Id} from '../platform/id.js';
+import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
 function boundedNumber(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
@@ -9,13 +10,15 @@ function optionalText(input,fallback='',max=500){
   const candidate=input===undefined||input===null?fallback:input;
   return String(candidate??'').trim().slice(0,max);
 }
-function normalizePrescription(input={},fallback={}){return {
-  reps:text(input.reps,fallback.reps||'8–12',40),
+function normalizePrescription(input={},fallback={},exercise={}){const resolvedExercise={...exercise,measurementProfile:input.measurementProfile||fallback.measurementProfile||exercise?.measurement_profile||exercise?.measurementProfile||undefined};const defaults=initialExercisePrescription(resolvedExercise);return {
+  measurementProfile:exerciseMeasurementProfile(resolvedExercise).kind,
+  ...Object.fromEntries(EXERCISE_METRIC_KEYS.map((key)=>[key,optionalText(input[key],fallback[key]??'',24)])),
+  reps:optionalText(input.reps,fallback.reps??defaults.reps,40),
   plannedLoad:optionalText(input.plannedLoad,fallback.plannedLoad||'',80),
-  restSeconds:positiveInt(input.restSeconds,fallback.restSeconds??60,{min:0,max:3600}),
-  tempo:text(input.tempo,fallback.tempo||'controlado',40),
-  targetRpe:boundedNumber(input.targetRpe,fallback.targetRpe||7,{min:1,max:10}),
-  targetRir:boundedNumber(input.targetRir,fallback.targetRir??3,{min:0,max:10}),
+  restSeconds:positiveInt(input.restSeconds,fallback.restSeconds??defaults.restSeconds,{min:0,max:3600}),
+  tempo:text(input.tempo,fallback.tempo??defaults.tempo??'controlado',40),
+  targetRpe:boundedNumber(input.targetRpe,fallback.targetRpe??defaults.targetRpe??7,{min:1,max:10}),
+  targetRir:boundedNumber(input.targetRir,fallback.targetRir??defaults.targetRir??3,{min:0,max:10}),
   prescriptionNotes:optionalText(input.prescriptionNotes,fallback.prescriptionNotes||'',1000),
   progression:optionalText(input.progression,fallback.progression||'',500),
   alternativeId:input.alternativeId||fallback.alternativeId||null,
@@ -116,12 +119,12 @@ export function addCatalogExercise(draft,exerciseId,catalog,prescription={}){
       if(group.exerciseIds.length>=limit)throw new Error('M26_SESSION_GROUP_LIMIT_REACHED');
       group.prescriptions=group.prescriptions||{};
       group.exerciseIds.push(exerciseId);
-      group.prescriptions[exerciseId]=normalizePrescription(prescription);
+      group.prescriptions[exerciseId]=normalizePrescription(prescription,{},ex);
     }
     if(group.exerciseIds.length>=limit)delete draft.activeGroupId;
     return invalidateSessionPreview(draft);
   }
-  draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,3),...normalizePrescription(prescription)});
+  draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,initialExercisePrescription(ex).sets),...normalizePrescription(prescription,{},ex)});
   return invalidateSessionPreview(draft);
 }
 export function addTrainingGroup(draft,type,exerciseIds=[]){
@@ -166,7 +169,8 @@ export function moveSessionBlock(draft,blockId,direction){const index=draft.bloc
 export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}
 export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,catalog}={}){const block=draft.blocks.find((item)=>item.id===blockId);if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');if(block.type==='exercise'){
   if(field==='sets')block.sets=positiveInt(value,block.sets||3);
-  else if(['reps','tempo'].includes(field))block[field]=text(value,block[field],40);
+  else if(['reps','tempo'].includes(field))block[field]=optionalText(value,block[field],40);
+  else if(EXERCISE_METRIC_KEYS.includes(field))block[field]=optionalText(value,block[field]||'',24);
   else if(field==='plannedLoad')block.plannedLoad=optionalText(value,block.plannedLoad||'',80);
   else if(field==='prescriptionNotes')block.prescriptionNotes=optionalText(value,block.prescriptionNotes||'',1000);
   else if(field==='progression')block.progression=optionalText(value,block.progression||'',500);
@@ -177,10 +181,18 @@ export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,ca
   else throw new Error('M26_SESSION_BLOCK_FIELD_INVALID');
  }else{
   if(field==='rounds')block.rounds=positiveInt(value,block.rounds||3,{min:1,max:100});
-  else {if(!['reps','plannedLoad','restSeconds','tempo','targetRpe','targetRir','prescriptionNotes','progression','alternativeId'].includes(field))throw new Error('M26_SESSION_GROUP_FIELD_INVALID');if(!exerciseId||!block.exerciseIds?.includes(exerciseId))throw new Error('M26_SESSION_GROUP_EXERCISE_MISSING');if(field==='alternativeId'&&value&&!catalog?.has(value))throw new Error('M26_SESSION_ALTERNATIVE_NOT_IN_CATALOG');block.prescriptions=block.prescriptions||{};const current=block.prescriptions[exerciseId]||normalizePrescription({});block.prescriptions[exerciseId]=normalizePrescription({[field]:value},current);}
+  else {if(!exerciseId||!block.exerciseIds?.includes(exerciseId))throw new Error('M26_SESSION_GROUP_EXERCISE_MISSING');if(field==='alternativeId'&&value&&!catalog?.has(value))throw new Error('M26_SESSION_ALTERNATIVE_NOT_IN_CATALOG');block.prescriptions=block.prescriptions||{};const current=block.prescriptions[exerciseId]||normalizePrescription({});if(!['reps','plannedLoad','restSeconds','tempo','targetRpe','targetRir','prescriptionNotes','progression','alternativeId',...EXERCISE_METRIC_KEYS].includes(field))throw new Error('M26_SESSION_GROUP_FIELD_INVALID');block.prescriptions[exerciseId]=normalizePrescription({[field]:value},current,catalog?.get?.(exerciseId));}
  }
  return invalidateSessionPreview(draft);}
 export function acceptSessionPreview(draft,catalog){const check=validateSessionDraft(draft,catalog);if(!check.ok)throw new Error(`M26_SESSION_DRAFT_INVALID:${check.errors.join(',')}`);draft.previewAccepted=true;return draft;}
+function metricErrors(p,exercise){
+ const profile=exerciseMeasurementProfile(exercise);
+ const invalid=EXERCISE_METRIC_KEYS.filter((key)=>!metricValueValid(key,p?.[key]));
+ if(profile.cardio&&!hasCardioPrescription(p))invalid.push('cardio_goal_missing');
+ if(profile.kind==='carry'&&!String(p?.reps||'').trim()&&!hasCardioPrescription(p))invalid.push('carry_goal_missing');
+ if(profile.kind==='intervals'&&p?.intervalRepetitions&&!p?.intervalWorkSeconds)invalid.push('interval_work_missing');
+ return invalid;
+}
 export function validateSessionDraft(draft,catalog){
  const errors=[],seenBlocks=new Set();
  if(!draft?.clientId)errors.push('clientId');
@@ -192,7 +204,8 @@ export function validateSessionDraft(draft,catalog){
   if(b.type==='exercise'){
    const sets=Number(b.sets),rest=Number(b.restSeconds),rpe=Number(b.targetRpe),rir=Number(b.targetRir);
    if(!catalog.has(b.exerciseId))errors.push(`exercise:${b.exerciseId}`);
-   if(!Number.isInteger(sets)||sets<1||sets>100||!String(b.reps||'').trim()||String(b.reps).length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
+   if(!Number.isInteger(sets)||sets<1||sets>100||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile({...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}).kind)&&!String(b.reps||'').trim())||String(b.reps||'').length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
+   if(metricErrors(b,{...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}).length)errors.push(`metrics:${b.exerciseId}`);
    if(b.alternativeId&&(!catalog.has(b.alternativeId)||b.alternativeId===b.exerciseId))errors.push(`alternative:${b.exerciseId}`);
   }else{
    if(!GROUP_TYPES.has(b.type)){errors.push(`groupType:${b.id}`);continue;}
@@ -203,7 +216,8 @@ export function validateSessionDraft(draft,catalog){
    for(const id of ids){
     if(!catalog.has(id))errors.push(`exercise:${id}`);
     const p=b.prescriptions?.[id],rest=Number(p?.restSeconds),rpe=Number(p?.targetRpe),rir=Number(p?.targetRir);
-    if(!p||!String(p.reps||'').trim()||String(p.reps).length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
+    if(!p||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile({...catalog.get?.(id),measurementProfile:p?.measurementProfile}).kind)&&!String(p.reps||'').trim())||String(p.reps||'').length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
+    if(metricErrors(p,{...catalog.get?.(id),measurementProfile:p?.measurementProfile}).length)errors.push(`metrics:${id}`);
     if(p?.alternativeId&&(!catalog.has(p.alternativeId)||p.alternativeId===id))errors.push(`alternative:${id}`);
    }
   }

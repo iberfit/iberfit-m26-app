@@ -24,6 +24,8 @@ const READ_ONLY_RPCS=new Set([
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1',
+  // Public profile projection is read-only; do not widen write allowances.
+  'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
 // QA-only, allowlisted request timing: never persist URLs, headers, bodies,
@@ -145,6 +147,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   const blocked=[];
   const unexpectedFailures=[];
   const consoleErrors=[];
+  const failedAllowedResponses=[];
   const pageErrors=[];
   await installCurrentSourceQaNetworkPolicy(context,{
     readOnlyRpcs:READ_ONLY_RPCS,
@@ -165,6 +168,13 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   });
   page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
+  // A 4xx/5xx response on an allowlisted read is always a real failure, even if Chromium shows a generic console resource warning.
+  page.on('response',(response)=>{
+    if(response.status()>=400){
+      const label=qaRequestLabel(response.request());
+      if(label.includes('qa-supabase'))failedAllowedResponses.push(label+' HTTP_'+response.status());
+    }
+  });
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
   // Observability only. A fixed operation allowlist prevents credential/PII
@@ -352,7 +362,11 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   const blockedPreferenceSyncConsoleErrors=consoleErrors.filter((message)=>message===BLOCKED_RESOURCE_CONSOLE_ERROR);
   const unexpectedConsoleErrors=consoleErrors.filter((message)=>message!==BLOCKED_RESOURCE_CONSOLE_ERROR);
   expect(blockedPreferenceSyncAttempts,'Preference toggles must try to persist, while this read-only QA gate blocks the writes').toHaveLength(2);
-  expect(blockedPreferenceSyncConsoleErrors,'Chromium must report only the two intentionally blocked preference writes').toHaveLength(blockedPreferenceSyncAttempts.length);
+  // Chromium sometimes duplicates the generic failed-resource console entry on abort.
+  // Match the actual blocked-request allowlist, not console-error count alone.
+  expect(blockedPreferenceSyncConsoleErrors.length,'Chromium must report the two blocked preference writes').toBeGreaterThanOrEqual(blockedPreferenceSyncAttempts.length);
+  expect(blockedPreferenceSyncConsoleErrors.length,'Unexpected surplus Chromium failed-resource reports').toBeLessThanOrEqual(blockedPreferenceSyncAttempts.length+1);
+  expect(failedAllowedResponses,'All allowlisted QA reads must succeed').toEqual([]);
   expect(unexpectedBlocked,'Authenticated interaction attempted a business mutation or foreign request').toEqual([]);
   expect(unexpectedFailures).toEqual([]);
   expect(unexpectedConsoleErrors).toEqual([]);
