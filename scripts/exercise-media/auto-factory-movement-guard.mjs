@@ -1,3 +1,4 @@
+import {isCriticalMovement,criticalMovementCamera,criticalMovementPhases,criticalMovementPlanIssue,criticalMovementVisualGuard,criticalSupportObservationInstruction,criticalSupportPairObservationInstruction,criticalSupportObservationPass,criticalSupportPairObservationPass} from './auto-factory-critical-movements.mjs';
 const normalize=value=>String(value||'').trim().toLowerCase();
 
 function descriptorFor(exercise){return `${normalize(exercise?.id)} ${normalize(exercise?.name_es)} ${normalize(exercise?.pattern)} ${normalize(exercise?.equipment)}`;}
@@ -21,10 +22,11 @@ function isBirdDogBand(exercise){
 }
 
 export function hasHardMovementPlanGuard(exercise){
-  return isBearCrawl(exercise)||isBearPlankShoulderTap(exercise)||isBirdDogBand(exercise);
+  return isCriticalMovement(exercise)||isBearCrawl(exercise)||isBearPlankShoulderTap(exercise)||isBirdDogBand(exercise);
 }
 
 export function canonicalHardMovementPlanPhases(exercise){
+  const critical=criticalMovementPhases(exercise);if(critical)return critical;
   if(isBearCrawl(exercise)){
     return Object.freeze({
       start:'Ambas manos permanecen apoyadas en el suelo bajo los hombros; las puntas de ambos pies mantienen contacto con el suelo. Las rodillas permanecen elevadas y sin contacto con el suelo. La cadera se mantiene aproximadamente a la misma altura que los hombros y el tronco largo, neutral y casi horizontal.',
@@ -114,6 +116,7 @@ function birdDogBandFinalPass(text){
 }
 
 export function movementPlanIssue(exercise,plan){
+  if(isCriticalMovement(exercise))return criticalMovementPlanIssue(exercise,plan);
   if(isBearCrawl(exercise)){
     if(!phaseHasBearSupport(plan?.start))return'PLAN_MOVEMENT_IDENTITY_INVALID:start:bear-crawl-support';
     if(!phaseHasBearSupport(plan?.final))return'PLAN_MOVEMENT_IDENTITY_INVALID:final:bear-crawl-support';
@@ -160,6 +163,7 @@ function birdDogBandSupportPass(observation,{start}){
 }
 
 export function supportObservationInstruction(exercise){
+  if(isCriticalMovement(exercise))return criticalSupportObservationInstruction(exercise);
   if(isBearCrawl(exercise))return `For Bear Crawl, report support_observation exactly as ${SUPPORT_SHAPE}. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
   if(isBearPlankShoulderTap(exercise))return `For Bear Plank Shoulder Tap START, report support_observation exactly as ${SUPPORT_SHAPE}. START requires exactly two palms and two forefeet/toes on the floor, both knees hovering (not weight-bearing), hips near shoulder height and a near-horizontal trunk.`;
   if(isBirdDogBand(exercise))return `For Banded Bird Dog START, report support_observation exactly as ${BIRD_DOG_BAND_SHAPE}. START requires exactly two palms and two knees on the floor, no reaching limb yet, a neutral spine and level pelvis, with one light loop band visibly secured between the future reaching hand and its opposite foot. No external anchor is allowed.`;
@@ -167,6 +171,7 @@ export function supportObservationInstruction(exercise){
 }
 
 export function supportPairObservationInstruction(exercise){
+  if(isCriticalMovement(exercise))return criticalSupportPairObservationInstruction(exercise);
   if(isBearCrawl(exercise))return `For Bear Crawl, report support_observation exactly as {"start":${SUPPORT_SHAPE},"final":${SUPPORT_SHAPE}}. Evaluate START and FINAL independently. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
   if(isBearPlankShoulderTap(exercise))return `For Bear Plank Shoulder Tap, report support_observation exactly as {"start":${SUPPORT_SHAPE},"final":${SHOULDER_TAP_FINAL_SHAPE}}. START requires two supporting palms. FINAL requires exactly one supporting palm while the free hand visibly contacts the opposite shoulder/upper deltoid. Both phases require two forefeet/toes on the floor and both knees hovering.`;
   if(isBirdDogBand(exercise))return `For Banded Bird Dog, report support_observation exactly as {"start":${BIRD_DOG_BAND_SHAPE},"final":${BIRD_DOG_BAND_SHAPE}}. START requires two palms and two knees weight-bearing with no limb extension. FINAL requires exactly one supporting palm and one supporting knee while the working arm reaches forward and the opposite leg extends backward. The same single loop band must visibly connect that working hand to the opposite foot and be tensioned in FINAL. Spine stays neutral and pelvis level; no wall, floor, machine or other external anchor is valid.`;
@@ -174,6 +179,7 @@ export function supportPairObservationInstruction(exercise){
 }
 
 export function supportObservationPass(exercise,observation){
+  if(isCriticalMovement(exercise))return criticalSupportObservationPass(exercise,observation);
   if(isBearCrawl(exercise))return compactHoverSupportPass(observation,{palms:2});
   if(isBearPlankShoulderTap(exercise))return compactHoverSupportPass(observation,{palms:2});
   if(isBirdDogBand(exercise))return birdDogBandSupportPass(observation,{start:true});
@@ -181,6 +187,7 @@ export function supportObservationPass(exercise,observation){
 }
 
 export function supportPairObservationPass(exercise,observation){
+  if(isCriticalMovement(exercise))return criticalSupportPairObservationPass(exercise,observation);
   if(isBearCrawl(exercise))return supportObservationPass(exercise,observation?.start)
     &&supportObservationPass(exercise,observation?.final);
   if(isBearPlankShoulderTap(exercise))return compactHoverSupportPass(observation?.start,{palms:2})
@@ -192,6 +199,7 @@ export function supportPairObservationPass(exercise,observation){
 }
 
 export function movementVisualGuard(exercise){
+  const critical=criticalMovementVisualGuard(exercise);if(critical)return critical;
   if(isBearCrawl(exercise)){
     return [
       'BEAR CRAWL HARD MOVEMENT LOCK:',
@@ -242,3 +250,5 @@ export function movementVisualGuard(exercise){
     'A pose that changes the defining support/contact pattern or body orientation of the planned movement must fail even if the athlete, equipment and scene look correct.'
   ].join(' ');
 }
+
+export function canonicalHardMovementCamera(exercise){return criticalMovementCamera(exercise);}
