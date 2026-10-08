@@ -145,3 +145,17 @@ test('Coach WebAuthn QA accepts only the audited read-only exercise measurement 
   assert.match(migration,/create or replace function public\.iberfit_exercise_measurement_profiles_public_v1\(\)[\s\S]*?language sql stable security definer[\s\S]*?select mp\.exercise_id,mp\.profile,mp\.revision/u);
   assert.match(migration,/grant execute on function public\.iberfit_exercise_measurement_profiles_public_v1\(\) to anon,authenticated/u);
 });
+
+test('privileged Coach IRI browser confines exercise profiles to the audited public read RPC',async()=>{
+  const source=await read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
+  const migration=await read('supabase/migrations/20261008164000_exercise_measurement_profiles_admin_v1.sql');
+  const allowlist=source.match(/const READ_ONLY_RPCS=new Set\(\[([\s\S]*?)\]\);/u);
+  assert.ok(allowlist,'Privileged IRI browser must have a finite read-only RPC allowlist');
+  assert.ok(allowlist[1].includes("'iberfit_exercise_measurement_profiles_public_v1'"));
+  assert.doesNotMatch(allowlist[1],/iberfit_admin_set_exercise_measurement_profile_v1/u);
+  assert.match(source,/if\(url.origin!==QA_ORIGIN\)return false/u);
+  assert.match(source,/if\(READ_ONLY_RPCS.has\(rpc\)\)return true/u);
+  assert.match(source,/evidence\.blocked\.push\(request\.method\(\)\.toUpperCase\(\)/u);
+  assert.match(migration,/create or replace function public\.iberfit_exercise_measurement_profiles_public_v1\(\)[\s\S]*?language sql stable security definer[\s\S]*?select mp\.exercise_id,mp\.profile,mp\.revision/u);
+  assert.match(migration,/grant execute on function public\.iberfit_exercise_measurement_profiles_public_v1\(\) to anon,authenticated/u);
+});
