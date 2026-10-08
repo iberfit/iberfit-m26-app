@@ -31,6 +31,8 @@ function currentSetResultSummary(result){
     result?.reps!=null?`${result.reps} rep${Number(result.reps)===1?'':'s'}`:null,
     result?.seconds!=null?`${result.seconds} s`:null,
     result?.distanceKm!=null?`${result.distanceKm} km`:null,
+    result?.distanceM!=null?`${result.distanceM} m`:null,
+    result?.avgSpeedKmh!=null?`${result.avgSpeedKmh} km/h`:null,
     result?.paceMinPerKm?`${result.paceMinPerKm} min/km`:null,
     result?.avgHeartRateBpm!=null?`FC media ${result.avgHeartRateBpm} lpm`:null,
     result?.powerWatts!=null?`${result.powerWatts} W`:null,
