@@ -938,13 +938,13 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
     const originalName=planned?nameFor(planned.exerciseId,block):null;
     const recordedNames=[...new Set(actualItems.map((item)=>nameFor(item.exerciseId,block)))];
     const changed=Boolean(planned&&actualItems.some((item)=>item.exerciseId!==planned.exerciseId));
-    const displayName=originalName||recordedNames[0]||`Ejercicio ${{index+1}`;
+    const displayName=originalName||recordedNames[0]||`Ejercicio ${index+1}`;
     const prescription=planned?.prescription||{};
     const plannedGoal=planned?[
       String(prescription.reps??'').trim()||null,
-      String(prescription.plannedLoad??'').trim()?`Carga ${{String(prescription.plannedLoad).trim()}`:null,
-      explicitSessionEffort(prescription.targetRpe,{min:1,max:10})!==null?`RPE ${{prescription.targetRpe}`:null,
-      explicitSessionEffort(prescription.targetRir,{min:0,max:10})!==null?`RIR ${{prescription.targetRir}`:null,
+      String(prescription.plannedLoad??'').trim()?`Carga ${String(prescription.plannedLoad).trim()}`:null,
+      explicitSessionEffort(prescription.targetRpe,{min:1,max:10})!==null?`RPE ${prescription.targetRpe}`:null,
+      explicitSessionEffort(prescription.targetRir,{min:0,max:10})!==null?`RIR ${prescription.targetRir}`:null,
     ].filter(Boolean).join(' · ')||'Sin objetivo cuantitativo confirmado'
       :snapshot?'Añadido durante la sesión; no figuraba en el plan original'
         :'Sin snapshot histórico confirmado';
@@ -965,31 +965,31 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
       }
     }
     const setList=actual.map(({number,result,exerciseId})=>
-      `<li><span>${{e(nameFor(exerciseId,block))} · Serie ${{e(number)}</span><strong>${{e(currentSetResultSummary(result))}</strong>${{result.notes?`<p>${{e(result.notes)}</p>`:''}</li>`
+      `<li><span>${e(nameFor(exerciseId,block))} · Serie ${e(number)}</span><strong>${e(currentSetResultSummary(result))}</strong>${result.notes?`<p>${e(result.notes)}</p>`:''}</li>`
     ).join('');
     const omittedList=omissions.map(({number,reason,exerciseId})=>
-      `<li><span>${{e(nameFor(exerciseId,block))} · Serie ${{e(number)}</span><strong>Omitida explícitamente</strong>${{reason?`<p>${{e(reason)}</p>`:''}</li>`
+      `<li><span>${e(nameFor(exerciseId,block))} · Serie ${e(number)}</span><strong>Omitida explícitamente</strong>${reason?`<p>${e(reason)}</p>`:''}</li>`
     ).join('');
     const missing=Math.max(0,totalSets-actual.length-omissions.length);
     const extra=planned?Math.max(0,totalSets-count(planned.sets)):0;
-    const changeNote=changed?`<p>Sustitución registrada: ${{e(originalName)} → ${{e(recordedNames.join(' / '))}</p>`:'';
-    const planCount=planned?`${{e(count(planned.sets))} series · `:'';
-    const extraNote=extra>0?`<p>${{e(extra)} serie${{extra===1?'':'s'} adicional${{extra===1?'':'es'} respecto del plan original.</p>`:'';
-    return `<li class="m26-session-completion-evidence-item" data-completion-evidence-block="${{e(first?.blockId||'')}">
-      <div class="m26-session-completion-evidence-heading"><strong>${{e(displayName)}</strong><span>${{e(actual.length)} de ${{e(totalSets)} series registradas</span></div>
-      <p><span>Previsto:</span> ${{planCount}${{e(plannedGoal)}</p>
-      ${{changeNote}
-      <ol>${{setList}${{omittedList||(!actual.length?'<li>Sin series registradas</li>':'')}</ol>
-      ${{omissions.length?`<p>${{e(omissions.length)} serie${{omissions.length===1?'':'s'} omitida${{omissions.length===1?'':'s'} expresamente.</p>`:''}
-      ${{missing?`<p>${{e(missing)} serie${{missing===1?'':'s'} sin registro; no se considera${{missing===1?'':'n'} realizada${{missing===1?'':'s'} ni omitida${{missing===1?'':'s'}.</p>`:''}
-      ${{extraNote}
+    const changeNote=changed?`<p>Sustitución registrada: ${e(originalName)} → ${e(recordedNames.join(' / '))}</p>`:'';
+    const planCount=planned?`${e(count(planned.sets))} series · `:'';
+    const extraNote=extra>0?`<p>${e(extra)} serie${extra===1?'':'s'} adicional${extra===1?'':'es'} respecto del plan original.</p>`:'';
+    return `<li class="m26-session-completion-evidence-item" data-completion-evidence-block="${e(first?.blockId||'')}">
+      <div class="m26-session-completion-evidence-heading"><strong>${e(displayName)}</strong><span>${e(actual.length)} de ${e(totalSets)} series registradas</span></div>
+      <p><span>Previsto:</span> ${planCount}${e(plannedGoal)}</p>
+      ${changeNote}
+      <ol>${setList}${omittedList||(!actual.length?'<li>Sin series registradas</li>':'')}</ol>
+      ${omissions.length?`<p>${e(omissions.length)} serie${omissions.length===1?'':'s'} omitida${omissions.length===1?'':'s'} expresamente.</p>`:''}
+      ${missing?`<p>${e(missing)} serie${missing===1?'':'s'} sin registro; no se considera${missing===1?'':'n'} realizada${missing===1?'':'s'} ni omitida${missing===1?'':'s'}.</p>`:''}
+      ${extraNote}
     </li>`;
   });
   if(!rows.length)return '';
   return `<details class="m26-session-options m26-session-completion-evidence" data-coach-completion-evidence>
     <summary>Revisar planificado y registrado</summary>
     <p>Datos de esta ejecución. Las series sin registro no se tratan como realizadas y las cargas no se convierten ni se suman automáticamente.</p>
-    <ol class="m26-session-completion-evidence-list">${{rows.join('')}</ol>
+    <ol class="m26-session-completion-evidence-list">${rows.join('')}</ol>
   </details>`;
 }
 function completedSessionSummary(execution){
