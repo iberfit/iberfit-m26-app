@@ -24,6 +24,20 @@ class IberfitHealthConnectReaderTest {
         assertEquals(date.plusDays(1), window.second.atZone(zone).toLocalDate())
     }
 
+    @Test fun aggregateDoesNotImpersonateSourceMeasurementTimestamp() {
+        val summary = IberfitHealthConnectReader.DailySummary(
+            provider = "health_connect",
+            date = "2026-10-08",
+            steps = 9000,
+            sleepMinutes = null,
+            restingHeartRate = null,
+            acquiredAt = "2026-10-08T18:00:00Z"
+        )
+        assertEquals("2026-10-08T18:00:00Z", summary.acquiredAt)
+        // Aggregated data has no verifiable per-source modification time.
+        assertTrue(summary.javaClass.declaredFields.none { it.name == "sourceUpdatedAt" })
+    }
+
     @Test fun readerExposesOnlyReadScopes() {
         assertEquals(setOf("steps", "sleepMinutes", "restingHeartRate"),
             IberfitHealthConnectReader.supportedMetrics)
