@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f25201d5847b2aa66e9d6ae04736b73f4f400764",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #799 Coach cierre: evidencia planificado vs registrado por ocurrencia, omisiones explícitas, sustituciones, extras e i18n; 10/10 PR checks GREEN; Canary merge f25201d5847b 13/13 workflows SUCCESS; Canary Exact Deploy 37773112217 SUCCESS; Device Experience 37773112256 and QA Real Write 37773112234 SUCCESS."
+}
