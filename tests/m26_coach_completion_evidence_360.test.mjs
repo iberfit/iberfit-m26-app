@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {renderGuidedExecution,renderCoachCompletionEvidence} from '../src/m26/workflows/session-ui.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const clientId='synthetic-recap-client';
 const queue=[
@@ -95,4 +96,26 @@ test('explicit omissions are distinguished from empty or unrecorded work',()=>{
  assert.match(html,/1 de 2 series registradas/u);
  assert.match(html,/1 serie sin registro; no se considera realizada ni omitida/u);
  assert.doesNotMatch(html,/Serie registrada<\/strong>/u);
+});
+
+test('closure evidence remains understandable in EN, FR and PT without misclassifying missing sets',()=>{
+ const samples=[
+   ['1 serie sin registro; no se considera realizada ni omitida.',
+      '1 set without a record; neither completed nor skipped.',
+      '1 série non enregistrée ; ni terminée ni omise.',
+      '1 série sem registo; nem concluída nem omitida.'],
+   ['2 series omitidas expresamente.',
+      '2 explicitly skipped sets.',
+      '2 séries explicitement omises.',
+      '2 séries expressamente omitidas.'],
+   ['3 de 4 series registradas','3 of 4 recorded sets','3 séries enregistrées sur 4','3 de 4 séries registadas'],
+ ];
+ for(const [original,en,fr,pt] of samples){
+   assert.equal(iberfitSurfaceTranslate(original,{language:'en'}),en);
+   assert.equal(iberfitSurfaceTranslate(original,{language:'fr'}),fr);
+   assert.equal(iberfitSurfaceTranslate(original,{language:'pt'}),pt);
+ }
+ assert.equal(iberfitSurfaceTranslate('Omitida explícitamente',{language:'en'}),'Explicitly skipped');
+ assert.equal(iberfitSurfaceTranslate('Sustitución registrada: A → B',{language:'en'}),'Recorded substitution: A → B');
+ assert.equal(iberfitSurfaceTranslate('2 series adicionales respecto del plan original.',{language:'en'}),'2 extra sets compared with the original plan.');
 });
