@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "ade3de994e2e32f086bdc163d204599fb0a0a39b",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #798 Coach cierre operativo 360: feedback fiel, RPE/RIR opcionales y continuidad. Canary Exact Deploy 37769398881 SUCCESS; 12/12 post-merge workflows GREEN; Device Experience 37769398875 SUCCESS; QA Real Write 37769398921 SUCCESS."
+}
