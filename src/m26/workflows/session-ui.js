@@ -1,4 +1,4 @@
-import { currentExerciseSubstitutionScope,executionStructureUndoState,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
+import { currentExerciseSubstitutionScope,executionStructureUndoState,currentStep,nextExecutionStep,executionResultForStep,skippedSetForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
@@ -904,50 +904,91 @@ function coachCompletionCue(execution){
   return 'La sesión está cerrada. Revisa los resultados y el feedback antes de preparar la siguiente sesión.';
 }
 // Evidence is derived from the execution's immutable plan snapshot and recorded
-// results; missing sets or values remain unknown, never assumed or estimated.
-export function renderCoachCompletionEvidence(execution,session,catalog){
+// results; missing sets or values remain unknown, never assuexport function renderCoachCompletionEvidence(execution,session,catalog){
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
   if(!queue.length)return '';
   const snapshot=execution?.planSnapshot?.sessionId===execution?.sessionId
     ?execution.planSnapshot:null;
-  const blocks=Array.isArray(snapshot?.blocks)?snapshot.blocks
-    :Array.isArray(session?.blocks)?session.blocks:[];
-  const rows=queue.map((item,index)=>{
-    if(!item?.exerciseId)return '';
-    const block=blocks.find((candidate)=>candidate?.id===item.blockId)||null;
-    const fromBlock=block?.type==='exercise'?block.name:null;
-    const fromCatalog=typeof catalog?.get==='function'?catalog.get(item.exerciseId)?.name_es:null;
-    const displayName=String(fromBlock||fromCatalog||`Ejercicio ${index+1}`).trim();
-    const safeCount=Number(item.sets);
-    const totalSets=Number.isInteger(safeCount)&&safeCount>0&&safeCount<=100?safeCount:0;
+  const historical=Array.isArray(snapshot?.queue)?snapshot.queue:[];
+  const blocks=Array.isArray(snapshot?.blocks)?snapshot.blocks:[];
+  const units=historical.filter((item)=>item?.exerciseId).map((planned)=>({planned,actualItems:[]}));
+  for(const item of queue){
+    if(!item?.exerciseId)continue;
+    const slot=units.find(({planned})=>planned?.blockId===item.blockId
+      &&(item.groupType?planned.groupOrder===item.groupOrder:!planned.groupType));
+    if(slot)slot.actualItems.push(item);
+    else units.push({planned:null,actualItems:[item]});
+  }
+  const count=(value)=>{
+    const number=Number(value);
+    return Number.isInteger(number)&&number>0&&number<=100?number:0;
+  };
+  const recorded=(result)=>Boolean(result&&typeof result==='object'&&[
+    result.reps,result.seconds,
+  ].some((value)=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))));
+  const nameFor=(exerciseId,block)=>{
+    if(block?.type==='exercise'&&block.exerciseId===exerciseId&&block.name)return String(block.name);
+    const catalogName=typeof catalog?.get==='function'?catalog.get(exerciseId)?.name_es:null;
+    return String(catalogName||'Ejercicio sin nombre en catálogo').trim();
+  };
+  const rows=units.map(({planned,actualItems},index)=>{
+    const first=actualItems[0]||planned;
+    const block=blocks.find((candidate)=>candidate?.id===(planned?.blockId||first?.blockId))||null;
+    const originalName=planned?nameFor(planned.exerciseId,block):null;
+    const recordedNames=[...new Set(actualItems.map((item)=>nameFor(item.exerciseId,block)))];
+    const changed=Boolean(planned&&actualItems.some((item)=>item.exerciseId!==planned.exerciseId));
+    const displayName=originalName||recordedNames[0]||`Ejercicio ${{index+1}`;
+    const prescription=planned?.prescription||{};
+    const plannedGoal=planned?[
+      String(prescription.reps??'').trim()||null,
+      String(prescription.plannedLoad??'').trim()?`Carga ${{String(prescription.plannedLoad).trim()}`:null,
+      explicitSessionEffort(prescription.targetRpe,{min:1,max:10})!==null?`RPE ${{prescription.targetRpe}`:null,
+      explicitSessionEffort(prescription.targetRir,{min:0,max:10})!==null?`RIR ${{prescription.targetRir}`:null,
+    ].filter(Boolean).join(' · ')||'Sin objetivo cuantitativo confirmado'
+      :snapshot?'Añadido durante la sesión; no figuraba en el plan original'
+        :'Sin snapshot histórico confirmado';
     const actual=[];
-    for(let number=1;number<=totalSets;number+=1){
-      const result=executionResultForStep(execution,{...item,setNumber:number,totalSets},number);
-      if(result)actual.push({number,result});
+    const omissions=[];
+    let totalSets=0;
+    for(const item of actualItems){
+      const sets=count(item.sets);
+      totalSets+=sets;
+      for(let number=1;number<=sets;number+=1){
+        const step={...item,setNumber:number,totalSets:sets};
+        const result=executionResultForStep(execution,step,number);
+        if(recorded(result))actual.push({number,result,exerciseId:item.exerciseId});
+        else{
+          const skipped=skippedSetForStep(execution,step,number);
+          if(skipped)omissions.push({number,reason:skipped.reason,exerciseId:item.exerciseId});
+        }
+      }
     }
-    const planned=item.prescription||{};
-    const goal=[
-      String(planned.reps??'').trim()||null,
-      String(planned.plannedLoad??'').trim()?`Carga ${String(planned.plannedLoad).trim()}`:null,
-      explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
-      explicitSessionEffort(planned.targetRir,{min:0,max:10})!==null?`RIR ${planned.targetRir}`:null,
-    ].filter(Boolean).join(' · ')||'Sin objetivo cuantitativo confirmado';
-    const actualSets=actual.map(({number,result})=>
-      `<li><span>Serie ${e(number)}</span><strong>${e(currentSetResultSummary(result))}</strong>${result.notes?`<p>${e(result.notes)}</p>`:''}</li>`
+    const setList=actual.map(({number,result,exerciseId})=>
+      `<li><span>${{e(nameFor(exerciseId,block))} · Serie ${{e(number)}</span><strong>${{e(currentSetResultSummary(result))}</strong>${{result.notes?`<p>${{e(result.notes)}</p>`:''}</li>`
     ).join('');
-    const pending=totalSets-actual.length;
-    return `<li class="m26-session-completion-evidence-item" data-completion-evidence-block="${e(item.blockId||'')}">
-      <div class="m26-session-completion-evidence-heading"><strong>${e(displayName)}</strong><span>${e(actual.length)} de ${e(totalSets)} series registradas</span></div>
-      <p><span>Previsto:</span> ${e(goal)}</p>
-      <ol>${actualSets||'<li>Sin series registradas</li>'}</ol>
-      ${pending>0?`<p>${e(pending)} serie${pending===1?'':'s'} sin registro realizado; consulta las omisiones en Ajustes.</p>`:''}
+    const omittedList=omissions.map(({number,reason,exerciseId})=>
+      `<li><span>${{e(nameFor(exerciseId,block))} · Serie ${{e(number)}</span><strong>Omitida explícitamente</strong>${{reason?`<p>${{e(reason)}</p>`:''}</li>`
+    ).join('');
+    const missing=Math.max(0,totalSets-actual.length-omissions.length);
+    const extra=planned?Math.max(0,totalSets-count(planned.sets)):0;
+    const changeNote=changed?`<p>Sustitución registrada: ${{e(originalName)} → ${{e(recordedNames.join(' / '))}</p>`:'';
+    const planCount=planned?`${{e(count(planned.sets))} series · `:'';
+    const extraNote=extra>0?`<p>${{e(extra)} serie${{extra===1?'':'s'} adicional${{extra===1?'':'es'} respecto del plan original.</p>`:'';
+    return `<li class="m26-session-completion-evidence-item" data-completion-evidence-block="${{e(first?.blockId||'')}">
+      <div class="m26-session-completion-evidence-heading"><strong>${{e(displayName)}</strong><span>${{e(actual.length)} de ${{e(totalSets)} series registradas</span></div>
+      <p><span>Previsto:</span> ${{planCount}${{e(plannedGoal)}</p>
+      ${{changeNote}
+      <ol>${{setList}${{omittedList||(!actual.length?'<li>Sin series registradas</li>':'')}</ol>
+      ${{omissions.length?`<p>${{e(omissions.length)} serie${{omissions.length===1?'':'s'} omitida${{omissions.length===1?'':'s'} expresamente.</p>`:''}
+      ${{missing?`<p>${{e(missing)} serie${{missing===1?'':'s'} sin registro; no se considera${{missing===1?'':'n'} realizada${{missing===1?'':'s'} ni omitida${{missing===1?'':'s'}.</p>`:''}
+      ${{extraNote}
     </li>`;
-  }).filter(Boolean);
+  });
   if(!rows.length)return '';
   return `<details class="m26-session-options m26-session-completion-evidence" data-coach-completion-evidence>
     <summary>Revisar planificado y registrado</summary>
     <p>Datos de esta ejecución. Las series sin registro no se tratan como realizadas y las cargas no se convierten ni se suman automáticamente.</p>
-    <ol class="m26-session-completion-evidence-list">${rows.join('')}</ol>
+    <ol class="m26-session-completion-evidence-list">${{rows.join('')}</ol>
   </details>`;
 }
 function completedSessionSummary(execution){
