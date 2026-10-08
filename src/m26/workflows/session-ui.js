@@ -1159,7 +1159,7 @@ function cardioSetEntryFields(profile,planned={},isCoach=false){
   <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${speed}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
  </div>`;
 }
-function renderLiveModalityPrescription(planned={},profile={},exercise={}){
+function renderLiveModalityPrescription(planned={},profile={},exercise={},role='client'){
   if(profile.cardio||profile.kind==='carry'){
     const objective=metricPrescriptionSummary(planned,{...exercise,measurementProfile:planned.measurementProfile});
     return `<div class="m26-field-grid">
@@ -1609,7 +1609,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${restActive?'':visual}
         <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
           <p class="m26-eyebrow">Objetivo de esta serie</p>
-          ${renderLiveModalityPrescription(planned,executionProfile,ex)}
+          ${renderLiveModalityPrescription(planned,executionProfile,ex,role)}
         </section>
         ${planned.prescriptionNotes?`<section class="m26-session-live-cues" aria-label="Indicaciones planificadas"><span>Indicaciones del Coach</span><strong>${e(planned.prescriptionNotes)}</strong></section>`:''}
         ${planned.progression?`<details class="m26-session-options m26-session-progression"><summary>Progresión prevista</summary><p>${e(planned.progression)}</p><small>Referencia de planificación; no modifica automáticamente la ejecución de hoy.</small></details>`:''}

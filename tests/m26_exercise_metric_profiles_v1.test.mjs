@@ -153,6 +153,7 @@ test('modality-accurate live prescription excludes strength fields from cardio a
  assert.equal(carryAside.includes('RIR'),false);
  assert.equal(carryAside.includes('Repeticiones/tiempo'),false);
  const strength=draftWith('IBF-SENTADILLA-TRASERA-CON-BARRA');
+ set(strength,'plannedLoad','25 kg');
  const strengthExecution=createExecution({session:strength,clientId:'client-1'});
  startExecution(strengthExecution);
  const strengthHtml=renderGuidedExecution({execution:strengthExecution,session:strength,catalog,role:'coach'});
@@ -160,4 +161,6 @@ test('modality-accurate live prescription excludes strength fields from cardio a
  assert.ok(strengthAside);
  assert.ok(strengthAside.includes('Repeticiones/tiempo'));
  assert.match(strengthAside,/RIR/u);
+ assert.match(strengthAside,/25 kg/u);
+ assert.match(strengthAside,/Puede prepararse como borrador editable/u);
 });
