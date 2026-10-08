@@ -334,3 +334,13 @@ test('v4 SQL extends revocation fencing and scoped grants to every supported imp
   assert.match(sql,/v_row->>'provider'<>v_provider/u);
   assert.doesNotMatch(sql,/\bdrop\s+(?:table|trigger|function|policy)\b/iu);
 });
+
+test('v5 expands only the authorization provider domain; keeps RC44 consent policy untouched',()=>{
+  const sql=readFileSync('supabase/migrations/20261008190500_connected360_authorization_provider_domain_v5.sql','utf8');
+  assert.match(sql,/m26_wearable_authorization_v2_provider_check/u);
+  assert.match(sql,/provider in \(/u);
+  for(const name of ['normalized_file','health_connect','samsung_health','apple_health','strava',
+    'garmin_connect','fitbit','oura'])assert.match(sql,new RegExp("'"+name+"'"));
+  assert.doesNotMatch(sql,/m26_wearable_consents_v44_policy_version_check/u);
+  assert.doesNotMatch(sql,/\bdrop\s+(?:table|function|trigger|policy)\b/iu);
+});
