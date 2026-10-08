@@ -5,6 +5,8 @@ import {createExerciseCatalog,mergeExerciseCatalogRecords} from '../src/m26/exer
 import {exerciseMeasurementProfile} from '../src/m26/exercises/measurement-profiles.js';
 import {renderLibraryExerciseCard} from '../src/m26/library/exercise-media-ui.js';
 import {createSessionDraft,addCatalogExercise,validateSessionDraft} from '../src/m26/workflows/session-builder.js';
+import {createExecution,startExecution,recordSet} from '../src/m26/workflows/session-execution.js';
+import {createReusableSessionDraft} from '../src/m26/productivity/session-reuse.js';
 
 const base=[
  {id:'IBF-CARRERA-SUAVE',name_es:'Carrera suave',pattern:'locomoción',equipment:'sin equipo',units:['repeticiones','kg','segundos'],revision:2},
@@ -80,4 +82,34 @@ test('migration protects updates with role verification, revision lock, audit an
  assert.match(sql,/revoke all on table public\.exercise_measurement_profiles/i);
  assert.match(sql,/grant execute on function public\.iberfit_admin_set_exercise_measurement_profile_v1\(text,text,bigint\) to authenticated/i);
  assert.doesNotMatch(sql,/grant (?:all|insert|update|delete) on table public\.exercise_measurement_profiles to (?:anon|authenticated)/i);
+});
+
+test('Admin-selected profile is snapshotted across planning, execution and templates even if library changes',()=>{
+ const strengthOverride=mergeExerciseCatalogRecords(base,[],{measurementProfiles:[{exercise_id:'IBF-CARRERA-SUAVE',profile:'strength',revision:4}]});
+ const draft=createSessionDraft({clientId:'client-1'});
+ addCatalogExercise(draft,'IBF-CARRERA-SUAVE',strengthOverride);
+ assert.equal(draft.blocks[0].measurementProfile,'strength');
+ assert.equal(draft.blocks[0].reps,'8–12');
+ const execution=createExecution({session:draft,clientId:'client-1'});
+ assert.equal(execution.queue[0].prescription.measurementProfile,'strength');
+ startExecution(execution);
+ recordSet(execution,draft,{reps:10,rpe:6,load:'20 kg'});
+ assert.equal(Object.values(execution.results)[0].reps,10);
+ const copied=createReusableSessionDraft(draft,{clientId:'client-2'});
+ assert.equal(copied.blocks[0].measurementProfile,'strength');
+ const revisedCatalog=mergeExerciseCatalogRecords(base,[],{measurementProfiles:[{exercise_id:'IBF-CARRERA-SUAVE',profile:'endurance',revision:5}]});
+ assert.equal(validateSessionDraft(draft,revisedCatalog).ok,true);
+ assert.equal(copied.blocks[0].reps,'8–12');
+});
+test('Isometric override on an ordinarily dynamic movement survives actual duration recording',()=>{
+ const catalog=mergeExerciseCatalogRecords(base,[],{measurementProfiles:[{exercise_id:'IBF-CARRERA-SUAVE',profile:'isometric',revision:2}]});
+ const draft=createSessionDraft({clientId:'client-1'});
+ addCatalogExercise(draft,'IBF-CARRERA-SUAVE',catalog);
+ assert.equal(draft.blocks[0].measurementProfile,'isometric');
+ assert.equal(draft.blocks[0].reps,'30 s');
+ const execution=createExecution({session:draft,clientId:'client-1'});
+ startExecution(execution);
+ recordSet(execution,draft,{seconds:30,rpe:5});
+ assert.equal(Object.values(execution.results)[0].seconds,30);
+ assert.equal(Object.values(execution.results)[0].distanceKm,undefined);
 });
