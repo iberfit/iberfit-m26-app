@@ -254,8 +254,8 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
     planned.reps||null,
     planned.plannedLoad?`carga ${planned.plannedLoad}`:null,
     planned.tempo?`ritmo ${planned.tempo}`:null,
-    Number.isFinite(Number(planned.targetRpe))?`RPE ${planned.targetRpe}`:null,
-    Number.isFinite(Number(planned.targetRir))?`RIR ${planned.targetRir}`:null,
+    explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
+    explicitSessionEffort(planned.targetRir,{min:0})!==null?`RIR ${planned.targetRir}`:null,
   ].filter(Boolean).join(' · ')||'Según indicación';
   const media=visual
     ?`<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">${visual}</div>`
@@ -567,8 +567,8 @@ function prescriptionPreviewDetails(p={}){
   const optional=[
     p.plannedLoad?`Carga ${e(p.plannedLoad)}`:'',
     p.tempo?`ritmo ${e(p.tempo)}`:'',
-    Number.isFinite(Number(p.targetRpe))?`RPE ${e(p.targetRpe)}`:'',
-    Number.isFinite(Number(p.targetRir))?`RIR ${e(p.targetRir)}`:'',
+    explicitSessionEffort(p.targetRpe,{min:1,max:10})!==null?`RPE ${e(p.targetRpe)}`:'',
+    explicitSessionEffort(p.targetRir,{min:0})!==null?`RIR ${e(p.targetRir)}`:'',
   ].filter(Boolean).join(' · ');
   const guidance=[
     p.prescriptionNotes?`<p><strong>Indicaciones:</strong> ${e(p.prescriptionNotes)}</p>`:'',
@@ -739,6 +739,14 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
   </section>`;
 }
 // RC71_1_SESSION_LIVE_UX_BEGIN
+// A missing prescription must never be presented as prescribed zero.
+export function explicitSessionEffort(value,{min=0,max=Number.POSITIVE_INFINITY}={}){
+  if(value===null||value===undefined)return null;
+  const raw=String(value).trim().replace(',','.');
+  if(!/^\d+(?:\.\d+)?$/u.test(raw))return null;
+  const parsed=Number(raw);
+  return Number.isFinite(parsed)&&parsed>=min&&parsed<=max?parsed:null;
+}
 function executionTotals(execution){
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
   const resultMap=execution?.results||{};
@@ -874,10 +882,31 @@ function renderSessionAdjustmentSummary(execution){
   const detail=items.map(([label,value])=>'<span><span>'+e(label)+'</span> <strong>'+e(value)+'</strong></span>').join('<span aria-hidden="true"> · </span>');
   return '<div class="m26-notice m26-session-adjustments" data-session-adjustments><strong>'+e('Ajustes realizados')+'</strong><span>'+detail+'</span></div>';
 }
+function completedSessionFeedback(execution){
+  const feedback=execution?.feedback||{};
+  const comment=String(feedback.comment??'').trim();
+  const painNotes=feedback.pain===true?String(feedback.painNotes??'').trim():'';
+  const painLabel=feedback.pain===true?'Molestias registradas para seguimiento'
+    :feedback.pain===false?'Sin molestias registradas':'Molestias: sin dato registrado';
+  return `<div class="m26-notice m26-session-final-feedback" data-session-final-feedback>
+    <strong>Feedback de cierre</strong>
+    <p>${e(painLabel)}</p>
+    ${comment?`<p><strong>Observación:</strong> ${e(comment)}</p>`:''}
+    ${painNotes?`<p><strong>Detalle de molestias:</strong> ${e(painNotes)}</p>`:''}
+  </div>`;
+}
+function coachCompletionCue(execution){
+  const changes=sessionAdjustmentCounts(execution);
+  if(execution?.feedback?.pain===true)
+    return 'El feedback recoge molestias. Valora esa señal antes de adaptar la próxima sesión.';
+  if([changes.substitutions,changes.skippedSets,changes.skippedExercises,changes.extraSets,changes.extraRounds,changes.addedExercises].some((n)=>n>0))
+    return 'Revisa las adaptaciones registradas y sus motivos antes de reutilizar la planificación.';
+  return 'La sesión está cerrada. Revisa los resultados y el feedback antes de preparar la siguiente sesión.';
+}
 function completedSessionSummary(execution){
   const totals=executionTotals(execution);
   const feedback=execution?.feedback||{};
-  const sessionRpe=Number(feedback.sessionRpe);
+  const sessionRpe=explicitSessionEffort(feedback.sessionRpe,{min:1,max:10});
 
   return `<div class="m26-session-completion-grid">
     <div>
@@ -895,7 +924,7 @@ function completedSessionSummary(execution){
     </div>
     <div>
       <span>RPE de sesión</span>
-      <strong>${Number.isFinite(sessionRpe)?e(sessionRpe)+'/10':'Pendiente'}</strong>
+      <strong>${sessionRpe!==null?e(sessionRpe)+'/10':'Pendiente'}</strong>
     </div>
   </div>`;
 }
@@ -904,8 +933,8 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
   const target=[
     planned?.reps||null,
     planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
-    Number.isFinite(Number(planned?.targetRpe))?`RPE ${planned.targetRpe}`:null,
-    Number.isFinite(Number(planned?.targetRir))?`RIR ${planned.targetRir}`:null,
+    explicitSessionEffort(planned?.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
+    explicitSessionEffort(planned?.targetRir,{min:0})!==null?`RIR ${planned.targetRir}`:null,
   ].filter(Boolean).join(' · ')||'Según indicación';
 
   const previous=previousSet
@@ -1072,15 +1101,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   if(execution.status==='completed'){
     const confirmed=execution.syncStatus==='clean';
-    const feedback=execution.feedback||{};
-    const sessionRpe=Number(feedback.sessionRpe);
-    const feedbackSummary=Number.isFinite(sessionRpe)
-      ?`<p><strong>RPE de sesión ${e(sessionRpe)}/10</strong> · ${feedback.pain?'Molestia registrada para seguimiento.':'Sin dolor o molestia registrada.'}</p>`
-      :'';
+    const feedbackSummary=completedSessionFeedback(execution);
     const progressActionLabel=isCoach?'Revisar seguimiento':'Ver mi progreso';
     const progressActionArea=isCoach?'expediente':'progreso';
     const continuityCopy=isCoach
-      ?'La sesión está cerrada. Revisa si alguna señal requiere una decisión y deja preparada la siguiente sesión desde el expediente.'
+      ?coachCompletionCue(execution)
       :'Tu seguimiento ya puede continuar desde Progreso.';
     const completedProgressAction=isCoach
       ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente" data-m26-target-focus="action-outcome">${e(progressActionLabel)}</button>`

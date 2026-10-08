@@ -4,10 +4,17 @@ Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PR
 
 ## MACRO-WIP ACTIVO · Coach Operativo 360 — Experiencia funcional integral
 
+- LIVE y Canary certificados: `56c485fcfa5c3f331161748111df94f4a74d4cc1`, PR #797. Canary Exact Deploy `37727148903`, 12/12 workflows post-merge y Production Promotion `37728220397`: SUCCESS.
+- Deployment productivo exacto `0e540a4e-b16a-4980-b17c-b6a862f5d878`; rollback previsto `9bac834a-f0b2-4796-9237-1fa2a62c4c68`.
+- Coach: PR #795 continuidad de borradores/ejecución, #796 contexto exacto de cita y #797 copia segura de sesión preparada: todo publicado.
+- Próximo tramo aislado, aún sin publicar: `feat/coach-close-feedback-truth-360-20261008`. Fidelidad RPE/RIR prescrito, comentario y molestias de feedback al cierre, evidencia de adaptaciones y revisión profesional contextual. Preservar la confirmación de sincronización y no automatizar decisiones.
+- Cierre requerido: pruebas unitarias, navegador multidispositivo, revisión de regresiones, integración protegida, Canary exacto y promoción certificada a LIVE.
+
+
 - Source **PROD y Canary** `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`, PR #796 fusionado y certificado. Canary Exact Deploy `37724506133` SUCCESS, Device Gate intento 2 `37724506170` SUCCESS, promoción PROD `37726210527` SUCCESS (deployment `9bac834a-f0b2-4796-9237-1fa2a62c4c68`; rollback `8e1c0c01-4a6f-4cf4-9947-23f5520721aa`).
 - Recorrido: ficha → planificación → preparación → ejecución → cierre → seguimiento → siguiente sesión, consolidando módulos existentes.
 - Tramo certificado en LIVE: sesión exacta de cita/última ejecución, contexto de agenda en curso, estados canónicos y feedback por fecha efectiva de cierre. 13/13 workflows post-merge GREEN; rollback reservado, no ejecutado.
-- Siguiente tramo en PR #797: desde preparación, adaptar **copia independiente de la sesión contextual exacta** por el mecanismo de reutilización existente; nunca copiar otra sesión por revisión ni permitir iniciar una sesión no publicada/oculta. Nuevas pruebas de independencia del borrador y touch/teclado. Primera ejecución 3 regresiones heredadas incompatibles con el nuevo contrato; corregidas sin relajar controles. Head `34419bb8a3229bffca87e89a9278031e9a0ee906` con 16 checks completados (15 PASS, 1 SKIP esperado). Pendiente de fusión y certificación post-merge en este checkpoint.
+- PR #797 terminó certificado en LIVE: sesión contextual copiada de manera independiente; publicación y visibilidad verificadas antes de iniciar, con pruebas touch/teclado y suites completas.
 - Después consolidar ergonomía de planificación, sesión real, cierre y continuidad; el macro-WIP no queda terminado por publicar estos dos tramos.
 - Referencia de interacción: `DESIGN.md` y componentes actuales; preservar tokens, jerarquía y controles nativos. Guía Refero de formularios/focus/touch: acción explícita, contexto estable, sin nuevo panel ni métricas duplicadas.
 - Sin cambios en Supabase, roles, RLS, Command Bus ni Media Factory.

@@ -5,6 +5,16 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // COACH_CLOSE360: truthful session feedback and next professional review across languages.
+  ['Molestias registradas para seguimiento','Discomfort recorded for follow-up','Gêne signalée pour le suivi','Desconforto registado para acompanhamento'],
+  ['Sin molestias registradas','No discomfort reported','Aucune gêne signalée','Sem desconforto comunicado'],
+  ['Molestias: sin dato registrado','Discomfort: no response recorded','Gêne : aucune réponse enregistrée','Desconforto: sem resposta registada'],
+  ['Feedback de cierre','Session-end feedback','Retour de fin de séance','Feedback de encerramento'],
+  ['Observación:','Observation:','Observation :','Observação:'],
+  ['Detalle de molestias:','Discomfort details:','Détails de la gêne :','Detalhes do desconforto:'],
+  ['El feedback recoge molestias. Valora esa señal antes de adaptar la próxima sesión.','Discomfort was reported. Review it before adapting the next session.','Une gêne a été signalée. Examinez-la avant d’adapter la prochaine séance.','Foi comunicado desconforto. Avalie-o antes de adaptar a próxima sessão.'],
+  ['Revisa las adaptaciones registradas y sus motivos antes de reutilizar la planificación.','Review recorded adjustments and their reasons before reusing the plan.','Examinez les adaptations enregistrées et leurs motifs avant de réutiliser le programme.','Reveja as adaptações registadas e os motivos antes de reutilizar o plano.'],
+  ['La sesión está cerrada. Revisa los resultados y el feedback antes de preparar la siguiente sesión.','The session is closed. Review results and feedback before preparing the next session.','La séance est terminée. Examinez les résultats et les retours avant de préparer la prochaine séance.','A sessão está concluída. Reveja os resultados e o feedback antes de preparar a próxima sessão.'],
   // SESSION_OPERATIVA360: structural Coach actions during live grouped training.
   ['Añadir una ronda al bloque','Add one round to the block','Ajouter un tour au bloc','Adicionar uma ronda ao bloco'],
   ['Deshacer serie añadida','Undo added set','Annuler la série ajoutée','Desfazer série adicionada'],

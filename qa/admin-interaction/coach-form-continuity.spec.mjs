@@ -484,3 +484,50 @@ test('Coach adapts an exact published session copy from preparation using touch 
   await expect(page.locator('#session-copy-qa')).toHaveAttribute('data-copy-client','context-copy-client-qa');
   expect(errors).toEqual([]);
 });
+
+
+test('Coach closure preserves exact recorded pain feedback without false effort values on mobile/tablet/desktop',async({page})=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+  await page.evaluate(async()=>{
+    const {renderGuidedExecution}=await import('/src/m26/workflows/session-ui.js');
+    const root=document.createElement('section');root.id='coach-closure-qa';
+    root.className='m26-shell';document.body.append(root);
+    root.innerHTML=renderGuidedExecution({
+      role:'coach',
+      execution:{id:'qa-close',clientId:'qa-client-closure',sessionId:'qa-session',
+        status:'completed',syncStatus:'clean',queue:[],results:{},events:[],
+        feedback:{sessionRpe:null,comment:'Molestia <script>no-ejecutar</script>',pain:true,painNotes:'Rodilla & tobillo'}},
+      session:{id:'qa-session',clientId:'qa-client-closure',title:'Sesión sintética'},
+    });
+  });
+  const root=page.locator('#coach-closure-qa');
+  await expect(root.locator('[data-session-final-feedback]')).toContainText('Rodilla & tobillo');
+  await expect(root.locator('[data-session-final-feedback]')).toContainText('Molestias registradas para seguimiento');
+  await expect(root.locator('[data-session-final-feedback]')).toContainText('Molestia <script>no-ejecutar</script>');
+  await expect(root.locator('script')).toHaveCount(0);
+  await expect(root.getByRole('button',{name:'Revisar seguimiento'})).toBeVisible();
+  await expect(root).not.toContainText('RPE de sesión 0/10');
+  expect(errors).toEqual([]);
+});
+
+test('pending Coach closure never exposes the confirmed follow-up action',async({page})=>{
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+  await page.evaluate(async()=>{
+    const {renderGuidedExecution}=await import('/src/m26/workflows/session-ui.js');
+    const root=document.createElement('section');root.id='coach-close-pending-qa';
+    root.className='m26-shell';document.body.append(root);
+    root.innerHTML=renderGuidedExecution({
+      role:'coach',execution:{id:'qa-pending',clientId:'qa-client-closure',sessionId:'qa-session',
+        status:'completed',syncStatus:'pending',queue:[],results:{},events:[],
+        feedback:{sessionRpe:7,comment:'Datos sin sincronizar',pain:false}},
+      session:{id:'qa-session',clientId:'qa-client-closure',title:'Sesión sintética'},
+    });
+  });
+  const root=page.locator('#coach-close-pending-qa');
+  await expect(root).toContainText('pendientes de sincronización');
+  await expect(root.locator('[data-m26-target-focus="action-outcome"]')).toHaveCount(0);
+  await expect(root.locator('[data-session-final-feedback]')).toContainText('Datos sin sincronizar');
+});
