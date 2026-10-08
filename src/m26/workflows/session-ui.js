@@ -1097,13 +1097,14 @@ function cardioSetEntryFields(profile,planned={},isCoach=false){
  const interval=profile.kind==='intervals'?field('intervalsCompleted','Intervalos completados',{max:1000,step:1,placeholder:planned.intervalRepetitions||''}):'';
  const hr=field('avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1});
  const pace=profile.sport==='running'?field('paceMinPerKm','Ritmo medio (min/km) · opcional',{type:'text',inputmode:'text',step:'',placeholder:'06:00'}):'';
+ const speed=profile.sport==='cycling'?field('avgSpeedKmh','Velocidad media (km/h) · opcional',{max:140,step:0.1}):'';
  const cadence=profile.sport==='cycling'?field('cadenceRpm','Cadencia media (rpm) · opcional',{max:250,step:1}):'';
  const power=profile.sport==='cycling'?field('powerWatts','Potencia media (W) · opcional',{max:2500,step:1}):'';
  const elevation=field('elevationGainM','Desnivel positivo (m) · opcional',{max:15000,step:1});
  const rpe=field('rpe','RPE real · obligatorio',{min:1,max:10,step:0.5,placeholder:planned.targetRpe||7});
  return `<div class="${isCoach?'m26-session-coach-set-fields':'m26-field-grid m26-session-set-fields'}" data-session-cardio-entry data-session-metric-kind="${e(profile.kind)}">
   <div class="m26-field-grid m26-session-cardio-core">${duration}${distance}${interval}${rpe}</div>
-  <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
+  <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${speed}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
  </div>`;
 }
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
