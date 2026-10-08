@@ -62,14 +62,16 @@ create or replace function public.iberfit_admin_set_exercise_measurement_profile
 as $fn$
 declare
   v_actor uuid := (select auth.uid());
-  v_role text := (select public.iberfit_role()::text);
+  v_context jsonb := (select public.iberfit_application_context_v14());
   v_exercise text;
   v_prior text;
   v_rev bigint := 0;
   v_next bigint;
   v_value text := nullif(trim(coalesce(p_profile,'')),'');
 begin
-  if v_actor is null or v_role is distinct from 'admin' then
+  if v_actor is null or v_context->>'ok' is distinct from 'true' or
+     v_context->>'membershipStatus' is distinct from 'active' or
+     not (coalesce(v_context->'roles','[]'::jsonb) ? 'admin') then
     raise exception using message='IBERFIT_EXERCISE_PROFILE_ADMIN_REQUIRED',errcode='42501';
   end if;
   if p_exercise_id is null or p_exercise_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$'
