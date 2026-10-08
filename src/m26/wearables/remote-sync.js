@@ -127,9 +127,9 @@ export function createWearableRemoteSync({
     if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
     const grant=authorizationGrant||explicitGrants.get(safeSource)||null;
     if(grant&&!GRANT_ID.test(String(grant)))throw new Error('M26_CONNECTED360_GRANT_INVALID');
-    // Never persist new file records without an explicitly obtained server grant.
-    if(safeSource==='normalized_file'&&!grant)
-      throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
+    // Every provider represented by an imported file needs a current v2 grant.
+    // Native auto-sync will use the same contract once physically certified.
+    if(!grant)throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
     const normalized=deduplicateWearableDailyRecords(records)
       .filter((record)=>
         record.clientId===safeClientId&&
@@ -230,9 +230,9 @@ export function createWearableRemoteSync({
       const groupClientId=groupEntries[0][1].clientId;
       const groupProvider=groupEntries[0][1].provider;
 
-      // All legacy v44 file entries lack a verifiable consent generation.
-      // Even a zero revocation cursor is NOT evidence of consent.
-      if(groupProvider==='normalized_file'&&!groupEntries[0][1].authorizationGrant){
+      // All legacy v44 entries lack a verifiable consent generation.
+      // An earlier zero revocation cursor never constitutes authorization.
+      if(!groupEntries[0][1].authorizationGrant){
         if(typeof transport.wearableAuthorizationStatus==='function'){
           const status=await transport.wearableAuthorizationStatus(token,groupProvider);
           if(!status?.authorized)blockedProviders.add(groupProvider);

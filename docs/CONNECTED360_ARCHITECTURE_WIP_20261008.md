@@ -114,3 +114,9 @@ Fuentes primarias consultadas:
 ## Corte de lotes en vuelo · logout y revocación
 
 `remote-sync.js` revisa el estado de eliminación, cierre de cuenta y revocación **antes de cada lote y entre proveedores**. Si uno de estos eventos se solicita mientras ya hay una petición HTTP enviada, se permite finalizar únicamente ese lote, pero se cancelan los siguientes; el servidor mantiene la barrera transaccional. `clearOwner` elimina la cola del propietario al salir y evita que `refreshState` de esa sesión antigua refresque una cuenta nueva. Las dos carreras están protegidas con pruebas que utilizan 201 registros (dos lotes) y una petición artificialmente retenida.
+
+## Protección completa de todos los archivos importables · v4
+
+Auditoría de compatibilidad: los archivos de Strava, Apple Health, Health Connect, Fitbit, Oura, Garmin y Samsung Health aún podían utilizar el viejo RPC RC44 al importar, pues el fencing v3 se limitaba a `normalized_file`. El macro-WIP v4 extiende la **misma autorización versionada por proveedor** a los ocho orígenes, desde la primera importación. No requiere OAuth para importar archivos; solo el consentimiento explícito dentro de IBERFIT. El transporte prohíbe nuevas colas sin generación y descarta todas las colas históricas sin UUID, incluso si no existió revocación. La RPC de importación v2 valida la generación, proveedor, cliente, permisos y revocación bajo el mismo advisory lock. **Los puentes nativos siguen no certificados ni activados en producción.**
+
+Migración adicional `20261008185500_connected360_all_provider_consent_v4.sql` pendiente de certificación en QA, con pruebas de regresión para los ocho orígenes.

@@ -95,8 +95,8 @@ test('Postgres reauthorization is CAS, generation-specific, client-scoped and fi
 test('Activity source actions require Client confirmation and imported file scope consent',()=>{
   const c=readFileSync('src/m26/wearables/controller.js','utf8');
   const route=readFileSync('src/m26/modules/route-render.js','utf8');
-  assert.match(c,/remoteSync\.reauthorize\(\{provider:'normalized_file',scopes\}\)/u);
-  assert.match(c,/currentPreview\.provider==='normalized_file'/u);
+  assert.match(c,/remoteSync\.reauthorize\(\{provider:currentPreview.provider,scopes\}\)/u);
+  assert.doesNotMatch(c,/currentPreview\.provider==='normalized_file'/u);
   assert.match(c,/if\(!isOnline\(\)\)throw new Error\('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED'\)/u);
   assert.match(c,/authorizationGrant:grant/u);
   assert.match(c,/action==='revoke-source'\|\|action==='remove-source-data'/u);
@@ -278,4 +278,59 @@ test('Revoke during authorized multi-batch upload cancels subsequent batches bef
   assert.equal(calls,1,'no later batch may race after a revoke was requested');
   assert.equal(revocations,1);
   assert.equal(await remote.pendingCount(),0);
+});
+
+test('Every manual-file provider refuses unconsented stage and discards its ungranted legacy queue',async()=>{
+  const providers=['normalized_file','health_connect','samsung_health','apple_health',
+    'strava','garmin_connect','fitbit','oura'];
+  for(const provider of providers){
+    let uploaded=0;
+    const record={...RECORD,provider};
+    const store=createMemoryKeyValueStore();
+    const remote=createWearableRemoteSync({ownerId:'c360-source-'+provider,queueStore:store,
+      transport:{
+        async wearableAuthorizationStatus(){return {authorized:false,grantId:null,revocationCursor:0};},
+        async importWearableSummaries(){uploaded++;return {accepted:1};},
+      },getToken:async()=>'qa-token',isOnline:()=>true});
+    await assert.rejects(remote.stage({clientId:RECORD.clientId,provider,records:[record]}),
+      /M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED/u,provider);
+    assert.equal(await remote.pendingCount(),0,provider);
+    await store.set('m26:wearable-sync:v44:owner/c360-source-'+provider+'/'+RECORD.clientId+':'+provider+':'+RECORD.date,
+      {ownerId:'c360-source-'+provider,clientId:RECORD.clientId,provider,
+        record,authorizationGrant:null,attempts:0});
+    const result=await remote.flush();
+    assert.equal(result.discarded,1,provider);
+    assert.equal(uploaded,0,provider);
+    assert.equal(await remote.pendingCount(),0,provider);
+  }
+});
+
+test('Strava CSV data can import after a separate explicit Strava generation, never legacy RC44',async()=>{
+  let imports=0;
+  const record={...RECORD,provider:'strava'};
+  const remote=createWearableRemoteSync({ownerId:'c360-strava-file',queueStore:createMemoryKeyValueStore(),
+    transport:{
+      async wearableAuthorizationStatus(){return {authorized:false,revocationCursor:0,grantId:null};},
+      async reauthorizeWearable(){return {grantId:UUIDS[0],provider:'strava',scopes:['steps','activeMinutes']};},
+      async importWearableAuthorized(_token,grant,payload){
+        assert.equal(grant,UUIDS[0]);
+        assert.equal(payload.records[0].provider,'strava');
+        imports++;return {accepted:payload.records.length,rejected:0,stale:0};
+      },
+      async importWearableSummaries(){throw Error('legacy import forbidden');},
+    },getToken:async()=>'qa-token',isOnline:()=>true});
+  await remote.reauthorize({provider:'strava',scopes:['steps','activeMinutes']});
+  await remote.stage({clientId:RECORD.clientId,provider:'strava',records:[record]});
+  assert.equal(imports,1);
+  assert.equal(await remote.pendingCount(),0);
+});
+
+test('v4 SQL extends revocation fencing and scoped grants to every supported import provider',()=>{
+  const sql=readFileSync('supabase/migrations/20261008185500_connected360_all_provider_consent_v4.sql','utf8');
+  assert.match(sql,/if v_source is not null then/u);
+  assert.match(sql,/v_provider not in \('normalized_file','health_connect'/u);
+  assert.match(sql,/a\.provider=v_provider and a\.grant_id=p_grant_id/u);
+  assert.match(sql,/e\.provider in\(v_provider,'\*'\)/u);
+  assert.match(sql,/v_row->>'provider'<>v_provider/u);
+  assert.doesNotMatch(sql,/\bdrop\s+(?:table|trigger|function|policy)\b/iu);
 });

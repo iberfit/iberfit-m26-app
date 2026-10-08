@@ -556,19 +556,17 @@ export function createWearableController({
       'pending',
     );
 
-    let grant=null;
-    if(currentPreview.provider==='normalized_file'){
-      if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
-      const fields=['steps','activeMinutes','sleepMinutes','restingHeartRate',
-        'hrvMs','activeEnergyKcal','workoutMinutes'];
-      const scopes=fields.filter((field)=>
-        currentPreview.records.some((record)=>Number.isFinite(record?.metrics?.[field]))
-      );
-      if(!scopes.length)throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
-      // Explicit preview confirmation is the only UI path issuing new grants.
-      const consent=await remoteSync.reauthorize({provider:'normalized_file',scopes});
-      grant=consent.grantId;
-    }
+    // Imported files from every declared provider use the same consent gate.
+    // No silent grant issuance during native/background synchronization.
+    if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
+    const fields=['steps','activeMinutes','sleepMinutes','restingHeartRate',
+      'hrvMs','activeEnergyKcal','workoutMinutes'];
+    const scopes=fields.filter((field)=>
+      currentPreview.records.some((record)=>Number.isFinite(record?.metrics?.[field]))
+    );
+    if(!scopes.length)throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
+    const consent=await remoteSync.reauthorize({provider:currentPreview.provider,scopes});
+    const grant=consent.grantId;
     const result=await remoteSync.stage({
       clientId,
       provider:currentPreview.provider,
