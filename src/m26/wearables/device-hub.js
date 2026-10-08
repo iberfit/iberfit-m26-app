@@ -42,7 +42,8 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
   const connections=Array.isArray(wearable?.connections)?wearable.connections:[];
   const active=connections.filter(item=>['conectado','connected'].includes(String(item?.status||item?.state||'')));
   // An imported file or an unverified legacy row must never be marketed as an automatically synced wearable.
-  const automatic=active.filter(item=>item.mode!=='confirmed_import'&&item.policy?.productionAllowed===true
+  const automatic=active.filter(item=>['certified_native','certified_oauth'].includes(item.mode)
+    &&item.policy?.productionAllowed===true
     &&providers.some(p=>p.key===item.provider&&p.usableNow===true));
   const importCount=active.length-automatic.length;
   const status=automatic.length
