@@ -222,7 +222,7 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
     ${cardio&&sport==='cycling'?field('plannedCadenceRpm','Cadencia objetivo (rpm)',p.plannedCadenceRpm||'','number',{min:0,max:250}):''}
     ${cardio&&sport==='cycling'?field('plannedPowerWatts','Potencia objetivo (W)',p.plannedPowerWatts||'','number',{min:0,max:2500}):''}
     ${cardio?field('plannedElevationM','Desnivel positivo (m)',p.plannedElevationM||'','number',{min:0,max:15000}):''}
-    ${!cardio&&profile.kind!=='isometric'?field('tempo','Ritmo de ejecución',p.tempo||'controlado','text',{maxLength:40}):''}
+    ${!cardio&&profile.kind!=='isometric'?field('tempo','Ritmo de ejecución',p.tempo||'controlado','text',{maxLength:80}):''}
     ${field('targetRpe','RPE objetivo',p.targetRpe??7,'number',{min:1,max:10,step:0.5})}
     ${!cardio?field('targetRir','RIR objetivo',p.targetRir??3,'number',{min:0,max:10,step:0.5}):''}
     ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}`;
