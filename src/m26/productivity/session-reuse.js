@@ -15,13 +15,14 @@ function recordBody(record={}){return record?.body&&typeof record.body==='object
 function normalizeName(value){return text(value,60).normalize('NFD').replace(/[\u0300-\u036f]/gu,'').toLowerCase().replace(/\s+/gu,' ');}
 
 function safePrescription(input={},exercise={}){
-  const profile=exerciseMeasurementProfile(exercise);
+  const profile=exerciseMeasurementProfile({...exercise,measurementProfile:input.measurementProfile});
   const hasReps=Object.prototype.hasOwnProperty.call(input,'reps');
   const supportsNonRepWork=['endurance','intervals','carry'].includes(profile.kind);
   // Do not silently invent strength repetitions for running/cycling or intervals.
   const reps=hasReps&&String(input.reps??'').trim()===''&&supportsNonRepWork
     ?'':text(input.reps||'8–12',40)||'8–12';
   return {
+    measurementProfile:profile.kind,
     ...Object.fromEntries(EXERCISE_METRIC_KEYS.map((key)=>[
       key,text(input[key],24),
     ])),
