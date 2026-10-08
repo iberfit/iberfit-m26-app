@@ -960,7 +960,7 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
     return Number.isInteger(number)&&number>0&&number<=100?number:0;
   };
   const recorded=(result)=>Boolean(result&&typeof result==='object'&&[
-    result.reps,result.seconds,result.distanceKm,result.intervalsCompleted,
+    result.reps,result.seconds,result.distanceKm,result.distanceM,result.intervalsCompleted,
   ].some((value)=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))));
   const nameFor=(exerciseId,block)=>{
     if(block?.type==='exercise'&&block.exerciseId===exerciseId&&block.name)return String(block.name);
