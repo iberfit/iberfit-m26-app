@@ -4,7 +4,16 @@
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 
-## Checkpoint vigente · Coach Operativo 360 · Comparación de cierre en producción · 2026-10-08
+## Checkpoint vigente · Ejercicios IBERFIT · Imágenes aprobadas en LIVE · 2026-10-08
+
+- **Canary y LIVE:** `0b4be83436d855ee97bb3fa53c8c55cd81f4677b`, PR #802 fusionado, lote de seis imágenes de ejercicios aprobado por revisión humana. 8/8 workflows post-merge SUCCESS, incluidos media publish approved y Canary Exact Deploy.
+- **Production Promotion:** run `37781045154` SUCCESS, 31/31 pasos, rama `release/prod-0b4be83436d8`, manifest commit `8fd1fb058f26bbacc11fe8563768b3da37587269`.
+- **Deployment PROD exacto:** `a50744f1-e00b-4a76-a10b-afcf5f281d5f` (`https://a50744f1.iberfit-m26-production.pages.dev`). Rollback reservado `ad22dc90-9d53-40dc-bf1a-6b5c5d5e0db4`, source anterior `fae9f119466ff94b2eabc8fb63a6fcff3e98c8cb` (PR #800).
+- PR #800 de planificación y selección de ciclos está integrado y LIVE desde Production Promotion `37778982987` SUCCESS (31/31).
+- **Pendiente de certificar y publicar:** PR #801, prescripción y registro por modalidad (carrera, bicicleta, intervalos, planchas y carries), incluyendo la continuidad de plantillas, corrección de resultados y repetir trabajo con RPE real. No atribuir a producción hasta que pase sus propios gates y el release exacto.
+- `app.iberfit.cl` ha sido verificado por el workflow de promoción mediante identidad SHA, runtime PROD, Chromium interactivo y auditoría read-only. Sin mutaciones de esquema/RLS en este release.
+
+## Checkpoint histórico · Coach Operativo 360 · Comparación de cierre en producción · 2026-10-08
 
 - **Canary y LIVE:** source funcional `f25201d5847b2aa66e9d6ae04736b73f4f400764`, merge PR #799. Sus 13/13 workflows post-merge terminaron SUCCESS (Canary Exact Deploy `37773112217`, Device Experience, QA Real Write, Auth Coach/Admin, CI, gates remotos).
 - **Promoción PROD:** run `37774677595` SUCCESS con 31/31 pasos. Release `release/prod-f25201d5847b`, manifest `5895bec90dc48903cd38052a7fa468ad851a0ccf`.
