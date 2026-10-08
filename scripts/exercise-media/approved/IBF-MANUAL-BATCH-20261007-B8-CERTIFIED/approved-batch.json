@@ -4,7 +4,7 @@
   "items": [
     {
       "exercise_id": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA",
-      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/adduccion.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/movement-4b331441c8f7.webp",
       "human_approved": true,
       "publishable": true,
       "approval": {
@@ -23,7 +23,7 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA/adduccion.webp",
+          "path": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA/movement-4b331441c8f7.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
@@ -49,7 +49,7 @@
     },
     {
       "exercise_id": "IBF-APERTURAS-CON-MANCUERNAS",
-      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/aperturas_mancuernas.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/movement-2b4d0b396629.webp",
       "human_approved": true,
       "publishable": true,
       "approval": {
@@ -68,7 +68,7 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-APERTURAS-CON-MANCUERNAS/aperturas_mancuernas.webp",
+          "path": "IBF-APERTURAS-CON-MANCUERNAS/movement-2b4d0b396629.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
@@ -94,7 +94,7 @@
     },
     {
       "exercise_id": "IBF-APERTURAS-EN-POLEA",
-      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/aperturas_polea.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/movement-0d4b2fb94b98.webp",
       "human_approved": true,
       "publishable": true,
       "approval": {
@@ -113,7 +113,7 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-APERTURAS-EN-POLEA/aperturas_polea.webp",
+          "path": "IBF-APERTURAS-EN-POLEA/movement-0d4b2fb94b98.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
