@@ -16,6 +16,12 @@ La PWA de app.iberfit.cl no puede acceder directamente a Health Connect. Este pr
 - La lectura local NO requiere `clientId` de demostración, nunca envía registros y no declara vinculada la cuenta IBERFIT. Los permisos Health Connect por sí solos no son consentimiento para subir datos al servidor.
 - CI adicional intenta compilar la `phone-app` existente. La app aún no está distribuida ni conectada al backend. La política de privacidad de la app de distribución debe coincidir con el texto aprobado de Google Play antes de comercializar.
 
+### Canal web restringido de QA (todavía sin datos)
+- `Connected360SecureWebViewActivity` abre **solo Canary**, exige HTTPS y origen exacto `m26-canary.iberfit.cl`, bloquea navegación de marco principal fuera del dominio y cancela fallos TLS. Solo reconoce mensajes de marco principal del origen esperado mediante `WebViewCompat.addWebMessageListener`.
+- La respuesta del canal `IBERFIT_CONNECTED360_QA` siempre declara `available=false`, `connected=false`. No expone el contrato `IBERFIT_HEALTH_BRIDGE` ni transmite pasos, sueño, FC, tokens, identidades o identificadores de consentimiento. Tampoco solicita permisos a Health Connect.
+- El permiso Android `INTERNET` sirve para cargar la página Canary en esta vista de QA, **no para transferir datos de Health Connect**. Se mantienen prohibidas las interfaces JavaScript genéricas.
+- Pruebas Kotlin verifican bloqueo de HTTP, subframes, dominios semejantes, userinfo y puertos inesperados. La firma, políticas OAuth/Hosted Auth, vinculaciones autenticadas y QA E2E siguen sin resolver.
+
 ## Bloqueadores antes de distribuir una app real
 1. App Android firmada; pantalla oficial Health Connect de autorización con selección granular y política de privacidad; Android 9+, Samsung y Pixel probados.
 2. Sesión autenticada IBERFIT Cliente; puente WebView exclusivo para https://app.iberfit.cl usando WebViewCompat.addWebMessageListener, validando sourceOrigin e isMainFrame, sin addJavascriptInterface genérico.
