@@ -1,5 +1,17 @@
 # IBERFIT · Backlog Vivo
 
+## MACRO-WIP ACTIVO · Prescripción inteligente y métricas por ejercicio · PR #803
+
+- [x] Motor de siete perfiles `strength/isometric/endurance/intervals/carry/mobility/power`, UX contextual para Coach/Cliente y selector Admin implementados en PR #803.
+- [x] Planificación, registro de resultados, correcciones, circuitos, copia de sesiones y plantillas tienen cobertura automatizada específica; no inferir con ello que la interacción productiva ya está certificada.
+- [x] Backend PROD y QA ya cuentan con las tablas y RPC versionadas (PROD: 26 perfiles; QA: 25 por diferencia de catálogo). RLS activo, grants mínimos y paridad de función verificados. No ejecutar migraciones dos veces.
+- [ ] Reconciliar los commits concurrentes de Canary, mantener los lotes de imágenes aprobadas, cerrar `Session QA isolated/browser-live-workout` y ejecutar controles sobre el SHA final.
+- [ ] Completar documentación de trazabilidad, pasar PR #803 a ready y fusionar respetando ruleset.
+- [ ] Certificar Canary exacto y smoke autenticado Coach/Cliente/Admin en móvil, tablet y desktop.
+- [ ] Promover a LIVE mediante workflow autorizado y confirmar SHA, deployment, login y caso real Carrera suave, sin confundir backend desplegado con interfaz LIVE.
+- [ ] Siguiente macro-WIP: catálogo de carrera y ciclismo por modalidades, con deduplicación, variantes y gestión Admin.
+
+
 Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PRODUCTION_STATE.md`.
 
 ## MACRO-WIP ACTIVO · Coach Operativo 360 — Planificación fiable hasta LIVE
