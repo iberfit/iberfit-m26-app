@@ -1090,6 +1090,17 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
   </section>`;
 }
 
+function carrySetEntryFields(planned={},isCoach=false){
+  return `<div class="${isCoach?'m26-session-coach-set-fields':'m26-field-grid m26-session-set-fields'}" data-session-carry-entry>
+    <div class="m26-field-grid">
+      <label>Distancia realizada (m)<input type="number" min="0" max="100000" step="1" inputmode="decimal" data-set-field="distanceM" placeholder="${e(planned.plannedDistanceM||'')}"></label>
+      <label>Tiempo realizado (s)<input type="number" min="0" max="86400" step="1" inputmode="decimal" data-set-field="seconds"></label>
+      <label>Carga transportada<input type="text" maxlength="80" data-set-field="load" placeholder="${e(planned.plannedLoad||'')}"></label>
+      <label>RPE real<input type="number" min="1" max="10" step="0.5" inputmode="decimal" data-set-field="rpe" required></label>
+    </div>
+    <small>Registra distancia, tiempo o ambos; la carga sigue siendo opcional si corresponde.</small>
+  </div>`;
+}
 function cardioSetEntryFields(profile,planned={},isCoach=false){
  const field=(name,label,{max='',min=0,step='any',type='number',inputmode='decimal',placeholder=''}={})=>`<label data-session-field-priority="primary">${e(label)}<input type="${e(type)}"${max!==''?` max="${e(max)}"`:''} min="${e(min)}" step="${e(step)}" inputmode="${e(inputmode)}" enterkeyhint="next" data-set-field="${e(name)}"${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;
  const duration=field('durationMinutes','Tiempo realizado (min)',{max:1440,step:0.1,placeholder:planned.plannedDurationMinutes||''});
@@ -1290,6 +1301,7 @@ const coachQuickRpe=isCoach
   :'';
 const setEntryFields=exerciseMeasurementProfile(ex).cardio
   ?cardioSetEntryFields(exerciseMeasurementProfile(ex),planned,isCoach)
+  :exerciseMeasurementProfile(ex).kind==='carry'?carrySetEntryFields(planned,isCoach)
   :isCoach
   ?`<div class="m26-session-coach-set-fields" data-session-coach-set-fields>
       <div class="m26-session-coach-work-fields" data-session-entry-group="work">
