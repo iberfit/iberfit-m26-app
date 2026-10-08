@@ -338,6 +338,15 @@ function setFormBusy(form,busy){
 }
 
 function friendlyError(code){
+  if(/CONNECTED360_(?:SCOPE_EXPANSION_REQUIRES_REVOKE|IMPORT_SCOPE_FORBIDDEN)/u.test(code)){
+    return 'Este archivo solicita nuevas métricas. Desconecta la fuente y vuelve a autorizarla con los permisos actualizados.';
+  }
+  if(/CONNECTED360_(?:CONSENT_VERSION_CONFLICT|GRANT_REVOKED|GRANT_STALE|CONSENT_REVOKED)/u.test(code)){
+    return 'La autorización ha cambiado o se revocó desde otro dispositivo. Revisa la fuente y confirma de nuevo solo si quieres volver a compartirla.';
+  }
+  if(/CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED/u.test(code)){
+    return 'Para conceder permisos nuevos necesitas conexión. El archivo sigue bajo tu control.';
+  }
   if(/SUPERSEDED|ABORTED/.test(code)){
     return 'La revisión anterior se canceló sin guardar datos.';
   }
