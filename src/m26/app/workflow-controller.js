@@ -282,7 +282,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 }
 
 export function createWorkflowController({
-  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,refreshCatalog=async()=>catalog,
+  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
   getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
@@ -443,6 +443,53 @@ export function createWorkflowController({
         button.disabled=wasDisabled;
         button.removeAttribute?.('aria-busy');
       }
+    }
+  }
+  async function updateLibraryMeasurementProfile(form){
+    const {role}=context();
+    if(role!=='admin')throw new Error('M26_EXERCISE_PROFILE_ADMIN_REQUIRED');
+    if(!isOnline())throw new Error('M26_EXERCISE_PROFILE_OFFLINE');
+    if(typeof updateExerciseMeasurementProfile!=='function')throw new Error('M26_EXERCISE_PROFILE_UNAVAILABLE');
+    const exerciseId=String(form?.dataset?.exerciseId||'').trim();
+    const profile=String(form?.elements?.namedItem?.('measurementProfile')?.value??'').trim();
+    const expectedRevision=Number(form?.dataset?.expectedRevision??0);
+    if(!exerciseId||!['','strength','isometric','endurance','intervals','carry','mobility','power'].includes(profile)||
+       !Number.isSafeInteger(expectedRevision)||expectedRevision<0)
+      throw new Error('M26_EXERCISE_PROFILE_INVALID');
+    const button=form.querySelector?.('button[type="submit"]');
+    const node=form.querySelector?.('[data-exercise-measurement-status]');
+    const wasDisabled=Boolean(button?.disabled);
+    if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
+    if(node){node.textContent='Guardando perfil y verificando revisión…';node.dataset.status='pending';}
+    try{
+      const saved=await updateExerciseMeasurementProfile({exerciseId,profile,expectedRevision});
+      try{
+        const refreshed=await refreshCatalog();
+        if(!refreshed?.list||!refreshed?.has?.(exerciseId))throw new Error('M26_EXERCISE_PROFILE_REFRESH_UNAVAILABLE');
+        catalog=refreshed;
+        catalogSearch=createExerciseSearchIndex(catalog.list());
+        updateLibrary();
+        onRender();
+      }catch(refreshError){
+        if(node){node.textContent='Perfil guardado. No se pudo refrescar la biblioteca; vuelve a abrirla para ver el cambio.';node.dataset.status='warning';}
+        emit(root,'m26:workflow-error',{action:'refresh-exercise-profile',code:String(refreshError?.message||refreshError)});
+        return saved;
+      }
+      const live=root.querySelector?.('[data-exercise-measurement-form][data-exercise-id="'+exerciseId+'"] [data-exercise-measurement-status]');
+      if(live){live.textContent='Perfil de registro actualizado.';live.dataset.status='success';}
+      emit(root,'m26:exercise-measurement-profile-updated',{exerciseId,profile:profile||null,revision:saved.measurementProfileRevision});
+      return saved;
+    }catch(error){
+      if(node){
+        node.textContent=/REVISION_CONFLICT/.test(String(error?.message||''))
+          ?'Otro cambio se guardó antes. Actualiza la biblioteca y vuelve a revisar el perfil.'
+          :friendlyError(error);
+        node.dataset.status='error';
+      }
+      emit(root,'m26:workflow-error',{action:'update-exercise-measurement-profile',code:String(error?.message||error)});
+      return null;
+    }finally{
+      if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}
     }
   }
   function markClientListDecision(grid,decision){
@@ -1364,7 +1411,7 @@ export function createWorkflowController({
     const form=button.closest?.('form');if(form&&button.type==='submit')return;
     event.preventDefault?.();await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);
   }
-  async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
+  async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const measurementForm=event.target.closest?.('[data-exercise-measurement-form]');if(measurementForm){event.preventDefault?.();await updateLibraryMeasurementProfile(measurementForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
     const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
