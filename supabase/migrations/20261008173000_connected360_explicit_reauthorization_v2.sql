@@ -312,7 +312,7 @@ begin
     scopes=excluded.scopes,granted_at=pg_catalog.now();
   insert into public.m26_wearable_consents_v44(
     actor_user_id,client_id,provider,action,scopes,policy_version
-  ) values(v_owner,v_client,v_provider,'grant',v_scopes,'connected360-v2');
+  ) values(v_owner,v_client,v_provider,'grant',v_scopes,'v44-zero-cost');
   return jsonb_build_object('ok',true,'provider',v_provider,'grantId',v_new_grant,
     'revocationCursor',v_cursor,'scopes',to_jsonb(v_scopes));
 end;
