@@ -3632,7 +3632,7 @@ export function renderActivityRoute(vm){
     ${capabilityNotice(vm.capabilities.habits,'La publicación de hábitos')}
     ${manager}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2></div>${badge(countLabel(vm.habits.length,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
-    ${wearable.canControl?'':`<details class="m26-panel m26-optional-section"><summary>Actividad confirmada de dispositivos</summary><div class="m26-optional-section-body">${deviceSummary}${dailyRecords}${wearableCoveragePanel(wearable)}</div></details>`}
+    ${wearable.canControl?'':`<details class="m26-panel m26-optional-section"><summary>Actividad confirmada de dispositivos</summary><div class="m26-optional-section-body"><p>El cliente decide qué datos autoriza. El entrenador recibe únicamente resúmenes confirmados.</p>${deviceSummary}${dailyRecords}${wearableCoveragePanel(wearable)}</div></details>`}
   </div>`;
 }
 
