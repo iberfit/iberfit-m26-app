@@ -537,17 +537,12 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
     </header>
     ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId})}
     <div class="m26-field-grid m26-builder-core-prescription">
-      ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
-      ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}
-      ${blockField({blockId:block.id,field:'plannedLoad',label:'Carga planificada',value:block.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
-      ${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:0,max:3600})}
+      ${prescriptionWorkFields(block.id,'',exercise,block)}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
-        ${blockField({blockId:block.id,field:'tempo',label:'Ritmo de ejecución',value:block.tempo,maxLength:80})}
-        ${blockField({blockId:block.id,field:'targetRpe',label:'RPE objetivo',value:block.targetRpe,type:'number',min:1,max:10,step:.5})}
-        ${blockField({blockId:block.id,field:'targetRir',label:'RIR objetivo',value:block.targetRir,type:'number',min:0,max:10,step:.5})}
+        ${prescriptionAdvancedFields(block.id,'',exercise,block)}
         <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,exercise,block.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
         ${blockTextarea({blockId:block.id,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:block.prescriptionNotes||'',maxLength:1000,placeholder:'Claves técnicas o ajustes específicos para esta sesión'})}
         ${blockTextarea({blockId:block.id,field:'progression',label:'Progresión prevista',value:block.progression||'',maxLength:500,placeholder:'Criterio para avanzar o retroceder en próximas exposiciones'})}
@@ -564,16 +559,12 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
     ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true})}
     <div class="m26-field-grid m26-builder-core-prescription">
-      ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}
-      ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
-      ${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds??60,type:'number',min:0,max:3600})}
+      ${prescriptionWorkFields(group.id,exerciseId,exercise,p,true)}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
-        ${blockField({blockId:group.id,exerciseId,field:'tempo',label:'Ritmo de ejecución',value:p.tempo||'controlado',maxLength:80})}
-        ${blockField({blockId:group.id,exerciseId,field:'targetRpe',label:'RPE',value:p.targetRpe||7,type:'number',min:1,max:10,step:.5})}
-        ${blockField({blockId:group.id,exerciseId,field:'targetRir',label:'RIR',value:p.targetRir??3,type:'number',min:0,max:10,step:.5})}
+        ${prescriptionAdvancedFields(group.id,exerciseId,exercise,p)}
         <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,exercise,p.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
         ${blockTextarea({blockId:group.id,exerciseId,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:p.prescriptionNotes||'',maxLength:1000})}
         ${blockTextarea({blockId:group.id,exerciseId,field:'progression',label:'Progresión prevista',value:p.progression||'',maxLength:500})}
