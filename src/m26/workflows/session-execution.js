@@ -224,7 +224,7 @@ function storedEntry(store,execution,step,setNumber=step?.setNumber){
 export function executionResultForStep(execution,step,setNumber=step?.setNumber){
   return storedEntry(execution?.results,execution,step,setNumber)?.value||null;
 }
-function skippedSetForStep(execution,step,setNumber=step?.setNumber){
+export function skippedSetForStep(execution,step,setNumber=step?.setNumber){
   return storedEntry(execution?.skippedSets,execution,step,setNumber)?.value||null;
 }
 export function previousSetDraftValues(execution){
