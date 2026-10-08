@@ -45,6 +45,21 @@ class IberfitHealthConnectReader(
     )
 
     /**
+     * User choice is granular: callers may read only categories still granted
+     * by the official Android Health Connect permission controller.
+     * No revoked/denied metric is silently represented as zero.
+     */
+    suspend fun grantedMetrics(requestedMetrics: Set<String>): Set<String> {
+        require(requestedMetrics.isNotEmpty() && supportedMetrics.containsAll(requestedMetrics)) {
+            "IBERFIT_HEALTH_UNSUPPORTED_METRIC"
+        }
+        val permissions = healthConnect.permissionController.getGrantedPermissions()
+        return requestedMetrics.filterTo(linkedSetOf()) {
+            permissions.contains(requiredPermissions.getValue(it))
+        }
+    }
+
+    /**
      * Call only after the app's explicit permission request has completed.
      * A missing permission fails closed rather than silently fabricating a zero value.
      */
