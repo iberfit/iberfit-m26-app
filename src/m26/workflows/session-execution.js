@@ -248,14 +248,14 @@ export function previousSetDraftValues(execution){
     load:previous.load==null?'':String(previous.load),
     rpe:previous.rpe==null?'':String(previous.rpe),
     rir:previous.rir==null?'':String(previous.rir),
-    durationMinutes:previous.seconds==null?'':String(Number(previous.seconds)/60),
+    ...(exerciseResultProfile(item).cardio?{durationMinutes:previous.seconds==null?'':String(Number(previous.seconds)/60),
     distanceKm:previous.distanceKm==null?'':String(previous.distanceKm),
     paceMinPerKm:previous.paceMinPerKm||'',
     avgHeartRateBpm:previous.avgHeartRateBpm==null?'':String(previous.avgHeartRateBpm),
     cadenceRpm:previous.cadenceRpm==null?'':String(previous.cadenceRpm),
     powerWatts:previous.powerWatts==null?'':String(previous.powerWatts),
     elevationGainM:previous.elevationGainM==null?'':String(previous.elevationGainM),
-    intervalsCompleted:previous.intervalsCompleted==null?'':String(previous.intervalsCompleted),
+    intervalsCompleted:previous.intervalsCompleted==null?'':String(previous.intervalsCompleted)}:{}),
   };
 }
 
@@ -280,8 +280,7 @@ export function plannedSetDraftValues(execution,session){
     reps:work.reps,
     seconds:work.seconds,
     load:load.slice(0,80),
-    durationMinutes:planned.plannedDurationMinutes||'',
-    distanceKm:planned.plannedDistanceKm||'',
+    ...(exerciseResultProfile(step).cardio?{durationMinutes:planned.plannedDurationMinutes||'',distanceKm:planned.plannedDistanceKm||''}:{}),
     // Never prefill observed FC, pace, cadence or power from a planned target.
     // RPE/RIR are observed effort, never inferred from the planned target.
     rpe:'',
@@ -296,8 +295,7 @@ export function previousSetReviewDraftValues(execution){
     reps:previous.reps,
     seconds:previous.seconds,
     load:previous.load,
-    durationMinutes:previous.durationMinutes,
-    distanceKm:previous.distanceKm,
+    ...('durationMinutes' in previous?{durationMinutes:previous.durationMinutes,distanceKm:previous.distanceKm}:{}),
     // Previous effort is context, not a new observation.
     rpe:'',
     rir:'',
@@ -345,7 +343,7 @@ export function updateActiveSetDraft(execution,session,input={}){
   if(execution?.status!=='active')return null;
   const identity=activeSetIdentity(execution,session);if(!identity)return null;
   if(executionResultForStep(execution,identity)){if(sameActiveSet(execution?.activeSetDraft,identity))delete execution.activeSetDraft;return null;}
-  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)},updatedAt:now()};
+  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),...(exerciseResultProfile(currentStep(execution,session)).cardio?{durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)}:{})},updatedAt:now()};
   return clone(execution.activeSetDraft);
 }
 export function clearActiveSetDraft(execution){if(execution)delete execution.activeSetDraft;return execution;}
