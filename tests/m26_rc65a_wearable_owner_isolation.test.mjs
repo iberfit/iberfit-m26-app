@@ -34,7 +34,9 @@ function transportSpy(){
   const calls=[];
   return {
     calls,
-    async importWearableSummaries(_token,payload){
+    async importWearableSummaries(){throw Error('unconsented legacy file import forbidden');},
+    async importWearableAuthorized(_token,grant,payload){
+      assert.equal(grant,'11111111-1111-4111-8111-111111111111');
       calls.push(['import',structuredClone(payload)]);
       return {
         accepted:payload.records.length,
@@ -81,6 +83,7 @@ test('RC65-A sella la cola wearable por usuario en navegador compartido',async()
     clientId:'client-a',
     provider:'normalized_file',
     records:[record('client-a')],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   assert.equal(await ownerA.pendingCount(),1);
@@ -148,12 +151,14 @@ test('RC65-A clearOwner borra solo la cola del usuario actual',async()=>{
     clientId:'client-a',
     provider:'normalized_file',
     records:[record('client-a')],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   await ownerB.stage({
     clientId:'client-b',
     provider:'normalized_file',
     records:[record('client-b')],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   await ownerA.clearOwner();
@@ -186,12 +191,14 @@ test('RC65-A deleteAll limpia solo el owner actual y preserva otros owners',asyn
     clientId:'client-a',
     provider:'normalized_file',
     records:[record('client-a')],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   await ownerB.stage({
     clientId:'client-b',
     provider:'normalized_file',
     records:[record('client-b')],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   await ownerA.deleteAll();
@@ -220,6 +227,7 @@ test('RC65-A una nueva instancia del mismo owner puede sincronizar su cola',asyn
     clientId:'client-b',
     provider:'normalized_file',
     records:[record('client-b')],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   const online=createWearableRemoteSync({
@@ -240,7 +248,7 @@ test('RC65-A una nueva instancia del mismo owner puede sincronizar su cola',asyn
   );
   assert.equal(
     transport.calls.filter(([type])=>type==='connection').length,
-    1,
+    0,
   );
 });
 

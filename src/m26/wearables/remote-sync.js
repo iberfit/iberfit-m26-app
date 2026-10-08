@@ -84,6 +84,19 @@ export function createWearableRemoteSync({
     'M26_WEARABLE_OWNER_REQUIRED',
   );
   const ownerPrefix=`${PREFIX}owner/${owner}/`;
+  const blockedProviders=new Set();
+  const explicitGrants=new Map();
+  const GRANT_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+  let deleteRequested=false;
+  // Logout retires this owner-scoped controller permanently: no stale UI may
+  // mint a fresh authorization generation after another account signs in.
+  let ownerDisposed=false;
+  let operationTail=Promise.resolve();
+  function serialize(task){
+    const pending=operationTail.then(task,task);
+    operationTail=pending.then(()=>{},()=>{});
+    return pending;
+  }
 
   async function queuedEntries(){
     const valid=[];
@@ -103,16 +116,23 @@ export function createWearableRemoteSync({
     return (await queuedEntries()).length;
   }
 
-  async function stage({
+  async function stageUnlocked({
     clientId,
     provider,
     records=[],
+    authorizationGrant=null,
   }={}){
     const safeClientId=safeId(
       clientId,
       'M26_WEARABLE_CLIENT_REQUIRED',
     );
     const safeSource=safeProvider(provider);
+    if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+    const grant=authorizationGrant||explicitGrants.get(safeSource)||null;
+    if(grant&&!GRANT_ID.test(String(grant)))throw new Error('M26_CONNECTED360_GRANT_INVALID');
+    // Every provider represented by an imported file needs a current v2 grant.
+    // Native auto-sync will use the same contract once physically certified.
+    if(!grant)throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
     const normalized=deduplicateWearableDailyRecords(records)
       .filter((record)=>
         record.clientId===safeClientId&&
@@ -124,6 +144,7 @@ export function createWearableRemoteSync({
     }
 
     for(const record of normalized){
+      if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
       await queueStore.set(
         keyFor(ownerPrefix,record),
         {
@@ -133,6 +154,7 @@ export function createWearableRemoteSync({
           provider:safeSource,
           queuedAt:new Date().toISOString(),
           attempts:0,
+          authorizationGrant:grant,
         },
       );
     }
@@ -146,13 +168,13 @@ export function createWearableRemoteSync({
       });
     }
 
-    return flush({
+    return flushUnlocked({
       clientId:safeClientId,
       provider:safeSource,
     });
   }
 
-  async function flush({
+  async function flushUnlocked({
     clientId='',
     provider='',
   }={}){
@@ -164,6 +186,7 @@ export function createWearableRemoteSync({
         pending:await pendingCount(),
       });
     }
+    if(deleteRequested)return Object.freeze({ok:true,queued:false,synced:false,skipped:true,reason:'deleted',pending:0});
 
     const safeClientId=clientId
       ?safeId(clientId,'M26_WEARABLE_CLIENT_REQUIRED')
@@ -175,7 +198,8 @@ export function createWearableRemoteSync({
 
     const entries=(await queuedEntries()).filter(([,item])=>
       (!safeClientId||item?.clientId===safeClientId)&&
-      (!safeSource||item?.provider===safeSource)
+      (!safeSource||item?.provider===safeSource)&&
+      !blockedProviders.has(item?.provider)&&!item?.blockedReason
     );
 
     if(!entries.length){
@@ -192,28 +216,46 @@ export function createWearableRemoteSync({
 
     for(const entry of entries){
       const item=entry[1];
-      const groupKey=`${item.clientId}|${item.provider}`;
+      const groupKey=`${item.clientId}|${item.provider}|${item.authorizationGrant||"legacy"}`;
       if(!groups.has(groupKey))groups.set(groupKey,[]);
       groups.get(groupKey).push(entry);
     }
 
     let imported=0;
     let stale=0;
+    let discarded=0;
     const token=await getToken();
 
     for(const groupEntries of groups.values()){
+      if(deleteRequested)break;
+      if(blockedProviders.has(groupEntries[0][1].provider))continue;
       const records=groupEntries.map(([,item])=>item.record);
       const groupClientId=groupEntries[0][1].clientId;
       const groupProvider=groupEntries[0][1].provider;
 
+      // All legacy v44 entries lack a verifiable consent generation.
+      // An earlier zero revocation cursor never constitutes authorization.
+      if(!groupEntries[0][1].authorizationGrant){
+        if(typeof transport.wearableAuthorizationStatus==='function'){
+          const status=await transport.wearableAuthorizationStatus(token,groupProvider);
+          if(!status?.authorized)blockedProviders.add(groupProvider);
+        }
+        for(const [key] of groupEntries)await queueStore.remove(key);
+        discarded+=groupEntries.length;
+        continue;
+      }
+
       for(const batch of chunks(groupEntries,200)){
+        // A logout, erase or revoke requested during an in-flight batch must
+        // prevent every following batch, even though this operation is serialized.
+        if(deleteRequested||blockedProviders.has(groupProvider))break;
         const batchRecords=batch.map(([,item])=>item.record);
 
         try{
-          const result=await transport.importWearableSummaries(
-            token,
-            {records:batchRecords},
-          );
+          const grant=batch[0][1].authorizationGrant;
+          const result=grant
+            ?await transport.importWearableAuthorized(token,grant,{records:batchRecords})
+            :await transport.importWearableSummaries(token,{records:batchRecords});
 
           if(Number(result?.rejected||0)!==0){
             throw new Error('M26_WEARABLE_REMOTE_REJECTED');
@@ -226,23 +268,34 @@ export function createWearableRemoteSync({
             await queueStore.remove(key);
           }
         }catch(error){
-          for(const [key,item] of batch){
-            await queueStore.set(
-              key,
-              {
-                ...item,
-                attempts:Number(item?.attempts||0)+1,
-                lastError:String(error?.message||error)
-                  .replace(/[^A-Z0-9_:-]/giu,'')
-                  .slice(0,120),
-              },
-            );
+          const code=String(error?.message||error);
+          const revoked=/M26_CONNECTED360_(?:GRANT_REVOKED|GRANT_STALE|CONSENT_REVOKED)|M26_WEARABLE_SOURCE_REVOKED/u.test(code);
+          const invalid=/M26_WEARABLE_REMOTE_REJECTED|M26_CONNECTED360_IMPORT_(?:REJECTED|SCOPE_FORBIDDEN|SCOPE_INVALID)/u.test(code);
+          if(revoked){
+            blockedProviders.add(groupProvider);
+            explicitGrants.delete(groupProvider);
           }
-
+          for(const [key,item] of batch){
+            if(revoked){
+              // On confirmed server-side revocation, erase stale personal data locally.
+              await queueStore.remove(key);
+              continue;
+            }
+            await queueStore.set(key,{
+              ...item,
+              attempts:Number(item?.attempts||0)+1,
+              blockedReason:invalid?'review-required':null,
+              lastError:code.replace(/[^A-Z0-9_:-]/giu,'').slice(0,120),
+            });
+          }
           throw error;
         }
       }
 
+      // Never reactivate a legacy source after its revoke began mid-import.
+      if(deleteRequested||blockedProviders.has(groupProvider))continue;
+      // Authorized v2 import already linked the source in its transaction.
+      if(groupEntries[0][1].authorizationGrant)continue;
       await transport.upsertWearableConnection(
         token,
         {
@@ -266,7 +319,9 @@ export function createWearableRemoteSync({
       );
     }
 
-    await refreshState({
+    // A retired account must not receive the completion callback of a previous
+    // session. The request already sent may finish, but no further batch runs.
+    if(!deleteRequested)await refreshState({
       reason:'wearables-synchronized',
     });
 
@@ -276,6 +331,7 @@ export function createWearableRemoteSync({
       synced:true,
       imported,
       stale,
+      discarded,
       pending:await pendingCount(),
     });
   }
@@ -285,6 +341,10 @@ export function createWearableRemoteSync({
     deleteData=false,
   }={}){
     const safeSource=safeProvider(provider);
+    // Block new staged or queued work at the moment of revocation, not after the network request.
+    blockedProviders.add(safeSource);
+    explicitGrants.delete(safeSource);
+    return serialize(async()=>{
     const token=await getToken();
     const result=await transport.revokeWearableConnection(
       token,
@@ -303,9 +363,13 @@ export function createWearableRemoteSync({
     });
 
     return result;
+    });
   }
 
   async function deleteAll(){
+    deleteRequested=true;
+    explicitGrants.clear();
+    return serialize(async()=>{
     const token=await getToken();
     const result=await transport.deleteWearableData(token);
     await queueStore.clear(ownerPrefix);
@@ -315,17 +379,71 @@ export function createWearableRemoteSync({
     });
 
     return result;
+    });
   }
 
   async function clearOwner(){
-    await queueStore.clear(ownerPrefix);
+    ownerDisposed=true;
+    deleteRequested=true;
+    explicitGrants.clear();
+    return serialize(()=>queueStore.clear(ownerPrefix));
   }
+
+  async function reauthorize({provider='normalized_file',scopes=[]}={}){
+    if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+    const source=safeProvider(provider);
+    if(!Array.isArray(scopes)||!scopes.length)
+      throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
+    if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
+    if(typeof transport.reauthorizeWearable!=='function'
+      ||typeof transport.wearableAuthorizationStatus!=='function')
+      throw new Error('M26_CONNECTED360_REAUTHORIZE_UNAVAILABLE');
+    return serialize(async()=>{
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      const token=await getToken();
+      const status=await transport.wearableAuthorizationStatus(token,source);
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      let result;
+      if(status.authorized===true){
+        if(scopes.some(metric=>!status.scopes?.includes(metric)))
+          throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
+        result=Object.freeze({...status,alreadyAuthorized:true});
+      }else{
+        result=await transport.reauthorizeWearable(token,{
+          provider:source,expectedCursor:status.revocationCursor,
+          expectedGrant:status.grantId||null,scopes,
+        });
+      }
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      // Keep pending offline data from the same current consent generation.
+      // Never upgrade any older, revoked or pre-consent queue.
+      for(const [key,item] of await queuedEntries()){
+        if(item?.provider===source&&(item.authorizationGrant!==result.grantId||item.blockedReason))
+          await queueStore.remove(key);
+      }
+      explicitGrants.set(source,result.grantId);
+      blockedProviders.delete(source);
+      deleteRequested=false;
+      await refreshState({reason:'wearable-reauthorized'});
+      return result;
+    });
+  }
+
+  function stage(params={}){
+    const source=safeProvider(params.provider);
+    if(deleteRequested||blockedProviders.has(source)){
+      return Promise.reject(new Error('M26_WEARABLE_SOURCE_REVOKED'));
+    }
+    return serialize(()=>stageUnlocked(params));
+  }
+  function flush(params={}){return serialize(()=>flushUnlocked(params));}
 
   return Object.freeze({
     stage,
     flush,
     revoke,
     deleteAll,
+    reauthorize,
     pendingCount,
     clearOwner,
   });

@@ -222,6 +222,9 @@ function renderPreview(root,parsed,provider){
     <p class="m26-notice">
       Revisa el resumen antes de incorporarlo.
       El archivo original no se almacena.
+      Elegir ${escapeHtml(providerLabel)} identifica únicamente el origen del archivo: no conecta ningún dispositivo ni activa una sincronización automática.
+      Al seleccionar «Autorizar e incorporar», permites guardar en IBERFIT las métricas mostradas de esta fuente.
+      Puedes desconectarla o eliminar esos datos desde Ajustes.
     </p>
 
     <div class="m26-action-grid m26-wearable-preview-actions">
@@ -230,7 +233,7 @@ function renderPreview(root,parsed,provider){
         class="m26-primary-action"
         data-wearable-action="confirm-import"
       >
-        Confirmar e incorporar
+        Autorizar e incorporar
       </button>
 
       <button
@@ -335,6 +338,15 @@ function setFormBusy(form,busy){
 }
 
 function friendlyError(code){
+  if(/CONNECTED360_(?:SCOPE_EXPANSION_REQUIRES_REVOKE|IMPORT_SCOPE_FORBIDDEN)/u.test(code)){
+    return 'Este archivo solicita nuevas métricas. Desconecta la fuente y vuelve a autorizarla con los permisos actualizados.';
+  }
+  if(/CONNECTED360_(?:CONSENT_VERSION_CONFLICT|GRANT_REVOKED|GRANT_STALE|CONSENT_REVOKED)/u.test(code)){
+    return 'La autorización ha cambiado o se revocó desde otro dispositivo. Revisa la fuente y confirma de nuevo solo si quieres volver a compartirla.';
+  }
+  if(/CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED/u.test(code)){
+    return 'Para conceder permisos nuevos necesitas conexión. El archivo sigue bajo tu control.';
+  }
   if(/SUPERSEDED|ABORTED/.test(code)){
     return 'La revisión anterior se canceló sin guardar datos.';
   }
@@ -544,10 +556,22 @@ export function createWearableController({
       'pending',
     );
 
+    // Imported files from every declared provider use the same consent gate.
+    // No silent grant issuance during native/background synchronization.
+    if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
+    const fields=['steps','activeMinutes','sleepMinutes','restingHeartRate',
+      'hrvMs','activeEnergyKcal','workoutMinutes'];
+    const scopes=fields.filter((field)=>
+      currentPreview.records.some((record)=>Number.isFinite(record?.metrics?.[field]))
+    );
+    if(!scopes.length)throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
+    const consent=await remoteSync.reauthorize({provider:currentPreview.provider,scopes});
+    const grant=consent.grantId;
     const result=await remoteSync.stage({
       clientId,
       provider:currentPreview.provider,
       records:currentPreview.records,
+      authorizationGrant:grant,
     });
 
     currentPreview.synchronized=
@@ -586,12 +610,12 @@ export function createWearableController({
 
     setStatus(
       root,
-      result.pending
-        ?`${result.pending} registro${result.pending===1?'':'s'} pendiente${result.pending===1?'':'s'}.`
-        :'Sincronización completada.',
-      result.pending
-        ?'pending'
-        :'success',
+      result.discarded
+        ?'Se descartaron registros locales antiguos porque la autorización fue revocada desde otro dispositivo.'
+        :result.pending
+          ?`${result.pending} registro${result.pending===1?'':'s'} pendiente${result.pending===1?'':'s'}.`
+          :'Sincronización completada.',
+      result.discarded?'info':result.pending?'pending':'success',
     );
 
     return result;
@@ -617,6 +641,11 @@ export function createWearableController({
       throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
     }
 
+    // Native bridges are development-only until certified for production.
+    const nativePolicy=wearableZeroCostPolicy(normalized);
+    if(!nativePolicy?.productionAllowed){
+      throw new Error(nativePolicy?.reason||'M26_ZERO_COST_POLICY_BLOCKED');
+    }
     if(!bridge.isAvailable(normalized)){
       throw new Error(
         bridge.providerSupport(normalized).reason
@@ -646,6 +675,10 @@ export function createWearableController({
       ?existing.scopes.filter((item)=>requestedMetrics.includes(item))
       :[];
 
+    // Returning from background may sync existing grants, never open a new permission ceremony.
+    if(!interactive&&!granted.length){
+      return Object.freeze({ok:true,skipped:true,reason:'permission-pending',provider:normalized,recordCount:0});
+    }
     if(interactive||!granted.length){
       if(!silent){
         setStatus(
@@ -743,7 +776,7 @@ export function createWearableController({
   async function autoSyncNativeProviders(){
     const {role}=context(store);if(role!=='client'||!isOnline())return [];
     const rows=store.getState().collections?.wearableConnections||[];
-    const providers=[...new Set(rows.filter((item)=>['active','connected','conectado'].includes(String(item.status||item.state||'').toLowerCase())).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&bridge.isAvailable(provider)))];
+    const providers=[...new Set(rows.filter((item)=>['active','connected','conectado'].includes(String(item.status||item.state||'').toLowerCase())).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
     for(const provider of providers){try{results.push(await connectNativeProvider(provider,{interactive:false,silent:true}));}catch(error){emitDiagnostic('wearable-auto-sync',error);}}
     return results;
@@ -1041,7 +1074,7 @@ export function createWearableController({
       const healthConnectAvailable=provider==='health_connect'
         ?bridge.support.healthConnect.available
         :bridge.isAvailable(provider);
-      if(!healthConnectAvailable)continue;
+      if(!healthConnectAvailable||!wearableZeroCostPolicy(provider)?.productionAllowed)continue;
       const card=root.querySelector?.(`[data-provider="${provider}"]`);
       const action=provider==='health_connect'
         ?'connect-health-connect'
@@ -1094,6 +1127,19 @@ export function createWearableController({
         await connectHealthConnect({capabilities});
       }else if(action==='connect-native-provider'){
         await connectNativeProvider(button.dataset.provider);
+      }else if(action==='revoke-source'||action==='remove-source-data'){
+        const {role}=context(store);
+        if(role!=='client')throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
+        const provider=normalizeWearableProvider(button.dataset.provider);
+        if(!provider)throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
+        const erase=action==='remove-source-data';
+        const approved=globalThis.confirm?.(erase
+          ?'¿Desconectar la fuente y eliminar sus datos de IBERFIT? No afecta al dispositivo original.'
+          :'¿Desconectar esta fuente? No se admitirán nuevas sincronizaciones hasta que vuelvas a autorizarla.');
+        if(!approved)return;
+        await remoteSync.revoke({provider,deleteData:erase});
+        clearPreview(false);
+        setStatus(root,erase?'Fuente desconectada y datos retirados.':'Fuente desconectada. Puedes borrar los datos guardados cuando quieras.','success');
       }else if(action==='delete-all'){
         await deleteAll();
       }

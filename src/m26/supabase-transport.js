@@ -65,6 +65,11 @@ const RC44_RPC=Object.freeze({
   revokeConnection:'m26_wearable_revoke_v44',
   deleteAll:'m26_wearable_delete_all_v44',
 });
+const CONNECTED360_RPC=Object.freeze({
+  authorizationStatus:'m26_wearable_authorization_status_v2',
+  reauthorize:'m26_wearable_reauthorize_v2',
+  importAuthorized:'m26_wearable_import_authorized_v2',
+});
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
 });
@@ -1044,6 +1049,43 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     );
   }
 
+  async function wearableAuthorizationStatus(token,provider='normalized_file'){
+    if(!token||provider!=='normalized_file')throw new Error('M26_CONNECTED360_CLIENT_FILE_REQUIRED');
+    const data=await request('/rest/v1/rpc/'+CONNECTED360_RPC.authorizationStatus,{
+      method:'POST',token,body:JSON.stringify({p_provider:provider}),
+    });
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result||typeof result!=='object'||!Number.isSafeInteger(result.revocationCursor)
+      ||(result.grantId!=null&&typeof result.grantId!=='string'))
+      throw new Error('M26_CONNECTED360_STATUS_INVALID_RESPONSE');
+    return Object.freeze({...result});
+  }
+  async function reauthorizeWearable(token,{provider='normalized_file',expectedCursor,expectedGrant=null,scopes=[]}={}){
+    if(!token||provider!=='normalized_file'||!Number.isSafeInteger(expectedCursor)
+      ||expectedCursor<0||!Array.isArray(scopes)||!scopes.length||scopes.length>7)
+      throw new Error('M26_CONNECTED360_REAUTHORIZE_INVALID');
+    const data=await request('/rest/v1/rpc/'+CONNECTED360_RPC.reauthorize,{
+      method:'POST',token,body:JSON.stringify({
+        p_provider:provider,p_expected_cursor:expectedCursor,
+        p_expected_grant:expectedGrant,p_scopes:scopes,
+      }),
+    });
+    const result=normalizeRc44Result(data,'M26_CONNECTED360_REAUTHORIZE_INVALID_RESPONSE');
+    if(typeof result.grantId!=='string')throw new Error('M26_CONNECTED360_REAUTHORIZE_INVALID_RESPONSE');
+    return result;
+  }
+  async function importWearableAuthorized(token,grantId,payload={}){
+    if(!token||!grantId||!Array.isArray(payload.records)
+      ||!payload.records.length||payload.records.length>250)
+      throw new Error('M26_CONNECTED360_IMPORT_INVALID');
+    const data=await request('/rest/v1/rpc/'+CONNECTED360_RPC.importAuthorized,{
+      method:'POST',token,body:JSON.stringify({
+        p_grant_id:grantId,p_payload:{records:payload.records},
+      }),
+    });
+    return normalizeRc44Result(data,'M26_CONNECTED360_IMPORT_INVALID_RESPONSE');
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     let result;
@@ -1337,6 +1379,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     deleteIriDraft,
     wearableHealth,
     wearableBootstrap,
+    wearableAuthorizationStatus,
+    reauthorizeWearable,
+    importWearableAuthorized,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,

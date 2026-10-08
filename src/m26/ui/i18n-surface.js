@@ -5,6 +5,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // CONNECTED360: reveal the verified developer-subscription prerequisite.
+  ['Requiere suscripción y autorización segura','Requires a subscription and secure authorization','Nécessite un abonnement et une autorisation sécurisée','Requer subscrição e autorização segura'],
   // COACH_COMPLETION_EVIDENCE_360: factual plan-versus-recorded comparison with multilingual parity.
   ['Omitida explícitamente','Explicitly skipped','Explicitement omise','Omitida expressamente'],
   ['Añadido durante la sesión; no figuraba en el plan original','Added during the session; not included in the original plan','Ajouté pendant la séance ; absent du programme initial','Adicionado durante a sessão; não constava do plano original'],

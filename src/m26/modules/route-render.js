@@ -3602,6 +3602,16 @@ export function renderActivityRoute(vm){
   const manager=vm.canManageHabits?`<form class="m26-panel m26-panel-soft" data-engagement-form="habit-definition" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Entrenador</p><h2>Definir hábito</h2></div></div><div class="m26-field-grid"><label>Nombre<input name="title" maxlength="120" required></label><label>Objetivo<input name="target" type="number" min="1" step="1" required></label><label>Unidad<input name="unit" maxlength="40" placeholder="Ej. veces, minutos, días"></label><label>Frecuencia<select name="frequency" required><option value="">Seleccionar frecuencia</option><option value="diario">Diario</option><option value="semanal">Semanal</option><option value="dias_especificos">Días específicos</option></select></label><label class="m26-wide">Descripción<textarea name="description" maxlength="500"></textarea></label></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><div class="m26-action-grid"><button type="button" data-engagement-action="save-habit-draft">Guardar borrador</button><button type="submit" class="m26-primary-action" data-engagement-action="define-habit"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Publicar hábito</button></div><p class="m26-form-status" data-engagement-status="habit" role="status" aria-live="polite"></p></form>`:'';
   const importer=wearable.canControl?`<form class="m26-panel m26-panel-soft" data-wearable-import aria-describedby="wearable-import-help"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Privacidad primero</p><h2>Revisar una exportación</h2></div>${badge('Solo vista previa local · gratuito','success')}</div><p id="wearable-import-help">La importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.</p><div class="m26-field-grid"><label>Origen del archivo<select name="wearableProvider" required><option value="normalized_file">Archivo normalizado IBERFIT</option><option value="health_connect">Exportación Health Connect</option><option value="samsung_health">Exportación Samsung Health</option><option value="strava">Exportación Strava</option><option value="apple_health">Exportación Apple Health</option><option value="fitbit">Exportación Google Health API / Fitbit</option><option value="oura">Exportación Oura</option><option value="garmin_connect">Exportación Garmin</option></select></label><label>Archivo JSON o CSV<input type="file" name="wearableFile" accept=".json,.csv,.tsv,application/json,text/csv,text/tab-separated-values" required></label></div><div class="m26-action-grid"><button type="button" data-wearable-action="download-template">Descargar plantilla</button><button type="submit" class="m26-primary-action">Analizar archivo</button><button type="button" data-wearable-action="clear-preview">Limpiar vista previa</button></div><p class="m26-form-status" data-wearable-status role="status" aria-live="polite" aria-atomic="true"></p><section class="m26-wearable-preview" data-wearable-preview hidden aria-live="polite"></section></form>`:`<aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Control del cliente</p><h2>Conexiones de dispositivos</h2><p>El cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.</p></aside>`;
   const connectionCopy=wearable.connections.length?wearable.connections.map((item)=>`${item.label}: ${castilianStatusLabel(item.status)}`).join(' · '):'No hay conexiones remotas confirmadas.';
+  const wearableConnectionActions=wearable.canControl&&wearable.connections?.length
+    ?'<section class="m26-panel m26-panel-soft"><h3>Controlar fuentes de actividad</h3>'
+      +'<p>Solo tú decides qué datos se conservan. Desconectar impide nuevas importaciones; eliminar también retira el historial de esa fuente.</p>'
+      +wearable.connections.filter(item=>item.state==='connected'||item.status==='conectado')
+        .map(item=>'<div class="m26-list-card"><div><strong>'+escapeHtml(item.label)+'</strong></div><div class="m26-inline-actions">'
+          +'<button type="button" data-wearable-action="revoke-source" data-provider="'+escapeHtml(item.provider)+'">Desconectar</button>'
+          +'<button type="button" data-wearable-action="remove-source-data" data-provider="'+escapeHtml(item.provider)+'">Desconectar y borrar datos</button>'
+          +'</div></div>').join('')
+      +'</section>'
+    :'';
   const dailyRecords=wearable.dailyRecords?.length?`<section class="m26-panel m26-wearable-history"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Expediente confirmado</p><h2>Últimos registros diarios</h2><p>Valores individuales normalizados; no son estimaciones reconstruidas desde promedios.</p></div>${badge(`${wearable.dailyRecords.length} registro${wearable.dailyRecords.length===1?'':'s'}`,'success')}</div><div class="m26-wearable-day-grid">${wearable.dailyRecords.map((item)=>wearableDailyRecordCard(item,vm.role)).join('')}</div></section>`:'';
   const deviceSummary=wearableHasData(wearableSummary)?`<section class="m26-panel m26-wearable-overview"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Datos de dispositivos</p><h2>Resumen de los últimos 7 días</h2><p>${escapeHtml(connectionCopy)}</p></div>${badge(wearableFreshnessLabel(wearableSummary.freshness),wearableSummary.freshness==='reciente'?'success':'neutral')}</div><div class="m26-stat-grid">${stat('Pasos medios',metricValue(wearableSummary.metrics.steps),`${wearableSummary.daysWithData} días con datos`)}${stat('Actividad',metricValue(wearableSummary.metrics.activeMinutes,' min'),'Promedio diario disponible')}${stat('Sueño objetivo',sleepHoursPerDay(wearableSummary.metrics.sleepMinutes),'Media diaria · dato de dispositivo, no percepción')}${stat('FC en reposo',metricValue(wearableSummary.metrics.restingHeartRate,' lpm'),`Calidad ${wearableSummary.quality}`)}</div><div class="m26-field-grid m26-wearable-secondary">${wearableMetric('VFC media',wearableSummary.metrics.hrvMs,' ms')}${wearableMetric('Energía activa',wearableSummary.metrics.activeEnergyKcal,' kcal')}${wearableMetric('Entrenamiento registrado',wearableSummary.metrics.workoutMinutes,' min')}${wearableMetric('Fuentes',wearableSummary.providers.join(', ')||'Sin fuentes')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}<p class="m26-notice">IBERFIT muestra procedencia, fecha y calidad. No transforma estos datos en indicaciones clínicas ni aumenta cargas sin revisión del entrenador.</p></section>`:`<section class="m26-notice"><strong>Sin datos de dispositivos confirmados</strong><p>El registro de bienestar y las sesiones continúan funcionando sin conectar ningún dispositivo.</p>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}</section>`;
   return `<div class="m26-route">
@@ -3622,7 +3632,7 @@ export function renderActivityRoute(vm){
     ${capabilityNotice(vm.capabilities.habits,'La publicación de hábitos')}
     ${manager}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2></div>${badge(countLabel(vm.habits.length,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
-    <details class="m26-panel m26-optional-section"><summary>Dispositivos e integraciones opcionales</summary><div class="m26-optional-section-body">${deviceSummary}${dailyRecords}${wearableCoveragePanel(wearable)}<section class="m26-content-grid">${importer}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Fuentes compatibles</p><h2>Importación y conexiones reales</h2><p>Seleccionar una fuente identifica el origen del archivo; no crea una conexión. Las conexiones directas siguen bloqueadas hasta completar su autorización real. Ninguna fuente aparece como conectada antes de completar su autorización.</p></div></div><div class="m26-wearable-sources">${wearable.providers.map(wearableProviderCard).join('')}</div></section></section></div></details>
+    <details class="m26-panel m26-optional-section"><summary>Dispositivos e integraciones opcionales</summary><div class="m26-optional-section-body">${deviceSummary}${dailyRecords}${wearableConnectionActions}${wearableCoveragePanel(wearable)}<section class="m26-content-grid">${importer}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Fuentes compatibles</p><h2>Importación y conexiones reales</h2><p>Seleccionar una fuente identifica el origen del archivo; no crea una conexión. Las conexiones directas siguen bloqueadas hasta completar su autorización real. Ninguna fuente aparece como conectada antes de completar su autorización.</p></div></div><div class="m26-wearable-sources">${wearable.providers.map(wearableProviderCard).join('')}</div></section></section></div></details>
   </div>`;
 }
 
@@ -4321,8 +4331,10 @@ export function renderSettingsRoute(vm){
   const notifications=preferences.notifications||{};
   const checked=(value)=>value?' checked':'';
   const wearableNote=vm.hasClientContext
-    ? `${vm.wearableConnections} conexión${vm.wearableConnections===1?'':'es'} registrada${vm.wearableConnections===1?'':'s'}`
-    : 'Abre un expediente para revisar conexiones del cliente';
+    ? (vm.wearableConnections===0?'No hay fuentes confirmadas':vm.wearableConnections+' fuente'+(vm.wearableConnections===1?'':'s')+' registrada'+(vm.wearableConnections===1?'':'s'))
+    : 'No hay contexto de cliente seleccionado';
+  const wearableSources=vm.role==='client'&&Array.isArray(vm.wearableSources)?vm.wearableSources:[];
+  const sourceRows=wearableSources.map(item=>'<li><strong>'+escapeHtml(item.label)+'</strong><span>'+escapeHtml(castilianStatusLabel(item.status))+' · '+escapeHtml(item.lastSyncedAt?item.lastSyncedAt.slice(0,10):'Sin sincronización confirmada')+' · '+Number(item.permissionCount||0)+' permisos de lectura</span></li>').join('');
 
   const notificationToggle=(key,label,copy)=>
     `<label class="m26-consent">
@@ -4349,6 +4361,7 @@ export function renderSettingsRoute(vm){
         <a href="#m26-settings-experience">Experiencia</a>
         <a href="#m26-settings-notifications">Avisos</a>
         <a href="#m26-settings-privacy">Privacidad y datos</a>
+        ${vm.role==='client'?'<a href="#m26-settings-devices">Dispositivos y salud</a>':''}
         <a href="#m26-settings-account">Cuenta y acceso</a>
       </nav>
 
@@ -4422,14 +4435,18 @@ export function renderSettingsRoute(vm){
               </label>
             </div>
 
-            <div class="m26-settings-subsection">
+            <div class="m26-settings-subsection" id="m26-settings-devices">
               <div class="m26-settings-subsection-heading">
                 <div>
-                  <h4>Dispositivos y actividad</h4>
+                  <h4>Dispositivos y salud</h4>
                   <p>${escapeHtml(wearableNote)}</p>
                 </div>
-                <button type="button" data-m26-area="actividad">Gestionar</button>
+                <button type="button" data-m26-area="actividad">${vm.role==='client'?'Gestionar fuentes':'Ver seguimiento'}</button>
               </div>
+              ${vm.role==='client'
+                ?'<p class="m26-data-footnote">La importación está disponible desde el primer día. La conexión automática requiere permisos y un proveedor certificado.</p>'
+                 +(sourceRows?'<ul class="m26-settings-device-sources">'+sourceRows+'</ul>':'<p class="m26-data-footnote">Todavía no has incorporado una fuente de actividad. Es opcional y puedes hacerlo más adelante.</p>')
+                :'<p class="m26-data-footnote">Solo el cliente controla sus fuentes y permisos. El Coach consulta únicamente el seguimiento autorizado.</p>'}
               <div class="m26-settings-privacy-note">
                 ${badge('Privacidad activa','success')}
                 <p>Retos privados por defecto, preferencias aisladas por cuenta, publicación automática desactivada, ranking público desactivado y notas privadas del entrenador fuera de la vista del cliente.</p>
