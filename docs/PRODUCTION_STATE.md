@@ -4,7 +4,16 @@
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 
-## Checkpoint vigente · Coach Operativo 360 · Cierre y feedback fiable · 2026-10-08
+## Checkpoint vigente · Coach Operativo 360 · Comparación de cierre en producción · 2026-10-08
+
+- **Canary y LIVE:** source funcional `f25201d5847b2aa66e9d6ae04736b73f4f400764`, merge PR #799. Sus 13/13 workflows post-merge terminaron SUCCESS (Canary Exact Deploy `37773112217`, Device Experience, QA Real Write, Auth Coach/Admin, CI, gates remotos).
+- **Promoción PROD:** run `37774677595` SUCCESS con 31/31 pasos. Release `release/prod-f25201d5847b`, manifest `5895bec90dc48903cd38052a7fa468ad851a0ccf`.
+- **Deployment Cloudflare Pages LIVE:** `7adc9f72-87d9-4746-9531-f200efaa2b85` (`https://7adc9f72.iberfit-m26-production.pages.dev`). Rollback reservado `6a6eabef-c3fc-41ca-b4c0-846eea6d8c22` (source anterior `ade3de994e2e32f086bdc163d204599fb0a0a39b`); rollback no ejecutado.
+- El workflow verificó `app.iberfit.cl`, runtime de Supabase PROD, login/Chromium desktop/tablet/móvil, auditoría de solo lectura e identidad exacta.
+- **Disponible en LIVE:** comparación Coach del plan original y el resultado confirmado, por ocurrencia de ejercicio, sustituciones, omisiones expresas, series adicionales y datos ausentes. Localización ES/EN/FR/PT.
+- **Siguiente macro-WIP fuera de LIVE:** PR #800, `feat/coach-planning-context-reliability-360-20261008`, protege la selección del ciclo actual, procedencia de la duración y edición por grupo. Se considera terminado únicamente tras CI, merge, Canary exacto y promoción LIVE independiente.
+
+## Checkpoint histórico · Coach Operativo 360 · Cierre y feedback fiable · 2026-10-08
 
 - **LIVE y Canary:** `ade3de994e2e32f086bdc163d204599fb0a0a39b`, merge PR #798; 12/12 workflows posteriores SUCCESS, incluidos QA Real Write, Device Experience, Auth y Canary Exact Deploy.
 - **Production Promotion:** run `37770746465` SUCCESS (31 pasos), rama `release/prod-ade3de994e2e`, manifiesto `a62f68939af72d6528e6f8e944616da9073e990b`. Runtime PROD, Chromium, Lighthouse, seguridad, auditoría read-only y rollback comprobados; rollback no ejecutado.
