@@ -448,7 +448,7 @@ function validatedSetResult(step,input={},previous=null){
   const reps=rawReps==null||rawReps===''?null:Number(rawReps),explicitSeconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
   if(minutes!==null&&explicitSeconds!==null&&Math.abs(explicitSeconds-minutes*60)>0.01)throw new Error('M26_EXECUTION_DURATION_AMBIGUOUS');
   const seconds=explicitSeconds??(minutes===null?null:Math.round(minutes*60));
-  if(reps===null&&seconds===null&&!((profile.cardio||profile.kind==='carry')&&distanceKm>0)&&!(profile.kind==='intervals'&&Number(input.intervalsCompleted)>0))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
+  if(reps===null&&seconds===null&&!((profile.cardio||profile.kind==='carry')&&(distanceKm>0||distanceM>0))&&!(profile.kind==='intervals'&&Number(input.intervalsCompleted)>0))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
   if(reps!==null&&(!Number.isFinite(reps)||reps<0||reps>10000))throw new Error('M26_EXECUTION_REPS_INVALID');
   if(seconds!==null&&(!Number.isFinite(seconds)||seconds<0||seconds>86400))throw new Error('M26_EXECUTION_SECONDS_INVALID');
   if(!Number.isFinite(rpe)||rpe<1||rpe>10)throw new Error('M26_EXECUTION_RPE_INVALID');
