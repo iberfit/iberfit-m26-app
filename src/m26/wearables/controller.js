@@ -705,6 +705,14 @@ export function createWearableController({
       throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
     }
 
+    // Device permissions never authorize uploading health records. An explicit
+    // Client click acquires the server grant; passive resume can only reuse a
+    // currently valid grant and never calls the reauthorization RPC.
+    const consent=interactive
+      ?await remoteSync.reauthorize({provider:normalized,scopes:readable})
+      :await remoteSync.currentAuthorization({provider:normalized,scopes:readable});
+    if(!consent?.grantId)throw new Error('M26_CONNECTED360_GRANT_STALE');
+
     await bridge.setSyncEnabled({
       provider:normalized,
       clientId,
@@ -741,6 +749,7 @@ export function createWearableController({
         clientId,
         provider:normalized,
         records,
+        authorizationGrant:consent.grantId,
       });
     }
 
@@ -757,7 +766,7 @@ export function createWearableController({
                 ?`${label} sincronizado con ${readable.length} permiso${readable.length===1?'':'s'} de lectura.`
                 :'Datos protegidos y pendientes de sincronización.'
             )
-          :`${label} conectado. No hay resúmenes disponibles en el periodo seleccionado.`,
+          :`Permisos de ${label} concedidos. No hay datos para incorporar todavía.`,
         'success',
       );
     }
@@ -765,7 +774,8 @@ export function createWearableController({
     return Object.freeze({
       ...result,
       provider:normalized,
-      connected:true,
+      connected:records.length>0&&result.synced===true,
+      permissionGranted:true,
       recordCount:records.length,
       requestedMetrics:Object.freeze([...requestedMetrics]),
       grantedMetrics:Object.freeze([...readable]),
