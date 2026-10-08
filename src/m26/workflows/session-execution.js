@@ -281,6 +281,7 @@ export function plannedSetDraftValues(execution,session){
     seconds:work.seconds,
     load:load.slice(0,80),
     ...(exerciseResultProfile(step).cardio?{durationMinutes:planned.plannedDurationMinutes||'',distanceKm:planned.plannedDistanceKm||''}:{}),
+    ...(exerciseResultProfile(step).kind==='carry'?{distanceM:planned.plannedDistanceM||''}:{}),
     // Never prefill observed FC, pace, cadence or power from a planned target.
     // RPE/RIR are observed effort, never inferred from the planned target.
     rpe:'',
