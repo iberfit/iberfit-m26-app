@@ -21,7 +21,7 @@ const STYLE=[
   '[data-m26-connected360-action=later]{background:transparent;border:1px solid rgba(23,55,43,.32);color:#18362a}',
   '[data-m26-connected360-invitation] button:focus-visible{outline:3px solid #74531b;outline-offset:3px}',
   '[data-m26-connected360-invitation] .m26-connected360-privacy{font-size:.77rem;line-height:1.5;margin-top:1.15rem;color:#51645a}',
-  '@media(max-width:560px){[data-m26-connected360-invitation]{right:12px;bottom:max(12px,env(safe-area-inset-bottom));max-height:min(75dvh,630px)}}',
+  '@media(max-width:560px){[data-m26-connected360-invitation]{right:12px;bottom:calc(6.25rem + env(safe-area-inset-bottom));max-height:min(62dvh,540px)}}',
   '@media(prefers-reduced-motion:reduce){[data-m26-connected360-invitation]{scroll-behavior:auto;animation:none;transition:none}}',
 ].join('\n');
 function hash(value){let result=0x811c9dc5;for(const char of String(value||'')){result^=char.charCodeAt(0);result=Math.imul(result,0x01000193);}return (result>>>0).toString(16).padStart(8,'0');}
@@ -91,7 +91,8 @@ export function createClientWearableInvitationController({root,identityProvider=
   function guideIsActive(){
     return root?.getAttribute?.('data-m26-guided-tour-open')==='true'
       ||Boolean(doc?.querySelector?.('[data-m26-client-guided-welcome]'))
-      ||Boolean(doc?.querySelector?.('[data-m26-guided-tour]'));
+      ||Boolean(doc?.querySelector?.('[data-m26-guided-tour]'))
+      ||Boolean(root.querySelector?.('[data-session-live-v3],[data-session-live-state],[data-session-touch-focus]'));
   }
   function render(){
     scheduled=false;if(!mounted)return;
