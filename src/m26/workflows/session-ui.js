@@ -216,7 +216,8 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   const cardio=profile.cardio;
   const sport=profile.sport;
-  return `${cardio?field('plannedPace',sport==='running'?'Ritmo objetivo (min/km)':'Ritmo de referencia (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
+  return `${cardio&&sport==='running'?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
+    ${cardio&&sport==='cycling'?field('plannedSpeedKmh','Velocidad objetivo (km/h)',p.plannedSpeedKmh||'','number',{min:0,step:0.1,max:120}):''}
     ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
     ${cardio?field('targetHeartRateBpm','FC objetivo (lpm o rango)',p.targetHeartRateBpm||'','text',{maxLength:24,placeholder:'Ej. 120-140'}):''}
     ${cardio&&sport==='cycling'?field('plannedCadenceRpm','Cadencia objetivo (rpm)',p.plannedCadenceRpm||'','number',{min:0,max:250}):''}
