@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "fae9f119466ff94b2eabc8fb63a6fcff3e98c8cb",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #800 Coach planning context reliability: valid current Santiago civil-date cycle, client isolation and confirmed profile duration, grouped editor field safety. Pre-merge 7/7 SUCCESS; Canary merge fae9f119466f 10/10 post-merge SUCCESS, Canary Exact Deploy 37777220080 SUCCESS, Device Experience Gate 37777220024 SUCCESS, QA Real Write 37777220169 SUCCESS."
+}
