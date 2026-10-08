@@ -2,7 +2,7 @@
 // this deterministic projection supplies presentation/validation without rewriting history.
 const norm=(value)=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const cardioNames=/carrera|correr|trote|caminar|caminata|biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike|eliptica|ergometro|skierg|ski.?erg|cinta inclinada|subida de escaleras/;
-const travelNames=/farmer carry|front rack carry|suitcase carry|overhead carry|arrastre de trineo|sled push|sled drag/;
+const travelNames=/farmer[- ]carry|front[- ]rack[- ]carry|suitcase[- ]carry|overhead[- ]carry|arrastre de trineo|sled[- ]push|sled[- ]drag/;
 const intervalNames=/interval|fartlek|serie de carrera|repeticiones en cuesta|sprint interval/;
 const holdNames=/plancha|plank|\bhold\b|isometr|wall sit|l-sit|prone cobra|handstand hold|hollow hold/;
 export const EXERCISE_METRIC_FIELDS=Object.freeze({
