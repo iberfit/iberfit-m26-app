@@ -1,6 +1,7 @@
 import {createGuidedTourController} from './guided-tour.js';
 import {createClientContextualGuideController} from './client-contextual-guide.js';
 import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
+import {createClientWearableInvitationController} from './client-wearable-invitation.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {coachLaunchReadiness} from './coach-launch-readiness.js';
 import {deriveCoachSelfLaunchJourney} from './coach-launch-journey.js';
@@ -498,6 +499,13 @@ export function createProgressiveOnboardingController({
     storage:resolvedStorage,
     scope,
   });
+  const connected360Invitation=createClientWearableInvitationController({
+    root,
+    identityProvider,
+    stateProvider,
+    storage:resolvedStorage,
+    scope,
+  });
   const clientContextGuide=createClientContextualGuideController({
     root,
     identityProvider,
@@ -694,6 +702,7 @@ export function createProgressiveOnboardingController({
       removeOwned();
       guidedTour.refresh?.();
       clientGuidedWelcome.refresh?.();
+      connected360Invitation.refresh?.();
       clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
       return;
@@ -734,6 +743,7 @@ export function createProgressiveOnboardingController({
     guidedTour.refresh?.();
     scheduleTourOpenStateSync();
     clientGuidedWelcome.refresh?.();
+    connected360Invitation.refresh?.();
     clientContextGuide.refresh?.();
   }
 
@@ -807,6 +817,7 @@ export function createProgressiveOnboardingController({
       syncClientContextualGuideMode();
       guidedTour.mount?.();
       clientGuidedWelcome.mount?.();
+      connected360Invitation.mount?.();
       clientContextGuide.mount?.();
       releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
       syncTourOpenState();
@@ -828,6 +839,7 @@ export function createProgressiveOnboardingController({
       tourObserver=null;
       guidedTour.destroy?.();
       clientGuidedWelcome.destroy?.();
+      connected360Invitation.destroy?.();
       clientContextGuide.destroy?.();
       root.removeAttribute?.('data-m26-client-contextual-guide-enabled');
       tourOpenState.clear();
@@ -839,6 +851,7 @@ export function createProgressiveOnboardingController({
       schedule();
       guidedTour.refresh?.();
       clientGuidedWelcome.refresh?.();
+      connected360Invitation.refresh?.();
       clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
     },
