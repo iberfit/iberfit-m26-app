@@ -586,6 +586,25 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
   const detailLabel=role==='client'?'Cómo hacerlo':'Protocolo y detalles';
   const detail=`<details class="m26-library-details"><summary><span>${detailLabel}</span><span class="m26-library-details-action" aria-hidden="true"></span></summary><div class="m26-library-details-panel"><div class="m26-library-facts">${facts}</div><p><strong>Músculos principales:</strong> ${e(primary)}</p>${role!=='client'&&secondary?`<p><strong>Músculos secundarios:</strong> ${e(secondary)}</p>`:''}${instructions.length?`<h4>Ejecución</h4><ol>${instructions.map((line)=>`<li>${e(line)}</li>`).join('')}</ol>`:'<p class="m26-notice is-warning">Este ejercicio necesita un protocolo de ejecución más detallado antes de utilizarse con clientes.</p>'}${precautions.length?`<p><strong>Precauciones:</strong> ${e(precautions.join(' · '))}</p>`:'<p><strong>Precauciones:</strong> Detener ante dolor, mareo o pérdida de control técnico.</p>'}</div></details>`;
 
+  const adminMeasurement=role==='admin'
+    ?`<form data-exercise-measurement-form data-exercise-id="${e(item.id)}" data-expected-revision="${e(item.measurementProfileRevision??0)}">
+      <label>Perfil de registro del ejercicio
+      <select name="measurementProfile">
+        <option value=""${!item.measurement_profile?' selected':''}>Detección automática (${e(measurement.kind)})</option>
+        ${[
+          ['strength','Fuerza · repeticiones y carga'],
+          ['isometric','Isométrico · tiempo'],
+          ['endurance','Resistencia · distancia y duración'],
+          ['intervals','Intervalos · trabajo y recuperación'],
+          ['carry','Transporte · metros y carga'],
+          ['mobility','Movilidad · rango y control'],
+          ['power','Potencia · repeticiones de calidad'],
+        ].map(([value,label])=>`<option value="${value}"${item.measurement_profile===value?' selected':''}>${e(label)}</option>`).join('')}
+      </select></label>
+      <p class="m26-data-footnote">Define qué indicadores tienen prioridad en planificación y registro. El historial anterior se conserva. Solo Admin puede guardar cambios.</p>
+      <button type="submit" class="m26-primary-action">Guardar perfil de registro</button>
+      <p class="m26-data-footnote" data-exercise-measurement-status role="status" aria-live="polite"></p>
+    </form>`:'';
   const adminRename=role==='admin'
     ?`<details class="m26-library-details m26-library-admin-edit">
         <summary><span>Configuración global del ejercicio</span><span class="m26-library-details-action" aria-hidden="true"></span></summary>
@@ -606,25 +625,6 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
       </details>`
     :'';
 
-  const adminMeasurement=role==='admin'
-    ?`<form data-exercise-measurement-form data-exercise-id="${e(item.id)}" data-expected-revision="${e(item.measurementProfileRevision??0)}">
-      <label>Perfil de registro del ejercicio
-      <select name="measurementProfile">
-        <option value=""${!item.measurement_profile?' selected':''}>Detección automática (${e(measurement.kind)})</option>
-        ${[
-          ['strength','Fuerza · repeticiones y carga'],
-          ['isometric','Isométrico · tiempo'],
-          ['endurance','Resistencia · distancia y duración'],
-          ['intervals','Intervalos · trabajo y recuperación'],
-          ['carry','Transporte · metros y carga'],
-          ['mobility','Movilidad · rango y control'],
-          ['power','Potencia · repeticiones de calidad'],
-        ].map(([value,label])=>`<option value="${value}"${item.measurement_profile===value?' selected':''}>${e(label)}</option>`).join('')}
-      </select></label>
-      <p class="m26-data-footnote">Define qué indicadores tienen prioridad en planificación y registro. El historial anterior se conserva. Solo Admin puede guardar cambios.</p>
-      <button type="submit" class="m26-primary-action">Guardar perfil de registro</button>
-      <p class="m26-data-footnote" data-exercise-measurement-status role="status" aria-live="polite"></p>
-    </form>`:'';
   const subtitle=role==='client'
     ?e(item.equipment||'Sin material')
     :`${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}`;
