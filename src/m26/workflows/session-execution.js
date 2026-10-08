@@ -443,6 +443,8 @@ function validatedSetResult(step,input={},previous=null){
   const profile=exerciseResultProfile(step);
   const minutes=measuredNumber(input.durationMinutes,0,1440,'M26_EXECUTION_DURATION_INVALID');
   const distanceKm=measuredNumber(input.distanceKm,0,1000,'M26_EXECUTION_DISTANCE_INVALID');
+  const distanceM=measuredNumber(input.distanceM,0,100000,'M26_EXECUTION_DISTANCE_INVALID');
+  const avgSpeedKmh=measuredNumber(input.avgSpeedKmh,0,140,'M26_EXECUTION_SPEED_INVALID');
   const reps=rawReps==null||rawReps===''?null:Number(rawReps),explicitSeconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
   if(minutes!==null&&explicitSeconds!==null&&Math.abs(explicitSeconds-minutes*60)>0.01)throw new Error('M26_EXECUTION_DURATION_AMBIGUOUS');
   const seconds=explicitSeconds??(minutes===null?null:Math.round(minutes*60));
