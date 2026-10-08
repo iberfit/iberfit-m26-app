@@ -4,7 +4,16 @@
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 
-## Checkpoint vigente · Coach 360 · Contexto sesión/cita · 2026-10-08
+## Checkpoint vigente · Coach 360 · Preparación y continuidad · 2026-10-08
+
+- LIVE y Canary: `56c485fcfa5c3f331161748111df94f4a74d4cc1` (PR #797 integrado).
+- Canary Exact Deploy `37727148903` SUCCESS, Device Experience `37727148923` SUCCESS y 12/12 workflows posteriores correctos.
+- Production Promotion `37728220397` SUCCESS, release `release/prod-56c485fcfa5c`, manifest `296b25f811dcfed19c43767873edbebf4d90683e`; 31 pasos correctos.
+- Deployment PROD exacto `0e540a4e-b16a-4980-b17c-b6a862f5d878` (`https://0e540a4e.iberfit-m26-production.pages.dev`). Rollback reservado `9bac834a-f0b2-4796-9237-1fa2a62c4c68` (source previo `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`). Rollback no ejecutado.
+- Verificación LIVE del workflow: app.iberfit.cl, runtime de Supabase PROD, Chromium interactivo, Auth y auditoría read-only.
+- Siguiente bloque Coach en rama independiente: `feat/coach-close-feedback-truth-360-20261008` (feedback al cierre, diferencias observadas y valores opcionales RPE/RIR). Pendiente de pruebas, PR y certificación: no está en producción.
+
+## Checkpoint histórico · Coach 360 · Contexto sesión/cita · 2026-10-08
 
 - **LIVE y Canary certificados en source** `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`, merge PR #796 desde `feat/coach-operativo-360-session-context`. El SHA de Canary se validó explícitamente.
 - **Canary Exact Deploy** run `37724506133`: SUCCESS, validaciones autenticadas read-only y superficie exacta. **Device Experience Gate** run `37724506170`, intento 2: SUCCESS; en el primer intento falló la entrada Client Genie en tablet, el rerun del mismo SHA pasó. Los 13 workflows post-merge acabaron GREEN.
@@ -30,7 +39,7 @@ Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 - Implementado: CTA principal vinculado a la sesión preparada, bloqueo si la preparación no permite inicio, cita en curso conservada hasta su fin registrado, estados/aliases de agenda normalizados en arranque y último feedback ordenado por cierre canónico.
 - Validación local: 72 pruebas focales PASS; regresión offline 3.598 PASS, 1 SKIP, 0 FAIL. Nueve regresiones nuevas con datos sintéticos, sin mutaciones remotas.
 - Cobertura de navegador añadida a la matriz existente de Coach: click/touch/teclado hasta el evento real del workflow, verificando sesión y cliente exactos. Ejecución pendiente.
-- Estado: IMPLEMENTADO / TESTEADO LOCALMENTE; pendiente CI, dispositivos, Canary exacto y promoción. Este WIP todavía no está en producción.
+- Estado en aquel checkpoint: pendiente de CI; posteriormente el PR #796 quedó certificado en PROD, según los checkpoints superiores.
 - Siguiente paso: certificar el tramo de contexto y continuar el macro-bloque funcional sobre las superficies existentes; Media Factory queda fuera.
 
 ## Checkpoint histórico · Interaction Reliability + Security/Data Integrity 360 · 2026-10-05
