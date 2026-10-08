@@ -131,3 +131,17 @@ test('privileged IRI certification allows the private bioimpedance object read r
   assert.match(privileged,/payload\?\.signedUrl/u);
   assert.match(privileged,/body\.subarray\(0,5\)\.toString\('utf8'\)\)\.toBe\('%PDF-'\)/u);
 });
+
+test('Coach WebAuthn QA accepts only the audited read-only exercise measurement RPC',async()=>{
+  const spec=await read('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
+  const migration=await read('supabase/migrations/20261008164000_exercise_measurement_profiles_admin_v1.sql');
+  const rpcList=spec.match(/const READ_ONLY_RPCS=new Set\(\[([\s\S]*?)\]\);/u);
+  assert.ok(rpcList,'Only an explicitly enumerated RPC allowlist is permitted');
+  assert.ok(rpcList[1].includes("'iberfit_exercise_measurement_profiles_public_v1'"));
+  assert.doesNotMatch(rpcList[1],/iberfit_admin_set_exercise_measurement_profile_v1/u);
+  assert.match(spec,/if\(url.origin!==SUPABASE_ORIGIN\)return false/u);
+  assert.ok(spec.includes("return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));"));
+  assert.ok(spec.includes('evidence.blocked.push(requestLabel(request));'));
+  assert.match(migration,/create or replace function public\.iberfit_exercise_measurement_profiles_public_v1\(\)[\s\S]*?language sql stable security definer[\s\S]*?select mp\.exercise_id,mp\.profile,mp\.revision/u);
+  assert.match(migration,/grant execute on function public\.iberfit_exercise_measurement_profiles_public_v1\(\) to anon,authenticated/u);
+});
