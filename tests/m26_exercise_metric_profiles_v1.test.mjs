@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
-import {exerciseMeasurementProfile,initialExercisePrescription} from '../src/m26/exercises/measurement-profiles.js';
+import {exerciseMeasurementProfile,initialExercisePrescription,metricValueValid} from '../src/m26/exercises/measurement-profiles.js';
 import {createSessionDraft,addCatalogExercise,updateSessionBlock,validateSessionDraft,addTrainingGroup,closeTrainingGroup} from '../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,plannedSetDraftValues,updateActiveSetDraft,getActiveSetDraft} from '../src/m26/workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
@@ -114,4 +114,17 @@ test('invalid metrics and missing RPE never complete an endurance segment',()=>{
  assert.throws(()=>recordSet(x,d,{distanceKm:-2,rpe:5}),/DISTANCE_INVALID/);
  assert.throws(()=>recordSet(x,d,{durationMinutes:25,distanceKm:4}),/RPE_INVALID/);
  assert.equal(Object.keys(x.results).length,0);
+});
+
+test('heart-rate targets reject impossible and inverted ranges without guessing physiology',()=>{
+  for(const accepted of ['60','120','135-150','120 – 140','230'])
+    assert.equal(metricValueValid('targetHeartRateBpm',accepted),true,accepted);
+  for(const rejected of ['0','29','251','999','150-120','29-120','120-251','abc','120/140'])
+    assert.equal(metricValueValid('targetHeartRateBpm',rejected),false,rejected);
+  const d=draftWith('IBF-CARRERA-SUAVE');
+  set(d,'plannedDurationMinutes','30');
+  set(d,'targetHeartRateBpm','150-120');
+  assert.equal(validateSessionDraft(d,catalog).ok,false);
+  set(d,'targetHeartRateBpm','120-150');
+  assert.equal(validateSessionDraft(d,catalog).ok,true);
 });
