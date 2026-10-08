@@ -1,5 +1,44 @@
 import {test,expect} from '@playwright/test';
 
+test('Coach primary session action preserves the appointment context through the real workflow controller',async({page},testInfo)=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+  await page.evaluate(async()=>{
+    const [{renderSessionsRoute},{buildNextSessionPreparation},{createWorkflowController}]=await Promise.all([
+      import('/src/m26/modules/route-render.js'),
+      import('/src/m26/intelligence/next-session-prep.js'),
+      import('/src/m26/app/workflow-controller.js'),
+    ]);
+    const clientId='context-client-qa';
+    const sessions=[
+      {id:'scheduled-qa',clientId,status:'publicado',title:'Sesión de la cita',revision:1},
+      {id:'other-qa',clientId,status:'publicado',title:'Otro plan',revision:99},
+    ];
+    const state={identity:{id:'coach-qa',role:'coach'},selectedClientId:clientId,collections:{
+      clients:[{id:clientId,name:'Cliente sintético',trainingServiceStatus:'active'}],sessions,
+      appointments:[{id:'appointment-qa',clientId,sessionId:'scheduled-qa',status:'confirmada',startAt:'2026-10-08T12:00:00Z',endAt:'2026-10-08T13:00:00Z'}],
+      sessionExecutions:[],trainingCycles:[],checkins:[],iriAssessments:[],m26Entities:[],
+    }};
+    const root=document.createElement('div');root.id='session-context-qa';root.className='m26-shell';
+    document.querySelector('#qa-root').replaceWith(root);
+    root.innerHTML=renderSessionsRoute({role:'coach',serviceKind:'training',serviceActive:true,canBuild:true,
+      sessions:sessions.map(s=>({...s,publication:{status:'published',visibleToClient:true}})),sessionCounts:{published:2},executions:[],
+      nextSessionPreparation:buildNextSessionPreparation(state,clientId,{now:new Date('2026-10-08T12:15:00Z')}),
+    });
+    root.addEventListener('m26:start-session',event=>{root.dataset.openedSession=event.detail.session.id;root.dataset.openedClient=event.detail.clientId;});
+    createWorkflowController({root,store:{getState:()=>state},commandBus:{execute:async()=>{throw new Error('QA_UNEXPECTED_WRITE');}},catalog:{list:()=>[]}}).mount();
+  });
+  const start=page.getByRole('button',{name:'Iniciar sesión programada',exact:true});
+  await expect(start).toBeEnabled();
+  await expect(start).toHaveAttribute('data-entity-id','scheduled-qa');
+  if(testInfo.project.use.hasTouch)await start.tap();
+  else {await start.focus();await page.keyboard.press('Enter');}
+  await expect(page.locator('#session-context-qa')).toHaveAttribute('data-opened-session','scheduled-qa');
+  await expect(page.locator('#session-context-qa')).toHaveAttribute('data-opened-client','context-client-qa');
+  expect(errors).toEqual([]);
+});
+
 async function queueCoachRefreshDuringNextTouchRelease(page){
   await page.evaluate(()=>{
     const root=document.querySelector('#qa-root');

@@ -1,7 +1,7 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
-import {normalizeAppointmentStatus} from '../domain/appointment.js';
+import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
-import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionDate} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -32,8 +32,13 @@ function feedbackOf(execution){
 function nextAppointment(state,clientId,now){
   const nowMs=(now instanceof Date?now:new Date(now)).getTime();
   return forClient(state,'appointments',clientId)
-    .filter((item)=>normalizeAppointmentStatus(statusOf(item))==='confirmada')
-    .filter((item)=>(safeDate(field(item,'startAt','start_at'))?.getTime()||0)>=nowMs)
+    .map(normalizeAppointmentRecord)
+    .filter((item)=>item.status==='confirmada')
+    .filter((item)=>{
+      const start=safeDate(item.startAt)?.getTime();
+      const end=safeDate(item.endAt)?.getTime();
+      return Number.isFinite(start)&&(start>=nowMs||(Number.isFinite(end)&&end>start&&end>nowMs));
+    })
     .sort(byDateAsc)[0]||null;
 }
 const STARTABLE_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
@@ -54,7 +59,7 @@ function latestExecution(state,clientId){
     state,
     clientId,
     {requireCompleted:true,requireDate:false},
-  )].sort(byDateDesc)[0]||null;
+  )].sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)-(safeDate(sessionExecutionDate(a))?.getTime()||0))[0]||null;
 }
 function latestIri(state,clientId){
   return forClient(state,'iriAssessments',clientId).sort(byDateDesc)[0]||null;
@@ -260,7 +265,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     lastExecution:execution?Object.freeze({
       id:idOf(execution)||null,
       sessionId:String(field(execution,'sessionId','session_id')||'').trim()||null,
-      completedAt:dateOf(execution)||null,
+      completedAt:sessionExecutionDate(execution)||null,
       feedback,
     }):null,
     exerciseMemory:memories,

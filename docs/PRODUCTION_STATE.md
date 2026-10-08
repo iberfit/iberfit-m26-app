@@ -1,9 +1,27 @@
 # IBERFIT · Production State
 
-Última actualización documental: 2026-10-05
+Última actualización documental: 2026-10-08
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
-## Estado actual · Interaction Reliability + Security/Data Integrity 360 · 2026-10-05
+## Checkpoint vigente · Coach Operativo 360 — Continuidad y Fiabilidad · 2026-10-08
+
+- Canary revalidado en `366feb554c7922e06e4e124094e4bae043ae1efe`, merge PR #795. No había PR abiertos al iniciar el siguiente bloque.
+- Última promoción observada: Production Promotion `37722367430`, **SUCCESS**, release `release/prod-366feb554c79`, manifest commit `5736084c26f9a91da432add806f56fe60837f32e`.
+- El job `113132731185` confirma identidad/runtime `app.iberfit.cl`, Chromium interactivo, auditoría read-only y registro de rollback. Rollback no ejecutado. Esta es evidencia del workflow productivo, no una nueva certificación autenticada desde el entorno local.
+- Deployment certificado en el checkpoint de promoción: `8e1c0c01-4a6f-4cf4-9947-23f5520721aa`; rollback `9386bd59-9519-4959-8217-e5cbb415b2de`, source anterior `bb9f2f56810e83a908257651aa19b5f69f4efe1a`.
+- PR #795 está cerrado en PROD: borradores/checkpoints asociados a su propietario, confirmación UI aislada, inicio y salida serializados. Sin cambios de esquema, RLS ni Command Bus.
+- Los checkpoints inferiores son históricos y no sustituyen esta promoción.
+
+### WIP · Experiencia funcional Coach · Contexto de cita a ejecución
+
+- Base exacta `366feb554c7922e06e4e124094e4bae043ae1efe`; rama `feat/coach-operativo-360-session-context`.
+- Implementado: CTA principal vinculado a la sesión preparada, bloqueo si la preparación no permite inicio, cita en curso conservada hasta su fin registrado, estados/aliases de agenda normalizados en arranque y último feedback ordenado por cierre canónico.
+- Validación local: 72 pruebas focales PASS; regresión offline 3.598 PASS, 1 SKIP, 0 FAIL. Nueve regresiones nuevas con datos sintéticos, sin mutaciones remotas.
+- Cobertura de navegador añadida a la matriz existente de Coach: click/touch/teclado hasta el evento real del workflow, verificando sesión y cliente exactos. Ejecución pendiente.
+- Estado: IMPLEMENTADO / TESTEADO LOCALMENTE; pendiente CI, dispositivos, Canary exacto y promoción. Este WIP todavía no está en producción.
+- Siguiente paso: certificar el tramo de contexto y continuar el macro-bloque funcional sobre las superficies existentes; Media Factory queda fuera.
+
+## Checkpoint histórico · Interaction Reliability + Security/Data Integrity 360 · 2026-10-05
 
 - PROD y Canary comparten como source funcional certificado el merge SHA `70dfbdc5cd3e87536338dc302d7da5f2547bba0a` de PR #730.
 - PR #729 cerró Interaction Reliability 360: autofill/focus/caret/select, scroll frente a teclado/safe areas, overlays/touch y matrices desktop/tablet/móvil sin degradar Auth.
