@@ -626,12 +626,12 @@ function previewMarkup(draft,catalog,mediaMap,role){
     if(block.type==='exercise'){
       const ex=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId};
       const visual=renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true});
-      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} ${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'bloque(s)':'series'} · ${e(metricPrescriptionSummary(block,{...ex,measurementProfile:block.measurementProfile}))}${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'':` · descanso ${e(block.restSeconds)} s`}</p>${prescriptionPreviewDetails(block,ex)}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
+      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} ${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'bloque(s)':'series'} · ${e(metricPrescriptionSummary(block,{...ex,measurementProfile:block.measurementProfile}))}${exerciseMeasurementProfile({...ex,measurementProfile:block.measurementProfile}).cardio?'':` · descanso ${e(block.restSeconds)} s`}</p>${prescriptionPreviewDetails(block,{...ex,measurementProfile:block.measurementProfile})}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
     }
     const exerciseLines=(block.exerciseIds||[]).map((id)=>{
       const ex=catalog.get(id)||{id,name_es:id};
       const p=block.prescriptions?.[id]||{};
-      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(metricPrescriptionSummary(p,{...ex,measurementProfile:p.measurementProfile}))}${!exerciseMeasurementProfile(ex).cardio&&p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
+      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(metricPrescriptionSummary(p,{...ex,measurementProfile:p.measurementProfile}))}${!exerciseMeasurementProfile({...ex,measurementProfile:p.measurementProfile}).cardio&&p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
     }).join('');
     return `<li class="m26-session-preview-group" data-session-preview-block="${e(block.id)}"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div><button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></li>`;
   }).join('');
@@ -977,7 +977,7 @@ export function renderCoachCompletionEvidence(execution,session,catalog){
     const displayName=originalName||recordedNames[0]||`Ejercicio ${index+1}`;
     const prescription=planned?.prescription||{};
     const profile=exerciseMeasurementProfile({id:planned?.exerciseId||first?.exerciseId,name_es:displayName});
-    const plannedGoal=planned&&(profile.cardio||profile.kind==='carry')?metricPrescriptionSummary(prescription,{id:planned.exerciseId,name_es:displayName}):planned?[
+    const plannedGoal=planned&&(profile.cardio||profile.kind==='carry')?metricPrescriptionSummary(prescription,{id:planned.exerciseId,name_es:displayName,measurementProfile:prescription.measurementProfile}):planned?[
       String(prescription.reps??'').trim()||null,
       String(prescription.plannedLoad??'').trim()?`Carga ${String(prescription.plannedLoad).trim()}`:null,
       explicitSessionEffort(prescription.targetRpe,{min:1,max:10})!==null?`RPE ${prescription.targetRpe}`:null,
@@ -1058,7 +1058,7 @@ function completedSessionSummary(execution){
 function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false,exercise={}}={}){
   const profile=exerciseMeasurementProfile({...exercise,measurementProfile:planned?.measurementProfile});
   const target=(profile.cardio||profile.kind==='carry')
-    ?metricPrescriptionSummary(planned,exercise)
+    ?metricPrescriptionSummary(planned,{...exercise,measurementProfile:planned?.measurementProfile})
     :[
       planned?.reps||null,
       planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
