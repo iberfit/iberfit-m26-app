@@ -1,12 +1,12 @@
 package cl.iberfit.healthconnect
 
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.aggregate.AggregateRequest
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.TimeRangeFilter
+import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
