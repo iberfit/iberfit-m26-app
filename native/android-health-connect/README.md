@@ -10,6 +10,12 @@ La PWA de app.iberfit.cl no puede acceder directamente a Health Connect. Este pr
 - Agregados oficiales para pasos y sueño, evitando sumar fuentes solapadas. Dato ausente = null, no cero. No se transfieren mediciones fuera del dispositivo en este módulo.
 - Test unitario DST, fechas locales y contrato de permisos.
 
+## Avance de este macro-WIP: reutilizar la app IBERFIT Android existente
+- Se añade a `native/android-host/phone-app` un acceso de QA a **la autorización oficial** de Health Connect y una lectura **exclusivamente local** de los últimos siete días (pasos, sueño en horas y minutos y FC en reposo).
+- El nuevo flujo reutiliza `IberfitHealthConnectReader` de este WIP; no crea una segunda APK ni otra aplicación paralela. Incluye rationale compatible con Android 13 y Android 14+, botones activados solo por el usuario, estado sin datos y recuperación ante errores.
+- La lectura local NO requiere `clientId` de demostración, nunca envía registros y no declara vinculada la cuenta IBERFIT. Los permisos Health Connect por sí solos no son consentimiento para subir datos al servidor.
+- CI adicional intenta compilar la `phone-app` existente. La app aún no está distribuida ni conectada al backend. La política de privacidad de la app de distribución debe coincidir con el texto aprobado de Google Play antes de comercializar.
+
 ## Bloqueadores antes de distribuir una app real
 1. App Android firmada; pantalla oficial Health Connect de autorización con selección granular y política de privacidad; Android 9+, Samsung y Pixel probados.
 2. Sesión autenticada IBERFIT Cliente; puente WebView exclusivo para https://app.iberfit.cl usando WebViewCompat.addWebMessageListener, validando sourceOrigin e isMainFrame, sin addJavascriptInterface genérico.
