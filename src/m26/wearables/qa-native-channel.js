@@ -76,6 +76,7 @@ export function createConnected360QaNativeChannel({
     throw new Error('M26_HEALTH_QA_TIMEOUT_INVALID');
   let disposed=false;
   let running=false;
+  let rejectPending=null;
   const channel=scope?.[CHANNEL];
 
   async function requireClient(){
@@ -88,6 +89,7 @@ export function createConnected360QaNativeChannel({
       !String(identity?.ownerId||'').trim())
       throw new Error('M26_HEALTH_QA_CLIENT_REQUIRED');
     const token=await getToken();
+    if(disposed)throw new Error('M26_HEALTH_QA_DISPOSED');
     if(typeof token!=='string'||token.length<10)
       throw new Error('M26_HEALTH_QA_SESSION_REQUIRED');
     return {clientId:String(identity.clientId),ownerId:String(identity.ownerId)};
@@ -100,6 +102,7 @@ export function createConnected360QaNativeChannel({
       chosen.length<1||chosen.some(x=>!METRICS.includes(x)))
       throw new Error('M26_HEALTH_QA_REQUEST_INVALID');
     const identity=await requireClient();
+    if(disposed)throw new Error('M26_HEALTH_QA_DISPOSED');
     if(running)throw new Error('M26_HEALTH_QA_BUSY');
     running=true;
     try{
@@ -116,6 +119,7 @@ export function createConnected360QaNativeChannel({
       const response=await new Promise((resolve,reject)=>{
         let finished=false;
         const cleanup=()=>{
+          rejectPending=null;
           channel.removeEventListener?.('message',onMessage);
           scope.clearTimeout?.(timer);
         };
@@ -144,6 +148,7 @@ export function createConnected360QaNativeChannel({
           try{finish(null,normalizeRows(parsed.records,chosen));}
           catch(error){finish(error);}
         };
+        rejectPending=()=>finish(new Error('M26_HEALTH_QA_DISPOSED'));
         const timer=scope.setTimeout?.(
           ()=>finish(new Error('M26_HEALTH_QA_TIMEOUT')),timeoutMs
         );
@@ -176,7 +181,11 @@ export function createConnected360QaNativeChannel({
   return Object.freeze({
     readLocal,
     available:()=>!disposed&&isConnected360QaNativeAvailable(scope),
-    destroy:()=>{disposed=true;},
+    destroy:()=>{
+      disposed=true;
+      rejectPending?.();
+      rejectPending=null;
+    },
   });
 }
 
