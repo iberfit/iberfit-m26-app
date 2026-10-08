@@ -116,7 +116,7 @@ test('completed execution closes the loop into confirmed progress',()=>{
   });
 
   assert.match(html,/Sesión completada/);
-  assert.match(html,/RPE de sesión 8\/10/);
+  assert.match(html,/RPE de sesión<\/span>\s*<strong>8\/10<\/strong>/);
   assert.match(html,/data-m26-area="progreso"/);
   assert.match(html,/>Ver mi progreso</);
   assert.match(html,/resultados y tu feedback quedaron confirmados/i);
@@ -135,7 +135,7 @@ test('completed execution closes the loop into confirmed progress',()=>{
   assert.doesNotMatch(coachHtml,/>Ver mi progreso</);
   assert.match(
     coachHtml,
-    /La sesión está cerrada\. Revisa si alguna señal requiere una decisión y deja preparada la siguiente sesión desde el expediente\./
+    /La sesión está cerrada\. Revisa los resultados y el feedback antes de preparar la siguiente sesión\./
   );
   assert.match(
     coachHtml,
