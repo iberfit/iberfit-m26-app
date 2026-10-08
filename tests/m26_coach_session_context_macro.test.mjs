@@ -95,3 +95,47 @@ test('último feedback se ordena por cierre canónico, no por inicio ni actualiz
   assert.equal(prep.lastExecution.completedAt,'2026-10-08T11:00:00Z');
   assert.equal(prep.lastExecution.feedback.comment,'Más reciente');
 });
+
+
+function renderContextForCoach(preparation,sessions){
+  return renderSessionsRoute({
+    role:'coach',serviceKind:'training',serviceActive:true,canBuild:true,
+    sessions,sessionCounts:{published:sessions.filter((item)=>item.publication?.status==='published').length},
+    executions:[],nextSessionPreparation:preparation,
+  });
+}
+const published=(record,visibleToClient=true)=>({...record,publication:{status:'published',visibleToClient}});
+
+test('preparación conserva la identidad de la sesión exacta al crear una copia editable',()=>{
+  const html=renderContextForCoach(prepare(),[
+    published(session),published({...session,id:'other-session',revision:99}),
+  ]);
+  const action=html.match(/<button[^>]*data-workflow-action="reuse-session"[^>]*>Adaptar una copia de esta sesión<\/button>/u)?.[0];
+  assert.ok(action,'debe ofrecer una copia independiente de la sesión preparada');
+  assert.match(action,/data-entity-id="scheduled-session"/u);
+  assert.doesNotMatch(action,/other-session/u);
+  assert.doesNotMatch(html,/Revisar sesión en constructor/u);
+});
+
+test('una sesión preparada oculta no se habilita gracias a otra sesión publicada',()=>{
+  const html=renderContextForCoach(prepare(),[
+    published(session,false),published({...session,id:'other-session',revision:99}),
+  ]);
+  const primary=html.match(/<button[^>]*data-workflow-action="start-published-session"[^>]*>Iniciar sesión programada<\/button>/u)?.[0];
+  assert.ok(primary);
+  assert.match(primary,/disabled aria-disabled="true"/u);
+  assert.doesNotMatch(html,/Adaptar una copia de esta sesión/u);
+  assert.doesNotMatch(html,/Iniciar sesión preparada<\/button>/u);
+  assert.match(html,/Continuar o crear sesión/u);
+});
+
+test('una sesión sin publicación confirmada conserva acceso al constructor sin copiar borradores ajenos',()=>{
+  const value=state();
+  value.collections.sessions=[{...session,status:'borrador'}];
+  const prep=prepare(value);
+  const html=renderContextForCoach(prep,[{...session,publication:{status:'draft',visibleToClient:false}}]);
+  assert.equal(prep.session.startable,false);
+  assert.doesNotMatch(html,/Adaptar una copia de esta sesión/u);
+  assert.match(html,/data-workflow-action="open-session-builder"/u);
+  assert.match(html,/disabled aria-disabled="true"/u);
+});

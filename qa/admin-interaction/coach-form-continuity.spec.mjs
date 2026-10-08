@@ -439,3 +439,48 @@ test('Focused form buttons never retain the persistent shell interaction lease',
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
+
+
+test('Coach adapts an exact published session copy from preparation using touch or keyboard without writing',async({page},testInfo)=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+  await page.evaluate(async()=>{
+    const [{renderSessionsRoute},{buildNextSessionPreparation},{createWorkflowController}]=await Promise.all([
+      import('/src/m26/modules/route-render.js'),
+      import('/src/m26/intelligence/next-session-prep.js'),
+      import('/src/m26/app/workflow-controller.js'),
+    ]);
+    const clientId='context-copy-client-qa';
+    const sessions=[
+      {id:'scheduled-copy-qa',clientId,status:'publicado',title:'Sesión de la cita',revision:1},
+      {id:'newer-copy-qa',clientId,status:'publicado',title:'Otra sesión publicada',revision:99},
+    ];
+    const state={identity:{id:'coach-qa',role:'coach'},selectedClientId:clientId,collections:{
+      clients:[{id:clientId,name:'Cliente sintético',trainingServiceStatus:'active'}],sessions,
+      appointments:[{id:'appointment-copy-qa',clientId,sessionId:'scheduled-copy-qa',status:'confirmada',startAt:'2026-10-08T12:00:00Z',endAt:'2026-10-08T13:00:00Z'}],
+      sessionExecutions:[],trainingCycles:[],checkins:[],iriAssessments:[],m26Entities:[],
+    }};
+    const root=document.createElement('div');root.id='session-copy-qa';root.className='m26-shell';
+    document.querySelector('#qa-root').replaceWith(root);
+    root.innerHTML=renderSessionsRoute({
+      role:'coach',serviceKind:'training',serviceActive:true,canBuild:true,
+      sessions:sessions.map((s)=>({...s,publication:{status:'published',visibleToClient:true}})),
+      sessionCounts:{published:2},executions:[],
+      nextSessionPreparation:buildNextSessionPreparation(state,clientId,{now:new Date('2026-10-08T12:15:00Z')}),
+    });
+    root.addEventListener('m26:open-session-builder',(event)=>{
+      root.dataset.copySession=event.detail.sourceSession?.id||'';
+      root.dataset.copyClient=event.detail.clientId||'';
+    });
+    createWorkflowController({root,store:{getState:()=>state},commandBus:{execute:async()=>{throw Error('QA_UNEXPECTED_WRITE');}},catalog:{list:()=>[]}}).mount();
+  });
+  const adapt=page.getByRole('button',{name:'Adaptar una copia de esta sesión',exact:true});
+  await expect(adapt).toBeEnabled();
+  await expect(adapt).toHaveAttribute('data-entity-id','scheduled-copy-qa');
+  if(testInfo.project.use.hasTouch)await adapt.tap();
+  else{await adapt.focus();await page.keyboard.press('Enter');}
+  await expect(page.locator('#session-copy-qa')).toHaveAttribute('data-copy-session','scheduled-copy-qa');
+  await expect(page.locator('#session-copy-qa')).toHaveAttribute('data-copy-client','context-copy-client-qa');
+  expect(errors).toEqual([]);
+});
