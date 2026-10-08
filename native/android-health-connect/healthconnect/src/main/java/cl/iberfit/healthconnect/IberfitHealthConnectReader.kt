@@ -40,7 +40,8 @@ class IberfitHealthConnectReader(
         val steps: Long?,
         val sleepMinutes: Long?,
         val restingHeartRate: Long?,
-        val sourceUpdatedAt: String,
+        // Read time is NOT the source measurement update time. Do not fabricate freshness.
+        val acquiredAt: String,
     )
 
     /**
@@ -96,7 +97,7 @@ class IberfitHealthConnectReader(
                     steps = steps,
                     sleepMinutes = sleep,
                     restingHeartRate = resting,
-                    sourceUpdatedAt = observedAt,
+                    acquiredAt = observedAt,
                 )
             }
         }
