@@ -126,3 +126,38 @@ test('FC objetivo accepts ordered reasonable BPM and rejects out-of-range or inv
   set(d,'targetHeartRateBpm','120-150');
   assert.equal(validateSessionDraft(d,catalog).ok,true);
 });
+
+test('modality-accurate live prescription excludes strength fields from cardio and carries',()=>{
+ const running=draftWith('IBF-CARRERA-SUAVE');
+ set(running,'plannedDistanceKm','5');set(running,'plannedDurationMinutes','30');
+ const runningExecution=createExecution({session:running,clientId:'client-1'});
+ startExecution(runningExecution);
+ const html=renderGuidedExecution({execution:runningExecution,session:running,catalog,role:'coach'});
+ const aside=html.split('data-session-live-prescription>')[1]?.split('</section>')[0]||'';
+ assert.ok(aside,'cardio-specific context must be available');
+ assert.match(aside,/Objetivo de resistencia/u);
+ assert.match(aside,/5 km/u);
+ assert.match(aside,/30 min/u);
+ assert.equal(aside.includes('Repeticiones/tiempo'),false);
+ assert.equal(aside.includes('RIR'),false);
+ assert.equal(aside.includes('Ritmo de ejecución'),false);
+ const carry=draftWith('IBF-FARMER-CARRY');
+ set(carry,'plannedDistanceM','30');
+ const carryExecution=createExecution({session:carry,clientId:'client-1'});
+ startExecution(carryExecution);
+ const carryHtml=renderGuidedExecution({execution:carryExecution,session:carry,catalog,role:'coach'});
+ const carryAside=carryHtml.split('data-session-live-prescription>')[1]?.split('</section>')[0]||'';
+ assert.ok(carryAside);
+ assert.match(carryAside,/Objetivo de transporte/u);
+ assert.match(carryAside,/30 m/u);
+ assert.equal(carryAside.includes('RIR'),false);
+ assert.equal(carryAside.includes('Repeticiones/tiempo'),false);
+ const strength=draftWith('IBF-SENTADILLA-TRASERA-CON-BARRA');
+ const strengthExecution=createExecution({session:strength,clientId:'client-1'});
+ startExecution(strengthExecution);
+ const strengthHtml=renderGuidedExecution({execution:strengthExecution,session:strength,catalog,role:'coach'});
+ const strengthAside=strengthHtml.split('data-session-live-prescription>')[1]?.split('</section>')[0]||'';
+ assert.ok(strengthAside);
+ assert.match(strengthAside,/Repeticiones\\/tiempo/u);
+ assert.match(strengthAside,/RIR/u);
+});

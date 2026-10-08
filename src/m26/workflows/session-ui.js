@@ -1159,6 +1159,37 @@ function cardioSetEntryFields(profile,planned={},isCoach=false){
   <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${speed}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
  </div>`;
 }
+function renderLiveModalityPrescription(planned={},profile={},exercise={}){
+  if(profile.cardio||profile.kind==='carry'){
+    const objective=metricPrescriptionSummary(planned,{...exercise,measurementProfile:planned.measurementProfile});
+    return `<div class="m26-field-grid">
+      <div class="m26-field"><span>${profile.kind==='carry'?'Objetivo de transporte':'Objetivo de resistencia'}</span><strong>${e(objective)}</strong></div>
+      ${profile.kind==='carry'&&planned.plannedLoad?`<div class="m26-field"><span>Carga prevista</span><strong>${e(planned.plannedLoad)}</strong><small>Confirma la carga realmente utilizada durante la ejecución.</small></div>`:''}
+      ${explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`<div class="m26-field"><span>RPE objetivo</span><strong>${e(planned.targetRpe)}</strong></div>`:''}
+      ${Number(planned.restSeconds)>0?`<div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
+    </div>`;
+  }
+  return `          <div class="m26-field-grid">
+            <div class="m26-field">
+              <span>Repeticiones/tiempo</span>
+              <strong>${e(planned.reps||'Según indicación')}</strong>
+            </div>
+            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>${role==='coach'?'Puede prepararse como borrador editable; confirma la carga realizada':'No se autocompleta la carga realizada'}</small></div>`:''}
+            <div class="m26-field">
+              <span>Descanso</span>
+              <strong>${e(planned.restSeconds??60)} s</strong>
+            </div>
+            <div class="m26-field">
+              <span>Ritmo de ejecución</span>
+              <strong>${e(planned.tempo||'Controlado')}</strong>
+            </div>
+            <div class="m26-field">
+              <span>Esfuerzo</span>
+              <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
+            </div>
+          </div>`;
+}
+
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
   const state=renderActionState(actionState);
   const sync=renderSessionSyncBanner(execution,{role});
@@ -1578,25 +1609,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${restActive?'':visual}
         <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
           <p class="m26-eyebrow">Objetivo de esta serie</p>
-          <div class="m26-field-grid">
-            <div class="m26-field">
-              <span>Repeticiones/tiempo</span>
-              <strong>${e(planned.reps||'Según indicación')}</strong>
-            </div>
-            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>${role==='coach'?'Puede prepararse como borrador editable; confirma la carga realizada':'No se autocompleta la carga realizada'}</small></div>`:''}
-            <div class="m26-field">
-              <span>Descanso</span>
-              <strong>${e(planned.restSeconds??60)} s</strong>
-            </div>
-            <div class="m26-field">
-              <span>Ritmo de ejecución</span>
-              <strong>${e(planned.tempo||'Controlado')}</strong>
-            </div>
-            <div class="m26-field">
-              <span>Esfuerzo</span>
-              <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
-            </div>
-          </div>
+          ${renderLiveModalityPrescription(planned,executionProfile,ex)}
         </section>
         ${planned.prescriptionNotes?`<section class="m26-session-live-cues" aria-label="Indicaciones planificadas"><span>Indicaciones del Coach</span><strong>${e(planned.prescriptionNotes)}</strong></section>`:''}
         ${planned.progression?`<details class="m26-session-options m26-session-progression"><summary>Progresión prevista</summary><p>${e(planned.progression)}</p><small>Referencia de planificación; no modifica automáticamente la ejecución de hoy.</small></details>`:''}
