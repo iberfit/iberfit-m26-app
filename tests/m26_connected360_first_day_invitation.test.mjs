@@ -261,3 +261,13 @@ test('Connected 360 preserves mobile navigation, touch targets, safe areas and t
   assert.match(source,/data-session-touch-focus/u);
   assert.match(source,/aria-modal="false"/u);
 });
+
+test('First-day Activity handoff opens the actual file import instead of leaving it collapsed',()=>{
+  const source=readFileSync('src/m26/onboarding/client-wearable-invitation.js','utf8');
+  assert.match(source,/function openImportWhenReady\(\)/u);
+  assert.match(source,/root\.querySelector\?\.\('\[data-wearable-import\]'\)/u);
+  assert.match(source,/importer\.closest\?\.\('details\.m26-optional-section'\)/u);
+  assert.match(source,/if\(section\)section\.open=true/u);
+  assert.match(source,/requestAnimationFrame\?\./u);
+  assert.doesNotMatch(source,/setInterval|MutationObserver/u);
+});
