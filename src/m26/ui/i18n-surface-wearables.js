@@ -1,4 +1,16 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  // Connected 360 Android QA pilot: never imply a remote connection.
+  ["Probar lectura local Android (QA)","Test local Android reading (QA)","Tester la lecture locale Android (QA)","Testar leitura local Android (QA)"],
+  ["Primero autoriza una lectura en la app Android de pruebas. Esta prueba no guarda ni vincula datos.","First authorize one read in the Android test app. This test does not store or link data.","Autorisez d’abord une lecture dans l’application Android de test. Ce test ne stocke ni ne lie les données.","Autorize primeiro uma leitura na app Android de testes. Este teste não guarda nem associa dados."],
+  ["Leyendo datos autorizados en el teléfono…","Reading authorized data on the phone…","Lecture des données autorisées sur le téléphone…","A ler dados autorizados no telefone…"],
+  ["Vista local (no sincronizada) ·","Local view (not synced) ·","Vue locale (non synchronisée) ·","Vista local (não sincronizada) ·"],
+  [" · pasos: "," · steps: "," · pas : "," · passos: "],
+  [" · sueño: "," · sleep: "," · sommeil : "," · sono: "],
+  [" · FC reposo: "," · resting HR: "," · FC au repos : "," · FC em repouso: "],
+  ["Sin dato","No data","Aucune donnée","Sem dados"],
+  [". Ningún registro se ha enviado a IBERFIT.",". No records were sent to IBERFIT.",". Aucun enregistrement n’a été envoyé à IBERFIT.",". Não foram enviados registos para o IBERFIT."],
+  ["No hay datos del dispositivo en los últimos siete días. No se han enviado registros.","There is no device data from the past seven days. No records were sent.","Aucune donnée de l’appareil sur les sept derniers jours. Aucun enregistrement envoyé.","Não há dados do dispositivo nos últimos sete dias. Não foram enviados registos."],
+  ["Lectura local no completada. Revisa la sesión y la autorización en Android. Código: ","Local reading incomplete. Check the session and Android authorization. Code: ","Lecture locale incomplète. Vérifiez la session et l’autorisation Android. Code : ","Leitura local incompleta. Verifique a sessão e a autorização no Android. Código: "],
   ["Se descartaron registros locales antiguos porque la autorización fue revocada desde otro dispositivo.","Old local records were discarded because permission was revoked from another device.","Les anciens enregistrements locaux ont été écartés car l’autorisation a été révoquée sur un autre appareil.","Os registos locais antigos foram descartados porque a autorização foi revogada noutro dispositivo."],
   // Connected360 recoverable consent messages.
   ["Este archivo solicita nuevas métricas. Desconecta la fuente y vuelve a autorizarla con los permisos actualizados.","This file requests additional metrics. Disconnect the source and authorize it again with updated permissions.","Ce fichier demande des métriques supplémentaires. Déconnectez la source et autorisez-la à nouveau avec les autorisations mises à jour.","Este ficheiro solicita novas métricas. Desligue a fonte e volte a autorizá-la com as permissões atualizadas."],
