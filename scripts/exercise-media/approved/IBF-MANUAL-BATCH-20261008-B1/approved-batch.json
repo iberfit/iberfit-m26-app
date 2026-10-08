@@ -1,0 +1,283 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-CLAMSHELL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B1/movement-2ead3aa4875c.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobada tras corrección anatómica de brazos en la posición final."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CLAMSHELL/movement-2ead3aa4875c.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "2ead3aa4875c6b958ce9db554fa2dd421832b82f3c2ac644ccc18a7d908a58ff"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo medio",
+            "glúteo menor"
+          ],
+          "secondary": [
+            "rotadores externos de cadera"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CLAMSHELL-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B1/movement-51d25718223e.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación visual en conversación, lote con banda."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CLAMSHELL-CON-BANDA/movement-51d25718223e.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "51d25718223e90d14c1962d94cd9d2158ee2f1a892e5a39322c93dfa188239b0"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo medio",
+            "glúteo menor"
+          ],
+          "secondary": [
+            "rotadores externos de cadera"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-MONSTER-WALK",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B1/movement-6a53f2a1cb86.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación visual en conversación, lote locomoción banda."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-MONSTER-WALK/movement-6a53f2a1cb86.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "6a53f2a1cb868e9402572ec5bea018ec4425955c9f4b30ec794f147635a2beac"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo medio",
+            "glúteo mayor"
+          ],
+          "secondary": [
+            "cuádriceps"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PATADA-DE-GLUTEO-EN-CUADRUPEDIA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B1/movement-7fcb5ed32566.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación visual en conversación, lote activación glúteo."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PATADA-DE-GLUTEO-EN-CUADRUPEDIA/movement-7fcb5ed32566.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "7fcb5ed3256670c78f8c93e2782f70e484bac63c6ea055dc405acdd8f80ab6a4"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo mayor"
+          ],
+          "secondary": [
+            "isquiotibiales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PLANCHA-FRONTAL-ALTA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B1/movement-fe819eaf8a8f.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación visual en conversación, lote anti-extensión."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-FRONTAL-ALTA/movement-fe819eaf8a8f.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fe819eaf8a8f6dd02d3be5e9c9618720a70b2f498c484faae422075b030d722b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "pectoral",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-DEAD-BUG-CON-FITBALL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B1/movement-07283baf3838.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación visual en conversación, lote anti-extensión."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-DEAD-BUG-CON-FITBALL/movement-07283baf3838.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "07283baf3838fc72ae1d8720f966fa5799b6c119226631032dc339fabbe4fd9d"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "flexores de cadera"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
