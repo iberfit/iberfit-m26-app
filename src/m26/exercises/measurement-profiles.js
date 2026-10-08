@@ -24,7 +24,7 @@ export const EXERCISE_METRIC_KEYS=Object.freeze(Object.keys(EXERCISE_METRIC_FIEL
 export function exerciseMeasurementProfile(exercise={}){
   const title=norm((exercise?.name_es||exercise?.name||'')+' '+(exercise?.id||''));
   const pattern=norm(exercise?.pattern);
-  const override=norm(exercise?.measurement_profile||exercise?.measurementProfile);
+  const override=norm(exercise?.measurementProfile||exercise?.measurement_profile);
   if(['endurance','intervals','isometric','mobility','carry','strength','power'].includes(override)){
     return Object.freeze({kind:override,sport:guessSport(title),cardio:override==='endurance'||override==='intervals'});
   }
