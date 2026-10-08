@@ -1,6 +1,6 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
-import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
+import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
 function boundedNumber(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
@@ -9,13 +9,14 @@ function optionalText(input,fallback='',max=500){
   const candidate=input===undefined||input===null?fallback:input;
   return String(candidate??'').trim().slice(0,max);
 }
-function normalizePrescription(input={},fallback={}){return {
-  reps:text(input.reps,fallback.reps||'8–12',40),
+function normalizePrescription(input={},fallback={},exercise={}){const defaults=initialExercisePrescription(exercise);return {
+  ...Object.fromEntries(EXERCISE_METRIC_KEYS.map((key)=>[key,optionalText(input[key],fallback[key]??'',24)])),
+  reps:optionalText(input.reps,fallback.reps??defaults.reps,40),
   plannedLoad:optionalText(input.plannedLoad,fallback.plannedLoad||'',80),
-  restSeconds:positiveInt(input.restSeconds,fallback.restSeconds??60,{min:0,max:3600}),
-  tempo:text(input.tempo,fallback.tempo||'controlado',40),
-  targetRpe:boundedNumber(input.targetRpe,fallback.targetRpe||7,{min:1,max:10}),
-  targetRir:boundedNumber(input.targetRir,fallback.targetRir??3,{min:0,max:10}),
+  restSeconds:positiveInt(input.restSeconds,fallback.restSeconds??defaults.restSeconds,{min:0,max:3600}),
+  tempo:text(input.tempo,fallback.tempo??defaults.tempo??'controlado',40),
+  targetRpe:boundedNumber(input.targetRpe,fallback.targetRpe??defaults.targetRpe??7,{min:1,max:10}),
+  targetRir:boundedNumber(input.targetRir,fallback.targetRir??defaults.targetRir??3,{min:0,max:10}),
   prescriptionNotes:optionalText(input.prescriptionNotes,fallback.prescriptionNotes||'',1000),
   progression:optionalText(input.progression,fallback.progression||'',500),
   alternativeId:input.alternativeId||fallback.alternativeId||null,
