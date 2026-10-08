@@ -13,6 +13,7 @@ function previousSetSummary(values){
   return [
     values?.reps?`${values.reps} reps`:null,
     values?.seconds?`${values.seconds} s`:null,
+    values?.distanceKm?`${values.distanceKm} km`:null,
     values?.load||null,
     values?.rpe?`RPE ${values.rpe}`:null,
     values?.rir!=null&&Number.isFinite(Number(values.rir))?`RIR ${values.rir}`:null,
@@ -29,6 +30,10 @@ function currentSetResultSummary(result){
   return [
     result?.reps!=null?`${result.reps} rep${Number(result.reps)===1?'':'s'}`:null,
     result?.seconds!=null?`${result.seconds} s`:null,
+    result?.distanceKm!=null?`${result.distanceKm} km`:null,
+    result?.paceMinPerKm?`${result.paceMinPerKm} min/km`:null,
+    result?.avgHeartRateBpm!=null?`FC media ${result.avgHeartRateBpm} lpm`:null,
+    result?.powerWatts!=null?`${result.powerWatts} W`:null,
     result?.load||null,
     result?.rpe!=null&&Number.isFinite(Number(result.rpe))?`RPE ${result.rpe}`:null,
     result?.rir!=null&&Number.isFinite(Number(result.rir))?`RIR ${result.rir}`:null,
@@ -1045,13 +1050,16 @@ function completedSessionSummary(execution){
   </div>`;
 }
 
-function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false}={}){
-  const target=[
-    planned?.reps||null,
-    planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
-    explicitSessionEffort(planned?.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
-    explicitSessionEffort(planned?.targetRir,{min:0})!==null?`RIR ${planned.targetRir}`:null,
-  ].filter(Boolean).join(' · ')||'Según indicación';
+function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false,exercise={}}={}){
+  const profile=exerciseMeasurementProfile(exercise);
+  const target=profile.cardio
+    ?metricPrescriptionSummary(planned,exercise)
+    :[
+      planned?.reps||null,
+      planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
+      explicitSessionEffort(planned?.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,
+      explicitSessionEffort(planned?.targetRir,{min:0})!==null?`RIR ${planned.targetRir}`:null,
+    ].filter(Boolean).join(' · ')||'Según indicación';
 
   const previous=previousSet
     ?previousSetSummary(previousSet)
