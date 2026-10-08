@@ -166,6 +166,18 @@ class PhoneMainActivity : Activity() {
             }
         }
 
+        val webBridgeQa = Button(this).apply {
+            text = "IBERFIT Canary · probar canal web seguro"
+            setOnClickListener {
+                startActivity(
+                    android.content.Intent(
+                        this@PhoneMainActivity,
+                        Connected360SecureWebViewActivity::class.java
+                    )
+                )
+            }
+        }
+
         val devicesTitle =
             TextView(this).apply {
                 text =
@@ -252,6 +264,7 @@ class PhoneMainActivity : Activity() {
                 addView(resume)
                 addView(stop)
                 addView(healthConnectQa)
+                addView(webBridgeQa)
                 addView(devicesTitle)
                 addView(deviceStatus)
                 addView(preferredStatus)
