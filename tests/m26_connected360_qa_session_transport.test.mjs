@@ -136,7 +136,9 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   assert.match(source,/oneReadApproved = false/);
   assert.match(source,/if \(readInFlight \|\| !oneReadApproved\)/);
   assert.match(source,/IberfitHealthConnectReader\(client\)/);
-  assert.match(source,/readDaily\(metrics, days\)/);
+  assert.match(source,/grantedMetrics\(metrics\)/);
+  assert.match(source,/readDaily\(permitted, days\)/);
+  assert.match(source,/\.put\("grantedMetrics", JSONArray\(permitted\.sorted\(\)\)\)/);
   assert.match(source,/FLAG_DEBUGGABLE/);
   assert.doesNotMatch(source,/addJavascriptInterface|SUPABASE_SERVICE_KEY/);
   assert.match(controller,/qaNative\.readLocal\(\{days:7\}\)/);
