@@ -1,3 +1,4 @@
+import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -18,7 +19,7 @@ const exercises=[
   {id:'IBF-SENTADILLA-CON-BARRA',name_es:'Sentadilla con barra',pattern:'sentadilla'},
 ];
 const lookup=new Map(exercises.map(x=>[x.id,x]));
-const catalog={get:(id)=>lookup.get(id),has:(id)=>lookup.has(id)};
+const catalog=createExerciseCatalog(exercises);
 const clientId='sport-metrics-test-client';
 
 test('published endurance session reuses all measured targets without inventing repetitions',()=>{
@@ -156,7 +157,7 @@ test('cycling correction includes cadence/power and carry correction shows metre
  assert.match(ui,/data-set-field="durationMinutes"/u);
  const carry=createSessionDraft({clientId});
  const carrying={id:'IBF-FARMER-CARRY',name_es:'Farmer carry',pattern:'locomoción'};
- const catalogPlus={get:(id)=>id===carrying.id?carrying:catalog.get(id),has:(id)=>id===carrying.id||catalog.has(id)};
+ const catalogPlus=createExerciseCatalog([...exercises,carrying]);
  addCatalogExercise(carry,carrying.id,catalogPlus);
  const xc=createExecution({session:carry,clientId});startExecution(xc);
  recordSet(xc,carry,{distanceM:30,rpe:6});
