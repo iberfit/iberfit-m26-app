@@ -4142,9 +4142,11 @@ export function renderSessionsRoute(vm){
     :'';
   const hasPublishedSession=Array.isArray(vm.sessions)&&vm.sessions.some((item)=>isClient?Boolean(item?.id):item?.publication?.status==='published'&&item?.publication?.visibleToClient!==false);
   const hasConflictingAppointment=vm.nextSessionPreparation?.session?.source==='appointment-mismatch';
-  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment;
+  const preparedSession=!isClient?vm.nextSessionPreparation?.session:null;
+  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment&&(!preparedSession||preparedSession.startable===true);
+  const preparedSessionAttribute=preparedSession?.id?` data-entity-id="${escapeHtml(preparedSession.id)}"`:'';
   const directStart=serviceActive
-    ?`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${mayStartDirectly?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`
+    ?`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${preparedSessionAttribute}${mayStartDirectly?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`
     :`<button type="button" disabled aria-disabled="true">Entrenamiento en pausa</button>`;
   const primary=vm.canBuild
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`

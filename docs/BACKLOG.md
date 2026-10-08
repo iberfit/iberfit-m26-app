@@ -1,15 +1,25 @@
 # IBERFIT · Backlog Vivo
 
-Checkpoint: 2026-10-07. Estado verificable: GitHub Actions/Cloudflare y `docs/PRODUCTION_STATE.md` (histórico).
+Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PRODUCTION_STATE.md`.
 
-## MACRO-WIP ACTIVO · Coach Operativo 360 — Continuidad de planificación y sesión
+## MACRO-WIP ACTIVO · Coach Operativo 360 — Experiencia funcional integral
+
+- Base `366feb554c7922e06e4e124094e4bae043ae1efe`; rama `feat/coach-operativo-360-session-context`.
+- Recorrido: ficha → planificación → preparación → ejecución → cierre → seguimiento → siguiente sesión, consolidando módulos existentes.
+- Primer tramo implementado: contexto exacto de cita/sesión/última ejecución. La acción principal deja de elegir otra sesión por revisión; la cita en curso mantiene su vínculo; el arranque usa estados canónicos de agenda; el feedback usa fecha canónica de cierre.
+- 72 pruebas focales PASS; regresión offline 3.598 PASS / 1 SKIP / 0 FAIL. QA de navegador añadida al gate multidispositivo existente, pendiente de ejecución.
+- Pendiente: CI/dispositivos, Canary exacto y promoción; después continuar ergonomía de planificación/ejecución/cierre. No declarar terminado el macro-bloque por cerrar este tramo.
+- Referencia de interacción: `DESIGN.md` y componentes actuales; preservar tokens, jerarquía y controles nativos. Guía Refero de formularios/focus/touch: acción explícita, contexto estable, sin nuevo panel ni métricas duplicadas.
+- Sin cambios en Supabase, roles, RLS, Command Bus ni Media Factory.
+
+## WIP CERRADO · Coach Operativo 360 — Continuidad de planificación y sesión
 
 - PR #795, base `bb9f2f56810e83a908257651aa19b5f69f4efe1a` (source de Canary/PROD certificado mediante promotion `37718656193`).
 - Alcance deliberado: reforzar una sola operación Coach existente, no duplicar fichas, editor de planificación, ejecución, cierre, seguimiento ni controles Admin.
-- Corrección en curso: al cambiar entre clientes/planes/ejecuciones durante el debounce, conservar y confirmar cada borrador con su propietario real; no sustituir el contexto pendiente por el nuevo.
+- Corrección publicada: al cambiar entre clientes/planes/ejecuciones durante el debounce, conservar y confirmar cada borrador con su propietario real; no sustituir el contexto pendiente por el nuevo.
 - Inicio de sesión: impedir carreras entre acceso automático desde shell y CTA explícito; bloquear salida duplicada o simultánea a una mutación.
 - Tests: cambio rápido entre dos borradores, flush forzado, checkpoints de series entre dos clientes, inicios concurrentes y salida de sesión bajo carga.
-- Cierre sólo tras CI, QA de interacción y dispositivos, deploy Canary exacto, promoción controlada y comprobación del dominio productivo. Este bloque está **en desarrollo**, no en Canary ni en PROD.
+- Cerrado en PROD mediante promoción `37722367430` SUCCESS, source `366feb554c7922e06e4e124094e4bae043ae1efe`; identidad/runtime LIVE, Chromium, auditoría read-only y rollback certificados por el workflow.
 
 ## WIP CERRADO · Entrenamiento Operativo 360 · núcleo canónico
 

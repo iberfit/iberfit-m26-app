@@ -28,7 +28,7 @@ test('el status de agenda admite confirmed/scheduled sin tratar pendientes como 
  assert.equal(next([appointment('confirmed','confirmed')])?.id,'confirmed');
 });
 test('una cita pasada no se presenta como próxima',()=>{
- assert.equal(next([appointment('old','confirmada','2026-10-05T12:00:00Z')]),null);
+ assert.equal(next([{...appointment('old','confirmada','2026-10-05T12:00:00Z'),endAt:'2026-10-05T13:00:00Z'}]),null);
 });
 test('falta de adherencia/RPE no se convierte en cero medido',()=>{
  const prep=buildNextSessionPreparation(state(),clientId,{now});
