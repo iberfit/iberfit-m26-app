@@ -110,7 +110,7 @@ test('A rejected legacy batch is quarantined, never retried automatically, and e
     async importWearableSummaries(){calls++;return {accepted:0,rejected:1,stale:0};},
     async importWearableAuthorized(){return {accepted:1,rejected:0,stale:0};},
     async upsertWearableConnection(){return {ok:true};},
-    async wearableAuthorizationStatus(){return {provider:'normalized_file',authorized:false,grantId:null,revocationCursor:2};},
+    async wearableAuthorizationStatus(){return {provider:'normalized_file',authorized:false,grantId:null,revocationCursor:0};},
     async reauthorizeWearable(){reattempt++;return {ok:true,grantId:UUIDS[0]};},
   };
   const remote=createWearableRemoteSync({ownerId:'c360-failclosed-qa',transport,
@@ -124,4 +124,23 @@ test('A rejected legacy batch is quarantined, never retried automatically, and e
   await remote.reauthorize({provider:'normalized_file',scopes:['steps']});
   assert.equal(reattempt,1);
   assert.equal(await remote.pendingCount(),0,'old data cannot inherit the new generation');
+});
+
+test('Legacy offline records are erased locally once a different device revoked consent',async()=>{
+  const store=createMemoryKeyValueStore();let online=false,uploads=0;
+  const transport={
+    async wearableAuthorizationStatus(){return {provider:'normalized_file',revocationCursor:5,authorized:false,grantId:null};},
+    async importWearableSummaries(){uploads++;throw Error('must-not-upload-stale-batch');},
+  };
+  const sync=createWearableRemoteSync({ownerId:'c360-cross-device-qa',queueStore:store,
+    transport,getToken:async()=>'qa-token',isOnline:()=>online});
+  await sync.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]});
+  assert.equal(await sync.pendingCount(),1);
+  online=true;
+  const result=await sync.flush();
+  assert.equal(uploads,0);
+  assert.equal(result.discarded,1);
+  assert.equal(await sync.pendingCount(),0);
+  await assert.rejects(sync.stage({clientId:RECORD.clientId,provider:'normalized_file',records:[RECORD]}),
+    /M26_WEARABLE_SOURCE_REVOKED/u);
 });
