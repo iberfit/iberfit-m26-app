@@ -165,3 +165,24 @@ test('Lifecycle is attached once and torn down with the existing progressive onb
   assert.match(p,/connected360Invitation\.destroy\?\.\(\)/u);
   assert.ok(p.indexOf('clientGuidedWelcome.mount?.();')<p.indexOf('connected360Invitation.mount?.();'));
 });
+
+test('Native commands remain fail-closed until a provider is certified for production',()=>{
+  const source=readFileSync('src/m26/wearables/controller.js','utf8');
+  assert.match(source,/const nativePolicy=wearableZeroCostPolicy\(normalized\)/u);
+  assert.match(source,/if\(!nativePolicy\?\.productionAllowed\)/u);
+  assert.match(source,/if\(!interactive&&!granted\.length\)/u);
+  assert.match(source,/reason:'permission-pending'/u);
+  assert.match(source,/if\(!healthConnectAvailable\|\|!wearableZeroCostPolicy\(provider\)\?\.productionAllowed\)continue/u);
+});
+
+test('Connected sources and consent details are restricted to Client in Settings',()=>{
+  const snapshot=readFileSync('src/m26/modules/route-view-model.js','utf8');
+  const render=readFileSync('src/m26/modules/route-render.js','utf8');
+  assert.match(snapshot,/wearableSources:String\(shellVm\.identity\?\.role\|\|''\)==='client'/u);
+  assert.match(snapshot,/permissionCount:item\.scopes\.length/u);
+  assert.match(render,/id="m26-settings-devices"/u);
+  assert.match(render,/sourceRows=wearableSources\.map/u);
+  assert.match(render,/escapeHtml\(item\.label\)/u);
+  assert.match(render,/Solo el cliente controla sus fuentes y permisos/u);
+  assert.match(render,/vm\.role==='client'&&Array\.isArray\(vm\.wearableSources\)/u);
+});
