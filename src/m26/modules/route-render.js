@@ -6,6 +6,7 @@ import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilia
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {formatSleepDuration} from '../wearables/duration-format.js';
+import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -3614,6 +3615,7 @@ export function renderActivityRoute(vm){
   const deviceSummary=wearableHasData(wearableSummary)?`<section class="m26-panel m26-wearable-overview"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Datos de dispositivos</p><h2>Resumen de los últimos 7 días</h2><p>${escapeHtml(connectionCopy)}</p></div>${badge(wearableFreshnessLabel(wearableSummary.freshness),wearableSummary.freshness==='reciente'?'success':'neutral')}</div><div class="m26-stat-grid">${stat('Pasos medios',metricValue(wearableSummary.metrics.steps),`${wearableSummary.daysWithData} días con datos`)}${stat('Actividad',metricValue(wearableSummary.metrics.activeMinutes,' min'),'Promedio diario disponible')}${stat('Sueño objetivo',sleepHoursPerDay(wearableSummary.metrics.sleepMinutes),'Media diaria · dato de dispositivo, no percepción')}${stat('FC en reposo',metricValue(wearableSummary.metrics.restingHeartRate,' lpm'),`Calidad ${wearableSummary.quality}`)}</div><div class="m26-field-grid m26-wearable-secondary">${wearableMetric('VFC media',wearableSummary.metrics.hrvMs,' ms')}${wearableMetric('Energía activa',wearableSummary.metrics.activeEnergyKcal,' kcal')}${wearableMetric('Entrenamiento registrado',wearableSummary.metrics.workoutMinutes,' min')}${wearableMetric('Fuentes',wearableSummary.providers.join(', ')||'Sin fuentes')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}<p class="m26-notice">IBERFIT muestra procedencia, fecha y calidad. No transforma estos datos en indicaciones clínicas ni aumenta cargas sin revisión del entrenador.</p></section>`:`<section class="m26-notice"><strong>Sin datos de dispositivos confirmados</strong><p>El registro de bienestar y las sesiones continúan funcionando sin conectar ningún dispositivo.</p>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}</section>`;
   return `<div class="m26-route">
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Actividad y contexto</p><h2>Bienestar y hábitos</h2><p>Registra cómo se siente la persona y los hábitos acordados. Los dispositivos son opcionales y nunca sustituyen la interpretación del entrenador.</p></div>${badge(last?'Último registro disponible':'Sin registro de bienestar','neutral')}</section>
+    ${wearable.canControl?renderClientDeviceHub(wearable,{importer,deviceSummary,dailyRecords,connectionActions:wearableConnectionActions,coveragePanel:wearableCoveragePanel(wearable)}):''}
     ${capabilityNotice(vm.capabilities.checkins,'Los registros de bienestar')}
     <section class="m26-content-grid">
       <form class="m26-panel" data-engagement-form="checkin" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Registro de bienestar</p><h2>Cómo estás hoy</h2></div></div><div class="m26-field-grid">
@@ -3630,7 +3632,7 @@ export function renderActivityRoute(vm){
     ${capabilityNotice(vm.capabilities.habits,'La publicación de hábitos')}
     ${manager}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2></div>${badge(countLabel(vm.habits.length,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
-    <details class="m26-panel m26-optional-section"><summary>Dispositivos e integraciones opcionales</summary><div class="m26-optional-section-body">${deviceSummary}${dailyRecords}${wearableConnectionActions}${wearableCoveragePanel(wearable)}<section class="m26-content-grid">${importer}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Fuentes compatibles</p><h2>Importación y conexiones reales</h2><p>Seleccionar una fuente identifica el origen del archivo; no crea una conexión. Las conexiones directas siguen bloqueadas hasta completar su autorización real. Ninguna fuente aparece como conectada antes de completar su autorización.</p></div></div><div class="m26-wearable-sources">${wearable.providers.map(wearableProviderCard).join('')}</div></section></section></div></details>
+    ${wearable.canControl?'':`<details class="m26-panel m26-optional-section"><summary>Actividad confirmada de dispositivos</summary><div class="m26-optional-section-body"><p>El cliente decide qué datos autoriza. El entrenador recibe únicamente resúmenes confirmados.</p>${deviceSummary}${dailyRecords}${wearableCoveragePanel(wearable)}</div></details>`}
   </div>`;
 }
 
@@ -4171,7 +4173,15 @@ export function renderSessionsRoute(vm){
     :directStart;
   const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation,{canStartSession:serviceActive,role:vm.role,publishedSessions:vm.sessions}):'';
   const pausedNotice=!serviceActive?'<section class="m26-notice is-warning" role="status"><strong>Entrenamiento en pausa</strong><p>Puedes consultar planificación, historial y contexto. Reanuda el servicio antes de iniciar una nueva sesión.</p></section>':'';
-  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
+  const deviceSessionContext=isClient&&vm.wearableContext?.summary&&Number(vm.wearableContext.summary.daysWithData||0)>0
+    ?`<section class="m26-session-device-context" aria-label="Actividad confirmada junto al entrenamiento">
+      <div><p class="m26-eyebrow">CONTEXTO · ÚLTIMOS SIETE DÍAS</p><h3>Tu actividad y recuperación</h3>
+      <p>Información confirmada para consultar junto a tus sesiones, sin modificar la planificación.</p></div>
+      ${deviceConfirmedStats(vm.wearableContext.summary)}
+      <button type="button" data-m26-area="actividad">Ver mis dispositivos</button>
+      </section>`
+    :'';
+  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${deviceSessionContext}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';
@@ -4332,7 +4342,9 @@ export function renderSettingsRoute(vm){
     ? (vm.wearableConnections===0?'No hay fuentes confirmadas':vm.wearableConnections+' fuente'+(vm.wearableConnections===1?'':'s')+' registrada'+(vm.wearableConnections===1?'':'s'))
     : 'No hay contexto de cliente seleccionado';
   const wearableSources=vm.role==='client'&&Array.isArray(vm.wearableSources)?vm.wearableSources:[];
-  const sourceRows=wearableSources.map(item=>'<li><strong>'+escapeHtml(item.label)+'</strong><span>'+escapeHtml(castilianStatusLabel(item.status))+' · '+escapeHtml(item.lastSyncedAt?item.lastSyncedAt.slice(0,10):'Sin sincronización confirmada')+' · '+Number(item.permissionCount||0)+' permisos de lectura</span></li>').join('');
+  const sourceRows=wearableSources.map(item=>'<li><strong>'+escapeHtml(item.label)+'</strong><span>'+escapeHtml(item.mode==='confirmed_import'?'Datos incorporados manualmente · no sincroniza solo':castilianStatusLabel(item.status))+' · '+escapeHtml(item.lastSyncedAt?item.lastSyncedAt.slice(0,10):'Sin actualización confirmada')+'</span></li>').join('');
+  const settingsSummary=vm.wearableSnapshot?.summary||null;
+  const settingsStats=settingsSummary&&Number(settingsSummary.daysWithData||0)>0?deviceConfirmedStats(settingsSummary):'';
 
   const notificationToggle=(key,label,copy)=>
     `<label class="m26-consent">
@@ -4439,11 +4451,12 @@ export function renderSettingsRoute(vm){
                   <h4>Dispositivos y salud</h4>
                   <p>${escapeHtml(wearableNote)}</p>
                 </div>
-                <button type="button" data-m26-area="actividad">${vm.role==='client'?'Gestionar fuentes':'Ver seguimiento'}</button>
+                <button type="button" data-m26-area="actividad">${vm.role==='client'?'Ver mis dispositivos':'Ver seguimiento'}</button>
               </div>
               ${vm.role==='client'
-                ?'<p class="m26-data-footnote">La importación está disponible desde el primer día. La conexión automática requiere permisos y un proveedor certificado.</p>'
-                 +(sourceRows?'<ul class="m26-settings-device-sources">'+sourceRows+'</ul>':'<p class="m26-data-footnote">Todavía no has incorporado una fuente de actividad. Es opcional y puedes hacerlo más adelante.</p>')
+                ?(settingsStats||'<p class="m26-data-footnote">Sin datos de actividad confirmados todavía.</p>')
+                 +(sourceRows?'<ul class="m26-settings-device-sources">'+sourceRows+'</ul>':'<p class="m26-data-footnote">Sin fuentes vinculadas. El cliente puede vincular una fuente certificada desde Actividad.</p>')
+                 +'<p class="m26-data-footnote">Importar un archivo no vincula el reloj. La conexión automática solo estará habilitada con una integración certificada.</p>'
                 :'<p class="m26-data-footnote">Solo el cliente controla sus fuentes y permisos. El Coach consulta únicamente el seguimiento autorizado.</p>'}
               <div class="m26-settings-privacy-note">
                 ${badge('Privacidad activa','success')}
