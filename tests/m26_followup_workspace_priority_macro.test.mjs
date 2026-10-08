@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+test('workspace expone endpoint y prioridad',()=>{const route=fs.readFileSync('src/m26/modules/route-render.js','utf8');assert.match(route,/data-m26-coach-focus="action-outcome" tabindex="-1"/u);assert.match(route,/data-action-outcome-priority="\$\{prep\?\.reviewRequired\?'review':'normal'\}"/u);});
+test('manager reacciona a reviewRequired',()=>{const source=fs.readFileSync('src/m26/engagement/engagement-controller.js','utf8');assert.match(source,/workspacePriority=workspaceMode&&mount\.getAttribute\?\.\('data-action-outcome-priority'\)==='review'\?'review':'normal'/u);assert.match(source,/const signature=`\$\{mode\}:\$\{workspacePriority\}:/u);assert.match(source,/summaryData\.overdueCount>0\|\|workspacePriority==='review'/u);});
+test('reviewRequired no autoabre ni envía formulario',()=>{const source=fs.readFileSync('src/m26/engagement/engagement-controller.js','utf8');assert.doesNotMatch(source,/workspacePriority[\s\S]{0,500}formDisclosure\.open=true/u);assert.doesNotMatch(source,/workspacePriority[\s\S]{0,500}requestSubmit|workspacePriority[\s\S]{0,500}\.submit\(/u);});
+test('foco premium visible',()=>{const css=fs.readFileSync('src/m26/design/premium-ux.css','utf8');assert.match(css,/\.m26-coach-workspace-decisions\[data-m26-coach-focus\]:focus\{/u);assert.match(css,/outline:2px solid color-mix/u);assert.match(css,/scroll-margin-top:1rem/u);});
