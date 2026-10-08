@@ -17,9 +17,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
-      - name: Install Android SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      # Hosted Ubuntu has Android SDK command-line tools. The setup-android action
+      # currently attempts to install removed legacy 'tools' and fails closed.
+      - name: Prepare installed Android SDK 35
+        shell: bash
+        run: |
+          SDK_MANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)"
+          test -n "$SDK_MANAGER"
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
