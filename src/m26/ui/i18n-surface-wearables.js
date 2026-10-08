@@ -1,4 +1,16 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  // CONNECTED360: localized first-day consent and Client settings copy.
+  ["No hay fuentes confirmadas","No confirmed sources","Aucune source confirmée","Não há fontes confirmadas"],
+  ["No hay contexto de cliente seleccionado","No client context selected","Aucun contexte client sélectionné","Sem contexto de cliente selecionado"],
+  ["Sin sincronización confirmada","No confirmed sync","Aucune synchronisation confirmée","Sem sincronização confirmada"],
+  ["Autoriza una fuente compatible para incorporar actividad, entrenamiento y recuperación. Tú decides qué permisos conceder.","Authorise a compatible source to add activity, workouts and recovery data. You choose which permissions to grant.","Autorisez une source compatible pour ajouter l’activité, les entraînements et la récupération. Vous choisissez les autorisations accordées.","Autorize uma fonte compatível para incorporar atividade, treinos e recuperação. Decide que permissões conceder."],
+  ["En la web puedes revisar una exportación compatible y confirmar qué información incorporar. La conexión automática del reloj requiere una aplicación nativa o integración cloud certificada.","On the web, you can review a compatible export and confirm which data to add. Automatic watch sync requires a certified native app or cloud integration.","Sur le Web, vous pouvez vérifier une exportation compatible et confirmer les données à importer. La synchronisation automatique nécessite une application native ou une intégration cloud certifiée.","Na web, pode rever uma exportação compatível e confirmar que dados incorporar. A sincronização automática requer uma aplicação nativa ou integração cloud certificada."],
+  ["Tu actividad, desde el primer día","Your activity, from day one","Votre activité, dès le premier jour","A sua atividade, desde o primeiro dia"],
+  ["¿Quieres conectar tu reloj o dispositivo de actividad?","Would you like to connect your watch or activity device?","Souhaitez-vous connecter votre montre ou votre appareil d’activité ?","Quer ligar o seu relógio ou dispositivo de atividade?"],
+  ["Conexión compatible detectada","Compatible connection detected","Connexion compatible détectée","Ligação compatível detetada"],
+  ["Disponible hoy: importación de archivo verificada","Available now: verified file import","Disponible maintenant : importation de fichier vérifiée","Disponível agora: importação de ficheiro verificada"],
+  ["Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.","Optional. Nothing is imported without your permission; you can manage your data in Settings.","Facultatif. Rien n’est importé sans votre autorisation ; vous pouvez gérer vos données dans Paramètres.","Opcional. Nada é importado sem a sua autorização; pode gerir os dados em Definições."],
+  ["No se ha podido abrir Actividad. Puedes encontrarla también desde Ajustes.","Could not open Activity. You can also find it from Settings.","Impossible d’ouvrir Activité. Vous pouvez aussi y accéder depuis Paramètres.","Não foi possível abrir Atividade. Também a pode encontrar nas Definições."],
 ['min/día','min/day','min/jour','min/dia'],
 ['sueño','sleep','sommeil','sono'],
 ['entrenamiento','training','entraînement','treino'],
