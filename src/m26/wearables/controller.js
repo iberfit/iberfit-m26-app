@@ -15,6 +15,7 @@ import {
 import {
   createWearableRemoteSync,
 } from './remote-sync.js';
+import {formatSleepDuration} from './duration-format.js';
 import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
@@ -118,8 +119,8 @@ function wearableContextText(preview){
     [
       'sueño',
       compactMetric(
-        summary.metrics.sleepMinutes,
-        ' min/día',
+        formatSleepDuration(summary.metrics.sleepMinutes),
+        '/día',
       ),
     ],
     [
@@ -199,8 +200,7 @@ function renderPreview(root,parsed,provider){
       )}
       ${metric(
         'Sueño medio',
-        summary.metrics.sleepMinutes,
-        'min',
+        formatSleepDuration(summary.metrics.sleepMinutes),
       )}
       ${metric(
         'FC reposo media',
