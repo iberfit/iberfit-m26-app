@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse, hashlib, json, math, unicodedata
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageFont
 
 MASTER_W,MASTER_H=1280,1600
 PANEL_W=640
@@ -9,9 +9,15 @@ DELIVERY_W,DELIVERY_H=640,800
 OFFICIAL_ISOTIPO_SHA256='d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa'
 IDENTITY_MASTER_SHA256='b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb'
 ANATOMY_W,ANATOMY_H=180,250
-ANATOMY_X,ANATOMY_Y=36,42
+ANATOMY_X,ANATOMY_Y=MASTER_W-ANATOMY_W-36,42
 BODY=(179,184,180,235);OUTLINE=(91,101,95,220);PRIMARY=(35,101,73,255);SECONDARY=(178,149,88,96);NEUTRAL=(216,208,194,205)
 GENERIC={'movilidad','global','musculo objetivo'}
+LABEL_GOLD=(215,186,124,255)
+LABEL_BG=(5,18,12,222)
+LABEL_OUTLINE=(104,89,52,230)
+LABEL_Y=250
+LABEL_W=180
+LABEL_H=58
 
 def norm(v):
     s=unicodedata.normalize('NFKD',str(v or '')).encode('ascii','ignore').decode('ascii').lower()
@@ -73,6 +79,21 @@ def anatomy(primary,secondary):
         fig1=render_view(FRONT,p,s,(78,111));fig2=render_view(BACK,p,s,(78,111));inset.alpha_composite(fig1,(7,65));inset.alpha_composite(fig2,(95,65));used=['front','back']
     return inset,used
 
+def phase_font(size=34):
+    for p in ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf','/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf'):
+        try: return ImageFont.truetype(p,size)
+        except OSError: pass
+    return ImageFont.load_default()
+
+def draw_phase_label(canvas,text,panel_offset):
+    d=ImageDraw.Draw(canvas,'RGBA');font=phase_font(34)
+    cx=panel_offset+190;cy=LABEL_Y
+    box=(cx-LABEL_W//2,cy-LABEL_H//2,cx+LABEL_W//2,cy+LABEL_H//2)
+    d.rounded_rectangle(box,radius=LABEL_H//2,fill=LABEL_BG,outline=LABEL_OUTLINE,width=2)
+    bbox=d.textbbox((0,0),text,font=font)
+    tw=bbox[2]-bbox[0];th=bbox[3]-bbox[1]
+    d.text((cx-tw/2,cy-th/2-bbox[1]),text,font=font,fill=LABEL_GOLD)
+
 def fit_panel(path):
     src=Image.open(path).convert('RGB');sw,sh=src.size;target_ratio=PANEL_W/MASTER_H;source_ratio=sw/sh
     if source_ratio>target_ratio:
@@ -102,7 +123,7 @@ def main():
     primary=[canon(x) for x in plan.get('anatomy_primary',[])];secondary=[canon(x) for x in plan.get('anatomy_secondary',[])]
     if not primary: raise ValueError('ANATOMY_PRIMARY_EMPTY')
     left,lgeom=fit_panel(args.start);right,rgeom=fit_panel(args.final);master=Image.new('RGB',(MASTER_W,MASTER_H),(10,17,13));master.paste(left,(0,0));master.paste(right,(PANEL_W,0));ImageDraw.Draw(master).line((PANEL_W-1,0,PANEL_W-1,MASTER_H),fill=(56,65,59),width=2);rgba=master.convert('RGBA')
-    inset,views=anatomy(primary,secondary);rgba.alpha_composite(inset,(ANATOMY_X,ANATOMY_Y))
+    inset,views=anatomy(primary,secondary);rgba.alpha_composite(inset,(ANATOMY_X,ANATOMY_Y));draw_phase_label(rgba,'Inicio',0);draw_phase_label(rgba,'Final',PANEL_W)
     logo=logo_asset(args.official_isotipo);anchors={}
     for phase,locfile,geom,offset in [('start',args.start_anchor,lgeom,0),('final',args.final_anchor,rgeom,PANEL_W)]:
         loc=json.loads(Path(locfile).read_text());x,y=transform_anchor(loc,geom);x+=offset;mark=scaled_rotated(logo,34,float(loc.get('rotation_deg',0)),1.0);paste_center(rgba,mark,x,y);anchors[phase]={'center':[round(x,2),round(y,2)],'width':34,'rotation_deg':float(loc.get('rotation_deg',0)),'locator_confidence':float(loc.get('confidence',0))}
@@ -112,6 +133,6 @@ def main():
     master=rgba.convert('RGB');master_out=Path(args.master_out);delivery_out=Path(args.delivery_out);meta_out=Path(args.meta_out)
     for p in (master_out,delivery_out,meta_out): p.parent.mkdir(parents=True,exist_ok=True)
     master.save(master_out,'WEBP',quality=94,method=6);master.resize((DELIVERY_W,DELIVERY_H),Image.Resampling.LANCZOS).save(delivery_out,'WEBP',quality=91,method=6)
-    meta={'schema':'iberfit.exercise.media.auto.candidate.v1','exercise_id':eid,'visual_system':'iberfit.exercise.media.system.v1','identity_master_sha256':IDENTITY_MASTER_SHA256,'master':{'path':str(master_out),'width':MASTER_W,'height':MASTER_H,'sha256':sha(master_out)},'delivery':{'path':str(delivery_out),'width':DELIVERY_W,'height':DELIVERY_H,'sha256':sha(delivery_out)},'layout':{'start':'left','final':'right','embedded_text':False,'phase_labels_in_pixels':False},'anatomy':{'corner':'upper-left','width':ANATOMY_W,'width_percent':round(ANATOMY_W/MASTER_W*100,3),'primary':primary,'secondary':secondary,'views':views,'inferred':bool(plan.get('anatomy_inferred')),'style':'analytical-anatomical-plate'},'branding':{'official_isotipo_sha256':OFFICIAL_ISOTIPO_SHA256,'generated_branding':False,'shirt':anchors,'wall_watermark':wall},'planner_confidence':float(plan.get('planner_confidence',0)),'human_approval_required':False,'automatic_dual_gate_required':True,'publishable':False}
+    meta={'schema':'iberfit.exercise.media.auto.candidate.v1','exercise_id':eid,'visual_system':'iberfit.exercise.media.system.v1','identity_master_sha256':IDENTITY_MASTER_SHA256,'master':{'path':str(master_out),'width':MASTER_W,'height':MASTER_H,'sha256':sha(master_out)},'delivery':{'path':str(delivery_out),'width':DELIVERY_W,'height':DELIVERY_H,'sha256':sha(delivery_out)},'layout':{'start':'left','final':'right','embedded_text':True,'phase_labels_in_pixels':True,'phase_labels':['Inicio','Final']},'anatomy':{'corner':'upper-right','width':ANATOMY_W,'width_percent':round(ANATOMY_W/MASTER_W*100,3),'primary':primary,'secondary':secondary,'views':views,'inferred':bool(plan.get('anatomy_inferred')),'style':'analytical-anatomical-plate'},'branding':{'official_isotipo_sha256':OFFICIAL_ISOTIPO_SHA256,'generated_branding':False,'shirt':anchors,'wall_watermark':wall},'planner_confidence':float(plan.get('planner_confidence',0)),'human_approval_required':True,'automatic_dual_gate_required':True,'publishable':False}
     meta_out.write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n');print(json.dumps(meta,ensure_ascii=False))
 if __name__=='__main__': main()

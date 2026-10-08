@@ -43,7 +43,6 @@ Their SHA-256 values are pinned in `contract.json` and checked against the appro
 ### The application UI owns
 
 - exercise name;
-- start/final labels if the interface needs them;
 - muscles and anatomical names;
 - pattern, equipment and difficulty;
 - technique cues and precautions;
@@ -51,7 +50,7 @@ Their SHA-256 values are pinned in `contract.json` and checked against the appro
 - actions, controls and navigation;
 - accessibility text and alt descriptions.
 
-No semantic UI information is baked into pixels.
+Only the fixed phase labels `Inicio` and `Final` are baked into pixels, by the deterministic compositor. No exercise name, cue, metric, instruction or other semantic UI information is baked into pixels.
 
 ## Canvas and delivery
 
@@ -72,13 +71,13 @@ The athlete and movement occupy the dominant central field. All relevant joints,
 
 ### Movement phases
 
-When two phases are needed, start and end must share athlete, outfit, camera, equipment, environment and lighting. Only the movement changes. They may be presented side-by-side or in another approved deterministic composition, but never require baked labels to be understood.
+When two phases are needed, start and end must share athlete, outfit, camera, equipment, environment and lighting. Only the movement changes. They are presented side-by-side in the canonical library composition. The compositor adds the fixed labels `Inicio` (left) and `Final` (right); the image model never draws those labels.
 
 ### Anatomy zone
 
 A compact anatomy inset is required by default for every new system-v1 exercise visual. The only exception is a QA-documented case where the inset would reduce instructional clarity.
 
-Place it in the upper-left visual zone, normally at approximately 12–16% of image width. It must remain clearly secondary to the exercise and must never cover the athlete, load, support surface or trajectory.
+Place it in the upper-right visual zone, normally at approximately 12–16% of image width. It must remain clearly secondary to the exercise and must never cover the athlete, load, support surface or trajectory.
 
 The anatomy should read as a clean analytical anatomical plate rather than a bodybuilding illustration: restrained relief, subtle muscle definition, anatomically legible forms and no hyper-defined musculature. Use one or two neutral anatomical views only when they improve understanding; avoid decorative arcs, badges, marks or other ornamental elements inside the anatomy inset.
 

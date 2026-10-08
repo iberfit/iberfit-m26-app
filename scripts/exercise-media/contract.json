@@ -6,7 +6,10 @@
     "slug_authoritative": false,
     "display_name_authoritative": false
   },
-  "required": ["exercise_id", "media"],
+  "required": [
+    "exercise_id",
+    "media"
+  ],
   "media_contract": {
     "schema": "iberfit.exercise.visual.v1",
     "style": "iberfit-premium-movement-pair-v1",
@@ -35,10 +38,10 @@
         "format": "webp"
       },
       "safe_area_percent": 6,
-      "embedded_text": false,
+      "embedded_text": true,
       "exercise_name_in_pixels": false,
       "technical_copy_in_pixels": false,
-      "phase_labels_in_pixels": false,
+      "phase_labels_in_pixels": true,
       "branding": {
         "official_isotipo_only": true,
         "generated_branding": false,
@@ -81,7 +84,7 @@
         "exception_requires_qa_justification": true,
         "text_labels": false,
         "zone": "upper",
-        "preferred_corner": "upper-left",
+        "preferred_corner": "upper-right",
         "width_percent_min": 12,
         "width_percent_max": 16,
         "rendering_style": "analytical-anatomical-plate",
@@ -98,13 +101,27 @@
         "coach-live-session",
         "exercise-detail",
         "fullscreen-viewer"
-      ]
+      ],
+      "allowed_embedded_text": [
+        "Inicio",
+        "Final"
+      ],
+      "phase_labels": {
+        "required": true,
+        "start": "Inicio",
+        "final": "Final",
+        "extra_text_forbidden": true,
+        "rendering": "deterministic-compositor",
+        "tone": "restrained-gold-on-dark-pill"
+      },
+      "human_review_required": true
     },
     "publication_requirements": {
       "qa.biomechanics": "approved",
       "qa.visual": "approved",
       "published": true,
-      "visibility": "clientVisible=true or coachVisible=true"
+      "visibility": "clientVisible=true or coachVisible=true",
+      "human_approved": true
     }
   },
   "fail_closed": [

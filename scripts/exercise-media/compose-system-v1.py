@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse, hashlib, json, unicodedata
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageFont
 
 MASTER_W,MASTER_H=1280,1600
 PANEL_W=MASTER_W//2
@@ -9,13 +9,19 @@ DELIVERY_W,DELIVERY_H=640,800
 OFFICIAL_ISOTIPO_SHA256='d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa'
 ANATOMY_WIDTH=180
 ANATOMY_HEIGHT=250
-ANATOMY_X=36
+ANATOMY_X=MASTER_W-ANATOMY_WIDTH-36
 ANATOMY_Y_DEFAULT=42
 BODY=(177,181,178,238)
 BODY_DARK=(95,104,99,220)
 PRIMARY=(37,101,73,245)
 SECONDARY=(177,149,88,235)
 NEUTRAL=(213,205,190,205)
+LABEL_GOLD=(215,186,124,255)
+LABEL_BG=(5,18,12,222)
+LABEL_OUTLINE=(104,89,52,230)
+LABEL_Y=250
+LABEL_W=180
+LABEL_H=58
 
 TARGET_SETTINGS={
  'IBF-DOMINADA-PRONADA':{
@@ -87,6 +93,21 @@ def read_muscles(catalog_path,exercise_id):
     primary=[canonical(x) for x in exercise.get('primary_muscles',[]) if str(x).strip()]
     secondary=[canonical(x) for x in exercise.get('secondary_muscles',[]) if str(x).strip()]
     return primary,secondary
+
+def phase_font(size=34):
+    for path in ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf','/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf'):
+        try: return ImageFont.truetype(path,size)
+        except OSError: pass
+    return ImageFont.load_default()
+
+def draw_phase_label(canvas,text,panel_offset):
+    draw=ImageDraw.Draw(canvas,'RGBA');font=phase_font(34)
+    cx=panel_offset+190;cy=LABEL_Y
+    box=(cx-LABEL_W//2,cy-LABEL_H//2,cx+LABEL_W//2,cy+LABEL_H//2)
+    draw.rounded_rectangle(box,radius=LABEL_H//2,fill=LABEL_BG,outline=LABEL_OUTLINE,width=2)
+    bbox=draw.textbbox((0,0),text,font=font)
+    tw=bbox[2]-bbox[0];th=bbox[3]-bbox[1]
+    draw.text((cx-tw/2,cy-th/2-bbox[1]),text,font=font,fill=LABEL_GOLD)
 
 def fit_panel(source):
     image=Image.open(source).convert('RGB')
@@ -171,7 +192,7 @@ def main():
     master_rgba=master.convert('RGBA')
     inset=anatomy_inset(primary,secondary,settings['anatomy_view'])
     anatomy_y=settings.get('anatomy_y',ANATOMY_Y_DEFAULT)
-    master_rgba.alpha_composite(inset,(ANATOMY_X,anatomy_y))
+    master_rgba.alpha_composite(inset,(ANATOMY_X,anatomy_y));draw_phase_label(master_rgba,'Inicio',0);draw_phase_label(master_rgba,'Final',PANEL_W)
     logo=load_official_isotipo(args.official_isotipo)
     placements={'shirt':{},'wall':None}
     for phase in ('start','final'):
@@ -192,8 +213,8 @@ def main():
       'visual_system':'iberfit.exercise.media.system.v1',
       'master':{'path':str(master_out),'width':MASTER_W,'height':MASTER_H,'mime':'image/webp','sha256':sha256_file(master_out)},
       'delivery':{'path':str(delivery_out),'width':DELIVERY_W,'height':DELIVERY_H,'mime':'image/webp','sha256':sha256_file(delivery_out)},
-      'layout':{'left':'start','right':'final','phase_labels_in_pixels':False,'embedded_text':False,'divider_x':PANEL_W},
-      'anatomy':{'present':True,'corner':'upper-left','x':ANATOMY_X,'y':anatomy_y,'width':ANATOMY_WIDTH,'height':ANATOMY_HEIGHT,'width_percent':round(anatomy_width_percent,3),'view':settings['anatomy_view'],'primary':primary,'secondary':secondary,'style':'analytical-anatomical-plate'},
+      'layout':{'left':'start','right':'final','phase_labels_in_pixels':True,'embedded_text':True,'phase_labels':['Inicio','Final'],'divider_x':PANEL_W},
+      'anatomy':{'present':True,'corner':'upper-right','x':ANATOMY_X,'y':anatomy_y,'width':ANATOMY_WIDTH,'height':ANATOMY_HEIGHT,'width_percent':round(anatomy_width_percent,3),'view':settings['anatomy_view'],'primary':primary,'secondary':secondary,'style':'analytical-anatomical-plate'},
       'branding':{'official_isotipo_path':args.official_isotipo,'official_isotipo_sha256':OFFICIAL_ISOTIPO_SHA256,'generated_branding':False,'shirt':placements['shirt'],'wall_watermark':placements['wall']},
       'human_approval_required':True,
       'publishable':False,
