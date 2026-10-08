@@ -465,7 +465,7 @@ function validatedSetResult(step,input={},previous=null){
     exerciseId:step.exerciseId,
     setNumber:step.setNumber,
     reps,seconds,load,rpe,rir,
-    ...((profile.cardio||profile.kind==='carry')?{distanceKm,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
+    ...((profile.cardio||profile.kind==='carry')?{distanceKm,distanceM,avgSpeedKmh,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
     notes:String(input.notes||'').trim().slice(0,1000),
     completedAt:previous?.completedAt||now(),
     ...(previous?{correctedAt:now()}:{ }),
