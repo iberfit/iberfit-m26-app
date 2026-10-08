@@ -22,8 +22,8 @@ test('Session QA permanently runs the dedicated Live Workout browser gate',()=>{
     for(const expected of [
       'PLAYWRIGHT_BROWSERS_PATH: /ms-playwright',
       'Verify preinstalled Live Workout browsers',
-      'chromium,chromium',
-      'webkit,webkit',
+      "'chromium',chromium",
+      "'webkit',webkit",
       'fs.existsSync(executable)',
     ])assert.ok(workflow.includes(expected),expected);
   }else{
