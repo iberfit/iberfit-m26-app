@@ -85,6 +85,8 @@ export function createWearableRemoteSync({
   );
   const ownerPrefix=`${PREFIX}owner/${owner}/`;
   const blockedProviders=new Set();
+  const explicitGrants=new Map();
+  const GRANT_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
   let deleteRequested=false;
   let operationTail=Promise.resolve();
   function serialize(task){
@@ -115,6 +117,7 @@ export function createWearableRemoteSync({
     clientId,
     provider,
     records=[],
+    authorizationGrant=null,
   }={}){
     const safeClientId=safeId(
       clientId,
@@ -122,6 +125,8 @@ export function createWearableRemoteSync({
     );
     const safeSource=safeProvider(provider);
     if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+    const grant=authorizationGrant||explicitGrants.get(safeSource)||null;
+    if(grant&&!GRANT_ID.test(String(grant)))throw new Error('M26_CONNECTED360_GRANT_INVALID');
     const normalized=deduplicateWearableDailyRecords(records)
       .filter((record)=>
         record.clientId===safeClientId&&
@@ -143,6 +148,7 @@ export function createWearableRemoteSync({
           provider:safeSource,
           queuedAt:new Date().toISOString(),
           attempts:0,
+          authorizationGrant:grant,
         },
       );
     }
@@ -204,7 +210,7 @@ export function createWearableRemoteSync({
 
     for(const entry of entries){
       const item=entry[1];
-      const groupKey=`${item.clientId}|${item.provider}`;
+      const groupKey=`${item.clientId}|${item.provider}|${item.authorizationGrant||"legacy"}`;
       if(!groups.has(groupKey))groups.set(groupKey,[]);
       groups.get(groupKey).push(entry);
     }
@@ -222,10 +228,10 @@ export function createWearableRemoteSync({
         const batchRecords=batch.map(([,item])=>item.record);
 
         try{
-          const result=await transport.importWearableSummaries(
-            token,
-            {records:batchRecords},
-          );
+          const grant=batch[0][1].authorizationGrant;
+          const result=grant
+            ?await transport.importWearableAuthorized(token,grant,{records:batchRecords})
+            :await transport.importWearableSummaries(token,{records:batchRecords});
 
           if(Number(result?.rejected||0)!==0){
             throw new Error('M26_WEARABLE_REMOTE_REJECTED');
@@ -255,6 +261,8 @@ export function createWearableRemoteSync({
         }
       }
 
+      // Authorized v2 import already linked the source in its transaction.
+      if(groupEntries[0][1].authorizationGrant)continue;
       await transport.upsertWearableConnection(
         token,
         {
@@ -299,6 +307,7 @@ export function createWearableRemoteSync({
     const safeSource=safeProvider(provider);
     // Block new staged or queued work at the moment of revocation, not after the network request.
     blockedProviders.add(safeSource);
+    explicitGrants.delete(safeSource);
     return serialize(async()=>{
     const token=await getToken();
     const result=await transport.revokeWearableConnection(
@@ -323,6 +332,7 @@ export function createWearableRemoteSync({
 
   async function deleteAll(){
     deleteRequested=true;
+    explicitGrants.clear();
     return serialize(async()=>{
     const token=await getToken();
     const result=await transport.deleteWearableData(token);
@@ -338,7 +348,40 @@ export function createWearableRemoteSync({
 
   async function clearOwner(){
     deleteRequested=true;
+    explicitGrants.clear();
     return serialize(()=>queueStore.clear(ownerPrefix));
+  }
+
+  async function reauthorize({provider='normalized_file',scopes=[]}={}){
+    const source=safeProvider(provider);
+    if(source!=='normalized_file'||!Array.isArray(scopes)||!scopes.length)
+      throw new Error('M26_CONNECTED360_CLIENT_FILE_REQUIRED');
+    if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
+    if(typeof transport.reauthorizeWearable!=='function'
+      ||typeof transport.wearableAuthorizationStatus!=='function')
+      throw new Error('M26_CONNECTED360_REAUTHORIZE_UNAVAILABLE');
+    return serialize(async()=>{
+      const token=await getToken();
+      const status=await transport.wearableAuthorizationStatus(token,source);
+      let result;
+      if(status.authorized===true){
+        result=Object.freeze({...status,alreadyAuthorized:true});
+      }else{
+        result=await transport.reauthorizeWearable(token,{
+          provider:source,expectedCursor:status.revocationCursor,
+          expectedGrant:status.grantId||null,scopes,
+        });
+      }
+      // Never upgrade an old offline import to a newly granted generation.
+      for(const [key,item] of await queuedEntries()){
+        if(item?.provider===source)await queueStore.remove(key);
+      }
+      explicitGrants.set(source,result.grantId);
+      blockedProviders.delete(source);
+      deleteRequested=false;
+      await refreshState({reason:'wearable-reauthorized'});
+      return result;
+    });
   }
 
   function stage(params={}){
@@ -355,6 +398,7 @@ export function createWearableRemoteSync({
     flush,
     revoke,
     deleteAll,
+    reauthorize,
     pendingCount,
     clearOwner,
   });
