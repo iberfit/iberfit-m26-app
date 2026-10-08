@@ -206,9 +206,9 @@ function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
   }
   const title=profile.kind==='isometric'?'Tiempo por serie (ej. 30 s)':profile.kind==='carry'?'Recorrido/tiempo objetivo':'Repeticiones/tiempo objetivo';
   return `${grouped?'':field('sets','Series',p.sets??3,'number',{min:1,max:100})}
-    ${field('reps',title,p.reps??'', 'text',{maxLength:40})}
+    ${field('reps',title,p.reps??'', 'text',{maxLength:80})}
     ${profile.kind==='carry'?field('plannedDistanceKm','Distancia (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000}):''}
-    ${profile.kind==='isometric'||profile.kind==='carry'||profile.kind==='strength'||profile.kind==='power'?field('plannedLoad','Carga (opcional si aplica)',p.plannedLoad||'','text',{maxLength:80,placeholder:'Ej. 10 kg o peso corporal'}):''}
+    ${profile.kind==='isometric'||profile.kind==='carry'||profile.kind==='strength'||profile.kind==='power'?field('plannedLoad','Carga planificada',p.plannedLoad||'','text',{maxLength:80,placeholder:'Ej. 10 kg o peso corporal'}):''}
     ${field('restSeconds','Descanso (s)',p.restSeconds??60,'number',{min:0,max:3600})}`;
 }
 function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
