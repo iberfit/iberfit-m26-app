@@ -1,0 +1,126 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createSessionDraft} from '../src/m26/workflows/session-builder.js';
+import {createExecution,startExecution} from '../src/m26/workflows/session-execution.js';
+import {createSessionController} from '../src/m26/workflows/session-controller.js';
+
+function rootFixture(){
+  const listeners=new Map();
+  const root={
+    ownerDocument:{activeElement:null},
+    setFields:[],
+    addEventListener(name,handler){const group=listeners.get(name)||[];group.push(handler);listeners.set(name,group);},
+    removeEventListener(name,handler){listeners.set(name,(listeners.get(name)||[]).filter(item=>item!==handler));},
+    querySelector(){return null;},
+    querySelectorAll(selector){return selector==='[data-set-field]'?this.setFields:[];},
+    emit(type,target){for(const handler of listeners.get(type)||[])handler({target,preventDefault(){}});},
+  };
+  return root;
+}
+const noopEvents={addEventListener(){},removeEventListener(){},visibilityState:'visible'};
+const telemetry={start:async()=>{},stop:async()=>{},pause:async()=>{},resume:async()=>{}};
+function controller(root,getContext,extra={}){
+  return createSessionController({
+    root,getContext,render:()=>{},autosaveDelayMs:50,
+    liveTelemetryController:telemetry,lifecycleTarget:noopEvents,
+    visibilityTarget:noopEvents,clockTarget:{},...extra,
+  });
+}
+function inputNode(selector,attribute,value){
+  return {value,getAttribute(name){return name===attribute?selector:null;}};
+}
+function inputEvent(match,node){
+  return {closest(selector){return selector===match?node:null;}};
+}
+const sessionFor=(client)=>({id:'session-'+client,clientId:client,blocks:[{
+  id:'block-'+client,type:'exercise',exerciseId:'exercise-'+client,
+  sets:2,reps:'10',restSeconds:45,targetRpe:7,targetRir:2,
+}]});
+function liveContext(client,persisted){
+  const session=sessionFor(client);
+  const execution=createExecution({session,clientId:client,executionId:'execution-'+client});
+  startExecution(execution);
+  return {
+    actor:{role:'client'},session,execution,sessionRevision:0,
+    recoveryCoordinator:{
+      async persist(payload){persisted.push({owner:client,payload:structuredClone(payload)});},
+      async settle(){},
+    },
+  };
+}
+const nextTick=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+test('rapid Coach draft edits persist both clients instead of discarding the first debounce',async()=>{
+  const root=rootFixture(),saved=[];
+  const contextA={draft:createSessionDraft({clientId:'client-A'}),autosaveDraft:async()=>saved.push(['A',contextA.draft.title])};
+  const contextB={draft:createSessionDraft({clientId:'client-B'}),autosaveDraft:async()=>saved.push(['B',contextB.draft.title])};
+  let active=contextA;const c=controller(root,()=>active);c.mount();
+  const fieldA=inputNode('title','data-session-draft-field','Fuerza A');
+  root.emit('input',inputEvent('[data-session-draft-field]',fieldA));
+  active=contextB;
+  const fieldB=inputNode('title','data-session-draft-field','Fuerza B');
+  root.emit('input',inputEvent('[data-session-draft-field]',fieldB));
+  await new Promise(resolve=>setTimeout(resolve,95));
+  assert.deepEqual(saved,[['A','Fuerza A'],['B','Fuerza B']]);
+  c.destroy();
+});
+
+test('forced save on a new context preserves the old pending draft and current new draft',async()=>{
+  const root=rootFixture(),saved=[];
+  const contextA={draft:createSessionDraft({clientId:'client-A'}),autosaveDraft:async()=>saved.push('A')};
+  const contextB={draft:createSessionDraft({clientId:'client-B'}),autosaveDraft:async()=>saved.push('B')};
+  let active=contextA;const c=controller(root,()=>active);c.mount();
+  root.emit('input',inputEvent('[data-session-draft-field]',inputNode('title','data-session-draft-field','A')));
+  active=contextB;
+  await c.flushAutosave?.(contextB,{force:true});
+  assert.deepEqual(saved,['A','B']);
+  c.destroy();
+});
+
+test('rapid set edits on two different executions retain two owner-scoped checkpoints',async()=>{
+  const root=rootFixture(),stored=[];
+  const a=liveContext('client-A',stored),b=liveContext('client-B',stored);
+  let active=a;const c=controller(root,()=>active);c.mount();
+  const reps={value:'12',getAttribute(name){return name==='data-set-field'?'reps':null;}};
+  root.setFields=[reps];
+  root.emit('input',inputEvent('[data-set-field]',reps));
+  assert.equal(a.execution.activeSetDraft.values.reps,'12');
+  active=b;reps.value='8';
+  root.emit('input',inputEvent('[data-set-field]',reps));
+  await new Promise(resolve=>setTimeout(resolve,95));
+  const pair=stored.filter(item=>item.payload.execution.activeSetDraft).map(item=>[
+    item.payload.execution.clientId,item.payload.execution.activeSetDraft.values.reps,
+  ]);
+  assert.ok(pair.some(([id,reps])=>id==='client-A'&&reps==='12'));
+  assert.ok(pair.some(([id,reps])=>id==='client-B'&&reps==='8'));
+  assert.ok(stored.every(item=>item.owner===item.payload.execution.clientId));
+  c.destroy();
+});
+
+test('explicit and automatic start attempts share a lock until remote acknowledgement',async()=>{
+  const root=rootFixture(),session=sessionFor('client-C');
+  const execution=createExecution({session,clientId:'client-C',executionId:'execution-client-C'});
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  let commands=0;
+  const context={
+    session,execution,appointmentId:'appointment-C',sessionRevision:0,
+    actor:{role:'coach',id:'coach-C'},
+    commandBus:{async execute(){commands++;await gate;return {ok:true,kind:'ack',response:{executionRevision:1}};}},
+  };
+  const c=controller(root,()=>context);c.mount();
+  const first=c.start();
+  const second=await c.start();
+  assert.equal(second,false);
+  assert.equal(commands,0,'the first start is still crossing the asynchronous preflight');
+  await nextTick();
+  assert.equal(commands,1);
+  const third=await c.start();
+  assert.equal(third,false);
+  release();
+  assert.equal(await first,true);
+  assert.equal(execution.status,'active');
+  assert.equal(commands,1);
+  assert.equal(await c.start(),false,'an already active session must not start again');
+  c.destroy();
+});
