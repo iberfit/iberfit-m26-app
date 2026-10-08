@@ -158,6 +158,6 @@ test('modality-accurate live prescription excludes strength fields from cardio a
  const strengthHtml=renderGuidedExecution({execution:strengthExecution,session:strength,catalog,role:'coach'});
  const strengthAside=strengthHtml.split('data-session-live-prescription>')[1]?.split('</section>')[0]||'';
  assert.ok(strengthAside);
- assert.match(strengthAside,/Repeticiones\\/tiempo/u);
+ assert.ok(strengthAside.includes('Repeticiones/tiempo'));
  assert.match(strengthAside,/RIR/u);
 });
