@@ -4,7 +4,7 @@ Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PR
 
 ## MACRO-WIP ACTIVO · Coach Operativo 360 — Experiencia funcional integral
 
-- Source **PROD y Canary** `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`, PR #796 fusionado y certificado. Canary Exact Deploy `37724506133` SUCCESS, Device Gate intento 2 `37724506170` SUCCESS, promoción PROD `37726210527` SUCCESS.
+- Source **PROD y Canary** `d2ab5a4f405ce6e6ace128c593bd37973b9b53b8`, PR #796 fusionado y certificado. Canary Exact Deploy `37724506133` SUCCESS, Device Gate intento 2 `37724506170` SUCCESS, promoción PROD `37726210527` SUCCESS (deployment `9bac834a-f0b2-4796-9237-1fa2a62c4c68`; rollback `8e1c0c01-4a6f-4cf4-9947-23f5520721aa`).
 - Recorrido: ficha → planificación → preparación → ejecución → cierre → seguimiento → siguiente sesión, consolidando módulos existentes.
 - Tramo certificado en LIVE: sesión exacta de cita/última ejecución, contexto de agenda en curso, estados canónicos y feedback por fecha efectiva de cierre. 13/13 workflows post-merge GREEN; rollback reservado, no ejecutado.
 - Siguiente tramo en PR #797: desde preparación, adaptar **copia independiente de la sesión contextual exacta** por el mecanismo de reutilización existente; nunca copiar otra sesión por revisión ni permitir iniciar una sesión no publicada/oculta. Nuevas pruebas de independencia del borrador y touch/teclado. Primera ejecución 3 regresiones heredadas incompatibles con el nuevo contrato; corregidas sin relajar controles. Head `34419bb8a3229bffca87e89a9278031e9a0ee906` con 16 checks completados (15 PASS, 1 SKIP esperado). Pendiente de fusión y certificación post-merge en este checkpoint.
