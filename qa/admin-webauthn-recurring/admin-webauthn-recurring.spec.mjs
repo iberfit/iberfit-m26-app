@@ -19,6 +19,8 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_privileged_assurance_context_v65d','iberfit_communication_bootstrap_v14',
   'iberfit_admin_bootstrap_v14','m26_backend_bootstrap_v43','m26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
+  // SQL STABLE public catalog projection: POST is RPC transport, not a business write.
+  'iberfit_exercise_measurement_profiles_public_v1',
 ]);
 const MIME=Object.freeze({
   '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8',
