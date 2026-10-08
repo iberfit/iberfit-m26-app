@@ -2,7 +2,14 @@
 
 Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PRODUCTION_STATE.md`.
 
-## MACRO-WIP ACTIVO · Coach Operativo 360 — Experiencia funcional integral
+## MACRO-WIP ACTIVO · Coach Operativo 360 — Planificación fiable hasta LIVE
+
+- **Producción y Canary:** PR #799 integrado en source `f25201d5847b2aa66e9d6ae04736b73f4f400764`; Canary post-merge 13/13 SUCCESS y Production Promotion `37774677595` SUCCESS. Deployment exacto `7adc9f72-87d9-4746-9531-f200efaa2b85`, rollback `6a6eabef-c3fc-41ca-b4c0-846eea6d8c22`.
+- **#795–#799 cerrados en LIVE:** continuidad, contexto de sesión, preparación independiente, feedback fiel y comparación planificado/registrado con evidencia real por serie.
+- **PR #800 abierto, fuera de LIVE:** selección de ciclo por vigencia civil en Santiago (sin tomar el primer registro), aislamiento Cliente, recuperación del perfil vigente con duración confirmada, rechazo de campos agrupados no permitidos y vista de planificación consistente. La edición histórica no se elimina.
+- **Cierre obligatorio:** suite Node/regresión, integración visual y autenticada, controles protegidos, merge Canary, Canary Exact Deploy, 100% post-merge GREEN, Production Promotion exacta, identidad runtime LIVE, rollback preservado y documentación actualizada. No cerrar el bloque en Canary.
+
+## Referencia histórica · Estado anterior a PR #799
 
 - **LIVE y Canary actuales:** `ade3de994e2e32f086bdc163d204599fb0a0a39b` (PR #798), Canary Exact Deploy, 12/12 workflows post-merge y Production Promotion `37770746465` SUCCESS (31/31), deployment `6a6eabef-c3fc-41ca-b4c0-846eea6d8c22`, rollback `0e540a4e-b16a-4980-b17c-b6a862f5d878`.
 - **Completado:** #795 continuidad, #796 cita/sesión exacta, #797 copia independiente, #798 cierre con feedback fiel y prescripción opcional sin inventar valores. Todos publicados.

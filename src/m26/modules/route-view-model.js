@@ -1,5 +1,6 @@
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
+import {selectCurrentTrainingCycle} from '../workflows/planning-workflow.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
@@ -862,7 +863,7 @@ if (area === 'clientes') {
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),
       sessionCounts: publicationCounts(sessions),
-      currentCycle: clone(cycles[0] || null),
+      currentCycle: clone(selectCurrentTrainingCycle(cycles,{clientId,now}) || cycles[0] || null),
     });
   }
 
