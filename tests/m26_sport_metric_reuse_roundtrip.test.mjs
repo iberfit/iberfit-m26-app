@@ -4,7 +4,8 @@ import {
   createSessionDraft,addCatalogExercise,addTrainingGroup,updateSessionBlock,
   validateSessionDraft,
 } from '../src/m26/workflows/session-builder.js';
-import {createExecution,startExecution,recordSet,advanceExecution,repeatPreviousSet,executionResultForStep} from '../src/m26/workflows/session-execution.js';
+import {createExecution,startExecution,recordSet,advanceExecution,repeatPreviousSet,executionResultForStep,correctSet} from '../src/m26/workflows/session-execution.js';
+import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 import {
   createReusableSessionDraft,sessionTemplateSnapshot,createDraftFromSessionTemplate,
   createSessionTemplateRepository,mergeSessionTemplateWorkspaces,
@@ -124,4 +125,42 @@ test('interval count-only work can be repeated after explicit confirmation witho
  const saved=executionResultForStep(execution,{...execution.queue[0],setNumber:2,totalSets:2});
  assert.equal(saved.intervalsCompleted,8);
  assert.equal(saved.rpe,8);
+});
+
+test('Coach can correct a saved running distance and mean HR without losing recorded provenance',()=>{
+ const draft=createSessionDraft({clientId});
+ addCatalogExercise(draft,'IBF-CARRERA-SUAVE',catalog);
+ const execution=createExecution({session:draft,clientId});startExecution(execution);
+ recordSet(execution,draft,{distanceKm:4.8,rpe:5,avgHeartRateBpm:135});
+ const html=renderGuidedExecution({execution,session:draft,catalog,role:'coach'});
+ assert.match(html,/data-session-correction-profile="endurance"/u);
+ assert.match(html,/data-set-field="distanceKm"/u);
+ assert.match(html,/data-set-field="avgHeartRateBpm"/u);
+ assert.doesNotMatch(html,/data-set-field="reps"/u);
+ correctSet(execution,draft,{distanceKm:5.1,rpe:6,avgHeartRateBpm:136});
+ const saved=executionResultForStep(execution,{...execution.queue[0],setNumber:1,totalSets:1});
+ assert.equal(saved.distanceKm,5.1);
+ assert.equal(saved.avgHeartRateBpm,136);
+ assert.ok(saved.correctedAt);
+ assert.equal(execution.events.filter(item=>item.type==='SET_CORRECTED').length,1);
+});
+
+test('cycling correction includes cadence/power and carry correction shows metres',()=>{
+ const cycle=createSessionDraft({clientId});
+ addCatalogExercise(cycle,'IBF-BICICLETA-ESTATICA',catalog);
+ const x=createExecution({session:cycle,clientId});startExecution(x);
+ recordSet(x,cycle,{durationMinutes:35,distanceKm:14,powerWatts:128,cadenceRpm:82,rpe:5});
+ const ui=renderGuidedExecution({execution:x,session:cycle,catalog,role:'coach'});
+ assert.match(ui,/data-set-field="powerWatts"/u);
+ assert.match(ui,/data-set-field="cadenceRpm"/u);
+ assert.match(ui,/data-set-field="durationMinutes"/u);
+ const carry=createSessionDraft({clientId});
+ const carrying={id:'IBF-FARMER-CARRY',name_es:'Farmer carry',pattern:'locomoción'};
+ const catalogPlus={get:(id)=>id===carrying.id?carrying:catalog.get(id),has:(id)=>id===carrying.id||catalog.has(id)};
+ addCatalogExercise(carry,carrying.id,catalogPlus);
+ const xc=createExecution({session:carry,clientId});startExecution(xc);
+ recordSet(xc,carry,{distanceM:30,rpe:6});
+ const carryHtml=renderGuidedExecution({execution:xc,session:carry,catalog:catalogPlus,role:'coach'});
+ assert.match(carryHtml,/data-session-correction-profile="carry"/u);
+ assert.match(carryHtml,/data-set-field="distanceM"/u);
 });
