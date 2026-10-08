@@ -38,6 +38,19 @@ function lang(value){
 function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en;}
 function applyRules(value,language,translatePart){
   let m;
+  // COACH_COMPLETION_EVIDENCE_360: classify observed, explicitly omitted, and unknown work.
+  if((m=value.match(/^(\d+) de (\d+) series registradas$/u)))
+    return pick(language,m[1]+' of '+m[2]+' recorded sets',m[1]+' séries enregistrées sur '+m[2],m[1]+' de '+m[2]+' séries registadas');
+  if((m=value.match(/^Sustitución registrada: (.+) → (.+)$/u)))
+    return pick(language,'Recorded substitution: '+m[1]+' → '+m[2],'Remplacement enregistré : '+m[1]+' → '+m[2],'Substituição registada: '+m[1]+' → '+m[2]);
+  if((m=value.match(/^(\d+) serie(?:s)? omitida(?:s)? expresamente\.$/u)))
+    return pick(language,m[1]+' explicitly skipped set'+(m[1]==='1'?'':'s')+'.',m[1]+' série'+(m[1]==='1'?'':'s')+' explicitement omise'+(m[1]==='1'?'':'s')+'.',m[1]+' série'+(m[1]==='1'?'':'s')+' expressamente omitida'+(m[1]==='1'?'':'s')+'.');
+  if((m=value.match(/^(\d+) serie(?:s)? sin registro; no se considera(?:n)? realizada(?:s)? ni omitida(?:s)?\.$/u)))
+    return pick(language,m[1]+' set'+(m[1]==='1'?'':'s')+' without a record; neither completed nor skipped.',m[1]+' série'+(m[1]==='1'?'':'s')+' non enregistrée'+(m[1]==='1'?'':'s')+' ; ni terminée'+(m[1]==='1'?'':'s')+' ni omise'+(m[1]==='1'?'':'s')+'.',m[1]+' série'+(m[1]==='1'?'':'s')+' sem registo; nem concluída'+(m[1]==='1'?'':'s')+' nem omitida'+(m[1]==='1'?'':'s')+'.');
+  if((m=value.match(/^(\d+) serie(?:s)? adicional(?:es)? respecto del plan original\.$/u)))
+    return pick(language,m[1]+' extra set'+(m[1]==='1'?'':'s')+' compared with the original plan.',m[1]+' série'+(m[1]==='1'?'':'s')+' supplémentaire'+(m[1]==='1'?'':'s')+' par rapport au programme initial.',m[1]+' série'+(m[1]==='1'?'':'s')+' extra em relação ao plano original.');
+  if((m=value.match(/^(.+) · Serie (\d+)$/u)))
+    return pick(language,m[1]+' · Set '+m[2],m[1]+' · Série '+m[2],m[1]+' · Série '+m[2]);
   if((m=value.match(/^(\d+) pendiente(?:s)?$/u)))return pick(language,`${m[1]} pending`,`${m[1]} en attente`,`${m[1]} pendente${m[1]==='1'?'':'s'}`);
   if((m=value.match(/^Datos necesarios completos \((\d+)\/(\d+)\)\. Revisa y confirma\.$/u)))return pick(language,`Required data complete (${m[1]}/${m[2]}). Review and confirm.`,`Données requises complètes (${m[1]}/${m[2]}). Vérifiez et confirmez.`,`Dados necessários completos (${m[1]}/${m[2]}). Reveja e confirme.`);
   if((m=value.match(/^(\d+) de (\d+) datos necesarios completos · siguiente: (.+)\.$/u)))return pick(language,`${m[1]} of ${m[2]} required fields complete · next: ${tTerm(m[3],language,translatePart)}.`,`${m[1]} champs requis sur ${m[2]} complétés · suivant : ${tTerm(m[3],language,translatePart)}.`,`${m[1]} de ${m[2]} dados necessários completos · seguinte: ${tTerm(m[3],language,translatePart)}.`);
