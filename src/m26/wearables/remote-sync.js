@@ -341,7 +341,13 @@ export function createWearableRemoteSync({
     return serialize(()=>queueStore.clear(ownerPrefix));
   }
 
-  function stage(params={}){return serialize(()=>stageUnlocked(params));}
+  function stage(params={}){
+    const source=safeProvider(params.provider);
+    if(deleteRequested||blockedProviders.has(source)){
+      return Promise.reject(new Error('M26_WEARABLE_SOURCE_REVOKED'));
+    }
+    return serialize(()=>stageUnlocked(params));
+  }
   function flush(params={}){return serialize(()=>flushUnlocked(params));}
 
   return Object.freeze({
