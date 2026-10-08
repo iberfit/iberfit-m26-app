@@ -186,3 +186,66 @@ test('Connected sources and consent details are restricted to Client in Settings
   assert.match(render,/Solo el cliente controla sus fuentes y permisos/u);
   assert.match(render,/vm\.role==='client'&&Array\.isArray\(vm\.wearableSources\)/u);
 });
+
+test('Client revocation serializes behind in-flight import, never reactivates or restages automatically',async()=>{
+  const {createWearableRemoteSync}=await import('../src/m26/wearables/remote-sync.js');
+  const {createMemoryKeyValueStore}=await import('../src/m26/platform/key-value-store.js');
+  let online=false,releaseImport,startedImport;
+  const started=new Promise(resolve=>{startedImport=resolve;});
+  const gate=new Promise(resolve=>{releaseImport=resolve;});
+  const calls=[];
+  const transport={
+    async importWearableSummaries(_token,payload){calls.push('import');startedImport();await gate;return {accepted:payload.records.length,rejected:0,stale:0};},
+    async upsertWearableConnection(){calls.push('grant');return {ok:true};},
+    async revokeWearableConnection(){calls.push('revoke');return {ok:true};},
+    async deleteWearableData(){calls.push('delete');return {ok:true};},
+  };
+  const remote=createWearableRemoteSync({
+    ownerId:'user-revocation-fixture',queueStore:createMemoryKeyValueStore(),transport,
+    getToken:async()=>'qa-token',isOnline:()=>online,
+  });
+  const record={
+    clientId:'client-revocation-fixture',provider:'normalized_file',date:'2026-10-08',
+    metrics:{steps:1200,activeMinutes:25},sourceUpdatedAt:'2026-10-08T12:00:00Z',quality:'media',
+  };
+  await remote.stage({clientId:record.clientId,provider:record.provider,records:[record]});
+  online=true;
+  const flushing=remote.flush();
+  await started;
+  const revoking=remote.revoke({provider:'normalized_file',deleteData:true});
+  await assert.rejects(remote.stage({clientId:record.clientId,provider:record.provider,records:[record]}),/M26_WEARABLE_SOURCE_REVOKED/u);
+  assert.deepEqual(calls,['import'],'Revocation must wait for import then become the final server operation');
+  releaseImport();
+  await flushing;await revoking;
+  assert.deepEqual(calls,['import','grant','revoke']);
+  assert.equal(await remote.pendingCount(),0);
+  const after=await remote.flush();
+  assert.equal(after.imported,0);
+  assert.deepEqual(calls,['import','grant','revoke']);
+});
+test('Delete all wins over pending sync in the same identity and prevents queued resurrection',async()=>{
+  const {createWearableRemoteSync}=await import('../src/m26/wearables/remote-sync.js');
+  const {createMemoryKeyValueStore}=await import('../src/m26/platform/key-value-store.js');
+  let online=false;const calls=[];
+  const transport={
+    async importWearableSummaries(){calls.push('import');return {accepted:1,rejected:0,stale:0};},
+    async upsertWearableConnection(){calls.push('grant');return {ok:true};},
+    async revokeWearableConnection(){return {ok:true};},
+    async deleteWearableData(){calls.push('delete');return {ok:true};},
+  };
+  const remote=createWearableRemoteSync({
+    ownerId:'user-delete-fixture',queueStore:createMemoryKeyValueStore(),
+    transport,getToken:async()=>'token',isOnline:()=>online,
+  });
+  const record={clientId:'client-delete-fixture',provider:'normalized_file',date:'2026-10-08',metrics:{steps:20},sourceUpdatedAt:'2026-10-08T13:00:00Z',quality:'media'};
+  await remote.stage({clientId:record.clientId,provider:record.provider,records:[record]});
+  online=true;
+  const clear=remote.deleteAll();
+  const duplicateSync=remote.flush();
+  await clear;
+  const result=await duplicateSync;
+  assert.equal(result.skipped,true);
+  assert.deepEqual(calls,['delete']);
+  assert.equal(await remote.pendingCount(),0);
+  await assert.rejects(remote.stage({clientId:record.clientId,provider:record.provider,records:[record]}),/M26_WEARABLE_SOURCE_REVOKED/u);
+});
