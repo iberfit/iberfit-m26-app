@@ -1,0 +1,32 @@
+name: IBERFIT Connected 360 Android Native QA
+on:
+  pull_request:
+    paths:
+      - "native/android-health-connect/**"
+      - ".github/workflows/connected360-android-native-qa.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-health-connect-library:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Build read-only Health Connect SDK and run unit tests
+        run: gradle --no-daemon -p native/android-health-connect :healthconnect:testDebugUnitTest :healthconnect:assembleDebug
+      - name: Reject writing permissions and credentials
+        shell: bash
+        run: |
+          ! grep -RIn "android.permission.health.WRITE_" native/android-health-connect/healthconnect/src/main/AndroidManifest.xml
+          ! grep -RInE "service_role|SUPABASE_SERVICE_KEY|addJavascriptInterface" native/android-health-connect/healthconnect/src/main
