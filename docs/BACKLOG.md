@@ -2,7 +2,15 @@
 
 Checkpoint: 2026-10-08. Estado verificable: GitHub Actions/Cloudflare y `docs/PRODUCTION_STATE.md`.
 
-## MACRO-WIP ACTIVO · Coach Operativo 360 — Planificación fiable hasta LIVE
+## MACRO-WIP ACTIVO · Entrenamiento por modalidad — Prescripción y registro reales
+
+- **LIVE vigente:** PR #800 planificación publicada, PR #802 seis imágenes aprobadas. Source Canary/PROD `0b4be83436d855ee97bb3fa53c8c55cd81f4677b`; Production Promotion `37781045154` SUCCESS, Cloudflare PROD `a50744f1-e00b-4a76-a10b-afcf5f281d5f`, rollback `ad22dc90-9d53-40dc-bf1a-6b5c5d5e0db4`.
+- **PR #801 todavía fuera de LIVE:** perfiles específicos de fuerza, resistencia, ciclismo, intervalos, isometría, movilidad y transporte de cargas. Se añaden distancias, tiempos, velocidad, FC, cadencia, potencia, desnivel y tramos cuando corresponden. RPE observado no puede inferirse de objetivos.
+- Continuidad resuelta en código y pruebas: copia independiente de sesión, plantilla local/remota y corrección de registros por deporte; repetir distancia/intervalos requiere RPE nuevo, sin reciclar FC observada. Prescripciones históricas permanecen independientes de la observación.
+- **Cierre necesario:** 100% pruebas pre-merge GREEN (incluida QA Real Write, sin aceptar cancelaciones), integración protegida, Canary Exact Deploy y gates post-merge GREEN, Production Promotion con identidad LIVE exacta, reserva de rollback y QA interactivo. No dar por finalizada la funcionalidad en Canary.
+- Media Factory independiente: el lote #802 está cerrado en LIVE y no se debe regenerar ni duplicar en este PR.
+
+## Referencia histórica · Planificación Coach antes de PR #800
 
 - **Producción y Canary:** PR #799 integrado en source `f25201d5847b2aa66e9d6ae04736b73f4f400764`; Canary post-merge 13/13 SUCCESS y Production Promotion `37774677595` SUCCESS. Deployment exacto `7adc9f72-87d9-4746-9531-f200efaa2b85`, rollback `6a6eabef-c3fc-41ca-b4c0-846eea6d8c22`.
 - **#795–#799 cerrados en LIVE:** continuidad, contexto de sesión, preparación independiente, feedback fiel y comparación planificado/registrado con evidencia real por serie.
