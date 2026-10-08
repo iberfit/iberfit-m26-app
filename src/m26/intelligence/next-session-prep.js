@@ -104,7 +104,81 @@ function iriContext(state,clientId,progress){
     comparableCount:Number(progress?.iri2?.comparableCount||0),
   });
 }
-function reviewReasons({progress,outcomes,feedback,session}={}){
+const WELLBEING_SHIFT_THRESHOLD=2;
+const WELLBEING_SHIFT_METRICS=Object.freeze([
+  Object.freeze({key:'energy',direction:'lower',label:'Energía reciente más baja que en los dos registros previos.'}),
+  Object.freeze({key:'sleep',direction:'lower',label:'Sueño reciente más bajo que en los dos registros previos.'}),
+  Object.freeze({key:'stress',direction:'higher',label:'Estrés reciente más alto que en los dos registros previos.'}),
+  Object.freeze({key:'fatigue',direction:'higher',label:'Fatiga reciente más alta que en los dos registros previos.'}),
+  Object.freeze({key:'motivation',direction:'lower',label:'Motivación reciente más baja que en los dos registros previos.'}),
+]);
+function wellbeingScores(record){
+  return Object.freeze({
+    energy:finite(field(record,'energy','energia')),
+    sleep:finite(field(record,'sleep','sueno','sueño')),
+    stress:finite(field(record,'stress','estres','estrés')),
+    fatigue:finite(field(record,'fatigue','fatiga')),
+    motivation:finite(field(record,'motivation','motivacion','motivación')),
+  });
+}
+function pairAverage(values){
+  return values.every(Number.isFinite)
+    ?values.reduce((sum,value)=>sum+value,0)/values.length
+    :null;
+}
+function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEING_SHIFT_THRESHOLD}={}){
+  const end=now instanceof Date?now:new Date(now);
+  const endMs=Number.isFinite(end.getTime())?end.getTime():Date.now();
+  const startMs=endMs-Math.max(1,Number(days)||28)*86_400_000;
+  const rows=forClient(state,'checkins',clientId)
+    .filter((item)=>{
+      const time=safeDate(dateOf(item))?.getTime();
+      return Number.isFinite(time)&&time>=startMs&&time<=endMs;
+    })
+    .sort(byDateDesc)
+    .slice(0,4);
+  if(rows.length<4)return Object.freeze({
+    available:false,
+    reason:'insufficient_checkins',
+    checkins:rows.length,
+    threshold,
+    compared:0,
+    signals:Object.freeze([]),
+  });
+  const scores=rows.map(wellbeingScores);
+  const signals=[];
+  let compared=0;
+  for(const metric of WELLBEING_SHIFT_METRICS){
+    const recent=pairAverage([scores[0]?.[metric.key],scores[1]?.[metric.key]]);
+    const previous=pairAverage([scores[2]?.[metric.key],scores[3]?.[metric.key]]);
+    if(!Number.isFinite(recent)||!Number.isFinite(previous))continue;
+    compared+=1;
+    const delta=Math.round((recent-previous)*10)/10;
+    const adverse=metric.direction==='lower'
+      ?delta<=-Math.abs(threshold)
+      :delta>=Math.abs(threshold);
+    if(!adverse)continue;
+    signals.push(Object.freeze({
+      key:metric.key,
+      direction:metric.direction,
+      recent:Math.round(recent*10)/10,
+      previous:Math.round(previous*10)/10,
+      delta,
+      label:metric.label,
+    }));
+  }
+  signals.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  return Object.freeze({
+    available:compared>0,
+    reason:compared>0?'comparable':'missing_metric_values',
+    checkins:rows.length,
+    threshold,
+    compared,
+    signals:Object.freeze(signals),
+  });
+}
+
+function reviewReasons({progress,outcomes,feedback,session,wellbeingTrend}={}){
   const reasons=[];
   if(!session)reasons.push(Object.freeze({kind:'session',label:'No hay una sesión preparada para revisar.'}));
   else if(!STARTABLE_SESSION_STATES.has(statusOf(session)))reasons.push(Object.freeze({kind:'session-unpublished',label:'La sesión disponible todavía no está publicada. Revisa y publica antes de iniciar.'}));
@@ -113,6 +187,7 @@ function reviewReasons({progress,outcomes,feedback,session}={}){
   if(feedback?.pain)reasons.push(Object.freeze({kind:'pain',label:'La última sesión registró dolor; revisa el contexto antes de decidir.'}));
   const checkinPain=finite(progress?.latestCheckin?.pain);
   if(Number.isFinite(checkinPain)&&checkinPain>0)reasons.push(Object.freeze({kind:'wellbeing',label:'El último check-in incluye dolor informado por el cliente.'}));
+  for(const signal of (wellbeingTrend?.signals||[]).slice(0,2))reasons.push(Object.freeze({kind:'wellbeing-shift',label:signal.label}));
   if(Number(progress?.unconfirmedExecutions||0)>0)reasons.push(Object.freeze({kind:'data',label:'Hay ejecuciones sin confirmación que no se usan para decidir.'}));
   if(progress?.dataQuality==='limitada')reasons.push(Object.freeze({kind:'data',label:'La ventana reciente tiene evidencia limitada; evita inferencias amplias.'}));
   return Object.freeze(reasons);
@@ -129,8 +204,9 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const outcomes=summarizeActionOutcomes(state?.collections?.m26Entities||[],safeClientId,{now});
   const memories=recentExerciseMemory(state,safeClientId,exerciseName);
   const iri=iriContext(state,safeClientId,progress);
+  const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
-  const reasons=[...reviewReasons({progress,outcomes,feedback,session})];
+  const reasons=[...reviewReasons({progress,outcomes,feedback,session,wellbeingTrend})];
   const sessionId=idOf(session)||null;
   const appointmentMismatch=Boolean(appointmentSessionId&&appointmentSessionId!==sessionId);
   if(appointmentMismatch)reasons.push(Object.freeze({kind:'appointment-session-mismatch',label:'La cita confirmada apunta a una sesión diferente o no disponible. Revisa la vinculación antes de iniciar.'}));
@@ -166,6 +242,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       location:text(field(appointment,'location','ubicacion'),300)||null,
     }):null,
     iri,
+    wellbeingShift:wellbeingTrend,
     progress:Object.freeze({
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),
@@ -206,6 +283,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       hasIri:Boolean(iri),
       hasRecentExecution:Boolean(execution),
       hasRecentCheckin:Boolean(progress?.latestCheckinAt),
+      hasWellbeingComparison:wellbeingTrend?.available===true,
     }),
     safety:Object.freeze({
       automaticLoadChange:false,
@@ -220,5 +298,6 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
 export const __nextSessionPreparationInternals=Object.freeze({
   unwrap,field,clientIdOf,dateOf,statusOf,nextAppointment,sessionForPreparation,
   latestExecution,feedbackOf,recentExerciseMemory,reviewReasons,loadLabel,
+  wellbeingScores,wellbeingShift,pairAverage,WELLBEING_SHIFT_THRESHOLD,
   STARTABLE_SESSION_STATES,
 });

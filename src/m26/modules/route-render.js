@@ -2880,6 +2880,21 @@ export function renderExpedienteRoute(vm) {
       :[]
     ).slice(0,3);
 
+  const suggestedDecisionSignal=
+    reviewSignals.find((item)=>
+      ['pain','wellbeing','wellbeing-shift'].includes(String(item?.kind||''))
+    )||null;
+  const suggestedDecisionSource=
+    String(suggestedDecisionSignal?.kind||'')==='pain'
+      ?'session'
+      :suggestedDecisionSignal
+        ?'checkin'
+        :'';
+  const decisionPrefillAttributes=
+    suggestedDecisionSignal?.label
+      ?` data-action-outcome-prefill-source="${escapeHtml(suggestedDecisionSource)}" data-action-outcome-prefill-signal="${escapeHtml(String(suggestedDecisionSignal.label).trim().slice(0,1200))}"`
+      :'';
+
   const openDecisions=
     (Array.isArray(prep?.decisions?.open)
       ?prep.decisions.open
@@ -3105,7 +3120,7 @@ export function renderExpedienteRoute(vm) {
           data-action-outcome-mode="workspace"
           data-action-outcome-priority="${prep?.reviewRequired?'review':'normal'}"
           data-action-outcome-next-session-id="${escapeHtml(prep?.session?.id||'')}"
-          data-client-id="${escapeHtml(data.id||'')}"
+          data-client-id="${escapeHtml(data.id||'')}"${decisionPrefillAttributes}
           aria-live="polite"
         ></div>
       </section>
@@ -3567,6 +3582,9 @@ function capabilityNotice(capability,label){
 function wearableFreshnessLabel(value){return value==='reciente'?'Actualizado':value==='atrasada'?'Revisar actualización':value==='obsoleta'?'Datos antiguos':'Sin datos';}
 function wearableProviderCard(item){const policy=item.policy||{};const direct=item.nativeReady?'Puente nativo detectado y pendiente del permiso del cliente.':policy.directLabel||'Conexión directa no activada.';const connectionState='No está conectada ni comparte datos.';const copy=item.importReady?`Importación local disponible. ${item.nativeReady?'Conexión directa preparada.':'Conexión directa: No disponible.'} ${connectionState} ${direct}`:`${connectionState} ${direct}`;const label=item.nativeReady?'Puente disponible':item.importReady?'Importación disponible':'No disponible';const tone=item.nativeReady||item.importReady?'success':'warning';return `<article class="m26-wearable-source" data-provider="${escapeHtml(item.key)}" data-zero-cost-tier="${escapeHtml(policy.tier||'unknown')}"><div><p class="m26-eyebrow">${escapeHtml(castilianPlatformLabel(item.platform))}</p><h3>${escapeHtml(item.label)}</h3><p>${escapeHtml(copy)}</p></div>${badge(label,tone)}</article>`;}
 
+function wellbeingScoreOptions(){
+  return `<option value="">Seleccionar puntuación…</option>${Array.from({length:11},(_,value)=>`<option value="${value}">${value}</option>`).join('')}`;
+}
 function lastCheckinSummary(last){
   if(!last)return `<p>No hay registros confirmados todavía.</p>`;
   const body=last.body||{};
@@ -3591,12 +3609,12 @@ export function renderActivityRoute(vm){
     ${capabilityNotice(vm.capabilities.checkins,'Los registros de bienestar')}
     <section class="m26-content-grid">
       <form class="m26-panel" data-engagement-form="checkin" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Registro de bienestar</p><h2>Cómo estás hoy</h2></div></div><div class="m26-field-grid">
-        <label>Energía (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="energy" required><small>0 muy baja · 10 muy alta</small></label>
-        <label>Sueño (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="sleep" required><small>0 muy malo · 10 excelente</small></label>
-        <label>Estrés (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="stress" required><small>0 ninguno · 10 máximo</small></label>
-        <label>Dolor (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="pain" required><small>0 ninguno · 10 máximo</small></label>
-        <label>Fatiga (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="fatigue"><small>Opcional · 0 ninguna · 10 máxima</small></label>
-        <label>Motivación (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="motivation"><small>Opcional · 0 ninguna · 10 máxima</small></label>
+        <label class="m26-wellbeing-score-control">Energía (0–10)<select name="energy" data-checkin-score="energy" aria-describedby="m26-checkin-energy-help" required aria-required="true">${wellbeingScoreOptions()}</select><small id="m26-checkin-energy-help">0 muy baja · 10 muy alta</small></label>
+        <label class="m26-wellbeing-score-control">Sueño (0–10)<select name="sleep" data-checkin-score="sleep" aria-describedby="m26-checkin-sleep-help" required aria-required="true">${wellbeingScoreOptions()}</select><small id="m26-checkin-sleep-help">0 muy malo · 10 excelente</small></label>
+        <label class="m26-wellbeing-score-control">Estrés (0–10)<select name="stress" data-checkin-score="stress" aria-describedby="m26-checkin-stress-help" required aria-required="true">${wellbeingScoreOptions()}</select><small id="m26-checkin-stress-help">0 ninguno · 10 máximo</small></label>
+        <label class="m26-wellbeing-score-control">Dolor (0–10)<select name="pain" data-checkin-score="pain" aria-describedby="m26-checkin-pain-help" required aria-required="true">${wellbeingScoreOptions()}</select><small id="m26-checkin-pain-help">0 ninguno · 10 máximo</small></label>
+        <label class="m26-wellbeing-score-control">Fatiga (0–10)<select name="fatigue" data-checkin-score="fatigue" aria-describedby="m26-checkin-fatigue-help">${wellbeingScoreOptions()}</select><small id="m26-checkin-fatigue-help">Opcional · 0 ninguna · 10 máxima</small></label>
+        <label class="m26-wellbeing-score-control">Motivación (0–10)<select name="motivation" data-checkin-score="motivation" aria-describedby="m26-checkin-motivation-help">${wellbeingScoreOptions()}</select><small id="m26-checkin-motivation-help">Opcional · 0 ninguna · 10 máxima</small></label>
         <label class="m26-wide">Observaciones<textarea name="notes" maxlength="1000"></textarea></label>
       </div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><div class="m26-action-grid"><button type="button" data-engagement-action="save-checkin-draft">Guardar borrador</button><button type="submit" class="m26-primary-action" data-engagement-action="submit-checkin"${vm.capabilities.checkins.ready?'':' disabled aria-disabled="true"'}>Enviar registro de bienestar</button></div><p class="m26-form-status" data-engagement-status="checkin" role="status" aria-live="polite"></p></form>
       <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Último registro confirmado</p><h2>${last?escapeHtml(last.dateLabel):'Sin registro'}</h2>${lastCheckinSummary(last)}</aside>
