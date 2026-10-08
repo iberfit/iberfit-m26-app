@@ -1,4 +1,5 @@
 export const SESSION_SURFACE_ROWS=Object.freeze([
+['Repeticiones/tiempo objetivo','Repetitions/time goal','Objectif de répétitions/temps','Objetivo de repetições/tempo'],
 ['Selecciona un ejercicio válido antes de añadirlo','Select a valid exercise before adding it','Sélectionnez un exercice valide avant de l’ajouter','Selecione um exercício válido antes de o adicionar'],
 ['Sincronizando el último ejercicio antes de permitir otra alta','Syncing the last exercise before another can be added','Synchronisation du dernier exercice avant d’en autoriser un autre','A sincronizar o último exercício antes de permitir adicionar outro'],
 ['Confirmando el cierre de la sesión antes de permitir otro intento','Confirming session closure before allowing another attempt','Confirmation de la clôture de la séance avant d’autoriser une nouvelle tentative','A confirmar o encerramento da sessão antes de permitir outra tentativa'],
