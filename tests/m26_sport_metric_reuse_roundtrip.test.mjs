@@ -4,6 +4,7 @@ import {
   createSessionDraft,addCatalogExercise,addTrainingGroup,updateSessionBlock,
   validateSessionDraft,
 } from '../src/m26/workflows/session-builder.js';
+import {createExecution,startExecution,recordSet,advanceExecution,repeatPreviousSet,executionResultForStep} from '../src/m26/workflows/session-execution.js';
 import {
   createReusableSessionDraft,sessionTemplateSnapshot,createDraftFromSessionTemplate,
   createSessionTemplateRepository,mergeSessionTemplateWorkspaces,
@@ -90,4 +91,37 @@ test('legacy strength templates without a repetition entry remain backward-compa
   assert.equal(clone.blocks[0].reps,'8–12');
   assert.equal(clone.blocks[0].plannedLoad,'35 kg');
   assert.equal(validateSessionDraft(clone,catalog).ok,true);
+});
+
+test('repeating a distance-only cardio interval preserves workload but requires fresh observed RPE',()=>{
+ const draft=createSessionDraft({clientId});
+ addCatalogExercise(draft,'IBF-CARRERA-SUAVE',catalog,{sets:2});
+ const b=draft.blocks[0];
+ updateSessionBlock(draft,{blockId:b.id,field:'plannedDistanceKm',value:'5',catalog});
+ const execution=createExecution({session:draft,clientId});
+ startExecution(execution);
+ recordSet(execution,draft,{distanceKm:5,rpe:4});
+ advanceExecution(execution);
+ assert.throws(()=>repeatPreviousSet(execution,draft,{actor:{role:'coach'}}),/RPE_OBSERVED_REQUIRED/);
+ repeatPreviousSet(execution,draft,{rpe:6,actor:{role:'coach'}});
+ const saved=executionResultForStep(execution,{...execution.queue[0],setNumber:2,totalSets:2});
+ assert.equal(saved.distanceKm,5);
+ assert.equal(saved.rpe,6);
+ assert.equal(saved.avgHeartRateBpm,null);
+});
+
+test('interval count-only work can be repeated after explicit confirmation without inventing HR',()=>{
+ const draft=createSessionDraft({clientId});
+ addCatalogExercise(draft,'IBF-INTERVALOS-CAMINAR-CORRER',catalog,{sets:2});
+ const b=draft.blocks[0];
+ updateSessionBlock(draft,{blockId:b.id,field:'intervalRepetitions',value:'8',catalog});
+ updateSessionBlock(draft,{blockId:b.id,field:'intervalWorkSeconds',value:'60',catalog});
+ const execution=createExecution({session:draft,clientId});
+ startExecution(execution);
+ recordSet(execution,draft,{intervalsCompleted:8,rpe:7});
+ advanceExecution(execution);
+ repeatPreviousSet(execution,draft,{rpe:8,actor:{role:'coach'}});
+ const saved=executionResultForStep(execution,{...execution.queue[0],setNumber:2,totalSets:2});
+ assert.equal(saved.intervalsCompleted,8);
+ assert.equal(saved.rpe,8);
 });
