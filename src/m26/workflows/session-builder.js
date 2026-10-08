@@ -40,11 +40,17 @@ export function sessionDraftDefaultsFromState(state,clientId,{now=new Date()}={}
   const collections=state?.collections||{};
   const record=selectCurrentTrainingCycle(collections.trainingCycles,{clientId:safeClientId,now});
   const cycle=record?draftSeedRecord(record):null;
-  const profile=(Array.isArray(collections.clientProfiles)?collections.clientProfiles:[])
+  const profiles=(Array.isArray(collections.clientProfiles)?collections.clientProfiles:[])
     .map(draftSeedRecord)
-    .find((item)=>draftSeedClientId(item)===safeClientId)||null;
+    .filter((item)=>draftSeedClientId(item)===safeClientId)
+    .sort((a,b)=>{
+      const stamp=(item)=>{const ms=Date.parse(String(item.updatedAt??item.updated_at??item.createdAt??item.created_at??''));return Number.isFinite(ms)?ms:0;};
+      return stamp(b)-stamp(a);
+    });
   const cycleDuration=confirmedSessionDuration(cycle?.sessionDurationMinutes??cycle?.session_duration_minutes);
-  const profileDuration=confirmedSessionDuration(profile?.sessionDurationMinutes??profile?.session_duration_minutes);
+  const profileDuration=profiles
+    .map((profile)=>confirmedSessionDuration(profile?.sessionDurationMinutes??profile?.session_duration_minutes))
+    .find((value)=>value!==null)??null;
   return Object.freeze({
     clientId:safeClientId,
     durationMinutes:cycleDuration??profileDuration??50,
