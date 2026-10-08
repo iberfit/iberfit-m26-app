@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "56c485fcfa5c3f331161748111df94f4a74d4cc1",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Coach Operativo 360 prepared-session handoff PR #797. Canary Exact Deploy 37727148903 SUCCESS and 12/12 post-merge workflow runs GREEN."
+}
