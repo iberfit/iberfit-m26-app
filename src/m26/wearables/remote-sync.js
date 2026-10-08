@@ -372,6 +372,8 @@ export function createWearableRemoteSync({
       const status=await transport.wearableAuthorizationStatus(token,source);
       let result;
       if(status.authorized===true){
+        if(scopes.some(metric=>!status.scopes?.includes(metric)))
+          throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
         result=Object.freeze({...status,alreadyAuthorized:true});
       }else{
         result=await transport.reauthorizeWearable(token,{
