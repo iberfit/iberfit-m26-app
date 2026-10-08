@@ -87,3 +87,26 @@ El cambio está en `20261008181500_connected360_file_grant_enforcement_v3.sql`, 
 ## Certificación adversaria de QA · v3 (08/10/2026)
 
 Pruebas ejecutadas mediante transacciones con `ROLLBACK`, sin persistencia de datos: (1) trigger v3 rechaza `normalized_file` sin generación aun con cursor de revocación 0; (2) sesión QA simulada con rol `authenticated` rechaza importación heredada y activación previa al consentimiento; (3) nueva autorización explícita acepta importación v2; (4) el mismo cliente sin GUC de transacción no puede reutilizar RC44 como bypass; (5) revocación con borrado hace inválida la generación anterior; (6) reconexión explícita emite UUID nuevo y permite importar; (7) dos perfiles QA distintos muestran aislamiento RLS de autorizaciones y rechazan grant de otra cuenta. Resultado: **PASS** de los casos ejecutados. Esto NO equivale a certificación E2E con dos sesiones móviles ni habilita conectores nativos.
+
+## Certificación de proveedores y costes · fuentes oficiales 08/10/2026
+
+No equiparar compatibilidad de archivo con una conexión de API activa. `productionAllowed` permanece `false` salvo `normalized_file`.
+
+| Fuente | Disponible ahora | Requisito real para conectar directamente | Decisión |
+|---|---|---|---|
+| Archivo normalizado JSON/CSV/TSV | Sí, importación revisada localmente | Cliente autenticado, autorización explícita y confirmación | Mantener `productionAllowed=true` |
+| Android Health Connect | No aún | Aplicación Android con permisos declarados y concedidos, integración SDK y validación física. Health Connect disponible desde Android 9 con Play services; integrado en Android 14+. El programa Android Developer Console ofrece distribución limitada gratuita de hasta 20 dispositivos; distribución plena cuesta US$25 una vez | Piloto limitado gratuito **solo tras pruebas reales** |
+| Apple HealthKit | No aún | Aplicación iOS real con entitlement y autorización granular; distribución ordinaria mediante Apple Developer Program (US$99/año). La PWA no puede leer directamente HealthKit | No prometer gratuidad de despliegue iOS |
+| Strava cloud OAuth | No aún | API requiere suscripción Strava para crear app, gestión de tokens y revisión/limitaciones de capacidad; solicitudes sujetas a cuotas y política de 2026 | Bloquear integración directa mientras requiera suscripción; permitir archivos locales |
+| Samsung Health / Wear OS / BLE | No aún | Puentes nativos y prueba específica de dispositivo/sensor, sin equivalencia automática entre proveedores | No habilitar sin pruebas físicas |
+| Garmin / Fitbit / Oura | No aún | Comprobar acceso, autorización comercial, licencias y límites actuales de cada API | Bloqueadas hasta acreditación |
+
+Fuentes primarias consultadas:
+- Android Health Connect (compatibilidad): https://developer.android.com/health-and-fitness/health-connect/availability
+- Android Developer Console (planes de distribución): https://support.google.com/android-developer-console/answer/16604405?hl=en
+- Apple HealthKit entitlement: https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.healthkit
+- Apple Developer Program: https://developer.apple.com/help/account/membership/program-enrollment
+- Strava developer onboarding: https://developers.strava.com/docs/getting-started/
+- Strava cuotas, escalado y revisión: https://developers.strava.com/docs/rate-limits/
+
+**Pendiente de producto:** control de pausa/reanudación real y persistente para fuentes de sincronización automática. No presentar un botón de pausa hasta que backend, colas y multidispositivo obedezcan la pausa. El archivo manual no se sincroniza automáticamente sin consentimiento.

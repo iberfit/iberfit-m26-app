@@ -271,3 +271,12 @@ test('First-day Activity handoff opens the actual file import instead of leaving
   assert.match(source,/requestAnimationFrame\?\./u);
   assert.doesNotMatch(source,/setInterval|MutationObserver/u);
 });
+
+test('Strava is not offered as zero-cost direct sync while developer access requires a subscription',async()=>{
+  const {wearableZeroCostPolicy}=await import('../src/m26/wearables/free-policy.js');
+  const strava=wearableZeroCostPolicy('strava');
+  assert.equal(strava.developmentAllowed,false);
+  assert.equal(strava.productionAllowed,false);
+  assert.equal(strava.fileImportAllowed,true,'compatible local files remain supported');
+  assert.equal(strava.tier,'subscription_required');
+});
