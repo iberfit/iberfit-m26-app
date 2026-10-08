@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "0b4be83436d855ee97bb3fa53c8c55cd81f4677b",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #802: six human-approved IBERFIT exercise images, exact Canary merge 0b4be83436d8. 8/8 post-merge workflows SUCCESS including media publish approved, Canary Exact Deploy, WebAuthn and CI. Media batches tracked independently from PR #801 training metric profiles."
+}
