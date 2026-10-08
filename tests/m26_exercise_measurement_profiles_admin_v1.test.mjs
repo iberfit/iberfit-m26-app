@@ -71,7 +71,9 @@ test('explicit metric profile actually changes the planning validation contract'
 test('migration protects updates with role verification, revision lock, audit and least privilege',async()=>{
  const sql=await readFile(new URL('../supabase/migrations/20261008164000_exercise_measurement_profiles_admin_v1.sql',import.meta.url),'utf8');
  assert.match(sql,/auth\.uid\(\)/);
- assert.match(sql,/iberfit_role\(\)/);
+ assert.match(sql,/iberfit_application_context_v14/);
+ assert.match(sql,/membershipStatus/);
+ assert.match(sql,/roles/);
  assert.match(sql,/for update/i);
  assert.match(sql,/REVISION_CONFLICT/);
  assert.match(sql,/exercise_measurement_profile_audit/);
