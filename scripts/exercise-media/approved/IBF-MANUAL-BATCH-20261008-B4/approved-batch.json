@@ -1,0 +1,143 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PALLOF-PRESS-MEDIO-ARRODILLADO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B4/movement-ee80d60f2a98.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Posición medio arrodillado y extensión de brazos resistiendo rotación."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PALLOF-PRESS-MEDIO-ARRODILLADO/movement-ee80d60f2a98.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "ee80d60f2a98777213928cd62abbbedae0685321385eec6101d3b1e99d5bef7c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core",
+            "oblicuos"
+          ],
+          "secondary": [
+            "glúteo medio"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-ROTACION-EXTERNA-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B4/movement-c4295904c7c5.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Rotación externa de hombro con banda, codo pegado al costado."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ROTACION-EXTERNA-CON-BANDA/movement-c4295904c7c5.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "c4295904c7c5461e1a516c50e803e27f541da521cf46491c148702e72351288c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "infraespinoso",
+            "redondo menor"
+          ],
+          "secondary": [
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-ROTACION-INTERNA-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B4/movement-c68b0607a0d4.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Imagen aprobada explícitamente por propietario en conversación 2026-10-08. Rotación interna de hombro con banda, codo pegado al costado."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ROTACION-INTERNA-CON-BANDA/movement-c68b0607a0d4.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "c68b0607a0d422461131252ee35455f14058720fbb171098f7455313765d63b3"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "subescapular"
+          ],
+          "secondary": [
+            "pectoral mayor"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
