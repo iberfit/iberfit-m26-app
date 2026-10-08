@@ -79,9 +79,9 @@ test('intervals prescribe work/recovery and accept interval count without kilogr
  assert.equal(Object.values(ex.results)[0].intervalsCompleted,8);
 });
 test('cycling records cadence and power while strength and isometrics retain their fields',()=>{
- const d=draftWith('IBF-BICICLETA-ESTATICA');set(d,'plannedDurationMinutes','45');
+ const d=draftWith('IBF-BICICLETA-ESTATICA');set(d,'plannedDurationMinutes','45');set(d,'plannedSpeedKmh','25');
  const execution=createExecution({session:d,clientId:'client-1'});startExecution(execution);
- recordSet(execution,d,{durationMinutes:45,distanceKm:20,cadenceRpm:80,powerWatts:120,rpe:5});
+ recordSet(execution,d,{durationMinutes:45,distanceKm:20,avgSpeedKmh:26.7,cadenceRpm:80,powerWatts:120,rpe:5});
  assert.equal(Object.values(execution.results)[0].powerWatts,120);
  const plank=draftWith('IBF-PLANCHA-FRONTAL-ALTA');
  assert.equal(plank.blocks[0].reps, '30 s');
@@ -90,8 +90,11 @@ test('cycling records cadence and power while strength and isometrics retain the
  assert.equal(strength.blocks[0].reps,'8–12');
  assert.equal(validateSessionDraft(strength,catalog).ok,true);
  const farmer=draftWith('IBF-FARMER-CARRY');
- set(farmer,'plannedDistanceKm','0.03');
+ set(farmer,'plannedDistanceM','30');
  assert.equal(validateSessionDraft(farmer,catalog).ok,true);
+ const carryExecution=createExecution({session:farmer,clientId:'client-1'});startExecution(carryExecution);
+ recordSet(carryExecution,farmer,{distanceM:30,load:'20 kg',rpe:6});
+ assert.equal(Object.values(carryExecution.results)[0].distanceM,30);
 });
 test('group prescription retains structured metrics for an interval activity',()=>{
  const d=createSessionDraft({clientId:'client-1'});
