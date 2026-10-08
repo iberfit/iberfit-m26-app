@@ -421,6 +421,12 @@ function replaceSkippedStepWithCompletion(execution,step,actor=null){
   },actor);
   return previous.value;
 }
+function measuredNumber(value,min,max,code,integer=false){
+ if(value===undefined||value===null||String(value).trim()==='')return null;
+ const n=Number(String(value).trim().replace(',','.'));
+ if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))throw new Error(code);
+ return n;
+}
 function validatedSetResult(step,input={},previous=null){
   const rawReps=input.reps??null,rawSeconds=input.seconds??null,load=input.load==null?null:String(input.load).trim().slice(0,80),rpe=Number(input.rpe),rir=input.rir==null||input.rir===''?null:Number(input.rir);
   if((rawReps==null||rawReps==='')&&(rawSeconds==null||rawSeconds===''))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
