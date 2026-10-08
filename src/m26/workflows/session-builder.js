@@ -10,7 +10,8 @@ function optionalText(input,fallback='',max=500){
   const candidate=input===undefined||input===null?fallback:input;
   return String(candidate??'').trim().slice(0,max);
 }
-function normalizePrescription(input={},fallback={},exercise={}){const defaults=initialExercisePrescription(exercise);return {
+function normalizePrescription(input={},fallback={},exercise={}){const resolvedExercise={...exercise,measurementProfile:input.measurementProfile||fallback.measurementProfile||exercise?.measurement_profile||exercise?.measurementProfile||undefined};const defaults=initialExercisePrescription(resolvedExercise);return {
+  measurementProfile:exerciseMeasurementProfile(resolvedExercise).kind,
   ...Object.fromEntries(EXERCISE_METRIC_KEYS.map((key)=>[key,optionalText(input[key],fallback[key]??'',24)])),
   reps:optionalText(input.reps,fallback.reps??defaults.reps,40),
   plannedLoad:optionalText(input.plannedLoad,fallback.plannedLoad||'',80),
@@ -203,8 +204,8 @@ export function validateSessionDraft(draft,catalog){
   if(b.type==='exercise'){
    const sets=Number(b.sets),rest=Number(b.restSeconds),rpe=Number(b.targetRpe),rir=Number(b.targetRir);
    if(!catalog.has(b.exerciseId))errors.push(`exercise:${b.exerciseId}`);
-   if(!Number.isInteger(sets)||sets<1||sets>100||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile(catalog.get?.(b.exerciseId)).kind)&&!String(b.reps||'').trim())||String(b.reps||'').length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
-   if(metricErrors(b,catalog.get?.(b.exerciseId)).length)errors.push(`metrics:${b.exerciseId}`);
+   if(!Number.isInteger(sets)||sets<1||sets>100||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile({...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}).kind)&&!String(b.reps||'').trim())||String(b.reps||'').length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
+   if(metricErrors(b,{...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}).length)errors.push(`metrics:${b.exerciseId}`);
    if(b.alternativeId&&(!catalog.has(b.alternativeId)||b.alternativeId===b.exerciseId))errors.push(`alternative:${b.exerciseId}`);
   }else{
    if(!GROUP_TYPES.has(b.type)){errors.push(`groupType:${b.id}`);continue;}
@@ -215,8 +216,8 @@ export function validateSessionDraft(draft,catalog){
    for(const id of ids){
     if(!catalog.has(id))errors.push(`exercise:${id}`);
     const p=b.prescriptions?.[id],rest=Number(p?.restSeconds),rpe=Number(p?.targetRpe),rir=Number(p?.targetRir);
-    if(!p||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile(catalog.get?.(id)).kind)&&!String(p.reps||'').trim())||String(p.reps||'').length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
-    if(metricErrors(p,catalog.get?.(id)).length)errors.push(`metrics:${id}`);
+    if(!p||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile({...catalog.get?.(id),measurementProfile:p?.measurementProfile}).kind)&&!String(p.reps||'').trim())||String(p.reps||'').length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
+    if(metricErrors(p,{...catalog.get?.(id),measurementProfile:p?.measurementProfile}).length)errors.push(`metrics:${id}`);
     if(p?.alternativeId&&(!catalog.has(p.alternativeId)||p.alternativeId===id))errors.push(`alternative:${id}`);
    }
   }
