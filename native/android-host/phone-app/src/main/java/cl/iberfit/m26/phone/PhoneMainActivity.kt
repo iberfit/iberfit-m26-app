@@ -154,6 +154,18 @@ class PhoneMainActivity : Activity() {
                 }
             }
 
+        val healthConnectQa = Button(this).apply {
+            text = "Health Connect · probar permisos locales"
+            setOnClickListener {
+                startActivity(
+                    android.content.Intent(
+                        this@PhoneMainActivity,
+                        Connected360HealthPermissionsActivity::class.java
+                    )
+                )
+            }
+        }
+
         val devicesTitle =
             TextView(this).apply {
                 text =
@@ -239,6 +251,7 @@ class PhoneMainActivity : Activity() {
                 addView(pause)
                 addView(resume)
                 addView(stop)
+                addView(healthConnectQa)
                 addView(devicesTitle)
                 addView(deviceStatus)
                 addView(preferredStatus)
