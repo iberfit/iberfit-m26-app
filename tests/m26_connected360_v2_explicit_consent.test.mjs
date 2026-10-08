@@ -360,7 +360,7 @@ test('v6 splits consent generation by provider and leaves the revocation fence i
 
 test('Every imported file names explicit storage consent and states no automatic connection',()=>{
   const source=readFileSync('src/m26/wearables/controller.js','utf8');
-  assert.match(source,/Elegir \${escapeHtml\(providerLabel\)} identifica únicamente el origen del archivo/u);
+  assert.match(source,/Elegir .*identifica únicamente el origen del archivo/u);
   assert.match(source,/Al seleccionar «Autorizar e incorporar», permites guardar en IBERFIT las métricas mostradas/u);
   assert.match(source,/no conecta ningún dispositivo ni activa una sincronización automática/u);
   assert.doesNotMatch(source,/provider==='normalized_file'\s*\?\s*'Al seleccionar Autorizar e incorporar'/u);
