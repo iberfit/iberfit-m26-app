@@ -53,6 +53,10 @@ jobs:
   browser-live-workout:
     needs: offline
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
@@ -64,18 +68,9 @@ jobs:
           cache: npm
       - name: Install deterministic dependencies
         run: npm ci
-      - name: Restore Live Workout Playwright cache
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('package-lock.json') }}-live-workout-chromium-webkit
-      - name: Install browser system dependencies
-        run: npx playwright install-deps chromium webkit
-      - name: Install Chromium and WebKit on cache miss
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium webkit
-      - name: Verify Live Workout browsers
+      # Chromium, WebKit and OS libraries are preinstalled in this version-matched image.
+      # Avoid mutable apt mirrors in per-PR QA while keeping both browsers in the E2E matrix.
+      - name: Verify preinstalled Live Workout browsers
         shell: bash
         run: |
           node --input-type=module <<'NODE'
