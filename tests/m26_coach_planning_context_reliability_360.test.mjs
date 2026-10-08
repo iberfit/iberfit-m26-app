@@ -108,3 +108,16 @@ test('profile fallback uses the newest confirmed duration of the same client',()
    assert.equal(seed.durationMinutes,90);
  }
 });
+
+test('conflicting wrapper and body ownership fails closed, even if either points to active client',()=>{
+ const record={
+   id:'mismatched',clientId:'other-client',
+   body:{id:'mismatched',clientId,startDate:'2026-10-01',
+     endDate:'2026-10-31',sessionDurationMinutes:150,status:'published'},
+ };
+ const inverse={...structuredClone(record),clientId,body:{...record.body,clientId:'other-client'}};
+ const seed=sessionDraftDefaultsFromState(context([record,inverse]),clientId,{now});
+ assert.equal(selectCurrentTrainingCycle([record,inverse],{clientId,now}),null);
+ assert.equal(seed.source,'default');
+ assert.equal(seed.durationMinutes,50);
+});
