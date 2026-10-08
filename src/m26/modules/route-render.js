@@ -3087,7 +3087,7 @@ export function renderExpedienteRoute(vm) {
         </article>
       </div>
 
-      <section class="m26-coach-workspace-decisions" aria-labelledby="m26-coach-workspace-decisions-title">
+      <section class="m26-coach-workspace-decisions" aria-labelledby="m26-coach-workspace-decisions-title" data-m26-coach-focus="action-outcome" tabindex="-1">
         <div class="m26-coach-workspace-section-head">
           <div>
             <p class="m26-eyebrow">Decisiones</p>
@@ -3103,6 +3103,8 @@ export function renderExpedienteRoute(vm) {
           class="m26-coach-workspace-decision-entry"
           data-action-outcome-host
           data-action-outcome-mode="workspace"
+          data-action-outcome-priority="${prep?.reviewRequired?'review':'normal'}"
+          data-action-outcome-next-session-id="${escapeHtml(prep?.session?.id||'')}"
           data-client-id="${escapeHtml(data.id||'')}"
           aria-live="polite"
         ></div>
@@ -4018,7 +4020,7 @@ function nextSessionPrepDecisionRows(prep){
   if(!rows.length)return '<p class="m26-next-session-empty">Sin decisiones Action Outcome abiertas.</p>';
   return `<div class="m26-next-session-decisions">${rows.map((item)=>`<article><div><strong>${escapeHtml(item.signalSummary||'Señal registrada')}</strong>${badge(item.reviewAt?`Revisar ${item.reviewAt}`:'Pendiente','neutral')}</div><p><b>Decisión</b> · ${escapeHtml(item.decisionSummary||'Sin detalle')}</p><p><b>Intervención</b> · ${escapeHtml(item.interventionSummary||'Sin detalle')}</p><p><b>Esperado</b> · ${escapeHtml(item.expectedOutcome||'Sin detalle')}</p></article>`).join('')}</div>`;
 }
-function renderNextSessionPreparation(prep,{canStartSession=true}={}){
+function renderNextSessionPreparation(prep,{canStartSession=true,role='coach'}={}){
   if(!prep)return '';
   const appointment=prep.appointment;
   const session=prep.session||{};
@@ -4035,11 +4037,14 @@ function renderNextSessionPreparation(prep,{canStartSession=true}={}){
   ].filter(Boolean);
   const iri=prep.iri;
   const tone=prep.reviewRequired?'warning':'success';
+  const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const reviewAction=prep.reviewRequired
-    ?'<button type="button" class="m26-primary-action" data-m26-area="expediente">Revisar seguimiento antes de entrenar</button>'
+    ?isCoach
+      ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${escapeHtml(prep.clientId||'')}" data-m26-target-area="expediente" data-m26-target-focus="action-outcome">Revisar seguimiento antes de entrenar</button>`
+      :'<button type="button" class="m26-primary-action" data-m26-area="expediente">Revisar seguimiento antes de entrenar</button>'
     :'';
   const builderClass=prep.reviewRequired?'':' class="m26-primary-action"';
-  return `<section class="m26-panel m26-next-session-prep" data-next-session-preparation>
+  return `<section class="m26-panel m26-next-session-prep" data-next-session-preparation tabindex="-1">
     <div class="m26-panel-heading">
       <div>
         <p class="m26-eyebrow">Preparar próxima sesión</p>
@@ -4126,7 +4131,7 @@ export function renderSessionsRoute(vm){
   const primary=vm.canBuild
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`
     :directStart;
-  const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation,{canStartSession:serviceActive}):'';
+  const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation,{canStartSession:serviceActive,role:vm.role}):'';
   const pausedNotice=!serviceActive?'<section class="m26-notice is-warning" role="status"><strong>Entrenamiento en pausa</strong><p>Puedes consultar planificación, historial y contexto. Reanuda el servicio antes de iniciar una nueva sesión.</p></section>':'';
   return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }

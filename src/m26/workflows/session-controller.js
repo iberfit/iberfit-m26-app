@@ -704,6 +704,37 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   return true;
 }
 async function click(event){
+  const reasonPreset=event.target.closest?.('[data-session-reason-preset-target]');
+  if(reasonPreset){
+    event.preventDefault?.();
+    const target=String(reasonPreset.getAttribute('data-session-reason-preset-target')||'').trim();
+    const value=String(reasonPreset.getAttribute('data-session-reason-preset-value')||'').trim();
+    const selector=({
+      substitute:'[data-session-substitute-reason]',
+      'skip-set':'[data-session-skip-set-reason]',
+      'skip-exercise':'[data-session-skip-exercise-reason]',
+    })[target]||null;
+    const input=selector?root.querySelector?.(selector):null;
+    if(value&&input){
+      input.value=value;
+      try{input.focus?.({preventScroll:true});}catch{input.focus?.();}
+    }
+    return;
+  }
+  const openSubstitution=event.target.closest?.('[data-session-open-substitution]');
+  if(openSubstitution){
+    event.preventDefault?.();
+    const outer=root.querySelector?.('[data-session-live-secondary-context]');
+    const panel=root.querySelector?.('[data-session-substitution-panel]');
+    if(outer)outer.open=true;
+    if(panel){
+      panel.open=true;
+      try{panel.scrollIntoView?.({behavior:'smooth',block:'nearest'});}catch{panel.scrollIntoView?.();}
+    }
+    const select=root.querySelector?.('[data-session-substitute]');
+    try{select?.focus?.({preventScroll:true});}catch{select?.focus?.();}
+    return;
+  }
   const reviewBlock=event.target.closest?.('[data-session-review-block]');
   if(reviewBlock){
     event.preventDefault?.();

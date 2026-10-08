@@ -3339,6 +3339,8 @@ m26-echart[data-density="compact"]{
 .m26-session-rest-countdown{display:grid;justify-items:end;gap:.2rem;min-width:7rem}.m26-session-rest-countdown strong{color:var(--iberfit-role-accent,var(--iberfit-color-accent));font-size:clamp(2rem,7vw,3.4rem);font-variant-numeric:tabular-nums;line-height:.95}
 .m26-session-live-entry{display:grid;gap:var(--iberfit-space-4)}.m26-session-live-entry>.m26-primary-action{width:100%;min-height:var(--iberfit-size-touch-target-comfortable)}
 .m26-session-live-options{align-self:start}.m26-session-live-options>p{color:var(--iberfit-color-text-secondary)}.m26-session-live-options details+details{margin-top:var(--iberfit-space-2)}
+.m26-session-reason-presets{display:flex;flex-wrap:wrap;gap:.45rem;margin:.35rem 0 .7rem}.m26-session-reason-presets button{min-height:44px;padding:.55rem .72rem}
+.m26-session-live-quick-actions [data-session-open-substitution]{min-height:44px}
 .m26-session-live[data-session-live-state="rest"] .m26-session-live-hero{border-color:color-mix(in srgb,var(--iberfit-color-accent) 34%,var(--iberfit-color-border))}.m26-session-live .m26-progress{width:100%}
 @media(max-width:760px){.m26-session-live-summary,.m26-session-completion-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m26-session-live-heading{display:grid;grid-template-columns:minmax(0,1fr) auto}.m26-session-live-actions{display:grid;grid-template-columns:1fr 1fr}.m26-session-live-actions .m26-primary-action{min-width:0}.m26-session-rest-focus .m26-session-live-actions .m26-primary-action{grid-column:1/-1}}
 @media(max-width:520px){.m26-session-live-hero{padding:var(--iberfit-space-4)}.m26-session-live-heading{grid-template-columns:1fr}.m26-session-live-status,.m26-session-live-progress-badge,.m26-session-rest-countdown{justify-items:start}.m26-session-live-progress-badge small{white-space:normal}.m26-session-live-actions{grid-template-columns:1fr}.m26-session-live-actions>*{width:100%}.m26-session-live-entry .m26-field-grid{grid-template-columns:1fr 1fr}}
@@ -3636,6 +3638,10 @@ m26-echart[data-density="compact"]{
   }
   .m26-session-live-v2 .m26-session-rest-countdown strong{
     font-size:clamp(4rem,20vw,6.2rem);
+  }
+  .m26-session-reason-presets{
+    display:grid;
+    grid-template-columns:1fr 1fr;
   }
   .m26-session-live-v2 .m26-prescription-summary .m26-field-grid{
     grid-template-columns:1fr 1fr;

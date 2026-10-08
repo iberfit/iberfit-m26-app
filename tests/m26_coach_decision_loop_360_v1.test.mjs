@@ -143,7 +143,9 @@ test('next-session preparation makes follow-up the primary action only when revi
     }),
   });
 
-  assert.match(html,/class="m26-primary-action" data-m26-area="expediente">Revisar seguimiento antes de entrenar/u);
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
+  assert.match(html,/data-m26-target-area="expediente"/u);
+  assert.match(html,/data-m26-target-focus="action-outcome">Revisar seguimiento antes de entrenar/u);
   assert.match(html,/data-workflow-action="open-session-builder">Revisar sesión en constructor/u);
   assert.doesNotMatch(html,/class="m26-primary-action" data-workflow-action="open-session-builder"/u);
   assert.match(html,/Iniciar sesión preparada/u);
@@ -180,7 +182,8 @@ test('Action Outcome workspace uses progressive disclosure and prioritizes pendi
   assert.match(source,/function actionOutcomeManagerForClient\(root,clientId/u);
   assert.match(source,/function actionOutcomeTargets\(root\)/u);
   assert.match(source,/\[data-action-outcome-host\]\[data-client-id\]/u);
-  assert.match(source,/workspaceMode&&summaryData\.overdueCount>0/u);
+  assert.match(source,/workspaceMode&&\(summaryData\.overdueCount>0\|\|workspacePriority==='review'\)/u);
+  assert.match(source,/const signature=`\$\{mode\}:\$\{workspacePriority\}:/u);
   assert.match(source,/className='m26-action-outcome-new'/u);
   assert.match(source,/1 · Señal y criterio/u);
   assert.match(source,/2 · Intervención/u);

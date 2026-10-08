@@ -1,0 +1,142 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/movement-4b331441c8f7.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita. Inicio con piernas abiertas y Final cerradas contra las almohadillas; correspondencia semántica verificada."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ADUCCION-DE-CADERA-EN-MAQUINA/movement-4b331441c8f7.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4b331441c8f7240bc97dddacb94af8273d5dbdcd74947d543662f38aece72b4c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "aductores"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-APERTURAS-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/movement-2b4d0b396629.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita. Vista 3/4 lateral; manos y agarre validados; Inicio sobre pecho y Final en apertura controlada."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-APERTURAS-CON-MANCUERNAS/movement-2b4d0b396629.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "2b4d0b396629616bd5205802c82d6bf40872696d0745f5144e99753b07e3d3c7"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral"
+          ],
+          "secondary": [
+            "deltoides anterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-APERTURAS-EN-POLEA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261007-B8-CERTIFIED/movement-0d4b2fb94b98.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-07",
+        "note": "Aprobación humana explícita. Inicio abierto natural y Final cerrando cables; mirada y postura validadas."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-APERTURAS-EN-POLEA/movement-0d4b2fb94b98.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "0d4b2fb94b9840dc7781e4b6c11aae6a5bfc8f96da753955c89ca901ac33ea67"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}

@@ -1691,6 +1691,11 @@ body {
 .m26-coach-workspace-decision-entry{
   margin-top:.7rem;
 }
+.m26-coach-workspace-decisions[data-m26-coach-focus]:focus{
+  outline:2px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 72%,transparent);
+  outline-offset:.28rem;
+  scroll-margin-top:1rem;
+}
 .m26-action-outcome-manager.is-workspace{
   margin-top:0;
   border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 24%,transparent);
@@ -1715,6 +1720,19 @@ body {
 .m26-action-outcome-manager-status[data-status="error"]{
   color:var(--iberfit-color-danger-text,#f4b9ae);
 }
+.m26-action-outcome-continuity{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.7rem;
+  margin:.55rem .75rem .75rem;
+  padding:.65rem .7rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 18%,transparent);
+  border-radius:.72rem;
+  background:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 5%,transparent);
+}
+.m26-action-outcome-continuity p{margin:0;color:var(--m26-muted,#aaa);font-size:.72rem;line-height:1.45}
+.m26-action-outcome-continuity button{flex:0 0 auto;min-height:44px}
 .m26-action-outcome-new{
   margin:.1rem .75rem .75rem;
   border-top:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 12%,transparent);
@@ -1776,6 +1794,8 @@ body {
   .m26-action-outcome-fieldset>small,
   .m26-action-outcome-fieldset label:has(textarea){grid-column:auto}
   .m26-action-outcome-new{margin-inline:.6rem}
+  .m26-action-outcome-continuity{align-items:stretch;flex-direction:column;margin-inline:.6rem}
+  .m26-action-outcome-continuity button{width:100%}
 }
 /* ACTION_OUTCOME_TRACKING_V1_END */
 
@@ -1786,6 +1806,11 @@ body {
   gap:.9rem;
   border-color:color-mix(in srgb,var(--iberfit-role-accent,#d8b96f) 28%,transparent)!important;
   background:linear-gradient(155deg,rgba(216,185,111,.07),rgba(5,24,15,.84))!important;
+}
+.m26-next-session-prep:focus{
+  outline:2px solid color-mix(in srgb,var(--iberfit-role-accent,#d8b96f) 72%,transparent);
+  outline-offset:.28rem;
+  scroll-margin-top:1rem;
 }
 .m26-next-session-summary{
   display:grid;

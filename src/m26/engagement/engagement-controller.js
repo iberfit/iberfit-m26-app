@@ -48,6 +48,38 @@ function actionOutcomeManagerForClient(root,clientId,{workspace=false}={}){
       Boolean(manager?.classList?.contains?.('is-workspace'))===Boolean(workspace)
     )||null;
 }
+function ensureCoachDecisionContinuity(manager,role){
+  if(String(role||'').trim().toLowerCase()!=='coach'||!manager?.classList?.contains?.('is-workspace'))return false;
+  if(manager.querySelector?.('[data-action-outcome-continuity]'))return true;
+  const clientId=String(manager?.dataset?.clientId||'').trim();
+  const nextSessionId=String(manager?.dataset?.nextSessionId||'').trim();
+  if(!clientId)return false;
+  const documentLike=manager.ownerDocument||globalThis.document;
+  if(!documentLike?.createElement)return false;
+  const wrap=documentLike.createElement('div');
+  wrap.className='m26-action-outcome-continuity';
+  wrap.setAttribute('data-action-outcome-continuity','true');
+  const copy=documentLike.createElement('p');
+  const button=documentLike.createElement('button');
+  button.type='button';
+  button.className='m26-primary-action';
+  if(nextSessionId){
+    copy.textContent='Siguiente paso: revisa la próxima sesión y decide si necesita cambios.';
+    button.setAttribute('data-m26-coach-action','true');
+    button.setAttribute('data-m26-client-id',clientId);
+    button.setAttribute('data-m26-target-area','sesion');
+    button.setAttribute('data-m26-target-focus','next-session-preparation');
+    button.textContent='Revisar próxima sesión';
+  }else{
+    copy.textContent='Siguiente paso: prepara la próxima sesión con el criterio que acabas de registrar.';
+    button.setAttribute('data-workflow-action','open-session-builder');
+    button.setAttribute('data-client-id',clientId);
+    button.textContent='Preparar próxima sesión';
+  }
+  wrap.append(copy,button);
+  manager.append(wrap);
+  return true;
+}
 function actionOutcomeTargets(root){
   const targets=[];
   const seen=new Set();
@@ -122,17 +154,20 @@ export function createEngagementController({root,store,draftRepository,service,s
     for(const target of actionOutcomeTargets(root)){
       const {clientId,mount,mode}=target;
       const workspaceMode=mode==='workspace';
+      const workspacePriority=workspaceMode&&mount.getAttribute?.('data-action-outcome-priority')==='review'?'review':'normal';
+      const workspaceNextSessionId=workspaceMode?String(mount.getAttribute?.('data-action-outcome-next-session-id')||'').trim():'';
       const records=actionOutcomeEntities(state?.collections?.m26Entities||[],clientId);
       const summaryData=summarizeActionOutcomes(records,clientId);
-      const signature=`${mode}:${records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
+      const signature=`${mode}:${workspacePriority}:${workspaceNextSessionId||'no-session'}:${records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
       let manager=mount.querySelector?.('[data-action-outcome-manager]');
       if(manager?.dataset?.canonicalSignature===signature)continue;
       manager?.remove?.();
       manager=documentLike.createElement('details');
       manager.className=`m26-action-outcome-manager${workspaceMode?' is-workspace':''}`;
       manager.setAttribute('data-action-outcome-manager','true');
-      if(workspaceMode&&summaryData.overdueCount>0)manager.open=true;
+      if(workspaceMode&&(summaryData.overdueCount>0||workspacePriority==='review'))manager.open=true;
       manager.dataset.clientId=clientId;
+      manager.dataset.nextSessionId=workspaceNextSessionId;
       manager.dataset.canonicalSignature=signature;
 
       const summary=documentLike.createElement('summary');
@@ -332,6 +367,7 @@ export function createEngagementController({root,store,draftRepository,service,s
     const confirmed=actionOutcomeManagerForClient(root,clientId,{workspace:workspaceOrigin});
     if(confirmed)confirmed.open=true;
     setStatus(confirmed||root,'action-manager','Decisión registrada. El resultado queda pendiente de revisión.','success');
+    if(confirmed&&workspaceOrigin&&role==='coach')ensureCoachDecisionContinuity(confirmed,role);
     return result;
   }
   async function actionOutcome(button){

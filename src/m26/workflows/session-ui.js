@@ -131,6 +131,26 @@ function liveTelemetryStrip(execution,catalog){
 
   return `<section class="m26-panel m26-panel-soft m26-live-telemetry m26-live-intelligence" aria-live="polite"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Inteligencia de sesión en vivo</p><h3>FC actual · ${e(bpmText(intelligence.currentHeartRateBpm))}</h3><p>${e(source)} · ${e(state)} · ${e(qualityText(intelligence,live))}</p></div></div><div class="m26-live-intelligence-grid"><div class="m26-live-intelligence-metric"><span>FC actual</span><strong>${e(bpmText(intelligence.currentHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC media</span><strong>${e(bpmText(intelligence.averageHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC máxima</span><strong>${e(bpmText(intelligence.maxHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>Cobertura</span><strong>${e(intelligence.interpretableEventCount)} / ${e(intelligence.rawEventCount)}</strong><small>interpretables / raw</small></div></div>${telemetrySparkline(intelligence.timeline.points)}<div class="m26-live-context-grid">${responseMarkup}${recoveryMarkup}${correlationMarkup}</div><details class="m26-live-method"><summary>Cómo se calcula</summary><p>FC media/mínima/máxima: ${e(intelligence.methodology.heartRate)}.</p><p>Calidad: ${e(intelligence.methodology.qualityFilter)}.</p><p>Recuperación: ${e(intelligence.methodology.recovery)}.</p><p>RPE/RIR: ${e(intelligence.methodology.rpeRirCorrelation)}.</p></details><p class="m26-notice">Dato → contexto → entrenador decide. Esta información no modifica automáticamente la prescripción, las cargas, las series ni los ejercicios.</p></section>`;
 }function alternativeLabel(item={}){const meta=[item.equipment,item.difficulty].map((value)=>String(value||'').trim()).filter(Boolean).join(' · ');return `${exerciseDisplayName(item)}${meta?` · ${meta}`:''}`;}
+const SESSION_REASON_PRESETS=Object.freeze(['Equipo no disponible','Molestia','Fatiga','Ajuste técnico']);
+function coachReasonPresets(target,isCoach){
+  if(!isCoach)return '';
+  return `<div class="m26-session-reason-presets" data-session-reason-presets="${e(target)}" role="group" aria-label="Motivos rápidos">${SESSION_REASON_PRESETS.map((reason)=>`<button type="button" data-session-reason-preset-target="${e(target)}" data-session-reason-preset-value="${e(reason)}">${e(reason)}</button>`).join('')}</div>`;
+}
+function liveAddExerciseOptions(catalog,currentExercise={}){
+  const currentId=String(currentExercise?.id||'').trim();
+  const pattern=String(currentExercise?.pattern||'').trim();
+  const equipment=String(currentExercise?.equipment||'').trim();
+  const visible=catalog.search('').filter((item)=>item.id!==currentId).slice(0,60);
+  const samePattern=pattern?visible.filter((item)=>String(item.pattern||'').trim()===pattern):[];
+  const sameEquipment=equipment?samePattern.filter((item)=>String(item.equipment||'').trim()===equipment):[];
+  const sameEquipmentIds=new Set(sameEquipment.map((item)=>item.id));
+  const samePatternOther=samePattern.filter((item)=>!sameEquipmentIds.has(item.id));
+  const relatedIds=new Set([...sameEquipment,...samePatternOther].map((item)=>item.id));
+  const others=visible.filter((item)=>!relatedIds.has(item.id));
+  const option=(item)=>`<option value="${e(item.id)}">${e(alternativeLabel(item))}</option>`;
+  const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
+  return `${group('Mismo patrón y material',sameEquipment)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',samePatternOther)}${group('Otros ejercicios',others)}`;
+}
 function alternativeOptions(catalog,currentExercise={},selectedId=null){
   const currentId=String(currentExercise?.id||currentExercise||'').trim();
   const pattern=String(currentExercise?.pattern||'').trim();
@@ -146,6 +166,24 @@ function alternativeOptions(catalog,currentExercise={},selectedId=null){
   const option=(item)=>`<option value="${e(item.id)}"${item.id===selectedId?' selected':''}>${e(alternativeLabel(item))}</option>`;
   const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
   return `<option value=""${selectedId?'':' selected'}>Sin alternativa fijada</option>${selected?group('Alternativa actual',[selected]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}`;
+}
+function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=null){
+  const currentId=String(currentExercise?.id||'').trim();
+  const pattern=String(currentExercise?.pattern||'').trim();
+  const equipment=String(currentExercise?.equipment||'').trim();
+  const plannedId=String(plannedAlternativeId||'').trim();
+  const candidates=catalog.search('',pattern?{pattern}:{}).filter((item)=>item.id!==currentId);
+  const sameEquipment=equipment?candidates.filter((item)=>String(item.equipment||'').trim()===equipment):[];
+  const sameIds=new Set(sameEquipment.map((item)=>item.id));
+  const otherEquipment=candidates.filter((item)=>!sameIds.has(item.id));
+  const preferred=sameEquipment.slice(0,6);
+  const secondary=otherEquipment.slice(0,6);
+  const visibleIds=new Set([...preferred,...secondary].map((item)=>item.id));
+  const planned=plannedId&&plannedId!==currentId&&!visibleIds.has(plannedId)?catalog.get(plannedId):null;
+  const option=(item)=>`<option value="${e(item.id)}"${item.id===plannedId?' selected':''}>${e(alternativeLabel(item))}</option>`;
+  const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
+  const markup=`${planned?group('Alternativa planificada',[planned]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}`;
+  return Object.freeze({markup,count:preferred.length+secondary.length+(planned?1:0)});
 }
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
@@ -1045,7 +1083,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ?'La sesión está cerrada. Revisa si alguna señal requiere una decisión y deja preparada la siguiente sesión desde el expediente.'
       :'Tu seguimiento ya puede continuar desde Progreso.';
     const completedProgressAction=isCoach
-      ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente">${e(progressActionLabel)}</button>`
+      ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente" data-m26-target-focus="action-outcome">${e(progressActionLabel)}</button>`
       :`<button type="button" class="m26-primary-action" data-m26-area="${e(progressActionArea)}">${e(progressActionLabel)}</button>`;
     const completedActions=confirmed
       ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button>${completedProgressAction}</div>`
@@ -1128,16 +1166,10 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const progressLabel=totals.skippedSets
     ?`${totals.resolvedSets} de ${totals.totalSets} series resueltas · ${plural(totals.skippedSets,'omitida','omitidas')}`
     :`${totals.completedSets} de ${totals.totalSets} series`;
-  const liveAddOptions=isCoach
-    ?catalog.search('').filter((item)=>item.id!==step.exerciseId).slice(0,60).map((item)=>`<option value="${e(item.id)}">${e(exerciseDisplayName(item))}</option>`).join('')
-    :'';
-  const alternativeItems=catalog.search('',{pattern:ex.pattern})
-    .filter((item)=>item.id!==step.exerciseId)
-    .slice(0,8);
-  const alternatives=alternativeItems
-    .map((item)=>`<option value="${e(item.id)}"${item.id===planned.alternativeId?' selected':''}>${e(exerciseDisplayName(item))}</option>`)
-    .join('');
-  const substitutionUnavailable=alternativeItems.length===0;
+  const liveAddOptions=isCoach?liveAddExerciseOptions(catalog,ex):'';
+  const liveAlternatives=liveAlternativeOptions(catalog,ex,planned.alternativeId);
+  const alternatives=liveAlternatives.markup;
+  const substitutionUnavailable=liveAlternatives.count===0;
   const visual=renderExerciseMedia({
     manifest:mediaMap,
     exercise:{...ex,id:step.exerciseId},
@@ -1282,6 +1314,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <details class="m26-session-options">
           <summary>No realizar esta serie</summary>
           <label>Motivo<input maxlength="500" data-session-skip-set-reason placeholder="Ej. molestia, fatiga o ajuste técnico"></label>
+          ${coachReasonPresets('skip-set',isCoach)}
           <button type="button" data-session-action="skip-set">Omitir serie con motivo</button>
         </details>
       </article>`;
@@ -1312,7 +1345,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
     ${((Number(execution.index)>0||Number(execution.setIndex)>0)||isCoach)?`<div class="m26-session-live-quick-actions"${isCoach?' data-session-coach-quick-controls':''} aria-label="${isCoach?'Controles rápidos de sesión':'Acciones de navegación'}">
       ${(Number(execution.index)>0||Number(execution.setIndex)>0)?'<button type="button" data-session-action="previous">Anterior</button>':''}
-      ${isCoach?'<button type="button" class="m26-session-live-quick-pause" data-session-action="pause">Pausar sesión</button>':''}
+      ${isCoach?'<button type="button" data-session-open-substitution>Ajustar ejercicio</button><button type="button" class="m26-session-live-quick-pause" data-session-action="pause">Pausar sesión</button>':''}
     </div>`:''}
 
     <div class="m26-session-live-workbench is-${restActive?'rest':'active'}">
@@ -1347,20 +1380,22 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${planned.prescriptionNotes?`<section class="m26-session-live-cues" aria-label="Indicaciones planificadas"><span>Indicaciones del Coach</span><strong>${e(planned.prescriptionNotes)}</strong></section>`:''}
         ${planned.progression?`<details class="m26-session-options m26-session-progression"><summary>Progresión prevista</summary><p>${e(planned.progression)}</p><small>Referencia de planificación; no modifica automáticamente la ejecución de hoy.</small></details>`:''}
         ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
-        <details class="m26-session-live-secondary-context">
+        <details class="m26-session-live-secondary-context" data-session-live-secondary-context>
           <summary>Historial, datos y ajustes</summary>
           <div class="m26-session-live-secondary-body">
             ${renderExerciseMemorySession(exerciseMemory)}
             ${currentExerciseHistory}
             <section class="m26-panel m26-panel-soft m26-session-live-options">
               <h3>Ajustes de sesión</h3>
-              <details class="m26-session-options">
+              <details class="m26-session-options" data-session-substitution-panel>
                 <summary>Ajustes y alternativas</summary>
             <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
             <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
             <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
+            ${coachReasonPresets('substitute',isCoach)}
             <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>${e(substitutionActionLabel)}</button>
             <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
+            ${coachReasonPresets('skip-exercise',isCoach)}
             <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
             ${isCoach?`<div class="m26-session-live-coach-tools">
               <h4>Ajuste estructural del Coach</h4>

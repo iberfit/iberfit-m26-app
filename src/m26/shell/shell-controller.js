@@ -601,6 +601,40 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
+  const COACH_ACTION_FOCUS_TARGETS=Object.freeze({
+    'action-outcome':'[data-m26-coach-focus="action-outcome"]',
+    'next-session-preparation':'[data-next-session-preparation]',
+  });
+  function normalizedCoachActionFocus(value){
+    const key=String(value||'').trim();
+    return Object.prototype.hasOwnProperty.call(COACH_ACTION_FOCUS_TARGETS,key)?key:'';
+  }
+  function focusCoachActionTarget(key){
+    const safe=normalizedCoachActionFocus(key);
+    if(!safe)return false;
+    const target=root.querySelector?.(COACH_ACTION_FOCUS_TARGETS[safe]);
+    if(!target)return false;
+    try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}
+    try{target.focus?.({preventScroll:true});}catch{target.focus?.();}
+    return true;
+  }
+  function scheduleCoachActionTargetFocus(key){
+    const safe=normalizedCoachActionFocus(key);
+    if(!safe)return null;
+    let active=true;
+    const onRendered=()=>{
+      if(!active)return;
+      active=false;
+      root.removeEventListener?.('m26:shell-rendered',onRendered);
+      if(!focusCoachActionTarget(safe))focusMain();
+    };
+    root.addEventListener?.('m26:shell-rendered',onRendered,{once:true});
+    return ()=>{
+      if(!active)return;
+      active=false;
+      root.removeEventListener?.('m26:shell-rendered',onRendered);
+    };
+  }
 
   function markClientSwitchBusy(source){
     if(root?.dataset)root.dataset.m26ClientSwitching='true';
@@ -639,23 +673,27 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
   function openCoachAction(source){
     const current=store.getState();
+    let cancelTargetFocus=null;
     try{
       const decision=resolveCoachActionNavigation(current,{
         clientId:source?.getAttribute?.('data-m26-client-id')||source?.getAttribute?.('data-m26-select-client'),
         targetArea:source?.getAttribute?.('data-m26-target-area')||'expediente',
       });
+      const targetFocus=normalizedCoachActionFocus(source?.getAttribute?.('data-m26-target-focus'));
       const sameClient=String(current.selectedClientId||'')===String(decision.clientId);
       const sameArea=String(current.activeArea||'')===String(decision.area);
       if(sameClient&&sameArea){
         clearClientSwitchBusy();
-        return false;
+        return targetFocus?focusCoachActionTarget(targetFocus):false;
       }
       markClientSwitchBusy(source);
+      cancelTargetFocus=targetFocus?scheduleCoachActionTargetFocus(targetFocus):null;
       if(!sameClient)store.selectClient(decision.clientId);
       if(!sameArea)store.navigate(decision.area);
-      focusMain();
+      if(!targetFocus)focusMain();
       return true;
     }catch(error){
+      cancelTargetFocus?.();
       clearClientSwitchBusy();
       root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
       return false;
