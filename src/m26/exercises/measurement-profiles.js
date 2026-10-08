@@ -26,6 +26,8 @@ export function exerciseMeasurementProfile(exercise={}){
   if(['endurance','intervals','isometric','mobility','carry','strength','power'].includes(override)){
     return Object.freeze({kind:override,sport:guessSport(title),cardio:override==='endurance'||override==='intervals'});
   }
+  // Lateral band walks are glute activation, not continuous endurance training.
+  if(pattern==='activacion gluteo')return Object.freeze({kind:'strength',sport:null,cardio:false});
   if(travelNames.test(title))return Object.freeze({kind:'carry',sport:null,cardio:false});
   if(intervalNames.test(title))return Object.freeze({kind:'intervals',sport:guessSport(title),cardio:true});
   if(cardioNames.test(title)||pattern==='ciclico'||pattern==='locomocion')
