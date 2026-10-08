@@ -568,7 +568,7 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /7\/10/);
   assert.match(html, /Dispositivos · últimos 7 días/);
   assert.match(html, /Pasos medios/);
-  assert.match(html, /7\.6 h\/día/);
+  assert.match(html, /7 h 35 min\/día/);
   assert.match(html, /8400/);
   assert.match(html, /Calidad limitada/);
   assert.match(html, /1 día con datos/);

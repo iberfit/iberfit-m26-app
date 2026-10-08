@@ -5,6 +5,7 @@ import {renderRc39Route} from '../rc39/route-render.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
+import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -3365,10 +3366,7 @@ function renderPlanExecutionPanel(plan){
   </section>`;
 }
 function sleepHoursPerDay(minutes){
-  const numeric=finiteOptionalNumber(minutes);
-  if(numeric===null)return 'Sin dato';
-  const hours=Math.round((numeric/60)*10)/10;
-  return `${hours} h/día`;
+  return formatSleepDuration(finiteOptionalNumber(minutes),{perDay:true})??'Sin dato';
 }
 function alertKind(severity){ return severity === 'critical' ? 'danger' : severity === 'warning' ? 'warning' : 'neutral'; }
 function safeDateLabel(value){return formatIberfitDate(value,{locale:IBERFIT_UI_LOCALE,includeTime:false})||'Sin fecha';}
