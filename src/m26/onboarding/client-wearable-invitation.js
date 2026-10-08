@@ -131,7 +131,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(!button?.click)return false;
     button.click();
     if(!openDevicePickerWhenReady())scope?.requestAnimationFrame?.(()=>{
-      if(!openDevicePickerWhenReady())scope?.requestAnimationFrame?.(openImportWhenReady);
+      if(!openDevicePickerWhenReady())scope?.requestAnimationFrame?.(openDevicePickerWhenReady);
     });
     return true;
   }
