@@ -75,7 +75,13 @@ export function metricValueValid(field,value){
   if(value===undefined||value===null||String(value).trim()==='')return true;
   if(field==='plannedPace')return /^\d{1,2}:[0-5]\d$/.test(String(value).trim())&&String(value).trim()!=='0:00';
   if(field==='targetHeartRateZone')return /^(?:Z[1-7]|zona [1-7])$/i.test(String(value).trim());
-  if(field==='targetHeartRateBpm')return /^(?:\d{2,3}|\d{2,3}\s*[-–]\s*\d{2,3})$/.test(String(value).trim());
+  if(field==='targetHeartRateBpm'){
+    const raw=String(value).trim();
+    const match=raw.match(/^(\d{2,3})(?:\s*[-–]\s*(\d{2,3}))?$/);
+    if(!match)return false;
+    const low=Number(match[1]),high=match[2]===undefined?low:Number(match[2]);
+    return low>=30&&high<=250&&low<=high;
+  }
   const descriptor=EXERCISE_METRIC_FIELDS[field];
   if(!descriptor)return false;
   const n=Number(String(value).replace(',','.'));
