@@ -1,5 +1,8 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
   // CONNECTED360: localized first-day consent and Client settings copy.
+  ["Incorporar actividad","Add activity","Ajouter une activité","Adicionar atividade"],
+  ["Conectar ahora","Connect now","Connecter maintenant","Ligar agora"],
+  ["Ahora no","Not now","Pas maintenant","Agora não"],
   ["No hay fuentes confirmadas","No confirmed sources","Aucune source confirmée","Não há fontes confirmadas"],
   ["No hay contexto de cliente seleccionado","No client context selected","Aucun contexte client sélectionné","Sem contexto de cliente selecionado"],
   ["Sin sincronización confirmada","No confirmed sync","Aucune synchronisation confirmée","Sem sincronização confirmada"],
