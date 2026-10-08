@@ -46,19 +46,25 @@ declare
   v_source text;
   v_actor uuid:=(select auth.uid());
   v_blocked boolean;
+  v_log_revocation boolean:=false;
+  v_check_write boolean:=false;
 begin
   if tg_table_name='m26_wearable_connections_v44' then
     v_owner:=new.owner_user_id;
     v_client:=new.client_id;
     v_source:=new.provider;
+    v_log_revocation:=new.status='revoked';
+    v_check_write:=new.status='active';
   elsif tg_table_name='m26_wearable_daily_summaries_v44' then
     v_owner:=new.imported_by;
     v_client:=new.client_id;
     v_source:=new.provider;
+    v_check_write:=true;
   elsif tg_table_name='m26_wearable_consents_v44' then
     v_owner:=new.actor_user_id;
     v_client:=new.client_id;
     v_source:=new.provider;
+    v_log_revocation:=new.action in ('revoke','delete');
   else
     raise exception using message='M26_CONNECTED360_FENCE_TABLE_INVALID',errcode='42501';
   end if;
@@ -77,8 +83,7 @@ begin
     )
   );
 
-  if tg_table_name='m26_wearable_consents_v44'
-    and tg_op='INSERT' and new.action in ('revoke','delete') then
+  if v_log_revocation then
     insert into public.m26_wearable_revocation_fence_v1(
       owner_user_id,client_id,provider
     ) values(v_owner,v_client,v_source)
@@ -86,17 +91,7 @@ begin
     return new;
   end if;
 
-  if tg_table_name='m26_wearable_connections_v44'
-    and new.status='revoked' then
-    insert into public.m26_wearable_revocation_fence_v1(
-      owner_user_id,client_id,provider
-    ) values(v_owner,v_client,v_source)
-    on conflict do nothing;
-    return new;
-  end if;
-
-  if tg_table_name='m26_wearable_daily_summaries_v44'
-    or (tg_table_name='m26_wearable_connections_v44' and new.status='active') then
+  if v_check_write then
     select exists(
       select 1 from public.m26_wearable_revocation_fence_v1 f
       where f.owner_user_id=v_owner
