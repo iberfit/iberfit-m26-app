@@ -294,6 +294,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let sessionActionPending=false;
   // Serialize shell auto-start and the explicit start action across renders.
   let startPending=false;
+  let exitPending=false;
   let sessionClockTimer=null;
   let coachRestTimer=null,coachRestTimerSignature=null,coachRestSuppressedSignature=null,coachRestAdvancePending=false;
   function stopSessionClockTicker(){
@@ -843,7 +844,25 @@ async function click(event){
   const comment=root.querySelector?.('[data-session-feedback-comment]');
   if(!String(comment?.value||'').trim())try{comment?.focus?.({preventScroll:true});}catch{comment?.focus?.();}
   return;
-}if(action==='exit-session'){const target=sessionExitTarget(button);const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await settleWithin(persistContext(context),safeFinishTimeout);await context.onExit?.();if(target==='verificacion')queueMicrotask(()=>openSessionRecoveryReview(root));}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}
+ }if(action==='exit-session'){
+      // Exit is a persistence boundary: never navigate twice or race a mutation.
+      if(exitPending||sessionActionPending||startPending)return;
+      exitPending=true;sessionActionPending=true;
+      const target=sessionExitTarget(button);
+      const wasDisabled=button.disabled;
+      button.disabled=true;button.setAttribute('aria-busy','true');
+      try{
+        await settleWithin(persistContext(context),safeFinishTimeout);
+        await context.onExit?.();
+        if(target==='verificacion')queueMicrotask(()=>openSessionRecoveryReview(root));
+      }catch(error){
+        onError(error);renderSession();
+      }finally{
+        exitPending=false;sessionActionPending=false;
+        button.disabled=wasDisabled;button.removeAttribute('aria-busy');
+      }
+      return;
+    }
     if(sessionActionPending||action==='start'&&startPending)return;
     sessionActionPending=true;
     if(action==='start')startPending=true;

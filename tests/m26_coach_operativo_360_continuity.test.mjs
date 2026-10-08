@@ -124,3 +124,52 @@ test('explicit and automatic start attempts share a lock until remote acknowledg
   assert.equal(await c.start(),false,'an already active session must not start again');
   c.destroy();
 });
+
+function actionButton(action){
+  const attrs=new Map([['data-session-action',action]]);
+  return {
+    disabled:false,
+    closest(selector){return selector==='[data-session-action]'?this:null;},
+    getAttribute(name){return attrs.get(name)||null;},
+    setAttribute(name,value){attrs.set(name,String(value));},
+    removeAttribute(name){attrs.delete(name);},
+  };
+}
+test('navigation exit is single-flight even if different buttons are tapped before persistence returns',async()=>{
+  const root=rootFixture();
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  let exits=0;
+  const context={async onExit(){exits+=1;await gate;}};
+  const c=controller(root,()=>context);c.mount();
+  root.emit('click',actionButton('exit-session'));
+  root.emit('click',actionButton('exit-session'));
+  await nextTick();
+  assert.equal(exits,1);
+  root.emit('click',actionButton('exit-session'));
+  assert.equal(exits,1);
+  release();
+  await nextTick();
+  c.destroy();
+});
+test('an explicit start click cannot duplicate the shell-initiated start in flight',async()=>{
+  const root=rootFixture(),session=sessionFor('client-D');
+  const execution=createExecution({session,clientId:'client-D',executionId:'execution-client-D'});
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  let starts=0;
+  const context={
+    session,execution,appointmentId:'appointment-D',sessionRevision:0,
+    actor:{role:'coach',id:'coach-D'},
+    commandBus:{async execute(){starts+=1;await gate;return {ok:true,kind:'ack',response:{executionRevision:1}};}},
+  };
+  const c=controller(root,()=>context);c.mount();
+  const automatic=c.start();
+  root.emit('click',actionButton('start'));
+  await nextTick();
+  assert.equal(starts,1);
+  release();
+  assert.equal(await automatic,true);
+  assert.equal(starts,1);
+  c.destroy();
+});
