@@ -64,7 +64,7 @@ test('settings and sessions reuse only confirmed summaries and no training mutat
   assert.match(render,/deviceSessionContext=isClient&&vm\.wearableContext\?\.summary/u);
   assert.match(render,/data-m26-area="actividad">Ver mis dispositivos/u);
   assert.match(render,/deviceConfirmedStats\(settingsSummary\)/u);
-  assert.match(render,/Importar un archivo/u);
+  assert.match(read('src/m26/wearables/device-hub.js'),/Importar un archivo/u);
 });
 test('the view model preserves confirmed import provenance without changing grants',()=>{
   const connection={id:'import1',provider:'normalized_file',status:'active',
