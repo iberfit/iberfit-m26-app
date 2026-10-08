@@ -429,8 +429,13 @@ function measuredNumber(value,min,max,code,integer=false){
 }
 function validatedSetResult(step,input={},previous=null){
   const rawReps=input.reps??null,rawSeconds=input.seconds??null,load=input.load==null?null:String(input.load).trim().slice(0,80),rpe=Number(input.rpe),rir=input.rir==null||input.rir===''?null:Number(input.rir);
-  if((rawReps==null||rawReps==='')&&(rawSeconds==null||rawSeconds===''))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
-  const reps=rawReps==null||rawReps===''?null:Number(rawReps),seconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
+  const profile=exerciseResultProfile(step);
+  const minutes=measuredNumber(input.durationMinutes,0,1440,'M26_EXECUTION_DURATION_INVALID');
+  const distanceKm=measuredNumber(input.distanceKm,0,1000,'M26_EXECUTION_DISTANCE_INVALID');
+  const reps=rawReps==null||rawReps===''?null:Number(rawReps),explicitSeconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
+  if(minutes!==null&&explicitSeconds!==null&&Math.abs(explicitSeconds-minutes*60)>0.01)throw new Error('M26_EXECUTION_DURATION_AMBIGUOUS');
+  const seconds=explicitSeconds??(minutes===null?null:Math.round(minutes*60));
+  if(reps===null&&seconds===null&&!((profile.cardio||profile.kind==='carry')&&distanceKm>0))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
   if(reps!==null&&(!Number.isFinite(reps)||reps<0||reps>10000))throw new Error('M26_EXECUTION_REPS_INVALID');
   if(seconds!==null&&(!Number.isFinite(seconds)||seconds<0||seconds>86400))throw new Error('M26_EXECUTION_SECONDS_INVALID');
   if(!Number.isFinite(rpe)||rpe<1||rpe>10)throw new Error('M26_EXECUTION_RPE_INVALID');
