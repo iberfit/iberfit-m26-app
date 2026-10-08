@@ -222,6 +222,9 @@ function renderPreview(root,parsed,provider){
     <p class="m26-notice">
       Revisa el resumen antes de incorporarlo.
       El archivo original no se almacena.
+      ${provider==='normalized_file'
+        ?'Al seleccionar Autorizar e incorporar, permites guardar las métricas mostradas. Puedes revocar la autorización en esta sección.'
+        :'Elegir una fuente indica el origen del archivo; no conecta ningún dispositivo.'}
     </p>
 
     <div class="m26-action-grid m26-wearable-preview-actions">
@@ -230,7 +233,7 @@ function renderPreview(root,parsed,provider){
         class="m26-primary-action"
         data-wearable-action="confirm-import"
       >
-        Confirmar e incorporar
+        ${provider==='normalized_file'?'Autorizar e incorporar':'Confirmar e incorporar'}
       </button>
 
       <button
@@ -544,10 +547,23 @@ export function createWearableController({
       'pending',
     );
 
+    let grant=null;
+    if(currentPreview.provider==='normalized_file'&&isOnline()){
+      const fields=['steps','activeMinutes','sleepMinutes','restingHeartRate',
+        'hrvMs','activeEnergyKcal','workoutMinutes'];
+      const scopes=fields.filter((field)=>
+        currentPreview.records.some((record)=>Number.isFinite(record?.metrics?.[field]))
+      );
+      if(!scopes.length)throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
+      // Explicit preview confirmation is the only UI path issuing new grants.
+      const consent=await remoteSync.reauthorize({provider:'normalized_file',scopes});
+      grant=consent.grantId;
+    }
     const result=await remoteSync.stage({
       clientId,
       provider:currentPreview.provider,
       records:currentPreview.records,
+      authorizationGrant:grant,
     });
 
     currentPreview.synchronized=
@@ -1103,6 +1119,19 @@ export function createWearableController({
         await connectHealthConnect({capabilities});
       }else if(action==='connect-native-provider'){
         await connectNativeProvider(button.dataset.provider);
+      }else if(action==='revoke-source'||action==='remove-source-data'){
+        const {role}=context(store);
+        if(role!=='client')throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
+        const provider=normalizeWearableProvider(button.dataset.provider);
+        if(!provider)throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
+        const erase=action==='remove-source-data';
+        const approved=globalThis.confirm?.(erase
+          ?'¿Desconectar la fuente y eliminar sus datos de IBERFIT? No afecta al dispositivo original.'
+          :'¿Desconectar esta fuente? No se admitirán nuevas sincronizaciones hasta que vuelvas a autorizarla.');
+        if(!approved)return;
+        await remoteSync.revoke({provider,deleteData:erase});
+        clearPreview(false);
+        setStatus(root,erase?'Fuente desconectada y datos retirados.':'Fuente desconectada. Puedes borrar los datos guardados cuando quieras.','success');
       }else if(action==='delete-all'){
         await deleteAll();
       }
