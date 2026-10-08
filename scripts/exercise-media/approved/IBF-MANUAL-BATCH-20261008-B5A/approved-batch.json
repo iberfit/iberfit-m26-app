@@ -1,0 +1,101 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-ZANCADA-ATRAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B5A/movement-a6b2ed6f16e4.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación humana expresa confirmada 2026-10-08, exclusivamente zancada y peso muerto. Inicio bipedestación; Final con paso atrás y descenso con ambas rodillas flexionadas"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ZANCADA-ATRAS/movement-a6b2ed6f16e4.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "a6b2ed6f16e4bb418c9f372507e6fdaf68292550eb56d8b4f968685044cb88b1"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "isquiotibiales",
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PESO-MUERTO-RUMANO-CON-KETTLEBELL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B5A/movement-d2b64890f8ce.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación humana expresa confirmada 2026-10-08, exclusivamente zancada y peso muerto. Inicio de pie sujetando kettlebell; Final bisagra de cadera con columna neutra y rodillas semiflexionadas"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PESO-MUERTO-RUMANO-CON-KETTLEBELL/movement-d2b64890f8ce.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "d2b64890f8ced499a90e1af05ab2e28590a227b7b63ab20da22f080cbe1c4656"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
