@@ -55,13 +55,13 @@ export function connected360InvitationMarkup(capabilities,language='es'){
   const direct=Boolean(capabilities.direct?.length);
   const description=direct
     ?'Autoriza una fuente compatible para incorporar actividad, entrenamiento y recuperación. Tú decides qué permisos conceder.'
-    :'En la web puedes revisar una exportación compatible y confirmar qué información incorporar. La conexión automática del reloj requiere una aplicación nativa o integración cloud certificada.';
+    :'Te mostraremos las fuentes y su disponibilidad real. La vinculación automática del reloj aún requiere una integración móvil o de proveedor certificada; mientras tanto, la importación es opcional.';
   return '<section data-m26-connected360-invitation role="dialog" aria-modal="false" aria-labelledby="m26-connected360-heading" aria-describedby="m26-connected360-desc">'
     +'<span class="m26-connected360-eyebrow">'+t('Tu actividad, desde el primer día')+'</span>'
-    +'<h2 id="m26-connected360-heading">'+t('¿Quieres conectar tu reloj o dispositivo de actividad?')+'</h2>'
+    +'<h2 id="m26-connected360-heading">'+t('¿Quieres vincular tu dispositivo de actividad?')+'</h2>'
     +'<p id="m26-connected360-desc">'+t(description)+'</p>'
     +'<p class="m26-connected360-provider">'+t(direct?'Conexión compatible detectada':'Disponible hoy: importación de archivo verificada')+'</p>'
-    +'<div class="m26-connected360-actions"><button type="button" data-m26-connected360-action="start">'+t(direct?'Conectar ahora':'Incorporar actividad')+'</button>'
+    +'<div class="m26-connected360-actions"><button type="button" data-m26-connected360-action="start">'+t('Ver opciones de vinculación')+'</button>'
     +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
     +'<p class="m26-connected360-privacy">'+t('Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.')+'</p></section>';
 }
@@ -117,12 +117,11 @@ export function createClientWearableInvitationController({root,identityProvider=
     // Non-modal: no focus theft, no forced permission prompt and no overlay over the app.
   }
   function refresh(){if(!mounted||scheduled)return;scheduled=true;queueMicrotask(render);}
-  function openImportWhenReady(){
-    const importer=root.querySelector?.('[data-wearable-import]');
-    if(!importer)return false;
-    const section=importer.closest?.('details.m26-optional-section');
-    if(section)section.open=true;
-    importer.scrollIntoView?.({block:'nearest',behavior:'auto'});
+  function openDevicePickerWhenReady(){
+    const picker=root.querySelector?.('[data-m26-device-link-picker]');
+    if(!picker)return false;
+    picker.open=true;
+    picker.scrollIntoView?.({block:'nearest',behavior:'auto'});
     return true;
   }
   function navigate(){
@@ -131,8 +130,8 @@ export function createClientWearableInvitationController({root,identityProvider=
       ||nodes.find(node=>node?.tagName==='BUTTON')||nodes[0];
     if(!button?.click)return false;
     button.click();
-    if(!openImportWhenReady())scope?.requestAnimationFrame?.(()=>{
-      if(!openImportWhenReady())scope?.requestAnimationFrame?.(openImportWhenReady);
+    if(!openDevicePickerWhenReady())scope?.requestAnimationFrame?.(()=>{
+      if(!openDevicePickerWhenReady())scope?.requestAnimationFrame?.(openImportWhenReady);
     });
     return true;
   }
