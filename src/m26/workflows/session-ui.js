@@ -1081,6 +1081,22 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
   </section>`;
 }
 
+function cardioSetEntryFields(profile,planned={},isCoach=false){
+ const field=(name,label,{max='',min=0,step='any',type='number',inputmode='decimal',placeholder=''}={})=>`<label data-session-field-priority="primary">${e(label)}<input type="${e(type)}"${max!==''?` max="${e(max)}"`:''} min="${e(min)}" step="${e(step)}" inputmode="${e(inputmode)}" enterkeyhint="next" data-set-field="${e(name)}"${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;
+ const duration=field('durationMinutes','Tiempo realizado (min)',{max:1440,step:0.1,placeholder:planned.plannedDurationMinutes||''});
+ const distance=field('distanceKm','Distancia realizada (km)',{max:1000,step:0.01,placeholder:planned.plannedDistanceKm||''});
+ const interval=profile.kind==='intervals'?field('intervalsCompleted','Intervalos completados',{max:1000,step:1,placeholder:planned.intervalRepetitions||''}):'';
+ const hr=field('avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1});
+ const pace=profile.sport==='running'?field('paceMinPerKm','Ritmo medio (min/km) · opcional',{type:'text',inputmode:'text',step:'',placeholder:'06:00'}):'';
+ const cadence=profile.sport==='cycling'?field('cadenceRpm','Cadencia media (rpm) · opcional',{max:250,step:1}):'';
+ const power=profile.sport==='cycling'?field('powerWatts','Potencia media (W) · opcional',{max:2500,step:1}):'';
+ const elevation=field('elevationGainM','Desnivel positivo (m) · opcional',{max:15000,step:1});
+ const rpe=field('rpe','RPE real · obligatorio',{min:1,max:10,step:0.5,placeholder:planned.targetRpe||7});
+ return `<div class="${isCoach?'m26-session-coach-set-fields':'m26-field-grid m26-session-set-fields'}" data-session-cardio-entry data-session-metric-kind="${e(profile.kind)}">
+  <div class="m26-field-grid m26-session-cardio-core">${duration}${distance}${interval}${rpe}</div>
+  <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
+ </div>`;
+}
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
   const state=renderActionState(actionState);
   const sync=renderSessionSyncBanner(execution,{role});
@@ -1262,7 +1278,9 @@ const planned=step.prescription||{};
 const coachQuickRpe=isCoach
   ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
-const setEntryFields=isCoach
+const setEntryFields=exerciseMeasurementProfile(ex).cardio
+  ?cardioSetEntryFields(exerciseMeasurementProfile(ex),planned,isCoach)
+  :isCoach
   ?`<div class="m26-session-coach-set-fields" data-session-coach-set-fields>
       <div class="m26-session-coach-work-fields" data-session-entry-group="work">
         <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
