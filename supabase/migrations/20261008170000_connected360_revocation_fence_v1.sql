@@ -1,7 +1,7 @@
 -- IBERFIT Connected 360 · fence de revocación multisesión v1.
 -- Aditivo, sin eliminar resúmenes ni consentimientos; conserva RPC RC44.
 -- IBERFIT-TABLE-ACCESS: public.m26_wearable_revocation_fence_v1 :: authenticated: SELECT/INSERT own only; no UPDATE/DELETE.
--- IBERFIT-POLICY: public.m26_wearable_revocation_fence_v1 = authenticated-owner-client-only.
+-- IBERFIT-POLICY: public.m26_wearable_revocation_fence_v1 = rls-client
 begin;
 
 create table if not exists public.m26_wearable_revocation_fence_v1 (
