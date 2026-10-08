@@ -904,7 +904,8 @@ function coachCompletionCue(execution){
   return 'La sesión está cerrada. Revisa los resultados y el feedback antes de preparar la siguiente sesión.';
 }
 // Evidence is derived from the execution's immutable plan snapshot and recorded
-// results; missing sets or values remain unknown, never assuexport function renderCoachCompletionEvidence(execution,session,catalog){
+// results; missing sets or values remain unknown, never assumed or estimated.
+export function renderCoachCompletionEvidence(execution,session,catalog){
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
   if(!queue.length)return '';
   const snapshot=execution?.planSnapshot?.sessionId===execution?.sessionId
