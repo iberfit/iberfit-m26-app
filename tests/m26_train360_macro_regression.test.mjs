@@ -185,7 +185,8 @@ test('repetición rápida exige el RPE observado de la serie nueva y conserva la
   const controller=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   const ui=fs.readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
   assert.match(execution,/M26_EXECUTION_RPE_OBSERVED_REQUIRED/);
-  assert.match(execution,/reps:values\.reps,seconds:values\.seconds,load:values\.load,rpe:observedRpe,rir,actor/);
+  assert.match(execution,/reps:values\.reps,seconds:values\.seconds,load:values\.load,[\s\S]*?rpe:observedRpe,rir,actor/);
+  assert.match(execution,/\('distanceKm' in values\?\{distanceKm:values\.distanceKm\}:\{\}\)/);
   assert.doesNotMatch(execution,/recordSet\(execution,session,\{\.\.\.values,actor\}\)/);
   assert.match(controller,/rpe:payload\.rpe,rir:payload\.rir,actor/);
   assert.match(controller,/repeat\.disabled=!\(hasObservedRpe\|\|priorValid\)/);
