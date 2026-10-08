@@ -1,0 +1,193 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-SENTADILLA-A-SILLA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B2/movement-156e34f96840.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación humana explícita en conversación 2026-10-08. Sentadilla a silla, Inicio de pie y Final sentado con pies apoyados."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-A-SILLA/movement-156e34f96840.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "156e34f968400e66116405d4647f224d1a50db6b1b53a320b4866fb260ef9be5"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteo mayor"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PESO-MUERTO-KETTLEBELL-DESDE-EL-SUELO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B2/movement-327c03f7f9ac.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación humana explícita 2026-10-08. Inicio desde suelo y Final erguido sosteniendo una kettlebell con ambas manos."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PESO-MUERTO-KETTLEBELL-DESDE-EL-SUELO/movement-327c03f7f9ac.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "327c03f7f9ac248b59560b5e6e198d2d29650d40e3f2fdbb2b1474db053efc2e"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "glúteo mayor",
+            "isquiotibiales"
+          ],
+          "secondary": [
+            "cuádriceps",
+            "erectores espinales"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-REMO-CON-BANDA-DE-PIE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B2/movement-30f661e7fa3b.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación humana explícita 2026-10-08. Inicio brazos extendidos y Final con remada de banda anclada al frente."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-REMO-CON-BANDA-DE-PIE/movement-30f661e7fa3b.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "30f661e7fa3bd7ba764ca902606a17aab6054146750c1c2afc37eba71ff5e538"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-FLEXION-CON-RODILLAS-APOYADAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261008-B2/movement-ead9a4d5ab4c.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-08",
+        "note": "Aprobación humana explícita 2026-10-08. Inicio extensión de codos y Final descenso controlado con rodillas en apoyo."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-FLEXION-CON-RODILLAS-APOYADAS/movement-ead9a4d5ab4c.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "ead9a4d5ab4cade9c2de5f66b2a00be102df2453211e3441c113e20c9354e403"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral",
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
