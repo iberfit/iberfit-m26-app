@@ -7,6 +7,8 @@ const intervalNames=/interval|fartlek|serie de carrera|repeticiones en cuesta|sp
 const holdNames=/plancha|plank|\bhold\b|isometr|wall sit|l-sit|prone cobra|handstand hold|hollow hold/;
 export const EXERCISE_METRIC_FIELDS=Object.freeze({
   plannedDistanceKm:{max:1000, label:'Distancia objetivo (km)'},
+  plannedDistanceM:{max:100000, label:'Distancia objetivo (m)'},
+  plannedSpeedKmh:{max:120,label:'Velocidad objetivo (km/h)'},
   plannedDurationMinutes:{max:1440,label:'Duración objetivo (min)'},
   plannedPace:{maxLength:16,label:'Ritmo objetivo (min/km)'},
   targetHeartRateBpm:{maxLength:24,label:'FC objetivo (lpm o rango)'},
@@ -59,6 +61,8 @@ export function metricPrescriptionSummary(p={},exercise={}){
   const profile=exerciseMeasurementProfile(exercise),parts=[];
   if(profile.cardio||profile.kind==='carry'){
     if(p.plannedDistanceKm!==''&&p.plannedDistanceKm!=null)parts.push(p.plannedDistanceKm+' km');
+    if(p.plannedDistanceM!==''&&p.plannedDistanceM!=null)parts.push(p.plannedDistanceM+' m');
+    if(p.plannedSpeedKmh)parts.push(p.plannedSpeedKmh+' km/h');
     if(p.plannedDurationMinutes!==''&&p.plannedDurationMinutes!=null)parts.push(p.plannedDurationMinutes+' min');
     if(p.plannedPace)parts.push(p.plannedPace+' min/km');
     if(p.targetHeartRateZone)parts.push(p.targetHeartRateZone);
@@ -80,6 +84,6 @@ export function metricValueValid(field,value){
 }
 export function hasCardioPrescription(p={}){
   const positive=(v)=>v!==undefined&&v!==null&&String(v).trim()!==''&&Number(String(v).replace(',','.'))>0;
-  return positive(p.plannedDistanceKm)||positive(p.plannedDurationMinutes)||
+  return positive(p.plannedDistanceKm)||positive(p.plannedDistanceM)||positive(p.plannedDurationMinutes)||
     (positive(p.intervalRepetitions)&&positive(p.intervalWorkSeconds));
 }
