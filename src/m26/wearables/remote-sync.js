@@ -84,6 +84,14 @@ export function createWearableRemoteSync({
     'M26_WEARABLE_OWNER_REQUIRED',
   );
   const ownerPrefix=`${PREFIX}owner/${owner}/`;
+  const blockedProviders=new Set();
+  let deleteRequested=false;
+  let operationTail=Promise.resolve();
+  function serialize(task){
+    const pending=operationTail.then(task,task);
+    operationTail=pending.then(()=>{},()=>{});
+    return pending;
+  }
 
   async function queuedEntries(){
     const valid=[];
@@ -103,7 +111,7 @@ export function createWearableRemoteSync({
     return (await queuedEntries()).length;
   }
 
-  async function stage({
+  async function stageUnlocked({
     clientId,
     provider,
     records=[],
@@ -113,6 +121,7 @@ export function createWearableRemoteSync({
       'M26_WEARABLE_CLIENT_REQUIRED',
     );
     const safeSource=safeProvider(provider);
+    if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
     const normalized=deduplicateWearableDailyRecords(records)
       .filter((record)=>
         record.clientId===safeClientId&&
@@ -124,6 +133,7 @@ export function createWearableRemoteSync({
     }
 
     for(const record of normalized){
+      if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
       await queueStore.set(
         keyFor(ownerPrefix,record),
         {
@@ -146,13 +156,13 @@ export function createWearableRemoteSync({
       });
     }
 
-    return flush({
+    return flushUnlocked({
       clientId:safeClientId,
       provider:safeSource,
     });
   }
 
-  async function flush({
+  async function flushUnlocked({
     clientId='',
     provider='',
   }={}){
@@ -164,6 +174,7 @@ export function createWearableRemoteSync({
         pending:await pendingCount(),
       });
     }
+    if(deleteRequested)return Object.freeze({ok:true,queued:false,synced:false,skipped:true,reason:'deleted',pending:0});
 
     const safeClientId=clientId
       ?safeId(clientId,'M26_WEARABLE_CLIENT_REQUIRED')
@@ -175,7 +186,8 @@ export function createWearableRemoteSync({
 
     const entries=(await queuedEntries()).filter(([,item])=>
       (!safeClientId||item?.clientId===safeClientId)&&
-      (!safeSource||item?.provider===safeSource)
+      (!safeSource||item?.provider===safeSource)&&
+      !blockedProviders.has(item?.provider)
     );
 
     if(!entries.length){
@@ -285,6 +297,9 @@ export function createWearableRemoteSync({
     deleteData=false,
   }={}){
     const safeSource=safeProvider(provider);
+    // Block new staged or queued work at the moment of revocation, not after the network request.
+    blockedProviders.add(safeSource);
+    return serialize(async()=>{
     const token=await getToken();
     const result=await transport.revokeWearableConnection(
       token,
@@ -303,9 +318,12 @@ export function createWearableRemoteSync({
     });
 
     return result;
+    });
   }
 
   async function deleteAll(){
+    deleteRequested=true;
+    return serialize(async()=>{
     const token=await getToken();
     const result=await transport.deleteWearableData(token);
     await queueStore.clear(ownerPrefix);
@@ -315,11 +333,16 @@ export function createWearableRemoteSync({
     });
 
     return result;
+    });
   }
 
   async function clearOwner(){
-    await queueStore.clear(ownerPrefix);
+    deleteRequested=true;
+    return serialize(()=>queueStore.clear(ownerPrefix));
   }
+
+  function stage(params={}){return serialize(()=>stageUnlocked(params));}
+  function flush(params={}){return serialize(()=>flushUnlocked(params));}
 
   return Object.freeze({
     stage,
