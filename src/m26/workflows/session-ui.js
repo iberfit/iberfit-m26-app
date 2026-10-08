@@ -3,6 +3,7 @@ import {exerciseMemoryDraftSuggestion} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
+import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
@@ -187,6 +188,40 @@ function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=
 }
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
+function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
+  const profile=exerciseMeasurementProfile(exercise);
+  const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
+  if(profile.cardio){
+    return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
+      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
+      ${field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${profile.kind==='intervals'?field('intervalRepetitions','Repeticiones de intervalos',p.intervalRepetitions||'','number',{min:1,max:1000}):''}
+      ${profile.kind==='intervals'?field('intervalWorkSeconds','Trabajo por intervalo (s)',p.intervalWorkSeconds||'','number',{min:1,max:86400}):''}
+      ${profile.kind==='intervals'?field('intervalRecoverySeconds','Recuperación por intervalo (s)',p.intervalRecoverySeconds||'','number',{min:0,max:86400}):''}`;
+  }
+  const title=profile.kind==='isometric'?'Tiempo por serie (ej. 30 s)':profile.kind==='carry'?'Recorrido/tiempo objetivo':'Repeticiones/tiempo objetivo';
+  return `${grouped?'':field('sets','Series',p.sets??3,'number',{min:1,max:100})}
+    ${field('reps',title,p.reps??'', 'text',{maxLength:40})}
+    ${profile.kind==='carry'?field('plannedDistanceKm','Distancia (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000}):''}
+    ${profile.kind==='isometric'||profile.kind==='carry'||profile.kind==='strength'||profile.kind==='power'?field('plannedLoad','Carga (opcional si aplica)',p.plannedLoad||'','text',{maxLength:80,placeholder:'Ej. 10 kg o peso corporal'}):''}
+    ${field('restSeconds','Descanso (s)',p.restSeconds??60,'number',{min:0,max:3600})}`;
+}
+function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
+  const profile=exerciseMeasurementProfile(exercise);
+  const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
+  const cardio=profile.cardio;
+  const sport=profile.sport;
+  return `${cardio?field('plannedPace',sport==='running'?'Ritmo objetivo (min/km)':'Ritmo de referencia (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
+    ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
+    ${cardio?field('targetHeartRateBpm','FC objetivo (lpm o rango)',p.targetHeartRateBpm||'','text',{maxLength:24,placeholder:'Ej. 120-140'}):''}
+    ${cardio&&sport==='cycling'?field('plannedCadenceRpm','Cadencia objetivo (rpm)',p.plannedCadenceRpm||'','number',{min:0,max:250}):''}
+    ${cardio&&sport==='cycling'?field('plannedPowerWatts','Potencia objetivo (W)',p.plannedPowerWatts||'','number',{min:0,max:2500}):''}
+    ${cardio?field('plannedElevationM','Desnivel positivo (m)',p.plannedElevationM||'','number',{min:0,max:15000}):''}
+    ${!cardio&&profile.kind!=='isometric'?field('tempo','Ritmo de ejecución',p.tempo||'controlado','text',{maxLength:40}):''}
+    ${field('targetRpe','RPE objetivo',p.targetRpe??7,'number',{min:1,max:10,step:0.5})}
+    ${!cardio?field('targetRir','RIR objetivo',p.targetRir??3,'number',{min:0,max:10,step:0.5}):''}
+    ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}`;
+}
 function templateHistoryCoverage(draft={},exerciseMemoryFor=null){
   const items=[];
   for(const block of draft.blocks||[]){
