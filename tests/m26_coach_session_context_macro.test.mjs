@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {buildNextSessionPreparation} from '../src/m26/intelligence/next-session-prep.js';
 import {__applicationInternals} from '../src/m26/app/application.js';
 import {renderSessionsRoute} from '../src/m26/modules/route-render.js';
+import {createReusableSessionDraft} from '../src/m26/productivity/session-reuse.js';
 
 const clientId='coach-context-client';
 const now=new Date('2026-10-08T12:15:00Z');
@@ -138,4 +139,31 @@ test('una sesión sin publicación confirmada conserva acceso al constructor sin
   assert.doesNotMatch(html,/Adaptar una copia de esta sesión/u);
   assert.match(html,/data-workflow-action="open-session-builder"/u);
   assert.match(html,/disabled aria-disabled="true"/u);
+});
+
+
+test('la adaptación copia bloques, cargas y grupos sin mutar la sesión publicada',()=>{
+  const source={
+    ...session,durationMinutes:65,blocks:[
+      {id:'exercise-source',type:'exercise',exerciseId:'squat',name:'Sentadilla',sets:3,reps:'8',plannedLoad:'10 kg',restSeconds:90,targetRpe:7,targetRir:3},
+      {id:'group-source',type:'biserie',exerciseIds:['row','push'],rounds:2,
+        prescriptions:{row:{reps:'10',plannedLoad:'5 kg'},push:{reps:'8',plannedLoad:''}}},
+    ],
+  };
+  const original=structuredClone(source);
+  const catalog={has:(id)=>['squat','row','push'].includes(id)};
+  const draft=createReusableSessionDraft(source,{clientId,catalog});
+  assert.notEqual(draft.id,source.id);
+  assert.equal(draft.clientId,clientId);
+  assert.equal(draft.status,'draft');
+  assert.equal(draft.revision,0);
+  assert.equal(draft.previewAccepted,false);
+  assert.equal(draft.blocks.length,2);
+  assert.notEqual(draft.blocks[0].id,source.blocks[0].id);
+  assert.notEqual(draft.blocks[1].id,source.blocks[1].id);
+  assert.equal(draft.blocks[0].plannedLoad,'10 kg');
+  assert.equal(draft.blocks[1].type,'biserie');
+  assert.equal(draft.blocks[1].prescriptions.row.reps,'10');
+  draft.blocks[1].prescriptions.row.reps='12';
+  assert.deepEqual(source,original);
 });
