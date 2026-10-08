@@ -256,6 +256,7 @@ export function previousSetDraftValues(execution){
     powerWatts:previous.powerWatts==null?'':String(previous.powerWatts),
     elevationGainM:previous.elevationGainM==null?'':String(previous.elevationGainM),
     intervalsCompleted:previous.intervalsCompleted==null?'':String(previous.intervalsCompleted)}:{}),
+    ...(exerciseResultProfile(item).kind==='carry'?{distanceM:previous.distanceM==null?'':String(previous.distanceM)}:{}),
   };
 }
 
@@ -297,6 +298,7 @@ export function previousSetReviewDraftValues(execution){
     seconds:previous.seconds,
     load:previous.load,
     ...('durationMinutes' in previous?{durationMinutes:previous.durationMinutes,distanceKm:previous.distanceKm}:{}),
+    ...('distanceM' in previous?{distanceM:previous.distanceM}:{}),
     // Previous effort is context, not a new observation.
     rpe:'',
     rir:'',
