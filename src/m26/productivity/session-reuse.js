@@ -1,5 +1,6 @@
 import {createM26Id} from '../platform/id.js';
 import {createSessionDraft,validateSessionDraft} from '../workflows/session-builder.js';
+import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 
 export const SESSION_TEMPLATE_SCHEMA_VERSION='iberfit.session-template.v1';
 export const SESSION_TEMPLATE_MAX_ITEMS=20;
@@ -13,9 +14,18 @@ function number(value,fallback,{min=0,max=10}={}){const n=Number(value);return N
 function recordBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
 function normalizeName(value){return text(value,60).normalize('NFD').replace(/[\u0300-\u036f]/gu,'').toLowerCase().replace(/\s+/gu,' ');}
 
-function safePrescription(input={}){
+function safePrescription(input={},exercise={}){
+  const profile=exerciseMeasurementProfile(exercise);
+  const hasReps=Object.prototype.hasOwnProperty.call(input,'reps');
+  const supportsNonRepWork=['endurance','intervals','carry'].includes(profile.kind);
+  // Do not silently invent strength repetitions for running/cycling or intervals.
+  const reps=hasReps&&String(input.reps??'').trim()===''&&supportsNonRepWork
+    ?'':text(input.reps||'8–12',40)||'8–12';
   return {
-    reps:text(input.reps||'8–12',40)||'8–12',
+    ...Object.fromEntries(EXERCISE_METRIC_KEYS.map((key)=>[
+      key,text(input[key],24),
+    ])),
+    reps,
     plannedLoad:text(input.plannedLoad,80),
     restSeconds:input.restSeconds==null||input.restSeconds===''?60:positiveInt(input.restSeconds,60,{min:0,max:3600}),
     tempo:text(input.tempo||'controlado',40)||'controlado',
@@ -34,7 +44,7 @@ function safeTemplateBlock(block={}){
       exerciseId:text(block.exerciseId,160),
       name:text(block.name,160),
       sets:positiveInt(block.sets,3,{min:1,max:100}),
-      ...safePrescription(block),
+      ...safePrescription(block,{id:block.exerciseId,name_es:block.name}),
     };
   }
   if(!GROUP_TYPES.has(block.type))throw new Error('M26_SESSION_REUSE_BLOCK_TYPE_UNSUPPORTED');
@@ -45,7 +55,7 @@ function safeTemplateBlock(block={}){
     rounds:positiveInt(block.rounds,3,{min:1,max:100}),
     prescriptions:Object.fromEntries(exerciseIds.map((exerciseId)=>[
       exerciseId,
-      safePrescription(block.prescriptions?.[exerciseId]||{}),
+      safePrescription(block.prescriptions?.[exerciseId]||{},{id:exerciseId}),
     ])),
   };
 }
