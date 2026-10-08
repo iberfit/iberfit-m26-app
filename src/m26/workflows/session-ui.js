@@ -14,6 +14,7 @@ function previousSetSummary(values){
     values?.reps?`${values.reps} reps`:null,
     values?.seconds?`${values.seconds} s`:null,
     values?.distanceKm?`${values.distanceKm} km`:null,
+    values?.distanceM?`${values.distanceM} m`:null,
     values?.load||null,
     values?.rpe?`RPE ${values.rpe}`:null,
     values?.rir!=null&&Number.isFinite(Number(values.rir))?`RIR ${values.rir}`:null,
@@ -1056,7 +1057,7 @@ function completedSessionSummary(execution){
 
 function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false,exercise={}}={}){
   const profile=exerciseMeasurementProfile(exercise);
-  const target=profile.cardio
+  const target=(profile.cardio||profile.kind==='carry')
     ?metricPrescriptionSummary(planned,exercise)
     :[
       planned?.reps||null,
