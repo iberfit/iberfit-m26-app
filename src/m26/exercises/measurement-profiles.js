@@ -20,7 +20,7 @@ export const EXERCISE_METRIC_FIELDS=Object.freeze({
 });
 export const EXERCISE_METRIC_KEYS=Object.freeze(Object.keys(EXERCISE_METRIC_FIELDS));
 export function exerciseMeasurementProfile(exercise={}){
-  const title=norm(exercise?.name_es||exercise?.name||exercise?.id);
+  const title=norm((exercise?.name_es||exercise?.name||'')+' '+(exercise?.id||''));
   const pattern=norm(exercise?.pattern);
   const override=norm(exercise?.measurement_profile||exercise?.measurementProfile);
   if(['endurance','intervals','isometric','mobility','carry','strength','power'].includes(override)){
