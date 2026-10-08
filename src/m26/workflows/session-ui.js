@@ -589,18 +589,19 @@ function groupEditor(group,catalog,index,mediaMap,role,exerciseMemoryFor){
     ${exercises}
   </article>`;
 }
-function prescriptionPreviewDetails(p={}){
+function prescriptionPreviewDetails(p={},exercise={}){
+  const profile=exerciseMeasurementProfile(exercise);
   const optional=[
-    p.plannedLoad?`Carga ${e(p.plannedLoad)}`:'',
-    p.tempo?`ritmo ${e(p.tempo)}`:'',
+    !profile.cardio&&p.plannedLoad?`Carga ${e(p.plannedLoad)}`:'',
+    !profile.cardio&&p.tempo?`tempo ${e(p.tempo)}`:'',
     explicitSessionEffort(p.targetRpe,{min:1,max:10})!==null?`RPE ${e(p.targetRpe)}`:'',
-    explicitSessionEffort(p.targetRir,{min:0})!==null?`RIR ${e(p.targetRir)}`:'',
+    !profile.cardio&&explicitSessionEffort(p.targetRir,{min:0})!==null?`RIR ${e(p.targetRir)}`:'',
   ].filter(Boolean).join(' · ');
   const guidance=[
     p.prescriptionNotes?`<p><strong>Indicaciones:</strong> ${e(p.prescriptionNotes)}</p>`:'',
     p.progression?`<p><strong>Progresión:</strong> ${e(p.progression)}</p>`:'',
   ].join('');
-  return `<p>${optional}</p>${guidance}`;
+  return `<p>${e(metricPrescriptionSummary(p,exercise))}${optional?` · ${optional}`:''}</p>${guidance}`;
 }
 function renderProfessionalSessionClientContext(clientContext,role){
   const normalizedRole=String(role||'').trim().toLowerCase();
@@ -616,12 +617,12 @@ function previewMarkup(draft,catalog,mediaMap,role){
     if(block.type==='exercise'){
       const ex=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId};
       const visual=renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true});
-      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} series · ${e(block.reps)} · descanso ${e(block.restSeconds)} s</p>${prescriptionPreviewDetails(block)}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
+      return `<li class="m26-session-preview-item" data-session-preview-block="${e(block.id)}">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} ${exerciseMeasurementProfile(ex).cardio?'bloque(s)':'series'} · ${e(metricPrescriptionSummary(block,ex))}${exerciseMeasurementProfile(ex).cardio?'':` · descanso ${e(block.restSeconds)} s`}</p>${prescriptionPreviewDetails(block,ex)}<button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></div></li>`;
     }
     const exerciseLines=(block.exerciseIds||[]).map((id)=>{
       const ex=catalog.get(id)||{id,name_es:id};
       const p=block.prescriptions?.[id]||{};
-      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(p.reps||'Según indicación')}${p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
+      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(metricPrescriptionSummary(p,ex))}${!exerciseMeasurementProfile(ex).cardio&&p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
     }).join('');
     return `<li class="m26-session-preview-group" data-session-preview-block="${e(block.id)}"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div><button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></li>`;
   }).join('');
