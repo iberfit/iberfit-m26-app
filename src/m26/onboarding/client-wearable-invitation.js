@@ -117,11 +117,24 @@ export function createClientWearableInvitationController({root,identityProvider=
     // Non-modal: no focus theft, no forced permission prompt and no overlay over the app.
   }
   function refresh(){if(!mounted||scheduled)return;scheduled=true;queueMicrotask(render);}
+  function openImportWhenReady(){
+    const importer=root.querySelector?.('[data-wearable-import]');
+    if(!importer)return false;
+    const section=importer.closest?.('details.m26-optional-section');
+    if(section)section.open=true;
+    importer.scrollIntoView?.({block:'nearest',behavior:'auto'});
+    return true;
+  }
   function navigate(){
     const nodes=[...(root.querySelectorAll?.('[data-m26-area="actividad"]')||[])];
     const button=nodes.find(node=>node?.tagName==='BUTTON'&&node?.getClientRects?.()?.length>0)
       ||nodes.find(node=>node?.tagName==='BUTTON')||nodes[0];
-    if(!button?.click)return false;button.click();return true;
+    if(!button?.click)return false;
+    button.click();
+    if(!openImportWhenReady())scope?.requestAnimationFrame?.(()=>{
+      if(!openImportWhenReady())scope?.requestAnimationFrame?.(openImportWhenReady);
+    });
+    return true;
   }
   function click(event){
     const btn=event.target?.closest?.('[data-m26-connected360-action]');
