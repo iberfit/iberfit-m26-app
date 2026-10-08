@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "5d528a071edbe307273003b1869ad153a8adebab",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Release exacto de métricas por ejercicio y correcciones de certificación WebAuthn (#803 #805 #806); Canary 9/9 CI verde."
+}
