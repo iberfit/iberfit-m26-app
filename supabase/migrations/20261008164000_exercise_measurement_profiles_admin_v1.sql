@@ -1,6 +1,8 @@
 -- IBERFIT · perfiles explícitos por ejercicio · V1 (aditivo, sin alterar sesiones ni catálogo).
 -- Perfil automático = ausencia de fila o profile NULL. Los overrides no dependen de
 -- revisiones del catálogo, para sobrevivir las sincronizaciones del catálogo canónico.
+-- IBERFIT-TABLE-ACCESS: public.exercise_measurement_profiles :: Direct table access reserved for service_role. Public reads scoped through versioned RPC; authenticated writes checked inside Admin-only security-definer RPC.
+-- IBERFIT-POLICY: public.exercise_measurement_profiles = service-role-only
 create table if not exists public.exercise_measurement_profiles (
   exercise_id text primary key references public.exercise_catalog(id) on delete restrict,
   profile text null check (profile is null or profile in
@@ -10,6 +12,8 @@ create table if not exists public.exercise_measurement_profiles (
   updated_by uuid null
 );
 
+-- IBERFIT-TABLE-ACCESS: public.exercise_measurement_profile_audit :: Audit trail is internal only; no public/client access. Security-definer RPC records each CAS update; service_role handles diagnosis.
+-- IBERFIT-POLICY: public.exercise_measurement_profile_audit = service-role-only
 create table if not exists public.exercise_measurement_profile_audit (
   id bigint generated always as identity primary key,
   exercise_id text not null,
@@ -29,6 +33,9 @@ alter table public.exercise_measurement_profile_audit enable row level security;
 revoke all on table public.exercise_measurement_profiles from public,anon,authenticated;
 revoke all on table public.exercise_measurement_profile_audit from public,anon,authenticated;
 revoke all on sequence public.exercise_measurement_profile_audit_id_seq from public,anon,authenticated;
+grant select,insert,update,delete on table public.exercise_measurement_profiles to service_role;
+grant select,insert,update,delete on table public.exercise_measurement_profile_audit to service_role;
+grant usage,select on sequence public.exercise_measurement_profile_audit_id_seq to service_role;
 
 -- Public: solo registros de ejercicios que ya son públicos, sin datos personales.
 create or replace function public.iberfit_exercise_measurement_profiles_public_v1()
