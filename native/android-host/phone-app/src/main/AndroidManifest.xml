@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network access only for the pinned, disabled Canary QA WebView transport. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission
         android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
@@ -52,6 +54,7 @@
         </activity>
         <!-- Local-only official Health Connect permission proof; no web or remote data bridge. -->
         <activity android:name=".Connected360HealthPermissionsActivity" android:exported="false" />
+        <activity android:name=".Connected360SecureWebViewActivity" android:exported="false" />
         <activity android:name=".Connected360HealthPermissionsRationaleActivity" android:exported="true">
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
