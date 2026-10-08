@@ -1281,6 +1281,25 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
 
+  async function updateExerciseMeasurementProfile(token,{exerciseId,profile='',expectedRevision=0}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const id=String(exerciseId||'').trim(),value=String(profile??'').trim();
+    const revision=Number(expectedRevision);
+    if(!SAFE_ID_PATTERN.test(id))throw new Error('M26_EXERCISE_ID_INVALID');
+    if(!['','strength','isometric','endurance','intervals','carry','mobility','power'].includes(value))
+      throw new Error('M26_EXERCISE_PROFILE_INVALID');
+    if(!Number.isSafeInteger(revision)||revision<0)throw new Error('M26_EXERCISE_PROFILE_REVISION_INVALID');
+    const response=await request('/rest/v1/rpc/iberfit_admin_set_exercise_measurement_profile_v1',{
+      method:'POST',token,
+      body:JSON.stringify({p_exercise_id:id,p_profile:value||null,p_expected_revision:revision}),
+    });
+    if(response?.ok!==true||String(response.exerciseId||'')!==id||
+       !Number.isInteger(Number(response.measurementProfileRevision))||
+       Number(response.measurementProfileRevision)!==revision+1)
+      throw new Error('M26_EXERCISE_PROFILE_RESPONSE_INVALID');
+    return Object.freeze({...response});
+  }
+
   async function commandRegistry(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     const select = 'command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,snapshot_on_apply,conflict_sensitive,bootstrap_allowed,enabled';
@@ -1327,6 +1346,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     sendMessage,
     createCustomExercise,
     renameExercise,
+    updateExerciseMeasurementProfile,
     commandRegistry,
     clientOnboardingPreflight,
     createClientDraft,
