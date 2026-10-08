@@ -6,6 +6,10 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
   // COACH_COMPLETION_EVIDENCE_360: factual plan-versus-recorded comparison with multilingual parity.
+  ['Omitida explícitamente','Explicitly skipped','Explicitement omise','Omitida expressamente'],
+  ['Añadido durante la sesión; no figuraba en el plan original','Added during the session; not included in the original plan','Ajouté pendant la séance ; absent du programme initial','Adicionado durante a sessão; não constava do plano original'],
+  ['Sin snapshot histórico confirmado','No confirmed historical plan snapshot','Aucun instantané historique confirmé','Sem registo histórico confirmado do plano'],
+  ['Ejercicio sin nombre en catálogo','Unnamed exercise in the catalogue','Exercice sans nom dans le catalogue','Exercício sem nome no catálogo'],
   ['Añadir una ronda extra al bloque y continuar directamente con ella','Add an extra round to the block and continue directly with it','Ajouter un tour supplémentaire au bloc et poursuivre directement','Adicionar uma ronda extra ao bloco e continuar diretamente com ela'],
   ['Revisar planificado y registrado','Review planned versus recorded work','Comparer le travail prévu et enregistré','Rever o trabalho planeado e registado'],
   ['Datos de esta ejecución. Las series sin registro no se tratan como realizadas y las cargas no se convierten ni se suman automáticamente.','This execution only. Unrecorded sets are not counted as completed; loads are neither converted nor summed automatically.','Données de cette séance. Les séries non enregistrées ne sont pas comptées comme terminées ; les charges ne sont ni converties ni additionnées automatiquement.','Dados desta execução. As séries não registadas não contam como concluídas; as cargas não são convertidas nem somadas automaticamente.'],
