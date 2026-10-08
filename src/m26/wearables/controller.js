@@ -617,6 +617,11 @@ export function createWearableController({
       throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
     }
 
+    // Native bridges are development-only until certified for production.
+    const nativePolicy=wearableZeroCostPolicy(normalized);
+    if(!nativePolicy?.productionAllowed){
+      throw new Error(nativePolicy?.reason||'M26_ZERO_COST_POLICY_BLOCKED');
+    }
     if(!bridge.isAvailable(normalized)){
       throw new Error(
         bridge.providerSupport(normalized).reason
@@ -646,6 +651,10 @@ export function createWearableController({
       ?existing.scopes.filter((item)=>requestedMetrics.includes(item))
       :[];
 
+    // Returning from background may sync existing grants, never open a new permission ceremony.
+    if(!interactive&&!granted.length){
+      return Object.freeze({ok:true,skipped:true,reason:'permission-pending',provider:normalized,recordCount:0});
+    }
     if(interactive||!granted.length){
       if(!silent){
         setStatus(
@@ -743,7 +752,7 @@ export function createWearableController({
   async function autoSyncNativeProviders(){
     const {role}=context(store);if(role!=='client'||!isOnline())return [];
     const rows=store.getState().collections?.wearableConnections||[];
-    const providers=[...new Set(rows.filter((item)=>['active','connected','conectado'].includes(String(item.status||item.state||'').toLowerCase())).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&bridge.isAvailable(provider)))];
+    const providers=[...new Set(rows.filter((item)=>['active','connected','conectado'].includes(String(item.status||item.state||'').toLowerCase())).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
     for(const provider of providers){try{results.push(await connectNativeProvider(provider,{interactive:false,silent:true}));}catch(error){emitDiagnostic('wearable-auto-sync',error);}}
     return results;
@@ -1041,7 +1050,7 @@ export function createWearableController({
       const healthConnectAvailable=provider==='health_connect'
         ?bridge.support.healthConnect.available
         :bridge.isAvailable(provider);
-      if(!healthConnectAvailable)continue;
+      if(!healthConnectAvailable||!wearableZeroCostPolicy(provider)?.productionAllowed)continue;
       const card=root.querySelector?.(`[data-provider="${provider}"]`);
       const action=provider==='health_connect'
         ?'connect-health-connect'
