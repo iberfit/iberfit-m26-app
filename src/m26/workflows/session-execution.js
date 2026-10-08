@@ -440,6 +440,10 @@ function validatedSetResult(step,input={},previous=null){
   if(seconds!==null&&(!Number.isFinite(seconds)||seconds<0||seconds>86400))throw new Error('M26_EXECUTION_SECONDS_INVALID');
   if(!Number.isFinite(rpe)||rpe<1||rpe>10)throw new Error('M26_EXECUTION_RPE_INVALID');
   if(rir!==null&&(!Number.isFinite(rir)||rir<0||rir>10))throw new Error('M26_EXECUTION_RIR_INVALID');
+  const avgHeartRateBpm=measuredNumber(input.avgHeartRateBpm,30,250,'M26_EXECUTION_HEART_RATE_INVALID',true);
+  const cadenceRpm=measuredNumber(input.cadenceRpm,0,250,'M26_EXECUTION_CADENCE_INVALID');
+  const powerWatts=measuredNumber(input.powerWatts,0,2500,'M26_EXECUTION_POWER_INVALID');
+  const elevationGainM=measuredNumber(input.elevationGainM,0,15000,'M26_EXECUTION_ELEVATION_INVALID');
   const provenance=actorSnapshot(input.actor);
   return {
     exerciseId:step.exerciseId,
