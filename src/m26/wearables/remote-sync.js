@@ -387,8 +387,8 @@ export function createWearableRemoteSync({
 
   async function reauthorize({provider='normalized_file',scopes=[]}={}){
     const source=safeProvider(provider);
-    if(source!=='normalized_file'||!Array.isArray(scopes)||!scopes.length)
-      throw new Error('M26_CONNECTED360_CLIENT_FILE_REQUIRED');
+    if(!Array.isArray(scopes)||!scopes.length)
+      throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
     if(!isOnline())throw new Error('M26_CONNECTED360_ONLINE_REAUTHORIZE_REQUIRED');
     if(typeof transport.reauthorizeWearable!=='function'
       ||typeof transport.wearableAuthorizationStatus!=='function')
