@@ -217,12 +217,26 @@ export function createWearableRemoteSync({
 
     let imported=0;
     let stale=0;
+    let discarded=0;
     const token=await getToken();
 
     for(const groupEntries of groups.values()){
       const records=groupEntries.map(([,item])=>item.record);
       const groupClientId=groupEntries[0][1].clientId;
       const groupProvider=groupEntries[0][1].provider;
+
+      // A queued v44 file must never be replayed after any server revocation
+      // (including on another phone). Keep the source blocked until consent is renewed.
+      if(groupProvider==='normalized_file'&&!groupEntries[0][1].authorizationGrant
+        &&typeof transport.wearableAuthorizationStatus==='function'){
+        const status=await transport.wearableAuthorizationStatus(token,groupProvider);
+        if(status.revocationCursor>0){
+          for(const [key] of groupEntries)await queueStore.remove(key);
+          discarded+=groupEntries.length;
+          if(!status.authorized)blockedProviders.add(groupProvider);
+          continue;
+        }
+      }
 
       for(const batch of chunks(groupEntries,200)){
         const batchRecords=batch.map(([,item])=>item.record);
@@ -303,6 +317,7 @@ export function createWearableRemoteSync({
       synced:true,
       imported,
       stale,
+      discarded,
       pending:await pendingCount(),
     });
   }
