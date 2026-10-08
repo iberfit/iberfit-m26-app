@@ -224,6 +224,8 @@ export function createWearableRemoteSync({
     const token=await getToken();
 
     for(const groupEntries of groups.values()){
+      if(deleteRequested)break;
+      if(blockedProviders.has(groupEntries[0][1].provider))continue;
       const records=groupEntries.map(([,item])=>item.record);
       const groupClientId=groupEntries[0][1].clientId;
       const groupProvider=groupEntries[0][1].provider;
@@ -241,6 +243,9 @@ export function createWearableRemoteSync({
       }
 
       for(const batch of chunks(groupEntries,200)){
+        // A logout, erase or revoke requested during an in-flight batch must
+        // prevent every following batch, even though this operation is serialized.
+        if(deleteRequested||blockedProviders.has(groupProvider))break;
         const batchRecords=batch.map(([,item])=>item.record);
 
         try{
@@ -284,6 +289,8 @@ export function createWearableRemoteSync({
         }
       }
 
+      // Never reactivate a legacy source after its revoke began mid-import.
+      if(deleteRequested||blockedProviders.has(groupProvider))continue;
       // Authorized v2 import already linked the source in its transaction.
       if(groupEntries[0][1].authorizationGrant)continue;
       await transport.upsertWearableConnection(
@@ -309,7 +316,9 @@ export function createWearableRemoteSync({
       );
     }
 
-    await refreshState({
+    // A retired account must not receive the completion callback of a previous
+    // session. The request already sent may finish, but no further batch runs.
+    if(!deleteRequested)await refreshState({
       reason:'wearables-synchronized',
     });
 

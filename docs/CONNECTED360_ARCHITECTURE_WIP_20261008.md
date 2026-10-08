@@ -110,3 +110,7 @@ Fuentes primarias consultadas:
 - Strava cuotas, escalado y revisión: https://developers.strava.com/docs/rate-limits/
 
 **Pendiente de producto:** control de pausa/reanudación real y persistente para fuentes de sincronización automática. No presentar un botón de pausa hasta que backend, colas y multidispositivo obedezcan la pausa. El archivo manual no se sincroniza automáticamente sin consentimiento.
+
+## Corte de lotes en vuelo · logout y revocación
+
+`remote-sync.js` revisa el estado de eliminación, cierre de cuenta y revocación **antes de cada lote y entre proveedores**. Si uno de estos eventos se solicita mientras ya hay una petición HTTP enviada, se permite finalizar únicamente ese lote, pero se cancelan los siguientes; el servidor mantiene la barrera transaccional. `clearOwner` elimina la cola del propietario al salir y evita que `refreshState` de esa sesión antigua refresque una cuenta nueva. Las dos carreras están protegidas con pruebas que utilizan 201 registros (dos lotes) y una petición artificialmente retenida.

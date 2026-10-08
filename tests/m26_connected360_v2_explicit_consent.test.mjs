@@ -213,3 +213,69 @@ test('Server policy requires generation-bound consent for all file writes, even 
   assert.match(sql,/pg_catalog\.current_setting\('iberfit\.connected360\.grant_id',true\)/u);
   assert.doesNotMatch(sql,/\bdrop\s+(?:table|trigger|function|policy)\b/iu);
 });
+
+test('Logout during a large authorized import stops following batches and suppresses stale UI refresh',async()=>{
+  const store=createMemoryKeyValueStore();
+  let online=true,importCalls=0,refreshes=0,releaseFirst,signalFirst;
+  const firstStarted=new Promise(resolve=>{signalFirst=resolve;});
+  const firstGate=new Promise(resolve=>{releaseFirst=resolve;});
+  const rows=Array.from({length:201},(_,i)=>{
+    const day=new Date('2025-01-01T00:00:00Z');
+    day.setUTCDate(day.getUTCDate()+i);
+    return {...RECORD,date:day.toISOString().slice(0,10),
+      sourceUpdatedAt:day.toISOString(),metrics:{...RECORD.metrics,steps:1000+i}};
+  });
+  const remote=createWearableRemoteSync({ownerId:'c360-logout-midflight',queueStore:store,
+    transport:{
+      async importWearableAuthorized(_token,grant,payload){
+        assert.equal(grant,UUIDS[0]);
+        importCalls++;
+        if(importCalls===1){signalFirst();await firstGate;}
+        return {accepted:payload.records.length,rejected:0,stale:0};
+      },
+    },getToken:async()=>'token-before-logout',isOnline:()=>online,
+    refreshState:async()=>{refreshes++;}});
+  const staged=remote.stage({clientId:RECORD.clientId,provider:'normalized_file',
+    authorizationGrant:UUIDS[0],records:rows});
+  await firstStarted;
+  const logout=remote.clearOwner();
+  releaseFirst();
+  await staged;
+  await logout;
+  assert.equal(importCalls,1,'the remaining batch must never be uploaded after logout');
+  assert.equal(refreshes,0,'an old account must not refresh the new UI after logout');
+  assert.equal(await remote.pendingCount(),0);
+});
+
+test('Revoke during authorized multi-batch upload cancels subsequent batches before revocation commits',async()=>{
+  const store=createMemoryKeyValueStore();
+  let calls=0,revocations=0,releaseFirst,signalFirst;
+  const firstStarted=new Promise(resolve=>{signalFirst=resolve;});
+  const firstGate=new Promise(resolve=>{releaseFirst=resolve;});
+  const rows=Array.from({length:201},(_,i)=>{
+    const day=new Date('2025-01-01T00:00:00Z');
+    day.setUTCDate(day.getUTCDate()+i);
+    return {...RECORD,date:day.toISOString().slice(0,10),
+      sourceUpdatedAt:day.toISOString(),metrics:{...RECORD.metrics,steps:1000+i}};
+  });
+  const remote=createWearableRemoteSync({ownerId:'c360-revoke-midflight',queueStore:store,
+    transport:{
+      async importWearableAuthorized(_token,grant,payload){
+        assert.equal(grant,UUIDS[0]);
+        calls++;
+        if(calls===1){signalFirst();await firstGate;}
+        return {accepted:payload.records.length,rejected:0,stale:0};
+      },
+      async revokeWearableConnection(){revocations++;return {ok:true};},
+    },getToken:async()=>'token',isOnline:()=>true});
+  const staged=remote.stage({clientId:RECORD.clientId,provider:'normalized_file',
+    authorizationGrant:UUIDS[0],records:rows});
+  await firstStarted;
+  const revoked=remote.revoke({provider:'normalized_file',deleteData:true});
+  releaseFirst();
+  await staged;
+  await revoked;
+  assert.equal(calls,1,'no later batch may race after a revoke was requested');
+  assert.equal(revocations,1);
+  assert.equal(await remote.pendingCount(),0);
+});
