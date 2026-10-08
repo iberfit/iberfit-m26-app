@@ -1101,8 +1101,6 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   if(execution.status==='completed'){
     const confirmed=execution.syncStatus==='clean';
-    const feedback=execution.feedback||{};
-    const sessionRpe=explicitSessionEffort(feedback.sessionRpe,{min:1,max:10});
     const feedbackSummary=completedSessionFeedback(execution);
     const progressActionLabel=isCoach?'Revisar seguimiento':'Ver mi progreso';
     const progressActionArea=isCoach?'expediente':'progreso';
