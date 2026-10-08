@@ -1105,6 +1105,43 @@ function carrySetEntryFields(planned={},isCoach=false){
     <small>Registra distancia, tiempo o ambos; la carga sigue siendo opcional si corresponde.</small>
   </div>`;
 }
+function recordedSportCorrectionFields(profile,recorded={}){
+  const field=(name,label,options={})=>{
+    const type=options.type||'number';
+    const attrs=type==='number'?' min="'+e(options.min??0)+'" max="'+e(options.max??86400)+'" step="'+e(options.step??'any')+'"':'';
+    return '<label>'+e(label)+'<input type="'+e(type)+'"'+attrs+' value="'+e(options.value??'')+'" data-set-field="'+e(name)+'"></label>';
+  };
+  const actual=(key)=>recorded?.[key]??'';
+  const rpe=['rpe','RPE real',{min:1,max:10,step:0.5,value:actual('rpe')}];
+  if(profile.cardio){
+    const minutes=recorded.seconds==null?'':Number((Number(recorded.seconds)/60).toFixed(6));
+    const entries=[
+      ['durationMinutes','Tiempo realizado (min)',{max:1440,value:minutes}],
+      ['distanceKm','Distancia realizada (km)',{max:1000,value:actual('distanceKm')}],
+      ...(profile.kind==='intervals'?[['intervalsCompleted','Intervalos completados',{min:1,max:1000,step:1,value:actual('intervalsCompleted')}]]:[]),
+      ['avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1,value:actual('avgHeartRateBpm')}],
+      ...(profile.sport==='running'?[['paceMinPerKm','Ritmo medio (min/km)',{type:'text',value:actual('paceMinPerKm')}]]:[]),
+      ...(profile.sport==='cycling'?[
+        ['avgSpeedKmh','Velocidad media (km/h)',{max:140,value:actual('avgSpeedKmh')}],
+        ['cadenceRpm','Cadencia (rpm)',{max:250,value:actual('cadenceRpm')}],
+        ['powerWatts','Potencia (W)',{max:2500,value:actual('powerWatts')}],
+      ]:[]),
+      ['elevationGainM','Desnivel positivo (m)',{max:15000,value:actual('elevationGainM')}],rpe,
+    ];
+    return entries.map(([key,label,options])=>field(key,label,options)).join('');
+  }
+  if(profile.kind==='carry')return [
+    ['distanceM','Distancia realizada (m)',{max:100000,value:actual('distanceM')}],
+    ['seconds','Tiempo (s)',{max:86400,value:actual('seconds')}],
+    ['load','Carga transportada',{type:'text',value:actual('load')}],rpe,
+  ].map(([key,label,options])=>field(key,label,options)).join('');
+  return [
+    ['reps','Repeticiones',{max:10000,step:1,value:actual('reps')}],
+    ['seconds','Tiempo (s)',{max:86400,step:1,value:actual('seconds')}],
+    ['load','Carga',{type:'text',value:actual('load')}],rpe,
+    ['rir','RIR',{max:10,step:0.5,value:actual('rir')}],
+  ].map(([key,label,options])=>field(key,label,options)).join('');
+}
 function cardioSetEntryFields(profile,planned={},isCoach=false){
  const field=(name,label,{max='',min=0,step='any',type='number',inputmode='decimal',placeholder=''}={})=>`<label data-session-field-priority="primary">${e(label)}<input type="${e(type)}"${max!==''?` max="${e(max)}"`:''} min="${e(min)}" step="${e(step)}" inputmode="${e(inputmode)}" enterkeyhint="next" data-set-field="${e(name)}"${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;
  const duration=field('durationMinutes','Tiempo realizado (min)',{max:1440,step:0.1,placeholder:planned.plannedDurationMinutes||''});
@@ -1468,12 +1505,8 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <details class="m26-session-options" data-session-rest-correction>
           <summary>Corregir esta serie</summary>
           <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>
-          <div class="m26-field-grid">
-            <label>Repeticiones<input type="number" min="0" max="10000" value="${e(recorded.reps??'')}" data-set-field="reps"></label>
-            <label>Tiempo (s)<input type="number" min="0" max="86400" value="${e(recorded.seconds??'')}" data-set-field="seconds"></label>
-            <label>Carga<input type="text" maxlength="80" value="${e(recorded.load??'')}" data-set-field="load"></label>
-            <label>RPE<input type="number" min="1" max="10" step="0.5" value="${e(recorded.rpe??'')}" data-set-field="rpe" required></label>
-            <label>RIR<input type="number" min="0" max="10" step="0.5" value="${e(recorded.rir??'')}" data-set-field="rir"></label>
+          <div class="m26-field-grid" data-session-correction-profile="${e(exerciseMeasurementProfile(ex).kind)}">
+            ${recordedSportCorrectionFields(exerciseMeasurementProfile(ex),recorded)}
           </div>
           <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
           <button type="button" data-session-action="correct-set">Guardar corrección</button>
