@@ -94,3 +94,17 @@ test('supported group fields including explicit RIR zero still update exactly on
  assert.equal(draft.blocks[0].prescriptions.row.targetRir,3);
  assert.equal(draft.previewAccepted,false);
 });
+
+test('profile fallback uses the newest confirmed duration of the same client',()=>{
+ const records=[
+   {clientId,sessionDurationMinutes:60,updatedAt:'2026-09-01T12:00:00Z'},
+   {clientId:'foreign',sessionDurationMinutes:140,updatedAt:'2026-10-08T12:00:00Z'},
+   {clientId,sessionDurationMinutes:90,updatedAt:'2026-10-01T12:00:00Z'},
+   {clientId,sessionDurationMinutes:'invalid',updatedAt:'2026-10-05T12:00:00Z'},
+ ];
+ for(const order of [records,[...records].reverse()]){
+   const seed=sessionDraftDefaultsFromState(context([],order),clientId,{now});
+   assert.equal(seed.source,'profile');
+   assert.equal(seed.durationMinutes,90);
+ }
+});
