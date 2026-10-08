@@ -222,9 +222,9 @@ function renderPreview(root,parsed,provider){
     <p class="m26-notice">
       Revisa el resumen antes de incorporarlo.
       El archivo original no se almacena.
-      ${provider==='normalized_file'
-        ?'Al seleccionar Autorizar e incorporar, permites guardar las métricas mostradas. Puedes revocar la autorización en esta sección.'
-        :'Elegir una fuente indica el origen del archivo; no conecta ningún dispositivo.'}
+      Elegir ${escapeHtml(providerLabel)} identifica únicamente el origen del archivo: no conecta ningún dispositivo ni activa una sincronización automática.
+      Al seleccionar «Autorizar e incorporar», permites guardar en IBERFIT las métricas mostradas de esta fuente.
+      Puedes desconectarla o eliminar esos datos desde Ajustes.
     </p>
 
     <div class="m26-action-grid m26-wearable-preview-actions">
@@ -233,7 +233,7 @@ function renderPreview(root,parsed,provider){
         class="m26-primary-action"
         data-wearable-action="confirm-import"
       >
-        ${provider==='normalized_file'?'Autorizar e incorporar':'Confirmar e incorporar'}
+        Autorizar e incorporar
       </button>
 
       <button

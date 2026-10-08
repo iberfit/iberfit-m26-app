@@ -88,6 +88,9 @@ export function createWearableRemoteSync({
   const explicitGrants=new Map();
   const GRANT_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
   let deleteRequested=false;
+  // Logout retires this owner-scoped controller permanently: no stale UI may
+  // mint a fresh authorization generation after another account signs in.
+  let ownerDisposed=false;
   let operationTail=Promise.resolve();
   function serialize(task){
     const pending=operationTail.then(task,task);
@@ -380,12 +383,14 @@ export function createWearableRemoteSync({
   }
 
   async function clearOwner(){
+    ownerDisposed=true;
     deleteRequested=true;
     explicitGrants.clear();
     return serialize(()=>queueStore.clear(ownerPrefix));
   }
 
   async function reauthorize({provider='normalized_file',scopes=[]}={}){
+    if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
     const source=safeProvider(provider);
     if(!Array.isArray(scopes)||!scopes.length)
       throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
@@ -394,8 +399,10 @@ export function createWearableRemoteSync({
       ||typeof transport.wearableAuthorizationStatus!=='function')
       throw new Error('M26_CONNECTED360_REAUTHORIZE_UNAVAILABLE');
     return serialize(async()=>{
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
       const token=await getToken();
       const status=await transport.wearableAuthorizationStatus(token,source);
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
       let result;
       if(status.authorized===true){
         if(scopes.some(metric=>!status.scopes?.includes(metric)))
@@ -407,6 +414,7 @@ export function createWearableRemoteSync({
           expectedGrant:status.grantId||null,scopes,
         });
       }
+      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
       // Keep pending offline data from the same current consent generation.
       // Never upgrade any older, revoked or pre-consent queue.
       for(const [key,item] of await queuedEntries()){

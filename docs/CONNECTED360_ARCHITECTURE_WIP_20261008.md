@@ -119,11 +119,22 @@ Fuentes primarias consultadas:
 
 Auditoría de compatibilidad: los archivos de Strava, Apple Health, Health Connect, Fitbit, Oura, Garmin y Samsung Health aún podían utilizar el viejo RPC RC44 al importar, pues el fencing v3 se limitaba a `normalized_file`. El macro-WIP v4 extiende la **misma autorización versionada por proveedor** a los ocho orígenes, desde la primera importación. No requiere OAuth para importar archivos; solo el consentimiento explícito dentro de IBERFIT. El transporte prohíbe nuevas colas sin generación y descarta todas las colas históricas sin UUID, incluso si no existió revocación. La RPC de importación v2 valida la generación, proveedor, cliente, permisos y revocación bajo el mismo advisory lock. **Los puentes nativos siguen no certificados ni activados en producción.**
 
-Migración adicional `20261008185500_connected360_all_provider_consent_v4.sql` pendiente de certificación en QA, con pruebas de regresión para los ocho orígenes.
+Migración adicional `20261008185500_connected360_all_provider_consent_v4.sql` aplicada en QA y certificada con pruebas autenticadas transaccionales para los ocho orígenes; no aplicada en producción.
 
-## Ajuste de constraint en v5
+## Seguridad aditiva v5: propuesta de ampliar CHECK descartada
 
-La tabla de autorización v2, inicialmente limitada a `normalized_file`, tenía el `CHECK m26_wearable_authorization_v2_provider_check` que rechazaba Strava y las demás fuentes incluso después de endurecer las RPC en v4. La migración `20261008190500_connected360_authorization_provider_domain_v5.sql` extiende **exclusivamente** esa constraint a los ocho proveedores existentes en RC44. No altera el `policy_version='v44-zero-cost'`, RLS, permisos ni los datos existentes. La ampliación es necesaria para que la conexión por archivo sea voluntaria y funcione con todos los formatos enumerados.
+Una primera variante de v5 proponía ampliar `m26_wearable_authorization_v2_provider_check`. El control de seguridad de datos productivos la rechazó y **esa variante no forma parte del estado final**. La migración v5 definitiva crea `m26_wearable_authorization_sources_v3` para los otros siete proveedores con RLS, manteniendo `m26_wearable_authorization_v2` exclusiva de `normalized_file`. La v6 dirige autorizaciones y verificaciones a la tabla correspondiente.
+
 
 ## Seguridad de migración v5 / v6
 La estructura final mantiene sin modificación la constraint original `m26_wearable_authorization_v2_provider_check`. La v5 incorpora una tabla nueva y segregada para los otros siete orígenes, con RLS y permiso SELECT de cliente; la v6 adapta las RPC a ambas tablas. El control Production Data Safety Gate había bloqueado correctamente una propuesta de sustituir la restricción. Verificar rollback del esquema QA anterior antes de certificar equivalencia final. La implementación en GitHub no implica despliegue en Canary o producción.
+
+## Preparación de piloto Cliente en Canary · 08/10/2026
+
+Supabase QA verificado por lectura: las seis migraciones Connected 360 (`170000`, `173000`, `181500`, `185500`, `190500`, `192000`) figuran en el ledger; tablas de autorización v2 y v3 y resúmenes de actividad, vacías tras pruebas con ROLLBACK; constraint original `CHECK(provider='normalized_file')` conservada. Los diez workflows GitHub del commit `07a296d` completaron satisfactoriamente antes del presente ajuste; se requiere repetir CI sobre todo commit nuevo.
+
+Corrección del contrato de consentimiento en pantalla para **cada** proveedor de archivo, sin implicar conexión nativa. Cierre de sesión ahora invalida definitivamente el controlador de sincronización para impedir reautorizaciones tardías de la identidad anterior, cubierto por prueba de carrera.
+
+Canary Exact Deploy usa exclusivamente Supabase QA con preflight autenticado, comprobación de SHA exacto, evidencias y rollback automático. Se mantiene `productionAllowed=false` en fuentes nativas; **el piloto consiste en invitación, importación de archivos y controles de revocación**, no en sincronización automática de relojes.
+
+La promoción Canary requiere gates verdes al nuevo SHA y revisión del despliegue efectivo `m26-canary.iberfit.cl`; producción `app.iberfit.cl` permanece sin cambios hasta validación posterior.

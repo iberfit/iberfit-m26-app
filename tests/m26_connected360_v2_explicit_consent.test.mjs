@@ -357,3 +357,36 @@ test('v6 splits consent generation by provider and leaves the revocation fence i
   assert.match(sql,/pg_catalog\.pg_advisory_xact_lock/u);
   assert.doesNotMatch(sql,/\bdrop\s+(?:table|constraint|function|trigger|policy)\b/iu);
 });
+
+test('Every imported file names explicit storage consent and states no automatic connection',()=>{
+  const source=readFileSync('src/m26/wearables/controller.js','utf8');
+  assert.match(source,/Elegir \${escapeHtml\(providerLabel\)} identifica únicamente el origen del archivo/u);
+  assert.match(source,/Al seleccionar «Autorizar e incorporar», permites guardar en IBERFIT las métricas mostradas/u);
+  assert.match(source,/no conecta ningún dispositivo ni activa una sincronización automática/u);
+  assert.doesNotMatch(source,/provider==='normalized_file'\s*\?\s*'Al seleccionar Autorizar e incorporar'/u);
+  assert.doesNotMatch(source,/Confirmar e incorporar/u);
+});
+
+test('Retired owner cannot mint grants after logout, even if authorization status was in flight',async()=>{
+  let checks=0,reauthorizations=0,signal,release;
+  const started=new Promise(resolve=>{signal=resolve;});
+  const held=new Promise(resolve=>{release=resolve;});
+  const remote=createWearableRemoteSync({
+    ownerId:'connected360-retired-owner',queueStore:createMemoryKeyValueStore(),
+    getToken:async()=>'old-session-token',isOnline:()=>true,
+    transport:{
+      async wearableAuthorizationStatus(){checks++;signal();await held;return {authorized:false,revocationCursor:0,grantId:null};},
+      async reauthorizeWearable(){reauthorizations++;return {grantId:UUIDS[0]};},
+    },
+  });
+  const inFlight=remote.reauthorize({provider:'normalized_file',scopes:['steps']});
+  await started;
+  const logout=remote.clearOwner();
+  release();
+  await assert.rejects(inFlight,/M26_WEARABLE_OWNER_DISPOSED/u);
+  await logout;
+  await assert.rejects(remote.reauthorize({provider:'normalized_file',scopes:['steps']}),/M26_WEARABLE_OWNER_DISPOSED/u);
+  assert.equal(checks,1);
+  assert.equal(reauthorizations,0,'no new grant after session disposal');
+  assert.equal(await remote.pendingCount(),0);
+});
