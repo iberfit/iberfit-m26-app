@@ -263,8 +263,16 @@ class PhoneMainActivity : Activity() {
                 addView(pause)
                 addView(resume)
                 addView(stop)
-                addView(healthConnectQa)
-                addView(webBridgeQa)
+                // Uncertified diagnostics stay hidden in release apps.
+                if (
+                    (
+                        this@PhoneMainActivity.applicationInfo.flags and
+                            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE
+                    ) != 0
+                ) {
+                    addView(healthConnectQa)
+                    addView(webBridgeQa)
+                }
                 addView(devicesTitle)
                 addView(deviceStatus)
                 addView(preferredStatus)
