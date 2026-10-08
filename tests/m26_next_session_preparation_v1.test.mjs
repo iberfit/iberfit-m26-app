@@ -152,7 +152,8 @@ test('draft fallback is reviewable but never startable',()=>{
     nextSessionPreparation:prep,
   });
   assert.match(html,/Preparar próxima sesión/u);
-  assert.match(html,/Revisar sesión en constructor/u);
+  assert.match(html,/Continuar o crear sesión/u);
+  assert.doesNotMatch(html,/Adaptar una copia de esta sesión/u);
   assert.doesNotMatch(html,/Iniciar sesión preparada/u);
 });
 
@@ -160,7 +161,7 @@ test('published preparation exposes explicit start action and safety copy',()=>{
   const prep=buildNextSessionPreparation(baseState(),clientId,{now});
   const html=renderSessionsRoute({
     kind:'sesion',role:'coach',canBuild:true,
-    sessions:[{id:'session-published',title:'Fuerza A'}],
+    sessions:[{id:'session-published',title:'Fuerza A',publication:{status:'published',visibleToClient:true}}],
     sessionCounts:{published:1},executions:[],
     nextSessionPreparation:prep,
   });
