@@ -161,7 +161,8 @@ test('RC44 guarda offline y sincroniza en lotes',async()=>{
   const queueStore=createMemoryKeyValueStore();
 
   const transportFake={
-    async importWearableSummaries(_token,payload){
+    async importWearableAuthorized(_token,authorization,payload){
+      assert.equal(authorization,'11111111-1111-4111-8111-111111111111');
       imported+=payload.records.length;
 
       return {
@@ -226,6 +227,7 @@ test('RC44 guarda offline y sincroniza en lotes',async()=>{
     clientId:record.clientId,
     provider:record.provider,
     records:[record],
+    authorizationGrant:'11111111-1111-4111-8111-111111111111',
   });
 
   assert.equal(queued.queued,true);
