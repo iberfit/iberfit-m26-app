@@ -299,6 +299,7 @@ export function previousSetReviewDraftValues(execution){
     load:previous.load,
     ...('durationMinutes' in previous?{durationMinutes:previous.durationMinutes,distanceKm:previous.distanceKm}:{}),
     ...('distanceM' in previous?{distanceM:previous.distanceM}:{}),
+    ...('intervalsCompleted' in previous?{intervalsCompleted:previous.intervalsCompleted}:{}),
     // Previous effort is context, not a new observation.
     rpe:'',
     rir:'',
@@ -326,7 +327,11 @@ export function repeatPreviousSet(execution,session,{restSeconds=null,rpe=null,r
   const observedRpe=String(rpe??'').trim();
   if(!observedRpe||!Number.isFinite(Number(observedRpe))||Number(observedRpe)<1||Number(observedRpe)>10)
     throw new Error('M26_EXECUTION_RPE_OBSERVED_REQUIRED');
-  recordSet(execution,session,{reps:values.reps,seconds:values.seconds,load:values.load,rpe:observedRpe,rir,actor});
+  recordSet(execution,session,{reps:values.reps,seconds:values.seconds,load:values.load,
+    ...('distanceKm' in values?{distanceKm:values.distanceKm}:{}),
+    ...('distanceM' in values?{distanceM:values.distanceM}:{}),
+    ...('intervalsCompleted' in values?{intervalsCompleted:values.intervalsCompleted}:{}),
+    rpe:observedRpe,rir,actor});
   if(hasNextExecutionStep(execution))beginRest(execution,rest,{actor});
   event(execution,'SET_REPEATED_FROM_PREVIOUS',{sourceSetNumber,targetSetNumber,restSeconds:rest},actor);
   return execution;
