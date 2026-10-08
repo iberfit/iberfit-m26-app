@@ -205,8 +205,12 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                     val client = HealthConnectClient.getOrCreate(
                                         this@Connected360SecureWebViewActivity
                                     )
-                                    val records = IberfitHealthConnectReader(client)
-                                        .readDaily(metrics, days)
+                                    val reader = IberfitHealthConnectReader(client)
+                                    val permitted = reader.grantedMetrics(metrics)
+                                    if (permitted.isEmpty()) {
+                                        throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
+                                    }
+                                    val records = reader.readDaily(permitted, days)
                                     if (browser !== view || isFinishing || isDestroyed || !trustedTopPage(view)) {
                                         return@launch
                                     }
@@ -228,6 +232,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         .put("schema", "iberfit.connected360.qa.read.v1")
                                         .put("requestId", id)
                                         .put("provider", "health_connect")
+                                        .put("grantedMetrics", JSONArray(permitted.sorted()))
                                         .put("records", summaries)
                                         .put("persisted", false)
                                         .toString())
