@@ -1,4 +1,5 @@
 import {isConnected360QaNativeAvailable} from './qa-native-channel.js';
+import {createQaNativeDailyRecord,projectQaNativeRecordToV44} from './qa-native-provenance.js';
 
 const PROVIDER='health_connect';
 const METRICS=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
@@ -85,17 +86,10 @@ export function createConnected360QaImporter({
     }
     if(Object.keys(metrics).length===0)
       throw new Error('M26_HEALTH_QA_PREVIEW_INVALID');
-    // V44 calls this sourceUpdatedAt. It is the acquisition/recalculation
-    // time of the *daily aggregate*, NEVER the watch measurement timestamp.
-    // Do not infer raw data recency from this field.
-    return Object.freeze({
-      clientId,
-      provider:PROVIDER,
-      date:row.date,
-      metrics:Object.freeze(metrics),
-      sourceUpdatedAt:new Date(acquired).toISOString(),
-      sourceRecordCount:1, // exactly ONE daily aggregate, not sensor count
-      quality:'limitada',
+    // Preserve acquisition separately from unknown source timestamps.
+    // Project to V44 only at the final, explicitly approved RPC boundary.
+    return createQaNativeDailyRecord({
+      clientId,date:row.date,metrics,acquiredAt:new Date(acquired).toISOString(),
     });
   }
 
@@ -162,7 +156,7 @@ export function createConnected360QaImporter({
     const client=assertSameSession(pending);
     const at=now();
     if(at-pending.capturedAt>MAX_PREVIEW_AGE_MS||
-      pending.records.some(row=>Date.parse(row.sourceUpdatedAt)<at-MAX_PREVIEW_AGE_MS))
+      pending.records.some(row=>Date.parse(row.provenance.acquiredAt)<at-MAX_PREVIEW_AGE_MS))
       throw new Error('M26_HEALTH_QA_PREVIEW_EXPIRED');
     busy=true;
     try{
@@ -193,7 +187,7 @@ export function createConnected360QaImporter({
       assertLivePreview(pending);
       assertSameSession(client);
       const result=await transport.importWearableAuthorized(
-        token,grant.grantId,{records:[...pending.records]}
+        token,grant.grantId,{records:pending.records.map(projectQaNativeRecordToV44)}
       );
       const accepted=Number(result?.accepted);
       const stale=Number(result?.stale);
