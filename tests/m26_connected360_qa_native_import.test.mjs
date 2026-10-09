@@ -16,7 +16,8 @@ const preview=(overrides={})=>({
 });
 function setup({online=true,identity={role:'client',clientId:CLIENT,ownerId:'user-A'},
   grant={grantId:GRANT},rpc={ok:true,accepted:1,stale:0,rejected:0},
-  token='client-JWT-for-supabase',afterGrant=()=>{}}={}){
+  token='client-JWT-for-supabase',afterGrant=()=>{},afterStatus=()=>{},
+  currentGrant=grant}={}){
   const state={online,identity,now:NOW,calls:[],writes:[]};
   const scope={location:{origin:'https://m26-canary.iberfit.cl'},
     IBERFIT_CONNECTED360_QA:{
@@ -26,7 +27,12 @@ function setup({online=true,identity={role:'client',clientId:CLIENT,ownerId:'use
     scope,isOnline:()=>state.online,now:()=>state.now,
     getIdentity:()=>state.identity,
     getToken:async()=>token,
-    remoteSync:{reauthorize:async x=>{state.calls.push(x);await afterGrant(state);return grant;}},
+    remoteSync:{
+      reauthorize:async x=>{state.calls.push(x);await afterGrant(state);return grant;},
+      currentAuthorization:async x=>{
+        state.calls.push({verify:x});await afterStatus(state);return currentGrant;
+      },
+    },
     transport:{importWearableAuthorized:async(...args)=>{
       state.writes.push(args);
       return rpc;
@@ -61,7 +67,10 @@ test('explicit Canary authorization imports exact owner-bound records online, no
   assert.deepEqual(state.calls[0],{
     provider:'health_connect',scopes:['steps','sleepMinutes','restingHeartRate'],
   });
-  assert.deepEqual(state.calls[1],'refresh');
+  assert.deepEqual(state.calls[1],{
+    verify:{provider:'health_connect',scopes:['steps','sleepMinutes','restingHeartRate']},
+  });
+  assert.deepEqual(state.calls[2],'refresh');
   assert.equal(state.writes.length,1);
   assert.equal(state.writes[0][0],'client-JWT-for-supabase');
   assert.equal(state.writes[0][1],GRANT);
@@ -181,4 +190,32 @@ test('QA UI requires an explicitly checked consent input, never a browser-native
   assert.match(controller,/productionAllowed/u);
   assert.doesNotMatch(controller.slice(controller.indexOf("action==='qa-health-confirm'"),
     controller.indexOf("action==='qa-health-discard'")),/globalThis\.confirm\?/u);
+});
+
+test('revoke before dispatch or stale server generation must stop the health import',async()=>{
+  const stale=setup({currentGrant:{grantId:'44444444-4444-4444-8444-444444444444'}});
+  stale.importer.capture(preview());
+  await assert.rejects(stale.importer.commit({confirmed:true}),/GRANT_STALE/);
+  assert.equal(stale.state.writes.length,0);
+  const revoked=setup({afterStatus:()=>{throw Error('M26_WEARABLE_SOURCE_REVOKED');}});
+  revoked.importer.capture(preview());
+  await assert.rejects(revoked.importer.commit({confirmed:true}),/SOURCE_REVOKED/);
+  assert.equal(revoked.state.writes.length,0);
+});
+
+test('discard after server consent but before dispatch blocks any further upload',async()=>{
+  const f=setup({afterGrant:()=>{f.importer.clear();}});
+  f.importer.capture(preview());
+  await assert.rejects(f.importer.commit({confirmed:true}),/PREVIEW_DISCARDED/);
+  assert.equal(f.state.writes.length,0);
+  assert.equal(f.importer.hasPreview(),false);
+});
+
+test('session change after consent-status check blocks direct server RPC',async()=>{
+  const f=setup({afterStatus:state=>{
+    state.identity={...state.identity,clientId:OTHER};
+  }});
+  f.importer.capture(preview());
+  await assert.rejects(f.importer.commit({confirmed:true}),/SESSION_CHANGED/);
+  assert.equal(f.state.writes.length,0);
 });
