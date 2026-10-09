@@ -900,7 +900,14 @@ export function createWearableController({
   function clearPreview(showStatus=true){
     tasks.cancel();
     currentPreview=null;
-
+    qaImporter.clear();
+    root.querySelectorAll?.('[data-qa-health-consent]')?.forEach?.(input=>{
+      input.checked=false;
+      input.disabled=true;
+    });
+    root.querySelectorAll?.('[data-wearable-action="qa-health-confirm"]')?.forEach?.(btn=>{
+      btn.disabled=true;
+    });
     const node=root.querySelector?.(
       '[data-wearable-preview]',
     );
@@ -1122,12 +1129,25 @@ export function createWearableController({
         status.dataset.qaHealthStatus='true';
         status.setAttribute('role','status');
         status.textContent='Primero autoriza una lectura en la app Android de pruebas. Esta prueba no guarda ni vincula datos.';
+        const consent=document.createElement('label');
+        consent.className='m26-wearable-qa-consent';
+        const check=document.createElement('input');
+        check.type='checkbox';
+        check.dataset.qaHealthConsent='true';
+        check.disabled=!qaImporter.hasPreview();
+        const copy=document.createElement('span');
+        copy.textContent='Acepto guardar estos resúmenes en mi cuenta IBERFIT de pruebas. Puedo desconectar o borrarlos después.';
+        consent.append(check,copy);
         const confirm=document.createElement('button');
         confirm.type='button';
         confirm.dataset.wearableAction='qa-health-confirm';
         confirm.textContent='Autorizar e incorporar (QA)';
-        confirm.disabled=!qaImporter.hasPreview();
-        qaCard.append(control,status,confirm);
+        confirm.disabled=true;
+        const discard=document.createElement('button');
+        discard.type='button';
+        discard.dataset.wearableAction='qa-health-discard';
+        discard.textContent='Descartar lectura local (QA)';
+        qaCard.append(control,status,consent,confirm,discard);
       }
     }
 
@@ -1188,14 +1208,19 @@ export function createWearableController({
         const card=button.closest?.('[data-provider="health_connect"]');
         const node=card?.querySelector?.('[data-qa-health-status]');
         const confirm=card?.querySelector?.('[data-wearable-action="qa-health-confirm"]');
+        const check=card?.querySelector?.('[data-qa-health-consent]');
         qaImporter.clear();
         if(confirm)confirm.disabled=true;
+        if(check){
+          check.checked=false;
+          check.disabled=true;
+        }
         if(node)node.textContent='Leyendo datos autorizados en el teléfono…';
         const local=await qaNative.readLocal({days:7});
         const latest=local.rows.at(-1)||null;
         if(local.rows.length){
           qaImporter.capture(local);
-          if(confirm)confirm.disabled=false;
+          if(check)check.disabled=false;
         }
         if(node){
           const sleep=latest?.metrics?.sleepMinutes;
@@ -1208,11 +1233,10 @@ export function createWearableController({
             :'No hay datos del dispositivo en los últimos siete días. No se han enviado registros.';
         }
       }else if(action==='qa-health-confirm'){
-        if(!qaImporter.hasPreview())throw new Error('M26_HEALTH_QA_PREVIEW_REQUIRED');
-        const decision=globalThis.confirm?.(
-          '¿Autorizar e incorporar los resúmenes mostrados en tu cuenta IBERFIT de pruebas? Se guardarán en QA. Puedes desconectar o borrar los datos desde Mis datos y permisos.'
-        )===true;
-        if(!decision)return;
+        const card=button.closest?.('[data-provider="health_connect"]');
+        const check=card?.querySelector?.('[data-qa-health-consent]');
+        if(!qaImporter.hasPreview()||check?.checked!==true)
+          throw new Error('M26_HEALTH_QA_EXPLICIT_CONSENT_REQUIRED');
         button.disabled=true;
         const note=button.closest?.('[data-provider="health_connect"]')
           ?.querySelector?.('[data-qa-health-status]');
@@ -1222,9 +1246,25 @@ export function createWearableController({
           if(note)note.textContent=
             'Incorporados '+confirmed.imported+' resúmenes · '+
             confirmed.unchanged+' sin cambios. Es una importación manual, no una conexión automática.';
+          if(check){
+            check.checked=false;
+            check.disabled=true;
+          }
         }finally{
-          button.disabled=!qaImporter.hasPreview();
+          button.disabled=!qaImporter.hasPreview()||check?.checked!==true;
         }
+      }else if(action==='qa-health-discard'){
+        qaImporter.clear();
+        const card=button.closest?.('[data-provider="health_connect"]');
+        const check=card?.querySelector?.('[data-qa-health-consent]');
+        if(check){
+          check.checked=false;
+          check.disabled=true;
+        }
+        const confirm=card?.querySelector?.('[data-wearable-action="qa-health-confirm"]');
+        if(confirm)confirm.disabled=true;
+        const note=card?.querySelector?.('[data-qa-health-status]');
+        if(note)note.textContent='Vista previa local eliminada. Ningún dato se ha guardado.';
       }else if(action==='connect-health-connect'){
         const capabilities=[...root.querySelectorAll?.('[data-health-connect-capability]:checked')||[]].map((input)=>input.value);
         await connectHealthConnect({capabilities});
@@ -1263,6 +1303,16 @@ export function createWearableController({
         `${friendlyError(code)} Código: ${code}.`,
         'error',
       );
+    }
+  }
+
+  function onChange(event){
+    const consent=event.target.closest?.('[data-qa-health-consent]');
+    if(!consent)return;
+    const card=consent.closest?.('[data-provider="health_connect"]');
+    const confirm=card?.querySelector?.('[data-wearable-action="qa-health-confirm"]');
+    if(confirm){
+      confirm.disabled=!consent.checked||!qaImporter.hasPreview();
     }
   }
 
@@ -1305,6 +1355,7 @@ export function createWearableController({
         'click',
         onClick,
       );
+      root.addEventListener('change',onChange);
 
       lastOnline=Boolean(isOnline());
 
@@ -1374,6 +1425,7 @@ export function createWearableController({
         'click',
         onClick,
       );
+      root.removeEventListener('change',onChange);
 
       globalThis.removeEventListener?.(
         'online',
