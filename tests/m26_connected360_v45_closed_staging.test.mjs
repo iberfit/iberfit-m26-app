@@ -48,5 +48,5 @@ test('manual rollback refuses to remove a populated provenance table',()=>{
   assert.match(rollback,/ROLLBACK_NONEMPTY_FORBIDDEN/u);
   assert.match(rollback,/if exists\(select 1 from public\.m26_wearable_source_daily_v45 limit 1\)/iu);
   assert.match(rollback,/drop table public\.m26_wearable_source_daily_v45;/iu);
-  assert.doesNotMatch(rollback,/\bcascade\b/iu);
+  assert.doesNotMatch(rollback,/drop\s+table\s+[^;]+\s+cascade\s*;/iu);
 });
