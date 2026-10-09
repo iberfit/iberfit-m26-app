@@ -5,9 +5,10 @@ import {analyzeMigration,findCreatedTables} from '../scripts/ci/check_migration_
 
 const sql=readFileSync(new URL('../supabase/qa-migrations/20261009223143_connected360_v45_atomic_revoke_erase_qa.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/qa-rollbacks/20261009223143_connected360_v45_atomic_revoke_erase_qa.rollback.sql',import.meta.url),'utf8');
-const revokeStart=sql.indexOf('create or replace function public.m26_wearable_revoke_v44');
-const revokeEnd=sql.indexOf('create or replace function public.m26_wearable_v45_block_unverified_write_qa_v1');
-const revoke=sql.slice(revokeStart,revokeEnd);
+const normalizedSql=sql.toLowerCase();
+const revokeStart=normalizedSql.indexOf('create or replace function public.m26_wearable_revoke_v44');
+const revokeEnd=normalizedSql.indexOf('create or replace function public.m26_wearable_v45_block_unverified_write_qa_v1');
+const revoke=normalizedSql.slice(revokeStart,revokeEnd);
 test('QA-only migration does not add tables or bypass repository policy',()=>{
   assert.deepEqual(findCreatedTables(sql),[]);
   assert.deepEqual(analyzeMigration(sql),[]);
