@@ -91,3 +91,23 @@ jobs:
           ! grep -Eiq 'addJavascriptInterface|service_role|SUPABASE_SERVICE_KEY' "$WEB" "$GATE"
           ! grep -Fq 'IBERFIT_HEALTH_BRIDGE =' "$WEB"
           ! grep -Eqi 'supabase|service_role|addJavascriptInterface|httpclient|fetch\(' "$K"
+
+      # Downloadable only through the repository's GitHub Actions permissions.
+      # This is a DEBUG Canary test package, never a release candidate.
+      - name: Stamp isolated Canary Android QA APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=native/android-host/phone-app/build/outputs/apk/debug/phone-app-debug.apk
+          test -s "$APK"
+          sha256sum "$APK" > "${APK}.sha256"
+      - name: Preserve short-lived Canary DEBUG APK for physical QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-connected360-canary-debug-${{ github.run_id }}
+          path: |
+            native/android-host/phone-app/build/outputs/apk/debug/phone-app-debug.apk
+            native/android-host/phone-app/build/outputs/apk/debug/phone-app-debug.apk.sha256
+          retention-days: 3
+          if-no-files-found: error
+
