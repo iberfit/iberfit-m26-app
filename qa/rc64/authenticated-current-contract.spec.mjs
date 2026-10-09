@@ -219,7 +219,25 @@ test('current authenticated contract separates privileged fail-closed identities
         if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-request');
       }catch{}
     });
+    page.on('response',(response)=>{
+      try{
+        const request=response.request();
+        const url=new URL(request.url());
+        if(url.origin!==SUPABASE_ORIGIN||request.method()!=='POST')return;
+        const phase=url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'
+          ?'first-factor':url.pathname===ASSURANCE_PATH?'assurance':null;
+        if(phase)authPhases.push(phase+'-http-'+String(response.status()));
+      }catch{}
+    });
     page.on('requestfailed',(request)=>{
+      try{
+        const url=new URL(request.url());
+        if(url.origin===SUPABASE_ORIGIN){
+          if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
+            authPhases.push('first-factor-requestfailed');
+          if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-requestfailed');
+        }
+      }catch{}
       const label=qaRequestLabel(request);
       if(blocked.includes(label))return;
       try{
