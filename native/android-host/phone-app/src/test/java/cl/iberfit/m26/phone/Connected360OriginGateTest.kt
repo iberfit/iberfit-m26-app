@@ -34,6 +34,29 @@ class Connected360OriginGateTest {
         }
     }
 
+    @Test fun navigationFenceInvalidatesOutstandingHealthRead() {
+        val fence = Connected360PageFence()
+        val firstRead = fence.capture()
+        assertTrue(fence.isCurrent(firstRead))
+        fence.retire()
+        assertFalse(fence.isCurrent(firstRead))
+        val secondRead = fence.capture()
+        assertTrue(fence.isCurrent(secondRead))
+        fence.retire() // background / OAuth switch / SSL failure
+        assertFalse(fence.isCurrent(secondRead))
+        fence.retire() // Activity teardown
+        assertFalse(fence.isCurrent(firstRead))
+    }
+
+    @Test fun oldGenerationNeverBecomesValidOnSubsequentPage() {
+        val fence = Connected360PageFence()
+        val old = fence.capture()
+        repeat(100) {
+            fence.retire()
+            assertFalse(fence.isCurrent(old))
+        }
+    }
+
     @Test fun requestIdsAreShortAndStrictlyAscii() {
         assertTrue(Connected360OriginGate.requestIdAllowed("request_20261008"))
         for (invalid in listOf("", "short", "token space",
