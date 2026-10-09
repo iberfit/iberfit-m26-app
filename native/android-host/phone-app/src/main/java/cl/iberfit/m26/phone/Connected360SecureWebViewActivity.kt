@@ -204,19 +204,25 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                             readInFlight = true
                             scope.launch {
                                 try {
-                                    if (HealthConnectClient.getSdkStatus(this@Connected360SecureWebViewActivity)
-                                        != HealthConnectClient.SDK_AVAILABLE) {
-                                        throw IllegalStateException("M26_HEALTH_CONNECT_UNAVAILABLE")
+                                    // Bound the entire OS read (availability, grants and data).
+                                    // The web caller expires after 30s; Android must release
+                                    // its in-flight guard first to keep manual retry possible.
+                                    val (permitted, records) = Connected360ReadBudget.run {
+                                        if (HealthConnectClient.getSdkStatus(
+                                                this@Connected360SecureWebViewActivity
+                                            ) != HealthConnectClient.SDK_AVAILABLE) {
+                                            throw IllegalStateException("M26_HEALTH_CONNECT_UNAVAILABLE")
+                                        }
+                                        val client = HealthConnectClient.getOrCreate(
+                                            this@Connected360SecureWebViewActivity
+                                        )
+                                        val reader = IberfitHealthConnectReader(client)
+                                        val granted = reader.grantedMetrics(metrics)
+                                        if (granted.isEmpty()) {
+                                            throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
+                                        }
+                                        granted to reader.readDaily(granted, days)
                                     }
-                                    val client = HealthConnectClient.getOrCreate(
-                                        this@Connected360SecureWebViewActivity
-                                    )
-                                    val reader = IberfitHealthConnectReader(client)
-                                    val permitted = reader.grantedMetrics(metrics)
-                                    if (permitted.isEmpty()) {
-                                        throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
-                                    }
-                                    val records = reader.readDaily(permitted, days)
                                     if (!readFence.isCurrent(documentLease) ||
                                         browser !== view || isFinishing || isDestroyed || !trustedTopPage(view)) {
                                         return@launch
