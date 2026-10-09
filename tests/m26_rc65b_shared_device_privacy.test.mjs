@@ -195,5 +195,11 @@ test('RC65-B UI separa logout normal de borrado destructivo también bajo i18n',
   assert.match(global,/scope:'global'/u);
 
   assert.match(wearable,/pendingCount:\(\)=>remoteSync\.pendingCount\(\)/u);
-  assert.match(wearable,/clearOwner:\(\)=>remoteSync\.clearOwner\(\)/u);
+  // Clear the previous account's native QA read/health preview as well as
+  // the original owner-scoped remote synchronization queue.
+  assert.match(wearable,/clearOwner:\(\)=>\{/u);
+  const retirement=wearable.slice(wearable.indexOf('clearOwner:()=>{'));
+  assert.match(retirement,/qaNative\.destroy\(\)/u);
+  assert.match(retirement,/qaImporter\.destroy\(\)/u);
+  assert.match(retirement,/return remoteSync\.clearOwner\(\)/u);
 });
