@@ -94,8 +94,10 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         linkButton.isEnabled = false
         localScope.launch {
             try {
-                val current = HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
-                    .permissionController.getGrantedPermissions()
+                val current = Connected360ReadBudget.run {
+                    HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
+                        .permissionController.getGrantedPermissions()
+                }
                 val missing = requested.values.toSet() - current
                 if (missing.isEmpty()) {
                     readLocalSummary()
@@ -116,16 +118,24 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         message.text = "Comprobando permisos y leyendo el resumen local…"
         localScope.launch {
             try {
-                val healthConnect = HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
-                val granted = healthConnect.permissionController.getGrantedPermissions()
-                val metrics = requested.filterValues { it in granted }.keys
+                val (metrics, possibleRecords) = Connected360ReadBudget.run {
+                    val healthConnect = HealthConnectClient.getOrCreate(
+                        this@Connected360HealthPermissionsActivity
+                    )
+                    val granted = healthConnect.permissionController.getGrantedPermissions()
+                    val allowed = requested.filterValues { it in granted }.keys
+                    val records = if (allowed.isEmpty()) null else {
+                        IberfitHealthConnectReader(healthConnect)
+                            .readDaily(allowed.toSet(), days = 7)
+                    }
+                    allowed to records
+                }
                 if (metrics.isEmpty()) {
                     message.text = "No se ha autorizado ninguna categoría."
                     summary.text = "Sin datos. IBERFIT no ha vinculado este dispositivo."
                     return@launch
                 }
-                val records = IberfitHealthConnectReader(healthConnect)
-                    .readDaily(metrics.toSet(), days = 7)
+                val records = requireNotNull(possibleRecords)
                 val last = records.lastOrNull()
                 val totalSteps = records.mapNotNull { it.steps }.sum()
                 val stepsDays = records.count { it.steps != null }

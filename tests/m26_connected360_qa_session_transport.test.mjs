@@ -137,7 +137,9 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   assert.match(source,/if \(readInFlight \|\| !oneReadApproved\)/);
   assert.match(source,/IberfitHealthConnectReader\(client\)/);
   assert.match(source,/grantedMetrics\(metrics\)/);
-  assert.match(source,/readDaily\(permitted, days\)/);
+  // Native read must use only granted metrics inside the bounded operation.
+  assert.match(source,/Connected360ReadBudget\.run/);
+  assert.match(source,/granted to reader\.readDaily\(granted, days\)/);
   assert.match(source,/\.put\("grantedMetrics", JSONArray\(permitted\.sorted\(\)\)\)/);
   assert.match(source,/FLAG_DEBUGGABLE/);
   assert.doesNotMatch(source,/addJavascriptInterface|SUPABASE_SERVICE_KEY/);
