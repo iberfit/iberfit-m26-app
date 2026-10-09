@@ -1397,7 +1397,11 @@ export function createWearableController({
     connectNativeProvider,
     autoSyncNativeProviders,
     pendingCount:()=>remoteSync.pendingCount(),
-    clearOwner:()=>remoteSync.clearOwner(),
+    clearOwner:()=>{
+      qaNative.destroy();
+      qaImporter.destroy();
+      return remoteSync.clearOwner();
+    },
     getPreview:()=>currentPreview,
   });
 }
