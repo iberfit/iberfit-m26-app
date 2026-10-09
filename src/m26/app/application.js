@@ -476,6 +476,56 @@ export async function createM26Application({root=document.querySelector('#app'),
     authWatchdog.invalidate();
   }
 
+/**
+ * A user may start entering credentials in the lightweight login while the
+ * full application module is mounting. The first full render replaces that
+ * form. Transfer its live DOM inputs in the same synchronous call, with no
+ * storage, network or event dispatch. Later auth/error renders never retain
+ * credentials.
+ */
+export function preserveLoginInputsDuringMount(root,render){
+  if(typeof render!=='function')throw new Error('M26_AUTH_HANDOFF_RENDER_REQUIRED');
+  const before=root?.querySelector?.('[data-auth-form="login"]');
+  const busy=before?.closest?.('.m26-auth-card')?.getAttribute?.('aria-busy')==='true';
+  const emailBefore=before?.querySelector?.('input[name="email"]');
+  const passwordBefore=before?.querySelector?.('input[name="password"]');
+  if(!before||busy||!emailBefore||!passwordBefore){
+    render();
+    return false;
+  }
+  const documentLike=root?.ownerDocument||globalThis.document;
+  const focused=documentLike?.activeElement===emailBefore
+    ?'email':documentLike?.activeElement===passwordBefore?'password':null;
+  const selection=focused==='password'&&Number.isInteger(passwordBefore.selectionStart)
+    ?[passwordBefore.selectionStart,passwordBefore.selectionEnd]:null;
+  // Local variables exist only for this synchronous render. Never write
+  // credentials into storage, globals, logs, hidden fields or event payloads.
+  let email=String(emailBefore.value||'');
+  let password=String(passwordBefore.value||'');
+  render();
+  const after=root.querySelector?.('[data-auth-form="login"]');
+  const emailAfter=after?.querySelector?.('input[name="email"]');
+  const passwordAfter=after?.querySelector?.('input[name="password"]');
+  let restored=false;
+  if(after&&after!==before&&emailAfter&&passwordAfter){
+    if(email&&!emailAfter.value)emailAfter.value=email;
+    if(password&&!passwordAfter.value)passwordAfter.value=password;
+    const nextFocused=focused==='email'?emailAfter:
+      focused==='password'?passwordAfter:null;
+    if(nextFocused){
+      try{
+        nextFocused.focus?.({preventScroll:true});
+        if(focused==='password'&&selection)
+          nextFocused.setSelectionRange?.(...selection);
+      }catch{}
+    }
+    restored=true;
+  }
+  email='';
+  password='';
+  return restored;
+}
+
   function authMessage(message='',noticeKind='status'){
   root.innerHTML=renderAccessUi({
     message,
@@ -2026,7 +2076,9 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   }else{
     authMode='login';
     sessionRetryAvailable=false;
-    authMessage();
+    // Initial minimal-to-full handoff must not erase a form the user is
+    // already typing into, even on a throttled phone or tablet.
+    preserveLoginInputsDuringMount(root,()=>authMessage());
   }
 
   return Promise.resolve(false);
