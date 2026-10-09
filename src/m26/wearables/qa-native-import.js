@@ -6,6 +6,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/iu;
 const MAX_PREVIEW_AGE_MS=20*60*1000;
 const FUTURE_TOLERANCE_MS=5*60*1000;
 const DATE=/^\d{4}-\d{2}-\d{2}$/u;
+const ISO=/^\d{4}-\d{2}-\d{2}T/u;
 
 /**
  * An explicitly confirmed QA-only import, never a production native bridge.
@@ -60,7 +61,9 @@ export function createConnected360QaImporter({
   function toRecord(row,clientId,at){
     if(row?.provider!==PROVIDER||typeof row.date!=='string'||
       !DATE.test(row.date)||typeof row.acquiredAt!=='string'||
-      !Array.isArray(row.acquiredAt.match(/^\d{4}-\d{2}-\d{2}T/gu)))
+      !ISO.test(row.acquiredAt)||
+      Number.isNaN(Date.parse(row.date+'T12:00:00Z'))||
+      new Date(row.date+'T12:00:00Z').toISOString().slice(0,10)!==row.date)
       throw new Error('M26_HEALTH_QA_PREVIEW_INVALID');
     const acquired=Date.parse(row.acquiredAt);
     if(!Number.isFinite(acquired)||
@@ -98,6 +101,7 @@ export function createConnected360QaImporter({
   function capture(readResult){
     if(busy)throw new Error('M26_HEALTH_QA_BUSY');
     const client=identity();
+    clear(); // Never permit a stale approved preview after a failed new read.
     if(readResult?.provider!==PROVIDER||
       readResult?.linked!==false||
       readResult?.persisted!==false||
