@@ -2,7 +2,7 @@ import {isConnected360QaNativeAvailable} from './qa-native-channel.js';
 
 const PROVIDER='health_connect';
 const METRICS=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/iu;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_PREVIEW_AGE_MS=20*60*1000;
 const FUTURE_TOLERANCE_MS=5*60*1000;
 const DATE=/^\d{4}-\d{2}-\d{2}$/u;
