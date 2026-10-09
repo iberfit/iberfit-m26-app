@@ -154,6 +154,30 @@ class PhoneMainActivity : Activity() {
                 }
             }
 
+        val healthConnectQa = Button(this).apply {
+            text = "Health Connect · probar permisos locales"
+            setOnClickListener {
+                startActivity(
+                    android.content.Intent(
+                        this@PhoneMainActivity,
+                        Connected360HealthPermissionsActivity::class.java
+                    )
+                )
+            }
+        }
+
+        val webBridgeQa = Button(this).apply {
+            text = "IBERFIT Canary · probar canal web seguro"
+            setOnClickListener {
+                startActivity(
+                    android.content.Intent(
+                        this@PhoneMainActivity,
+                        Connected360SecureWebViewActivity::class.java
+                    )
+                )
+            }
+        }
+
         val devicesTitle =
             TextView(this).apply {
                 text =
@@ -239,6 +263,16 @@ class PhoneMainActivity : Activity() {
                 addView(pause)
                 addView(resume)
                 addView(stop)
+                // Uncertified diagnostics stay hidden in release apps.
+                if (
+                    (
+                        this@PhoneMainActivity.applicationInfo.flags and
+                            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE
+                    ) != 0
+                ) {
+                    addView(healthConnectQa)
+                    addView(webBridgeQa)
+                }
                 addView(devicesTitle)
                 addView(deviceStatus)
                 addView(preferredStatus)
