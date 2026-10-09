@@ -1049,8 +1049,20 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     );
   }
 
+  // Client-consented native reading is still QA-only. The authenticated
+  // transport may request a grant for Health Connect exclusively from the
+  // exact Canary origin/project; production remains file-only.
+  function assertConnected360ConsentProvider(provider){
+    if(provider==='normalized_file')return;
+    if(provider==='health_connect'&&runtime.qaOnly===true
+      &&runtime.host==='m26-canary.iberfit.cl'
+      &&runtime.projectRef===M26_QA_PROJECT_REF)return;
+    throw new Error('M26_CONNECTED360_CLIENT_FILE_REQUIRED');
+  }
+
   async function wearableAuthorizationStatus(token,provider='normalized_file'){
-    if(!token||provider!=='normalized_file')throw new Error('M26_CONNECTED360_CLIENT_FILE_REQUIRED');
+    if(!token)throw new Error('M26_CONNECTED360_CLIENT_FILE_REQUIRED');
+    assertConnected360ConsentProvider(provider);
     const data=await request('/rest/v1/rpc/'+CONNECTED360_RPC.authorizationStatus,{
       method:'POST',token,body:JSON.stringify({p_provider:provider}),
     });
@@ -1061,8 +1073,14 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
   async function reauthorizeWearable(token,{provider='normalized_file',expectedCursor,expectedGrant=null,scopes=[]}={}){
-    if(!token||provider!=='normalized_file'||!Number.isSafeInteger(expectedCursor)
+    if(!token||!Number.isSafeInteger(expectedCursor)
       ||expectedCursor<0||!Array.isArray(scopes)||!scopes.length||scopes.length>7)
+      throw new Error('M26_CONNECTED360_REAUTHORIZE_INVALID');
+    assertConnected360ConsentProvider(provider);
+    const validMetrics=new Set(['steps','activeMinutes','sleepMinutes',
+      'restingHeartRate','hrvMs','activeEnergyKcal','workoutMinutes']);
+    if(scopes.some(scope=>!validMetrics.has(scope))
+      ||new Set(scopes).size!==scopes.length)
       throw new Error('M26_CONNECTED360_REAUTHORIZE_INVALID');
     const data=await request('/rest/v1/rpc/'+CONNECTED360_RPC.reauthorize,{
       method:'POST',token,body:JSON.stringify({
