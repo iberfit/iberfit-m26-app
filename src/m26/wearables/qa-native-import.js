@@ -30,7 +30,8 @@ export function createConnected360QaImporter({
 }={}){
   if(typeof getToken!=='function'||typeof getIdentity!=='function'||
     typeof transport?.importWearableAuthorized!=='function'||
-    typeof remoteSync?.reauthorize!=='function')
+    typeof remoteSync?.reauthorize!=='function'||
+    typeof remoteSync?.currentAuthorization!=='function')
     throw new Error('M26_HEALTH_QA_IMPORT_DEPENDENCIES_REQUIRED');
 
   let preview=null;
@@ -147,6 +148,11 @@ export function createConnected360QaImporter({
     preview=null;
   }
 
+  function assertLivePreview(expected){
+    if(disposed)throw new Error('M26_HEALTH_QA_DISPOSED');
+    if(preview!==expected)throw new Error('M26_HEALTH_QA_PREVIEW_DISCARDED');
+  }
+
   async function commit({confirmed=false}={}){
     if(confirmed!==true)throw new Error('M26_HEALTH_QA_EXPLICIT_CONSENT_REQUIRED');
     if(busy)throw new Error('M26_HEALTH_QA_BUSY');
@@ -166,6 +172,17 @@ export function createConnected360QaImporter({
       });
       if(!UUID.test(String(grant?.grantId||'')))
         throw new Error('M26_HEALTH_QA_GRANT_INVALID');
+      assertLivePreview(pending);
+      assertSameSession(client);
+      if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
+      // Local revocation wins before dispatch; server-side revocation fence
+      // remains authoritative for any subsequent concurrent transaction.
+      const liveGrant=await remoteSync.currentAuthorization({
+        provider:PROVIDER,scopes:[...pending.scopes],
+      });
+      if(liveGrant?.grantId!==grant.grantId)
+        throw new Error('M26_HEALTH_QA_GRANT_STALE');
+      assertLivePreview(pending);
       assertSameSession(client);
       if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
       // getToken is not forwarded to Android; it is used solely for an
@@ -173,6 +190,7 @@ export function createConnected360QaImporter({
       const token=await getToken();
       if(typeof token!=='string'||token.length<10)
         throw new Error('M26_HEALTH_QA_SESSION_REQUIRED');
+      assertLivePreview(pending);
       assertSameSession(client);
       const result=await transport.importWearableAuthorized(
         token,grant.grantId,{records:[...pending.records]}
@@ -186,6 +204,7 @@ export function createConnected360QaImporter({
         accepted+stale!==pending.records.length)
         throw new Error('M26_HEALTH_QA_REMOTE_IMPORT_UNVERIFIED');
       // Never show another user the previous account's completion.
+      assertLivePreview(pending);
       assertSameSession(client);
       clear();
       await refreshState({reason:'connected360-qa-manual-import'});
@@ -208,6 +227,7 @@ export function createConnected360QaImporter({
     commit,
     clear,
     hasPreview:()=>!disposed&&preview!==null,
+    isBusy:()=>busy,
     destroy:()=>{disposed=true;clear();},
   });
 }
