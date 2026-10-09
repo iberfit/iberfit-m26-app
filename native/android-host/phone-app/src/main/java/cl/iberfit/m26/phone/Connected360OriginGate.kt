@@ -2,8 +2,8 @@ package cl.iberfit.m26.phone
 
 /**
  * Narrow WebView transport policy: no wildcards, no HTTP, no user-info,
- * no subframes and no nondefault ports. The QA channel never returns health
- * data, authentication tokens, authorization grants, or account identifiers.
+ * no subframes and no nondefault ports. A one-shot QA read can return
+ * approved health summaries to Canary; never account IDs, grants or tokens.
  */
 internal object Connected360OriginGate {
     const val QA_ORIGIN = "https://m26-canary.iberfit.cl"
@@ -25,4 +25,24 @@ internal object Connected360OriginGate {
             userInfo.isNullOrEmpty()
 
     fun requestIdAllowed(value: String): Boolean = requestIds.matches(value)
+}
+
+/**
+ * UI-thread-only fence for Android WebView QA reads.
+ *
+ * A native read may suspend while Health Connect responds. A navigation,
+ * background transition, certificate error or Activity destruction retires
+ * the generation so that a reply to an old document cannot be delivered to
+ * another account after the web app has navigated.
+ */
+internal class Connected360PageFence {
+    private var generation = 0L
+
+    fun capture(): Long = generation
+
+    fun retire() {
+        generation += 1L
+    }
+
+    fun isCurrent(lease: Long): Boolean = generation == lease
 }
