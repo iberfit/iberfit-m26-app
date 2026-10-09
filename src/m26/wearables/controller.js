@@ -20,6 +20,7 @@ import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
 } from './qa-native-channel.js';
+import {createConnected360QaImporter} from './qa-native-import.js';
 import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
@@ -428,17 +429,27 @@ export function createWearableController({
   });
   // This isolated debug-only channel cannot mark devices as linked,
   // persist health data, issue consent or bypass productionAllowed=false.
+  const qaClientIdentity=()=>{
+    const identity=store.getState().identity||{};
+    return {
+      role:identity.role,
+      clientId:identity.role==='client'?identity.clientId:null,
+      ownerId,
+    };
+  };
   const qaNative=createConnected360QaNativeChannel({
     scope:globalThis,
-    getIdentity:()=>{
-      const identity=store.getState().identity||{};
-      return {
-        role:identity.role,
-        clientId:identity.role==='client'?identity.clientId:null,
-        ownerId,
-      };
-    },
+    getIdentity:qaClientIdentity,
     getToken,
+  });
+  const qaImporter=createConnected360QaImporter({
+    scope:globalThis,
+    transport,
+    remoteSync,
+    getToken,
+    getIdentity:qaClientIdentity,
+    isOnline,
+    refreshState,
   });
 
   async function analyze(form){
@@ -847,6 +858,7 @@ export function createWearableController({
     );
 
     await remoteSync.deleteAll();
+    qaImporter.clear();
     clearPreview(false);
 
     setStatus(
@@ -1110,7 +1122,12 @@ export function createWearableController({
         status.dataset.qaHealthStatus='true';
         status.setAttribute('role','status');
         status.textContent='Primero autoriza una lectura en la app Android de pruebas. Esta prueba no guarda ni vincula datos.';
-        qaCard.append(control,status);
+        const confirm=document.createElement('button');
+        confirm.type='button';
+        confirm.dataset.wearableAction='qa-health-confirm';
+        confirm.textContent='Autorizar e incorporar (QA)';
+        confirm.disabled=!qaImporter.hasPreview();
+        qaCard.append(control,status,confirm);
       }
     }
 
@@ -1170,9 +1187,16 @@ export function createWearableController({
       }else if(action==='qa-health-read'){
         const card=button.closest?.('[data-provider="health_connect"]');
         const node=card?.querySelector?.('[data-qa-health-status]');
+        const confirm=card?.querySelector?.('[data-wearable-action="qa-health-confirm"]');
+        qaImporter.clear();
+        if(confirm)confirm.disabled=true;
         if(node)node.textContent='Leyendo datos autorizados en el teléfono…';
         const local=await qaNative.readLocal({days:7});
         const latest=local.rows.at(-1)||null;
+        if(local.rows.length){
+          qaImporter.capture(local);
+          if(confirm)confirm.disabled=false;
+        }
         if(node){
           const sleep=latest?.metrics?.sleepMinutes;
           node.textContent=latest
@@ -1182,6 +1206,24 @@ export function createWearableController({
               ' · FC reposo: '+(latest.metrics.restingHeartRate??'Sin dato')+
               '. Ningún registro se ha enviado a IBERFIT.'
             :'No hay datos del dispositivo en los últimos siete días. No se han enviado registros.';
+        }
+      }else if(action==='qa-health-confirm'){
+        if(!qaImporter.hasPreview())throw new Error('M26_HEALTH_QA_PREVIEW_REQUIRED');
+        const decision=globalThis.confirm?.(
+          '¿Autorizar e incorporar los resúmenes mostrados en tu cuenta IBERFIT de pruebas? Se guardarán en QA. Puedes desconectar o borrar los datos desde Mis datos y permisos.'
+        )===true;
+        if(!decision)return;
+        button.disabled=true;
+        const note=button.closest?.('[data-provider="health_connect"]')
+          ?.querySelector?.('[data-qa-health-status]');
+        if(note)note.textContent='Incorporando únicamente los datos autorizados en IBERFIT QA…';
+        try{
+          const confirmed=await qaImporter.commit({confirmed:true});
+          if(note)note.textContent=
+            'Incorporados '+confirmed.imported+' resúmenes · '+
+            confirmed.unchanged+' sin cambios. Es una importación manual, no una conexión automática.';
+        }finally{
+          button.disabled=!qaImporter.hasPreview();
         }
       }else if(action==='connect-health-connect'){
         const capabilities=[...root.querySelectorAll?.('[data-health-connect-capability]:checked')||[]].map((input)=>input.value);
@@ -1199,6 +1241,7 @@ export function createWearableController({
           :'¿Desconectar esta fuente? No se admitirán nuevas sincronizaciones hasta que vuelvas a autorizarla.');
         if(!approved)return;
         await remoteSync.revoke({provider,deleteData:erase});
+        qaImporter.clear();
         clearPreview(false);
         setStatus(root,erase?'Fuente desconectada y datos retirados.':'Fuente desconectada. Puedes borrar los datos guardados cuando quieras.','success');
       }else if(action==='delete-all'){
@@ -1317,6 +1360,7 @@ export function createWearableController({
       tasks.cancel();
       currentPreview=null;
       qaNative.destroy();
+      qaImporter.destroy();
       root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{node.textContent='';});
       observer?.disconnect?.();
       observer=null;
