@@ -1,6 +1,8 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
   // Connected 360 Android QA pilot: never imply a remote connection.
   // Explicit online-only Android QA import: no silent health-data transfer.
+  ["Ver días y métricas de la lectura local","Review days and metrics in the local reading","Voir les jours et les mesures de la lecture locale","Ver dias e métricas da leitura local"],
+  ["No se completó la incorporación. Puedes revisar el error y reintentar.","Import was not completed. Review the error and retry.","L’importation n’a pas abouti. Vérifiez l’erreur et réessayez.","A importação não foi concluída. Reveja o erro e tente novamente."],
   ["La incorporación está en curso. Si necesitas retirarla, usa Desconectar y borrar datos.","Import is in progress. To remove the data, use Disconnect and erase data.","L’importation est en cours. Pour retirer les données, utilisez Déconnecter et supprimer les données.","A importação está em curso. Para retirar os dados, utilize Desligar e apagar dados."],
   ["Acepto guardar estos resúmenes en mi cuenta IBERFIT de pruebas. Puedo desconectar o borrarlos después.","I agree to save these summaries in my IBERFIT test account. I can disconnect or delete them later.","J’accepte d’enregistrer ces résumés dans mon compte IBERFIT de test. Je peux les déconnecter ou les supprimer ensuite.","Aceito guardar estes resumos na minha conta IBERFIT de testes. Posso desligá-los ou apagá-los depois."],
   ["Descartar lectura local (QA)","Discard local reading (QA)","Effacer la lecture locale (QA)","Descartar leitura local (QA)"],
