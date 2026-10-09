@@ -199,6 +199,8 @@ test('current authenticated contract separates privileged fail-closed identities
     const optionalReadFailures=[];
     const consoleErrors=[];
     const pageErrors=[];
+    // Read-only diagnostic phases; never record secrets or identifying data.
+    const authPhases=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
       onBlocked:(label)=>blocked.push(label),
@@ -208,6 +210,15 @@ test('current authenticated contract separates privileged fail-closed identities
       const cdp=await context.newCDPSession(page);
       await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
     }
+    page.on('request',(request)=>{
+      try{
+        const url=new URL(request.url());
+        if(url.origin!==SUPABASE_ORIGIN||request.method()!=='POST')return;
+        if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
+          authPhases.push('first-factor-request');
+        if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-request');
+      }catch{}
+    });
     page.on('requestfailed',(request)=>{
       const label=qaRequestLabel(request);
       if(blocked.includes(label))return;
@@ -230,7 +241,23 @@ test('current authenticated contract separates privileged fail-closed identities
         try{const url=new URL(response.url());return url.origin===SUPABASE_ORIGIN&&url.pathname===ASSURANCE_PATH;}catch{return false;}
       },{timeout:AUTH_FLOW_TIMEOUT_MS});
       await page.getByRole('button',{name:'Entrar',exact:true}).click();
-      const assurance=await readAssurance(await assurancePromise);
+      let assurance;
+      try{
+        assurance=await readAssurance(await assurancePromise);
+      }catch(error){
+        const state=await page.evaluate(()=>{
+          const card=document.querySelector('.m26-auth-card');
+          const form=document.querySelector('[data-auth-form="login"]');
+          return {appReady:Boolean(globalThis.__IBERFIT_M26_APP__),
+            formValid:Boolean(form?.checkValidity?.()),
+            authMode:card?.getAttribute('data-auth-mode')||null,
+            busy:card?.getAttribute('aria-busy')||null};
+        }).catch(()=>({unavailable:true}));
+        console.error('M26_QA_AUTH_PHASE_DIAGNOSTIC:'+JSON.stringify({
+          stages:[...authPhases],state,
+        }));
+        throw error;
+      }
 
       if(account.kind==='privileged'){
         await verifyPrivilegedFailClosed(page,account,assurance);
