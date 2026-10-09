@@ -442,6 +442,7 @@ export function createWearableController({
     getIdentity:qaClientIdentity,
     getToken,
   });
+  let qaReadEpoch=0;
   const qaImporter=createConnected360QaImporter({
     scope:globalThis,
     transport,
@@ -857,8 +858,9 @@ export function createWearableController({
       'pending',
     );
 
-    await remoteSync.deleteAll();
+    qaReadEpoch+=1;
     qaImporter.clear();
+    await remoteSync.deleteAll();
     clearPreview(false);
 
     setStatus(
@@ -900,6 +902,7 @@ export function createWearableController({
   function clearPreview(showStatus=true){
     tasks.cancel();
     currentPreview=null;
+    qaReadEpoch+=1;
     qaImporter.clear();
     root.querySelectorAll?.('[data-qa-health-consent]')?.forEach?.(input=>{
       input.checked=false;
@@ -1205,6 +1208,8 @@ export function createWearableController({
       }else if(action==='sync-pending'){
         await syncPending();
       }else if(action==='qa-health-read'){
+        if(qaImporter.isBusy())throw new Error('M26_HEALTH_QA_BUSY');
+        const epoch=++qaReadEpoch;
         const card=button.closest?.('[data-provider="health_connect"]');
         const node=card?.querySelector?.('[data-qa-health-status]');
         const confirm=card?.querySelector?.('[data-wearable-action="qa-health-confirm"]');
@@ -1217,6 +1222,7 @@ export function createWearableController({
         }
         if(node)node.textContent='Leyendo datos autorizados en el teléfono…';
         const local=await qaNative.readLocal({days:7});
+        if(epoch!==qaReadEpoch)return;
         const latest=local.rows.at(-1)||null;
         if(local.rows.length){
           qaImporter.capture(local);
@@ -1254,8 +1260,14 @@ export function createWearableController({
           button.disabled=!qaImporter.hasPreview()||check?.checked!==true;
         }
       }else if(action==='qa-health-discard'){
-        qaImporter.clear();
         const card=button.closest?.('[data-provider="health_connect"]');
+        if(qaImporter.isBusy()){
+          const note=card?.querySelector?.('[data-qa-health-status]');
+          if(note)note.textContent='La incorporación está en curso. Si necesitas retirarla, usa Desconectar y borrar datos.';
+          return;
+        }
+        qaReadEpoch+=1;
+        qaImporter.clear();
         const check=card?.querySelector?.('[data-qa-health-consent]');
         if(check){
           check.checked=false;
@@ -1280,8 +1292,9 @@ export function createWearableController({
           ?'¿Desconectar la fuente y eliminar sus datos de IBERFIT? No afecta al dispositivo original.'
           :'¿Desconectar esta fuente? No se admitirán nuevas sincronizaciones hasta que vuelvas a autorizarla.');
         if(!approved)return;
-        await remoteSync.revoke({provider,deleteData:erase});
+        qaReadEpoch+=1;
         qaImporter.clear();
+        await remoteSync.revoke({provider,deleteData:erase});
         clearPreview(false);
         setStatus(root,erase?'Fuente desconectada y datos retirados.':'Fuente desconectada. Puedes borrar los datos guardados cuando quieras.','success');
       }else if(action==='delete-all'){
@@ -1410,6 +1423,7 @@ export function createWearableController({
 
       tasks.cancel();
       currentPreview=null;
+      qaReadEpoch+=1;
       qaNative.destroy();
       qaImporter.destroy();
       root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{node.textContent='';});
@@ -1450,6 +1464,7 @@ export function createWearableController({
     autoSyncNativeProviders,
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
+      qaReadEpoch+=1;
       qaNative.destroy();
       qaImporter.destroy();
       return remoteSync.clearOwner();
