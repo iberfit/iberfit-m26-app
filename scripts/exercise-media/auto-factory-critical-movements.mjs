@@ -44,7 +44,7 @@ export function criticalMovementPlanIssue(exercise,plan){
     if(!/(?:hombro|rack)/.test(s)||!/(?:codo flexionad)/.test(s))return'PLAN_CRITICAL_PHASE_INVALID:bottom-up-start';
     if(!/(?:sobre la cabeza|encima de la cabeza)/.test(f)||!/(?:codo extendid)/.test(f))return'PLAN_CRITICAL_PHASE_INVALID:bottom-up-final';
   }else if(type==='seated-good-morning'){
-    const bad=/(?:barra.{0,100}(?:deltoides anteriores|pectoral|pecho|delante de los pies)|descenso vertical|levantarse del banco|de pie con barra)/;
+    const bad=/(?:barra.{0,100}(?:deltoides anteriores|pectoral|pecho|delante de los pies)|descenso vertical|de pie con barra)/;
     for(const [phase,text] of [['start',s],['final',f]]){
       if(bad.test(text))return'PLAN_CRITICAL_GEOMETRY_INVALID:'+phase+':seated-good-morning-front-bar';
       if(!/sentad/.test(text)||!/(?:banco|asiento)/.test(text)||!/(?:gluteos|caderas).{0,70}(?:contacto|asiento)/.test(text)||!/(?:pies).{0,70}(?:suelo|apoyad)/.test(text)||!/(?:barra).{0,90}(?:trapecios superiores)/.test(text)||!/(?:detras de (?:los )?hombros)/.test(text)||!/(?:columna neutral)/.test(text))return'PLAN_CRITICAL_GEOMETRY_INVALID:'+phase+':seated-good-morning-support';
