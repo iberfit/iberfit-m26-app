@@ -201,5 +201,6 @@ test('RC65-B UI separa logout normal de borrado destructivo también bajo i18n',
   const retirement=wearable.slice(wearable.indexOf('clearOwner:()=>{'));
   assert.match(retirement,/qaNative\.destroy\(\)/u);
   assert.match(retirement,/qaImporter\.destroy\(\)/u);
+  assert.match(retirement,/clearQaSensitiveSurface\(\)/u);
   assert.match(retirement,/return remoteSync\.clearOwner\(\)/u);
 });
