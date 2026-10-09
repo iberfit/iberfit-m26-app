@@ -187,6 +187,11 @@ test('QA UI requires an explicitly checked consent input, never a browser-native
   assert.match(controller,/action==='qa-health-discard'/u);
   assert.match(controller,/qaImporter\.clear\(\)/u);
   assert.match(controller,/qaImporter\.destroy\(\)/u);
+  assert.match(controller,/function clearQaSensitiveSurface\(\)/u);
+  assert.match(controller,/\[data-qa-health-records\]/u);
+  assert.match(controller,/list\.textContent=''/u);
+  assert.match(controller,/item\.textContent=row\.date/u);
+  assert.match(controller,/details\.hidden=false/u);
   assert.match(controller,/let qaReadEpoch=0/u);
   assert.match(controller,/const epoch=\+\+qaReadEpoch/u);
   assert.match(controller,/if\(epoch!==qaReadEpoch\)return/u);
