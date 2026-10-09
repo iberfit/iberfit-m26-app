@@ -5,8 +5,10 @@ on:
       - "native/android-health-connect/**"
       - "native/android-host/phone-app/**"
       - "src/m26/wearables/qa-native-channel.js"
+      - "src/m26/wearables/qa-native-import.js"
       - "src/m26/wearables/controller.js"
       - "tests/m26_connected360_qa_session_transport.test.mjs"
+      - "tests/m26_connected360_qa_native_import.test.mjs"
       - "tests/m26_connected360_native_consent_generation.test.mjs"
       - ".github/workflows/connected360-android-native-qa.yml"
   workflow_dispatch:
@@ -70,7 +72,7 @@ jobs:
           grep -Fq 'createConnected360QaNativeChannel' src/m26/wearables/controller.js
           grep -Fq 'oneReadApproved = false' native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt
           ! grep -Eiq 'service_role|SUPABASE_SERVICE_KEY|addJavascriptInterface' native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt
-          node --test tests/m26_connected360_qa_session_transport.test.mjs tests/m26_connected360_native_consent_generation.test.mjs
+          node --test tests/m26_connected360_qa_session_transport.test.mjs tests/m26_connected360_qa_native_import.test.mjs tests/m26_connected360_native_consent_generation.test.mjs
       - name: Enforce local-only proof and official rationale
         shell: bash
         run: |
