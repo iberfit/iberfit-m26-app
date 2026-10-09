@@ -166,3 +166,19 @@ test('role and origin gates make QA importer inaccessible to normal clients and 
   const policy=readFileSync(new URL('../src/m26/wearables/free-policy.js',import.meta.url),'utf8');
   assert.match(policy,/health_connect:policy\(\{[^]*?productionAllowed:false/u);
 });
+
+test('QA UI requires an explicitly checked consent input, never a browser-native dialog',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/check\.type='checkbox'/u);
+  assert.match(controller,/check\.dataset\.qaHealthConsent='true'/u);
+  assert.match(controller,/if\(!qaImporter\.hasPreview\(\)\|\|check\?\.checked!==true\)/u);
+  assert.match(controller,/qaImporter\.commit\(\{confirmed:true\}\)/u);
+  assert.match(controller,/function onChange\(event\)/u);
+  assert.match(controller,/root\.addEventListener\('change',onChange\)/u);
+  assert.match(controller,/action==='qa-health-discard'/u);
+  assert.match(controller,/qaImporter\.clear\(\)/u);
+  assert.match(controller,/qaImporter\.destroy\(\)/u);
+  assert.match(controller,/productionAllowed/u);
+  assert.doesNotMatch(controller.slice(controller.indexOf("action==='qa-health-confirm'"),
+    controller.indexOf("action==='qa-health-discard'")),/globalThis\.confirm\?/u);
+});
