@@ -187,6 +187,11 @@ test('QA UI requires an explicitly checked consent input, never a browser-native
   assert.match(controller,/action==='qa-health-discard'/u);
   assert.match(controller,/qaImporter\.clear\(\)/u);
   assert.match(controller,/qaImporter\.destroy\(\)/u);
+  assert.match(controller,/let qaReadEpoch=0/u);
+  assert.match(controller,/const epoch=\+\+qaReadEpoch/u);
+  assert.match(controller,/if\(epoch!==qaReadEpoch\)return/u);
+  assert.match(controller,/qaImporter\.isBusy\(\)/u);
+  assert.match(controller,/root\.removeEventListener\('change',onChange\)/u);
   assert.match(controller,/productionAllowed/u);
   assert.doesNotMatch(controller.slice(controller.indexOf("action==='qa-health-confirm'"),
     controller.indexOf("action==='qa-health-discard'")),/globalThis\.confirm\?/u);
