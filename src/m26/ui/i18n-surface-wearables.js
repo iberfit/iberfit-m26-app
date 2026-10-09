@@ -1,5 +1,12 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
   // Connected 360 Android QA pilot: never imply a remote connection.
+  // Explicit online-only Android QA import: no silent health-data transfer.
+  ["Autorizar e incorporar (QA)","Authorize and add (QA)","Autoriser et importer (QA)","Autorizar e incorporar (QA)"],
+  ["¿Autorizar e incorporar los resúmenes mostrados en tu cuenta IBERFIT de pruebas? Se guardarán en QA. Puedes desconectar o borrar los datos desde Mis datos y permisos.","Authorize and add the displayed summaries to your IBERFIT test account? They will be stored in QA. You can disconnect or delete them under My data and permissions.","Autoriser et importer les résumés affichés dans votre compte IBERFIT de test ? Ils seront enregistrés en QA. Vous pouvez les déconnecter ou les supprimer dans Mes données et autorisations.","Autorizar e incorporar os resumos apresentados na conta IBERFIT de testes? Serão guardados em QA. Pode desligar ou apagar os dados em Os meus dados e permissões."],
+  ["Incorporando únicamente los datos autorizados en IBERFIT QA…","Importing only authorized data into IBERFIT QA…","Importation des seules données autorisées dans IBERFIT QA…","A importar apenas os dados autorizados no IBERFIT QA…"],
+  ["Incorporados ","Imported ","Importés ","Importados "],
+  [" resúmenes · "," summaries · "," résumés · "," resumos · "],
+  [" sin cambios. Es una importación manual, no una conexión automática."," unchanged. This is a manual import, not an automatic connection."," inchangés. Il s’agit d’une importation manuelle, pas d’une connexion automatique."," sem alterações. É uma importação manual, não uma ligação automática."],
   ["Probar lectura local Android (QA)","Test local Android reading (QA)","Tester la lecture locale Android (QA)","Testar leitura local Android (QA)"],
   ["Primero autoriza una lectura en la app Android de pruebas. Esta prueba no guarda ni vincula datos.","First authorize one read in the Android test app. This test does not store or link data.","Autorisez d’abord une lecture dans l’application Android de test. Ce test ne stocke ni ne lie les données.","Autorize primeiro uma leitura na app Android de testes. Este teste não guarda nem associa dados."],
   ["Leyendo datos autorizados en el teléfono…","Reading authorized data on the phone…","Lecture des données autorisées sur le téléphone…","A ler dados autorizados no telefone…"],
