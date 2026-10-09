@@ -82,6 +82,8 @@ test('explicit Canary authorization imports exact owner-bound records online, no
   assert.equal(record.sourceRecordCount,1);
   assert.equal(state.writes[0][2].records.length,1);
   assert.equal(record.acquiredAt,undefined,'V44 schema does not support separate provenance field');
+  assert.equal(record.measuredAt,undefined,'unknown sensor timestamp must never be fabricated');
+  assert.equal(record.provenance,undefined,'private V45 evidence must not leak to legacy RPC');
 });
 
 test('partial permissions never fabricate sleep or resting HR, and never request extra scopes',async()=>{

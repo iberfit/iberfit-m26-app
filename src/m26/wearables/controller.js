@@ -1292,7 +1292,7 @@ export function createWearableController({
               ' · pasos: '+(latest.metrics.steps??'Sin dato')+
               ' · sueño: '+(sleep===undefined?'Sin dato':formatSleepDuration(sleep))+
               ' · FC reposo: '+(latest.metrics.restingHeartRate??'Sin dato')+
-              '. Ningún registro se ha enviado a IBERFIT.'
+              '. Ningún registro se ha enviado a IBERFIT. La hora de lectura no acredita cuándo lo actualizó el reloj.'
             :'No hay datos del dispositivo en los últimos siete días. No se han enviado registros.';
         }
       }else if(action==='qa-health-confirm'){
@@ -1308,7 +1308,7 @@ export function createWearableController({
           const confirmed=await qaImporter.commit({confirmed:true});
           if(note)note.textContent=
             'Incorporados '+confirmed.imported+' resúmenes · '+
-            confirmed.unchanged+' sin cambios. Es una importación manual, no una conexión automática.';
+            confirmed.unchanged+' sin cambios. Es una importación manual, no una conexión automática. La hora de lectura no certifica la fecha de medición.';
           if(check){
             check.checked=false;
             check.disabled=true;
