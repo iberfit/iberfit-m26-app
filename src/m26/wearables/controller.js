@@ -912,11 +912,7 @@ export function createWearableController({
     }
   }
 
-  function clearPreview(showStatus=true){
-    tasks.cancel();
-    currentPreview=null;
-    qaReadEpoch+=1;
-    qaImporter.clear();
+  function clearQaSensitiveSurface(){
     root.querySelectorAll?.('[data-qa-health-preview]')?.forEach?.(preview=>{
       preview.hidden=true;
     });
@@ -933,6 +929,14 @@ export function createWearableController({
     root.querySelectorAll?.('[data-wearable-action="qa-health-confirm"]')?.forEach?.(btn=>{
       btn.disabled=true;
     });
+  }
+
+  function clearPreview(showStatus=true){
+    tasks.cancel();
+    currentPreview=null;
+    qaReadEpoch+=1;
+    qaImporter.clear();
+    clearQaSensitiveSurface();
     const node=root.querySelector?.(
       '[data-wearable-preview]',
     );
@@ -1486,7 +1490,7 @@ export function createWearableController({
       qaReadEpoch+=1;
       qaNative.destroy();
       qaImporter.destroy();
-      root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{node.textContent='';});
+      clearQaSensitiveSurface();
       observer?.disconnect?.();
       observer=null;
 
@@ -1527,6 +1531,7 @@ export function createWearableController({
       qaReadEpoch+=1;
       qaNative.destroy();
       qaImporter.destroy();
+      clearQaSensitiveSurface();
       return remoteSync.clearOwner();
     },
     getPreview:()=>currentPreview,
