@@ -1837,8 +1837,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMessage('Confirmando identidad y permisos…');
     let firstFactorAccepted=false;
     try{
-      session=await transport.login(email,password);
+      // A timed-out or superseded attempt must never adopt its late result.
+      // Check attempt ownership before assigning a new authenticated session.
+      const firstFactorSession=await transport.login(email,password);
       if(!authWatchdog.isCurrent(authAttemptId))return false;
+      session=firstFactorSession;
       firstFactorAccepted=true;
       qaStage('rc64-login-token-ready');
       vault.save(session);
