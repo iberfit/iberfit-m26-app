@@ -917,6 +917,15 @@ export function createWearableController({
     currentPreview=null;
     qaReadEpoch+=1;
     qaImporter.clear();
+    root.querySelectorAll?.('[data-qa-health-preview]')?.forEach?.(preview=>{
+      preview.hidden=true;
+    });
+    root.querySelectorAll?.('[data-qa-health-records]')?.forEach?.(list=>{
+      list.textContent='';
+    });
+    root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{
+      node.textContent='';
+    });
     root.querySelectorAll?.('[data-qa-health-consent]')?.forEach?.(input=>{
       input.checked=false;
       input.disabled=true;
@@ -1137,6 +1146,9 @@ export function createWearableController({
     if(isConnected360QaNativeAvailable(globalThis)){
       const qaCard=root.querySelector?.('[data-provider="health_connect"]');
       if(qaCard&&!qaCard.querySelector?.('[data-wearable-action="qa-health-read"]')){
+        // A replaced card must not authorize an unseen, older local preview.
+        if(qaImportAvailable&&qaImporter.hasPreview()&&!qaImporter.isBusy())
+          qaImporter.clear();
         const control=document.createElement('button');
         control.type='button';
         control.dataset.wearableAction='qa-health-read';
@@ -1145,6 +1157,14 @@ export function createWearableController({
         status.dataset.qaHealthStatus='true';
         status.setAttribute('role','status');
         status.textContent='Primero autoriza una lectura en la app Android de pruebas. Esta prueba no guarda ni vincula datos.';
+        const details=document.createElement('details');
+        details.dataset.qaHealthPreview='true';
+        details.hidden=true;
+        const summary=document.createElement('summary');
+        summary.textContent='Ver días y métricas de la lectura local';
+        const daily=document.createElement('ul');
+        daily.dataset.qaHealthRecords='true';
+        details.append(summary,daily);
         const consent=document.createElement('label');
         consent.className='m26-wearable-qa-consent';
         const check=document.createElement('input');
@@ -1164,9 +1184,9 @@ export function createWearableController({
         discard.dataset.wearableAction='qa-health-discard';
         discard.textContent='Descartar lectura local (QA)';
         if(qaImportAvailable){
-          qaCard.append(control,status,consent,confirm,discard);
+          qaCard.append(control,status,details,consent,confirm,discard);
         }else{
-          qaCard.append(control,status);
+          qaCard.append(control,status,details);
         }
       }
     }
@@ -1231,6 +1251,10 @@ export function createWearableController({
         const node=card?.querySelector?.('[data-qa-health-status]');
         const confirm=card?.querySelector?.('[data-wearable-action="qa-health-confirm"]');
         const check=card?.querySelector?.('[data-qa-health-consent]');
+        const list=card?.querySelector?.('[data-qa-health-records]');
+        const details=card?.querySelector?.('[data-qa-health-preview]');
+        if(list)list.textContent='';
+        if(details)details.hidden=true;
         qaImporter.clear();
         if(confirm)confirm.disabled=true;
         if(check){
@@ -1241,6 +1265,18 @@ export function createWearableController({
         const local=await qaNative.readLocal({days:7});
         if(epoch!==qaReadEpoch)return;
         const latest=local.rows.at(-1)||null;
+        if(list&&details&&local.rows.length){
+          for(const row of local.rows){
+            const item=document.createElement('li');
+            const values=row.metrics||{};
+            const sleep=values.sleepMinutes;
+            item.textContent=row.date+' · pasos: '+(values.steps??'Sin dato')+
+              ' · sueño: '+(sleep===undefined?'Sin dato':formatSleepDuration(sleep))+
+              ' · FC reposo: '+(values.restingHeartRate??'Sin dato');
+            list.append(item);
+          }
+          details.hidden=false;
+        }
         if(local.rows.length&&qaImportAvailable){
           qaImporter.capture(local);
           if(check)check.disabled=false;
@@ -1273,6 +1309,9 @@ export function createWearableController({
             check.checked=false;
             check.disabled=true;
           }
+        }catch(error){
+          if(note)note.textContent='No se completó la incorporación. Puedes revisar el error y reintentar.';
+          throw error;
         }finally{
           button.disabled=!qaImporter.hasPreview()||check?.checked!==true;
         }
@@ -1285,6 +1324,10 @@ export function createWearableController({
         }
         qaReadEpoch+=1;
         qaImporter.clear();
+        const preview=card?.querySelector?.('[data-qa-health-preview]');
+        if(preview)preview.hidden=true;
+        const list=card?.querySelector?.('[data-qa-health-records]');
+        if(list)list.textContent='';
         const check=card?.querySelector?.('[data-qa-health-consent]');
         if(check){
           check.checked=false;
