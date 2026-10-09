@@ -443,15 +443,28 @@ export function createWearableController({
     getToken,
   });
   let qaReadEpoch=0;
-  const qaImporter=createConnected360QaImporter({
-    scope:globalThis,
-    transport,
-    remoteSync,
-    getToken,
-    getIdentity:qaClientIdentity,
-    isOnline,
-    refreshState,
-  });
+  // Normal web/Coach/Admin and isolated controller tests must remain fully
+  // operational without QA bridge or a native import transport.
+  const qaImportAvailable=isConnected360QaNativeAvailable(globalThis)
+    &&typeof transport?.importWearableAuthorized==='function';
+  const qaImporter=qaImportAvailable
+    ?createConnected360QaImporter({
+      scope:globalThis,
+      transport,
+      remoteSync,
+      getToken,
+      getIdentity:qaClientIdentity,
+      isOnline,
+      refreshState,
+    })
+    :Object.freeze({
+      clear:()=>{},
+      destroy:()=>{},
+      hasPreview:()=>false,
+      isBusy:()=>false,
+      capture:()=>{throw new Error('M26_HEALTH_QA_IMPORT_UNAVAILABLE');},
+      commit:async()=>{throw new Error('M26_HEALTH_QA_IMPORT_UNAVAILABLE');},
+    });
 
   async function analyze(form){
     const {
@@ -1150,7 +1163,11 @@ export function createWearableController({
         discard.type='button';
         discard.dataset.wearableAction='qa-health-discard';
         discard.textContent='Descartar lectura local (QA)';
-        qaCard.append(control,status,consent,confirm,discard);
+        if(qaImportAvailable){
+          qaCard.append(control,status,consent,confirm,discard);
+        }else{
+          qaCard.append(control,status);
+        }
       }
     }
 
@@ -1224,7 +1241,7 @@ export function createWearableController({
         const local=await qaNative.readLocal({days:7});
         if(epoch!==qaReadEpoch)return;
         const latest=local.rows.at(-1)||null;
-        if(local.rows.length){
+        if(local.rows.length&&qaImportAvailable){
           qaImporter.capture(local);
           if(check)check.disabled=false;
         }
