@@ -429,53 +429,6 @@ export async function ensurePrivilegedActionAssurance({
   return Object.freeze({verified:true,performed:true,kind:decision.kind});
 }
 
-export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
-  if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
-  const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
-  const rc39Transport=runtime.enabled?createRc39Transport({runtime}):null;
-  const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
-  const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
-  let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
-  let progressiveControllerMountGeneration=0;
-  let progressiveControllerMountPromise=null;
-  let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
-  let currentAuthAttemptId=null;
-  const authWatchdog=createAuthBusyWatchdog({
-    timeoutMs:Math.max(AUTH_BUSY_WATCHDOG_MS,Number(runtime.timeoutMs||0)+4_000),
-    onTimeout:({stage})=>{
-      currentAuthAttemptId=null;
-      if(!loginBusy)return;
-      loginBusy=false;
-      if(session?.token){
-        surfaceRetriableSessionFailure(
-          new Error('M26_AUTH_UI_TIMEOUT'),
-          `${String(stage||'auth')}-watchdog`,
-        );
-      }else{
-        authMode='login';
-        sessionRetryAvailable=false;
-        reportSoftDiagnostic('auth-ui-timeout',new Error('M26_AUTH_UI_TIMEOUT'));
-        authMessage('El acceso está tardando más de lo esperado. Comprueba tu conexión y vuelve a intentarlo.','error');
-      }
-    },
-  });
-  function beginAuthAttempt(stage){
-    const id=authWatchdog.begin(stage);
-    currentAuthAttemptId=id;
-    return id;
-  }
-  function completeAuthAttempt(id){
-    if(id===null||id===undefined)return false;
-    const completed=authWatchdog.complete(id);
-    if(completed&&currentAuthAttemptId===id)currentAuthAttemptId=null;
-    return completed;
-  }
-  function invalidateAuthAttempt(){
-    currentAuthAttemptId=null;
-    authWatchdog.invalidate();
-  }
-
 /**
  * A user may start entering credentials in the lightweight login while the
  * full application module is mounting. The first full render replaces that
@@ -525,6 +478,53 @@ export function preserveLoginInputsDuringMount(root,render){
   password='';
   return restored;
 }
+
+export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
+  if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
+  const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
+  const rc39Transport=runtime.enabled?createRc39Transport({runtime}):null;
+  const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
+  const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
+  let activeApplicationRole=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let progressiveControllerMountGeneration=0;
+  let progressiveControllerMountPromise=null;
+  let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
+  let currentAuthAttemptId=null;
+  const authWatchdog=createAuthBusyWatchdog({
+    timeoutMs:Math.max(AUTH_BUSY_WATCHDOG_MS,Number(runtime.timeoutMs||0)+4_000),
+    onTimeout:({stage})=>{
+      currentAuthAttemptId=null;
+      if(!loginBusy)return;
+      loginBusy=false;
+      if(session?.token){
+        surfaceRetriableSessionFailure(
+          new Error('M26_AUTH_UI_TIMEOUT'),
+          `${String(stage||'auth')}-watchdog`,
+        );
+      }else{
+        authMode='login';
+        sessionRetryAvailable=false;
+        reportSoftDiagnostic('auth-ui-timeout',new Error('M26_AUTH_UI_TIMEOUT'));
+        authMessage('El acceso está tardando más de lo esperado. Comprueba tu conexión y vuelve a intentarlo.','error');
+      }
+    },
+  });
+  function beginAuthAttempt(stage){
+    const id=authWatchdog.begin(stage);
+    currentAuthAttemptId=id;
+    return id;
+  }
+  function completeAuthAttempt(id){
+    if(id===null||id===undefined)return false;
+    const completed=authWatchdog.complete(id);
+    if(completed&&currentAuthAttemptId===id)currentAuthAttemptId=null;
+    return completed;
+  }
+  function invalidateAuthAttempt(){
+    currentAuthAttemptId=null;
+    authWatchdog.invalidate();
+  }
 
   function authMessage(message='',noticeKind='status'){
   root.innerHTML=renderAccessUi({
