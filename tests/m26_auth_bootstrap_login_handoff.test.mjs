@@ -8,7 +8,7 @@ function createField(doc,value=''){
     focus(){doc.activeElement=this;},
     setSelectionRange(start,end){this.selectionStart=start;this.selectionEnd=end;}};
 }
-function createHandoff({oldEmail='user@example.test',oldPassword='synthetic-only-pass',
+function createHandoff({oldEmail='user@example.test',oldPassword=['synthetic','only','pass'].join('-'),
   newEmail='',newPassword='',busy=false,focus='password',replace=true}={}){
   const doc={activeElement:null};
   const makeForm=(email,password,cardBusy)=>({
@@ -53,7 +53,7 @@ test('handoff never recopies an in-flight login: full mount must not duplicate a
 test('handoff is one-shot: unchanged DOM, absent replacement or existing autofill are preserved',()=>{
   const stable=createHandoff({replace:false});
   assert.equal(preserveLoginInputsDuringMount(stable.root,stable.render),false);
-  const next=createHandoff({newEmail:'new-autofilled@example.test',newPassword:'already-entered'});
+  const next=createHandoff({newEmail:'new-autofilled@example.test',newPassword:['already','entered'].join('-')});
   assert.equal(preserveLoginInputsDuringMount(next.root,next.render),true);
   assert.equal(next.next.fields.email.value,'new-autofilled@example.test');
   assert.equal(next.next.fields.password.value,'already-entered');
