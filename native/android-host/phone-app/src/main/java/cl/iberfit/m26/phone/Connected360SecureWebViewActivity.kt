@@ -46,6 +46,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     private var oneReadApproved = false
     private var readInFlight = false
     private val requestIds = LinkedHashSet<String>()
+    private val readFence = Connected360PageFence()
 
     private fun trustedTopPage(view: WebView): Boolean {
         val url = view.url ?: return false
@@ -123,16 +124,19 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                 )
                 if (!allowed) {
                     oneReadApproved = false
+                    readFence.retire()
                     status.text = "Navegación externa bloqueada."
                 }
                 return !allowed
             }
             override fun onPageStarted(target: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 oneReadApproved = false
+                readFence.retire()
                 requestIds.clear()
             }
             override fun onReceivedSslError(target: WebView, handler: SslErrorHandler, error: SslError) {
                 oneReadApproved = false
+                readFence.retire()
                 handler.cancel()
                 status.text = "Error de certificado TLS. Canal bloqueado."
             }
@@ -179,8 +183,10 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                 replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_REQUIRED")
                                 return
                             }
-                            // Consume approval BEFORE any suspension; read is one-shot.
+                            // Consume approval BEFORE suspension. Bind this read to
+                            // exactly the document generation that requested it.
                             oneReadApproved = false
+                            val documentLease = readFence.capture()
                             val days = request.optInt("days", -1)
                             val metricsArray = request.optJSONArray("metrics")
                             val metrics = if (metricsArray != null) {
@@ -211,7 +217,8 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
                                     }
                                     val records = reader.readDaily(permitted, days)
-                                    if (browser !== view || isFinishing || isDestroyed || !trustedTopPage(view)) {
+                                    if (!readFence.isCurrent(documentLease) ||
+                                        browser !== view || isFinishing || isDestroyed || !trustedTopPage(view)) {
                                         return@launch
                                     }
                                     val summaries = JSONArray()
@@ -238,7 +245,8 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         .toString())
                                     status.text = "Lectura local de QA completada. No sincronizada con IBERFIT."
                                 } catch (_: Exception) {
-                                    if (browser === view && !isFinishing && !isDestroyed) {
+                                    if (readFence.isCurrent(documentLease) &&
+                                        browser === view && !isFinishing && !isDestroyed && trustedTopPage(view)) {
                                         replyError(replyProxy, id, "M26_HEALTH_PERMISSION_OR_READ_FAILED")
                                         status.text = "Lectura fallida o permiso ausente. Revisa Android."
                                     }
@@ -272,7 +280,14 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
         if (view?.canGoBack() == true) view.goBack() else super.onBackPressed()
     }
 
+    override fun onStop() {
+        oneReadApproved = false
+        readFence.retire()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        readFence.retire()
         scope.cancel()
         oneReadApproved = false
         browser?.let {
