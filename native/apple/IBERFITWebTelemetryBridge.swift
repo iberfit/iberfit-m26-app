@@ -5,8 +5,11 @@ import WebKit
 /// iPhone/iPad WKWebView transport for the RC52/RC53 JavaScript bridge.
 final class IBERFITWebTelemetryEmitter {
     weak var webView: WKWebView?
+    private let allowedHosts: Set<String>
 
-    init(webView: WKWebView) {
+    init(webView: WKWebView, allowedHosts: Set<String>) {
+        precondition(!allowedHosts.isEmpty && !allowedHosts.contains("*"))
+        self.allowedHosts = Set(allowedHosts.map { $0.lowercased() })
         self.webView = webView
     }
 
@@ -19,9 +22,25 @@ final class IBERFITWebTelemetryEmitter {
               let json = String(data: wrapper, encoding: .utf8)
         else { return }
 
-        let script = "window.dispatchEvent(new CustomEvent('iberfit:native-live-telemetry',{detail:" + json + "}));"
+        // Validate the destination twice: at native delivery time and inside
+        // the page. A WKWebView can navigate after the sample was produced.
+        guard let hostsData = try? JSONSerialization.data(
+            withJSONObject: Array(allowedHosts).sorted()
+        ), let hostsJSON = String(data: hostsData, encoding: .utf8)
+        else { return }
+        let script = "(function(){if(window.location.protocol!=='https:'" +
+            "||!\(hostsJSON).includes(window.location.hostname.toLowerCase()))return;" +
+            "window.dispatchEvent(new CustomEvent('iberfit:native-live-telemetry',{detail:" +
+            json + "}));})();"
         DispatchQueue.main.async { [weak self] in
-            self?.webView?.evaluateJavaScript(script)
+            guard let self,
+                  let webView = self.webView,
+                  let url = webView.url,
+                  url.scheme?.lowercased() == "https",
+                  let host = url.host?.lowercased(),
+                  self.allowedHosts.contains(host)
+            else { return }
+            webView.evaluateJavaScript(script)
         }
     }
 }
@@ -42,8 +61,17 @@ final class IBERFITWebTelemetryCommandHandler: NSObject, WKScriptMessageHandler 
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
+        // Restrict commands to the HTTPS top-level IBERFIT document. Do not
+        // grant an embedded iframe or a navigated WKWebView native privileges.
         guard message.name == "iberfitLiveTelemetry",
-              allowedHosts.contains(message.frameInfo.securityOrigin.host.lowercased()),
+              message.frameInfo.isMainFrame,
+              message.frameInfo.securityOrigin.protocol.lowercased() == "https",
+              let webView = message.webView,
+              let activeURL = webView.url,
+              activeURL.scheme?.lowercased() == "https",
+              let activeHost = activeURL.host?.lowercased(),
+              activeHost == message.frameInfo.securityOrigin.host.lowercased(),
+              allowedHosts.contains(activeHost),
               let body = message.body as? [String: Any],
               let action = body["action"] as? String
         else { return }
