@@ -183,6 +183,54 @@ function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEI
   });
 }
 
+// V44 is a dated daily summary, NOT a verified sensor update time.
+// Only expose aggregate context from one provider at a time. Unknown,
+// overlapping or stale sources must not manufacture a readiness score.
+function wearableContextForPreparation(summary,{now=new Date()}={}){
+  const daysWithData=Number(summary?.daysWithData||0);
+  const recentDays=Number(summary?.decision?.currentEvidenceDays||0);
+  if(!Number.isFinite(daysWithData)||daysWithData<=0)return Object.freeze({
+    status:'missing',daysWithData:0,recentDays:0,metrics:null,
+  });
+  if(summary?.decision?.eligible!==true||recentDays<=0)return Object.freeze({
+    status:'historical',daysWithData,recentDays:0,metrics:null,
+  });
+  const providers=Array.isArray(summary?.decision?.providers)
+    ?summary.decision.providers:[];
+  if(providers.length!==1)return Object.freeze({
+    status:'multiple-sources',daysWithData,recentDays,metrics:null,
+  });
+  const end=now instanceof Date?now:new Date(now);
+  if(!Number.isFinite(end.getTime()))return Object.freeze({
+    status:'historical',daysWithData,recentDays:0,metrics:null,
+  });
+  const today=end.toISOString().slice(0,10);
+  const rows=(Array.isArray(summary?.records)?summary.records:[]).filter((row)=>{
+    if(row?.provider!==providers[0]||typeof row?.date!=='string'||row.date>today)return false;
+    const dayEnd=Date.parse(row.date+'T23:59:59Z');
+    return Number.isFinite(dayEnd)&&Math.max(0,end.getTime()-dayEnd)<=48*3_600_000;
+  });
+  if(!rows.length)return Object.freeze({
+    status:'historical',daysWithData,recentDays:0,metrics:null,
+  });
+  const avg=(key)=>{
+    const values=rows.map((row)=>row.metrics?.[key]).filter(Number.isFinite);
+    return values.length
+      ?Math.round(values.reduce((sum,value)=>sum+value,0)/values.length)
+      :null;
+  };
+  const metrics=Object.freeze({
+    steps:avg('steps'),
+    sleepMinutes:avg('sleepMinutes'),
+    restingHeartRate:avg('restingHeartRate'),
+  });
+  return Object.freeze({
+    status:'recent',daysWithData,
+    recentDays:new Set(rows.map((row)=>row.date)).size,
+    metrics,
+  });
+}
+
 function reviewReasons({progress,outcomes,feedback,session,wellbeingTrend}={}){
   const reasons=[];
   if(!session)reasons.push(Object.freeze({kind:'session',label:'No hay una sesión preparada para revisar.'}));
@@ -210,6 +258,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const memories=recentExerciseMemory(state,safeClientId,exerciseName);
   const iri=iriContext(state,safeClientId,progress);
   const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
+  const deviceContext=wearableContextForPreparation(progress?.wearable,{now});
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
   const reasons=[...reviewReasons({progress,outcomes,feedback,session,wellbeingTrend})];
   const sessionId=idOf(session)||null;
@@ -248,6 +297,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     }):null,
     iri,
     wellbeingShift:wellbeingTrend,
+    deviceContext,
     progress:Object.freeze({
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),
@@ -303,6 +353,6 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
 export const __nextSessionPreparationInternals=Object.freeze({
   unwrap,field,clientIdOf,dateOf,statusOf,nextAppointment,sessionForPreparation,
   latestExecution,feedbackOf,recentExerciseMemory,reviewReasons,loadLabel,
-  wellbeingScores,wellbeingShift,pairAverage,WELLBEING_SHIFT_THRESHOLD,
+  wellbeingScores,wellbeingShift,wearableContextForPreparation,pairAverage,WELLBEING_SHIFT_THRESHOLD,
   STARTABLE_SESSION_STATES,
 });
