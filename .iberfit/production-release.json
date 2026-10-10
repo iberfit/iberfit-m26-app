@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "c0dc5f2739629313013ec569737f794c60070c60",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #834 Coach confirmed wearables context + PR #835 Android QA provenance correction; Canary exact and CI/audit/QA read-only GREEN. Native health sync remains productionAllowed=false."
+}
