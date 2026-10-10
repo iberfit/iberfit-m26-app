@@ -206,6 +206,33 @@ test('current authenticated contract separates privileged fail-closed identities
       onBlocked:(label)=>blocked.push(label),
     });
     const page=await context.newPage();
+    // Observe initial bootstrap -> full-app transitions from document start.
+    // Values, identifiers, passwords and tokens are intentionally not inspected.
+    await page.addInitScript(()=>{
+      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false};
+      let previous=null;
+      const isSubmit=(event)=>Boolean(event.target?.closest?.('[data-auth-form="login"] button[type="submit"]'));
+      document.addEventListener('pointerdown',(event)=>{
+        if(isSubmit(event))events.pointerDown+=1;
+      },true);
+      document.addEventListener('click',(event)=>{
+        if(!isSubmit(event))return;
+        events.click+=1;
+        events.fullAppAtClick=Boolean(globalThis.__IBERFIT_M26_APP__);
+      },true);
+      document.addEventListener('submit',(event)=>{
+        if(event.target?.matches?.('[data-auth-form="login"]'))events.submit+=1;
+      },true);
+      const observer=new MutationObserver(()=>{
+        const next=document.querySelector('[data-auth-form="login"]');
+        if(next&&previous&&next!==previous){
+          events.formReplacements=Math.min(10,events.formReplacements+1);
+        }
+        if(next)previous=next;
+      });
+      observer.observe(document,{subtree:true,childList:true});
+      globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__=events;
+    });
     if(chromiumEngine){
       const cdp=await context.newCDPSession(page);
       await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
@@ -266,10 +293,23 @@ test('current authenticated contract separates privileged fail-closed identities
         const state=await page.evaluate(()=>{
           const card=document.querySelector('.m26-auth-card');
           const form=document.querySelector('[data-auth-form="login"]');
+          const events=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
+          const focused=document.activeElement;
           return {appReady:Boolean(globalThis.__IBERFIT_M26_APP__),
             formValid:Boolean(form?.checkValidity?.()),
+            formConnected:Boolean(form?.isConnected),
+            submitDisabled:Boolean(form?.querySelector('button[type="submit"]')?.disabled),
+            focus:focused?.matches?.('input[name="email"]')?'email':
+              focused?.matches?.('input[name="password"]')?'password':'other',
             authMode:card?.getAttribute('data-auth-mode')||null,
-            busy:card?.getAttribute('aria-busy')||null};
+            busy:card?.getAttribute('aria-busy')||null,
+            interaction:{
+              pointerDown:Number(events?.pointerDown||0),
+              click:Number(events?.click||0),
+              submit:Number(events?.submit||0),
+              formReplacements:Number(events?.formReplacements||0),
+              fullAppAtClick:events?.fullAppAtClick===true,
+            }};
         }).catch(()=>({unavailable:true}));
         console.error('M26_QA_AUTH_PHASE_DIAGNOSTIC:'+JSON.stringify({
           stages:[...authPhases],state,
