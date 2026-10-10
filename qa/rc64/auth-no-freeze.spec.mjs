@@ -116,3 +116,101 @@ test('auth recovers from a hung password request without reload or mixed-languag
     await context.close().catch(()=>{});
   }
 });
+
+
+test('failed full-app import offers usable bootstrap login and dispatches a single password request',async({browser})=>{
+  // Hermetic regression for the real fallback path; no requests reach Supabase.
+  // The minimal form is intentionally hidden until full-app boot fails.
+  const email='bootstrap.probe@iberfit.invalid';
+  const loginCredential=['hermetic','bootstrap','probe'].join('-');
+  const context=await browser.newContext({
+    baseURL:LOCAL_ORIGIN,
+    locale:'es-CL',
+    timezoneId:'America/Santiago',
+    serviceWorkers:'block',
+    viewport:{width:820,height:1180},
+    hasTouch:true,
+  });
+  let failedImports=0;
+  let passwordRequests=0;
+  const trappedPasswordRoutes=[];
+  const unexpectedExternal=[];
+
+  await context.route('**/*',async(route)=>{
+    const request=route.request();
+    let url;
+    try{url=new URL(request.url());}
+    catch{
+      unexpectedExternal.push('INVALID_URL');
+      await route.abort('blockedbyclient');
+      return;
+    }
+    if(url.origin===LOCAL_ORIGIN){
+      if(url.pathname==='/src/m26/app/application.js'){
+        failedImports+=1;
+        await route.abort('failed');
+        return;
+      }
+      await route.continue();
+      return;
+    }
+    if(
+      url.origin===SUPABASE_ORIGIN&&
+      request.method().toUpperCase()==='POST'&&
+      url.pathname==='/auth/v1/token'&&
+      url.searchParams.get('grant_type')==='password'
+    ){
+      passwordRequests+=1;
+      trappedPasswordRoutes.push(route);
+      return;
+    }
+    unexpectedExternal.push(
+      `${request.method().toUpperCase()} ${url.origin===SUPABASE_ORIGIN?'qa-supabase':'external'} ${url.pathname}`,
+    );
+    await route.abort('blockedbyclient');
+  });
+
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',(error)=>errors.push(String(error?.message||error||'PAGE_ERROR').slice(0,250)));
+  try{
+    const response=await page.goto('/',{waitUntil:'domcontentloaded',timeout:15_000});
+    expect(response?.ok()).toBeTruthy();
+
+    const form=page.locator('form[data-auth-form="login"]');
+    const submit=form.locator('button[type="submit"]');
+    const card=page.locator('.m26-auth-card');
+    // Real production recovery path: module load fails, bootstrap stays interactive.
+    await expect(page.locator('[data-minimal-auth-repair]')).toBeVisible({timeout:12_000});
+    await expect(form).toBeVisible();
+    await expect(submit).toBeEnabled();
+    await expect(card).toHaveAttribute('aria-busy','false');
+
+    await form.locator('input[name="email"]').fill(email);
+    await form.locator('input[name="password"]').fill(loginCredential);
+    const navigationCount=await page.evaluate(()=>performance.getEntriesByType('navigation').length);
+
+    await submit.click();
+    await expect.poll(()=>passwordRequests,{timeout:7_000}).toBe(1);
+    await expect(card).toHaveAttribute('aria-busy','true');
+    await expect(submit).toBeDisabled();
+
+    // Let the transport's own 12s timeout abort this held request.
+    // Aborting the route externally creates a different browser network error,
+    // which may correctly trigger the transport's bounded transient retry.
+    await expect(card).toHaveAttribute('aria-busy','false',{timeout:20_000});
+    await expect(submit).toBeEnabled();
+    await expect(page.locator('[data-minimal-auth-notice]')).toContainText(
+      'Puedes reintentar sin borrar tus datos.',
+    );
+    await expect(form.locator('input[name="email"]')).toHaveValue(email);
+    expect(await page.evaluate(()=>performance.getEntriesByType('navigation').length)).toBe(navigationCount);
+    expect(failedImports).toBe(1);
+    expect(passwordRequests).toBe(1);
+    expect(unexpectedExternal).toEqual([]);
+    expect(errors).toEqual([]);
+  }finally{
+    for(const route of trappedPasswordRoutes)await route.abort('timedout').catch(()=>{});
+    await context.close().catch(()=>{});
+  }
+});
