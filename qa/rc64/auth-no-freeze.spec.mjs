@@ -214,3 +214,135 @@ test('failed full-app import offers usable bootstrap login and dispatches a sing
     await context.close().catch(()=>{});
   }
 });
+
+
+test('token HTTP 200 followed by stalled assurance recovers and retries without privileged bypass',async({browser})=>{
+  // P0 #821: reproduce the exact missing-assurance boundary after successful
+  // first factor. All identities and tokens are synthetic; no Supabase traffic.
+  const email='qa.rc64.auth-821@iberfit.cl';
+  const password=['synthetic','browser','only','pass'].join('-');
+  const userId='11111111-1111-4111-8111-111111111111';
+  const context=await browser.newContext({
+    baseURL:LOCAL_ORIGIN,
+    locale:'es-CL',
+    timezoneId:'America/Santiago',
+    serviceWorkers:'block',
+    viewport:{width:1180,height:820},
+    hasTouch:true,
+  });
+  let tokenPosts=0;
+  let assurancePosts=0;
+  let userReads=0;
+  const heldAssurance=[];
+  const unexpected=[];
+  const pageErrors=[];
+
+  await context.route('**/*',async(route)=>{
+    const req=route.request();
+    let url;
+    try{url=new URL(req.url());}
+    catch{
+      unexpected.push('INVALID_URL');
+      await route.abort('blockedbyclient');
+      return;
+    }
+    if(url.origin===LOCAL_ORIGIN){
+      await route.continue();
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&req.method()==='POST'&&
+       url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
+      tokenPosts+=1;
+      await route.fulfill({
+        status:200,
+        contentType:'application/json',
+        body:JSON.stringify({
+          access_token:'synthetic-access-821',
+          refresh_token:'synthetic-refresh-821',
+          expires_at:2_000_000_000,
+          user:{id:userId,email},
+        }),
+      });
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&req.method()==='POST'&&
+       url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'){
+      assurancePosts+=1;
+      if(assurancePosts===1){
+        // Do not abort externally: allow the application's real request timeout.
+        heldAssurance.push(route);
+        return;
+      }
+      await route.fulfill({
+        status:200,
+        contentType:'application/json',
+        body:JSON.stringify({
+          ok:true,
+          privileged:true,
+          privilegedRole:'coach',
+          mfaRequired:true,
+          webauthnRequired:true,
+          credentialEnrolled:false,
+          iberfitAssurance:'required',
+          supabaseAal:'aal1',
+          emailOtpAvailable:false,
+        }),
+      });
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&req.method()==='GET'&&url.pathname==='/auth/v1/user'){
+      userReads+=1;
+      await route.fulfill({
+        status:200,
+        contentType:'application/json',
+        body:JSON.stringify({id:userId,email,factors:[]}),
+      });
+      return;
+    }
+    unexpected.push(`${req.method()} ${url.origin===SUPABASE_ORIGIN?'qa-supabase':'external'} ${url.pathname}`);
+    await route.abort('blockedbyclient');
+  });
+
+  const page=await context.newPage();
+  page.on('pageerror',error=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,200)));
+  try{
+    const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+    expect(navigation?.ok()).toBeTruthy();
+    const form=page.locator('form[data-auth-form="login"]');
+    await expect(form).toBeVisible();
+    const cdp=await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate',{rate:6});
+
+    await form.locator('input[name="email"]').fill(email);
+    await form.locator('input[name="password"]').fill(password);
+    const navigationCount=await page.evaluate(()=>performance.getEntriesByType('navigation').length);
+    await form.locator('button[type="submit"]').click();
+    await expect.poll(()=>tokenPosts,{timeout:8_000}).toBe(1);
+    await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(1);
+
+    // Token has been accepted, but there is no second-factor assurance response.
+    // Never expose a privileged shell while this request is pending.
+    await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
+    await expect(page.locator('[data-auth-mode="recoverable-session"]')).toBeVisible({timeout:25_000});
+    const retry=page.locator('[data-auth-action="retry-session"]');
+    await expect(retry).toBeVisible();
+    await expect(retry).toBeEnabled();
+    await expect(page.locator('form[data-auth-form="login"]')).toHaveCount(0);
+    await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
+
+    // Reuse the synthetic saved first-factor session without asking for or
+    // resending a password; permission checking must still require WebAuthn.
+    await retry.click();
+    await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(2);
+    await expect.poll(()=>userReads,{timeout:8_000}).toBe(1);
+    await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:8_000});
+    await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
+    expect(tokenPosts).toBe(1);
+    expect(unexpected).toEqual([]);
+    expect(pageErrors).toEqual([]);
+    expect(await page.evaluate(()=>performance.getEntriesByType('navigation').length)).toBe(navigationCount);
+  }finally{
+    for(const route of heldAssurance)await route.abort('timedout').catch(()=>{});
+    await context.close().catch(()=>{});
+  }
+});
