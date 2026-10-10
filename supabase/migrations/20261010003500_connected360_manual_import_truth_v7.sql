@@ -200,7 +200,7 @@ begin
     v_sync_enabled
   );
 end
-$function$
+$function$;
 
 
 -- This RPC only accepts an explicit generation-bound import, under the
@@ -289,5 +289,5 @@ begin
     'stale',v_import->'stale','rejected',0,'grantId',p_grant_id,
     'connection',v_link->'status');
 end;
-$function$
+$function$;
 
