@@ -63,6 +63,22 @@ test('authenticated Client reads local Android data with no token or clientId se
   assert.equal(f.listeners.size,0,'listeners cleaned after response');
 });
 
+test('native civil-day aggregation zone is sanitized without asserting the watch source',async()=>{
+  const success=fixture({reply:msg=>({...ok(msg),records:[{
+    ...row,aggregationTimeZone:'America/Santiago',
+  }]})});
+  const data=await success.client.readLocal();
+  assert.equal(data.rows[0].aggregationTimeZone,'America/Santiago');
+  assert.equal(data.rows[0].sourceUpdatedAt,undefined);
+  assert.equal(data.rows[0].timeZone,undefined);
+  for(const aggregationTimeZone of ['bad<script>','America/ Santiago','', 'x'.repeat(81)]){
+    const fail=fixture({reply:msg=>({...ok(msg),records:[{
+      ...row,aggregationTimeZone,
+    }]})});
+    await assert.rejects(fail.client.readLocal(),/RESPONSE_INVALID/);
+  }
+});
+
 test('non-Client, no session, or a normal browser never obtains health data',async()=>{
   for(const who of [{role:'coach',clientId:'qa-client-01',ownerId:'owner'},
     {role:'client',clientId:'',ownerId:'owner'},null]){
