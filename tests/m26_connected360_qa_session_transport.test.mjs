@@ -79,6 +79,27 @@ test('native civil-day aggregation zone is sanitized without asserting the watch
   }
 });
 
+test('contributing application count survives local QA only, never becomes watch identity',async()=>{
+  const success=fixture({reply:message=>({...ok(message),records:[{
+    ...row,contributingAppCount:2,
+  }]})});
+  const read=await success.client.readLocal();
+  assert.equal(read.rows[0].contributingAppCount,2);
+  assert.equal(read.rows[0].sourceIdentity,undefined);
+  assert.equal(read.rows[0].deviceId,undefined);
+  assert.equal(read.rows[0].sourceUpdatedAt,undefined);
+  assert.equal(read.persisted,false);
+  assert.equal(read.linked,false);
+  const unknown=await fixture({reply:ok}).client.readLocal();
+  assert.equal(unknown.rows[0].contributingAppCount,null);
+  for(const contributingAppCount of [0,-1,1.5,'2',1001]){
+    const f=fixture({reply:msg=>({...ok(msg),records:[{
+      ...row,contributingAppCount,
+    }]})});
+    await assert.rejects(f.client.readLocal(),/RESPONSE_INVALID/u);
+  }
+});
+
 test('non-Client, no session, or a normal browser never obtains health data',async()=>{
   for(const who of [{role:'coach',clientId:'qa-client-01',ownerId:'owner'},
     {role:'client',clientId:'',ownerId:'owner'},null]){
