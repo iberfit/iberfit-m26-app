@@ -21,6 +21,7 @@ async function loadValidation(){
   assert.doesNotMatch(body,/\bDeno\b|\bfetch\s*\(/u);
   return runInNewContext(`${body}\nvalidateTarget`,{
     Map,
+    ORG_ID:'00000000-0000-4000-8000-000000000140',
     fail(code,status=400){const error=new Error(code);error.status=status;throw error;},
   });
 }
