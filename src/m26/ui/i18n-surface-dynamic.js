@@ -38,6 +38,14 @@ function lang(value){
 function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en;}
 function applyRules(value,language,translatePart){
   let m;
+  // Connected360 recent daily summaries remain context only (never a live watch).
+  if((m=value.match(/^(\d+) día(?:s)? con registros recientes de una sola fuente\. Valores medios de esos días\.$/u))){
+    const n=m[1],singular=n==='1';
+    return pick(language,
+      n+' day'+(singular?'':'s')+' with recent records from one source. Average values for those days.',
+      n+' jour'+(singular?'':'s')+' avec des relevés récents d’une seule source. Valeurs moyennes pour ces jours.',
+      n+' dia'+(singular?'':'s')+' com registos recentes de uma única fonte. Valores médios desses dias.');
+  }
   // COACH_COMPLETION_EVIDENCE_360: classify observed, explicitly omitted, and unknown work.
   if((m=value.match(/^(\d+) de (\d+) series registradas$/u)))
     return pick(language,m[1]+' of '+m[2]+' recorded sets',m[1]+' séries enregistrées sur '+m[2],m[1]+' de '+m[2]+' séries registadas');

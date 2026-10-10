@@ -1,4 +1,10 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  // Connected 360 Coach preparation: dated, consented summaries, never live measurements.
+  ["Actividad y descanso registrados","Recorded activity and rest","Activité et repos enregistrés","Atividade e descanso registados"],
+  ["FC reposo","Resting HR","FC au repos","FC em repouso"],
+  ["Existen fuentes recientes superpuestas. No se suman ni promedian valores de relojes diferentes.","Recent data sources overlap. Values from different watches are not added or averaged.","Des sources récentes se chevauchent. Les valeurs de différentes montres ne sont ni additionnées ni moyennées.","Há fontes recentes sobrepostas. Os valores de relógios diferentes não são somados nem calculados em média."],
+  ["Hay registros históricos, pero ninguno sirve como contexto reciente de la próxima sesión.","Historical records exist, but none provides recent context for the next session.","Des données historiques existent, mais aucune ne fournit de contexte récent pour la prochaine séance.","Existem registos históricos, mas nenhum fornece contexto recente para a próxima sessão."],
+  ["Datos diarios incorporados con permiso. No son mediciones en directo ni acreditan una conexión automática. No modifican el plan.","Daily summaries added with permission. These are not live measurements or proof of an automatic connection. They do not change the plan.","Résumés quotidiens ajoutés avec autorisation. Ce ne sont pas des mesures en temps réel ni la preuve d'une connexion automatique. Ils ne modifient pas le programme.","Resumos diários adicionados com autorização. Não são medições em tempo real nem comprovam uma ligação automática. Não alteram o plano."],
   // Connected 360 Android QA pilot: never imply a remote connection.
   // Explicit online-only Android QA import: no silent health-data transfer.
   ["Ver días y métricas de la lectura local","Review days and metrics in the local reading","Voir les jours et les mesures de la lecture locale","Ver dias e métricas da leitura local"],

@@ -1879,6 +1879,22 @@ body {
 }
 .m26-next-session-card-head h3{margin:.08rem 0!important;font-size:.92rem!important}
 .m26-next-session-card p{margin:0;color:#bdb6aa;font-size:.73rem;line-height:1.48}
+.m26-next-session-device-context{
+  display:grid;
+  gap:.42rem;
+  padding-top:.65rem;
+  border-top:1px solid rgba(216,185,111,.14);
+  min-width:0;
+}
+.m26-next-session-device-context>p:first-child strong{
+  color:#e6d1a6;
+  font-size:.75rem;
+}
+.m26-next-session-device-context>small{
+  color:var(--m26-muted,#aaa);
+  font-size:.68rem;
+  line-height:1.5;
+}
 .m26-next-session-signal-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
