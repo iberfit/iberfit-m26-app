@@ -233,6 +233,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                             .put("provider", record.provider)
                                             .put("date", record.date)
                                             .put("acquiredAt", record.acquiredAt)
+                                            .put("aggregationTimeZone", record.aggregationTimeZone)
                                         if (record.steps != null) row.put("steps", record.steps)
                                         if (record.sleepMinutes != null) row.put("sleepMinutes", record.sleepMinutes)
                                         if (record.restingHeartRate != null) {

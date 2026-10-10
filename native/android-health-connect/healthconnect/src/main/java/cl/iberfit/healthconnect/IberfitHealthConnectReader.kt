@@ -42,6 +42,8 @@ class IberfitHealthConnectReader(
         val restingHeartRate: Long?,
         // Read time is NOT the source measurement update time. Do not fabricate freshness.
         val acquiredAt: String,
+        // Local aggregation window, NOT an event source's device time zone.
+        val aggregationTimeZone: String,
     )
 
     /**
@@ -113,6 +115,7 @@ class IberfitHealthConnectReader(
                     sleepMinutes = sleep,
                     restingHeartRate = resting,
                     acquiredAt = observedAt,
+                    aggregationTimeZone = zone.id,
                 )
             }
         }

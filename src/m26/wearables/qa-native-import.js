@@ -90,6 +90,7 @@ export function createConnected360QaImporter({
     // Project to V44 only at the final, explicitly approved RPC boundary.
     return createQaNativeDailyRecord({
       clientId,date:row.date,metrics,acquiredAt:new Date(acquired).toISOString(),
+      aggregationTimeZone:row.aggregationTimeZone??null,
     });
   }
 

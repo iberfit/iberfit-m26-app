@@ -4,7 +4,8 @@
  * This is intentionally distinct from V44 persistence. Health Connect's
  * daily aggregate has a civil date and an IBERFIT acquisition instant;
  * this QA bridge does NOT receive source event times, source revisions,
- * physical device identity or the IANA time zone of that aggregation.
+ * physical device identity or the source's IANA time zone. The phone's
+ * aggregation time zone is available independently of sensor/source time.
  *
  * The legacy V44 importer requires sourceUpdatedAt. Its compatibility
  * projection is allowed ONLY at the final authorized RPC boundary.
@@ -14,6 +15,21 @@ const SCHEMA='iberfit.connected360.qa.provenance.v45.preview';
 const PROVIDER='health_connect';
 const METRICS=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
 const CIVIL_DATE=/^\d{4}-\d{2}-\d{2}$/u;
+const AGGREGATION_ZONE=/^[A-Za-z0-9_.:+-]+(?:\/[A-Za-z0-9_.:+-]+)*$/u;
+
+function verifiedAggregationZone(value){
+  if(value===null||value===undefined)return null;
+  if(typeof value!=='string'||value.length<1||value.length>80||
+    !AGGREGATION_ZONE.test(value))
+    throw new Error('M26_HEALTH_QA_PROVENANCE_INVALID');
+  // This names the Android aggregation window; it never proves the sensor zone.
+  return value;
+}
+
+function hasValidAggregationZone(value){
+  try{return verifiedAggregationZone(value)===(value??null);}
+  catch{return false;}
+}
 
 function canonicalInstant(value){
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T/u.test(value))
@@ -24,7 +40,7 @@ function canonicalInstant(value){
   return new Date(timestamp).toISOString();
 }
 
-export function createQaNativeDailyRecord({clientId,date,metrics,acquiredAt}={}){
+export function createQaNativeDailyRecord({clientId,date,metrics,acquiredAt,aggregationTimeZone=null}={}){
   if(typeof clientId!=='string'||!clientId||
     typeof date!=='string'||!CIVIL_DATE.test(date)||
     Number.isNaN(Date.parse(date+'T12:00:00Z'))||
@@ -49,7 +65,8 @@ export function createQaNativeDailyRecord({clientId,date,metrics,acquiredAt}={})
       measuredAt:null, // Unknown: never fabricate 12:00 UTC.
       sourceUpdatedAt:null, // Unknown: not the acquisition instant.
       sourceIdentity:null, // No per-device provenance in this QA transport.
-      timeZone:null, // Civil date known; IANA zone not sent over QA channel.
+      timeZone:null, // Original sensor/source timezone still unknown.
+      aggregationTimeZone:verifiedAggregationZone(aggregationTimeZone), // Phone civil-day window.
       aggregation:'daily',
       sourceTimestampVerified:false,
       automaticSyncCertified:false,
@@ -67,6 +84,7 @@ export function projectQaNativeRecordToV44(record){
     provenance?.sourceUpdatedAt!==null||
     provenance?.sourceIdentity!==null||
     provenance?.timeZone!==null||
+    !hasValidAggregationZone(provenance?.aggregationTimeZone)||
     provenance?.aggregation!=='daily'||
     provenance?.sourceTimestampVerified!==false||
     provenance?.automaticSyncCertified!==false)

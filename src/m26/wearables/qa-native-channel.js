@@ -18,6 +18,7 @@ const MAX_MS=30_000;
 const SAFE_ID=/^[a-zA-Z0-9_-]{8,72}$/u;
 const DATE=/^\d{4}-\d{2}-\d{2}$/u;
 const ISO=/^\d{4}-\d{2}-\d{2}T/u;
+const AGGREGATION_ZONE=/^[A-Za-z0-9_.:+-]+(?:\/[A-Za-z0-9_.:+-]+)*$/u;
 
 export function isConnected360QaNativeAvailable(scope=globalThis){
   return scope?.location?.origin===QA_ORIGIN &&
@@ -35,7 +36,11 @@ function normalizeRows(rows,requested){
       !DATE.test(row.date)||Number.isNaN(new Date(row.date+'T12:00:00Z').getTime())||
       !ISO.test(String(row.acquiredAt||''))||
       Number.isNaN(new Date(row.acquiredAt).getTime())||
-      seen.has(row.date))
+      seen.has(row.date)||
+      (row.aggregationTimeZone!==undefined && row.aggregationTimeZone!==null &&
+        (typeof row.aggregationTimeZone!=='string'||
+          row.aggregationTimeZone.length>80||row.aggregationTimeZone.length<1||
+          !AGGREGATION_ZONE.test(row.aggregationTimeZone))))
       throw new Error('M26_HEALTH_QA_RESPONSE_INVALID');
     seen.add(row.date);
     const values={};
@@ -58,6 +63,8 @@ function normalizeRows(rows,requested){
         metrics:Object.freeze(values),
         // Read time is provenance, NOT the source measurement update time.
         acquiredAt:new Date(row.acquiredAt).toISOString(),
+        // Actual OS aggregation window, not the physical sensor's time zone.
+        aggregationTimeZone:row.aggregationTimeZone??null,
       }));
     }
   }
