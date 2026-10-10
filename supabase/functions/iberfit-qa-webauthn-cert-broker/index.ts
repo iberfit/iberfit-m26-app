@@ -62,20 +62,24 @@ async function authenticate(req:Request,body:{sourceSha:string;runId:string;targ
 }
 async function validateTarget(db:any,target:{name:string;userId:string;email:string;profileRole:string}){
   const {data:userData,error:userError}=await db.auth.admin.getUserById(target.userId);
-  if(userError||String(userData?.user?.email||"").toLowerCase()!==target.email)fail("IBERFIT_QA_CERT_TARGET_INVALID",409);
+  if(userError)fail("IBERFIT_QA_CERT_TARGET_AUTH_READ_FAILED",502);
+  if(String(userData?.user?.email||"").toLowerCase()!==target.email)fail("IBERFIT_QA_CERT_TARGET_INVALID",409);
   const [{data:profile,error:profileError},{data:membership,error:membershipError}]=await Promise.all([
     db.from("user_profiles").select("role").eq("user_id",target.userId).maybeSingle(),
     db.from("iberfit_organization_memberships").select("status").eq("organization_id",ORG_ID).eq("user_id",target.userId).maybeSingle(),
   ]);
-  if(profileError||String(profile?.role||"").toLowerCase()!==target.profileRole)fail("IBERFIT_QA_CERT_TARGET_ROLE_INVALID",409);
-  if(membershipError||String(membership?.status||"")!=="active")fail("IBERFIT_QA_CERT_TARGET_MEMBERSHIP_INVALID",409);
+  if(profileError)fail("IBERFIT_QA_CERT_TARGET_PROFILE_READ_FAILED",502);
+  if(String(profile?.role||"").toLowerCase()!==target.profileRole)fail("IBERFIT_QA_CERT_TARGET_ROLE_INVALID",409);
+  if(membershipError)fail("IBERFIT_QA_CERT_TARGET_MEMBERSHIP_READ_FAILED",502);
+  if(String(membership?.status||"")!=="active")fail("IBERFIT_QA_CERT_TARGET_MEMBERSHIP_INVALID",409);
   if(target.name==="coach"){
     const {count:assignments,error:assignmentError}=await db.from("iberfit_coach_client_assignments").select("id",{count:"exact",head:true}).eq("coach_user_id",target.userId);
-    if(assignmentError||Number(assignments||0)!==0)fail("IBERFIT_QA_CERT_TARGET_ASSIGNMENTS_PRESENT",409);
+    if(assignmentError)fail("IBERFIT_QA_CERT_TARGET_ASSIGNMENTS_READ_FAILED",502);
+    if(Number(assignments||0)!==0)fail("IBERFIT_QA_CERT_TARGET_ASSIGNMENTS_PRESENT",409);
     return;
   }
   const {data:roles,error:rolesError}=await db.from("user_application_roles").select("role,active").eq("user_id",target.userId).in("role",["client","admin"]);
-  if(rolesError)fail("IBERFIT_QA_CERT_TARGET_APPLICATION_ROLES_INVALID",409);
+  if(rolesError)fail("IBERFIT_QA_CERT_TARGET_APPLICATION_ROLES_READ_FAILED",502);
   const roleMap=new Map((roles||[]).map((row:any)=>[String(row.role||""),row.active===true]));
   if(roleMap.get("client")!==true||!roleMap.has("admin"))fail("IBERFIT_QA_CERT_TARGET_APPLICATION_ROLES_INVALID",409);
 }
