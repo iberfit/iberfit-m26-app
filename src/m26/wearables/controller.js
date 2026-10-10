@@ -16,7 +16,7 @@ import {
   createWearableRemoteSync,
 } from './remote-sync.js';
 import {formatSleepDuration} from './duration-format.js';
-import {assertWearableClientContinuity,createWearableForegroundSync} from './foreground-sync.js';
+import {assertWearableClientContinuity,createWearableForegroundSync,isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -841,7 +841,7 @@ export function createWearableController({
   async function autoSyncNativeProviders(){
     const {role}=context(store);if(role!=='client'||!isOnline())return [];
     const rows=store.getState().collections?.wearableConnections||[];
-    const providers=[...new Set(rows.filter((item)=>['active','connected','conectado'].includes(String(item.status||item.state||'').toLowerCase())).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
+    const providers=[...new Set(rows.filter(isCertifiedNativeAutoSyncSource).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
     for(const provider of providers){try{results.push(await connectNativeProvider(provider,{interactive:false,silent:true}));}catch(error){emitDiagnostic('wearable-auto-sync',error);}}
     return results;
