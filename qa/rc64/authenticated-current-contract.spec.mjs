@@ -206,6 +206,33 @@ test('current authenticated contract separates privileged fail-closed identities
       onBlocked:(label)=>blocked.push(label),
     });
     const page=await context.newPage();
+    // Observe initial bootstrap -> full-app transitions from document start.
+    // Values, identifiers, passwords and tokens are intentionally not inspected.
+    await page.addInitScript(()=>{
+      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false};
+      let previous=null;
+      const isSubmit=(event)=>Boolean(event.target?.closest?.('[data-auth-form="login"] button[type="submit"]'));
+      document.addEventListener('pointerdown',(event)=>{
+        if(isSubmit(event))events.pointerDown+=1;
+      },true);
+      document.addEventListener('click',(event)=>{
+        if(!isSubmit(event))return;
+        events.click+=1;
+        events.fullAppAtClick=Boolean(globalThis.__IBERFIT_M26_APP__);
+      },true);
+      document.addEventListener('submit',(event)=>{
+        if(event.target?.matches?.('[data-auth-form="login"]'))events.submit+=1;
+      },true);
+      const observer=new MutationObserver(()=>{
+        const next=document.querySelector('[data-auth-form="login"]');
+        if(next&&previous&&next!==previous){
+          events.formReplacements=Math.min(10,events.formReplacements+1);
+        }
+        if(next)previous=next;
+      });
+      observer.observe(document,{subtree:true,childList:true});
+      globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__=events;
+    });
     if(chromiumEngine){
       const cdp=await context.newCDPSession(page);
       await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
@@ -253,34 +280,6 @@ test('current authenticated contract separates privileged fail-closed identities
       console.log(`RC64_CURRENT_AUTH_ACCOUNT_BEGIN:${account.name}`);
       const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
       expect(navigation?.ok()).toBeTruthy();
-      // Record click/submit handoff without inspecting form values or credentials.
-      // A timed-out assurance can mean no click, no submit, no token request,
-      // or a token response without a subsequent assurance request.
-      await page.evaluate(()=>{
-        const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false};
-        let previous=document.querySelector('[data-auth-form="login"]');
-        const isSubmit=(event)=>Boolean(event.target?.closest?.('[data-auth-form="login"] button[type="submit"]'));
-        document.addEventListener('pointerdown',(event)=>{
-          if(isSubmit(event))events.pointerDown+=1;
-        },true);
-        document.addEventListener('click',(event)=>{
-          if(!isSubmit(event))return;
-          events.click+=1;
-          events.fullAppAtClick=Boolean(globalThis.__IBERFIT_M26_APP__);
-        },true);
-        document.addEventListener('submit',(event)=>{
-          if(event.target?.matches?.('[data-auth-form="login"]'))events.submit+=1;
-        },true);
-        const observer=new MutationObserver(()=>{
-          const next=document.querySelector('[data-auth-form="login"]');
-          if(next&&previous&&next!==previous){
-            events.formReplacements=Math.min(10,events.formReplacements+1);
-          }
-          previous=next;
-        });
-        observer.observe(document.querySelector('#app')||document.body,{subtree:true,childList:true});
-        globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__=events;
-      });
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
       await page.locator('#m26-login-password').fill(account.password);
       const assurancePromise=page.waitForResponse((response)=>{
