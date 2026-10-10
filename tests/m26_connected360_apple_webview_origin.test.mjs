@@ -9,12 +9,15 @@ test('HealthKit/BLE telemetry never dispatches into an untrusted or navigated WK
   assert.match(bridge,/private let allowedHosts: Set<String>/u);
   assert.match(bridge,/init\(webView: WKWebView, allowedHosts: Set<String>\)/u);
   assert.match(runtime,/IBERFITWebTelemetryEmitter\(webView: webView, allowedHosts: allowedHosts\)/u);
-  assert.match(bridge,/DispatchQueue\.main\.async \{ \[weak self\] in[\s\S]*?let webView = self\.webView,[\s\S]*?let url = webView\.url,[\s\S]*?url\.scheme\?\.lowercased\(\) == "https"/u);
+  assert.match(bridge,/@MainActor\s+final class IBERFITWebTelemetryEmitter/u);
+  assert.match(bridge,/guard let webView = self\.webView,[\s\S]*?let url = webView\.url,[\s\S]*?url\.scheme\?\.lowercased\(\) == "https"/u);
   assert.match(bridge,/let host = url\.host\?\.lowercased\(\),[\s\S]*?self\.allowedHosts\.contains\(host\)/u);
   assert.match(bridge,/window\.location\.protocol!=='https:'/u);
   assert.match(bridge,/window\.location\.hostname\.toLowerCase\(\)/u);
   assert.match(bridge,/withJSONObject: Array\(allowedHosts\)\.sorted\(\)/u);
   assert.doesNotMatch(bridge,/self\?\.webView\?\.evaluateJavaScript/u);
+  assert.doesNotMatch(bridge,/DispatchQueue\.main\.async/u);
+  assert.match(runtime,/Task \{ @MainActor \[weak emitter\] in/u);
 });
 
 test('native health commands require HTTPS main document and matching active host',()=>{
