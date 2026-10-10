@@ -1,0 +1,53 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PRESS-VERTICAL-SENTADO-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261010-B6-PRESS/movement-0a3e86c731fc.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Aprobación expresa del propietario el 2026-10-10 tras corrección para extensión completa de brazos en fase final. Misma composición Inicio/Final, atleta sentado en banco con dos mancuernas, pies apoyados y mapa muscular de hombros."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-VERTICAL-SENTADO-CON-MANCUERNAS/movement-0a3e86c731fc.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "0a3e86c731fc97eb76f057a8279a9e1a13e63c795ef19c97f0ee3e3e9b8eab18"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
