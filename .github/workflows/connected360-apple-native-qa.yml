@@ -34,6 +34,15 @@ jobs:
           swift --version
           swift package --package-path native/apple dump-package >/dev/null
           (cd native/apple && xcodebuild -list)
+      - name: Validate declared HealthKit permissions and exclude embedded secrets
+        run: |
+          set -euo pipefail
+          grep -Fq 'NSHealthShareUsageDescription' native/apple/Info.plist.fragment
+          grep -Fq 'com.apple.developer.healthkit' native/apple/IBERFITHealthKit.entitlements
+          if grep -RqE 'service_role|SUPABASE_SERVICE_KEY|sk-proj-|addJavascriptInterface' native/apple --include='*.swift'; then
+            echo 'Unexpected privileged key or unsafe JavaScript bridge in Apple Swift sources' >&2
+            exit 1
+          fi
       - name: Compile iPhone bridge without signing
         working-directory: native/apple
         run: |
