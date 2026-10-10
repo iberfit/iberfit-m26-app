@@ -5,7 +5,7 @@ import HealthKit
 /// watchOS reference implementation for IBERFIT live heart-rate telemetry.
 /// Requires an Xcode watchOS target with HealthKit enabled.
 final class IBERFITWatchHealthKitTelemetry: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilderDelegate {
-    struct Sample: Codable {
+    struct Sample: Codable, Sendable {
         let type: String
         let provider: String
         let heartRateBpm: Double
