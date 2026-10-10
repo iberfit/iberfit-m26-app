@@ -46,6 +46,9 @@ class IberfitHealthConnectReader(
         val acquiredAt: String,
         // Local aggregation window, NOT an event source's device time zone.
         val aggregationTimeZone: String,
+        // Number of contributing Android app origins for this daily aggregate.
+        // NOT a physical watch count, not a source UUID, and may be unknown.
+        val contributingAppCount: Int? = null,
     )
 
     /**
@@ -111,6 +114,11 @@ class IberfitHealthConnectReader(
                 aggregate[RestingHeartRateRecord.BPM_AVG]
             } else null
 
+            // AndroidX 1.1.0 exposes contributing application origins for
+            // an aggregate. It does NOT attest any physical sensor or watch.
+            // An empty set is unknown provenance, never "zero apps".
+            val contributingApps = aggregate.dataOrigins.size.takeIf { it > 0 }
+
             // Missing record remains null, never 0. Empty days are not imported.
             if (steps != null || sleep != null || resting != null) {
                 result += DailySummary(
@@ -121,6 +129,7 @@ class IberfitHealthConnectReader(
                     restingHeartRate = resting,
                     acquiredAt = observedAt,
                     aggregationTimeZone = zone.id,
+                    contributingAppCount = contributingApps,
                 )
             }
         }
