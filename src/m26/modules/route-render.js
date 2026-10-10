@@ -4031,6 +4031,33 @@ function nextSessionPrepCheckin(prep){
   if(!parts.length)return '<p class="m26-next-session-empty">Check-in registrado sin valores comparables.</p>';
   return `<div class="m26-next-session-signal-grid">${parts.map(([label,value])=>`<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join('')}</div>`;
 }
+function nextSessionPrepDeviceContext(prep){
+  const context=prep?.deviceContext;
+  if(!context||Number(context.daysWithData||0)<=0)return '';
+  const days=Number(context.recentDays||0);
+  const metrics=context.metrics||{};
+  const values=context.status==='recent'
+    ?[
+      ['Pasos diarios',metrics.steps,''],
+      ['Sueño',Number.isFinite(metrics.sleepMinutes)?formatSleepDuration(metrics.sleepMinutes):null,''],
+      ['FC reposo',metrics.restingHeartRate,'lpm'],
+    ].filter(([,value])=>value!==null&&value!==undefined&&value!=='')
+    :[];
+  const cells=values.length
+    ?`<div class="m26-next-session-signal-grid">${values.map(([label,value,unit])=>`<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}${unit?` ${escapeHtml(unit)}`:''}</strong></span>`).join('')}</div>`
+    :'';
+  const description=context.status==='multiple-sources'
+    ?'Existen fuentes recientes superpuestas. No se suman ni promedian valores de relojes diferentes.'
+    :context.status==='historical'
+      ?'Hay registros históricos, pero ninguno sirve como contexto reciente de la próxima sesión.'
+      :`${days} día${days===1?'':'s'} con registros recientes de una sola fuente. Valores medios de esos días.`;
+  return `<div class="m26-next-session-device-context" data-next-session-device-context>
+    <p><strong>Actividad y descanso registrados</strong></p>
+    <p>${escapeHtml(description)}</p>
+    ${cells}
+    <small>Datos diarios incorporados con permiso. No son mediciones en directo ni acreditan una conexión automática. No modifican el plan.</small>
+  </div>`;
+}
 function nextSessionPrepExerciseRows(prep){
   const rows=Array.isArray(prep?.exerciseMemory)?prep.exerciseMemory:[];
   if(!rows.length)return '<p class="m26-next-session-empty">Todavía no hay cargas confirmadas de sesiones anteriores.</p>';
@@ -4118,6 +4145,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
       <article class="m26-next-session-card">
         <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Bienestar</p><h3>Último check-in</h3></div><small>${escapeHtml(nextSessionPrepDate(prep.progress.latestCheckinAt))}</small></div>
         ${nextSessionPrepCheckin(prep)}
+        ${nextSessionPrepDeviceContext(prep)}
       </article>
       <article class="m26-next-session-card">
         <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Última sesión</p><h3>Feedback y esfuerzo</h3></div><small>${escapeHtml(nextSessionPrepDate(prep.progress.lastExecutionAt))}</small></div>
