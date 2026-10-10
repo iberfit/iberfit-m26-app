@@ -253,6 +253,34 @@ test('current authenticated contract separates privileged fail-closed identities
       console.log(`RC64_CURRENT_AUTH_ACCOUNT_BEGIN:${account.name}`);
       const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
       expect(navigation?.ok()).toBeTruthy();
+      // Record click/submit handoff without inspecting form values or credentials.
+      // A timed-out assurance can mean no click, no submit, no token request,
+      // or a token response without a subsequent assurance request.
+      await page.evaluate(()=>{
+        const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false};
+        let previous=document.querySelector('[data-auth-form="login"]');
+        const isSubmit=(event)=>Boolean(event.target?.closest?.('[data-auth-form="login"] button[type="submit"]'));
+        document.addEventListener('pointerdown',(event)=>{
+          if(isSubmit(event))events.pointerDown+=1;
+        },true);
+        document.addEventListener('click',(event)=>{
+          if(!isSubmit(event))return;
+          events.click+=1;
+          events.fullAppAtClick=Boolean(globalThis.__IBERFIT_M26_APP__);
+        },true);
+        document.addEventListener('submit',(event)=>{
+          if(event.target?.matches?.('[data-auth-form="login"]'))events.submit+=1;
+        },true);
+        const observer=new MutationObserver(()=>{
+          const next=document.querySelector('[data-auth-form="login"]');
+          if(next&&previous&&next!==previous){
+            events.formReplacements=Math.min(10,events.formReplacements+1);
+          }
+          previous=next;
+        });
+        observer.observe(document.querySelector('#app')||document.body,{subtree:true,childList:true});
+        globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__=events;
+      });
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
       await page.locator('#m26-login-password').fill(account.password);
       const assurancePromise=page.waitForResponse((response)=>{
@@ -266,10 +294,23 @@ test('current authenticated contract separates privileged fail-closed identities
         const state=await page.evaluate(()=>{
           const card=document.querySelector('.m26-auth-card');
           const form=document.querySelector('[data-auth-form="login"]');
+          const events=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
+          const focused=document.activeElement;
           return {appReady:Boolean(globalThis.__IBERFIT_M26_APP__),
             formValid:Boolean(form?.checkValidity?.()),
+            formConnected:Boolean(form?.isConnected),
+            submitDisabled:Boolean(form?.querySelector('button[type="submit"]')?.disabled),
+            focus:focused?.matches?.('input[name="email"]')?'email':
+              focused?.matches?.('input[name="password"]')?'password':'other',
             authMode:card?.getAttribute('data-auth-mode')||null,
-            busy:card?.getAttribute('aria-busy')||null};
+            busy:card?.getAttribute('aria-busy')||null,
+            interaction:{
+              pointerDown:Number(events?.pointerDown||0),
+              click:Number(events?.click||0),
+              submit:Number(events?.submit||0),
+              formReplacements:Number(events?.formReplacements||0),
+              fullAppAtClick:events?.fullAppAtClick===true,
+            }};
         }).catch(()=>({unavailable:true}));
         console.error('M26_QA_AUTH_PHASE_DIAGNOSTIC:'+JSON.stringify({
           stages:[...authPhases],state,
