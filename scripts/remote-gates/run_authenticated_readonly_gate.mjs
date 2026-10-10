@@ -179,6 +179,37 @@ for(const session of sessions){
     throw new Error(`RC74_4_APPOINTMENT_CHANGE_READ_CONTRACT_FAILED:${session.name}`);
   }
   if(expectedRole==='cliente'&&!clientId)throw new Error(`RC74_4_CLIENT_ID_MISSING:${session.name}`);
+
+  // Connected360 V45 is QA-only and intentionally inaccessible over Data API.
+  // Verify this with each real authenticated Client on every Canary deploy.
+  // Both calls are READ-ONLY: GET on the closed table + malformed preflight
+  // (a SECURITY INVOKER validation RPC that contains no database mutations).
+  // Never send any actual health records, identifiers or consent grants.
+  const v45Table=await requestResult(
+    `${base}/rest/v1/m26_wearable_source_daily_v45?select=id&limit=1`,
+    {method:'GET',headers:restHeaders(session.token)},
+  );
+  if(v45Table.status!==403||String(v45Table.body?.code||'')!=='42501'){
+    throw new Error(
+      `M26_V45_QA_DIRECT_TABLE_READ_NOT_BLOCKED:${session.name}:${v45Table.status}:${String(v45Table.body?.code||'missing')}`,
+    );
+  }
+  const v45Preview=await rpcResult(
+    'm26_wearable_v45_validate_native_preview_qa_v1',session.token,
+    {p_grant_id:null,p_payload:{records:[]}},
+  );
+  if(v45Preview.status!==403||
+    String(v45Preview.body?.code||'')!=='42501'||
+    String(v45Preview.body?.message||'')!=='M26_CONNECTED360_V45_PREVIEW_INVALID'){
+    throw new Error(
+      `M26_V45_QA_PREVIEW_FAIL_CLOSED_MISMATCH:${session.name}:${v45Preview.status}:${String(v45Preview.body?.code||'missing')}`,
+    );
+  }
+  const v45ReadOnlyGate=Object.freeze({
+    tableAccessDenied:true,tableHttpStatus:v45Table.status,tableSqlstate:'42501',
+    invalidPreviewDenied:true,previewHttpStatus:v45Preview.status,
+    previewSqlstate:'42501',persisted:false,
+  });
   const privacy=expectedRole==='cliente'?inspectClientBootstrap(bootstrap,clientId):null;
   if(privacy&&!privacy.ok)throw new Error(`RC74_4_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
   if(expectedRole==='cliente')qaClientIds.push(clientId);
@@ -188,6 +219,7 @@ for(const session of sessions){
     privacy:privacy?{ok:privacy.ok,forbiddenKeys:privacy.forbiddenKeys,clientFingerprints:privacy.clientIds.map(fingerprint),foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint)}:null,
     privilegedGate:{ok:true,required:false,privileged:false,mfaRequired:false,webauthnRequired:false},
     appointmentChangeRead:{ok:true,requestCount:appointmentChanges.requests.length},
+    connected360V45:v45ReadOnlyGate,
   });
 }
 assertDistinctQaClientIds(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT);
