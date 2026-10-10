@@ -323,7 +323,7 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     // Token has been accepted, but there is no second-factor assurance response.
     // Never expose a privileged shell while this request is pending.
     await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
-    await expect(page.locator('[data-auth-mode="recoverable-session"]')).toBeVisible({timeout:25_000});
+    await expect(page.locator('.m26-auth-page[data-auth-mode="recoverable-session"]')).toBeVisible({timeout:25_000});
     const retry=page.locator('[data-auth-action="retry-session"]');
     await expect(retry).toBeVisible();
     await expect(retry).toBeEnabled();
