@@ -17,8 +17,11 @@ const preview=(overrides={})=>({
 function setup({online=true,identity={role:'client',clientId:CLIENT,ownerId:'user-A'},
   grant={grantId:GRANT},rpc={ok:true,accepted:1,stale:0,rejected:0},
   token='client-JWT-for-supabase',afterGrant=()=>{},afterStatus=()=>{},
-  currentGrant=grant}={}){
-  const state={online,identity,now:NOW,calls:[],writes:[]};
+  currentGrant=grant,
+  validation={ok:true,validated:1,persisted:false,automatic:false,
+    sourceTimeVerified:false,sourceIdentityVerified:false,provider:'health_connect'},
+  afterValidation=()=>{}}={}){
+  const state={online,identity,now:NOW,calls:[],writes:[],validations:[]};
   const scope={location:{origin:'https://m26-canary.iberfit.cl'},
     IBERFIT_CONNECTED360_QA:{
       addEventListener(){},postMessage(){},
@@ -33,7 +36,13 @@ function setup({online=true,identity={role:'client',clientId:CLIENT,ownerId:'use
         state.calls.push({verify:x});await afterStatus(state);return currentGrant;
       },
     },
-    transport:{importWearableAuthorized:async(...args)=>{
+    transport:{
+      validateConnected360QaNativePreview:async(...args)=>{
+        state.validations.push(args);
+        await afterValidation(state);
+        return validation;
+      },
+      importWearableAuthorized:async(...args)=>{
       state.writes.push(args);
       return rpc;
     }},
@@ -71,6 +80,10 @@ test('explicit Canary authorization imports exact owner-bound records online, no
     verify:{provider:'health_connect',scopes:['steps','sleepMinutes','restingHeartRate']},
   });
   assert.deepEqual(state.calls[2],'refresh');
+  assert.equal(state.validations.length,1);
+  assert.equal(state.validations[0][1],GRANT);
+  assert.equal(state.validations[0][2].records[0].provenance.sourceUpdatedAt,null);
+  assert.equal(state.validations[0][2].records[0].provenance.automaticSyncCertified,false);
   assert.equal(state.writes.length,1);
   assert.equal(state.writes[0][0],'client-JWT-for-supabase');
   assert.equal(state.writes[0][1],GRANT);
@@ -229,5 +242,23 @@ test('session change after consent-status check blocks direct server RPC',async(
   }});
   f.importer.capture(preview());
   await assert.rejects(f.importer.commit({confirmed:true}),/SESSION_CHANGED/);
+  assert.equal(f.state.writes.length,0);
+});
+
+test('server v45 preflight denial cannot fall back to an unvalidated v44 write',async()=>{
+  const f=setup({validation:{ok:true,validated:1,persisted:true,automatic:false,
+    sourceTimeVerified:false,sourceIdentityVerified:false,provider:'health_connect'}});
+  f.importer.capture(preview());
+  await assert.rejects(f.importer.commit({confirmed:true}),/PREFLIGHT_INVALID_RESPONSE/);
+  assert.equal(f.state.writes.length,0);
+  assert.equal(f.importer.hasPreview(),true);
+});
+test('account switch during v45 preflight prevents the final v44 import',async()=>{
+  const f=setup({afterValidation:state=>{
+    state.identity={...state.identity,clientId:OTHER};
+  }});
+  f.importer.capture(preview());
+  await assert.rejects(f.importer.commit({confirmed:true}),/SESSION_CHANGED/);
+  assert.equal(f.state.validations.length,1);
   assert.equal(f.state.writes.length,0);
 });

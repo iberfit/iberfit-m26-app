@@ -31,6 +31,7 @@ export function createConnected360QaImporter({
 }={}){
   if(typeof getToken!=='function'||typeof getIdentity!=='function'||
     typeof transport?.importWearableAuthorized!=='function'||
+    typeof transport?.validateConnected360QaNativePreview!=='function'||
     typeof remoteSync?.reauthorize!=='function'||
     typeof remoteSync?.currentAuthorization!=='function')
     throw new Error('M26_HEALTH_QA_IMPORT_DEPENDENCIES_REQUIRED');
@@ -187,6 +188,19 @@ export function createConnected360QaImporter({
         throw new Error('M26_HEALTH_QA_SESSION_REQUIRED');
       assertLivePreview(pending);
       assertSameSession(client);
+      // v45 validates the original honest provenance while its database
+      // write blocker remains enabled. This runs in QA without another click.
+      const validation=await transport.validateConnected360QaNativePreview(
+        token,grant.grantId,{records:pending.records}
+      );
+      if(validation?.ok!==true||validation.validated!==pending.records.length||
+        validation.persisted!==false||validation.automatic!==false||
+        validation.sourceTimeVerified!==false||
+        validation.sourceIdentityVerified!==false)
+        throw new Error('M26_HEALTH_QA_PREFLIGHT_INVALID_RESPONSE');
+      assertLivePreview(pending);
+      assertSameSession(client);
+      if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
       const result=await transport.importWearableAuthorized(
         token,grant.grantId,{records:pending.records.map(projectQaNativeRecordToV44)}
       );
