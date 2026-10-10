@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 import {buildNextSessionPreparation} from '../src/m26/intelligence/next-session-prep.js';
 import {renderSessionsRoute} from '../src/m26/modules/route-render.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const CLIENT='client-coach-device-evidence';
 const NOW=new Date('2026-10-10T12:00:00.000Z');
@@ -105,4 +106,21 @@ test('without records no device element is added and the Client has no Coach pre
   const renderSource=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(renderSource,/escapeHtml\(description\)/u);
   assert.match(renderSource,/escapeHtml\(value\)/u);
+});
+
+test('Coach device context and dated evidence translate into EN, FR and PT',()=>{
+  const strings=[
+    'Actividad y descanso registrados',
+    'FC reposo',
+    'Existen fuentes recientes superpuestas. No se suman ni promedian valores de relojes diferentes.',
+    'Hay registros históricos, pero ninguno sirve como contexto reciente de la próxima sesión.',
+    'Datos diarios incorporados con permiso. No son mediciones en directo ni acreditan una conexión automática. No modifican el plan.',
+    '2 días con registros recientes de una sola fuente. Valores medios de esos días.',
+    '1 día con registros recientes de una sola fuente. Valores medios de esos días.',
+  ];
+  for(const language of ['en','fr','pt']){
+    for(const source of strings){
+      assert.notEqual(iberfitSurfaceTranslate(source,{language}),source,`${language}: ${source}`);
+    }
+  }
 });
