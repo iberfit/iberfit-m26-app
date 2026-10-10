@@ -67,6 +67,8 @@ function normalize(row,ownerId,clientId){
     const val=row[def.column];
     if(val==null)continue;
     const n=typeof val==='number'?val:Number(val);
+    if(typeof val==='string'&&!/^-?\d+(?:\.\d+)?$/u.test(val))
+      throw new Error('M26_V45_RECONCILIATION_METRIC_INVALID');
     if(typeof val==='boolean'||typeof val==='object'||!Number.isFinite(n)||
       n<def.min||n>def.max||(def.integer&&!Number.isInteger(n)))
       throw new Error('M26_V45_RECONCILIATION_METRIC_INVALID');
@@ -88,13 +90,11 @@ function newest(candidateRows){
     String(b.updatedAt??'').localeCompare(String(a.updatedAt??''))||
     b.acquiredAt.localeCompare(a.acquiredAt));
   const winner=ordered[0];
-  if(ordered.length>1){
-    const second=ordered[1];
-    // Divergent values with identical source and same provenance cannot
-    // be distinguished by a reliable version marker.
-    if(winner.updatedAt===second.updatedAt&&winner.acquiredAt===second.acquiredAt&&
-      winner.value!==second.value)return null;
-  }
+  // Compare ALL tied snapshots; checking only the runner-up could miss
+  // a third divergent value with exactly the same revision/acquisition.
+  if(ordered.some(item=>
+    item.updatedAt===winner.updatedAt&&item.acquiredAt===winner.acquiredAt&&
+    item.value!==winner.value))return null;
   return winner;
 }
 
@@ -108,7 +108,7 @@ export function reconcileV45SourceDailyMetrics(rows,{ownerId,clientId,preferredS
     typeof ownerId!=='string'||!UUID.test(ownerId)||
     typeof clientId!=='string'||!UUID.test(clientId)||
     !preferredSources||typeof preferredSources!=='object'||Array.isArray(preferredSources)||
-    Object.keys(preferredSources).some(k=>!(k in FIELDS)||
+    Object.keys(preferredSources).some(k=>!Object.hasOwn(FIELDS,k)||
       typeof preferredSources[k]!=='string'||preferredSources[k].length>100))
     throw new Error('M26_V45_RECONCILIATION_INPUT_INVALID');
 
@@ -167,7 +167,7 @@ export function reconcileV45SourceDailyMetrics(rows,{ownerId,clientId,preferredS
     }
     return Object.freeze({
       date,metrics:Object.freeze(metrics),evidence:Object.freeze(evidence),
-      conflicts:Object.freeze(conflicts),complete:conflicts.length===0,
+      conflicts:Object.freeze(conflicts),conflictFree:conflicts.length===0,
     });
   });
   return Object.freeze({
