@@ -23,7 +23,9 @@ final class IBERFITIOSNativeTelemetryRuntime {
             guard JSONSerialization.isValidJSONObject(sample),
                   let data = try? JSONSerialization.data(withJSONObject: sample),
                   let json = String(data: data, encoding: .utf8) else { return }
-            emitter?.emit(sampleJSON: json)
+            Task { @MainActor [weak emitter] in
+                emitter?.emit(sampleJSON: json)
+            }
         }
 
         commandHandler.onCommand = { [weak self] action, body in
