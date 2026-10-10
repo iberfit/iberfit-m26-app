@@ -69,6 +69,7 @@ const CONNECTED360_RPC=Object.freeze({
   authorizationStatus:'m26_wearable_authorization_status_v2',
   reauthorize:'m26_wearable_reauthorize_v2',
   importAuthorized:'m26_wearable_import_authorized_v2',
+  validateQaPreview:'m26_wearable_v45_validate_native_preview_qa_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1104,6 +1105,33 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return normalizeRc44Result(data,'M26_CONNECTED360_IMPORT_INVALID_RESPONSE');
   }
 
+  // Connected360 QA only. A server-side read-only preflight is required
+  // before the explicitly authorized v44 native import. This never writes v45.
+  async function validateConnected360QaNativePreview(token,grantId,payload={}){
+    if(runtime.qaOnly!==true||runtime.canary!==true)
+      throw new Error('M26_HEALTH_QA_PREFLIGHT_PRODUCTION_DENIED');
+    if(!token||!UUID_PATTERN.test(String(grantId||''))||
+      !Array.isArray(payload?.records)||payload.records.length<1||
+      payload.records.length>7)
+      throw new Error('M26_HEALTH_QA_PREFLIGHT_INVALID');
+    const requestBody=JSON.stringify({
+      p_grant_id:grantId,p_payload:{records:payload.records},
+    });
+    if(requestBody.length>24000)throw new Error('M26_HEALTH_QA_PREFLIGHT_INVALID');
+    const data=await request('/rest/v1/rpc/'+CONNECTED360_RPC.validateQaPreview,{
+      method:'POST',token,body:requestBody,
+    });
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result||result.ok!==true||
+      result.validated!==payload.records.length||
+      result.persisted!==false||result.automatic!==false||
+      result.sourceTimeVerified!==false||
+      result.sourceIdentityVerified!==false||
+      result.provider!=='health_connect')
+      throw new Error('M26_HEALTH_QA_PREFLIGHT_INVALID_RESPONSE');
+    return Object.freeze({...result});
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     let result;
@@ -1400,6 +1428,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     wearableAuthorizationStatus,
     reauthorizeWearable,
     importWearableAuthorized,
+    validateConnected360QaNativePreview,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,
