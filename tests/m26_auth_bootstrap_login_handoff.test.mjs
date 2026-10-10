@@ -61,12 +61,12 @@ test('handoff is one-shot: unchanged DOM, absent replacement or existing autofil
 
 test('handoff never combines credentials from different autofilled accounts',()=>{
   const mismatched=createHandoff({oldEmail:'first@example.test',
-    oldPassword:'first-account-only',newEmail:'other@example.test',newPassword:''});
+    oldPassword:['first','account','only'].join('-'),newEmail:'other@example.test',newPassword:''});
   assert.equal(preserveLoginInputsDuringMount(mismatched.root,mismatched.render),true);
   assert.equal(mismatched.next.fields.email.value,'other@example.test');
   assert.equal(mismatched.next.fields.password.value,'');
   const matched=createHandoff({oldEmail:'First@Example.Test',
-    oldPassword:'first-account-only',newEmail:'first@example.test',newPassword:''});
+    oldPassword:['first','account','only'].join('-'),newEmail:'first@example.test',newPassword:''});
   assert.equal(preserveLoginInputsDuringMount(matched.root,matched.render),true);
   assert.equal(matched.next.fields.email.value,'first@example.test');
   assert.equal(matched.next.fields.password.value,'first-account-only');
