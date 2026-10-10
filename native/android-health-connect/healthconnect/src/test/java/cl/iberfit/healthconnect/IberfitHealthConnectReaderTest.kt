@@ -3,6 +3,9 @@ package cl.iberfit.healthconnect
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Clock
+import java.time.Instant
+import java.util.TimeZone
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
@@ -22,6 +25,39 @@ class IberfitHealthConnectReaderTest {
         val window = dayWindow(date, zone)
         assertEquals(date, window.first.atZone(zone).toLocalDate())
         assertEquals(date.plusDays(1), window.second.atZone(zone).toLocalDate())
+    }
+
+    @Test fun liveCivilZoneIsReevaluatedBetweenSeparateReads() {
+        val saved = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Kiritimati"))
+            val early = dailyReadContext()
+            assertEquals(ZoneId.of("Pacific/Kiritimati"), early.aggregationZone)
+            assertEquals(
+                Instant.parse(early.acquiredAt).atZone(early.aggregationZone).toLocalDate(),
+                early.localDate
+            )
+
+            TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"))
+            val later = dailyReadContext()
+            assertEquals(ZoneId.of("Pacific/Honolulu"), later.aggregationZone)
+            assertEquals(
+                Instant.parse(later.acquiredAt).atZone(later.aggregationZone).toLocalDate(),
+                later.localDate
+            )
+        } finally {
+            TimeZone.setDefault(saved)
+        }
+    }
+
+    @Test fun explicitClockRemainsDeterministicAtCrossZoneMidnight() {
+        val instant = Instant.parse("2026-10-11T00:15:00Z")
+        val santiago = dailyReadContext(Clock.fixed(instant, ZoneId.of("America/Santiago")))
+        val kiritimati = dailyReadContext(Clock.fixed(instant, ZoneId.of("Pacific/Kiritimati")))
+        assertEquals(LocalDate.parse("2026-10-10"), santiago.localDate)
+        assertEquals(LocalDate.parse("2026-10-11"), kiritimati.localDate)
+        assertEquals(instant.toString(), santiago.acquiredAt)
+        assertEquals(instant.toString(), kiritimati.acquiredAt)
     }
 
     @Test fun aggregateDoesNotImpersonateSourceMeasurementTimestamp() {

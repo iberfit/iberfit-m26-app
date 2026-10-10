@@ -20,7 +20,9 @@ import java.time.ZoneId
  */
 class IberfitHealthConnectReader(
     private val healthConnect: HealthConnectClient,
-    private val clock: Clock = Clock.systemDefaultZone(),
+    // Null means resolve the device's current civil zone for EACH new read.
+    // Clock.systemDefaultZone() freezes its zone at construction time.
+    private val clock: Clock? = null,
 ) {
     companion object {
         const val MAX_INITIAL_DAYS = 30
@@ -78,9 +80,12 @@ class IberfitHealthConnectReader(
             "IBERFIT_HEALTH_PERMISSION_REQUIRED"
         }
 
-        val today = LocalDate.now(clock)
-        val zone = clock.zone
-        val observedAt = Instant.now(clock).toString()
+        // One coherent capture of date, civil zone and acquisition time;
+        // changing the phone timezone between reads must not use a stale zone.
+        val context = dailyReadContext(clock)
+        val today = context.localDate
+        val zone = context.aggregationZone
+        val observedAt = context.acquiredAt
         val result = mutableListOf<DailySummary>()
         for (offset in (days - 1) downTo 0) {
             val date = today.minusDays(offset.toLong())
@@ -121,6 +126,28 @@ class IberfitHealthConnectReader(
         }
         return result
     }
+}
+
+/**
+ * A single acquisition snapshot. A supplied clock preserves deterministic
+ * tests; the real phone obtains its CURRENT default timezone on every read.
+ * Acquired-at is not a sensor source timestamp or an updated-at marker.
+ */
+internal data class DailyReadContext(
+    val localDate: LocalDate,
+    val aggregationZone: ZoneId,
+    val acquiredAt: String,
+)
+
+internal fun dailyReadContext(overrideClock: Clock? = null): DailyReadContext {
+    val currentClock = overrideClock ?: Clock.systemDefaultZone()
+    val acquired = Instant.now(currentClock)
+    val zone = currentClock.zone
+    return DailyReadContext(
+        localDate = acquired.atZone(zone).toLocalDate(),
+        aggregationZone = zone,
+        acquiredAt = acquired.toString(),
+    )
 }
 
 /** Respects the person's local civil day, including daylight saving transitions. */
