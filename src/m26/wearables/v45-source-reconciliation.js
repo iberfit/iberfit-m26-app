@@ -21,6 +21,7 @@ const FIELDS=Object.freeze({
 const PROVIDERS=new Set(['normalized_file','health_connect','samsung_health','apple_health','strava','garmin_connect','fitbit','oura']);
 const DATE=/^\d{4}-\d{2}-\d{2}$/u;
 const KEY=/^[0-9a-f]{64}$/u;
+const ZONE=/^[A-Za-z0-9_.:+-]+(?:\/[A-Za-z0-9_.:+-]+)*$/u;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_ROWS=1000;
 
@@ -54,6 +55,11 @@ function normalize(row,ownerId,clientId){
   const sourceKey=row.source_key??null;
   if(sourceKey!==null&&(typeof sourceKey!=='string'||!KEY.test(sourceKey)))
     throw new Error('M26_V45_RECONCILIATION_SOURCE_KEY_INVALID');
+  const aggregationTimeZone=row.aggregation_time_zone??null;
+  const sourceTimeZone=row.source_time_zone??null;
+  if([aggregationTimeZone,sourceTimeZone].some(value=>
+    value!==null&&(typeof value!=='string'||value.length>80||!ZONE.test(value))))
+    throw new Error('M26_V45_RECONCILIATION_ZONE_INVALID');
   const acquiredAt=instant(row.acquired_at,true);
   const updatedAt=instant(row.source_updated_at);
   const measuredAt=instant(row.measured_at);
@@ -80,7 +86,7 @@ function normalize(row,ownerId,clientId){
   // An official aggregate remains one candidate for this provider and date.
   const sourceRef=row.provider+':'+(sourceKey??'unknown');
   return Object.freeze({
-    date,provider:row.provider,sourceRef,sourceKey,values:Object.freeze(values),
+    date,provider:row.provider,sourceRef,sourceKey,aggregationTimeZone,sourceTimeZone,values:Object.freeze(values),
     acquiredAt,updatedAt,measuredAt,sourceTimeVerified:row.source_time_verified,
     quality:row.quality,
   });
@@ -130,12 +136,15 @@ export function reconcileV45SourceDailyMetrics(rows,{ownerId,clientId,preferredS
       if(!candidates.length){metrics[metric]=null;continue;}
       const sources=new Map();
       for(const row of candidates){
-        const bySource=sources.get(row.sourceRef)||[];
+        // Same origin with a different civil-day window is NOT the same
+        // daily aggregate, even when record_date and source_key match.
+        const windowRef=row.sourceRef+'@'+(row.aggregationTimeZone??'unknown');
+        const bySource=sources.get(windowRef)||[];
         bySource.push(row);
-        sources.set(row.sourceRef,bySource);
+        sources.set(windowRef,bySource);
       }
-      const distinct=[...sources.entries()].map(([sourceRef,list])=>({
-        sourceRef,candidate:newest(list),
+      const distinct=[...sources.entries()].map(([windowRef,list])=>({
+        windowRef,sourceRef:list[0].sourceRef,candidate:newest(list),
       }));
       const preference=preferredSources[metric]||null;
       const selected=preference
@@ -146,7 +155,9 @@ export function reconcileV45SourceDailyMetrics(rows,{ownerId,clientId,preferredS
       if(selected.length!==1||selected[0].candidate===null){
         metrics[metric]=null;
         conflicts.push(Object.freeze({
-          metric,reason:preference?'preferred_source_missing_or_ambiguous':'overlapping_sources',
+          metric,reason:preference?'preferred_source_missing_or_ambiguous'
+            :new Set(distinct.map(x=>x.candidate?.aggregationTimeZone??null)).size>1
+              ?'civil_zone_mismatch':'overlapping_sources',
           sourceCount:distinct.length,
         }));
         continue;
@@ -155,6 +166,8 @@ export function reconcileV45SourceDailyMetrics(rows,{ownerId,clientId,preferredS
       metrics[metric]=chosen.value;
       evidence[metric]=Object.freeze({
         provider:chosen.provider,
+        aggregationTimeZone:chosen.aggregationTimeZone,
+        sourceTimeZone:chosen.sourceTimeZone,
         sourceKnown:chosen.sourceKey!==null,
         sourceTimeVerified:chosen.sourceTimeVerified,
         measuredAt:chosen.measuredAt,
