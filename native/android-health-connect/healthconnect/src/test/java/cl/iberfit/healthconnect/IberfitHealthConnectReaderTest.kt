@@ -31,9 +31,11 @@ class IberfitHealthConnectReaderTest {
             steps = 9000,
             sleepMinutes = null,
             restingHeartRate = null,
-            acquiredAt = "2026-10-08T18:00:00Z"
+            acquiredAt = "2026-10-08T18:00:00Z",
+            aggregationTimeZone = "America/Santiago"
         )
         assertEquals("2026-10-08T18:00:00Z", summary.acquiredAt)
+        assertEquals("America/Santiago", summary.aggregationTimeZone)
         // Aggregated data has no verifiable per-source modification time.
         assertTrue(summary.javaClass.declaredFields.none { it.name == "sourceUpdatedAt" })
     }
