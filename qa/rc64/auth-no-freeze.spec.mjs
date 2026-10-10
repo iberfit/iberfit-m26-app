@@ -346,3 +346,138 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     await context.close().catch(()=>{});
   }
 });
+
+
+for(const device of [
+  {name:'phone-touch-cpu6',width:390,height:844,touch:true,cpu:6},
+  {name:'tablet-landscape-touch-cpu6',width:1180,height:820,touch:true,cpu:6},
+  {name:'desktop-pointer-cpu4',width:1440,height:900,touch:false,cpu:4},
+]){
+  test(`full-app delayed bootstrap delivers one click and one login POST: ${device.name}`,async({browser})=>{
+    // P0 #821 pre-network path: a deliberately slow application import must
+    // not lose the first user gesture after the full login becomes interactive.
+    // All auth responses are hermetic. Never inspect/log credential contents.
+    const account='qa.rc64.interaction-821@iberfit.cl';
+    const syntheticPassword=['browser','gesture','qa','only'].join('-');
+    const accountId='11111111-1111-4111-8111-111111111111';
+    const context=await browser.newContext({
+      baseURL:LOCAL_ORIGIN,
+      locale:'es-CL',
+      timezoneId:'America/Santiago',
+      serviceWorkers:'block',
+      viewport:{width:device.width,height:device.height},
+      hasTouch:device.touch,
+      isMobile:device.width<500,
+    });
+    let moduleRequests=0;
+    let tokenPosts=0;
+    let assurancePosts=0;
+    let userReads=0;
+    const unexpectedExternal=[];
+    const errors=[];
+    await context.addInitScript(()=>{
+      const markers={pointerDown:0,click:0,submit:0,firstFormReady:false};
+      const submitTarget=(target)=>Boolean(target?.closest?.('[data-auth-form="login"] button[type="submit"]'));
+      document.addEventListener('pointerdown',(event)=>{
+        if(submitTarget(event.target))markers.pointerDown+=1;
+      },true);
+      document.addEventListener('click',(event)=>{
+        if(submitTarget(event.target))markers.click+=1;
+      },true);
+      document.addEventListener('submit',(event)=>{
+        if(event.target?.matches?.('[data-auth-form="login"]'))markers.submit+=1;
+      },true);
+      globalThis.__IBERFIT_QA_GESTURE_MARKERS__=markers;
+    });
+    await context.route('**/*',async(route)=>{
+      const req=route.request();
+      let url;
+      try{url=new URL(req.url());}
+      catch{
+        unexpectedExternal.push('INVALID_URL');
+        await route.abort('blockedbyclient');
+        return;
+      }
+      if(url.origin===LOCAL_ORIGIN){
+        if(url.pathname==='/src/m26/app/application.js'){
+          moduleRequests+=1;
+          await new Promise(resolve=>setTimeout(resolve,1300));
+        }
+        await route.continue();
+        return;
+      }
+      if(url.origin===SUPABASE_ORIGIN&&req.method()==='POST'&&
+         url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
+        tokenPosts+=1;
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+          access_token:'qa-synthetic-token-interaction-821',
+          refresh_token:'qa-synthetic-refresh-interaction-821',
+          expires_at:2_000_000_000,
+          user:{id:accountId,email:account},
+        })});
+        return;
+      }
+      if(url.origin===SUPABASE_ORIGIN&&req.method()==='POST'&&
+         url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'){
+        assurancePosts+=1;
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+          ok:true,privileged:true,privilegedRole:'coach',mfaRequired:true,
+          webauthnRequired:true,credentialEnrolled:false,
+          iberfitAssurance:'required',supabaseAal:'aal1',emailOtpAvailable:false,
+        })});
+        return;
+      }
+      if(url.origin===SUPABASE_ORIGIN&&req.method()==='GET'&&url.pathname==='/auth/v1/user'){
+        userReads+=1;
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+          id:accountId,email:account,factors:[],
+        })});
+        return;
+      }
+      unexpectedExternal.push(
+        `${req.method()} ${url.origin===SUPABASE_ORIGIN?'qa-supabase':'external'} ${url.pathname}`,
+      );
+      await route.abort('blockedbyclient');
+    });
+    const page=await context.newPage();
+    page.on('pageerror',error=>errors.push(String(error?.message||error||'PAGE_ERROR').slice(0,200)));
+    try{
+      const cdp=await context.newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate',{rate:device.cpu});
+      const response=await page.goto('/',{waitUntil:'domcontentloaded',timeout:22_000});
+      expect(response?.ok()).toBeTruthy();
+      const form=page.locator('form[data-auth-form="login"]');
+      await expect(form).toBeVisible({timeout:14_000});
+      await expect(page.locator('.m26-auth-card')).toHaveAttribute('data-auth-mode','login');
+      expect(await page.evaluate(()=>Boolean(globalThis.__IBERFIT_M26_APP__))).toBe(true);
+      const submit=form.locator('button[type="submit"]');
+      await expect(submit).toBeEnabled();
+      await form.locator('input[name="email"]').fill(account);
+      await form.locator('input[name="password"]').fill(syntheticPassword);
+      const navigationCount=await page.evaluate(()=>performance.getEntriesByType('navigation').length);
+      if(device.touch)await submit.tap();
+      else await submit.click();
+      await expect.poll(()=>tokenPosts,{timeout:10_000}).toBe(1);
+      await expect.poll(()=>assurancePosts,{timeout:10_000}).toBe(1);
+      await expect.poll(()=>userReads,{timeout:10_000}).toBe(1);
+      await expect(page.locator('.m26-auth-page[data-auth-mode="mfa-required"]')).toBeVisible({timeout:10_000});
+      await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
+
+      const markers=await page.evaluate(()=>({
+        pointerDown:Number(globalThis.__IBERFIT_QA_GESTURE_MARKERS__?.pointerDown||0),
+        click:Number(globalThis.__IBERFIT_QA_GESTURE_MARKERS__?.click||0),
+        submit:Number(globalThis.__IBERFIT_QA_GESTURE_MARKERS__?.submit||0),
+      }));
+      expect(markers).toEqual({pointerDown:1,click:1,submit:1});
+      expect(moduleRequests).toBe(1);
+      expect(tokenPosts).toBe(1);
+      expect(assurancePosts).toBe(1);
+      expect(userReads).toBe(1);
+      expect(unexpectedExternal).toEqual([]);
+      expect(errors).toEqual([]);
+      expect(await page.evaluate(()=>performance.getEntriesByType('navigation').length)).toBe(navigationCount);
+    }finally{
+      await context.close().catch(()=>{});
+    }
+  });
+}
