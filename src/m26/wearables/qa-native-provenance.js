@@ -4,7 +4,8 @@
  * This is intentionally distinct from V44 persistence. Health Connect's
  * daily aggregate has a civil date and an IBERFIT acquisition instant;
  * this QA bridge does NOT receive source event times, source revisions,
- * physical device identity or the IANA time zone of that aggregation.
+ * physical device identity or the source's IANA time zone. The phone's
+ * aggregation time zone is available independently of sensor/source time.
  *
  * The legacy V44 importer requires sourceUpdatedAt. Its compatibility
  * projection is allowed ONLY at the final authorized RPC boundary.
@@ -23,6 +24,11 @@ function verifiedAggregationZone(value){
     throw new Error('M26_HEALTH_QA_PROVENANCE_INVALID');
   // This names the Android aggregation window; it never proves the sensor zone.
   return value;
+}
+
+function hasValidAggregationZone(value){
+  try{return verifiedAggregationZone(value)===(value??null);}
+  catch{return false;}
 }
 
 function canonicalInstant(value){
@@ -78,8 +84,7 @@ export function projectQaNativeRecordToV44(record){
     provenance?.sourceUpdatedAt!==null||
     provenance?.sourceIdentity!==null||
     provenance?.timeZone!==null||
-    (()=>{try{return verifiedAggregationZone(provenance?.aggregationTimeZone)!==
-      (provenance?.aggregationTimeZone??null);}catch{return true;}})()||
+    !hasValidAggregationZone(provenance?.aggregationTimeZone)||
     provenance?.aggregation!=='daily'||
     provenance?.sourceTimestampVerified!==false||
     provenance?.automaticSyncCertified!==false)
