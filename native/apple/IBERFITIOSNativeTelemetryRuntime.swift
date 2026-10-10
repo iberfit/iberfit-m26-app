@@ -11,7 +11,7 @@ final class IBERFITIOSNativeTelemetryRuntime {
     private var active = false
 
     init(webView: WKWebView, allowedHosts: Set<String>) {
-        emitter = IBERFITWebTelemetryEmitter(webView: webView)
+        emitter = IBERFITWebTelemetryEmitter(webView: webView, allowedHosts: allowedHosts)
         commandHandler = IBERFITWebTelemetryCommandHandler(allowedHosts: allowedHosts)
         watchRelay = IBERFITPhoneWatchRuntimeRelay(emitter: emitter)
 
