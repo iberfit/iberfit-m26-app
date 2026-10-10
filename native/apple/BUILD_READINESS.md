@@ -13,3 +13,14 @@ Before hardware validation:
 - confirm loss of reachability does not replay stale live samples later.
 
 Hardware testing remains a separate release gate from source/static validation.
+
+## CI de compilación real Apple
+
+`.github/workflows/connected360-apple-native-qa.yml` ejecuta bajo macOS/Xcode:
+- compilación con SDK iOS Simulator del target `IBERFITWebBridge`;
+- compilación con SDK watchOS Simulator del target `IBERFITWatchTelemetry`;
+- verificación de capabilities declaradas y prohibición de credenciales en fuentes Swift.
+
+Se ejecuta en PR que modifiquen `native/apple/**` y también admite ejecución explícita. No requiere publicar una app ni acceso a datos personales.
+
+**Límite:** compilar con SDK oficial no demuestra permisos concedidos, HealthKit funcional en hardware, enlace iPhone/Watch, distribución App Store ni sincronización automática certificada. Todo ello permanece bajo gates físicos independientes y `productionAllowed=false` hasta superar pruebas de extremo a extremo.
