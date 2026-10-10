@@ -1,0 +1,58 @@
+name: IBERFIT Connected 360 Apple Native Compile QA
+
+on:
+  pull_request:
+    paths:
+      - "native/apple/**"
+      - ".github/workflows/connected360-apple-native-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-connected360-apple-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apple-simulator-compile:
+    # Native SDK compilation, NOT an Apple Health / Watch hardware E2E test.
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact reviewed SHA
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify Xcode and device SDK availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+          xcrun --sdk iphonesimulator --show-sdk-path
+          xcrun --sdk watchsimulator --show-sdk-path
+          test -f native/apple/Package.swift
+          grep -Fq 'IBERFITWatchTelemetry' native/apple/Package.swift
+          grep -Fq 'IBERFITWebBridge' native/apple/Package.swift
+      - name: Compile iOS simulator WebKit and iPhone-to-Watch bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          swift build --package-path native/apple --target IBERFITWebBridge \
+            --configuration debug --triple arm64-apple-ios17.0-simulator --sdk "$SDK"
+      - name: Compile watchOS simulator HealthKit and WatchConnectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk watchsimulator --show-sdk-path)"
+          swift build --package-path native/apple --target IBERFITWatchTelemetry \
+            --configuration debug --triple arm64-apple-watchos10.0-simulator --sdk "$SDK"
+      - name: Protect production health and private credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RInE 'service_role|SUPABASE_SERVICE_KEY|sk-proj-|addJavascriptInterface' native/apple --include='*.swift'
+          grep -Fq 'NSHealthShareUsageDescription' native/apple/Info.plist.fragment
+          grep -Fq 'com.apple.developer.healthkit' native/apple/IBERFITHealthKit.entitlements
