@@ -1,0 +1,52 @@
+name: IBERFIT Connected 360 Apple Native QA
+
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'native/apple/**'
+      - 'tests/m26_connected360_apple_webview_origin.test.mjs'
+      - '.github/workflows/connected360-apple-native-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: connected360-apple-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xcode-native-package:
+    name: Xcode iOS + watchOS compile
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify Apple toolchain and package
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+          swift package --package-path native/apple dump-package >/dev/null
+          (cd native/apple && xcodebuild -list)
+      - name: Compile iPhone bridge without signing
+        working-directory: native/apple
+        run: |
+          set -euo pipefail
+          xcodebuild -scheme IBERFITWebBridge \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Compile Apple Watch telemetry without signing
+        working-directory: native/apple
+        run: |
+          set -euo pipefail
+          xcodebuild -scheme IBERFITWatchTelemetry \
+            -destination 'generic/platform=watchOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Verify native origin protections
+        run: node --test tests/m26_connected360_apple_webview_origin.test.mjs
