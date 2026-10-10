@@ -195,9 +195,10 @@ test('failed full-app import offers usable bootstrap login and dispatches a sing
     await expect(card).toHaveAttribute('aria-busy','true');
     await expect(submit).toBeDisabled();
 
-    // Abort the held synthetic request: the UI must recover without reload.
-    await trappedPasswordRoutes[0].abort('timedout');
-    await expect(card).toHaveAttribute('aria-busy','false',{timeout:8_000});
+    // Let the transport's own 12s timeout abort this held request.
+    // Aborting the route externally creates a different browser network error,
+    // which may correctly trigger the transport's bounded transient retry.
+    await expect(card).toHaveAttribute('aria-busy','false',{timeout:20_000});
     await expect(submit).toBeEnabled();
     await expect(page.locator('[data-minimal-auth-notice]')).toContainText(
       'Puedes reintentar sin borrar tus datos.',
