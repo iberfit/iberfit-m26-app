@@ -3,6 +3,7 @@ import Foundation
 import WebKit
 
 /// iPhone/iPad WKWebView transport for the RC52/RC53 JavaScript bridge.
+@MainActor
 final class IBERFITWebTelemetryEmitter {
     weak var webView: WKWebView?
     private let allowedHosts: Set<String>
@@ -32,16 +33,15 @@ final class IBERFITWebTelemetryEmitter {
             "||!\(hostsJSON).includes(window.location.hostname.toLowerCase()))return;" +
             "window.dispatchEvent(new CustomEvent('iberfit:native-live-telemetry',{detail:" +
             json + "}));})();"
-        DispatchQueue.main.async { [weak self] in
-            guard let self,
-                  let webView = self.webView,
-                  let url = webView.url,
-                  url.scheme?.lowercased() == "https",
-                  let host = url.host?.lowercased(),
-                  self.allowedHosts.contains(host)
-            else { return }
-            webView.evaluateJavaScript(script)
-        }
+        // All WebKit access takes place on MainActor. The inline JS origin
+        // check also protects navigation between evaluation and execution.
+        guard let webView = self.webView,
+              let url = webView.url,
+              url.scheme?.lowercased() == "https",
+              let host = url.host?.lowercased(),
+              self.allowedHosts.contains(host)
+        else { return }
+        webView.evaluateJavaScript(script)
     }
 }
 
