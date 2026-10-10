@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "dfd9ac95a16f9afa8c22458825ca6dafb8477825",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #836 Connected360 Android QA aggregation timezone provenance; Canary Exact Deploy and premerge Native Android/CI/Device gates GREEN. Health auto-sync remains productionAllowed=false and v45 QA ingest blocked."
+}
