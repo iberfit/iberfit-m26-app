@@ -86,6 +86,38 @@ test('no elevation to certified device/source, nor timestamp assertion, is accep
   }
 });
 
+test('native civil-day aggregation zone is retained without pretending source time or identity',()=>{
+  const zoned=createQaNativeDailyRecord({...input,aggregationTimeZone:'America/Santiago'});
+  assert.equal(zoned.provenance.aggregationTimeZone,'America/Santiago');
+  assert.equal(zoned.provenance.timeZone,null,'sensor time zone remains unknown');
+  assert.equal(zoned.provenance.measuredAt,null);
+  assert.equal(zoned.provenance.sourceUpdatedAt,null);
+  assert.equal(zoned.provenance.sourceIdentity,null);
+  assert.equal(zoned.provenance.sourceTimestampVerified,false);
+  assert.equal(zoned.provenance.automaticSyncCertified,false);
+  const legacy=projectQaNativeRecordToV44(zoned);
+  assert.equal(legacy.aggregationTimeZone,undefined,'V44 transport discards unmodelled metadata');
+  assert.equal(legacy.sourceUpdatedAt,zoned.provenance.acquiredAt);
+  for(const aggregationTimeZone of ['bad<script>', 'America/ Santiago', '', 'x'.repeat(81)]){
+    assert.throws(()=>createQaNativeDailyRecord({...input,aggregationTimeZone}),/PROVENANCE_INVALID/);
+    assert.throws(()=>projectQaNativeRecordToV44({
+      ...zoned,provenance:{...zoned.provenance,aggregationTimeZone},
+    }),/PROVENANCE_UNVERIFIED/);
+  }
+});
+
+test('native QA Android transport carries verified aggregation zone across the secure boundary',()=>{
+  const reader=readFileSync('native/android-health-connect/healthconnect/src/main/java/cl/iberfit/healthconnect/IberfitHealthConnectReader.kt','utf8');
+  const bridge=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt','utf8');
+  const channel=readFileSync('src/m26/wearables/qa-native-channel.js','utf8');
+  const importer=readFileSync('src/m26/wearables/qa-native-import.js','utf8');
+  assert.match(reader,/aggregationTimeZone = zone\.id/u);
+  assert.match(bridge,/\.put\("aggregationTimeZone", record\.aggregationTimeZone\)/u);
+  assert.match(channel,/aggregationTimeZone:row\.aggregationTimeZone\?\?null/u);
+  assert.match(importer,/aggregationTimeZone:row\.aggregationTimeZone\?\?null/u);
+  assert.doesNotMatch(bridge,/\.put\("sourceUpdatedAt", record\./u);
+});
+
 test('Canary native importer uses typed V45 preview and strips it at RPC boundary',()=>{
   const importer=readFileSync(new URL('../src/m26/wearables/qa-native-import.js',import.meta.url),'utf8');
   const ui=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
