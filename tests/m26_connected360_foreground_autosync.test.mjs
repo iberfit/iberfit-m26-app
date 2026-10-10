@@ -6,6 +6,7 @@ import {
   WEARABLE_FOREGROUND_MIN_INTERVAL_MS,
   assertWearableClientContinuity,
   createWearableForegroundSync,
+  isCertifiedNativeAutoSyncSource,
 } from '../src/m26/wearables/foreground-sync.js';
 
 test('foreground: one in-flight read for repeated page focus and pageshow events',async()=>{
@@ -122,4 +123,22 @@ test('Connected360 foreground lifecycle is Client-only, reuses prior grant and d
   assert.match(native,/interactive\s*\?await remoteSync\.reauthorize\(/u);
   assert.match(native,/:await remoteSync\.currentAuthorization\(/u);
   assert.doesNotMatch(foreground,/reauthorizeWearable|requestAuthorization|READ_HEALTH_DATA_IN_BACKGROUND/u);
+});
+
+test('Connected360 never silently reinterprets a manual import as a certified linked watch',()=>{
+  const base={
+    provider:'health_connect',status:'active',sync_enabled:true,
+    scopes:['steps','sleepMinutes'],
+    metadata:{mode:'certified_native',automatic:true},
+  };
+  assert.equal(isCertifiedNativeAutoSyncSource(base),true);
+  assert.equal(isCertifiedNativeAutoSyncSource({...base,metadata:{mode:'confirmed_import',automatic:false}}),false);
+  assert.equal(isCertifiedNativeAutoSyncSource({...base,metadata:{mode:'native_bridge',automatic:true}}),false);
+  assert.equal(isCertifiedNativeAutoSyncSource({...base,sync_enabled:false}),false);
+  assert.equal(isCertifiedNativeAutoSyncSource({...base,status:'revoked'}),false);
+  assert.equal(isCertifiedNativeAutoSyncSource({...base,scopes:[]}),false);
+  assert.equal(isCertifiedNativeAutoSyncSource({...base,metadata:{mode:'certified_native'}}),false);
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/rows\.filter\(isCertifiedNativeAutoSyncSource\)/u);
+  assert.match(controller,/wearableZeroCostPolicy\(provider\)\?\.productionAllowed&&bridge\.isAvailable\(provider\)/u);
 });
