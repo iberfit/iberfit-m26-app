@@ -4,35 +4,12 @@
 -- Fail closed for native certification until signed, physical end-to-end E2E.
 begin;
 
-do $preflight$
-begin
-  if pg_catalog.to_regclass('public.m26_wearable_connections_v44') is null
-    or not exists (
-      select 1 from pg_catalog.pg_attribute a
-       where a.attrelid='public.m26_wearable_connections_v44'::regclass
-         and a.attname='metadata' and not a.attisdropped
-    ) then
-    raise exception 'M26_NATIVE_CERTIFICATION_SCHEMA_MISSING';
-  end if;
-  if exists (
-    select 1 from pg_catalog.pg_trigger
-    where tgrelid='public.m26_wearable_connections_v44'::regclass
-      and tgname='m26_wearable_connections_certification_guard_v1'
-      and not tgisinternal
-  ) then
-    raise exception 'M26_NATIVE_CERTIFICATION_FENCE_ALREADY_EXISTS';
-  end if;
-  if exists (
-    select 1 from public.m26_wearable_connections_v44 c
-    where pg_catalog.lower(pg_catalog.btrim(coalesce(c.metadata->>'mode','')))='certified_native'
-       or c.metadata->'automatic'='true'::jsonb
-       or c.metadata->'sourceTimeVerified'='true'::jsonb
-       or c.metadata->'sourceIdentityVerified'='true'::jsonb
-  ) then
-    raise exception 'M26_NATIVE_CERTIFICATION_EXISTING_CLAIMS_REQUIRE_REVIEW';
-  end if;
-end;
-$preflight$;
+-- Preflight is performed as a separately audited read-only QA/PROD query:
+-- verify schema, existing spoof claims and the absence of this trigger before
+-- applying. Anonymous DO blocks are intentionally forbidden in migrations.
+-- CREATE TRIGGER fails atomically if the table is missing or fence exists.
+
+
 
 create function public.m26_wearable_connection_certification_guard_v1()
 returns trigger
