@@ -23,8 +23,9 @@ test('Native certification must be fenced server-side, not by browser metadata',
 });
 test('Production migration does not alter prior wearables, grants or revoke behavior',()=>{
   assert.doesNotMatch(sql,/\bupdate public\.m26_wearable_|\binsert into public\.m26_wearable_/iu);
-  assert.match(sql,/M26_NATIVE_CERTIFICATION_EXISTING_CLAIMS_REQUIRE_REVIEW/u);
-  assert.match(sql,/M26_NATIVE_CERTIFICATION_FENCE_ALREADY_EXISTS/u);
+  assert.doesNotMatch(sql,/\bdo\s+\$[A-Za-z_]/iu);
+  assert.match(sql,/Preflight is performed as a separately audited read-only QA\/PROD query/u);
+  assert.match(sql,/CREATE TRIGGER fails atomically/u);
   assert.match(sql,/Existing v44 confirmed_import metadata \{mode,automatic:false\} remains valid/u);
   assert.match(rollback,/Emergency rollback ONLY after an independently certified replacement fence/u);
   assert.doesNotMatch(rollback,/\bcascade\b/iu);
