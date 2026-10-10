@@ -22,6 +22,8 @@ test('one Health Connect aggregate remains a single, unverified source',()=>{
   assert.equal(result.days[0].metrics.sleepMinutes,null);
   assert.equal(result.days[0].evidence.steps.provider,'health_connect');
   assert.equal(result.days[0].evidence.steps.sourceKnown,false);
+  assert.equal(result.days[0].evidence.steps.aggregationTimeZone,null);
+  assert.equal(result.days[0].evidence.steps.sourceTimeZone,null);
   assert.equal(result.days[0].evidence.steps.sourceUpdatedAt,null);
   assert.equal(result.days[0].evidence.steps.acquiredAt,'2026-10-10T14:00:00.000Z');
   assert.equal(result.days[0].evidence.steps.automaticSyncCertified,false);
@@ -100,6 +102,18 @@ test('verified source revision may determine one-source precedence',()=>{
   assert.equal(result.days[0].metrics.steps,2500);
   assert.equal(result.days[0].evidence.steps.sourceTimeVerified,true);
   assert.equal(result.days[0].evidence.steps.sourceUpdatedAt,'2026-10-10T12:00:00.000Z');
+});
+
+test('the same source and date but a different aggregation zone is a conflict',()=>{
+  const a=record({steps:7000,aggregation_time_zone:'America/Santiago'});
+  const b=record({steps:8000,aggregation_time_zone:'Pacific/Auckland'});
+  const mixed=reconcile([a,b],options);
+  assert.equal(mixed.days[0].metrics.steps,null);
+  assert.equal(mixed.days[0].conflicts[0].reason,'civil_zone_mismatch');
+  const single=reconcile([a],options);
+  assert.equal(single.days[0].evidence.steps.aggregationTimeZone,'America/Santiago');
+  assert.equal(single.days[0].evidence.steps.sourceTimeZone,null);
+  assert.throws(()=>reconcile([record({aggregation_time_zone:'@@invalid@@'})],options),/ZONE_INVALID/u);
 });
 
 test('strict owner/client boundary, fake provenance, and automatic claims fail closed',()=>{
