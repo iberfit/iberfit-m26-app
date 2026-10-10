@@ -2,18 +2,17 @@
 -- Fail closed if either original RPC definition has drifted before release.
 -- CREATE OR REPLACE preserves existing owners, function ACL and SECURITY INVOKER.
 -- No historical row updates; no v45 ingestion or source permission changes.
-do $m26_preflight$
-begin
-  if md5(pg_catalog.pg_get_functiondef('public.m26_wearable_import_authorized_v2(uuid,jsonb)'::regprocedure))
-       <> '2c4c8613e811d9fa46d614165fa8ad49' then
-    raise exception using message='M26_CONNECTED360_IMPORT_TRUTH_V7_SOURCE_DRIFT',errcode='42501';
-  end if;
-  if md5(pg_catalog.pg_get_functiondef('public.m26_wearable_connection_upsert_v44(jsonb)'::regprocedure))
-       <> '76b3f83ec9f64e4426fd353abbb6a477' then
-    raise exception using message='M26_CONNECTED360_CONNECTION_V7_SOURCE_DRIFT',errcode='42501';
-  end if;
-end;
-$m26_preflight$;
+-- Read-only assertions; division-by-zero intentionally stops migration on drift.
+-- This form respects the no-anonymous-DO/no-mutation release policy.
+select 1 / (case when
+  md5(pg_catalog.pg_get_functiondef('public.m26_wearable_import_authorized_v2(uuid,jsonb)'::regprocedure)) =
+    '2c4c8613e811d9fa46d614165fa8ad49'
+  then 1 else 0 end) as "M26_CONNECTED360_IMPORT_TRUTH_V7_SOURCE_DRIFT";
+
+select 1 / (case when
+  md5(pg_catalog.pg_get_functiondef('public.m26_wearable_connection_upsert_v44(jsonb)'::regprocedure)) =
+    '76b3f83ec9f64e4426fd353abbb6a477'
+  then 1 else 0 end) as "M26_CONNECTED360_CONNECTION_V7_SOURCE_DRIFT";
 
 -- A manually incorporated file remains an active authorized SOURCE, but
 -- must not acquire automatic sync semantics. Keep 'grant' consent action
