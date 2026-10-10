@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "2492da24c53e15925c77db982c3013aa7efc6ce8",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #832 Connected360 foreground continuity; exact Canary/post-merge gates GREEN. Native connectors remain fail-closed."
+}
