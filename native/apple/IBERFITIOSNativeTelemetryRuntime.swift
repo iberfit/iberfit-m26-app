@@ -2,6 +2,10 @@
 import Foundation
 import WebKit
 
+// WKWebView and WKUserContentController are MainActor-isolated under Swift 6.
+// Keep initialization and command dispatch on the UI actor, rather than
+// weakening WebKit's concurrency guarantees.
+@MainActor
 final class IBERFITIOSNativeTelemetryRuntime {
     private let commandHandler: IBERFITWebTelemetryCommandHandler
     private let watchRelay: IBERFITPhoneWatchRuntimeRelay
