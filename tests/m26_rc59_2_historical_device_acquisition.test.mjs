@@ -311,3 +311,18 @@ test('RC59.2 gobierna finalidad procedencia permisos retencion export y auditori
     ['steps','sleepMinutes']
   );
 });
+test('Android historical aggregates never fabricate source freshness or native certification',()=>{
+  const source=read('native/android/health-connect/IBERFITHealthConnectHistoricalReader.kt');
+  const row=source.slice(source.indexOf('val row ='),source.indexOf('if ("steps" in granted) {',source.indexOf('val row =')));
+  assert.match(row,/"quality",\s*"limitada"/u);
+  assert.match(row,/"acquiredAt"/u);
+  assert.match(row,/java\.time\.Instant\.now\(\)\.toString\(\)/u);
+  assert.match(row,/"aggregationTimeZone"/u);
+  assert.match(row,/zoneId\.id/u);
+  assert.match(row,/"sourceTimeVerified",\s*false/u);
+  assert.match(row,/"automaticSyncCertified",\s*false/u);
+  assert.doesNotMatch(row,/"sourceUpdatedAt"|"measuredAt"|"sourceIdentity"/u);
+  assert.doesNotMatch(row,/"quality",\s*"media"/u);
+  // endInstant is the upper aggregation boundary, not a source update time.
+  assert.match(source,/TimeRangeFilter\.between\(\s*startInstant,\s*endInstant/u);
+});

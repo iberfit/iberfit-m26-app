@@ -289,11 +289,27 @@ class IBERFITHealthConnectHistoricalReader(
                     )
                     .put(
                         "quality",
-                        "media"
+                        "limitada"
+                    )
+                    // A civil-day interval boundary is NOT a sensor update.
+                    // Preserve only the phone acquisition time and the
+                    // aggregation zone; physical device/source time remains
+                    // unverified until native source-level attribution exists.
+                    .put(
+                        "acquiredAt",
+                        java.time.Instant.now().toString()
                     )
                     .put(
-                        "sourceUpdatedAt",
-                        endInstant.toString()
+                        "aggregationTimeZone",
+                        zoneId.id
+                    )
+                    .put(
+                        "sourceTimeVerified",
+                        false
+                    )
+                    .put(
+                        "automaticSyncCertified",
+                        false
                     )
                     .put(
                         "sourceRecordCount",

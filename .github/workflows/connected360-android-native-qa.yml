@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "native/android-health-connect/**"
+      - "native/android/health-connect/**"
+      - "tests/m26_rc59_2_historical_device_acquisition.test.mjs"
       - "native/android-host/phone-app/**"
       - "src/m26/wearables/qa-native-channel.js"
       - "src/m26/wearables/qa-native-import.js"
