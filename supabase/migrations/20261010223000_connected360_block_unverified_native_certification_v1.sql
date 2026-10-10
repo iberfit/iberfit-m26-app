@@ -24,7 +24,7 @@ begin
   end if;
   if exists (
     select 1 from public.m26_wearable_connections_v44 c
-    where pg_catalog.lower(pg_catalog.btrim(pg_catalog.coalesce(c.metadata->>'mode','')))='certified_native'
+    where pg_catalog.lower(pg_catalog.btrim(coalesce(c.metadata->>'mode','')))='certified_native'
        or c.metadata->'automatic'='true'::jsonb
        or c.metadata->'sourceTimeVerified'='true'::jsonb
        or c.metadata->'sourceIdentityVerified'='true'::jsonb
@@ -45,7 +45,7 @@ begin
 
   -- This metadata is supplied through the authenticated v44 connection RPC.
   -- It cannot be the source of truth for signed/native OS attestation.
-  if pg_catalog.lower(pg_catalog.btrim(pg_catalog.coalesce(new.metadata->>'mode','')))='certified_native'
+  if pg_catalog.lower(pg_catalog.btrim(coalesce(new.metadata->>'mode','')))='certified_native'
     or (new.metadata ? 'automatic' and new.metadata->'automatic' is distinct from 'false'::jsonb)
     or (new.metadata ? 'sourceTimeVerified' and new.metadata->'sourceTimeVerified' is distinct from 'false'::jsonb)
     or (new.metadata ? 'sourceIdentityVerified' and new.metadata->'sourceIdentityVerified' is distinct from 'false'::jsonb)
