@@ -343,7 +343,7 @@ test('RC64.2B V5.3 wearable default initial sync contract remains client-only wi
 
   assert.match(
     wearable,
-    /if\(syncInitial\)\{\s*void autoSyncNativeProviders\(\);\s*const \{role,clientId\}=context\(store\);\s*if\(role==='client'&&clientId&&lastOnline\)\{\s*void remoteSync\.flush\(\)\.catch\(/u,
+    /if\(syncInitial\)\{\s*requestForegroundSync\(\{force:true\}\);\s*const \{role,clientId\}=context\(store\);\s*if\(role==='client'&&clientId&&lastOnline\)\{\s*void remoteSync\.flush\(\)\.catch\(/u,
   );
 
   assert.doesNotMatch(
