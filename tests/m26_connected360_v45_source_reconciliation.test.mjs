@@ -40,7 +40,7 @@ test('different providers and different devices are NEVER summed or silently pre
   assert.equal(result.days[0].conflicts[0].reason,'overlapping_sources');
   assert.equal(result.days[0].conflicts[0].sourceCount,2);
   assert.equal(result.conflictDays,1);
-  assert.equal(result.days[0].complete,false);
+  assert.equal(result.days[0].conflictFree,false);
   assert.deepEqual(reconcile(input.reverse(),options).days[0].metrics,result.days[0].metrics);
 });
 
@@ -70,6 +70,13 @@ test('duplicate same-source aggregate is idempotent, but divergent ties fail clo
   const disputed=reconcile([record(),record({steps:8001})],options);
   assert.equal(disputed.days[0].metrics.steps,null);
   assert.equal(disputed.days[0].conflicts[0].reason,'overlapping_sources');
+});
+
+test('all tied snapshots are checked and empty numeric strings cannot become zeros',()=>{
+  const tied=reconcile([record(),record(),record({steps:9000})],options);
+  assert.equal(tied.days[0].metrics.steps,null);
+  assert.throws(()=>reconcile([record({steps:''})],options),/METRIC_INVALID/u);
+  assert.throws(()=>reconcile([record()],{...options,preferredSources:{constructor:'health_connect:unknown'}}),/INPUT_INVALID/u);
 });
 
 test('later acquisition replaces earlier aggregate but is not source freshness',()=>{
