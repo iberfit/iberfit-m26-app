@@ -1,0 +1,147 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-SPLIT-SQUAT",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261010-LOCAL3/movement-4ec75cc83249.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Split squat de pie con ambas mancuernas y ambos pies en el suelo, Inicio y Final aprobadas"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SPLIT-SQUAT/movement-4ec75cc83249.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4ec75cc832493a0a1f93a4fa28093252a6882f5a793690f4681c6ac31fd25438"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "isquiotibiales",
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PALLOF-PRESS-CON-PASO-LATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261010-LOCAL3/movement-4cb3f44bb657.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Pallof press con banda y paso lateral con resistencia a rotación, segunda versión aprobada"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PALLOF-PRESS-CON-PASO-LATERAL/movement-4cb3f44bb657.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4cb3f44bb6579e0247a2c56e871fd3c1b78b2216354777a64ff23adf64716100"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-REMO-INCLINADO-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261010-LOCAL3/movement-0a7349ab8ebc.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Remo inclinado: tronco más flexionado con tracción hacia costillas, versión corregida aprobada"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-REMO-INCLINADO-CON-MANCUERNAS/movement-0a7349ab8ebc.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "0a7349ab8ebca9c234353ea01199466dc299945191477abf3a9c2ed2ff938fe1"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
