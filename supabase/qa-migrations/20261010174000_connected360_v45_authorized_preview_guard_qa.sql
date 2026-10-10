@@ -80,7 +80,7 @@ begin
       end if;
     end loop;
 
-    if v_row->>'date' is null or v_row->>'date' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}
+    if v_row->>'date' is null or v_row->>'date' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
       raise exception using message='M26_CONNECTED360_V45_DATE_INVALID',errcode='42501';
     end if;
     begin
