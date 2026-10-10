@@ -55,3 +55,16 @@ export function createWearableForegroundSync({
   }
   return Object.freeze({trigger,invalidate});
 }
+
+export function isCertifiedNativeAutoSyncSource(connection){
+  const record=connection&&typeof connection==='object'?connection:{};
+  const metadata=record.metadata&&typeof record.metadata==='object'?record.metadata:{};
+  const status=String(record.status||record.state||'').toLowerCase();
+  const enabled=record.syncEnabled===true||record.sync_enabled===true;
+  return ['active','connected','conectado'].includes(status)
+    &&metadata.mode==='certified_native'
+    &&metadata.automatic===true
+    &&enabled
+    &&Array.isArray(record.scopes)
+    &&record.scopes.length>0;
+}
