@@ -39,7 +39,9 @@ final class IBERFITPhoneWatchRuntimeRelay: NSObject, WCSessionDelegate {
               let data = try? JSONSerialization.data(withJSONObject: message),
               let json = String(data: data, encoding: .utf8)
         else { return }
-        emitter.emit(sampleJSON: json)
+        Task { @MainActor [weak emitter] in
+            emitter?.emit(sampleJSON: json)
+        }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {

@@ -2,6 +2,9 @@
 import Foundation
 import WatchConnectivity
 
+// WatchConnectivity callbacks may arrive off-main; HealthKit workout
+// commands are serialized through the actor that owns the workout session.
+@MainActor
 final class IBERFITWatchRuntimeRelay: NSObject, WCSessionDelegate {
     private let telemetry: IBERFITWatchHealthKitTelemetry
     private let session = WCSession.default
@@ -9,7 +12,9 @@ final class IBERFITWatchRuntimeRelay: NSObject, WCSessionDelegate {
     init(telemetry: IBERFITWatchHealthKitTelemetry) {
         self.telemetry = telemetry
         super.init()
-        telemetry.onSample = { [weak self] sample in self?.send(sample: sample) }
+        telemetry.onSample = { [weak self] sample in
+            Task { @MainActor [weak self] in self?.send(sample: sample) }
+        }
         if WCSession.isSupported() {
             session.delegate = self
             session.activate()
@@ -28,25 +33,22 @@ final class IBERFITWatchRuntimeRelay: NSObject, WCSessionDelegate {
     }
 
     private func handle(action: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            switch action {
-            case "start": try? self.telemetry.start()
-            case "pause": self.telemetry.pause()
-            case "resume": self.telemetry.resume()
-            case "stop": self.telemetry.stop()
-            default: break
-            }
+        switch action {
+        case "start": try? telemetry.start()
+        case "pause": telemetry.pause()
+        case "resume": telemetry.resume()
+        case "stop": telemetry.stop()
+        default: break
         }
     }
 
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         guard message["type"] as? String == "command",
               let action = message["action"] as? String else { return }
-        handle(action: action)
+        Task { @MainActor [weak self] in self?.handle(action: action) }
     }
 
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?

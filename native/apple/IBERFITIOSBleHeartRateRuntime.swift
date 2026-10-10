@@ -3,8 +3,10 @@ import CoreBluetooth
 import Foundation
 
 final class IBERFITIOSBleHeartRateRuntime: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
-    private static let heartRateService = CBUUID(string: "180D")
-    private static let heartRateMeasurement = CBUUID(string: "2A37")
+    // CoreBluetooth's CBUUID is not Sendable under Swift 6. Construct values
+    // on access instead of sharing non-Sendable objects across executors.
+    private static var heartRateService: CBUUID { CBUUID(string: "180D") }
+    private static var heartRateMeasurement: CBUUID { CBUUID(string: "2A37") }
 
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?

@@ -2,6 +2,10 @@
 import Foundation
 import WebKit
 
+// WKWebView and WKUserContentController are MainActor-isolated under Swift 6.
+// Keep initialization and command dispatch on the UI actor, rather than
+// weakening WebKit's concurrency guarantees.
+@MainActor
 final class IBERFITIOSNativeTelemetryRuntime {
     private let commandHandler: IBERFITWebTelemetryCommandHandler
     private let watchRelay: IBERFITPhoneWatchRuntimeRelay
@@ -11,7 +15,7 @@ final class IBERFITIOSNativeTelemetryRuntime {
     private var active = false
 
     init(webView: WKWebView, allowedHosts: Set<String>) {
-        emitter = IBERFITWebTelemetryEmitter(webView: webView)
+        emitter = IBERFITWebTelemetryEmitter(webView: webView, allowedHosts: allowedHosts)
         commandHandler = IBERFITWebTelemetryCommandHandler(allowedHosts: allowedHosts)
         watchRelay = IBERFITPhoneWatchRuntimeRelay(emitter: emitter)
 
@@ -19,7 +23,9 @@ final class IBERFITIOSNativeTelemetryRuntime {
             guard JSONSerialization.isValidJSONObject(sample),
                   let data = try? JSONSerialization.data(withJSONObject: sample),
                   let json = String(data: data, encoding: .utf8) else { return }
-            emitter?.emit(sampleJSON: json)
+            Task { @MainActor [weak emitter] in
+                emitter?.emit(sampleJSON: json)
+            }
         }
 
         commandHandler.onCommand = { [weak self] action, body in

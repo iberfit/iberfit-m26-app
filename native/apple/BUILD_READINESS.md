@@ -13,3 +13,9 @@ Before hardware validation:
 - confirm loss of reachability does not replay stale live samples later.
 
 Hardware testing remains a separate release gate from source/static validation.
+
+## Automated simulator compilation (QA only)
+
+The GitHub Actions workflow `.github/workflows/connected360-apple-native-qa.yml` runs on a macOS Xcode runner for changes to the native Apple package. It compiles both `IBERFITWebBridge` on iOS Simulator and `IBERFITWatchTelemetry` on watchOS Simulator with code signing disabled. It also checks the declared HealthKit usage text and entitlement, rejects privileged key patterns in Swift sources without printing matching lines, and runs the WebView HTTPS/main-frame origin regression test.
+
+Compilation in an Apple simulator is a prerequisite, not proof of entitlement configuration in a signed app, physical iPhone/Watch pairing, granted HealthKit permissions, trusted historical sensor provenance, correct behaviour after logout or reconnection, background synchronization, or a production-ready automatic connection. Those require a separate physical-device E2E release gate.
