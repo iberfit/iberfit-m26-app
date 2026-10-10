@@ -37,6 +37,9 @@ function normalizeRows(rows,requested){
       !ISO.test(String(row.acquiredAt||''))||
       Number.isNaN(new Date(row.acquiredAt).getTime())||
       seen.has(row.date)||
+      (row.contributingAppCount!==undefined && row.contributingAppCount!==null &&
+        (!Number.isInteger(row.contributingAppCount)||
+          row.contributingAppCount<1||row.contributingAppCount>1000))||
       (row.aggregationTimeZone!==undefined && row.aggregationTimeZone!==null &&
         (typeof row.aggregationTimeZone!=='string'||
           row.aggregationTimeZone.length>80||row.aggregationTimeZone.length<1||
@@ -65,6 +68,8 @@ function normalizeRows(rows,requested){
         acquiredAt:new Date(row.acquiredAt).toISOString(),
         // Actual OS aggregation window, not the physical sensor's time zone.
         aggregationTimeZone:row.aggregationTimeZone??null,
+        // Application count, not physical watches; kept in transient preview only.
+        contributingAppCount:row.contributingAppCount??null,
       }));
     }
   }
