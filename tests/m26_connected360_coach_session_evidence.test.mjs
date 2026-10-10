@@ -77,7 +77,7 @@ test('multiple devices never sum or average overlapping activity',()=>{
   assert.equal(prep.deviceContext.status,'multiple-sources');
   assert.equal(prep.deviceContext.metrics,null);
   const html=render(prep);
-  assert.match(html,/Fuentes recientes superpuestas/u);
+  assert.match(html,/Existen fuentes recientes superpuestas/u);
   assert.doesNotMatch(html,/20000/u);
   assert.doesNotMatch(html,/9000|11000/u);
 });
