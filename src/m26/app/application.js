@@ -461,8 +461,12 @@ export function preserveLoginInputsDuringMount(root,render){
   const passwordAfter=after?.querySelector?.('input[name="password"]');
   let restored=false;
   if(after&&after!==before&&emailAfter&&passwordAfter){
+    // Never attach a password typed for one account to a different account
+    // that the browser autofilled into the replacement form.
+    const prefilledEmail=String(emailAfter.value||'').trim().toLowerCase();
+    const sameAccount=!prefilledEmail||prefilledEmail===email.trim().toLowerCase();
     if(email&&!emailAfter.value)emailAfter.value=email;
-    if(password&&!passwordAfter.value)passwordAfter.value=password;
+    if(password&&!passwordAfter.value&&sameAccount)passwordAfter.value=password;
     const nextFocused=focused==='email'?emailAfter:
       focused==='password'?passwordAfter:null;
     if(nextFocused){

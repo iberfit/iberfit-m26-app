@@ -59,6 +59,19 @@ test('handoff is one-shot: unchanged DOM, absent replacement or existing autofil
   assert.equal(next.next.fields.password.value,'already-entered');
 });
 
+test('handoff never combines credentials from different autofilled accounts',()=>{
+  const mismatched=createHandoff({oldEmail:'first@example.test',
+    oldPassword:'first-account-only',newEmail:'other@example.test',newPassword:''});
+  assert.equal(preserveLoginInputsDuringMount(mismatched.root,mismatched.render),true);
+  assert.equal(mismatched.next.fields.email.value,'other@example.test');
+  assert.equal(mismatched.next.fields.password.value,'');
+  const matched=createHandoff({oldEmail:'First@Example.Test',
+    oldPassword:'first-account-only',newEmail:'first@example.test',newPassword:''});
+  assert.equal(preserveLoginInputsDuringMount(matched.root,matched.render),true);
+  assert.equal(matched.next.fields.email.value,'first@example.test');
+  assert.equal(matched.next.fields.password.value,'first-account-only');
+});
+
 test('initial-mount handoff never persists or transmits credentials and later renders are unchanged',()=>{
   const source=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
   const begin=source.indexOf('export function preserveLoginInputsDuringMount(');
