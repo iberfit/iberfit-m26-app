@@ -16,6 +16,7 @@ import {
   createWearableRemoteSync,
 } from './remote-sync.js';
 import {formatSleepDuration} from './duration-format.js';
+import {assertWearableClientContinuity,createWearableForegroundSync} from './foreground-sync.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -413,6 +414,7 @@ export function createWearableController({
   let currentPreview=null;
   let observer=null;
   let lastOnline=null;
+  let nativeIdentityEpoch=0;
 
   const tasks=createLatestTaskCoordinator();
 
@@ -679,6 +681,11 @@ export function createWearableController({
       throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
     }
 
+    const identityEpoch=nativeIdentityEpoch;
+    const requireSameClient=()=>{
+      if(identityEpoch!==nativeIdentityEpoch)throw new Error('M26_WEARABLE_ACCOUNT_CHANGED');
+      assertWearableClientContinuity({role:'client',clientId},context(store));
+    };
     const normalized=normalizeWearableProvider(provider);
     if(!normalized||!bridge.nativeProviders.includes(normalized)){
       throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
@@ -737,6 +744,7 @@ export function createWearableController({
         scopes:requestedMetrics,
       });
 
+      requireSameClient();
       granted=authorization.granted;
       if(!granted.length){
         throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
@@ -754,6 +762,7 @@ export function createWearableController({
     const consent=interactive
       ?await remoteSync.reauthorize({provider:normalized,scopes:readable})
       :await remoteSync.currentAuthorization({provider:normalized,scopes:readable});
+    requireSameClient();
     if(!consent?.grantId)throw new Error('M26_CONNECTED360_GRANT_STALE');
 
     await bridge.setSyncEnabled({
@@ -761,6 +770,7 @@ export function createWearableController({
       clientId,
       enabled:true,
     });
+    requireSameClient();
 
     const resolvedEndDate=endDate||new Date().toISOString().slice(0,10);
     let resolvedStartDate=startDate;
@@ -778,6 +788,7 @@ export function createWearableController({
       endDate:resolvedEndDate,
       metrics:readable,
     });
+    requireSameClient();
 
     let result=Object.freeze({
       ok:true,
@@ -794,6 +805,7 @@ export function createWearableController({
         records,
         authorizationGrant:consent.grantId,
       });
+      requireSameClient();
     }
 
     if(!silent){
@@ -833,6 +845,32 @@ export function createWearableController({
     const results=[];
     for(const provider of providers){try{results.push(await connectNativeProvider(provider,{interactive:false,silent:true}));}catch(error){emitDiagnostic('wearable-auto-sync',error);}}
     return results;
+  }
+
+  const foregroundSync=createWearableForegroundSync({
+    run:autoSyncNativeProviders,
+    canRun:()=>{
+      const {role,clientId}=context(store);
+      const doc=root.ownerDocument||globalThis.document;
+      return mounted&&role==='client'&&Boolean(clientId)&&Boolean(isOnline())
+        &&doc?.visibilityState!=='hidden';
+    },
+  });
+
+  function requestForegroundSync({force=false}={}){
+    void foregroundSync.trigger({force}).catch((error)=>{
+      emitDiagnostic('wearable-foreground-sync',error);
+    });
+  }
+
+  function onForegroundVisibility(){
+    const doc=root.ownerDocument||globalThis.document;
+    if(doc?.visibilityState==='visible')requestForegroundSync();
+  }
+
+  function onPageShow(){
+    const doc=root.ownerDocument||globalThis.document;
+    if(doc?.visibilityState!=='hidden')requestForegroundSync();
   }
 
   async function connectHealthConnect({capabilities=null}={}){
@@ -1413,6 +1451,7 @@ export function createWearableController({
         error,
       );
     });
+    requestForegroundSync({force:true});
   }
 
   function onOffline(){
@@ -1445,6 +1484,8 @@ export function createWearableController({
         'offline',
         onOffline,
       );
+      globalThis.addEventListener?.('pageshow',onPageShow);
+      root.ownerDocument?.addEventListener?.('visibilitychange',onForegroundVisibility);
 
       if(
         typeof MutationObserver==='function'
@@ -1466,7 +1507,7 @@ export function createWearableController({
       mounted=true;
 
       if(syncInitial){
-        void autoSyncNativeProviders();
+        requestForegroundSync({force:true});
 
         const {role,clientId}=context(store);
         if(role==='client'&&clientId&&lastOnline){
@@ -1484,6 +1525,9 @@ export function createWearableController({
 
     destroy(){
       if(!mounted)return;
+      nativeIdentityEpoch+=1;
+      foregroundSync.invalidate();
+      mounted=false;
 
       tasks.cancel();
       currentPreview=null;
@@ -1514,9 +1558,10 @@ export function createWearableController({
         'offline',
         onOffline,
       );
+      globalThis.removeEventListener?.('pageshow',onPageShow);
+      root.ownerDocument?.removeEventListener?.('visibilitychange',onForegroundVisibility);
 
       lastOnline=null;
-      mounted=false;
     },
 
     analyze,
@@ -1528,6 +1573,8 @@ export function createWearableController({
     autoSyncNativeProviders,
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
+      nativeIdentityEpoch+=1;
+      foregroundSync.invalidate();
       qaReadEpoch+=1;
       qaNative.destroy();
       qaImporter.destroy();
