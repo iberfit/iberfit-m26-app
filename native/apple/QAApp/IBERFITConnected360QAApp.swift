@@ -27,9 +27,9 @@ struct IBERFITConnected360QAApp: App {
 private final class IBERFITHealthKitQAState: ObservableObject {
     @Published private(set) var status = "Sin lectura. Tus datos no salen del iPhone."
     @Published private(set) var isBusy = false
-    @Published private(set) var rows: [IBERFITIOSHealthKitDailyReader.DailySteps] = []
+    @Published private(set) var rows: [IBERFITIOSHealthKitDailyVitalsReader.DailyVitals] = []
 
-    private let reader = IBERFITIOSHealthKitDailyReader()
+    private let reader = IBERFITIOSHealthKitDailyVitalsReader()
     private var generation: UInt64 = 0
 
     func readOnce() {
@@ -38,8 +38,8 @@ private final class IBERFITHealthKitQAState: ObservableObject {
         let lease = generation
         rows = []
         isBusy = true
-        status = "Solicitando permiso de lectura a Salud…"
-        reader.requestExplicitStepsAccess { [weak self] permission in
+        status = "Solicitando permisos para pasos y frecuencia cardíaca en reposo…"
+        reader.requestExplicitDailyAccess { [weak self] permission in
             Task { @MainActor [weak self] in
                 guard let self, self.generation == lease else { return }
                 switch permission {
@@ -47,8 +47,8 @@ private final class IBERFITHealthKitQAState: ObservableObject {
                     self.status = "No se pudo autorizar la lectura. Revisa Salud."
                     self.isBusy = false
                 case .success:
-                    self.status = "Leyendo pasos autorizados de los últimos siete días…"
-                    self.reader.readStepsOnce(days: 7) { [weak self] result in
+                    self.status = "Leyendo pasos y frecuencia cardíaca en reposo autorizados…"
+                    self.reader.readDailyOnce(days: 7) { [weak self] result in
                         Task { @MainActor [weak self] in
                             guard let self, self.generation == lease else { return }
                             self.isBusy = false
@@ -58,7 +58,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
                             case .success(let newRows):
                                 self.rows = newRows
                                 self.status = newRows.isEmpty
-                                    ? "Sin pasos disponibles o permiso de lectura no concedido."
+                                    ? "Sin datos disponibles o permisos de lectura no concedidos."
                                     : "Vista local de prueba. No sincronizada ni guardada en IBERFIT."
                             }
                         }
@@ -99,13 +99,13 @@ private struct IBERFITHealthKitQAView: View {
                     Text("Prueba privada de conexión con Apple Salud")
                         .font(.system(size: 16))
                         .foregroundStyle(cream.opacity(0.86))
-                    Text("Solo leeremos tus pasos si lo autorizas en iOS. Esta versión no conecta tu cuenta IBERFIT ni envía registros. Puedes borrar la vista cuando quieras.")
+                    Text("Solo leeremos tus pasos y frecuencia cardíaca en reposo si lo autorizas en iOS. Esta versión no conecta tu cuenta IBERFIT ni envía registros. Puedes borrar la vista cuando quieras.")
                         .font(.system(size: 15))
                         .foregroundStyle(cream.opacity(0.75))
                     Button(action: model.readOnce) {
                         HStack {
                             Image(systemName: "heart.text.square")
-                            Text(model.isBusy ? "Consultando Salud…" : "Consultar pasos en Salud")
+                            Text(model.isBusy ? "Consultando Salud…" : "Consultar Salud")
                         }
                         .frame(maxWidth: .infinity, minHeight: 52)
                     }
@@ -114,7 +114,7 @@ private struct IBERFITHealthKitQAView: View {
                     .fontWeight(.semibold)
                     .background(gold, in: RoundedRectangle(cornerRadius: 13))
                     .disabled(model.isBusy)
-                    .accessibilityHint("Solicita permiso de lectura a Apple Salud y muestra los pasos localmente")
+                    .accessibilityHint("Solicita permisos de lectura a Apple Salud y muestra pasos y frecuencia cardíaca en reposo localmente")
                     Text(model.status)
                         .foregroundStyle(cream)
                         .font(.system(size: 14))
@@ -127,7 +127,7 @@ private struct IBERFITHealthKitQAView: View {
                             HStack {
                                 Text(row.date)
                                 Spacer()
-                                Text(row.steps.formatted() + " pasos").fontWeight(.semibold)
+                                VStack(alignment: .trailing, spacing: 4) {\n                                    Text(row.steps.map { $0.formatted() + " pasos" } ?? "Pasos: sin dato")\n                                    Text(row.restingHeartRate.map { "FC en reposo: \\($0) lpm" } ?? "FC en reposo: sin dato")\n                                        .font(.caption)\n                                }.fontWeight(.semibold)
                             }
                             .foregroundStyle(cream)
                             .padding(.vertical, 7)
