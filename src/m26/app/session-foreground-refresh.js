@@ -1,5 +1,20 @@
 const DEFAULT_VISIBLE_STATE='visible';
 
+// Compare only ephemeral in-memory session credentials. Never log, persist or
+// include a token in diagnostics. A rotated token makes old failures obsolete.
+function captureSessionLease(session){
+  return {
+    token:session?.token||null,
+    refreshToken:session?.refreshToken||null,
+    userId:session?.user?.id||null,
+  };
+}
+function stillOwnsSession(session,lease){
+  return Boolean(session?.token)&&session.token===lease?.token&&
+    (session.refreshToken||null)===lease?.refreshToken&&
+    (session.user?.id||null)===lease?.userId;
+}
+
 function safeVisibility(documentLike){
   const state=String(documentLike?.visibilityState||DEFAULT_VISIBLE_STATE).trim().toLowerCase();
   return state!=='hidden';
@@ -25,6 +40,7 @@ export function createSessionForegroundRefreshCoordinator({
 }={}){
   let destroyed=false;
   let inFlight=null;
+  let inFlightLease=null;
 
   const canAttempt=()=>{
     if(destroyed||isBusy?.()===true||!safeVisibility(documentLike))return false;
@@ -34,12 +50,20 @@ export function createSessionForegroundRefreshCoordinator({
 
   const run=(reason='foreground')=>{
     if(!canAttempt())return Promise.resolve(false);
-    if(inFlight)return inFlight;
+    const ownerLease=captureSessionLease(getSession?.());
+    // Coalesce storms for one identity, never block a new account with an
+    // obsolete request from the account previously signed in on this device.
+    if(inFlight&&stillOwnsSession(getSession?.(),inFlightLease))return inFlight;
 
-    inFlight=Promise.resolve()
-      .then(()=>refreshSession())
-      .then(()=>true)
+    const pending=Promise.resolve()
+      .then(()=>{
+        if(destroyed||!stillOwnsSession(getSession?.(),ownerLease))return false;
+        return refreshSession();
+      })
+      .then((result)=>result!==false)
       .catch(async(error)=>{
+        // A late 401 for account A must NEVER log account B out.
+        if(destroyed||!stillOwnsSession(getSession?.(),ownerLease))return false;
         if(isPermanentFailure?.(error)===true){
           try{await onPermanentFailure?.(error,reason);}catch{}
         }else{
@@ -47,9 +71,16 @@ export function createSessionForegroundRefreshCoordinator({
         }
         return false;
       })
-      .finally(()=>{inFlight=null;});
+      .finally(()=>{
+        if(inFlight===pending){
+          inFlight=null;
+          inFlightLease=null;
+        }
+      });
 
-    return inFlight;
+    inFlight=pending;
+    inFlightLease=ownerLease;
+    return pending;
   };
 
   const onVisibilityChange=()=>{

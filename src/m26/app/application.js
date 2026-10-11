@@ -490,7 +490,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
@@ -634,11 +634,38 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function currentToken(){return session?.token||null;}
   async function refreshSessionIfNeeded(){
-    if(!session||!nextExpiry(session))return session;
-    if(refreshInFlight)return refreshInFlight;
-    if(!session.refreshToken)throw new Error('M26_SESSION_EXPIRED');
-    const currentUserId=session.user.id;refreshInFlight=transport.refresh(session.refreshToken).then((next)=>{if(next.user.id!==currentUserId)throw new Error('M26_REFRESH_IDENTITY_MISMATCH');session=next;vault.save(session);return session;}).finally(()=>{refreshInFlight=null;});
-    return refreshInFlight;
+    const ownerSession=session;
+    if(!ownerSession||!nextExpiry(ownerSession))return ownerSession;
+    // Concurrent refreshes coalesce only for the SAME session generation.
+    // A new account must never inherit an in-flight refresh from a prior login.
+    if(refreshInFlight&&refreshInFlightOwnerSession===ownerSession)return refreshInFlight;
+    if(!ownerSession.refreshToken)throw new Error('M26_SESSION_EXPIRED');
+    const ownerId=ownerSession.user.id;
+    const pending=Promise.resolve()
+      .then(()=>{
+        // Reject a superseded session before dispatching its refresh request.
+        if(session!==ownerSession)throw new Error('M26_REFRESH_STALE_SESSION');
+        return transport.refresh(ownerSession.refreshToken);
+      })
+      .then((next)=>{
+        if(next?.user?.id!==ownerId)throw new Error('M26_REFRESH_IDENTITY_MISMATCH');
+        // Logout, switching accounts or even a new login for the SAME user
+        // retires the old refresh. Its reply must not restore an obsolete JWT.
+        if(session!==ownerSession)throw new Error('M26_REFRESH_STALE_SESSION');
+        session=next;
+        vault.save(next);
+        return next;
+      })
+      .finally(()=>{
+        // An old refresh cannot clear the newer account's in-flight lease.
+        if(refreshInFlight===pending){
+          refreshInFlight=null;
+          refreshInFlightOwnerSession=null;
+        }
+      });
+    refreshInFlight=pending;
+    refreshInFlightOwnerSession=ownerSession;
+    return pending;
   }
   async function fetchCatalog({force=false}={}){
     qaStage('rc64-catalog-start');
@@ -1311,7 +1338,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,scope='local',message='',noticeKind='status',preserveWorkflowDrafts=true}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers({preserveWorkflowDrafts});store.reset();authMessage(message,noticeKind);void transport?.logout?.(token,{scope}).catch(()=>{});}
+  function finishLogout({token,scope='local',message='',noticeKind='status',preserveWorkflowDrafts=true}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;refreshInFlightOwnerSession=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers({preserveWorkflowDrafts});store.reset();authMessage(message,noticeKind);void transport?.logout?.(token,{scope}).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token,scope:'local'});}
   function onLogoutAllSessions(){
     if(!session)return false;
