@@ -72,9 +72,9 @@ class IberfitHealthConnectReaderTest {
         )
         assertEquals("2026-10-08T18:00:00Z", summary.acquiredAt)
         assertEquals("America/Santiago", summary.aggregationTimeZone)
-        assertEquals(null, summary.contributingAppCount)
-        val combined = summary.copy(contributingAppCount = 2)
-        assertEquals(2, combined.contributingAppCount)
+        assertEquals(null, summary.contributingOriginCount)
+        val combined = summary.copy(contributingOriginCount = 2)
+        assertEquals(2, combined.contributingOriginCount)
         assertTrue(summary.javaClass.declaredFields.none { it.name == "physicalWatchId" })
         assertTrue(summary.javaClass.declaredFields.none { it.name == "sourcePackageName" })
         // Aggregated data has no verifiable per-source modification time.
