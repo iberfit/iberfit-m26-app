@@ -448,7 +448,7 @@ export function createWearableController({
   // Normal web/Coach/Admin and isolated controller tests must remain fully
   // operational without QA bridge or a native import transport.
   const qaImportAvailable=isConnected360QaNativeAvailable(globalThis)
-    &&typeof transport?.importWearableAuthorized==='function';
+    &&typeof transport?.importConnected360QaV45==='function';
   const qaImporter=qaImportAvailable
     ?createConnected360QaImporter({
       scope:globalThis,
