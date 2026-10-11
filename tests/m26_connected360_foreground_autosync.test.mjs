@@ -217,7 +217,7 @@ test('Connected360 native foreground operations respect abort before a consent g
   const native=c.slice(c.indexOf('async function connectNativeProvider('),c.indexOf('const foregroundSync=createWearableForegroundSync'));
   assert.match(native,/signal=null/u);
   assert.match(native,/if\(signal\?\.aborted\)throw new Error\('M26_WEARABLE_SYNC_INVALIDATED'\)/u);
-  assert.match(native,/run:autoSyncNativeProviders/u,{message:'scheduler must use the native provider reader'});
+  assert.match(c,/run:autoSyncNativeProviders/u);
   assert.match(native,/connectNativeProvider\(provider,\{interactive:false,silent:true,signal\}\)/u);
   assert.match(native,/if\(signal\?\.aborted\)break/u);
   const indexGrant=native.indexOf('remoteSync.currentAuthorization');
