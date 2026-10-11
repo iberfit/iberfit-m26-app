@@ -123,6 +123,13 @@ begin
     v_provenance:=v_row->'provenance';
     v_date:=(v_row->>'date')::date;
     v_zone:=v_provenance->>'aggregationTimeZone';
+    -- The preflight bounds syntax; the writer enforces a real IANA/PG zone.
+    -- Never substitute the time zone of the physical watch.
+    if v_zone is not null and not exists(
+      select 1 from pg_catalog.pg_timezone_names tz where tz.name=v_zone
+    ) then
+      raise exception using message='M26_CONNECTED360_V45_ZONE_UNKNOWN',errcode='42501';
+    end if;
     v_acquired:=(v_provenance->>'acquiredAt')::timestamptz;
     v_steps:=case when v_metrics?'steps' then (v_metrics->>'steps')::integer else null end;
     v_sleep:=case when v_metrics?'sleepMinutes' then (v_metrics->>'sleepMinutes')::integer else null end;
