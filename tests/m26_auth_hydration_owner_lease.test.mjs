@@ -80,8 +80,14 @@ const snapshot=id=>({user:{id,role:'client'},data:{appointments:[]},environment:
 function fixture(){
   const a={user:{id:'A'},token:'token-A'},b={user:{id:'B'},token:'token-B'};
   const backend={A:deferred(),B:deferred()},writes=[],statuses=[],tokens=[],preferences=[];
+  const leases=new WeakMap();
+  const hydrationLeaseFor=(value)=>{
+    if(!value||typeof value!=='object')return null;
+    if(!leases.has(value))leases.set(value,Object.freeze({}));
+    return leases.get(value);
+  };
   const state={
-    Promise,Error,session:a,activeApplicationRole:null,runtime:{version:'26.0.0'},
+    Promise,Error,session:a,hydrationLeaseFor,activeApplicationRole:null,runtime:{version:'26.0.0'},
     qaStage(){},currentToken(){return state.session?.token;},
     refreshSessionIfNeeded:async()=>state.session,
     store:{
@@ -108,7 +114,8 @@ function fixture(){
   };
   const run=runInNewContext(hydrateSource+'\nhydratePass',state);
   return {a,b,state,backend,writes,statuses,tokens,preferences,
-    coordinator:createHydrationCoordinator(run,{getOwner:()=>state.session})};
+    linkRefresh:(previous,next)=>leases.set(next,hydrationLeaseFor(previous)),
+    coordinator:createHydrationCoordinator(run,{getOwner:()=>hydrationLeaseFor(state.session)})};
 }
 
 test('real hydratePass blocks A snapshot after switching to client B',async()=>{
@@ -158,8 +165,22 @@ test('same-user re-login uses new generation; old snapshot is never adopted',asy
   assert.deepEqual(f.writes,['A']);
 });
 
+test('verified token refresh preserves owner lease and does not trigger false login recovery',async()=>{
+  const f=fixture();
+  const running=f.coordinator.request();
+  await tick();
+  const renewed={user:{id:'A'},token:'token-A-rotated'};
+  f.linkRefresh(f.a,renewed);
+  f.state.session=renewed;
+  f.backend.A.resolve(snapshot('A'));
+  assert.equal((await running).snapshot.user.id,'A');
+  assert.deepEqual(f.writes,['A']);
+  assert.equal(f.statuses.includes('error'),false);
+});
+
 test('production controller uses owner-aware coordinator and stale-error fence',()=>{
-  assert.match(source,/createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>session\}\)/u);
-  assert.match(hydrateSource,/if\(session===hydrationSession\)store\.setHydration\('error',error\)/u);
+  assert.match(source,/createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>hydrationLeaseFor\(session\)\}\)/u);
+  assert.match(source,/hydrationSessionLeases\.set\(next,hydrationLeaseFor\(ownerSession\)\)/u);
+  assert.match(hydrateSource,/if\(hydrationLeaseFor\(session\)===requestedOwner\)store\.setHydration\('error',error\)/u);
   assert.match(hydrateSource,/requireOwner\(\);[^\n]*\n\s*qaStage\('rc64-hydrate-store-start'\);\s*store\.hydrate\(enriched\)/u);
 });
