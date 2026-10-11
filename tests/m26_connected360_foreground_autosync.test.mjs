@@ -108,7 +108,7 @@ test('foreground: original Client identity must survive every permission, grant 
 test('Connected360 foreground lifecycle is Client-only, reuses prior grant and does not request background Health permissions',()=>{
   const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
   const foreground=c.slice(c.indexOf('const foregroundSync=createWearableForegroundSync'),c.indexOf('async function connectHealthConnect'));
-  const native=c.slice(c.indexOf('async function connectNativeProvider('),c.indexOf('async function autoSyncNativeProviders()'));
+  const native=c.slice(c.indexOf('async function connectNativeProvider('),c.indexOf('async function autoSyncNativeProviders('));
   assert.match(foreground,/mounted&&role==='client'&&Boolean\(clientId\)&&Boolean\(isOnline\(\)\)/u);
   assert.match(foreground,/visibilityState!=='hidden'/u);
   assert.match(c,/root\.ownerDocument\?\.addEventListener\?\.\('visibilitychange',onForegroundVisibility\)/u);
