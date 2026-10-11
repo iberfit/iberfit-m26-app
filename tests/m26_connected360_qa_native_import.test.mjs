@@ -99,14 +99,14 @@ test('explicit Canary authorization imports exact owner-bound records online, no
   assert.equal(record.provenance,undefined,'private V45 evidence must not leak to legacy RPC');
 });
 
-test('Android source app counts are never persisted as certified watches or native timestamps',async()=>{
+test('Android source origins are never persisted as certified watches or native timestamps',async()=>{
   const {importer,state}=setup();
-  importer.capture(preview({rows:[{...row,contributingAppCount:2}]}));
+  importer.capture(preview({rows:[{...row,contributingOriginCount:2}]}));
   await importer.commit({confirmed:true});
   const preflight=state.validations[0][2];
   const legacy=state.writes[0][2];
-  assert.doesNotMatch(JSON.stringify(preflight),/contributingAppCount|sourcePackageName|physicalWatchId/u);
-  assert.doesNotMatch(JSON.stringify(legacy),/contributingAppCount|sourcePackageName|physicalWatchId/u);
+  assert.doesNotMatch(JSON.stringify(preflight),/contributingOriginCount|sourcePackageName|physicalWatchId/u);
+  assert.doesNotMatch(JSON.stringify(legacy),/contributingOriginCount|sourcePackageName|physicalWatchId/u);
   assert.equal(preflight.records[0].provenance.sourceIdentity,null);
   assert.equal(preflight.records[0].provenance.sourceTimestampVerified,false);
   assert.equal(state.writes.length,1);
