@@ -181,6 +181,9 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   assert.match(source,/FLAG_DEBUGGABLE/);
   assert.doesNotMatch(source,/addJavascriptInterface|SUPABASE_SERVICE_KEY/);
   assert.match(controller,/qaNative\.readLocal\(\{days:7\}\)/);
+  // A controller created for Client A never invents A's owner after
+  // hydration switches to another authenticated user sharing a Client.
+  assert.match(controller,/ownerId:identity\.id&&String\(identity\.id\)===String\(ownerId\)/u);
   assert.match(controller,/isConnected360QaNativeAvailable/);
   assert.match(policy,/health_connect:policy\(\{[^]*?productionAllowed:false/);
 });
