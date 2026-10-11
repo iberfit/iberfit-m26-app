@@ -1,5 +1,16 @@
 # IBERFIT · Backlog Vivo
 
+## WIP principal vigente · Connected 360 — seguridad e integración nativa · 2026-10-11
+
+- [x] PR #859 cerrado: aislamiento de sincronización ante cambio Cliente/logout y cancelación de lecturas; Canary Exact Deploy `38113954119` SUCCESS, merge SHA `b2371fd7c9857b4d035ae2bdeaeb75fcd5d69dd0`.
+- [ ] PR #861 de cobertura Android Native QA: validar CI completo, Android QA del HEAD, política Canary; fusionar protegido tras comprobar rama/SHA, y exigir APK DEBUG del SHA fusionado más Canary Exact Deploy exacto.
+- [ ] Concluir integración nativa real Android Health Connect y flujo Cliente `Vincular dispositivo`, sin importaciones manuales como experiencia principal; autorización explícita por métricas, estado y revocación/reconexión.
+- [ ] Completar iOS HealthKit con app firmada, E2E físico y protección ante cambios de identidad, permisos y background.
+- [ ] Certificar writer backend V45 en QA con fencing transaccional de revocación, autorizaciones, procedencia real, idempotencia, RLS y pruebas negativas; NO abrirlo antes ni migrar V45 a PROD.
+- [ ] Certificar PROD: gates, rollback, sesión Cliente real `juancarlosjimenez54` en `app.iberfit.cl` sólo tras QA física y backend seguro. Sueño debe mostrarse como horas y minutos.
+- Trabajo de imágenes/PR #809 queda en carril concurrente y no debe alterarse. Checkpoint de integración y límites: `docs/PRODUCTION_STATE.md`.
+
+
 ## MACRO-WIP ACTIVO · Prescripción inteligente y métricas por ejercicio · PR #803
 
 - [x] Motor de siete perfiles `strength/isometric/endurance/intervals/carry/mobility/power`, UX contextual para Coach/Cliente y selector Admin implementados en PR #803.
