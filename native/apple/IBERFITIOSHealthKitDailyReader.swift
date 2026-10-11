@@ -88,8 +88,9 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
             return
         }
 
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
+        var localCalendar = Calendar(identifier: .gregorian)
+        localCalendar.timeZone = .current
+        let calendar = localCalendar
         let today = calendar.startOfDay(for: now)
         guard let from = calendar.date(byAdding: .day, value: 1 - days, to: today),
               let until = calendar.date(byAdding: .day, value: 1, to: today)
