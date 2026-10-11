@@ -13,6 +13,10 @@ test('QA debug cannot replace or impersonate production Android application',()=
   assert.match(gradle,/getByName\("debug"\)\s*\{\s*applicationIdSuffix = "\.qa"/u);
   assert.match(main,/android:label="IBERFIT"/u);
   assert.match(debug,/android:label="IBERFIT Canary QA"/u);
+  // Main and DEBUG labels intentionally differ. Limit manifest override to DEBUG.
+  assert.match(debug,/xmlns:tools="http:\/\/schemas\.android\.com\/tools"/u);
+  assert.match(debug,/tools:replace="android:label"/u);
+  assert.doesNotMatch(main,/tools:replace="android:label"/u);
   assert.doesNotMatch(debug,/android:name="[^"]*WRITE_/u);
   assert.match(debug,/IBERFITBluetoothPhysicalE2EActivity/u);
 });
