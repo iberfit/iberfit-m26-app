@@ -233,3 +233,22 @@ test('forged native grant scope list fails before exposing any health record',as
   const repeated=fixture({reply:message=>({...ok(message),grantedMetrics:['steps','steps']})});
   await assert.rejects(repeated.client.readLocal(),/M26_HEALTH_QA_RESPONSE_INVALID/);
 });
+
+test('account switch during pending token refresh cannot start a native Health Connect read',async()=>{
+  const f=fixture({reply:ok});
+  let release;
+  let identity=REQUESTED_ID;
+  const tokenPending=new Promise(resolve=>{release=resolve;});
+  const client=createConnected360QaNativeChannel({
+    scope:f.scope,
+    getIdentity:()=>identity,
+    getToken:()=>tokenPending,
+    timeoutMs:500,
+  });
+  const pending=client.readLocal();
+  identity={...REQUESTED_ID,clientId:'qa-other-client'};
+  release('qa-user-session-strong');
+  await assert.rejects(pending,/M26_HEALTH_QA_SESSION_CHANGED/u);
+  assert.equal(f.messages.length,0,'native read must not start after owner changed');
+  assert.equal(f.listeners.size,0,'no native bridge listeners left behind');
+});

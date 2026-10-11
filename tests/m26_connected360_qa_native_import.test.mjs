@@ -33,7 +33,9 @@ function setup({online=true,identity={role:'client',clientId:CLIENT,ownerId:'use
     remoteSync:{
       reauthorize:async x=>{state.calls.push(x);await afterGrant(state);return grant;},
       currentAuthorization:async x=>{
-        state.calls.push({verify:x});await afterStatus(state);return currentGrant;
+        state.calls.push({verify:x});
+        await afterStatus(state);
+        return typeof currentGrant==='function'?currentGrant(state):currentGrant;
       },
     },
     transport:{
@@ -79,7 +81,10 @@ test('explicit Canary authorization imports exact owner-bound records online, no
   assert.deepEqual(state.calls[1],{
     verify:{provider:'health_connect',scopes:['steps','sleepMinutes','restingHeartRate']},
   });
-  assert.deepEqual(state.calls[2],'refresh');
+  assert.deepEqual(state.calls[2],{
+    verify:{provider:'health_connect',scopes:['steps','sleepMinutes','restingHeartRate']},
+  },'a second server grant check runs after the V45 QA preflight');
+  assert.deepEqual(state.calls[3],'refresh');
   assert.equal(state.validations.length,1);
   assert.equal(state.validations[0][1],GRANT);
   assert.equal(state.validations[0][2].records[0].provenance.sourceUpdatedAt,null);
@@ -274,4 +279,35 @@ test('account switch during v45 preflight prevents the final v44 import',async()
   await assert.rejects(f.importer.commit({confirmed:true}),/SESSION_CHANGED/);
   assert.equal(f.state.validations.length,1);
   assert.equal(f.state.writes.length,0);
+});
+
+test('revocation on another device during V45 QA preflight blocks legacy import',async()=>{
+  const f=setup({
+    currentGrant:state=>{
+      if(state.revoked)throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+      return {grantId:GRANT};
+    },
+    afterValidation:state=>{state.revoked=true;},
+  });
+  f.importer.capture(preview());
+  await assert.rejects(f.importer.commit({confirmed:true}),/SOURCE_REVOKED/u);
+  assert.equal(f.state.validations.length,1);
+  assert.equal(f.state.calls.filter(value=>value?.verify).length,2);
+  assert.equal(f.state.writes.length,0,'no V44 import after external revocation');
+  assert.equal(f.state.calls.includes('refresh'),false);
+  assert.equal(f.importer.hasPreview(),true);
+});
+
+test('a rotated generation during QA preview preflight is never uploaded under the old grant',async()=>{
+  const newerGrant='44444444-4444-4444-8444-444444444444';
+  const f=setup({
+    currentGrant:state=>({grantId:state.rotated?newerGrant:GRANT}),
+    afterValidation:state=>{state.rotated=true;},
+  });
+  f.importer.capture(preview());
+  await assert.rejects(f.importer.commit({confirmed:true}),/GRANT_STALE/u);
+  assert.equal(f.state.validations.length,1);
+  assert.equal(f.state.calls.filter(value=>value?.verify).length,2);
+  assert.equal(f.state.writes.length,0,'old generation must not be imported');
+  assert.equal(f.state.calls.includes('refresh'),false);
 });

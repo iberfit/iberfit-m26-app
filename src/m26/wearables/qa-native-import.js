@@ -201,6 +201,17 @@ export function createConnected360QaImporter({
       assertLivePreview(pending);
       assertSameSession(client);
       if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
+      // QA preview validation can take time. Revocation or grant replacement
+      // from another device must be re-checked immediately before dispatch.
+      // Server advisory fencing is still authoritative once the RPC starts.
+      const dispatchGrant=await remoteSync.currentAuthorization({
+        provider:PROVIDER,scopes:[...pending.scopes],
+      });
+      if(dispatchGrant?.grantId!==grant.grantId)
+        throw new Error('M26_HEALTH_QA_GRANT_STALE');
+      assertLivePreview(pending);
+      assertSameSession(client);
+      if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
       const result=await transport.importWearableAuthorized(
         token,grant.grantId,{records:pending.records.map(projectQaNativeRecordToV44)}
       );
