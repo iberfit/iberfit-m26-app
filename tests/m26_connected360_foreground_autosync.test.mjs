@@ -91,6 +91,20 @@ test('foreground: failure is surfaced but does not freeze later reconciliation',
   assert.equal(calls,2);
 });
 
+test('foreground: same Client shared across two auth users cannot reuse old sensor response',()=>{
+  const previous={role:'client',clientId:'same-shared-client',ownerId:'signed-in-A'};
+  assert.equal(assertWearableClientContinuity(previous,{...previous}),true);
+  assert.throws(()=>assertWearableClientContinuity(previous,{
+    role:'client',clientId:'same-shared-client',ownerId:'signed-in-B',
+  }),/M26_WEARABLE_ACCOUNT_CHANGED/u);
+  assert.throws(()=>assertWearableClientContinuity(previous,{
+    role:'client',clientId:'same-shared-client',
+  }),/M26_WEARABLE_ACCOUNT_CHANGED/u);
+  assert.throws(()=>assertWearableClientContinuity(previous,{
+    role:'coach',clientId:'same-shared-client',ownerId:'signed-in-A',
+  }),/M26_WEARABLE_ACCOUNT_CHANGED/u);
+});
+
 test('foreground: original Client identity must survive every permission, grant and sensor await',()=>{
   const expected={role:'client',clientId:'owner-client-a'};
   assert.equal(assertWearableClientContinuity(expected,{role:'client',clientId:'owner-client-a'}),true);
@@ -118,6 +132,8 @@ test('Connected360 foreground lifecycle is Client-only, reuses prior grant and d
   assert.match(c,/requestForegroundSync\(\{force:true\}\)/u);
   assert.match(c,/foregroundSync\.invalidate\(\)/u);
   assert.match(native,/const requireSameClient=/u);
+  assert.match(native,/ownerId:sessionOwner/u);
+  assert.match(native,/String\(sessionOwner\)!==String\(ownerId\)/u);
   assert.ok((native.match(/requireSameClient\(\);/gu)||[]).length>=5);
   assert.match(native,/if\(!nativePolicy\?\.productionAllowed\)/u);
   assert.match(native,/interactive\s*\?await remoteSync\.reauthorize\(/u);
