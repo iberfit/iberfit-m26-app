@@ -225,3 +225,17 @@ test('Connected360 native foreground operations respect abort before a consent g
   assert.ok(indexGrant>0&&indexWrite>indexGrant);
   assert.ok(native.slice(indexGrant,indexWrite).includes('requireSameClient();'));
 });
+
+test('Connected360 native foreground reads are cancelled on hidden, offline and pagehide, then resume only in foreground',()=>{
+  const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const hidden=c.slice(c.indexOf('function onForegroundVisibility(){'),c.indexOf('function onPageShow(){'));
+  assert.match(hidden,/visibilityState==='hidden'/u);
+  assert.ok((hidden.match(/foregroundSync\.invalidate\(\)/gu)||[]).length>=2);
+  const offline=c.slice(c.indexOf('function onOffline(){'),c.indexOf('return Object.freeze({\n    mount(',c.indexOf('function onOffline(){')));
+  assert.match(offline,/foregroundSync\.invalidate\(\)/u);
+  assert.match(c,/addEventListener\?\.\('pagehide',onPageHide\)/u);
+  assert.match(c,/removeEventListener\?\.\('pagehide',onPageHide\)/u);
+  assert.match(c,/addEventListener\?\.\('pageshow',onPageShow\)/u);
+  assert.match(c,/removeEventListener\?\.\('pageshow',onPageShow\)/u);
+  assert.match(c,/if\(doc\?\.visibilityState!=='hidden'\)requestForegroundSync\(\)/u);
+});
