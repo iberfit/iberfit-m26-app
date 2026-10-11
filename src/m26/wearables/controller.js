@@ -674,6 +674,7 @@ export function createWearableController({
       metrics=null,
       startDate=null,
       endDate=null,
+      signal=null,
     }={}
   ){
     const {role,clientId}=context(store);
@@ -683,9 +684,11 @@ export function createWearableController({
 
     const identityEpoch=nativeIdentityEpoch;
     const requireSameClient=()=>{
+      if(signal?.aborted)throw new Error('M26_WEARABLE_SYNC_INVALIDATED');
       if(identityEpoch!==nativeIdentityEpoch)throw new Error('M26_WEARABLE_ACCOUNT_CHANGED');
       assertWearableClientContinuity({role:'client',clientId},context(store));
     };
+    requireSameClient();
     const normalized=normalizeWearableProvider(provider);
     if(!normalized||!bridge.nativeProviders.includes(normalized)){
       throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
@@ -838,12 +841,24 @@ export function createWearableController({
       endDate:resolvedEndDate,
     });
   }
-  async function autoSyncNativeProviders(){
-    const {role}=context(store);if(role!=='client'||!isOnline())return [];
+  async function autoSyncNativeProviders({signal=null}={}){
+    const {role}=context(store);if(signal?.aborted||role!=='client'||!isOnline())return [];
     const rows=store.getState().collections?.wearableConnections||[];
     const providers=[...new Set(rows.filter(isCertifiedNativeAutoSyncSource).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
-    for(const provider of providers){try{results.push(await connectNativeProvider(provider,{interactive:false,silent:true}));}catch(error){emitDiagnostic('wearable-auto-sync',error);}}
+    for(const provider of providers){
+      if(signal?.aborted)break;
+      try{
+        const result=await connectNativeProvider(provider,{interactive:false,silent:true,signal});
+        if(signal?.aborted)break;
+        results.push(result);
+      }catch(error){
+        // Logout/session replacement retires this Client read; never surface it
+        // or continue with another provider under a new account.
+        if(signal?.aborted||error?.message==='M26_WEARABLE_SYNC_INVALIDATED')break;
+        emitDiagnostic('wearable-auto-sync',error);
+      }
+    }
     return results;
   }
 
