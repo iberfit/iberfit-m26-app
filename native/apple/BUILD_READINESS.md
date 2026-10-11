@@ -46,3 +46,26 @@ iOS app by this package alone.
 
 Apple API reference: HealthKit `HKStatisticsCollectionQuery` and
 `HKHealthStore.requestAuthorization(toShare:read:completion:)`.
+
+## Local QA expansion: steps + resting heart rate
+
+The isolated SwiftUI iPhone QA app now uses
+`IBERFITIOSHealthKitDailyVitalsReader.swift`, a *separate*, minimal daily reader.
+One explicit HealthKit permission sheet requests **read-only** access to
+`stepCount` and `restingHeartRate`. One user-triggered query retrieves at most
+seven local civil dates. Steps use daily cumulative sums; resting heart rate
+uses the daily *discrete average* of HealthKit resting-heart-rate samples, not
+exercise heart rate. The screen marks missing/denied data as **Sin dato**;
+an authorization-completion success is not proof of an individual permission.
+
+The original steps-only reader remains for existing regression contracts. Both
+readers have generation fences on account replacement/foreground leave. No
+source watch identity or source-modified timestamp is verified or fabricated.
+No data is persisted or uploaded, and sleep remains **unimplemented in the
+iPhone QA reader**. In particular, summing sleep stages from several sources
+without interval/source deduplication could double-count, so that feature
+requires a separate validated daily attribution algorithm.
+
+The new QA app and both readers remain disabled for normal production release:
+`productionAllowed=false`, `automaticSyncCertified=false`. Simulator
+compilation does not replace signing, entitlements or physical permission tests.
