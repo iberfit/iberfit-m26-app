@@ -1,5 +1,12 @@
 # IBERFIT · Backlog Vivo
 
+## Checkpoint operativo vigente · 11 de octubre de 2026
+
+- [x] PR #869 fusionado, SHA `053fc83df22062c636149a92a9f6386200928fea`, **12/12 postmerge SUCCESS**, Canary Exact Deploy 38152029358 aprobado, deployment `12ed932d-e2c1-4b0d-b43d-474b6fe240c6` y rollback `060289ae-649b-456c-8712-def4a4c96fa4`. Protege hidratación A→B, login misma persona y rotación JWT. No atribuirle solución comprobada al histórico timeout #821, aún abierto.
+- [x] Nueva política D-023: macrobloques verticales por rama/PR funcional, CI consolidada por HEAD estable, seguridad y PROD independientes.
+- [ ] **WIP=1:** Connected 360 V45 QA integrador `feat/connected360-v45-integrated-macro-20261011`, base `053fc83d…`. Analizar dependencia nativa/QA, construir contrato de almacenamiento per-source/grant/cursor/zonas e idempotencia, UI Cliente y pruebas; hardware Android/iOS sigue siendo gate externo. No crear PR hasta tener incremento coherente listo para gates.
+- [ ] Validar regresión intensiva del timeout assurance #821 y eventual promoción Auth a PROD mediante pipeline de promoción separado; no usar usuario cliente real para QA.
+
 ## P1 Auth / Connected 360 · checkpoint 2026-10-11
 
 - [x] PR #867: **12/12 checks posteriores SUCCESS**, Canary SHA exacto `f931ed39f176a7d43eff2802f5d7913ab5d07e50`, deployment `ce37fbf1-c701-4ec7-8c36-21ecf89e8577` y rollback preservado `987afaea-0515-4849-afe8-ffd4a43f2afb`. No equivale a promoción de producción.
