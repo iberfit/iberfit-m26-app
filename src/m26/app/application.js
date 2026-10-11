@@ -642,7 +642,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(!ownerSession.refreshToken)throw new Error('M26_SESSION_EXPIRED');
     const ownerId=ownerSession.user.id;
     const pending=Promise.resolve()
-      .then(()=>transport.refresh(ownerSession.refreshToken))
+      .then(()=>{
+        // Reject a superseded session before dispatching its refresh request.
+        if(session!==ownerSession)throw new Error('M26_REFRESH_STALE_SESSION');
+        return transport.refresh(ownerSession.refreshToken);
+      })
       .then((next)=>{
         if(next?.user?.id!==ownerId)throw new Error('M26_REFRESH_IDENTITY_MISMATCH');
         // Logout, switching accounts or even a new login for the SAME user

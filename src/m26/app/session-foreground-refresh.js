@@ -53,7 +53,7 @@ export function createSessionForegroundRefreshCoordinator({
     const ownerLease=captureSessionLease(getSession?.());
     // Coalesce storms for one identity, never block a new account with an
     // obsolete request from the account previously signed in on this device.
-    if(inFlight&&stillOwnsSession(ownerLease,inFlightLease))return inFlight;
+    if(inFlight&&stillOwnsSession(getSession?.(),inFlightLease))return inFlight;
 
     const pending=Promise.resolve()
       .then(()=>{
