@@ -181,12 +181,22 @@ try{
     &&first?.count===1&&first?.legacyAccepted===1
     &&first?.sourceTimeVerified===false,'ATOMIC_V45_V44_INITIAL_INSERT');
 
+  const beforeReplay=await success('m26_wearable_bootstrap_v44',a.token);
+  const getSummary=(bundle)=>(bundle?.dailySummaries||[]).find(row=>
+    row?.clientId===clientA&&row?.provider==='health_connect'
+      &&(row?.date===data.records[0].date||row?.recordDate===data.records[0].date));
+  const initialSummary=getSummary(beforeReplay);
+  assert(initialSummary&&Number.isSafeInteger(initialSummary.revision),
+    'BASELINE_V44_REVISION_EXISTS');
   const replay=await success(name,a.token,{
     p_grant_id:grant.grantId,p_payload:data,
   });
   assert(replay?.ok===true&&replay?.unchanged===1
     &&replay?.inserted===0&&replay?.updated===0
-    &&replay?.legacyAccepted===1&&replay?.legacyStale===0,'IDEMPOTENT_EXACT_REPLAY');
+    &&replay?.legacyAccepted===0&&replay?.legacyStale===1,'IDEMPOTENT_EXACT_REPLAY');
+  const afterReplay=await success('m26_wearable_bootstrap_v44',a.token);
+  assert(getSummary(afterReplay)?.revision===initialSummary.revision,
+    'REPLAY_DOES_NOT_INCREMENT_V44_REVISION');
 
   const collision={records:[{
     ...data.records[0],metrics:{steps:8001},
@@ -197,10 +207,7 @@ try{
   assert(errorIsForbidden(rejectCollision),'SAME_TIMESTAMP_CONFLICT_DENIED');
 
   const bootstrap=await success('m26_wearable_bootstrap_v44',a.token);
-  const summary=(bootstrap?.dailySummaries||[]).find(row=>
-    row?.clientId===clientA
-      &&row?.provider==='health_connect'
-      &&(row?.date===data.records[0].date||row?.recordDate===data.records[0].date));
+  const summary=getSummary(bootstrap);
   assert(Boolean(summary),'V44_COMPATIBILITY_SUMMARY_VISIBLE');
 
   const revoked=await success('m26_wearable_revoke_v44',a.token,{
