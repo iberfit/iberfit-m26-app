@@ -26,7 +26,7 @@ test('Connected360 Android QA builds an exact merged Canary APK after sync and n
     assert.ok(pr.includes(line),'PR Android QA missing '+path);
     assert.ok(push.includes(line),'Canary SHA APK rebuild missing '+path);
   }
-  assert.match(push,/branches:\\s*\\["canary\\/rc74-4"\\]/u);
-  assert.match(yaml,/applicationId|cl\\.iberfit\\.m26\\.qa/u);
+  assert.ok(push.includes('branches: ["canary/rc74-4"]'),'Canary branch trigger missing');
+  assert.ok(yaml.includes('cl.iberfit.m26.qa'),'QA package isolation missing');
   assert.match(yaml,/remoteHealthSync|releaseCandidate/u);
 });
