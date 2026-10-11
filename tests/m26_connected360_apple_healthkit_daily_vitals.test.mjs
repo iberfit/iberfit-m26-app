@@ -57,6 +57,8 @@ test('one-shot read, Swift6 Sendable, and account replacement reject delayed Hea
   assert.match(app,/reader\.readDailyOnce\(days: 7\)/u);
   assert.match(app,/row\.restingHeartRate/u);
   assert.match(app,/FC en reposo: sin dato/u);
+  assert.match(app,/if newPhase == \.background \{ model\.invalidate\(\) \}/u);
+  assert.doesNotMatch(app,/if newPhase != \.active \{ model\.invalidate\(\) \}/u);
   assert.match(app,/#if !DEBUG/u);
   assert.doesNotMatch(app,/supabase\.co|app\.iberfit\.cl|URLSession|WKWebView|postMessage/u);
   assert.doesNotMatch(app,/\\n\s+(?:Text|VStack)\(/u,'literal escaped line breaks break Xcode SwiftUI');
