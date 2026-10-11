@@ -1,5 +1,12 @@
 # IBERFIT · Production State
 
+## Certificación Canary PR #867 · 2026-10-11
+
+- PR [#867](https://github.com/iberfit/iberfit-m26-app/pull/867) MERGED; Canary SHA `f931ed39f176a7d43eff2802f5d7913ab5d07e50`. Tras los ocho checks anteriores, los cuatro pendientes también finalizaron **SUCCESS en intento 1**: Exact Deploy [38148016115](https://github.com/iberfit/iberfit-m26-app/actions/runs/38148016115), Hosted Auth Security QA [38148016030](https://github.com/iberfit/iberfit-m26-app/actions/runs/38148016030), Device Experience [38148015964](https://github.com/iberfit/iberfit-m26-app/actions/runs/38148015964) y Remote Read-only [38148016027](https://github.com/iberfit/iberfit-m26-app/actions/runs/38148016027). **12/12 postmerge SUCCESS**.
+- Despliegue Canary exacto: Cloudflare deployment `ce37fbf1-c701-4ec7-8c36-21ecf89e8577`, proyecto `iberfit-m26-canary`, SHA servido verificado, QA Supabase `gjztkdwfmunnzhtvxrsu` sin referencias a Supabase PROD, desktop/móvil autenticado read-only GREEN. Rollback anterior `987afaea-0515-4849-afe8-ffd4a43f2afb`; artifact `11706031347`. **NO afirmar promoción o SHA LIVE PROD** a partir de este workflow.
+- Issue [#821](https://github.com/iberfit/iberfit-m26-app/issues/821) permanece OPEN: refresh obsoleto y 401 de otra generación corregidos por #867, pero el timeout assurance original Firefox/tablet x6 sigue sin root cause probado. La siguiente rama trabaja únicamente en diagnóstico seguro del clic/bootstrap/assurance y debe superar CI; no está fusionada.
+
+
 ## Checkpoint verificado · Connected 360 · 2026-10-11
 
 - **Canary fuente del merge #859:** `b2371fd7c9857b4d035ae2bdeaeb75fcd5d69dd0`; PR #859 merged. Cambios: abort/generación de lectura foreground, aislamiento al cambiar Cliente/sesión, control después de awaits, recuperación ante logout, hidden, offline y pagehide. Los seis gates del PR sobre su HEAD `40a8dd02c17763713d710adcb456e1f542ce514a` terminaron SUCCESS.
