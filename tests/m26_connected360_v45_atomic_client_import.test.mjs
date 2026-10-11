@@ -114,6 +114,17 @@ test('V45 unchanged replay is never presented as a newly imported health measure
   assert.equal(x.state.legacy.length,0);
 });
 
+test('V44 mirror ack distinguishes truly unchanged V45 replay without incrementing revision',async()=>{
+  const x=setup({ack:{...result,inserted:0,updated:0,unchanged:1,
+    legacyAccepted:0,legacyStale:1}});
+  x.importer.capture(preview);
+  const outcome=await x.importer.commit({confirmed:true});
+  assert.equal(outcome.imported,0);
+  assert.equal(outcome.unchanged,1);
+  assert.equal(x.state.requests.length,1);
+  assert.equal(x.state.legacy.length,0);
+});
+
 test('account switch during a delayed V45 response cannot update new client state',async()=>{
   const x=setup({afterPersist:state=>{
     state.identity={...state.identity,clientId:'22222222-2222-4222-8222-222222222222'};
@@ -137,5 +148,11 @@ test('V45 mirrors V44 atomically in one QA transaction, without a second browser
   assert.match(sql,/'sourceUpdatedAt',v_provenance->>'acquiredAt'/u);
   assert.match(sql,/'legacyAccepted',v_legacy_ack->'accepted'/u);
   assert.match(sql,/'legacyStale',v_legacy_ack->'stale'/u);
+  const safe=readFileSync(new URL('../supabase/qa-migrations/20261011183000_connected360_v45_idempotent_legacy_revision_qa.sql',import.meta.url),'utf8');
+  assert.match(safe,/v_changed:=false/u);
+  assert.match(safe,/if v_changed then[\\s\\S]*?v_legacy_records :=/u);
+  assert.match(safe,/if pg_catalog\\.jsonb_array_length\\(v_legacy_records\\)>0 then/u);
+  assert.match(safe,/'legacyStale',coalesce\\(\\(v_legacy_ack->>'stale'\\)::integer,0\\)\\+v_unchanged/u);
+
   assert.match(sql,/security definer set search_path=''/iu);
 });
