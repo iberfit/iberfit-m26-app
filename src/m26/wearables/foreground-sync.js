@@ -28,30 +28,43 @@ export function createWearableForegroundSync({
   let generation=0;
   function trigger({force=false}={}){
     if(!canRun())return Promise.resolve(Object.freeze({skipped:'inactive'}));
-    if(inflight)return inflight;
+    if(inflight)return inflight.promise;
     const timestamp=now();
     if(!Number.isFinite(timestamp))return Promise.reject(new Error('M26_WEARABLE_FOREGROUND_CLOCK_INVALID'));
-    // A reconnection can skip the freshness interval, but NEVER the account
-    // and permission checks performed by the native authorization contract.
     if(!force&&lastStartedAt!==null&&timestamp-lastStartedAt>=0
       &&timestamp-lastStartedAt<minIntervalMs){
       return Promise.resolve(Object.freeze({skipped:'recently-checked'}));
     }
     lastStartedAt=timestamp;
     const version=generation;
+    // One AbortController per session generation. A new Client may proceed
+    // immediately after logout without waiting for a hung old OS/network read.
+    const controller=new AbortController();
+    const stale=()=>version!==generation||controller.signal.aborted;
     const runPromise=Promise.resolve().then(()=>{
-      if(version!==generation||!canRun())return Object.freeze({skipped:'invalidated'});
-      return run();
+      if(stale()||!canRun())return Object.freeze({skipped:'invalidated'});
+      return run({signal:controller.signal});
     });
-    const settled=runPromise.finally(()=>{
-      if(inflight===settled)inflight=null;
+    const settled=runPromise.then(
+      result=>stale()?Object.freeze({skipped:'invalidated'}):result,
+      error=>{
+        // An obsolete read must not show an error (or a result) to a new Client.
+        if(stale())return Object.freeze({skipped:'invalidated'});
+        throw error;
+      },
+    ).finally(()=>{
+      if(inflight?.promise===settled)inflight=null;
     });
-    inflight=settled;
+    inflight={promise:settled,controller};
     return settled;
   }
   function invalidate(){
     generation+=1;
     lastStartedAt=null;
+    // Do not permit stale reads to monopolize the next account's scheduler.
+    const pending=inflight;
+    inflight=null;
+    pending?.controller.abort();
   }
   return Object.freeze({trigger,invalidate});
 }
