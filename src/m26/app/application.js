@@ -633,6 +633,19 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function currentToken(){return session?.token||null;}
+  // An opaque owner lease survives only a valid token rotation. Fresh login,
+  // account switch and logout do not inherit a previous session's lease.
+  // WeakMap entries never serialize into storage or expose credentials.
+  const hydrationSessionLeases=new WeakMap();
+  function hydrationLeaseFor(value){
+    if(!value||typeof value!=='object')return null;
+    let lease=hydrationSessionLeases.get(value);
+    if(!lease){
+      lease=Object.freeze({});
+      hydrationSessionLeases.set(value,lease);
+    }
+    return lease;
+  }
   async function refreshSessionIfNeeded(){
     const ownerSession=session;
     if(!ownerSession||!nextExpiry(ownerSession))return ownerSession;
@@ -652,6 +665,8 @@ export async function createM26Application({root=document.querySelector('#app'),
         // Logout, switching accounts or even a new login for the SAME user
         // retires the old refresh. Its reply must not restore an obsolete JWT.
         if(session!==ownerSession)throw new Error('M26_REFRESH_STALE_SESSION');
+        // Unlike a new login, this verified refresh preserves the same owner.
+        hydrationSessionLeases.set(next,hydrationLeaseFor(ownerSession));
         session=next;
         vault.save(next);
         return next;
@@ -680,9 +695,19 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-catalog-ready');
     return catalog;
   }
-  async function hydratePass({reason='bootstrap'}={}){
+  async function hydratePass({reason='bootstrap',ownerSession}={}){
+    // Capture ownership at request time, not after a concurrent login starts.
+    const requestedOwner=ownerSession===undefined?hydrationLeaseFor(session):ownerSession;
+    if(!requestedOwner||hydrationLeaseFor(session)!==requestedOwner)
+      throw new Error('M26_HYDRATION_STALE_SESSION');
     qaStage('rc64-hydrate-start');
-    await refreshSessionIfNeeded();
+    const hydrationSession=await refreshSessionIfNeeded();
+    if(!hydrationSession||hydrationLeaseFor(session)!==requestedOwner)
+      throw new Error('M26_HYDRATION_STALE_SESSION');
+    const requireOwner=()=>{
+      if(hydrationLeaseFor(session)!==requestedOwner)
+        throw new Error('M26_HYDRATION_STALE_SESSION');
+    };
     store.setHydration('loading');
     try{
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
@@ -709,6 +734,7 @@ export async function createM26Application({root=document.querySelector('#app'),
           'wearables',
         ),
       ]);
+      requireOwner(); // Never interpret A's snapshot under B's active role/token.
       qaStage('rc64-hydrate-primary-ready');
       const runtimeRegistry=validatedRuntimeRegistry(installed);
       if(!runtimeRegistry.base.ok)throw new Error(`M26_REMOTE_BASE_REGISTRY_INVALID:${runtimeRegistry.base.missing.join(',')}`);
@@ -738,19 +764,25 @@ export async function createM26Application({root=document.querySelector('#app'),
           'communication',
         ):Promise.resolve({available:false,reason:'unsupported',data:null}),
       ]);
+      requireOwner(); // The second wave may finish after logout or account change.
       qaStage('rc64-hydrate-secondary-ready');
       const rawEnvironment=scopedSnapshot?.environment;const normalizedEnvironment=typeof rawEnvironment==='string'?{mode:rawEnvironment}:rawEnvironment&&typeof rawEnvironment==='object'&&!Array.isArray(rawEnvironment)?rawEnvironment:{};
       const appointments=mergeRc39ChangeRequests(scopedSnapshot?.data?.appointments||[],extensions.changeRequests||[]);
       const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed},data:{...(scopedSnapshot.data||{}),appointments,wearableConnections:wearableV44.connections||[],wearableDailySummaries:wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
+      requireOwner(); // No stale account may write to the shared canonical store.
       qaStage('rc64-hydrate-store-start');
       store.hydrate(enriched);
       if(roleChoiceConfirmed)writePreferredApplicationRole(session?.user?.id,activeRole);
       qaStage('rc64-hydrate-store-ready');
       qaStage('rc64-hydrate-ready');
       return {snapshot:enriched,installed,runtimeRegistry};
-    }catch(error){store.setHydration('error',error);throw error;}
+    }catch(error){
+      // A previous owner's failure cannot turn the new owner's workspace red.
+      if(hydrationLeaseFor(session)===requestedOwner)store.setHydration('error',error);
+      throw error;
+    }
   }
-  const hydrationCoordinator=createHydrationCoordinator(hydratePass);
+  const hydrationCoordinator=createHydrationCoordinator(hydratePass,{getOwner:()=>hydrationLeaseFor(session)});
   function hydrate(options={}){
     return hydrationCoordinator.request(options);
   }
