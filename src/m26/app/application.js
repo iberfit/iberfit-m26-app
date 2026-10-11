@@ -1956,9 +1956,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       }
       return false;
     }finally{
-      loginBusy=false;
+      // Another auth attempt may have superseded this suspended resume.
+      // Only the owning generation may unlock the busy state of the UI.
       if(authWatchdog.isCurrent(authAttemptId)){
         completeAuthAttempt(authAttemptId);
+        loginBusy=false;
       }
     }
   }
