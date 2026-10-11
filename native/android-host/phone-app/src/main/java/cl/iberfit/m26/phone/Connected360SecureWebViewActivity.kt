@@ -59,9 +59,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Health data can be displayed in this Canary-only WebView. Protect
-        // OS screenshots, screen capture and the recent-apps thumbnail.
-        // Never grant more health permissions or keep a background session.
+        // Health preview may contain personal data: block captures and task snapshots.
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
             finish()
@@ -239,6 +237,9 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                             .put("date", record.date)
                                             .put("acquiredAt", record.acquiredAt)
                                             .put("aggregationTimeZone", record.aggregationTimeZone)
+                                        if (record.contributingOriginCount != null) {
+                                            row.put("contributingOriginCount", record.contributingOriginCount)
+                                        }
                                         if (record.steps != null) row.put("steps", record.steps)
                                         if (record.sleepMinutes != null) row.put("sleepMinutes", record.sleepMinutes)
                                         if (record.restingHeartRate != null) {

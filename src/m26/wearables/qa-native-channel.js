@@ -37,6 +37,9 @@ function normalizeRows(rows,requested){
       !ISO.test(String(row.acquiredAt||''))||
       Number.isNaN(new Date(row.acquiredAt).getTime())||
       seen.has(row.date)||
+      (row.contributingOriginCount!==undefined && row.contributingOriginCount!==null &&
+        (!Number.isInteger(row.contributingOriginCount)||
+          row.contributingOriginCount<1||row.contributingOriginCount>1000))||
       (row.aggregationTimeZone!==undefined && row.aggregationTimeZone!==null &&
         (typeof row.aggregationTimeZone!=='string'||
           row.aggregationTimeZone.length>80||row.aggregationTimeZone.length<1||
@@ -65,6 +68,8 @@ function normalizeRows(rows,requested){
         acquiredAt:new Date(row.acquiredAt).toISOString(),
         // Actual OS aggregation window, not the physical sensor's time zone.
         aggregationTimeZone:row.aggregationTimeZone??null,
+        // DataOrigin count, which may include synthetic phone steps; transient preview only.
+        contributingOriginCount:row.contributingOriginCount??null,
       }));
     }
   }
