@@ -54,7 +54,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
                             self.isBusy = false
                             switch result {
                             case .failure:
-                                self.status = "No se pudieron leer los pasos. Puedes volver a intentarlo."
+                                self.status = "No se pudieron leer los datos autorizados. Puedes volver a intentarlo."
                             case .success(let newRows):
                                 self.rows = newRows
                                 self.status = newRows.isEmpty
@@ -127,7 +127,11 @@ private struct IBERFITHealthKitQAView: View {
                             HStack {
                                 Text(row.date)
                                 Spacer()
-                                VStack(alignment: .trailing, spacing: 4) {\n                                    Text(row.steps.map { $0.formatted() + " pasos" } ?? "Pasos: sin dato")\n                                    Text(row.restingHeartRate.map { "FC en reposo: \\($0) lpm" } ?? "FC en reposo: sin dato")\n                                        .font(.caption)\n                                }.fontWeight(.semibold)
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text(row.steps.map { $0.formatted() + " pasos" } ?? "Pasos: sin dato")
+                                    Text(row.restingHeartRate.map { "FC en reposo: \($0) lpm" } ?? "FC en reposo: sin dato")
+                                        .font(.caption)
+                                }.fontWeight(.semibold)
                             }
                             .foregroundStyle(cream)
                             .padding(.vertical, 7)
