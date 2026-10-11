@@ -1,5 +1,15 @@
 # IBERFIT · Production State
 
+## Checkpoint verificado · Connected 360 · 2026-10-11
+
+- **Canary fuente del merge #859:** `b2371fd7c9857b4d035ae2bdeaeb75fcd5d69dd0`; PR #859 merged. Cambios: abort/generación de lectura foreground, aislamiento al cambiar Cliente/sesión, control después de awaits, recuperación ante logout, hidden, offline y pagehide. Los seis gates del PR sobre su HEAD `40a8dd02c17763713d710adcb456e1f542ce514a` terminaron SUCCESS.
+- **Canary desplegado:** run Exact Deploy `38113954119` SUCCESS, dominio `m26-canary.iberfit.cl` con SHA y Supabase QA `gjztkdwfmunnzhtvxrsu` certificados, desktop/móvil autenticado read-only GREEN, deployment `1ad497e9-4499-4046-a2f0-86aec86bdabf`, rollback preservado `658abaa1-5c7b-46f1-81bc-14fdd1391c57`. No tocó producción.
+- **Siguiente corrección del mismo WIP:** PR #861, rama `fix/connected360-native-qa-sha-coverage-20261011`, amplía los triggers PR/push de Android Native QA a todos los módulos del coordinador/puente nativo. La APK QA debe provenir del SHA **fusionado**, no de un HEAD de PR ni una build Android anterior. Tests de contrato de triggers y delimitador de regresión. Integración y gates del #861 pendientes de comprobar; este documento no certifica el nuevo SHA.
+- **Supabase QA V45:** `public.m26_wearable_source_daily_v45` existente, RLS ON/FORCE, ninguna política de lectura directa, sin permisos directos para `authenticated`, trigger de INSERT/UPDATE bloqueado, `automatic_sync_certified=false` obligatorio; validador de previsualización retorna `persisted:false`. Backend automático V45 todavía NO certificado.
+- **Supabase PROD:** `public.m26_wearable_source_daily_v45` ausente al chequeo; no aplicar migraciones ni habilitar escrituras de salud por promoción frontend. Los enlaces Health Connect/HealthKit mantienen `productionAllowed=false`; Android actual permite solo preview DEBUG local, y Apple requiere compilación firmada y E2E físico.
+- **Pendiente real:** Android Native QA push sobre el SHA siguiente de Canary, APK QA `cl.iberfit.m26.qa` con artifact/checksum/sourceSha, prueba física Android; iOS HealthKit real; autorización y escritura sanitaria transaccional bajo revocación, deduplicación/procedencia y E2E; lanzamiento PROD sólo con Definition of Done, rollback y Cliente real `juancarlosjimenez54` después de los controles, nunca para experimentar.
+
+
 ## Macro-WIP en integración · perfiles de medición por ejercicio · 2026-10-08
 
 - **PR #803:** `feat/exercise-measurement-profiles-admin-20261008` contra `canary/rc74-4`. El frontend del nuevo motor está **fuera de Canary/LIVE** hasta fusionar y certificar el SHA de release. Último head inspeccionado al iniciar la reconciliación: `9cb0c203b4a5a95021c80bfaa140f4e55df3ae50`. No confundir presencia del esquema en PROD con despliegue del producto.
