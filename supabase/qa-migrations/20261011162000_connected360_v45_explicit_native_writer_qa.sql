@@ -101,7 +101,7 @@ begin
     raise exception using message='M26_CONNECTED360_V45_GRANT_STALE',errcode='42501';
   end if;
 
-  select pg_catalog.coalesce(pg_catalog.max(e.id),0)
+  select coalesce(pg_catalog.max(e.id),0)
     into v_cursor
     from public.m26_wearable_revocation_events_v2 e
     where e.owner_user_id=v_owner and e.client_id=v_client
