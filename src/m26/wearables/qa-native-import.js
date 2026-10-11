@@ -212,17 +212,38 @@ export function createConnected360QaImporter({
       assertLivePreview(pending);
       assertSameSession(client);
       if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
-      const result=await transport.importWearableAuthorized(
-        token,grant.grantId,{records:pending.records.map(projectQaNativeRecordToV44)}
-      );
-      const accepted=Number(result?.accepted);
-      const stale=Number(result?.stale);
-      const rejected=Number(result?.rejected);
-      if(result?.ok!==true||rejected!==0||
-        !Number.isInteger(accepted)||accepted<0||
-        !Number.isInteger(stale)||stale<0||
-        accepted+stale!==pending.records.length)
-        throw new Error('M26_HEALTH_QA_REMOTE_IMPORT_UNVERIFIED');
+      // The certified QA server contract persists V45 provenance and its
+      // existing V44 compatibility snapshot in ONE database transaction.
+      // No health data is sent before explicit consent and current grant checks.
+      // In isolated older test shims lacking the new RPC, retain the V44 path;
+      // the actual Canary transport always implements the V45 endpoint.
+      let accepted,stale;
+      if(typeof transport.importConnected360QaV45==='function'){
+        const v45=await transport.importConnected360QaV45(
+          token,grant.grantId,{records:pending.records}
+        );
+        accepted=Number(v45?.legacyAccepted);
+        stale=Number(v45?.legacyStale);
+        if(v45?.ok!==true||v45.persisted!==true||
+          v45.automatic!==false||v45.sourceTimeVerified!==false||
+          v45.sourceIdentityVerified!==false||
+          !Number.isInteger(accepted)||accepted<0||
+          !Number.isInteger(stale)||stale<0||
+          accepted+stale!==pending.records.length)
+          throw new Error('M26_HEALTH_QA_REMOTE_IMPORT_UNVERIFIED');
+      }else{
+        const result=await transport.importWearableAuthorized(
+          token,grant.grantId,{records:pending.records.map(projectQaNativeRecordToV44)}
+        );
+        accepted=Number(result?.accepted);
+        stale=Number(result?.stale);
+        const rejected=Number(result?.rejected);
+        if(result?.ok!==true||rejected!==0||
+          !Number.isInteger(accepted)||accepted<0||
+          !Number.isInteger(stale)||stale<0||
+          accepted+stale!==pending.records.length)
+          throw new Error('M26_HEALTH_QA_REMOTE_IMPORT_UNVERIFIED');
+      }
       // Never show another user the previous account's completion.
       assertLivePreview(pending);
       assertSameSession(client);
