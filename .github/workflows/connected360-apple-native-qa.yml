@@ -57,5 +57,20 @@ jobs:
           xcodebuild -scheme IBERFITWatchTelemetry \
             -destination 'generic/platform=watchOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Compile isolated iPhone QA container
+        working-directory: native/apple
+        run: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen generate --spec project.yml
+          xcodebuild -project IBERFITConnected360QA.xcodeproj \
+            -scheme IBERFITConnected360QA \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Certify iPhone QA host isolation
+        run: node --test tests/m26_connected360_ios_qa_app_isolation.test.mjs
       - name: Verify native origin protections
         run: node --test tests/m26_connected360_apple_webview_origin.test.mjs
