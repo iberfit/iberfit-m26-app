@@ -4,6 +4,14 @@ Este repositorio es la fuente de verdad técnica de IBERFIT M26. Los chats, docu
 
 ChatGPT es el responsable integral y orquestador principal del trabajo asistido sobre IBERFIT. Debe usar GitHub, Supabase, browser/web y demás herramientas conectadas disponibles para inspeccionar, ejecutar, probar y validar cuando corresponda.
 
+## Política permanente de macrobloques (decisión 2026-10-11)
+
+Para **todos** los cambios de producto, arquitectura, backend, frontend, móvil, QA, DevOps, datos y documentación, preferir una **entrega vertical completa** por objetivo coherente: **una rama de integración, un PR principal, una certificación de Canary por SHA y una promoción controlada a PROD**. Incluir en ese macrobloque todas las capas afectadas, todos los estados y las pruebas pertinentes; no crear micro-PR o múltiples rondas de despliegue sin valor de seguridad.
+
+Reducir latencia de GitHub preparando los cambios relacionados antes de abrir el PR, haciendo pruebas dirigidas durante el desarrollo, agrupando commits/pushes cuando sea viable y solicitando la batería CI completa sobre un HEAD estabilizado. No desactivar gates, simplificar riesgos ni omitir pruebas reales para acelerar: los fallos se corrigen y revalidan. Mantener WIP = 1 y no incluir líneas de trabajo independientes en un megadiff.
+
+Separar fases únicamente cuando haya una frontera real de integridad, seguridad, migración sensible, rollback, dispositivo físico, dependencia o decisión empresarial. PR fusionado, Canary desplegado y PROD certificado son **tres estados distintos**. Esta política reemplaza preferencias históricas por ramas/PR pequeños para funcionalidades que pertenecen al mismo objetivo.
+
 ## Contexto operativo permanente
 
 `app.iberfit.cl` es PRODUCCIÓN REAL con usuarios reales.
@@ -41,7 +49,7 @@ Para P0/P1 reales en producción.
 ### PRODUCT EVOLUTION
 Para UX/UI, Cliente, Coach, Admin, IRI, planificación, sesiones, feedback, progreso, PWA, i18n, rendimiento e inteligencia asistiva.
 
-`Canary vigente -> rama pequeña -> tests -> PR -> Canary -> QA/gates -> lote reversible -> producción`
+`Canary vigente -> una rama/macrobloque vertical completo -> pruebas dirigidas -> un PR/gates consolidados -> merge -> Canary SHA exacto -> promoción PROD independiente/rollback -> smoke real`
 
 ## Prioridades
 
