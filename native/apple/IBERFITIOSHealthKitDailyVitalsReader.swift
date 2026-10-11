@@ -7,6 +7,7 @@ import HealthKit
 /// a successful authorization callback nor a sensor reading certifies a watch.
 /// No WebKit transport, server access, storage, or background execution.
 public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
+    public init() {}
     public struct DailyVitals: Sendable, Codable {
         public let provider: String
         public let date: String
