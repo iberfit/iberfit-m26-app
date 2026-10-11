@@ -9,6 +9,7 @@ const policy=readFileSync(new URL('../src/m26/wearables/free-policy.js',import.m
 
 test('one HealthKit permission sheet explicitly reads steps and resting HR, not exercise HR or sleep',()=>{
   assert.ok(pkg.includes('IBERFITIOSHealthKitDailyVitalsReader.swift'));
+  assert.ok(swift.includes('public init() {}'), 'QA iPhone app must be able to instantiate Swift package reader');
   for(const fragment of [
     'quantityType(forIdentifier: .stepCount)',
     'quantityType(forIdentifier: .restingHeartRate)',
