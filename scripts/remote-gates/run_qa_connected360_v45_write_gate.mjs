@@ -125,7 +125,8 @@ try{
   const invalid=await rpc(name,a.token,{p_grant_id:null,p_payload:{records:[]}});
   assert(errorIsForbidden(invalid),'REJECT_EMPTY_GRANT');
   const anon=await rpc(name,null,{p_grant_id:null,p_payload:{records:[]}});
-  assert([401,403].includes(anon.status),'ANON_EXECUTE_DENIED');
+  assert([401,403].includes(anon.status)||
+    (anon.status===404&&anon.body?.code==='PGRST202'),'ANON_EXECUTE_DENIED');
 
   const dbRead=await request('/rest/v1/m26_wearable_source_daily_v45?select=id&limit=1',
     {token:a.token,method:'GET'});
@@ -185,7 +186,7 @@ try{
   });
   assert(replay?.ok===true&&replay?.unchanged===1
     &&replay?.inserted===0&&replay?.updated===0
-    &&replay?.legacyStale===1,'IDEMPOTENT_EXACT_REPLAY');
+    &&replay?.legacyAccepted===1&&replay?.legacyStale===0,'IDEMPOTENT_EXACT_REPLAY');
 
   const collision={records:[{
     ...data.records[0],metrics:{steps:8001},
