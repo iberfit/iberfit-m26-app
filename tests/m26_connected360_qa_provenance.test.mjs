@@ -118,11 +118,13 @@ test('native QA Android transport carries verified aggregation zone across the s
   assert.doesNotMatch(bridge,/\.put\("sourceUpdatedAt", record\./u);
 });
 
-test('Canary native importer uses typed V45 preview and strips it at RPC boundary',()=>{
+test('Canary native importer preserves typed V45 provenance through the sole QA RPC',()=>{
   const importer=readFileSync(new URL('../src/m26/wearables/qa-native-import.js',import.meta.url),'utf8');
   const ui=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
   assert.match(importer,/createQaNativeDailyRecord\(/u);
-  assert.match(importer,/pending\.records\.map\(projectQaNativeRecordToV44\)/u);
+  assert.match(importer,/transport\.importConnected360QaV45\(/u);
+  assert.match(importer,/records:pending\.records/u);
+  assert.doesNotMatch(importer,/projectQaNativeRecordToV44|importWearableAuthorized/u);
   assert.match(importer,/row\.provenance\.acquiredAt/u);
   assert.doesNotMatch(importer,/sourceUpdatedAt:new Date\(acquired\)/u);
   assert.match(ui,/La hora de lectura no acredita cuándo lo actualizó el reloj/u);
