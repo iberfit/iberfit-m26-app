@@ -16,7 +16,7 @@
 ## P1 Auth QA · incidente #821 · 2026-10-11
 
 - [x] Paridad código/runtime del broker QA #831: desplegada v13 ACTIVE (solo Supabase QA), cinco códigos de error de lectura 502 en vez de falsear rol 409, OIDC/WebAuthn intactos; digest `b27512055e3a3a33e0d63e0862444f53904b610d1f31d2f398fe33edcbfc9417`. Coach WebAuthn QA run #38142899129 reintentado tras deploy: SUCCESS.
-- [ ] Confirmar run Admin WebAuthn QA #38142899200 tras broker v13; revalidar que no hay errores atribuibles al deploy. Issue #821 sigue OPEN.
+- [x] Admin WebAuthn QA #38142899200 tras broker v13, segundo intento: SUCCESS (contrato, E2E real QA y gate). Issue #821 sigue OPEN por causa de timeouts no determinada.
 - [ ] Reproducir y corregir causalmente timeouts de assurance/pre-red en tablet horizontal CPU x6 y Firefox, token 200 sin llamada assurance, refresh/logout/offline/background, instrumentación sensible safe, E2E read-only. No reducir matriz, ocultar 401 o incrementar timeout por conveniencia.
 - **Evidencia:** Supabase QA 24h: perfil 223 × 200 y 1 × 401 el 10/10 a las 14:39:44Z; token y assurance 200 en solicitudes que sí alcanzaron el servidor. Sin inferir causa de solicitudes ausentes.
 - **Límites:** no tocar PROD ni usuarios reales; broker QA sintético de certificación, no activar ingest wearable. Issue #821 documentado.
