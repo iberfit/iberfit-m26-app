@@ -125,6 +125,30 @@ test('post-response account switch fails closed and never returns old client dat
   assert.equal(f.listeners.size,0);
 });
 
+test('QA channel rejects auth user swap even when the same clientId stays selected',async()=>{
+  const f=fixture({reply:message=>{
+    f.setIdentity({...REQUESTED_ID,ownerId:'different-signed-in-user'});
+    return ok(message);
+  }});
+  await assert.rejects(f.client.readLocal(),/M26_HEALTH_QA_SESSION_CHANGED/u);
+  assert.equal(f.listeners.size,0);
+});
+test('QA channel never dispatches after token refresh changed the owner with shared clientId',async()=>{
+  const f=fixture({reply:ok});
+  let finishToken;
+  const waiting=new Promise(resolve=>{finishToken=resolve;});
+  let current=REQUESTED_ID;
+  const client=createConnected360QaNativeChannel({
+    scope:f.scope,getIdentity:()=>current,getToken:()=>waiting,timeoutMs:500,
+  });
+  const pending=client.readLocal();
+  current={...REQUESTED_ID,ownerId:'different-signed-in-user'};
+  finishToken('qa-user-session-strong');
+  await assert.rejects(pending,/M26_HEALTH_QA_SESSION_CHANGED/u);
+  assert.equal(f.messages.length,0);
+  client.destroy();
+});
+
 test('forged response, wrong schema, excessive rows and unrequested metrics all fail closed',async()=>{
   for(const modify of [
     x=>({...x,persisted:true}),
