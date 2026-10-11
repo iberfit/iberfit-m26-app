@@ -1,5 +1,16 @@
 # IBERFIT Connected 360 — v45, staging exclusivo QA
 
+## Checkpoint QA integrado del 11 de octubre de 2026 (PR #870)
+
+Este documento contiene más abajo **checkpoints históricos** que describen una fase anterior sin escritor. El estado **vigente** es el de este apartado y no el de esos checkpoints anteriores.
+
+- Tres migraciones QA aplicadas: `20261011160851_connected360_v45_explicit_native_writer_qa`, `20261011161035_connected360_v45_atomic_legacy_mirror_qa` y `20261011183000_connected360_v45_idempotent_legacy_revision_qa`. Ninguna migración V45 se ha aplicado en Supabase PROD.
+- Writer `m26_wearable_v45_import_explicit_qa_v1` permite **sólo importación explícita** tras consentimiento Health Connect con sesión de Cliente, autorización/grant exacto y revocación comprobada bajo candado compartido. Guarda V45 y espejo V44 en **una transacción**, conserva procedencia no verificada como desconocida y omite una escritura V44 si la observación V45 idéntica ya existía.
+- Control remoto autenticado en QA `IBERFIT QA Real Write Certification` completó SUCCESS con cuentas sintéticas A/B, aislamiento, no doble escritura, replay V44 sin incremento de revisión y revocación/borrado. El ensayo deja cero datos Health Connect en V44/V45 y ninguna autorización vigente. Existen registros históricos revocados que **no** deben borrarse manualmente.
+- CI del PR #870 en commit `ee73de9289a26c6c1ada124a867e2e7d5bb98140`: siete workflows SUCCESS (CI, Fast Lane, Audit, Native Android, Device Experience, QA Real Write, Canary Policy). Es certificación del PR, **no** de un deploy Canary ni de dispositivo físico.
+- Canary únicamente puede presentar el panel de lectura manual QA para el host Android DEBUG y nunca debe comunicar que existe una sincronización automática certificada. `automatic_sync_certified=false`, `productionAllowed=false`. **No usar cliente real ni promover SQL QA a PROD.** La validación física de Android y HealthKit iOS firmada, consentimiento de onboarding y sincronización automática siguen pendientes.
+
+
 ## Nueva etapa 2026-10-11: escritura explícita V45 + espejo V44 atómico (QA remoto)
 
 **Hardening posterior:** migración QA aditiva `20261011183000_connected360_v45_idempotent_legacy_revision_qa.sql` preserva revisiones V44 cuando V45 recibe un snapshot idéntico: el espejo V44 se omite para filas sin cambios (y se contabilizan como `legacyStale`). No se utiliza el contador `accepted` del V44 heredado como prueba de cambios nuevos. Exigir prueba de replay `revision` constante en QA remota con cuentas sintéticas.
