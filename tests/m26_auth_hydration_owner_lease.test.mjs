@@ -161,5 +161,5 @@ test('same-user re-login uses new generation; old snapshot is never adopted',asy
 test('production controller uses owner-aware coordinator and stale-error fence',()=>{
   assert.match(source,/createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>session\}\)/u);
   assert.match(hydrateSource,/if\(session===hydrationSession\)store\.setHydration\('error',error\)/u);
-  assert.match(hydrateSource,/requireOwner\(\);\s*qaStage\('rc64-hydrate-store-start'\)/u);
+  assert.match(hydrateSource,/requireOwner\(\);[^\n]*\n\s*qaStage\('rc64-hydrate-store-start'\);\s*store\.hydrate\(enriched\)/u);
 });
