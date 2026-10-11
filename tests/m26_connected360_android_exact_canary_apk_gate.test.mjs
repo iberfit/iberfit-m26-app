@@ -60,6 +60,7 @@ test('actual Canary artifact stamp script runs in a clean temp directory and pro
     assert.deepEqual(provenance,{
       schema:'iberfit.connected360.qa-apk.v1',
       sourceSha:sha,sourceRef:'canary/rc74-4',event:'push',
+      applicationId:'cl.iberfit.m26.qa',
       qaOnly:true,releaseCandidate:false,remoteHealthSync:false,
       canaryOrigin:'https://m26-canary.iberfit.cl',
     });
