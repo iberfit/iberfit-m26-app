@@ -240,7 +240,7 @@ test('Logout during a large authorized import stops following batches and suppre
   await firstStarted;
   const logout=remote.clearOwner();
   releaseFirst();
-  await staged;
+  await assert.rejects(staged,/M26_WEARABLE_SOURCE_REVOKED/u,'logout must explicitly cancel stale stage');
   await logout;
   assert.equal(importCalls,1,'the remaining batch must never be uploaded after logout');
   assert.equal(refreshes,0,'an old account must not refresh the new UI after logout');
@@ -273,7 +273,7 @@ test('Revoke during authorized multi-batch upload cancels subsequent batches bef
   await firstStarted;
   const revoked=remote.revoke({provider:'normalized_file',deleteData:true});
   releaseFirst();
-  await staged;
+  await assert.rejects(staged,/M26_WEARABLE_SOURCE_REVOKED/u,'revoke must explicitly cancel stale stage');
   await revoked;
   assert.equal(calls,1,'no later batch may race after a revoke was requested');
   assert.equal(revocations,1);
