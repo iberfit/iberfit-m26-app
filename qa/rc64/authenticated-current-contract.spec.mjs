@@ -209,7 +209,21 @@ test('current authenticated contract separates privileged fail-closed identities
     // Observe initial bootstrap -> full-app transitions from document start.
     // Values, identifiers, passwords and tokens are intentionally not inspected.
     await page.addInitScript(()=>{
-      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false};
+      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false,appStages:[],diagnostics:[]};
+      // Only fixed enumerated stage/code metadata; never capture inputs, tokens or identity.
+      globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
+        if(typeof stage==='string'&&/^rc64-[a-z0-9-]{1,64}$/u.test(stage)){
+          events.appStages.push(stage);
+          if(events.appStages.length>50)events.appStages.shift();
+        }
+      };
+      globalThis.addEventListener('m26:diagnostic',(event)=>{
+        const {stage,code,status}=event?.detail||{};
+        if(typeof stage!=='string'||!/^[a-z0-9_-]{1,60}$/iu.test(stage))return;
+        if(typeof code!=='string'||!/^M26_[A-Z0-9_:-]{2,120}$/u.test(code))return;
+        events.diagnostics.push({stage,code,status:Number.isInteger(status)&&status>=100&&status<=599?status:null});
+        if(events.diagnostics.length>20)events.diagnostics.shift();
+      });
       let previous=null;
       const isSubmit=(event)=>Boolean(event.target?.closest?.('[data-auth-form="login"] button[type="submit"]'));
       document.addEventListener('pointerdown',(event)=>{
@@ -282,13 +296,19 @@ test('current authenticated contract separates privileged fail-closed identities
       expect(navigation?.ok()).toBeTruthy();
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
       await page.locator('#m26-login-password').fill(account.password);
-      const assurancePromise=page.waitForResponse((response)=>{
+      // Handle rejection immediately: a failed click must not orphan an unhandled
+      // assurance wait. Keep the same timeout and do not bypass the RPC.
+      const assuranceOutcome=page.waitForResponse((response)=>{
         try{const url=new URL(response.url());return url.origin===SUPABASE_ORIGIN&&url.pathname===ASSURANCE_PATH;}catch{return false;}
-      },{timeout:AUTH_FLOW_TIMEOUT_MS});
-      await page.getByRole('button',{name:'Entrar',exact:true}).click();
+      },{timeout:AUTH_FLOW_TIMEOUT_MS}).then(response=>({response}),error=>({error}));
       let assurance;
+      let attemptStage='login-click';
       try{
-        assurance=await readAssurance(await assurancePromise);
+        await page.getByRole('button',{name:'Entrar',exact:true}).click();
+        attemptStage='assurance-response';
+        const outcome=await assuranceOutcome;
+        if(outcome.error)throw outcome.error;
+        assurance=await readAssurance(outcome.response);
       }catch(error){
         const state=await page.evaluate(()=>{
           const card=document.querySelector('.m26-auth-card');
@@ -309,10 +329,13 @@ test('current authenticated contract separates privileged fail-closed identities
               submit:Number(events?.submit||0),
               formReplacements:Number(events?.formReplacements||0),
               fullAppAtClick:events?.fullAppAtClick===true,
-            }};
+            },
+            appStages:Array.isArray(events?.appStages)?events.appStages.slice(-25):[],
+            diagnostics:Array.isArray(events?.diagnostics)?events.diagnostics.slice(-20):[],
+          };
         }).catch(()=>({unavailable:true}));
         console.error('M26_QA_AUTH_PHASE_DIAGNOSTIC:'+JSON.stringify({
-          stages:[...authPhases],state,
+          attemptStage,stages:[...authPhases],state,
         }));
         throw error;
       }
