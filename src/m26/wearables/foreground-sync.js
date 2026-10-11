@@ -5,7 +5,12 @@ export const WEARABLE_FOREGROUND_MIN_INTERVAL_MS=5*60*1000;
 export function assertWearableClientContinuity(expected,actual){
   const role=String(actual?.role||'').toLowerCase();
   const clientId=String(actual?.clientId||'').trim();
+  const expectedOwner=String(expected?.ownerId||'').trim();
+  const actualOwner=String(actual?.ownerId||'').trim();
+  // Client IDs can be shared/delegated; never equate same client with same
+  // signed-in user. Empty owner is rejected when the operation is owner-bound.
   if(role!=='client'||!clientId||clientId!==String(expected?.clientId||'').trim()
+    ||(expectedOwner&&actualOwner!==expectedOwner)
     ||String(expected?.role||'').toLowerCase()!=='client'){
     throw new Error('M26_WEARABLE_ACCOUNT_CHANGED');
   }
