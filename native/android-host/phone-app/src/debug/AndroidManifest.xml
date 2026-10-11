@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
+    <!-- Debug-only label prevents confusion with the installed production app. -->
+    <application android:label="IBERFIT Canary QA">
         <activity
             android:name=".IBERFITBluetoothPhysicalE2EActivity"
             android:excludeFromRecents="true"
