@@ -5,6 +5,9 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
+      - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
+      - 'supabase/qa-migrations/**'
+      - 'supabase/qa-rollbacks/**'
       - 'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs'
       - 'scripts/remote-gates/prepare_qa_iri_document_fixture.mjs'
       - '.github/workflows/qa-real-write-cert.yml'
@@ -19,6 +22,9 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
+      - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
+      - 'supabase/qa-migrations/**'
+      - 'supabase/qa-rollbacks/**'
       - 'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs'
       - 'scripts/remote-gates/prepare_qa_iri_document_fixture.mjs'
       - '.github/workflows/qa-real-write-cert.yml'
@@ -40,6 +46,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  connected360-v45-synthetic-write:
+    name: connected360-v45-authenticated-synthetic-write
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Certify V45 real QA persistence, isolation, idempotency and revocation with synthetic clients
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs
+      - name: Preserve redacted V45 certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-connected360-v45-write-${{ github.run_id }}
+          path: recovery/connected360-v45/qa-real-write.json
+          if-no-files-found: warn
+          retention-days: 14
+
   qa-real-write:
     name: write-persist-idempotency-isolation
     runs-on: ubuntu-latest
