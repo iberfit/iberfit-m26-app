@@ -77,3 +77,27 @@ A single user-initiated read-only permission request covers steps, resting heart
 ## HealthKit iPhone QA — bounded multi-metric recovery
 
 All three local queries now run independently (serialized to avoid concurrent HealthKit overload): steps and resting-heart-rate failures no longer prevent a successful sleep read, and sleep failure never hides independently acquired step/heart-rate data. Each row carries explicit metric-level read-failure flags, distinct from absent/denied data. A whole-read 18-second deadline retires the native generation and resolves the UI through a lock-protected one-shot callback; late results cannot restore stale HealthKit data after a different session/permission generation. The local QA application shows partial-read status and failures separately from missing values. This is not automatic/background access or a signed-device test.
+
+## Canary Client session QA in the iPhone DEBUG host
+
+The separately labeled **Cliente Canary** tab in \`IBERFITConnected360QAApp\`
+contains an iOS \`WKWebView\` limited to the **exact**
+\`https://m26-canary.iberfit.cl\` HTTPS top-level origin. It is not PROD.
+The Supabase access token and client identity stay inside the authenticated
+web page; a native health request includes only \`health.readDaily\`, a
+random correlation ID and a seven-day bound.
+
+A native visible button grants **exactly one local read**, separate from
+the OS HealthKit read permission dialog. The page may request the read only
+after this native interaction; both the native host and JavaScript verify
+the current QA origin, page generation, authenticated Client identity and
+request correlation. A navigation, background, account swap or disposal
+invalidates the read/response. No future read is automatically enabled.
+
+The preview on the Canary Client device page does not persist health data,
+create a server authorization grant, claim a specific watch, certify OS
+read permission status (HealthKit does not expose it), or synchronize in
+the background. It is **not** the production bridge or a full native app.
+The prior standalone local tab remains available. Release builds remain
+forbidden. Physical iPhone signing and actual HealthKit permission/auth
+flow verification are still mandatory before any V45 Apple writer.

@@ -22,6 +22,7 @@ import {
   isConnected360QaNativeAvailable,
 } from './qa-native-channel.js';
 import {createConnected360QaImporter} from './qa-native-import.js';
+import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
@@ -449,6 +450,12 @@ export function createWearableController({
     getIdentity:qaClientIdentity,
     getToken,
   });
+  const appleQaNative=createAppleHealthQaNativeChannel({
+    scope:globalThis,
+    getIdentity:qaClientIdentity,
+    getToken,
+  });
+  let appleReadEpoch=0;
   let qaReadEpoch=0;
   // Normal web/Coach/Admin and isolated controller tests must remain fully
   // operational without QA bridge or a native import transport.
@@ -950,6 +957,7 @@ export function createWearableController({
     );
 
     qaReadEpoch+=1;
+    appleReadEpoch+=1;
     qaImporter.clear();
     await remoteSync.deleteAll();
     clearPreview(false);
@@ -991,6 +999,9 @@ export function createWearableController({
   }
 
   function clearQaSensitiveSurface(){
+    root.querySelectorAll?.('[data-apple-qa-status]')?.forEach?.(node=>{
+      node.textContent='';
+    });
     root.querySelectorAll?.('[data-qa-health-preview]')?.forEach?.(preview=>{
       preview.hidden=true;
     });
@@ -1013,6 +1024,7 @@ export function createWearableController({
     tasks.cancel();
     currentPreview=null;
     qaReadEpoch+=1;
+    appleReadEpoch+=1;
     qaImporter.clear();
     clearQaSensitiveSurface();
     const node=root.querySelector?.(
@@ -1273,6 +1285,22 @@ export function createWearableController({
       }
     }
 
+    // Signed iPhone DEBUG QA: local data only, no watch linkage or upload.
+    if(isAppleHealthQaNativeAvailable(globalThis)){
+      const appleCard=root.querySelector?.('[data-provider="apple_health"]');
+      if(appleCard&&!appleCard.querySelector?.('[data-wearable-action="qa-apple-health-read"]')){
+        const button=document.createElement('button');
+        button.type='button';
+        button.dataset.wearableAction='qa-apple-health-read';
+        button.textContent='Consultar Apple Salud en este iPhone (QA)';
+        const note=document.createElement('p');
+        note.dataset.appleQaStatus='true';
+        note.setAttribute('role','status');
+        note.textContent='Autoriza una lectura local desde la app iPhone QA. No se guardarán ni sincronizarán registros.';
+        appleCard.append(button,note);
+      }
+    }
+
     const nativeLabels={apple_health:'Conectar Apple Watch',health_connect:'Autorizar Health Connect',samsung_health:'Conectar Samsung Health',wear_os_health_services:'Conectar reloj Wear OS',ble_direct:'Conectar sensor Bluetooth'};
     for(const provider of bridge.nativeProviders){
       const healthConnectAvailable=provider==='health_connect'
@@ -1326,6 +1354,25 @@ export function createWearableController({
         await confirmImport();
       }else if(action==='sync-pending'){
         await syncPending();
+      }else if(action==='qa-apple-health-read'){
+        const epoch=++appleReadEpoch;
+        const card=button.closest?.('[data-provider="apple_health"]');
+        const note=card?.querySelector?.('[data-apple-qa-status]');
+        if(note)note.textContent='Consultando Apple Salud de forma local…';
+        const result=await appleQaNative.readLocal({days:7});
+        if(epoch!==appleReadEpoch)return;
+        const latest=result.rows.at(-1)||null;
+        if(note){
+          const stats=latest?.metrics||{};
+          const sleep=stats.sleepMinutes;
+          note.textContent=latest
+            ?'Lectura local, no sincronizada · '+latest.date+
+              ' · pasos: '+(stats.steps??'Sin dato')+
+              ' · sueño: '+(sleep===undefined?'Sin dato':formatSleepDuration(sleep))+
+              ' · FC reposo: '+(stats.restingHeartRate??'Sin dato')+
+              '. Apple no revela si se concedió cada permiso de lectura. No se ha enviado información al servidor.'
+            :'Sin datos disponibles o permisos de lectura no concedidos. No se han enviado registros.';
+        }
       }else if(action==='qa-health-read'){
         if(qaImporter.isBusy())throw new Error('M26_HEALTH_QA_BUSY');
         const epoch=++qaReadEpoch;
@@ -1435,6 +1482,7 @@ export function createWearableController({
           :'¿Desconectar esta fuente? No se admitirán nuevas sincronizaciones hasta que vuelvas a autorizarla.');
         if(!approved)return;
         qaReadEpoch+=1;
+        appleReadEpoch+=1;
         qaImporter.clear();
         await remoteSync.revoke({provider,deleteData:erase});
         clearPreview(false);
@@ -1447,6 +1495,10 @@ export function createWearableController({
         `wearable-${action}`,
         error,
       );
+      if(action==='qa-apple-health-read'){
+        const note=button.closest?.('[data-provider="apple_health"]')?.querySelector?.('[data-apple-qa-status]');
+        if(note)note.textContent='No se pudo completar la lectura local de Apple Salud. Código: '+code;
+      }
       if(action==='qa-health-read'){
         const note=button.closest?.('[data-provider="health_connect"]')
           ?.querySelector?.('[data-qa-health-status]');
@@ -1575,7 +1627,9 @@ export function createWearableController({
       tasks.cancel();
       currentPreview=null;
       qaReadEpoch+=1;
+      appleReadEpoch+=1;
       qaNative.destroy();
+      appleQaNative.destroy();
       qaImporter.destroy();
       clearQaSensitiveSurface();
       observer?.disconnect?.();
@@ -1620,7 +1674,9 @@ export function createWearableController({
       nativeIdentityEpoch+=1;
       foregroundSync.invalidate();
       qaReadEpoch+=1;
+      appleReadEpoch+=1;
       qaNative.destroy();
+      appleQaNative.destroy();
       qaImporter.destroy();
       clearQaSensitiveSurface();
       return remoteSync.clearOwner();

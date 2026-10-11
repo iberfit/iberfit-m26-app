@@ -1,8 +1,9 @@
 import SwiftUI
 import IBERFITWebBridge
 
-// QA ONLY. This standalone iPhone target intentionally has no production
-// Supabase URL, app session, WebView bridge, or background health capability.
+// QA ONLY. The isolated local tab has no server access. A separate opt-in
+// Canary tab may open an authenticated HTTPS page and return local, sanitized
+// HealthKit summaries. Neither tab uploads data or enables background reads.
 // A Release configuration must never produce a distributable app.
 #if !DEBUG
 #error("IBERFIT Connected360 QA cannot be built for distribution.")
@@ -15,7 +16,12 @@ struct IBERFITConnected360QAApp: App {
 
     var body: some Scene {
         WindowGroup {
-            IBERFITHealthKitQAView(model: model)
+            TabView {
+                IBERFITHealthKitQAView(model: model)
+                    .tabItem { Label("Salud local", systemImage: "heart.text.square") }
+                IBERFITCanaryClientQAView()
+                    .tabItem { Label("Cliente Canary", systemImage: "person.crop.circle") }
+            }
                 .onChange(of: phase) { _, newPhase in
                     // iOS permission sheet may transition to .inactive; only true
                     // background retires this one-shot HealthKit lease.

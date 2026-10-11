@@ -82,5 +82,7 @@ jobs:
           /tmp/iberfit-health-reply-qa
       - name: Certify iPhone QA host isolation
         run: node --test tests/m26_connected360_ios_qa_app_isolation.test.mjs
+      - name: Certify authenticated Canary Apple QA channel
+        run: node --test tests/m26_connected360_apple_healthkit_qa_bridge.test.mjs
       - name: Verify native origin protections
         run: node --test tests/m26_connected360_apple_webview_origin.test.mjs
