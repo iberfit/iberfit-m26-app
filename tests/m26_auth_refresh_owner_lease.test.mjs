@@ -18,10 +18,16 @@ function deferred(){
 }
 function fixture(){
   const calls=[],saved=[],requests=new Map();
+  const hydrationSessionLeases=new WeakMap();
+  const hydrationLeaseFor=(value)=>{
+    if(!hydrationSessionLeases.has(value))hydrationSessionLeases.set(value,Object.freeze({}));
+    return hydrationSessionLeases.get(value);
+  };
   const state={
     session:null,
     refreshInFlight:null,
     refreshInFlightOwnerSession:null,
+    hydrationSessionLeases,hydrationLeaseFor,
     nextExpiry:()=>true,
     transport:{refresh(token){
       calls.push(token);
@@ -74,6 +80,7 @@ test('new account starts a separate refresh and stale A cannot clear B lease',as
 test('same session refresh storms coalesce and save a single result',async()=>{
   const x=fixture(),a=makeSession('A','a');
   x.state.session=a;
+  const lease=x.state.hydrationLeaseFor(a);
   const first=x.refresh(),second=x.refresh();
   await drain();
   assert.deepEqual(x.calls,['a-refresh']);
@@ -82,6 +89,8 @@ test('same session refresh storms coalesce and save a single result',async()=>{
   assert.equal(await first,updated);
   assert.equal(await second,updated);
   assert.deepEqual(x.saved,[updated]);
+  assert.equal(x.state.hydrationLeaseFor(updated),lease,
+    'verified token rotation must preserve hydration lineage');
 });
 
 test('relogging the same user retires the old token refresh generation',async()=>{
