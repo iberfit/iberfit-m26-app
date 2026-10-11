@@ -125,3 +125,98 @@ test('revoking during an imported batch prevents stale synchronized refresh',asy
   assert.deepEqual(f.events,['revoke','wearable-revoked']);
   assert.equal(await f.sync.pendingCount(),0);
 });
+
+
+test('logout erases owner health queue immediately despite a hanging remote import',async()=>{
+  const queueStore=createMemoryKeyValueStore();
+  const entered=deferred(),release=deferred();
+  let refreshes=0,uploads=0;
+  const sync=createWearableRemoteSync({
+    ownerId:'privacy-hung-fetch',
+    queueStore,
+    getToken:async()=>'old-session-token',
+    isOnline:()=>true,
+    refreshState:async()=>{refreshes++;},
+    transport:{
+      async importWearableAuthorized(){
+        uploads++;
+        entered.resolve();
+        await release.promise;
+        return {accepted:1,stale:0,rejected:0};
+      },
+    },
+  });
+  const pending=sync.stage({clientId:CLIENT,provider:SOURCE,
+    records:[record()],authorizationGrant:GRANT});
+  await entered.promise;
+  assert.equal((await queueStore.entries('m26:wearable-sync:v44:owner/privacy-hung-fetch/')).length,1);
+  const purge=sync.clearOwner();
+  const early=await Promise.race([
+    purge.then(()=>true),
+    new Promise(resolve=>setTimeout(()=>resolve(false),250)),
+  ]);
+  try{
+    assert.equal(early,true,'logout local erase must not await an unresponsive upload');
+    assert.equal((await queueStore.entries('m26:wearable-sync:v44:owner/privacy-hung-fetch/')).length,0);
+    assert.equal(await sync.pendingCount(),0);
+  }finally{
+    release.resolve();
+  }
+  await purge;
+  await assert.rejects(pending,/M26_WEARABLE_SOURCE_REVOKED/u);
+  assert.equal((await queueStore.entries('m26:wearable-sync:v44:owner/privacy-hung-fetch/')).length,0);
+  assert.equal(uploads,1,'logout cannot unsend an already-dispatched authorized request');
+  assert.equal(refreshes,0);
+});
+
+test('delayed IndexedDB-like queue write never resurrects old owner after logout',async()=>{
+  const inner=createMemoryKeyValueStore(),entered=deferred(),release=deferred();
+  const queueStore={
+    get:key=>inner.get(key),
+    keys:key=>inner.keys(key),
+    entries:key=>inner.entries(key),
+    clear:key=>inner.clear(key),
+    remove:key=>inner.remove(key),
+    async set(key,value){
+      entered.resolve();
+      await release.promise;
+      return inner.set(key,value);
+    },
+  };
+  const sync=createWearableRemoteSync({
+    ownerId:'privacy-delayed-write',queueStore,
+    getToken:async()=>'old-session-token',
+    isOnline:()=>false,transport:{},
+  });
+  const stage=sync.stage({clientId:CLIENT,provider:SOURCE,
+    records:[record()],authorizationGrant:GRANT});
+  await entered.promise;
+  await sync.clearOwner();
+  assert.deepEqual(await inner.entries('m26:wearable-sync:v44:owner/privacy-delayed-write/'),[]);
+  release.resolve();
+  await assert.rejects(stage,/M26_WEARABLE_SOURCE_REVOKED/u);
+  assert.deepEqual(await inner.entries('m26:wearable-sync:v44:owner/privacy-delayed-write/'),[]);
+});
+
+test('failed remote import after logout cannot requeue sensitive data for retry',async()=>{
+  const queueStore=createMemoryKeyValueStore(),entered=deferred(),release=deferred();
+  const sync=createWearableRemoteSync({
+    ownerId:'privacy-failed-upload',queueStore,
+    getToken:async()=>'old-session-token',isOnline:()=>true,
+    transport:{
+      async importWearableAuthorized(){
+        entered.resolve();
+        await release.promise;
+        throw new Error('M26_NETWORK_UNAVAILABLE');
+      },
+    },
+  });
+  const stage=sync.stage({clientId:CLIENT,provider:SOURCE,
+    records:[record()],authorizationGrant:GRANT});
+  await entered.promise;
+  await sync.clearOwner();
+  release.resolve();
+  await assert.rejects(stage,/M26_NETWORK_UNAVAILABLE/u);
+  assert.deepEqual(await queueStore.entries('m26:wearable-sync:v44:owner/privacy-failed-upload/'),[]);
+  assert.equal(await sync.pendingCount(),0);
+});

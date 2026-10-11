@@ -148,8 +148,9 @@ export function createWearableRemoteSync({
 
     for(const record of normalized){
       if(deleteRequested||blockedProviders.has(safeSource))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+      const recordKey=keyFor(ownerPrefix,record);
       await queueStore.set(
-        keyFor(ownerPrefix,record),
+        recordKey,
         {
           ownerId:owner,
           record:clone(record),
@@ -160,8 +161,12 @@ export function createWearableRemoteSync({
           authorizationGrant:grant,
         },
       );
-      if(deleteRequested||blockedProviders.has(safeSource))
+      if(ownerDisposed||deleteRequested||blockedProviders.has(safeSource)){
+        // Logout may have erased the queue WHILE IndexedDB set() awaited.
+        // Retire the record before returning, even if the remote call stalls.
+        await queueStore.remove(recordKey);
         throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+      }
     }
 
     if(!isOnline()){
@@ -285,7 +290,7 @@ export function createWearableRemoteSync({
             explicitGrants.delete(groupProvider);
           }
           for(const [key,item] of batch){
-            if(revoked){
+            if(ownerDisposed||deleteRequested||generation!==revocationGeneration||revoked||blockedProviders.has(groupProvider)){
               // On confirmed server-side revocation, erase stale personal data locally.
               await queueStore.remove(key);
               continue;
@@ -397,7 +402,12 @@ export function createWearableRemoteSync({
     ownerDisposed=true;
     deleteRequested=true;
     explicitGrants.clear();
-    return serialize(()=>queueStore.clear(ownerPrefix));
+    blockedProviders.clear();
+    // Privacy P0: never queue the local health-data purge behind a hung
+    // fetch/import. Concurrent writes and failed batches observe ownerDisposed
+    // and remove their own keys before they can finish. No server grant is
+    // manufactured, and an obsolete operation cannot refresh another account.
+    await queueStore.clear(ownerPrefix);
   }
 
   async function reauthorize({provider='normalized_file',scopes=[]}={}){
