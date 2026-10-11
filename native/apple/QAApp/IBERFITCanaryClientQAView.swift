@@ -13,6 +13,7 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
     @Published private(set) var isBusy = false
     private let reader = IBERFITIOSHealthKitDailyVitalsReader()
     private var oneReadApproved = false
+    private var approvedAtUptime: TimeInterval?
     private var generation: UInt64 = 0
     weak var webView: WKWebView?
 
@@ -33,6 +34,7 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
         generation &+= 1
         let lease = generation
         oneReadApproved = false
+        approvedAtUptime = nil
         isBusy = true
         status = "Autorizando una lectura local. IBERFIT no recibe tus datos todavía."
         reader.requestExplicitDailyAccess { [weak self] result in
@@ -41,7 +43,8 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
                 self.isBusy = false
                 if case .success = result {
                     self.oneReadApproved = true
-                    self.status = "Una lectura autorizada. Consulta Apple Salud desde la sección Dispositivos de Canary."
+                    self.approvedAtUptime = ProcessInfo.processInfo.systemUptime
+                    self.status = "Una lectura local autorizada durante 2 minutos. Consulta Apple Salud en Dispositivos de Canary."
                 } else {
                     self.status = "No se completó la autorización local. Revisa Apple Salud."
                 }
@@ -55,7 +58,18 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
             reply(requestId, error: "M26_APPLE_QA_LOCAL_APPROVAL_REQUIRED", to: view)
             return
         }
+        guard IBERFITAppleQAReadLease.isCurrent(
+            approvedAtUptime: approvedAtUptime,
+            nowUptime: ProcessInfo.processInfo.systemUptime
+        ) else {
+            oneReadApproved = false
+            approvedAtUptime = nil
+            status = "La autorización de lectura ha caducado. Autoriza una nueva lectura local."
+            reply(requestId, error: "M26_APPLE_QA_LOCAL_APPROVAL_EXPIRED", to: view)
+            return
+        }
         oneReadApproved = false
+        approvedAtUptime = nil
         guard (1...7).contains(days) else {
             reply(requestId, error: "M26_APPLE_QA_REQUEST_INVALID", to: view)
             return
@@ -129,6 +143,7 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
     func invalidate() {
         generation &+= 1
         oneReadApproved = false
+        approvedAtUptime = nil
         isBusy = false
         reader.revokeLocalReadApproval()
         status = "Autorización local retirada. No se enviaron datos."

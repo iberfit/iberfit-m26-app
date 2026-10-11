@@ -105,3 +105,9 @@ flow verification are still mandatory before any V45 Apple writer.
 ## Logout-to-native invalidation
 
 The QA JavaScript channel sends a separate `health.invalidate` command on destruction (logout, owner switch, controller teardown). The iPhone handler accepts it only from the trusted HTTPS Canary main frame, retires the one-shot HealthKit authorization generation immediately and discards pending native callbacks. The command has only a random request ID; it does not contain the authentication token or client identity. Source revocation and server-grant revocation remain separate server-side controls and must never be inferred from this local reset.
+
+## Two-minute one-shot native QA consent lease
+
+Both debug host candidates (Android Health Connect and iPhone HealthKit) now limit the separate in-app one-local-read approval to 120 seconds measured with a monotonic clock, regardless of persistent OS permission. A stale, absent or reversed uptime lease fails closed; the local button must be clicked again. The lease is consumed before the OS read starts, cannot be reused, is erased on navigation/background/account invalidation and never becomes server consent or automatic synchronization authorization.
+
+QA coverage: Android Connected360LocalApprovalLeaseTest executed via Gradle phone-app:testDebugUnitTest; Apple IBERFITAppleQAReadLeaseSpec executed in macOS Swift toolchain, and iPhone QA app compiled with Xcode.

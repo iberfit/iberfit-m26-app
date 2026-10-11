@@ -279,3 +279,17 @@ test('account switch during pending token refresh cannot start a native Health C
   assert.equal(f.messages.length,0,'native read must not start after owner changed');
   assert.equal(f.listeners.size,0,'no native bridge listeners left behind');
 });
+
+test('Android one-shot native read approval expires after two minutes of monotonic time',()=>{
+  const kotlin=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt','utf8');
+  const lease=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360LocalApprovalLease.kt','utf8');
+  const testSource=readFileSync('native/android-host/phone-app/src/test/java/cl/iberfit/m26/phone/Connected360LocalApprovalLeaseTest.kt','utf8');
+  assert.match(kotlin,/approvedAtElapsedMs = SystemClock\.elapsedRealtime\(\)/u);
+  assert.match(kotlin,/Connected360LocalApprovalLease\.isCurrent\(/u);
+  assert.match(kotlin,/M26_HEALTH_LOCAL_APPROVAL_EXPIRED/u);
+  assert.match(kotlin,/private fun resetReadApproval\(\)/u);
+  assert.match(kotlin,/approvedAtElapsedMs = null/u);
+  assert.match(lease,/MAX_AGE_MS = 120_000L/u);
+  assert.match(testSource,/expiredAndMissingApprovalAreRejected/u);
+  assert.doesNotMatch(kotlin,/clientId|accessToken|service_role/u);
+});

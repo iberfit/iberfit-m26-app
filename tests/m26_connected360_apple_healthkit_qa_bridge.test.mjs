@@ -164,3 +164,15 @@ test('logout actively revokes the pending one-shot HealthKit approval in the nat
   assert.doesNotMatch(JSON.stringify(h.sent[1]),/authenticated-owner|qa-client|token|grant|email/u);
   assert.equal(h.listeners.size,0);
 });
+
+test('iPhone consent only stays valid for two minutes after the local native button',()=>{
+  const swift=readFileSync('native/apple/QAApp/IBERFITCanaryClientQAView.swift','utf8');
+  const lease=readFileSync('native/apple/QAApp/IBERFITAppleQAReadLease.swift','utf8');
+  assert.match(swift,/IBERFITAppleQAReadLease\.isCurrent\(/u);
+  assert.match(swift,/approvedAtUptime = ProcessInfo\.processInfo\.systemUptime/u);
+  assert.match(swift,/M26_APPLE_QA_LOCAL_APPROVAL_EXPIRED/u);
+  assert.match(swift,/approvedAtUptime = nil/u);
+  assert.match(lease,/maxAgeSeconds: TimeInterval = 120/u);
+  assert.match(lease,/elapsed >= 0 && elapsed <= maxAgeSeconds/u);
+  assert.match(swift,/reader\.revokeLocalReadApproval\(\)/u);
+});

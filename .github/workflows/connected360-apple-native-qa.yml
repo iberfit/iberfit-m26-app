@@ -80,6 +80,11 @@ jobs:
           set -euo pipefail
           swiftc native/apple/IBERFITHealthKitSingleReply.swift native/apple/Tests/IBERFITHealthKitSingleReplySpec.swift -o /tmp/iberfit-health-reply-qa
           /tmp/iberfit-health-reply-qa
+      - name: Verify two-minute QA read consent expiry using native Swift
+        run: |
+          set -euo pipefail
+          swiftc native/apple/QAApp/IBERFITAppleQAReadLease.swift native/apple/Tests/IBERFITAppleQAReadLeaseSpec.swift -o /tmp/iberfit-apple-approval-lease
+          /tmp/iberfit-apple-approval-lease
       - name: Certify iPhone QA host isolation
         run: node --test tests/m26_connected360_ios_qa_app_isolation.test.mjs
       - name: Certify authenticated Canary Apple QA channel

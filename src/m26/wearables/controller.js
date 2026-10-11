@@ -347,6 +347,9 @@ function setFormBusy(form,busy){
 }
 
 function friendlyError(code){
+  if(/(?:APPLE_QA|HEALTH)_LOCAL_APPROVAL_EXPIRED/u.test(code)){
+    return 'La autorización local caducó. Vuelve a pulsar «Permitir UNA lectura» en la aplicación de pruebas.';
+  }
   if(/CONNECTED360_(?:SCOPE_EXPANSION_REQUIRES_REVOKE|IMPORT_SCOPE_FORBIDDEN)/u.test(code)){
     return 'Este archivo solicita nuevas métricas. Desconecta la fuente y vuelve a autorizarla con los permisos actualizados.';
   }
