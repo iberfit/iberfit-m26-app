@@ -91,6 +91,9 @@ export function createWearableRemoteSync({
   // Logout retires this owner-scoped controller permanently: no stale UI may
   // mint a fresh authorization generation after another account signs in.
   let ownerDisposed=false;
+  // Synchronous revocation intent invalidates even a queued or in-flight
+  // reauthorization. A later explicit opt-in captures a new generation.
+  let revocationGeneration=0;
   let operationTail=Promise.resolve();
   function serialize(task){
     const pending=operationTail.then(task,task);
@@ -157,6 +160,8 @@ export function createWearableRemoteSync({
           authorizationGrant:grant,
         },
       );
+      if(deleteRequested||blockedProviders.has(safeSource))
+        throw new Error('M26_WEARABLE_SOURCE_REVOKED');
     }
 
     if(!isOnline()){
@@ -168,16 +173,20 @@ export function createWearableRemoteSync({
       });
     }
 
-    return flushUnlocked({
+    const result=await flushUnlocked({
       clientId:safeClientId,
       provider:safeSource,
     });
+    if(deleteRequested||blockedProviders.has(safeSource))
+      throw new Error('M26_WEARABLE_SOURCE_REVOKED');
+    return result;
   }
 
   async function flushUnlocked({
     clientId='',
     provider='',
   }={}){
+    const generation=revocationGeneration;
     if(!isOnline()){
       return Object.freeze({
         ok:true,
@@ -321,9 +330,8 @@ export function createWearableRemoteSync({
 
     // A retired account must not receive the completion callback of a previous
     // session. The request already sent may finish, but no further batch runs.
-    if(!deleteRequested)await refreshState({
-      reason:'wearables-synchronized',
-    });
+    if(!deleteRequested&&!ownerDisposed&&generation===revocationGeneration)
+      await refreshState({reason:'wearables-synchronized'});
 
     return Object.freeze({
       ok:true,
@@ -342,6 +350,7 @@ export function createWearableRemoteSync({
   }={}){
     const safeSource=safeProvider(provider);
     // Block new staged or queued work at the moment of revocation, not after the network request.
+    revocationGeneration+=1;
     blockedProviders.add(safeSource);
     explicitGrants.delete(safeSource);
     return serialize(async()=>{
@@ -367,6 +376,7 @@ export function createWearableRemoteSync({
   }
 
   async function deleteAll(){
+    revocationGeneration+=1;
     deleteRequested=true;
     explicitGrants.clear();
     return serialize(async()=>{
@@ -383,6 +393,7 @@ export function createWearableRemoteSync({
   }
 
   async function clearOwner(){
+    revocationGeneration+=1;
     ownerDisposed=true;
     deleteRequested=true;
     explicitGrants.clear();
@@ -398,11 +409,18 @@ export function createWearableRemoteSync({
     if(typeof transport.reauthorizeWearable!=='function'
       ||typeof transport.wearableAuthorizationStatus!=='function')
       throw new Error('M26_CONNECTED360_REAUTHORIZE_UNAVAILABLE');
+    const generation=revocationGeneration;
     return serialize(async()=>{
-      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      const requireCurrent=()=>{
+        if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+        if(generation!==revocationGeneration)
+          throw new Error('M26_WEARABLE_AUTHORIZATION_SUPERSEDED');
+      };
+      requireCurrent();
       const token=await getToken();
+      requireCurrent();
       const status=await transport.wearableAuthorizationStatus(token,source);
-      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      requireCurrent();
       let result;
       if(status.authorized===true){
         if(scopes.some(metric=>!status.scopes?.includes(metric)))
@@ -414,17 +432,22 @@ export function createWearableRemoteSync({
           expectedGrant:status.grantId||null,scopes,
         });
       }
-      if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
+      requireCurrent();
       // Keep pending offline data from the same current consent generation.
       // Never upgrade any older, revoked or pre-consent queue.
-      for(const [key,item] of await queuedEntries()){
+      const entries=await queuedEntries();
+      requireCurrent();
+      for(const [key,item] of entries){
+        requireCurrent();
         if(item?.provider===source&&(item.authorizationGrant!==result.grantId||item.blockedReason))
           await queueStore.remove(key);
       }
+      requireCurrent();
       explicitGrants.set(source,result.grantId);
       blockedProviders.delete(source);
       deleteRequested=false;
       await refreshState({reason:'wearable-reauthorized'});
+      requireCurrent();
       return result;
     });
   }
