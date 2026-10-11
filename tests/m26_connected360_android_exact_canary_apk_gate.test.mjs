@@ -20,9 +20,9 @@ test('PR-only superseded builds can be canceled but merged Canary builds stay ex
   assert.match(workflow,/cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u);
   assert.match(workflow,/sha256sum "\$APK" > "\$\{APK\}\.sha256"/u);
   assert.match(workflow,/sourceSha/g);
-  assert.match(workflow,/\$GITHUB_SHA/u);
-  assert.match(workflow,/releaseCandidate\\?":false/u);
-  assert.match(workflow,/remoteHealthSync\\?":false/u);
+  assert.match(workflow,/sourceSha:process\.env\.GITHUB_SHA/u);
+  assert.match(workflow,/releaseCandidate:false/u);
+  assert.match(workflow,/remoteHealthSync:false/u);
   assert.match(workflow,/phone-app-debug\.apk\.provenance\.json/u);
   assert.match(workflow,/retention-days: 3/u);
   assert.match(workflow,/if-no-files-found: error/u);
