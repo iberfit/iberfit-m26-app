@@ -1,5 +1,5 @@
 import {isConnected360QaNativeAvailable} from './qa-native-channel.js';
-import {createQaNativeDailyRecord,projectQaNativeRecordToV44} from './qa-native-provenance.js';
+import {createQaNativeDailyRecord} from './qa-native-provenance.js';
 
 const PROVIDER='health_connect';
 const METRICS=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
@@ -30,7 +30,7 @@ export function createConnected360QaImporter({
   now=()=>Date.now(),
 }={}){
   if(typeof getToken!=='function'||typeof getIdentity!=='function'||
-    typeof transport?.importWearableAuthorized!=='function'||
+    typeof transport?.importConnected360QaV45!=='function'||
     typeof transport?.validateConnected360QaNativePreview!=='function'||
     typeof remoteSync?.reauthorize!=='function'||
     typeof remoteSync?.currentAuthorization!=='function')
@@ -212,16 +212,28 @@ export function createConnected360QaImporter({
       assertLivePreview(pending);
       assertSameSession(client);
       if(!isOnline())throw new Error('M26_HEALTH_QA_ONLINE_REQUIRED');
-      const result=await transport.importWearableAuthorized(
-        token,grant.grantId,{records:pending.records.map(projectQaNativeRecordToV44)}
+      // The certified QA server contract persists V45 provenance and its
+      // existing V44 compatibility snapshot in ONE database transaction.
+      // No health data is sent before explicit consent and current grant checks.
+      // QA is fail-closed. Without the V45 RPC, never degrade to an older
+      // V44-only write: it would break atomic provenance and consistency.
+      const v45=await transport.importConnected360QaV45(
+        token,grant.grantId,{records:pending.records}
       );
-      const accepted=Number(result?.accepted);
-      const stale=Number(result?.stale);
-      const rejected=Number(result?.rejected);
-      if(result?.ok!==true||rejected!==0||
-        !Number.isInteger(accepted)||accepted<0||
-        !Number.isInteger(stale)||stale<0||
-        accepted+stale!==pending.records.length)
+      const inserted=Number(v45?.inserted);
+      const updated=Number(v45?.updated);
+      const unchanged=Number(v45?.unchanged);
+      const legacyAccepted=Number(v45?.legacyAccepted);
+      const legacyStale=Number(v45?.legacyStale);
+      const accepted=inserted+updated;
+      const stale=unchanged;
+      if(v45?.ok!==true||v45.persisted!==true||
+        v45.automatic!==false||v45.sourceTimeVerified!==false||
+        v45.sourceIdentityVerified!==false||
+        [inserted,updated,unchanged,legacyAccepted,legacyStale]
+          .some(n=>!Number.isInteger(n)||n<0)||
+        accepted+stale!==pending.records.length||
+        legacyAccepted+legacyStale!==pending.records.length)
         throw new Error('M26_HEALTH_QA_REMOTE_IMPORT_UNVERIFIED');
       // Never show another user the previous account's completion.
       assertLivePreview(pending);

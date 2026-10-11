@@ -6,7 +6,7 @@ ChatGPT es el responsable integral y orquestador principal. Debe usar las herram
 
 ## Principio operativo
 
-`WIP = 1`
+`WIP = 1` y **entregas por macrobloque funcional completo** (decisión global 2026-10-11). Una rama/PR principal por objetivo integrado, minimizando esperas CI y pushes; los gates y la separación QA/PROD nunca se sacrifican.
 
 Mantener una sola tarea principal activa:
 
@@ -167,9 +167,16 @@ Para cambios de alto impacto, hacer una segunda pasada deliberadamente escéptic
 
 No usar esta revisión para paralizar cambios pequeños y seguros.
 
-## 7. Tamaño y atomicidad
+## 7. Tamaño y atomicidad — política de macrobloques
 
-Preferir cambios pequeños, completos y reversibles.
+**Prioridad permanente:** construir una capacidad completa con todas sus capas necesarias (UX/UI, frontend, backend, migraciones aditivas, autorizaciones, recuperación, tests y documentación) dentro de **una rama de integración y un PR principal**, en lugar de fraccionarla en varios PR solo por organización interna.
+
+1. Reunir evidencias y dependencias reales de una vez, sin reabrir análisis cerrados.
+2. Desarrollar y probar casos unitarios/dirigidos antes de publicar una nueva revisión.
+3. Reducir pushes y ejecuciones completas de GitHub Actions innecesarias; consolidar los cambios dependientes y ejecutar CI completa en el HEAD final estable. Ante un fallo, corregir la causa y volver a validar.
+4. Fusionar una vez todos los gates y revisión adversarial aplicables estén GREEN; certificar Canary exacto y rollback. Promover a PROD por un proceso separado y verificable, sin acumular mejoras eternamente en Canary.
+5. Dividir únicamente ante riesgos reales: límites de seguridad/aislamiento, migraciones irreversibles, compatibilidad, hardware físico, despliegues con distintos rollback o dependencias bloqueantes.
+6. Conservar WIP=1, alcance funcional coherente, diffs auditables y la regla de no degradar. No combinar iniciativas independientes para fabricar un megadiff.
 
 Evitar:
 - refactor + feature + migración en el mismo cambio sin necesidad;
