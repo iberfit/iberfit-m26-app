@@ -70,6 +70,7 @@ const CONNECTED360_RPC=Object.freeze({
   reauthorize:'m26_wearable_reauthorize_v2',
   importAuthorized:'m26_wearable_import_authorized_v2',
   validateQaPreview:'m26_wearable_v45_validate_native_preview_qa_v1',
+  importQaV45:'m26_wearable_v45_import_explicit_qa_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1132,6 +1133,37 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
 
+  // Explicit QA-only V45 persistence: never available to the production
+  // runtime, never used by passive sync or an unconfirmed Android read.
+  // Backend rechecks the real JWT, consent, scopes and revocation under lock.
+  async function importConnected360QaV45(token,grantId,payload={}){
+    if(runtime.qaOnly!==true||runtime.canary!==true
+      ||runtime.projectRef!==M26_QA_PROJECT_REF)
+      throw new Error('M26_HEALTH_V45_PRODUCTION_DENIED');
+    if(!token||!UUID_PATTERN.test(String(grantId||''))
+      ||!Array.isArray(payload?.records)||payload.records.length<1
+      ||payload.records.length>7)
+      throw new Error('M26_HEALTH_V45_IMPORT_INVALID');
+    const body=JSON.stringify({
+      p_grant_id:grantId,p_payload:{records:payload.records},
+    });
+    if(body.length>24000)throw new Error('M26_HEALTH_V45_IMPORT_INVALID');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.importQaV45,{
+      method:'POST',token,body,
+    });
+    const result=Array.isArray(raw)?raw[0]:raw;
+    const inserted=Number(result?.inserted),updated=Number(result?.updated);
+    const unchanged=Number(result?.unchanged);
+    if(result?.ok!==true||result.persisted!==true||
+      result.automatic!==false||result.provider!=='health_connect'||
+      result.sourceTimeVerified!==false||result.sourceIdentityVerified!==false||
+      [inserted,updated,unchanged].some(n=>!Number.isInteger(n)||n<0)||
+      inserted+updated+unchanged!==payload.records.length||
+      Number(result.count)!==payload.records.length)
+      throw new Error('M26_HEALTH_V45_IMPORT_RESPONSE_INVALID');
+    return Object.freeze({...result});
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     let result;
@@ -1429,6 +1461,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     reauthorizeWearable,
     importWearableAuthorized,
     validateConnected360QaNativePreview,
+    importConnected360QaV45,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,
