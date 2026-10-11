@@ -1,0 +1,53 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-ELEVACION-LATERAL-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-ELEVACION-REPLACE/movement-b9eb619ca1a1.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Sustitución pedida y corrección aprobada de Elevación lateral con mancuernas: ampliar encuadre de final para mejorar la visibilidad de brazos; archivo exacto del ZIP Runway del propietario, sha256 origen=f5e8b7f0a93cb2ca5dcecf05414303d01369995e156f830c1c758487ca1a5347; conserva imagen anterior en Storage bajo su ruta inmutable."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ELEVACION-LATERAL-CON-MANCUERNAS/movement-b9eb619ca1a1.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "b9eb619ca1a1bc69eb34f47686d49dc9beb9abc355beca997d684d4f002263c5"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
