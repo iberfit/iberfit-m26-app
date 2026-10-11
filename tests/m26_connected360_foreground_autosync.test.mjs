@@ -228,6 +228,17 @@ test('foreground: session teardown invalidates scheduled preflight and resets co
   assert.equal(started,1);
 });
 
+test('foreground: one rotated account terminates provider cycle before another native source',()=>{
+  const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const body=c.slice(c.indexOf('async function autoSyncNativeProviders('),
+    c.indexOf('const foregroundSync=createWearableForegroundSync'));
+  assert.match(body,/const session=context\(store\)/u);
+  assert.match(body,/session\.ownerId/u);
+  assert.match(body,/assertWearableClientContinuity\(session,context\(store\)\)/u);
+  assert.match(body,/error\?\.message==='M26_WEARABLE_ACCOUNT_CHANGED'\)break/u);
+  assert.match(body,/String\(session\.ownerId\)!==String\(ownerId\)/u);
+});
+
 test('Connected360 native foreground operations respect abort before a consent grant or write',()=>{
   const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
   const native=c.slice(c.indexOf('async function connectNativeProvider('),c.indexOf('const foregroundSync=createWearableForegroundSync'));
