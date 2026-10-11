@@ -349,34 +349,42 @@ export function createWearableRemoteSync({
     });
   }
 
+  // Begin removing private local data before a previous authorized fetch
+  // finishes. Attach the error handler immediately: the serialized server
+  // operation may not observe this promise for several seconds.
+  function beginLocalPurge(task){
+    const pending=Promise.resolve().then(task);
+    void pending.catch(()=>{});
+    return pending;
+  }
+
+  async function purgeQueuedProvider(provider){
+    for(const [key,item] of await queuedEntries()){
+      if(item?.provider===provider)await queueStore.remove(key);
+    }
+  }
+
   async function revoke({
     provider,
     deleteData=false,
   }={}){
     const safeSource=safeProvider(provider);
-    // Block new staged or queued work at the moment of revocation, not after the network request.
     revocationGeneration+=1;
     blockedProviders.add(safeSource);
     explicitGrants.delete(safeSource);
+    // Disconnect means queued private data cannot be uploaded again.
+    // Do not hold the local purge hostage to remote revocation latency.
+    const localPurge=beginLocalPurge(()=>purgeQueuedProvider(safeSource));
     return serialize(async()=>{
-    const token=await getToken();
-    const result=await transport.revokeWearableConnection(
-      token,
-      safeSource,
-      Boolean(deleteData),
-    );
-
-    for(const [key,item] of await queuedEntries()){
-      if(item?.provider===safeSource){
-        await queueStore.remove(key);
-      }
-    }
-
-    await refreshState({
-      reason:'wearable-revoked',
-    });
-
-    return result;
+      await localPurge;
+      const token=await getToken();
+      const result=await transport.revokeWearableConnection(
+        token,safeSource,Boolean(deleteData),
+      );
+      // A late IndexedDB write can complete while the remote call is running.
+      await purgeQueuedProvider(safeSource);
+      if(!ownerDisposed)await refreshState({reason:'wearable-revoked'});
+      return result;
     });
   }
 
@@ -384,16 +392,17 @@ export function createWearableRemoteSync({
     revocationGeneration+=1;
     deleteRequested=true;
     explicitGrants.clear();
+    // Explicit erase must clear the local health queue before network access,
+    // even if another operation is hung. A failed server deletion still
+    // propagates: the UI must never claim server-side erasure prematurely.
+    const localPurge=beginLocalPurge(()=>queueStore.clear(ownerPrefix));
     return serialize(async()=>{
-    const token=await getToken();
-    const result=await transport.deleteWearableData(token);
-    await queueStore.clear(ownerPrefix);
-
-    await refreshState({
-      reason:'wearables-deleted',
-    });
-
-    return result;
+      await localPurge;
+      const token=await getToken();
+      const result=await transport.deleteWearableData(token);
+      await queueStore.clear(ownerPrefix);
+      if(!ownerDisposed)await refreshState({reason:'wearables-deleted'});
+      return result;
     });
   }
 

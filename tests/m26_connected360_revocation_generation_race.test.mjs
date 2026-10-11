@@ -220,3 +220,89 @@ test('failed remote import after logout cannot requeue sensitive data for retry'
   assert.deepEqual(await queueStore.entries('m26:wearable-sync:v44:owner/privacy-failed-upload/'),[]);
   assert.equal(await sync.pendingCount(),0);
 });
+
+
+test('disconnect purges one provider locally before delayed server revoke and keeps other sources',async()=>{
+  const queueStore=createMemoryKeyValueStore();
+  const remoteStarted=deferred(),finishRemote=deferred();
+  const owner='purge-provider-test';
+  const firstKey='m26:wearable-sync:v44:owner/'+owner+'/client-a:health_connect:2026-10-10';
+  const secondKey='m26:wearable-sync:v44:owner/'+owner+'/client-a:apple_health:2026-10-10';
+  await queueStore.set(firstKey,{ownerId:owner,clientId:CLIENT,provider:SOURCE,record:record(),authorizationGrant:GRANT});
+  await queueStore.set(secondKey,{ownerId:owner,clientId:CLIENT,provider:'apple_health',record:{...record(),provider:'apple_health'},authorizationGrant:GRANT});
+  const sync=createWearableRemoteSync({
+    ownerId:owner,queueStore,getToken:async()=>'test-token',isOnline:()=>true,
+    transport:{async revokeWearableConnection(){
+      remoteStarted.resolve();
+      await finishRemote.promise;
+      return {ok:true};
+    }},
+  });
+  const pending=sync.revoke({provider:SOURCE,deleteData:true});
+  await remoteStarted.promise;
+  assert.equal(await queueStore.get(firstKey),undefined,
+    'local disconnected provider must already be erased before server answers');
+  assert.notEqual(await queueStore.get(secondKey),undefined,
+    'an unrelated provider is not part of the erase request');
+  finishRemote.resolve();
+  assert.equal((await pending).ok,true);
+  await assert.rejects(sync.stage({clientId:CLIENT,provider:SOURCE,
+    records:[record()],authorizationGrant:GRANT}),/M26_WEARABLE_SOURCE_REVOKED/u);
+  assert.equal(await queueStore.get(firstKey),undefined);
+});
+
+test('erase all starts local health-data purge before server responds and reports remote failure',async()=>{
+  const queueStore=createMemoryKeyValueStore();
+  const remoteStarted=deferred(),finishRemote=deferred();
+  const owner='purge-all-test';
+  const key='m26:wearable-sync:v44:owner/'+owner+'/client-a:health_connect:2026-10-10';
+  await queueStore.set(key,{ownerId:owner,clientId:CLIENT,provider:SOURCE,record:record(),authorizationGrant:GRANT});
+  let refreshes=0;
+  const sync=createWearableRemoteSync({
+    ownerId:owner,queueStore,getToken:async()=>'test-token',isOnline:()=>true,
+    refreshState:async()=>{refreshes++;},
+    transport:{async deleteWearableData(){
+      remoteStarted.resolve();
+      await finishRemote.promise;
+      throw new Error('M26_TEST_SERVER_DELETE_FAILED');
+    }},
+  });
+  const deletion=sync.deleteAll();
+  await remoteStarted.promise;
+  assert.deepEqual(await queueStore.entries('m26:wearable-sync:v44:owner/'+owner+'/'),[]);
+  finishRemote.resolve();
+  await assert.rejects(deletion,/M26_TEST_SERVER_DELETE_FAILED/u,
+    'server-side data must not be presented as deleted without confirmed response');
+  assert.equal(refreshes,0,'server failure must not claim success in the account UI');
+  assert.equal(await sync.pendingCount(),0);
+  await assert.rejects(sync.stage({clientId:CLIENT,provider:SOURCE,
+    records:[record()],authorizationGrant:GRANT}),/M26_WEARABLE_SOURCE_REVOKED/u);
+});
+
+test('disconnect while upload fails cannot restore disconnected provider to the queue',async()=>{
+  const queueStore=createMemoryKeyValueStore();
+  const entered=deferred(),release=deferred();
+  const owner='purge-revoke-upload';
+  let revoked=0;
+  const sync=createWearableRemoteSync({
+    ownerId:owner,queueStore,getToken:async()=>'test-token',isOnline:()=>true,
+    transport:{
+      async importWearableAuthorized(){
+        entered.resolve(); await release.promise;
+        throw new Error('M26_TEST_NETWORK_TIMEOUT');
+      },
+      async revokeWearableConnection(){revoked++;return {ok:true};},
+    },
+  });
+  const stage=sync.stage({clientId:CLIENT,provider:SOURCE,
+    records:[record()],authorizationGrant:GRANT});
+  await entered.promise;
+  const revoke=sync.revoke({provider:SOURCE,deleteData:true});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(await sync.pendingCount(),0,'sensitive queue purged ahead of stalled import');
+  release.resolve();
+  await assert.rejects(stage,/M26_TEST_NETWORK_TIMEOUT/u);
+  await revoke;
+  assert.equal(revoked,1);
+  assert.equal(await sync.pendingCount(),0);
+});
