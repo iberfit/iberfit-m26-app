@@ -1,5 +1,12 @@
 # IBERFIT · Backlog Vivo
 
+## P1 Auth / Connected 360 · checkpoint 2026-10-11
+
+- [x] PR #867: **12/12 checks posteriores SUCCESS**, Canary SHA exacto `f931ed39f176a7d43eff2802f5d7913ab5d07e50`, deployment `ce37fbf1-c701-4ec7-8c36-21ecf89e8577` y rollback preservado `987afaea-0515-4849-afe8-ffd4a43f2afb`. No equivale a promoción de producción.
+- [ ] Issue #821: reproducir ausencia de assurance en Firefox y tablet landscape con CPU x6; diagnóstico por fase de clic/bootstrap/token/RPC, sin secretos y sin subir timeout. La instrumentación de prueba está en rama de trabajo, no validada ni fusionada todavía.
+- [ ] Connected 360 V45: tabla QA vacía, RLS ON/FORCE y trigger de bloqueo; desarrollar el writer transaccional y probar revocación/idempotencia/consentimiento en QA, antes de cualquier escritura sanitaria o migración PROD. E2E físico Android/Health Connect y iOS/HealthKit todavía requerido.
+
+
 ## WIP principal vigente · Connected 360 — seguridad e integración nativa · 2026-10-11
 
 - [x] PR #859 cerrado: aislamiento de sincronización ante cambio Cliente/logout y cancelación de lecturas; Canary Exact Deploy `38113954119` SUCCESS, merge SHA `b2371fd7c9857b4d035ae2bdeaeb75fcd5d69dd0`.
