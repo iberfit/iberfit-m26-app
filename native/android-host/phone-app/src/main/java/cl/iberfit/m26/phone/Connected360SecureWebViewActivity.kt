@@ -273,7 +273,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         }
                                         summaries.put(row)
                                     }
-                                    // No userId, clientId, token, grant, or invented source timestamp.
+                                    // Do not include account identifiers, authentication credentials, grants or fabricated source timestamps.
                                     replyProxy.postMessage(JSONObject()
                                         .put("schema", "iberfit.connected360.qa.read.v1")
                                         .put("requestId", id)
