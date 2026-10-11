@@ -23,11 +23,17 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
     const pending=Promise.resolve().then(async()=>{
       let result=null;
       let currentReason=requestedReason;
+      let firstPass=true;
       do{
         // The owner may switch before this runner's first microtask.
         if(inFlight!==job)throw new Error('M26_HYDRATION_OWNER_SUPERSEDED');
+        // Preserve requests queued before this deferred runner first started.
+        // Otherwise same-session callers can silently lose the second pass.
+        const queuedBeforeStart=firstPass&&job.queued;
+        firstPass=false;
         job.queued=false;
         result=await run({reason:currentReason,ownerSession:owner});
+        if(queuedBeforeStart)job.queued=true;
         currentReason=job.queuedReason;
       }while(job.queued&&inFlight===job);
       return result;
