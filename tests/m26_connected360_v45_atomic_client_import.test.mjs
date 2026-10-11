@@ -100,6 +100,20 @@ test('false automatic certification or incomplete legacy acknowledgment never cl
   }
 });
 
+test('V45 unchanged replay is never presented as a newly imported health measurement',async()=>{
+  const x=setup({ack:{...result,inserted:0,updated:0,unchanged:1,
+    legacyAccepted:1,legacyStale:0}});
+  x.importer.capture(preview);
+  const outcome=await x.importer.commit({confirmed:true});
+  assert.equal(outcome.imported,0,'V44 accepted an idempotent replay, not new V45 data');
+  assert.equal(outcome.unchanged,1);
+  assert.equal(outcome.recordCount,1);
+  assert.equal(outcome.persisted,true);
+  assert.equal(outcome.automatic,false);
+  assert.equal(x.state.requests.length,1);
+  assert.equal(x.state.legacy.length,0);
+});
+
 test('account switch during a delayed V45 response cannot update new client state',async()=>{
   const x=setup({afterPersist:state=>{
     state.identity={...state.identity,clientId:'22222222-2222-4222-8222-222222222222'};
