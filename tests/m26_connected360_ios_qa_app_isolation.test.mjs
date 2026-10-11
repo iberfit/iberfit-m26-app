@@ -26,7 +26,8 @@ test('native iPhone QA harness is an explicit one-tap local read, never an uploa
   assert.match(app,/FC en reposo: sin dato/u);
   assert.match(app,/case \.success\(let newRows\)/u);
   assert.match(app,/\.onChange\(of: phase\)/u);
-  assert.match(app,/if newPhase != \.active \{ model\.invalidate\(\) \}/u);
+  assert.match(app,/if newPhase == \.background \{ model\.invalidate\(\) \}/u);
+  assert.doesNotMatch(app,/if newPhase != \.active \{ model\.invalidate\(\) \}/u);
   assert.match(app,/guard let self, self\.generation == lease else \{ return \}/u);
   assert.match(reader,/public func readStepsOnce/u);
   assert.match(reader,/public func requestExplicitStepsAccess/u);
