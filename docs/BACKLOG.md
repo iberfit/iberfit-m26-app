@@ -5,7 +5,7 @@
 - [x] PR #859 cerrado: aislamiento de sincronización ante cambio Cliente/logout y cancelación de lecturas; Canary Exact Deploy `38113954119` SUCCESS, merge SHA `b2371fd7c9857b4d035ae2bdeaeb75fcd5d69dd0`.
 - [x] PR #861 fusionado, SHA Canary `bffa8ec1a54245141338d0b7282033ffedee49f8`, Exact Deploy `38114835821` SUCCESS y APK DEBUG SHA exacto `38114835828` SUCCESS; falta E2E en Android físico.
 - [x] PR #863 completado en Canary SHA `f0063d76a770ff92b2fe489bd847e0ca1749f155`, Exact Deploy `38117437616` SUCCESS, Android QA push `38117437627` SUCCESS, sin cambios PROD.
-- [ ] Certificar doble comprobación del grant remoto después del preflight sanitario V45 QA y antes de la importación V44; bloquear lecturas Health Connect si cambia la cuenta mientras se obtiene el token; rama `fix/connected360-qa-bridge-consent-leases-20261011`, PR/CI/Canary pendientes.
+- [x] PR #864 integrado y certificado: SHA Canary `3c50b9cad1345bba097a7fb86876dafa1b47387e`, Exact Deploy `38142899178` SUCCESS, Android QA `38142899147` SUCCESS, Device/CI/Auth/remote checks SUCCESS. Segunda validación de grant tras preflight V45 y aislamiento tras refresh de token.
 - [ ] Concluir integración nativa real Android Health Connect y flujo Cliente `Vincular dispositivo`, sin importaciones manuales como experiencia principal; autorización explícita por métricas, estado y revocación/reconexión.
 - [ ] Completar iOS HealthKit con app firmada, E2E físico y protección ante cambios de identidad, permisos y background.
 - [ ] Certificar writer backend V45 en QA con fencing transaccional de revocación, autorizaciones, procedencia real, idempotencia, RLS y pruebas negativas; NO abrirlo antes ni migrar V45 a PROD.
@@ -13,7 +13,16 @@
 - Trabajo de imágenes/PR #809 queda en carril concurrente y no debe alterarse. Checkpoint de integración y límites: `docs/PRODUCTION_STATE.md`.
 
 
-## MACRO-WIP ACTIVO · Prescripción inteligente y métricas por ejercicio · PR #803
+## P1 Auth QA · incidente #821 · 2026-10-11
+
+- [x] Paridad código/runtime del broker QA #831: desplegada v13 ACTIVE (solo Supabase QA), cinco códigos de error de lectura 502 en vez de falsear rol 409, OIDC/WebAuthn intactos; digest `b27512055e3a3a33e0d63e0862444f53904b610d1f31d2f398fe33edcbfc9417`. Coach WebAuthn QA run #38142899129 reintentado tras deploy: SUCCESS.
+- [x] Admin WebAuthn QA #38142899200 tras broker v13, segundo intento: SUCCESS (contrato, E2E real QA y gate). Issue #821 sigue OPEN por causa de timeouts no determinada.
+- [ ] Reproducir y corregir causalmente timeouts de assurance/pre-red en tablet horizontal CPU x6 y Firefox, token 200 sin llamada assurance, refresh/logout/offline/background, instrumentación sensible safe, E2E read-only. No reducir matriz, ocultar 401 o incrementar timeout por conveniencia.
+- **Evidencia:** Supabase QA 24h: perfil 223 × 200 y 1 × 401 el 10/10 a las 14:39:44Z; token y assurance 200 en solicitudes que sí alcanzaron el servidor. Sin inferir causa de solicitudes ausentes.
+- **Límites:** no tocar PROD ni usuarios reales; broker QA sintético de certificación, no activar ingest wearable. Issue #821 documentado.
+
+## Archivo histórico · Prescripción inteligente y métricas por ejercicio · PR #803
+- **Actualización:** #803 MERGED Canary (SHA `43c5352ff9e48dcd7b1cf7451c4e3dd2938ca6ce`). Los siguientes checks reflejan el estado del 08/10 y **no** deben tratarse como tareas aún abiertas sin revalidación en GitHub/QA/LIVE.
 
 - [x] Motor de siete perfiles `strength/isometric/endurance/intervals/carry/mobility/power`, UX contextual para Coach/Cliente y selector Admin implementados en PR #803.
 - [x] Planificación, registro de resultados, correcciones, circuitos, copia de sesiones y plantillas tienen cobertura automatizada específica; no inferir con ello que la interacción productiva ya está certificada.
