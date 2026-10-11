@@ -14,6 +14,14 @@ android {
         versionName = "26.59.2-phone"
     }
 
+    // Isolate sideloaded Canary DEBUG builds from a possible installed IBERFIT release.
+    // Do not change the production applicationId or signing identity.
+    buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".qa"
+        }
+    }
+
     sourceSets {
         getByName("main") {
             kotlin.directories.addAll(
