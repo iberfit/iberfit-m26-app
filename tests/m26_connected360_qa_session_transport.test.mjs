@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -309,4 +310,13 @@ test('Android QA account teardown invalidates native permission, not just JS lis
   assert.match(native,/resetReadApproval\(\)/u);
   assert.match(native,/readFence\.retire\(\)/u);
   assert.doesNotMatch(source,/postMessage\(JSON\.stringify\(\{[^]*?accessToken/u);
+});
+
+test('expired native QA permission has localized recovery instructions',()=>{
+  const es='La autorización local caducó. Vuelve a pulsar «Permitir UNA lectura» en la aplicación de pruebas.';
+  for(const lang of ['en','fr','pt']){
+    const translated=iberfitSurfaceTranslate(es,{language:lang});
+    assert.notEqual(translated,es,'missing localization '+lang);
+    assert.ok(translated.length>30);
+  }
 });
