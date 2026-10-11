@@ -4,6 +4,7 @@ import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
@@ -58,6 +59,8 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Health preview may contain personal data: block captures and task snapshots.
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
             finish()
             return
