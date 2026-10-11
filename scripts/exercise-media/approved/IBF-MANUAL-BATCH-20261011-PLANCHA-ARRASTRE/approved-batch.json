@@ -1,0 +1,52 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PLANCHA-FRONTAL-CON-ARRASTRE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-PLANCHA-ARRASTRE/movement-9f89cf757b5f.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Versión de plancha frontal con arrastre aprobada explícitamente por usuario tras rechazar una primera candidata por mano recortada y arrastre poco claro. Fuente: planchas_con_arrastre_de_mancuerna.png SHA256 06a7e093826b5aa2b38bd134096eda878074f94f7462c6fa9964139762884085, JPG/PNG original 1122x1402. WebP 640x800 derivado de resize proporcional casi exacto sin cambios del movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-FRONTAL-CON-ARRASTRE/movement-9f89cf757b5f.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "9f89cf757b5ff95c3d177dd3ff2062c633ceaaa8a0d9ec09447da84a2483fe33"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
