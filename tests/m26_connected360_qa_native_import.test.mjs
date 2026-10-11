@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createConnected360QaImporter} from '../src/m26/wearables/qa-native-import.js';
+import {projectQaNativeRecordToV44} from '../src/m26/wearables/qa-native-provenance.js';
 
 const CLIENT='11111111-1111-4111-8111-111111111111';
 const OTHER='22222222-2222-4222-8222-222222222222';
@@ -44,10 +45,22 @@ function setup({online=true,identity={role:'client',clientId:CLIENT,ownerId:'use
         await afterValidation(state);
         return validation;
       },
-      importWearableAuthorized:async(...args)=>{
-      state.writes.push(args);
-      return rpc;
-    }},
+      importConnected360QaV45:async(token,id,payload)=>{
+        // Legacy assertions inspect the server-side V44 projection as a
+        // local TEST DOUBLE only. Production sends exclusively V45 records.
+        state.writes.push([token,id,{
+          records:payload.records.map(projectQaNativeRecordToV44),
+        }]);
+        return {ok:rpc.ok,persisted:true,automatic:false,
+          sourceTimeVerified:false,sourceIdentityVerified:false,
+          provider:'health_connect',
+          inserted:Number(rpc.accepted)||0,updated:0,
+          unchanged:Number(rpc.stale)||0,
+          count:(Number(rpc.accepted)||0)+(Number(rpc.stale)||0),
+          legacyAccepted:Number(rpc.accepted)||0,
+          legacyStale:Number(rpc.stale)||0,
+        };
+      }},
     refreshState:async()=>{state.calls.push('refresh');},
   });
   return {importer,state};
