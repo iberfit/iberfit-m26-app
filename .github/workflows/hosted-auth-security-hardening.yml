@@ -31,6 +31,15 @@ jobs:
     if: ${{ github.event_name == 'push' || inputs.confirmation == 'ENABLE_IBERFIT_HIBP_QA' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
+    # The Admin WebAuthn cert broker temporarily grants "admin" to the
+    # qa.rc74.client-a fixture. Never inspect it as a pure Client while that
+    # elevated QA fixture is active. Share the SAME mutex as Admin/Coach
+    # WebAuthn, Canary exact-auth preflight and remote readonly certification.
+    # Do not weaken role checks or use ad-hoc sleeps/retries.
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
     timeout-minutes: 15
 
     steps:
