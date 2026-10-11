@@ -2,6 +2,9 @@
 
 ## Nueva etapa 2026-10-11: escritura explícita V45 + espejo V44 atómico (QA remoto)
 
+**Hardening posterior:** migración QA aditiva `20261011183000_connected360_v45_idempotent_legacy_revision_qa.sql` preserva revisiones V44 cuando V45 recibe un snapshot idéntico: el espejo V44 se omite para filas sin cambios (y se contabilizan como `legacyStale`). No se utiliza el contador `accepted` del V44 heredado como prueba de cambios nuevos. Exigir prueba de replay `revision` constante en QA remota con cuentas sintéticas.
+
+
 **Migraciones QA aplicadas y verificadas:** `20261011160851_connected360_v45_explicit_native_writer_qa` y `20261011161035_connected360_v45_atomic_legacy_mirror_qa`. Código fuente conservado en `supabase/qa-migrations/20261011162000_connected360_v45_explicit_native_writer_qa.sql` y `supabase/qa-migrations/20261011165500_connected360_v45_atomic_legacy_mirror_qa.sql`, rama `feat/connected360-v45-integrated-macro-20261011`. **NO desplegar estas migraciones a PROD.**
 
 La única RPC nueva `m26_wearable_v45_import_explicit_qa_v1(uuid,jsonb)` es `SECURITY DEFINER SET search_path=''` intencional y acotada: tiene EXECUTE solo para `authenticated`, comprueba `auth.uid()`, `iberfit_client_id()`, assurance de privilegios, validación completa de payload por el preflight V45, grant Health Connect exacto y revocation cursor **bajo el mismo candado transaccional** usado en V44/revoke. El trigger V45 conserva denegación por defecto y exige marcas transaccionales + propietario/cliente/grant coincidentes. Su tabla conserva FORCE RLS y ningún SELECT/INSERT/UPDATE directo para clientes ni políticas permisivas.
