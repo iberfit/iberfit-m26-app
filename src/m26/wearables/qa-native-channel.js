@@ -214,9 +214,22 @@ export function createConnected360QaNativeChannel({
     readLocal,
     available:()=>!disposed&&isConnected360QaNativeAvailable(scope),
     destroy:()=>{
+      if(disposed)return;
       disposed=true;
       rejectPending?.();
       rejectPending=null;
+      // Logout/account change must also retire the native one-use approval.
+      // No credentials, client identifiers or health records cross this edge.
+      try{
+        if(isConnected360QaNativeAvailable(scope)&&channel===scope?.[CHANNEL]){
+          const requestId=scope.crypto?.randomUUID?.();
+          if(SAFE_ID.test(String(requestId||''))){
+            channel.postMessage(JSON.stringify({
+              schema:REQUEST_SCHEMA,requestId,action:'health.invalidate',
+            }));
+          }
+        }
+      }catch{}
     },
   });
 }

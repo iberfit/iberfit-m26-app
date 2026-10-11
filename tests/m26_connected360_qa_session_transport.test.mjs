@@ -195,6 +195,8 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   const policy=readFileSync('src/m26/wearables/free-policy.js','utf8');
   assert.match(source,/Connected360OriginGate\.trusted/);
   assert.match(source,/oneReadApproved = false/);
+  assert.match(source,/action == "health.invalidate"/u);
+  assert.match(source,/readFence.retire\(\)/u);
   assert.match(source,/if \(readInFlight \|\| !oneReadApproved\)/);
   assert.match(source,/IberfitHealthConnectReader\(client\)/);
   assert.match(source,/grantedMetrics\(metrics\)/);
@@ -220,11 +222,13 @@ test('logout immediately cancels a pending native read and drops late health res
   assert.equal(f.listeners.size,1);
   f.client.destroy();
   await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
+  assert.equal(f.messages.length,2);
+  assert.equal(f.messages[1].action,'health.invalidate');
   assert.equal(f.listeners.size,0);
   await assert.rejects(f.client.readLocal(),/M26_HEALTH_QA_DISPOSED/);
 });
 
-test('destroy while session refresh is pending never sends any native request',async()=>{
+test('destroy during token refresh never reads health data and retires native authorization',async()=>{
   let release;
   const waitForToken=new Promise(resolve=>{release=resolve;});
   const f=fixture({reply:ok});
@@ -238,7 +242,9 @@ test('destroy while session refresh is pending never sends any native request',a
   client.destroy();
   release('qa-user-session-strong');
   await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
-  assert.equal(f.messages.length,0);
+  assert.equal(f.messages.length,1);
+  assert.equal(f.messages[0].action,'health.invalidate');
+  assert.equal(f.messages[0].days,undefined);
 });
 
 test('partial Android permission yields only granted metrics; denied fields remain absent',async()=>{
@@ -292,4 +298,15 @@ test('Android one-shot native read approval expires after two minutes of monoton
   assert.match(lease,/MAX_AGE_MS = 120_000L/u);
   assert.match(testSource,/expiredAndMissingApprovalAreRejected/u);
   assert.doesNotMatch(kotlin,/clientId|accessToken|service_role/u);
+});
+
+test('Android QA account teardown invalidates native permission, not just JS listener',()=>{
+  const source=readFileSync('src/m26/wearables/qa-native-channel.js','utf8');
+  const native=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt','utf8');
+  assert.match(source,/action:'health.invalidate'/u);
+  assert.match(source,/if\(disposed\)return/u);
+  assert.match(native,/if \(action == "health.invalidate"\)/u);
+  assert.match(native,/resetReadApproval\(\)/u);
+  assert.match(native,/readFence\.retire\(\)/u);
+  assert.doesNotMatch(source,/postMessage\(JSON\.stringify\(\{[^]*?accessToken/u);
 });

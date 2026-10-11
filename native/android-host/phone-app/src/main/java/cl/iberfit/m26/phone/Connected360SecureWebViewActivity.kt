@@ -173,11 +173,21 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (raw.length !in 2..1024) return
                     val request = runCatching { JSONObject(raw) }.getOrNull() ?: return
                     val id = request.optString("requestId", "")
-                    if (!Connected360OriginGate.requestIdAllowed(id) || !requestIds.add(id)) return
-                    if (requestIds.size > 128) requestIds.remove(requestIds.first())
+                    if (!Connected360OriginGate.requestIdAllowed(id)) return
                     val schema = request.optString("schema", "")
                     val action = request.optString("action", "")
                     if (schema != "iberfit.connected360.qa.request.v1") return
+                    if (action == "health.invalidate") {
+                        // A session logout revokes the local approval, even if
+                        // no data read has started. No auth token is sent.
+                        resetReadApproval()
+                        readFence.retire()
+                        status.text = "Autorización local retirada. No se han enviado datos."
+                        return
+                    }
+                    // For reads, reject replayed request identifiers.
+                    if (!requestIds.add(id)) return
+                    if (requestIds.size > 128) requestIds.remove(requestIds.first())
                     when (action) {
                         "status" -> {
                             // Kept false on purpose: this is not the certified automatic bridge.
