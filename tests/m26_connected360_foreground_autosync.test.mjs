@@ -142,3 +142,86 @@ test('Connected360 never silently reinterprets a manual import as a certified li
   assert.match(controller,/rows\.filter\(isCertifiedNativeAutoSyncSource\)/u);
   assert.match(controller,/wearableZeroCostPolicy\(provider\)\?\.productionAllowed&&bridge\.isAvailable\(provider\)/u);
 });
+
+test('foreground: logout aborts old read and new Client starts without waiting for old promise',async()=>{
+  const resolves=[];
+  const signals=[];
+  const sync=createWearableForegroundSync({
+    canRun:()=>true,
+    now:()=>10_000,
+    run:({signal})=>new Promise(resolve=>{
+      signals.push(signal);
+      resolves.push(resolve);
+    }),
+  });
+  const old=sync.trigger();
+  await Promise.resolve();
+  assert.equal(signals.length,1);
+  assert.equal(signals[0].aborted,false);
+  sync.invalidate();
+  assert.equal(signals[0].aborted,true);
+  const next=sync.trigger();
+  assert.notStrictEqual(next,old);
+  await Promise.resolve();
+  assert.equal(signals.length,2);
+  assert.equal(signals[1].aborted,false);
+  resolves[1]({client:'new'});
+  assert.deepEqual(await next,{client:'new'});
+  resolves[0]({client:'old'});
+  assert.deepEqual(await old,{skipped:'invalidated'});
+});
+
+test('foreground: rejected old account callback is discarded and cannot block retry',async()=>{
+  let rejectOld,resolveNew;
+  let requests=0;
+  const sync=createWearableForegroundSync({
+    canRun:()=>true,
+    run:({signal})=>{
+      requests++;
+      if(requests===1)return new Promise((_,reject)=>{rejectOld=reject;});
+      assert.equal(signal.aborted,false);
+      return new Promise(resolve=>{resolveNew=resolve;});
+    },
+  });
+  const old=sync.trigger();
+  await Promise.resolve();
+  sync.invalidate();
+  const next=sync.trigger();
+  await Promise.resolve();
+  rejectOld(new Error('M26_OLD_CLIENT_PRIVATE_ERROR'));
+  assert.deepEqual(await old,{skipped:'invalidated'});
+  resolveNew({ok:true});
+  assert.deepEqual(await next,{ok:true});
+  assert.equal(requests,2);
+});
+
+test('foreground: session teardown invalidates scheduled preflight and resets cooldown',async()=>{
+  let eligible=true,started=0;
+  const sync=createWearableForegroundSync({
+    now:()=>1_000,
+    canRun:()=>eligible,
+    run:async({signal})=>{assert.equal(signal.aborted,false);started++;return {ok:true};},
+  });
+  const old=sync.trigger();
+  eligible=false;
+  sync.invalidate();
+  assert.deepEqual(await old,{skipped:'invalidated'});
+  assert.deepEqual(await sync.trigger(),{skipped:'inactive'});
+  eligible=true;
+  assert.deepEqual(await sync.trigger(),{ok:true});
+  assert.equal(started,1);
+});
+
+test('Connected360 native foreground operations respect abort before a consent grant or write',()=>{
+  const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const native=c.slice(c.indexOf('async function connectNativeProvider('),c.indexOf('const foregroundSync=createWearableForegroundSync'));
+  assert.match(native,/signal=null/u);
+  assert.match(native,/if\(signal\?\.aborted\)throw new Error\('M26_WEARABLE_SYNC_INVALIDATED'\)/u);
+  assert.match(native,/run:autoSyncNativeProviders/u,{message:'scheduler must use the native provider reader'});
+  assert.match(native,/connectNativeProvider\(provider,\{interactive:false,silent:true,signal\}\)/u);
+  assert.match(native,/if\(signal\?\.aborted\)break/u);
+  const indexGrant=native.indexOf('remoteSync.currentAuthorization');
+  const indexWrite=native.indexOf('remoteSync.stage({');
+  assert.ok(indexGrant>0&&indexWrite>indexGrant);
+  assert.ok(native.slice(indexGrant,indexWrite).includes('requireSameClient();'));
+});
