@@ -60,6 +60,19 @@ function setup({ack=result,afterPersist=()=>{}}={}){
   return {state,importer};
 }
 
+test('missing V45 boundary must fail closed, never fall back to V44-only uploads',()=>{
+  assert.throws(()=>createConnected360QaImporter({
+    scope:{location:{origin:'https://m26-canary.iberfit.cl'},
+      IBERFIT_CONNECTED360_QA:{}},
+    getToken:async()=> 'synthetic-token',
+    getIdentity:()=>({role:'client',clientId:CLIENT,ownerId:'owner-A'}),
+    remoteSync:{reauthorize:async()=>({grantId:GRANT}),
+      currentAuthorization:async()=>({grantId:GRANT})},
+    transport:{importWearableAuthorized:async()=>({ok:true,accepted:1}),
+      validateConnected360QaNativePreview:async()=>({ok:true})},
+  }),/M26_HEALTH_QA_IMPORT_DEPENDENCIES_REQUIRED/u);
+});
+
 test('single confirmed V45 endpoint carries honest native data, with no duplicate V44 HTTP request',async()=>{
   const x=setup();
   x.importer.capture(preview);
