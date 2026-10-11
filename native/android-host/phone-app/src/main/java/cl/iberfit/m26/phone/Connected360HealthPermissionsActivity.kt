@@ -1,5 +1,6 @@
 package cl.iberfit.m26.phone
 
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Button
@@ -55,6 +56,12 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         // This local-only permission proof also displays health measurements.
         // Keep them out of screenshots and Android's recent-app thumbnails.
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // QA permission diagnostics are NOT a production health integration.
+        // Fail closed even if a future release accidentally exposes this Activity.
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            finish()
+            return
+        }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(40, 52, 40, 48)
