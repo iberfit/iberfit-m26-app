@@ -880,7 +880,16 @@ export function createWearableController({
 
   function onForegroundVisibility(){
     const doc=root.ownerDocument||globalThis.document;
+    if(doc?.visibilityState==='hidden'){
+      foregroundSync.invalidate();
+      return;
+    }
     if(doc?.visibilityState==='visible')requestForegroundSync();
+  }
+
+  function onPageHide(){
+    // Background/BFCache must not resume a stale health read or identity lease.
+    foregroundSync.invalidate();
   }
 
   function onPageShow(){
@@ -1471,6 +1480,8 @@ export function createWearableController({
 
   function onOffline(){
     lastOnline=false;
+    // A network loss must retire in-flight native reads and any old grant lease.
+    foregroundSync.invalidate();
   }
 
   return Object.freeze({
@@ -1500,6 +1511,7 @@ export function createWearableController({
         onOffline,
       );
       globalThis.addEventListener?.('pageshow',onPageShow);
+      globalThis.addEventListener?.('pagehide',onPageHide);
       root.ownerDocument?.addEventListener?.('visibilitychange',onForegroundVisibility);
 
       if(
@@ -1574,6 +1586,7 @@ export function createWearableController({
         onOffline,
       );
       globalThis.removeEventListener?.('pageshow',onPageShow);
+      globalThis.removeEventListener?.('pagehide',onPageHide);
       root.ownerDocument?.removeEventListener?.('visibilitychange',onForegroundVisibility);
 
       lastOnline=null;
