@@ -114,7 +114,7 @@ test('hydration coordinator coalesces overlap and guarantees a final pass for th
 test('application integrates hydration coordinator instead of duplicate concurrent refreshes',()=>{
   const app=read('src/m26/app/application.js');
   assert.match(app,/import \{createHydrationCoordinator\} from '\.\/hydration-coordinator\.js';/u);
-  assert.match(app,/const hydrationCoordinator=createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>session\}\);/u);
+  assert.match(app,/const hydrationCoordinator=createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>hydrationLeaseFor\(session\)\}\);/u);
   assert.match(app,/return hydrationCoordinator\.request\(options\);/u);
   assert.doesNotMatch(app,/hydrateInFlight|hydrateQueuedReason/u);
 });
