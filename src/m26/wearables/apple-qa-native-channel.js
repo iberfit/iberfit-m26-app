@@ -172,6 +172,21 @@ export function createAppleHealthQaNativeChannel({
   return Object.freeze({
     readLocal,
     available:()=>!disposed&&isAppleHealthQaNativeAvailable(scope),
-    destroy:()=>{disposed=true;rejectPending?.();rejectPending=null;},
+    destroy:()=>{
+      if(disposed)return;
+      disposed=true;
+      rejectPending?.();
+      rejectPending=null;
+      // Logout or account replacement MUST also retire the one-shot native
+      // approval, not only the web promise. No token or identity crosses.
+      try{
+        if(isAppleHealthQaNativeAvailable(scope)){
+          const requestId=scope.crypto?.randomUUID?.();
+          if(ID.test(String(requestId||'')))sender.postMessage({
+            schema:REQUEST,requestId,action:'health.invalidate',
+          });
+        }
+      }catch{}
+    },
   });
 }

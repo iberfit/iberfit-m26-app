@@ -243,11 +243,21 @@ private struct IBERFITCanaryQAWebView: UIViewRepresentable {
                   id.range(of: "^[A-Za-z0-9_-]{8,72}$", options: .regularExpression) != nil,
                   seen.insert(id).inserted,
                   body["schema"] as? String == "iberfit.connected360.apple.qa.request.v1",
-                  body["action"] as? String == "health.readDaily",
-                  let days = body["days"] as? Int, (1...7).contains(days)
+                  let action = body["action"] as? String
             else { return }
             if seen.count > 128 { seen.removeAll(); seen.insert(id) }
-            state.receiveRead(requestId: id, days: days, in: webView)
+            switch action {
+            case "health.invalidate":
+                // Web logout/account replacement retires the OS read lease.
+                // No health data or authentication token is needed.
+                state.invalidate()
+            case "health.readDaily":
+                guard let days = body["days"] as? Int,
+                      (1...7).contains(days) else { return }
+                state.receiveRead(requestId: id, days: days, in: webView)
+            default:
+                break
+            }
         }
     }
 }

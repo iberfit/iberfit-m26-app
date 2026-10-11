@@ -142,8 +142,25 @@ test('native QA host has strict Canary main-frame origin, one local approval, no
   assert.match(source,/persisted": false/u);
   assert.match(source,/linked": false/u);
   assert.match(source,/state\.invalidate\(\)/u);
+  assert.match(source,/case "health.invalidate":/u);
+  assert.match(controller,/appleQaNative\.destroy\(\)/u);
   assert.doesNotMatch(source,/service_role|SUPABASE_SERVICE|URLSession|importConnected360QaV45/u);
   assert.match(policy,/apple_health:policy\(\{[^]*?productionAllowed:false/u);
   assert.match(controller,/appleQaNative\.readLocal\(\{days:7\}\)/u);
   assert.match(controller,/appleQaNative\.destroy\(\)/u);
+});
+
+test('logout actively revokes the pending one-shot HealthKit approval in the native host',async()=>{
+  const h=harness();
+  const pending=h.channel.readLocal();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(h.sent.length,1);
+  h.channel.destroy();
+  await assert.rejects(pending,/M26_APPLE_QA_DISPOSED/u);
+  assert.equal(h.sent.length,2);
+  assert.equal(h.sent[1].schema,'iberfit.connected360.apple.qa.request.v1');
+  assert.equal(h.sent[1].action,'health.invalidate');
+  assert.equal(h.sent[1].days,undefined);
+  assert.doesNotMatch(JSON.stringify(h.sent[1]),/authenticated-owner|qa-client|token|grant|email/u);
+  assert.equal(h.listeners.size,0);
 });

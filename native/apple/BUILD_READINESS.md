@@ -101,3 +101,7 @@ the background. It is **not** the production bridge or a full native app.
 The prior standalone local tab remains available. Release builds remain
 forbidden. Physical iPhone signing and actual HealthKit permission/auth
 flow verification are still mandatory before any V45 Apple writer.
+
+## Logout-to-native invalidation
+
+The QA JavaScript channel sends a separate `health.invalidate` command on destruction (logout, owner switch, controller teardown). The iPhone handler accepts it only from the trusted HTTPS Canary main frame, retires the one-shot HealthKit authorization generation immediately and discards pending native callbacks. The command has only a random request ID; it does not contain the authentication token or client identity. Source revocation and server-grant revocation remain separate server-side controls and must never be inferred from this local reset.
