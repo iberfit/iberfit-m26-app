@@ -29,6 +29,18 @@ test('iOS HealthKit permission is user-initiated, scoped read-only and consumabl
   assert.doesNotMatch(swift,/requestAuthorization\(toShare: \[.*workout/gu);
 });
 
+test('late HealthKit authorization and read result are invalidated after logout or account change',()=>{
+  assert.match(swift,/private var generation: UInt64 = 0/u);
+  assert.match(swift,/generation &\\+= 1/u);
+  assert.match(swift,/let lease = generation/u);
+  assert.match(swift,/self\\.generation == lease/u);
+  assert.match(swift,/if current && success && error == nil/u);
+  assert.match(swift,/guard let self, self\\.isCurrent\\(lease\\) else/u);
+  assert.match(swift,/guard self\\.isCurrent\\(lease\\) else/u);
+  assert.match(swift,/case invalidated/u);
+  assert.match(swift,/func revokeLocalReadApproval\\(\\)/u);
+});
+
 test('iOS daily steps are bounded to seven local civil days, do not invent watch source or denied data',()=>{
   assert.match(swift,/\(1\.\.\.7\)\.contains\(days\)/u);
   assert.match(swift,/calendar\.timeZone/u);
