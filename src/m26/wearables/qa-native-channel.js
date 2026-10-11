@@ -104,6 +104,15 @@ export function createConnected360QaNativeChannel({
     if(disposed)throw new Error('M26_HEALTH_QA_DISPOSED');
     if(typeof token!=='string'||token.length<10)
       throw new Error('M26_HEALTH_QA_SESSION_REQUIRED');
+    // A refresh may resolve after logout/account switch. Never post even a
+    // local Health Connect request from that obsolete authenticated context.
+    const latest=getIdentity();
+    if(String(latest?.role||'').toLowerCase()!=='client'||
+      String(latest?.clientId||'')!==String(identity.clientId)||
+      String(latest?.ownerId||'')!==String(identity.ownerId))
+      throw new Error('M26_HEALTH_QA_SESSION_CHANGED');
+    if(!isConnected360QaNativeAvailable(scope)||channel!==scope?.[CHANNEL])
+      throw new Error('M26_HEALTH_QA_BRIDGE_UNAVAILABLE');
     return {clientId:String(identity.clientId),ownerId:String(identity.ownerId)};
   }
 

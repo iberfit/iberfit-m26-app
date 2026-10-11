@@ -4,7 +4,8 @@
 
 - [x] PR #859 cerrado: aislamiento de sincronización ante cambio Cliente/logout y cancelación de lecturas; Canary Exact Deploy `38113954119` SUCCESS, merge SHA `b2371fd7c9857b4d035ae2bdeaeb75fcd5d69dd0`.
 - [x] PR #861 fusionado, SHA Canary `bffa8ec1a54245141338d0b7282033ffedee49f8`, Exact Deploy `38114835821` SUCCESS y APK DEBUG SHA exacto `38114835828` SUCCESS; falta E2E en Android físico.
-- [ ] Cerrar race de reautorización tardía tras revocar/borrar/salir (rama `fix/connected360-revocation-generation-20261011`): CI completo, merge protegido y verificación de Canary; nada habilita Health ingest PROD.
+- [x] PR #863 completado en Canary SHA `f0063d76a770ff92b2fe489bd847e0ca1749f155`, Exact Deploy `38117437616` SUCCESS, Android QA push `38117437627` SUCCESS, sin cambios PROD.
+- [ ] Certificar doble comprobación del grant remoto después del preflight sanitario V45 QA y antes de la importación V44; bloquear lecturas Health Connect si cambia la cuenta mientras se obtiene el token; rama `fix/connected360-qa-bridge-consent-leases-20261011`, PR/CI/Canary pendientes.
 - [ ] Concluir integración nativa real Android Health Connect y flujo Cliente `Vincular dispositivo`, sin importaciones manuales como experiencia principal; autorización explícita por métricas, estado y revocación/reconexión.
 - [ ] Completar iOS HealthKit con app firmada, E2E físico y protección ante cambios de identidad, permisos y background.
 - [ ] Certificar writer backend V45 en QA con fencing transaccional de revocación, autorizaciones, procedencia real, idempotencia, RLS y pruebas negativas; NO abrirlo antes ni migrar V45 a PROD.
