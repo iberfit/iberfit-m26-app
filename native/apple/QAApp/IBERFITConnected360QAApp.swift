@@ -17,7 +17,9 @@ struct IBERFITConnected360QAApp: App {
         WindowGroup {
             IBERFITHealthKitQAView(model: model)
                 .onChange(of: phase) { _, newPhase in
-                    if newPhase != .active { model.invalidate() }
+                    // iOS permission sheet may transition to .inactive; only true
+                    // background retires this one-shot HealthKit lease.
+                    if newPhase == .background { model.invalidate() }
                 }
         }
     }
