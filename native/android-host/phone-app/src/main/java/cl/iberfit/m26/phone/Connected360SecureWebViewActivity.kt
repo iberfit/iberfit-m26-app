@@ -234,8 +234,8 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                             .put("date", record.date)
                                             .put("acquiredAt", record.acquiredAt)
                                             .put("aggregationTimeZone", record.aggregationTimeZone)
-                                        if (record.contributingAppCount != null) {
-                                            row.put("contributingAppCount", record.contributingAppCount)
+                                        if (record.contributingOriginCount != null) {
+                                            row.put("contributingOriginCount", record.contributingOriginCount)
                                         }
                                         if (record.steps != null) row.put("steps", record.steps)
                                         if (record.sleepMinutes != null) row.put("sleepMinutes", record.sleepMinutes)
