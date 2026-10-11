@@ -222,14 +222,23 @@ export function createConnected360QaImporter({
         const v45=await transport.importConnected360QaV45(
           token,grant.grantId,{records:pending.records}
         );
-        accepted=Number(v45?.legacyAccepted);
-        stale=Number(v45?.legacyStale);
+        // V44's historical <= timestamp upsert reports an identical replay as
+        // accepted, while V45 correctly records it as unchanged. Present the
+        // truthful V45 outcome; validate V44 counts only as atomic evidence.
+        const inserted=Number(v45?.inserted);
+        const updated=Number(v45?.updated);
+        const unchanged=Number(v45?.unchanged);
+        const legacyAccepted=Number(v45?.legacyAccepted);
+        const legacyStale=Number(v45?.legacyStale);
+        accepted=inserted+updated;
+        stale=unchanged;
         if(v45?.ok!==true||v45.persisted!==true||
           v45.automatic!==false||v45.sourceTimeVerified!==false||
           v45.sourceIdentityVerified!==false||
-          !Number.isInteger(accepted)||accepted<0||
-          !Number.isInteger(stale)||stale<0||
-          accepted+stale!==pending.records.length)
+          [inserted,updated,unchanged,legacyAccepted,legacyStale]
+            .some(n=>!Number.isInteger(n)||n<0)||
+          accepted+stale!==pending.records.length||
+          legacyAccepted+legacyStale!==pending.records.length)
           throw new Error('M26_HEALTH_QA_REMOTE_IMPORT_UNVERIFIED');
       }else{
         const result=await transport.importWearableAuthorized(
