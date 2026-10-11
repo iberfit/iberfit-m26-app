@@ -1,3 +1,11 @@
+## Canary certificado · cierre PR #869 · 2026-10-11
+
+- [PR #869](https://github.com/iberfit/iberfit-m26-app/pull/869) MERGED. SHA exacto protegido **`053fc83df22062c636149a92a9f6386200928fea`**; 7/7 gates previos y **12/12 postmerge SUCCESS**. La carrera de hidratación entre sesiones (cuenta A → B, relogin misma identidad, refresh legítimo, error tardío y coalescing) queda protegida mediante lease opaco por generación y regresiones reales node:vm.
+- [Canary Exact Deploy 38152029358](https://github.com/iberfit/iberfit-m26-app/actions/runs/38152029358) **SUCCESS**, desktop/móvil autenticado read-only, runtime aislado QA `gjztkdwfmunnzhtvxrsu`, deployment Cloudflare `12ed932d-e2c1-4b0d-b43d-474b6fe240c6`; rollback certificado a deployment anterior `060289ae-649b-456c-8712-def4a4c96fa4` (SHA `1887dc01fa0315d5a8330022b5b5d6aaef018c08`). **No es una promoción PROD.**
+- Issue [#821](https://github.com/iberfit/iberfit-m26-app/issues/821) mantiene abierto el histórico timeout assurance Firefox/tablet x6 aún sin causa raíz cierta: no confundir la carrera ya corregida con su explicación. Tests repetidos y recovery siguen obligatorios antes de cerrar la incidencia.
+- **Metodología aprobada para próximos trabajos:** macrobloques integrados end-to-end, rama/PR principal por objetivo coherente, tests dirigidos antes de un CI consolidado, Canary SHA exacto y release PROD independiente. Seguridad/RLS/rollback nunca se omiten. Política canónica en `AGENTS.md` y `docs/CHATGPT_WORKFLOW.md`.
+- **WIP siguiente:** Connected 360 v45 end-to-end en rama `feat/connected360-v45-integrated-macro-20261011` (base `053fc83d…`), QA primero. V45 writer/auto-sync/hardware QA pendiente; la tabla V45 PROD aún no existe y `productionAllowed=false`.
+
 # IBERFIT · Production State
 
 ## Certificación Canary PR #867 · 2026-10-11
