@@ -119,9 +119,9 @@ jobs:
           sha256sum "$APK" > "${APK}.sha256"
           # Attest the SHA used to build this SHORT-LIVED DEBUG artifact.
           # No user, device, authorization or health records are written here.
-          printf '{"schema":"iberfit.connected360.qa-apk.v1","sourceSha":"%s","sourceRef":"%s","event":"%s","qaOnly":true,"releaseCandidate":false,"remoteHealthSync":false,"canaryOrigin":"https://m26-canary.iberfit.cl"}\\n' \\
-            "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_EVENT_NAME" > "${APK}.provenance.json"
-          node -e "const p=require('./${APK}.provenance.json'); if(p.sourceSha!==process.env.GITHUB_SHA||!p.qaOnly||p.releaseCandidate||p.remoteHealthSync) process.exit(1)"
+          export APK
+          node -e 'const fs=require("node:fs"); const p={schema:"iberfit.connected360.qa-apk.v1",sourceSha:process.env.GITHUB_SHA,sourceRef:process.env.GITHUB_REF_NAME,event:process.env.GITHUB_EVENT_NAME,qaOnly:true,releaseCandidate:false,remoteHealthSync:false,canaryOrigin:"https://m26-canary.iberfit.cl"}; if(!/^[0-9a-f]{40}$/.test(p.sourceSha)||!["pull_request","push","workflow_dispatch"].includes(p.event)) process.exit(1); fs.writeFileSync(process.env.APK+".provenance.json",JSON.stringify(p)+"\\n");'
+          node -e 'const p=require("./"+process.env.APK+".provenance.json"); if(p.sourceSha!==process.env.GITHUB_SHA||!p.qaOnly||p.releaseCandidate||p.remoteHealthSync) process.exit(1)'
       - name: Preserve short-lived Canary DEBUG APK for physical QA
         uses: actions/upload-artifact@v4
         with:
