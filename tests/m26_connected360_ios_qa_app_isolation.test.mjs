@@ -29,7 +29,7 @@ test('native iPhone QA harness is an explicit one-tap local read, never an uploa
   assert.match(reader,/public func readStepsOnce/u);
   assert.match(reader,/public func requestExplicitStepsAccess/u);
   assert.doesNotMatch(app,/URLSession|WKWebView|WKScriptMessage|postMessage|serviceRole|fetch\(/u);
-  assert.match(app,/no envía registros/u);
+  assert.match(app,/ni envía registros/u);
 });
 
 test('Xcode simulator gate compiles exact QA app target and disallows distribution signing',()=>{
