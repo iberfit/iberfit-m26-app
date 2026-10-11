@@ -23,3 +23,17 @@ test('secure display retains debug-only, exact-origin and single-read consent pr
   assert.doesNotMatch(activity,/addJavascriptInterface|service_role|SUPABASE_SERVICE_KEY/u);
   assert.match(host,/phone-app:testDebugUnitTest :phone-app:assembleDebug :phone-app:assembleRelease/u);
 });
+
+
+test('Health Connect local permission screen protects displayed steps, sleep and heart rate',()=>{
+  const local=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360HealthPermissionsActivity.kt',import.meta.url),'utf8');
+  assert.match(local,/import android\.view\.WindowManager/u);
+  const flag=local.indexOf('window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)');
+  const content=local.indexOf('val column = LinearLayout(this)');
+  assert.ok(flag>0&&content>flag,'privacy flag must precede the local health UI');
+  assert.match(local,/totalSteps/u);
+  assert.match(local,/sleepMinutes/u);
+  assert.match(local,/restingHeartRate/u);
+  assert.match(local,/permissionLauncher\.launch\(missing\)/u);
+  assert.doesNotMatch(local,/addJavascriptInterface|service_role|SUPABASE_SERVICE_KEY/u);
+});
