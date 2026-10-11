@@ -150,9 +150,9 @@ test('V45 mirrors V44 atomically in one QA transaction, without a second browser
   assert.match(sql,/'legacyStale',v_legacy_ack->'stale'/u);
   const safe=readFileSync(new URL('../supabase/qa-migrations/20261011183000_connected360_v45_idempotent_legacy_revision_qa.sql',import.meta.url),'utf8');
   assert.match(safe,/v_changed:=false/u);
-  assert.match(safe,/if v_changed then[\\s\\S]*?v_legacy_records :=/u);
-  assert.match(safe,/if pg_catalog\\.jsonb_array_length\\(v_legacy_records\\)>0 then/u);
-  assert.match(safe,/'legacyStale',coalesce\\(\\(v_legacy_ack->>'stale'\\)::integer,0\\)\\+v_unchanged/u);
+  assert.match(safe,/if v_changed then[\s\S]*?v_legacy_records :=/u);
+  assert.match(safe,/if pg_catalog\.jsonb_array_length\(v_legacy_records\)>0 then/u);
+  assert.match(safe,/'legacyStale',coalesce\(\(v_legacy_ack->>'stale'\)::integer,0\)\+v_unchanged/u);
 
   assert.match(sql,/security definer set search_path=''/iu);
 });
