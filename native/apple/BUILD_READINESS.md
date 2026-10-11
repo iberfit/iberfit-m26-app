@@ -61,10 +61,11 @@ an authorization-completion success is not proof of an individual permission.
 The original steps-only reader remains for existing regression contracts. Both
 readers have generation fences on account replacement/foreground leave. No
 source watch identity or source-modified timestamp is verified or fabricated.
-No data is persisted or uploaded, and sleep remains **unimplemented in the
-iPhone QA reader**. In particular, summing sleep stages from several sources
-without interval/source deduplication could double-count, so that feature
-requires a separate validated daily attribution algorithm.
+No data is persisted or uploaded. The QA reader now includes sleep
+analysis with unioned overlapping intervals and civil-day/DST boundaries,
+as documented below. This prevents simple overlap double-counting but
+does **not** establish which wearable produced a sample or validate medical
+sleep-stage accuracy: those require physical-device source checks.
 
 The new QA app and both readers remain disabled for normal production release:
 `productionAllowed=false`, `automaticSyncCertified=false`. Simulator
