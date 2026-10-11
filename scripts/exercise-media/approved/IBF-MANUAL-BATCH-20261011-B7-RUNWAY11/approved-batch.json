@@ -1,0 +1,504 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PESO-MUERTO-RUMANO-UNILATERAL-CON-MANCUERNA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-790835ce5d19.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=ecb38770-6f7d-4810-b95f-1b3d9d7e0d40, PNG SHA256=9106fe637ce7eb5b917f3306b7a72c382aed836a27b64f78f9b542c3551975ba. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PESO-MUERTO-RUMANO-UNILATERAL-CON-MANCUERNA/movement-790835ce5d19.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "790835ce5d197fb12d2e3647bdb35327180204260a9b5b8d383719ab6ab85ef2"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PLANCHA-LATERAL-CON-ABDUCCION",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-f11c3ec30270.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=d72a80d5-d6c9-41b0-ac94-19145f92908b, PNG SHA256=769b0fef19bed6fcd148ded0866c14d714e218f132ba992834b5cb7807d36a8a. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PLANCHA-LATERAL-CON-ABDUCCION/movement-f11c3ec30270.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "f11c3ec302702f4a7c60547eca6c954d3b2776b36e5903233e47e94defd6c180"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "oblicuos",
+            "glúteo medio"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-EXTENSION-DE-TRICEPS-SOBRE-CABEZA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-30175a5db1a2.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=566d6a72-1f6f-4f03-84f8-b3b8c04d5c2c, PNG SHA256=374d118ebbed72e402d329b8bd5bcc63cf56fa468c13fb7d4bc6d557e915efe1. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-EXTENSION-DE-TRICEPS-SOBRE-CABEZA/movement-30175a5db1a2.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "30175a5db1a206441ec6fc047b0baa6b73ab0f9540e2e9bf43e0bdaaf67b4a68"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-CON-BARRA-EZ",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-ed091a6eef0a.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=cf04c39c-e9cc-4b7a-be69-978df10551cb, PNG SHA256=5206a9a4413c9c3e50bede67b68dac22b64260ddd28e7995ea02d57e8e2606b8. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-CON-BARRA-EZ/movement-ed091a6eef0a.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "ed091a6eef0a54b00b84a080de39694059c3df08714d6c9def90e80d392c2abe"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "bíceps",
+            "braquial"
+          ],
+          "secondary": [
+            "braquiorradial"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-EN-POLEA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-86be266d3d8b.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=3d3f76b3-360a-4ebf-a56d-c80a8e31bda0, PNG SHA256=7eab43b9dc176b21f998019b5a9b71de0dafb5e4f25e7f1bd9a6b6fcd7859a37. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-EN-POLEA/movement-86be266d3d8b.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "86be266d3d8b6c47de922f14271de851c90859d1005c41422b43b1f8262c626d"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "bíceps",
+            "braquial"
+          ],
+          "secondary": [
+            "braquiorradial"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-INCLINADO-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-9f485b4b4b83.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=1527292e-ca44-4500-bd83-a595ac34296d, PNG SHA256=a6b9543264892a2c90f9e5416d1cf630fcc0f13157086767717c7377ba972c25. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-INCLINADO-CON-MANCUERNAS/movement-9f485b4b4b83.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "9f485b4b4b834631b0fbc48201e022cd28b0490c6627d5a4109b1083f33b864f"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "bíceps"
+          ],
+          "secondary": [
+            "braquial"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-ELEVACION-DE-TALONES-SENTADO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-de2ec2b6e771.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=b5e45142-5d94-4dd7-bc11-caccfb6a8ccb, PNG SHA256=f9a235ad622cc8d395cfce2796e9639ba94ca779a2df357d2e7606b466b30bc0. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ELEVACION-DE-TALONES-SENTADO/movement-de2ec2b6e771.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "de2ec2b6e771426361d283f1ba1784bc1173b08a09e1fdf4b3268e3b4a67f307"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "sóleo"
+          ],
+          "secondary": [
+            "gastrocnemio"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-ELEVACION-DE-TALONES-EN-PRENSA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-2591b5cbb82e.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=1a244872-34f4-45e5-8733-afa2b15efec0, PNG SHA256=34a6f72bb39db2fd16c37b4bcbff5eb2867ef71bc766c0797163a3138a60a669. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ELEVACION-DE-TALONES-EN-PRENSA/movement-2591b5cbb82e.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "2591b5cbb82e3714d9e83b61bd99257f2120612f9f65b3f780e077f710ebab4a"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "gastrocnemio",
+            "sóleo"
+          ],
+          "secondary": [
+            "tibial posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PATADA-DE-TRICEPS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-95fa75fbeaf5.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=2321ff8b-00c8-4f4b-8993-4959a4183ae8, PNG SHA256=76a4e2fe7a06fb095ab07d0c67af60b0b654dc9e02b89b5b26ac1fc777adc3e8. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PATADA-DE-TRICEPS/movement-95fa75fbeaf5.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "95fa75fbeaf579769d4a0faef4ef7f2fe807bb5bb170a66a52f90dc3a276be15"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-FEMORAL-EN-MAQUINA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-e40d30da7047.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=d6f0821d-860a-4c1e-a696-0bc7af500442, PNG SHA256=1b3407dd5ad110c5927c635a3ac854a7fc39f88397af906c8e3172d573fd0b70. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-FEMORAL-EN-MAQUINA/movement-e40d30da7047.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "e40d30da7047df3419e2408916d5ff1c1539af029d2c54dab61046320763bc37"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales"
+          ],
+          "secondary": [
+            "gastrocnemio"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-EXTENSION-DE-RODILLA-EN-MAQUINA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-RUNWAY11/movement-338db6b78f0b.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Archivo original exacto del ZIP Runway aprobado por el propietario, task_id=bd74d6d0-e8fc-4590-8dd4-0bb41b72ee51, PNG SHA256=cfafb763bf612f577300a9ef0e488f4f91f4676ca8db5ecb8bf0518dd8527185. Conversion proporcional 640x800 WebP, sin regenerar."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-EXTENSION-DE-RODILLA-EN-MAQUINA/movement-338db6b78f0b.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "338db6b78f0b337e20392b5baec916788069bffebff0507cb651596119fec81d"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps"
+          ],
+          "secondary": [],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
