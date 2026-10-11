@@ -34,7 +34,7 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
     /// callback does NOT prove that the person allowed reading this datatype.
     /// HealthKit deliberately does not disclose read-denial through
     /// authorizationStatus(for:), which only reports sharing status.
-    func requestExplicitStepsAccess(completion: @escaping (Result<Void, Error>) -> Void) {
+    func requestExplicitStepsAccess(completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
         fence.lock()
         generation &+= 1
         let lease = generation
@@ -80,7 +80,7 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
     func readStepsOnce(
         days: Int,
         now: Date = Date(),
-        completion: @escaping (Result<[DailySteps], Error>) -> Void
+        completion: @escaping @Sendable (Result<[DailySteps], Error>) -> Void
     ) {
         guard (1...7).contains(days) else {
             completion(.failure(ReaderError.invalidWindow))
