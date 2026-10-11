@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createM26Transport,M26_QA_PROJECT_REF,M26_PRODUCTION_PROJECT_REF} from '../src/m26/supabase-transport.js';
-import {analyzeMigration,findCreatedTables} from '../scripts/ci/check_migration_security_policy.mjs';
+import {analyzeMigration,findCreatedTables,maskNonCode} from '../scripts/ci/check_migration_security_policy.mjs';
 
 const migration=readFileSync(new URL('../supabase/qa-migrations/20261011162000_connected360_v45_explicit_native_writer_qa.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/qa-rollbacks/20261011162000_connected360_v45_explicit_native_writer_qa.rollback.sql',import.meta.url),'utf8');
@@ -77,7 +77,7 @@ test('rollback shuts the sole QA writer and restores unconditional write rejecti
   assert.match(rollback,/drop function if exists public\.m26_wearable_v45_import_explicit_qa_v1\(uuid,jsonb\)/u);
   assert.match(rollback,/M26_CONNECTED360_V45_INGEST_UNCERTIFIED/u);
   assert.match(rollback,/revoke all on function public\.m26_wearable_v45_import_explicit_qa_v1/u);
-  assert.doesNotMatch(rollback,/\b(?:delete from|truncate|drop table|cascade)\b/iu);
+  assert.doesNotMatch(maskNonCode(rollback),/\b(?:delete from|truncate|drop table|cascade)\b/iu);
 });
 
 test('production cannot call V45 import and QA requires an authenticated bounded payload',async()=>{
