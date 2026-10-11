@@ -22,42 +22,55 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
         case invalidWindow
         case explicitApprovalRequired
         case statisticsUnavailable
+        case invalidated
     }
 
     private let healthStore = HKHealthStore()
     private let fence = NSLock()
     private var oneReadApproved = false
+    private var generation: UInt64 = 0
 
     /// A user-initiated HealthKit permission request; a successful system
     /// callback does NOT prove that the person allowed reading this datatype.
     /// HealthKit deliberately does not disclose read-denial through
     /// authorizationStatus(for:), which only reports sharing status.
     func requestExplicitStepsAccess(completion: @escaping (Result<Void, Error>) -> Void) {
+        fence.lock()
+        generation &+= 1
+        let lease = generation
+        oneReadApproved = false
+        fence.unlock()
         guard HKHealthStore.isHealthDataAvailable(),
               let stepsType = HKObjectType.quantityType(forIdentifier: .stepCount)
         else {
             completion(.failure(ReaderError.unavailable))
             return
         }
-        fence.lock()
-        oneReadApproved = false
-        fence.unlock()
         healthStore.requestAuthorization(
             toShare: Set<HKSampleType>(),
             read: Set<HKObjectType>([stepsType])
         ) { [weak self] success, error in
-            guard success, error == nil else {
-                completion(.failure(error ?? ReaderError.unavailable))
-                return
-            }
             guard let self else {
-                completion(.failure(ReaderError.unavailable))
+                completion(.failure(ReaderError.invalidated))
                 return
             }
             self.fence.lock()
-            self.oneReadApproved = true
+            let current = self.generation == lease
+            if current && success && error == nil {
+                self.oneReadApproved = true
+            }
             self.fence.unlock()
-            completion(.success(()))
+            guard current else {
+                completion(.failure(ReaderError.invalidated))
+                return
+            }
+            if let error {
+                completion(.failure(error))
+            } else if !success {
+                completion(.failure(ReaderError.unavailable))
+            } else {
+                completion(.success(()))
+            }
         }
     }
 
@@ -75,6 +88,7 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
         }
         fence.lock()
         let permitted = oneReadApproved
+        let lease = generation
         oneReadApproved = false
         fence.unlock()
         guard permitted else {
@@ -109,7 +123,11 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
             intervalComponents: DateComponents(day: 1)
         )
 
-        query.initialResultsHandler = { _, collection, error in
+        query.initialResultsHandler = { [weak self] _, collection, error in
+            guard let self, self.isCurrent(lease) else {
+                completion(.failure(ReaderError.invalidated))
+                return
+            }
             if let error {
                 completion(.failure(error))
                 return
@@ -143,6 +161,10 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
                     automaticSyncCertified: false
                 ))
             }
+            guard self.isCurrent(lease) else {
+                completion(.failure(ReaderError.invalidated))
+                return
+            }
             completion(.success(records.sorted { $0.date < $1.date }))
         }
         healthStore.execute(query)
@@ -153,8 +175,16 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
     /// any late completion against the current signed-in user and web page.
     func revokeLocalReadApproval() {
         fence.lock()
+        generation &+= 1
         oneReadApproved = false
         fence.unlock()
+    }
+
+    private func isCurrent(_ lease: UInt64) -> Bool {
+        fence.lock()
+        let current = generation == lease
+        fence.unlock()
+        return current
     }
 }
 #endif
