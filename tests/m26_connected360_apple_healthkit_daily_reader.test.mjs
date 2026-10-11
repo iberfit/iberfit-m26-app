@@ -22,7 +22,7 @@ test('iOS HealthKit permission is user-initiated, scoped read-only and consumabl
   assert.match(swift,/func requestExplicitStepsAccess\(/u);
   assert.match(swift,/toShare: Set<HKSampleType>\(\)/u);
   assert.match(swift,/read: Set<HKObjectType>\(\[stepsType\]\)/u);
-  assert.match(swift,/let permitted = oneReadApproved\s+oneReadApproved = false/u);
+  assert.match(swift,/let permitted = oneReadApproved\s+let lease = generation\s+oneReadApproved = false/u);
   assert.match(swift,/guard permitted else/u);
   assert.match(swift,/case explicitApprovalRequired/u);
   assert.match(swift,/func revokeLocalReadApproval\(/u);
@@ -30,15 +30,17 @@ test('iOS HealthKit permission is user-initiated, scoped read-only and consumabl
 });
 
 test('late HealthKit authorization and read result are invalidated after logout or account change',()=>{
-  assert.match(swift,/private var generation: UInt64 = 0/u);
-  assert.match(swift,/generation &\\+= 1/u);
-  assert.match(swift,/let lease = generation/u);
-  assert.match(swift,/self\\.generation == lease/u);
-  assert.match(swift,/if current && success && error == nil/u);
-  assert.match(swift,/guard let self, self\\.isCurrent\\(lease\\) else/u);
-  assert.match(swift,/guard self\\.isCurrent\\(lease\\) else/u);
-  assert.match(swift,/case invalidated/u);
-  assert.match(swift,/func revokeLocalReadApproval\\(\\)/u);
+  for(const required of [
+    'private var generation: UInt64 = 0',
+    'generation &+= 1',
+    'let lease = generation',
+    'self.generation == lease',
+    'if current && success && error == nil',
+    'guard let self, self.isCurrent(lease) else',
+    'guard self.isCurrent(lease) else',
+    'case invalidated',
+    'func revokeLocalReadApproval()',
+  ])assert.ok(swift.includes(required),required);
 });
 
 test('iOS daily steps are bounded to seven local civil days, do not invent watch source or denied data',()=>{
