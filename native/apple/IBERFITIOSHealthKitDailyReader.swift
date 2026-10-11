@@ -6,15 +6,16 @@ import HealthKit
 /// identity attestation, or automatic/background synchronization.
 /// The consuming signed iPhone target must enable HealthKit entitlements.
 /// Never sends HealthKit records or a user token to the web app.
-final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
-    struct DailySteps: Codable, Sendable {
-        let provider: String
-        let date: String
-        let steps: Int
-        let acquiredAt: String
-        let aggregationTimeZone: String
-        let sourceTimestampVerified: Bool
-        let automaticSyncCertified: Bool
+public final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
+    public init() {}
+    public struct DailySteps: Codable, Sendable {
+        public let provider: String
+        public let date: String
+        public let steps: Int
+        public let acquiredAt: String
+        public let aggregationTimeZone: String
+        public let sourceTimestampVerified: Bool
+        public let automaticSyncCertified: Bool
     }
 
     enum ReaderError: Error {
@@ -34,7 +35,7 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
     /// callback does NOT prove that the person allowed reading this datatype.
     /// HealthKit deliberately does not disclose read-denial through
     /// authorizationStatus(for:), which only reports sharing status.
-    func requestExplicitStepsAccess(completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
+    public func requestExplicitStepsAccess(completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
         fence.lock()
         generation &+= 1
         let lease = generation
@@ -77,7 +78,7 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
     /// Consumes one local approval BEFORE querying, bounded to seven civil
     /// days. Dates use the phone's *aggregation* time zone, never a guessed
     /// physical Watch time zone. Missing HealthKit data remains missing.
-    func readStepsOnce(
+    public func readStepsOnce(
         days: Int,
         now: Date = Date(),
         completion: @escaping @Sendable (Result<[DailySteps], Error>) -> Void
@@ -173,7 +174,7 @@ final class IBERFITIOSHealthKitDailyReader: @unchecked Sendable {
     /// Call on logout, account replacement, background, or permission revocation.
     /// Query callbacks are not a transport: the native host must also fence
     /// any late completion against the current signed-in user and web page.
-    func revokeLocalReadApproval() {
+    public func revokeLocalReadApproval() {
         fence.lock()
         generation &+= 1
         oneReadApproved = false
