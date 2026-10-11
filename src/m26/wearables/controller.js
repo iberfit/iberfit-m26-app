@@ -89,6 +89,8 @@ function context(store){
     clientId:role==='client'
       ?state.identity?.clientId
       :state.selectedClientId,
+    // Server-projected immutable auth uid, never a client-editable label.
+    ownerId:state.identity?.id??null,
   };
 }
 
@@ -436,7 +438,10 @@ export function createWearableController({
     return {
       role:identity.role,
       clientId:identity.role==='client'?identity.clientId:null,
-      ownerId,
+      // A changed signed-in user must not inherit the old controller's
+      // captured owner. Never substitute the stale ownerId on login switch.
+      ownerId:identity.id&&String(identity.id)===String(ownerId)
+        ?String(identity.id):null,
     };
   };
   const qaNative=createConnected360QaNativeChannel({
@@ -677,16 +682,21 @@ export function createWearableController({
       signal=null,
     }={}
   ){
-    const {role,clientId}=context(store);
+    const {role,clientId,ownerId:sessionOwner}=context(store);
     if(role!=='client'||!clientId){
       throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
+    }
+    if(!sessionOwner||String(sessionOwner)!==String(ownerId)){
+      throw new Error('M26_WEARABLE_ACCOUNT_CHANGED');
     }
 
     const identityEpoch=nativeIdentityEpoch;
     const requireSameClient=()=>{
       if(signal?.aborted)throw new Error('M26_WEARABLE_SYNC_INVALIDATED');
       if(identityEpoch!==nativeIdentityEpoch)throw new Error('M26_WEARABLE_ACCOUNT_CHANGED');
-      assertWearableClientContinuity({role:'client',clientId},context(store));
+      assertWearableClientContinuity(
+        {role:'client',clientId,ownerId:sessionOwner},context(store)
+      );
     };
     requireSameClient();
     const normalized=normalizeWearableProvider(provider);
