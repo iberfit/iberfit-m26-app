@@ -852,20 +852,26 @@ export function createWearableController({
     });
   }
   async function autoSyncNativeProviders({signal=null}={}){
-    const {role}=context(store);if(signal?.aborted||role!=='client'||!isOnline())return [];
+    const session=context(store);
+    if(signal?.aborted||session.role!=='client'||!session.ownerId||
+      String(session.ownerId)!==String(ownerId)||!isOnline())return [];
     const rows=store.getState().collections?.wearableConnections||[];
     const providers=[...new Set(rows.filter(isCertifiedNativeAutoSyncSource).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
     for(const provider of providers){
       if(signal?.aborted)break;
       try{
+        assertWearableClientContinuity(session,context(store));
         const result=await connectNativeProvider(provider,{interactive:false,silent:true,signal});
         if(signal?.aborted)break;
+        assertWearableClientContinuity(session,context(store));
         results.push(result);
       }catch(error){
-        // Logout/session replacement retires this Client read; never surface it
-        // or continue with another provider under a new account.
-        if(signal?.aborted||error?.message==='M26_WEARABLE_SYNC_INVALIDATED')break;
+        // Account rotation is not a recoverable per-provider failure:
+        // stop the entire cycle before reaching another native source.
+        if(signal?.aborted||
+          error?.message==='M26_WEARABLE_SYNC_INVALIDATED'||
+          error?.message==='M26_WEARABLE_ACCOUNT_CHANGED')break;
         emitDiagnostic('wearable-auto-sync',error);
       }
     }
