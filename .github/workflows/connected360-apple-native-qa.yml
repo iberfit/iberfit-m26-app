@@ -7,6 +7,8 @@ on:
     paths:
       - 'native/apple/**'
       - 'tests/m26_connected360_apple_webview_origin.test.mjs'
+      - 'tests/m26_connected360_ios_qa_app_isolation.test.mjs'
+      - 'tests/m26_connected360_apple_healthkit_qa_bridge.test.mjs'
       - '.github/workflows/connected360-apple-native-qa.yml'
   workflow_dispatch:
 
@@ -70,6 +72,72 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Verify native iPhone arm64 QA host and HealthKit app bundle (unsigned)
+        working-directory: native/apple
+        run: |
+          set -euo pipefail
+          DERIVED_DATA="$(mktemp -d)"
+          xcodebuild -project IBERFITConnected360QA.xcodeproj \
+            -scheme IBERFITConnected360QA \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO build
+          APP_DIR="$DERIVED_DATA/Build/Products/Debug-iphoneos/IBERFIT Connected360 QA.app"
+          test -d "$APP_DIR"
+          mkdir -p "$GITHUB_WORKSPACE/recovery/connected360-ios-device"
+          python3 - "$APP_DIR" "$GITHUB_WORKSPACE/recovery/connected360-ios-device/readiness.json" <<'PY'
+          import json
+          import os
+          import plistlib
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          app = Path(sys.argv[1])
+          report = Path(sys.argv[2])
+          info = plistlib.loads((app / "Info.plist").read_bytes())
+          entitlements = plistlib.loads(Path("IBERFITHealthKit.entitlements").read_bytes())
+          assert info.get("CFBundleIdentifier") == "cl.iberfit.m26.connected360qa"
+          assert info.get("CFBundlePackageType") == "APPL"
+          purpose = info.get("NSHealthShareUsageDescription")
+          assert isinstance(purpose, str) and len(purpose.strip()) >= 40
+          assert entitlements.get("com.apple.developer.healthkit") is True
+          assert entitlements.get("com.apple.developer.healthkit.background-delivery") is not True
+          executable = app / info["CFBundleExecutable"]
+          assert executable.is_file()
+          archs = subprocess.check_output(["/usr/bin/lipo", "-archs", str(executable)], text=True).split()
+          assert "arm64" in archs, "physical iPhone arm64 slice is required"
+          signature = subprocess.run(
+              ["/usr/bin/codesign", "--verify", "--deep", "--strict", str(app)],
+              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+          )
+          assert signature.returncode != 0, "QA device preflight MUST NOT claim a signed app"
+          sha = os.environ.get("GITHUB_SHA", "")
+          assert len(sha) == 40 and all(c in "0123456789abcdef" for c in sha)
+          report.write_text(json.dumps({
+              "schema": "iberfit.connected360.apple.unsigned-iphoneos-readiness.v1",
+              "sourceSha": sha,
+              "applicationId": info["CFBundleIdentifier"],
+              "deviceArchitecture": "arm64",
+              "healthKitDeclared": True,
+              "healthKitReadPurposeDeclared": True,
+              "backgroundHealthDelivery": False,
+              "signed": False,
+              "physicalDeviceTested": False,
+              "automaticHealthSync": False,
+              "serverHealthWrites": False,
+              "productionAllowed": False,
+          }, sort_keys=True) + "\n", encoding="utf-8")
+          print("iPhoneOS arm64 QA compilation: PASS; signing and real device validation: NOT PERFORMED")
+          PY
+      - name: Preserve non-sensitive unsigned iPhone QA readiness attestation
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-connected360-iphoneos-unsigned-${{ github.run_id }}
+          path: recovery/connected360-ios-device/readiness.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Test local sleep union in native Swift toolchain
         run: |
           set -euo pipefail

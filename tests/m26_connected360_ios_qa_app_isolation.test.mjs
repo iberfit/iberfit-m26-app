@@ -42,3 +42,23 @@ test('Xcode simulator gate compiles exact QA app target and disallows distributi
   assert.match(workflow,/CODE_SIGNING_ALLOWED=NO build/u);
   assert.match(workflow,/m26_connected360_ios_qa_app_isolation\.test\.mjs/u);
 });
+
+
+test('physical iPhone architecture preflight is unsigned, non-distributable and verifies HealthKit declarations',()=>{
+  assert.match(workflow,/Verify native iPhone arm64 QA host and HealthKit app bundle \(unsigned\)/u);
+  assert.match(workflow,/-destination 'generic\/platform=iOS'/u);
+  assert.match(workflow,/CODE_SIGNING_ALLOWED=NO build/u);
+  assert.match(workflow,/Debug-iphoneos\/IBERFIT Connected360 QA\.app/u);
+  assert.match(workflow,/CFBundleIdentifier/u);
+  assert.match(workflow,/NSHealthShareUsageDescription/u);
+  assert.match(workflow,/com\.apple\.developer\.healthkit/u);
+  assert.match(workflow,/background-delivery/u);
+  assert.match(workflow,/"arm64" in archs/u);
+  assert.match(workflow,/codesign", "--verify"/u);
+  assert.match(workflow,/signature\.returncode != 0/u);
+  assert.match(workflow,/"physicalDeviceTested": False/u);
+  assert.match(workflow,/"serverHealthWrites": False/u);
+  assert.match(workflow,/"productionAllowed": False/u);
+  assert.match(workflow,/iphoneos-unsigned-/u);
+  assert.match(workflow,/retention-days: 7/u);
+});

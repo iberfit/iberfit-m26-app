@@ -111,3 +111,23 @@ The QA JavaScript channel sends a separate `health.invalidate` command on destru
 Both debug host candidates (Android Health Connect and iPhone HealthKit) now limit the separate in-app one-local-read approval to 120 seconds measured with a monotonic clock, regardless of persistent OS permission. A stale, absent or reversed uptime lease fails closed; the local button must be clicked again. The lease is consumed before the OS read starts, cannot be reused, is erased on navigation/background/account invalidation and never becomes server consent or automatic synchronization authorization.
 
 QA coverage: Android Connected360LocalApprovalLeaseTest executed via Gradle phone-app:testDebugUnitTest; Apple IBERFITAppleQAReadLeaseSpec executed in macOS Swift toolchain, and iPhone QA app compiled with Xcode.
+
+## Physical iPhone architecture and entitlement preflight
+
+The Apple Native QA workflow now compiles the isolated DEBUG app twice:
+for iOS Simulator and for a generic physical iPhone arm64 device (iphoneos).
+Both builds explicitly disable signing. The device preflight checks the compiled
+app bundle ID, its embedded Apple Salud read-purpose string, the declared
+HealthKit-only entitlement, absent HealthKit background delivery, the arm64
+executable and the absence of a valid code signature.
+
+The workflow uploads only a short-lived non-sensitive JSON readiness report
+with the exact GitHub SHA. **It does not upload a usable signed IPA**, claim
+that the app was installed, or prove Apple HealthKit access on a real phone.
+A valid Apple Developer team, a provisioning profile containing HealthKit and
+a device-signed DEBUG build remain prerequisites for actual iPhone QA.
+
+Follow [DEVICE_QA_PROTOCOL.md](DEVICE_QA_PROTOCOL.md) before any release
+decision. Keep `productionAllowed=false`, `automaticSyncCertified=false`
+and the Apple V45 writer closed until real-device tests and authorization,
+revocation, data provenance and account isolation are certified.
