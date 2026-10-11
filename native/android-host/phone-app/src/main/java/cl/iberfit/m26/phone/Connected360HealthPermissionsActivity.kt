@@ -1,6 +1,7 @@
 package cl.iberfit.m26.phone
 
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -51,6 +52,9 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // This local-only permission proof also displays health measurements.
+        // Keep them out of screenshots and Android's recent-app thumbnails.
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(40, 52, 40, 48)
