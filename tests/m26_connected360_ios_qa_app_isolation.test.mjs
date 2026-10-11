@@ -19,9 +19,11 @@ test('isolated iPhone QA target cannot silently become a production-signed app',
 });
 
 test('native iPhone QA harness is an explicit one-tap local read, never an upload or background sync',()=>{
-  assert.match(app,/reader\.requestExplicitStepsAccess/u);
-  assert.match(app,/reader\.readStepsOnce\(days: 7\)/u);
+  assert.match(app,/reader\.requestExplicitDailyAccess/u);
+  assert.match(app,/reader\.readDailyOnce\(days: 7\)/u);
   assert.match(app,/reader\.revokeLocalReadApproval/u);
+  assert.match(app,/IBERFITIOSHealthKitDailyVitalsReader/u);
+  assert.match(app,/FC en reposo: sin dato/u);
   assert.match(app,/case \.success\(let newRows\)/u);
   assert.match(app,/\.onChange\(of: phase\)/u);
   assert.match(app,/if newPhase != \.active \{ model\.invalidate\(\) \}/u);
