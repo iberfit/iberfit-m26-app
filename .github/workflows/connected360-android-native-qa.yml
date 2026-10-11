@@ -108,6 +108,24 @@ jobs:
           ! grep -Fq 'IBERFIT_HEALTH_BRIDGE =' "$WEB"
           ! grep -Eqi 'supabase|service_role|addJavascriptInterface|httpclient|fetch\(' "$K"
 
+      - name: Verify QA APK cannot replace the normal IBERFIT Android app
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT="$(find "${ANDROID_HOME}/build-tools" -path '*/aapt' -type f | sort -V | tail -1)"
+          test -x "$AAPT"
+          QA=native/android-host/phone-app/build/outputs/apk/debug/phone-app-debug.apk
+          NORMAL=native/android-host/phone-app/build/outputs/apk/release/phone-app-release-unsigned.apk
+          test -s "$QA"
+          test -s "$NORMAL"
+          "$AAPT" dump badging "$QA" > /tmp/iberfit-connected360-qa-badging.txt
+          "$AAPT" dump badging "$NORMAL" > /tmp/iberfit-connected360-normal-badging.txt
+          grep -Fq "package: name='cl.iberfit.m26.qa'" /tmp/iberfit-connected360-qa-badging.txt
+          grep -Fq "application-label:'IBERFIT Canary QA'" /tmp/iberfit-connected360-qa-badging.txt
+          grep -Fq "package: name='cl.iberfit.m26'" /tmp/iberfit-connected360-normal-badging.txt
+          ! grep -Fq "package: name='cl.iberfit.m26.qa'" /tmp/iberfit-connected360-normal-badging.txt
+          grep -Fq "application-label:'IBERFIT'" /tmp/iberfit-connected360-normal-badging.txt
+
       # Downloadable only through the repository's GitHub Actions permissions.
       # This is a DEBUG Canary test package, never a release candidate.
       - name: Stamp isolated Canary Android QA APK
@@ -120,8 +138,8 @@ jobs:
           # Attest the SHA used to build this SHORT-LIVED DEBUG artifact.
           # No user, device, authorization or health records are written here.
           export APK
-          node -e 'const fs=require("node:fs"); const p={schema:"iberfit.connected360.qa-apk.v1",sourceSha:process.env.GITHUB_SHA,sourceRef:process.env.GITHUB_REF_NAME,event:process.env.GITHUB_EVENT_NAME,qaOnly:true,releaseCandidate:false,remoteHealthSync:false,canaryOrigin:"https://m26-canary.iberfit.cl"}; if(!/^[0-9a-f]{40}$/.test(p.sourceSha)||!["pull_request","push","workflow_dispatch"].includes(p.event)) process.exit(1); fs.writeFileSync(process.env.APK+".provenance.json",JSON.stringify(p)+"\n");'
-          node -e 'const p=require("./"+process.env.APK+".provenance.json"); if(p.sourceSha!==process.env.GITHUB_SHA||!p.qaOnly||p.releaseCandidate||p.remoteHealthSync) process.exit(1)'
+          node -e 'const fs=require("node:fs"); const p={schema:"iberfit.connected360.qa-apk.v1",sourceSha:process.env.GITHUB_SHA,sourceRef:process.env.GITHUB_REF_NAME,event:process.env.GITHUB_EVENT_NAME,applicationId:"cl.iberfit.m26.qa",qaOnly:true,releaseCandidate:false,remoteHealthSync:false,canaryOrigin:"https://m26-canary.iberfit.cl"}; if(!/^[0-9a-f]{40}$/.test(p.sourceSha)||!["pull_request","push","workflow_dispatch"].includes(p.event)) process.exit(1); fs.writeFileSync(process.env.APK+".provenance.json",JSON.stringify(p)+"\n");'
+          node -e 'const p=require("./"+process.env.APK+".provenance.json"); if(p.sourceSha!==process.env.GITHUB_SHA||p.applicationId!=="cl.iberfit.m26.qa"||!p.qaOnly||p.releaseCandidate||p.remoteHealthSync) process.exit(1)'
       - name: Preserve short-lived Canary DEBUG APK for physical QA
         uses: actions/upload-artifact@v4
         with:
