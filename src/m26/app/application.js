@@ -633,6 +633,19 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function currentToken(){return session?.token||null;}
+  // An opaque owner lease survives only a valid token rotation. Fresh login,
+  // account switch and logout do not inherit a previous session's lease.
+  // WeakMap entries never serialize into storage or expose credentials.
+  const hydrationSessionLeases=new WeakMap();
+  function hydrationLeaseFor(value){
+    if(!value||typeof value!=='object')return null;
+    let lease=hydrationSessionLeases.get(value);
+    if(!lease){
+      lease=Object.freeze({});
+      hydrationSessionLeases.set(value,lease);
+    }
+    return lease;
+  }
   async function refreshSessionIfNeeded(){
     const ownerSession=session;
     if(!ownerSession||!nextExpiry(ownerSession))return ownerSession;
@@ -652,6 +665,8 @@ export async function createM26Application({root=document.querySelector('#app'),
         // Logout, switching accounts or even a new login for the SAME user
         // retires the old refresh. Its reply must not restore an obsolete JWT.
         if(session!==ownerSession)throw new Error('M26_REFRESH_STALE_SESSION');
+        // Unlike a new login, this verified refresh preserves the same owner.
+        hydrationSessionLeases.set(next,hydrationLeaseFor(ownerSession));
         session=next;
         vault.save(next);
         return next;
@@ -682,15 +697,16 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   async function hydratePass({reason='bootstrap',ownerSession}={}){
     // Capture ownership at request time, not after a concurrent login starts.
-    const requestedOwner=ownerSession===undefined?session:ownerSession;
-    if(!requestedOwner||session!==requestedOwner)
+    const requestedOwner=ownerSession===undefined?hydrationLeaseFor(session):ownerSession;
+    if(!requestedOwner||hydrationLeaseFor(session)!==requestedOwner)
       throw new Error('M26_HYDRATION_STALE_SESSION');
     qaStage('rc64-hydrate-start');
     const hydrationSession=await refreshSessionIfNeeded();
-    if(!hydrationSession||session!==hydrationSession)
+    if(!hydrationSession||hydrationLeaseFor(session)!==requestedOwner)
       throw new Error('M26_HYDRATION_STALE_SESSION');
     const requireOwner=()=>{
-      if(session!==hydrationSession)throw new Error('M26_HYDRATION_STALE_SESSION');
+      if(hydrationLeaseFor(session)!==requestedOwner)
+        throw new Error('M26_HYDRATION_STALE_SESSION');
     };
     store.setHydration('loading');
     try{
@@ -762,11 +778,11 @@ export async function createM26Application({root=document.querySelector('#app'),
       return {snapshot:enriched,installed,runtimeRegistry};
     }catch(error){
       // A previous owner's failure cannot turn the new owner's workspace red.
-      if(session===hydrationSession)store.setHydration('error',error);
+      if(hydrationLeaseFor(session)===requestedOwner)store.setHydration('error',error);
       throw error;
     }
   }
-  const hydrationCoordinator=createHydrationCoordinator(hydratePass,{getOwner:()=>session});
+  const hydrationCoordinator=createHydrationCoordinator(hydratePass,{getOwner:()=>hydrationLeaseFor(session)});
   function hydrate(options={}){
     return hydrationCoordinator.request(options);
   }
