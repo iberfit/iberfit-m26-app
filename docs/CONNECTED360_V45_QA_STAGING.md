@@ -1,5 +1,17 @@
 # IBERFIT Connected 360 — v45, staging exclusivo QA
 
+## Nueva etapa 2026-10-11: escritura explícita V45 + espejo V44 atómico (QA remoto)
+
+**Migraciones QA aplicadas y verificadas:** `20261011160851_connected360_v45_explicit_native_writer_qa` y `20261011161035_connected360_v45_atomic_legacy_mirror_qa`. Código fuente conservado en `supabase/qa-migrations/20261011162000_connected360_v45_explicit_native_writer_qa.sql` y `supabase/qa-migrations/20261011165500_connected360_v45_atomic_legacy_mirror_qa.sql`, rama `feat/connected360-v45-integrated-macro-20261011`. **NO desplegar estas migraciones a PROD.**
+
+La única RPC nueva `m26_wearable_v45_import_explicit_qa_v1(uuid,jsonb)` es `SECURITY DEFINER SET search_path=''` intencional y acotada: tiene EXECUTE solo para `authenticated`, comprueba `auth.uid()`, `iberfit_client_id()`, assurance de privilegios, validación completa de payload por el preflight V45, grant Health Connect exacto y revocation cursor **bajo el mismo candado transaccional** usado en V44/revoke. El trigger V45 conserva denegación por defecto y exige marcas transaccionales + propietario/cliente/grant coincidentes. Su tabla conserva FORCE RLS y ningún SELECT/INSERT/UPDATE directo para clientes ni políticas permisivas.
+
+Las filas solo pueden representar agregados diarios de Health Connect con consentimiento **explícito**, métricas del grant, zona civil de agregación real y procedencia aún limitada: `source_key=NULL`, `measured_at=NULL`, `source_updated_at=NULL`, `automatic_sync_certified=false`. Una adquisición posterior actualiza un snapshot sin fingir frescura del reloj; fecha/hora idénticas pero métricas diferentes se rechazan. El espejo de compatibilidad V44 se realiza desde el servidor en **la misma transacción PostgreSQL**, nunca con un segundo POST del navegador: fallo de V44 revierte V45. El alias histórico V44 `sourceUpdatedAt=acquiredAt` no valida el timestamp del sensor.
+
+**Comprobación QA remota tras primera migración:** 0 filas V45, RLS ENABLE/FORCE, trigger habilitado, 0 políticas, 0 grants directos a `anon/authenticated`, EXECUTE RPC para `authenticated` pero no `anon`; llamada sin identidad falla con `42501`. La segunda migración confirmó aplicación correcta; **aún falta** la prueba real autenticada con cliente sintético, idempotencia bajo concurrencia y hardware Android. Cambios de aplicación/frontend están solo en la rama de integración, NO en Canary publicado ni PROD. Rollback seguro: `supabase/qa-rollbacks/20261011162000_connected360_v45_explicit_native_writer_qa.rollback.sql` restaura el rejector y conserva todas las filas.
+
+**No certificar como automático**: Android Health Connect requiere hardware E2E real y el puente actual solo recoge datos con aprobación puntual; iOS HealthKit firmado sigue pendiente. `productionAllowed=false`.
+
 **Estado verificado:** migración remota `20261009221320_connected360_v45_closed_provenance_qa` aplicada únicamente en Supabase QA `gjztkdwfmunnzhtvxrsu`. **No incluida en `supabase/migrations/`** para impedir una promoción automática a PROD. SQL reproducido literalmente a partir del historial de migraciones QA, no de un esquema supuesto.
 
 ## Alcance concreto
