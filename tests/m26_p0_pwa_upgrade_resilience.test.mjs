@@ -156,6 +156,7 @@ test('P0 explicit session retry remains bounded to the saved identity and always
   assert.match(resume,/authMode='checking-session'/u);
   assert.match(resume,/authMessage\(\)/u);
   assert.match(resume,/return await continueAfterFirstFactor\(\)/u);
-  assert.match(resume,/finally\{\s*loginBusy=false/u);
+  assert.match(resume,/finally\{[^]*?if\(authWatchdog\.isCurrent\(authAttemptId\)\)\{\s*completeAuthAttempt\(authAttemptId\);\s*loginBusy=false;/u);
+  assert.doesNotMatch(resume,/finally\{\s*loginBusy=false/u);
   assert.match(resume,/surfaceRetriableSessionFailure\(error,'resume'\)/u);
 });
