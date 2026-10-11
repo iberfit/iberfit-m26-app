@@ -6,6 +6,7 @@ import HealthKit
 /// One explicit system authorization precedes one bounded read. Neither
 /// a successful authorization callback nor a sensor reading certifies a watch.
 /// No WebKit transport, server access, storage, or background execution.
+
 public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
     public init() {}
     public struct DailyVitals: Sendable, Codable {
@@ -14,6 +15,8 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
         public let steps: Int?
         public let restingHeartRate: Int?
         public let sleepMinutes: Int?
+        public let stepsReadFailed: Bool
+        public let restingHeartRateReadFailed: Bool
         public let sleepReadFailed: Bool
         public let aggregationTimeZone: String
         public let acquiredAt: String
@@ -27,6 +30,8 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
         case explicitApprovalRequired
         case noResult
         case sleepSampleLimitExceeded
+        case timedOut
+        case allMetricsFailed
         case invalidated
     }
 
@@ -118,71 +123,80 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
             return
         }
 
-        // Serial aggregate queries reduce simultaneous HealthKit work on a
-        // small phone and allow invalidated sessions to stop before query 2.
+        // OS queries can stall on an unavailable Health database. This
+        // lease-bound deadline ensures the UI always gets one terminal result.
+        // Late callbacks cannot contaminate a later account or permission read.
+        let reply = IBERFITHealthKitSingleReply<[DailyVitals]>(completion)
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 18) { [weak self] in
+            guard let self else {
+                reply.finish(.failure(ReaderError.invalidated))
+                return
+            }
+            guard self.isCurrent(lease) else { return }
+            self.revokeLocalReadApproval()
+            reply.finish(.failure(ReaderError.timedOut))
+        }
+
+        // Each metric is independently queried. A denied or failing steps
+        // query must not mask valid resting HR or sleep measurements.
+        // Still serialize native queries to limit work on a small phone.
         queryDaily(
             type: steps, start: from, end: until, anchor: anchor,
             calendar: calendar, isSteps: true
         ) { [weak self] stepsResult in
             guard let self, self.isCurrent(lease) else {
-                completion(.failure(ReaderError.invalidated))
+                reply.finish(.failure(ReaderError.invalidated))
                 return
             }
-            switch stepsResult {
-            case .failure(let error):
-                completion(.failure(error))
-            case .success(let stepRows):
-                self.queryDaily(
-                    type: resting, start: from, end: until, anchor: anchor,
-                    calendar: calendar, isSteps: false
-                ) { [weak self] restingResult in
+            let stepsRows = (try? stepsResult.get()) ?? [:]
+            let stepsFailed = stepsResult.isFailure
+            self.queryDaily(
+                type: resting, start: from, end: until, anchor: anchor,
+                calendar: calendar, isSteps: false
+            ) { [weak self] restingResult in
+                guard let self, self.isCurrent(lease) else {
+                    reply.finish(.failure(ReaderError.invalidated))
+                    return
+                }
+                let hrRows = (try? restingResult.get()) ?? [:]
+                let hrFailed = restingResult.isFailure
+                self.queryDailySleep(
+                    type: sleep, start: from, end: until, calendar: calendar
+                ) { [weak self] sleepResult in
                     guard let self, self.isCurrent(lease) else {
-                        completion(.failure(ReaderError.invalidated))
+                        reply.finish(.failure(ReaderError.invalidated))
                         return
                     }
-                    switch restingResult {
-                    case .failure(let error):
-                        completion(.failure(error))
-                    case .success(let hrRows):
-                        self.queryDailySleep(type: sleep, start: from, end: until, calendar: calendar) { [weak self] sleepResult in
-                            guard let self, self.isCurrent(lease) else {
-                                completion(.failure(ReaderError.invalidated))
-                                return
-                            }
-                            // Never discard valid steps / resting HR on sleep-only failure.
-                            let sleepRows: [String: Int]
-                            let sleepReadFailed: Bool
-                            switch sleepResult {
-                            case .success(let rows):
-                                sleepRows = rows
-                                sleepReadFailed = false
-                            case .failure:
-                                sleepRows = [:]
-                                sleepReadFailed = true
-                            }
-                            let dates = Set(stepRows.keys).union(hrRows.keys).union(sleepRows.keys).sorted()
-                            let acquiredAt = ISO8601DateFormatter().string(from: Date())
-                            let daily = dates.map { date in
-                                DailyVitals(
-                                    provider: "apple_health",
-                                    date: date,
-                                    steps: stepRows[date],
-                                    restingHeartRate: hrRows[date],
-                                    sleepMinutes: sleepRows[date],
-                                    sleepReadFailed: sleepReadFailed,
-                                    aggregationTimeZone: calendar.timeZone.identifier,
-                                    acquiredAt: acquiredAt,
-                                    sourceTimestampVerified: false,
-                                    automaticSyncCertified: false
-                                )
-                            }
-                            guard self.isCurrent(lease) else {
-                                completion(.failure(ReaderError.invalidated))
-                                return
-                            }
-                            completion(.success(daily))
-                        }
+                    let sleepRows = (try? sleepResult.get()) ?? [:]
+                    let sleepFailed = sleepResult.isFailure
+                    if stepsFailed && hrFailed && sleepFailed {
+                        reply.finish(.failure(ReaderError.allMetricsFailed))
+                        return
                     }
+                    let dates = Set(stepsRows.keys)
+                        .union(hrRows.keys).union(sleepRows.keys).sorted()
+                    let acquiredAt = ISO8601DateFormatter().string(from: Date())
+                    let daily = dates.map { date in
+                        DailyVitals(
+                            provider: "apple_health",
+                            date: date,
+                            steps: stepsRows[date],
+                            restingHeartRate: hrRows[date],
+                            sleepMinutes: sleepRows[date],
+                            stepsReadFailed: stepsFailed,
+                            restingHeartRateReadFailed: hrFailed,
+                            sleepReadFailed: sleepFailed,
+                            aggregationTimeZone: calendar.timeZone.identifier,
+                            acquiredAt: acquiredAt,
+                            sourceTimestampVerified: false,
+                            automaticSyncCertified: false
+                        )
+                    }
+                    guard self.isCurrent(lease) else {
+                        reply.finish(.failure(ReaderError.invalidated))
+                        return
+                    }
+                    reply.finish(.success(daily))
                 }
             }
         }

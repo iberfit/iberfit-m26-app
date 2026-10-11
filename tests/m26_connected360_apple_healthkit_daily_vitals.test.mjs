@@ -31,11 +31,14 @@ test('daily HealthKit statistics have correct units, no fabricated absent data o
     'statistics.sumQuantity()',
     'statistics.averageQuantity()',
     'HKUnit.count().unitDivided(by: HKUnit.minute())',
-    'let dates = Set(stepRows.keys).union(hrRows.keys).union(sleepRows.keys).sorted()',
-    'steps: stepRows[date]',
+    'let dates = Set(stepsRows.keys)',
+    '.union(hrRows.keys).union(sleepRows.keys).sorted()',
+    'steps: stepsRows[date]',
     'restingHeartRate: hrRows[date]',
+    'stepsReadFailed: stepsFailed',
+    'restingHeartRateReadFailed: hrFailed',
     'sleepMinutes: sleepRows[date]',
-    'sleepReadFailed: sleepReadFailed',
+    'sleepReadFailed: sleepFailed',
     'number.isFinite',
     'sourceTimestampVerified: false',
     'automaticSyncCertified: false',
@@ -62,10 +65,29 @@ test('one-shot read, Swift6 Sendable, and account replacement reject delayed Hea
   assert.match(app,/row\.restingHeartRate/u);
   assert.match(app,/row\.sleepMinutes/u);
   assert.match(app,/Sueño: sin dato/u);
+  assert.match(app,/row\.stepsReadFailed/u);
+  assert.match(app,/row\.restingHeartRateReadFailed/u);
   assert.match(app,/FC en reposo: sin dato/u);
   assert.match(app,/if newPhase == \.background \{ model\.invalidate\(\) \}/u);
   assert.doesNotMatch(app,/if newPhase != \.active \{ model\.invalidate\(\) \}/u);
   assert.match(app,/#if !DEBUG/u);
   assert.doesNotMatch(app,/supabase\.co|app\.iberfit\.cl|URLSession|WKWebView|postMessage/u);
   assert.doesNotMatch(app,/\\n\s+(?:Text|VStack)\(/u,'literal escaped line breaks break Xcode SwiftUI');
+});
+
+test('three local metrics remain independent and a HealthKit stall terminates once',()=>{
+  const reply=readFileSync(new URL('../native/apple/IBERFITHealthKitSingleReply.swift',import.meta.url),'utf8');
+  assert.match(pkg,/IBERFITHealthKitSingleReply.swift/u);
+  assert.match(swift,/let stepsFailed = stepsResult.isFailure/u);
+  assert.match(swift,/let hrFailed = restingResult.isFailure/u);
+  assert.match(swift,/let sleepFailed = sleepResult.isFailure/u);
+  assert.match(swift,/let reply = IBERFITHealthKitSingleReply/u);
+  assert.match(swift,/DispatchQueue.global\(qos: \.utility\).asyncAfter\(deadline: \.now\(\) \+ 18\)/u);
+  assert.match(swift,/self.revokeLocalReadApproval\(\)/u);
+  assert.match(swift,/reply.finish\(\.failure\(ReaderError.timedOut\)\)/u);
+  assert.match(swift,/case allMetricsFailed/u);
+  assert.match(reply,/private let lock = NSLock\(\)/u);
+  assert.match(reply,/if shouldDeliver \{ callback\(result\) \}/u);
+  assert.match(swift,/sleepMinutes: sleepRows\[date\]/u);
+  assert.doesNotMatch(swift,/completion\(\.failure\(error\)\)\s*case \.success\(let stepRows/u);
 });

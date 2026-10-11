@@ -75,6 +75,11 @@ jobs:
           set -euo pipefail
           swiftc native/apple/IBERFITHealthKitDailySleepUnion.swift native/apple/Tests/IBERFITHealthKitDailySleepUnionSpec.swift -o /tmp/iberfit-sleep-union-qa
           /tmp/iberfit-sleep-union-qa
+      - name: Test one-shot HealthKit replies under concurrency
+        run: |
+          set -euo pipefail
+          swiftc native/apple/IBERFITHealthKitSingleReply.swift native/apple/Tests/IBERFITHealthKitSingleReplySpec.swift -o /tmp/iberfit-health-reply-qa
+          /tmp/iberfit-health-reply-qa
       - name: Certify iPhone QA host isolation
         run: node --test tests/m26_connected360_ios_qa_app_isolation.test.mjs
       - name: Verify native origin protections

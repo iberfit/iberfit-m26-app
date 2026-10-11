@@ -61,8 +61,8 @@ private final class IBERFITHealthKitQAState: ObservableObject {
                                 self.rows = newRows
                                 self.status = newRows.isEmpty
                                     ? "Sin datos disponibles o permisos de lectura no concedidos."
-                                    : (newRows.contains { $0.sleepReadFailed }
-                                        ? "Lectura parcial: sueño no disponible. Los demás datos siguen siendo locales."
+                                    : (newRows.contains { $0.stepsReadFailed || $0.restingHeartRateReadFailed || $0.sleepReadFailed }
+                                        ? "Lectura parcial: alguna métrica no está disponible. Los demás datos siguen siendo locales."
                                         : "Vista local de prueba. No sincronizada ni guardada en IBERFIT.")
                             }
                         }
@@ -132,9 +132,9 @@ private struct IBERFITHealthKitQAView: View {
                                 Text(row.date)
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 4) {
-                                    Text(row.steps.map { $0.formatted() + " pasos" } ?? "Pasos: sin dato")
-                                    Text(row.restingHeartRate.map { "FC en reposo: \($0) lpm" } ?? "FC en reposo: sin dato")
-                                    Text(row.sleepMinutes.map { "Sueño: \($0 / 60) h \($0 % 60) min" } ?? "Sueño: sin dato")
+                                    Text(row.steps.map { $0.formatted() + " pasos" } ?? (row.stepsReadFailed ? "Pasos: error de lectura" : "Pasos: sin dato"))
+                                    Text(row.restingHeartRate.map { "FC en reposo: \($0) lpm" } ?? (row.restingHeartRateReadFailed ? "FC en reposo: error de lectura" : "FC en reposo: sin dato"))
+                                    Text(row.sleepMinutes.map { "Sueño: \($0 / 60) h \($0 % 60) min" } ?? (row.sleepReadFailed ? "Sueño: error de lectura" : "Sueño: sin dato"))
                                         .font(.caption)
                                 }.fontWeight(.semibold)
                             }
