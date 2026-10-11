@@ -1,0 +1,53 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-SENTADILLA-LATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-SENTADILLA-LATERAL/movement-fc31167745c1.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Versión vertical 4:5 de Sentadilla lateral aprobada expresamente en conversación tras varias iteraciones; imagen fuente guía_de_sentadilla_lateral_en_gimnasio.png, sha256=4b864d800cd95191308dccaf01cf1791408031834033b997824dca9be52dab43; WebP 640x800 sin recorte significativo ni modificación de posturas; mismas posiciones Inicio/Final y esquema muscular."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-LATERAL/movement-fc31167745c1.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fc31167745c129288cca8122fbd5e5d18f1eeee6f63ee9c8806333440d73f7c6"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
