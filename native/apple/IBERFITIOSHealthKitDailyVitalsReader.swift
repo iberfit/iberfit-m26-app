@@ -2,7 +2,7 @@
 import Foundation
 import HealthKit
 
-/// HealthKit local-only QA reader for daily steps and resting heart rate.
+/// HealthKit local-only QA reader for daily steps, resting heart rate and sleep.
 /// One explicit system authorization precedes one bounded read. Neither
 /// a successful authorization callback nor a sensor reading certifies a watch.
 /// No WebKit transport, server access, storage, or background execution.
@@ -13,6 +13,8 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
         public let date: String
         public let steps: Int?
         public let restingHeartRate: Int?
+        public let sleepMinutes: Int?
+        public let sleepReadFailed: Bool
         public let aggregationTimeZone: String
         public let acquiredAt: String
         public let sourceTimestampVerified: Bool
@@ -24,6 +26,7 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
         case invalidWindow
         case explicitApprovalRequired
         case noResult
+        case sleepSampleLimitExceeded
         case invalidated
     }
 
@@ -46,14 +49,15 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
 
         guard HKHealthStore.isHealthDataAvailable(),
               let steps = HKObjectType.quantityType(forIdentifier: .stepCount),
-              let resting = HKObjectType.quantityType(forIdentifier: .restingHeartRate)
+              let resting = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
+              let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
         else {
             completion(.failure(ReaderError.unavailable))
             return
         }
         healthStore.requestAuthorization(
             toShare: Set<HKSampleType>(),
-            read: Set<HKObjectType>([steps, resting])
+            read: Set<HKObjectType>([steps, resting, sleep])
         ) { [weak self] success, error in
             guard let self else {
                 completion(.failure(ReaderError.invalidated))
@@ -97,7 +101,8 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
         }
         guard HKHealthStore.isHealthDataAvailable(),
               let steps = HKObjectType.quantityType(forIdentifier: .stepCount),
-              let resting = HKObjectType.quantityType(forIdentifier: .restingHeartRate)
+              let resting = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
+              let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
         else {
             completion(.failure(ReaderError.unavailable))
             return
@@ -139,25 +144,44 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
                     case .failure(let error):
                         completion(.failure(error))
                     case .success(let hrRows):
-                        let dates = Set(stepRows.keys).union(hrRows.keys).sorted()
-                        let acquiredAt = ISO8601DateFormatter().string(from: Date())
-                        let daily = dates.map { date in
-                            DailyVitals(
-                                provider: "apple_health",
-                                date: date,
-                                steps: stepRows[date],
-                                restingHeartRate: hrRows[date],
-                                aggregationTimeZone: calendar.timeZone.identifier,
-                                acquiredAt: acquiredAt,
-                                sourceTimestampVerified: false,
-                                automaticSyncCertified: false
-                            )
+                        self.queryDailySleep(type: sleep, start: from, end: until, calendar: calendar) { [weak self] sleepResult in
+                            guard let self, self.isCurrent(lease) else {
+                                completion(.failure(ReaderError.invalidated))
+                                return
+                            }
+                            // Never discard valid steps / resting HR on sleep-only failure.
+                            let sleepRows: [String: Int]
+                            let sleepReadFailed: Bool
+                            switch sleepResult {
+                            case .success(let rows):
+                                sleepRows = rows
+                                sleepReadFailed = false
+                            case .failure:
+                                sleepRows = [:]
+                                sleepReadFailed = true
+                            }
+                            let dates = Set(stepRows.keys).union(hrRows.keys).union(sleepRows.keys).sorted()
+                            let acquiredAt = ISO8601DateFormatter().string(from: Date())
+                            let daily = dates.map { date in
+                                DailyVitals(
+                                    provider: "apple_health",
+                                    date: date,
+                                    steps: stepRows[date],
+                                    restingHeartRate: hrRows[date],
+                                    sleepMinutes: sleepRows[date],
+                                    sleepReadFailed: sleepReadFailed,
+                                    aggregationTimeZone: calendar.timeZone.identifier,
+                                    acquiredAt: acquiredAt,
+                                    sourceTimestampVerified: false,
+                                    automaticSyncCertified: false
+                                )
+                            }
+                            guard self.isCurrent(lease) else {
+                                completion(.failure(ReaderError.invalidated))
+                                return
+                            }
+                            completion(.success(daily))
                         }
-                        guard self.isCurrent(lease) else {
-                            completion(.failure(ReaderError.invalidated))
-                            return
-                        }
-                        completion(.success(daily))
                     }
                 }
             }
@@ -214,6 +238,50 @@ public final class IBERFITIOSHealthKitDailyVitalsReader: @unchecked Sendable {
                 rows[formatter.string(from: statistics.startDate)] = Int(number.rounded())
             }
             completion(.success(rows))
+        }
+        healthStore.execute(query)
+    }
+
+
+    private func queryDailySleep(
+        type: HKCategoryType,
+        start: Date,
+        end: Date,
+        calendar: Calendar,
+        completion: @escaping @Sendable (Result<[String: Int], Error>) -> Void
+    ) {
+        let limit = 1500
+        // Overlap predicate includes nights crossing civil midnight.
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
+        let query = HKSampleQuery(
+            sampleType: type, predicate: predicate, limit: limit, sortDescriptors: nil
+        ) { _, samples, error in
+            if let error {
+                completion(.failure(error))
+                return
+            }
+            guard let samples else {
+                completion(.failure(ReaderError.noResult))
+                return
+            }
+            guard samples.count < limit else {
+                completion(.failure(ReaderError.sleepSampleLimitExceeded))
+                return
+            }
+            // Discard inBed and awake. Union prevents overlapping sources
+            // and detailed stages from being counted more than once.
+            let intervals: [IBERFITHealthKitSleepInterval] = samples.compactMap {
+                guard let sample = $0 as? HKCategorySample,
+                      let value = HKCategoryValueSleepAnalysis(rawValue: sample.value),
+                      HKCategoryValueSleepAnalysis.allAsleepValues.contains(value)
+                else { return nil }
+                return IBERFITHealthKitSleepInterval(
+                    start: sample.startDate, end: sample.endDate
+                )
+            }
+            completion(.success(IBERFITHealthKitDailySleepUnion.minutes(
+                intervals: intervals, from: start, until: end, calendar: calendar
+            )))
         }
         healthStore.execute(query)
     }

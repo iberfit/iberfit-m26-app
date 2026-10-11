@@ -7,19 +7,20 @@ const pkg=readFileSync(new URL('../native/apple/Package.swift',import.meta.url),
 const app=readFileSync(new URL('../native/apple/QAApp/IBERFITConnected360QAApp.swift',import.meta.url),'utf8');
 const policy=readFileSync(new URL('../src/m26/wearables/free-policy.js',import.meta.url),'utf8');
 
-test('one HealthKit permission sheet explicitly reads steps and resting HR, not exercise HR or sleep',()=>{
+test('one HealthKit permission sheet explicitly reads steps and resting HR, not exercise HR',()=>{
   assert.ok(pkg.includes('IBERFITIOSHealthKitDailyVitalsReader.swift'));
   assert.ok(swift.includes('public init() {}'), 'QA iPhone app must be able to instantiate Swift package reader');
   for(const fragment of [
     'quantityType(forIdentifier: .stepCount)',
     'quantityType(forIdentifier: .restingHeartRate)',
     'toShare: Set<HKSampleType>()',
-    'read: Set<HKObjectType>([steps, resting])',
+    'read: Set<HKObjectType>([steps, resting, sleep])',
+    'categoryType(forIdentifier: .sleepAnalysis)',
     'public func requestExplicitDailyAccess(',
     'public func readDailyOnce(',
     'guard (1...7).contains(days)',
   ])assert.ok(swift.includes(fragment),fragment);
-  assert.doesNotMatch(swift,/sleepAnalysis|heartRate\)|\.heartRate\b|HKWorkoutSession/u);
+  assert.doesNotMatch(swift,/heartRate\)|\.heartRate\b|HKWorkoutSession/u);
   assert.match(policy,/apple_health:policy\(\{[^]*?productionAllowed:false/u);
 });
 
@@ -30,9 +31,11 @@ test('daily HealthKit statistics have correct units, no fabricated absent data o
     'statistics.sumQuantity()',
     'statistics.averageQuantity()',
     'HKUnit.count().unitDivided(by: HKUnit.minute())',
-    'let dates = Set(stepRows.keys).union(hrRows.keys).sorted()',
+    'let dates = Set(stepRows.keys).union(hrRows.keys).union(sleepRows.keys).sorted()',
     'steps: stepRows[date]',
     'restingHeartRate: hrRows[date]',
+    'sleepMinutes: sleepRows[date]',
+    'sleepReadFailed: sleepReadFailed',
     'number.isFinite',
     'sourceTimestampVerified: false',
     'automaticSyncCertified: false',
@@ -57,6 +60,8 @@ test('one-shot read, Swift6 Sendable, and account replacement reject delayed Hea
   assert.match(app,/reader\.requestExplicitDailyAccess/u);
   assert.match(app,/reader\.readDailyOnce\(days: 7\)/u);
   assert.match(app,/row\.restingHeartRate/u);
+  assert.match(app,/row\.sleepMinutes/u);
+  assert.match(app,/Sueño: sin dato/u);
   assert.match(app,/FC en reposo: sin dato/u);
   assert.match(app,/if newPhase == \.background \{ model\.invalidate\(\) \}/u);
   assert.doesNotMatch(app,/if newPhase != \.active \{ model\.invalidate\(\) \}/u);

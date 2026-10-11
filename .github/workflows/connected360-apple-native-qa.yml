@@ -70,6 +70,11 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Test local sleep union in native Swift toolchain
+        run: |
+          set -euo pipefail
+          swiftc native/apple/IBERFITHealthKitDailySleepUnion.swift native/apple/Tests/IBERFITHealthKitDailySleepUnionSpec.swift -o /tmp/iberfit-sleep-union-qa
+          /tmp/iberfit-sleep-union-qa
       - name: Certify iPhone QA host isolation
         run: node --test tests/m26_connected360_ios_qa_app_isolation.test.mjs
       - name: Verify native origin protections

@@ -69,3 +69,7 @@ requires a separate validated daily attribution algorithm.
 The new QA app and both readers remain disabled for normal production release:
 `productionAllowed=false`, `automaticSyncCertified=false`. Simulator
 compilation does not replace signing, entitlements or physical permission tests.
+
+## HealthKit local QA — sleep analysis
+
+A single user-initiated read-only permission request covers steps, resting heart rate and `sleepAnalysis`. Only `HKCategoryValueSleepAnalysis.allAsleepValues` are counted: `inBed` and `awake` are excluded. Staged sleep segments from overlapping sources are unioned rather than summed, then divided at local calendar midnight (including DST); absent data are not fabricated as zero. If sleep fails, independently acquired steps and resting heart rate remain available with an explicit partial-read notice. A saturated 1,500-sample query fails closed instead of silently truncating. These results are QA-only, not watch identity verification, clinically validated sleep staging, remote account synchronization or background access. Real-device source reconciliation remains required before any production writes.

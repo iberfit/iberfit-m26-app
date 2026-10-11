@@ -40,7 +40,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
         let lease = generation
         rows = []
         isBusy = true
-        status = "Solicitando permisos para pasos y frecuencia cardíaca en reposo…"
+        status = "Solicitando permisos para pasos, sueño y frecuencia cardíaca en reposo…"
         reader.requestExplicitDailyAccess { [weak self] permission in
             Task { @MainActor [weak self] in
                 guard let self, self.generation == lease else { return }
@@ -49,7 +49,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
                     self.status = "No se pudo autorizar la lectura. Revisa Salud."
                     self.isBusy = false
                 case .success:
-                    self.status = "Leyendo pasos y frecuencia cardíaca en reposo autorizados…"
+                    self.status = "Leyendo pasos, sueño y frecuencia cardíaca en reposo autorizados…"
                     self.reader.readDailyOnce(days: 7) { [weak self] result in
                         Task { @MainActor [weak self] in
                             guard let self, self.generation == lease else { return }
@@ -61,7 +61,9 @@ private final class IBERFITHealthKitQAState: ObservableObject {
                                 self.rows = newRows
                                 self.status = newRows.isEmpty
                                     ? "Sin datos disponibles o permisos de lectura no concedidos."
-                                    : "Vista local de prueba. No sincronizada ni guardada en IBERFIT."
+                                    : (newRows.contains { $0.sleepReadFailed }
+                                        ? "Lectura parcial: sueño no disponible. Los demás datos siguen siendo locales."
+                                        : "Vista local de prueba. No sincronizada ni guardada en IBERFIT.")
                             }
                         }
                     }
@@ -101,7 +103,7 @@ private struct IBERFITHealthKitQAView: View {
                     Text("Prueba privada de conexión con Apple Salud")
                         .font(.system(size: 16))
                         .foregroundStyle(cream.opacity(0.86))
-                    Text("Solo leeremos tus pasos y frecuencia cardíaca en reposo si lo autorizas en iOS. Esta versión no conecta tu cuenta IBERFIT ni envía registros. Puedes borrar la vista cuando quieras.")
+                    Text("Solo leeremos tus pasos, sueño y frecuencia cardíaca en reposo si lo autorizas en iOS. Esta versión no conecta tu cuenta IBERFIT ni envía registros. Puedes borrar la vista cuando quieras.")
                         .font(.system(size: 15))
                         .foregroundStyle(cream.opacity(0.75))
                     Button(action: model.readOnce) {
@@ -116,7 +118,7 @@ private struct IBERFITHealthKitQAView: View {
                     .fontWeight(.semibold)
                     .background(gold, in: RoundedRectangle(cornerRadius: 13))
                     .disabled(model.isBusy)
-                    .accessibilityHint("Solicita permisos de lectura a Apple Salud y muestra pasos y frecuencia cardíaca en reposo localmente")
+                    .accessibilityHint("Solicita permisos de lectura a Apple Salud y muestra pasos, sueño y frecuencia cardíaca en reposo localmente")
                     Text(model.status)
                         .foregroundStyle(cream)
                         .font(.system(size: 14))
@@ -132,6 +134,7 @@ private struct IBERFITHealthKitQAView: View {
                                 VStack(alignment: .trailing, spacing: 4) {
                                     Text(row.steps.map { $0.formatted() + " pasos" } ?? "Pasos: sin dato")
                                     Text(row.restingHeartRate.map { "FC en reposo: \($0) lpm" } ?? "FC en reposo: sin dato")
+                                    Text(row.sleepMinutes.map { "Sueño: \($0 / 60) h \($0 % 60) min" } ?? "Sueño: sin dato")
                                         .font(.caption)
                                 }.fontWeight(.semibold)
                             }
@@ -143,7 +146,7 @@ private struct IBERFITHealthKitQAView: View {
                     Button("Borrar vista local", action: model.invalidate)
                         .foregroundStyle(gold)
                         .padding(.top, 12)
-                    Text("QA · Sin sincronización automática ni verificación del origen físico del reloj")
+                    Text("QA · Sueño por día civil. Sin sincronización ni identificación del reloj")
                         .font(.caption)
                         .foregroundStyle(cream.opacity(0.65))
                 }

@@ -24,7 +24,7 @@ targets:
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSHealthShareUsageDescription: "IBERFIT QA permite leer, solo si lo autorizas, tus pasos para validar la conexión en este teléfono. No sube datos."
+        INFOPLIST_KEY_NSHealthShareUsageDescription: "IBERFIT QA permite leer, solo si lo autorizas, tus pasos, sueño y frecuencia cardíaca en reposo para validar la conexión en este teléfono. No sube datos."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         CODE_SIGN_ENTITLEMENTS: IBERFITHealthKit.entitlements
