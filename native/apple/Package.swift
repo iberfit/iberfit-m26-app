@@ -20,7 +20,7 @@ let package = Package(
         .target(
             name: "IBERFITWebBridge",
             path: ".",
-            sources: ["IBERFITWebTelemetryBridge.swift", "IBERFITPhoneWatchRuntimeRelay.swift", "IBERFITIOSBleHeartRateRuntime.swift", "IBERFITIOSNativeTelemetryRuntime.swift", "IBERFITIOSHealthKitDailyReader.swift"]
+            sources: ["IBERFITWebTelemetryBridge.swift", "IBERFITPhoneWatchRuntimeRelay.swift", "IBERFITIOSBleHeartRateRuntime.swift", "IBERFITIOSNativeTelemetryRuntime.swift", "IBERFITIOSHealthKitDailyReader.swift", "IBERFITIOSHealthKitDailyVitalsReader.swift"]
         ),
     ]
 )
