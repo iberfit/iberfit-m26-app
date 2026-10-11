@@ -1,0 +1,335 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-FACE-PULL-CON-BANDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-77abd52ba204.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=Create a SINGLE vertical 4_5 portrait exercise-library photo.png, sha256=e5abe8ae92417104b83789a9778182527acefe5f99b501da2921fb4313fa35e9; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-FACE-PULL-CON-BANDA/movement-77abd52ba204.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "77abd52ba204d94fa498949e7ff736936a1d3e05753813da138845727c47b889"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-SUMO-CON-KETTLEBELL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-a10c68a60b76.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=Photorealistic high-end premium exercise instruction photogr.png, sha256=91e5b52604f1d0d106df2d35bdc7d85531b9be2c814de9dec9a220ad03d24a69; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-SUMO-CON-KETTLEBELL/movement-a10c68a60b76.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "a10c68a60b764430405d32fb81f6d69a94374088a8dc57ef84f53fc387345d05"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-TRX",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-dea027693bb9.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=Produce precisely ONE 4_5 PORTRAIT photographic exercise-car.png, sha256=33c2128620f90ba2eeb2400996023ced8b3ffe6d6f1007a1880220f87b09ddf3; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-TRX/movement-dea027693bb9.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "dea027693bb9c23514f6673463ca577db8d398fb7deeb2a90171a79958656154"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PAJAROS-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-e477567c77ef.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=EDIT _reference exercise photograph into a new_ single 4_5 V.png, sha256=238eaece1d39ed2705e945bbb7f598a9c0e25c3ec14979f2695a022334e00e11; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PAJAROS-CON-MANCUERNAS/movement-e477567c77ef.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "e477567c77efec1da37ffb6e54cd09decf77517838a7a922a78877acef22c7bf"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoides posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PRESS-INCLINADO-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-9debbd080a32.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=Create one SINGLE 4_5 PORTRAIT IBERFIT fitness library photo.png, sha256=c6ad2687927877f39f433906886a73d80cd5069ebb1069d38f150554f40f9c06; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-INCLINADO-CON-MANCUERNAS/movement-9debbd080a32.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "9debbd080a323f5dba4a2a7433df9aff60904bdb26787b7b9fa95d32c3802965"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral",
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PUENTE-DE-GLUTEOS-UNILATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-5352d84cac34.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=High-quality photorealistic gym exercise card of a SINGLE LE.png, sha256=3a528d80000dcd73898fac81fdf1e0f707412e6f812786f0cb9ef7a927f991e4; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PUENTE-DE-GLUTEOS-UNILATERAL/movement-5352d84cac34.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "5352d84cac34835517e6c6d6f64b85aaa904663554b9de30b74bbf8893f02f0b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-FLOOR-PRESS-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-RUNWAY7/movement-92a3411fd36f.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-10",
+        "note": "Original Runway aprobado expresamente por usuario, exportado en ZIP del 11-10-2026; fuente=Generate ONE single 4_5 VERTICAL IBERFIT training library PH.png, sha256=48f0d959e68d5c5a996cc82502f628e9d3515cd8af0bd1b027c9b9f1de0c524d; conversión a WebP 640x800 sin cambios de movimiento."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-FLOOR-PRESS-CON-MANCUERNAS/movement-92a3411fd36f.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "92a3411fd36f8cc695b99ae2b3b3a10d9c89e3273be84c708db924bfa279c799"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral",
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
