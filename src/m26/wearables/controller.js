@@ -1347,11 +1347,15 @@ export function createWearableController({
         wrap.dataset.prodConnected360='true';
         wrap.className='m26-wearable-native-connect';
         const intro=document.createElement('p');
-        intro.textContent='Conecta tu reloj con Health Connect. Elige los datos que deseas compartir. '+
-          'Después se sincronizarán al abrir IBERFIT, cuando haya conexión y permiso.';
+        intro.textContent='Conecta tus datos de actividad con Health Connect. Elige qué compartir. '+
+          'IBERFIT sincronizará al abrir la aplicación cuando haya conexión y permiso. '+
+          'Los datos proceden de fuentes de salud autorizadas; no se presupone que sean del reloj.';
         const consentArea=document.createElement('div');
         consentArea.dataset.prodConnected360Scopes='true';
         for(const [metric,copy] of [
+          ['steps','Compartir mis pasos diarios'],
+          ['sleepMinutes','Compartir mi duración de sueño'],
+          ['restingHeartRate','Compartir mi frecuencia cardíaca en reposo'],
           ['generalHeartRate','Compartir mi frecuencia cardíaca general (no FC en reposo)'],
           ['exerciseSessions','Compartir mis actividades y entrenamientos observados'],
         ]){
