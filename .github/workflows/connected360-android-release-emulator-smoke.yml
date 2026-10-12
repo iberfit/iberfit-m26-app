@@ -51,6 +51,22 @@ jobs:
           set -euo pipefail
           gradle --no-daemon -p native/android-host :phone-app:testDebugUnitTest :phone-app:assembleRelease
           test -s native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
+      - name: Enable GitHub hosted runner KVM access for Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm || {
+            echo 'IBERFIT_ANDROID_EMULATOR_NO_KVM_DEVICE' >&2
+            exit 1
+          }
+          # Ephemeral GitHub-hosted machine. Restrict KVM to the runner's
+          # primary group rather than making it globally writable.
+          sudo chgrp "$(id -gn)" /dev/kvm
+          sudo chmod g+rw /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm || {
+            echo 'IBERFIT_ANDROID_EMULATOR_KVM_PERMISSIONS_DENIED' >&2
+            exit 1
+          }
       - name: Launch real Release code path on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -59,20 +75,10 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            set -euo pipefail
-            APK=native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
-            adb install -r "$APK"
-            adb shell am start -W -n cl.iberfit.m26/cl.iberfit.m26.phone.PhoneMainActivity
-            sleep 12
-            adb shell pidof cl.iberfit.m26 >/dev/null
-            adb shell dumpsys activity activities > "$RUNNER_TEMP/iberfit-android-activity.txt"
-            grep -F 'Connected360SecureWebViewActivity' "$RUNNER_TEMP/iberfit-android-activity.txt"
-            if adb logcat -d -b crash | grep -E 'FATAL EXCEPTION|Process: cl.iberfit.m26'; then
-              echo 'IBERFIT_ANDROID_RELEASE_STARTUP_CRASH' >&2
-              exit 1
-            fi
-            echo 'IBERFIT_ANDROID_RELEASE_EMULATOR_STARTUP_OK'
+          # android-emulator-runner invokes script using /usr/bin/sh by
+          # default. POSIX -eu is portable; 'pipefail' is a bash-only option.
+          # One command: runner invokes each script line in a fresh sh process.
+          script: bash qa/connected360/android-release-emulator-startup.sh
       - name: Destroy ephemeral keystore
         if: always()
         shell: bash

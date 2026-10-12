@@ -815,8 +815,12 @@ class PhoneMainActivity : Activity() {
         activeBleTestProvider =
             null
 
-        discovery.stopScan()
-        dataLayer.stopListening()
+        // Release forwards immediately to the authenticated WebView host.
+        // No Bluetooth QA harness is initialized on that path: destroying
+        // this Activity must never access lateinit properties before init.
+        // DEBUG still releases both resources after normal initialization.
+        if (::discovery.isInitialized) discovery.stopScan()
+        if (::dataLayer.isInitialized) dataLayer.stopListening()
 
         super.onDestroy()
     }
