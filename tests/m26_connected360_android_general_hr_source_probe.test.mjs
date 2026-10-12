@@ -20,21 +20,36 @@ test('general HR probe requests an independent Health Connect READ permission vi
   assert.match(activity,/FLAG_SECURE/u);
 });
 
-test('probe reads only aggregate count, not raw pulse values, never uploads or sets RHR',()=>{
+test('general HR probe does not read raw pulses or set resting HR and never writes',()=>{
   assert.match(probe,/HeartRateRecord\.MEASUREMENTS_COUNT/u);
   assert.match(probe,/getGrantedPermissions\(\)\.contains\(permission\)/u);
   assert.match(probe,/TimeRangeFilter\.between\(start, end\)/u);
   assert.match(probe,/LOOKBACK_DAYS = 7/u);
-  assert.doesNotMatch(probe,/BPM_AVG|readRecords|RestingHeartRateRecord\.BPM_|restingHeartRate =|postMessage|fetch\(|insertRecords|upload|service_role/u);
+  assert.doesNotMatch(probe,/BPM_AVG|readRecords\(|RestingHeartRateRecord\.BPM_|restingHeartRate =|postMessage\(|fetch\(|insertRecords\(|service_role/u);
   assert.match(probe,/No equivalen a frecuencia cardíaca EN REPOSO/u);
   assert.match(probe,/No se han enviado datos a IBERFIT/u);
 });
 
-test('general HR QA scope does not expand the native authenticated bridge or remote import contract',()=>{
+test('general HR stays QA-only and remote authenticated import contract remains unchanged',()=>{
   assert.match(canonical,/supportedMetrics = setOf\("steps", "sleepMinutes", "restingHeartRate"\)/u);
   assert.doesNotMatch(canonical,/(?:^|[^A-Za-z])HeartRateRecord::class/u);
   assert.match(origin,/Connected360OriginGate\.QA_ORIGIN/u);
   assert.match(origin,/health\.readDaily/u);
   assert.doesNotMatch(origin,/Connected360GeneralHeartRateDiagnostic/u);
-  assert.match(activity,/Connected360GeneralHeartRateDiagnostic\(client\)\.countMeasurements\(\)/u);
+  assert.match(activity,/Connected360GeneralHeartRateDiagnostic\(client\)\.readDailyRanges\(\)/u);
+});
+
+test('daily generic HR uses bounded civil-day aggregates, never impersonating resting HR',()=>{
+  assert.match(probe,/suspend fun readDailyRanges\(\): List<DailyHeartRateRange>/u);
+  assert.match(probe,/for \(offset in \(LOOKBACK_DAYS - 1\) downTo 0\)/u);
+  assert.match(probe,/dayWindow\(date, zone\)/u);
+  assert.match(probe,/HeartRateRecord\.BPM_MIN/u);
+  assert.match(probe,/HeartRateRecord\.BPM_MAX/u);
+  assert.match(probe,/HeartRateRecord\.MEASUREMENTS_COUNT/u);
+  assert.match(probe,/getGrantedPermissions\(\)\.contains\(permission\)/u);
+  assert.match(probe,/NO son frecuencia cardíaca en reposo/u);
+  assert.doesNotMatch(probe,/HeartRateRecord\.BPM_AVG/u);
+  assert.doesNotMatch(probe,/readRecords\(|postMessage\(|supabase\.|persisted\s*=|uploadToServer\(/u);
+  assert.match(activity,/Connected360ReadBudget\.run \{/u);
+  assert.match(activity,/Connected360GeneralHeartRateDiagnostic\.dailyText\(daily\)/u);
 });
