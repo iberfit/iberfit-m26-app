@@ -70,6 +70,15 @@ class PhoneMainActivity : Activity() {
             savedInstanceState
         )
 
+        // A release build is the CLIENT APP, not the historic Bluetooth QA harness.
+        // The real, authenticated IBERFIT site runs inside an exact-origin WebView.
+        // DEBUG retains the test harness and its independent .qa package.
+        if ((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            startActivity(android.content.Intent(this, Connected360SecureWebViewActivity::class.java))
+            finish()
+            return
+        }
+
         val brandMarkSize =
             resources.getDimensionPixelSize(
                 R.dimen.iberfit_native_brand_mark
