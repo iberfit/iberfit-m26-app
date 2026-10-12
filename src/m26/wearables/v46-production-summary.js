@@ -4,12 +4,12 @@ const bpm=n=>typeof n==='number'&&Number.isFinite(n)&&n>=25&&n<=240?n:null;
 export function formatConnected360ProductionSummary(p){
   if(!p||p.ok!==true||p.provider!=='health_connect'||
     !Array.isArray(p.heartRateDaily)||!Array.isArray(p.exerciseEvidence)
-    ||!Array.isArray(p.dailyHealth))
+    ||(p.dailyHealth!==undefined&&!Array.isArray(p.dailyHealth)))
     throw new Error('M26_V46_PROD_SUMMARY_INVALID');
   const days=p.heartRateDaily.slice(0,7).filter(x=>DAY.test(String(x?.date||'')));
   days.sort((a,b)=>b.date.localeCompare(a.date));
   const day=days[0],activities=p.exerciseEvidence.slice(0,10).length;
-  const daily=p.dailyHealth.slice(0,7).filter(x=>DAY.test(String(x?.date||'')))
+  const daily=(p.dailyHealth||[]).slice(0,7).filter(x=>DAY.test(String(x?.date||'')))
     .sort((a,b)=>b.date.localeCompare(a.date));
   const latest=daily[0];
   if(!day&&activities===0&&!latest)return 'Todavía no hay mediciones sincronizadas en IBERFIT. Comprueba los permisos de Android. Al volver a abrir IBERFIT se intentará sincronizar automáticamente.';
