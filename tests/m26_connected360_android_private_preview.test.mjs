@@ -10,7 +10,7 @@ test('health preview is OS screenshot and recents protected before any WebView c
   assert.match(activity,/import android\.view\.WindowManager/u);
   const flag=activity.indexOf('window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)');
   const web=activity.indexOf('val view = WebView(this)');
-  const load=activity.indexOf('view.loadUrl(Connected360OriginGate.QA_ORIGIN');
+  const load=activity.indexOf('view.loadUrl(Connected360OriginGate.origin(production)');
   assert.ok(flag>0&&flag<web&&web<load);
 });
 test('secure display retains debug-only, exact-origin and single-read consent protections',()=>{
@@ -30,12 +30,11 @@ test('Health Connect local permission screen protects displayed steps, sleep and
   assert.match(local,/import android\.view\.WindowManager/u);
   assert.ok(local.includes('import android.content.pm.ApplicationInfo'));
   assert.ok(local.includes('ApplicationInfo.FLAG_DEBUGGABLE'));
-  const guard=local.indexOf('if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0)');
-  const finish=local.indexOf('finish()',guard);
-  const earlyReturn=local.indexOf('return',finish);
-  const permissionUi=local.indexOf('val column = LinearLayout(this)');
-  assert.ok(guard>0&&finish>guard&&earlyReturn>finish&&permissionUi>earlyReturn,
-    'release build must finish before constructing the local Health Connect UI');
+  // Release now opens the official OS permission ceremony intentionally.
+  // It still may not upload anything until separate remote consent.
+  assert.match(local,/val production=\(applicationInfo\.flags and ApplicationInfo\.FLAG_DEBUGGABLE\)==0/u);
+  assert.match(local,/"Elegir permisos en Android"|"Autorizar Health Connect"/u);
+  assert.doesNotMatch(local,/addJavascriptInterface|SUPABASE_SERVICE_KEY/u);
 
   const flag=local.indexOf('window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)');
   const content=local.indexOf('val column = LinearLayout(this)');
