@@ -185,3 +185,70 @@ test('warmup and cooldown advice stays specific to running, not walking/cycling'
   assert.deepEqual(runningPrescriptionAdvisories(p,catalog.get('WALK')),[]);
   assert.deepEqual(runningPrescriptionAdvisories(p,catalog.get('BIKE')),[]);
 });
+
+test('Coach does not compare a main running pace with phase-inclusive totals',()=>{
+  const notes=runningPrescriptionAdvisories({
+    plannedDurationMinutes:45,plannedDistanceKm:5,plannedPace:'05:00',
+    plannedWarmupMinutes:10,plannedCooldownMinutes:5,
+  },run);
+  assert.deepEqual(notes.map(x=>x.code),[
+    'running-overall-pace-with-phases','running-main-pace-not-comparable',
+  ]);
+  assert.match(notes[0].message,/~9:00 min\/km/u);
+  assert.match(notes[0].message,/bloque completo/u);
+  assert.doesNotMatch(notes.map(x=>x.code).join(' '),/pace-plan-mismatch/u);
+});
+
+test('even a single prescribed warmup prevents false main-pace mismatch',()=>{
+  const notes=runningPrescriptionAdvisories({
+    plannedDurationMinutes:30,plannedDistanceKm:5,plannedPace:'04:00',
+    plannedWarmupMinutes:5,
+  },run);
+  assert.deepEqual(notes.map(x=>x.code),[
+    'running-overall-pace-with-phases','running-main-pace-not-comparable',
+  ]);
+  assert.match(notes[0].message,/~6:00 min\/km/u);
+});
+
+test('phase minutes exhausting the total never produce a plausible running pace',()=>{
+  const notes=runningPrescriptionAdvisories({
+    plannedDurationMinutes:30,plannedDistanceKm:4,
+    plannedWarmupMinutes:25,plannedCooldownMinutes:10,
+    plannedPace:'05:30',
+  },run);
+  assert.equal(notes[0].code,'running-phases-exceed-duration');
+  assert.ok(!notes.some(x=>x.code==='running-overall-pace-with-phases'));
+});
+
+test('incomplete intervals never invent target performance and show actionable fields',()=>{
+  for(const partial of [
+    {intervalRepetitions:5},
+    {intervalWorkSeconds:60},
+    {intervalDistanceM:400},
+    {intervalRepetitions:6,intervalRecoverySeconds:90},
+  ]){
+    const notes=runningPrescriptionAdvisories({
+      plannedDistanceKm:5,plannedDurationMinutes:30,...partial,
+    },interval);
+    assert.deepEqual(notes.map(x=>x.code),['interval-prescription-incomplete']);
+    assert.equal(notes[0].level,'review');
+    assert.match(notes[0].message,/repeticiones y segundos/u);
+  }
+  assert.deepEqual(runningPrescriptionAdvisories({},interval),[]);
+});
+
+test('phase-aware running notices render in Coach and never alter prescription',()=>{
+  const draft=createSessionDraft({clientId:'client-1'});
+  addCatalogExercise(draft,'RUN',catalog);
+  const id=draft.blocks[0].id;
+  for(const [field,value] of Object.entries({
+    plannedDistanceKm:'5',plannedDurationMinutes:'45',
+    plannedPace:'05:00',plannedWarmupMinutes:'10',plannedCooldownMinutes:'5',
+  }))updateSessionBlock(draft,{blockId:id,field,value,catalog});
+  const before=JSON.stringify(draft);
+  const html=renderSessionBuilder({draft,catalog,role:'coach'});
+  assert.match(html,/Ritmo medio teórico del bloque completo/u);
+  assert.match(html,/no puede compararse con el promedio total/u);
+  assert.doesNotMatch(html,/ritmo introducido difiere/u);
+  assert.equal(JSON.stringify(draft),before);
+});
