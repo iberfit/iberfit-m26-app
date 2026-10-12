@@ -24,6 +24,7 @@ const zone=x=>typeof x==='string'&&x.length>0&&x.length<=80&&
 function checkPulse(row,enabled,{samples='heartRateSamples',avg='avgBpm',min='minBpm',max='maxBpm'}={}){
   const fields=[samples,avg,min,max];
   if(!enabled&&fields.some(field=>Object.hasOwn(row,field)))fail();
+  if(!Object.hasOwn(row,samples)&&[avg,min,max].some(field=>Object.hasOwn(row,field)))fail();
   if(Object.hasOwn(row,samples)&&!integer(row[samples],0,200000))fail();
   for(const f of [avg,min,max])if(Object.hasOwn(row,f)&&!finite(row[f],25,240))fail();
   if((row[min]===undefined)!==(row[max]===undefined))fail();
