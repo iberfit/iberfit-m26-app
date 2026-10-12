@@ -146,3 +146,30 @@ test('production migration enforces closed-by-default, owner scope and erased da
   assert.doesNotMatch(sql,/grant insert on table public\.m26_wearable_/iu);
   assert.doesNotMatch(sql,/source_identity_verified\s*=\s*true/iu);
 });
+
+test('production client observation read model is owner-only and does not infer resting HR',()=>{
+  const sql=readFileSync(new URL('../supabase/migrations/20261012160000_connected360_production_native_e2e_macro.sql',import.meta.url),'utf8');
+  const start=sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()');
+  const end=sql.indexOf('$my_summary$;',start);
+  assert.ok(start>=0&&end>start);
+  const func=sql.slice(start,end);
+  assert.match(func,/public\.iberfit_require_privileged_assurance_v65d/u);
+  assert.match(func,/auth\.uid\(\)/u);
+  assert.match(func,/public\.iberfit_client_id\(\)/u);
+  assert.match(func,/owner_user_id=v_owner AND client_id=v_client/g);
+  assert.match(func,/'restingHeartRate',null/u);
+  assert.match(func,/'linkedToTraining',false/u);
+  assert.match(sql,/REVOKE ALL ON FUNCTION public\.m26_wearable_v46_my_summary_prod_v1\(\) FROM PUBLIC,anon/u);
+  const t=readFileSync(new URL('../src/m26/supabase-transport.js',import.meta.url),'utf8');
+  assert.match(t,/async function connected360ProductionSummary\(token\)/u);
+  assert.match(t,/assertConnected360Production\(\)/u);
+  assert.match(t,/r\.restingHeartRate!==null/u);
+});
+test('client UI renders observations only for original signed-in owner and differentiates FC reposo',()=>{
+  const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(c,/expected\.ownerId!==current\.ownerId/u);
+  assert.match(c,/expected\.clientId!==current\.clientId/u);
+  assert.match(c,/Connected360ProductionSummary|connected360ProductionSummary/u);
+  assert.match(c,/No equivalen a FC en reposo/u);
+  assert.match(c,/qaV46Importer\.destroy\(\)/u);
+});
