@@ -52,10 +52,10 @@ internal class Connected360GeneralHeartRateDiagnostic(
         check(permissionGranted) { "M26_HEALTH_GENERAL_HEART_RATE_PERMISSION_REQUIRED" }
         val result = client.aggregate(
             AggregateRequest(
-                metrics = setOf(HeartRateRecord.HEART_MEASUREMENTS_COUNT),
+                metrics = setOf(HeartRateRecord.MEASUREMENTS_COUNT),
                 timeRangeFilter = TimeRangeFilter.between(start, end),
             )
         )
-        return result[HeartRateRecord.HEART_MEASUREMENTS_COUNT]
+        return result[HeartRateRecord.MEASUREMENTS_COUNT]
     }
 }

@@ -21,7 +21,7 @@ test('general HR probe requests an independent Health Connect READ permission vi
 });
 
 test('probe reads only aggregate count, not raw pulse values, never uploads or sets RHR',()=>{
-  assert.match(probe,/HeartRateRecord\.HEART_MEASUREMENTS_COUNT/u);
+  assert.match(probe,/HeartRateRecord\.MEASUREMENTS_COUNT/u);
   assert.match(probe,/getGrantedPermissions\(\)\.contains\(permission\)/u);
   assert.match(probe,/TimeRangeFilter\.between\(start, end\)/u);
   assert.match(probe,/LOOKBACK_DAYS = 7/u);
