@@ -147,22 +147,9 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                     return@launch
                 }
                 val records = requireNotNull(possibleRecords)
-                val last = records.lastOrNull()
-                val totalSteps = records.mapNotNull { it.steps }.sum()
-                val stepsDays = records.count { it.steps != null }
-                val sleep = last?.sleepMinutes?.let { "${it / 60} h ${it % 60} min" } ?: "Sin dato"
-                val pulse = last?.restingHeartRate?.let { "$it lpm" } ?: "Sin dato"
-                message.text = "Permisos concedidos: ${metrics.joinToString()}. " +
-                    "Lectura completada solo en el teléfono."
-                summary.text = if (last == null) {
-                    "Sin registros en los últimos 7 días. No hay conexión remota."
-                } else {
-                    "Último día con datos: ${last.date}\n" +
-                        "Pasos de los últimos 7 días: $totalSteps ($stepsDays días con datos)\n" +
-                        "Sueño último día: $sleep\n" +
-                        "FC reposo último día: $pulse\n" +
-                        "No se han enviado datos a IBERFIT."
-                }
+                message.text = "Permisos de lectura comprobados: ${metrics.joinToString()}. " +
+                    "Consulta local completada. Tener permiso no garantiza que existan registros."
+                summary.text = Connected360LocalSummaryFormatter.render(records, metrics)
             } catch (_: Exception) {
                 message.text = "La lectura no se ha completado. Revisa permisos y vuelve a intentar."
                 summary.text = "No hay conexión remota."
