@@ -205,7 +205,7 @@ test('Android production host preserves stable Health Connect and current upgrad
     /\.\.\/\.\.\/android\/health-connect/u
   );
   assert.match(gradle,/versionCode = 265904/u);
-  assert.match(gradle,/versionName = "26\\.59\\.4-phone"/u);
+  assert.match(gradle,/versionName = "26[.]59[.]4-phone"/u);
   assert.doesNotMatch(
     gradle,
     /connect-client:1\.2\.0-alpha/u
@@ -326,3 +326,4 @@ test('Android historical aggregates never fabricate source freshness or native c
   // endInstant is the upper aggregation boundary, not a source update time.
   assert.match(source,/TimeRangeFilter\.between\(\s*startInstant,\s*endInstant/u);
 });
+
