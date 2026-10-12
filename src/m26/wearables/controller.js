@@ -1960,6 +1960,11 @@ export function createWearableController({
     connectHealthConnect,
     connectNativeProvider,
     autoSyncNativeProviders,
+    // Authenticated, signed-native post-login only: schedule non-blocking
+    // reconciliation after quiet mount without waiting in the login path.
+    queueNativeInitialSync:()=>{
+      if(mounted&&productionSync)requestForegroundSync({force:true});
+    },
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
       nativeIdentityEpoch+=1;
