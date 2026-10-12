@@ -258,7 +258,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                 val ready = (envelope["heartRateDaily"] as List<*>).size
                 generalHeartRateStatus.text =
                     Connected360GeneralHeartRateDiagnostic.dailyText(daily) +
-                    "\\n\\nContrato local V46 QA: $ready días preparados. Sin envío a IBERFIT."
+                    "\n\nContrato local V46 QA: $ready días preparados. Sin envío a IBERFIT."
             } catch (_: Exception) {
                 generalHeartRateStatus.text =
                     "No fue posible leer FC general. Comprueba el permiso en Salud conectada. " +
@@ -311,7 +311,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                 )
                 val ready = (envelope["exerciseEvidence"] as List<*>).size
                 workoutStatus.text = Connected360WorkoutReadOnlyQa.render(data) +
-                    "\\n\\nContrato local V46 QA: $ready sesiones con identificador seguro preparadas. " +
+                    "\n\nContrato local V46 QA: $ready sesiones con identificador seguro preparadas. " +
                     "Sin envío a IBERFIT."
             } catch (_: Exception) {
                 workoutStatus.text = "No se pudo leer la actividad deportiva. " +
