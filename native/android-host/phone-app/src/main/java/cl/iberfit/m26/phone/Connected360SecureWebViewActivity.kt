@@ -294,6 +294,108 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        "health.readV46" -> {
+                            if (readInFlight || !oneReadApproved) {
+                                replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_REQUIRED")
+                                return
+                            }
+                            if (!Connected360LocalApprovalLease.isCurrent(
+                                    approvedAtElapsedMs, SystemClock.elapsedRealtime()
+                                )) {
+                                resetReadApproval()
+                                replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_EXPIRED")
+                                return
+                            }
+                            val requestedArray = request.optJSONArray("metrics")
+                            val requested = if (requestedArray != null) {
+                                (0 until requestedArray.length()).mapNotNull {
+                                    requestedArray.optString(it).takeIf { value -> value.isNotBlank() }
+                                }.toSet()
+                            } else emptySet()
+                            if (request.optInt("days", -1) != 7 ||
+                                requested.isEmpty() || requested.size > 2 ||
+                                requested.any { it !in setOf("generalHeartRate", "exerciseSessions") }
+                            ) {
+                                replyError(replyProxy, id, "M26_HEALTH_V46_REQUEST_INVALID")
+                                return
+                            }
+                            // A new user action is mandatory for every QA read, never an
+                            // automatic OS read after a foreground transition.
+                            resetReadApproval()
+                            val documentLease = readFence.capture()
+                            readInFlight = true
+                            scope.launch {
+                                try {
+                                    val (grantedMetrics, payload) = Connected360ReadBudget.run {
+                                        if (HealthConnectClient.getSdkStatus(
+                                                this@Connected360SecureWebViewActivity
+                                            ) != HealthConnectClient.SDK_AVAILABLE) {
+                                            throw IllegalStateException("M26_HEALTH_CONNECT_UNAVAILABLE")
+                                        }
+                                        val client = HealthConnectClient.getOrCreate(
+                                            this@Connected360SecureWebViewActivity
+                                        )
+                                        val osPermissions = client.permissionController
+                                            .getGrantedPermissions()
+                                        val allowed = requested.filterTo(linkedSetOf()) { metric ->
+                                            when (metric) {
+                                                "generalHeartRate" ->
+                                                    Connected360GeneralHeartRateDiagnostic.permission in osPermissions
+                                                "exerciseSessions" ->
+                                                    Connected360WorkoutReadOnlyQa.requiredPermission in osPermissions
+                                                else -> false
+                                            }
+                                        }
+                                        if (allowed.isEmpty()) {
+                                            throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
+                                        }
+                                        val daily = if ("generalHeartRate" in allowed) {
+                                            Connected360GeneralHeartRateDiagnostic(client)
+                                                .readDailyRanges()
+                                        } else emptyList()
+                                        val sports = if ("exerciseSessions" in allowed) {
+                                            Connected360WorkoutReadOnlyQa(client)
+                                                .read(includeHeartRate = "generalHeartRate" in allowed)
+                                                .workouts
+                                        } else emptyList()
+                                        val data = Connected360V46QaEnvelope.build(
+                                            daily, sports, java.time.ZoneId.systemDefault(),
+                                            java.time.Instant.now()
+                                        )
+                                        allowed to data
+                                    }
+                                    if (!readFence.isCurrent(documentLease) ||
+                                        browser !== view || isFinishing || isDestroyed ||
+                                        !trustedTopPage(view)) {
+                                        return@launch
+                                    }
+                                    val response = JSONObject()
+                                        .put("schema", "iberfit.connected360.qa.v46.local.v1")
+                                        .put("requestId", id)
+                                        .put("provider", "health_connect")
+                                        .put("grantedMetrics", JSONArray(grantedMetrics.sorted()))
+                                        .put("envelope", JSONObject(payload))
+                                        .put("persisted", false)
+                                        .put("automatic", false)
+                                        .toString()
+                                    if (response.length > 32000) {
+                                        replyError(replyProxy, id, "M26_HEALTH_V46_RESPONSE_TOO_LARGE")
+                                        return@launch
+                                    }
+                                    replyProxy.postMessage(response)
+                                    status.text = "Lectura V46 local completada. No se han enviado datos a IBERFIT."
+                                } catch (_: Exception) {
+                                    if (readFence.isCurrent(documentLease) &&
+                                        browser === view && !isFinishing && !isDestroyed &&
+                                        trustedTopPage(view)) {
+                                        replyError(replyProxy, id, "M26_HEALTH_PERMISSION_OR_READ_FAILED")
+                                        status.text = "Lectura V46 no disponible. Revisa permisos y vuelve a intentar."
+                                    }
+                                } finally {
+                                    readInFlight = false
+                                }
+                            }
+                        }
                         else -> replyError(replyProxy, id, "M26_HEALTH_ACTION_UNSUPPORTED")
                     }
                 }

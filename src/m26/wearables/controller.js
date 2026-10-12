@@ -22,6 +22,7 @@ import {
   isConnected360QaNativeAvailable,
 } from './qa-native-channel.js';
 import {createConnected360QaImporter} from './qa-native-import.js';
+import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -454,6 +455,12 @@ export function createWearableController({
     getIdentity:qaClientIdentity,
     getToken,
   });
+  const qaV46Native=createConnected360V46QaNativeChannel({
+    scope:globalThis,
+    getIdentity:qaClientIdentity,
+    getToken,
+  });
+  let qaV46ReadEpoch=0;
   const appleQaNative=createAppleHealthQaNativeChannel({
     scope:globalThis,
     getIdentity:qaClientIdentity,
@@ -961,6 +968,7 @@ export function createWearableController({
     );
 
     qaReadEpoch+=1;
+    qaV46ReadEpoch+=1;
     appleReadEpoch+=1;
     qaImporter.clear();
     await remoteSync.deleteAll();
@@ -1015,6 +1023,9 @@ export function createWearableController({
     root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{
       node.textContent='';
     });
+    root.querySelectorAll?.('[data-qa-v46-evidence-status]')?.forEach?.(node=>{
+      node.textContent='';
+    });
     root.querySelectorAll?.('[data-qa-health-consent]')?.forEach?.(input=>{
       input.checked=false;
       input.disabled=true;
@@ -1028,6 +1039,7 @@ export function createWearableController({
     tasks.cancel();
     currentPreview=null;
     qaReadEpoch+=1;
+    qaV46ReadEpoch+=1;
     appleReadEpoch+=1;
     qaImporter.clear();
     clearQaSensitiveSurface();
@@ -1286,6 +1298,15 @@ export function createWearableController({
         }else{
           qaCard.append(control,status,details);
         }
+        const v46Button=document.createElement('button');
+        v46Button.type='button';
+        v46Button.dataset.wearableAction='qa-v46-evidence-read';
+        v46Button.textContent='Consultar FC general y entrenamientos · QA';
+        const v46Status=document.createElement('p');
+        v46Status.dataset.qaV46EvidenceStatus='true';
+        v46Status.setAttribute('role','status');
+        v46Status.textContent='Solo lectura en Android: primero autoriza una lectura en la app QA. No se envían datos.';
+        qaCard.append(v46Button,v46Status);
       }
     }
 
@@ -1377,6 +1398,23 @@ export function createWearableController({
               '. Apple no revela si se concedió cada permiso de lectura. No se ha enviado información al servidor.'
             :'Sin datos disponibles o permisos de lectura no concedidos. No se han enviado registros.';
         }
+      }else if(action==='qa-v46-evidence-read'){
+        const epoch=++qaV46ReadEpoch;
+        const card=button.closest?.('[data-provider="health_connect"]');
+        const note=card?.querySelector?.('[data-qa-v46-evidence-status]');
+        if(note)note.textContent='Leyendo FC general y sesiones deportivas del teléfono…';
+        const result=await qaV46Native.readLocal();
+        if(epoch!==qaV46ReadEpoch)return;
+        const hrDays=result.envelope.heartRateDaily.length;
+        const workouts=result.envelope.exerciseEvidence.length;
+        const observed=result.envelope.heartRateDaily.reduce(
+          (sum,row)=>sum+row.sampleCount,0
+        );
+        if(note)note.textContent=
+          'Lectura V46 SOLO local: '+hrDays+' día(s) de FC general ('+
+          observed+' muestras), '+workouts+' actividad(es) deportiva(s). '+
+          'FC general no es FC en reposo. No se han enviado datos a IBERFIT. '+
+          (result.metrics.length<2?'Permisos parciales; algunas métricas no están disponibles.':'');
       }else if(action==='qa-health-read'){
         if(qaImporter.isBusy())throw new Error('M26_HEALTH_QA_BUSY');
         const epoch=++qaReadEpoch;
@@ -1633,6 +1671,7 @@ export function createWearableController({
       qaReadEpoch+=1;
       appleReadEpoch+=1;
       qaNative.destroy();
+      qaV46Native.destroy();
       appleQaNative.destroy();
       qaImporter.destroy();
       clearQaSensitiveSurface();
@@ -1680,6 +1719,7 @@ export function createWearableController({
       qaReadEpoch+=1;
       appleReadEpoch+=1;
       qaNative.destroy();
+      qaV46Native.destroy();
       appleQaNative.destroy();
       qaImporter.destroy();
       clearQaSensitiveSurface();
