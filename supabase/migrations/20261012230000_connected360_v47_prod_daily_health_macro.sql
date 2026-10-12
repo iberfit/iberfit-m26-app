@@ -1,14 +1,65 @@
 -- Connected 360 V47: read-only Android daily observations, separate from V46 general HR.
 -- Backend-first rollout. Existing V44/V46 observations remain unmodified. No consent is created.
 BEGIN;
-ALTER TABLE public.m26_wearable_v46_consents_prod
-  DROP CONSTRAINT m26_wearable_v46_consents_prod_scopes_check;
-ALTER TABLE public.m26_wearable_v46_consents_prod
-  ADD CONSTRAINT m26_wearable_v46_consents_prod_scopes_check
-  CHECK(cardinality(scopes) between 1 and 5
-    AND scopes <@ ARRAY['generalHeartRate','exerciseSessions','steps','sleepMinutes','restingHeartRate']::text[]);
+-- Additive owner-scoped consent journal; existing V46 receipt CHECK remains untouched.
+CREATE TABLE public.m26_wearable_v47_consents_prod(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  provider text NOT NULL DEFAULT 'health_connect' CHECK(provider='health_connect'),
+  grant_id uuid NOT NULL,
+  revocation_cursor bigint NOT NULL CHECK(revocation_cursor>=0),
+  scopes text[] NOT NULL CHECK(cardinality(scopes) BETWEEN 1 AND 3
+    AND scopes <@ ARRAY['steps','sleepMinutes','restingHeartRate']::text[]),
+  consent_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX m26_wearable_v47_consents_current ON public.m26_wearable_v47_consents_prod
+(owner_user_id,client_id,grant_id,revocation_cursor);
+ALTER TABLE public.m26_wearable_v47_consents_prod ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.m26_wearable_v47_consents_prod FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.m26_wearable_v47_consents_prod FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON TABLE public.m26_wearable_v47_consents_prod TO service_role;
 
-CREATE OR REPLACE FUNCTION public.m26_wearable_v46_authorize_prod_v1(p_expected_grant uuid, p_expected_cursor bigint, p_scopes text[])
+CREATE OR REPLACE FUNCTION public.m26_wearable_v47_record_consents_internal_prod_v1(
+  p_owner uuid,p_client uuid,p_grant uuid,p_cursor bigint,p_scopes text[]
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $v47_consent$
+DECLARE
+  v_old text[];
+  v_new text[];
+BEGIN
+  IF (SELECT auth.uid()) IS DISTINCT FROM p_owner
+    OR public.iberfit_client_id() IS DISTINCT FROM p_client
+    OR p_grant IS NULL OR p_cursor IS NULL OR p_cursor<0
+    OR pg_catalog.cardinality(p_scopes) NOT BETWEEN 1 AND 5 THEN
+    RAISE EXCEPTION USING MESSAGE='M26_V47_CONSENT_OWNER_DENIED',ERRCODE='42501';
+  END IF;
+  SELECT coalesce(pg_catalog.array_agg(metric),'{}'::text[]) INTO v_old
+    FROM pg_catalog.unnest(p_scopes) metric
+    WHERE metric IN ('generalHeartRate','exerciseSessions');
+  SELECT coalesce(pg_catalog.array_agg(metric),'{}'::text[]) INTO v_new
+    FROM pg_catalog.unnest(p_scopes) metric
+    WHERE metric IN ('steps','sleepMinutes','restingHeartRate');
+  IF pg_catalog.cardinality(v_old)+pg_catalog.cardinality(v_new)
+    <>pg_catalog.cardinality(p_scopes) THEN
+    RAISE EXCEPTION USING MESSAGE='M26_V47_SCOPE_UNKNOWN',ERRCODE='42501';
+  END IF;
+  IF pg_catalog.cardinality(v_old)>0 THEN
+    INSERT INTO public.m26_wearable_v46_consents_prod(
+      owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
+    ) VALUES(p_owner,p_client,'health_connect',p_grant,p_cursor,v_old);
+  END IF;
+  IF pg_catalog.cardinality(v_new)>0 THEN
+    INSERT INTO public.m26_wearable_v47_consents_prod(
+      owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
+    ) VALUES(p_owner,p_client,'health_connect',p_grant,p_cursor,v_new);
+  END IF;
+END;
+$v47_consent$;
+REVOKE ALL ON FUNCTION public.m26_wearable_v47_record_consents_internal_prod_v1(uuid,uuid,uuid,bigint,text[])
+  FROM PUBLIC,anon,authenticated;
+
+CREATE OR REPLACE FUNCTION public.m26_wearable_v47_authorize_prod_v1(p_expected_grant uuid, p_expected_cursor bigint, p_scopes text[])
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -67,9 +118,7 @@ BEGIN
     INSERT INTO public.m26_wearable_authorization_sources_v3(
       owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
     ) VALUES(v_owner,v_client,'health_connect',v_new_grant,v_cursor,v_requested);
-    INSERT INTO public.m26_wearable_v46_consents_prod(
-    owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
-  ) VALUES(v_owner,v_client,'health_connect',v_new_grant,v_cursor,v_requested);
+    PERFORM public.m26_wearable_v47_record_consents_internal_prod_v1(v_owner,v_client,v_new_grant,v_cursor,v_requested);
     RETURN pg_catalog.jsonb_build_object(
       'ok',true,'provider','health_connect','grantId',v_new_grant,
       'revocationCursor',v_cursor,'scopes',pg_catalog.to_jsonb(v_requested),
@@ -82,18 +131,7 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE='M26_V46_PROD_SCOPE_TOO_MANY',ERRCODE='42501';
   END IF;
   IF v_requested <@ v_grant.scopes THEN
-    -- An earlier V44 grant is NOT consent to newly released V47 categories.
-    -- The explicit Connect action still records the current consent receipt.
-    IF NOT EXISTS(
-      SELECT 1 FROM public.m26_wearable_v46_consents_prod c
-      WHERE c.owner_user_id=v_owner AND c.client_id=v_client
-        AND c.grant_id=v_grant.grant_id AND c.revocation_cursor=v_cursor
-        AND v_requested <@ c.scopes
-    ) THEN
-      INSERT INTO public.m26_wearable_v46_consents_prod(
-        owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
-      ) VALUES(v_owner,v_client,'health_connect',v_grant.grant_id,v_cursor,v_requested);
-    END IF;
+    PERFORM public.m26_wearable_v47_record_consents_internal_prod_v1(v_owner,v_client,v_grant.grant_id,v_cursor,v_requested);
     RETURN pg_catalog.jsonb_build_object(
       'ok',true,'provider','health_connect','grantId',v_grant.grant_id,
       'revocationCursor',v_cursor,'scopes',pg_catalog.to_jsonb(v_grant.scopes),
@@ -108,9 +146,7 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE='M26_V46_PROD_SCOPE_GRANT_STALE',ERRCODE='42501';
   END IF;
   -- Existing consent log permits only this canonical policy version.
-  INSERT INTO public.m26_wearable_v46_consents_prod(
-    owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
-  ) VALUES(v_owner,v_client,'health_connect',p_expected_grant,v_cursor,v_requested);
+  PERFORM public.m26_wearable_v47_record_consents_internal_prod_v1(v_owner,v_client,p_expected_grant,v_cursor,v_requested);
   RETURN pg_catalog.jsonb_build_object(
     'ok',true,'provider','health_connect','grantId',p_expected_grant,
     'revocationCursor',v_cursor,'scopes',pg_catalog.to_jsonb(v_union),
@@ -119,6 +155,8 @@ BEGIN
 END;
 $function$
 ;
+REVOKE ALL ON FUNCTION public.m26_wearable_v47_authorize_prod_v1(uuid,bigint,text[]) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.m26_wearable_v47_authorize_prod_v1(uuid,bigint,text[]) TO authenticated;
 
 -- IBERFIT-TABLE-ACCESS: public.m26_wearable_daily_health_v47 :: owner-only RPC, no direct browser CRUD
 -- IBERFIT-POLICY: public.m26_wearable_daily_health_v47 = service-role-only
@@ -263,7 +301,7 @@ BEGIN
       SELECT 1 FROM pg_catalog.jsonb_object_keys(v_row) k
       WHERE k IN ('steps','sleepMinutes','restingHeartRate')
         AND NOT EXISTS(
-          SELECT 1 FROM public.m26_wearable_v46_consents_prod c
+          SELECT 1 FROM public.m26_wearable_v47_consents_prod c
           WHERE c.owner_user_id=v_owner AND c.client_id=v_client
             AND c.provider='health_connect' AND c.grant_id=p_grant_id
             AND c.revocation_cursor=v_grant_cursor
@@ -386,6 +424,8 @@ begin
     delete from public.m26_wearable_daily_health_v47
       where owner_user_id=v_owner and client_id=v_client;
     delete from public.m26_wearable_v46_consents_prod
+      where owner_user_id=v_owner and client_id=v_client;
+    delete from public.m26_wearable_v47_consents_prod
       where owner_user_id=v_owner and client_id=v_client;
   end if;
   return new;
