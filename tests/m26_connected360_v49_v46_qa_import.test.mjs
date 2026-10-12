@@ -31,7 +31,7 @@ function setup({online=true,reauthorize=async()=>({grantId:grant})}={}){
         payload.heartRateDaily.length+payload.exerciseEvidence.length,
         updated:0,unchanged:0};
     }},
-    remoteSync:{reauthorize:async x=>{events.push({op:'authorize',...x});return reauthorize(x);},
+    remoteSync:{reauthorizeV46:async x=>{events.push({op:'authorize',...x});return reauthorize(x);},
       currentAuthorization:async x=>{events.push({op:'status',...x});return {grantId:grant};}},
     getIdentity:()=>current,getToken:async()=> 'qa-synthetic-session-token',
     isOnline:()=>online,now:()=>at,refreshState:async()=>{},
