@@ -75,8 +75,10 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          # android-emulator-runner invokes script using /usr/bin/sh by
+          # default. POSIX -eu is portable; 'pipefail' is a bash-only option.
           script: |
-            set -euo pipefail
+            set -eu
             APK=native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
             adb install -r "$APK"
             adb shell am start -W -n cl.iberfit.m26/cl.iberfit.m26.phone.PhoneMainActivity
