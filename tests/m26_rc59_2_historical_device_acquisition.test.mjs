@@ -204,7 +204,7 @@ test('Android production host preserves stable Health Connect and current upgrad
     gradle,
     /\.\.\/\.\.\/android\/health-connect/u
   );
-  assert.match(gradle,/versionCode = 265903/u);
+  assert.match(gradle,/versionCode = 265904/u);
   assert.match(gradle,/versionName = "26\.59\.3-phone"/u);
   assert.doesNotMatch(
     gradle,
