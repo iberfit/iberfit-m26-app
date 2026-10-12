@@ -167,8 +167,8 @@ test('production client observation read model is owner-only and does not infer 
 });
 test('client UI renders observations only for original signed-in owner and differentiates FC reposo',()=>{
   const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
-  assert.match(c,/expected\.ownerId!==current\.ownerId/u);
-  assert.match(c,/expected\.clientId!==current\.clientId/u);
+  assert.match(c,/expected\.ownerId===current\.ownerId&&expected\.clientId===current\.clientId/u);
+  assert.match(c,/requestEpoch===productionSummaryEpoch/u);
   assert.match(c,/Connected360ProductionSummary|connected360ProductionSummary/u);
   const formatter=readFileSync(new URL('../src/m26/wearables/v46-production-summary.js',import.meta.url),'utf8');
   assert.match(c,/formatConnected360ProductionSummary/u);
