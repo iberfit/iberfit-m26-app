@@ -231,3 +231,12 @@ test('Android production UI hides diagnostic chrome and handles broken network/T
   assert.match(kotlin,/"health\.permissions" ->/u);
   assert.match(kotlin,/Error de certificado TLS\. Canal bloqueado\./u);
 });
+
+test('Android Release verifies a self-signed AAB using its protected trust anchor',()=>{
+  const workflow=readFileSync(new URL('../.github/workflows/connected360-android-production-release.yml',import.meta.url),'utf8');
+  assert.match(workflow,/jarsigner -verify -strict \\\n\s+-keystore "\$IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH" \\\n\s+-storepass "\$IBERFIT_ANDROID_RELEASE_STORE_PASSWORD" \\\n\s+"\$AAB"/u);
+  assert.doesNotMatch(workflow,/^\s+jarsigner -verify -strict "\$AAB"$/mu);
+  assert.match(workflow,/apksigner" verify --verbose --print-certs "\$APK"/u);
+  assert.match(workflow,/test -s "\$APK" && test -s "\$AAB"/u);
+  assert.match(workflow,/grep -F "package: name='cl\.iberfit\.m26'"/u);
+});
