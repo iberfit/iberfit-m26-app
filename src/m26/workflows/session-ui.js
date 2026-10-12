@@ -202,11 +202,15 @@ function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   if(profile.cardio){
     return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
-      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
-      ${field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${field('plannedDurationMinutes','Duración total objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
+      ${field('plannedDistanceKm','Distancia total objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${field('plannedWarmupMinutes','Calentamiento (min) · opcional',p.plannedWarmupMinutes??'','number',{min:0,step:0.5,max:240})}
+      ${field('plannedCooldownMinutes','Vuelta a la calma (min) · opcional',p.plannedCooldownMinutes??'','number',{min:0,step:0.5,max:240})}
       ${profile.kind==='intervals'?field('intervalRepetitions','Repeticiones de intervalos',p.intervalRepetitions||'','number',{min:1,max:1000}):''}
       ${profile.kind==='intervals'?field('intervalWorkSeconds','Trabajo por intervalo (s)',p.intervalWorkSeconds||'','number',{min:1,max:86400}):''}
-      ${profile.kind==='intervals'?field('intervalRecoverySeconds','Recuperación por intervalo (s)',p.intervalRecoverySeconds||'','number',{min:0,max:86400}):''}`;
+      ${profile.kind==='intervals'?field('intervalRecoverySeconds','Recuperación entre repeticiones (s)',p.intervalRecoverySeconds??'','number',{min:0,max:86400}):''}
+      ${profile.kind==='intervals'?field('intervalDistanceM','Distancia por repetición (m) · opcional',p.intervalDistanceM??'','number',{min:1,max:100000}):''}
+      ${profile.kind==='intervals'?'<p class="m26-builder-metric-hint m26-wide">El tiempo total incluye calentamiento, repeticiones, recuperaciones y vuelta a la calma cuando se indiquen.</p>':''}`;
   }
   const title=profile.kind==='isometric'?'Tiempo por serie (ej. 30 s)':profile.kind==='carry'?'Recorrido/tiempo objetivo':'Repeticiones/tiempo objetivo';
   return `${grouped?'':field('sets','Series',p.sets??3,'number',{min:1,max:100})}
