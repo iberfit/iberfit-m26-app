@@ -10,8 +10,8 @@ android {
         applicationId = "cl.iberfit.m26"
         minSdk = 26
         targetSdk = 36
-        versionCode = 265902
-        versionName = "26.59.2-phone"
+        versionCode = 265903
+        versionName = "26.59.3-phone"
     }
 
     // Release signing is supplied ONLY by the restricted GitHub environment.
