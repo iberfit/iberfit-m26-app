@@ -389,8 +389,9 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                 }.toSet()
                             } else emptySet()
                             if (request.optInt("days", -1) != 7 ||
-                                requested.isEmpty() || requested.size > 2 ||
-                                requested.any { it !in setOf("generalHeartRate", "exerciseSessions") }
+                                requested.isEmpty() || requested.size > 5 ||
+                                requested.any { it !in setOf("generalHeartRate", "exerciseSessions",
+                                    "steps", "sleepMinutes", "restingHeartRate") }
                             ) {
                                 replyError(replyProxy, id, "M26_HEALTH_V46_REQUEST_INVALID")
                                 return
@@ -402,7 +403,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                             readInFlight = true
                             scope.launch {
                                 try {
-                                    val (grantedMetrics, payload) = Connected360ReadBudget.run {
+                                    val (grantedMetrics, payload, healthDaily) = Connected360ReadBudget.run {
                                         if (HealthConnectClient.getSdkStatus(
                                                 this@Connected360SecureWebViewActivity
                                             ) != HealthConnectClient.SDK_AVAILABLE) {
@@ -413,14 +414,12 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         )
                                         val osPermissions = client.permissionController
                                             .getGrantedPermissions()
+                                        val permissionMap = setOf("generalHeartRate", "exerciseSessions",
+                                            "steps", "sleepMinutes", "restingHeartRate")
                                         val allowed = requested.filterTo(linkedSetOf()) { metric ->
-                                            when (metric) {
-                                                "generalHeartRate" ->
-                                                    Connected360GeneralHeartRateDiagnostic.permission in osPermissions
-                                                "exerciseSessions" ->
-                                                    Connected360WorkoutReadOnlyQa.requiredPermission in osPermissions
-                                                else -> false
-                                            }
+                                            metric in permissionMap &&
+                                                Connected360V46PermissionPolicy.osPermissions(setOf(metric))
+                                                    .all { it in osPermissions }
                                         }
                                         if (allowed.isEmpty()) {
                                             throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
@@ -434,16 +433,43 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                                 .read(includeHeartRate = "generalHeartRate" in allowed)
                                                 .workouts
                                         } else emptyList()
+                                        val healthDaily = if (allowed.any {
+                                            it in IberfitHealthConnectReader.supportedMetrics
+                                        }) {
+                                            IberfitHealthConnectReader(client).readDaily(
+                                                allowed.intersect(IberfitHealthConnectReader.supportedMetrics), 7)
+                                        } else emptyList()
                                         val data = Connected360V46QaEnvelope.build(
                                             daily, sports, java.time.ZoneId.systemDefault(),
                                             java.time.Instant.now()
                                         )
-                                        allowed to data
+                                        Triple(allowed, data, healthDaily)
                                     }
                                     if (!readFence.isCurrent(documentLease) ||
                                         browser !== view || isFinishing || isDestroyed ||
                                         !trustedTopPage(view)) {
                                         return@launch
+                                    }
+                                    val dailyRows = JSONArray()
+                                    if (production) for (record in healthDaily) {
+                                        val zone = java.time.ZoneId.of(record.aggregationTimeZone)
+                                        val civil = java.time.LocalDate.parse(record.date)
+                                        val (start, end) = cl.iberfit.healthconnect.dayWindow(civil, zone)
+                                        val row = JSONObject()
+                                            .put("date", record.date)
+                                            .put("aggregationTimeZone", record.aggregationTimeZone)
+                                            .put("windowStartedAt", start.toString())
+                                            .put("windowEndedAt", end.toString())
+                                            .put("acquiredAt", record.acquiredAt)
+                                        if (record.steps != null && record.steps in 0L..200000L)
+                                            row.put("steps", record.steps)
+                                        if (record.sleepMinutes != null && record.sleepMinutes in 0L..1440L)
+                                            row.put("sleepMinutes", record.sleepMinutes)
+                                        if (record.restingHeartRate != null &&
+                                            record.restingHeartRate in 25L..240L)
+                                            row.put("restingHeartRate", record.restingHeartRate)
+                                        if (row.has("steps") || row.has("sleepMinutes") ||
+                                            row.has("restingHeartRate")) dailyRows.put(row)
                                     }
                                     val response = JSONObject()
                                         .put("schema", if (production)
@@ -453,8 +479,10 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         .put("provider", "health_connect")
                                         .put("grantedMetrics", JSONArray(grantedMetrics.sorted()))
                                         .put("envelope", JSONObject(payload).apply {
-                                            if (production) put("schema",
-                                                "iberfit.connected360.v46.ingest.v1")
+                                            if (production) {
+                                                put("schema", "iberfit.connected360.v46.ingest.v1")
+                                                put("dailyHealth", dailyRows)
+                                            }
                                         })
                                         .put("persisted", false)
                                         .put("automatic", false)
