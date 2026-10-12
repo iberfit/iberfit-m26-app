@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
@@ -94,10 +95,12 @@ test('Coach sees calculated running context in the real builder, without alterin
   assert.equal(JSON.stringify(draft),before,'advisory must not mutate coach prescription');
 });
 
-test('walking has no running pace field in the existing Coach builder',()=>{
+test('walking retains pace prescription without mislabelled running advisory',()=>{
   const draft=createSessionDraft({clientId:'client-1'});
   addCatalogExercise(draft,'WALK',catalog);
   const html=renderSessionBuilder({draft,catalog,role:'coach'});
-  assert.doesNotMatch(html,/data-session-block-field="plannedPace"/u);
+  assert.match(html,/data-session-block-field="plannedPace"/u);
   assert.doesNotMatch(html,/data-running-prescription-advice/u);
+  const source=readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+  assert.match(source,/\['running','walking'\]\.includes\(profile\.sport\)/u);
 });
