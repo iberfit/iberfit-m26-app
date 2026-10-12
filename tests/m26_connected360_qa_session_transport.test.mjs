@@ -190,7 +190,7 @@ test('malformed requests and missing secure random never reach native',async()=>
   assert.equal(f.messages.length,0);
 });
 
-test('bridge remains QA-only and productionAllowed=false; native requires explicit one-shot local approval',()=>{
+test('QA still requires a one-shot local approval; release is a distinct exact-origin reader',()=>{
   const source=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt','utf8');
   const controller=readFileSync('src/m26/wearables/controller.js','utf8');
   const policy=readFileSync('src/m26/wearables/free-policy.js','utf8');
@@ -198,7 +198,9 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   assert.match(source,/oneReadApproved = false/);
   assert.match(source,/action == "health.invalidate"/u);
   assert.match(source,/readFence.retire\(\)/u);
-  assert.match(source,/if \(readInFlight \|\| !oneReadApproved\)/);
+  assert.match(source,/if \(readInFlight \|\| \(!production && !oneReadApproved\)\)/);
+  assert.match(source,/Connected360OriginGate\.origin\(production\)/u);
+  assert.match(source,/Connected360OriginGate\.channel\(production\)/u);
   assert.match(source,/IberfitHealthConnectReader\(client\)/);
   assert.match(source,/grantedMetrics\(metrics\)/);
   // Native read must use only granted metrics inside the bounded operation.
