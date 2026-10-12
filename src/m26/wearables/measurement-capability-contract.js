@@ -3,10 +3,14 @@
 export const CONNECTED360_RELEASED_V46_SCOPES=Object.freeze([
   'generalHeartRate','exerciseSessions',
 ]);
+export const CONNECTED360_PRODUCTION_DAILY_SCOPES=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
+export const CONNECTED360_PRODUCTION_SCOPES=Object.freeze([
+  ...CONNECTED360_RELEASED_V46_SCOPES,...CONNECTED360_PRODUCTION_DAILY_SCOPES,
+]);
 const definitions=[
-  ['steps','steps','legacy-v44','day','observed'],
-  ['sleepMinutes','minutes','legacy-v44','sleep-window','observed'],
-  ['restingHeartRate','bpm','legacy-v44','day','observed'],
+  ['steps','steps','production-v47','day','observed'],
+  ['sleepMinutes','minutes','production-v47','sleep-window','observed'],
+  ['restingHeartRate','bpm','production-v47','day','observed'],
   ['generalHeartRate','bpm','production-v46','day-window','observed'],
   ['exerciseSessions','sessions','production-v46','exercise-window','observed'],
   ['runningDistance','meters','future','exercise-window','observed'],
@@ -30,7 +34,7 @@ export function evaluateConnected360V46Scope(metric,{
 }={}){
   const entry=CONNECTED360_METRIC_CATALOGUE[metric];
   if(!entry)return Object.freeze({allowed:false,reason:'unknown-metric'});
-  if(entry.stage!=='production-v46')return Object.freeze({
+  if(!['production-v46','production-v47'].includes(entry.stage))return Object.freeze({
     allowed:false,reason:'requires-independent-release',
   });
   if(!releaseEnabled)return Object.freeze({allowed:false,reason:'release-disabled'});

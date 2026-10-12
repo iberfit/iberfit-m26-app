@@ -2,12 +2,12 @@
 // The signed Android host ONLY reads health data. The authenticated website
 // holds the JWT and submits aggregates to the server after verifying the grant.
 // No raw GPS, no device identity inference, no local health queue.
-import {CONNECTED360_RELEASED_V46_SCOPES} from './measurement-capability-contract.js';
-export const V46_PROD_SCOPES=CONNECTED360_RELEASED_V46_SCOPES;
+import {CONNECTED360_PRODUCTION_SCOPES} from './measurement-capability-contract.js';
+export const V46_PROD_SCOPES=CONNECTED360_PRODUCTION_SCOPES;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const METRICS=new Set(V46_PROD_SCOPES);
 function same(a,b){return a?.role==='client'&&b?.role==='client'&&a?.ownerId===b?.ownerId&&a?.clientId===b?.clientId;}
-function scoped(scopes){return Array.isArray(scopes)&&scopes.length>0&&scopes.length<=2
+function scoped(scopes){return Array.isArray(scopes)&&scopes.length>0&&scopes.length<=METRICS.size
   &&new Set(scopes).size===scopes.length&&scopes.every(x=>METRICS.has(x));}
 export function createConnected360ProductionSync({
   transport,native,getIdentity,getToken,
@@ -101,7 +101,8 @@ export function createConnected360ProductionSync({
           return clean;
         }):[],
       };
-      if(!rows.heartRateDaily.length&&!rows.exerciseEvidence.length)
+      const dailyHealth=read.envelope.dailyHealth||[];
+      if(!rows.heartRateDaily.length&&!rows.exerciseEvidence.length&&!dailyHealth.length)
         return Object.freeze({skipped:'no-recent-observations'});
       const fresh=await transport.wearableAuthorizationStatus(
         await getTokenFor(expected,version,signal),'health_connect'
@@ -111,15 +112,28 @@ export function createConnected360ProductionSync({
         ||fresh.revocationCursor!==status.revocationCursor
         ||granted.some(x=>!fresh.scopes?.includes(x)))
         throw new Error('M26_V46_PROD_CONSENT_REVOKED');
-      const result=await transport.importConnected360Production(
-        await getTokenFor(expected,version,signal),status.grantId,rows
-      );
-      assertCurrent(expected,version,signal);
+      const results=[];
+      if(rows.heartRateDaily.length||rows.exerciseEvidence.length){
+        results.push(await transport.importConnected360Production(
+          await getTokenFor(expected,version,signal),status.grantId,rows
+        ));
+        assertCurrent(expected,version,signal);
+      }
+      if(dailyHealth.length){
+        if(typeof transport.importConnected360DailyProduction!=='function')
+          throw new Error('M26_V47_DAILY_IMPORT_UNAVAILABLE');
+        results.push(await transport.importConnected360DailyProduction(
+          await getTokenFor(expected,version,signal),status.grantId,dailyHealth
+        ));
+        assertCurrent(expected,version,signal);
+      }
       lastSuccess=now();
       await refreshState({reason:'connected360-prod-foreground'});
       return Object.freeze({ok:true,automatic:true,
-        inserted:result.inserted,updated:result.updated,
-        unchanged:result.unchanged,metrics:Object.freeze([...granted])});
+        inserted:results.reduce((n,r)=>n+r.inserted,0),
+        updated:results.reduce((n,r)=>n+r.updated,0),
+        unchanged:results.reduce((n,r)=>n+r.unchanged,0),
+        metrics:Object.freeze([...granted])});
     })();
     inflight={generation,promise:operation};
     try{return await operation;}finally{if(inflight?.promise===operation)inflight=null;}

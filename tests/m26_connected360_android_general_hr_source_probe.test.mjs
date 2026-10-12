@@ -38,8 +38,8 @@ test('general HR remains independent in QA and release, with strict OS category 
   // V48 extends the DEBUG-only, one-shot Canary channel, without changing the
   // production reader or granting an unconsented pulse export.
   assert.match(origin,/"health.readV46"/u);
-  assert.match(origin,/Connected360GeneralHeartRateDiagnostic\.permission in osPermissions/u);
-  assert.match(origin,/Connected360WorkoutReadOnlyQa\.requiredPermission in osPermissions/u);
+  assert.match(origin,/Connected360V46PermissionPolicy\.osPermissions\(setOf\(metric\)\)/u);
+  assert.match(origin,/\.all \{ it in osPermissions \}/u);
   assert.match(origin,/includeHeartRate = "generalHeartRate" in allowed/u);
   assert.match(origin,/oneReadApproved/u);
   assert.match(origin,/readFence\.isCurrent\(documentLease\)/u);

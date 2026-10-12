@@ -14,8 +14,12 @@ class Connected360V46PermissionPolicyTest {
         assertNull(policy.parseScopes(null))
         assertNull(policy.parseScopes(emptyList()))
         assertNull(policy.parseScopes(listOf("generalHeartRate", "generalHeartRate")))
-        assertNull(policy.parseScopes(listOf("sleepMinutes")))
-        assertNull(policy.parseScopes(listOf("generalHeartRate", "exerciseSessions", "steps")))
+        assertEquals(setOf("sleepMinutes"),policy.parseScopes(listOf("sleepMinutes")))
+        assertEquals(setOf("generalHeartRate", "exerciseSessions", "steps"),
+            policy.parseScopes(listOf("generalHeartRate", "exerciseSessions", "steps")))
+        assertNull(policy.parseScopes(listOf("futureRecovery")))
+        assertNull(policy.parseScopes(listOf("steps", "sleepMinutes", "restingHeartRate",
+            "generalHeartRate", "exerciseSessions", "futureRecovery")))
     }
 
     @Test fun requestsExactlyTheOsPermissionsAssociatedWithSelectedScopes() {
@@ -27,5 +31,13 @@ class Connected360V46PermissionPolicyTest {
         assertEquals(setOf(Connected360GeneralHeartRateDiagnostic.permission,
                 Connected360WorkoutReadOnlyQa.requiredPermission),
             policy.osPermissions(setOf("generalHeartRate", "exerciseSessions")))
+        assertEquals(setOf(
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.StepsRecord::class),
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.SleepSessionRecord::class),
+            androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.RestingHeartRateRecord::class)),
+            policy.osPermissions(setOf("steps", "sleepMinutes", "restingHeartRate")))
     }
 }

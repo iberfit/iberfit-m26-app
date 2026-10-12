@@ -496,6 +496,7 @@ const ROWS=Object.freeze([
   ['Auditoría','Audit','Audit','Auditoria'],
   ['Energía','Energy','Énergie','Energia'],
   ['Sueño','Sleep','Sommeil','Sono'],
+  [', sueño',', sleep',', sommeil',', sono'],
   ['Estrés','Stress','Stress','Stress'],
   ['Motivación','Motivation','Motivation','Motivação'],
   ['Calidad del dato','Data quality','Qualité des données','Qualidade dos dados'],
