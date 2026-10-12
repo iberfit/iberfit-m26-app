@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "9fb714c66c1c49bd8ae7fb5e9f48acdb053ab9c2",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Single certified production promotion: P0 Android Release startup crash fix and KVM emulator QA #893 + running Coach phase-aware pacing correctness #894. Combined SHA with seven successful checks incl Android Release emulator launch, native QA, client/device, full CI, audit. Health Connect V46 stays disabled until independently verified OS/device consent and Galaxy Watch9 real-world ingress. No schema, secrets, RLS or user data changes; rollback required."
+}
