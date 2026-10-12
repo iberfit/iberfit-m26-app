@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Additional scopes only for local DEBUG exercise QA, not release. -->
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <!-- Debug-only label prevents confusion with the installed production app. -->
     <application android:label="IBERFIT Canary QA" tools:replace="android:label">
         <activity
