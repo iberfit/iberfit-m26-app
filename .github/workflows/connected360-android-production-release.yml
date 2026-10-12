@@ -13,6 +13,7 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: iberfit-connected360-android-production-signing
   cancel-in-progress: false
