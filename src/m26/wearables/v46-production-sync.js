@@ -123,8 +123,8 @@ export function createConnected360ProductionSync({
     inflight=operation;
     try{return await operation;}finally{if(inflight===operation)inflight=null;}
   }
-  function invalidate(){generation+=1;native.destroy?.();}
-  function destroy(){if(dead)return;dead=true;invalidate();}
+  function invalidate(){generation+=1;native.invalidate?.();}
+  function destroy(){if(dead)return;dead=true;invalidate();native.destroy?.();}
   return Object.freeze({availability,authorize,sync,invalidate,destroy,
     get lastSuccess(){return lastSuccess;}});
 }
