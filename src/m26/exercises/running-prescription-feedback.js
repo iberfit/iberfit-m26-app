@@ -90,17 +90,35 @@ export function runningPrescriptionAdvisories(prescription={},exercise={}){
     // include recoveries, warmup, cool-down or other non-running work.
     return Object.freeze(alerts);
   }
-  if(profile.kind==='intervals')return Object.freeze(alerts);
-  if(minutes!==null&&warmup!==null&&cooldown!==null&&
-     warmup+cooldown>=minutes){
+  if(profile.kind==='intervals'){
+    // A partial interval plan is not equivalent to a running pace target:
+    // require work duration AND an integer repetition count to reason safely.
+    if(reps!==null||work!==null||repeatMeters!==null||recovery!==null)
+      alerts.push(advisory('interval-prescription-incomplete','review',
+        'Para analizar los intervalos indica número de repeticiones y segundos de trabajo. No se infiere el ritmo.'));
+    return Object.freeze(alerts);
+  }
+  const knownPhaseMinutes=(warmup??0)+(cooldown??0);
+  const hasDefinedPhase=(warmup!==null&&warmup>0)||(cooldown!==null&&cooldown>0);
+  const phasesExceed=minutes!==null&&hasDefinedPhase&&knownPhaseMinutes>=minutes;
+  if(phasesExceed){
     alerts.push(advisory('running-phases-exceed-duration','review',
       'El calentamiento y la vuelta a la calma ocupan toda la duración objetivo. Revisa el tiempo de carrera principal.'));
   }
-  if(distance!==null&&minutes!==null&&profile.kind!=='intervals'){
+  if(distance!==null&&minutes!==null){
+    // All supplied distance is for the full block; without per-phase
+    // distances we must never imply the result is the main running pace.
     const targetSeconds=minutes*60/distance;
     if(targetSeconds>=90&&targetSeconds<=1800){
       const estimated=formatPace(targetSeconds);
-      if(explicitPace!==null&&Math.abs(explicitPace-targetSeconds)/targetSeconds>0.2){
+      if(hasDefinedPhase){
+        if(!phasesExceed)
+          alerts.push(advisory('running-overall-pace-with-phases','info',
+            `Ritmo medio teórico del bloque completo: ~${estimated} min/km. Incluye las fases definidas y no describe el ritmo de carrera principal ni una medición.`));
+        if(explicitPace!==null)
+          alerts.push(advisory('running-main-pace-not-comparable','info',
+            'El ritmo de carrera indicado no puede compararse con el promedio total sin conocer las distancias de calentamiento y vuelta a la calma.'));
+      }else if(explicitPace!==null&&Math.abs(explicitPace-targetSeconds)/targetSeconds>0.2){
         alerts.push(advisory('pace-plan-mismatch','review',
           `Distancia y duración equivalen a ~${estimated} min/km. El ritmo introducido difiere; revisa pausas o calentamiento.`));
       }else{
