@@ -2,6 +2,8 @@
 -- Backend-first rollout. Existing V44/V46 observations remain unmodified. No consent is created.
 BEGIN;
 -- Additive owner-scoped consent journal; existing V46 receipt CHECK remains untouched.
+-- IBERFIT-TABLE-ACCESS: public.m26_wearable_v47_consents_prod :: client scope RPC only; no direct authenticated table CRUD
+-- IBERFIT-POLICY: public.m26_wearable_v47_consents_prod = service-role-only
 CREATE TABLE public.m26_wearable_v47_consents_prod(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
