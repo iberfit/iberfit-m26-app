@@ -2,9 +2,9 @@ import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
-import {exerciseMeasurementProfile} from '../src/m26/exercises/measurement-profiles.js';
+import {exerciseMeasurementProfile,metricPrescriptionSummary,metricValueValid} from '../src/m26/exercises/measurement-profiles.js';
 import {runningPrescriptionAdvisories} from '../src/m26/exercises/running-prescription-feedback.js';
-import {createSessionDraft,addCatalogExercise,updateSessionBlock}
+import {createSessionDraft,addCatalogExercise,updateSessionBlock,validateSessionDraft}
   from '../src/m26/workflows/session-builder.js';
 import {renderSessionBuilder} from '../src/m26/workflows/session-ui.js';
 
@@ -103,4 +103,85 @@ test('walking retains pace prescription without mislabelled running advisory',()
   assert.doesNotMatch(html,/data-running-prescription-advice/u);
   const source=readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
   assert.match(source,/\['running','walking'\]\.includes\(profile\.sport\)/u);
+});
+
+
+test('interval warmup, recovery and cooldown form one truthful minimum without fake measurements',()=>{
+  const p={intervalRepetitions:8,intervalWorkSeconds:60,intervalRecoverySeconds:90,
+    plannedWarmupMinutes:10,plannedCooldownMinutes:5,plannedDurationMinutes:30};
+  const result=runningPrescriptionAdvisories(p,interval);
+  assert.deepEqual(result.map(x=>x.code),['interval-minimum-exceeds-duration']);
+  assert.match(result[0].message,/34 min/u);
+  const longer=runningPrescriptionAdvisories({...p,plannedDurationMinutes:40},interval);
+  assert.deepEqual(longer.map(x=>x.code),['interval-minimum']);
+  assert.match(longer[0].message,/34 min/u);
+  assert.match(longer[0].message,/No es tiempo registrado/u);
+});
+
+test('missing recovery stays unknown rather than being silently assumed zero',()=>{
+  const notes=runningPrescriptionAdvisories({
+    intervalRepetitions:4,intervalWorkSeconds:120,plannedDurationMinutes:20,
+  },interval);
+  assert.deepEqual(notes.map(x=>x.code),['interval-minimum','interval-recovery-unspecified']);
+  assert.match(notes[1].message,/no incluye ese descanso/u);
+});
+
+test('distance per interval exposes a target-only pace and warns on contradictory total',()=>{
+  const notes=runningPrescriptionAdvisories({
+    intervalRepetitions:6,intervalWorkSeconds:120,intervalRecoverySeconds:90,
+    intervalDistanceM:400,plannedDistanceKm:2,plannedDurationMinutes:60,
+  },interval);
+  assert.deepEqual(notes.map(x=>x.code),[
+    'interval-minimum','interval-distance-exceeds-total','interval-target-pace',
+  ]);
+  assert.match(notes[2].message,/~5:00 min\/km/u);
+  assert.match(notes[2].message,/no medido/u);
+  assert.doesNotMatch(notes[2].message,/observado|completado/u);
+});
+
+test('Coach saves new optional interval fields without altering legacy session semantics',()=>{
+  const draft=createSessionDraft({clientId:'client-1'});
+  addCatalogExercise(draft,'INTERVALS',catalog);
+  const id=draft.blocks[0].id;
+  for(const [field,value] of Object.entries({
+    intervalRepetitions:'8',intervalWorkSeconds:'60',
+    intervalRecoverySeconds:'90',intervalDistanceM:'400',
+    plannedWarmupMinutes:'10',plannedCooldownMinutes:'5',
+    plannedDurationMinutes:'35',
+  }))updateSessionBlock(draft,{blockId:id,field,value,catalog});
+  assert.equal(validateSessionDraft(draft,catalog).ok,true);
+  const summary=metricPrescriptionSummary(draft.blocks[0],interval);
+  assert.match(summary,/400 m\/repetición/u);
+  assert.match(summary,/10 min calentamiento/u);
+  assert.match(summary,/5 min vuelta a la calma/u);
+  const snapshot=JSON.stringify(draft);
+  const markup=renderSessionBuilder({draft,catalog,role:'coach'});
+  for(const key of ['plannedWarmupMinutes','plannedCooldownMinutes','intervalDistanceM'])
+    assert.ok(markup.includes(`data-session-block-field="${key}"`),key);
+  assert.match(markup,/data-running-prescription-advice="info"/u);
+  assert.equal(JSON.stringify(draft),snapshot);
+});
+
+test('invalid new metric values cannot bypass draft validation',()=>{
+  assert.equal(metricValueValid('intervalDistanceM','0'),false);
+  assert.equal(metricValueValid('intervalDistanceM','-50'),false);
+  assert.equal(metricValueValid('intervalDistanceM','400'),true);
+  assert.equal(metricValueValid('plannedWarmupMinutes','241'),false);
+  assert.equal(metricValueValid('plannedCooldownMinutes','-1'),false);
+  assert.equal(metricValueValid('plannedWarmupMinutes','0'),true);
+  const draft=createSessionDraft({clientId:'client-1'});
+  addCatalogExercise(draft,'INTERVALS',catalog);
+  const blockId=draft.blocks[0].id;
+  updateSessionBlock(draft,{blockId,field:'intervalRepetitions',value:'6',catalog});
+  updateSessionBlock(draft,{blockId,field:'intervalWorkSeconds',value:'45',catalog});
+  updateSessionBlock(draft,{blockId,field:'intervalDistanceM',value:'-20',catalog});
+  assert.equal(validateSessionDraft(draft,catalog).ok,false);
+});
+
+test('warmup and cooldown advice stays specific to running, not walking/cycling',()=>{
+  const p={plannedDurationMinutes:30,plannedDistanceKm:5,
+    plannedWarmupMinutes:20,plannedCooldownMinutes:15};
+  assert.equal(runningPrescriptionAdvisories(p,run)[0]?.code,'running-phases-exceed-duration');
+  assert.deepEqual(runningPrescriptionAdvisories(p,catalog.get('WALK')),[]);
+  assert.deepEqual(runningPrescriptionAdvisories(p,catalog.get('BIKE')),[]);
 });
