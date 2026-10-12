@@ -183,9 +183,8 @@ export function createConnected360V46ProdNativeChannel({
     channel.postMessage(JSON.stringify({schema:REQUEST_SCHEMA,
       requestId:id,action:'health.permissions'}));
   }
-  function destroy(){
-    if(disposed)return;
-    disposed=true;rejectPending?.();rejectPending=null;
+  function invalidate(){
+    rejectPending?.();rejectPending=null;
     try{
       const requestId=scope?.crypto?.randomUUID?.();
       if(isConnected360ProdNativeAvailable(scope)&&channel===scope?.[CHANNEL]&&
@@ -195,7 +194,12 @@ export function createConnected360V46ProdNativeChannel({
       }
     }catch{}
   }
-  return Object.freeze({readLocal,requestPermissions,destroy,available:()=>!disposed&&
+  function destroy(){
+    if(disposed)return;
+    invalidate();
+    disposed=true;
+  }
+  return Object.freeze({readLocal,requestPermissions,invalidate,destroy,available:()=>!disposed&&
     isConnected360ProdNativeAvailable(scope)});
 }
 
