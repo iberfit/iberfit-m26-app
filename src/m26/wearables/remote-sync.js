@@ -424,7 +424,7 @@ export function createWearableRemoteSync({
     await queueStore.clear(ownerPrefix);
   }
 
-  async function reauthorize({provider='normalized_file',scopes=[]}={}){
+  async function reauthorize({provider='normalized_file',scopes=[],allowQaV46ScopeExtension=false}={}){
     if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
     const source=safeProvider(provider);
     if(!Array.isArray(scopes)||!scopes.length)
@@ -447,9 +447,19 @@ export function createWearableRemoteSync({
       requireCurrent();
       let result;
       if(status.authorized===true){
-        if(scopes.some(metric=>!status.scopes?.includes(metric)))
-          throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
-        result=Object.freeze({...status,alreadyAuthorized:true});
+        const missing=scopes.filter(metric=>!status.scopes?.includes(metric));
+        if(missing.length){
+          // Only a direct V46 QA user action may extend an existing Health
+          // Connect grant. Do not revoke V44 permissions or discard their data.
+          if(allowQaV46ScopeExtension!==true||source!=='health_connect'
+            ||missing.some(metric=>!['generalHeartRate','exerciseSessions'].includes(metric))
+            ||typeof transport.extendConnected360QaV46Grant!=='function')
+            throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
+          result=await transport.extendConnected360QaV46Grant(token,{
+            provider:source,expectedGrant:status.grantId,
+            expectedCursor:status.revocationCursor,scopes:missing,
+          });
+        }else result=Object.freeze({...status,alreadyAuthorized:true});
       }else{
         result=await transport.reauthorizeWearable(token,{
           provider:source,expectedCursor:status.revocationCursor,
@@ -473,6 +483,17 @@ export function createWearableRemoteSync({
       await refreshState({reason:'wearable-reauthorized'});
       requireCurrent();
       return result;
+    });
+  }
+
+  // Only the V46 QA consent-submit button may call this wrapper.
+  // A passive/background sync never gets access to scope extension.
+  function reauthorizeV46({scopes=[]}={}){
+    if(!Array.isArray(scopes)||!scopes.length||scopes.length>2
+      ||scopes.some(metric=>!['generalHeartRate','exerciseSessions'].includes(metric)))
+      return Promise.reject(new Error('M26_V46_QA_SCOPE_EXTENSION_INVALID'));
+    return reauthorize({
+      provider:'health_connect',scopes,allowQaV46ScopeExtension:true,
     });
   }
 
@@ -524,6 +545,7 @@ export function createWearableRemoteSync({
     revoke,
     deleteAll,
     reauthorize,
+    reauthorizeV46,
     currentAuthorization,
     pendingCount,
     clearOwner,
