@@ -43,12 +43,15 @@ ALTER TABLE public.m26_wearable_source_daily_v45
         AND general_heart_rate_min_bpm IS NULL
         AND general_heart_rate_max_bpm IS NULL)
       OR (
-        general_heart_rate_samples BETWEEN 1 AND 250000
+        general_heart_rate_samples IS NOT NULL
+        AND general_heart_rate_samples BETWEEN 1 AND 250000
         AND (
           (general_heart_rate_min_bpm IS NULL
             AND general_heart_rate_max_bpm IS NULL)
           OR
-          (general_heart_rate_min_bpm BETWEEN 25 AND 300
+          (general_heart_rate_min_bpm IS NOT NULL
+            AND general_heart_rate_max_bpm IS NOT NULL
+            AND general_heart_rate_min_bpm BETWEEN 25 AND 300
             AND general_heart_rate_max_bpm BETWEEN 25 AND 300
             AND general_heart_rate_min_bpm <= general_heart_rate_max_bpm)
         )
