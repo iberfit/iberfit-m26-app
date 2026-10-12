@@ -108,7 +108,7 @@ begin
   return jsonb_build_object('ok',true,'provider',v_provider,'grantId',v_new_grant,
     'revocationCursor',v_cursor,'scopes',to_jsonb(v_scopes));
 end;
-$function$
+$function$;
 
 -- SECURITY DEFINER is retained from the existing reauthorization contract; no new anon EXECUTE.
 -- V46 QA writer: owner-derived, authenticated, grant-scoped, rate/batch bounded, lock-fenced.
