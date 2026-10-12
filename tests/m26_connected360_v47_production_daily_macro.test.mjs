@@ -114,6 +114,7 @@ test('RLS, owner/consent/revocation fences and privacy deletion are deployed as 
   assert.match(sql,/REVOKE ALL ON TABLE public\.m26_wearable_daily_health_v47 FROM PUBLIC,anon,authenticated,service_role/u);
   assert.doesNotMatch(sql,/GRANT (INSERT|UPDATE|DELETE) ON TABLE public\.m26_wearable_daily_health_v47/u);
   assert.match(sql,/k=ANY\(c\.scopes\)/u);
+  assert.match(sql,/cardinality\(v_union\) > 12/u);
   assert.match(sql,/CREATE TABLE public\.m26_wearable_v47_consents_prod/u);
   assert.doesNotMatch(sql,/DROP CONSTRAINT|DROP TABLE/u);
   assert.match(sql,/v_row \? 'restingHeartRate'/u);
