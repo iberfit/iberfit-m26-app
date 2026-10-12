@@ -32,9 +32,9 @@ function persistFailureOutput(name,result,spawnError){
   // Large TAP suites can exceed the artifact tail limit. Keep a small,
   // non-sensitive index of failing test names BEFORE truncating the log.
   // This makes a specific failure actionable without disabling full CI.
-  const failedCases=combined.split(/\\r?\\n/u)
-    .filter(line=>/^(?:\\x1b\\[[0-9;]*m)*not ok \\d+ - /u.test(line))
-    .map(line=>line.replace(/\\x1b\\[[0-9;]*m/gu,'').slice(0,200))
+  const failedCases=combined.split(/\r?\n/u)
+    .filter(line=>/\bnot ok\s+\d+\s+-\s+/u.test(line))
+    .map(line=>line.trim().slice(0,240))
     .slice(0,30);
   const header=[
     `IBERFIT RC74.4 validation failure: ${name}`,
