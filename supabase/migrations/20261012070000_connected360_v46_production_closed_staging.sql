@@ -3,20 +3,13 @@
 -- Different from QA-only migration: enforced production preflight and dormant release gate.
 -- Must not be treated as an Android / watch E2E or production feature activation.
 BEGIN;
-DO $preflight$
-BEGIN
-  IF to_regclass('public.clients') IS NULL OR
-     to_regclass('public.m26_wearable_daily_summaries_v44') IS NULL OR
-     to_regclass('public.m26_wearable_consents_v44') IS NULL OR
-     to_regclass('public.m26_wearable_connections_v44') IS NULL THEN
-     RAISE EXCEPTION 'M26_V46_PRODUCTION_LEGACY_PREREQUISITES_MISSING';
-  END IF;
-  IF to_regclass('public.m26_wearable_heart_rate_daily_v46') IS NOT NULL
-     OR to_regclass('public.m26_wearable_exercise_evidence_v46') IS NOT NULL THEN
-     RAISE EXCEPTION 'M26_V46_PRODUCTION_ALREADY_PRESENT_REVIEW_REQUIRED';
-  END IF;
-END;
-$preflight$;
+-- Declarative preflight: fail when any pre-existing V44 relation is missing.
+-- Pure metadata/type resolution: LIMIT 0 returns no private rows.
+SELECT 1 FROM public.m26_wearable_daily_summaries_v44 LIMIT 0;
+SELECT 1 FROM public.m26_wearable_consents_v44 LIMIT 0;
+SELECT 1 FROM public.m26_wearable_connections_v44 LIMIT 0;
+-- CREATE TABLE (without IF NOT EXISTS) naturally fails closed on existing V46 objects.
+
 create table public.m26_wearable_heart_rate_daily_v46 (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null references auth.users(id) on delete cascade,
