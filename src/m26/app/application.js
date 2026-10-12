@@ -22,6 +22,7 @@ import {createEngagementDraftRepository} from '../engagement/activity-drafts.js'
 import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
 import {createWearableController} from '../wearables/controller.js';
+import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-channel.js';
 import {createVerificationController,refreshVerificationState} from '../engagement/conflict-center.js';
 import {createShellController} from '../shell/shell-controller.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
@@ -1302,7 +1303,12 @@ export async function createM26Application({root=document.querySelector('#app'),
       qaStage('rc64-post-login-local-reconciliation-start');
       await yieldMainThread();
       if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
-      wearables.mount({syncInitial:false});
+      // The signed production Android host must reconcile on first login,
+      // not only after the next background/foreground transition. Keep browser
+      // and PWA boot lean: they have no Health Connect native IPC.
+      const nativeForegroundBoot=store.getState().identity?.role==='client'
+        &&isConnected360ProdNativeAvailable(globalThis);
+      wearables.mount({syncInitial:nativeForegroundBoot});
       qaStage('rc64-wearables-post-login-mount-ready');
 
       const sync=createConnectivitySync({
