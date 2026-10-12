@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "5c5c8d34779d7b26bed27b7a65d1bb1ecd110ca0",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Promoción V46/V47/V48/V49 de frontend estable y mejoras cerradas. No habilitar writer V46 en producción ni lectura nativa automática. Proteger historial V44, consentimientos y roles."
+}
