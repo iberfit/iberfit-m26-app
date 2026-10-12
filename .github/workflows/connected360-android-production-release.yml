@@ -63,13 +63,13 @@ jobs:
         shell: bash
         env:
           SIGNING_B64: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEYSTORE_B64 }}"
-          STORE_PASSWORD: "${{ secrets.IBERFIT_ANDROID_RELEASE_STORE_PASSWORD }}"
+          SIGNING_STORE_CREDENTIAL: "${{ secrets.IBERFIT_ANDROID_RELEASE_STORE_PASSWORD }}"
           KEY_ALIAS: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEY_ALIAS }}"
-          KEY_PASSWORD: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEY_PASSWORD }}"
+          SIGNING_KEY_CREDENTIAL: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEY_PASSWORD }}"
         run: |
           set -euo pipefail
-          test -n "$SIGNING_B64" && test -n "$STORE_PASSWORD" &&
-            test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || {
+          test -n "$SIGNING_B64" && test -n "$SIGNING_STORE_CREDENTIAL" &&
+            test -n "$KEY_ALIAS" && test -n "$SIGNING_KEY_CREDENTIAL" || {
               echo 'ANDROID_STABLE_RELEASE_SIGNING_NOT_CONFIGURED' >&2
               exit 42
             }
@@ -77,11 +77,11 @@ jobs:
           printf '%s' "$SIGNING_B64" | base64 --decode > "$RUNNER_TEMP/iberfit-production.jks"
           test -s "$RUNNER_TEMP/iberfit-production.jks"
           echo "IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/iberfit-production.jks" >> "$GITHUB_ENV"
-          echo "IBERFIT_ANDROID_RELEASE_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_STORE_PASSWORD=$SIGNING_STORE_CREDENTIAL" >> "$GITHUB_ENV"
           echo "IBERFIT_ANDROID_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "IBERFIT_ANDROID_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-          echo "::add-mask::$STORE_PASSWORD"
-          echo "::add-mask::$KEY_PASSWORD"
+          echo "IBERFIT_ANDROID_RELEASE_KEY_PASSWORD=$SIGNING_KEY_CREDENTIAL" >> "$GITHUB_ENV"
+          echo "::add-mask::$SIGNING_STORE_CREDENTIAL"
+          echo "::add-mask::$SIGNING_KEY_CREDENTIAL"
       - name: Test release and build signed production APK / bundle
         run: |
           gradle --no-daemon -p native/android-host :phone-app:testDebugUnitTest :phone-app:assembleRelease :phone-app:bundleRelease
