@@ -22,6 +22,7 @@ import {
   isConnected360QaNativeAvailable,
 } from './qa-native-channel.js';
 import {createConnected360QaImporter} from './qa-native-import.js';
+import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
@@ -489,6 +490,20 @@ export function createWearableController({
       isBusy:()=>false,
       capture:()=>{throw new Error('M26_HEALTH_QA_IMPORT_UNAVAILABLE');},
       commit:async()=>{throw new Error('M26_HEALTH_QA_IMPORT_UNAVAILABLE');},
+    });
+
+  const qaV46ImportAvailable=isConnected360QaNativeAvailable(globalThis)
+    &&typeof transport?.importConnected360QaV46==='function';
+  const qaV46Importer=qaV46ImportAvailable
+    ?createConnected360V46QaImporter({
+      transport,remoteSync,getIdentity:qaClientIdentity,
+      getToken,isOnline,refreshState,
+    })
+    :Object.freeze({
+      clear:()=>{},destroy:()=>{},hasPreview:()=>false,
+      isBusy:()=>false,
+      capture:()=>{throw new Error('M26_V46_QA_IMPORT_UNAVAILABLE');},
+      commit:async()=>{throw new Error('M26_V46_QA_IMPORT_UNAVAILABLE');},
     });
 
   async function analyze(form){
@@ -1026,6 +1041,12 @@ export function createWearableController({
     root.querySelectorAll?.('[data-qa-v46-evidence-status]')?.forEach?.(node=>{
       node.textContent='';
     });
+    root.querySelectorAll?.('[data-qa-v46-scope]')?.forEach?.(input=>{
+      input.checked=false;input.disabled=true;
+    });
+    root.querySelectorAll?.('[data-wearable-action="qa-v46-evidence-confirm"]')?.forEach?.(button=>{
+      button.disabled=true;
+    });
     root.querySelectorAll?.('[data-qa-health-consent]')?.forEach?.(input=>{
       input.checked=false;
       input.disabled=true;
@@ -1042,6 +1063,7 @@ export function createWearableController({
     qaV46ReadEpoch+=1;
     appleReadEpoch+=1;
     qaImporter.clear();
+    qaV46Importer.clear();
     clearQaSensitiveSurface();
     const node=root.querySelector?.(
       '[data-wearable-preview]',
@@ -1307,6 +1329,40 @@ export function createWearableController({
         v46Status.setAttribute('role','status');
         v46Status.textContent='Solo lectura en Android: primero autoriza una lectura en la app QA. No se envían datos.';
         qaCard.append(v46Button,v46Status);
+        if(qaV46ImportAvailable){
+          // No remote write is triggered by Android read, resume or connectivity.
+          // Each category needs an independent, deliberate check and final click.
+          const consentRows=document.createElement('div');
+          consentRows.dataset.qaV46ConsentArea='true';
+          const choices=[
+            ['generalHeartRate','Acepto incorporar mi frecuencia cardíaca general a IBERFIT QA.'],
+            ['exerciseSessions','Acepto incorporar mis actividades deportivas observadas a IBERFIT QA.'],
+          ];
+          for(const [metric,labelText] of choices){
+            const label=document.createElement('label');
+            label.className='m26-wearable-qa-consent';
+            const input=document.createElement('input');
+            input.type='checkbox';
+            input.dataset.qaV46Scope=metric;
+            input.disabled=true;
+            const copy=document.createElement('span');
+            copy.textContent=labelText;
+            label.append(input,copy);
+            consentRows.append(label);
+          }
+          const commitButton=document.createElement('button');
+          commitButton.type='button';
+          commitButton.dataset.wearableAction='qa-v46-evidence-confirm';
+          commitButton.textContent='Autorizar e incorporar estas categorías (QA)';
+          commitButton.disabled=true;
+          consentRows.addEventListener('change',()=>{
+            commitButton.disabled=!qaV46Importer.hasPreview()||
+              qaV46Importer.isBusy()||
+              ![...consentRows.querySelectorAll('[data-qa-v46-scope]')]
+                .some(input=>input.checked===true&&!input.disabled);
+          });
+          qaCard.append(consentRows,commitButton);
+        }
       }
     }
 
@@ -1403,8 +1459,24 @@ export function createWearableController({
         const card=button.closest?.('[data-provider="health_connect"]');
         const note=card?.querySelector?.('[data-qa-v46-evidence-status]');
         if(note)note.textContent='Leyendo FC general y sesiones deportivas del teléfono…';
+        qaV46Importer.clear();
+        card?.querySelectorAll?.('[data-qa-v46-scope]')?.forEach?.(input=>{
+          input.checked=false;input.disabled=true;
+        });
+        const write=card?.querySelector?.('[data-wearable-action="qa-v46-evidence-confirm"]');
+        if(write)write.disabled=true;
         const result=await qaV46Native.readLocal();
         if(epoch!==qaV46ReadEpoch)return;
+        const available=qaV46ImportAvailable&&(
+          result.envelope.heartRateDaily.length||result.envelope.exerciseEvidence.length
+        );
+        if(available){
+          const snapshot=qaV46Importer.capture(result);
+          card?.querySelectorAll?.('[data-qa-v46-scope]')?.forEach?.(input=>{
+            input.disabled=input.dataset.qaV46Scope==='generalHeartRate'
+              ?snapshot.generalHeartRate<1:snapshot.exerciseSessions<1;
+          });
+        }
         const hrDays=result.envelope.heartRateDaily.length;
         const workouts=result.envelope.exerciseEvidence.length;
         const observed=result.envelope.heartRateDaily.reduce(
@@ -1415,6 +1487,32 @@ export function createWearableController({
           observed+' muestras), '+workouts+' actividad(es) deportiva(s). '+
           'FC general no es FC en reposo. No se han enviado datos a IBERFIT. '+
           (result.metrics.length<2?'Permisos parciales; algunas métricas no están disponibles.':'');
+      }else if(action==='qa-v46-evidence-confirm'){
+        const card=button.closest?.('[data-provider="health_connect"]');
+        const note=card?.querySelector?.('[data-qa-v46-evidence-status]');
+        const checks=[...(card?.querySelectorAll?.('[data-qa-v46-scope]')||[])];
+        const selected=Object.fromEntries(checks.map(input=>[
+          input.dataset.qaV46Scope,input.checked===true&&!input.disabled
+        ]));
+        if(!qaV46Importer.hasPreview()||qaV46Importer.isBusy()||
+          !Object.values(selected).some(Boolean))
+          throw new Error('M26_V46_QA_EXPLICIT_CONSENT_REQUIRED');
+        button.disabled=true;
+        if(note)note.textContent='Comprobando consentimiento y guardando únicamente las categorías elegidas…';
+        try{
+          const result=await qaV46Importer.commit(selected);
+          if(note)note.textContent='Datos autorizados e incorporados en IBERFIT QA. '+
+            'Nuevos: '+result.inserted+' · actualizados: '+result.updated+
+            ' · sin cambios: '+result.unchanged+'. Sin sincronización automática.';
+          for(const input of checks){input.checked=false;input.disabled=true;}
+          qaV46ReadEpoch+=1;
+        }catch(error){
+          if(note)note.textContent='No se ha podido confirmar la importación. '+
+            'Revisa tu autorización y vuelve a realizar la lectura si es necesario.';
+          throw error;
+        }finally{
+          button.disabled=!qaV46Importer.hasPreview();
+        }
       }else if(action==='qa-health-read'){
         if(qaImporter.isBusy())throw new Error('M26_HEALTH_QA_BUSY');
         const epoch=++qaReadEpoch;
@@ -1674,6 +1772,7 @@ export function createWearableController({
       qaV46Native.destroy();
       appleQaNative.destroy();
       qaImporter.destroy();
+      qaV46Importer.destroy();
       clearQaSensitiveSurface();
       observer?.disconnect?.();
       observer=null;
@@ -1722,6 +1821,7 @@ export function createWearableController({
       qaV46Native.destroy();
       appleQaNative.destroy();
       qaImporter.destroy();
+      qaV46Importer.destroy();
       clearQaSensitiveSurface();
       return remoteSync.clearOwner();
     },

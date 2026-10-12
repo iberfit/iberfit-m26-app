@@ -27,6 +27,11 @@ const METRICS=Object.freeze([
   'activeEnergyKcal',
   'workoutMinutes',
 ]);
+// Remote V46 QA authorization categories are distinct from V44 numeric daily
+// fields. Do not change the file-summary queue's metrics or backfill behavior.
+const AUTHORIZATION_SCOPES=Object.freeze([...METRICS,
+  'generalHeartRate','exerciseSessions',
+]);
 
 function clone(value){
   return value==null?value:structuredClone(value);
@@ -419,7 +424,7 @@ export function createWearableRemoteSync({
     await queueStore.clear(ownerPrefix);
   }
 
-  async function reauthorize({provider='normalized_file',scopes=[]}={}){
+  async function reauthorize({provider='normalized_file',scopes=[],allowQaV46ScopeExtension=false}={}){
     if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
     const source=safeProvider(provider);
     if(!Array.isArray(scopes)||!scopes.length)
@@ -442,9 +447,19 @@ export function createWearableRemoteSync({
       requireCurrent();
       let result;
       if(status.authorized===true){
-        if(scopes.some(metric=>!status.scopes?.includes(metric)))
-          throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
-        result=Object.freeze({...status,alreadyAuthorized:true});
+        const missing=scopes.filter(metric=>!status.scopes?.includes(metric));
+        if(missing.length){
+          // Only a direct V46 QA user action may extend an existing Health
+          // Connect grant. Do not revoke V44 permissions or discard their data.
+          if(allowQaV46ScopeExtension!==true||source!=='health_connect'
+            ||missing.some(metric=>!['generalHeartRate','exerciseSessions'].includes(metric))
+            ||typeof transport.extendConnected360QaV46Grant!=='function')
+            throw new Error('M26_CONNECTED360_SCOPE_EXPANSION_REQUIRES_REVOKE');
+          result=await transport.extendConnected360QaV46Grant(token,{
+            provider:source,expectedGrant:status.grantId,
+            expectedCursor:status.revocationCursor,scopes:missing,
+          });
+        }else result=Object.freeze({...status,alreadyAuthorized:true});
       }else{
         result=await transport.reauthorizeWearable(token,{
           provider:source,expectedCursor:status.revocationCursor,
@@ -471,13 +486,24 @@ export function createWearableRemoteSync({
     });
   }
 
+  // Only the V46 QA consent-submit button may call this wrapper.
+  // A passive/background sync never gets access to scope extension.
+  function reauthorizeV46({scopes=[]}={}){
+    if(!Array.isArray(scopes)||!scopes.length||scopes.length>2
+      ||scopes.some(metric=>!['generalHeartRate','exerciseSessions'].includes(metric)))
+      return Promise.reject(new Error('M26_V46_QA_SCOPE_EXTENSION_INVALID'));
+    return reauthorize({
+      provider:'health_connect',scopes,allowQaV46ScopeExtension:true,
+    });
+  }
+
   // Used only by a previously consented native reconnect. A passive/background
   // refresh must NEVER call reauthorizeWearable or manufacture a grant.
   async function currentAuthorization({provider,scopes=[]}={}){
     const source=safeProvider(provider);
     if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
     if(deleteRequested||blockedProviders.has(source))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
-    if(!Array.isArray(scopes)||!scopes.length||scopes.some((scope)=>!METRICS.includes(scope))){
+    if(!Array.isArray(scopes)||!scopes.length||scopes.some((scope)=>!AUTHORIZATION_SCOPES.includes(scope))){
       throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
     }
     if(!isOnline())throw new Error('M26_WEARABLE_NETWORK_REQUIRED');
@@ -519,6 +545,7 @@ export function createWearableRemoteSync({
     revoke,
     deleteAll,
     reauthorize,
+    reauthorizeV46,
     currentAuthorization,
     pendingCount,
     clearOwner,

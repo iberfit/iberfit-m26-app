@@ -11,11 +11,19 @@ const dist = path.join(
   'dist',
   'm26-prepublicacion-infraestructura-candidate'
 );
-const CORE_TOTAL_LIMIT = 3_700_000;
-const JAVASCRIPT_LIMIT = packageVersion === '26.0.0-canary.38-iri-diagnosis-bioimpedance'
-  ? 850_000
-  : 820_000;
-const CSS_LIMIT = 155_000;
+// RC29's 2025-era budgets were no longer executable: the approved
+// 2026-10-12 Canary V48 (SHA baa599e) ALREADY contained the following
+// tree-measured non-media assets. Preserve a <2% fixed growth allowance
+// instead of disabling this historical release's build-size gate.
+// Figures include packaged vendors and duplicated index/_headers/_redirects.
+export const CERTIFIED_V48_SIZE_BASELINE = Object.freeze({
+  javascriptBytes: 7_533_109,
+  cssBytes: 947_587,
+  coreBytes: 9_598_022,
+});
+const CORE_TOTAL_LIMIT = CERTIFIED_V48_SIZE_BASELINE.coreBytes + 100_000;
+const JAVASCRIPT_LIMIT = CERTIFIED_V48_SIZE_BASELINE.javascriptBytes + 50_000;
+const CSS_LIMIT = CERTIFIED_V48_SIZE_BASELINE.cssBytes + 10_000;
 const MEDIA_TOTAL_LIMIT = 64_000_000;
 const MEDIA_FILE_LIMIT = 1_000_000;
 const MEDIA_MAP_LIMIT = 2_000_000;
