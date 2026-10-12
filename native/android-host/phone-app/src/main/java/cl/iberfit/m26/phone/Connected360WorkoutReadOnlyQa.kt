@@ -111,10 +111,13 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         }
     }
 
-    suspend fun read(): ReadResult {
+    suspend fun read(includeHeartRate: Boolean = true): ReadResult {
         val granted = client.permissionController.getGrantedPermissions()
         check(requiredPermission in granted) { "M26_HEALTH_EXERCISE_PERMISSION_REQUIRED" }
-        val scopes = permissions.filterValues { it in granted }.keys.toSet()
+        // A separate remote grant is still required to export pulse data: never read
+        // optional pulse aggregates merely because Android previously granted permission.
+        val grantedScopes = permissions.filterValues { it in granted }.keys.toSet()
+        val scopes = if (includeHeartRate) grantedScopes else grantedScopes - "heartRate"
         val clock=ZonedDateTime.now()
         val end=clock.toInstant()
         val start=dayWindow(clock.toLocalDate().minusDays((DAYS-1).toLong()),clock.zone).first
