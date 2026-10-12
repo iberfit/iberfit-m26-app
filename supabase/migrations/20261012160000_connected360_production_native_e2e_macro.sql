@@ -21,6 +21,28 @@ REVOKE ALL ON TABLE public.m26_wearable_v46_release_control_prod FROM PUBLIC,ano
 GRANT SELECT ON TABLE public.m26_wearable_v46_release_control_prod TO service_role;
 INSERT INTO public.m26_wearable_v46_release_control_prod(id,enabled,change_ticket)
  VALUES(true,false,'CONNECTED360_RELEASE_NOT_YET_CERTIFIED');
+-- Read-only switch visible only through a client-authenticated status RPC.
+CREATE OR REPLACE FUNCTION public.m26_wearable_v46_capabilities_prod_v1()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $capabilities$
+DECLARE
+  v_owner uuid := (SELECT auth.uid());
+  v_client uuid := public.iberfit_client_id();
+  v_enabled boolean := false;
+BEGIN
+  PERFORM public.iberfit_require_privileged_assurance_v65d();
+  IF v_owner IS NULL OR v_client IS NULL THEN
+    RAISE EXCEPTION USING MESSAGE='M26_V46_CLIENT_REQUIRED',ERRCODE='42501';
+  END IF;
+  SELECT enabled INTO v_enabled FROM public.m26_wearable_v46_release_control_prod WHERE id=true;
+  RETURN jsonb_build_object(
+    'ok',true,'provider','health_connect','nativeAndroidOnly',true,
+    'serverEnabled',COALESCE(v_enabled,false),'schema','iberfit.connected360.v46.ingest.v1'
+  );
+END;
+$capabilities$;
+REVOKE ALL ON FUNCTION public.m26_wearable_v46_capabilities_prod_v1() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.m26_wearable_v46_capabilities_prod_v1() TO authenticated;
 ALTER TABLE public.m26_wearable_consents_v44
   DROP CONSTRAINT m26_wearable_consents_v44_scopes_check;
 ALTER TABLE public.m26_wearable_consents_v44
