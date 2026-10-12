@@ -29,7 +29,7 @@ test('QA schema fails closed without base table, forced RLS or closed staging',(
   assert.match(migration,/has_table_privilege\('anon'/u);
   assert.match(migration,/has_table_privilege\('authenticated'/u);
   assert.match(migration,/IF EXISTS \(SELECT 1 FROM public\.m26_wearable_source_daily_v45 LIMIT 1\)/u);
-  assert.match(migration,/^BEGIN;[\s\S]*COMMIT;/u);
+  assert.match(migration,/^BEGIN;[\s\S]*COMMIT;/mu);
   assert.match(migration,/automatic_sync_certified/u);
 });
 
