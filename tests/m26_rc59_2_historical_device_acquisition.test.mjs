@@ -191,7 +191,7 @@ test('RC59.2 lector Android usa HealthConnectClient estable y solo lectura',()=>
   );
 });
 
-test('RC59.2 Android host compila lector con Health Connect 1.1.0 estable',()=>{
+test('Android production host preserves stable Health Connect and current upgradable version',()=>{
   const gradle=read(
     'native/android-host/phone-app/build.gradle.kts'
   );
@@ -204,8 +204,8 @@ test('RC59.2 Android host compila lector con Health Connect 1.1.0 estable',()=>{
     gradle,
     /\.\.\/\.\.\/android\/health-connect/u
   );
-  assert.match(gradle,/versionCode = 265902/u);
-  assert.match(gradle,/versionName = "26\.59\.2-phone"/u);
+  assert.match(gradle,/versionCode = 265903/u);
+  assert.match(gradle,/versionName = "26\.59\.3-phone"/u);
   assert.doesNotMatch(
     gradle,
     /connect-client:1\.2\.0-alpha/u
