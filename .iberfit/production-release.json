@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "a1fd3725ae41f66027b070b6a407fae138346452",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "IBERFIT Running + Coach macro #891. Seven CI gates passed; non-destructive structured intervals, warmup/cooldown, repeat-distance, truthful target only advisories; no migration, no health consent changes. Android signed Release #890 certified in CI; physical Galaxy Watch9 E2E outstanding, Connected360 V46 switch must remain OFF."
+}
