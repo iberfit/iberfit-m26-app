@@ -148,8 +148,15 @@ test('RC44 hidrata colecciones remotas sin ampliar el scope',()=>{
 
   assert.ok(
     application.includes(
-      'wearableDailySummaries:wearableV44.dailySummaries||[]',
+      'mergeV47DailyIntoClientProgress({',
     ),
+    'V47 observations must project into existing client progress',
+  );
+  assert.ok(
+    application.includes(
+      ':wearableV44.dailySummaries||[]',
+    ),
+    'the Coach/Admin and V44 no-data paths retain existing summaries',
   );
 });
 
