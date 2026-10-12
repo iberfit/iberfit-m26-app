@@ -43,14 +43,28 @@ END;
 $capabilities$;
 REVOKE ALL ON FUNCTION public.m26_wearable_v46_capabilities_prod_v1() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.m26_wearable_v46_capabilities_prod_v1() TO authenticated;
-ALTER TABLE public.m26_wearable_consents_v44
-  DROP CONSTRAINT m26_wearable_consents_v44_scopes_check;
-ALTER TABLE public.m26_wearable_consents_v44
-  ADD CONSTRAINT m26_wearable_consents_v44_scopes_check
-  CHECK(scopes <@ ARRAY[
-    'steps','activeMinutes','sleepMinutes','restingHeartRate','hrvMs',
-    'activeEnergyKcal','workoutMinutes','generalHeartRate','exerciseSessions'
-  ]::text[]);
+-- V44 stays IMMUTABLE. New categories have their own auditable consent receipts.
+-- IBERFIT-TABLE-ACCESS: public.m26_wearable_v46_consents_prod :: Private HR/exercise consent receipts, no direct browser access
+-- IBERFIT-POLICY: public.m26_wearable_v46_consents_prod = service-role-only
+CREATE TABLE public.m26_wearable_v46_consents_prod(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  provider text NOT NULL DEFAULT 'health_connect' CHECK(provider='health_connect'),
+  grant_id uuid NOT NULL,
+  revocation_cursor bigint NOT NULL CHECK(revocation_cursor>=0),
+  scopes text[] NOT NULL CHECK(
+    cardinality(scopes) BETWEEN 1 AND 2
+    AND scopes <@ ARRAY['generalHeartRate','exerciseSessions']::text[]
+  ),
+  recorded_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX m26_v46_consent_owner_lookup_prod ON public.m26_wearable_v46_consents_prod
+(owner_user_id,client_id,recorded_at DESC);
+ALTER TABLE public.m26_wearable_v46_consents_prod ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.m26_wearable_v46_consents_prod FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.m26_wearable_v46_consents_prod FROM PUBLIC,anon,authenticated,service_role;
+GRANT SELECT ON TABLE public.m26_wearable_v46_consents_prod TO service_role;
 CREATE OR REPLACE FUNCTION public.m26_wearable_v46_authorize_prod_v1(
   p_expected_grant uuid,
   p_expected_cursor bigint,
@@ -113,9 +127,9 @@ BEGIN
     INSERT INTO public.m26_wearable_authorization_sources_v3(
       owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
     ) VALUES(v_owner,v_client,'health_connect',v_new_grant,v_cursor,v_requested);
-    INSERT INTO public.m26_wearable_consents_v44(
-      actor_user_id,client_id,provider,action,scopes,policy_version
-    ) VALUES(v_owner,v_client,'health_connect','grant',v_requested,'v44-zero-cost');
+    INSERT INTO public.m26_wearable_v46_consents_prod(
+    owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
+  ) VALUES(v_owner,v_client,'health_connect',v_new_grant,v_cursor,v_requested);
     RETURN pg_catalog.jsonb_build_object(
       'ok',true,'provider','health_connect','grantId',v_new_grant,
       'revocationCursor',v_cursor,'scopes',pg_catalog.to_jsonb(v_requested),
@@ -142,11 +156,9 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE='M26_V46_PROD_SCOPE_GRANT_STALE',ERRCODE='42501';
   END IF;
   -- Existing consent log permits only this canonical policy version.
-  INSERT INTO public.m26_wearable_consents_v44(
-    actor_user_id,client_id,provider,action,scopes,policy_version
-  ) VALUES(
-    v_owner,v_client,'health_connect','grant',v_requested,'v44-zero-cost'
-  );
+  INSERT INTO public.m26_wearable_v46_consents_prod(
+    owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
+  ) VALUES(v_owner,v_client,'health_connect',p_expected_grant,v_cursor,v_requested);
   RETURN pg_catalog.jsonb_build_object(
     'ok',true,'provider','health_connect','grantId',p_expected_grant,
     'revocationCursor',v_cursor,'scopes',pg_catalog.to_jsonb(v_union),
@@ -470,6 +482,8 @@ begin
     delete from public.m26_wearable_heart_rate_daily_v46
       where owner_user_id=v_owner and client_id=v_client;
     delete from public.m26_wearable_exercise_evidence_v46
+      where owner_user_id=v_owner and client_id=v_client;
+    delete from public.m26_wearable_v46_consents_prod
       where owner_user_id=v_owner and client_id=v_client;
   end if;
   return new;
