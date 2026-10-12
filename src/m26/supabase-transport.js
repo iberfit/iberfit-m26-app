@@ -72,6 +72,7 @@ const CONNECTED360_RPC=Object.freeze({
   validateQaPreview:'m26_wearable_v45_validate_native_preview_qa_v1',
   importQaV45:'m26_wearable_v45_import_explicit_qa_v1',
   importQaV46:'m26_wearable_v46_import_explicit_qa_v1',
+  extendQaV46:'m26_wearable_v46_extend_scopes_explicit_qa_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1172,6 +1173,36 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
 
+  async function extendConnected360QaV46Grant(token,{
+    provider='health_connect',expectedGrant,expectedCursor,scopes=[],
+  }={}){
+    if(runtime.qaOnly!==true||runtime.canary!==true
+      ||runtime.projectRef!==M26_QA_PROJECT_REF
+      ||provider!=='health_connect')
+      throw new Error('M26_HEALTH_V46_PRODUCTION_DENIED');
+    if(!token||!UUID_PATTERN.test(String(expectedGrant||''))
+      ||!Number.isSafeInteger(expectedCursor)||expectedCursor<0
+      ||!Array.isArray(scopes)||!scopes.length||scopes.length>2
+      ||new Set(scopes).size!==scopes.length
+      ||scopes.some(v=>!['generalHeartRate','exerciseSessions'].includes(v)))
+      throw new Error('M26_V46_QA_SCOPE_EXTENSION_INVALID');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.extendQaV46,{
+      method:'POST',token,body:JSON.stringify({
+        p_expected_grant:expectedGrant,
+        p_expected_cursor:expectedCursor,
+        p_scopes:scopes,
+      }),
+    });
+    const value=Array.isArray(raw)?raw[0]:raw;
+    if(value?.ok!==true||value.provider!=='health_connect'
+      ||value.grantId!==expectedGrant
+      ||value.revocationCursor!==expectedCursor
+      ||!Array.isArray(value.scopes)
+      ||scopes.some(metric=>!value.scopes.includes(metric)))
+      throw new Error('M26_V46_QA_SCOPE_EXTENSION_RESPONSE_INVALID');
+    return Object.freeze({...value});
+  }
+
   // Explicitly selected categories only, from an authenticated Canary owner.
   // Never exposed by production runtime, automated foreground sync or Android native code.
   async function importConnected360QaV46(token,grantId,payload={}){
@@ -1507,6 +1538,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     validateConnected360QaNativePreview,
     importConnected360QaV45,
     importConnected360QaV46,
+    extendConnected360QaV46Grant,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,
