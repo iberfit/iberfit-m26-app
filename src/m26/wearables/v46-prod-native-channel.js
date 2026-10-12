@@ -1,3 +1,4 @@
+import {CONNECTED360_RELEASED_V46_SCOPES} from './measurement-capability-contract.js';
 // Production channel: native Health Connect read-only IPC with strict website pinning.
 
 // Release Android only: Health Connect read locally, authenticated web backend controls persistence.
@@ -11,7 +12,7 @@ const REQUEST_SCHEMA='iberfit.connected360.native.request.v1';
 const RESPONSE_SCHEMA='iberfit.connected360.native.v46.local.v1';
 const ERROR_SCHEMA='iberfit.connected360.native.error.v1';
 const DATA_SCHEMA='iberfit.connected360.v46.ingest.v1';
-const METRICS=new Set(['generalHeartRate','exerciseSessions']);
+const METRICS=new Set(CONNECTED360_RELEASED_V46_SCOPES);
 const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','other']);
 const HASH=/^[0-9a-f]{64}$/u;
 const DAY=/^\d{4}-\d{2}-\d{2}$/u;
