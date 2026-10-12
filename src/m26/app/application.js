@@ -1303,12 +1303,14 @@ export async function createM26Application({root=document.querySelector('#app'),
       qaStage('rc64-post-login-local-reconciliation-start');
       await yieldMainThread();
       if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
-      // The signed production Android host must reconcile on first login,
-      // not only after the next background/foreground transition. Keep browser
-      // and PWA boot lean: they have no Health Connect native IPC.
-      const nativeForegroundBoot=store.getState().identity?.role==='client'
-        &&isConnected360ProdNativeAvailable(globalThis);
-      wearables.mount({syncInitial:nativeForegroundBoot});
+      // Preserve the post-login quiet-mount contract: do not bring a new
+      // awaited network dependency back into the authentication critical path.
+      wearables.mount({syncInitial:false});
+      // Signed Android only: queue a non-blocking, owner-scoped first sync
+      // after the shell is interactive. Chrome/PWA has no native Health Connect.
+      if(store.getState().identity?.role==='client'
+        &&isConnected360ProdNativeAvailable(globalThis))
+        wearables.queueNativeInitialSync();
       qaStage('rc64-wearables-post-login-mount-ready');
 
       const sync=createConnectivitySync({
