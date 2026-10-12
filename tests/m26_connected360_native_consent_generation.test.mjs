@@ -132,7 +132,7 @@ test('native controller demands server grant and never reauthorizes from passive
   assert.match(policy,/health_connect:policy\(\{[^]*?productionAllowed:false/u);
 });
 
-test('Android QA bridge is fail-closed in release and origin pinned without unsafe JS injection',()=>{
+test('Android DEBUG remains origin-isolated from release and neither bridge uses unsafe JS injection',()=>{
   const read=(name)=>readFileSync(new URL(name,import.meta.url),'utf8');
   const manifest=read('../native/android-host/phone-app/src/main/AndroidManifest.xml');
   const activity=read('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt');
@@ -145,7 +145,9 @@ test('Android QA bridge is fail-closed in release and origin pinned without unsa
   assert.match(activity,/WebViewFeature\.WEB_MESSAGE_LISTENER/u);
   assert.match(activity,/FLAG_DEBUGGABLE/u);
   assert.match(launcher,/FLAG_DEBUGGABLE/u);
-  assert.match(activity,/\.put\("available", false\)/u);
-  assert.match(activity,/\.put\("connected", false\)/u);
+  assert.match(activity,/\.put\("available", production\)/u);
+  assert.match(activity,/\.put\("connected", production\)/u);
+  assert.match(origin,/PRODUCTION_ORIGIN = "https:\/\/app\.iberfit\.cl"/u);
+  assert.match(origin,/PRODUCTION_CHANNEL = "IBERFIT_CONNECTED360_NATIVE"/u);
   assert.doesNotMatch(activity,/addJavascriptInterface|service_role|SUPABASE_SERVICE_KEY/u);
 });
