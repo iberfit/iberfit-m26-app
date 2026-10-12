@@ -1,7 +1,7 @@
 // Exercise-specific prescription profiles. The catalog remains the source of identity;
 // this deterministic projection supplies presentation/validation without rewriting history.
 const norm=(value)=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-const cardioNames=/carrera|correr|trote|caminar|caminata|biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike|eliptica|ergometro|skierg|ski.?erg|cinta inclinada|subida de escaleras/;
+const cardioNames=/carrera|correr|trote|trotadora|caminar|caminata|senderismo|biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike|eliptica|ergometro|skierg|ski.?erg|cinta inclinada|subida de escaleras/;
 const travelNames=/farmer[- ]carry|front[- ]rack[- ]carry|suitcase[- ]carry|overhead[- ]carry|arrastre de trineo|sled[- ]push|sled[- ]drag/;
 const intervalNames=/interval|fartlek|serie de carrera|repeticiones en cuesta|sprint interval/;
 const holdNames=/plancha|plank|\bhold\b|isometr|wall sit|l-sit|prone cobra|handstand hold|hollow hold/;
@@ -26,7 +26,8 @@ export function exerciseMeasurementProfile(exercise={}){
   const pattern=norm(exercise?.pattern);
   const override=norm(exercise?.measurementProfile||exercise?.measurement_profile);
   if(['endurance','intervals','isometric','mobility','carry','strength','power'].includes(override)){
-    return Object.freeze({kind:override,sport:guessSport(title),cardio:override==='endurance'||override==='intervals'});
+    const cardio=override==='endurance'||override==='intervals';
+    return Object.freeze({kind:override,sport:cardio?guessSport(title):null,cardio});
   }
   // Lateral band walks are glute activation, not continuous endurance training.
   if(pattern==='activacion gluteo')return Object.freeze({kind:'strength',sport:null,cardio:false});
@@ -43,11 +44,16 @@ export function exerciseMeasurementProfile(exercise={}){
   return Object.freeze({kind:'strength',sport:null,cardio:false});
 }
 function guessSport(title){
+  // Never infer a run from a generic cyclical or locomotion profile. The sport
+  // drives pace inputs, coaching cues and future observed-session matching.
   if(/biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike/.test(title))return 'cycling';
-  if(/remo ergometro/.test(title))return 'rowing';
+  if(/remo ergometro|remo indoor|maquina de remo/.test(title))return 'rowing';
   if(/skierg|ski.?erg/.test(title))return 'ski';
   if(/eliptica/.test(title))return 'elliptical';
-  return 'running';
+  if(/subida de escaleras|escaladora|stepper/.test(title))return 'stairs';
+  if(/carrera|correr|trote|trotadora|fartlek|sprint|running|repeticiones en cuesta/.test(title))return 'running';
+  if(/caminar|caminata|senderismo|cinta inclinada|marcha nordica/.test(title))return 'walking';
+  return null;
 }
 export function initialExercisePrescription(exercise={}){
   const {kind}=exerciseMeasurementProfile(exercise);
