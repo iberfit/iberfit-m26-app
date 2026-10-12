@@ -87,12 +87,9 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         // This local-only permission proof also displays health measurements.
         // Keep them out of screenshots and Android's recent-app thumbnails.
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        // QA permission diagnostics are NOT a production health integration.
-        // Fail closed even if a future release accidentally exposes this Activity.
-        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
-            finish()
-            return
-        }
+        // Release mode requests only official OS permissions after this user
+        // opens the dedicated screen. No local permission alone uploads health data.
+        val production=(applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE)==0
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(40, 52, 40, 48)
@@ -102,7 +99,10 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             textSize = 24f
         }
         val explainer = TextView(this).apply {
-            text = "Autoriza en Android únicamente los datos que quieras compartir. " +
+            text = if (production) "Elige en Android qué categorías quieres permitir. " +
+                "Compartirlas con tu cuenta requiere además autorización dentro de IBERFIT. " +
+                "Puedes revocar los permisos cuando quieras."
+            else "Autoriza en Android únicamente los datos que quieras compartir. " +
                 "Esta vista de pruebas muestra los datos en el teléfono; todavía NO los " +
                 "sincroniza con tu cuenta IBERFIT."
             textSize = 16f
@@ -112,7 +112,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             setOnClickListener { authorizeFromUserAction() }
         }
         generalHeartRateButton = Button(this).apply {
-            text = "Comprobar FC general · diagnóstico opcional"
+            text = "Frecuencia cardíaca general · permiso independiente"
             setOnClickListener { authorizeGeneralHeartRateFromUserAction() }
         }
         generalHeartRateStatus = TextView(this).apply {
@@ -121,7 +121,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             textSize = 16f
         }
         workoutButton = Button(this).apply {
-            text = "Comprobar carrera y HIIT · sesiones deportivas"
+            text = "Actividades deportivas · carrera, fuerza, HIIT"
             setOnClickListener { authorizeWorkoutFromUserAction() }
         }
         workoutStatus = TextView(this).apply {
@@ -130,7 +130,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             textSize = 16f
         }
         message = TextView(this).apply {
-            text = "Sin permisos comprobados. No hay dispositivo vinculado a IBERFIT."
+            text = "Permisos de Android pendientes. La conexión de cuenta se controla desde IBERFIT."
             textSize = 16f
         }
         summary = TextView(this).apply {
