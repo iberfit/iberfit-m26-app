@@ -1023,6 +1023,9 @@ export function createWearableController({
     root.querySelectorAll?.('[data-qa-health-status]')?.forEach?.(node=>{
       node.textContent='';
     });
+    root.querySelectorAll?.('[data-qa-v46-evidence-status]')?.forEach?.(node=>{
+      node.textContent='';
+    });
     root.querySelectorAll?.('[data-qa-health-consent]')?.forEach?.(input=>{
       input.checked=false;
       input.disabled=true;
@@ -1036,6 +1039,7 @@ export function createWearableController({
     tasks.cancel();
     currentPreview=null;
     qaReadEpoch+=1;
+    qaV46ReadEpoch+=1;
     appleReadEpoch+=1;
     qaImporter.clear();
     clearQaSensitiveSurface();
