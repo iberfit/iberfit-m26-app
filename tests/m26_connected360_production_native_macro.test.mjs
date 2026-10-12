@@ -173,3 +173,61 @@ test('client UI renders observations only for original signed-in owner and diffe
   assert.match(c,/No equivalen a FC en reposo/u);
   assert.match(c,/qaV46Importer\.destroy\(\)/u);
 });
+
+test('foreground restart never joins an invalidated native-sync promise',async()=>{
+  let releaseToken;
+  let first=true;
+  const blocked=new Promise(resolve=>{releaseToken=resolve;});
+  const writes=[];
+  const identity={role:'client',ownerId:OWNER,clientId:CLIENT};
+  const scopes=['generalHeartRate'];
+  const transport={
+    connected360ProductionCapabilities:async()=>({serverEnabled:true}),
+    wearableAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes}),
+    importConnected360Production:async()=>{writes.push('write');return {inserted:1,updated:0,unchanged:0};},
+  };
+  const native={readLocal:async()=>({
+    provider:'health_connect',ownerId:OWNER,clientId:CLIENT,persisted:false,metrics:scopes,
+    envelope:{schema:'iberfit.connected360.v46.ingest.v1',
+      heartRateDaily:[{date:'2026-10-12',sampleCount:1}],exerciseEvidence:[]},
+  }),invalidate:()=>{}};
+  const api=createConnected360ProductionSync({transport,native,getIdentity:()=>identity,
+    getToken:()=>first?(first=false,blocked):Promise.resolve('valid-token'),
+    isOnline:()=>true,refreshState:async()=>{}});
+  const old=api.sync();
+  api.invalidate();
+  assert.equal((await api.sync()).ok,true);
+  releaseToken('valid-token');
+  await assert.rejects(old,/M26_V46_PROD_ABORTED/u);
+  assert.equal(writes.length,1);
+  api.destroy();
+});
+
+test('future running, power and recovery variables stay ungranted even with OS scope',async()=>{
+  const {CONNECTED360_METRIC_CATALOGUE,CONNECTED360_RELEASED_V46_SCOPES,
+    evaluateConnected360V46Scope}=await import('../src/m26/wearables/measurement-capability-contract.js');
+  assert.deepEqual(CONNECTED360_RELEASED_V46_SCOPES,['generalHeartRate','exerciseSessions']);
+  for(const key of ['runningPace','runningCadence','runningIntervals','trainingLoad',
+    'heartRateVariability','cyclingPower','recoveryContext']){
+    assert.equal(CONNECTED360_METRIC_CATALOGUE[key].stage,'future');
+    assert.equal(evaluateConnected360V46Scope(key,{
+      explicitConsent:[key],osPermission:[key],releaseEnabled:true,
+    }).reason,'requires-independent-release');
+  }
+  assert.equal(evaluateConnected360V46Scope('generalHeartRate',{
+    explicitConsent:['generalHeartRate'],osPermission:['generalHeartRate'],releaseEnabled:true,
+  }).allowed,true);
+  assert.equal(evaluateConnected360V46Scope('exerciseSessions',{
+    explicitConsent:['exerciseSessions'],osPermission:[],releaseEnabled:true,
+  }).reason,'os-permission-required');
+});
+
+test('Android production UI hides diagnostic chrome and handles broken network/TLS',()=>{
+  const kotlin=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt',import.meta.url),'utf8');
+  assert.match(kotlin,/if \(!production\) root\.addView\(permissions\)/u);
+  assert.match(kotlin,/visibility = if \(production\) View\.GONE else View\.VISIBLE/u);
+  assert.match(kotlin,/override fun onReceivedError\(/u);
+  assert.match(kotlin,/"health\.readDaily" -> \{[\s\S]{0,300}if \(production\)/u);
+  assert.match(kotlin,/"health\.permissions" ->/u);
+  assert.match(kotlin,/Error de certificado TLS\. Canal bloqueado\./u);
+});
