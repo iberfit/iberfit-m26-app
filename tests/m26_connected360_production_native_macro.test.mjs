@@ -264,9 +264,16 @@ test('one-click native consent requests only the explicit scope set from Android
   assert.deepEqual(requests.at(-1).metrics,['exerciseSessions']);
   assert.throws(()=>channel.requestPermissions(['generalHeartRate','generalHeartRate']),
     /M26_V46_PROD_METRICS_INVALID/u);
-  assert.throws(()=>channel.requestPermissions(['sleepMinutes']),
+  channel.requestPermissions(['sleepMinutes']);
+  assert.deepEqual(requests.at(-1).metrics,['sleepMinutes']);
+  channel.requestPermissions(['generalHeartRate','exerciseSessions','steps']);
+  assert.deepEqual(requests.at(-1).metrics,
+    ['generalHeartRate','exerciseSessions','steps']);
+  assert.throws(()=>channel.requestPermissions(['recoveryContext']),
     /M26_V46_PROD_METRICS_INVALID/u);
-  assert.throws(()=>channel.requestPermissions(['generalHeartRate','exerciseSessions','steps']),
+  assert.throws(()=>channel.requestPermissions([
+    'generalHeartRate','exerciseSessions','steps','sleepMinutes',
+    'restingHeartRate','recoveryContext']),
     /M26_V46_PROD_METRICS_INVALID/u);
   channel.requestPermissions(); // manual permission management
   assert.deepEqual(requests.at(-1).metrics,[]);
