@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "0a339b8b31c7fdbd20fb4fbe518c180e432fedfa",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Connected360 PR #887 release hardening + exact PWA precache; backend V46 kill switch remains OFF until signed Android and physical E2E."
+}
