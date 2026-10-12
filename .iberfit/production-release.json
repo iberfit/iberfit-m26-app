@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "83df85d2a53acd04446ec249ffd30df938bd96b8",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Connected360 V46 Android production Client summary reliability #895. Eight CI gates passed: full audit, Fast Lane, CI, Android Native QA, release emulator launch, authenticated Client, device experience, canary policy. Auto-refresh owner-scoped visible Client history after consented import; guarded against stale user/response; bounded truth in 4 languages. No DB changes, secrets, scopes or RLS changes. Maintain revocable opt-in Android V46 pilot; do not infer resting heart rate or physically verified Galaxy Watch9 origin. Existing rollback available."
+}
