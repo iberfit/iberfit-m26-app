@@ -77,6 +77,8 @@ const CONNECTED360_RPC=Object.freeze({
   prodAuthorize:'m26_wearable_v46_authorize_prod_v1',
   prodImport:'m26_wearable_v46_import_prod_v1',
   prodSummary:'m26_wearable_v46_my_summary_prod_v1',
+  prodDailyImport:'m26_wearable_v47_import_daily_prod_v1',
+  prodDailySummary:'m26_wearable_v47_my_daily_prod_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1264,7 +1266,15 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       ||r.heartRateDaily.length>7||r.exerciseEvidence.length>10
       ||r.restingHeartRate!==null||r.clinicalInterpretation!==false)
       throw new Error('M26_V46_PRODUCTION_SUMMARY_INVALID');
-    return Object.freeze({...r});
+    const dailyRaw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodDailySummary,{
+      method:'POST',token,body:'{}',
+    });
+    const daily=Array.isArray(dailyRaw)?dailyRaw[0]:dailyRaw;
+    if(daily?.ok!==true||daily.provider!=='health_connect'
+      ||daily.sourceIdentityVerified!==false||!Array.isArray(daily.dailyHealth)
+      ||daily.dailyHealth.length>7)
+      throw new Error('M26_V47_PRODUCTION_SUMMARY_INVALID');
+    return Object.freeze({...r,dailyHealth:Object.freeze([...daily.dailyHealth])});
   }
   async function connected360ProductionCapabilities(token){
     assertConnected360Production();
@@ -1286,9 +1296,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     assertConnected360Production();
     if(!token||(expectedGrant!==null&&!UUID_PATTERN.test(String(expectedGrant)))
       ||!Number.isSafeInteger(expectedCursor)||expectedCursor<0
-      ||!Array.isArray(scopes)||scopes.length<1||scopes.length>2
+      ||!Array.isArray(scopes)||scopes.length<1||scopes.length>5
       ||new Set(scopes).size!==scopes.length
-      ||scopes.some(v=>!['generalHeartRate','exerciseSessions'].includes(v)))
+      ||scopes.some(v=>!['generalHeartRate','exerciseSessions',
+        'steps','sleepMinutes','restingHeartRate'].includes(v)))
       throw new Error('M26_V46_PRODUCTION_CONSENT_INVALID');
     const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodAuthorize,{
       method:'POST',token,body:JSON.stringify({
@@ -1325,6 +1336,26 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       ||![r.inserted,r.updated,r.unchanged].every(v=>Number.isInteger(v)&&v>=0)
       ||r.inserted+r.updated+r.unchanged!==hr.length+ex.length)
       throw new Error('M26_V46_PRODUCTION_IMPORT_RESPONSE_INVALID');
+    return Object.freeze({...r});
+  }
+
+  async function importConnected360DailyProduction(token,grantId,rows=[]){
+    assertConnected360Production();
+    if(!token||!UUID_PATTERN.test(String(grantId||''))
+      ||!Array.isArray(rows)||rows.length<1||rows.length>7)
+      throw new Error('M26_V47_PRODUCTION_PAYLOAD_INVALID');
+    const body=JSON.stringify({p_grant_id:grantId,p_rows:rows});
+    if(body.length>25000)throw new Error('M26_V47_PRODUCTION_BATCH_TOO_LARGE');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodDailyImport,{
+      method:'POST',token,body,
+    });
+    const r=Array.isArray(raw)?raw[0]:raw;
+    if(r?.ok!==true||r.provider!=='health_connect'
+      ||r.persisted!==true||r.automatic!==false
+      ||r.sourceIdentityVerified!==false||r.automaticSyncCertified!==false
+      ||![r.inserted,r.updated,r.unchanged].every(v=>Number.isInteger(v)&&v>=0)
+      ||r.inserted+r.updated+r.unchanged!==rows.length)
+      throw new Error('M26_V47_PRODUCTION_IMPORT_RESPONSE_INVALID');
     return Object.freeze({...r});
   }
 
@@ -1632,6 +1663,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     connected360ProductionSummary,
     authorizeConnected360Production,
     importConnected360Production,
+    importConnected360DailyProduction,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,
