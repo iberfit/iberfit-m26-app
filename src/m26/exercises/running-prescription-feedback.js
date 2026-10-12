@@ -7,6 +7,15 @@ const number=value=>{
   const n=Number(String(value).trim().replace(',','.'));
   return Number.isFinite(n)&&n>0?n:null;
 };
+const nonnegative=value=>{
+  if(value==null||String(value).trim()==='')return null;
+  const n=Number(String(value).trim().replace(',','.'));
+  return Number.isFinite(n)&&n>=0?n:null;
+};
+const positiveInteger=value=>{
+  const n=number(value);
+  return n!==null&&Number.isInteger(n)?n:null;
+};
 const paceSeconds=value=>{
   const match=String(value??'').trim().match(/^(\d{1,2}):([0-5]\d)$/u);
   if(!match)return null;
@@ -39,27 +48,53 @@ export function runningPrescriptionAdvisories(prescription={},exercise={}){
       'Las distancias objetivo en km y metros no coinciden. Revisa cuál corresponde al bloque.'));
   }
   const distance=km??(meters!==null?meters/1000:null);
-  const reps=number(p.intervalRepetitions);
+  const reps=positiveInteger(p.intervalRepetitions);
   const work=number(p.intervalWorkSeconds);
-  const recovery=p.intervalRecoverySeconds==null||String(p.intervalRecoverySeconds).trim()===''
-    ?null:Number(String(p.intervalRecoverySeconds).replace(',','.'));
-  if(profile.kind==='intervals'&&reps!==null&&work!==null&&
-     Number.isInteger(reps)&&Number.isFinite(recovery??0)&&
-     (recovery??0)>=0){
-    const minSeconds=reps*work+Math.max(0,reps-1)*(recovery??0);
-    if(Number.isFinite(minSeconds)&&minSeconds>0&&minSeconds<=86400){
-      const estimated=Math.ceil(minSeconds/60);
-      if(minutes!==null&&minutes*60+30<minSeconds){
+  const recovery=nonnegative(p.intervalRecoverySeconds);
+  const warmup=nonnegative(p.plannedWarmupMinutes);
+  const cooldown=nonnegative(p.plannedCooldownMinutes);
+  const repeatMeters=number(p.intervalDistanceM);
+  if(profile.kind==='intervals'&&reps!==null&&work!==null){
+    // A missing recovery value is unknown, not evidence of zero rest.
+    // The minimum includes only known work, explicitly entered recoveries
+    // and optional warmup/cooldown. It is never an observed duration.
+    const minimum=reps*work+(recovery??0)*Math.max(0,reps-1)
+      +(warmup??0)*60+(cooldown??0)*60;
+    if(Number.isFinite(minimum)&&minimum>0&&minimum<=86400){
+      const estimated=Math.ceil(minimum/60);
+      if(minutes!==null&&minutes*60+30<minimum){
         alerts.push(advisory('interval-minimum-exceeds-duration','review',
-          `Los intervalos requieren al menos ${estimated} min de trabajo y recuperación. Revisa la duración objetivo.`));
+          `Los intervalos requieren al menos ${estimated} min incluyendo las fases definidas. Revisa la duración objetivo.`));
       }else{
         alerts.push(advisory('interval-minimum','info',
-          `Trabajo y recuperaciones: al menos ${estimated} min, sin contar calentamiento ni vuelta a calma.`));
+          `Trabajo, recuperaciones indicadas y fases definidas: al menos ${estimated} min. No es tiempo registrado.`));
+      }
+      if(reps>1&&recovery===null){
+        alerts.push(advisory('interval-recovery-unspecified','review',
+          'La recuperación entre repeticiones no está definida. El mínimo no incluye ese descanso.'));
       }
     }
-    // Interval pace is not derived from total session duration: it includes
-    // rest, warm-up and potentially distinct interval speeds.
+    if(repeatMeters!==null){
+      const workDistanceKm=reps*repeatMeters/1000;
+      if(distance!==null&&workDistanceKm>distance*1.01){
+        alerts.push(advisory('interval-distance-exceeds-total','review',
+          'La distancia de las repeticiones supera la distancia total objetivo. Revisa ambas cifras.'));
+      }
+      const targetSeconds=work/(repeatMeters/1000);
+      if(Number.isFinite(targetSeconds)&&targetSeconds>=90&&targetSeconds<=1800){
+        alerts.push(advisory('interval-target-pace','info',
+          `Ritmo teórico de cada repetición: ~${formatPace(targetSeconds)} min/km. Objetivo planificado, no medido.`));
+      }
+    }
+    // Never derive an interval's pace from session duration, which may
+    // include recoveries, warmup, cool-down or other non-running work.
     return Object.freeze(alerts);
+  }
+  if(profile.kind==='intervals')return Object.freeze(alerts);
+  if(minutes!==null&&warmup!==null&&cooldown!==null&&
+     warmup+cooldown>=minutes){
+    alerts.push(advisory('running-phases-exceed-duration','review',
+      'El calentamiento y la vuelta a la calma ocupan toda la duración objetivo. Revisa el tiempo de carrera principal.'));
   }
   if(distance!==null&&minutes!==null&&profile.kind!=='intervals'){
     const targetSeconds=minutes*60/distance;
