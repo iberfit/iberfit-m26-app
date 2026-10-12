@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "1e80ae92477000fa5dd55b1442422d0942bec0a7",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Connected360 first-day Android native one-click OS scope consent and nonblocking post-login/permissions-return sync #892. All existing Fast Lane, CI, Android Native QA, app audit, client/admin interaction, device experience and policy gates SUCCESS. New Android emulator smoke experimental still running at promotion; do not claim hardware certification. Zero schema or data changes. Native sync remains server-disabled: V46 production health flag MUST remain false until verified. Rollback available."
+}
