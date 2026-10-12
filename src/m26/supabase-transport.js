@@ -76,6 +76,7 @@ const CONNECTED360_RPC=Object.freeze({
   prodCapabilities:'m26_wearable_v46_capabilities_prod_v1',
   prodAuthorize:'m26_wearable_v46_authorize_prod_v1',
   prodImport:'m26_wearable_v46_import_prod_v1',
+  prodSummary:'m26_wearable_v46_my_summary_prod_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1251,6 +1252,20 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
        runtime.environment!=='production')
       throw new Error('M26_V46_PRODUCTION_RUNTIME_REQUIRED');
   }
+  async function connected360ProductionSummary(token){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodSummary,{
+      method:'POST',token,body:'{}',
+    });
+    const r=Array.isArray(raw)?raw[0]:raw;
+    if(r?.ok!==true||r.provider!=='health_connect'
+      ||!Array.isArray(r.heartRateDaily)||!Array.isArray(r.exerciseEvidence)
+      ||r.heartRateDaily.length>7||r.exerciseEvidence.length>10
+      ||r.restingHeartRate!==null||r.clinicalInterpretation!==false)
+      throw new Error('M26_V46_PRODUCTION_SUMMARY_INVALID');
+    return Object.freeze({...r});
+  }
   async function connected360ProductionCapabilities(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -1614,6 +1629,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV46,
     extendConnected360QaV46Grant,
     connected360ProductionCapabilities,
+    connected360ProductionSummary,
     authorizeConnected360Production,
     importConnected360Production,
     importWearableSummaries,
