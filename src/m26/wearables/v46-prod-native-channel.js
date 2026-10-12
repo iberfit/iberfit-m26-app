@@ -1,4 +1,4 @@
-import {CONNECTED360_RELEASED_V46_SCOPES} from './measurement-capability-contract.js';
+import {CONNECTED360_PRODUCTION_SCOPES} from './measurement-capability-contract.js';
 // Production channel: native Health Connect read-only IPC with strict website pinning.
 
 // Release Android only: Health Connect read locally, authenticated web backend controls persistence.
@@ -12,7 +12,7 @@ const REQUEST_SCHEMA='iberfit.connected360.native.request.v1';
 const RESPONSE_SCHEMA='iberfit.connected360.native.v46.local.v1';
 const ERROR_SCHEMA='iberfit.connected360.native.error.v1';
 const DATA_SCHEMA='iberfit.connected360.v46.ingest.v1';
-const METRICS=new Set(CONNECTED360_RELEASED_V46_SCOPES);
+const METRICS=new Set(CONNECTED360_PRODUCTION_SCOPES);
 const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','other']);
 const HASH=/^[0-9a-f]{64}$/u;
 const DAY=/^\d{4}-\d{2}-\d{2}$/u;
@@ -39,9 +39,10 @@ function checkPulse(row,enabled,{samples='heartRateSamples',avg='avgBpm',min='mi
     &&(row[avg]<row[min]||row[avg]>row[max]))fail();
 }
 function cleanEnvelope(raw,granted,at){
-  if(!raw||typeof raw!=='object'||Array.isArray(raw)||!keys(raw,['schema','heartRateDaily','exerciseEvidence'])
+  if(!raw||typeof raw!=='object'||Array.isArray(raw)||!keys(raw,['schema','heartRateDaily','exerciseEvidence','dailyHealth'])
     ||raw.schema!==DATA_SCHEMA||!Array.isArray(raw.heartRateDaily)||!Array.isArray(raw.exerciseEvidence)
-    ||raw.heartRateDaily.length>7||raw.exerciseEvidence.length>10)fail();
+    ||raw.heartRateDaily.length>7||raw.exerciseEvidence.length>10
+    ||(raw.dailyHealth!==undefined&&(!Array.isArray(raw.dailyHealth)||raw.dailyHealth.length>7)))fail();
   if(!granted.includes('generalHeartRate')&&raw.heartRateDaily.length)fail();
   if(!granted.includes('exerciseSessions')&&raw.exerciseEvidence.length)fail();
   const dates=new Set(),observations=new Set();
@@ -74,10 +75,35 @@ function cleanEnvelope(raw,granted,at){
     if(Object.hasOwn(row,'caloriesKcal')&&!finite(row.caloriesKcal,0,20000))fail();
     observations.add(row.observationKey);return Object.freeze({...row});
   });
+  const days=new Set();
+  const daily=(raw.dailyHealth||[]).map(row=>{
+    if(!row||typeof row!=='object'||Array.isArray(row)||!keys(row,[
+      'date','aggregationTimeZone','windowStartedAt','windowEndedAt',
+      'acquiredAt','steps','sleepMinutes','restingHeartRate'
+    ])||!DAY.test(String(row.date||''))||days.has(row.date)
+      ||!zone(row.aggregationTimeZone)||!iso(row.windowStartedAt)
+      ||!iso(row.windowEndedAt)||!iso(row.acquiredAt))fail();
+    const start=Date.parse(row.windowStartedAt),end=Date.parse(row.windowEndedAt);
+    if(start>=end||end-start>25*3600_000||end>at+30*3600_000
+      ||Math.abs(Date.parse(row.acquiredAt)-at)>MAX_AGE)fail();
+    if(!['steps','sleepMinutes','restingHeartRate'].some(k=>Object.hasOwn(row,k)))fail();
+    for(const [field,metric] of [
+      ['steps','steps'],['sleepMinutes','sleepMinutes'],
+      ['restingHeartRate','restingHeartRate']
+    ]){
+      if(Object.hasOwn(row,field)&&!granted.includes(metric))fail();
+    }
+    if(Object.hasOwn(row,'steps')&&!integer(row.steps,0,200000))fail();
+    if(Object.hasOwn(row,'sleepMinutes')&&!integer(row.sleepMinutes,0,1440))fail();
+    if(Object.hasOwn(row,'restingHeartRate')&&!finite(row.restingHeartRate,25,240))fail();
+    days.add(row.date);
+    return Object.freeze({...row});
+  });
   return Object.freeze({
     schema:DATA_SCHEMA,
     heartRateDaily:Object.freeze(hr),
     exerciseEvidence:Object.freeze(workouts),
+    dailyHealth:Object.freeze(daily),
   });
 }
 
@@ -114,7 +140,7 @@ export function createConnected360V46ProdNativeChannel({
   async function readLocal({metrics=['generalHeartRate','exerciseSessions']}={}){
     if(reading)throw new Error('M26_V46_PROD_BUSY');
     const requested=Array.isArray(metrics)?[...new Set(metrics)]:[];
-    if(!requested.length||requested.length>2||requested.some(x=>!METRICS.has(x)))
+    if(!requested.length||requested.length>METRICS.size||requested.some(x=>!METRICS.has(x)))
       throw new Error('M26_V46_PROD_METRICS_INVALID');
     const owner=await identity();
     if(reading)throw new Error('M26_V46_PROD_BUSY');
