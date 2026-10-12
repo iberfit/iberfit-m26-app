@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "f9d6af8e833f54c135854cdc27d2aef2bdae3e8b",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Running + Coach premium macro #888. Seven PR gates passed. Pure additive UI/domain changes. Connected360 V46 production health switch must remain OFF until signed Android and real device E2E."
+}
