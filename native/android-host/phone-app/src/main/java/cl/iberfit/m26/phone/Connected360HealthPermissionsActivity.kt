@@ -112,7 +112,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             setOnClickListener { authorizeFromUserAction() }
         }
         generalHeartRateButton = Button(this).apply {
-            text = "Frecuencia cardíaca general · permiso independiente"
+            text = if (production) "Frecuencia cardíaca general · permiso independiente" else "Comprobar FC general · diagnóstico opcional"
             setOnClickListener { authorizeGeneralHeartRateFromUserAction() }
         }
         generalHeartRateStatus = TextView(this).apply {
@@ -121,7 +121,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             textSize = 16f
         }
         workoutButton = Button(this).apply {
-            text = "Actividades deportivas · carrera, fuerza, HIIT"
+            text = if (production) "Actividades deportivas · carrera, fuerza, HIIT" else "Comprobar carrera y HIIT · sesiones deportivas"
             setOnClickListener { authorizeWorkoutFromUserAction() }
         }
         workoutStatus = TextView(this).apply {
