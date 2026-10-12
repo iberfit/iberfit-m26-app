@@ -37,13 +37,13 @@ function stateWithHistory(){
   };
 }
 
-test('catálogo premium contiene exactamente los seis informes del roadmap',()=>{
-  assert.deepEqual(PREMIUM_REPORT_TYPES.map((item)=>item.id),['iri','post-session','monthly','reassessment','quarterly','year-in-iberfit']);
+test('catálogo premium cubre siete informes sin duplicar diagnóstico y seguimiento',()=>{
+  assert.deepEqual(PREMIUM_REPORT_TYPES.map((item)=>item.id),['iri','post-session','weekly','monthly','reassessment','quarterly','year-in-iberfit']);
 });
 
-test('portfolio automático usa evidencia canónica y habilita los seis tipos cuando existe historial suficiente',()=>{
+test('portfolio automático usa evidencia canónica y habilita siete tipos con historial suficiente',()=>{
   const reports=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW});
-  assert.equal(reports.length,6);
+  assert.equal(reports.length,7);
   assert.ok(reports.every((report)=>report.ready===true));
   assert.ok(reports.every((report)=>report.status==='ready'));
   assert.ok(reports.every((report)=>report.dataPolicy==='canonical-only'));
@@ -66,7 +66,7 @@ test('portfolio automático usa evidencia canónica y habilita los seis tipos cu
 test('sin evidencia no inventa ceros ni métricas: devuelve insufficient-data con motivo explícito',()=>{
   const state={collections:{appointments:[],sessions:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
   const reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
-  assert.equal(reports.length,6);
+  assert.equal(reports.length,7);
   for(const report of reports){
     assert.equal(report.ready,false);
     assert.equal(report.status,'insufficient-data');
@@ -77,6 +77,41 @@ test('sin evidencia no inventa ceros ni métricas: devuelve insufficient-data co
     assert.equal(report.recommendations,'');
     assert.doesNotMatch(JSON.stringify(report),/0 sesiones|0 de 3|0%/u);
   }
+});
+
+
+test('resumen semanal computa solo ejecuciones finalizadas del cliente, con ventana inclusiva y sin wearable',()=>{
+  const state=stateWithHistory();
+  state.collections.sessionExecutions.push({
+    id:'observed',clientId:'c1',status:'draft',completedAt:'2026-09-05T12:00:00Z',title:'No finalizada',
+  });
+  state.collections.wearableDailySummaries.push({
+    clientId:'c1',provider:'health_connect',date:'2026-09-05',metrics:{steps:17000},
+  });
+  const weekly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(r=>r.id==='weekly');
+  assert.equal(weekly.ready,true);
+  assert.equal(weekly.periodStart,'2026-08-31');
+  assert.equal(weekly.periodEnd,'2026-09-06');
+  assert.match(weekly.summary,/1 sesión de entrenamiento en 1 día/u);
+  assert.equal(weekly.evidence.find(x=>x.label==='Sesiones confirmadas').text,'1');
+  assert.doesNotMatch(JSON.stringify(weekly),/No finalizada|17000/u);
+  assert.equal(weekly.evidence.some(x=>x.source==='iriAssessments'),false);
+});
+test('resumen semanal no inventa actividad con historial antiguo o ajeno',()=>{
+  const state=stateWithHistory();
+  const report=buildPremiumReportPortfolio(state,'c1',{now:new Date('2026-10-12T12:00:00Z')})
+    .find(r=>r.id==='weekly');
+  assert.equal(report.ready,false);
+  assert.match(report.reason,/últimos 7 días/u);
+  assert.equal(report.evidence.length,0);
+  state.collections.sessionExecutions.push({
+    id:'foreign-week',clientId:'c2',sessionId:'s1',status:'completed',syncStatus:'clean',
+    completedAt:'2026-10-11T12:00:00Z',title:'Sesión ajena',
+  });
+  const isolated=buildPremiumReportPortfolio(state,'c1',{now:new Date('2026-10-12T12:00:00Z')})
+    .find(r=>r.id==='weekly');
+  assert.equal(isolated.ready,false);
+  assert.doesNotMatch(JSON.stringify(isolated),/Sesión ajena/u);
 });
 
 test('portfolio queda aislado por clientId',()=>{
@@ -90,8 +125,8 @@ test('portfolio queda aislado por clientId',()=>{
 test('candidatos automáticos sólo se proyectan a Coach y Admin',()=>{
   const state=stateWithHistory();
   assert.equal(premiumReportUiCandidates(state,'client','c1',{now:NOW}).length,0);
-  assert.equal(premiumReportUiCandidates(state,'coach','c1',{now:NOW}).length,6);
-  assert.equal(premiumReportUiCandidates(state,'admin','c1',{now:NOW}).length,6);
+  assert.equal(premiumReportUiCandidates(state,'coach','c1',{now:NOW}).length,7);
+  assert.equal(premiumReportUiCandidates(state,'admin','c1',{now:NOW}).length,7);
   assert.equal(premiumReportUiCandidates(state,'coach',null,{now:NOW}).length,0);
 });
 
@@ -155,7 +190,7 @@ test('informes históricos sin tipo premium conservan el contrato anterior sin m
 
 test('informes de proceso no convierten el diagnóstico IRI en una señal cotidiana de evolución',()=>{
   const reports=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW});
-  for(const type of ['monthly','quarterly','year-in-iberfit']){
+  for(const type of ['weekly','monthly','quarterly','year-in-iberfit']){
     const report=reports.find((item)=>item.id===type);
     assert.ok(report?.ready);
     assert.equal(report.evidence.some((item)=>item.source==='iriAssessments'),false);
