@@ -1,0 +1,79 @@
+name: IBERFIT Android Release Startup Smoke
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'native/android-host/**'
+      - '.github/workflows/connected360-android-release-emulator-smoke.yml'
+      - 'src/m26/wearables/v46-prod-native-channel.js'
+      - 'src/m26/wearables/controller.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: iberfit-android-release-emulator-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  release-emulator-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Prepare Android release smoke identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          PASS="$(openssl rand -hex 24)"
+          keytool -genkeypair -noprompt -storetype PKCS12 \
+            -keystore "$RUNNER_TEMP/iberfit-smoke-only.p12" \
+            -storepass "$PASS" -keypass "$PASS" -alias smoke \
+            -dname "CN=IBERFIT Automated Release Startup Smoke, O=QA Only" \
+            -keyalg RSA -keysize 3072 -validity 3
+          echo "::add-mask::$PASS"
+          echo "IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/iberfit-smoke-only.p12" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_STORE_PASSWORD=$PASS" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_KEY_ALIAS=smoke" >> "$GITHUB_ENV"
+      - name: Compile Release source with synthetic non-distributable test key
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon -p native/android-host :phone-app:testDebugUnitTest :phone-app:assembleRelease
+          test -s native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
+      - name: Launch real Release code path on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            APK=native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
+            adb install -r "$APK"
+            adb shell am start -W -n cl.iberfit.m26/cl.iberfit.m26.phone.PhoneMainActivity
+            sleep 12
+            adb shell pidof cl.iberfit.m26 >/dev/null
+            adb shell dumpsys activity activities > "$RUNNER_TEMP/iberfit-android-activity.txt"
+            grep -F 'Connected360SecureWebViewActivity' "$RUNNER_TEMP/iberfit-android-activity.txt"
+            if adb logcat -d -b crash | grep -E 'FATAL EXCEPTION|Process: cl.iberfit.m26'; then
+              echo 'IBERFIT_ANDROID_RELEASE_STARTUP_CRASH' >&2
+              exit 1
+            fi
+            echo 'IBERFIT_ANDROID_RELEASE_EMULATOR_STARTUP_OK'
+      - name: Destroy ephemeral keystore
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/iberfit-smoke-only.p12"
