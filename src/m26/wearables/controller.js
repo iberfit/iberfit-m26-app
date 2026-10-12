@@ -1333,9 +1333,43 @@ export function createWearableController({
         note.dataset.prodConnected360Status='true';
         note.setAttribute('role','status');
         note.textContent='Verificando disponibilidad segura…';
-        wrap.append(intro,consentArea,permissions,connect,note);
+        const results=document.createElement('p');
+        results.dataset.prodConnected360Summary='true';
+        results.setAttribute('role','status');
+        results.textContent='Datos de salud: consultando registros disponibles…';
+        wrap.append(intro,consentArea,permissions,connect,note,results);
         nativeCard.append(wrap);
         const generation=nativeIdentityEpoch;
+        const expected=qaClientIdentity();
+        void (async()=>{
+          try{
+            const token=await getToken();
+            if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
+            const response=await transport.connected360ProductionSummary(token);
+            const current=qaClientIdentity();
+            if(generation!==nativeIdentityEpoch||!wrap.isConnected||
+              expected.role!=='client'||current.role!=='client'||
+              expected.ownerId!==current.ownerId||
+              expected.clientId!==current.clientId)return;
+            const records=response.heartRateDaily||[];
+            const sessions=response.exerciseEvidence||[];
+            const recent=records[0];
+            const lo=recent?.minBpm,hi=recent?.maxBpm;
+            results.textContent=records.length
+              ?'Último día de FC general: '+String(recent.date||'')+
+                ' · '+String(recent.samples||0)+' registros'+
+                (lo!=null&&hi!=null?' · rango '+lo+'–'+hi+' lpm':'')+
+                '. Actividades observadas (7 días): '+sessions.length+
+                '. No equivalen a FC en reposo ni a entrenamientos confirmados.'
+              :'Todavía no hay FC general registrada en IBERFIT. '+
+                'Actividades observadas (7 días): '+sessions.length+
+                '. Puedes gestionar o revocar la conexión en Ajustes.';
+          }catch{
+            if(generation===nativeIdentityEpoch&&wrap.isConnected)
+              results.textContent='No se ha podido consultar el historial. '+
+                'Se conservarán los datos existentes. Puedes reintentar al volver.';
+          }
+        })();
         void productionSync.availability().then(flags=>{
           if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
           const enabled=flags.serverEnabled===true;
