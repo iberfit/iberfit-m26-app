@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <!-- Debug-only label prevents confusion with the installed production app. -->
-    <application android:label="IBERFIT Canary QA" tools:replace="android:label">
-        <activity
-            android:name=".IBERFITBluetoothPhysicalE2EActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
-    </application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Additional permissions ONLY for the isolated DEBUG local workout proof. -->
+    <!-- The production release manifest does not gain these permissions. -->
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
 </manifest>

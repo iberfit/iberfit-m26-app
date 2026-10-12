@@ -41,6 +41,9 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
     private lateinit var generalHeartRateStatus: TextView
     private var permissionRequestPending = false
     private var generalHeartRateRequestPending = false
+    private var workoutRequestPending = false
+    private lateinit var workoutButton: Button
+    private lateinit var workoutStatus: TextView
 
     private val permissionLauncher = registerForActivityResult(
         PermissionController.createRequestPermissionResultContract()
@@ -64,6 +67,18 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             generalHeartRateButton.isEnabled = true
         } else {
             readGeneralHeartRateProfile()
+        }
+    }
+
+    private val workoutPermissionLauncher = registerForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        workoutRequestPending = false
+        if (Connected360WorkoutReadOnlyQa.requiredPermission !in granted) {
+            workoutStatus.text = "Sin permiso para leer sesiones deportivas. No se envían datos."
+            workoutButton.isEnabled = true
+        } else {
+            readLocalWorkouts()
         }
     }
 
@@ -105,6 +120,15 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                 "Esta comprobación solicita un permiso independiente y no guarda mediciones."
             textSize = 16f
         }
+        workoutButton = Button(this).apply {
+            text = "Comprobar carrera y HIIT · sesiones deportivas"
+            setOnClickListener { authorizeWorkoutFromUserAction() }
+        }
+        workoutStatus = TextView(this).apply {
+            text = "Consulta opcional de sesiones deportivas reales de Salud conectada. " +
+                "Solo se leen resúmenes de los últimos 7 días en el teléfono."
+            textSize = 16f
+        }
         message = TextView(this).apply {
             text = "Sin permisos comprobados. No hay dispositivo vinculado a IBERFIT."
             textSize = 16f
@@ -120,11 +144,13 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         column.addView(summary)
         column.addView(generalHeartRateButton)
         column.addView(generalHeartRateStatus)
+        column.addView(workoutButton)
+        column.addView(workoutStatus)
         setContentView(ScrollView(this).apply { addView(column) })
     }
 
     private fun authorizeFromUserAction() {
-        if (permissionRequestPending || generalHeartRateRequestPending) return
+        if (permissionRequestPending || generalHeartRateRequestPending || workoutRequestPending) return
         if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
             message.text = "Health Connect no está disponible. Revisa Android o actualiza Health Connect."
             return
@@ -187,7 +213,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
     }
 
     private fun authorizeGeneralHeartRateFromUserAction() {
-        if (permissionRequestPending || generalHeartRateRequestPending) return
+        if (permissionRequestPending || generalHeartRateRequestPending || workoutRequestPending) return
         if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
             generalHeartRateStatus.text = "Health Connect no está disponible."
             return
@@ -234,6 +260,54 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                     "No se han enviado datos a IBERFIT."
             } finally {
                 generalHeartRateButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun authorizeWorkoutFromUserAction() {
+        if (permissionRequestPending || generalHeartRateRequestPending || workoutRequestPending) return
+        if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
+            workoutStatus.text = "Salud conectada no está disponible."
+            return
+        }
+        workoutButton.isEnabled = false
+        workoutStatus.text = "Comprobando los permisos para actividad y FC…"
+        localScope.launch {
+            try {
+                val granted = Connected360ReadBudget.run {
+                    HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
+                        .permissionController.getGrantedPermissions()
+                }
+                val missing = Connected360WorkoutReadOnlyQa.permissions.values.toSet() - granted
+                if (missing.isEmpty()) {
+                    readLocalWorkouts()
+                } else {
+                    workoutRequestPending = true
+                    workoutPermissionLauncher.launch(missing)
+                }
+            } catch (_: Exception) {
+                workoutRequestPending = false
+                workoutStatus.text = "No se pudieron comprobar los permisos. Puedes reintentar."
+                workoutButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun readLocalWorkouts() {
+        workoutStatus.text = "Leyendo solo los resúmenes deportivos locales…"
+        localScope.launch {
+            try {
+                val data = Connected360ReadBudget.run {
+                    val client = HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
+                    Connected360WorkoutReadOnlyQa(client).read()
+                }
+                workoutStatus.text = Connected360WorkoutReadOnlyQa.render(data)
+            } catch (_: Exception) {
+                workoutStatus.text = "No se pudo leer la actividad deportiva. " +
+                    "Comprueba los permisos y la sincronización en Samsung Health. " +
+                    "No se enviaron datos a IBERFIT."
+            } finally {
+                workoutButton.isEnabled = true
             }
         }
     }
