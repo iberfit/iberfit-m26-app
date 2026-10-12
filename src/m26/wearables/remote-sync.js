@@ -27,6 +27,11 @@ const METRICS=Object.freeze([
   'activeEnergyKcal',
   'workoutMinutes',
 ]);
+// Remote V46 QA authorization categories are distinct from V44 numeric daily
+// fields. Do not change the file-summary queue's metrics or backfill behavior.
+const AUTHORIZATION_SCOPES=Object.freeze([...METRICS,
+  'generalHeartRate','exerciseSessions',
+]);
 
 function clone(value){
   return value==null?value:structuredClone(value);
@@ -477,7 +482,7 @@ export function createWearableRemoteSync({
     const source=safeProvider(provider);
     if(ownerDisposed)throw new Error('M26_WEARABLE_OWNER_DISPOSED');
     if(deleteRequested||blockedProviders.has(source))throw new Error('M26_WEARABLE_SOURCE_REVOKED');
-    if(!Array.isArray(scopes)||!scopes.length||scopes.some((scope)=>!METRICS.includes(scope))){
+    if(!Array.isArray(scopes)||!scopes.length||scopes.some((scope)=>!AUTHORIZATION_SCOPES.includes(scope))){
       throw new Error('M26_CONNECTED360_SCOPE_REQUIRED');
     }
     if(!isOnline())throw new Error('M26_WEARABLE_NETWORK_REQUIRED');
