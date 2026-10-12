@@ -37,7 +37,10 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
     private lateinit var message: TextView
     private lateinit var summary: TextView
     private lateinit var linkButton: Button
+    private lateinit var generalHeartRateButton: Button
+    private lateinit var generalHeartRateStatus: TextView
     private var permissionRequestPending = false
+    private var generalHeartRateRequestPending = false
 
     private val permissionLauncher = registerForActivityResult(
         PermissionController.createRequestPermissionResultContract()
@@ -48,6 +51,19 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             linkButton.isEnabled = true
         } else {
             readLocalSummary()
+        }
+    }
+
+    private val generalHeartRatePermissionLauncher = registerForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        generalHeartRateRequestPending = false
+        if (Connected360GeneralHeartRateDiagnostic.permission !in granted) {
+            generalHeartRateStatus.text =
+                "Sin permiso de lectura de FC general. No se han enviado datos a IBERFIT."
+            generalHeartRateButton.isEnabled = true
+        } else {
+            readGeneralHeartRateCount()
         }
     }
 
@@ -80,6 +96,15 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
             text = "Autorizar Health Connect"
             setOnClickListener { authorizeFromUserAction() }
         }
+        generalHeartRateButton = Button(this).apply {
+            text = "Comprobar FC general · diagnóstico opcional"
+            setOnClickListener { authorizeGeneralHeartRateFromUserAction() }
+        }
+        generalHeartRateStatus = TextView(this).apply {
+            text = "FC general y FC en reposo son datos distintos. " +
+                "Esta comprobación solicita un permiso independiente y no guarda mediciones."
+            textSize = 16f
+        }
         message = TextView(this).apply {
             text = "Sin permisos comprobados. No hay dispositivo vinculado a IBERFIT."
             textSize = 16f
@@ -93,11 +118,13 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         column.addView(linkButton)
         column.addView(message)
         column.addView(summary)
+        column.addView(generalHeartRateButton)
+        column.addView(generalHeartRateStatus)
         setContentView(ScrollView(this).apply { addView(column) })
     }
 
     private fun authorizeFromUserAction() {
-        if (permissionRequestPending) return
+        if (permissionRequestPending || generalHeartRateRequestPending) return
         if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
             message.text = "Health Connect no está disponible. Revisa Android o actualiza Health Connect."
             return
@@ -155,6 +182,58 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                 summary.text = "No hay conexión remota."
             } finally {
                 linkButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun authorizeGeneralHeartRateFromUserAction() {
+        if (permissionRequestPending || generalHeartRateRequestPending) return
+        if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
+            generalHeartRateStatus.text = "Health Connect no está disponible."
+            return
+        }
+        generalHeartRateButton.isEnabled = false
+        generalHeartRateStatus.text = "Comprobando permiso para FC general…"
+        localScope.launch {
+            try {
+                val granted = Connected360ReadBudget.run {
+                    HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
+                        .permissionController.getGrantedPermissions()
+                }
+                val permission = Connected360GeneralHeartRateDiagnostic.permission
+                if (permission in granted) {
+                    readGeneralHeartRateCount()
+                } else {
+                    generalHeartRateRequestPending = true
+                    generalHeartRatePermissionLauncher.launch(setOf(permission))
+                }
+            } catch (_: Exception) {
+                generalHeartRateRequestPending = false
+                generalHeartRateStatus.text =
+                    "No se pudo comprobar el permiso de FC general. Puedes reintentar."
+                generalHeartRateButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun readGeneralHeartRateCount() {
+        generalHeartRateStatus.text = "Consultando FC general localmente; no es FC en reposo…"
+        localScope.launch {
+            try {
+                val count = Connected360ReadBudget.run {
+                    val client = HealthConnectClient.getOrCreate(
+                        this@Connected360HealthPermissionsActivity
+                    )
+                    Connected360GeneralHeartRateDiagnostic(client).countMeasurements()
+                }
+                generalHeartRateStatus.text =
+                    Connected360GeneralHeartRateDiagnostic.resultText(count)
+            } catch (_: Exception) {
+                generalHeartRateStatus.text =
+                    "No fue posible leer FC general. Comprueba el permiso en Salud conectada. " +
+                    "No se han enviado datos a IBERFIT."
+            } finally {
+                generalHeartRateButton.isEnabled = true
             }
         }
     }
