@@ -1,0 +1,234 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-EXTENSION-DE-TRICEPS-EN-POLEA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-LOCAL5/movement-db131d323b00.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Original aprobado por usuario en conversación IBERFIT B7, archivo fuente local guía_del_pushdown_de_tríceps.png SHA256 b2e25588210fd44c18e4e5a3836a509108e0023c5f86ae27f2543b2ab63e318d; únicamente conversión WebP 640x800, sin regeneración de fotografía."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-EXTENSION-DE-TRICEPS-EN-POLEA/movement-db131d323b00.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "db131d323b0086912c0da6160545110d135bb27686406086afd8b30082d3ffa5"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides anterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-MARTILLO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-LOCAL5/movement-35255aad3133.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Original aprobado por usuario en conversación IBERFIT B7, archivo fuente local curl_martillo_inicio_y_final.png SHA256 396841a3a4c72c712d3f9f23d25a4a26d5de6698043355ea00e19b47d5b22b77; únicamente conversión WebP 640x800, sin regeneración de fotografía."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-MARTILLO/movement-35255aad3133.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "35255aad31337e80942266b24b7b222b1cfd6c048e29768ad9e7b1765ee7cc39"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "bíceps",
+            "braquial"
+          ],
+          "secondary": [
+            "braquiorradial"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-ELEVACION-DE-TALONES-BILATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-LOCAL5/movement-f5feae747a0e.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Original aprobado por usuario en conversación IBERFIT B7, archivo fuente local inicio_y_final_de_elevación_de_gemelos_en_gimnasio.png SHA256 6298f9d091bcfdd9626aa35718c7764d2479d668939275b6bfccfb373477bbe3; únicamente conversión WebP 640x800, sin regeneración de fotografía."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ELEVACION-DE-TALONES-BILATERAL/movement-f5feae747a0e.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "f5feae747a0e88bdf72a494217b5783f0c2c59f821aa60245c06eee06d8409f7"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "gastrocnemio",
+            "sóleo"
+          ],
+          "secondary": [
+            "tibial posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-FEMORAL-DESLIZANTE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-LOCAL5/movement-d88a1143f864.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Original aprobado por usuario en conversación IBERFIT B7, archivo fuente local curl_femoral_deslizante_inicio_y_final.png SHA256 3d2d2f8610d6ef041378239ecb6c7e06b053b44870c447618edf51855d0f22bf; únicamente conversión WebP 640x800, sin regeneración de fotografía."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-FEMORAL-DESLIZANTE/movement-d88a1143f864.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "d88a1143f864ff55c191ffc93641e9ed21fe052de8142daff35775a7d4d9a96c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-CURL-FEMORAL-UNILATERAL-EN-MAQUINA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261011-B7-LOCAL5/movement-99ea2191a2b7.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-11",
+        "note": "Original aprobado por usuario en conversación IBERFIT B7, archivo fuente local curl_femoral_inicio_y_final.png SHA256 f91b01152dbf851472d84a4e5fcff509b8f9a154e5f8ae2ff35027f8cd3709b5; únicamente conversión WebP 640x800, sin regeneración de fotografía."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-CURL-FEMORAL-UNILATERAL-EN-MAQUINA/movement-99ea2191a2b7.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "99ea2191a2b70a8d0f189cba1ed5b9b05ccefb2a0f1f99083c5ee0268bc60bf7"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales"
+          ],
+          "secondary": [
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
