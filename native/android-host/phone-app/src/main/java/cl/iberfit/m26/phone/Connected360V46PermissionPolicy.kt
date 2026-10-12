@@ -7,7 +7,9 @@ package cl.iberfit.m26.phone
  */
 internal object Connected360V46PermissionPolicy {
     const val EXTRA_SCOPES = "cl.iberfit.m26.phone.V46_SELECTED_SCOPES"
-    private val supported = setOf("generalHeartRate", "exerciseSessions")
+    private val supported = setOf(
+        "generalHeartRate", "exerciseSessions", "steps", "sleepMinutes", "restingHeartRate"
+    )
 
     fun parseScopes(values: List<String>?): Set<String>? {
         if (values == null || values.isEmpty() || values.size > supported.size) return null
@@ -22,6 +24,15 @@ internal object Connected360V46PermissionPolicy {
             permissions.add(Connected360GeneralHeartRateDiagnostic.permission)
         if ("exerciseSessions" in scopes)
             permissions.add(Connected360WorkoutReadOnlyQa.requiredPermission)
+        if ("steps" in scopes)
+            permissions.add(androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.StepsRecord::class))
+        if ("sleepMinutes" in scopes)
+            permissions.add(androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.SleepSessionRecord::class))
+        if ("restingHeartRate" in scopes)
+            permissions.add(androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.RestingHeartRateRecord::class))
         return permissions
     }
 }
