@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "3a69573521f66d73e3b949feede5020cd79d40e9",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Connected 360 Android Release signing verification #890: strict AAB verification with the original protected self-signed signing keystore. Previous PR #887/#888 app features retained. No schema, grant or V46 switch changes; health rollout remains disabled until signed Android + Galaxy Watch9 physical E2E."
+}
