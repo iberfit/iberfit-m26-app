@@ -65,8 +65,7 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         }
 
         fun render(result: ReadResult): String {
-            if(result.workouts.isEmpty()) return
-                "Sin sesiones deportivas registradas en Health Connect durante los últimos 7 días. " +
+            if(result.workouts.isEmpty()) return "Sin sesiones deportivas registradas en Health Connect durante los últimos 7 días. " +
                 "Comprueba la sincronización de ejercicios en Samsung Health. " +
                 "No se han enviado datos a IBERFIT."
             val rows = result.workouts.joinToString("\n\n") { w ->
@@ -110,7 +109,7 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         for(exercise in exercises.take(MAX_WORKOUTS)){
             val elapsed=Duration.between(exercise.startTime,exercise.endTime)
             if(elapsed.isZero||elapsed.isNegative||elapsed.toHours()>24L)continue
-            val fields=buildSet<androidx.health.connect.client.aggregate.AggregationMetric<*>> {
+            val fields=buildSet<androidx.health.connect.client.aggregate.AggregateMetric<*>> {
                 if("heartRate" in scopes){
                     add(HeartRateRecord.MEASUREMENTS_COUNT)
                     add(HeartRateRecord.BPM_AVG)
