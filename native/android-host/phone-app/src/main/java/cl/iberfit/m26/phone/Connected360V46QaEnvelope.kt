@@ -84,7 +84,6 @@ internal object Connected360V46QaEnvelope {
 
         val exercises = workouts.asSequence()
             .take(10)
-            .distinctBy { it.observationKey }
             .mapNotNull { w ->
                 val key = w.observationKey ?: return@mapNotNull null
                 if (!hashPattern.matches(key)) return@mapNotNull null
@@ -124,7 +123,10 @@ internal object Connected360V46QaEnvelope {
                     validDecimal(w.caloriesKcal, 0.0, 20000.0)
                         ?.let { put("caloriesKcal", it) }
                 }
-            }.toList()
+            }
+            // Invalid or future observations must not reserve the duplicate key.
+            .distinctBy { it["observationKey"] }
+            .toList()
 
         return mapOf(
             "schema" to SCHEMA,
