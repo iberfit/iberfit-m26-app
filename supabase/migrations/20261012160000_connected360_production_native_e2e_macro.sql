@@ -248,6 +248,17 @@ begin
   if v_cursor>v_grant_cursor then
     raise exception using message='M26_V46_GRANT_REVOKED',errcode='42501';
   end if;
+  -- Existing V44 pause/disconnect remains authoritative for V46 imports.
+  -- An old OS permission or cached web grant cannot override user controls.
+  if exists(
+    select 1 from public.m26_wearable_connections_v44 c
+    where c.owner_user_id=v_owner and c.client_id=v_client
+      and c.provider='health_connect'
+      and (c.status in ('paused','revoked','disconnected')
+           or c.sync_enabled=false)
+  ) then
+    raise exception using message='M26_V46_HEALTH_CONNECT_PAUSED',errcode='42501';
+  end if;
   if (pg_catalog.jsonb_array_length(v_hr_rows)>0 and not ('generalHeartRate'=any(v_scopes)))
      or (pg_catalog.jsonb_array_length(v_ex_rows)>0 and not ('exerciseSessions'=any(v_scopes))) then
     raise exception using message='M26_V46_SCOPE_DENIED',errcode='42501';
