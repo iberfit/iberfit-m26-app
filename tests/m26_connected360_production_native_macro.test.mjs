@@ -170,7 +170,9 @@ test('client UI renders observations only for original signed-in owner and diffe
   assert.match(c,/expected\.ownerId!==current\.ownerId/u);
   assert.match(c,/expected\.clientId!==current\.clientId/u);
   assert.match(c,/Connected360ProductionSummary|connected360ProductionSummary/u);
-  assert.match(c,/No equivalen a FC en reposo/u);
+  const formatter=readFileSync(new URL('../src/m26/wearables/v46-production-summary.js',import.meta.url),'utf8');
+  assert.match(c,/formatConnected360ProductionSummary/u);
+  assert.match(formatter,/FC general no equivale a FC en reposo/u);
   assert.match(c,/qaV46Importer\.destroy\(\)/u);
 });
 
