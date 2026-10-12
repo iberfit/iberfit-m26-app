@@ -67,7 +67,7 @@ export function createConnected360ProductionSync({
     return grant;
   }
   async function sync({signal=null}={}){
-    if(inflight)return inflight;
+    if(inflight?.generation===generation)return inflight.promise;
     if(!isOnline())return Object.freeze({skipped:'offline'});
     const operation=(async()=>{
       const version=generation,expected=owner();
@@ -120,10 +120,15 @@ export function createConnected360ProductionSync({
         inserted:result.inserted,updated:result.updated,
         unchanged:result.unchanged,metrics:Object.freeze([...granted])});
     })();
-    inflight=operation;
-    try{return await operation;}finally{if(inflight===operation)inflight=null;}
+    inflight={generation,promise:operation};
+    try{return await operation;}finally{if(inflight?.promise===operation)inflight=null;}
   }
-  function invalidate(){generation+=1;native.invalidate?.();}
+  function invalidate(){
+    generation+=1;
+    // A resumed foreground request must not reuse the obsolete promise.
+    inflight=null;
+    native.invalidate?.();
+  }
   function destroy(){if(dead)return;dead=true;invalidate();native.destroy?.();}
   return Object.freeze({availability,authorize,sync,invalidate,destroy,
     get lastSuccess(){return lastSuccess;}});
