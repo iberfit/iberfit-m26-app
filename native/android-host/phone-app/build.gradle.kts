@@ -14,11 +14,38 @@ android {
         versionName = "26.59.2-phone"
     }
 
+    // Release signing is supplied ONLY by the restricted GitHub environment.
+    // Empty/missing credentials continue to allow CI compilation of unsigned
+    // binaries, but the publication workflow refuses to ship them.
+    val signingReady = listOf(
+        "IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH",
+        "IBERFIT_ANDROID_RELEASE_STORE_PASSWORD",
+        "IBERFIT_ANDROID_RELEASE_KEY_ALIAS",
+        "IBERFIT_ANDROID_RELEASE_KEY_PASSWORD"
+    ).all { !System.getenv(it).isNullOrBlank() }
+    signingConfigs {
+        if (signingReady) {
+            create("iberfitProduction") {
+                storeFile = file(System.getenv("IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH"))
+                storePassword = System.getenv("IBERFIT_ANDROID_RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("IBERFIT_ANDROID_RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("IBERFIT_ANDROID_RELEASE_KEY_PASSWORD")
+                enableV1Signing = false
+                enableV2Signing = true
+            }
+        }
+    }
+
     // Isolate sideloaded Canary DEBUG builds from a possible installed IBERFIT release.
     // Do not change the production applicationId or signing identity.
     buildTypes {
         getByName("debug") {
             applicationIdSuffix = ".qa"
+        }
+        getByName("release") {
+            isDebuggable = false
+            isMinifyEnabled = false
+            if (signingReady) signingConfig = signingConfigs.getByName("iberfitProduction")
         }
     }
 
