@@ -47,6 +47,10 @@ jobs:
           if(changed!=='.iberfit/production-release.json')
             throw new Error('IBERFIT_ANDROID_RELEASE_NOT_MARKER_ONLY');
           NODE
+      - name: Verify monotonic Android version before signing
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci/android_release_version_guard.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
