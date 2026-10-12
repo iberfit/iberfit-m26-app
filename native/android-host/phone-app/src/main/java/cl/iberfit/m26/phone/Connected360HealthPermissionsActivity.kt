@@ -63,7 +63,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                 "Sin permiso de lectura de FC general. No se han enviado datos a IBERFIT."
             generalHeartRateButton.isEnabled = true
         } else {
-            readGeneralHeartRateCount()
+            readGeneralHeartRateProfile()
         }
     }
 
@@ -202,7 +202,7 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
                 }
                 val permission = Connected360GeneralHeartRateDiagnostic.permission
                 if (permission in granted) {
-                    readGeneralHeartRateCount()
+                    readGeneralHeartRateProfile()
                 } else {
                     generalHeartRateRequestPending = true
                     generalHeartRatePermissionLauncher.launch(setOf(permission))
@@ -216,18 +216,18 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         }
     }
 
-    private fun readGeneralHeartRateCount() {
+    private fun readGeneralHeartRateProfile() {
         generalHeartRateStatus.text = "Consultando FC general localmente; no es FC en reposo…"
         localScope.launch {
             try {
-                val count = Connected360ReadBudget.run {
+                val daily = Connected360ReadBudget.run {
                     val client = HealthConnectClient.getOrCreate(
                         this@Connected360HealthPermissionsActivity
                     )
-                    Connected360GeneralHeartRateDiagnostic(client).countMeasurements()
+                    Connected360GeneralHeartRateDiagnostic(client).readDailyRanges()
                 }
                 generalHeartRateStatus.text =
-                    Connected360GeneralHeartRateDiagnostic.resultText(count)
+                    Connected360GeneralHeartRateDiagnostic.dailyText(daily)
             } catch (_: Exception) {
                 generalHeartRateStatus.text =
                     "No fue posible leer FC general. Comprueba el permiso en Salud conectada. " +
