@@ -176,7 +176,9 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (!Connected360OriginGate.requestIdAllowed(id)) return
                     val schema = request.optString("schema", "")
                     val action = request.optString("action", "")
-                    if (schema != "iberfit.connected360.qa.request.v1") return
+                    if (schema != (if (production)
+                        "iberfit.connected360.native.request.v1"
+                      else "iberfit.connected360.qa.request.v1")) return
                     if (action == "health.invalidate") {
                         // A session logout revokes the local approval, even if
                         // no data read has started. No auth token is sent.
@@ -189,10 +191,22 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (!requestIds.add(id)) return
                     if (requestIds.size > 128) requestIds.remove(requestIds.first())
                     when (action) {
+                        "health.permissions" -> {
+                            if (production && !readInFlight) {
+                                resetReadApproval()
+                                readFence.retire()
+                                startActivity(android.content.Intent(
+                                    this@Connected360SecureWebViewActivity,
+                                    Connected360HealthPermissionsActivity::class.java
+                                ))
+                            } else replyError(replyProxy,id,"M26_HEALTH_ACTION_UNSUPPORTED")
+                        }
                         "status" -> {
                             // Kept false on purpose: this is not the certified automatic bridge.
                             val response = JSONObject()
-                                .put("schema", "iberfit.connected360.qa.bridge.v1")
+                                .put("schema", if (production)
+                                    "iberfit.connected360.native.bridge.v1"
+                                else "iberfit.connected360.qa.bridge.v1")
                                 .put("requestId", id)
                                 .put("available", production)
                                 .put("connected", production)
@@ -377,7 +391,10 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         .put("requestId", id)
                                         .put("provider", "health_connect")
                                         .put("grantedMetrics", JSONArray(grantedMetrics.sorted()))
-                                        .put("envelope", JSONObject(payload))
+                                        .put("envelope", JSONObject(payload).apply {
+                                            if (production) put("schema",
+                                                "iberfit.connected360.v46.ingest.v1")
+                                        })
                                         .put("persisted", false)
                                         .put("automatic", false)
                                         .toString()
