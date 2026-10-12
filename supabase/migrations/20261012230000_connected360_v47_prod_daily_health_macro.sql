@@ -129,7 +129,7 @@ BEGIN
   END IF;
   SELECT pg_catalog.array_agg(DISTINCT item ORDER BY item)
     INTO v_union FROM pg_catalog.unnest(v_grant.scopes||v_requested) item;
-  IF pg_catalog.cardinality(v_union) > 9 THEN
+  IF pg_catalog.cardinality(v_union) > 12 THEN
     RAISE EXCEPTION USING MESSAGE='M26_V46_PROD_SCOPE_TOO_MANY',ERRCODE='42501';
   END IF;
   IF v_requested <@ v_grant.scopes THEN
