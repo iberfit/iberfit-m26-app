@@ -16,7 +16,7 @@ export function createConnected360V46QaImporter({
   now=()=>Date.now(),refreshState=async()=>{},
 }={}){
   if(typeof transport?.importConnected360QaV46!=='function'
-    ||typeof remoteSync?.reauthorize!=='function'
+    ||typeof remoteSync?.reauthorizeV46!=='function'
     ||typeof remoteSync?.currentAuthorization!=='function'
     ||typeof getIdentity!=='function'||typeof getToken!=='function'
     ||typeof isOnline!=='function')
@@ -107,7 +107,7 @@ export function createConnected360V46QaImporter({
       throw new Error('M26_V46_QA_PREVIEW_EXPIRED');
     busy=true;
     try{
-      const authorization=await remoteSync.reauthorize({provider:PROVIDER,scopes});
+      const authorization=await remoteSync.reauthorizeV46({scopes});
       current(owner);
       if(!UUID.test(String(authorization?.grantId||'')))
         throw new Error('M26_V46_QA_GRANT_INVALID');
