@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "17e7f5a03dc01977ef7dca4e07ee94874f19427f",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Connected 360 PRODUCTION macro #886; V46 release kill-switch false pending signed real Android E2E; no release of raw healthcare data or automatic sync without certification."
+}
