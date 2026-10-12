@@ -74,6 +74,11 @@ jobs:
           test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
           test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
 
+      - name: Certify Connected360 V47 production database (fail closed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
+
       - name: Full regression before production
         shell: bash
         run: |
@@ -341,6 +346,11 @@ jobs:
         run: |
           set -euo pipefail
           IBERFIT_AUTH_EMAIL_ASSET_BASE_URL="$PREVIEW_URL" node scripts/auth/verify-hosted-auth-email-assets.mjs
+
+      - name: Recheck Connected360 V47 database immediately before live deployment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
 
       - name: Deploy exact certified surface to production with Wrangler
         env:
