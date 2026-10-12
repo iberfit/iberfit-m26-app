@@ -4,6 +4,7 @@ import { executionElapsedMs,formatDuration,restRemainingSeconds } from './sessio
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
+import {runningPrescriptionAdvisories} from '../exercises/running-prescription-feedback.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
@@ -219,6 +220,10 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   const cardio=profile.cardio;
   const sport=profile.sport;
+  const runningAdvice=cardio&&sport==='running'
+    ?runningPrescriptionAdvisories(p,{...exercise,measurementProfile:p.measurementProfile})
+      .map(({level,message})=>`<p class="m26-builder-metric-hint" data-running-prescription-advice="${e(level)}">${e(message)}</p>`).join('')
+    :'';
   return `${cardio&&sport==='running'?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
     ${cardio&&sport==='cycling'?field('plannedSpeedKmh','Velocidad objetivo (km/h)',p.plannedSpeedKmh||'','number',{min:0,step:0.1,max:120}):''}
     ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
@@ -229,7 +234,7 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
     ${!cardio&&profile.kind!=='isometric'?field('tempo','Ritmo de ejecución',p.tempo||'controlado','text',{maxLength:80}):''}
     ${field('targetRpe','RPE objetivo',p.targetRpe??7,'number',{min:1,max:10,step:0.5})}
     ${!cardio?field('targetRir','RIR objetivo',p.targetRir??3,'number',{min:0,max:10,step:0.5}):''}
-    ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}`;
+    ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}${runningAdvice}`;
 }
 function templateHistoryCoverage(draft={},exerciseMemoryFor=null){
   const items=[];
