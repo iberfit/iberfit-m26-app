@@ -26,6 +26,7 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
+import {formatConnected360ProductionSummary} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -426,6 +427,7 @@ export function createWearableController({
   let observer=null;
   let lastOnline=null;
   let nativeIdentityEpoch=0;
+  let productionSummaryEpoch=0;
 
   const tasks=createLatestTaskCoordinator();
 
@@ -897,6 +899,30 @@ export function createWearableController({
       endDate:resolvedEndDate,
     });
   }
+  async function refreshProductionSummary(wrap){
+    if(!productionSync||!wrap?.isConnected)return;
+    const target=wrap.querySelector?.('[data-prod-connected360-summary]');
+    if(!target)return;
+    const requestEpoch=++productionSummaryEpoch;
+    const identityEpoch=nativeIdentityEpoch;
+    const expected=qaClientIdentity();
+    if(expected.role!=='client'||!expected.ownerId||!expected.clientId)return;
+    const stillCurrent=()=>{
+      const current=qaClientIdentity();
+      return mounted&&wrap.isConnected&&requestEpoch===productionSummaryEpoch
+        &&identityEpoch===nativeIdentityEpoch&&current.role==='client'
+        &&expected.ownerId===current.ownerId&&expected.clientId===current.clientId;
+    };
+    try{
+      const token=await getToken();
+      if(!stillCurrent())return;
+      const response=await transport.connected360ProductionSummary(token);
+      if(stillCurrent())target.textContent=formatConnected360ProductionSummary(response);
+    }catch{
+      if(stillCurrent())target.textContent='No se ha podido actualizar el historial. '+
+        'Los datos existentes se conservan y se reintentará al volver a abrir IBERFIT.';
+    }
+  }
   async function autoSyncNativeProviders({signal=null}={}){
     const session=context(store);
     if(signal?.aborted||session.role!=='client'||!session.ownerId||
@@ -907,7 +933,18 @@ export function createWearableController({
     if(productionSync&&!signal?.aborted){
       try{
         const result=await productionSync.sync({signal});
-        if(!signal?.aborted)results.push(result);
+        if(!signal?.aborted){
+          results.push(result);
+          if(result?.ok===true){
+            const wrap=root.querySelector?.('[data-prod-connected360]');
+            if(wrap?.isConnected){
+              const status=wrap.querySelector?.('[data-prod-connected360-status]');
+              if(status)status.textContent='Sincronización automática completada. '+
+                'Actualizando las mediciones disponibles…';
+              void refreshProductionSummary(wrap);
+            }
+          }
+        }
       }catch(error){
         if(signal?.aborted)return results;
         emitDiagnostic('connected360-prod-foreground',error);
@@ -1345,36 +1382,7 @@ export function createWearableController({
         wrap.append(intro,consentArea,permissions,connect,note,results);
         nativeCard.append(wrap);
         const generation=nativeIdentityEpoch;
-        const expected=qaClientIdentity();
-        void (async()=>{
-          try{
-            const token=await getToken();
-            if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
-            const response=await transport.connected360ProductionSummary(token);
-            const current=qaClientIdentity();
-            if(generation!==nativeIdentityEpoch||!wrap.isConnected||
-              expected.role!=='client'||current.role!=='client'||
-              expected.ownerId!==current.ownerId||
-              expected.clientId!==current.clientId)return;
-            const records=response.heartRateDaily||[];
-            const sessions=response.exerciseEvidence||[];
-            const recent=records[0];
-            const lo=recent?.minBpm,hi=recent?.maxBpm;
-            results.textContent=records.length
-              ?'Último día de FC general: '+String(recent.date||'')+
-                ' · '+String(recent.samples||0)+' registros'+
-                (lo!=null&&hi!=null?' · rango '+lo+'–'+hi+' lpm':'')+
-                '. Actividades observadas (7 días): '+sessions.length+
-                '. No equivalen a FC en reposo ni a entrenamientos confirmados.'
-              :'Todavía no hay FC general registrada en IBERFIT. '+
-                'Actividades observadas (7 días): '+sessions.length+
-                '. Puedes gestionar o revocar la conexión en Ajustes.';
-          }catch{
-            if(generation===nativeIdentityEpoch&&wrap.isConnected)
-              results.textContent='No se ha podido consultar el historial. '+
-                'Se conservarán los datos existentes. Puedes reintentar al volver.';
-          }
-        })();
+        void refreshProductionSummary(wrap);
         void productionSync.availability().then(flags=>{
           if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
           const enabled=flags.serverEnabled===true;
@@ -1908,6 +1916,7 @@ export function createWearableController({
     destroy(){
       if(!mounted)return;
       nativeIdentityEpoch+=1;
+      productionSummaryEpoch+=1;
       foregroundSync.invalidate();
       mounted=false;
 
@@ -1968,6 +1977,7 @@ export function createWearableController({
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
       nativeIdentityEpoch+=1;
+      productionSummaryEpoch+=1;
       foregroundSync.invalidate();
       qaReadEpoch+=1;
       appleReadEpoch+=1;
