@@ -14,7 +14,7 @@ test('Android production version must increase over the previous signed release'
     /IBERFIT_ANDROID_VERSION_CODE_NOT_MONOTONIC/u);
   assert.throws(()=>assertAndroidReleaseUpgrade({code:265901,name:'26.59.0-phone'},prior,false),
     /IBERFIT_ANDROID_VERSION_CODE_NOT_MONOTONIC/u);
-  assert.throws(()=>assertAndroidReleaseUpgrade({code:265904,name:'26.59.3-phone'},prior,false),
+  assert.throws(()=>assertAndroidReleaseUpgrade({code:265903,name:'26.59.4-phone'},prior,false),
     /IBERFIT_ANDROID_VERSION_CODE_NOT_MONOTONIC/u);
 });
 test('repeat build of exact same immutable source remains reproducible',()=>{
