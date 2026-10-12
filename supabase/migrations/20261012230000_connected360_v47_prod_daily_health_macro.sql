@@ -82,6 +82,18 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE='M26_V46_PROD_SCOPE_TOO_MANY',ERRCODE='42501';
   END IF;
   IF v_requested <@ v_grant.scopes THEN
+    -- An earlier V44 grant is NOT consent to newly released V47 categories.
+    -- The explicit Connect action still records the current consent receipt.
+    IF NOT EXISTS(
+      SELECT 1 FROM public.m26_wearable_v46_consents_prod c
+      WHERE c.owner_user_id=v_owner AND c.client_id=v_client
+        AND c.grant_id=v_grant.grant_id AND c.revocation_cursor=v_cursor
+        AND v_requested <@ c.scopes
+    ) THEN
+      INSERT INTO public.m26_wearable_v46_consents_prod(
+        owner_user_id,client_id,provider,grant_id,revocation_cursor,scopes
+      ) VALUES(v_owner,v_client,'health_connect',v_grant.grant_id,v_cursor,v_requested);
+    END IF;
     RETURN pg_catalog.jsonb_build_object(
       'ok',true,'provider','health_connect','grantId',v_grant.grant_id,
       'revocationCursor',v_cursor,'scopes',pg_catalog.to_jsonb(v_grant.scopes),
@@ -108,6 +120,8 @@ END;
 $function$
 ;
 
+-- IBERFIT-TABLE-ACCESS: public.m26_wearable_daily_health_v47 :: owner-only RPC, no direct browser CRUD
+-- IBERFIT-POLICY: public.m26_wearable_daily_health_v47 = service-role-only
 -- Release switch V46 remains the single opt-in safety gate. Only authenticated, 
 -- owner-scoped functions may write; no browser table CRUD and FORCE RLS.
 CREATE TABLE public.m26_wearable_daily_health_v47 (
@@ -216,7 +230,7 @@ BEGIN
         OR v_row->>'sleepMinutes' !~ '^[0-9]{1,4}$'))
       OR (v_row ? 'restingHeartRate' AND (NOT 'restingHeartRate'=ANY(v_scopes)
         OR pg_catalog.jsonb_typeof(v_row->'restingHeartRate')<>'number'
-        OR v_row->>'restingHeartRate' !~ '^[0-9]{2,3}(\\.[0-9]{1,2})?$'))
+        OR v_row->>'restingHeartRate' !~ '^[0-9]{2,3}([.][0-9]{1,2})?$'))
       OR (v_row->>'date' !~ '^\\d{4}-\\d{2}-\\d{2}$')
       OR (v_row->>'aggregationTimeZone' IS NULL)
       OR NOT EXISTS(SELECT 1 FROM pg_catalog.pg_timezone_names z
@@ -244,6 +258,19 @@ BEGIN
       OR v_steps>200000 OR v_sleep>1440 OR v_rest NOT BETWEEN 25 AND 240
     THEN
       RAISE EXCEPTION USING MESSAGE='M26_V47_WINDOW_OR_VALUE_INVALID',ERRCODE='42501';
+    END IF;
+    IF EXISTS(
+      SELECT 1 FROM pg_catalog.jsonb_object_keys(v_row) k
+      WHERE k IN ('steps','sleepMinutes','restingHeartRate')
+        AND NOT EXISTS(
+          SELECT 1 FROM public.m26_wearable_v46_consents_prod c
+          WHERE c.owner_user_id=v_owner AND c.client_id=v_client
+            AND c.provider='health_connect' AND c.grant_id=p_grant_id
+            AND c.revocation_cursor=v_grant_cursor
+            AND k=ANY(c.scopes)
+        )
+    ) THEN
+      RAISE EXCEPTION USING MESSAGE='M26_V47_EXPLICIT_CONSENT_REQUIRED',ERRCODE='42501';
     END IF;
     v_seen:=pg_catalog.array_append(v_seen,v_day);
     SELECT * INTO v_old FROM public.m26_wearable_daily_health_v47
@@ -304,7 +331,7 @@ BEGIN
     SELECT record_date,steps,sleep_minutes,resting_heart_rate,acquired_at
     FROM public.m26_wearable_daily_health_v47
     WHERE owner_user_id=v_owner AND client_id=v_client
-      AND record_date>=(now() AT TIME ZONE 'America/Santiago')::date-6
+      AND record_date>=(now() AT TIME ZONE aggregation_time_zone)::date-6
     ORDER BY record_date DESC LIMIT 7
   ) q;
   RETURN pg_catalog.jsonb_build_object('ok',true,'provider','health_connect',
