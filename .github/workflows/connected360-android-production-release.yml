@@ -93,7 +93,14 @@ jobs:
           AAB=native/android-host/phone-app/build/outputs/bundle/release/phone-app-release.aab
           test -s "$APK" && test -s "$AAB"
           "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
-          jarsigner -verify -strict "$AAB"
+          # The official release certificate is intentionally self-signed. Strict
+          # jarsigner verification must trust the same protected signing keystore;
+          # otherwise PKIX rejects a valid, correctly signed AAB (exit 4).
+          # Never disable -strict or skip APK/AAB cryptographic verification.
+          jarsigner -verify -strict \
+            -keystore "$IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH" \
+            -storepass "$IBERFIT_ANDROID_RELEASE_STORE_PASSWORD" \
+            "$AAB"
           "${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "$APK" |
             grep -F "package: name='cl.iberfit.m26'"
           ! "${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F 'cl.iberfit.m26.qa'
