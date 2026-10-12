@@ -969,6 +969,11 @@ export function createWearableController({
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState!=='hidden')requestForegroundSync();
   }
+  function onNativeHealthPermissionsReturned(){
+    // Resume after the OS prompt, even when Android WebView never emitted
+    // pageshow/visibilitychange. Server and OS consent are rechecked.
+    if(mounted&&productionSync)requestForegroundSync({force:true});
+  }
 
   async function connectHealthConnect({capabilities=null}={}){
     if(!bridge.support.healthConnect.available){
@@ -1552,26 +1557,29 @@ export function createWearableController({
         productionNative.requestPermissions();
         setStatus(root,'Gestiona los permisos en Android y vuelve a IBERFIT.','info');
       }else if(action==='prod-connected360-connect'){
-        if(!productionSync)throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
+        if(!productionSync||!productionNative)
+          throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
         const card=button.closest?.('[data-prod-connected360]');
         const scopes=[...(card?.querySelectorAll?.('[data-prod-connected360-scope]')||[])]
           .filter(item=>item.checked===true).map(item=>item.dataset.prodConnected360Scope);
         if(!scopes.length)throw new Error('M26_V46_PROD_EXPLICIT_CONSENT_REQUIRED');
         button.disabled=true;
         const note=card?.querySelector?.('[data-prod-connected360-status]');
-        if(note)note.textContent='Vinculando categorías autorizadas…';
+        if(note)note.textContent='Registrando tu consentimiento para las categorías seleccionadas…';
         try{
-          const grant=await productionSync.authorize(scopes);
-          if(note)note.textContent='Consentimiento registrado. Consultando datos autorizados…';
-          const outcome=await productionSync.sync();
-          if(note)note.textContent=outcome?.ok
-            ?'Sincronizado: '+outcome.inserted+' nuevos y '+outcome.unchanged+' sin cambios.':
-              'Permisos guardados. '+String(outcome?.skipped||'Sin datos disponibles')+'.';
+          await productionSync.authorize(scopes);
+          // After remote consent succeeds, the same explicit Connect gesture
+          // initiates the official Android permission flow for those scopes.
+          // No read is attempted before Android has decided; foreground
+          // reconciliation checks both grants again on returning to the app.
+          productionNative.requestPermissions(scopes);
+          if(note)note.textContent='Consentimiento guardado. Confirma los permisos de Android; al volver, IBERFIT sincronizará los datos disponibles.';
           card?.querySelectorAll?.('[data-prod-connected360-scope]')?.forEach?.(item=>{
             item.checked=false;
           });
-          if(grant?.alreadyAuthorized===false)
-            requestForegroundSync();
+        }catch(error){
+          if(note)note.textContent='No se pudo completar la conexión. Tu autorización existente se conserva; puedes reintentar.';
+          throw error;
         }finally{button.disabled=false;}
       }else if(action==='qa-apple-health-read'){
         const epoch=++appleReadEpoch;
@@ -1858,6 +1866,7 @@ export function createWearableController({
       );
       globalThis.addEventListener?.('pageshow',onPageShow);
       globalThis.addEventListener?.('pagehide',onPageHide);
+      globalThis.addEventListener?.('m26:native-health-permissions-returned',onNativeHealthPermissionsReturned);
       root.ownerDocument?.addEventListener?.('visibilitychange',onForegroundVisibility);
 
       if(
@@ -1938,6 +1947,7 @@ export function createWearableController({
       );
       globalThis.removeEventListener?.('pageshow',onPageShow);
       globalThis.removeEventListener?.('pagehide',onPageHide);
+      globalThis.removeEventListener?.('m26:native-health-permissions-returned',onNativeHealthPermissionsReturned);
       root.ownerDocument?.removeEventListener?.('visibilitychange',onForegroundVisibility);
 
       lastOnline=null;
@@ -1950,6 +1960,11 @@ export function createWearableController({
     connectHealthConnect,
     connectNativeProvider,
     autoSyncNativeProviders,
+    // Authenticated, signed-native post-login only: schedule non-blocking
+    // reconciliation after quiet mount without waiting in the login path.
+    queueNativeInitialSync:()=>{
+      if(mounted&&productionSync)requestForegroundSync({force:true});
+    },
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
       nativeIdentityEpoch+=1;

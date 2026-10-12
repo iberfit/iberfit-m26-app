@@ -53,6 +53,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     private var oneReadApproved = false
     private var approvedAtElapsedMs: Long? = null
     private var readInFlight = false
+    private var healthPermissionReturnPending = false
     private val requestIds = LinkedHashSet<String>()
     private val readFence = Connected360PageFence()
 
@@ -231,12 +232,28 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     when (action) {
                         "health.permissions" -> {
                             if (production && !readInFlight) {
+                                val metrics = request.optJSONArray("metrics")
+                                val values = if (metrics == null) emptyList() else
+                                    (0 until metrics.length()).map { metrics.optString(it) }
+                                val selected = if (values.isEmpty()) null else
+                                    Connected360V46PermissionPolicy.parseScopes(values)
+                                if (metrics != null && values.isNotEmpty() && selected == null) {
+                                    replyError(replyProxy, id, "M26_HEALTH_V46_REQUEST_INVALID")
+                                    return
+                                }
                                 resetReadApproval()
                                 readFence.retire()
-                                startActivity(android.content.Intent(
+                                val next = android.content.Intent(
                                     this@Connected360SecureWebViewActivity,
                                     Connected360HealthPermissionsActivity::class.java
-                                ))
+                                )
+                                if (selected != null)
+                                    next.putStringArrayListExtra(
+                                        Connected360V46PermissionPolicy.EXTRA_SCOPES,
+                                        ArrayList(selected)
+                                    )
+                                healthPermissionReturnPending = true
+                                startActivity(next)
                             } else replyError(replyProxy,id,"M26_HEALTH_ACTION_UNSUPPORTED")
                         }
                         "status" -> {
@@ -481,6 +498,24 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
             .put("requestId", id)
             .put("error", code)
             .toString())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!production || !healthPermissionReturnPending) return
+        healthPermissionReturnPending = false
+        val view = browser ?: return
+        // A WebView can remain in the same document when the OS permission
+        // screen closes. Explicitly resume the owner-scoped foreground
+        // reconciler without reading data inside the native Activity.
+        view.post {
+            if (!isFinishing && !isDestroyed && browser === view && trustedTopPage(view)) {
+                view.evaluateJavascript(
+                    "window.dispatchEvent(new Event('m26:native-health-permissions-returned'));",
+                    null
+                )
+            }
+        }
     }
 
     @Deprecated("Deprecated in Android")

@@ -29,6 +29,12 @@ import kotlinx.coroutines.launch
  */
 class Connected360HealthPermissionsActivity : ComponentActivity() {
     private val localScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val firstDayScopes: Set<String>? by lazy {
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) null
+        else Connected360V46PermissionPolicy.parseScopes(
+            intent.getStringArrayListExtra(Connected360V46PermissionPolicy.EXTRA_SCOPES)
+        )
+    }
     private val requested = linkedMapOf(
         "steps" to HealthPermission.getReadPermission(StepsRecord::class),
         "sleepMinutes" to HealthPermission.getReadPermission(SleepSessionRecord::class),
@@ -49,7 +55,15 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         permissionRequestPending = false
-        if (granted.isEmpty()) {
+        if (firstDayScopes != null) {
+            // Return to the authenticated IBERFIT screen. Neither this
+            // Activity nor the Android OS prompt can create server consent.
+            // The foreground sync re-checks the complete grant set.
+            message.text = if (granted.isEmpty())
+                "No se han concedido permisos nuevos. Puedes conectar después."
+            else "Permisos de Android revisados. Volviendo a IBERFIT…"
+            finish()
+        } else if (granted.isEmpty()) {
             message.text = "No se han concedido permisos. Puedes volver cuando quieras."
             linkButton.isEnabled = true
         } else {
@@ -147,6 +161,47 @@ class Connected360HealthPermissionsActivity : ComponentActivity() {
         column.addView(workoutButton)
         column.addView(workoutStatus)
         setContentView(ScrollView(this).apply { addView(column) })
+        if (production && firstDayScopes != null) {
+            // The user explicitly selected and authorized these scopes in
+            // IBERFIT before Android opened this screen. No extra in-app
+            // consent button is needed; the official OS dialog is still required.
+            linkButton.visibility = android.view.View.GONE
+            generalHeartRateButton.visibility = android.view.View.GONE
+            generalHeartRateStatus.visibility = android.view.View.GONE
+            workoutButton.visibility = android.view.View.GONE
+            workoutStatus.visibility = android.view.View.GONE
+            summary.visibility = android.view.View.GONE
+            message.text = "Solicitando en Android únicamente las categorías elegidas…"
+            window.decorView.post { requestFirstDayPermissions(firstDayScopes!!) }
+        }
+    }
+
+    private fun requestFirstDayPermissions(scopes: Set<String>) {
+        if (isFinishing || isDestroyed || permissionRequestPending) return
+        if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
+            message.text = "Salud conectada no está disponible en este teléfono. " +
+                "Se conservará tu consentimiento; no se leerá ningún dato."
+            return
+        }
+        localScope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(this@Connected360HealthPermissionsActivity)
+                val already = Connected360ReadBudget.run {
+                    client.permissionController.getGrantedPermissions()
+                }
+                val missing = Connected360V46PermissionPolicy.osPermissions(scopes) - already
+                if (missing.isEmpty()) {
+                    finish()
+                } else {
+                    permissionRequestPending = true
+                    permissionLauncher.launch(missing)
+                }
+            } catch (_: Exception) {
+                permissionRequestPending = false
+                message.text = "Android no pudo abrir los permisos de salud. " +
+                    "Puedes volver a intentarlo desde IBERFIT."
+            }
+        }
     }
 
     private fun authorizeFromUserAction() {

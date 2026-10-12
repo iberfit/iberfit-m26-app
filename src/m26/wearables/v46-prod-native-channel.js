@@ -173,16 +173,22 @@ export function createConnected360V46ProdNativeChannel({
         clientId:owner.clientId});
     }finally{reading=false;}
   }
-  function requestPermissions(){
+  function requestPermissions(metrics=[]){
     if(!isConnected360ProdNativeAvailable(scope)||disposed)
       throw new Error('M26_V46_PROD_CHANNEL_UNAVAILABLE');
+    // Empty metrics means the user chose 'Manage permissions'. A first-day
+    // connection passes precisely the scopes already consented remotely.
+    if(!Array.isArray(metrics)||metrics.length>METRICS.size||
+       new Set(metrics).size!==metrics.length||
+       metrics.some(metric=>!METRICS.has(metric)))
+      throw new Error('M26_V46_PROD_METRICS_INVALID');
     const id=scope.crypto?.randomUUID?.();
     if(!/^[a-zA-Z0-9_-]{8,72}$/u.test(String(id||'')))
       throw new Error('M26_V46_PROD_RANDOM_REQUIRED');
-    // This only opens the official Android permission screen. Remote consent
-    // must still be approved separately in IBERFIT.
+    // Native still delegates the final, independent read permission to
+    // Android; neither this IPC nor consent is a grant to upload data.
     channel.postMessage(JSON.stringify({schema:REQUEST_SCHEMA,
-      requestId:id,action:'health.permissions'}));
+      requestId:id,action:'health.permissions',metrics:[...metrics]}));
   }
   function invalidate(){
     rejectPending?.();rejectPending=null;
