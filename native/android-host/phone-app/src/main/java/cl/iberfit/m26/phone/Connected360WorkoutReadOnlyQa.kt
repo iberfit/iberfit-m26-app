@@ -11,6 +11,7 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import cl.iberfit.healthconnect.dayWindow
+import java.security.MessageDigest
 import java.time.Duration
 import java.time.ZonedDateTime
 
@@ -32,6 +33,9 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         val distanceKm: Double?,
         val steps: Long?,
         val caloriesKcal: Double?,
+        // Opaque stable record pseudonym for QA idempotence, NEVER raw Health Connect ID.
+        val observationKey: String? = null,
+        val sport: String = "other",
     )
     data class ReadResult(
         val workouts: List<LocalWorkout>,
@@ -62,6 +66,26 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
             ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
             ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING -> "Fuerza"
             else -> "Otro entrenamiento"
+        }
+
+        fun sport(type: Int): String = when(type) {
+            ExerciseSessionRecord.EXERCISE_TYPE_RUNNING,
+            ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL -> "running"
+            ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING -> "hiit"
+            ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+            ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY -> "cycling"
+            ExerciseSessionRecord.EXERCISE_TYPE_WALKING -> "walking"
+            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
+            ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING -> "strength"
+            else -> "other"
+        }
+
+        fun opaqueRecordKey(recordId: String): String? {
+            if(recordId.isBlank() || recordId.length > 256) return null
+            val bytes = MessageDigest.getInstance("SHA-256").digest(
+                ("iberfit:health-connect:exercise:v46:" + recordId).toByteArray(Charsets.UTF_8)
+            )
+            return bytes.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2,'0') }
         }
 
         fun render(result: ReadResult): String {
@@ -140,6 +164,8 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
                 distanceKm=summary?.get(DistanceRecord.DISTANCE_TOTAL)?.inMeters?.div(1000.0),
                 steps=summary?.get(StepsRecord.COUNT_TOTAL),
                 caloriesKcal=summary?.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories,
+                observationKey=opaqueRecordKey(exercise.metadata.id),
+                sport=sport(exercise.exerciseType),
             )
         }
         return ReadResult(found,truncated,scopes)
