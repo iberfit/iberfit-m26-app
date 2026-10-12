@@ -240,3 +240,51 @@ test('Android Release verifies a self-signed AAB using its protected trust ancho
   assert.match(workflow,/test -s "\$APK" && test -s "\$AAB"/u);
   assert.match(workflow,/grep -F "package: name='cl\.iberfit\.m26'"/u);
 });
+
+test('one-click native consent requests only the explicit scope set from Android',()=>{
+  const requests=[];
+  const scope={
+    location:{origin:'https://app.iberfit.cl'},
+    crypto:{randomUUID:()=> 'abcd1234-1234-4234-8234-123456789abc'},
+    IBERFIT_CONNECTED360_NATIVE:{
+      postMessage(value){requests.push(JSON.parse(value));},
+      addEventListener(){},removeEventListener(){},
+    },
+  };
+  const channel=createConnected360V46ProdNativeChannel({
+    scope,getIdentity:()=>({role:'client',clientId:CLIENT,ownerId:OWNER}),
+    getToken:async()=> 'test-only-jwt',
+  });
+  channel.requestPermissions(['generalHeartRate']);
+  assert.deepEqual(requests.at(-1).metrics,['generalHeartRate']);
+  assert.equal(requests.at(-1).action,'health.permissions');
+  channel.requestPermissions(['exerciseSessions']);
+  assert.deepEqual(requests.at(-1).metrics,['exerciseSessions']);
+  assert.throws(()=>channel.requestPermissions(['generalHeartRate','generalHeartRate']),
+    /M26_V46_PROD_METRICS_INVALID/u);
+  assert.throws(()=>channel.requestPermissions(['sleepMinutes']),
+    /M26_V46_PROD_METRICS_INVALID/u);
+  assert.throws(()=>channel.requestPermissions(['generalHeartRate','exerciseSessions','steps']),
+    /M26_V46_PROD_METRICS_INVALID/u);
+  channel.requestPermissions(); // manual permission management
+  assert.deepEqual(requests.at(-1).metrics,[]);
+  channel.destroy();
+});
+
+test('Android production resumes the authenticated sync only on return from its OS prompt',()=>{
+  const kotlin=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt',import.meta.url),'utf8');
+  const ui=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const permissionUi=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360HealthPermissionsActivity.kt',import.meta.url),'utf8');
+  assert.match(kotlin,/healthPermissionReturnPending = true/u);
+  assert.match(kotlin,/Connected360V46PermissionPolicy\.parseScopes\(values\)/u);
+  assert.match(kotlin,/next\.putStringArrayListExtra\(/u);
+  assert.match(kotlin,/m26:native-health-permissions-returned/u);
+  assert.match(permissionUi,/Connected360V46PermissionPolicy\.osPermissions\(scopes\) - already/u);
+  assert.match(permissionUi,/permissionLauncher\.launch\(missing\)/u);
+  assert.match(permissionUi,/if \(firstDayScopes != null\)/u);
+  assert.match(ui,/await productionSync\.authorize\(scopes\)/u);
+  assert.match(ui,/productionNative\.requestPermissions\(scopes\)/u);
+  assert.match(ui,/onNativeHealthPermissionsReturned/u);
+  assert.match(ui,/requestForegroundSync\(\{force:true\}\)/u);
+  assert.doesNotMatch(ui,/await productionSync\.sync\(\);\s*if\(note\)/u);
+});
