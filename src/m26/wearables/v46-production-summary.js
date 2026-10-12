@@ -24,7 +24,8 @@ export function formatConnected360ProductionSummary(p){
   const rest=bpm(latest?.restingHeartRate);
   const dailyText=latest?' Actividad diaria del '+latest.date+
     ': pasos '+steps+', sueño '+(sleep??'Sin dato')+
-    ', FC en reposo '+(rest===null?'Sin dato':rest+' lpm')+'.':'';
-  return general+'. Actividades observadas (7 días): '+activities+'.'+dailyText+
-    ' No son entrenamientos confirmados. La FC general no equivale a FC en reposo; el origen físico del reloj no está verificado.';
+    ', FC en reposo '+(rest===null?'Sin dato':rest+' lpm'):'';
+  return general+'. Actividades observadas (7 días): '+activities+
+    (latest?'.'+dailyText:'')+
+    '. No son entrenamientos confirmados. La FC general no equivale a FC en reposo; el origen físico del reloj no está verificado.';
 }
