@@ -1248,7 +1248,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   function assertConnected360Production(){
     if(runtime.qaOnly!==false||
        runtime.projectRef!==M26_PRODUCTION_PROJECT_REF||
-       runtime.environment!=='PRODUCTION')
+       runtime.environment!=='production')
       throw new Error('M26_V46_PRODUCTION_RUNTIME_REQUIRED');
   }
   async function connected360ProductionCapabilities(token){
