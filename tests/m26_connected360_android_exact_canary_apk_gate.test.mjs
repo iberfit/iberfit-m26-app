@@ -30,11 +30,13 @@ test('PR-only superseded builds can be canceled but merged Canary builds stay ex
   assert.match(workflow,/retention-days: 3/u);
   assert.match(workflow,/if-no-files-found: error/u);
 });
-test('distributed debug proof cannot be represented as a production native health bridge',()=>{
+test('debug QA remains separate while release has an exact-origin native Android bridge',()=>{
   assert.match(view,/ApplicationInfo\.FLAG_DEBUGGABLE/u);
   assert.match(view,/window\.addFlags\(WindowManager\.LayoutParams\.FLAG_SECURE\)/u);
-  assert.match(view,/"available", false/u);
-  assert.match(view,/"connected", false/u);
+  assert.match(view,/\.put\("available", production\)/u);
+  assert.match(view,/\.put\("connected", production\)/u);
+  assert.match(view,/Connected360OriginGate\.channel\(production\)/u);
+  assert.match(view,/Connected360OriginGate\.origin\(production\)/u);
   assert.match(view,/oneReadApproved = false/u);
   assert.match(hostManifest,/Connected360SecureWebViewActivity" android:exported="false"/u);
 });

@@ -43,6 +43,9 @@ import org.json.JSONObject
  */
 class Connected360SecureWebViewActivity : ComponentActivity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val production: Boolean by lazy {
+        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0
+    }
     private var browser: WebView? = null
     private lateinit var status: TextView
     private var oneReadApproved = false
@@ -60,7 +63,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
         val url = view.url ?: return false
         val uri = Uri.parse(url)
         return Connected360OriginGate.trusted(
-            uri.scheme, uri.host, uri.port, uri.userInfo, true
+            uri.scheme, uri.host, uri.port, uri.userInfo, true, production
         )
     }
 
@@ -68,17 +71,14 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Health preview may contain personal data: block captures and task snapshots.
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
-            finish()
-            return
-        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(resources.getColor(R.color.iberfit_color_canvas, theme))
             setPadding(12, 20, 12, 12)
         }
         status = TextView(this).apply {
-            text = "Canary QA · Sin conexión automática. Los datos no se envían al servidor desde Android."
+            text = if (production) "IBERFIT · Salud y dispositivos" else
+                "Canary QA · Lecturas locales de diagnóstico."
             setTextColor(resources.getColor(R.color.iberfit_color_text_primary, theme))
             textSize = 15f
         }
@@ -92,9 +92,9 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                 status.text = "Lectura habilitada una sola vez durante 2 minutos. Puedes consultar ahora los datos locales."
             }
         }
-        root.addView(approve)
+        if (!production) root.addView(approve)
         val permissions = Button(this).apply {
-            text = "Revisar permisos de Health Connect en Android"
+            text = if (production) "Gestionar permisos de salud" else "Revisar permisos de Health Connect en Android"
             setOnClickListener {
                 resetReadApproval()
                 startActivity(
@@ -131,7 +131,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                 if (!request.isForMainFrame) return false
                 val uri = request.url
                 val allowed = Connected360OriginGate.trusted(
-                    uri.scheme, uri.host, uri.port, uri.userInfo, true
+                    uri.scheme, uri.host, uri.port, uri.userInfo, true, production
                 )
                 if (!allowed) {
                     resetReadApproval()
@@ -154,8 +154,8 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
         }
         WebViewCompat.addWebMessageListener(
             view,
-            Connected360OriginGate.CHANNEL,
-            setOf(Connected360OriginGate.QA_ORIGIN),
+            Connected360OriginGate.channel(production),
+            setOf(Connected360OriginGate.origin(production)),
             object : WebViewCompat.WebMessageListener {
                 override fun onPostMessage(
                     target: WebView,
@@ -167,7 +167,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (target !== view ||
                         !Connected360OriginGate.trusted(
                             sourceOrigin.scheme, sourceOrigin.host, sourceOrigin.port,
-                            sourceOrigin.userInfo, isMainFrame
+                            sourceOrigin.userInfo, isMainFrame, production
                         ) || !trustedTopPage(view)) return
                     val raw = message.data ?: return
                     if (raw.length !in 2..1024) return
@@ -176,7 +176,9 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (!Connected360OriginGate.requestIdAllowed(id)) return
                     val schema = request.optString("schema", "")
                     val action = request.optString("action", "")
-                    if (schema != "iberfit.connected360.qa.request.v1") return
+                    if (schema != (if (production)
+                        "iberfit.connected360.native.request.v1"
+                      else "iberfit.connected360.qa.request.v1")) return
                     if (action == "health.invalidate") {
                         // A session logout revokes the local approval, even if
                         // no data read has started. No auth token is sent.
@@ -189,22 +191,35 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (!requestIds.add(id)) return
                     if (requestIds.size > 128) requestIds.remove(requestIds.first())
                     when (action) {
+                        "health.permissions" -> {
+                            if (production && !readInFlight) {
+                                resetReadApproval()
+                                readFence.retire()
+                                startActivity(android.content.Intent(
+                                    this@Connected360SecureWebViewActivity,
+                                    Connected360HealthPermissionsActivity::class.java
+                                ))
+                            } else replyError(replyProxy,id,"M26_HEALTH_ACTION_UNSUPPORTED")
+                        }
                         "status" -> {
                             // Kept false on purpose: this is not the certified automatic bridge.
                             val response = JSONObject()
-                                .put("schema", "iberfit.connected360.qa.bridge.v1")
+                                .put("schema", if (production)
+                                    "iberfit.connected360.native.bridge.v1"
+                                else "iberfit.connected360.qa.bridge.v1")
                                 .put("requestId", id)
-                                .put("available", false)
-                                .put("connected", false)
-                                .put("reason", "M26_NATIVE_BRIDGE_NOT_CERTIFIED")
+                                .put("available", production)
+                                .put("connected", production)
+                                .put("reason", if (production) "ANDROID_RELEASE_LOCAL_READER" else
+                                    "M26_NATIVE_BRIDGE_NOT_CERTIFIED")
                             replyProxy.postMessage(response.toString())
                         }
                         "health.readDaily" -> {
-                            if (readInFlight || !oneReadApproved) {
+                            if (readInFlight || (!production && !oneReadApproved)) {
                                 replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_REQUIRED")
                                 return
                             }
-                            if (!Connected360LocalApprovalLease.isCurrent(
+                            if (!production && !Connected360LocalApprovalLease.isCurrent(
                                     approvedAtElapsedMs, SystemClock.elapsedRealtime()
                                 )) {
                                 resetReadApproval()
@@ -295,11 +310,11 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                             }
                         }
                         "health.readV46" -> {
-                            if (readInFlight || !oneReadApproved) {
+                            if (readInFlight || (!production && !oneReadApproved)) {
                                 replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_REQUIRED")
                                 return
                             }
-                            if (!Connected360LocalApprovalLease.isCurrent(
+                            if (!production && !Connected360LocalApprovalLease.isCurrent(
                                     approvedAtElapsedMs, SystemClock.elapsedRealtime()
                                 )) {
                                 resetReadApproval()
@@ -370,11 +385,16 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         return@launch
                                     }
                                     val response = JSONObject()
-                                        .put("schema", "iberfit.connected360.qa.v46.local.v1")
+                                        .put("schema", if (production)
+                                            "iberfit.connected360.native.v46.local.v1"
+                                        else "iberfit.connected360.qa.v46.local.v1")
                                         .put("requestId", id)
                                         .put("provider", "health_connect")
                                         .put("grantedMetrics", JSONArray(grantedMetrics.sorted()))
-                                        .put("envelope", JSONObject(payload))
+                                        .put("envelope", JSONObject(payload).apply {
+                                            if (production) put("schema",
+                                                "iberfit.connected360.v46.ingest.v1")
+                                        })
                                         .put("persisted", false)
                                         .put("automatic", false)
                                         .toString()
@@ -383,7 +403,9 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         return@launch
                                     }
                                     replyProxy.postMessage(response)
-                                    status.text = "Lectura V46 local completada. No se han enviado datos a IBERFIT."
+                                    status.text = if (production)
+                                        "Lectura local completada. IBERFIT verifica los permisos antes de guardar."
+                                    else "Lectura V46 local completada. No se han enviado datos a IBERFIT."
                                 } catch (_: Exception) {
                                     if (readFence.isCurrent(documentLease) &&
                                         browser === view && !isFinishing && !isDestroyed &&
@@ -404,12 +426,14 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
         root.addView(view, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
         ))
-        view.loadUrl(Connected360OriginGate.QA_ORIGIN + "/m26/")
+        view.loadUrl(Connected360OriginGate.origin(production) + "/m26/")
     }
 
     private fun replyError(proxy: JavaScriptReplyProxy, id: String, code: String) {
         proxy.postMessage(JSONObject()
-            .put("schema", "iberfit.connected360.qa.error.v1")
+            .put("schema", if (production)
+                "iberfit.connected360.native.error.v1"
+            else "iberfit.connected360.qa.error.v1")
             .put("requestId", id)
             .put("error", code)
             .toString())

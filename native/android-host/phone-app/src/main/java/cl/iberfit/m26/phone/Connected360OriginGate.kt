@@ -8,6 +8,11 @@ package cl.iberfit.m26.phone
 internal object Connected360OriginGate {
     const val QA_ORIGIN = "https://m26-canary.iberfit.cl"
     const val QA_HOST = "m26-canary.iberfit.cl"
+    const val PRODUCTION_ORIGIN = "https://app.iberfit.cl"
+    const val PRODUCTION_HOST = "app.iberfit.cl"
+    const val PRODUCTION_CHANNEL = "IBERFIT_CONNECTED360_NATIVE"
+    fun origin(production: Boolean): String = if (production) PRODUCTION_ORIGIN else QA_ORIGIN
+    fun channel(production: Boolean): String = if (production) PRODUCTION_CHANNEL else CHANNEL
     const val CHANNEL = "IBERFIT_CONNECTED360_QA"
     private val requestIds = Regex("^[a-zA-Z0-9_-]{8,72}$")
 
@@ -17,10 +22,11 @@ internal object Connected360OriginGate {
         port: Int,
         userInfo: String?,
         isMainFrame: Boolean,
+        production: Boolean = false,
     ): Boolean =
         isMainFrame &&
             scheme == "https" &&
-            host == QA_HOST &&
+            host == (if (production) PRODUCTION_HOST else QA_HOST) &&
             (port == -1 || port == 443) &&
             userInfo.isNullOrEmpty()
 

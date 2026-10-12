@@ -1,0 +1,114 @@
+name: IBERFIT Connected 360 Android Production Release
+on:
+  push:
+    branches:
+      - 'release/prod-*'
+    paths:
+      - '.iberfit/production-release.json'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Escribir BUILD_IBERFIT_SIGNED_ANDROID'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: iberfit-connected360-android-production-signing
+  cancel-in-progress: false
+jobs:
+  signed-native-release:
+    if: "${{ github.event_name == 'push' || inputs.confirmation == 'BUILD_IBERFIT_SIGNED_ANDROID' }}"
+    runs-on: ubuntu-latest
+    environment: android-production
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify immutable release source and production endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .iberfit/production-release.json
+          node <<'NODE'
+          const fs=require('node:fs');
+          const cp=require('node:child_process');
+          const p=JSON.parse(fs.readFileSync('.iberfit/production-release.json','utf8'));
+          if(p.schema!=='iberfit.production.release.v1'||p.promote!==true||
+             p.target!=='iberfit-m26-production'||p.domain!=='app.iberfit.cl'||
+             !/^[0-9a-f]{40}$/.test(p.sourceSha||''))
+            throw new Error('IBERFIT_ANDROID_RELEASE_MANIFEST_INVALID');
+          const parent=cp.execFileSync('git',['rev-parse','HEAD^'],{encoding:'utf8'}).trim();
+          if(parent!==p.sourceSha)throw new Error('IBERFIT_ANDROID_RELEASE_SOURCE_CHANGED');
+          const changed=cp.execFileSync('git',['diff','--name-only',parent,'HEAD'],{encoding:'utf8'}).trim();
+          if(changed!=='.iberfit/production-release.json')
+            throw new Error('IBERFIT_ANDROID_RELEASE_NOT_MARKER_ONLY');
+          NODE
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Prepare Android SDK 36
+        run: |
+          set -euo pipefail
+          MANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)"
+          test -n "$MANAGER"
+          "$MANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - name: Require stable production signing credentials
+        shell: bash
+        env:
+          SIGNING_B64: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEYSTORE_B64 }}"
+          SIGNING_STORE_CREDENTIAL: "${{ secrets.IBERFIT_ANDROID_RELEASE_STORE_PASSWORD }}"
+          KEY_ALIAS: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEY_ALIAS }}"
+          SIGNING_KEY_CREDENTIAL: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEY_PASSWORD }}"
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_B64" && test -n "$SIGNING_STORE_CREDENTIAL" &&
+            test -n "$KEY_ALIAS" && test -n "$SIGNING_KEY_CREDENTIAL" || {
+              echo 'ANDROID_STABLE_RELEASE_SIGNING_NOT_CONFIGURED' >&2
+              exit 42
+            }
+          umask 077
+          printf '%s' "$SIGNING_B64" | base64 --decode > "$RUNNER_TEMP/iberfit-production.jks"
+          test -s "$RUNNER_TEMP/iberfit-production.jks"
+          echo "IBERFIT_ANDROID_RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/iberfit-production.jks" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_STORE_PASSWORD=$SIGNING_STORE_CREDENTIAL" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "IBERFIT_ANDROID_RELEASE_KEY_PASSWORD=$SIGNING_KEY_CREDENTIAL" >> "$GITHUB_ENV"
+          echo "::add-mask::$SIGNING_STORE_CREDENTIAL"
+          echo "::add-mask::$SIGNING_KEY_CREDENTIAL"
+      - name: Test release and build signed production APK / bundle
+        run: |
+          gradle --no-daemon -p native/android-host :phone-app:testDebugUnitTest :phone-app:assembleRelease :phone-app:bundleRelease
+      - name: Verify signed identity, certificate and no QA package
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
+          AAB=native/android-host/phone-app/build/outputs/bundle/release/phone-app-release.aab
+          test -s "$APK" && test -s "$AAB"
+          "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
+          jarsigner -verify -strict "$AAB"
+          "${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "$APK" |
+            grep -F "package: name='cl.iberfit.m26'"
+          ! "${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F 'cl.iberfit.m26.qa'
+          ! grep -R -Eiq 'service_role|SUPABASE_SERVICE_KEY|addJavascriptInterface' native/android-host/phone-app/src/main/java
+          sha256sum "$APK" "$AAB" > CONNECTED360_ANDROID_PRODUCTION_SHA256.txt
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-android-production-${{ github.sha }}
+          path: |
+            native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
+            native/android-host/phone-app/build/outputs/bundle/release/phone-app-release.aab
+            CONNECTED360_ANDROID_PRODUCTION_SHA256.txt
+          retention-days: 14
+          if-no-files-found: error
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/iberfit-production.jks"

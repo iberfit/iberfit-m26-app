@@ -30,10 +30,10 @@ test('general HR probe does not read raw pulses or set resting HR and never writ
   assert.match(probe,/No se han enviado datos a IBERFIT/u);
 });
 
-test('general HR stays QA-only and remote authenticated import contract remains unchanged',()=>{
+test('general HR remains independent in QA and release, with strict OS category permission',()=>{
   assert.match(canonical,/supportedMetrics = setOf\("steps", "sleepMinutes", "restingHeartRate"\)/u);
   assert.doesNotMatch(canonical,/(?:^|[^A-Za-z])HeartRateRecord::class/u);
-  assert.match(origin,/Connected360OriginGate\.QA_ORIGIN/u);
+  assert.match(origin,/Connected360OriginGate\.origin\(production\)/u);
   assert.match(origin,/health\.readDaily/u);
   // V48 extends the DEBUG-only, one-shot Canary channel, without changing the
   // production reader or granting an unconsented pulse export.

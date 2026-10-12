@@ -73,6 +73,10 @@ const CONNECTED360_RPC=Object.freeze({
   importQaV45:'m26_wearable_v45_import_explicit_qa_v1',
   importQaV46:'m26_wearable_v46_import_explicit_qa_v1',
   extendQaV46:'m26_wearable_v46_extend_scopes_explicit_qa_v1',
+  prodCapabilities:'m26_wearable_v46_capabilities_prod_v1',
+  prodAuthorize:'m26_wearable_v46_authorize_prod_v1',
+  prodImport:'m26_wearable_v46_import_prod_v1',
+  prodSummary:'m26_wearable_v46_my_summary_prod_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1239,6 +1243,91 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
 
+  // Production native Android only. Backend independently checks active
+  // membership, owner, grant cursor, category consent and rollout kill switch.
+  // No token or secret is ever transmitted into the Android native bridge.
+  function assertConnected360Production(){
+    if(runtime.qaOnly!==false||
+       runtime.projectRef!==M26_PRODUCTION_PROJECT_REF||
+       runtime.environment!=='production')
+      throw new Error('M26_V46_PRODUCTION_RUNTIME_REQUIRED');
+  }
+  async function connected360ProductionSummary(token){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodSummary,{
+      method:'POST',token,body:'{}',
+    });
+    const r=Array.isArray(raw)?raw[0]:raw;
+    if(r?.ok!==true||r.provider!=='health_connect'
+      ||!Array.isArray(r.heartRateDaily)||!Array.isArray(r.exerciseEvidence)
+      ||r.heartRateDaily.length>7||r.exerciseEvidence.length>10
+      ||r.restingHeartRate!==null||r.clinicalInterpretation!==false)
+      throw new Error('M26_V46_PRODUCTION_SUMMARY_INVALID');
+    return Object.freeze({...r});
+  }
+  async function connected360ProductionCapabilities(token){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodCapabilities,{
+      method:'POST',token,body:'{}',
+    });
+    const value=Array.isArray(raw)?raw[0]:raw;
+    if(value?.ok!==true||value.provider!=='health_connect'
+      ||value.nativeAndroidOnly!==true
+      ||typeof value.serverEnabled!=='boolean'
+      ||value.schema!=='iberfit.connected360.v46.ingest.v1')
+      throw new Error('M26_V46_PRODUCTION_CAPABILITY_RESPONSE_INVALID');
+    return Object.freeze({...value});
+  }
+  async function authorizeConnected360Production(token,{
+    expectedGrant=null,expectedCursor,scopes=[],
+  }={}){
+    assertConnected360Production();
+    if(!token||(expectedGrant!==null&&!UUID_PATTERN.test(String(expectedGrant)))
+      ||!Number.isSafeInteger(expectedCursor)||expectedCursor<0
+      ||!Array.isArray(scopes)||scopes.length<1||scopes.length>2
+      ||new Set(scopes).size!==scopes.length
+      ||scopes.some(v=>!['generalHeartRate','exerciseSessions'].includes(v)))
+      throw new Error('M26_V46_PRODUCTION_CONSENT_INVALID');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodAuthorize,{
+      method:'POST',token,body:JSON.stringify({
+        p_expected_grant:expectedGrant,p_expected_cursor:expectedCursor,
+        p_scopes:scopes,
+      }),
+    });
+    const r=Array.isArray(raw)?raw[0]:raw;
+    if(r?.ok!==true||r.provider!=='health_connect'
+      ||!UUID_PATTERN.test(String(r.grantId||''))
+      ||r.revocationCursor!==expectedCursor
+      ||!Array.isArray(r.scopes)||scopes.some(v=>!r.scopes.includes(v)))
+      throw new Error('M26_V46_PRODUCTION_CONSENT_RESPONSE_INVALID');
+    return Object.freeze({...r});
+  }
+  async function importConnected360Production(token,grantId,payload={}){
+    assertConnected360Production();
+    const hr=payload?.heartRateDaily,ex=payload?.exerciseEvidence;
+    if(!token||!UUID_PATTERN.test(String(grantId||''))
+      ||payload?.schema!=='iberfit.connected360.v46.ingest.v1'
+      ||!Array.isArray(hr)||!Array.isArray(ex)||hr.length>7||ex.length>10
+      ||(hr.length+ex.length)<1)
+      throw new Error('M26_V46_PRODUCTION_PAYLOAD_INVALID');
+    const body=JSON.stringify({p_grant_id:grantId,p_payload:{
+      schema:payload.schema,heartRateDaily:hr,exerciseEvidence:ex,
+    }});
+    if(body.length>48000)throw new Error('M26_V46_PRODUCTION_BATCH_TOO_LARGE');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodImport,{
+      method:'POST',token,body,
+    });
+    const r=Array.isArray(raw)?raw[0]:raw;
+    if(r?.ok!==true||r.persisted!==true||r.automatic!==false
+      ||r.sourceIdentityVerified!==false||r.automaticSyncCertified!==false
+      ||![r.inserted,r.updated,r.unchanged].every(v=>Number.isInteger(v)&&v>=0)
+      ||r.inserted+r.updated+r.unchanged!==hr.length+ex.length)
+      throw new Error('M26_V46_PRODUCTION_IMPORT_RESPONSE_INVALID');
+    return Object.freeze({...r});
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     let result;
@@ -1539,6 +1628,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV45,
     importConnected360QaV46,
     extendConnected360QaV46Grant,
+    connected360ProductionCapabilities,
+    connected360ProductionSummary,
+    authorizeConnected360Production,
+    importConnected360Production,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,

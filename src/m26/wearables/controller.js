@@ -24,6 +24,8 @@ import {
 import {createConnected360QaImporter} from './qa-native-import.js';
 import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
+import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
+import {createConnected360ProductionSync} from './v46-production-sync.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -462,6 +464,17 @@ export function createWearableController({
     getToken,
   });
   let qaV46ReadEpoch=0;
+  const productionAndroid=isConnected360ProdNativeAvailable(globalThis);
+  const productionNative=productionAndroid
+    ?createConnected360V46ProdNativeChannel({
+      scope:globalThis,getIdentity:qaClientIdentity,getToken,
+    }):null;
+  const productionSync=productionAndroid&&
+      typeof transport?.connected360ProductionCapabilities==='function'
+    ?createConnected360ProductionSync({
+      transport,native:productionNative,getIdentity:qaClientIdentity,
+      getToken,isOnline,refreshState,
+    }):null;
   const appleQaNative=createAppleHealthQaNativeChannel({
     scope:globalThis,
     getIdentity:qaClientIdentity,
@@ -891,6 +904,15 @@ export function createWearableController({
     const rows=store.getState().collections?.wearableConnections||[];
     const providers=[...new Set(rows.filter(isCertifiedNativeAutoSyncSource).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
+    if(productionSync&&!signal?.aborted){
+      try{
+        const result=await productionSync.sync({signal});
+        if(!signal?.aborted)results.push(result);
+      }catch(error){
+        if(signal?.aborted)return results;
+        emitDiagnostic('connected360-prod-foreground',error);
+      }
+    }
     for(const provider of providers){
       if(signal?.aborted)break;
       try{
@@ -931,6 +953,7 @@ export function createWearableController({
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState==='hidden'){
       foregroundSync.invalidate();
+      productionSync?.invalidate();
       return;
     }
     if(doc?.visibilityState==='visible')requestForegroundSync();
@@ -939,6 +962,7 @@ export function createWearableController({
   function onPageHide(){
     // Background/BFCache must not resume a stale health read or identity lease.
     foregroundSync.invalidate();
+    productionSync?.invalidate();
   }
 
   function onPageShow(){
@@ -986,6 +1010,7 @@ export function createWearableController({
     qaV46ReadEpoch+=1;
     appleReadEpoch+=1;
     qaImporter.clear();
+    productionSync?.invalidate();
     await remoteSync.deleteAll();
     clearPreview(false);
 
@@ -1273,6 +1298,93 @@ export function createWearableController({
       healthConnectCard.append(fieldset);
     }
 
+    if(productionSync){
+      const nativeCard=root.querySelector?.('[data-provider="health_connect"]');
+      if(nativeCard&&!nativeCard.querySelector?.('[data-prod-connected360]')){
+        const wrap=document.createElement('section');
+        wrap.dataset.prodConnected360='true';
+        wrap.className='m26-wearable-native-connect';
+        const intro=document.createElement('p');
+        intro.textContent='Conecta tu reloj con Health Connect. Elige los datos que deseas compartir. '+
+          'Después se sincronizarán al abrir IBERFIT, cuando haya conexión y permiso.';
+        const consentArea=document.createElement('div');
+        consentArea.dataset.prodConnected360Scopes='true';
+        for(const [metric,copy] of [
+          ['generalHeartRate','Compartir mi frecuencia cardíaca general (no FC en reposo)'],
+          ['exerciseSessions','Compartir mis actividades y entrenamientos observados'],
+        ]){
+          const label=document.createElement('label');
+          label.className='m26-wearable-qa-consent';
+          const checkbox=document.createElement('input');
+          checkbox.type='checkbox';
+          checkbox.dataset.prodConnected360Scope=metric;
+          const span=document.createElement('span');span.textContent=copy;
+          label.append(checkbox,span);consentArea.append(label);
+        }
+        const permissions=document.createElement('button');
+        permissions.type='button';
+        permissions.dataset.wearableAction='prod-connected360-permissions';
+        permissions.textContent='Elegir permisos en Android';
+        const connect=document.createElement('button');
+        connect.type='button';
+        connect.dataset.wearableAction='prod-connected360-connect';
+        connect.textContent='Conectar mi reloj a IBERFIT';
+        const note=document.createElement('p');
+        note.dataset.prodConnected360Status='true';
+        note.setAttribute('role','status');
+        note.textContent='Verificando disponibilidad segura…';
+        const results=document.createElement('p');
+        results.dataset.prodConnected360Summary='true';
+        results.setAttribute('role','status');
+        results.textContent='Datos de salud: consultando registros disponibles…';
+        wrap.append(intro,consentArea,permissions,connect,note,results);
+        nativeCard.append(wrap);
+        const generation=nativeIdentityEpoch;
+        const expected=qaClientIdentity();
+        void (async()=>{
+          try{
+            const token=await getToken();
+            if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
+            const response=await transport.connected360ProductionSummary(token);
+            const current=qaClientIdentity();
+            if(generation!==nativeIdentityEpoch||!wrap.isConnected||
+              expected.role!=='client'||current.role!=='client'||
+              expected.ownerId!==current.ownerId||
+              expected.clientId!==current.clientId)return;
+            const records=response.heartRateDaily||[];
+            const sessions=response.exerciseEvidence||[];
+            const recent=records[0];
+            const lo=recent?.minBpm,hi=recent?.maxBpm;
+            results.textContent=records.length
+              ?'Último día de FC general: '+String(recent.date||'')+
+                ' · '+String(recent.samples||0)+' registros'+
+                (lo!=null&&hi!=null?' · rango '+lo+'–'+hi+' lpm':'')+
+                '. Actividades observadas (7 días): '+sessions.length+
+                '. No equivalen a FC en reposo ni a entrenamientos confirmados.'
+              :'Todavía no hay FC general registrada en IBERFIT. '+
+                'Actividades observadas (7 días): '+sessions.length+
+                '. Puedes gestionar o revocar la conexión en Ajustes.';
+          }catch{
+            if(generation===nativeIdentityEpoch&&wrap.isConnected)
+              results.textContent='No se ha podido consultar el historial. '+
+                'Se conservarán los datos existentes. Puedes reintentar al volver.';
+          }
+        })();
+        void productionSync.availability().then(flags=>{
+          if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
+          const enabled=flags.serverEnabled===true;
+          connect.disabled=!enabled;
+          note.textContent=enabled
+            ?'Listo para conectar con consentimiento independiente por categoría.'
+            :'Integración nativa instalada; activación sanitaria pendiente de certificación.';
+        }).catch(()=>{
+          connect.disabled=true;
+          if(generation===nativeIdentityEpoch)note.textContent=
+            'No se ha podido verificar la conexión de salud. Reintenta al recuperar la red.';
+        });
+      }
+    }
+
     // Show only inside the Android Canary QA container. Never create a
     // production device-link button or bypass source activation policy.
     if(isConnected360QaNativeAvailable(globalThis)){
@@ -1435,6 +1547,32 @@ export function createWearableController({
         await confirmImport();
       }else if(action==='sync-pending'){
         await syncPending();
+      }else if(action==='prod-connected360-permissions'){
+        if(!productionNative)throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
+        productionNative.requestPermissions();
+        setStatus(root,'Gestiona los permisos en Android y vuelve a IBERFIT.','info');
+      }else if(action==='prod-connected360-connect'){
+        if(!productionSync)throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
+        const card=button.closest?.('[data-prod-connected360]');
+        const scopes=[...(card?.querySelectorAll?.('[data-prod-connected360-scope]')||[])]
+          .filter(item=>item.checked===true).map(item=>item.dataset.prodConnected360Scope);
+        if(!scopes.length)throw new Error('M26_V46_PROD_EXPLICIT_CONSENT_REQUIRED');
+        button.disabled=true;
+        const note=card?.querySelector?.('[data-prod-connected360-status]');
+        if(note)note.textContent='Vinculando categorías autorizadas…';
+        try{
+          const grant=await productionSync.authorize(scopes);
+          if(note)note.textContent='Consentimiento registrado. Consultando datos autorizados…';
+          const outcome=await productionSync.sync();
+          if(note)note.textContent=outcome?.ok
+            ?'Sincronizado: '+outcome.inserted+' nuevos y '+outcome.unchanged+' sin cambios.':
+              'Permisos guardados. '+String(outcome?.skipped||'Sin datos disponibles')+'.';
+          card?.querySelectorAll?.('[data-prod-connected360-scope]')?.forEach?.(item=>{
+            item.checked=false;
+          });
+          if(grant?.alreadyAuthorized===false)
+            requestForegroundSync();
+        }finally{button.disabled=false;}
       }else if(action==='qa-apple-health-read'){
         const epoch=++appleReadEpoch;
         const card=button.closest?.('[data-provider="apple_health"]');
@@ -1773,6 +1911,7 @@ export function createWearableController({
       appleQaNative.destroy();
       qaImporter.destroy();
       qaV46Importer.destroy();
+      productionSync?.destroy();
       clearQaSensitiveSurface();
       observer?.disconnect?.();
       observer=null;
@@ -1822,6 +1961,7 @@ export function createWearableController({
       appleQaNative.destroy();
       qaImporter.destroy();
       qaV46Importer.destroy();
+      productionSync?.destroy();
       clearQaSensitiveSurface();
       return remoteSync.clearOwner();
     },
