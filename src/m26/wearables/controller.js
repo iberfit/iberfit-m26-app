@@ -30,6 +30,7 @@ import {
   HEALTH_CONNECT_HISTORICAL_CAPABILITIES,
   createHealthConnectHistoricalPlan,
   healthConnectHistoricalMetricKeys,
+  healthConnectLocalCivilDate,
 } from './historical-acquisition.js';
 
 function escapeHtml(value){
@@ -795,7 +796,7 @@ export function createWearableController({
     });
     requireSameClient();
 
-    const resolvedEndDate=endDate||new Date().toISOString().slice(0,10);
+    const resolvedEndDate=endDate||healthConnectLocalCivilDate(new Date());
     let resolvedStartDate=startDate;
 
     if(!resolvedStartDate){

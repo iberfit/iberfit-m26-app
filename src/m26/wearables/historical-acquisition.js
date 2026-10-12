@@ -52,10 +52,29 @@ const BY_KEY=new Map(
   HEALTH_CONNECT_HISTORICAL_CAPABILITIES.map((item)=>[item.key,item])
 );
 
-function dateOnly(value){
+// Health Connect daily aggregates follow the PHONE'S civil calendar, not UTC.
+export function healthConnectLocalCivilDate(value=new Date(),{timeZone}={}){
+  if(!(value instanceof Date)||Number.isNaN(value.getTime())){
+    throw new Error('M26_HEALTH_CONNECT_DATE_INVALID');
+  }
+  if(timeZone===undefined){
+    return [
+      String(value.getFullYear()).padStart(4,'0'),
+      String(value.getMonth()+1).padStart(2,'0'),
+      String(value.getDate()).padStart(2,'0'),
+    ].join('-');
+  }
+  const parts=Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB',{
+      timeZone,year:'numeric',month:'2-digit',day:'2-digit',
+    }).formatToParts(value).map(({type,value:part})=>[type,part])
+  );
+  return `${parts.year.padStart(4,'0')}-${parts.month}-${parts.day}`;
+}
+
+function dateOnly(value,{timeZone}={}){
   if(value instanceof Date){
-    if(Number.isNaN(value.getTime()))throw new Error('M26_HEALTH_CONNECT_DATE_INVALID');
-    return value.toISOString().slice(0,10);
+    return healthConnectLocalCivilDate(value,{timeZone});
   }
   const text=String(value||'').trim();
   if(!/^\d{4}-\d{2}-\d{2}$/u.test(text)){
@@ -84,6 +103,7 @@ export function healthConnectHistoricalMetricKeys(capabilityKeys){
 export function createHealthConnectHistoricalPlan({
   capabilities,
   endDate=new Date(),
+  timeZone,
   days=HEALTH_CONNECT_MAX_LOOKBACK_DAYS,
 }={}){
   const safeDays=Number(days);
@@ -95,7 +115,7 @@ export function createHealthConnectHistoricalPlan({
     throw new Error('M26_HEALTH_CONNECT_LOOKBACK_INVALID');
   }
 
-  const end=dateOnly(endDate);
+  const end=dateOnly(endDate,{timeZone});
   const startDate=new Date(`${end}T00:00:00Z`);
   startDate.setUTCDate(startDate.getUTCDate()-(safeDays-1));
 
