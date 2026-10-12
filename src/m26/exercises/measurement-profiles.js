@@ -10,6 +10,8 @@ export const EXERCISE_METRIC_FIELDS=Object.freeze({
   plannedDistanceM:{max:100000, label:'Distancia objetivo (m)'},
   plannedSpeedKmh:{max:120,label:'Velocidad objetivo (km/h)'},
   plannedDurationMinutes:{max:1440,label:'Duración objetivo (min)'},
+  plannedWarmupMinutes:{max:240,label:'Calentamiento previsto (min)'},
+  plannedCooldownMinutes:{max:240,label:'Vuelta a la calma prevista (min)'},
   plannedPace:{maxLength:16,label:'Ritmo objetivo (min/km)'},
   targetHeartRateBpm:{maxLength:24,label:'FC objetivo (lpm o rango)'},
   targetHeartRateZone:{maxLength:12,label:'Zona de FC (ej. Z2)'},
@@ -19,6 +21,7 @@ export const EXERCISE_METRIC_FIELDS=Object.freeze({
   intervalWorkSeconds:{max:86400,label:'Trabajo por intervalo (s)'},
   intervalRecoverySeconds:{max:86400,label:'Recuperación por intervalo (s)'},
   intervalRepetitions:{max:1000,label:'Número de intervalos'},
+  intervalDistanceM:{max:100000,label:'Distancia por repetición (m)'},
 });
 export const EXERCISE_METRIC_KEYS=Object.freeze(Object.keys(EXERCISE_METRIC_FIELDS));
 export function exerciseMeasurementProfile(exercise={}){
@@ -74,6 +77,9 @@ export function metricPrescriptionSummary(p={},exercise={}){
     if(p.targetHeartRateZone)parts.push(p.targetHeartRateZone);
     if(p.targetHeartRateBpm)parts.push('FC '+p.targetHeartRateBpm+' lpm');
     if(profile.kind==='intervals'&&p.intervalRepetitions)parts.push(p.intervalRepetitions+' intervalos');
+    if(profile.kind==='intervals'&&p.intervalDistanceM)parts.push(p.intervalDistanceM+' m/repetición');
+    if(p.plannedWarmupMinutes)parts.push(p.plannedWarmupMinutes+' min calentamiento');
+    if(p.plannedCooldownMinutes)parts.push(p.plannedCooldownMinutes+' min vuelta a la calma');
   }else if(p.reps)parts.push(p.reps);
   return parts.join(' · ')||'Objetivo por concretar';
 }
@@ -91,7 +97,8 @@ export function metricValueValid(field,value){
   if(!descriptor)return false;
   const n=Number(String(value).replace(',','.'));
   return Number.isFinite(n)&&n>=0&&n<=descriptor.max&&
-    (field!=='intervalRepetitions'||(n>=1&&Number.isInteger(n)));
+    (field!=='intervalRepetitions'||(n>=1&&Number.isInteger(n)))&&
+    (field!=='intervalDistanceM'||n>0);
 }
 export function hasCardioPrescription(p={}){
   const positive=(v)=>v!==undefined&&v!==null&&String(v).trim()!==''&&Number(String(v).replace(',','.'))>0;
