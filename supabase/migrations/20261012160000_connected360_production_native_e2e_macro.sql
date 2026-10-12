@@ -53,7 +53,7 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE='M26_V46_PRODUCTION_DISABLED',ERRCODE='42501';
   END IF;
   IF v_owner IS NULL OR v_client IS NULL
-    OR p_expected_grant IS NULL OR p_expected_cursor IS NULL
+    OR p_expected_cursor IS NULL
     OR p_expected_cursor < 0 OR p_scopes IS NULL
     OR pg_catalog.cardinality(p_scopes) < 1
     OR pg_catalog.cardinality(p_scopes) > 2
