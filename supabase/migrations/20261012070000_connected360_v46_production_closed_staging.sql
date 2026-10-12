@@ -1,5 +1,5 @@
 -- IBERFIT Connected 360 V46 · production CLOSED STORAGE ONLY.
--- New tables are additive to V44, zero automatic sync, no RPC, no grants.
+-- New tables are additive to V44, zero automatic sync, no RPC, no user grants.
 -- Different from QA-only migration: enforced production preflight and dormant release gate.
 -- Must not be treated as an Android / watch E2E or production feature activation.
 BEGIN;
@@ -10,6 +10,8 @@ SELECT 1 FROM public.m26_wearable_consents_v44 LIMIT 0;
 SELECT 1 FROM public.m26_wearable_connections_v44 LIMIT 0;
 -- CREATE TABLE (without IF NOT EXISTS) naturally fails closed on existing V46 objects.
 
+-- IBERFIT-TABLE-ACCESS: public.m26_wearable_heart_rate_daily_v46 :: Production medical-like telemetry staging locked from users; service role SELECT-only for guarded diagnostics, zero ingestion.
+-- IBERFIT-POLICY: public.m26_wearable_heart_rate_daily_v46 = service-role-only
 create table public.m26_wearable_heart_rate_daily_v46 (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null references auth.users(id) on delete cascade,
@@ -54,6 +56,8 @@ create unique index m26_v46_hr_owner_civil_source_uq
 create index m26_v46_hr_client_recent_idx
   on public.m26_wearable_heart_rate_daily_v46(client_id,record_date desc);
 
+-- IBERFIT-TABLE-ACCESS: public.m26_wearable_exercise_evidence_v46 :: Production medical-like telemetry staging locked from users; service role SELECT-only for guarded diagnostics, zero ingestion.
+-- IBERFIT-POLICY: public.m26_wearable_exercise_evidence_v46 = service-role-only
 create table public.m26_wearable_exercise_evidence_v46 (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null references auth.users(id) on delete cascade,
@@ -120,6 +124,11 @@ revoke all on table public.m26_wearable_heart_rate_daily_v46
   from public,anon,authenticated;
 revoke all on table public.m26_wearable_exercise_evidence_v46
   from public,anon,authenticated;
+
+-- Only backend service_role may inspect closed staging. No INSERT/UPDATE/DELETE
+-- privilege, no browser/anon/authenticated grants, no production writer.
+grant select on table public.m26_wearable_heart_rate_daily_v46 to service_role;
+grant select on table public.m26_wearable_exercise_evidence_v46 to service_role;
 
 -- Unlike V44, source_updated_at is NULL until actually provided by the
 -- upstream source. acquired_at is merely when the phone read the data.
