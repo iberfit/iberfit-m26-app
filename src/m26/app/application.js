@@ -22,6 +22,7 @@ import {createEngagementDraftRepository} from '../engagement/activity-drafts.js'
 import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
 import {createWearableController} from '../wearables/controller.js';
+import {mergeV47DailyIntoClientProgress} from '../wearables/v47-progress-bridge.js';
 import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-channel.js';
 import {createVerificationController,refreshVerificationState} from '../engagement/conflict-center.js';
 import {createShellController} from '../shell/shell-controller.js';
@@ -753,7 +754,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const roleChoiceConfirmed=!roleChoiceRequired||Boolean(requestedRole);
       const scopedSnapshot=filterSnapshotForAssignmentScope(snapshot,applicationContext,activeRole);
       qaStage('rc64-hydrate-scope-ready');
-      const [adminExtension,communicationExtension]=await Promise.all([
+      const [adminExtension,communicationExtension,v47Daily]=await Promise.all([
         activeRole==='admin'&&adminTransport?optionalAuthBootstrap(
           ()=>adminTransport.bootstrapOptional(currentToken()),
           {available:false,reason:'timeout_or_unavailable',data:null},
@@ -764,12 +765,23 @@ export async function createM26Application({root=document.querySelector('#app'),
           {available:false,reason:'timeout_or_unavailable',data:null},
           'communication',
         ):Promise.resolve({available:false,reason:'unsupported',data:null}),
+        activeRole==='client'&&runtime.environment==='production'
+          &&runtime.qaOnly===false&&typeof transport.connected360DailyProduction==='function'
+          ?optionalAuthBootstrap(
+            ()=>transport.connected360DailyProduction(currentToken()),
+            null,'connected360-v47-readonly',
+          ):Promise.resolve(null),
       ]);
       requireOwner(); // The second wave may finish after logout or account change.
       qaStage('rc64-hydrate-secondary-ready');
       const rawEnvironment=scopedSnapshot?.environment;const normalizedEnvironment=typeof rawEnvironment==='string'?{mode:rawEnvironment}:rawEnvironment&&typeof rawEnvironment==='object'&&!Array.isArray(rawEnvironment)?rawEnvironment:{};
       const appointments=mergeRc39ChangeRequests(scopedSnapshot?.data?.appointments||[],extensions.changeRequests||[]);
-      const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed},data:{...(scopedSnapshot.data||{}),appointments,wearableConnections:wearableV44.connections||[],wearableDailySummaries:wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
+      const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed},data:{...(scopedSnapshot.data||{}),appointments,wearableConnections:wearableV44.connections||[],wearableDailySummaries:activeRole==='client'
+        ?mergeV47DailyIntoClientProgress({
+          existing:wearableV44.dailySummaries||[],
+          dailyHealth:v47Daily?.dailyHealth||[],
+          clientId:String(scopedSnapshot?.user?.clientId||scopedSnapshot?.user?.client_id||''),
+        }):wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
       requireOwner(); // No stale account may write to the shared canonical store.
       qaStage('rc64-hydrate-store-start');
       store.hydrate(enriched);

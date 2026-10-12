@@ -1255,6 +1255,19 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
        runtime.environment!=='production')
       throw new Error('M26_V46_PRODUCTION_RUNTIME_REQUIRED');
   }
+  async function connected360DailyProduction(token){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodDailySummary,{
+      method:'POST',token,body:'{}',
+    });
+    const daily=Array.isArray(raw)?raw[0]:raw;
+    if(daily?.ok!==true||daily.provider!=='health_connect'
+      ||daily.sourceIdentityVerified!==false||!Array.isArray(daily.dailyHealth)
+      ||daily.dailyHealth.length>7)
+      throw new Error('M26_V47_PRODUCTION_SUMMARY_INVALID');
+    return Object.freeze({...daily,dailyHealth:Object.freeze([...daily.dailyHealth])});
+  }
   async function connected360ProductionSummary(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -1267,15 +1280,8 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       ||r.heartRateDaily.length>7||r.exerciseEvidence.length>10
       ||r.restingHeartRate!==null||r.clinicalInterpretation!==false)
       throw new Error('M26_V46_PRODUCTION_SUMMARY_INVALID');
-    const dailyRaw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodDailySummary,{
-      method:'POST',token,body:'{}',
-    });
-    const daily=Array.isArray(dailyRaw)?dailyRaw[0]:dailyRaw;
-    if(daily?.ok!==true||daily.provider!=='health_connect'
-      ||daily.sourceIdentityVerified!==false||!Array.isArray(daily.dailyHealth)
-      ||daily.dailyHealth.length>7)
-      throw new Error('M26_V47_PRODUCTION_SUMMARY_INVALID');
-    return Object.freeze({...r,dailyHealth:Object.freeze([...daily.dailyHealth])});
+    const daily=await connected360DailyProduction(token);
+    return Object.freeze({...r,dailyHealth:daily.dailyHealth});
   }
   async function connected360ProductionCapabilities(token){
     assertConnected360Production();
@@ -1662,6 +1668,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     extendConnected360QaV46Grant,
     connected360ProductionCapabilities,
     connected360ProductionSummary,
+    connected360DailyProduction,
     authorizeConnected360Production,
     importConnected360Production,
     importConnected360DailyProduction,
