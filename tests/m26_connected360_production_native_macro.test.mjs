@@ -300,3 +300,12 @@ test('signed native host schedules the first automatic sync only after authentic
   assert.match(wearable,/productionSync\.sync\(\{signal\}\)/u);
   assert.match(wearable,/queueNativeInitialSync:\(\)=>\{/u);
 });
+
+test('Android Release handoff never touches uninitialized Bluetooth-only lifecycle resources',()=>{
+  const kotlin=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/PhoneMainActivity.kt',import.meta.url),'utf8');
+  assert.match(kotlin,/if \(\(applicationInfo\.flags and android\.content\.pm\.ApplicationInfo\.FLAG_DEBUGGABLE\) == 0\) \{/u);
+  assert.match(kotlin,/startActivity\(android\.content\.Intent\(this, Connected360SecureWebViewActivity::class\.java\)\)/u);
+  assert.match(kotlin,/if \(::discovery\.isInitialized\) discovery\.stopScan\(\)/u);
+  assert.match(kotlin,/if \(::dataLayer\.isInitialized\) dataLayer\.stopListening\(\)/u);
+  assert.doesNotMatch(kotlin,/^\s+discovery\.stopScan\(\)\s*\n\s+dataLayer\.stopListening\(\)/mu);
+});
