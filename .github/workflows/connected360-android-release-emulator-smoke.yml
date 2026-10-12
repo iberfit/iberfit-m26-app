@@ -77,20 +77,8 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           # android-emulator-runner invokes script using /usr/bin/sh by
           # default. POSIX -eu is portable; 'pipefail' is a bash-only option.
-          script: |
-            set -eu
-            APK=native/android-host/phone-app/build/outputs/apk/release/phone-app-release.apk
-            adb install -r "$APK"
-            adb shell am start -W -n cl.iberfit.m26/cl.iberfit.m26.phone.PhoneMainActivity
-            sleep 12
-            adb shell pidof cl.iberfit.m26 >/dev/null
-            adb shell dumpsys activity activities > "$RUNNER_TEMP/iberfit-android-activity.txt"
-            grep -F 'Connected360SecureWebViewActivity' "$RUNNER_TEMP/iberfit-android-activity.txt"
-            if adb logcat -d -b crash | grep -E 'FATAL EXCEPTION|Process: cl.iberfit.m26'; then
-              echo 'IBERFIT_ANDROID_RELEASE_STARTUP_CRASH' >&2
-              exit 1
-            fi
-            echo 'IBERFIT_ANDROID_RELEASE_EMULATOR_STARTUP_OK'
+          # One command: runner invokes each script line in a fresh sh process.
+          script: bash qa/connected360/android-release-emulator-startup.sh
       - name: Destroy ephemeral keystore
         if: always()
         shell: bash
