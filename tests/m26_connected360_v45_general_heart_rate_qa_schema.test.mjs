@@ -14,6 +14,9 @@ test('FC general schema is additive QA-only and never aliases resting HR',()=>{
     'general_heart_rate_samples','general_heart_rate_min_bpm','general_heart_rate_max_bpm',
   ]) assert.match(migration,new RegExp('ADD COLUMN '+column+' integer NULL','u'));
   assert.match(migration,/general_heart_rate_min_bpm <= general_heart_rate_max_bpm/u);
+  assert.match(migration,/general_heart_rate_samples IS NOT NULL/u);
+  assert.match(migration,/general_heart_rate_min_bpm IS NOT NULL/u);
+  assert.match(migration,/general_heart_rate_max_bpm IS NOT NULL/u);
   assert.match(migration,/general_heart_rate_samples BETWEEN 1 AND 250000/u);
   assert.match(migration,/general_heart_rate_min_bpm BETWEEN 25 AND 300/u);
   assert.match(migration,/general_heart_rate_max_bpm BETWEEN 25 AND 300/u);
