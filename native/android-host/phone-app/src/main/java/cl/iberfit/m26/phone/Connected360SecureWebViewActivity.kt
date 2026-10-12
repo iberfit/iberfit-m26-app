@@ -5,9 +5,11 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -74,13 +76,15 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(resources.getColor(R.color.iberfit_color_canvas, theme))
-            setPadding(12, 20, 12, 12)
+            setPadding(if (production) 0 else 12, if (production) 0 else 20,
+                if (production) 0 else 12, if (production) 0 else 12)
         }
         status = TextView(this).apply {
             text = if (production) "IBERFIT · Salud y dispositivos" else
                 "Canary QA · Lecturas locales de diagnóstico."
             setTextColor(resources.getColor(R.color.iberfit_color_text_primary, theme))
             textSize = 15f
+            visibility = if (production) View.GONE else View.VISIBLE
         }
         root.addView(status)
         val approve = Button(this).apply {
@@ -105,11 +109,24 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                 )
             }
         }
-        root.addView(permissions)
+        // Only QA shows native diagnostic chrome. The production web UI
+        // invokes Android permissions through the origin-bound message bridge.
+        if (!production) root.addView(permissions)
+        val retry = Button(this).apply {
+            text = "Reintentar conexión"
+            visibility = View.GONE
+            setOnClickListener {
+                visibility = View.GONE
+                status.visibility = View.GONE
+                browser?.loadUrl(Connected360OriginGate.origin(production) + "/m26/")
+            }
+        }
+        if (production) root.addView(retry)
         setContentView(root)
 
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             status.text = "Android WebView no soporta el canal seguro: integración deshabilitada."
+            status.visibility = View.VISIBLE
             return
         }
 
@@ -137,6 +154,10 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     resetReadApproval()
                     readFence.retire()
                     status.text = "Navegación externa bloqueada."
+                    if (production) {
+                        status.visibility = View.VISIBLE
+                        retry.visibility = View.VISIBLE
+                    }
                 }
                 return !allowed
             }
@@ -144,12 +165,29 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                 resetReadApproval()
                 readFence.retire()
                 requestIds.clear()
+                if (production) {
+                    status.visibility = View.GONE
+                    retry.visibility = View.GONE
+                }
+            }
+            override fun onReceivedError(target: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (production && request.isForMainFrame) {
+                    resetReadApproval()
+                    readFence.retire()
+                    status.text = "No hemos podido conectar con IBERFIT. Comprueba la conexión y reintenta."
+                    status.visibility = View.VISIBLE
+                    retry.visibility = View.VISIBLE
+                }
             }
             override fun onReceivedSslError(target: WebView, handler: SslErrorHandler, error: SslError) {
                 resetReadApproval()
                 readFence.retire()
                 handler.cancel()
                 status.text = "Error de certificado TLS. Canal bloqueado."
+                if (production) {
+                    status.visibility = View.VISIBLE
+                    retry.visibility = View.VISIBLE
+                }
             }
         }
         WebViewCompat.addWebMessageListener(
@@ -215,6 +253,12 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                             replyProxy.postMessage(response.toString())
                         }
                         "health.readDaily" -> {
+                            // V44 daily permissions and V46 consent are independent.
+                            // This diagnostic-only legacy API is never a Release reader.
+                            if (production) {
+                                replyError(replyProxy, id, "M26_HEALTH_ACTION_UNSUPPORTED")
+                                return
+                            }
                             if (readInFlight || (!production && !oneReadApproved)) {
                                 replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_REQUIRED")
                                 return
