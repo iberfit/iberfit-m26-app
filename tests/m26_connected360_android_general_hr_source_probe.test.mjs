@@ -35,7 +35,16 @@ test('general HR stays QA-only and remote authenticated import contract remains 
   assert.doesNotMatch(canonical,/(?:^|[^A-Za-z])HeartRateRecord::class/u);
   assert.match(origin,/Connected360OriginGate\.QA_ORIGIN/u);
   assert.match(origin,/health\.readDaily/u);
-  assert.doesNotMatch(origin,/Connected360GeneralHeartRateDiagnostic/u);
+  // V48 extends the DEBUG-only, one-shot Canary channel, without changing the
+  // production reader or granting an unconsented pulse export.
+  assert.match(origin,/"health.readV46"/u);
+  assert.match(origin,/Connected360GeneralHeartRateDiagnostic\.permission in osPermissions/u);
+  assert.match(origin,/Connected360WorkoutReadOnlyQa\.requiredPermission in osPermissions/u);
+  assert.match(origin,/includeHeartRate = "generalHeartRate" in allowed/u);
+  assert.match(origin,/oneReadApproved/u);
+  assert.match(origin,/readFence\.isCurrent\(documentLease\)/u);
+  assert.match(origin,/\.put\("automatic", false\)/u);
+  assert.match(origin,/\.put\("persisted", false\)/u);
   assert.match(activity,/Connected360GeneralHeartRateDiagnostic\(client\)\.readDailyRanges\(\)/u);
 });
 
