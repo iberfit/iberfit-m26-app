@@ -71,6 +71,7 @@ const CONNECTED360_RPC=Object.freeze({
   importAuthorized:'m26_wearable_import_authorized_v2',
   validateQaPreview:'m26_wearable_v45_validate_native_preview_qa_v1',
   importQaV45:'m26_wearable_v45_import_explicit_qa_v1',
+  importQaV46:'m26_wearable_v46_import_explicit_qa_v1',
 });
 const RC59_TELEMETRY_RPC=Object.freeze({
   importBatch:'m26_telemetry_import_v59',
@@ -1075,12 +1076,19 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
   async function reauthorizeWearable(token,{provider='normalized_file',expectedCursor,expectedGrant=null,scopes=[]}={}){
+    const nativeQaScopes=runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef===M26_QA_PROJECT_REF&&provider==='health_connect';
     if(!token||!Number.isSafeInteger(expectedCursor)
-      ||expectedCursor<0||!Array.isArray(scopes)||!scopes.length||scopes.length>7)
+      ||expectedCursor<0||!Array.isArray(scopes)||!scopes.length
+      ||scopes.length>(nativeQaScopes?9:7))
       throw new Error('M26_CONNECTED360_REAUTHORIZE_INVALID');
     assertConnected360ConsentProvider(provider);
     const validMetrics=new Set(['steps','activeMinutes','sleepMinutes',
       'restingHeartRate','hrvMs','activeEnergyKcal','workoutMinutes']);
+    if(nativeQaScopes){
+      validMetrics.add('generalHeartRate');
+      validMetrics.add('exerciseSessions');
+    }
     if(scopes.some(scope=>!validMetrics.has(scope))
       ||new Set(scopes).size!==scopes.length)
       throw new Error('M26_CONNECTED360_REAUTHORIZE_INVALID');
@@ -1161,6 +1169,42 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       inserted+updated+unchanged!==payload.records.length||
       Number(result.count)!==payload.records.length)
       throw new Error('M26_HEALTH_V45_IMPORT_RESPONSE_INVALID');
+    return Object.freeze({...result});
+  }
+
+  // Explicitly selected categories only, from an authenticated Canary owner.
+  // Never exposed by production runtime, automated foreground sync or Android native code.
+  async function importConnected360QaV46(token,grantId,payload={}){
+    if(runtime.qaOnly!==true||runtime.canary!==true
+      ||runtime.projectRef!==M26_QA_PROJECT_REF)
+      throw new Error('M26_HEALTH_V46_PRODUCTION_DENIED');
+    const heartRateDaily=payload?.heartRateDaily;
+    const exerciseEvidence=payload?.exerciseEvidence;
+    if(!token||!UUID_PATTERN.test(String(grantId||''))||
+       payload?.schema!=='iberfit.connected360.qa.v46.explicit.v1'
+       ||!Array.isArray(heartRateDaily)||!Array.isArray(exerciseEvidence)
+       ||heartRateDaily.length>7||exerciseEvidence.length>20
+       ||heartRateDaily.length+exerciseEvidence.length<1)
+      throw new Error('M26_HEALTH_V46_IMPORT_INVALID');
+    const body=JSON.stringify({
+      p_grant_id:grantId,p_payload:{
+        schema:payload.schema,heartRateDaily,exerciseEvidence,
+      },
+    });
+    if(body.length>48000)throw new Error('M26_HEALTH_V46_IMPORT_INVALID');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.importQaV46,{
+      method:'POST',token,body,
+    });
+    const result=Array.isArray(raw)?raw[0]:raw;
+    const inserted=Number(result?.inserted),updated=Number(result?.updated);
+    const unchanged=Number(result?.unchanged);
+    if(result?.ok!==true||result.persisted!==true||
+       result.automatic!==false||
+       result.sourceIdentityVerified!==false||
+       result.automaticSyncCertified!==false||
+       [inserted,updated,unchanged].some(n=>!Number.isInteger(n)||n<0)||
+       inserted+updated+unchanged!==heartRateDaily.length+exerciseEvidence.length)
+      throw new Error('M26_HEALTH_V46_IMPORT_RESPONSE_INVALID');
     return Object.freeze({...result});
   }
 
@@ -1462,6 +1506,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importWearableAuthorized,
     validateConnected360QaNativePreview,
     importConnected360QaV45,
+    importConnected360QaV46,
     importWearableSummaries,
     upsertWearableConnection,
     revokeWearableConnection,
