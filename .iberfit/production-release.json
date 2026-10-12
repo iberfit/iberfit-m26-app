@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "fb45c16ebb1c71be6bdb60f80a61bb18db287e66",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "Android signed production update versionCode 265903 / versionName 26.59.3-phone with monotonic signed-release guard #896. Six required gates SUCCESS including real Android emulator Release cold start, native QA, CI, Fast Lane, audit and Canary policy. Preserve appId cl.iberfit.m26, production signing identity and non-destructive update compatibility. Client connected360 summary #895 already live. No DB migrations, scope increases or consent changes. Preserve opt-in V46; rollback requires versionCode > existing Android APK if reverting native code."
+}
