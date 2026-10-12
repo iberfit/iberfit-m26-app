@@ -231,13 +231,13 @@ BEGIN
       OR (v_row ? 'restingHeartRate' AND (NOT 'restingHeartRate'=ANY(v_scopes)
         OR pg_catalog.jsonb_typeof(v_row->'restingHeartRate')<>'number'
         OR v_row->>'restingHeartRate' !~ '^[0-9]{2,3}([.][0-9]{1,2})?$'))
-      OR (v_row->>'date' !~ '^\\d{4}-\\d{2}-\\d{2}$')
+      OR (v_row->>'date' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
       OR (v_row->>'aggregationTimeZone' IS NULL)
       OR NOT EXISTS(SELECT 1 FROM pg_catalog.pg_timezone_names z
         WHERE z.name=v_row->>'aggregationTimeZone')
-      OR (v_row->>'windowStartedAt' !~ '^\\d{4}-\\d{2}-\\d{2}T')
-      OR (v_row->>'windowEndedAt' !~ '^\\d{4}-\\d{2}-\\d{2}T')
-      OR (v_row->>'acquiredAt' !~ '^\\d{4}-\\d{2}-\\d{2}T')
+      OR (v_row->>'windowStartedAt' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T')
+      OR (v_row->>'windowEndedAt' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T')
+      OR (v_row->>'acquiredAt' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T')
     THEN
       RAISE EXCEPTION USING MESSAGE='M26_V47_ROW_INVALID',ERRCODE='42501';
     END IF;
