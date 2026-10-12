@@ -2,7 +2,8 @@
 // The signed Android host ONLY reads health data. The authenticated website
 // holds the JWT and submits aggregates to the server after verifying the grant.
 // No raw GPS, no device identity inference, no local health queue.
-export const V46_PROD_SCOPES=Object.freeze(['generalHeartRate','exerciseSessions']);
+import {CONNECTED360_RELEASED_V46_SCOPES} from './measurement-capability-contract.js';
+export const V46_PROD_SCOPES=CONNECTED360_RELEASED_V46_SCOPES;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const METRICS=new Set(V46_PROD_SCOPES);
 function same(a,b){return a?.role==='client'&&b?.role==='client'&&a?.ownerId===b?.ownerId&&a?.clientId===b?.clientId;}
@@ -67,7 +68,7 @@ export function createConnected360ProductionSync({
     return grant;
   }
   async function sync({signal=null}={}){
-    if(inflight)return inflight;
+    if(inflight?.generation===generation)return inflight.promise;
     if(!isOnline())return Object.freeze({skipped:'offline'});
     const operation=(async()=>{
       const version=generation,expected=owner();
@@ -120,10 +121,15 @@ export function createConnected360ProductionSync({
         inserted:result.inserted,updated:result.updated,
         unchanged:result.unchanged,metrics:Object.freeze([...granted])});
     })();
-    inflight=operation;
-    try{return await operation;}finally{if(inflight===operation)inflight=null;}
+    inflight={generation,promise:operation};
+    try{return await operation;}finally{if(inflight?.promise===operation)inflight=null;}
   }
-  function invalidate(){generation+=1;native.invalidate?.();}
+  function invalidate(){
+    generation+=1;
+    // A resumed foreground request must not reuse the obsolete promise.
+    inflight=null;
+    native.invalidate?.();
+  }
   function destroy(){if(dead)return;dead=true;invalidate();native.destroy?.();}
   return Object.freeze({availability,authorize,sync,invalidate,destroy,
     get lastSuccess(){return lastSuccess;}});
