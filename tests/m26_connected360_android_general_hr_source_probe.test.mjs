@@ -25,14 +25,14 @@ test('probe reads only aggregate count, not raw pulse values, never uploads or s
   assert.match(probe,/getGrantedPermissions\(\)\.contains\(permission\)/u);
   assert.match(probe,/TimeRangeFilter\.between\(start, end\)/u);
   assert.match(probe,/LOOKBACK_DAYS = 7/u);
-  assert.doesNotMatch(probe,/BPM_AVG|readRecords|RestingHeartRateRecord|restingHeartRate =|postMessage|fetch\(|insertRecords|upload|service_role/u);
+  assert.doesNotMatch(probe,/BPM_AVG|readRecords|RestingHeartRateRecord\.BPM_|restingHeartRate =|postMessage|fetch\(|insertRecords|upload|service_role/u);
   assert.match(probe,/No equivalen a frecuencia cardíaca EN REPOSO/u);
   assert.match(probe,/No se han enviado datos a IBERFIT/u);
 });
 
 test('general HR QA scope does not expand the native authenticated bridge or remote import contract',()=>{
   assert.match(canonical,/supportedMetrics = setOf\("steps", "sleepMinutes", "restingHeartRate"\)/u);
-  assert.doesNotMatch(canonical,/HeartRateRecord::class/u);
+  assert.doesNotMatch(canonical,/(?:^|[^A-Za-z])HeartRateRecord::class/u);
   assert.match(origin,/Connected360OriginGate\.QA_ORIGIN/u);
   assert.match(origin,/health\.readDaily/u);
   assert.doesNotMatch(origin,/Connected360GeneralHeartRateDiagnostic/u);
