@@ -19,3 +19,116 @@ Hardware testing remains a separate release gate from source/static validation.
 The GitHub Actions workflow `.github/workflows/connected360-apple-native-qa.yml` runs on a macOS Xcode runner for changes to the native Apple package. It compiles both `IBERFITWebBridge` on iOS Simulator and `IBERFITWatchTelemetry` on watchOS Simulator with code signing disabled. It also checks the declared HealthKit usage text and entitlement, rejects privileged key patterns in Swift sources without printing matching lines, and runs the WebView HTTPS/main-frame origin regression test.
 
 Compilation in an Apple simulator is a prerequisite, not proof of entitlement configuration in a signed app, physical iPhone/Watch pairing, granted HealthKit permissions, trusted historical sensor provenance, correct behaviour after logout or reconnection, background synchronization, or a production-ready automatic connection. Those require a separate physical-device E2E release gate.
+
+## Connected 360 · iOS HealthKit daily local reader (QA source only)
+
+`IBERFITIOSHealthKitDailyReader.swift` is compiled as part of the iOS
+`IBERFITWebBridge` Swift package target. It is not installed in a signed IBERFIT
+iOS app by this package alone.
+
+- Explicit iOS HealthKit read authorization requested only on a user action;
+  `toShare` is empty. A successful authorization callback **does not prove**
+  that a particular read permission was granted.
+- One-shot local read capped to the current seven Gregorian civil days, using
+  the phone's actual aggregation time zone. Only existing daily step sums are
+  returned, with acquisition time separate from unknown sensor timestamps.
+- No HealthKit values, tokens or watch serials are posted to WebKit or Supabase
+  by this class. It cannot activate background / automatic synchronization.
+- `sourceTimestampVerified=false`, `automaticSyncCertified=false`, and
+  `productionAllowed=false` remain invariant.
+- The UI host must cancel or discard a late asynchronous query after
+  logout, session change, background/navigation, or withdrawal of consent.
+- Before release: Xcode iOS compile, signed iPhone HealthKit entitlement and
+  usage descriptions, physical permission granted/denied, Watch + phone
+  overlap/source provenance, time zone/DST, absent/zero data, retry, two-account
+  swap and revoked data, all validated end to end. Sleep and resting heart-rate
+  historical readings are **not provided** by this new reader yet.
+
+Apple API reference: HealthKit `HKStatisticsCollectionQuery` and
+`HKHealthStore.requestAuthorization(toShare:read:completion:)`.
+
+## Local QA expansion: steps + resting heart rate
+
+The isolated SwiftUI iPhone QA app now uses
+`IBERFITIOSHealthKitDailyVitalsReader.swift`, a *separate*, minimal daily reader.
+One explicit HealthKit permission sheet requests **read-only** access to
+`stepCount` and `restingHeartRate`. One user-triggered query retrieves at most
+seven local civil dates. Steps use daily cumulative sums; resting heart rate
+uses the daily *discrete average* of HealthKit resting-heart-rate samples, not
+exercise heart rate. The screen marks missing/denied data as **Sin dato**;
+an authorization-completion success is not proof of an individual permission.
+
+The original steps-only reader remains for existing regression contracts. Both
+readers have generation fences on account replacement/foreground leave. No
+source watch identity or source-modified timestamp is verified or fabricated.
+No data is persisted or uploaded. The QA reader now includes sleep
+analysis with unioned overlapping intervals and civil-day/DST boundaries,
+as documented below. This prevents simple overlap double-counting but
+does **not** establish which wearable produced a sample or validate medical
+sleep-stage accuracy: those require physical-device source checks.
+
+The new QA app and both readers remain disabled for normal production release:
+`productionAllowed=false`, `automaticSyncCertified=false`. Simulator
+compilation does not replace signing, entitlements or physical permission tests.
+
+## HealthKit local QA — sleep analysis
+
+A single user-initiated read-only permission request covers steps, resting heart rate and `sleepAnalysis`. Only `HKCategoryValueSleepAnalysis.allAsleepValues` are counted: `inBed` and `awake` are excluded. Staged sleep segments from overlapping sources are unioned rather than summed, then divided at local calendar midnight (including DST); absent data are not fabricated as zero. If sleep fails, independently acquired steps and resting heart rate remain available with an explicit partial-read notice. A saturated 1,500-sample query fails closed instead of silently truncating. These results are QA-only, not watch identity verification, clinically validated sleep staging, remote account synchronization or background access. Real-device source reconciliation remains required before any production writes.
+
+## HealthKit iPhone QA — bounded multi-metric recovery
+
+All three local queries now run independently (serialized to avoid concurrent HealthKit overload): steps and resting-heart-rate failures no longer prevent a successful sleep read, and sleep failure never hides independently acquired step/heart-rate data. Each row carries explicit metric-level read-failure flags, distinct from absent/denied data. A whole-read 18-second deadline retires the native generation and resolves the UI through a lock-protected one-shot callback; late results cannot restore stale HealthKit data after a different session/permission generation. The local QA application shows partial-read status and failures separately from missing values. This is not automatic/background access or a signed-device test.
+
+## Canary Client session QA in the iPhone DEBUG host
+
+The separately labeled **Cliente Canary** tab in \`IBERFITConnected360QAApp\`
+contains an iOS \`WKWebView\` limited to the **exact**
+\`https://m26-canary.iberfit.cl\` HTTPS top-level origin. It is not PROD.
+The Supabase access token and client identity stay inside the authenticated
+web page; a native health request includes only \`health.readDaily\`, a
+random correlation ID and a seven-day bound.
+
+A native visible button grants **exactly one local read**, separate from
+the OS HealthKit read permission dialog. The page may request the read only
+after this native interaction; both the native host and JavaScript verify
+the current QA origin, page generation, authenticated Client identity and
+request correlation. A navigation, background, account swap or disposal
+invalidates the read/response. No future read is automatically enabled.
+
+The preview on the Canary Client device page does not persist health data,
+create a server authorization grant, claim a specific watch, certify OS
+read permission status (HealthKit does not expose it), or synchronize in
+the background. It is **not** the production bridge or a full native app.
+The prior standalone local tab remains available. Release builds remain
+forbidden. Physical iPhone signing and actual HealthKit permission/auth
+flow verification are still mandatory before any V45 Apple writer.
+
+## Logout-to-native invalidation
+
+The QA JavaScript channel sends a separate `health.invalidate` command on destruction (logout, owner switch, controller teardown). The iPhone handler accepts it only from the trusted HTTPS Canary main frame, retires the one-shot HealthKit authorization generation immediately and discards pending native callbacks. The command has only a random request ID; it does not contain the authentication token or client identity. Source revocation and server-grant revocation remain separate server-side controls and must never be inferred from this local reset.
+
+## Two-minute one-shot native QA consent lease
+
+Both debug host candidates (Android Health Connect and iPhone HealthKit) now limit the separate in-app one-local-read approval to 120 seconds measured with a monotonic clock, regardless of persistent OS permission. A stale, absent or reversed uptime lease fails closed; the local button must be clicked again. The lease is consumed before the OS read starts, cannot be reused, is erased on navigation/background/account invalidation and never becomes server consent or automatic synchronization authorization.
+
+QA coverage: Android Connected360LocalApprovalLeaseTest executed via Gradle phone-app:testDebugUnitTest; Apple IBERFITAppleQAReadLeaseSpec executed in macOS Swift toolchain, and iPhone QA app compiled with Xcode.
+
+## Physical iPhone architecture and entitlement preflight
+
+The Apple Native QA workflow now compiles the isolated DEBUG app twice:
+for iOS Simulator and for a generic physical iPhone arm64 device (iphoneos).
+Both builds explicitly disable signing. The device preflight checks the compiled
+app bundle ID, its embedded Apple Salud read-purpose string, the declared
+HealthKit-only entitlement, absent HealthKit background delivery, the arm64
+executable and the absence of a valid code signature.
+
+The workflow uploads only a short-lived non-sensitive JSON readiness report
+with the exact GitHub SHA. **It does not upload a usable signed IPA**, claim
+that the app was installed, or prove Apple HealthKit access on a real phone.
+A valid Apple Developer team, a provisioning profile containing HealthKit and
+a device-signed DEBUG build remain prerequisites for actual iPhone QA.
+
+Follow [DEVICE_QA_PROTOCOL.md](DEVICE_QA_PROTOCOL.md) before any release
+decision. Keep `productionAllowed=false`, `automaticSyncCertified=false`
+and the Apple V45 writer closed until real-device tests and authorization,
+revocation, data provenance and account isolation are certified.

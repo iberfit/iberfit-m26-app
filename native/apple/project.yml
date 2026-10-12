@@ -1,0 +1,35 @@
+name: IBERFITConnected360QA
+options:
+  bundleIdPrefix: cl.iberfit.m26
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  IBERFITNativeApple:
+    path: .
+targets:
+  IBERFITConnected360QA:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: QAApp
+    dependencies:
+      - package: IBERFITNativeApple
+        product: IBERFITWebBridge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cl.iberfit.m26.connected360qa
+        PRODUCT_NAME: IBERFIT Connected360 QA
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSHealthShareUsageDescription: "IBERFIT QA permite leer, solo si lo autorizas, tus pasos, sueño y frecuencia cardíaca en reposo para validar la conexión en este teléfono. No sube datos."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        CODE_SIGN_ENTITLEMENTS: IBERFITHealthKit.entitlements
+        SUPPORTS_MACCATALYST: NO
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          ENABLE_TESTABILITY: YES

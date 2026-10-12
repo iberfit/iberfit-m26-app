@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -125,6 +126,30 @@ test('post-response account switch fails closed and never returns old client dat
   assert.equal(f.listeners.size,0);
 });
 
+test('QA channel rejects auth user swap even when the same clientId stays selected',async()=>{
+  const f=fixture({reply:message=>{
+    f.setIdentity({...REQUESTED_ID,ownerId:'different-signed-in-user'});
+    return ok(message);
+  }});
+  await assert.rejects(f.client.readLocal(),/M26_HEALTH_QA_SESSION_CHANGED/u);
+  assert.equal(f.listeners.size,0);
+});
+test('QA channel never dispatches after token refresh changed the owner with shared clientId',async()=>{
+  const f=fixture({reply:ok});
+  let finishToken;
+  const waiting=new Promise(resolve=>{finishToken=resolve;});
+  let current=REQUESTED_ID;
+  const client=createConnected360QaNativeChannel({
+    scope:f.scope,getIdentity:()=>current,getToken:()=>waiting,timeoutMs:500,
+  });
+  const pending=client.readLocal();
+  current={...REQUESTED_ID,ownerId:'different-signed-in-user'};
+  finishToken('qa-user-session-strong');
+  await assert.rejects(pending,/M26_HEALTH_QA_SESSION_CHANGED/u);
+  assert.equal(f.messages.length,0);
+  client.destroy();
+});
+
 test('forged response, wrong schema, excessive rows and unrequested metrics all fail closed',async()=>{
   for(const modify of [
     x=>({...x,persisted:true}),
@@ -171,6 +196,8 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   const policy=readFileSync('src/m26/wearables/free-policy.js','utf8');
   assert.match(source,/Connected360OriginGate\.trusted/);
   assert.match(source,/oneReadApproved = false/);
+  assert.match(source,/action == "health.invalidate"/u);
+  assert.match(source,/readFence.retire\(\)/u);
   assert.match(source,/if \(readInFlight \|\| !oneReadApproved\)/);
   assert.match(source,/IberfitHealthConnectReader\(client\)/);
   assert.match(source,/grantedMetrics\(metrics\)/);
@@ -181,6 +208,9 @@ test('bridge remains QA-only and productionAllowed=false; native requires explic
   assert.match(source,/FLAG_DEBUGGABLE/);
   assert.doesNotMatch(source,/addJavascriptInterface|SUPABASE_SERVICE_KEY/);
   assert.match(controller,/qaNative\.readLocal\(\{days:7\}\)/);
+  // A controller created for Client A never invents A's owner after
+  // hydration switches to another authenticated user sharing a Client.
+  assert.match(controller,/ownerId:identity\.id&&String\(identity\.id\)===String\(ownerId\)/u);
   assert.match(controller,/isConnected360QaNativeAvailable/);
   assert.match(policy,/health_connect:policy\(\{[^]*?productionAllowed:false/);
 });
@@ -193,11 +223,13 @@ test('logout immediately cancels a pending native read and drops late health res
   assert.equal(f.listeners.size,1);
   f.client.destroy();
   await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
+  assert.equal(f.messages.length,2);
+  assert.equal(f.messages[1].action,'health.invalidate');
   assert.equal(f.listeners.size,0);
   await assert.rejects(f.client.readLocal(),/M26_HEALTH_QA_DISPOSED/);
 });
 
-test('destroy while session refresh is pending never sends any native request',async()=>{
+test('destroy during token refresh never reads health data and retires native authorization',async()=>{
   let release;
   const waitForToken=new Promise(resolve=>{release=resolve;});
   const f=fixture({reply:ok});
@@ -211,7 +243,9 @@ test('destroy while session refresh is pending never sends any native request',a
   client.destroy();
   release('qa-user-session-strong');
   await assert.rejects(pending,/M26_HEALTH_QA_DISPOSED/);
-  assert.equal(f.messages.length,0);
+  assert.equal(f.messages.length,1);
+  assert.equal(f.messages[0].action,'health.invalidate');
+  assert.equal(f.messages[0].days,undefined);
 });
 
 test('partial Android permission yields only granted metrics; denied fields remain absent',async()=>{
@@ -251,4 +285,38 @@ test('account switch during pending token refresh cannot start a native Health C
   await assert.rejects(pending,/M26_HEALTH_QA_SESSION_CHANGED/u);
   assert.equal(f.messages.length,0,'native read must not start after owner changed');
   assert.equal(f.listeners.size,0,'no native bridge listeners left behind');
+});
+
+test('Android one-shot native read approval expires after two minutes of monotonic time',()=>{
+  const kotlin=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt','utf8');
+  const lease=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360LocalApprovalLease.kt','utf8');
+  const testSource=readFileSync('native/android-host/phone-app/src/test/java/cl/iberfit/m26/phone/Connected360LocalApprovalLeaseTest.kt','utf8');
+  assert.match(kotlin,/approvedAtElapsedMs = SystemClock\.elapsedRealtime\(\)/u);
+  assert.match(kotlin,/Connected360LocalApprovalLease\.isCurrent\(/u);
+  assert.match(kotlin,/M26_HEALTH_LOCAL_APPROVAL_EXPIRED/u);
+  assert.match(kotlin,/private fun resetReadApproval\(\)/u);
+  assert.match(kotlin,/approvedAtElapsedMs = null/u);
+  assert.match(lease,/MAX_AGE_MS = 120_000L/u);
+  assert.match(testSource,/expiredAndMissingApprovalAreRejected/u);
+  assert.doesNotMatch(kotlin,/clientId|accessToken|service_role/u);
+});
+
+test('Android QA account teardown invalidates native permission, not just JS listener',()=>{
+  const source=readFileSync('src/m26/wearables/qa-native-channel.js','utf8');
+  const native=readFileSync('native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt','utf8');
+  assert.match(source,/action:'health.invalidate'/u);
+  assert.match(source,/if\(disposed\)return/u);
+  assert.match(native,/if \(action == "health.invalidate"\)/u);
+  assert.match(native,/resetReadApproval\(\)/u);
+  assert.match(native,/readFence\.retire\(\)/u);
+  assert.doesNotMatch(source,/postMessage\(JSON\.stringify\(\{[^]*?accessToken/u);
+});
+
+test('expired native QA permission has localized recovery instructions',()=>{
+  const es='La autorización local caducó. Vuelve a pulsar «Permitir UNA lectura» en la aplicación de pruebas.';
+  for(const lang of ['en','fr','pt']){
+    const translated=iberfitSurfaceTranslate(es,{language:lang});
+    assert.notEqual(translated,es,'missing localization '+lang);
+    assert.ok(translated.length>30);
+  }
 });

@@ -4,6 +4,7 @@ import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
@@ -45,9 +46,15 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     private var browser: WebView? = null
     private lateinit var status: TextView
     private var oneReadApproved = false
+    private var approvedAtElapsedMs: Long? = null
     private var readInFlight = false
     private val requestIds = LinkedHashSet<String>()
     private val readFence = Connected360PageFence()
+
+    private fun resetReadApproval() {
+        oneReadApproved = false
+        approvedAtElapsedMs = null
+    }
 
     private fun trustedTopPage(view: WebView): Boolean {
         val url = view.url ?: return false
@@ -81,14 +88,15 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
             setOnClickListener {
                 if (readInFlight) return@setOnClickListener
                 oneReadApproved = true
-                status.text = "Lectura de prueba habilitada una sola vez. Autoriza en Android antes de consultarla."
+                approvedAtElapsedMs = SystemClock.elapsedRealtime()
+                status.text = "Lectura habilitada una sola vez durante 2 minutos. Puedes consultar ahora los datos locales."
             }
         }
         root.addView(approve)
         val permissions = Button(this).apply {
             text = "Revisar permisos de Health Connect en Android"
             setOnClickListener {
-                oneReadApproved = false
+                resetReadApproval()
                 startActivity(
                     android.content.Intent(
                         this@Connected360SecureWebViewActivity,
@@ -126,19 +134,19 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     uri.scheme, uri.host, uri.port, uri.userInfo, true
                 )
                 if (!allowed) {
-                    oneReadApproved = false
+                    resetReadApproval()
                     readFence.retire()
                     status.text = "Navegación externa bloqueada."
                 }
                 return !allowed
             }
             override fun onPageStarted(target: WebView, url: String?, favicon: android.graphics.Bitmap?) {
-                oneReadApproved = false
+                resetReadApproval()
                 readFence.retire()
                 requestIds.clear()
             }
             override fun onReceivedSslError(target: WebView, handler: SslErrorHandler, error: SslError) {
-                oneReadApproved = false
+                resetReadApproval()
                 readFence.retire()
                 handler.cancel()
                 status.text = "Error de certificado TLS. Canal bloqueado."
@@ -165,11 +173,21 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                     if (raw.length !in 2..1024) return
                     val request = runCatching { JSONObject(raw) }.getOrNull() ?: return
                     val id = request.optString("requestId", "")
-                    if (!Connected360OriginGate.requestIdAllowed(id) || !requestIds.add(id)) return
-                    if (requestIds.size > 128) requestIds.remove(requestIds.first())
+                    if (!Connected360OriginGate.requestIdAllowed(id)) return
                     val schema = request.optString("schema", "")
                     val action = request.optString("action", "")
                     if (schema != "iberfit.connected360.qa.request.v1") return
+                    if (action == "health.invalidate") {
+                        // A session logout revokes the local approval, even if
+                        // no data read has started. No auth token is sent.
+                        resetReadApproval()
+                        readFence.retire()
+                        status.text = "Autorización local retirada. No se han enviado datos."
+                        return
+                    }
+                    // For reads, reject replayed request identifiers.
+                    if (!requestIds.add(id)) return
+                    if (requestIds.size > 128) requestIds.remove(requestIds.first())
                     when (action) {
                         "status" -> {
                             // Kept false on purpose: this is not the certified automatic bridge.
@@ -186,9 +204,17 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                 replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_REQUIRED")
                                 return
                             }
+                            if (!Connected360LocalApprovalLease.isCurrent(
+                                    approvedAtElapsedMs, SystemClock.elapsedRealtime()
+                                )) {
+                                resetReadApproval()
+                                replyError(replyProxy, id, "M26_HEALTH_LOCAL_APPROVAL_EXPIRED")
+                                status.text = "La autorización de prueba ha caducado. Pulsa de nuevo Permitir UNA lectura."
+                                return
+                            }
                             // Consume approval BEFORE suspension. Bind this read to
                             // exactly the document generation that requested it.
-                            oneReadApproved = false
+                            resetReadApproval()
                             val documentLease = readFence.capture()
                             val days = request.optInt("days", -1)
                             val metricsArray = request.optJSONArray("metrics")
@@ -247,7 +273,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         }
                                         summaries.put(row)
                                     }
-                                    // No userId, clientId, token, grant, or invented source timestamp.
+                                    // Do not include account identifiers, authentication credentials, grants or fabricated source timestamps.
                                     replyProxy.postMessage(JSONObject()
                                         .put("schema", "iberfit.connected360.qa.read.v1")
                                         .put("requestId", id)
@@ -294,7 +320,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        oneReadApproved = false
+        resetReadApproval()
         readFence.retire()
         super.onStop()
     }
@@ -302,7 +328,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     override fun onDestroy() {
         readFence.retire()
         scope.cancel()
-        oneReadApproved = false
+        resetReadApproval()
         browser?.let {
             it.stopLoading()
             it.loadUrl("about:blank")

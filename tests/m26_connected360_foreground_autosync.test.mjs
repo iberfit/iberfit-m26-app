@@ -91,6 +91,20 @@ test('foreground: failure is surfaced but does not freeze later reconciliation',
   assert.equal(calls,2);
 });
 
+test('foreground: same Client shared across two auth users cannot reuse old sensor response',()=>{
+  const previous={role:'client',clientId:'same-shared-client',ownerId:'signed-in-A'};
+  assert.equal(assertWearableClientContinuity(previous,{...previous}),true);
+  assert.throws(()=>assertWearableClientContinuity(previous,{
+    role:'client',clientId:'same-shared-client',ownerId:'signed-in-B',
+  }),/M26_WEARABLE_ACCOUNT_CHANGED/u);
+  assert.throws(()=>assertWearableClientContinuity(previous,{
+    role:'client',clientId:'same-shared-client',
+  }),/M26_WEARABLE_ACCOUNT_CHANGED/u);
+  assert.throws(()=>assertWearableClientContinuity(previous,{
+    role:'coach',clientId:'same-shared-client',ownerId:'signed-in-A',
+  }),/M26_WEARABLE_ACCOUNT_CHANGED/u);
+});
+
 test('foreground: original Client identity must survive every permission, grant and sensor await',()=>{
   const expected={role:'client',clientId:'owner-client-a'};
   assert.equal(assertWearableClientContinuity(expected,{role:'client',clientId:'owner-client-a'}),true);
@@ -118,6 +132,8 @@ test('Connected360 foreground lifecycle is Client-only, reuses prior grant and d
   assert.match(c,/requestForegroundSync\(\{force:true\}\)/u);
   assert.match(c,/foregroundSync\.invalidate\(\)/u);
   assert.match(native,/const requireSameClient=/u);
+  assert.match(native,/ownerId:sessionOwner/u);
+  assert.match(native,/String\(sessionOwner\)!==String\(ownerId\)/u);
   assert.ok((native.match(/requireSameClient\(\);/gu)||[]).length>=5);
   assert.match(native,/if\(!nativePolicy\?\.productionAllowed\)/u);
   assert.match(native,/interactive\s*\?await remoteSync\.reauthorize\(/u);
@@ -210,6 +226,17 @@ test('foreground: session teardown invalidates scheduled preflight and resets co
   eligible=true;
   assert.deepEqual(await sync.trigger(),{ok:true});
   assert.equal(started,1);
+});
+
+test('foreground: one rotated account terminates provider cycle before another native source',()=>{
+  const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const body=c.slice(c.indexOf('async function autoSyncNativeProviders('),
+    c.indexOf('const foregroundSync=createWearableForegroundSync'));
+  assert.match(body,/const session=context\(store\)/u);
+  assert.match(body,/session\.ownerId/u);
+  assert.match(body,/assertWearableClientContinuity\(session,context\(store\)\)/u);
+  assert.match(body,/error\?\.message==='M26_WEARABLE_ACCOUNT_CHANGED'\)break/u);
+  assert.match(body,/String\(session\.ownerId\)!==String\(ownerId\)/u);
 });
 
 test('Connected360 native foreground operations respect abort before a consent grant or write',()=>{
