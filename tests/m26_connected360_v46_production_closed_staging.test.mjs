@@ -15,8 +15,11 @@ test('Prod V46 is additive, closed and does not write legacy health data',()=>{
   assert.match(m,/link_status text not null default 'unlinked'/u);
   assert.doesNotMatch(m,/create or replace function|grant execute|create policy/iu);
   assert.doesNotMatch(m,/\b(update|insert|delete|truncate)\s+(?:into|from)?\s*public\./iu);
-  assert.match(m,/M26_V46_PRODUCTION_LEGACY_PREREQUISITES_MISSING/u);
-  assert.match(m,/M26_V46_PRODUCTION_ALREADY_PRESENT_REVIEW_REQUIRED/u);
+  for(const relation of ['m26_wearable_daily_summaries_v44','m26_wearable_consents_v44','m26_wearable_connections_v44']){
+    assert.match(m,new RegExp('SELECT 1 FROM public\\.'+relation+' LIMIT 0'));
+  }
+  assert.doesNotMatch(m,/\\bDO\\s+\\$[a-z_]+\\$/iu);
+  assert.doesNotMatch(m,/CREATE TABLE IF NOT EXISTS/iu);
 });
 test('Dormant production rollback refuses deleting existing health measurements',()=>{
   assert.match(r,/M26_V46_PROD_ROLLBACK_HAS_HEALTH_DATA_PRESERVE/u);
