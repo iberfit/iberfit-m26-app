@@ -292,10 +292,11 @@ test('Android production resumes the authenticated sync only on return from its 
 test('signed native host schedules the first automatic sync only after authenticated client boot',()=>{
   const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
   assert.match(app,/isConnected360ProdNativeAvailable\(globalThis\)/u);
-  assert.match(app,/const nativeForegroundBoot=store\.getState\(\)\.identity\?\.role==='client'/u);
-  assert.match(app,/wearables\.mount\(\{syncInitial:nativeForegroundBoot\}\)/u);
-  assert.doesNotMatch(app,/wearables\.mount\(\{syncInitial:false\}\)/u);
+  assert.match(app,/wearables\.mount\(\{syncInitial:false\}\)/u);
+  assert.match(app,/store\.getState\(\)\.identity\?\.role==='client'/u);
+  assert.match(app,/wearables\.queueNativeInitialSync\(\)/u);
   const wearable=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
   assert.match(wearable,/requestForegroundSync\(\{force:true\}\)/u);
   assert.match(wearable,/productionSync\.sync\(\{signal\}\)/u);
+  assert.match(wearable,/queueNativeInitialSync:\(\)=>\{/u);
 });
