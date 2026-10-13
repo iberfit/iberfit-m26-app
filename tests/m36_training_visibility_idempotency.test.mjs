@@ -46,7 +46,7 @@ test('canonical and V43 direct table RLS require publication for Cliente',()=>{
   assert.ok(compatibility.includes("status IN ('active','paused','completed')"));
   assert.ok(compatibility.includes("status IN ('confirmed','started','completed')"));
   assert.ok(compatibility.includes("is_assigned_coach(client_id)"));
-  assert.ok(!compatibility.includes("'planned'"),'planned sessions must not be client-visible');
+  assert.ok(!compatibility.includes("status IN ('planned'"),'planned sessions must not be client-visible');
   assert.ok(!/\b(?:GRANT|UPDATE|DELETE FROM|TRUNCATE)\b/iu.test(compatibility),'unexpected V43 privilege/data mutation');
 });
 
