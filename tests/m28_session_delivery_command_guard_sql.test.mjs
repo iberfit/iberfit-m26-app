@@ -26,3 +26,16 @@ test('server preserves canonical receipts, service checks and preflight/execute 
  assert.match(executor.slice(replay,service),/return public\.iberfit_execute_command_v26_pre_training_service_guard_v1\(p_command\)/u);
  assert.doesNotMatch(sql,/delete from public\.domain_entities_v26|truncate public\./iu);
 });
+
+
+test('M28 V2 drift repair guards fresh writes and keeps original receipts canonical',()=>{
+ const v2=fs.readFileSync(new URL('../supabase/migrations/20261013060000_m28_session_delivery_fresh_write_guard_v2.sql',import.meta.url),'utf8');
+ const replay=v2.indexOf('from public.command_receipts_v26');
+ const service=v2.indexOf('v_guard := private.iberfit_training_command_guard_v1(p_command)');
+ const delivery=v2.indexOf('v_delivery_guard := private.iberfit_session_delivery_guard_m28(p_command)');
+ const canonical=v2.lastIndexOf('return public.iberfit_execute_command_v26_pre_training_service_guard_v1(p_command)');
+ assert.ok(replay>0 && service>replay && delivery>service && canonical>delivery);
+ assert.match(v2.slice(replay,service),/return public\\.iberfit_execute_command_v26_pre_training_service_guard_v1\\(p_command\\)/u);
+ assert.equal((v2.match(/private\\.iberfit_session_delivery_guard_m28\\(p_command\\)/gu)||[]).length,1);
+ assert.doesNotMatch(v2,/delete from|update public\\.domain_entities_v26|truncate public\\./iu);
+});
