@@ -51,9 +51,27 @@ function safeSessionBlocks(record){
       ['restSeconds',['restSeconds','rest_seconds','descanso']],['tempo',['tempo','ritmo']],['range',['range','rango']],
       ['load',['load','carga']],['loadKg',['loadKg','load_kg']],['targetRpe',['targetRpe','target_rpe']],['targetRir',['targetRir','target_rir']],
       ['durationSeconds',['durationSeconds','duration_seconds']],['alternativeId',['alternativeId','alternative_id']],
+      ['plannedDurationMinutes',['plannedDurationMinutes']],['plannedDistanceKm',['plannedDistanceKm']],
+      ['plannedDistanceM',['plannedDistanceM']],['plannedWarmupMinutes',['plannedWarmupMinutes']],
+      ['plannedCooldownMinutes',['plannedCooldownMinutes']],['plannedPace',['plannedPace']],
+      ['targetHeartRateZone',['targetHeartRateZone']],['targetHeartRateBpm',['targetHeartRateBpm']],
+      ['plannedElevationM',['plannedElevationM']],['intervalRepetitions',['intervalRepetitions']],
+      ['intervalWorkSeconds',['intervalWorkSeconds']],['intervalRecoverySeconds',['intervalRecoverySeconds']],
+      ['intervalDistanceM',['intervalDistanceM']],['measurementProfile',['measurementProfile']],
+      ['prescriptionNotes',['prescriptionNotes']],['progression',['progression']],
       ['rounds',['rounds','rondas']],
     ])assign(item,canonical,block,...keys);
     if(Array.isArray(block?.exerciseIds))item.exerciseIds=block.exerciseIds.slice(0,12).map(safeId).filter(Boolean);
+    // Preserve only client-facing prescriptions for circuits, never arbitrary
+    // Coach/private attributes nested in the original exercise payload.
+    if(item.exerciseIds?.length&&block?.prescriptions&&typeof block.prescriptions==='object'&&!Array.isArray(block.prescriptions)){
+      item.prescriptions={};
+      for(const id of item.exerciseIds){
+        const original=block.prescriptions[id];
+        if(original&&typeof original==='object'&&!Array.isArray(original))
+          item.prescriptions[id]=safeSessionBlocks([original])[0]||{};
+      }
+    }
     return item;
   });
 }
