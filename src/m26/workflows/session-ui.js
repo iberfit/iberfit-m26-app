@@ -1224,7 +1224,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   // In the ready state, show the useful sport target without requiring the
   // client to start the clock. Objectives are never displayed as measurements.
-  const readySportTargets=Array.isArray(execution?.queue)
+  const readySportTargets=execution?.status==='ready'&&Array.isArray(execution?.queue)
     ?execution.queue.map(item=>{
       const exercise=catalog?.get?.(item?.exerciseId)||{};
       const prescription=item?.prescription||{};
