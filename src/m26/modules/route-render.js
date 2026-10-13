@@ -580,14 +580,6 @@ function renderClientHoyRoute(vm) {
         <small>${executableIds.size===0?'Tus sesiones se pueden consultar. El inicio se habilitará cuando estén listas.':`Tienes ${executableIds.size} entrenamiento${executableIds.size===1?'':'s'} listo${executableIds.size===1?'':'s'} para iniciar.`}</small>
       </button>`,
     };
-  }else if(planName){
-    primary={
-      area:'planificacion',
-      eyebrow:'Tu planificación',
-      title:planName,
-      detail:'Consulta la planificación disponible. Las sesiones aparecerán cuando el equipo las publique.',
-      markup:'<button type="button" class="m26-today-action is-primary" data-m26-area="planificacion"><span aria-hidden="true">↗</span><strong>Ver mi planificación</strong><small>Revisa el siguiente paso previsto por el equipo.</small></button>',
-    };
   }else{
     primary={
       area:'actividad',
@@ -663,7 +655,7 @@ function renderClientHoyRoute(vm) {
       ${iriGlanceMarkup}
     </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><button type="button" data-m26-area="agenda"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></button></section>`:''}
 
-    ${trainingSurface?renderClientTodayHealth(vm.wearables):''}
+    ${renderClientTodayHealth(vm.wearables)}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">
