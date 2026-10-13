@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {QUERY,REQUIRED,certify,verify} from '../scripts/ops/verify_connected360_v47_prod_schema.mjs';
 const projectRef='pjhmrhejsoofmouedavw';
 const accessToken='synthetic-nonsecret-test-token';
@@ -38,4 +39,17 @@ test('denies missing credentials, bad status, schema mismatch and network failur
   await assert.rejects(verify({projectRef,accessToken,fetchImpl:async()=>({ok:false,status:403})}),/QUERY_HTTP_403/u);
   await assert.rejects(verify({projectRef,accessToken,fetchImpl:async()=>({ok:true,json:async()=>[{...healthy,daily_rls:false}]})}),/SCHEMA_INCOMPATIBLE/u);
   await assert.rejects(verify({projectRef,accessToken,fetchImpl:async()=>{throw Error('network');}}),/DATABASE_UNREACHABLE/u);
+});
+
+test('both web and signed Android production deliveries fail closed on V47 schema',()=>{
+  const web=readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
+  const android=readFileSync(new URL('../.github/workflows/connected360-android-production-release.yml',import.meta.url),'utf8');
+  const cmd='run: node scripts/ops/verify_connected360_v47_prod_schema.mjs';
+  assert.equal(web.split(cmd).length-1,2,'web checks once early and again just before live deploy');
+  assert.equal(android.split(cmd).length-1,1,'signed Android must fail closed before signing');
+  const gateIndex=android.indexOf('Certify Connected360 V47 production schema before Android signing');
+  const signingIndex=android.indexOf('Require stable production signing credentials');
+  assert.ok(gateIndex>0&&signingIndex>gateIndex,
+    'no signed artifacts may be generated before PROD schema has passed certification');
+  assert.match(android,/PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'/u);
 });

@@ -47,6 +47,13 @@ jobs:
           if(changed!=='.iberfit/production-release.json')
             throw new Error('IBERFIT_ANDROID_RELEASE_NOT_MARKER_ONLY');
           NODE
+      # Keep signed Android artifacts in lockstep with the production database.
+      # A schema mismatch must stop the release before costly native signing.
+      - name: Certify Connected360 V47 production schema before Android signing
+        env:
+          PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
       - name: Verify monotonic Android version before signing
         env:
           GITHUB_TOKEN: ${{ github.token }}
