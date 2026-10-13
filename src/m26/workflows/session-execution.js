@@ -250,7 +250,9 @@ export function previousSetDraftValues(execution){
     rir:previous.rir==null?'':String(previous.rir),
     ...(exerciseResultProfile(item).cardio?{durationMinutes:previous.seconds==null?'':String(Number(previous.seconds)/60),
     distanceKm:previous.distanceKm==null?'':String(previous.distanceKm),
+    distanceM:previous.distanceM==null?'':String(previous.distanceM),
     paceMinPerKm:previous.paceMinPerKm||'',
+    pacePer100M:previous.pacePer100M||'',
     avgHeartRateBpm:previous.avgHeartRateBpm==null?'':String(previous.avgHeartRateBpm),
     cadenceRpm:previous.cadenceRpm==null?'':String(previous.cadenceRpm),
     powerWatts:previous.powerWatts==null?'':String(previous.powerWatts),
@@ -281,7 +283,7 @@ export function plannedSetDraftValues(execution,session){
     reps:work.reps,
     seconds:work.seconds,
     load:load.slice(0,80),
-    ...(exerciseResultProfile(step).cardio?{durationMinutes:planned.plannedDurationMinutes||'',distanceKm:planned.plannedDistanceKm||''}:{}),
+    ...(exerciseResultProfile(step).cardio?{durationMinutes:planned.plannedDurationMinutes||'',...(exerciseResultProfile(step).sport==='swimming'?{distanceM:planned.plannedDistanceM||''}:{distanceKm:planned.plannedDistanceKm||''})}:{}),
     ...(exerciseResultProfile(step).kind==='carry'?{distanceM:planned.plannedDistanceM||''}:{}),
     // Never prefill observed FC, pace, cadence or power from a planned target.
     // RPE/RIR are observed effort, never inferred from the planned target.
@@ -351,7 +353,7 @@ export function updateActiveSetDraft(execution,session,input={}){
   if(execution?.status!=='active')return null;
   const identity=activeSetIdentity(execution,session);if(!identity)return null;
   if(executionResultForStep(execution,identity)){if(sameActiveSet(execution?.activeSetDraft,identity))delete execution.activeSetDraft;return null;}
-  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),...(exerciseResultProfile(currentStep(execution,session)).cardio?{durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)}:{}),...(exerciseResultProfile(currentStep(execution,session)).kind==='carry'?{distanceM:draftValue(input.distanceM,32)}:{})},updatedAt:now()};
+  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),...(exerciseResultProfile(currentStep(execution,session)).cardio?{durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),distanceM:draftValue(input.distanceM,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),pacePer100M:draftValue(input.pacePer100M,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)}:{}),...(exerciseResultProfile(currentStep(execution,session)).kind==='carry'?{distanceM:draftValue(input.distanceM,32)}:{})},updatedAt:now()};
   return clone(execution.activeSetDraft);
 }
 export function clearActiveSetDraft(execution){if(execution)delete execution.activeSetDraft;return execution;}
@@ -468,12 +470,15 @@ function validatedSetResult(step,input={},previous=null){
   const intervalsCompleted=measuredNumber(input.intervalsCompleted,1,1000,'M26_EXECUTION_INTERVALS_INVALID',true);
   const paceMinPerKm=String(input.paceMinPerKm??'').trim();
   if(paceMinPerKm&&!/^[0-9]{1,2}:[0-5][0-9]$/.test(paceMinPerKm))throw new Error('M26_EXECUTION_PACE_INVALID');
+  const pacePer100M=String(input.pacePer100M??'').trim();
+  if(pacePer100M&&profile.sport!=='swimming')throw new Error('M29_SWIM_PACE_SPORT_MISMATCH');
+  if(pacePer100M&&(!/^[0-9]{1,2}:[0-5][0-9]$/.test(pacePer100M)||pacePer100M==='0:00'||pacePer100M==='00:00'))throw new Error('M29_SWIM_PACE_INVALID');
   const provenance=actorSnapshot(input.actor);
   return {
     exerciseId:step.exerciseId,
     setNumber:step.setNumber,
     reps,seconds,load,rpe,rir,
-    ...((profile.cardio||profile.kind==='carry')?{distanceKm,distanceM,avgSpeedKmh,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
+    ...((profile.cardio||profile.kind==='carry')?{distanceKm,distanceM,avgSpeedKmh,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,...(profile.sport==='swimming'?{pacePer100M:pacePer100M||null}:{}),cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
     notes:String(input.notes||'').trim().slice(0,1000),
     completedAt:previous?.completedAt||now(),
     ...(previous?{correctedAt:now()}:{ }),
