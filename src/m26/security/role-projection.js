@@ -4,8 +4,8 @@ import {sessionVisibilityLevel} from '../rc39/session-policy.js';
 const ROLE_ALIASES=Object.freeze({admin:'admin',administrador:'admin',administrator:'admin',coach:'coach',entrenador:'coach',client:'client',cliente:'client'});
 const ALWAYS_PRIVATE_FOR_CLIENT=new Set(['privateNotes','coachAvailability','intelligenceRuns','domainEvents','wearableSyncRuns']);
 const PUBLICATION_SCOPED=new Set(['reports','trainingCycles','sessions']);
-const PUBLIC_STATUSES=new Set(['publicado','published','activo','active','habilitado','enabled','completado','completed']);
-const PRIVATE_STATUSES=new Set(['borrador','draft','pendiente','pending','en_revision','en revisión','review','aprobado','approved','retirado','withdrawn','archivado','archived','anulado','cancelled']);
+const PUBLIC_STATUSES=new Set(['publicado','publicada','published','disponible','en_curso','activo','active','habilitado','enabled','completado','completada','completed']);
+const PRIVATE_STATUSES=new Set(['borrador','draft','pendiente','pending','en_revision','en revisión','review','validado','validada','aprobado','aprobada','approved','retirado','retirada','withdrawn','archivado','archivada','archived','anulado','anulada','cancelled']);
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const SENSITIVE_CLIENT_KEYS=new Set(['body','raw','privatenote','privatenotes','coachnote','coachnotes','internalnote','internalnotes','internalcomment','audit','auditlog','command','commandpayload','cost','price','margin','token','accesstoken','refreshtoken','oauthtoken','secret','secrets','password','credential','credentials','apikey','authorization','prototype','constructor','proto']);
 const MAX_NESTED_DEPTH=6;
@@ -143,6 +143,7 @@ export function projectCollectionsForRole(collections,user,collectionKeys=Object
     if(ALWAYS_PRIVATE_FOR_CLIENT.has(key)){projected[key]=[];continue;}
     projected[key]=records.filter((record)=>{
       if(clientIdOf(record,key)!==own)return false;
+      if(key==='m26Entities'&&['planning','session','report'].includes(String(record?.entityType||'')))return isVisiblePublication(record);
       if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record)&&(key!=='sessions'||sessionVisibilityLevel(record)!=='hidden');
       if(key==='appointments')return isClientVisibleAppointment(record);
       return isVisibleGeneric(record);
