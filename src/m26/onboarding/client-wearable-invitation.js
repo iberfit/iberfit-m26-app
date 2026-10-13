@@ -172,17 +172,18 @@ export function createClientWearableInvitationController({root,identityProvider=
     return true;
   }
   async function startNative(ctx,button){
+    const t=(value)=>iberfitSurfaceTranslate(value,{language:getIberfitLanguage()});
     if(busy)return;
     const metrics=[...(dialog?.querySelectorAll?.('[data-m26-connected360-native-scope]')||[])]
       .filter(item=>item.checked===true).map(item=>item.getAttribute('data-m26-connected360-native-scope'));
     const note=dialog?.querySelector?.('[data-m26-connected360-status]');
-    if(!metrics.length){if(note)note.textContent='Elige al menos una categoría para autorizar.';return;}
+    if(!metrics.length){if(note)note.textContent=t('Elige al menos una categoría para autorizar.');return;}
     if(typeof connectNativeHealth!=='function'){
-      if(note)note.textContent='La conexión no está lista. Puedes gestionarla más tarde desde Dispositivos.';
+      if(note)note.textContent=t('La conexión no está lista. Puedes gestionarla más tarde desde Dispositivos.');
       return;
     }
     busy=true;button.disabled=true;
-    if(note)note.textContent='Comprobando tu sesión y registrando las categorías autorizadas…';
+    if(note)note.textContent=t('Comprobando tu sesión y registrando las categorías autorizadas…');
     try{
       await connectNativeHealth(metrics);
       // Never persist a decision for another login after an asynchronous grant.
@@ -191,8 +192,8 @@ export function createClientWearableInvitationController({root,identityProvider=
     }catch(error){
       if(!mounted||identity()?.key!==ctx.key)return;
       if(note)note.textContent=/OFFLINE|NetworkError|Failed to fetch/u.test(String(error?.message||''))
-        ?'No hay conexión. Tu elección no se ha completado; vuelve a intentar cuando tengas internet.'
-        :'No podemos confirmar todavía la conexión. Tus autorizaciones existentes se conservan; puedes reintentar sin reinstalar la aplicación.';
+        ?t('No hay conexión. Tu elección no se ha completado; vuelve a intentar cuando tengas internet.')
+        :t('No podemos confirmar todavía la conexión. Tus autorizaciones existentes se conservan; puedes reintentar sin reinstalar la aplicación.');
     }finally{busy=false;button.disabled=false;}
   }
   function click(event){
