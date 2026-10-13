@@ -1,4 +1,5 @@
 export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
+["Sesiones publicadas","Published sessions","Séances publiées","Sessões publicadas"],
 // M38: distinct published/available/active UX for Coach and Client.
 ["Disponible para que el Cliente inicie su entrenamiento autónomo.","Available for the client to start their independent workout.","Disponible pour que le client démarre son entraînement autonome.","Disponível para o cliente iniciar o treino autónomo."],
 ["Sesión preparada para ejecución supervisada. El Coach gestiona la cita y el inicio.","Session prepared for supervised training. The Coach manages the appointment and start.","Séance prête pour l’entraînement supervisé. Le Coach gère le rendez-vous et le démarrage.","Sessão preparada para treino supervisionado. O Coach gere a marcação e o início."],
