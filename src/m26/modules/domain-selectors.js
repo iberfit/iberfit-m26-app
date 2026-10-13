@@ -5,6 +5,7 @@ import {
   normalizeAppointmentStatus,
 } from '../domain/appointment.js';
 import { parseDateValue } from '../domain/civil-date.js';
+import {appointmentForSession,clientSessionProjection} from '../rc39/session-policy.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -254,6 +255,12 @@ function indexedUpcomingAppointments(index, clientId, now, limit = 3) {
     .map(clone);
 }
 
+function executableAutonomousSessionAvailable(sessions, appointments, now) {
+  return sessions.some((session) =>
+    clientSessionProjection(session, appointmentForSession(appointments, session), now).canClientStart
+  );
+}
+
 function indexedClientHealthSummary(client, clientId, index, now) {
   if (!client) return null;
   const cycles = indexedRows(index, 'trainingCycles', clientId);
@@ -264,6 +271,11 @@ function indexedClientHealthSummary(client, clientId, index, now) {
     [...cycles].sort(byNewest)[0] ||
     null;
   const appointments = indexedUpcomingAppointments(index, clientId, now, 3);
+  const autonomousSessionReady = executableAutonomousSessionAvailable(
+    indexedRows(index, 'sessions', clientId),
+    indexedRows(index, 'appointments', clientId),
+    now
+  );
 
   return {
     client: clone(client),
@@ -278,6 +290,7 @@ function indexedClientHealthSummary(client, clientId, index, now) {
       appointments: appointments.length,
     },
     nextAppointment: appointments[0] || null,
+    autonomousSessionReady,
   };
 }
 
@@ -314,6 +327,9 @@ export function clientHealthSummary(state, clientId = state?.selectedClientId, n
       appointments: appointments.length,
     },
     nextAppointment: appointments[0] || null,
+    autonomousSessionReady: executableAutonomousSessionAvailable(
+      sessions, recordsForClient(state, 'appointments', clientId), now
+    ),
   };
 }
 

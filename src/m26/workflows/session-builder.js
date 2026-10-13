@@ -4,8 +4,12 @@ import {createM26Id} from '../platform/id.js';
 import {normalizeAppointmentModality} from '../domain/modality.js';
 import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
-function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
-function boundedNumber(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
+function positiveInt(value,fallback,{min=1,max=100}={}){
+  if(value===null||value===undefined||(typeof value==='string'&&!value.trim()))return fallback;
+  const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
+function boundedNumber(value,fallback,{min=0,max=10}={}){
+  if(value===null||value===undefined||(typeof value==='string'&&!value.trim()))return fallback;
+  const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
 function text(value,fallback='',max=120){const out=String(value??fallback).trim();return out.slice(0,max)||String(fallback);}
 function optionalText(input,fallback='',max=500){
   const candidate=input===undefined||input===null?fallback:input;

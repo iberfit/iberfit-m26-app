@@ -121,6 +121,10 @@ export function deriveClientExperience(summary={}){
   const iriBlocking=false;
   const cycleReady=Boolean(summary?.cycle);
   const nextAppointmentReady=Boolean(summary?.nextAppointment);
+  // A published, executable autonomous workout does not require a fabricated appointment.
+  // Paused services never satisfy execution readiness even when old sessions remain published.
+  const autonomousSessionReady=trainingServiceStatus==='active'&&Boolean(summary?.autonomousSessionReady);
+  const nextTrainingReady=nextAppointmentReady||autonomousSessionReady;
   const executions=Math.max(
     0,
     Number(summary?.counts?.executions||0)
@@ -134,7 +138,7 @@ export function deriveClientExperience(summary={}){
     stage=CLIENT_EXPERIENCE_STAGES.evaluation;
   }else if(!cycleReady){
     stage=CLIENT_EXPERIENCE_STAGES.planning;
-  }else if(!nextAppointmentReady){
+  }else if(!nextTrainingReady){
     stage=CLIENT_EXPERIENCE_STAGES.scheduling;
   }else{
     stage=CLIENT_EXPERIENCE_STAGES.active;
@@ -147,10 +151,10 @@ export function deriveClientExperience(summary={}){
   else if(!iri.exists)attention.push('iri_missing');
   else if(!iri.confirmed)attention.push('iri_incomplete');
   if(trainingService&&!cycleReady)attention.push('planning');
-  if(trainingService&&!nextAppointmentReady)attention.push('appointment');
+  if(trainingService&&!nextTrainingReady)attention.push('appointment');
 
   const processSteps=trainingService
-    ?[profileReady,cycleReady,nextAppointmentReady]
+    ?[profileReady,cycleReady,nextTrainingReady]
     :[profileReady,iri.confirmed];
 
   const completedSteps=
@@ -172,6 +176,7 @@ export function deriveClientExperience(summary={}){
       iriBlocking,
       cycle:cycleReady,
       nextAppointment:nextAppointmentReady,
+      autonomousSession:autonomousSessionReady,
       executions,
     }),
     process:Object.freeze({
@@ -211,6 +216,15 @@ export function experienceNextAction(
         'Ver próxima cita',
         'agenda',
         'Tienes una próxima cita confirmada.'
+      );
+    }
+
+    if(current.readiness.autonomousSession){
+      return action(
+        'open_autonomous_workout',
+        'Ver entrenamiento disponible',
+        'sesion',
+        'Tu Coach ha publicado una sesión autónoma que puedes realizar desde IBERFIT.'
       );
     }
 

@@ -349,7 +349,7 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
       <div class="m26-session-next-exercise-facts">
         <div class="m26-field"><span>Series</span><strong>${e(Number(next.sets)||1)}</strong></div>
         <div class="m26-field"><span>Próximo objetivo</span><strong>${e(target)}</strong></div>
-        <div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds??60)} s</strong></div>
+        ${explicitSessionEffort(planned.restSeconds,{min:0,max:3600})!==null?`<div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
         ${guidance?`<div class="m26-field m26-session-next-exercise-guidance"><span>Indicaciones</span><strong>${e(guidance)}</strong></div>`:''}
         ${alternativeName?`<div class="m26-field"><span>Alternativa prevista</span><strong>${e(alternativeName)}</strong></div>`:''}
       </div>
@@ -1107,10 +1107,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
       <span>Referencia anterior</span>
       <strong>${e(previous||'Sin referencia confirmada')}</strong>
     </div>
-    <div>
-      <span>Descanso previsto</span>
-      <strong>${e(planned?.restSeconds??60)} s</strong>
-    </div>
+    ${explicitSessionEffort(planned?.restSeconds,{min:0,max:3600})!==null?`<div><span>Descanso previsto</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
   </section>`;
 }
 
@@ -1383,6 +1380,8 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
 const planned=step.prescription||{};
 const executionProfile=exerciseMeasurementProfile({...ex,measurementProfile:planned.measurementProfile});
+const explicitRpe=explicitSessionEffort(planned.targetRpe,{min:1,max:10});
+const explicitRir=explicitSessionEffort(planned.targetRir,{min:0,max:10});
 const coachQuickRpe=isCoach
   ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
@@ -1398,8 +1397,8 @@ const setEntryFields=executionProfile.cardio
       <label class="m26-session-coach-load-field" data-session-field-priority="primary" data-session-entry-group="load">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
       <div class="m26-session-coach-effort-fields" data-session-entry-group="effort">
         <div class="m26-session-coach-effort-pair">
-          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" data-session-enter-complete required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
-          <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
+          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" data-session-enter-complete required placeholder="${e(explicitRpe===null?'RPE real':`Objetivo ${explicitRpe}`)}"></label>
+          <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="${e(explicitRir===null?'RIR real':`Objetivo ${explicitRir}`)}"></label>
         </div>
         ${coachQuickRpe}
       </div>
@@ -1409,8 +1408,8 @@ const setEntryFields=executionProfile.cardio
       <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
       <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
       <label data-session-field-priority="primary">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
-      <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
-      <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
+      <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="${e(explicitRpe===null?'RPE real':`Objetivo ${explicitRpe}`)}"></label>
+      <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="${e(explicitRir===null?'RIR real':`Objetivo ${explicitRir}`)}"></label>
     </div>`;
 const previousSet=previousSetDraftValues(execution);
 const plannedSetPreset=isCoach&&!previousSet?plannedSetDraftValues(execution,session):null;
