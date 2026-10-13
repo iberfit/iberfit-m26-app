@@ -11,7 +11,7 @@ import {normalizeAppointmentModality,normalizeClientModality} from '../domain/mo
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
-import {actorCanExecuteSession} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionHasExecutableBlocks} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
@@ -1335,11 +1335,16 @@ export function createWorkflowController({
       .sort((a,b)=>Number(b.revision||b.body?.revision||0)-Number(a.revision||a.body?.revision||0));
     const candidate=requestedId?eligible.find((item)=>String(item.id||item.body?.id||'')===requestedId):null;
     // Do not pick the newest supervised session merely because it was published last.
-    const session=requestedId?candidate:eligible.find((item)=>actorCanExecuteSession({role,session:item}));
+    const session=requestedId?candidate:eligible.find((item)=>actorCanExecuteSession({role,session:item})&&sessionHasExecutableBlocks(item));
     if(!session)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');
     if(!actorCanExecuteSession({role,session})){
       const error=new Error('M26_SESSION_EXECUTION_FORBIDDEN');
       error.userMessage='Esta sesión la dirige tu Coach. Consulta la información de la sesión, pero no puedes iniciarla desde Cliente.';
+      throw error;
+    }
+    if(!sessionHasExecutableBlocks(session)){
+      const error=new Error('M26_SESSION_BLOCKS_NOT_EXECUTABLE');
+      error.userMessage='Esta sesión no tiene ejercicios ejecutables. Pide a tu Coach que revise su publicación.';
       throw error;
     }
     emit(root,'m26:start-session',{clientId,session});

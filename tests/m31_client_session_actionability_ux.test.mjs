@@ -50,7 +50,7 @@ test('M31: planificación también respeta permiso por sesión',()=>{
 
 test('M31: controlador no lanza la sesión más reciente si es presencial',()=>{
   const source=readFileSync('src/m26/app/workflow-controller.js','utf8');
-  assert.match(source,/eligible\.find\(\(item\)=>actorCanExecuteSession\(\{role,session:item\}\)\)/);
+  assert.match(source,/eligible\.find\(\(item\)=>actorCanExecuteSession\(\{role,session:item\}\)&&sessionHasExecutableBlocks\(item\)\)/);
   assert.match(source,/M26_SESSION_EXECUTION_FORBIDDEN/);
   assert.match(source,/requestedId\?candidate/);
 });

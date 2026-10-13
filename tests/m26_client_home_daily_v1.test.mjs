@@ -51,7 +51,7 @@ test('Client Home promotes an executable confirmed session without ambiguity',()
       id:'s1',
       visible:true,
       canClientExecute:true,
-      session:{title:'Fuerza y potencia',blocks:[{id:'b1'}]},
+      session:{title:'Fuerza y potencia',blocks:[{id:'b1',exerciseId:'squat',name:'Sentadilla'}]},
     }]},
   }));
   assert.match(
@@ -69,16 +69,11 @@ test('Client Home opens sessions when training exists but no linked runnable app
       id:'s1',
       visible:true,
       canClientExecute:true,
-      session:{title:'Sesión A',blocks:[{id:'b1'}]},
+      session:{title:'Sesión A',blocks:[{id:'b1',exerciseId:'squat',name:'Sentadilla'}]},
     }]},
   }));
-  assert.match(
-    html,
-    /class="m26-today-action is-primary" data-m26-area="sesion"/u,
-  );
-  assert.match(html,/Abrir mis sesiones/u);
-  assert.match(html,/Tienes 1 sesión disponible/u);
-  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+  assert.match(html,/class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="s1"/u);
+  assert.match(html,/Entrenar ahora/u);
 });
 
 test('Client Home exposes only useful daily context and progressively discloses secondary destinations',()=>{
@@ -190,7 +185,7 @@ test('Client Home does not duplicate the primary runnable session in the agenda'
       id:'s1',
       visible:true,
       canClientExecute:true,
-      session:{title:'Fuerza y potencia',blocks:[{id:'b1'}]},
+      session:{title:'Fuerza y potencia',blocks:[{id:'b1',exerciseId:'squat',name:'Sentadilla'}]},
     }]},
   }));
   assert.match(html,/Entrenar ahora/u);

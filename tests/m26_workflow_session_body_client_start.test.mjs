@@ -68,7 +68,7 @@ async function startWithSession(session){
 test('published session start accepts legacy body.clientId shape',async()=>{
   const events=await startWithSession({
     id:'SESSION-A',
-    body:{clientId:'CLIENT-A',status:'published'},
+    body:{clientId:'CLIENT-A',status:'published',blocks:[{id:'B1',exerciseId:'squat',name:'Sentadilla'}]},
   });
   const started=events.find((event)=>event.type==='m26:start-session');
   assert.ok(started,'expected m26:start-session');
@@ -80,7 +80,7 @@ test('published session start accepts legacy body.clientId shape',async()=>{
 test('published session start accepts legacy body.client_id shape',async()=>{
   const events=await startWithSession({
     id:'SESSION-A',
-    body:{client_id:'CLIENT-A',status:'published'},
+    body:{client_id:'CLIENT-A',status:'published',blocks:[{id:'B1',exerciseId:'squat',name:'Sentadilla'}]},
   });
   const started=events.find((event)=>event.type==='m26:start-session');
   assert.ok(started,'expected m26:start-session');

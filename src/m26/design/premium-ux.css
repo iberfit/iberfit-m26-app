@@ -2032,3 +2032,56 @@ body {
 .m28-week-bar-level-8{height:68px}
 .m28-week-bar-level-9{height:77px}
 .m28-week-bar-level-10{height:85px}
+
+/* M32 UX 360: calm, readable, touch-first Coach and Client surfaces.
+   Restrict styles to existing controls; no extra card layers or animation. */
+.m26-shell .m26-client-session-guidance{
+  margin:.7rem 0 0;padding:.7rem .85rem;
+  border-left:3px solid var(--iberfit-role-accent,#c8a65d);
+  color:var(--iberfit-color-text-secondary,#e6dfc8);
+  background:rgba(197,166,96,.045);line-height:1.55;font-size:.87rem;
+  border-radius:0 .35rem .35rem 0;
+}
+.m26-shell .m26-publication-card{min-width:0;overflow-wrap:anywhere}
+.m26-shell .m26-publication-preview,
+.m26-shell .m26-publication-actions{min-width:0;margin-top:.65rem}
+.m26-shell :is(.m26-publication-preview,.m26-publication-actions)>summary{
+  display:flex;align-items:center;min-height:48px;
+  padding:.7rem .4rem;cursor:pointer;font-size:.9rem;font-weight:650;
+  color:var(--iberfit-color-text-primary,#f4eee0);
+  border-top:1px solid rgba(205,175,113,.17);list-style-position:inside;
+}
+.m26-shell .m26-publication-preview-content{min-width:0;padding:.65rem .35rem .95rem;line-height:1.55}
+.m26-shell .m26-client-content-preview-detail{display:grid;gap:.6rem;min-width:0}
+.m26-shell .m26-publication-confirm{display:grid;gap:.55rem;min-width:0}
+.m26-shell .m26-publication-confirm label{display:flex;align-items:flex-start;gap:.7rem;line-height:1.5}
+.m26-shell .m26-publication-confirm input[type="checkbox"]{min-width:20px;min-height:20px;margin-top:.1rem;accent-color:var(--iberfit-role-accent,#c8a65d)}
+.m26-shell .m32-planning-journey{display:flex;flex-wrap:wrap;gap:.4rem .7rem;list-style:none;padding:0;margin:.8rem 0}
+.m26-shell .m32-planning-journey li{
+  border:1px solid rgba(205,175,113,.22);border-radius:99px;
+  padding:.38rem .68rem;font-size:.8rem;line-height:1.4;
+  color:var(--iberfit-color-text-secondary,#e6dfc8);
+}
+.m26-shell .m32-planning-journey li[data-m32-ready="true"]{
+  color:var(--iberfit-color-text-primary,#f4eee0);
+  background:rgba(202,167,91,.08);
+  border-color:rgba(202,167,91,.46);
+}
+.m26-shell .m32-message-label{display:grid;gap:.4rem;min-width:0;font-size:.83rem;font-weight:600;line-height:1.5}
+.m26-shell .m32-message-label :is(textarea,select,input){min-width:0;max-width:100%;width:100%;font-weight:400}
+.m26-shell .m30-message-compose{display:grid;gap:.6rem;min-width:0}
+.m26-shell .m26-thread :is(summary,.m30-thread-read button,.m30-message-compose button){min-height:44px;touch-action:manipulation}
+.m26-shell .m26-message time{display:block;margin-top:.35rem;font-size:.73rem;opacity:.75;font-variant-numeric:tabular-nums}
+.m26-shell :is(.m26-publication-preview>summary,.m26-publication-actions>summary,.m26-thread>summary,.m32-planning-journey a):focus-visible{
+  outline:2px solid var(--iberfit-role-accent,#c8a65d);outline-offset:3px;border-radius:.35rem;
+}
+@media(max-width:719px){
+  .m26-shell .m32-planning-journey{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m26-shell .m32-planning-journey li{min-width:0;text-wrap:balance}
+  .m26-shell .m26-publication-preview-content{padding-inline:0}
+  .m26-shell .m26-publication-card :is(button,a,.m26-publication-actions summary){min-height:44px}
+  .m26-shell .m26-thread-body{min-width:0;overflow-wrap:anywhere}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell .m26-publication-preview,.m26-shell .m26-publication-actions{scroll-behavior:auto}
+}
