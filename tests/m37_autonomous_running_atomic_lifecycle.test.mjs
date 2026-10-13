@@ -46,7 +46,7 @@ test('Client remains barred from premature, hidden and contradictory sessions',(
 });
 
 test('M37 server migration guards publication, scope, state, replays and active lock',()=>{
- const sql=readFileSync(new URL('../supabase/migrations/20261013165000_m37_guided_autonomous_atomic_lifecycle.sql',import.meta.url),'utf8');
+ const sql=readFileSync(new URL('../supabase/migrations/20261013160703_m37_guided_autonomous_atomic_lifecycle.sql',import.meta.url),'utf8');
  for(const marker of [
    'M37_RC29_SOURCE_DRIFT','M37_START_ANCHOR_DRIFT','M37_APPOINTMENT_ANCHOR_DRIFT',
    'M37_PUBLISH_ANCHOR_DRIFT','v_status=\'disponible\'',
