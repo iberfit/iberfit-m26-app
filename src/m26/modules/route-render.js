@@ -2,7 +2,7 @@ import {renderCommunicationRoute} from '../communication/route-render.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
-import {sessionHasExecutableBlocks} from '../rc39/session-policy.js';
+import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession} from '../rc39/session-policy.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
@@ -441,7 +441,7 @@ function renderClientHoyRoute(vm) {
     :[];
   const executableIds=new Set(
     (serviceActive?projections:[])
-      .filter((item)=>item?.canClientStart===true||(item?.canClientStart==null&&item?.canClientExecute===true&&sessionHasExecutableBlocks(item.session)))
+      .filter((item)=>item?.canClientStart===true)
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
   );
@@ -692,9 +692,7 @@ export function renderHoyRoute(vm) {
     clientSessionProjections
       .filter(
         (item)=>
-          item?.canClientExecute===true&&
-          Array.isArray(item?.session?.body?.blocks||item?.session?.blocks)&&
-          (item.session.body?.blocks||item.session.blocks).length>0
+          item?.canClientStart===true
       )
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
@@ -3704,14 +3702,18 @@ function clientContentBody(view,{preview=false}={}){
 }
 function clientContentCard(item,entity,{canStartSession=true}={}){
   const view=item.clientContent||{};
-  const executable=entity==='session'&&item?.canClientExecute===true;
+  const executable=entity==='session'&&item?.canClientStart===true;
   const sessionAction=entity!=='session'?'':!canStartSession
     ?'<p class="m26-client-session-guidance" role="status">Entrenamiento en pausa. Puedes consultar esta sesión, pero no iniciarla todavía.</p>'
     :executable
       ?`<button type="button" class="m26-primary-action m26-client-session-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.id)}">Comenzar esta sesión</button>`
       :['coach_led','live_online'].includes(item?.deliveryOwnership)||item?.deliveryModality==='presencial'
         ?'<p class="m26-client-session-guidance">Sesión dirigida por tu Coach. Puedes consultar la información, pero el registro lo realiza el entrenador.</p>'
-        :'<p class="m26-client-session-guidance">Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.</p>';
+        :item?.sessionStatus==='en_curso'
+          ?'<p class="m26-client-session-guidance" role="status">Esta sesión ya se ha iniciado. Recupera el entrenamiento activo desde el apartado Sesiones.</p>'
+          :item?.canClientExecute===true
+            ?'<p class="m26-client-session-guidance" role="status">Sesión publicada, pendiente de habilitación. Podrás iniciarla cuando tu Coach confirme que está disponible.</p>'
+            :'<p class="m26-client-session-guidance">Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.</p>';
   return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}</article>`;
 }
 function publicationCard(item,entity){
@@ -4231,12 +4233,13 @@ export function renderSessionsRoute(vm){
   const clientSessionGuideAttribute=isClient&&vm.sessions.length
     ?' data-m26-client-guide="session-surface"'
     :'';
-  const clientRunnableSession=isClient?(vm.sessions||[]).find((item)=>item?.canClientExecute===true&&item?.id):null;
-  const hasPublishedSession=isClient?Boolean(clientRunnableSession):Array.isArray(vm.sessions)&&vm.sessions.some((item)=>item?.publication?.status==='published'&&item?.publication?.visibleToClient!==false);
+  const clientRunnableSession=isClient?(vm.sessions||[]).find((item)=>item?.canClientStart===true&&item?.id):null;
+  const coachRunnableSession=!isClient?(vm.sessions||[]).find((item)=>sessionReadyToStart(item?.raw||item)&&item?.id):null;
+  const hasPublishedSession=isClient?Boolean(clientRunnableSession):Boolean(coachRunnableSession);
   const hasConflictingAppointment=vm.nextSessionPreparation?.session?.source==='appointment-mismatch';
   const preparedSession=!isClient?vm.nextSessionPreparation?.session:null;
-  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment&&(!preparedSession||preparedSession.startable===true)&&(!preparedSession?.id||exactVisiblePublishedSession(vm.sessions,preparedSession.id));
-  const preparedSessionAttribute=preparedSession?.id?` data-entity-id="${escapeHtml(preparedSession.id)}"`:clientRunnableSession?.id?` data-entity-id="${escapeHtml(clientRunnableSession.id)}"`:'';
+  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment&&(!preparedSession||preparedSession.startable===true)&&(!preparedSession?.id||exactVisiblePublishedSession(vm.sessions,preparedSession.id)&&sessionReadyToStart((vm.sessions||[]).find((item)=>item?.id===preparedSession.id)?.raw));
+  const preparedSessionAttribute=preparedSession?.id?` data-entity-id="${escapeHtml(preparedSession.id)}"`:(clientRunnableSession||coachRunnableSession)?.id?` data-entity-id="${escapeHtml((clientRunnableSession||coachRunnableSession).id)}"`:'';
   const directStart=serviceActive&&isClient&&!clientRunnableSession
     ?'<p class="m26-field-help" role="status">No tienes una sesión autónoma disponible para iniciar. Las sesiones presenciales las dirige tu Coach.</p>'
     :serviceActive
