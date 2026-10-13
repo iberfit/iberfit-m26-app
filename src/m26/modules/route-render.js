@@ -553,13 +553,13 @@ function renderClientHoyRoute(vm) {
   }else if(projections.length){
     primary={
       area:'sesion',
-      eyebrow:projections.every(item=>item?.canClientStart!==true)?'Tu próxima sesión con Coach':'Tu entrenamiento',
+      eyebrow:projections.every(item=>item?.canClientStart!==true)?'Sesiones publicadas':'Tu entrenamiento',
       title:firstProjection?.session?.body?.title||firstProjection?.session?.title||'Tu planificación está preparada',
-      detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
+      detail:`${projections.length} sesión${projections.length===1?'':'es'} para consultar · ${executableIds.size===0?'pendiente de habilitación':'revisa cuál puedes iniciar'}`, 
       markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
         <span aria-hidden="true">▶</span>
         <strong>${projections.every(item=>item?.canClientStart!==true)?'Ver mis sesiones':'Abrir mis sesiones'}</strong>
-        <small>Tienes ${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'} en tu planificación.</small>
+        <small>${executableIds.size===0?'Tus sesiones se pueden consultar. El inicio se habilitará cuando estén listas.':`Tienes ${executableIds.size} entrenamiento${executableIds.size===1?'':'s'} listo${executableIds.size===1?'':'s'} para iniciar.`}</small>
       </button>`,
     };
   }else{
@@ -909,7 +909,7 @@ export function renderHoyRoute(vm) {
         ?`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
             <span>1</span>
             <strong>Abrir mis sesiones</strong>
-            <small>Tienes ${clientSessionCount} sesión${clientSessionCount===1?'':'es'} disponible${clientSessionCount===1?'':'s'} en tu planificación.</small>
+            <small>${clientExecutableSessionIds.size?`Tienes ${clientExecutableSessionIds.size} entrenamiento${clientExecutableSessionIds.size===1?'':'s'} listo${clientExecutableSessionIds.size===1?'':'s'} para iniciar.`:'Tus sesiones están publicadas para consultar; aún no hay ninguna habilitada para iniciar.'}</small>
           </button>`
         :`<button type="button" class="m26-today-action is-primary" data-m26-area="actividad">
             <span>1</span>
