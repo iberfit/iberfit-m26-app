@@ -3,9 +3,17 @@ import {providerReadiness} from '../wearables/contracts.js';
 import {zeroCostProviderReadiness} from '../wearables/free-policy.js';
 import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
+import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-channel.js';
 
 export const CONNECTED360_INVITATION_SCHEMA='iberfit.connected360.invitation.v1';
 const PREFIX='iberfit.m26.connected360.invitation.v1:';
+const NATIVE_PREFIX='iberfit.m26.connected360.native-invitation.v1:';
+const NATIVE_SCOPES=Object.freeze([
+  ['steps','Pasos diarios'],['sleepMinutes','Duración del sueño'],
+  ['restingHeartRate','Frecuencia cardíaca en reposo'],
+  ['generalHeartRate','Frecuencia cardíaca general'],
+  ['exerciseSessions','Actividades y entrenamientos observados'],
+]);
 const FINAL=new Set(['chosen','dismissed','suppressed']);
 const ACTIVE=new Set(['active','connected','conectado']);
 const STYLE_ID='data-m26-connected360-style';
@@ -15,6 +23,12 @@ const STYLE=[
   '[data-m26-connected360-invitation] h2{margin:0;max-width:25ch;font-size:clamp(1.4rem,3vw,1.85rem);line-height:1.17;letter-spacing:-.035em;color:#17372b}',
   '[data-m26-connected360-invitation] p{font-size:.93rem;line-height:1.55;margin:.8rem 0;color:#314d40}',
   '[data-m26-connected360-invitation] .m26-connected360-provider{border-top:1px solid rgba(23,55,43,.13);padding-top:.82rem;font-size:.88rem;font-weight:650}',
+  '[data-m26-connected360-invitation] .m26-connected360-scopes{display:grid;gap:.65rem;margin-top:1rem;border:0;padding:0;min-width:0}',
+  '[data-m26-connected360-invitation] .m26-connected360-scopes legend{font-weight:750;font-size:.92rem;margin-bottom:.6rem}',
+  '[data-m26-connected360-invitation] .m26-connected360-scopes label{display:flex;align-items:center;gap:.7rem;min-height:44px;font-size:.9rem;cursor:pointer}',
+  '[data-m26-connected360-invitation] .m26-connected360-scopes input{width:20px;height:20px;flex:none;accent-color:#17543a}',
+  '[data-m26-connected360-invitation] [data-m26-connected360-status]{font-size:.87rem;font-weight:600;min-height:1.25rem}',
+  '[data-m26-connected360-invitation] button:disabled{opacity:.55;cursor:wait}',
   '[data-m26-connected360-invitation] .m26-connected360-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.15rem}',
   '[data-m26-connected360-invitation] button{min-height:44px;padding:.65rem 1rem;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}',
   '[data-m26-connected360-action=start]{background:#b99348;border:1px solid #89652a;color:#192b20}',
@@ -29,21 +43,27 @@ function clean(value,max=240){return String(value??'').trim().slice(0,max);}
 function storageFrom(storage,scope){if(storage!==undefined)return storage;try{return scope?.localStorage||null;}catch{return null;}}
 function readJson(storage,key){try{const raw=storage?.getItem?.(key);return raw?JSON.parse(raw):null;}catch{return null;}}
 function persist(storage,key,status){try{storage?.setItem?.(key,JSON.stringify({schema:CONNECTED360_INVITATION_SCHEMA,status}));return true;}catch{return false;}}
-export function connected360InvitationKey({userId,role}={}){
+export function connected360InvitationKey({userId,role,native=false}={}){
   const id=clean(userId);
-  return clean(role,32).toLowerCase()==='client'&&id?PREFIX+hash(id+'|client'):null;
+  return clean(role,32).toLowerCase()==='client'&&id
+    ?(native?NATIVE_PREFIX:PREFIX)+hash(id+'|client'):null;
 }
 export function connected360Capabilities(scope=globalThis){
   const rows=zeroCostProviderReadiness(providerReadiness(scope));
-  const direct=rows.filter(item=>item.usableNow&&item.mode!=='local_file');
+  const nativeReady=isConnected360ProdNativeAvailable(scope);
+  const direct=nativeReady
+    ?[{key:'health_connect',label:'Android · Health Connect'}]
+    :rows.filter(item=>item.usableNow&&item.mode!=='local_file');
   return Object.freeze({
     direct:Object.freeze(direct.map(item=>Object.freeze({key:item.key,label:item.label}))),
+    nativeReady,
     importReady:rows.some(item=>item.key==='normalized_file'&&item.importReady&&item.usableNow),
   });
 }
 export function connected360InvitationDecision({role='',userId='',recorded=null,guideStatus='never',connections=[],capabilities={direct:[],importReady:false}}={}){
   if(!connected360InvitationKey({role,userId}))return Object.freeze({show:false,status:'unavailable'});
-  if(Array.isArray(connections)&&connections.some(item=>ACTIVE.has(clean(item?.status||item?.state,32).toLowerCase())))
+  if(Array.isArray(connections)&&connections.some(item=>(!capabilities.nativeReady||clean(item?.provider||item?.source,32)==='health_connect')
+    &&ACTIVE.has(clean(item?.status||item?.state,32).toLowerCase())))
     return Object.freeze({show:false,status:'connected'});
   const current=FINAL.has(recorded?.status)?recorded.status:'pending';
   if(FINAL.has(current))return Object.freeze({show:false,status:current});
@@ -53,6 +73,19 @@ export function connected360InvitationDecision({role='',userId='',recorded=null,
 export function connected360InvitationMarkup(capabilities,language='es'){
   const t=(value)=>iberfitSurfaceTranslate(value,{language});
   const direct=Boolean(capabilities.direct?.length);
+  if(capabilities.nativeReady){
+    const choices=NATIVE_SCOPES.map(([id,label])=>'<label><input type="checkbox" data-m26-connected360-native-scope="'+id+'"><span>'+t(label)+'</span></label>').join('');
+    return '<section data-m26-connected360-invitation data-m26-connected360-native role="dialog" aria-modal="false" aria-labelledby="m26-connected360-heading" aria-describedby="m26-connected360-desc">'
+      +'<span class="m26-connected360-eyebrow">'+t('Tu salud, integrada en IBERFIT')+'</span>'
+      +'<h2 id="m26-connected360-heading">'+t('Conecta tu actividad al empezar')+'</h2>'
+      +'<p id="m26-connected360-desc">'+t('IBERFIT puede leer los datos disponibles de Health Connect y mostrarlos en tu evolución. Elige qué compartir y confirma los permisos de Android. Después, se sincronizarán al abrir la aplicación.')+'</p>'
+      +'<p class="m26-connected360-provider">'+t('Health Connect · Android')+'</p>'
+      +'<fieldset class="m26-connected360-scopes"><legend>'+t('¿Qué datos quieres compartir?')+'</legend>'+choices+'</fieldset>'
+      +'<p data-m26-connected360-status role="status" aria-live="polite">'+t('Elige al menos una categoría para continuar.')+'</p>'
+      +'<div class="m26-connected360-actions"><button type="button" data-m26-connected360-action="start">'+t('Conectar y autorizar')+'</button>'
+      +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
+      +'<p class="m26-connected360-privacy">'+t('Opcional. No accederemos a datos sin tu consentimiento y el permiso de Android. Después podrás pausar, cambiar o revocar permisos desde Dispositivos y Ajustes. La procedencia exacta del reloj no está verificada.')+'</p></section>';
+  }
   const description=direct
     ?'Autoriza una fuente compatible para incorporar actividad, entrenamiento y recuperación. Tú decides qué permisos conceder.'
     :'Te mostraremos las fuentes y su disponibilidad real. La vinculación automática del reloj aún requiere una integración móvil o de proveedor certificada; mientras tanto, la importación es opcional.';
@@ -65,12 +98,12 @@ export function connected360InvitationMarkup(capabilities,language='es'){
     +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
     +'<p class="m26-connected360-privacy">'+t('Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.')+'</p></section>';
 }
-export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,storage,scope=globalThis}={}){
+export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,connectNativeHealth=null,storage,scope=globalThis}={}){
   if(!root?.addEventListener)throw new Error('M26_CONNECTED360_ROOT_REQUIRED');
   const doc=root.ownerDocument||scope?.document;
   const storageValue=storageFrom(storage,scope);
   const memory=new Map();
-  let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null;
+  let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null,busy=false;
   function guideStatus(userId){
     const key=clientGuidedWelcomeScopeKey({userId,role:'client'});
     const recorded=readJson(storageValue,key);
@@ -86,7 +119,8 @@ export function createClientWearableInvitationController({root,identityProvider=
   }
   function identity(){
     const value=identityProvider?.()||{},role=clean(value.role,32).toLowerCase(),userId=clean(value.userId);
-    const key=connected360InvitationKey({role,userId});return key?{role,userId,key}:null;
+    const native=isConnected360ProdNativeAvailable(scope);
+    const key=connected360InvitationKey({role,userId,native});return key?{role,userId,key,native}:null;
   }
   function guideIsActive(){
     return root?.getAttribute?.('data-m26-guided-tour-open')==='true'
@@ -101,7 +135,9 @@ export function createClientWearableInvitationController({root,identityProvider=
     const welcome=guideStatus(ctx.userId);
     if(!state){
       // Never interrupt an existing client who had already finished onboarding.
-      write(ctx.key,['never','in-progress','paused'].includes(welcome)?'pending':'suppressed');
+      // A native installation deserves its own first-run offer, including returning
+      // clients. The existing PWA onboarding decision is never overwritten.
+      write(ctx.key,ctx.native||['never','in-progress','paused'].includes(welcome)?'pending':'suppressed');
       state=record(ctx.key);
     }
     let connections=[];try{connections=stateProvider?.()?.collections?.wearableConnections||[];}catch{}
@@ -135,12 +171,38 @@ export function createClientWearableInvitationController({root,identityProvider=
     });
     return true;
   }
+  async function startNative(ctx,button){
+    if(busy)return;
+    const metrics=[...(dialog?.querySelectorAll?.('[data-m26-connected360-native-scope]')||[])]
+      .filter(item=>item.checked===true).map(item=>item.getAttribute('data-m26-connected360-native-scope'));
+    const note=dialog?.querySelector?.('[data-m26-connected360-status]');
+    if(!metrics.length){if(note)note.textContent='Elige al menos una categoría para autorizar.';return;}
+    if(typeof connectNativeHealth!=='function'){
+      if(note)note.textContent='La conexión no está lista. Puedes gestionarla más tarde desde Dispositivos.';
+      return;
+    }
+    busy=true;button.disabled=true;
+    if(note)note.textContent='Comprobando tu sesión y registrando las categorías autorizadas…';
+    try{
+      await connectNativeHealth(metrics);
+      // Never persist a decision for another login after an asynchronous grant.
+      if(!mounted||identity()?.key!==ctx.key)return;
+      write(ctx.key,'chosen');close();
+    }catch(error){
+      if(!mounted||identity()?.key!==ctx.key)return;
+      if(note)note.textContent=/OFFLINE|NetworkError|Failed to fetch/u.test(String(error?.message||''))
+        ?'No hay conexión. Tu elección no se ha completado; vuelve a intentar cuando tengas internet.'
+        :'No podemos confirmar todavía la conexión. Tus autorizaciones existentes se conservan; puedes reintentar sin reinstalar la aplicación.';
+    }finally{busy=false;button.disabled=false;}
+  }
   function click(event){
     const btn=event.target?.closest?.('[data-m26-connected360-action]');
     if(!btn||!dialog?.contains?.(btn))return;
     const ctx=identity();if(!ctx||ctx.key!==activeKey){close();return;}
     const action=btn.getAttribute?.('data-m26-connected360-action');
+    if(busy)return;
     if(action==='later'){write(ctx.key,'dismissed');close();return;}
+    if(action==='start'&&ctx.native){void startNative(ctx,btn);return;}
     if(action==='start'&&navigate()){write(ctx.key,'chosen');close();return;}
     const hint=dialog.querySelector?.('.m26-connected360-provider');
     if(hint)hint.textContent=iberfitSurfaceTranslate('No se ha podido abrir Actividad. Puedes encontrarla también desde Ajustes.',{language:getIberfitLanguage()});
@@ -158,7 +220,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     },
     refresh,
     destroy(){
-      mounted=false;scheduled=false;
+      mounted=false;scheduled=false;busy=false;
       doc?.removeEventListener?.('click',click);doc?.removeEventListener?.('keydown',keydown);
       root.removeEventListener?.('m26:client-guided-welcome-completed',refresh);
       scope?.removeEventListener?.('pageshow',refresh);
