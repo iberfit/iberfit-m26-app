@@ -1592,9 +1592,9 @@ export function createWorkflowController({
 
   async function approveReport(){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const content={clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'};
     const fingerprint=JSON.stringify(content);
-    await saveReportDraft(form,{silent:true});
+    const savedReport=await saveReportDraft(form,{silent:true});
     const previous=reportSubmissionByClient.get(clientId);
-    const stableId=String(raw.entityId||'').trim()||(previous?.fingerprint===fingerprint?previous.id:createM26Id());
+    const stableId=String(raw.entityId||savedReport.id||'').trim()||(previous?.fingerprint===fingerprint?previous.id:createM26Id());
     const existing=previous?.id===stableId&&previous?.fingerprint===fingerprint?previous:null;
     if(existing?.result?.ok===true){
       status(root,'report','Este informe ya quedó aprobado en el servidor. Actualiza la vista antes de volver a enviarlo.','pending');
