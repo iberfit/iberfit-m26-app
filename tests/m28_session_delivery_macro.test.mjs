@@ -162,6 +162,8 @@ test('New Coach sessions require a conscious per-session choice before preview/p
 test('Legacy presencial execution_type and appointment mode are never autonomous',()=>{
  const legacy={id:'legacy-presencial',clientId:'c1',status:'published',execution_type:'presencial',blocks:[]};
  assert.equal(sessionDeliveryModality(legacy),'presencial');
+ assert.equal(sessionDeliveryModality(legacy,{modality:'guiada_en_app'}),'presencial');
+ assert.equal(actorCanExecuteSession({role:'client',session:legacy,appointment:{modality:'guiada_en_app'}}),false);
  assert.equal(actorCanExecuteSession({role:'client',session:legacy}),false);
  assert.equal(clientSessionProjection(legacy).ownership,'coach_led');
  const {execution_type:ignored,...withoutExecution}=legacy;
