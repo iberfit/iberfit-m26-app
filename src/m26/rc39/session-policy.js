@@ -77,10 +77,11 @@ export function isPublishedSession(record){
   return PUBLIC_STATES.has(publicationState(record));
 }
 export function sessionDeliveryModality(session={},appointment=null){
-  return normalizeDeliveryModality(
-    field(session,'deliveryModality','delivery_modality','modality','modalidad') ??
-    field(appointment,'modality','modalidad')
-  ) || 'guiada_en_app';
+  const raw=field(session,'deliveryModality','delivery_modality','modality','modalidad') ??
+    field(appointment,'modality','modalidad');
+  // Legacy sessions without explicit delivery remain compatible. An unrecognized
+  // explicit delivery is not silently interpreted as autonomous.
+  return raw===null?'guiada_en_app':normalizeDeliveryModality(raw)||'unknown';
 }
 export function sessionDeliveryOwnership(session={},appointment=null){
   const explicit=normalizeDeliveryOwnership(
@@ -90,23 +91,20 @@ export function sessionDeliveryOwnership(session={},appointment=null){
   // Presencial cannot be made autonomous by a stale or contradictory flag.
   if(modality==='presencial')return 'coach_led';
   if(explicit)return explicit;
-  if(modality==='presencial')return 'coach_led';
   if(modality==='online')return 'live_online';
+  if(modality==='unknown')return 'coach_led';
   return 'client_autonomous';
 }
 export function sessionVisibilityLevel(session={},appointment=null){
   const explicit=normalizeClientVisibilityLevel(
     field(session,'clientVisibilityLevel','client_visibility_level','visibilityLevel','visibility_level')
   );
-  // Supervised sessions show only agenda/summary, even if stale full visibility exists.
-  if(['coach_led','live_online'].includes(sessionDeliveryOwnership(session,appointment)))return explicit==='hidden'?'hidden':'summary_only';
-  if(explicit)return explicit;
-  if(booleanField(session,'visibleToClient','visible_to_client','clientVisible','client_visible')===false){
-    return 'hidden';
-  }
+  // Explicitly hidden and withdrawn sessions stay hidden regardless of mode.
+  if(explicit==='hidden'||booleanField(session,'visibleToClient','visible_to_client','clientVisible','client_visible')===false)return 'hidden';
   const ownership=sessionDeliveryOwnership(session,appointment);
+  // A contradictory legacy full-visibility flag cannot expose a supervised session.
   if(ownership==='coach_led'||ownership==='live_online')return 'summary_only';
-  return 'full';
+  return explicit||'full';
 }
 export function sessionIdOf(record){
   return String(field(record,'id','entityId','entity_id')||'').trim()||null;
