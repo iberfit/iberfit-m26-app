@@ -3594,7 +3594,12 @@ function lastCheckinSummary(last){
 }
 export function renderActivityRoute(vm){
   if(lacksTrainingSurface(vm.serviceKind)){
+    // A client who independently authorized health reading can view/revoke
+    // their existing data without activating a paid training follow-up.
+    const ownedHealth=vm.role==='client'&&Number(vm.wearables?.summary?.daysWithData||0)>0
+      ?renderClientDeviceHub(vm.wearables):'';
     return `<div class="m26-route" data-service-kind="none">
+      ${ownedHealth}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento diario no activado</h2><p>Hábitos, adherencia, wearables y check-ins longitudinales pertenecen al acompañamiento posterior, no al diagnóstico IRI inicial.</p></div>${badge('IRI separado del seguimiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
     </div>`;

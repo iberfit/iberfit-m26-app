@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,renderActivityRoute} from '../src/m26/modules/route-render.js';
 import {clientHealthSnapshot,renderClientTodayHealth,renderSessionHealthContext} from '../src/m26/wearables/client-health-snapshot.js';
 import {renderClientDeviceHub} from '../src/m26/wearables/device-hub.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
@@ -51,10 +51,20 @@ test('Hydrated owner-scoped data feeds Hoy and live session without cross-accoun
   const vm=readFileSync('src/m26/modules/route-view-model.js','utf8');
   const app=readFileSync('src/m26/app/application.js','utf8');
   const css=readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
-  assert.match(vm,/wearables:overview.role==='client'&&clientId&&selectedHasTraining/u);
+  assert.match(vm,/wearables:overview.role==='client'&&clientId&&/u);
   assert.match(vm,/recordsForClient\(state,'wearableDailySummaries',clientId\)/u);
   assert.match(app,/wearableContext:role==='client'&&memoryClientId/u);
   assert.match(app,/identity\?\.clientId/u);
   assert.match(css,/\.m26-client-health-metrics/u);
   assert.match(css,/min-height:44px/u);
+});
+
+test('IRI-only client with consented health can still view recorded data; longitudinal tracking stays separate',()=>{
+  const capability={role:'client',serviceKind:'none',wearables,checkins:[],habits:[],capabilities:{checkins:{ready:false},habits:{ready:false}}};
+  const html=renderActivityRoute(capability);
+  assert.match(html,/data-m26-device-hub/u);
+  assert.match(html,/Seguimiento diario no activado/u);
+  assert.doesNotMatch(html,/data-engagement-form="checkin"/u);
+  const noData=renderActivityRoute({...capability,wearables:{...wearables,summary:{daysWithData:0,metrics:{}}}});
+  assert.doesNotMatch(noData,/data-m26-device-hub/u);
 });
