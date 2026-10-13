@@ -32,14 +32,14 @@ test('canonical and V43 direct table RLS require publication for Cliente',()=>{
     '../supabase/migrations/20261013151216_m36_training_publication_rls.sql',
     import.meta.url),'utf8');
   for(const policy of ['domain_entities_v26_select','m26_plans_read_v43','m26_sessions_read_v43']){
-    assert.match(sql,new RegExp('ALTER POLICY '+policy+' ON public\\.'));
+    assert.ok(sql.includes('ALTER POLICY '+policy+' ON public.'),policy);
   }
-  assert.match(sql,/iberfit_can_access_client_v26\\(client_id\\)/);
-  assert.match(sql,/iberfit_current_role_v26\\(\\) <> 'cliente'/);
-  assert.match(sql,/entity_type NOT IN \\('planning','session','report'\\)/);
-  assert.match(sql,/coalesce\\(lower\\(body ->> 'visibleToClient'\\)/);
-  assert.match(sql,/is_assigned_coach\\(client_id\\)/);
-  assert.doesNotMatch(sql,/\\b(?:GRANT|UPDATE|DELETE FROM|TRUNCATE)\\b/iu);
+  assert.ok(sql.includes('iberfit_can_access_client_v26(client_id)'));
+  assert.ok(sql.includes("iberfit_current_role_v26() <> 'cliente'"));
+  assert.ok(sql.includes("entity_type NOT IN ('planning','session','report')"));
+  assert.ok(sql.includes("coalesce(lower(body ->> 'visibleToClient')"));
+  assert.ok(sql.includes('is_assigned_coach(client_id)'));
+  assert.ok(!/\b(?:GRANT|UPDATE|DELETE FROM|TRUNCATE)\b/iu.test(sql),'unexpected privilege/data mutation');
 });
 
 test('Coach plan validation deduplicates in-flight submissions before draft loading',()=>{
@@ -48,8 +48,8 @@ test('Coach plan validation deduplicates in-flight submissions before draft load
   const end=source.indexOf('async function performValidatePlan()',start);
   assert.ok(start>=0&&end>start,'single-flight guard missing');
   const guard=source.slice(start,end);
-  assert.match(guard,/if\\(planValidationPending\\)return planValidationPending/);
-  assert.match(guard,/planValidationPending=operation/);
-  assert.match(guard,/planValidationPending===operation\\)planValidationPending=null/);
-  assert.match(source.slice(end,end+2700),/await draftRepository\\?\\.load\\?\\.\\(clientId,'planning-cycle'\\)/);
+  assert.ok(guard.includes('if(planValidationPending)return planValidationPending'));
+  assert.ok(guard.includes('planValidationPending=operation'));
+  assert.ok(guard.includes('planValidationPending===operation)planValidationPending=null'));
+  assert.ok(source.slice(end,end+3500).includes("await draftRepository?.load?.(clientId,'planning-cycle')"));
 });
