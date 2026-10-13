@@ -45,21 +45,33 @@ test('Client remains barred from premature, hidden and contradictory sessions',(
   assert.equal(actorCanExecuteSession({role:'admin',session:running}),false);
 });
 
-test('M37 server migration guards publication, scope, state, replays and active lock',()=>{
- const sql=readFileSync(new URL('../supabase/migrations/20261013160703_m37_guided_autonomous_atomic_lifecycle.sql',import.meta.url),'utf8');
- for(const marker of [
-   'M37_RC29_SOURCE_DRIFT','M37_START_ANCHOR_DRIFT','M37_APPOINTMENT_ANCHOR_DRIFT',
-   'M37_PUBLISH_ANCHOR_DRIFT','v_status=\'disponible\'',
-   'v_body->>\'deliveryModality\'=\'guiada_en_app\'',
-   'v_body->>\'deliveryOwnership\'',
-   'v_body->>\'clientVisibilityLevel\'=\'full\'',
-   'v_body->>\'visibleToClient\'=\'true\'',
-   'active_execution_client:','M37_PRESCRIPTION_INCOMPLETE',
-   'M37_LEGACY_ID_SCOPE_CONFLICT','M37_GUIDED_ENABLE_NOT_AUTHORIZED',
-   "'related_applied','publicada','disponible'",
-   'perform public.iberfit_persist_entity_v26(\'session\'',
-   'EXECUTE edited;'
- ])assert.ok(sql.includes(marker),marker);
- assert.ok(!sql.includes('DROP TABLE'));
- assert.ok(!sql.includes('GRANT EXECUTE'));
+test('M37 static SQL keeps canonical authorization, atomic enable, FK and idempotency',()=>{
+  const first=readFileSync(new URL('../supabase/migrations/20261013160703_m37_guided_autonomous_atomic_lifecycle.sql',import.meta.url),'utf8');
+  const last=readFileSync(new URL('../supabase/migrations/20261013161152_m37_session_legacy_mirror_redaction.sql',import.meta.url),'utf8');
+  for(const sql of [first,last]){
+    assert.ok(sql.includes('CREATE OR REPLACE FUNCTION public.iberfit_execute_command_v26_rc29(p_command jsonb)'));
+    assert.ok(sql.includes('SECURITY DEFINER'));
+    assert.ok(sql.includes("SET search_path TO ''"));
+    assert.ok(!/\bDO\s+\$[A-Za-z_]*\$/i.test(sql),'no anonymous migration code allowed');
+    assert.ok(!sql.includes('EXECUTE edited;'),'no dynamic SQL allowed');
+    for(const marker of [
+      "v_status='disponible'",
+      "v_body->>'deliveryModality'='guiada_en_app'",
+      "v_body->>'deliveryOwnership'",
+      "v_body->>'clientVisibilityLevel'='full'",
+      "v_body->>'visibleToClient'='true'",
+      "active_execution_client:",
+      "M37_PRESCRIPTION_INCOMPLETE",
+      "M37_LEGACY_ID_SCOPE_CONFLICT",
+      "M37_GUIDED_ENABLE_NOT_AUTHORIZED",
+      "'related_applied','publicada','disponible'",
+      "perform public.iberfit_persist_entity_v26('session'",
+      "v_receipt.remote_revision",
+      "v_base_revision<>v_revision",
+      "public.iberfit_can_access_client_v26(v_client_id)"
+    ])assert.ok(sql.includes(marker),marker);
+  }
+  assert.ok(last.includes("'blocks',case when v_next_body->>'deliveryModality'='guiada_en_app'"));
+  assert.ok(last.includes("'[]'::jsonb end"));
+  assert.ok(!first.includes("'blocks',case when v_next_body->>'deliveryModality'='guiada_en_app'"));
 });
