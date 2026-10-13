@@ -98,7 +98,7 @@ export function connected360InvitationMarkup(capabilities,language='es'){
     +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
     +'<p class="m26-connected360-privacy">'+t('Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.')+'</p></section>';
 }
-export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,connectNativeHealth=null,storage,scope=globalThis}={}){
+export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,connectNativeHealth=null,nativeHealthReady=()=>true,storage,scope=globalThis}={}){
   if(!root?.addEventListener)throw new Error('M26_CONNECTED360_ROOT_REQUIRED');
   const doc=root.ownerDocument||scope?.document;
   const storageValue=storageFrom(storage,scope);
@@ -131,6 +131,8 @@ export function createClientWearableInvitationController({root,identityProvider=
   function render(){
     scheduled=false;if(!mounted)return;
     const ctx=identity();if(!ctx){close();return;}
+    // The first-run prompt cannot race the post-login native controller mount.
+    if(ctx.native&&!nativeHealthReady()){close();return;}
     let state=record(ctx.key);
     const welcome=guideStatus(ctx.userId);
     if(!state){
@@ -217,6 +219,7 @@ export function createClientWearableInvitationController({root,identityProvider=
       if(mounted)return;mounted=true;
       doc?.addEventListener?.('click',click);doc?.addEventListener?.('keydown',keydown);
       root.addEventListener?.('m26:client-guided-welcome-completed',refresh);
+      root.addEventListener?.('m26:native-wearables-ready',refresh);
       scope?.addEventListener?.('pageshow',refresh);refresh();
     },
     refresh,
@@ -224,6 +227,7 @@ export function createClientWearableInvitationController({root,identityProvider=
       mounted=false;scheduled=false;busy=false;
       doc?.removeEventListener?.('click',click);doc?.removeEventListener?.('keydown',keydown);
       root.removeEventListener?.('m26:client-guided-welcome-completed',refresh);
+      root.removeEventListener?.('m26:native-wearables-ready',refresh);
       scope?.removeEventListener?.('pageshow',refresh);
       close();style?.remove?.();style=null;
     },
