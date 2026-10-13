@@ -16,6 +16,13 @@ test('server preserves canonical receipts, service checks and preflight/execute 
  assert.match(sql,/private\.iberfit_training_command_guard_v1\(p_command\)/u);
  assert.match(sql,/public\.iberfit_command_preflight_v26_pre_training_service_guard_v1\(p_command\)/u);
  assert.match(sql,/public\.iberfit_execute_command_v26_pre_training_service_guard_v1\(p_command\)/u);
- assert.equal((sql.match(/private\.iberfit_session_delivery_guard_m28\(p_command\)/gu)||[]).length,2);
+ assert.equal((sql.match(/private\.iberfit_session_delivery_guard_m28\(p_command\)/gu)||[]).length,3);
+ const executor=sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.iberfit_execute_command_v26('));
+ const replay=executor.indexOf('from public.command_receipts_v26');
+ const service=executor.indexOf('v_guard := private.iberfit_training_command_guard_v1(p_command)');
+ const delivery=executor.indexOf('v_delivery_guard := private.iberfit_session_delivery_guard_m28(p_command)');
+ const canonical=executor.lastIndexOf('return public.iberfit_execute_command_v26_pre_training_service_guard_v1(p_command)');
+ assert.ok(replay>0&&service>replay&&delivery>service&&canonical>delivery);
+ assert.match(executor.slice(replay,service),/return public\.iberfit_execute_command_v26_pre_training_service_guard_v1\(p_command\)/u);
  assert.doesNotMatch(sql,/delete from public\.domain_entities_v26|truncate public\./iu);
 });
