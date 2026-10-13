@@ -50,7 +50,7 @@ import {
   publicationCounts,
 } from '../workflows/publication-workflow.js';
 import { clientContentView } from '../publication/client-content.js';
-import {actorCanExecuteSession,sessionHasExecutableBlocks} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -483,6 +483,8 @@ function publicationItems(records, entity, role) {
         clientContent,
         ...(entity==='session'?{
           canClientExecute:actorCanExecuteSession({role,session:record})&&sessionHasExecutableBlocks(record),
+          canClientStart:actorCanExecuteSession({role,session:record})&&sessionReadyToStart(record),
+          sessionStatus:String(text(record,'status','estado')||'').trim().toLowerCase(),
           deliveryOwnership:String(text(record,'deliveryOwnership','delivery_ownership')||''),
           deliveryModality:String(text(record,'deliveryModality','delivery_modality','execution_type')||''),
         }:{}),
