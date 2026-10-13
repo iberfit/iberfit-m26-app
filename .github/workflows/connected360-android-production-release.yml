@@ -55,23 +55,31 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
       - name: Verify monotonic Android version before signing
+        id: android_release_gate
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci/android_release_version_guard.mjs
+      - name: Reuse existing signed Android APK when native host is unchanged
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'false' }}
+        run: echo 'ANDROID_SIGNED_HOST_REUSED_NO_NATIVE_CHANGE'
       - uses: actions/setup-java@v4
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         with:
           gradle-version: '9.5.0'
       - name: Prepare Android SDK 36
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         run: |
           set -euo pipefail
           MANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)"
           test -n "$MANAGER"
           "$MANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Require stable production signing credentials
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         shell: bash
         env:
           SIGNING_B64: "${{ secrets.IBERFIT_ANDROID_RELEASE_KEYSTORE_B64 }}"
@@ -95,9 +103,11 @@ jobs:
           echo "::add-mask::$SIGNING_STORE_CREDENTIAL"
           echo "::add-mask::$SIGNING_KEY_CREDENTIAL"
       - name: Test release and build signed production APK / bundle
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         run: |
           gradle --no-daemon -p native/android-host :phone-app:testDebugUnitTest :phone-app:assembleRelease :phone-app:bundleRelease
       - name: Verify signed identity, certificate and no QA package
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -119,6 +129,7 @@ jobs:
           ! grep -R -Eiq 'service_role|SUPABASE_SERVICE_KEY|addJavascriptInterface' native/android-host/phone-app/src/main/java
           sha256sum "$APK" "$AAB" > CONNECTED360_ANDROID_PRODUCTION_SHA256.txt
       - name: Upload signed artifacts
+        if: ${{ steps.android_release_gate.outputs.sign_required == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: iberfit-android-production-${{ github.sha }}
