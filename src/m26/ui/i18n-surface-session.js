@@ -241,4 +241,5 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
   ["Online en directo · opción futura","Live online · future option","En ligne en direct · option future","Online em direto · opção futura"],
   ["Tu próxima sesión con Coach","Your next session with your Coach","Votre prochaine séance avec votre coach","A sua próxima sessão com o Coach"],
   ["Ver mis sesiones","View my sessions","Voir mes séances","Ver as minhas sessões"],
+  ["Seleccionar modo de sesión","Choose session delivery","Choisir le type de séance","Escolher o tipo de sessão"],
 ]);

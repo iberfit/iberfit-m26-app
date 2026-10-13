@@ -144,3 +144,17 @@ test('Wrapped published sessions show separate guided and presencial experiences
  assert.match(today,/Entrenar ahora/u);
  assert.match(today,/data-entity-id="wrapped-guiada_en_app"/u);
 });
+
+test('New Coach sessions require a conscious per-session choice before preview/publication',()=>{
+ const next=draft('guiada_en_app');
+ next.deliveryModality=null;next.previewAccepted=false;
+ assert.ok(validateSessionDraft(next,catalog).errors.includes('deliveryModality'));
+ assert.throws(()=>acceptSessionPreview(next,catalog),/M26_SESSION_DRAFT_INVALID/u);
+ assert.throws(()=>buildPublishSessionCommand(next,catalog),/M26_SESSION_DRAFT_INVALID/u);
+ const html=renderSessionBuilder({draft:next,catalog,role:'coach'});
+ assert.match(html,/option value="" disabled selected>Seleccionar modo de sesión/u);
+ updateSessionDraft(next,'deliveryModality','presencial');
+ assert.equal(validateSessionDraft(next,catalog).ok,true);
+ const app=readFileSync('src/m26/app/application.js','utf8');
+ assert.match(app,/if\(!sourceSession&&!saved\)draft.deliveryModality=null/u);
+});

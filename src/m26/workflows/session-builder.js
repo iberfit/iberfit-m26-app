@@ -199,7 +199,7 @@ export function validateSessionDraft(draft,catalog){
  if(!draft?.clientId)errors.push('clientId');
  if(!String(draft?.title||'').trim()||String(draft.title).length>120)errors.push('title');
  const duration=Number(draft?.durationMinutes);if(!Number.isInteger(duration)||duration<10||duration>240)errors.push('durationMinutes');
- if(draft?.deliveryModality!==undefined&&draft?.deliveryModality!==null&&!['presencial','guiada_en_app'].includes(normalizeAppointmentModality(draft.deliveryModality)))errors.push('deliveryModality');
+ if(draft?.deliveryModality===null||(draft?.deliveryModality!==undefined&&!['presencial','guiada_en_app'].includes(normalizeAppointmentModality(draft.deliveryModality))))errors.push('deliveryModality');
  if(!Array.isArray(draft?.blocks)||!draft.blocks.length||draft.blocks.length>100)errors.push('blocks');
  for(const b of draft?.blocks||[]){
   if(!b?.id||seenBlocks.has(b.id)){errors.push(`blockId:${b?.id||'missing'}`);continue;}seenBlocks.add(b.id);
