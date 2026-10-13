@@ -35,7 +35,7 @@ test('M28 V2 drift repair guards fresh writes and keeps original receipts canoni
  const delivery=v2.indexOf('v_delivery_guard := private.iberfit_session_delivery_guard_m28(p_command)');
  const canonical=v2.lastIndexOf('return public.iberfit_execute_command_v26_pre_training_service_guard_v1(p_command)');
  assert.ok(replay>0 && service>replay && delivery>service && canonical>delivery);
- assert.match(v2.slice(replay,service),/return public\\.iberfit_execute_command_v26_pre_training_service_guard_v1\\(p_command\\)/u);
- assert.equal((v2.match(/private\\.iberfit_session_delivery_guard_m28\\(p_command\\)/gu)||[]).length,1);
- assert.doesNotMatch(v2,/delete from|update public\\.domain_entities_v26|truncate public\\./iu);
+ assert.match(v2.slice(replay,service),/return public\.iberfit_execute_command_v26_pre_training_service_guard_v1\(p_command\)/u);
+ assert.equal((v2.match(/private\.iberfit_session_delivery_guard_m28\(p_command\)/gu)||[]).length,1);
+ assert.doesNotMatch(v2,/delete from|update public\.domain_entities_v26|truncate public\./iu);
 });
