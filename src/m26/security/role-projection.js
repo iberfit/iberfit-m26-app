@@ -1,4 +1,5 @@
 import {isClientVisibleAppointment} from '../domain/appointment.js';
+import {sessionVisibilityLevel} from '../rc39/session-policy.js';
 
 const ROLE_ALIASES=Object.freeze({admin:'admin',administrador:'admin',administrator:'admin',coach:'coach',entrenador:'coach',client:'client',cliente:'client'});
 const ALWAYS_PRIVATE_FOR_CLIENT=new Set(['privateNotes','coachAvailability','intelligenceRuns','domainEvents','wearableSyncRuns']);
@@ -50,7 +51,9 @@ function safeSessionBlocks(record){
       ['restSeconds',['restSeconds','rest_seconds','descanso']],['tempo',['tempo','ritmo']],['range',['range','rango']],
       ['load',['load','carga']],['loadKg',['loadKg','load_kg']],['targetRpe',['targetRpe','target_rpe']],['targetRir',['targetRir','target_rir']],
       ['durationSeconds',['durationSeconds','duration_seconds']],['alternativeId',['alternativeId','alternative_id']],
+      ['rounds',['rounds','rondas']],
     ])assign(item,canonical,block,...keys);
+    if(Array.isArray(block?.exerciseIds))item.exerciseIds=block.exerciseIds.slice(0,12).map(safeId).filter(Boolean);
     return item;
   });
 }
@@ -61,7 +64,7 @@ function projectPublication(key,record){
   if(key==='trainingCycles'){
     assign(out,'name',record,'name','nombre','title','titulo');assign(out,'goal',record,'goal','objective','objetivo','summary','resumen');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');
   }else if(key==='sessions'){
-    assign(out,'objective',record,'objective','goal','objetivo','summary','resumen');assign(out,'durationMinutes',record,'durationMinutes','duration_minutes','duracionMinutos','duration');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');assign(out,'clientVisibilityLevel',record,'clientVisibilityLevel','client_visibility_level');assign(out,'deliveryOwnership',record,'deliveryOwnership','delivery_ownership');assign(out,'deliveryModality',record,'deliveryModality','delivery_modality','modality','modalidad');const visibility=String(value(record,'clientVisibilityLevel','client_visibility_level')||'full').trim().toLowerCase();out.blocks=visibility==='summary_only'?[]:safeSessionBlocks(record);
+    assign(out,'objective',record,'objective','goal','objetivo','summary','resumen');assign(out,'durationMinutes',record,'durationMinutes','duration_minutes','duracionMinutos','duration');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');assign(out,'deliveryOwnership',record,'deliveryOwnership','delivery_ownership','executionMode','execution_mode');assign(out,'deliveryModality',record,'deliveryModality','delivery_modality','modality','modalidad','execution_type','executionType');const visibility=sessionVisibilityLevel(record);out.clientVisibilityLevel=visibility;out.blocks=visibility==='full'?safeSessionBlocks(record):[];
   }else if(key==='reports'){
     assign(out,'periodStart',record,'periodStart','period_start');assign(out,'periodEnd',record,'periodEnd','period_end');assign(out,'summary',record,'summary','resumen');assign(out,'conclusions',record,'conclusions','conclusiones');assign(out,'recommendations',record,'recommendations','recomendaciones','nextSteps','next_steps');
   }
@@ -140,7 +143,7 @@ export function projectCollectionsForRole(collections,user,collectionKeys=Object
     if(ALWAYS_PRIVATE_FOR_CLIENT.has(key)){projected[key]=[];continue;}
     projected[key]=records.filter((record)=>{
       if(clientIdOf(record,key)!==own)return false;
-      if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record);
+      if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record)&&(key!=='sessions'||sessionVisibilityLevel(record)!=='hidden');
       if(key==='appointments')return isClientVisibleAppointment(record);
       return isVisibleGeneric(record);
     }).map((record)=>projectRecordForClient(key,record)).filter(Boolean);
@@ -153,7 +156,7 @@ export function assertClientProjectionSafe(collections,user){
   if(roleOf(user)!=='client')return true;
   const own=safeId(user?.clientId||user?.client_id);if(!own)throw new Error('M26_CLIENT_IDENTITY_REQUIRED');
   for(const key of ALWAYS_PRIVATE_FOR_CLIENT){if((collections?.[key]||[]).length)throw new Error(`M26_CLIENT_PRIVATE_COLLECTION_EXPOSED:${key}`);}
-  for(const [key,records] of Object.entries(collections||{}))for(const record of records||[]){if(clientIdOf(record,key)!==own)throw new Error(`M26_CLIENT_CROSS_SCOPE_EXPOSED:${key}`);if(PUBLICATION_SCOPED.has(key)&&!isVisiblePublication(record))throw new Error(`M26_CLIENT_UNPUBLISHED_EXPOSED:${key}`);if(key==='appointments'&&!isClientVisibleAppointment(record))throw new Error('M26_CLIENT_UNCONFIRMED_APPOINTMENT_EXPOSED');assertNoSensitiveKeys(record,key);}
+  for(const [key,records] of Object.entries(collections||{}))for(const record of records||[]){if(clientIdOf(record,key)!==own)throw new Error(`M26_CLIENT_CROSS_SCOPE_EXPOSED:${key}`);if(PUBLICATION_SCOPED.has(key)&&!isVisiblePublication(record))throw new Error(`M26_CLIENT_UNPUBLISHED_EXPOSED:${key}`);if(key==='sessions'&&sessionVisibilityLevel(record)==='hidden')throw new Error('M26_CLIENT_HIDDEN_SESSION_EXPOSED');if(key==='appointments'&&!isClientVisibleAppointment(record))throw new Error('M26_CLIENT_UNCONFIRMED_APPOINTMENT_EXPOSED');assertNoSensitiveKeys(record,key);}
   return true;
 }
 export const M26_CLIENT_PRIVATE_COLLECTIONS=Object.freeze([...ALWAYS_PRIVATE_FOR_CLIENT]);
