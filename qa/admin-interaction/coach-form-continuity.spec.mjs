@@ -12,8 +12,8 @@ test('Coach primary session action preserves the appointment context through the
     ]);
     const clientId='context-client-qa';
     const sessions=[
-      {id:'scheduled-qa',clientId,status:'publicado',title:'Sesión de la cita',revision:1},
-      {id:'other-qa',clientId,status:'publicado',title:'Otro plan',revision:99},
+      {id:'scheduled-qa',clientId,status:'publicado',title:'Sesión de la cita',revision:1,blocks:[{id:'scheduled-block',type:'exercise',exerciseId:'sentadilla',name:'Sentadilla',sets:3,reps:'8'}]},
+      {id:'other-qa',clientId,status:'publicado',title:'Otro plan',revision:99,blocks:[{id:'other-block',type:'exercise',exerciseId:'remo',name:'Remo',sets:3,reps:'10'}]},
     ];
     const state={identity:{id:'coach-qa',role:'coach'},selectedClientId:clientId,collections:{
       clients:[{id:clientId,name:'Cliente sintético',trainingServiceStatus:'active'}],sessions,
