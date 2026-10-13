@@ -1414,6 +1414,7 @@ export function createWorkflowController({
     try{confirmed=await refreshAndFind('trainingCycles',stableId,clientId);}
     catch{}
     if(!confirmed||normalizedStatus(confirmed)!=='validado'){
+      emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_CONFIRM_NOT_PERSISTED'});
       status(root,'planning','El servidor confirmó el ciclo. La vista todavía no refleja la versión guardada; conserva el borrador y actualiza antes de repetir la validación.','pending');
       return {...result,refreshOk:false};
     }
