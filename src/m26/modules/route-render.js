@@ -553,12 +553,12 @@ function renderClientHoyRoute(vm) {
   }else if(projections.length){
     primary={
       area:'sesion',
-      eyebrow:projections.every(item=>item?.canClientExecute!==true)?'Tu próxima sesión con Coach':'Tu entrenamiento',
+      eyebrow:projections.every(item=>item?.canClientStart!==true)?'Tu próxima sesión con Coach':'Tu entrenamiento',
       title:firstProjection?.session?.body?.title||firstProjection?.session?.title||'Tu planificación está preparada',
       detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
       markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
         <span aria-hidden="true">▶</span>
-        <strong>${projections.every(item=>item?.canClientExecute!==true)?'Ver mis sesiones':'Abrir mis sesiones'}</strong>
+        <strong>${projections.every(item=>item?.canClientStart!==true)?'Ver mis sesiones':'Abrir mis sesiones'}</strong>
         <small>Tienes ${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'} en tu planificación.</small>
       </button>`,
     };
@@ -3682,7 +3682,26 @@ function recordList(items,emptyTitle='Sin registros'){
 }
 
 function publicationTone(status){return status==='published'?'success':status==='approved'?'neutral':status==='review'?'pending':status==='withdrawn'||status==='archived'?'warning':'neutral';}
-function publicationVisibilityCopy(item){const status=item?.publication?.status;if(status==='published')return 'Visible para el cliente.';if(status==='approved')return 'Aprobado, pero todavía no visible para el cliente.';if(status==='review')return 'Pendiente de aprobación interna.';if(status==='draft')return 'Borrador interno.';if(status==='withdrawn')return 'Retirado de la vista del cliente.';if(status==='archived')return 'Archivado y no visible para el cliente.';return 'Revisa el estado antes de continuar.';}
+function publicationVisibilityCopy(item){
+  const status=item?.publication?.status;
+  if(status==='published'){
+    if(item?.raw?.entityType==='session'||item?.raw?.body?.deliveryModality||item?.raw?.deliveryModality){
+      if(sessionReadyToStart(item.raw)){
+        return actorCanExecuteSession({role:'client',session:item.raw})
+          ?'Disponible para que el Cliente inicie su entrenamiento autónomo.'
+          :'Sesión preparada para ejecución supervisada. El Coach gestiona la cita y el inicio.';
+      }
+      return 'Publicada para consulta, pero todavía no habilitada para comenzar.';
+    }
+    return 'Visible para el cliente.';
+  }
+  if(status==='approved')return 'Aprobado, pero todavía no visible para el cliente.';
+  if(status==='review')return 'Pendiente de aprobación interna.';
+  if(status==='draft')return 'Borrador interno.';
+  if(status==='withdrawn')return 'Retirado de la vista del cliente.';
+  if(status==='archived')return 'Archivado y no visible para el cliente.';
+  return 'Revisa el estado antes de continuar.';
+}
 function publicationActionControl(action,entity,item){
   const common=`data-workflow-action="manage-publication" data-publication-entity="${escapeHtml(entity)}" data-publication-action="${escapeHtml(action.action)}" data-entity-id="${escapeHtml(item.id)}"`;
   if(action.requiresPreview)return `<div class="m26-publication-confirm"><label><input type="checkbox" data-publication-preview> He revisado la vista previa y confirmo que este contenido puede mostrarse al cliente.</label><button type="button" class="m26-primary-action" ${common}>${escapeHtml(action.label)}</button></div>`;
