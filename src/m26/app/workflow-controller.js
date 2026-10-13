@@ -305,6 +305,7 @@ export function createWorkflowController({
   const editedOnboardingForms=new WeakSet();
   const initializedReportForms=new WeakSet();
   const editedReportForms=new WeakSet();
+  const reportFormClientIds=new WeakMap();
   const initializedAppointmentForms=new WeakSet();
   let catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
@@ -1552,6 +1553,7 @@ export function createWorkflowController({
     if(!draftRepository?.save)throw new Error('M26_REPORT_DRAFT_STORAGE_UNAVAILABLE');
     const {clientId}=context();
     requireVisibleClient(clientId);
+    if(reportFormClientIds.has(form)&&reportFormClientIds.get(form)!==clientId)throw new Error('M26_REPORT_DRAFT_CLIENT_CONTEXT_CHANGED');
     const raw=values(form);
     const assessmentId=String(raw.assessmentId||'').trim();
     if(!assessmentId)throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
@@ -1575,6 +1577,7 @@ export function createWorkflowController({
     if(!form||initializedReportForms.has(form))return;
     initializedReportForms.add(form);
     const {clientId}=context();
+    reportFormClientIds.set(form,clientId);
     const assessmentId=String(form.elements?.namedItem?.('assessmentId')?.value||'').trim();
     if(!clientId||!assessmentId||!draftRepository?.load)return;
     try{
