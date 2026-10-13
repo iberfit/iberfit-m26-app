@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import {M26_ACTION_REGISTRY,assertActionAllowed} from '../src/m26/ui/interactive-audit.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
-test('Coach dispone de RPE final 1–10 táctil sin cambiar la escala de dominio',()=>{
+test('Coach y Cliente disponen de RPE final táctil 1–10 sin cambiar la escala de dominio',()=>{
   const ui=fs.readFileSync('src/m26/workflows/session-ui.js','utf8');
-  assert.match(ui,/const feedbackQuickRpe=isCoach/u);
+  assert.match(ui,/const feedbackQuickRpe='/u);
   assert.match(ui,/Array\.from\(\{length:10\},\(_,index\)=>index\+1\)/u);
   assert.match(ui,/data-session-action="set-session-rpe-quick"/u);
   assert.match(ui,/inputmode="numeric" data-session-feedback-rpe/u);
@@ -25,10 +25,10 @@ test('seleccionar RPE final actualiza borrador, estado visual y lleva al comenta
   assert.match(controller,/comment\?\.focus/u);
 });
 
-test('RPE final rápido es una acción exclusiva del Coach',()=>{
-  assert.deepEqual(M26_ACTION_REGISTRY['set-session-rpe-quick'],{roles:['coach'],domain:'execution'});
+test('RPE final rápido admite Coach y Cliente sin habilitar Admin',()=>{
+  assert.deepEqual(M26_ACTION_REGISTRY['set-session-rpe-quick'],{roles:['coach','client'],domain:'execution'});
   assert.equal(assertActionAllowed('set-session-rpe-quick','coach'),true);
-  assert.equal(assertActionAllowed('set-session-rpe-quick','client'),false);
+  assert.equal(assertActionAllowed('set-session-rpe-quick','client'),true);
   assert.equal(assertActionAllowed('set-session-rpe-quick','admin'),false);
 });
 

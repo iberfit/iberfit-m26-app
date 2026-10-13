@@ -840,7 +840,8 @@ async function click(event){
   syncQuickRpeControl();
   return;
 }if(action==='set-session-rpe-quick'){
-  if(!isCoachContext(context))return;
+  // Both Coach and Client can confirm their own real RPE; the existing
+  // feedback command still enforces identity, permissions and final review.
   const value=Number(button.getAttribute('data-rpe-value'));
   const input=root.querySelector?.('[data-session-feedback-rpe]');
   if(!Number.isFinite(value)||value<1||value>10||!input||!context?.execution)return;

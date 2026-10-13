@@ -24,7 +24,9 @@ function previousSetSummary(values){
   ].filter(Boolean).join(' · ')||'Serie registrada';
 }
 function coachQuickRpeValues(value){
-  const raw=Number(value);
+  // A missing prescription is not RPE 0; offer neutral choices without inventing an objective.
+  const empty=value===null||value===undefined||(typeof value==='string'&&!value.trim());
+  const raw=empty?NaN:Number(value);
   const target=Number.isFinite(raw)?Math.max(1,Math.min(10,Math.round(raw*2)/2)):7;
   const candidates=[target-1,target,target+1,target-2,target+2]
     .filter((item)=>item>=1&&item<=10);
@@ -1243,9 +1245,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackPrivacyNote=isCoach
       ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
       :'';
-    const feedbackQuickRpe=isCoach
-      ?'<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="RPE final rápido"><span>RPE rápido</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="RPE '+e(value)+'" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>'
-      :'';
+    const feedbackQuickRpe='<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="RPE real al finalizar la sesión"><span>Esfuerzo global real · del 1 al 10</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="RPE '+e(value)+'" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>';
     const reviewLastSetAction=Array.isArray(execution?.queue)&&execution.queue.length
       ?'<button type="button" data-session-action="previous">Revisar última serie</button>'
       :'';
@@ -1383,7 +1383,10 @@ const executionProfile=exerciseMeasurementProfile({...ex,measurementProfile:plan
 const explicitRpe=explicitSessionEffort(planned.targetRpe,{min:1,max:10});
 const explicitRir=explicitSessionEffort(planned.targetRir,{min:0,max:10});
 const coachQuickRpe=isCoach
-  ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
+  ?`<div class="m26-session-coach-rpe-quick" role="group" aria-label="Registrar RPE real rápido"><span>RPE real</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
+  :'';
+const clientQuickRpe=!isCoach
+  ?`<div class="m26-session-client-rpe-quick" data-session-client-rpe-quick role="group" aria-label="Registrar esfuerzo real de la serie"><span>Selecciona tu RPE real · del 1 al 10</span>${Array.from({length:10},(_,index)=>index+1).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
 const setEntryFields=executionProfile.cardio
   ?cardioSetEntryFields(executionProfile,planned,isCoach)
@@ -1570,6 +1573,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${plannedSetReuse}
         ${previousSetReuse}
         ${setEntryFields}
+        ${clientQuickRpe}
         <details>
           <summary>Añadir una nota a esta serie</summary>
           <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>
