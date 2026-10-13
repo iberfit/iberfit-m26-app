@@ -1985,6 +1985,7 @@ export function createWearableController({
     syncPending,
     connectHealthConnect,
     startProductionHealthConnection,
+    productionHealthReady:()=>mounted&&Boolean(productionSync),
     connectNativeProvider,
     autoSyncNativeProviders,
     // Authenticated, signed-native post-login only: schedule non-blocking
