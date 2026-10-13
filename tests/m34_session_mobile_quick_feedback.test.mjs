@@ -51,12 +51,17 @@ test('M34: pulsación rápida actualiza borradores locales mediante servicios ca
   const context=fixture();
   const draft=updateActiveSetDraft(context.execution,context.session,{reps:'8',load:'20 kg',rpe:'10',rir:'0'});
   assert.ok(draft);
-  assert.equal(Number(context.execution.activeSetDraft.rpe),10);
+  assert.equal(Number(context.execution.activeSetDraft.values.rpe),10);
+  assert.equal(Number(context.execution.activeSetDraft.values.rir),0);
   assert.equal(context.execution.status,'active');
-  const close=updateFinalFeedbackDraft(context.execution,{sessionRpe:'10',comment:'Muy bien',pain:false});
+  const feedback=fixture(1);
+  recordSet(feedback.execution,feedback.session,{reps:8,rpe:8});
+  advanceExecution(feedback.execution);
+  const close=updateFinalFeedbackDraft(feedback.execution,{sessionRpe:'10',comment:'Muy bien',pain:false});
   assert.ok(close);
-  assert.equal(Number(context.execution.finalFeedbackDraft.sessionRpe),10);
-  assert.equal(context.execution.status,'active');
+  assert.equal(Number(feedback.execution.finalFeedbackDraft.values.sessionRpe),10);
+  assert.equal(feedback.execution.finalFeedbackDraft.values.comment,'Muy bien');
+  assert.equal(feedback.execution.status,'awaiting_feedback');
 });
 test('M34: selector de pulsación es compartido por ambos roles y el diseño conserva teclado/foco accesibles',()=>{
   const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
