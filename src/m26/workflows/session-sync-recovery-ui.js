@@ -89,6 +89,12 @@ export function sessionCommandFailureOutcome(source,{role='',action='',phase='ac
     return Object.freeze({status:'retry',code:'M26_SESSION_DRAFT_INVALID',message:messages[kind]||'Revisa los valores del bloque antes de publicar.',focusSelector:focus,blockId:bid||null});
   }
   const coach=isCoachRole(role);
+  if(phase!=='sync'&&/^M26_SESSION_DRAFT_(?:SAVE|PERSISTENCE)_FAILED/.test(reason)){
+    return Object.freeze({status:'retry',code:'M26_SESSION_DRAFT_SAVE_FAILED',message:'No se ha podido guardar el borrador ni en este dispositivo ni en el servidor. Mantén la sesión abierta y comprueba la conexión y el almacenamiento antes de salir.'});
+  }
+  if(phase!=='sync'&&reason==='M26_SESSION_PREVIEW_REQUIRED'){
+    return Object.freeze({status:'retry',code:reason,message:'Revisa primero la sesión y confirma la vista previa antes de publicar.',focusSelector:'[data-session-action="preview"]'});
+  }
   if(reason!==TRAINING_SERVICE_NOT_ACTIVE){
     if(phase==='sync')return null;
     const recovery=ACTIONABLE_FAILURE_MESSAGES[reason];
