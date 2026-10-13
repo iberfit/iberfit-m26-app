@@ -1419,7 +1419,9 @@ export function createWorkflowController({
     const sameCycle=(item)=>String(recordBody(item).name||item.name||'').trim()===String(raw.name||'').trim()
       &&String(recordBody(item).startDate||item.startDate||'').slice(0,10)===String(raw.startDate||'')
       &&String(recordBody(item).endDate||item.endDate||'').slice(0,10)===String(raw.endDate||'');
-    const backup=await draftRepository?.load?.(clientId,'planning-cycle');
+    let backup=null;
+    try{backup=await draftRepository?.load?.(clientId,'planning-cycle');}
+    catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE'});}
     const saved=backup?.value&&typeof backup.value==='object'?backup.value:null;
     const stableId=String(raw.entityId||'').trim()
       ||(saved?.clientId===clientId&&sameCycle(saved)?String(saved.id||''):null)
@@ -1431,7 +1433,11 @@ export function createWorkflowController({
       sessionDurationMinutes:Number(raw.sessionDurationMinutes||0)||null,
       modality:normalizeClientModality(raw.modality)||null};
     const current=records.find(item=>recordId(item)===stableId)||null;
-    await draftRepository?.save?.(clientId,'planning-cycle',draft);
+    // A complete valid online cycle must remain submittable when browser
+    // storage is unavailable. Keep the form and report local storage errors,
+    // but do not present them as a missing field or a server rejection.
+    try{await draftRepository?.save?.(clientId,'planning-cycle',draft);}
+    catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_LOCAL_DRAFT_SAVE_UNAVAILABLE'});}
     // A previously acknowledged save may have failed only its refresh. Never
     // create another entity or issue PLAN_VALIDAR against validated revision 1.
     const existingBody=current?recordBody(current):null;
@@ -1445,7 +1451,8 @@ export function createWorkflowController({
       &&String(existingBody.modality||'')===String(draft.modality||'');
     const statusNow=current?normalizedStatus(current):'';
     if(sameValidated&&['validado','aprobado','publicado'].includes(statusNow)){
-      await draftRepository?.remove?.(clientId,'planning-cycle');
+      try{await draftRepository?.remove?.(clientId,'planning-cycle');}
+      catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});}
       status(root,'planning','El ciclo ya estaba guardado y confirmado. No se creó ningún duplicado.','success');
       onRender();
       return {ok:true,kind:'already-confirmed'};
