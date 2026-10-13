@@ -58,7 +58,7 @@ const MODALITY_ALIASES=Object.freeze(new Map([
   ['guiada_en_app','guiada_en_app'],['guided_app','guiada_en_app'],['online_guiada','guiada_en_app'],
   ['online','online'],['en_linea','online'],
 ]));
-const PUBLIC_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
+const PUBLIC_STATES=new Set(['published','publicado','publicada','disponible','en_curso','active','activo','enabled','habilitado']);
 const TERMINAL_APPOINTMENT_STATES=new Set(['cancelada','cancelado','cancelled','canceled','realizada','realizado','completed']);
 
 export function normalizeClientVisibilityLevel(value){
