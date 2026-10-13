@@ -8,6 +8,7 @@ import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
+import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -3567,6 +3568,7 @@ export function renderProgressRoute(vm){
     ${clientContextBar}
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     ${professionalProgressNav}
+    ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:true})}
     <section id="m26-progress-summary" data-m26-progress-section="summary" class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
@@ -3991,6 +3993,7 @@ export function renderPlanningRoute(vm){
     </section>
     ${nextAction}
     ${cycleSummary}
+    ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:isClient})}
     ${!isClient?iriPlanningContextPanel(seed):''}
     ${editor}
     ${!isClient?'<p class="m26-planning-publication-note">Aprobar no lo hace visible para el cliente.</p>':''}

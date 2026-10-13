@@ -2002,3 +2002,20 @@ body {
 .m26-session-delivery-select select{min-height:44px;width:100%;max-width:100%;touch-action:manipulation}
 .m26-session-delivery-review{padding:.8rem 1rem;border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 24%,transparent);border-radius:.8rem;line-height:1.5}
 @media(max-width:680px){.m26-session-delivery-select{grid-column:1/-1}.m26-session-delivery-review{padding:.75rem}}
+
+/* M28 · Evidence-based macro/meso/microcycle overview, accessible mobile chart. */
+.m28-periodization{display:grid;gap:1rem;min-width:0}
+.m28-period-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
+.m28-period-stats span{display:grid;gap:.2rem;padding:.75rem;border-radius:.7rem;background:rgba(255,255,255,.035);font-size:.75rem;color:var(--iberfit-color-text-secondary)}
+.m28-period-stats strong{font-size:1.35rem;font-variant-numeric:tabular-nums;color:var(--iberfit-color-text-primary)}
+.m28-week-chart{display:flex;gap:clamp(2px,.65vw,9px);align-items:end;overflow-x:auto;scrollbar-width:thin;min-height:120px;padding:.6rem .15rem .1rem;border-bottom:1px solid rgba(212,183,117,.25)}
+.m28-week{display:flex;flex:1 0 13px;max-width:28px;min-height:110px;flex-direction:column;align-items:center;justify-content:end;gap:.25rem}
+.m28-week-bar{display:block;width:100%;min-height:2px;max-height:85px;border-radius:.3rem .3rem 0 0;background:var(--iberfit-role-accent,#c8a65d)}
+.m28-week small{color:var(--iberfit-color-text-secondary);font-size:.65rem;font-variant-numeric:tabular-nums}
+.m28-block-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.6rem}
+.m28-block{display:grid;gap:.3rem;padding:.75rem;border:1px solid rgba(212,183,117,.16);border-radius:.65rem}
+.m28-block span,.m28-block small{font-size:.75rem;color:var(--iberfit-color-text-secondary)}
+.m28-period-week-detail summary{cursor:pointer;min-height:44px;padding:.6rem 0;font-weight:650}
+.m28-week-rows{display:grid;gap:.35rem;max-height:360px;overflow:auto}
+.m28-week-rows>div{display:grid;grid-template-columns:48px repeat(3,minmax(0,1fr));gap:.4rem;align-items:center;padding:.6rem;border-bottom:1px solid rgba(212,183,117,.13);font-size:.76rem}
+@media(max-width:680px){.m28-period-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem}.m28-period-stats span{padding:.55rem .4rem}.m28-period-stats strong{font-size:1rem}.m28-week-rows>div{grid-template-columns:40px repeat(3,minmax(0,1fr));font-size:.67rem}}
