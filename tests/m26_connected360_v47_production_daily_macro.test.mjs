@@ -59,7 +59,7 @@ test('V47 daily observations upload only with an existing signed-in user grant',
   const scopes=['steps','sleepMinutes','restingHeartRate'];
   const transport={
     connected360ProductionCapabilities:async()=>({serverEnabled:true}),
-    wearableAuthorizationStatus:async()=>({
+    connected360ProductionAuthorizationStatus:async()=>({
       authorized,grantId:authorized?grant:null,revocationCursor:0,scopes,
     }),
     importConnected360Production:async()=>{oldImport++;throw Error('V46 import should be skipped');},
