@@ -16,6 +16,9 @@ export function swimmingPrescriptionAdvisories(prescription={},exercise={}){
   const reps=numeric(p.intervalRepetitions);
   const intervalM=numeric(p.intervalDistanceM);
   const work=numeric(p.intervalWorkSeconds);
+  const explicitPace=String(p.plannedPacePer100M??'').trim();
+  const paceMatch=explicitPace.match(/^(\d{1,2}):([0-5]\d)$/u);
+  const targetPaceSeconds=paceMatch?Number(paceMatch[1])*60+Number(paceMatch[2]):null;
   const result=[];
   if(pool!==null&&(!Number.isInteger(pool)||pool<15||pool>100)){
     result.push(note('pool-length-invalid','review','Comprueba la longitud indicada para esta piscina.'));
@@ -34,6 +37,11 @@ export function swimmingPrescriptionAdvisories(prescription={},exercise={}){
     }else if(reps>1&&knownRecovery===null){
       result.push(note('swim-recovery-unspecified','review','Falta indicar recuperación entre series; no se presupone descanso cero.'));
     }
+  }
+  if(distance!==null&&minutes!==null&&targetPaceSeconds!==null
+    &&targetPaceSeconds>0&&distance/100*targetPaceSeconds>minutes*60+1){
+    result.push(note('swim-pace-target-exceeds-duration','review',
+      'El ritmo objetivo por 100 m implica más tiempo de nado que la duración total prevista, incluso sin descansos. Revisa el plan.'));
   }
   if(distance!==null&&minutes!==null&&minutes>0&&reps===null){
     const seconds=minutes*60*100/distance;
