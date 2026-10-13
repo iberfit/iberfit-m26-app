@@ -687,7 +687,8 @@
    CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE
    ------------------------------------------------------------ */
 
-.m26-shell[data-m26-role="client"] .m26-client-home-v1{
+.m26-shell[data-m26-role="client"] /* M41 · Cliente ultraprémium: minimum readable type in the existing canonical home surface. */
+.m26-client-home-v1{
   display:grid;
   gap:.9rem;
 }
@@ -742,7 +743,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-status span{
   color:var(--iberfit-color-accent-strong);
-  font-size:.7rem;
+  font-size:.8125rem;
   font-weight:760;
   letter-spacing:.08em;
   text-transform:uppercase;
@@ -798,7 +799,7 @@
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary small{
   align-self:start;
   color:rgba(244,244,240,.72);
-  font-size:.78rem;
+  font-size:.875rem;
   line-height:1.35;
 }
 
@@ -829,7 +830,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-glance span{
   color:var(--iberfit-color-text-secondary);
-  font-size:.68rem;
+  font-size:.8125rem;
   font-weight:700;
   letter-spacing:.04em;
   text-transform:uppercase;
@@ -837,16 +838,16 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-glance strong{
   min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  overflow:visible;
+  overflow-wrap:anywhere;
   color:var(--iberfit-color-text-primary);
-  font-size:.92rem;
-  white-space:nowrap;
+  font-size:1rem;
+  white-space:normal;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-glance small{
   color:var(--iberfit-color-text-secondary);
-  font-size:.69rem;
+  font-size:.875rem;
   line-height:1.35;
 }
 
@@ -899,7 +900,7 @@
 .m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary small{
   margin-left:auto;
   color:var(--iberfit-color-text-secondary);
-  font-size:.72rem;
+  font-size:.875rem;
   line-height:1.35;
   text-align:right;
 }
@@ -913,14 +914,14 @@
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions button{
-  min-height:44px;
+  min-height:48px;
   padding:.5rem .72rem;
   border:0;
   border-radius:.7rem;
   color:var(--iberfit-color-text-secondary);
   background:transparent;
   box-shadow:none;
-  font-size:.82rem;
+  font-size:.875rem;
   font-weight:650;
 }
 
@@ -949,19 +950,19 @@
 .m26-shell[data-m26-role="client"] .m26-client-home-context-action > span{
   grid-row:1 / span 2;
   color:var(--iberfit-color-accent-strong);
-  font-size:.68rem;
+  font-size:.8125rem;
   font-weight:760;
   letter-spacing:.04em;
   text-transform:uppercase;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-context-action strong{
-  font-size:.83rem;
+  font-size:1rem;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-context-action small{
   color:var(--iberfit-color-text-secondary);
-  font-size:.69rem;
+  font-size:.875rem;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed{
@@ -986,26 +987,26 @@
 }
 .m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed strong{
   min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:.88rem;
+  overflow:visible;
+  overflow-wrap:anywhere;
+  white-space:normal;
+  font-size:1rem;
 }
 .m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed small{
   color:var(--iberfit-color-text-secondary);
-  font-size:.7rem;
+  font-size:.875rem;
   line-height:1.4;
 }
 .m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed > button{
   flex:0 0 auto;
-  min-height:44px;
+  min-height:48px;
   padding:.55rem .7rem;
   border:1px solid rgba(216,192,138,.16);
   border-radius:.7rem;
   color:var(--iberfit-color-text-primary);
   background:transparent;
   font:inherit;
-  font-size:.76rem;
+  font-size:.875rem;
   font-weight:760;
 }
 
@@ -1045,12 +1046,12 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-clear strong{
   color:var(--iberfit-color-text-primary);
-  font-size:.82rem;
+  font-size:1rem;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-clear small{
   color:var(--iberfit-color-text-secondary);
-  font-size:.7rem;
+  font-size:.875rem;
 }
 
 @media(max-width:900px){
@@ -1112,7 +1113,7 @@
   .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions button{
     min-width:0;
     padding-inline:.45rem;
-    font-size:.76rem;
+    font-size:.875rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-context-action{
     grid-template-columns:minmax(0,1fr);
