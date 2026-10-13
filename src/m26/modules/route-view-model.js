@@ -473,7 +473,7 @@ function compactActivity(record) {
 
 function publicationItems(records, entity, role) {
   return records.map((record) => {
-    const clientContent = clientContentView(entity, record);
+    const clientContent = clientContentView(entity, record, {previewForPublication:role!=='client'});
     if (role === 'client') {
       return Object.freeze({
         id: clientContent.id,
