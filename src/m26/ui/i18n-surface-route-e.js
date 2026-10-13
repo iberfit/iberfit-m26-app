@@ -208,4 +208,6 @@ export const ROUTE_SURFACE_ROWS_E=Object.freeze([
 ["Ver mi planificación","View my training plan","Voir ma planification","Ver o meu planeamento"],
 ["Revisa el siguiente paso previsto por el equipo.","Review the next step planned by the team.","Consultez la prochaine étape prévue par l’équipe.","Consulte o próximo passo previsto pela equipa."],
 ["Tu cita IBERFIT","Your IBERFIT appointment","Votre rendez-vous IBERFIT","A sua marcação IBERFIT"],
+["Tu historial de entrenamiento","Your training history","Votre historique d’entraînement","O seu histórico de treino"],
+["El servicio ha finalizado, pero tus sesiones anteriores permanecen disponibles para consulta.","The service has ended, but your previous sessions remain available to review.","Le service a pris fin, mais vos séances précédentes restent consultables.","O serviço terminou, mas as suas sessões anteriores continuam disponíveis para consulta."],
 ]);
