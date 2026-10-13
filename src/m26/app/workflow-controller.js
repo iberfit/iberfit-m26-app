@@ -1325,7 +1325,7 @@ export function createWorkflowController({
   // particular, both clicks must not race before the remote draft is loaded.
   // A failed ACK leaves the persisted draft intact for explicit recovery.
   let planValidationPending=null;
-  function validatePlan(){
+  async function validatePlan(){
     if(planValidationPending)return planValidationPending;
     const operation=performValidatePlan();
     planValidationPending=operation;
