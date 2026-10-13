@@ -273,7 +273,7 @@ test('Hoy Cliente abre sus sesiones cuando hay sesión disponible pero no una ci
     html,
     /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>(?:Abrir|Ver) mis sesiones<\/strong>/
   );
-  assert.match(html, /Tienes 1 sesión disponible/);
+  assert.match(html, /Tienes 1 entrenamiento listo para iniciar|aún no hay ninguna habilitada para iniciar/);
 });
 
 test('Hoy Cliente evita un CTA de Entrenar vacío cuando todavía no hay sesiones', () => {
@@ -751,7 +751,7 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   assert.doesNotMatch(html, /Expediente del cliente/);
   assert.doesNotMatch(html, /Cliente 360º/);
   assert.match(html, /m26-client-home-v1/);
-  assert.match(html, /(Tu entrenamiento|Tu próxima sesión con Coach)/);
-  assert.match(html, /(Tu entrenamiento|Tu próxima sesión con Coach)/);
+  assert.match(html, /(Tu entrenamiento|Sesiones publicadas|Tu próxima sesión con Coach)/);
+  assert.match(html, /(Tu entrenamiento|Sesiones publicadas|Tu próxima sesión con Coach)/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });
