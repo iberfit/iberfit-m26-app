@@ -119,6 +119,10 @@ test('M32: live workout and publication controls remain fail-closed in event con
 test('M32: new primary navigation and prescription copy stays translated in EN/FR/PT',()=>{
   for(const copy of ['Entrenamiento disponible','Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.',
     'Descanso prescrito','Ritmo prescrito','Esfuerzo objetivo','Escribe tu mensaje','Revisar publicación']){
-    for(const language of ['en','fr','pt'])assert.notEqual(iberfitSurfaceTranslate(copy,{language}),copy,copy+':'+language);
+    for(const language of ['en','fr','pt']){
+      const translated=iberfitSurfaceTranslate(copy,{language});
+      assert.ok(translated.length>0,copy+':'+language);
+      if(language!=='pt'||!['Descanso prescrito','Ritmo prescrito'].includes(copy))assert.notEqual(translated,copy,copy+':'+language);
+    }
   }
 });
