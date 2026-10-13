@@ -14,7 +14,8 @@ export function createConnected360ProductionSync({
   isOnline=()=>globalThis.navigator?.onLine!==false,
   now=()=>Date.now(),refreshState=async()=>{},
 }={}){
-  if(!transport||typeof native?.readLocal!=='function'
+  if(!transport||typeof transport.connected360ProductionAuthorizationStatus!=='function'
+    ||typeof native?.readLocal!=='function'
     ||typeof getIdentity!=='function'||typeof getToken!=='function')
     throw new Error('M26_V46_PROD_DEPENDENCIES_MISSING');
   let dead=false,inflight=null,generation=0,lastSuccess=null;
@@ -53,7 +54,7 @@ export function createConnected360ProductionSync({
     const flags=await transport.connected360ProductionCapabilities(token);
     assertCurrent(expected,version);
     if(flags.serverEnabled!==true)throw new Error('M26_V46_PROD_NOT_ACTIVATED');
-    const old=await transport.wearableAuthorizationStatus(token,'health_connect');
+    const old=await transport.connected360ProductionAuthorizationStatus(token);
     assertCurrent(expected,version);
     if(!Number.isSafeInteger(old?.revocationCursor)||old.revocationCursor<0
       ||(old.grantId!=null&&!UUID.test(String(old.grantId))))
@@ -76,7 +77,7 @@ export function createConnected360ProductionSync({
       const flags=await transport.connected360ProductionCapabilities(token);
       assertCurrent(expected,version,signal);
       if(flags.serverEnabled!==true)return Object.freeze({skipped:'release-disabled'});
-      const status=await transport.wearableAuthorizationStatus(token,'health_connect');
+      const status=await transport.connected360ProductionAuthorizationStatus(token,'health_connect');
       assertCurrent(expected,version,signal);
       const scopes=V46_PROD_SCOPES.filter(x=>status?.scopes?.includes(x));
       if(status?.authorized!==true||!UUID.test(String(status.grantId||''))
@@ -104,8 +105,8 @@ export function createConnected360ProductionSync({
       const dailyHealth=read.envelope.dailyHealth||[];
       if(!rows.heartRateDaily.length&&!rows.exerciseEvidence.length&&!dailyHealth.length)
         return Object.freeze({skipped:'no-recent-observations'});
-      const fresh=await transport.wearableAuthorizationStatus(
-        await getTokenFor(expected,version,signal),'health_connect'
+      const fresh=await transport.connected360ProductionAuthorizationStatus(
+        await getTokenFor(expected,version,signal)
       );
       assertCurrent(expected,version,signal);
       if(fresh.authorized!==true||fresh.grantId!==status.grantId
