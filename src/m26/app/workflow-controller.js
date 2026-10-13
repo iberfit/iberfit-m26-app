@@ -11,6 +11,7 @@ import {normalizeAppointmentModality,normalizeClientModality} from '../domain/mo
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
+import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
 import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
@@ -289,9 +290,14 @@ export function createWorkflowController({
   getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
-  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
+  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,reportSaveTimer=null,planSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
   let iriRemoteSaveChain=Promise.resolve();
   const iriRemoteRevisionByAssessment=new Map();
+  const inFlightMutations=new Set();
+  const confirmedPublicationReceipts=new Map();
+  const reportSubmissionByClient=new Map();
+  let reportDraftChain=Promise.resolve();
+  let planDraftChain=Promise.resolve();
   const iriRemoteConflictByAssessment=new Map();
   let clientListMeasurementGrid=null;
   const clientListMeasurements=[];
@@ -299,6 +305,12 @@ export function createWorkflowController({
   const initializedIriForms=new WeakSet();
   const initializedOnboardingForms=new WeakSet();
   const editedOnboardingForms=new WeakSet();
+  const initializedReportForms=new WeakSet();
+  const editedReportForms=new WeakSet();
+  const reportFormClientIds=new WeakMap();
+  const initializedPlanForms=new WeakSet();
+  const editedPlanForms=new WeakSet();
+  const planFormClientIds=new WeakMap();
   const initializedAppointmentForms=new WeakSet();
   let catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
@@ -1149,6 +1161,8 @@ export function createWorkflowController({
     const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(onboardingForm)void initializeOnboardingForm(onboardingForm);
     const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void initializeIriForm(iriForm);
     const appointmentForm=root.querySelector?.('[data-workflow-form="appointment"]');if(appointmentForm&&!initializedAppointmentForms.has(appointmentForm)){initializedAppointmentForms.add(appointmentForm);syncAppointmentFormState(appointmentForm,root);}
+    const reportForm=root.querySelector?.('[data-workflow-form="report-approval"]');if(reportForm)void initializeReportForm(reportForm);
+    const planForm=root.querySelector?.('[data-workflow-form="planning"]');if(planForm)void initializePlanForm(planForm);
     for(const guidedForm of root.querySelectorAll?.('[data-guided-required-form]')||[])syncGuidedWorkflowProgress(guidedForm);
     const clientGrid=root.querySelector?.('[data-client-grid]');if(clientGrid&&!initializedClientGrids.has(clientGrid)){initializedClientGrids.add(clientGrid);scheduleClientListUpdate();}
     restoreStatuses(root);
@@ -1321,6 +1335,60 @@ export function createWorkflowController({
     status(root,iriReportStatusScope(),'Versión retirada. El historial permanece íntegro y auditable.','success');
   }
 
+  async function savePlanDraft(form,{silent=false}={}){
+    requireCoach();
+    if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
+    if(!draftRepository?.save)throw new Error('M26_PLAN_DRAFT_STORAGE_UNAVAILABLE');
+    const {clientId}=context();
+    requireVisibleClient(clientId);
+    if(planFormClientIds.has(form)&&planFormClientIds.get(form)!==clientId)throw new Error('M26_PLAN_DRAFT_CLIENT_CONTEXT_CHANGED');
+    const raw=values(form);
+    const previousId=String(raw.entityId||'').trim();
+    const draft={id:previousId||createM26Id(),clientId,
+      name:String(raw.name||'').trim(),startDate:raw.startDate||'',
+      endDate:raw.endDate||'',goal:String(raw.goal||'').trim(),
+      weeklyFrequency:raw.weeklyFrequency||'',
+      sessionDurationMinutes:raw.sessionDurationMinutes||'',
+      modality:raw.modality||''};
+    const write=planDraftChain.then(()=>draftRepository.save(clientId,'planning-cycle',draft));
+    planDraftChain=write.catch(()=>{});
+    await write;
+    const entityControl=form.elements?.namedItem?.('entityId');
+    if(entityControl)entityControl.value=draft.id;
+    if(!silent)status(root,'planning','Borrador del ciclo guardado en este dispositivo. Puedes validar cuando completes los datos.','success');
+    return draft;
+  }
+  function queuePlanSave(form){
+    clearTimeout(planSaveTimer);
+    planSaveTimer=setTimeout(()=>{
+      planSaveTimer=null;
+      if(!root.contains?.(form)||planFormClientIds.get(form)!==context().clientId)return;
+      void savePlanDraft(form,{silent:true}).catch((error)=>{
+      status(root,'planning','No fue posible guardar este borrador. Conserva la pantalla abierta y revisa el almacenamiento local.','error');
+      emit(root,'m26:workflow-error',{action:'autosave-plan-draft',code:String(error?.message||error)});
+    });},650);
+  }
+  async function initializePlanForm(form){
+    if(!form||initializedPlanForms.has(form))return;
+    initializedPlanForms.add(form);
+    const {clientId}=context();
+    planFormClientIds.set(form,clientId);
+    if(!clientId||!draftRepository?.load)return;
+    try{
+      const saved=await draftRepository.load(clientId,'planning-cycle');
+      if(!saved?.value||editedPlanForms.has(form)||!root.contains?.(form)||context().clientId!==clientId)return;
+      if(String(saved.value.clientId||'')!==String(clientId))return;
+      const visibleId=String(form.elements?.namedItem?.('entityId')?.value||'').trim();
+      if(visibleId&&visibleId!==String(saved.value.id||'').trim())return;
+      populateForm(form,saved.value);
+      syncGuidedWorkflowProgress(form);
+      status(root,'planning','Borrador del ciclo recuperado desde este dispositivo.','success');
+    }catch(error){
+      status(root,'planning','No fue posible recuperar el borrador del ciclo. Los datos existentes permanecen intactos.','error');
+      emit(root,'m26:workflow-error',{action:'load-plan-draft',code:String(error?.message||error)});
+    }
+  }
+
   // Same-tab duplicate submissions must share one server operation. In
   // particular, both clicks must not race before the remote draft is loaded.
   // A failed ACK leaves the persisted draft intact for explicit recovery.
@@ -1337,6 +1405,8 @@ export function createWorkflowController({
   }
   async function performValidatePlan(){
     requireCoach();
+    clearTimeout(planSaveTimer);planSaveTimer=null;
+    await planDraftChain;
     const form=root.querySelector?.('[data-workflow-form="planning"]');
     if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
     ensureValidForm(form);
@@ -1400,21 +1470,42 @@ export function createWorkflowController({
     status(root,'planning','Validando y guardando el ciclo…','pending');
     const result=await withTimeout(commandBus.execute(buildCycleCommand(draft,revision)),20_000,'M26_PLAN_CONFIRM_TIMEOUT');
     if(!result.ok){
-      const reason=String(result.response?.reason||result.kind||'REJECTED');
-      status(root,'planning',reason==='REVISION_MISMATCH'
-        ?'El ciclo cambió en otro dispositivo. Actualiza el expediente antes de reintentar.'
-        :'El servidor no confirmó el ciclo ('+reason+'). El borrador permanece guardado.','error');
+      const feedback=mutationFeedback(result,{subject:'El ciclo'});
+      status(root,'planning',feedback.message,feedback.kind);
       return result;
     }
-    const confirmed=await refreshAndFind('trainingCycles',stableId,clientId);
-    if(!confirmed||normalizedStatus(confirmed)!=='validado')throw new Error('M26_PLAN_CONFIRM_NOT_PERSISTED');
+    // A transport ACK and a UI refresh are different outcomes. Do not tell
+    // the Coach validation failed when the server committed successfully.
+    let confirmed=null;
+    try{confirmed=await refreshAndFind('trainingCycles',stableId,clientId);}
+    catch{}
+    if(!confirmed||normalizedStatus(confirmed)!=='validado'){
+      emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_CONFIRM_NOT_PERSISTED'});
+      status(root,'planning','El servidor confirmó el ciclo. La vista todavía no refleja la versión guardada; conserva el borrador y actualiza antes de repetir la validación.','pending');
+      return {...result,refreshOk:false};
+    }
     await draftRepository?.remove?.(clientId,'planning-cycle');
-    status(root,'planning','Ciclo validado y visible en Planificación.','success');
-    onRender();
+    const feedback=mutationFeedback(result,{success:'Ciclo validado y visible en Planificación.',subject:'El ciclo'});
+    status(root,'planning',feedback.message,feedback.kind);
+    if(result.refreshOk!==false)onRender();
     return result;
   }
-  async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La propuesta está pendiente de confirmación.','pending');return result;}await withTimeout(Promise.resolve(refreshState({reason:'appointment-created'})),15_000,'M26_WORKFLOW_REFRESH_TIMEOUT');status(root,'appointment','Propuesta de cita creada. Aún no es visible para el cliente.','success');form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();return result;}
-  async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La cita sigue como propuesta y requiere revisión.','pending');return result;}const confirmed=await refreshAndFind('appointments',appointmentId,clientId);if(!confirmed||!/confirm/i.test(normalizedStatus(confirmed)))throw new Error('M26_APPOINTMENT_CONFIRM_NOT_PERSISTED');status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
+  async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
+    const feedback=mutationFeedback(result,{success:'Propuesta de cita creada. Aún no es visible para el cliente.',subject:'La cita'});
+    if(!feedback.confirmed){status(root,'appointment',feedback.message,feedback.kind);return result;}
+    let refreshed=result.refreshOk!==false;
+    if(refreshed){try{await withTimeout(Promise.resolve(refreshState({reason:'appointment-created'})),15_000,'M26_WORKFLOW_REFRESH_TIMEOUT');}catch{refreshed=false;}}
+    status(root,'appointment',refreshed?feedback.message:'El servidor confirmó la propuesta de cita, pero la vista no se pudo actualizar. Comprueba la Agenda antes de crear otra.',refreshed?feedback.kind:'pending');
+    if(refreshed){form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();}
+    return result;}
+  async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){const feedback=mutationFeedback(result,{subject:'La cita'});status(root,'appointment',feedback.message,feedback.kind);return result;}
+    let confirmed=null;
+    if(result.refreshOk!==false){try{confirmed=await refreshAndFind('appointments',appointmentId,clientId);}catch{}}
+    if(!confirmed||!/confirm/i.test(normalizedStatus(confirmed))){
+      status(root,'appointment','El servidor confirmó la cita, pero la Agenda aún no refleja el cambio. Actualiza antes de confirmarla otra vez.','pending');
+      return {...result,refreshOk:false};
+    }
+    status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
   function reuseSession(button){requireCoach();const sessionId=String(button?.dataset?.entityId||'').trim();if(!sessionId)throw new Error('M26_SESSION_REUSE_ID_REQUIRED');const {clientId,state}=context();requireVisibleClient(clientId);const source=(state.collections.sessions||[]).find((item)=>String(item?.id||item?.body?.id||'')===sessionId&&String(item?.clientId||item?.client_id||item?.body?.clientId||item?.body?.client_id||'')===clientId);if(!source)throw new Error('M26_SESSION_REUSE_NOT_VISIBLE');emit(root,'m26:open-session-builder',{clientId,sourceSession:source});status(root,'session','Sesión cargada como borrador independiente. La original no se modifica.','success');}  function openBuilder(button){requireCoach();const {clientId:activeClientId}=context();const requested=String(button?.dataset?.clientId||activeClientId||'').trim();const clientId=requireVisibleClient(requested);emit(root,'m26:open-session-builder',{clientId});status(root,'session','Constructor abierto.','success');}
   function startSession(button){
     const {clientId,state,role}=context();
@@ -1492,15 +1583,135 @@ export function createWorkflowController({
   function publicationScope(entity){return entity==='planning'?'planning':entity==='report'?'report':'session';}
   function publicationMessage(action){return ({approve:'Contenido aprobado y pendiente de publicación.',publish:'Contenido publicado para el cliente.',withdraw:'Contenido retirado de la vista del cliente.',archive:'Plan archivado.',reopen:'Plan reabierto como borrador.'})[action]||'Cambio confirmado.';}
   function findPublicationRecord(entity,entityId){const config=publicationConfig(entity);if(!config)throw new Error('M26_PUBLICATION_ENTITY_INVALID');const {state}=context();const record=(state.collections?.[config.collection]||[]).find((item)=>String(item?.id||item?.body?.id||'')===String(entityId||''));if(!record)throw new Error('M26_PUBLICATION_RECORD_NOT_FOUND');const clientId=record.clientId||record.client_id||record.body?.clientId||record.body?.client_id;requireVisibleClient(clientId);return record;}
-  async function managePublication(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const entity=String(button?.dataset?.publicationEntity||'');const action=String(button?.dataset?.publicationAction||'');const entityId=String(button?.dataset?.entityId||'');const card=button.closest?.('[data-publication-card]');const previewAccepted=Boolean(card?.querySelector?.('[data-publication-preview]')?.checked);const reason=String(card?.querySelector?.('[data-publication-reason]')?.value||'');const {role}=context();const record=findPublicationRecord(entity,entityId);const command=buildPublicationCommand({entity,action,record,role,previewAccepted,reason});const result=await commandBus.execute(command);const scope=publicationScope(entity);status(root,scope,result.ok?publicationMessage(action):'El cambio no está confirmado y requiere revisión.',result.ok?'success':'pending');if(result.ok)onRender();return result;}
-  async function approveReport(){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const command=buildApproveReportDraftCommand({id:raw.entityId||createM26Id(),clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'},0);const result=await commandBus.execute(command);status(root,'report',result.ok?'Informe aprobado y listo para publicación.':'El informe no está confirmado y requiere revisión.',result.ok?'success':'pending');if(result.ok){form.reset();onRender();}return result;}
+  async function managePublication(button){
+    requireCoach();
+    if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');
+    const entity=String(button?.dataset?.publicationEntity||'');
+    const action=String(button?.dataset?.publicationAction||'');
+    const entityId=String(button?.dataset?.entityId||'');
+    const card=button.closest?.('[data-publication-card]');
+    const previewAccepted=Boolean(card?.querySelector?.('[data-publication-preview]')?.checked);
+    const reason=String(card?.querySelector?.('[data-publication-reason]')?.value||'');
+    const {role}=context();
+    const record=findPublicationRecord(entity,entityId);
+    const receiptKey=[entity,entityId,action,Number(record?.revision??record?.body?.revision??0)].join(':');
+    if(confirmedPublicationReceipts.has(receiptKey)){
+      status(root,publicationScope(entity),'El servidor ya confirmó este cambio. Actualiza la vista antes de volver a solicitarlo.','pending');
+      return confirmedPublicationReceipts.get(receiptKey);
+    }
+    const command=buildPublicationCommand({entity,action,record,role,previewAccepted,reason});
+    status(root,publicationScope(entity),'Confirmando el cambio con el servidor…','pending');
+    const result=await commandBus.execute(command);
+    if(result?.ok===true)confirmedPublicationReceipts.set(receiptKey,result);
+    const feedback=mutationFeedback(result,{success:publicationMessage(action),subject:'Este contenido'});
+    status(root,publicationScope(entity),feedback.message,feedback.kind);
+    if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending)onRender();
+    return result;
+  }
+  function reportDraftScope(assessmentId){return 'report-approval:'+String(assessmentId||'').trim();}
+  async function saveReportDraft(form,{silent=false}={}){
+    requireCoach();
+    if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');
+    if(!draftRepository?.save)throw new Error('M26_REPORT_DRAFT_STORAGE_UNAVAILABLE');
+    const {clientId}=context();
+    requireVisibleClient(clientId);
+    if(reportFormClientIds.has(form)&&reportFormClientIds.get(form)!==clientId)throw new Error('M26_REPORT_DRAFT_CLIENT_CONTEXT_CHANGED');
+    const raw=values(form);
+    const assessmentId=String(raw.assessmentId||'').trim();
+    if(!assessmentId)throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
+    const stableId=String(raw.entityId||'').trim()||createM26Id();
+    const idField=form.elements?.namedItem?.('entityId');
+    if(idField)idField.value=stableId;
+    const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId,
+      reviewAccepted:raw.reviewAccepted==='on'};
+    const write=reportDraftChain.then(()=>draftRepository.save(clientId,reportDraftScope(assessmentId),payload));
+    reportDraftChain=write.catch(()=>{});
+    await write;
+    if(!silent)status(root,'report','Borrador del informe guardado en este dispositivo. Puedes completarlo después.','success');
+    return payload;
+  }
+  function queueReportSave(form){
+    clearTimeout(reportSaveTimer);
+    reportSaveTimer=setTimeout(()=>{
+      reportSaveTimer=null;
+      if(!root.contains?.(form)||reportFormClientIds.get(form)!==context().clientId)return;
+      void saveReportDraft(form,{silent:true}).catch(error=>{
+      status(root,'report','No fue posible guardar el borrador en este dispositivo. Conserva esta pantalla y revisa el almacenamiento.','error');
+      emit(root,'m26:workflow-error',{action:'autosave-report-draft',code:String(error?.message||error)});
+    });},650);
+  }
+  async function initializeReportForm(form){
+    if(!form||initializedReportForms.has(form))return;
+    initializedReportForms.add(form);
+    const {clientId}=context();
+    reportFormClientIds.set(form,clientId);
+    const assessmentId=String(form.elements?.namedItem?.('assessmentId')?.value||'').trim();
+    if(!clientId||!assessmentId||!draftRepository?.load)return;
+    try{
+      const saved=await draftRepository.load(clientId,reportDraftScope(assessmentId));
+      if(!saved?.value||editedReportForms.has(form)||!root.contains?.(form)||context().clientId!==clientId)return;
+      if(String(saved.value.clientId||'')!==String(clientId)||String(saved.value.assessmentId||'')!==assessmentId)return;
+      populateForm(form,{...saved.value,reviewAccepted:saved.value.reviewAccepted===true});
+      syncGuidedWorkflowProgress(form);
+      status(root,'report','Borrador de informe recuperado desde este dispositivo.','success');
+    }catch(error){
+      status(root,'report','No fue posible recuperar el borrador. No se ha sobrescrito ningún dato.','error');
+      emit(root,'m26:workflow-error',{action:'load-report-draft',code:String(error?.message||error)});
+    }
+  }
+
+  async function approveReport(){requireCoach();clearTimeout(reportSaveTimer);reportSaveTimer=null;await reportDraftChain;if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const content={clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'};
+    const fingerprint=JSON.stringify(content);
+    const previous=reportSubmissionByClient.get(clientId);
+    // Local storage may be unavailable (private mode, quota, other tab).
+    // It must not block an otherwise valid online approval.
+    const fallbackId=String(raw.entityId||'').trim()||(previous?.fingerprint===fingerprint?previous.id:createM26Id());
+    let savedReport=null;
+    try{savedReport=await saveReportDraft(form,{silent:true});}
+    catch(error){
+      const idField=form.elements?.namedItem?.('entityId');
+      if(idField)idField.value=fallbackId;
+      emit(root,'m26:workflow-warning',{action:'approve-report',code:'M26_REPORT_LOCAL_DRAFT_SAVE_UNAVAILABLE'});
+    }
+    const stableId=String(raw.entityId||savedReport?.id||fallbackId).trim();
+    const existing=previous?.id===stableId&&previous?.fingerprint===fingerprint?previous:null;
+    if(existing?.result?.ok===true){
+      status(root,'report','Este informe ya quedó aprobado en el servidor. Actualiza la vista antes de volver a enviarlo.','pending');
+      return existing.result;
+    }
+    reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result:null});
+    const command=buildApproveReportDraftCommand({id:stableId,...content},0);
+    const result=await commandBus.execute(command);
+    if(result?.ok===true)reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result});
+    const feedback=mutationFeedback(result,{success:'Informe aprobado y listo para publicación.',subject:'El informe'});
+    status(root,'report',feedback.message,feedback.kind);
+    if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending){
+      let cleanupOk=true;
+      try{await draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId));}
+      catch(error){
+        cleanupOk=false;
+        emit(root,'m26:workflow-warning',{action:'approve-report',code:'M26_REPORT_DRAFT_CLEANUP_PENDING'});
+      }
+      if(cleanupOk)reportSubmissionByClient.delete(clientId);
+      form.reset();
+      if(cleanupOk)onRender();
+      else status(root,'report','Informe aprobado y confirmado. La limpieza del borrador local está pendiente; actualiza antes de crear otra versión.','pending');
+    }
+    return result;}
 
   async function executeWorkflowAction(action,button){
+    const {clientId}=context();
+    const key=publicationActionKey({action,entity:button?.dataset?.publicationEntity,entityId:button?.dataset?.entityId||button?.closest?.('form')?.elements?.namedItem?.('entityId')?.value,clientId});
+    if(key&&inFlightMutations.has(key))return;
+    if(key)inFlightMutations.add(key);
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
     }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const scope=isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
-    finally{if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}}
+    finally{
+      if(key)inFlightMutations.delete(key);
+      if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}
+    }
   }
   async function onClick(event){
     const setupSummary=event.target.closest?.('details.m26-iri-setup > summary');
@@ -1531,8 +1742,27 @@ export function createWorkflowController({
     const conflictButton=event.target.closest?.('[data-iri-remote-conflict-action]');if(conflictButton){event.preventDefault?.();const form=conflictButton.closest?.('[data-workflow-form="iri"]');await resolveIriRemoteConflict(form,conflictButton.getAttribute?.('data-iri-remote-conflict-action'));return;}
     const jump=event.target.closest?.('[data-iri-step-jump]');if(jump){event.preventDefault?.();await jumpIri(Number(jump.getAttribute?.('data-iri-step-jump')||0));return;}
     const button=event.target.closest?.('[data-workflow-action]');if(!button)return;
-    const form=button.closest?.('form');if(form&&button.type==='submit')return;
+    const form=button.closest?.('form');
+    // Saving an incomplete IRI is always allowed; HTML required attributes
+    // must not silently prevent the draft click's submit event.
+    if(form&&button.type==='submit'&&button.getAttribute('data-workflow-action')!=='save-iri-draft')return;
     event.preventDefault?.();await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);
+  }
+  function onInvalid(event){
+    const control=event?.target;
+    const form=control?.closest?.('[data-workflow-form]');
+    if(!form||control?.disabled||control?.willValidate===false)return;
+    if(invalidFormControls(form)[0]!==control)return;
+    event.preventDefault?.();
+    const name=String(form.getAttribute?.('data-workflow-form')||'').trim();
+    const scope=({planning:'planning',appointment:'appointment','report-approval':'report',iri:'iri','client-onboarding':'client-onboarding',intelligence:'intelligence'})[name]||name||'session';
+    const invalid=invalidFormControls(form);
+    const readable=[...new Set(invalid.map(item=>guidedFieldLabel(item)))].filter(Boolean);
+    status(root,scope,readable.length
+      ?'Revisa estos datos antes de confirmar: '+readable.join(', ')+'.'
+      :'Revisa los datos señalados antes de confirmar.','error');
+    for(const item of invalid)item.setAttribute?.('aria-invalid','true');
+    focusInvalidControl(control);
   }
   async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const measurementForm=event.target.closest?.('[data-exercise-measurement-form]');if(measurementForm){event.preventDefault?.();await updateLibraryMeasurementProfile(measurementForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
@@ -1540,29 +1770,37 @@ export function createWorkflowController({
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       try{computed(iriForm);}catch{}clearStatus(root,'iri');queueIriSave();return;
     }
+    const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearControlValidation(event.target);clearStatus(root,'planning');queuePlanSave(planForm);return;}
+    const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearControlValidation(event.target);clearStatus(root,'report');queueReportSave(reportForm);return;}
     const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
     const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){scheduleClientListUpdate(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
+  function onChange(event){const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearStatus(root,'planning');queuePlanSave(planForm);return;}const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearStatus(root,'report');queueReportSave(reportForm);return;}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
   async function flushLocalDrafts(){
     clearTimeout(iriSaveTimer);
     clearTimeout(iriRemoteSaveTimer);
     clearTimeout(onboardingSaveTimer);
+    clearTimeout(reportSaveTimer);
+    clearTimeout(planSaveTimer);
     const tasks=[];
     const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');
     if(onboardingForm)tasks.push(Promise.resolve(saveOnboardingDraft(onboardingForm)).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-onboarding-draft-local',code:String(error?.message||error||'M26_ONBOARDING_LOCAL_DRAFT_FLUSH_FAILED')});return null;}));
     const iriForm=root.querySelector?.('[data-workflow-form="iri"]');
     if(iriForm)tasks.push(Promise.resolve(saveIriDraft({silent:true,syncRemote:false})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_FLUSH_FAILED')});return null;}));
+    const reportForm=root.querySelector?.('[data-workflow-form="report-approval"]');
+    if(reportForm)tasks.push(Promise.resolve(saveReportDraft(reportForm,{silent:true})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-report-draft',code:String(error?.message||error)});return null;}));
+    const planForm=root.querySelector?.('[data-workflow-form="planning"]');
+    if(planForm)tasks.push(Promise.resolve(savePlanDraft(planForm,{silent:true})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-plan-draft',code:String(error?.message||error)});return null;}));
     await Promise.allSettled(tasks);
     return true;
   }
   function onPageHide(){void flushLocalDrafts();}
   return Object.freeze({
-    mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
+    mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('invalid',onInvalid,true);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
     flushLocalDrafts,
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
   });
 }

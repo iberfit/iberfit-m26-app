@@ -198,6 +198,15 @@ function metricErrors(p,exercise){
  if(profile.kind==='intervals'&&p?.intervalRepetitions&&!p?.intervalWorkSeconds)invalid.push('interval_work_missing');
  return invalid;
 }
+function hasValidExerciseGoal(prescription,exercise){
+ const profile=exerciseMeasurementProfile(exercise);
+ if(['endurance','intervals','carry'].includes(profile.kind))return true;
+ if(['isometric','mobility'].includes(profile.kind)){
+   const duration=Number(String(prescription?.plannedDurationMinutes??'').replace(',','.'));
+   if(String(prescription?.plannedDurationMinutes??'').trim()&&Number.isFinite(duration)&&duration>0)return true;
+ }
+ return Boolean(String(prescription?.reps??'').trim());
+}
 export function validateSessionDraft(draft,catalog){
  const errors=[],seenBlocks=new Set();
  if(!draft?.clientId)errors.push('clientId');
@@ -210,7 +219,7 @@ export function validateSessionDraft(draft,catalog){
   if(b.type==='exercise'){
    const sets=Number(b.sets),rest=Number(b.restSeconds),rpe=Number(b.targetRpe),rir=Number(b.targetRir);
    if(!catalog.has(b.exerciseId))errors.push(`exercise:${b.exerciseId}`);
-   if(!Number.isInteger(sets)||sets<1||sets>100||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile({...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}).kind)&&!String(b.reps||'').trim())||String(b.reps||'').length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
+   if(!Number.isInteger(sets)||sets<1||sets>100||(!hasValidExerciseGoal(b,{...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}))||String(b.reps||'').length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
    if(metricErrors(b,{...catalog.get?.(b.exerciseId),measurementProfile:b.measurementProfile}).length)errors.push(`metrics:${b.exerciseId}`);
    if(b.alternativeId&&(!catalog.has(b.alternativeId)||b.alternativeId===b.exerciseId))errors.push(`alternative:${b.exerciseId}`);
   }else{
@@ -222,7 +231,7 @@ export function validateSessionDraft(draft,catalog){
    for(const id of ids){
     if(!catalog.has(id))errors.push(`exercise:${id}`);
     const p=b.prescriptions?.[id],rest=Number(p?.restSeconds),rpe=Number(p?.targetRpe),rir=Number(p?.targetRir);
-    if(!p||(!['endurance','intervals','carry'].includes(exerciseMeasurementProfile({...catalog.get?.(id),measurementProfile:p?.measurementProfile}).kind)&&!String(p.reps||'').trim())||String(p.reps||'').length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
+    if(!p||(!hasValidExerciseGoal(p,{...catalog.get?.(id),measurementProfile:p?.measurementProfile}))||String(p.reps||'').length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
     if(metricErrors(p,{...catalog.get?.(id),measurementProfile:p?.measurementProfile}).length)errors.push(`metrics:${id}`);
     if(p?.alternativeId&&(!catalog.has(p.alternativeId)||p.alternativeId===id))errors.push(`alternative:${id}`);
    }
