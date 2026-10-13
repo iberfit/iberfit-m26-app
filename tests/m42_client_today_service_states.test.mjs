@@ -27,7 +27,7 @@ test('M42 Solo IRI: no hidden training session, no plan/retos and the only prima
   assert.doesNotMatch(html,/start-published-session|Old hidden workout/);
   assert.doesNotMatch(html,/data-m26-area="planificacion"|data-m26-area="retos"/);
   // Consented health stays available separately from training, including Solo IRI.
-  assert.doesNotMatch(html,/class="m26-client-home-primary-zone"[\\s\\S]*?data-m26-area="actividad"/);
+  assert.match(html,/class="m26-client-home-primary-zone"[^>]*>[^<]*<button[^>]*data-m26-area="informes"/);
   assert.doesNotMatch(html,/Siguiente paso.*Completar evaluación IRI/);
 });
 
