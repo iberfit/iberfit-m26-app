@@ -4,7 +4,7 @@ import {confirmedSessionExecutionsForClient} from '../domain/session-execution-t
 
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const DAY_MS=86_400_000;
-const PREMIUM_TYPES=new Set(['iri','post-session','monthly','reassessment','quarterly','year-in-iberfit']);
+const PREMIUM_TYPES=new Set(['iri','post-session','weekly','monthly','reassessment','quarterly','year-in-iberfit']);
 export const PREMIUM_REPORT_MODEL_VERSION='iri2-premium-report-v1';
 export const PREMIUM_REPORT_TYPES=Object.freeze([
   Object.freeze({id:'iri',label:'Diagnóstico IRI',cadence:'evaluación'}),
