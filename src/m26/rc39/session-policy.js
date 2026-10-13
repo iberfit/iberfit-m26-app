@@ -77,13 +77,13 @@ export function isPublishedSession(record){
   return PUBLIC_STATES.has(publicationState(record));
 }
 export function sessionDeliveryModality(session={},appointment=null){
-  const explicit=field(session,'deliveryModality','delivery_modality','modality','modalidad') ??
-    field(appointment,'modality','modalidad');
-  // Older confirmed sessions record their execution modality on execution_type
-  // and their appointment mode on mode. Respect it before autonomous fallback.
+  const explicitSession=field(session,'deliveryModality','delivery_modality','modality','modalidad');
+  // Session ownership outranks appointment labels, including legacy records.
+  // A contradictory explicit session modality must not silently become guided.
   const legacySession=normalizeDeliveryModality(field(session,'execution_type','executionType'));
+  const explicitAppointment=field(appointment,'modality','modalidad');
   const legacyAppointment=normalizeDeliveryModality(field(appointment,'mode'));
-  const raw=explicit ?? legacySession ?? legacyAppointment;
+  const raw=explicitSession ?? legacySession ?? explicitAppointment ?? legacyAppointment;
   // Legacy sessions without explicit delivery remain compatible. An unrecognized
   // explicit delivery is not silently interpreted as autonomous.
   return raw===null?'guiada_en_app':normalizeDeliveryModality(raw)||'unknown';
