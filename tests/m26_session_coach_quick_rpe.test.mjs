@@ -32,7 +32,7 @@ function sessionWithTarget(targetRpe=7){
   return draft;
 }
 
-test('Coach sees three touch RPE shortcuts around the planned target while Client stays simpler',()=>{
+test('Coach sees three contextual RPE buttons while Client gets clear 1–10 touch choices',()=>{
   const session=sessionWithTarget(7);
   const execution=createExecution({session,clientId:session.clientId,executionId:'execution-quick-rpe'});
   startExecution(execution);
@@ -47,7 +47,9 @@ test('Coach sees three touch RPE shortcuts around the planned target while Clien
 
   const clientHtml=renderGuidedExecution({execution,session,catalog,role:'client'});
   assert.doesNotMatch(clientHtml,/m26-session-coach-rpe-quick/);
-  assert.doesNotMatch(clientHtml,/data-session-action="set-rpe-quick"/);
+  assert.match(clientHtml,/data-session-client-rpe-quick/);
+  assert.equal((clientHtml.match(/data-session-action="set-rpe-quick"/g)||[]).length,10);
+  assert.match(clientHtml,/data-session-action="complete-set"/);
 });
 
 test('quick RPE remains bounded near the top of the scale',()=>{
@@ -59,13 +61,13 @@ test('quick RPE remains bounded near the top of the scale',()=>{
   assert.doesNotMatch(html,/data-rpe-value="11"/);
 });
 
-test('quick RPE action is Coach-only and remains UI coordination rather than a domain dispatch action',()=>{
+test('quick RPE is allowed for Client and Coach, not Admin, and stays out of domain dispatch',()=>{
   assert.deepEqual(M26_ACTION_REGISTRY['set-rpe-quick'],{
-    roles:['coach'],
+    roles:['coach','client'],
     domain:'execution',
   });
   assert.equal(assertActionAllowed('set-rpe-quick','coach'),true);
-  assert.equal(assertActionAllowed('set-rpe-quick','client'),false);
+  assert.equal(assertActionAllowed('set-rpe-quick','client'),true);
   assert.equal(assertActionAllowed('set-rpe-quick','admin'),false);
 
   const source=fs.readFileSync('src/m26/workflows/session-controller.js','utf8');
