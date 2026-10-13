@@ -431,12 +431,13 @@ function renderCoachHoyRoute(vm) {
 
 function renderClientHoyRoute(vm) {
   const client=vm.clients?.[0]||null;
-  const serviceActive=client?.serviceActive!==false;
+  const trainingSurface=hasTrainingSurface(vm.serviceKind);
+  const serviceActive=trainingSurface&&client?.serviceActive!==false;
   const name=client?.name||'IBERFIT';
   const communicationAvailable=vm?.clientGuide?.communicationAvailable!==false;
   const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
   const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
-  const projections=Array.isArray(vm.rc39?.sessionProjections)
+  const projections=trainingSurface&&Array.isArray(vm.rc39?.sessionProjections)
     ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
     :[];
   const executableIds=new Set(
@@ -530,7 +531,24 @@ function renderClientHoyRoute(vm) {
     :'';
 
   let primary;
-  if(runnable){
+  if(!trainingSurface){
+    const iriReady=Boolean(client?.iri?.confirmed);
+    primary={
+      area:'informes',
+      eyebrow:'Tu punto de partida',
+      title:'Diagnóstico IRI',
+      detail:iriReady?'Tu evaluación inicial está completada. Consulta los informes que el equipo haya publicado.':'Tu evaluación inicial es independiente de un servicio de entrenamiento. Aquí podrás consultar su estado y los informes disponibles.',
+      markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="informes"><span aria-hidden="true">↗</span><strong>Ver mis informes</strong><small>${iriReady?'Tu punto de partida confirmado':'Consulta el estado de tu evaluación IRI'}</small></button>`,
+    };
+  }else if(!serviceActive){
+    primary={
+      area:'sesion',
+      eyebrow:'Entrenamiento en pausa',
+      title:'Tu entrenamiento está en pausa',
+      detail:'Tus registros anteriores se conservan. El equipo IBERFIT te ayudará a continuar cuando el servicio vuelva a estar activo.',
+      markup:'<button type="button" class="m26-today-action is-primary" data-m26-area="sesion"><span aria-hidden="true">↗</span><strong>Ver mis sesiones</strong><small>Consulta tu historial sin iniciar sesiones nuevas.</small></button>',
+    };
+  }else if(runnable){
     primary={
       area:'sesion',
       eyebrow:'Tu sesión de hoy',
@@ -561,6 +579,14 @@ function renderClientHoyRoute(vm) {
         <strong>${projections.every(item=>item?.canClientStart!==true)?'Ver mis sesiones':'Abrir mis sesiones'}</strong>
         <small>${executableIds.size===0?'Tus sesiones se pueden consultar. El inicio se habilitará cuando estén listas.':`Tienes ${executableIds.size} entrenamiento${executableIds.size===1?'':'s'} listo${executableIds.size===1?'':'s'} para iniciar.`}</small>
       </button>`,
+    };
+  }else if(planName){
+    primary={
+      area:'planificacion',
+      eyebrow:'Tu planificación',
+      title:planName,
+      detail:'Consulta la planificación disponible. Las sesiones aparecerán cuando el equipo las publique.',
+      markup:'<button type="button" class="m26-today-action is-primary" data-m26-area="planificacion"><span aria-hidden="true">↗</span><strong>Ver mi planificación</strong><small>Revisa el siguiente paso previsto por el equipo.</small></button>',
     };
   }else{
     primary={
@@ -597,7 +623,7 @@ function renderClientHoyRoute(vm) {
     ?'Revisar mi planificación'
     :nextAction?.label||'Continuar';
   const nextActionArea=String(nextAction?.area||'actividad');
-  const nextActionMarkup=nextAction&&nextActionArea!==primary.area
+  const nextActionMarkup=trainingSurface&&nextAction&&nextActionArea!==primary.area
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
         <span>Siguiente paso</span>
         <strong>${escapeHtml(nextActionLabel)}</strong>
@@ -623,7 +649,7 @@ function renderClientHoyRoute(vm) {
       ${primary.markup}
     </section>
 
-    <section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
+    ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       <button type="button" data-m26-area="sesion">
         <span>Próxima cita</span>
         <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
@@ -635,24 +661,24 @@ function renderClientHoyRoute(vm) {
         <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
       </button>
       ${iriGlanceMarkup}
-    </section>
+    </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><button type="button" data-m26-area="agenda"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></button></section>`:''}
 
-    ${renderClientTodayHealth(vm.wearables)}
+    ${trainingSurface?renderClientTodayHealth(vm.wearables):''}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">
         <span>Más para ti</span>
-        <small>Bienestar${communicationAvailable?', mensajes':''}, informes${challenge?'':' y retos'}</small>
+        <small>${trainingSurface?`Bienestar${communicationAvailable?', mensajes':''}, informes${challenge?'':' y retos'}`:`Informes${communicationAvailable?' y mensajes':''}`}</small>
       </summary>
       <nav class="m26-client-home-secondary-actions" aria-label="Accesos secundarios">
-        <button type="button" data-m26-area="actividad">Bienestar</button>
+        ${trainingSurface?'<button type="button" data-m26-area="actividad">Bienestar</button>':''}
         ${communicationAvailable?'<button type="button" data-m26-area="mensajes">Mensajes</button>':''}
         <button type="button" data-m26-area="informes">Informes</button>
-        ${challenge?'':`<button type="button" data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</button>`}
+        ${trainingSurface&&!challenge?`<button type="button" data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</button>`:''}
       </nav>
     </details>
 
-    ${challengePreviewMarkup}
+    ${trainingSurface?challengePreviewMarkup:''}
 
     ${nextActionMarkup}
 
