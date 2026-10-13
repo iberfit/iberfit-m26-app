@@ -1360,7 +1360,10 @@ export function createWorkflowController({
   }
   function queuePlanSave(form){
     clearTimeout(planSaveTimer);
-    planSaveTimer=setTimeout(()=>{planSaveTimer=null;void savePlanDraft(form,{silent:true}).catch((error)=>{
+    planSaveTimer=setTimeout(()=>{
+      planSaveTimer=null;
+      if(!root.contains?.(form)||planFormClientIds.get(form)!==context().clientId)return;
+      void savePlanDraft(form,{silent:true}).catch((error)=>{
       status(root,'planning','No fue posible guardar este borrador. Conserva la pantalla abierta y revisa el almacenamiento local.','error');
       emit(root,'m26:workflow-error',{action:'autosave-plan-draft',code:String(error?.message||error)});
     });},650);
@@ -1629,7 +1632,10 @@ export function createWorkflowController({
   }
   function queueReportSave(form){
     clearTimeout(reportSaveTimer);
-    reportSaveTimer=setTimeout(()=>{reportSaveTimer=null;void saveReportDraft(form,{silent:true}).catch(error=>{
+    reportSaveTimer=setTimeout(()=>{
+      reportSaveTimer=null;
+      if(!root.contains?.(form)||reportFormClientIds.get(form)!==context().clientId)return;
+      void saveReportDraft(form,{silent:true}).catch(error=>{
       status(root,'report','No fue posible guardar el borrador en este dispositivo. Conserva esta pantalla y revisa el almacenamiento.','error');
       emit(root,'m26:workflow-error',{action:'autosave-report-draft',code:String(error?.message||error)});
     });},650);
