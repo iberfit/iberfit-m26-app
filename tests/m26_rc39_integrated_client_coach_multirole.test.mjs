@@ -138,8 +138,9 @@ test('selector de aplicación permanece accesible en escritorio y dentro de Más
 test('integración protege bloques summary_only y elimina navegación duplicada',()=>{
   const projection=read('src/m26/security/role-projection.js');
   const css=read('src/m26/rc39/rc39.css');
-  assert.match(projection,/summary_only/);
-  assert.match(projection,/out\.blocks=visibility==='summary_only'\?\[\]:safeSessionBlocks\(record\)/);
+  assert.match(projection,/sessionVisibilityLevel\(record\)/);
+  assert.match(projection,/out\.clientVisibilityLevel=visibility/);
+  assert.match(projection,/out\.blocks=visibility==='full'\?safeSessionBlocks\(record\):\[\]/);
   assert.match(css,/\.m26-shell\[data-m26-role="client"\] \.m26-mobile-nav\{display:none!important\}/);
 });
 test('responsive RC39 cubre teléfono, tablet, safe-area y accesibilidad',()=>{
