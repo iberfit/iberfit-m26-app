@@ -50,6 +50,7 @@ import {
   publicationCounts,
 } from '../workflows/publication-workflow.js';
 import { clientContentView } from '../publication/client-content.js';
+import {actorCanExecuteSession} from '../rc39/session-policy.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -480,6 +481,7 @@ function publicationItems(records, entity, role) {
         clientId: text(record, 'clientId', 'client_id'),
         title: clientContent.title,
         clientContent,
+        ...(entity==='session'?{canClientExecute:actorCanExecuteSession({role,session:record})}:{}),
       });
     }
     return Object.freeze({
@@ -862,6 +864,7 @@ if (area === 'clientes') {
       clientId,
       role,
       serviceKind:trainingActive?'training':'none',
+      serviceActive:clientTrainingServiceActive(state,clientId),
       canEdit,
       iriPlanningSeed,
       profile,

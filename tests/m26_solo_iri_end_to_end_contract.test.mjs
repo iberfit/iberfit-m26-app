@@ -73,6 +73,7 @@ test('la pausa conserva historial y planificación pero bloquea ejecutar una ses
     canBuild:false,
     sessions:[{
       id:'SESSION-ACTIVE',
+      canClientExecute:true,
       title:'Sesión preparada',
       clientContent:{title:'Sesión preparada',summary:'Contenido confirmado'},
     }],
