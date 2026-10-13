@@ -31,9 +31,9 @@ export function deviceConfirmedStats(summary){
   const sleep=formatSleepDuration(summary.metrics?.sleepMinutes);
   const resting=summary.metrics?.restingHeartRate;
   return `<div class="m26-device-confirmed-stats" aria-label="Resumen confirmado de los últimos siete días">
-    <div><span>Pasos diarios</span><strong>${escapeHtml(steps??'Sin dato')}</strong></div>
+    <div><span>Pasos medios</span><strong>${escapeHtml(steps==null?'Sin dato':Math.round(steps).toLocaleString('es-CL'))}</strong></div>
     <div><span>Sueño medio</span><strong>${escapeHtml(sleep??'Sin dato')}</strong></div>
-    <div><span>FC en reposo</span><strong>${escapeHtml(resting==null?'Sin dato':`${resting} lpm`)}</strong></div>
+    <div><span>FC en reposo media</span><strong>${escapeHtml(resting==null?'Sin dato':`${resting} lpm`)}</strong></div>
   </div>`;
 }
 export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dailyRecords='',connectionActions='',coveragePanel=''}={}){
@@ -48,7 +48,8 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
   const importCount=active.length-automatic.length;
   const status=automatic.length
     ?`${automatic.length} fuente${automatic.length===1?'':'s'} vinculada${automatic.length===1?'':'s'}`
-    :importCount?'Datos incorporados · sin enlace automático':'Sin dispositivo vinculado';
+    :importCount?'Datos incorporados · sin enlace automático'
+    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos':'Sin mediciones confirmadas';
   const primary=MAIN_SOURCES.map(key=>providers.find(item=>item.key===key)).filter(Boolean);
   const others=providers.filter(item=>item.key!=='normalized_file'&&!MAIN_SOURCES.includes(item.key));
   const directAvailable=providers.some(item=>item.usableNow&&item.nativeReady);
@@ -56,14 +57,14 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
   return `<section class="m26-device-hub" data-m26-device-hub aria-labelledby="m26-device-hub-heading">
     <header class="m26-device-hub-heading">
       <div><p class="m26-eyebrow">TU ACTIVIDAD · IBERFIT</p>
-      <h2 id="m26-device-hub-heading">Tu dispositivo, integrado en tu entrenamiento</h2>
-      <p>Autoriza una vez cuando exista conexión compatible. IBERFIT mostrará los datos autorizados en tu seguimiento y sesiones, sin cambiar tu entrenamiento automáticamente.</p></div>
+      <h2 id="m26-device-hub-heading">Tus datos, a la vista</h2>
+      <p>Lo que compartes con IBERFIT se muestra aquí sin buscar ajustes. Estas mediciones no sustituyen cómo te sientes ni cambian tu plan automáticamente.</p></div>
       <span class="m26-device-link-state" role="status">${escapeHtml(status)}</span>
     </header>
     ${stats||'<p class="m26-device-hub-empty">Aquí verás tus pasos, sueño y recuperación cuando existan datos confirmados. No es obligatorio conectar nada.</p>'}
-    ${stats?`<p class="m26-data-footnote">Últimos siete días · ${escapeHtml(summary.daysWithData||0)} día(s) con información confirmada.</p>`:''}
+    ${stats?`<p class="m26-data-footnote">Medias de los últimos siete días · ${escapeHtml(summary.daysWithData||0)} día(s) con datos. El reloj físico no está verificado.</p>`:''}
     <details class="m26-device-link-picker" data-m26-device-link-picker>
-      <summary class="m26-device-link-cta">Vincular dispositivo <span aria-hidden="true">↗</span></summary>
+      <summary class="m26-device-link-cta">${stats?'Conexión y otras fuentes':'Conectar mi actividad'} <span aria-hidden="true">↗</span></summary>
       <div class="m26-device-hub-body">
         <h3>¿Dónde registras tu actividad?</h3>
         <p>${directAvailable?'Selecciona una fuente certificada. Tú autorizas los permisos.':'La sincronización directa aún no está disponible en esta versión web. Estas opciones muestran el estado real; no solicitaremos claves, datos ni permisos hasta que exista una integración certificada.'}</p>
@@ -76,7 +77,7 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
       <div class="m26-device-hub-body"><p>Un archivo permite incorporar registros manualmente, pero no conecta el reloj ni activa una sincronización automática.</p>${importer}</div>
     </details>
     <details class="m26-device-data-management">
-      <summary>Mis datos y permisos</summary>
+      <summary>Historial de datos y permisos</summary>
       <div class="m26-device-hub-body">${deviceSummary}${dailyRecords}${connectionActions}${coveragePanel}</div>
     </details>
   </section>`;

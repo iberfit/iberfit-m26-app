@@ -7,6 +7,7 @@ import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
+import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -629,6 +630,8 @@ function renderClientHoyRoute(vm) {
       </button>
       ${iriGlanceMarkup}
     </section>
+
+    ${renderClientTodayHealth(vm.wearables)}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">
@@ -3591,7 +3594,12 @@ function lastCheckinSummary(last){
 }
 export function renderActivityRoute(vm){
   if(lacksTrainingSurface(vm.serviceKind)){
+    // A client who independently authorized health reading can view/revoke
+    // their existing data without activating a paid training follow-up.
+    const ownedHealth=vm.role==='client'&&Number(vm.wearables?.summary?.daysWithData||0)>0
+      ?renderClientDeviceHub(vm.wearables):'';
     return `<div class="m26-route" data-service-kind="none">
+      ${ownedHealth}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento diario no activado</h2><p>Hábitos, adherencia, wearables y check-ins longitudinales pertenecen al acompañamiento posterior, no al diagnóstico IRI inicial.</p></div>${badge('IRI separado del seguimiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
     </div>`;
@@ -3614,7 +3622,7 @@ export function renderActivityRoute(vm){
   const dailyRecords=wearable.dailyRecords?.length?`<section class="m26-panel m26-wearable-history"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Expediente confirmado</p><h2>Últimos registros diarios</h2><p>Valores individuales normalizados; no son estimaciones reconstruidas desde promedios.</p></div>${badge(`${wearable.dailyRecords.length} registro${wearable.dailyRecords.length===1?'':'s'}`,'success')}</div><div class="m26-wearable-day-grid">${wearable.dailyRecords.map((item)=>wearableDailyRecordCard(item,vm.role)).join('')}</div></section>`:'';
   const deviceSummary=wearableHasData(wearableSummary)?`<section class="m26-panel m26-wearable-overview"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Datos de dispositivos</p><h2>Resumen de los últimos 7 días</h2><p>${escapeHtml(connectionCopy)}</p></div>${badge(wearableFreshnessLabel(wearableSummary.freshness),wearableSummary.freshness==='reciente'?'success':'neutral')}</div><div class="m26-stat-grid">${stat('Pasos medios',metricValue(wearableSummary.metrics.steps),`${wearableSummary.daysWithData} días con datos`)}${stat('Actividad',metricValue(wearableSummary.metrics.activeMinutes,' min'),'Promedio diario disponible')}${stat('Sueño objetivo',sleepHoursPerDay(wearableSummary.metrics.sleepMinutes),'Media diaria · dato de dispositivo, no percepción')}${stat('FC en reposo',metricValue(wearableSummary.metrics.restingHeartRate,' lpm'),`Calidad ${wearableSummary.quality}`)}</div><div class="m26-field-grid m26-wearable-secondary">${wearableMetric('VFC media',wearableSummary.metrics.hrvMs,' ms')}${wearableMetric('Energía activa',wearableSummary.metrics.activeEnergyKcal,' kcal')}${wearableMetric('Entrenamiento registrado',wearableSummary.metrics.workoutMinutes,' min')}${wearableMetric('Fuentes',wearableSummary.providers.join(', ')||'Sin fuentes')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}<p class="m26-notice">IBERFIT muestra procedencia, fecha y calidad. No transforma estos datos en indicaciones clínicas ni aumenta cargas sin revisión del entrenador.</p></section>`:`<section class="m26-notice"><strong>Sin datos de dispositivos confirmados</strong><p>El registro de bienestar y las sesiones continúan funcionando sin conectar ningún dispositivo.</p>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}</section>`;
   return `<div class="m26-route">
-    <section class="m26-route-intro"><div><p class="m26-eyebrow">Actividad y contexto</p><h2>Bienestar y hábitos</h2><p>Registra cómo se siente la persona y los hábitos acordados. Los dispositivos son opcionales y nunca sustituyen la interpretación del entrenador.</p></div>${badge(last?'Último registro disponible':'Sin registro de bienestar','neutral')}</section>
+    <section class="m26-route-intro"><div><p class="m26-eyebrow">Actividad y contexto</p><h2>${vm.role==='client'?'Tu actividad y bienestar':'Bienestar y hábitos'}</h2><p>${vm.role==='client'?'Tus datos de salud, bienestar y hábitos en un mismo lugar. Tú decides qué compartir.':'Registra cómo se siente la persona y los hábitos acordados. Los dispositivos son opcionales y nunca sustituyen la interpretación del entrenador.'}</p></div>${badge(last?'Último registro disponible':'Sin registro de bienestar','neutral')}</section>
     ${wearable.canControl?renderClientDeviceHub(wearable,{importer,deviceSummary,dailyRecords,connectionActions:wearableConnectionActions,coveragePanel:wearableCoveragePanel(wearable)}):''}
     ${capabilityNotice(vm.capabilities.checkins,'Los registros de bienestar')}
     <section class="m26-content-grid">
