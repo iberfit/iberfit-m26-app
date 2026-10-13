@@ -1343,7 +1343,7 @@ export function createWorkflowController({
       throw error;
     }
     emit(root,'m26:start-session',{clientId,session});
-    status(root,'session','Preparando sesión.','success');
+    status(root,'session',role==='client'?'Preparando sesión guiada.':'Preparando sesión.','success');
   }
   function generateIntelligence(){
     requireCoach();

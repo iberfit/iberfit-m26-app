@@ -187,7 +187,7 @@ test('cita con vínculo inconsistente bloquea inicio genérico pero mantiene con
 });
 
 test('Cliente con una sesión publicada conserva su acción principal',()=>{
- const {control}=startButton({role:'client',canBuild:false,sessions:[{id:'ready-client',title:'Disponible',clientContent:{}}]});
+ const {control}=startButton({role:'client',canBuild:false,sessions:[{id:'ready-client',title:'Disponible',clientContent:{},canClientExecute:true}]});
  assert.doesNotMatch(control,/disabled/u);
 });
 
