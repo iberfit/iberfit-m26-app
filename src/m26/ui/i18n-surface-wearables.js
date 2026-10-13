@@ -181,4 +181,5 @@ export const WEARABLE_SURFACE_ROWS=Object.freeze([
   ["Tus datos de salud, bienestar y hábitos en un mismo lugar. Tú decides qué compartir.","Health data, wellbeing and habits in one place. You decide what to share.","Données de santé, bien-être et habitudes au même endroit. Vous choisissez quoi partager.","Dados de saúde, bem-estar e hábitos num só lugar. Você decide o que partilhar."],
   ["Pasos medios","Average steps","Pas moyens","Passos médios"],
   ["FC en reposo media","Average resting HR","FC moyenne au repos","FC média em repouso"],
+  ["Días con datos","Days with data","Jours avec données","Dias com dados"],
 ]);

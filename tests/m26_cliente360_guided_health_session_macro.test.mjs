@@ -15,7 +15,7 @@ test('Hoy shows observed health directly without searching settings or competing
   assert.match(html,/Tu actividad, a la vista/u);
   assert.match(html,/7.821/u);
   assert.match(html,/7 h 15 min/u);
-  assert.match(html,/5 días con datos/u);
+  assert.match(html,/5<\/strong> Días con datos/u);
   assert.match(html,/data-m26-area="actividad">Ver mi actividad/u);
   assert.match(html,/Registrar cómo estoy/u);
 });
