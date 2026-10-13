@@ -1,4 +1,4 @@
-import {readFileSync} from 'node:fs';
+import {readFileSync,appendFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 
 export function parseAndroidReleaseVersion(source){
@@ -10,6 +10,17 @@ export function parseAndroidReleaseVersion(source){
     throw new Error('IBERFIT_ANDROID_RELEASE_VERSION_INVALID');
   return Object.freeze({code:Number(code[1]),name:name[1]});
 }
+// Web-only production promotions retain the already signed Android host.
+// A changed or unverified native tree still requires a monotonically newer APK.
+export function shouldSignAndroidRelease({sameSource=false,comparison}={}){
+  if(sameSource)return true;
+  if(!comparison||comparison.status!=='ahead'
+    ||!Array.isArray(comparison.files)||comparison.files.length>=300
+    ||comparison.files.some(file=>!file||typeof file.filename!=='string'))
+    throw new Error('IBERFIT_ANDROID_NATIVE_COMPARISON_INCOMPLETE');
+  return comparison.files.some(file=>file.filename.startsWith('native/android-host/'));
+}
+
 export function assertAndroidReleaseUpgrade(current,previous,sameSource){
   if(!previous)return;
   if(sameSource){
@@ -59,11 +70,25 @@ async function main(){
       await content('native/android-host/phone-app/build.gradle.kts'));
     if(!/^[a-f0-9]{40}$/u.test(previousManifest.sourceSha||''))
       throw new Error('IBERFIT_ANDROID_PREVIOUS_SOURCE_INVALID');
-    assertAndroidReleaseUpgrade(current,previousVersion,
-      previousManifest.sourceSha===manifest.sourceSha);
+    const sameSource=previousManifest.sourceSha===manifest.sourceSha;
+    const comparison=sameSource?null:await get(
+      'compare/'+previousManifest.sourceSha+'...'+manifest.sourceSha
+    );
+    const signRequired=shouldSignAndroidRelease({sameSource,comparison});
+    if(!signRequired){
+      if(process.env.GITHUB_OUTPUT)
+        appendFileSync(process.env.GITHUB_OUTPUT,'sign_required=false\\n');
+      console.log('IBERFIT_ANDROID_REUSE_SIGNED_APK',prior.id,
+        previousVersion.code,previousVersion.name,
+        'current_source',manifest.sourceSha);
+      return;
+    }
+    assertAndroidReleaseUpgrade(current,previousVersion,sameSource);
     console.log('IBERFIT_ANDROID_PREVIOUS_RELEASE',prior.id,
       previousVersion.code,previousVersion.name);
   }
+  if(process.env.GITHUB_OUTPUT)
+    appendFileSync(process.env.GITHUB_OUTPUT,'sign_required=true\\n');
   console.log('IBERFIT_ANDROID_VERSION_VERIFIED',current.code,current.name,
     'source',manifest.sourceSha);
 }
