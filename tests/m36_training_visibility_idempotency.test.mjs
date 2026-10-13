@@ -29,7 +29,7 @@ test('guided selection rejects approved/draft/cross-client/empty-block sessions'
 
 test('canonical and V43 direct table RLS require publication for Cliente',()=>{
   const sql=readFileSync(new URL(
-    '../supabase/migrations/20261013151500_m36_training_publication_rls.sql',
+    '../supabase/migrations/20261013151216_m36_training_publication_rls.sql',
     import.meta.url),'utf8');
   for(const policy of ['domain_entities_v26_select','m26_plans_read_v43','m26_sessions_read_v43']){
     assert.match(sql,new RegExp('ALTER POLICY '+policy+' ON public\\.'));
