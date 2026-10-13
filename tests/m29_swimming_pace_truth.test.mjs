@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {metricPrescriptionSummary,metricValueValid} from '../src/m26/exercises/measurement-profiles.js';
+import {swimmingPrescriptionAdvisories} from '../src/m26/exercises/swimming-prescription-feedback.js';
 import {createSessionDraft,addCatalogExercise,updateSessionBlock,validateSessionDraft,acceptSessionPreview,buildPublishSessionCommand} from '../src/m26/workflows/session-builder.js';
 import {createExecution,plannedSetDraftValues,updateActiveSetDraft,startExecution,recordSet,correctSet} from '../src/m26/workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
@@ -99,4 +100,17 @@ test('Malformed or wrong-sport measured pace is rejected without writing a set',
   startExecution(execution);
   assert.throws(()=>recordSet(execution,runSession,{distanceKm:5,rpe:7,pacePer100M:'2:00'}),/M29_SWIM_PACE_SPORT_MISMATCH/u);
   assert.equal(Object.keys(execution.results).length,0);
+});
+
+test('Swim pacing advisories flag impossible schedules without fabricating a recorded pace',()=>{
+ const swim=catalog.get('swim-pace');
+ const impossible=swimmingPrescriptionAdvisories({
+   plannedDistanceM:1500,plannedDurationMinutes:30,plannedPacePer100M:'3:00',poolLengthM:25,
+ },swim);
+ assert.ok(impossible.some(n=>n.code==='swim-pace-target-exceeds-duration'&&n.level==='review'));
+ const possible=swimmingPrescriptionAdvisories({
+   plannedDistanceM:1500,plannedDurationMinutes:45,plannedPacePer100M:'1:55',poolLengthM:25,
+ },swim);
+ assert.equal(possible.some(n=>n.code==='swim-pace-target-exceeds-duration'),false);
+ assert.equal(swimmingPrescriptionAdvisories({plannedDistanceM:1500,plannedDurationMinutes:45,plannedPacePer100M:'2:00'},catalog.get('run-pace')).length,0);
 });
