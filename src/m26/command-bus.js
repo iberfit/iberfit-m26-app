@@ -116,6 +116,9 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   if (typeof getToken !== 'function') throw new Error('M26_TOKEN_PROVIDER_REQUIRED');
   if(typeof now!=='function')throw new Error('M26_CLOCK_REQUIRED');
   const inFlight=new Map();
+  // A remote ACK whose local cleanup failed must never be replayed by the
+  // same live command bus. Durable server operation IDs protect across reloads.
+  const confirmedRemoteOperations=new Map();
   let flushInFlight=null;
   let localQueueOrder=0;
   const nowMs=()=>{const value=Number(now());if(!Number.isFinite(value))throw new Error('M26_CLOCK_INVALID');return value;};
@@ -208,12 +211,19 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
       if (kind === 'ack' || kind === 'duplicate') {
-        let acknowledged=null;
-        if(isExecutionCompletionCommand(command)){
-          acknowledged=await persist(command,'ack',{createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder});
-        }else{
-          await repository.remove(command.operationId);
-        }
+        let acknowledged=null,localReceiptOk=true;
+        // The server ACK is authoritative even when local receipt persistence
+        // or cleanup fails. A durable ACK tombstone is preferred if removal
+        // fails, so subsequent app loads cannot resend the pending operation.
+        const ackMeta={createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder};
+        try {
+          if(isExecutionCompletionCommand(command)){
+            acknowledged=await persist(command,'ack',ackMeta);
+          }else{
+            try{await repository.remove(command.operationId);}
+            catch{acknowledged=await persist(command,'ack',ackMeta);}
+          }
+        }catch{localReceiptOk=false;}
         // The server ACK is authoritative. Post-ACK local reconciliation can
         // fail because of a refresh, another tab or offline storage. Never turn
         // a successful publication into a new pending/rejected mutation:
@@ -225,8 +235,11 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
           try { await rehydrate({reason:kind,response}); }
           catch { refreshOk=false; }
         }
-        return { ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
-          response,refreshOk,lineageOk,refreshPending:!refreshOk };
+        const ackResult={ ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
+          response,refreshOk,lineageOk,localReceiptOk,refreshPending:!refreshOk||!localReceiptOk };
+        if(!localReceiptOk)confirmedRemoteOperations.set(command.operationId,{fingerprint:commandFingerprint(command),result:ackResult});
+        else confirmedRemoteOperations.delete(command.operationId);
+        return ackResult;
       }
       if (kind === 'conflict') {
         const conflict = await persist(command, 'conflict', { createdAt:queued.createdAt, response, errorCode: response?.reason || 'REVISION_CONFLICT', retryable: false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder });
@@ -262,6 +275,8 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     const command = createCommand(commandInput,{registry,role:getRole?.()}),fingerprint=commandFingerprint(command);
     const existing=inFlight.get(command.operationId);
     if(existing){if(existing.fingerprint!==fingerprint)return Promise.reject(new Error('M26_OPERATION_ID_COLLISION'));return existing.promise;}
+    const confirmed=confirmedRemoteOperations.get(command.operationId);
+    if(confirmed){if(confirmed.fingerprint!==fingerprint)return Promise.reject(new Error('M26_OPERATION_ID_COLLISION'));return Promise.resolve(confirmed.result);}
     const promise=executeOnce(command,{createdAt:commandInput?.createdAt||undefined,attempts:commandInput?.attempts||0,queuedOffline:commandInput?.queuedOffline===true,queueOrder:commandInput?.queueOrder}).finally(()=>{
       if(inFlight.get(command.operationId)?.promise===promise)inFlight.delete(command.operationId);
     });
@@ -270,7 +285,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   }
 
   async function pending() {
-    return (await repository.list()).filter((record)=>record?.status!=='ack').map(sanitizeOperation);
+    return (await repository.list()).filter((record)=>record?.status!=='ack'&&!confirmedRemoteOperations.has(record.operationId)).map(sanitizeOperation);
   }
 
   async function recoverExecutionCompletion(executionId) {
@@ -292,6 +307,8 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   }
 
   async function retry(operationId) {
+    const confirmed=confirmedRemoteOperations.get(operationId);
+    if(confirmed)return confirmed.result;
     const records = await repository.list();
     let record = records.find((item) => item.operationId === operationId);
     if (!record) throw new Error('M26_OPERATION_NOT_FOUND');
@@ -305,7 +322,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     const requested=Number(limit);const safeLimit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):20;const at=nowMs();const results=[];
     while(results.length<safeLimit){
       const records=await repository.list();
-      const pendingRecords=records.filter((item)=>item.status==='pending'&&item.retryable!==false);
+      const pendingRecords=records.filter((item)=>item.status==='pending'&&item.retryable!==false&&!confirmedRemoteOperations.has(item.operationId));
       const due=pendingRecords.filter((item)=>dueAt(item.nextRetryAt)<=at).sort(compareQueueOrder);
       let record=due.find((item)=>!blockingPredecessor(item,records));
       if(!record)break;
@@ -320,7 +337,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       }
     }
     const finalRecords=await repository.list();
-    const finalPending=finalRecords.filter((item)=>item.status==='pending'&&item.retryable!==false);
+    const finalPending=finalRecords.filter((item)=>item.status==='pending'&&item.retryable!==false&&!confirmedRemoteOperations.has(item.operationId));
     const deferred=finalPending.filter((item)=>dueAt(item.nextRetryAt)>at).length;
     const blocked=finalPending.filter((item)=>dueAt(item.nextRetryAt)<=at&&blockingPredecessor(item,finalRecords)).length;
     const remaining=finalPending.filter((item)=>dueAt(item.nextRetryAt)<=at).length;

@@ -1419,7 +1419,9 @@ export function createWorkflowController({
     const sameCycle=(item)=>String(recordBody(item).name||item.name||'').trim()===String(raw.name||'').trim()
       &&String(recordBody(item).startDate||item.startDate||'').slice(0,10)===String(raw.startDate||'')
       &&String(recordBody(item).endDate||item.endDate||'').slice(0,10)===String(raw.endDate||'');
-    const backup=await draftRepository?.load?.(clientId,'planning-cycle');
+    let backup=null;
+    try{backup=await draftRepository?.load?.(clientId,'planning-cycle');}
+    catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE'});}
     const saved=backup?.value&&typeof backup.value==='object'?backup.value:null;
     const stableId=String(raw.entityId||'').trim()
       ||(saved?.clientId===clientId&&sameCycle(saved)?String(saved.id||''):null)
@@ -1431,7 +1433,11 @@ export function createWorkflowController({
       sessionDurationMinutes:Number(raw.sessionDurationMinutes||0)||null,
       modality:normalizeClientModality(raw.modality)||null};
     const current=records.find(item=>recordId(item)===stableId)||null;
-    await draftRepository?.save?.(clientId,'planning-cycle',draft);
+    // A complete valid online cycle must remain submittable when browser
+    // storage is unavailable. Keep the form and report local storage errors,
+    // but do not present them as a missing field or a server rejection.
+    try{await draftRepository?.save?.(clientId,'planning-cycle',draft);}
+    catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_LOCAL_DRAFT_SAVE_UNAVAILABLE'});}
     // A previously acknowledged save may have failed only its refresh. Never
     // create another entity or issue PLAN_VALIDAR against validated revision 1.
     const existingBody=current?recordBody(current):null;
@@ -1445,7 +1451,8 @@ export function createWorkflowController({
       &&String(existingBody.modality||'')===String(draft.modality||'');
     const statusNow=current?normalizedStatus(current):'';
     if(sameValidated&&['validado','aprobado','publicado'].includes(statusNow)){
-      await draftRepository?.remove?.(clientId,'planning-cycle');
+      try{await draftRepository?.remove?.(clientId,'planning-cycle');}
+      catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});}
       status(root,'planning','El ciclo ya estaba guardado y confirmado. No se creó ningún duplicado.','success');
       onRender();
       return {ok:true,kind:'already-confirmed'};
@@ -1486,11 +1493,19 @@ export function createWorkflowController({
       status(root,'planning','El servidor confirmó el ciclo. La vista todavía no refleja la versión guardada; conserva el borrador y actualiza antes de repetir la validación.','pending');
       return {...result,refreshOk:false};
     }
-    await draftRepository?.remove?.(clientId,'planning-cycle');
-    const feedback=mutationFeedback(result,{success:'Ciclo validado y visible en Planificación.',subject:'El ciclo'});
+    let localDraftOk=true;
+    try{await draftRepository?.remove?.(clientId,'planning-cycle');}
+    catch(error){
+      localDraftOk=false;
+      emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});
+    }
+    // Local cleanup is not a second server confirmation. Preserve the ACK and
+    // the editable draft if the browser storage is temporarily unavailable.
+    const settled=localDraftOk?result:{...result,refreshPending:true,localDraftOk:false};
+    const feedback=mutationFeedback(settled,{success:'Ciclo validado y visible en Planificación.',subject:'El ciclo'});
     status(root,'planning',feedback.message,feedback.kind);
-    if(result.refreshOk!==false)onRender();
-    return result;
+    if(localDraftOk&&result.refreshOk!==false)onRender();
+    return settled;
   }
   async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
     const feedback=mutationFeedback(result,{success:'Propuesta de cita creada. Aún no es visible para el cliente.',subject:'La cita'});

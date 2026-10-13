@@ -37,6 +37,96 @@ test('M39 a confirmed remote ACK survives a failed UI rehydrate',async()=>{
   assert.match(feedback.message,/servidor confirmó/);
 });
 
+test('M39 remote ACK persists a durable tombstone if deletion fails',async()=>{
+  const stored=new Map();
+  let writes=0,remoteCalls=0;
+  const repository={
+    put:async(record)=>{writes++;stored.set(record.operationId,structuredClone(record));},
+    list:async()=>[...stored.values()],
+    remove:async()=>{throw new Error('LOCAL_STORAGE_CLEANUP_FAILURE');},
+  };
+  const bus=createCommandBus({
+    repository,getToken:async()=> 'token',
+    transport:{preflight:async()=>({}),execute:async()=>{
+      remoteCalls++;return {kind:'ack',remoteRevision:1};
+    }},
+    rehydrate:async()=>{},
+  });
+  const result=await bus.execute({...command,operationId:'op-m39-local-cleanup'});
+  assert.equal(result.ok,true);
+  assert.equal(result.kind,'ack');
+  assert.equal(result.localReceiptOk,true,'ACK is durably stored despite failed local delete');
+  assert.equal(result.refreshPending,false);
+  assert.equal(result.refreshOk,true);
+  assert.equal(remoteCalls,1);
+  assert.equal(writes,2,'pending write plus ACK tombstone, never a pending retry');
+  assert.equal(stored.get('op-m39-local-cleanup').status,'ack');
+  assert.equal(stored.get('op-m39-local-cleanup').retryable,false);
+  assert.deepEqual(await bus.pending(),[],'confirmed ACK must not appear as a pending mutation');
+  const flushed=await bus.flushPending({limit:3});
+  assert.equal(flushed.attempted,0,'auto flush must not replay a confirmed mutation');
+  assert.equal(flushed.remaining,0);
+  await assert.rejects(()=>bus.retry('op-m39-local-cleanup'),/M26_OPERATION_NOT_RETRYABLE/);
+  assert.equal(remoteCalls,1);
+  const feedback=mutationFeedback(result);
+  assert.equal(feedback.confirmed,true);
+  assert.equal(feedback.retryMutation,false);
+});
+
+test('M39 remote ACK retains a session-local replay fence if deletion AND tombstone writes fail',async()=>{
+  const stored=new Map();
+  let remoteCalls=0,writes=0;
+  const repository={
+    put:async(record)=>{
+      writes++;
+      if(record.status==='ack')throw new Error('LOCAL_STORAGE_WRITE_FAILURE');
+      stored.set(record.operationId,structuredClone(record));
+    },
+    list:async()=>[...stored.values()],
+    remove:async()=>{throw new Error('LOCAL_STORAGE_DELETE_FAILURE');},
+  };
+  const bus=createCommandBus({
+    repository,getToken:async()=> 'token',
+    transport:{preflight:async()=>({}),execute:async()=>{remoteCalls++;return {kind:'ack',remoteRevision:1};}},
+    rehydrate:async()=>{},
+  });
+  const input={...command,operationId:'op-m39-local-unavailable'};
+  const first=await bus.execute(input);
+  assert.equal(first.ok,true);
+  assert.equal(first.localReceiptOk,false);
+  assert.equal(first.refreshPending,true);
+  assert.equal(remoteCalls,1);
+  assert.equal(writes,2,'ACK fallback may fail, but must never requeue after remote confirmation');
+  assert.equal(stored.get(input.operationId).status,'pending','storage corruption stays visible on disk');
+  assert.deepEqual(await bus.pending(),[],'live instance treats the known ACK as settled');
+  const second=await bus.execute(input);
+  assert.equal(second.ok,true);
+  assert.equal((await bus.retry(input.operationId)).ok,true);
+  assert.equal((await bus.flushPending({limit:3})).attempted,0);
+  assert.equal(remoteCalls,1,'neither a click nor retry nor automatic flush resends the ACK');
+  assert.equal(mutationFeedback(first).retryMutation,false);
+});
+
+test('M39 confirmed plan validation tolerates unavailable local draft cleanup',()=>{
+  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
+  assert.match(plan,/try\{await draftRepository\?\.remove\?\.\(clientId,'planning-cycle'\);\}/);
+  assert.match(plan,/catch\(error\)\{[\s\S]*?localDraftOk=false/);
+  assert.match(plan,/const settled=localDraftOk\?result:\{\.\.\.result,refreshPending:true,localDraftOk:false\}/);
+  assert.match(plan,/return settled;/);
+});
+
+test('M39 complete cycle validation does not falsely fail on browser draft storage errors',()=>{
+  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
+  assert.match(plan,/try\{backup=await draftRepository\?\.load\?\.\(clientId,'planning-cycle'\);\}/);
+  assert.match(plan,/M26_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE/);
+  assert.match(plan,/try\{await draftRepository\?\.save\?\.\(clientId,'planning-cycle',draft\);\}/);
+  assert.match(plan,/M26_PLAN_LOCAL_DRAFT_SAVE_UNAVAILABLE/);
+  assert.match(plan,/M26_PLAN_DRAFT_CLEANUP_PENDING/);
+  assert.match(plan,/commandBus\.execute\(buildCycleCommand\(draft,revision\)\)/);
+});
+
 test('M39 a real rejection remains a rejection and preserves diagnostics',async()=>{
   const repository=createKeyValueOperationRepository({storage:createMemoryKeyValueStore(),ownerId:'coach-m39'});
   const bus=createCommandBus({
