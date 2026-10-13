@@ -39,3 +39,14 @@ test('M28 V2 drift repair guards fresh writes and keeps original receipts canoni
  assert.equal((v2.match(/private\.iberfit_session_delivery_guard_m28\(p_command\)/gu)||[]).length,1);
  assert.doesNotMatch(v2,/delete from|update public\.domain_entities_v26|truncate public\./iu);
 });
+
+test('M28 V3 detects legacy presencial on session execution_type and appointment mode',()=>{
+ const v3=fs.readFileSync(new URL('../supabase/migrations/20261013070000_m28_legacy_modality_guard_v3.sql',import.meta.url),'utf8');
+ assert.match(v3,/v_session->>'execution_type'/u);
+ assert.match(v3,/v_appointment->>'mode'/u);
+ assert.match(v3,/WHEN 'presencial' THEN 'presencial'/u);
+ assert.match(v3,/v_modality <> 'guiada_en_app'/u);
+ assert.match(v3,/SECURITY INVOKER/u);
+ assert.match(v3,/REVOKE ALL ON FUNCTION private\.iberfit_session_delivery_guard_m28/u);
+ assert.doesNotMatch(v3,/\b(?:DELETE|TRUNCATE|UPDATE|GRANT)\b\s+(?:FROM|TABLE|ON)?\s*public\./iu);
+});
