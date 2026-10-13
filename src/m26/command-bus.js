@@ -208,12 +208,16 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
       if (kind === 'ack' || kind === 'duplicate') {
-        let acknowledged=null;
-        if(isExecutionCompletionCommand(command)){
-          acknowledged=await persist(command,'ack',{createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder});
-        }else{
-          await repository.remove(command.operationId);
-        }
+        let acknowledged=null,localReceiptOk=true;
+        // The server ACK is authoritative even when local receipt persistence
+        // or cleanup fails. Never fall into the transport retry catch after ACK.
+        try {
+          if(isExecutionCompletionCommand(command)){
+            acknowledged=await persist(command,'ack',{createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder});
+          }else{
+            await repository.remove(command.operationId);
+          }
+        }catch{localReceiptOk=false;}
         // The server ACK is authoritative. Post-ACK local reconciliation can
         // fail because of a refresh, another tab or offline storage. Never turn
         // a successful publication into a new pending/rejected mutation:
@@ -226,7 +230,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
           catch { refreshOk=false; }
         }
         return { ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
-          response,refreshOk,lineageOk,refreshPending:!refreshOk };
+          response,refreshOk,lineageOk,localReceiptOk,refreshPending:!refreshOk||!localReceiptOk };
       }
       if (kind === 'conflict') {
         const conflict = await persist(command, 'conflict', { createdAt:queued.createdAt, response, errorCode: response?.reason || 'REVISION_CONFLICT', retryable: false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder });
