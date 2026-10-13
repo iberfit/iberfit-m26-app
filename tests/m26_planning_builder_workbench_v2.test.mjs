@@ -302,7 +302,8 @@ test('Planificación V2 orienta del ciclo a la sesión sin saltarse publicación
   const html=renderPlanningRoute(vm);
   assert.match(html,/data-planning-workbench-v2/);
   assert.match(html,/Siguiente decisión/);
-  assert.match(html,/Construir y revisar sesiones/);
+  assert.match(html,/Crear primera sesión/);
+  assert.match(html,/m32-planning-journey/);
   assert.match(html,/m26-planning-current-cycle/);
   assert.match(html,/data-workflow-action="open-session-builder"/);
   assert.match(html,/data-workflow-action="validate-plan"/);

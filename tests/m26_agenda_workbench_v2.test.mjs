@@ -165,8 +165,13 @@ test('cita enlazada conserva confirmación Coach y acciones de sesión existente
     html,
     /data-workflow-action="confirm-appointment"[^>]*data-entity-id="APT-LINKED"/
   );
-  assert.match(html,/data-workflow-action="start-published-session"/);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/);
   assert.match(html,/Google Calendar/);
+  const confirmedHtml=renderRc39Route(coachVm({
+    appointments:[{...appointment,status:'confirmada'}],
+    projections:[{...projection,appointment:{...appointment,status:'confirmada'}}],
+  }));
+  assert.match(confirmedHtml,/data-workflow-action="start-published-session"/);
   assert.match(html,/data-rc39-action="download-calendar"/);
   assert.match(html,/Ver entrenamiento completo/);
 });
