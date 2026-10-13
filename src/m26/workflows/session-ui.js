@@ -1186,7 +1186,7 @@ export function renderLiveModalityPrescription(planned={},profile={},exercise={}
       <div class="m26-field"><span>${profile.kind==='carry'?'Objetivo de transporte':'Objetivo de resistencia'}</span><strong>${e(objective)}</strong></div>
       ${profile.kind==='carry'&&planned.plannedLoad?`<div class="m26-field"><span>Carga prevista</span><strong>${e(planned.plannedLoad)}</strong><small>Confirma la carga realmente utilizada durante la ejecución.</small></div>`:''}
       ${explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`<div class="m26-field"><span>RPE objetivo</span><strong>${e(planned.targetRpe)}</strong></div>`:''}
-      ${explicitSessionEffort(planned.restSeconds,{min:0,max:3600})!==null?`<div class="m26-field"><span>Descanso prescrito</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
+      ${explicitSessionEffort(planned.restSeconds,{min:0,max:3600})!==null?`<div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
     </div>`;
   }
   return `          <div class="m26-field-grid">
@@ -1195,7 +1195,7 @@ export function renderLiveModalityPrescription(planned={},profile={},exercise={}
               <strong>${e(planned.reps||'Según indicación')}</strong>
             </div>
             ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>${role==='coach'?'Puede prepararse como borrador editable; confirma la carga realizada':'No se autocompleta la carga realizada'}</small></div>`:''}
-            ${explicitSessionEffort(planned.restSeconds,{min:0,max:3600})!==null?`<div class="m26-field"><span>Descanso prescrito</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
+            ${explicitSessionEffort(planned.restSeconds,{min:0,max:3600})!==null?`<div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
             ${String(planned.tempo??'').trim()?`<div class="m26-field"><span>Ritmo prescrito</span><strong>${e(planned.tempo)}</strong></div>`:''}
             ${explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null||explicitSessionEffort(planned.targetRir,{min:0,max:10})!==null
               ?`<div class="m26-field"><span>Esfuerzo objetivo</span><strong>${e([explicitSessionEffort(planned.targetRpe,{min:1,max:10})!==null?`RPE ${planned.targetRpe}`:null,explicitSessionEffort(planned.targetRir,{min:0,max:10})!==null?`RIR ${planned.targetRir}`:null].filter(Boolean).join(' · '))}</strong></div>`

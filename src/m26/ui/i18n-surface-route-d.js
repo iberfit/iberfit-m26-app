@@ -1,4 +1,7 @@
 export const ROUTE_SURFACE_ROWS_D=Object.freeze([
+["Sesión guiada IBERFIT","IBERFIT guided workout","Séance guidée IBERFIT","Sessão guiada IBERFIT"],
+["Así lo verá el cliente · ver vista previa","This is what the Client will see · open preview","Ce que verra le Client · ouvrir l’aperçu","Assim verá o Cliente · abrir pré-visualização"],
+["Contenido completo que recibirá el cliente","Full content the Client will receive","Contenu complet que recevra le Client","Conteúdo completo que o Cliente receberá"],
 ["Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.","Session in preparation. Your Coach will review the exercises before enabling it.","Séance en préparation. Votre Coach vérifiera les exercices avant de l’activer.","Sessão em preparação. O seu Coach vai rever os exercícios antes de a disponibilizar."],
 ["Revisar vista previa del informe","Review report preview","Examiner l’aperçu du rapport","Rever a pré-visualização do relatório"],
 ["Ver exactamente qué recibirá el Cliente","See exactly what the Client will receive","Voir exactement ce que recevra le Client","Ver exatamente o que o Cliente vai receber"],

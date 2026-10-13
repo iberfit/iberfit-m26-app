@@ -3716,10 +3716,10 @@ function clientContentCard(item,entity,{canStartSession=true}={}){
 }
 function publicationCard(item,entity){
   const actions=item?.publication?.actions||[];
-  const previewLabel=entity==='report'?'Revisar vista previa del informe':'Ver exactamente qué recibirá el Cliente';
-  const preview=`<details class="m26-publication-preview" data-publication-preview-details><summary>${previewLabel}</summary><div class="m26-publication-preview-content"><h4>${escapeHtml(item.clientContent?.title||item.title||'Contenido IBERFIT')}</h4>${clientContentBody(item.clientContent,{preview:true})}</div></details>`;
+  const previewLabel=entity==='report'?'Revisar vista previa del informe':'Así lo verá el cliente · ver vista previa';
+  const preview=`<details class="m26-publication-preview" data-publication-preview-details><summary>${previewLabel}</summary><div class="m26-publication-preview-content"><p class="m26-eyebrow">Contenido completo que recibirá el cliente</p><h4>${escapeHtml(item.clientContent?.title||item.title||'Contenido IBERFIT')}</h4>${clientContentBody(item.clientContent,{preview:true})}</div></details>`;
   const preferredAction=actions.find((action)=>action.action==='publish')||actions.find((action)=>action.action==='approve')||actions[0]||null;
-  const controls=actions.length?`<details class="m26-publication-actions"><summary>${preferredAction?`Siguiente decisión · ${escapeHtml(preferredAction.label)}`:'Gestionar publicación'}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  const controls=actions.length?`<details class="m26-publication-actions"><summary>Gestionar publicación${preferredAction?` · ${escapeHtml(preferredAction.label)}`:''}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
   return `<article class="m26-publication-card" data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${controls}</article>`;
 }
