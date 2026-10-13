@@ -31,12 +31,13 @@ test('M42 Solo IRI: no hidden training session, no plan/retos and the only prima
   assert.doesNotMatch(html,/Siguiente paso.*Completar evaluación IRI/);
 });
 
-test('M42 Solo IRI: a genuine upcoming appointment remains accessible as Agenda, not a training session',()=>{
+test('M42 Solo IRI: a genuine upcoming appointment is visible without Coach-only navigation',()=>{
   const html=renderHoyRoute(clientVM({
     appointments:[{id:'iri-appointment',title:'Cita de evaluación IRI',dateLabel:'Mañana',statusRaw:'confirmada'}]
   }));
-  assert.match(html,/data-m26-area="agenda"/);
-  assert.doesNotMatch(html,/start-published-session/);
+  assert.match(html,/m26-client-home-appointment/);
+  assert.match(html,/Cita de evaluación IRI/);
+  assert.doesNotMatch(html,/data-m26-area="agenda"|start-published-session/);
   assert.doesNotMatch(html,/data-m26-area="sesion"/);
 });
 
