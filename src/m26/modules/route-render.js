@@ -3996,6 +3996,7 @@ export function renderPlanningRoute(vm){
     </div>
     <p class="m26-field-help" data-guided-required-progress aria-live="polite"></p>
     <div class="m26-inline-actions">
+      <button type="button" data-workflow-action="save-plan-draft">Guardar borrador</button>
       <button type="submit" class="m26-primary-action" data-workflow-action="validate-plan">${hasCycle?'Validar cambios':'Validar borrador'}</button>
       ${hasCycle?'<button type="button" data-workflow-action="open-session-builder">Construir sesión</button>':''}
     </div>
