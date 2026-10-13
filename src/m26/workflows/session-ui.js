@@ -1222,6 +1222,22 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const professionalClientContext=renderProfessionalSessionClientContext(clientContext,role);
 
+  // In the ready state, show the useful sport target without requiring the
+  // client to start the clock. Objectives are never displayed as measurements.
+  const readySportTargets=Array.isArray(execution?.queue)
+    ?execution.queue.map(item=>{
+      const exercise=catalog?.get?.(item?.exerciseId)||{};
+      const prescription=item?.prescription||{};
+      const profile=exerciseMeasurementProfile({...exercise,measurementProfile:prescription.measurementProfile});
+      if(!profile.cardio)return null;
+      return '<div class="m26-field"><span>'+e(exerciseDisplayName(exercise))+'</span><strong>'
+        +e(metricPrescriptionSummary(prescription,{...exercise,measurementProfile:prescription.measurementProfile}))
+        +'</strong></div>';
+    }).filter(Boolean).slice(0,4).join(''):'';
+  const readySportPreview=readySportTargets
+    ?'<section class="m26-session-ready-sport-preview" data-session-ready-sport-preview aria-label="Objetivos previstos de la sesión"><p class="m26-eyebrow">Objetivos deportivos · previstos</p><div class="m26-field-grid">'+readySportTargets+'</div></section>'
+    :'';
+
   if(execution.status==='ready'){
     return `<section class="m26-guided m26-session-live" data-session-live-state="ready">
       ${professionalClientContext}${state}
@@ -1237,6 +1253,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         ${sessionLiveSummary(execution,session,{ready:true})}
         ${goal}
+        ${readySportPreview}
         ${isCoach?'':renderSessionHealthContext(wearableContext)}
         <div class="m26-session-live-actions">
           <button type="button" data-session-action="exit-session">Volver</button>
