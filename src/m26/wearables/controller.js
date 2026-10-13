@@ -1012,6 +1012,24 @@ export function createWearableController({
     if(mounted&&productionSync)requestForegroundSync({force:true});
   }
 
+  // Same authenticated native route for the first-day welcome and the
+  // Devices screen. No implicit grant, background consent or legacy QA path.
+  async function startProductionHealthConnection(scopes){
+    if(!mounted||!productionSync||!productionNative)
+      throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
+    if(!Array.isArray(scopes)||!scopes.length||scopes.length>5
+      ||new Set(scopes).size!==scopes.length
+      ||scopes.some(metric=>!['steps','sleepMinutes','restingHeartRate',
+        'generalHeartRate','exerciseSessions'].includes(metric)))
+      throw new Error('M26_V46_PROD_EXPLICIT_CONSENT_REQUIRED');
+    const flags=await productionSync.availability();
+    if(flags.serverEnabled!==true)throw new Error('M26_V46_PROD_NOT_ACTIVATED');
+    await productionSync.authorize(scopes);
+    // Android shows its own independent grant ceremony only after explicit
+    // user action and after the server has accepted the selected categories.
+    productionNative.requestPermissions(scopes);
+    return Object.freeze({requested:true});
+  }
   async function connectHealthConnect({capabilities=null}={}){
     if(!bridge.support.healthConnect.available){
       throw new Error('M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE');
@@ -1579,12 +1597,7 @@ export function createWearableController({
         const note=card?.querySelector?.('[data-prod-connected360-status]');
         if(note)note.textContent='Registrando tu consentimiento para las categorías seleccionadas…';
         try{
-          await productionSync.authorize(scopes);
-          // After remote consent succeeds, the same explicit Connect gesture
-          // initiates the official Android permission flow for those scopes.
-          // No read is attempted before Android has decided; foreground
-          // reconciliation checks both grants again on returning to the app.
-          productionNative.requestPermissions(scopes);
+          await startProductionHealthConnection(scopes);
           if(note)note.textContent='Consentimiento guardado. Confirma los permisos de Android; al volver, IBERFIT sincronizará los datos disponibles.';
           card?.querySelectorAll?.('[data-prod-connected360-scope]')?.forEach?.(item=>{
             item.checked=false;
@@ -1971,6 +1984,8 @@ export function createWearableController({
     confirmImport,
     syncPending,
     connectHealthConnect,
+    startProductionHealthConnection,
+    productionHealthReady:()=>mounted&&Boolean(productionSync),
     connectNativeProvider,
     autoSyncNativeProviders,
     // Authenticated, signed-native post-login only: schedule non-blocking

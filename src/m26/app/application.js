@@ -1241,6 +1241,12 @@ export async function createM26Application({root=document.querySelector('#app'),
         };
       },
       stateProvider:()=>store.getState(),
+      nativeHealthReady:()=>wearables?.productionHealthReady?.()===true,
+      connectNativeHealth:async(scopes)=>{
+        if(!wearables?.startProductionHealthConnection)
+          throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
+        return wearables.startProductionHealthConnection(scopes);
+      },
     });
     mediaExperience=createExerciseVideoExperienceController({root});
     workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId,{variant='client'}={})=>variant==='coach'?iriExternalReports.coachReportForPdf(assessmentId):iriExternalReports.clientReportForPdf(assessmentId),getIriPhotogrammetryReport:(assessmentId,{variant='client'}={})=>iriPhotogrammetry.clientSnapshotForPdf(assessmentId,{audience:variant==='coach'?'coach':'client'}),ensureIriPhysicalConsent:(payload)=>iriPhotogrammetry.ensurePhysicalConsent(payload),issueIriReport:async(assessmentId,{variant='client'}={})=>{await refreshSessionIfNeeded();return iriReportGovernance.issue(currentToken(),{assessmentId,audience:variant});},getIriReportHistory:async(assessmentId)=>{await refreshSessionIfNeeded();return iriReportGovernance.history(currentToken(),{assessmentId});},openIriIssuedReport:async(issuanceId)=>{await refreshSessionIfNeeded();return iriReportGovernance.open(currentToken(),{issuanceId});},withdrawIriIssuedReport:async(issuanceId,reason)=>{await refreshSessionIfNeeded();return iriReportGovernance.withdraw(currentToken(),{issuanceId,reason});},getRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.getIriDraft(currentToken(),clientId,assessmentId);},upsertRemoteDraft:async(payload)=>{await refreshSessionIfNeeded();return transport.upsertIriDraft(currentToken(),payload);},deleteRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.deleteIriDraft(currentToken(),clientId,assessmentId);},isOnline:()=>navigator.onLine!==false,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const token=currentToken();await ensurePrivilegedActionAssurance({transport,token,userId:session?.user?.id,friendlyName:'IBERFIT · confirmar creación de cliente'});await transport.clientOnboardingPreflight(token);const result=await transport.createClientDraft(token,payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(token)});await hydrate({reason:'client-created'});return verified;}});
@@ -1318,6 +1324,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       // Preserve the post-login quiet-mount contract: do not bring a new
       // awaited network dependency back into the authentication critical path.
       wearables.mount({syncInitial:false});
+      // Render first-use native health choice only after this safe post-login mount.
+      root.dispatchEvent?.(new Event('m26:native-wearables-ready'));
       // Signed Android only: queue a non-blocking, owner-scoped first sync
       // after the shell is interactive. Chrome/PWA has no native Health Connect.
       if(store.getState().identity?.role==='client'

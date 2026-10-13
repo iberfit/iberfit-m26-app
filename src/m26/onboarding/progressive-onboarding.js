@@ -476,6 +476,8 @@ export function createProgressiveOnboardingController({
   root,
   identityProvider=()=>({}),
   stateProvider=()=>null,
+  connectNativeHealth=null,
+  nativeHealthReady=()=>true,
   storage,
   scope=globalThis,
   onOpenChange,
@@ -503,6 +505,8 @@ export function createProgressiveOnboardingController({
     root,
     identityProvider,
     stateProvider,
+    connectNativeHealth,
+    nativeHealthReady,
     storage:resolvedStorage,
     scope,
   });
