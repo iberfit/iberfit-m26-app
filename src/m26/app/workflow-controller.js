@@ -1321,7 +1321,21 @@ export function createWorkflowController({
     status(root,iriReportStatusScope(),'Versión retirada. El historial permanece íntegro y auditable.','success');
   }
 
-  async function validatePlan(){
+  // Same-tab duplicate submissions must share one server operation. In
+  // particular, both clicks must not race before the remote draft is loaded.
+  // A failed ACK leaves the persisted draft intact for explicit recovery.
+  let planValidationPending=null;
+  function validatePlan(){
+    if(planValidationPending)return planValidationPending;
+    const operation=performValidatePlan();
+    planValidationPending=operation;
+    void operation.then(
+      ()=>{if(planValidationPending===operation)planValidationPending=null;},
+      ()=>{if(planValidationPending===operation)planValidationPending=null;}
+    );
+    return operation;
+  }
+  async function performValidatePlan(){
     requireCoach();
     const form=root.querySelector?.('[data-workflow-form="planning"]');
     if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
