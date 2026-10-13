@@ -34,8 +34,8 @@ const modalityIntro=(role,value)=>{
   const modality=normalizeClientModality(value);
   if(role==='client'){
     if(modality==='presencial')return 'Tus sesiones presenciales muestran horario, asistencia y contexto. La ejecución principal la dirige tu Coach; solo una sesión publicada expresamente como autónoma abre Live Workout.';
-    if(modality==='hibrido')return 'Tu plan híbrido comparte una sola progresión: cada sesión indica si hoy entrenas con tu Coach, online en directo o de forma autónoma en Live Workout.';
-    if(modality==='online')return 'Tu experiencia online prioriza Live Workout, registro de RIR/RPE, descansos e histórico, manteniendo también las sesiones en directo cuando tu Coach las programe.';
+    if(modality==='hibrido')return 'Tu plan híbrido comparte una sola progresión: cada sesión indica si hoy entrenas presencialmente con tu Coach o de forma autónoma, guiado desde la app.';
+    if(modality==='online')return 'Tu experiencia online prioriza las sesiones autónomas guiadas desde IBERFIT, con RIR/RPE, descansos, historial y revisión posterior del Coach.';
     return 'Cada sesión respeta su forma real de entrega, visibilidad y permisos antes de permitir la ejecución.';
   }
   if(role==='coach')return 'La experiencia del atleta cambia según su contrato y la entrega real de cada sesión. El Coach mantiene el control de las sesiones supervisadas y la progresión compartida.';

@@ -650,6 +650,7 @@ function previewMarkup(draft,catalog,mediaMap,role){
     <p class="m26-eyebrow">Revisión previa</p>
     <h3>${e(draft.title)}</h3>
     <p>${e(draft.durationMinutes)} minutos · ${e(draft.blocks.length)} bloques</p>
+    <p class="m26-session-delivery-review" data-session-delivery-review><strong>${draft.deliveryModality==='presencial'?'Presencial con Coach':'Guiada autónoma en la aplicación'}</strong> · ${draft.deliveryModality==='presencial'?'El Coach registra la ejecución; el Cliente recibe cita, resumen y seguimiento.':'El Cliente realiza la sesión paso a paso y registra sus resultados desde IBERFIT.'}</p>
     <ol>${blocks}</ol>
     ${mediaMap?renderExerciseMediaCredit():''}
     <div class="m26-inline-actions">
@@ -751,7 +752,9 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
       <div class="m26-field-grid">
         <label>Título<input data-session-draft-field="title" maxlength="120" value="${e(draft.title)}"></label>
         <label>Duración estimada (min)<input type="number" min="10" max="240" data-session-draft-field="durationMinutes" value="${e(draft.durationMinutes)}"></label>
+        <label class="m26-session-delivery-select">¿Cómo se realiza esta sesión?<select data-session-draft-field="deliveryModality" aria-describedby="m26-session-delivery-help" required><option value="presencial"${draft.deliveryModality==='presencial'?' selected':''}>Presencial · dirigida por Coach</option><option value="guiada_en_app"${draft.deliveryModality!=='presencial'?' selected':''}>Guiada autónoma · desde la app</option></select></label>
       </div>
+      <p id="m26-session-delivery-help" class="m26-field-help">Elige el tipo de esta sesión, independientemente de si el plan del Cliente es presencial, híbrido u online. En presencial registra el Coach; en guiada, el Cliente puede iniciar y registrar en IBERFIT.</p>
     </section>
     ${templateControls}
     ${draft.previewAccepted?'':`<nav class="m26-builder-mobile-nav" aria-label="Navegación del constructor">

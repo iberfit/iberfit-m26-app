@@ -86,8 +86,10 @@ export function sessionDeliveryOwnership(session={},appointment=null){
   const explicit=normalizeDeliveryOwnership(
     field(session,'deliveryOwnership','delivery_ownership','executionMode','execution_mode')
   );
-  if(explicit)return explicit;
   const modality=sessionDeliveryModality(session,appointment);
+  // Presencial cannot be made autonomous by a stale or contradictory flag.
+  if(modality==='presencial')return 'coach_led';
+  if(explicit)return explicit;
   if(modality==='presencial')return 'coach_led';
   if(modality==='online')return 'live_online';
   return 'client_autonomous';
@@ -96,6 +98,8 @@ export function sessionVisibilityLevel(session={},appointment=null){
   const explicit=normalizeClientVisibilityLevel(
     field(session,'clientVisibilityLevel','client_visibility_level','visibilityLevel','visibility_level')
   );
+  // Supervised sessions show only agenda/summary, even if stale full visibility exists.
+  if(['coach_led','live_online'].includes(sessionDeliveryOwnership(session,appointment)))return explicit==='hidden'?'hidden':'summary_only';
   if(explicit)return explicit;
   if(booleanField(session,'visibleToClient','visible_to_client','clientVisible','client_visible')===false){
     return 'hidden';
@@ -153,6 +157,7 @@ export function actorCanExecuteSession({role,session,appointment=null}={}){
   if(['admin','administrador'].includes(normalized))return false;
   if(!['client','cliente'].includes(normalized))return false;
   return isPublishedSession(session) &&
+    sessionDeliveryModality(session,appointment)==='guiada_en_app' &&
     sessionVisibilityLevel(session,appointment)==='full' &&
     ['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(session,appointment));
 }

@@ -86,7 +86,7 @@ function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
 function normalizePublishedSession(record){
   const body=record?.body&&typeof record.body==='object'?record.body:record;
   const blocks=Array.isArray(body?.blocks)?structuredClone(body.blocks):[];
-  return {id:record?.id||body?.id,clientId:record?.clientId||record?.client_id||body?.clientId||body?.client_id,title:body?.title||body?.name||'Sesión IBERFIT',durationMinutes:Number(body?.durationMinutes||body?.duration_minutes||50),status:body?.status||record?.status||'published',blocks,revision:Number(record?.revision||body?.revision||0),createdAt:record?.createdAt||record?.created_at||body?.createdAt||body?.created_at||null};
+  return {id:record?.id||body?.id,clientId:record?.clientId||record?.client_id||body?.clientId||body?.client_id,title:body?.title||body?.name||'Sesión IBERFIT',durationMinutes:Number(body?.durationMinutes||body?.duration_minutes||50),deliveryModality:body?.deliveryModality||body?.delivery_modality||record?.deliveryModality||record?.delivery_modality||null,deliveryOwnership:body?.deliveryOwnership||body?.delivery_ownership||record?.deliveryOwnership||record?.delivery_ownership||null,clientVisibilityLevel:body?.clientVisibilityLevel||body?.client_visibility_level||record?.clientVisibilityLevel||null,status:body?.status||record?.status||'published',blocks,revision:Number(record?.revision||body?.revision||0),createdAt:record?.createdAt||record?.created_at||body?.createdAt||body?.created_at||null};
 }
 function nextExpiry(session){return sessionExpiresSoon(session);}
 function safeTime(value){const time=value?new Date(value).getTime():NaN;return Number.isFinite(time)?time:null;}

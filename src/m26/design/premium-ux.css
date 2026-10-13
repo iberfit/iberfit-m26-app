@@ -1996,3 +1996,9 @@ body {
 .m26-session-completion-evidence-item>ol li p{margin:0;color:var(--m26-muted,#aaa)}
 @media(max-width:760px){.m26-session-completion-evidence-list{grid-template-columns:minmax(0,1fr)}}
 /* COACH_COMPLETION_EVIDENCE_360_END */
+
+/* M28 · Elegir entrega real de cada sesión sin distraer de la prescripción. */
+.m26-session-delivery-select{min-width:0;max-width:100%}
+.m26-session-delivery-select select{min-height:44px;width:100%;max-width:100%;touch-action:manipulation}
+.m26-session-delivery-review{padding:.8rem 1rem;border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 24%,transparent);border-radius:.8rem;line-height:1.5}
+@media(max-width:680px){.m26-session-delivery-select{grid-column:1/-1}.m26-session-delivery-review{padding:.75rem}}
