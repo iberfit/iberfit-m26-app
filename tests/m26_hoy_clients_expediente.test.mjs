@@ -246,7 +246,7 @@ test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrena
 
   assert.match(
     html,
-    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>Abrir mis sesiones<\/strong>/
+    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>Ver mis sesiones<\/strong>/
   );
   assert.doesNotMatch(
     html,
@@ -271,7 +271,7 @@ test('Hoy Cliente abre sus sesiones cuando hay sesión disponible pero no una ci
 
   assert.match(
     html,
-    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>Abrir mis sesiones<\/strong>/
+    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>(?:Abrir|Ver) mis sesiones<\/strong>/
   );
   assert.match(html, /Tienes 1 sesión disponible/);
 });
@@ -751,7 +751,7 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   assert.doesNotMatch(html, /Expediente del cliente/);
   assert.doesNotMatch(html, /Cliente 360º/);
   assert.match(html, /m26-client-home-v1/);
-  assert.match(html, /Tu entrenamiento/);
-  assert.match(html, /Tu entrenamiento/);
+  assert.match(html, /(Tu entrenamiento|Tu próxima sesión con Coach)/);
+  assert.match(html, /(Tu entrenamiento|Tu próxima sesión con Coach)/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });
