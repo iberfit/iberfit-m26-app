@@ -1486,11 +1486,19 @@ export function createWorkflowController({
       status(root,'planning','El servidor confirmó el ciclo. La vista todavía no refleja la versión guardada; conserva el borrador y actualiza antes de repetir la validación.','pending');
       return {...result,refreshOk:false};
     }
-    await draftRepository?.remove?.(clientId,'planning-cycle');
-    const feedback=mutationFeedback(result,{success:'Ciclo validado y visible en Planificación.',subject:'El ciclo'});
+    let localDraftOk=true;
+    try{await draftRepository?.remove?.(clientId,'planning-cycle');}
+    catch(error){
+      localDraftOk=false;
+      emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});
+    }
+    // Local cleanup is not a second server confirmation. Preserve the ACK and
+    // the editable draft if the browser storage is temporarily unavailable.
+    const settled=localDraftOk?result:{...result,refreshPending:true,localDraftOk:false};
+    const feedback=mutationFeedback(settled,{success:'Ciclo validado y visible en Planificación.',subject:'El ciclo'});
     status(root,'planning',feedback.message,feedback.kind);
-    if(result.refreshOk!==false)onRender();
-    return result;
+    if(localDraftOk&&result.refreshOk!==false)onRender();
+    return settled;
   }
   async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
     const feedback=mutationFeedback(result,{success:'Propuesta de cita creada. Aún no es visible para el cliente.',subject:'La cita'});
