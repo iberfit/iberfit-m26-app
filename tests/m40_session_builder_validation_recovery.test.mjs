@@ -46,7 +46,8 @@ test('M40 distinguishes invalid prescription, storage failure, server rejection 
 test('M40 review is a local validation action, not a forced remote/local-storage gate',()=>{
   const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
-  assert.ok(controller.includes("if(!['preview','edit-preview','publish'].includes(action))await flushAutosave(context)"));
+  assert.ok(controller.includes("if(action==='publish'){try{await flushAutosave(context);}catch{"));
+  assert.ok(controller.includes("else if(!['preview','edit-preview'].includes(action))await flushAutosave(context)"));
   assert.ok(controller.includes("else if(outcome.ok&&['preview','edit-preview'].includes(action))"));
   assert.ok(controller.includes("Revisión disponible, pero el borrador aún no se pudo guardar."));
   assert.ok(controller.includes("draft:context?.draft,catalog:context?.catalog"));
