@@ -1,6 +1,7 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
 import {selectCurrentTrainingCycle} from './planning-workflow.js';
 import {createM26Id} from '../platform/id.js';
+import {normalizeAppointmentModality} from '../domain/modality.js';
 import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
@@ -60,7 +61,7 @@ export function sessionDraftDefaultsFromState(state,clientId,{now=new Date()}={}
     source:cycleDuration!==null?'cycle':profileDuration!==null?'profile':'default',
   });
 }
-export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),status:'draft',previewAccepted:false,blocks:[],revision:0};}
+export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50,deliveryModality='guiada_en_app'}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');const delivery=normalizeAppointmentModality(deliveryModality);if(!['presencial','guiada_en_app'].includes(delivery))throw new Error('M28_SESSION_DELIVERY_INVALID');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),deliveryModality:delivery,status:'draft',previewAccepted:false,blocks:[],revision:0};}
 function hasObservedQuantity(value,{integer=false}={}){
   if(value===undefined||value===null||String(value).trim()==='')return false;
   const quantity=Number(value);
@@ -166,7 +167,7 @@ export function sessionBlockRemovalSnapshot(draft,blockId){const index=draft?.bl
 export function restoreSessionBlock(draft,snapshot={}){const block=snapshot?.block;if(!block?.id)throw new Error('M26_SESSION_BLOCK_UNDO_INVALID');if(snapshot?.draftId&&String(snapshot.draftId)!==String(draft?.id||''))throw new Error('M26_SESSION_BLOCK_UNDO_SCOPE_MISMATCH');if(draft.blocks.some((item)=>item.id===block.id))throw new Error('M26_SESSION_BLOCK_ALREADY_PRESENT');const rawIndex=Number(snapshot.index),index=Number.isInteger(rawIndex)?Math.max(0,Math.min(draft.blocks.length,rawIndex)):draft.blocks.length;draft.blocks.splice(index,0,structuredClone(block));if(snapshot.wasActiveGroup===true&&!draft.activeGroupId&&GROUP_TYPES.has(block.type))draft.activeGroupId=block.id;return invalidateSessionPreview(draft);}
 export function removeSessionBlock(draft,blockId){draft.blocks=draft.blocks.filter((block)=>block.id!==blockId);if(draft.activeGroupId===blockId)delete draft.activeGroupId;return invalidateSessionPreview(draft);}
 export function moveSessionBlock(draft,blockId,direction){const index=draft.blocks.findIndex((block)=>block.id===blockId);if(index<0)throw new Error('M26_SESSION_BLOCK_MISSING');const delta=direction==='up'?-1:direction==='down'?1:0;if(!delta)throw new Error('M26_SESSION_MOVE_INVALID');const target=index+delta;if(target<0||target>=draft.blocks.length)return draft;[draft.blocks[index],draft.blocks[target]]=[draft.blocks[target],draft.blocks[index]];return invalidateSessionPreview(draft);}
-export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}
+export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else if(field==='deliveryModality'){const mode=normalizeAppointmentModality(value);if(!['presencial','guiada_en_app'].includes(mode))throw new Error('M28_SESSION_DELIVERY_INVALID');draft.deliveryModality=mode;}else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}
 export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,catalog}={}){const block=draft.blocks.find((item)=>item.id===blockId);if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');if(block.type==='exercise'){
   if(field==='sets')block.sets=positiveInt(value,block.sets||3);
   else if(['reps','tempo'].includes(field))block[field]=optionalText(value,block[field],40);
@@ -198,6 +199,7 @@ export function validateSessionDraft(draft,catalog){
  if(!draft?.clientId)errors.push('clientId');
  if(!String(draft?.title||'').trim()||String(draft.title).length>120)errors.push('title');
  const duration=Number(draft?.durationMinutes);if(!Number.isInteger(duration)||duration<10||duration>240)errors.push('durationMinutes');
+ if(draft?.deliveryModality===null||(draft?.deliveryModality!==undefined&&!['presencial','guiada_en_app'].includes(normalizeAppointmentModality(draft.deliveryModality))))errors.push('deliveryModality');
  if(!Array.isArray(draft?.blocks)||!draft.blocks.length||draft.blocks.length>100)errors.push('blocks');
  for(const b of draft?.blocks||[]){
   if(!b?.id||seenBlocks.has(b.id)){errors.push(`blockId:${b?.id||'missing'}`);continue;}seenBlocks.add(b.id);
@@ -228,6 +230,11 @@ export function buildPublishSessionCommand(draft,catalog,baseRevision=0){
  const check=validateSessionDraft(draft,catalog);if(!check.ok)throw new Error(`M26_SESSION_DRAFT_INVALID:${check.errors.join(',')}`);
  if(draft.previewAccepted!==true)throw new Error('M26_SESSION_PREVIEW_REQUIRED');
  const patch=structuredClone(draft);delete patch.activeGroupId;
+ const delivery=normalizeAppointmentModality(patch.deliveryModality||'guiada_en_app');
+ if(!['presencial','guiada_en_app'].includes(delivery))throw new Error('M28_SESSION_DELIVERY_INVALID');
+ patch.deliveryModality=delivery;
+ patch.deliveryOwnership=delivery==='presencial'?'coach_led':'guided_in_app';
+ patch.clientVisibilityLevel=delivery==='presencial'?'summary_only':'full';
  patch.status='published';patch.visibleToClient=true;patch.publishedAt=new Date().toISOString();
  return {type:'SESION_PUBLICAR',entityType:'session',entityId:draft.id,clientId:draft.clientId,baseRevision,previewAccepted:true,payload:{patch}};
 }

@@ -77,32 +77,39 @@ export function isPublishedSession(record){
   return PUBLIC_STATES.has(publicationState(record));
 }
 export function sessionDeliveryModality(session={},appointment=null){
-  return normalizeDeliveryModality(
-    field(session,'deliveryModality','delivery_modality','modality','modalidad') ??
-    field(appointment,'modality','modalidad')
-  ) || 'guiada_en_app';
+  const explicitSession=field(session,'deliveryModality','delivery_modality','modality','modalidad');
+  // Session ownership outranks appointment labels, including legacy records.
+  // A contradictory explicit session modality must not silently become guided.
+  const legacySession=normalizeDeliveryModality(field(session,'execution_type','executionType'));
+  const explicitAppointment=field(appointment,'modality','modalidad');
+  const legacyAppointment=normalizeDeliveryModality(field(appointment,'mode'));
+  const raw=explicitSession ?? legacySession ?? explicitAppointment ?? legacyAppointment;
+  // Legacy sessions without explicit delivery remain compatible. An unrecognized
+  // explicit delivery is not silently interpreted as autonomous.
+  return raw===null?'guiada_en_app':normalizeDeliveryModality(raw)||'unknown';
 }
 export function sessionDeliveryOwnership(session={},appointment=null){
   const explicit=normalizeDeliveryOwnership(
     field(session,'deliveryOwnership','delivery_ownership','executionMode','execution_mode')
   );
-  if(explicit)return explicit;
   const modality=sessionDeliveryModality(session,appointment);
+  // Presencial cannot be made autonomous by a stale or contradictory flag.
   if(modality==='presencial')return 'coach_led';
+  if(explicit)return explicit;
   if(modality==='online')return 'live_online';
+  if(modality==='unknown')return 'coach_led';
   return 'client_autonomous';
 }
 export function sessionVisibilityLevel(session={},appointment=null){
   const explicit=normalizeClientVisibilityLevel(
     field(session,'clientVisibilityLevel','client_visibility_level','visibilityLevel','visibility_level')
   );
-  if(explicit)return explicit;
-  if(booleanField(session,'visibleToClient','visible_to_client','clientVisible','client_visible')===false){
-    return 'hidden';
-  }
+  // Explicitly hidden and withdrawn sessions stay hidden regardless of mode.
+  if(explicit==='hidden'||booleanField(session,'visibleToClient','visible_to_client','clientVisible','client_visible')===false)return 'hidden';
   const ownership=sessionDeliveryOwnership(session,appointment);
+  // A contradictory legacy full-visibility flag cannot expose a supervised session.
   if(ownership==='coach_led'||ownership==='live_online')return 'summary_only';
-  return 'full';
+  return explicit||'full';
 }
 export function sessionIdOf(record){
   return String(field(record,'id','entityId','entity_id')||'').trim()||null;
@@ -153,6 +160,7 @@ export function actorCanExecuteSession({role,session,appointment=null}={}){
   if(['admin','administrador'].includes(normalized))return false;
   if(!['client','cliente'].includes(normalized))return false;
   return isPublishedSession(session) &&
+    sessionDeliveryModality(session,appointment)==='guiada_en_app' &&
     sessionVisibilityLevel(session,appointment)==='full' &&
     ['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(session,appointment));
 }

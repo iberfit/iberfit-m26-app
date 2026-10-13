@@ -54,7 +54,7 @@ async function rpc(name,token,payload={}){
 async function success(name,token,payload={}){
   const result=await rpc(name,token,payload);
   if(result.status<200||result.status>=300)
-    throw new Error('V45_QA_RPC_FAILED_'+name.toUpperCase().slice(0,35)+'_'+result.status);
+    throw new Error('V45_QA_RPC_FAILED_'+name.toUpperCase().slice(0,35)+'_'+result.status+'_'+String(result.body?.code||'NO_CODE').replace(/[^A-Z0-9_]/giu,'').slice(0,18));
   return result.body;
 }
 function errorIsForbidden(res){
@@ -73,9 +73,14 @@ async function login(email,password){
   return {token:res.body.access_token,userId:res.body.user.id};
 }
 async function currentClient(session){
-  const state=await success('iberfit_bootstrap_v26',session.token);
-  const role=String(state?.user?.role||'').toLowerCase();
-  const id=state?.user?.clientId??state?.user?.client_id;
+  // The full bootstrap may require privileged assurance; a synthetic client
+  // needs only the least-privileged identity RPCs already scoped to its JWT.
+  const [roleResult,clientResult]=await Promise.all([
+    success('iberfit_current_role_v26',session.token),
+    success('iberfit_client_id',session.token),
+  ]);
+  const role=String(roleResult||'').toLowerCase();
+  const id=clientResult;
   assert(role==='client'||role==='cliente','ROLE_CLIENT');
   assert(typeof id==='string'&&/^[0-9a-f-]{36}$/iu.test(id),'CLIENT_ID_VALID');
   const environment=await success('iberfit_environment',session.token);

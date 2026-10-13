@@ -14,6 +14,7 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
+import {sessionDeliveryModality,sessionDeliveryOwnership} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -104,6 +105,11 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return commandBus?{kind:'command',value:executeAndApply(commandBus,command,(result)=>{draft.revision=remoteRevision(result,draft.revision);})}:{kind:'command',value:command};
     }
     case 'start': {
+      const actorRole=String(actor?.role||'').trim().toLowerCase();
+      if(['client','cliente'].includes(actorRole)&&
+        (sessionDeliveryModality(session)!=='guiada_en_app'||
+          !['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(session))))
+        throw new Error('M28_SESSION_COACH_LED_CLIENT_START_FORBIDDEN');
       const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision});
       if(!commandBus){startExecution(execution,{actor});return {kind:'execution',value:execution};}
       if(!isOnline(online)){

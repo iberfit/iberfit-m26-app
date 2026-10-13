@@ -1,6 +1,7 @@
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
 import {selectCurrentTrainingCycle} from '../workflows/planning-workflow.js';
+import {buildPeriodizationSnapshot} from '../planning/periodization-workbench.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
@@ -719,6 +720,7 @@ if (area === 'clientes') {
       exercisePerformance,
       planExecution,
       longitudinal,
+      periodization:clientId&&trainingActive?buildPeriodizationSnapshot(state,clientId,{cycle:selectCurrentTrainingCycle(recordsForClient(state,'trainingCycles',clientId),{clientId,now}),now}):null,
       timeline: Object.freeze(!trainingActive?[]:buildProgressTimeline(state, clientId, { now })),
       alerts: Object.freeze(alerts),
       signal: Object.freeze(adherenceSignal(alerts)),
@@ -869,6 +871,7 @@ if (area === 'clientes') {
       cycleCounts: publicationCounts(cycles),
       sessionCounts: publicationCounts(sessions),
       currentCycle: clone(selectCurrentTrainingCycle(cycles,{clientId,now}) || cycles[0] || null),
+      periodization:clientId&&trainingActive?buildPeriodizationSnapshot(state,clientId,{cycle:selectCurrentTrainingCycle(cycles,{clientId,now}),now}):null,
     });
   }
 

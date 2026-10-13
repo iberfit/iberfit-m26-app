@@ -1,13 +1,14 @@
 // Exercise-specific prescription profiles. The catalog remains the source of identity;
 // this deterministic projection supplies presentation/validation without rewriting history.
 const norm=(value)=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-const cardioNames=/carrera|correr|trote|trotadora|caminar|caminata|senderismo|biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike|eliptica|ergometro|skierg|ski.?erg|cinta inclinada|subida de escaleras/;
+const cardioNames=/carrera|correr|trote|trotadora|caminar|caminata|senderismo|biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike|eliptica|ergometro|skierg|ski.?erg|cinta inclinada|subida de escaleras|natacion|nadar|nado|piscina|aguas abiertas|swim|estilo libre|braza|crol/;
 const travelNames=/farmer[- ]carry|front[- ]rack[- ]carry|suitcase[- ]carry|overhead[- ]carry|arrastre de trineo|sled[- ]push|sled[- ]drag/;
-const intervalNames=/interval|fartlek|serie de carrera|repeticiones en cuesta|sprint interval/;
+const intervalNames=/interval|fartlek|serie de carrera|series? de nataci[oó]n|series? en piscina|repeticiones en cuesta|sprint interval/;
 const holdNames=/plancha|plank|\bhold\b|isometr|wall sit|l-sit|prone cobra|handstand hold|hollow hold/;
 export const EXERCISE_METRIC_FIELDS=Object.freeze({
   plannedDistanceKm:{max:1000, label:'Distancia objetivo (km)'},
   plannedDistanceM:{max:100000, label:'Distancia objetivo (m)'},
+  poolLengthM:{max:100,label:'Longitud de piscina (m) · opcional'},
   plannedSpeedKmh:{max:120,label:'Velocidad objetivo (km/h)'},
   plannedDurationMinutes:{max:1440,label:'Duración objetivo (min)'},
   plannedWarmupMinutes:{max:240,label:'Calentamiento previsto (min)'},
@@ -49,6 +50,7 @@ export function exerciseMeasurementProfile(exercise={}){
 function guessSport(title){
   // Never infer a run from a generic cyclical or locomotion profile. The sport
   // drives pace inputs, coaching cues and future observed-session matching.
+  if(/natacion|nadar|nado|piscina|aguas abiertas|swim|estilo libre|braza|crol/.test(title))return 'swimming';
   if(/biciclet|ciclismo|mountain.?bike|\bmtb\b|rodillo|spinning|air.?bike/.test(title))return 'cycling';
   if(/remo ergometro|remo indoor|maquina de remo/.test(title))return 'rowing';
   if(/skierg|ski.?erg/.test(title))return 'ski';
@@ -71,6 +73,7 @@ export function metricPrescriptionSummary(p={},exercise={}){
   if(profile.cardio||profile.kind==='carry'){
     if(p.plannedDistanceKm!==''&&p.plannedDistanceKm!=null)parts.push(p.plannedDistanceKm+' km');
     if(p.plannedDistanceM!==''&&p.plannedDistanceM!=null)parts.push(p.plannedDistanceM+' m');
+    if(profile.sport==='swimming'&&p.poolLengthM)parts.push('Piscina '+p.poolLengthM+' m');
     if(p.plannedSpeedKmh)parts.push(p.plannedSpeedKmh+' km/h');
     if(p.plannedDurationMinutes!==''&&p.plannedDurationMinutes!=null)parts.push(p.plannedDurationMinutes+' min');
     if(p.plannedPace)parts.push(p.plannedPace+' min/km');
@@ -96,6 +99,7 @@ export function metricValueValid(field,value){
   const descriptor=EXERCISE_METRIC_FIELDS[field];
   if(!descriptor)return false;
   const n=Number(String(value).replace(',','.'));
+  if(field==='poolLengthM')return Number.isFinite(n)&&n>=15&&n<=100;
   return Number.isFinite(n)&&n>=0&&n<=descriptor.max&&
     (field!=='intervalRepetitions'||(n>=1&&Number.isInteger(n)))&&
     (field!=='intervalDistanceM'||n>0);

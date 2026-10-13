@@ -8,6 +8,7 @@ import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
+import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -442,8 +443,8 @@ function renderClientHoyRoute(vm) {
       .filter(
         (item)=>
           item?.canClientExecute===true&&
-          Array.isArray(item?.session?.blocks)&&
-          item.session.blocks.length>0
+          Array.isArray(item?.session?.body?.blocks||item?.session?.blocks)&&
+          (item.session.body?.blocks||item.session.blocks).length>0
       )
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
@@ -547,12 +548,12 @@ function renderClientHoyRoute(vm) {
   }else if(projections.length){
     primary={
       area:'sesion',
-      eyebrow:'Tu entrenamiento',
-      title:firstProjection?.session?.title||'Tu planificación está preparada',
+      eyebrow:projections.every(item=>item?.canClientExecute!==true)?'Tu próxima sesión con Coach':'Tu entrenamiento',
+      title:firstProjection?.session?.body?.title||firstProjection?.session?.title||'Tu planificación está preparada',
       detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
       markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
         <span aria-hidden="true">▶</span>
-        <strong>Abrir mis sesiones</strong>
+        <strong>${projections.every(item=>item?.canClientExecute!==true)?'Ver mis sesiones':'Abrir mis sesiones'}</strong>
         <small>Tienes ${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'} en tu planificación.</small>
       </button>`,
     };
@@ -687,8 +688,8 @@ export function renderHoyRoute(vm) {
       .filter(
         (item)=>
           item?.canClientExecute===true&&
-          Array.isArray(item?.session?.blocks)&&
-          item.session.blocks.length>0
+          Array.isArray(item?.session?.body?.blocks||item?.session?.blocks)&&
+          (item.session.body?.blocks||item.session.blocks).length>0
       )
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
@@ -3567,6 +3568,7 @@ export function renderProgressRoute(vm){
     ${clientContextBar}
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     ${professionalProgressNav}
+    ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:true})}
     <section id="m26-progress-summary" data-m26-progress-section="summary" class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
@@ -3991,6 +3993,7 @@ export function renderPlanningRoute(vm){
     </section>
     ${nextAction}
     ${cycleSummary}
+    ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:isClient})}
     ${!isClient?iriPlanningContextPanel(seed):''}
     ${editor}
     ${!isClient?'<p class="m26-planning-publication-note">Aprobar no lo hace visible para el cliente.</p>':''}
@@ -4015,7 +4018,7 @@ export function renderAgendaRoute(vm) {
       return `<option value="${escapeHtml(item.id)}" data-training-address="${escapeHtml(address)}" data-client-modality="${escapeHtml(item.profile?.modality || '')}" data-session-duration="${escapeHtml(item.profile?.sessionDurationMinutes || '')}"${item.id === vm.selectedClientId ? ' selected' : ''}>${escapeHtml(item.name)}</option>`;
     })
     .join('');
-  const form = `<form class="m26-panel m26-panel-soft" data-workflow-form="appointment" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad de esta cita<select name="modality" required aria-describedby="m26-appointment-guidance"><option value="">Seleccionar modalidad</option><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online">En línea</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help"></label><p id="m26-appointment-guidance" class="m26-field-help m26-wide">IBERFIT propone modalidad y duración cuando el expediente las confirma. Cualquier cambio manual prevalece.</p><p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
+  const form = `<form class="m26-panel m26-panel-soft" data-workflow-form="appointment" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad de esta cita<select name="modality" required aria-describedby="m26-appointment-guidance"><option value="">Seleccionar modalidad</option><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online" disabled>Online en directo · opción futura</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help"></label><p id="m26-appointment-guidance" class="m26-field-help m26-wide">IBERFIT propone modalidad y duración cuando el expediente las confirma. Cualquier cambio manual prevalece.</p><p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
 
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? vm.appointments.map((item)=>appointmentCard(item,{canManage:['admin','coach'].includes(String(vm.role||''))})).join('') : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
 }

@@ -119,7 +119,9 @@ export function resolveSessionExperience({
   const contract=normalizeClientModality(contractModality);
   const delivery=normalizeAppointmentModality(deliveryModality)||'guiada_en_app';
   const resolvedOwnership=normalizeOwnership(ownership);
-  const executable=Boolean(clientCanExecute&&isPublished&&hasFullContent);
+  // Stale UI flags cannot grant autonomous execution to Coach-led sessions.
+  const compatible=delivery==='guiada_en_app'&&['client_autonomous','guided_in_app'].includes(resolvedOwnership);
+  const executable=Boolean(clientCanExecute&&isPublished&&hasFullContent&&compatible);
   const kind=resolveKind(contract,delivery,resolvedOwnership,executable);
   const copy=SESSION_COPY[kind]||SESSION_COPY.online_autonomous;
   const coachControl=['coach_led','live_online'].includes(resolvedOwnership)||!executable;
