@@ -1610,9 +1610,16 @@ export function createWorkflowController({
     const feedback=mutationFeedback(result,{success:'Informe aprobado y listo para publicación.',subject:'El informe'});
     status(root,'report',feedback.message,feedback.kind);
     if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending){
-      reportSubmissionByClient.delete(clientId);
-      await draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId));
-      form.reset();onRender();
+      let cleanupOk=true;
+      try{await draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId));}
+      catch(error){
+        cleanupOk=false;
+        emit(root,'m26:workflow-warning',{action:'approve-report',code:'M26_REPORT_DRAFT_CLEANUP_PENDING'});
+      }
+      if(cleanupOk)reportSubmissionByClient.delete(clientId);
+      form.reset();
+      if(cleanupOk)onRender();
+      else status(root,'report','Informe aprobado y confirmado. La limpieza del borrador local está pendiente; actualiza antes de crear otra versión.','pending');
     }
     return result;}
 
