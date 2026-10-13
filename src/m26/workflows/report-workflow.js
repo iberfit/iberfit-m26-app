@@ -159,9 +159,9 @@ export function validateReportDraft(draft={}){
   if(!validDate(draft.periodStart))errors.push('periodStart');
   if(!validDate(draft.periodEnd))errors.push('periodEnd');
   if(draft.periodStart&&draft.periodEnd&&new Date(`${draft.periodEnd}T00:00:00Z`)<new Date(`${draft.periodStart}T00:00:00Z`))errors.push('chronology');
-  if(cleanText(draft.summary,2500).length<20)errors.push('summary');
-  if(cleanText(draft.conclusions,2500).length<20)errors.push('conclusions');
-  if(cleanText(draft.recommendations,2500).length<20)errors.push('recommendations');
+  if(!cleanText(draft.summary,2500))errors.push('summary');
+  if(!cleanText(draft.conclusions,2500))errors.push('conclusions');
+  if(!cleanText(draft.recommendations,2500))errors.push('recommendations');
   if(draft.reportType!=null&&!reportType(draft.reportType))errors.push('reportType');
   if(draft.reviewAccepted!==true)errors.push('reviewAccepted');
   return {ok:errors.length===0,errors:[...new Set(errors)]};
