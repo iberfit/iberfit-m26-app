@@ -77,7 +77,7 @@ async function main(){
     const signRequired=shouldSignAndroidRelease({sameSource,comparison});
     if(!signRequired){
       if(process.env.GITHUB_OUTPUT)
-        appendFileSync(process.env.GITHUB_OUTPUT,'sign_required=false\\n');
+        appendFileSync(process.env.GITHUB_OUTPUT,'sign_required=false\n');
       console.log('IBERFIT_ANDROID_REUSE_SIGNED_APK',prior.id,
         previousVersion.code,previousVersion.name,
         'current_source',manifest.sourceSha);
@@ -88,7 +88,7 @@ async function main(){
       previousVersion.code,previousVersion.name);
   }
   if(process.env.GITHUB_OUTPUT)
-    appendFileSync(process.env.GITHUB_OUTPUT,'sign_required=true\\n');
+    appendFileSync(process.env.GITHUB_OUTPUT,'sign_required=true\n');
   console.log('IBERFIT_ANDROID_VERSION_VERIFIED',current.code,current.name,
     'source',manifest.sourceSha);
 }
