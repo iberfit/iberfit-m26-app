@@ -23,10 +23,12 @@ const home=(item)=>renderHoyRoute({kind:'hoy',role:'client',clients:[{id:cid,nam
   appointments:[],upcoming:[],rc39:{sessionProjections:[item]},operations:{pending:0,conflicts:0,rejected:0},clientGuide:{communicationAvailable:false}});
 
 test('M38 visibility is not the same as start authorization',()=>{
-  for(const status of ['publicada','publicado','published','aprobada','borrador','en_curso','completada']){
+  for(const status of ['publicada','aprobada','borrador','en_curso','completada']){
     assert.equal(sessionReadyToStart(guided(status)),false,status);
   }
   assert.equal(sessionReadyToStart(guided('disponible')),true);
+  assert.equal(sessionReadyToStart(guided('publicado')),true,'legacy Spanish alias remains supported');
+  assert.equal(sessionReadyToStart(guided('published')),true,'legacy English alias remains supported');
   assert.equal(sessionReadyToStart({...guided('disponible'),blocks:[]}),false);
   assert.equal(actorCanExecuteSession({role:'client',session:coach('disponible')}),false);
   assert.equal(clientSessionProjection(guided('publicada')).visible,true);
