@@ -76,6 +76,13 @@ export function publicationState(record){
 export function isPublishedSession(record){
   return PUBLIC_STATES.has(publicationState(record));
 }
+// Publication grants visibility, NOT permission to start a new execution.
+// RC29's SESION_INICIAR transition accepts only `disponible`; 'publicada'
+// is still awaiting enablement, and 'en_curso' belongs to recovery, not a
+// second execution. Keep these truths separate across every Client surface.
+export function sessionReadyToStart(record){
+  return publicationState(record)==='disponible'&&sessionHasExecutableBlocks(record);
+}
 export function sessionDeliveryModality(session={},appointment=null){
   const explicitSession=field(session,'deliveryModality','delivery_modality','modality','modalidad');
   // Session ownership outranks appointment labels, including legacy records.
@@ -198,7 +205,7 @@ export function clientSessionProjection(session={},appointment=null,now=new Date
     modality,
     visible:visibility!=='hidden'&&isPublishedSession(session),
     canClientExecute:actorCanExecuteSession({role:'client',session,appointment}),
-    canClientStart:actorCanExecuteSession({role:'client',session,appointment})&&sessionHasExecutableBlocks(session),
+    canClientStart:actorCanExecuteSession({role:'client',session,appointment})&&sessionReadyToStart(session),
     canCoachExecute:true,
     calendarVisible:visibility!=='hidden'&&Boolean(appointment),
     appointmentId:appointment?String(field(appointment,'id','entityId','entity_id')||''):null,
