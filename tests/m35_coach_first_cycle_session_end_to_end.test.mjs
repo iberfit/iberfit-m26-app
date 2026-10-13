@@ -105,7 +105,7 @@ test('running first-session constructor keeps required review and safe command r
 });
 test('server migration fixes first publish only; does not broaden command registry permissions',()=>{
   const sql=readFileSync(new URL('../supabase/migrations/20261013134000_m35_first_session_atomic_publication.sql',import.meta.url),'utf8');
-  assert.match(sql,/v_entity_type=''session'' and v_command_type=''SESION_PUBLICAR'' and v_def.requires_preview/);
-  assert.match(sql,/when ''session'' then ''aprobada''/);
+  assert.match(sql,/v_entity_type='session' and v_command_type='SESION_PUBLICAR' and v_def.requires_preview/);
+  assert.match(sql,/when 'session' then 'aprobada'/);
   assert.doesNotMatch(sql,/UPDATE\s+public\.domain_command_registry_v26/iu);
 });
