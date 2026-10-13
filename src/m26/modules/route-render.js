@@ -3694,8 +3694,14 @@ function clientContentBody(view,{preview=false}={}){
   return `<p class="m26-client-content-summary">${escapeHtml(view.summary||'Contenido preparado por tu entrenador.')}</p>${view.dateRange?`<p class="m26-client-content-date">${escapeHtml(view.dateRange)}</p>`:''}${details}`;
 }
 function clientContentCard(item,entity,{canStartSession=true}={}){
-  const view=item.clientContent||{};const sessionAction=entity==='session'&&canStartSession?`<button type="button" class="m26-primary-action m26-client-session-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.id)}">Comenzar esta sesión</button>`:'';
-  return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}</article>`;
+  const view=item.clientContent||{};
+  const executable=entity==='session'&&item?.canClientExecute===true;
+  const sessionAction=entity!=='session'?'':!canStartSession
+    ?'<p class="m26-client-session-guidance" role="status">Entrenamiento en pausa. Puedes consultar esta sesión, pero no iniciarla todavía.</p>'
+    :executable
+      ?`<button type="button" class="m26-primary-action m26-client-session-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.id)}">Comenzar esta sesión</button>`
+      :'<p class="m26-client-session-guidance">Sesión dirigida por tu Coach. Puedes consultar la información, pero el registro lo realiza el entrenador.</p>';
+  return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}</article>`;
 }
 function publicationCard(item,entity){
   const actions=item?.publication?.actions||[];
@@ -4004,7 +4010,7 @@ export function renderPlanningRoute(vm){
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
-        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}
+        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false})}
       </section>
     </section>
   </div>`;
@@ -4199,14 +4205,17 @@ export function renderSessionsRoute(vm){
   const clientSessionGuideAttribute=isClient&&vm.sessions.length
     ?' data-m26-client-guide="session-surface"'
     :'';
-  const hasPublishedSession=Array.isArray(vm.sessions)&&vm.sessions.some((item)=>isClient?Boolean(item?.id):item?.publication?.status==='published'&&item?.publication?.visibleToClient!==false);
+  const clientRunnableSession=isClient?(vm.sessions||[]).find((item)=>item?.canClientExecute===true&&item?.id):null;
+  const hasPublishedSession=isClient?Boolean(clientRunnableSession):Array.isArray(vm.sessions)&&vm.sessions.some((item)=>item?.publication?.status==='published'&&item?.publication?.visibleToClient!==false);
   const hasConflictingAppointment=vm.nextSessionPreparation?.session?.source==='appointment-mismatch';
   const preparedSession=!isClient?vm.nextSessionPreparation?.session:null;
   const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment&&(!preparedSession||preparedSession.startable===true)&&(!preparedSession?.id||exactVisiblePublishedSession(vm.sessions,preparedSession.id));
-  const preparedSessionAttribute=preparedSession?.id?` data-entity-id="${escapeHtml(preparedSession.id)}"`:'';
-  const directStart=serviceActive
-    ?`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${preparedSessionAttribute}${mayStartDirectly?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`
-    :`<button type="button" disabled aria-disabled="true">Entrenamiento en pausa</button>`;
+  const preparedSessionAttribute=preparedSession?.id?` data-entity-id="${escapeHtml(preparedSession.id)}"`:clientRunnableSession?.id?` data-entity-id="${escapeHtml(clientRunnableSession.id)}"`:'';
+  const directStart=serviceActive&&isClient&&!clientRunnableSession
+    ?'<p class="m26-field-help" role="status">No tienes una sesión autónoma disponible para iniciar. Las sesiones presenciales las dirige tu Coach.</p>'
+    :serviceActive
+      ?`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${preparedSessionAttribute}${mayStartDirectly?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`
+      :`<span class="m26-field-help" role="status">Entrenamiento en pausa · consulta las sesiones disponibles</span>`;
   const primary=vm.canBuild
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`
     :directStart;
