@@ -46,7 +46,8 @@ export function pendingRequiredControls(root,{
     [...(root?.querySelectorAll?.(selector)||[])]
       .filter((control)=>guidedControlIsAvailable(control)&&Boolean(control.required))
       .filter((control)=>{
-        if(typeof control.checkValidity==='function')return !control.checkValidity();
+        // Progress is observation, not a submission: never emit `invalid`.
+        if(control.validity)return control.willValidate!==false&&!control.validity.valid;
         return guidedControlIsEmpty(control);
       })
   );
@@ -73,8 +74,7 @@ export function firstNeededControl(root,{
   const controls=[...(root?.querySelectorAll?.(selector)||[])];
   const invalid=controls.find((control)=>
     guidedControlIsAvailable(control)&&
-    typeof control.checkValidity==='function'&&
-    !control.checkValidity()
+    control.willValidate!==false&&control.validity?.valid===false
   );
   if(invalid)return invalid;
   return controls.find((control)=>

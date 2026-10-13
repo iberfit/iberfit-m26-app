@@ -26,15 +26,25 @@ function control(name,value='',options={}){
       return null;
     },
     closest(){return null;},
-    checkValidity(){
-      if(!this.required)return true;
-      return String(this.value||'').trim().length>0;
+    get validity(){
+      return {valid:!this.required||String(this.value||'').trim().length>0};
     },
     focus(){this.focusCalls+=1;},
     setAttribute(){},
     removeAttribute(){},
   };
 }
+
+test('passive validation never dispatches invalid events through checkValidity',()=>{
+  const field=control('email','',{required:true});
+  field.checkValidity=()=>{throw new Error('Unexpected invalid event dispatch');};
+  const root={querySelectorAll:()=>[field]};
+  assert.deepEqual(pendingRequiredControls(root),[field]);
+  assert.equal(firstNeededControl(root),field);
+  assert.equal(guidedRequiredProgress(root).pendingCount,1);
+  field.value='coach@example.test';
+  assert.equal(guidedRequiredProgress(root).complete,true);
+});
 
 test('guided autofill only fills empty available controls and never overwrites human input',()=>{
   const name=control('name','Carlos',{required:true});

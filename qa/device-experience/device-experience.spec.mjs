@@ -4,6 +4,37 @@ import {captureEvidenceScreenshot} from './reliable-screenshot.mjs';
 
 const OUT='recovery/device-experience';
 
+test('M39 incomplete form validation stays responsive without recursive invalid events',async({page})=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/qa/rc64/fixture.html');
+  await page.evaluate(async()=>{
+    const {createWorkflowController,syncGuidedWorkflowProgress}=await import('/src/m26/app/workflow-controller.js');
+    document.body.innerHTML='<main id="validation-fixture"><form data-workflow-form="validation-regression" data-guided-required-form><label>Correo<input name="email" type="email" required></label><label>Carga<input name="load" type="number" min="1" required></label><input name="ignored" required disabled><p data-guided-required-progress></p><p data-workflow-status="validation-regression"></p><button type="submit">Validar</button></form><button id="navigate">Continuar</button></main>';
+    const root=document.querySelector('#validation-fixture');
+    const form=root.querySelector('form');
+    globalThis.validationEvidence={invalid:0,submitted:0,navigated:0};
+    root.addEventListener('invalid',()=>{globalThis.validationEvidence.invalid++;},true);
+    form.addEventListener('submit',event=>{event.preventDefault();globalThis.validationEvidence.submitted++;});
+    root.querySelector('#navigate').addEventListener('click',()=>globalThis.validationEvidence.navigated++);
+    createWorkflowController({root,store:{getState:()=>({identity:{role:'coach'},collections:{}})},commandBus:{execute:async()=>({ok:true})}}).mount();
+    for(let i=0;i<20;i++)syncGuidedWorkflowProgress(form);
+  });
+  expect(await page.evaluate(()=>globalThis.validationEvidence.invalid)).toBe(0);
+  await page.getByRole('button',{name:'Validar',exact:true}).click();
+  await expect(page.locator('[data-workflow-status]')).toContainText('Correo');
+  expect(await page.evaluate(()=>globalThis.validationEvidence.invalid)).toBe(2);
+  await page.getByLabel('Correo',{exact:true}).fill('coach@example.test');
+  await page.getByLabel('Carga',{exact:true}).fill('0');
+  await page.getByRole('button',{name:'Validar',exact:true}).click();
+  expect(await page.evaluate(()=>globalThis.validationEvidence.submitted)).toBe(0);
+  await page.getByLabel('Carga',{exact:true}).fill('5');
+  await page.getByRole('button',{name:'Validar',exact:true}).click();
+  await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  expect(await page.evaluate(()=>globalThis.validationEvidence)).toEqual({invalid:3,submitted:1,navigated:1});
+  expect(errors).toEqual([]);
+});
+
 const CURRENT_SOURCE_STYLES=Object.freeze([
   '/src/m26/design/tokens.css',
   '/src/m26/design/typography.css',

@@ -18,7 +18,7 @@ function requiredControl({name='email',value='',valid=false}={}){
       if(selector==='label')return {textContent:'Correo electrónico'};
       return null;
     },
-    checkValidity(){return valid;},
+    validity:{valid},
   };
 }
 
@@ -65,7 +65,7 @@ test('guided progress only mutates again when the actual completion state change
   syncGuidedWorkflowProgress(form);
   assert.equal(node.writes,1);
   control.value='client@example.com';
-  control.checkValidity=()=>true;
+  control.validity.valid=true;
   syncGuidedWorkflowProgress(form);
   assert.equal(node.writes,2);
   assert.equal(node.dataset.status,'success');
