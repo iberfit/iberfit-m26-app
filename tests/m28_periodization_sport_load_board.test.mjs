@@ -25,8 +25,12 @@ test('Unconfirmed/pending, duplicate, wrong-client, unlabelled loads never infla
  s.collections.sessionExecutions.push(execution('e1','2026-10-02T14:00:00Z'),execution('e3','2026-10-03T14:00:00Z',{syncStatus:'pending'}),execution('e4','2026-10-03T14:00:00Z',{clientId:'other'}),execution('e5','2026-10-12T14:00:00Z',{results:{one:{reps:10,load:'20'}}}));
  const snap=buildPeriodizationSnapshot(s,id,{cycle});
  assert.equal(snap.completed,3);
- assert.equal(snap.weeks[1].strengthVolume,null);
- assert.match(renderPeriodizationBoard(snap,{role:'coach'}),/Sin kg verificables/u);
+ assert.equal(snap.weeks[1].strengthVolume,200); // e2 is verified kg; e5 is not
+ assert.equal(snap.weeks[1].strengthSets,1);
+ const unlabelledOnly={...s,collections:{...s.collections,sessionExecutions:s.collections.sessionExecutions.filter(x=>x.id!=='e2')}};
+ const withoutVerified=buildPeriodizationSnapshot(unlabelledOnly,id,{cycle});
+ assert.equal(withoutVerified.weeks[1].strengthVolume,null);
+ assert.match(renderPeriodizationBoard(withoutVerified,{role:'coach'}),/Sin kg verificables/u);
  assert.doesNotMatch(renderPeriodizationBoard(snap,{role:'client'}),/Asignar en agenda/u);
 });
 test('IRI-only, mismatched, invalid and enormous civil-date cycles cannot fabricate a chart',()=>{
