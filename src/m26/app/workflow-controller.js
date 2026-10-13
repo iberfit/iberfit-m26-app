@@ -11,7 +11,7 @@ import {normalizeAppointmentModality,normalizeClientModality} from '../domain/mo
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
-import {actorCanExecuteSession,sessionHasExecutableBlocks} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
@@ -1428,6 +1428,13 @@ export function createWorkflowController({
     // Do not pick the newest supervised session merely because it was published last.
     const session=requestedId?candidate:eligible.find((item)=>actorCanExecuteSession({role,session:item})&&sessionHasExecutableBlocks(item));
     if(!session)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');
+    if(!sessionReadyToStart(session)){
+      const error=new Error('M38_SESSION_NOT_YET_AVAILABLE');
+      error.userMessage=normalizedStatus(session)==='en_curso'
+        ?'Esta sesión ya está iniciada. Recupera el entrenamiento activo en lugar de empezar otro.'
+        :'Esta sesión se puede consultar, pero todavía no está habilitada para comenzar. Tu Coach puede revisar su disponibilidad.';
+      throw error;
+    }
     if(!actorCanExecuteSession({role,session})){
       const error=new Error('M26_SESSION_EXECUTION_FORBIDDEN');
       error.userMessage='Esta sesión la dirige tu Coach. Consulta la información de la sesión, pero no puedes iniciarla desde Cliente.';

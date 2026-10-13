@@ -11,11 +11,12 @@ const session=(status,clientId=own,id='20000000-0000-4000-8000-000000000001')=>(
   revision:1,
 });
 
-test('autonomous Client sees canonical publicada/disponible training in guided entry',()=>{
+test('autonomous Client starts canonical disponible and supported legacy published variants',()=>{
   const select=__applicationInternals.publishedSessionForClient;
-  for(const status of ['publicada','disponible','publicado','published']){
+  for(const status of ['disponible','publicado','published']){
     assert.equal(select([session(status)],own)?.title,'Carrera suave',status);
   }
+  assert.equal(select([session('publicada')],own),null,'canonical publication must be enabled before starting');
 });
 
 test('guided selection rejects approved/draft/cross-client/empty-block sessions',()=>{

@@ -7,7 +7,7 @@ import {createReusableSessionDraft} from '../src/m26/productivity/session-reuse.
 
 const clientId='coach-context-client';
 const now=new Date('2026-10-08T12:15:00Z');
-const session={id:'scheduled-session',clientId,status:'publicado',title:'Sesión programada',revision:1};
+const session={id:'scheduled-session',clientId,status:'publicado',title:'Sesión programada',revision:1,blocks:[{id:'b-scheduled',type:'exercise',exerciseId:'squat',sets:3}]};
 const appointment={id:'current-appointment',clientId,sessionId:session.id,status:'confirmada',startAt:'2026-10-08T12:00:00Z',endAt:'2026-10-08T13:00:00Z'};
 function state(appointments=[appointment],executions=[]){
   return {collections:{appointments,sessions:[session,{...session,id:'other-session',revision:99,updatedAt:'2026-10-08T12:10:00Z'}],sessionExecutions:executions,checkins:[],iriAssessments:[],trainingCycles:[],m26Entities:[]}};

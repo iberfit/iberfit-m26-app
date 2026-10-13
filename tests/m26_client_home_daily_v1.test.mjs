@@ -51,6 +51,7 @@ test('Client Home promotes an executable confirmed session without ambiguity',()
       id:'s1',
       visible:true,
       canClientExecute:true,
+      canClientStart:true,
       session:{title:'Fuerza y potencia',blocks:[{id:'b1',exerciseId:'squat',name:'Sentadilla'}]},
     }]},
   }));
@@ -69,6 +70,7 @@ test('Client Home opens sessions when training exists but no linked runnable app
       id:'s1',
       visible:true,
       canClientExecute:true,
+      canClientStart:true,
       session:{title:'Sesión A',blocks:[{id:'b1',exerciseId:'squat',name:'Sentadilla'}]},
     }]},
   }));
@@ -185,6 +187,7 @@ test('Client Home does not duplicate the primary runnable session in the agenda'
       id:'s1',
       visible:true,
       canClientExecute:true,
+      canClientStart:true,
       session:{title:'Fuerza y potencia',blocks:[{id:'b1',exerciseId:'squat',name:'Sentadilla'}]},
     }]},
   }));
