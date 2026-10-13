@@ -661,7 +661,7 @@ function renderClientHoyRoute(vm) {
         <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
       </button>
       ${iriGlanceMarkup}
-    </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><button type="button" data-m26-area="agenda"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></button></section>`:''}
+    </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><div class="m26-client-home-appointment"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></div></section>`:''}
 
     ${renderClientTodayHealth(vm.wearables)}
 
