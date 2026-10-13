@@ -56,6 +56,38 @@ export function sessionCommandFailureReason(source){
 
 export function sessionCommandFailureOutcome(source,{role='',action='',phase='action',draft=null,catalog=null}={}){
   const reason=sessionCommandFailureReason(source);
+  const raw=String(source?.message||source?.code||'');
+  if(phase!=='sync'&&raw.startsWith('M26_SESSION_DRAFT_INVALID:')){
+    const issue=raw.slice('M26_SESSION_DRAFT_INVALID:'.length).split(',')[0];
+    const colon=issue.indexOf(':');
+    const kind=colon<0?issue:issue.slice(0,colon);
+    const exerciseId=colon<0?'':issue.slice(colon+1);
+    const exercise=catalog?.get?.(exerciseId);
+    const name=String(exercise?.name_es||exercise?.name||exerciseId||'este ejercicio').slice(0,100);
+    const block=(draft?.blocks||[]).find(b=>b.exerciseId===exerciseId||(b.exerciseIds||[]).includes(exerciseId));
+    const bid=String(block?.id||'');
+    const field=(attr)=>/^[A-Za-z0-9._:-]{1,160}$/.test(bid)?'[data-block-id="'+bid+'"][data-session-block-field="'+attr+'"]':null;
+    const messages={
+      clientId:'Selecciona un cliente válido antes de revisar la sesión.',
+      title:'Introduce un título para la sesión.',
+      durationMinutes:'La duración debe estar entre 10 y 240 minutos.',
+      deliveryModality:'Selecciona cómo se realizará la sesión.',
+      blocks:'Añade al menos un ejercicio para revisar la sesión.',
+      exercise:'El ejercicio "'+name+'" no está disponible en la biblioteca.',
+      prescription:'Revisa series, objetivo, descansos y esfuerzo de "'+name+'".',
+      metrics:'Completa un objetivo válido de tiempo o distancia para "'+name+'". No necesitas introducir repeticiones ficticias.',
+      alternative:'Revisa la alternativa seleccionada para "'+name+'".',
+      group:'Revisa los ejercicios del circuito o grupo.',
+      groupType:'Revisa el tipo de grupo de entrenamiento.',
+      rounds:'Indica un número válido de rondas.',
+      blockId:'Hay un bloque duplicado o sin identificador en la sesión.'
+    };
+    const focus=kind==='title'||kind==='durationMinutes'||kind==='deliveryModality'
+      ?'[data-session-draft-field="'+kind+'"]'
+      :kind==='blocks'?'[data-session-search]'
+      :kind==='metrics'||kind==='prescription'?field('plannedDurationMinutes'):null;
+    return Object.freeze({status:'retry',code:'M26_SESSION_DRAFT_INVALID',message:messages[kind]||'Revisa los valores del bloque antes de publicar.',focusSelector:focus,blockId:bid||null});
+  }
   const coach=isCoachRole(role);
   if(reason!==TRAINING_SERVICE_NOT_ACTIVE){
     if(phase==='sync')return null;
