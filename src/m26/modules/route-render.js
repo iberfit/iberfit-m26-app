@@ -3952,6 +3952,10 @@ export function renderPlanningRoute(vm){
   const approvedCycles=Number(vm.cycleCounts?.approved||0);
   const publishedSessions=Number(vm.sessionCounts?.published||0);
   const totalSessions=Array.isArray(vm.sessions)?vm.sessions.length:0;
+  const guidedReady=(vm.sessions||[]).some((item)=>{
+    const session=item?.raw||item;
+    return sessionReadyToStart(session)&&actorCanExecuteSession({role:'client',session});
+  });
   const editor=vm.canEdit?`<form id="m26-planning-cycle-editor" class="m26-panel m26-panel-soft m26-planning-cycle-editor" data-workflow-form="planning"${suggestedGoal?' data-iri-seeded="true"':''} data-guided-required-form>
     <div class="m26-panel-heading">
       <div>
@@ -3978,15 +3982,17 @@ export function renderPlanningRoute(vm){
     </div>
     ${workflowStatus('planning')}
   </form>`:'';
-  const planningNextStep=!hasCycle?'Definir ciclo':!totalSessions?'Crear primera sesión':publishedSessions<totalSessions?'Revisar publicación':'Programar próxima cita';
-  const planningNextCopy=!hasCycle?'Fija un objetivo, periodo y frecuencia de trabajo para orientar las sesiones.':!totalSessions?'Construye la primera sesión desde el catálogo y revisa su prescripción.':publishedSessions<totalSessions?'Revisa qué contenido está aprobado y publícalo expresamente cuando esté listo.':'El ciclo y la publicación están preparados. Coordina la próxima cita desde la Agenda.';
+  const planningNextStep=!hasCycle?'Definir ciclo':!totalSessions?'Crear primera sesión':publishedSessions<totalSessions?'Revisar publicación':guidedReady?'Ver entrenamiento disponible':'Programar próxima cita';
+  const planningNextCopy=!hasCycle?'Fija un objetivo, periodo y frecuencia de trabajo para orientar las sesiones.':!totalSessions?'Construye la primera sesión desde el catálogo y revisa su prescripción.':publishedSessions<totalSessions?'Revisa qué contenido está aprobado y publícalo expresamente cuando esté listo.':guidedReady?'El entrenamiento guiado ya está disponible para el Cliente. Puedes revisar su prescripción y después seguir sus resultados sin crear una cita ficticia.':'El ciclo está publicado. Si la sesión es presencial, coordina una cita confirmada antes de iniciarla.';
   const planningNextControl=!hasCycle
     ?'<a class="m26-primary-action" href="#m26-planning-cycle-editor">Definir ciclo</a>'
     :!totalSessions
       ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
       :publishedSessions<totalSessions
         ?'<a class="m26-primary-action" href="#m26-planning-publications">Revisar publicaciones</a>'
-        :'<button type="button" class="m26-primary-action" data-m26-area="agenda">Abrir agenda</button>';
+        :guidedReady
+          ?'<button type="button" class="m26-primary-action" data-m26-area="sesion">Ver entrenamiento disponible</button>'
+          :'<button type="button" class="m26-primary-action" data-m26-area="agenda">Abrir agenda</button>';
   const title=isClient?'Tu planificación':'Planificación';
   const copy=isClient?'Aquí tienes tu plan actual y las sesiones que ya están listas para ti.':'Del ciclo a la sesión: primero decide el marco, después construye y publica solo cuando esté revisado.';
   const nextAction=!isClient
@@ -4005,7 +4011,7 @@ export function renderPlanningRoute(vm){
           <li data-m32-ready="${hasCycle}">1. Ciclo</li>
           <li data-m32-ready="${totalSessions>0}">2. Sesión</li>
           <li data-m32-ready="${publishedSessions>0}">3. Publicación</li>
-          <li>4. Agenda y ejecución</li>
+          <li>4. ${guidedReady?'Entrenamiento autónomo':'Agenda y ejecución'}</li>
         </ol>
         <div class="m26-inline-actions">${planningNextControl}</div>
       </section>`
