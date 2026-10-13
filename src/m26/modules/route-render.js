@@ -4263,7 +4263,7 @@ export function renderSessionsRoute(vm){
   const hasPublishedSession=isClient?Boolean(clientRunnableSession):Boolean(coachRunnableSession);
   const hasConflictingAppointment=vm.nextSessionPreparation?.session?.source==='appointment-mismatch';
   const preparedSession=!isClient?vm.nextSessionPreparation?.session:null;
-  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment&&(!preparedSession||preparedSession.startable===true)&&(!preparedSession?.id||exactVisiblePublishedSession(vm.sessions,preparedSession.id)&&sessionReadyToStart((vm.sessions||[]).find((item)=>item?.id===preparedSession.id)?.raw));
+  const mayStartDirectly=hasPublishedSession&&!hasConflictingAppointment&&(!preparedSession||preparedSession.startable===true)&&(!preparedSession?.id||exactVisiblePublishedSession(vm.sessions,preparedSession.id)&&sessionReadyToStart((vm.sessions||[]).find((item)=>item?.id===preparedSession.id)?.raw||(vm.sessions||[]).find((item)=>item?.id===preparedSession.id)));
   const preparedSessionAttribute=preparedSession?.id?` data-entity-id="${escapeHtml(preparedSession.id)}"`:(clientRunnableSession||coachRunnableSession)?.id?` data-entity-id="${escapeHtml((clientRunnableSession||coachRunnableSession).id)}"`:'';
   const directStart=serviceActive&&isClient&&!clientRunnableSession
     ?'<p class="m26-field-help" role="status">No tienes una sesión autónoma disponible para iniciar. Las sesiones presenciales las dirige tu Coach.</p>'
