@@ -77,7 +77,7 @@ export function createConnected360ProductionSync({
       const flags=await transport.connected360ProductionCapabilities(token);
       assertCurrent(expected,version,signal);
       if(flags.serverEnabled!==true)return Object.freeze({skipped:'release-disabled'});
-      const status=await transport.connected360ProductionAuthorizationStatus(token,'health_connect');
+      const status=await transport.connected360ProductionAuthorizationStatus(token);
       assertCurrent(expected,version,signal);
       const scopes=V46_PROD_SCOPES.filter(x=>status?.scopes?.includes(x));
       if(status?.authorized!==true||!UUID.test(String(status.grantId||''))
