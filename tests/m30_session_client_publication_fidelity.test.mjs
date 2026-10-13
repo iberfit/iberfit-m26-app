@@ -63,8 +63,7 @@ test('M30: vista previa de publicación Coach conserva detalles guiados pero ocu
 test('M30: retirada u ocultación impide reexponer detalle desde la proyección',()=>{
   const records=[session({status:'retirado'}),session({visibleToClient:false}),session({clientVisibilityLevel:'hidden'})];
   const projected=projectCollectionsForRole({sessions:records},client);
-  assert.equal(projected.sessions.length,1);
-  assert.deepEqual(projected.sessions[0].blocks,[]);
-  assert.equal(projected.sessions[0].clientVisibilityLevel,'hidden');
-  assert.equal(clientContentView('session',projected.sessions[0]).sections.length,0);
+  assert.equal(projected.sessions.length,0);
+  assert.throws(()=>assertClientProjectionSafe({sessions:[session({clientVisibilityLevel:'hidden'})]},client),/M26_CLIENT_HIDDEN_SESSION_EXPOSED/);
+  assert.equal(clientContentView('session',records[2]).sections.length,0);
 });

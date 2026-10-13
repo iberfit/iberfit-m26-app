@@ -143,7 +143,7 @@ export function projectCollectionsForRole(collections,user,collectionKeys=Object
     if(ALWAYS_PRIVATE_FOR_CLIENT.has(key)){projected[key]=[];continue;}
     projected[key]=records.filter((record)=>{
       if(clientIdOf(record,key)!==own)return false;
-      if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record);
+      if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record)&&(key!=='sessions'||sessionVisibilityLevel(record)!=='hidden');
       if(key==='appointments')return isClientVisibleAppointment(record);
       return isVisibleGeneric(record);
     }).map((record)=>projectRecordForClient(key,record)).filter(Boolean);
@@ -156,7 +156,7 @@ export function assertClientProjectionSafe(collections,user){
   if(roleOf(user)!=='client')return true;
   const own=safeId(user?.clientId||user?.client_id);if(!own)throw new Error('M26_CLIENT_IDENTITY_REQUIRED');
   for(const key of ALWAYS_PRIVATE_FOR_CLIENT){if((collections?.[key]||[]).length)throw new Error(`M26_CLIENT_PRIVATE_COLLECTION_EXPOSED:${key}`);}
-  for(const [key,records] of Object.entries(collections||{}))for(const record of records||[]){if(clientIdOf(record,key)!==own)throw new Error(`M26_CLIENT_CROSS_SCOPE_EXPOSED:${key}`);if(PUBLICATION_SCOPED.has(key)&&!isVisiblePublication(record))throw new Error(`M26_CLIENT_UNPUBLISHED_EXPOSED:${key}`);if(key==='appointments'&&!isClientVisibleAppointment(record))throw new Error('M26_CLIENT_UNCONFIRMED_APPOINTMENT_EXPOSED');assertNoSensitiveKeys(record,key);}
+  for(const [key,records] of Object.entries(collections||{}))for(const record of records||[]){if(clientIdOf(record,key)!==own)throw new Error(`M26_CLIENT_CROSS_SCOPE_EXPOSED:${key}`);if(PUBLICATION_SCOPED.has(key)&&!isVisiblePublication(record))throw new Error(`M26_CLIENT_UNPUBLISHED_EXPOSED:${key}`);if(key==='sessions'&&sessionVisibilityLevel(record)==='hidden')throw new Error('M26_CLIENT_HIDDEN_SESSION_EXPOSED');if(key==='appointments'&&!isClientVisibleAppointment(record))throw new Error('M26_CLIENT_UNCONFIRMED_APPOINTMENT_EXPOSED');assertNoSensitiveKeys(record,key);}
   return true;
 }
 export const M26_CLIENT_PRIVATE_COLLECTIONS=Object.freeze([...ALWAYS_PRIVATE_FOR_CLIENT]);
