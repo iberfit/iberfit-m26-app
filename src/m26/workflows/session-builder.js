@@ -1,7 +1,7 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
 import {selectCurrentTrainingCycle} from './planning-workflow.js';
 import {createM26Id} from '../platform/id.js';
-import {normalizeClientModality,normalizeAppointmentModality} from '../domain/modality.js';
+import {normalizeAppointmentModality} from '../domain/modality.js';
 import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
@@ -59,7 +59,6 @@ export function sessionDraftDefaultsFromState(state,clientId,{now=new Date()}={}
     clientId:safeClientId,
     durationMinutes:cycleDuration??profileDuration??50,
     source:cycleDuration!==null?'cycle':profileDuration!==null?'profile':'default',
-    deliveryModality:normalizeClientModality(cycle?.modality||profiles[0]?.modality)==='presencial'?'presencial':'guiada_en_app',
   });
 }
 export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50,deliveryModality='guiada_en_app'}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');const delivery=normalizeAppointmentModality(deliveryModality);if(!['presencial','guiada_en_app'].includes(delivery))throw new Error('M28_SESSION_DELIVERY_INVALID');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),deliveryModality:delivery,status:'draft',previewAccepted:false,blocks:[],revision:0};}
