@@ -3708,7 +3708,9 @@ function clientContentCard(item,entity,{canStartSession=true}={}){
     ?'<p class="m26-client-session-guidance" role="status">Entrenamiento en pausa. Puedes consultar esta sesión, pero no iniciarla todavía.</p>'
     :executable
       ?`<button type="button" class="m26-primary-action m26-client-session-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.id)}">Comenzar esta sesión</button>`
-      :'<p class="m26-client-session-guidance">Sesión dirigida por tu Coach. Puedes consultar la información, pero el registro lo realiza el entrenador.</p>';
+      :['coach_led','live_online'].includes(item?.deliveryOwnership)||item?.deliveryModality==='presencial'
+        ?'<p class="m26-client-session-guidance">Sesión dirigida por tu Coach. Puedes consultar la información, pero el registro lo realiza el entrenador.</p>'
+        :'<p class="m26-client-session-guidance">Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.</p>';
   return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}</article>`;
 }
 function publicationCard(item,entity){
@@ -3973,23 +3975,36 @@ export function renderPlanningRoute(vm){
     </div>
     ${workflowStatus('planning')}
   </form>`:'';
+  const planningNextStep=!hasCycle?'Definir ciclo':!totalSessions?'Crear primera sesión':!publishedSessions?'Revisar publicación':'Programar próxima cita';
+  const planningNextCopy=!hasCycle?'Fija un objetivo, periodo y frecuencia de trabajo para orientar las sesiones.':!totalSessions?'Construye la primera sesión desde el catálogo y revisa su prescripción.':!publishedSessions?'Revisa qué contenido está aprobado y publícalo expresamente cuando esté listo.':'El ciclo y la publicación están preparados. Coordina la próxima cita desde la Agenda.';
+  const planningNextControl=!hasCycle
+    ?'<a class="m26-primary-action" href="#m26-planning-cycle-editor">Definir ciclo</a>'
+    :!totalSessions
+      ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
+      :!publishedSessions
+        ?'<a class="m26-primary-action" href="#m26-planning-publications">Revisar publicaciones</a>'
+        :'<button type="button" class="m26-primary-action" data-m26-area="agenda">Abrir agenda</button>';
   const title=isClient?'Tu planificación':'Planificación';
   const copy=isClient?'Aquí tienes tu plan actual y las sesiones que ya están listas para ti.':'Del ciclo a la sesión: primero decide el marco, después construye y publica solo cuando esté revisado.';
   const nextAction=!isClient
     ?`<section class="m26-planning-next" aria-label="Siguiente decisión de planificación">
         <div>
           <p class="m26-eyebrow">Siguiente decisión</p>
-          <h3>${hasCycle?'Construir y revisar sesiones':'Definir el ciclo'}</h3>
-          <p>${hasCycle?'El ciclo ya da contexto. Usa el constructor para preparar cada sesión y revisa antes de publicar.':'Crea el ciclo para fijar objetivo, frecuencia, modalidad y duración antes de programar sesiones.'}</p>
+          <h3>${escapeHtml(planningNextStep)}</h3>
+          <p>${escapeHtml(planningNextCopy)}</p>
         </div>
         <div class="m26-planning-next-metrics">
           <span><small>Ciclos aprobados</small><strong>${escapeHtml(approvedCycles)}</strong></span>
           <span><small>Sesiones</small><strong>${escapeHtml(totalSessions)}</strong></span>
           <span><small>Publicadas</small><strong>${escapeHtml(publishedSessions)}</strong></span>
         </div>
-        <div class="m26-inline-actions">
-          ${hasCycle?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Construir sesión</button>':'<a class="m26-primary-action" href="#m26-planning-cycle-editor">Definir ciclo</a>'}
-        </div>
+        <ol class="m32-planning-journey" aria-label="Progreso del ciclo hasta el entrenamiento">
+          <li data-m32-ready="${hasCycle}">1. Ciclo</li>
+          <li data-m32-ready="${totalSessions>0}">2. Sesión</li>
+          <li data-m32-ready="${publishedSessions>0}">3. Publicación</li>
+          <li>4. Agenda y ejecución</li>
+        </ol>
+        <div class="m26-inline-actions">${planningNextControl}</div>
       </section>`
     :'';
   const cycleSummary=!isClient&&hasCycle?`<section class="m26-planning-current-cycle" aria-label="Marco del ciclo actual">
@@ -4013,7 +4028,7 @@ export function renderPlanningRoute(vm){
     ${!isClient?iriPlanningContextPanel(seed):''}
     ${editor}
     ${!isClient?'<p class="m26-planning-publication-note">Aprobar no lo hace visible para el cliente.</p>':''}
-    <section class="m26-content-grid m26-planning-publication-grid">
+    <section id="m26-planning-publications" class="m26-content-grid m26-planning-publication-grid" tabindex="-1">
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Versiones y publicación'}</h2></div>${!isClient?badge(`${approvedCycles} aprobados`,'neutral'):''}</div>
         ${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient})}

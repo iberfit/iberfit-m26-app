@@ -481,7 +481,11 @@ function publicationItems(records, entity, role) {
         clientId: text(record, 'clientId', 'client_id'),
         title: clientContent.title,
         clientContent,
-        ...(entity==='session'?{canClientExecute:actorCanExecuteSession({role,session:record})&&sessionHasExecutableBlocks(record)}:{}),
+        ...(entity==='session'?{
+          canClientExecute:actorCanExecuteSession({role,session:record})&&sessionHasExecutableBlocks(record),
+          deliveryOwnership:String(text(record,'deliveryOwnership','delivery_ownership')||''),
+          deliveryModality:String(text(record,'deliveryModality','delivery_modality','execution_type')||''),
+        }:{}),
       });
     }
     return Object.freeze({
