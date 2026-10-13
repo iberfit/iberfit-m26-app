@@ -2019,3 +2019,16 @@ body {
 .m28-week-rows{display:grid;gap:.35rem;max-height:360px;overflow:auto}
 .m28-week-rows>div{display:grid;grid-template-columns:48px repeat(3,minmax(0,1fr));gap:.4rem;align-items:center;padding:.6rem;border-bottom:1px solid rgba(212,183,117,.13);font-size:.76rem}
 @media(max-width:680px){.m28-period-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem}.m28-period-stats span{padding:.55rem .4rem}.m28-period-stats strong{font-size:1rem}.m28-week-rows>div{grid-template-columns:40px repeat(3,minmax(0,1fr));font-size:.67rem}}
+
+/* CSP-safe, quantized weekly chart heights: no inline style or user-controlled CSS. */
+.m28-week-bar-level-0{height:2px}
+.m28-week-bar-level-1{height:9px}
+.m28-week-bar-level-2{height:17px}
+.m28-week-bar-level-3{height:26px}
+.m28-week-bar-level-4{height:34px}
+.m28-week-bar-level-5{height:43px}
+.m28-week-bar-level-6{height:51px}
+.m28-week-bar-level-7{height:60px}
+.m28-week-bar-level-8{height:68px}
+.m28-week-bar-level-9{height:77px}
+.m28-week-bar-level-10{height:85px}

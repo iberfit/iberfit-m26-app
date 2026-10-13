@@ -15,6 +15,8 @@ test('Coach sees 4-week blocks, live week and separate scheduled vs executed tot
  assert.equal(snapshot.weeks[1].rpe,7);
  const html=renderPeriodizationBoard(snapshot,{role:'coach'});
  assert.match(html,/data-m28-periodization/u);
+ assert.match(html,/m28-week-bar-level-[0-9]+/u);
+ assert.doesNotMatch(html,/style=/u);
  assert.match(html,/Bloque 1/u);
  assert.match(html,/Preparar sesión/u);
  assert.match(html,/Asignar en agenda/u);

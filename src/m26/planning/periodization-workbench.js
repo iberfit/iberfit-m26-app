@@ -95,7 +95,7 @@ export function renderPeriodizationBoard(snapshot,{role='coach',compact=false}={
   const coach=['coach','admin'].includes(String(role||'').trim().toLowerCase());
   const max=Math.max(1,...snapshot.weeks.map(w=>w.completed));
   const bars=snapshot.weeks.map(w=>'<div class="m28-week" aria-label="Semana '+w.index+': '+w.completed+' sesiones confirmadas; '+w.scheduled+' citas confirmadas">'
-    +'<meter class="m28-week-bar" min="0" max="'+max+'" value="'+w.completed+'" aria-hidden="true"></meter>'
+    +'<span class="m28-week-bar m28-week-bar-level-'+Math.max(0,Math.min(10,Math.round(10*w.completed/max)))+'" aria-hidden="true"></span>'
     +'<small>'+w.index+'</small></div>').join('');
   const parts=snapshot.blocks.map(b=>'<div class="m28-block"><strong>Bloque '+b.index+'</strong>'
     +'<span>'+escape(b.start)+' — '+escape(b.end)+'</span>'
