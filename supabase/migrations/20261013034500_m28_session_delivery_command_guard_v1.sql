@@ -29,7 +29,7 @@ BEGIN
       v_modality := lower(trim(v_patch->>'deliveryModality'));
       v_ownership := lower(trim(coalesce(v_patch->>'deliveryOwnership','')));
       v_visibility := lower(trim(coalesce(v_patch->>'clientVisibilityLevel','')));
-      IF v_modality NOT IN ('presencial','guiada_en_app')
+      IF v_modality IS NULL OR v_modality NOT IN ('presencial','guiada_en_app')
         OR v_ownership IS DISTINCT FROM (CASE WHEN v_modality='presencial' THEN 'coach_led' ELSE 'guided_in_app' END)
         OR v_visibility IS DISTINCT FROM (CASE WHEN v_modality='presencial' THEN 'summary_only' ELSE 'full' END) THEN
         RETURN jsonb_build_object('allowed',false,'reason','M28_SESSION_DELIVERY_INCONSISTENT');
