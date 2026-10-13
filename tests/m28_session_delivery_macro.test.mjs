@@ -158,3 +158,19 @@ test('New Coach sessions require a conscious per-session choice before preview/p
  const app=readFileSync('src/m26/app/application.js','utf8');
  assert.match(app,/if\(!sourceSession&&!saved\)draft.deliveryModality=null/u);
 });
+
+test('Legacy presencial execution_type and appointment mode are never autonomous',()=>{
+ const legacy={id:'legacy-presencial',clientId:'c1',status:'published',execution_type:'presencial',blocks:[]};
+ assert.equal(sessionDeliveryModality(legacy),'presencial');
+ assert.equal(actorCanExecuteSession({role:'client',session:legacy}),false);
+ assert.equal(clientSessionProjection(legacy).ownership,'coach_led');
+ const {execution_type:ignored,...withoutExecution}=legacy;
+ const appointment={id:'a1',mode:'presencial',status:'confirmada',startAt:'2026-10-15T10:00:00-03:00'};
+ assert.equal(sessionDeliveryModality(withoutExecution,appointment),'presencial');
+ assert.equal(actorCanExecuteSession({role:'client',session:withoutExecution,appointment}),false);
+ assert.equal(clientSessionProjection(withoutExecution,appointment).ownership,'coach_led');
+ assert.equal(sessionDeliveryModality({...legacy,deliveryModality:'unknown'}),'unknown');
+ assert.equal(actorCanExecuteSession({role:'client',session:{...legacy,deliveryModality:'unknown'}}),false);
+ const guided={...legacy,deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app'};
+ assert.equal(actorCanExecuteSession({role:'client',session:guided}),true);
+});
