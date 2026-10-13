@@ -1241,6 +1241,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         };
       },
       stateProvider:()=>store.getState(),
+      nativeHealthReady:()=>wearables?.productionHealthReady?.()===true,
       connectNativeHealth:async(scopes)=>{
         if(!wearables?.startProductionHealthConnection)
           throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
@@ -1323,6 +1324,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       // Preserve the post-login quiet-mount contract: do not bring a new
       // awaited network dependency back into the authentication critical path.
       wearables.mount({syncInitial:false});
+      // Render first-use native health choice only after this safe post-login mount.
+      root.dispatchEvent?.(new Event('m26:native-wearables-ready'));
       // Signed Android only: queue a non-blocking, owner-scoped first sync
       // after the shell is interactive. Chrome/PWA has no native Health Connect.
       if(store.getState().identity?.role==='client'
