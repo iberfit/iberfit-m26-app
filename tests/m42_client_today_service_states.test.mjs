@@ -49,13 +49,14 @@ test('M42 service paused: preserve history but suppress starts even if cached pr
   assert.doesNotMatch(html,/start-published-session/);
 });
 
-test('M42 active training plan without published sessions: the plan is the primary next step',()=>{
+test('M42 active training without published sessions: preserve existing wellbeing CTA and plan access',()=>{
   const html=renderHoyRoute(clientVM({
     serviceKind:'training',
     clients:[{name:'Cliente',serviceActive:true,iri:{confirmed:true},cycle:{name:'Ciclo de 5 semanas'}}]
   }));
   assert.match(html,/Ciclo de 5 semanas/);
-  assert.match(html,/Ver mi planificación/);
+  assert.match(html,/Registrar cómo estoy/);
+  assert.match(html,/data-m26-area="planificacion"/);
   assert.doesNotMatch(html,/start-published-session/);
 });
 
