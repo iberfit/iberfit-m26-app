@@ -225,3 +225,14 @@ test('resumenes semanales y mensuales no duplican la misma ejecucion canonica tr
   assert.match(monthly.summary,/3 sesiones ejecutadas/u);
   assert.equal(monthly.evidence.find(row=>row.label==='Sesiones ejecutadas').text,'3');
 });
+
+test('resumen semanal usa plural correcto con dos sesiones confirmadas sin inflar dias',()=>{
+  const state=stateWithHistory();
+  state.collections.sessionExecutions.push({
+    id:'e4',clientId:'c1',sessionId:'s1',status:'completed',syncStatus:'clean',
+    completedAt:'2026-09-05T11:00:00Z',title:'Fuerza D',
+  });
+  const weekly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(report=>report.id==='weekly');
+  assert.match(weekly.summary,/2 sesiones de entrenamiento en 2 días/u);
+  assert.doesNotMatch(weekly.summary,/sesiónes/u);
+});
