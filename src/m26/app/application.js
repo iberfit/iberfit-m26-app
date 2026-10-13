@@ -90,7 +90,7 @@ function normalizePublishedSession(record){
 }
 function nextExpiry(session){return sessionExpiresSoon(session);}
 function safeTime(value){const time=value?new Date(value).getTime():NaN;return Number.isFinite(time)?time:null;}
-const PUBLISHED_SESSION_STATES=new Set(['disponible']);
+const PUBLISHED_SESSION_STATES=new Set(['disponible','published','publicado','active','activo','enabled','habilitado']);
 const APPOINTMENT_EARLY_WINDOW_MS=6*60*60*1000;
 const APPOINTMENT_LATE_WINDOW_MS=24*60*60*1000;
 function publishedSessionForClient(records=[],clientId){return records.map(normalizePublishedSession).filter((item)=>item.id&&item.clientId===clientId&&item.blocks.length&&PUBLISHED_SESSION_STATES.has(String(item.status||'').trim().toLowerCase())).sort((a,b)=>Number(b.revision||0)-Number(a.revision||0)||(safeTime(b.createdAt)||0)-(safeTime(a.createdAt)||0))[0]||null;}
