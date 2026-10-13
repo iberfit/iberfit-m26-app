@@ -214,9 +214,19 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
         }else{
           await repository.remove(command.operationId);
         }
-        await rebaseNextQueuedLineage({...queued,...command},response);
-        if (typeof rehydrate === 'function') await rehydrate({ reason: kind, response });
-        return { ok: true, kind, command: sanitizeOperation({ ...(acknowledged||queued), status: 'ack' }), response };
+        // The server ACK is authoritative. Post-ACK local reconciliation can
+        // fail because of a refresh, another tab or offline storage. Never turn
+        // a successful publication into a new pending/rejected mutation:
+        // retrying a different operation ID could otherwise create duplicates.
+        let lineageOk=true,refreshOk=true;
+        try { await rebaseNextQueuedLineage({...queued,...command},response); }
+        catch { lineageOk=false; }
+        if(typeof rehydrate==='function'){
+          try { await rehydrate({reason:kind,response}); }
+          catch { refreshOk=false; }
+        }
+        return { ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
+          response,refreshOk,lineageOk,refreshPending:!refreshOk };
       }
       if (kind === 'conflict') {
         const conflict = await persist(command, 'conflict', { createdAt:queued.createdAt, response, errorCode: response?.reason || 'REVISION_CONFLICT', retryable: false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder });
