@@ -69,3 +69,22 @@ test('M42 legitimate published autonomous training retains exact canonical start
   assert.match(html,/data-workflow-action="start-published-session" data-entity-id="published-1"/);
   assert.match(html,/Carrera continua/);
 });
+
+test('M42 ended training retains historical sessions but does not offer a new workout',()=>{
+  const html=renderHoyRoute(clientVM({
+    serviceKind:'none',
+    clients:[{name:'Cliente',serviceActive:false,trainingServiceStatus:'ended',iri:{confirmed:true}}]
+  }));
+  assert.match(html,/Tu historial de entrenamiento/);
+  assert.match(html,/data-m26-area="sesion"/);
+  assert.doesNotMatch(html,/start-published-session/);
+  assert.doesNotMatch(html,/Tu evaluación inicial es independiente/);
+});
+
+test('M42 legacy completed IRI does not present a false pending diagnosis',()=>{
+  const html=renderHoyRoute(clientVM({
+    clients:[{name:'Cliente',serviceActive:false,trainingServiceStatus:'none',iri:{status:'Completada',confirmed:false}}]
+  }));
+  assert.match(html,/Tu punto de partida confirmado/);
+  assert.doesNotMatch(html,/Consulta el estado de tu evaluación IRI/);
+});
