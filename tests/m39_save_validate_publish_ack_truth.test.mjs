@@ -37,6 +37,44 @@ test('M39 a confirmed remote ACK survives a failed UI rehydrate',async()=>{
   assert.match(feedback.message,/servidor confirmó/);
 });
 
+test('M39 remote ACK cannot be rewritten as pending when local receipt removal fails',async()=>{
+  const stored=new Map();
+  let writes=0,remoteCalls=0;
+  const repository={
+    put:async(record)=>{writes++;stored.set(record.operationId,structuredClone(record));},
+    list:async()=>[...stored.values()],
+    remove:async()=>{throw new Error('LOCAL_STORAGE_CLEANUP_FAILURE');},
+  };
+  const bus=createCommandBus({
+    repository,getToken:async()=> 'token',
+    transport:{preflight:async()=>({}),execute:async()=>{
+      remoteCalls++;return {kind:'ack',remoteRevision:1};
+    }},
+    rehydrate:async()=>{},
+  });
+  const result=await bus.execute({...command,operationId:'op-m39-local-cleanup'});
+  assert.equal(result.ok,true);
+  assert.equal(result.kind,'ack');
+  assert.equal(result.localReceiptOk,false);
+  assert.equal(result.refreshPending,true);
+  assert.equal(result.refreshOk,true);
+  assert.equal(remoteCalls,1);
+  assert.equal(writes,1,'no post-ACK catch may rewrite an authoritative success as a pending retry');
+  assert.equal(stored.get('op-m39-local-cleanup').attempts,0);
+  const feedback=mutationFeedback(result);
+  assert.equal(feedback.confirmed,true);
+  assert.equal(feedback.retryMutation,false);
+});
+
+test('M39 confirmed plan validation tolerates unavailable local draft cleanup',()=>{
+  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
+  assert.match(plan,/try\{await draftRepository\?\.remove\?\.\(clientId,'planning-cycle'\);\}/);
+  assert.match(plan,/catch\(error\)\{[\s\S]*?localDraftOk=false/);
+  assert.match(plan,/const settled=localDraftOk\?result:\{\.\.\.result,refreshPending:true,localDraftOk:false\}/);
+  assert.match(plan,/return settled;/);
+});
+
 test('M39 a real rejection remains a rejection and preserves diagnostics',async()=>{
   const repository=createKeyValueOperationRepository({storage:createMemoryKeyValueStore(),ownerId:'coach-m39'});
   const bus=createCommandBus({
