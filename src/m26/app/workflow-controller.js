@@ -294,6 +294,8 @@ export function createWorkflowController({
   let iriRemoteSaveChain=Promise.resolve();
   const iriRemoteRevisionByAssessment=new Map();
   const inFlightMutations=new Set();
+  const confirmedPublicationReceipts=new Map();
+  const reportSubmissionByClient=new Map();
   const iriRemoteConflictByAssessment=new Map();
   let clientListMeasurementGrid=null;
   const clientListMeasurements=[];
@@ -1525,18 +1527,36 @@ export function createWorkflowController({
     const reason=String(card?.querySelector?.('[data-publication-reason]')?.value||'');
     const {role}=context();
     const record=findPublicationRecord(entity,entityId);
+    const receiptKey=[entity,entityId,action,Number(record?.revision??record?.body?.revision??0)].join(':');
+    if(confirmedPublicationReceipts.has(receiptKey)){
+      status(root,publicationScope(entity),'El servidor ya confirmó este cambio. Actualiza la vista antes de volver a solicitarlo.','pending');
+      return confirmedPublicationReceipts.get(receiptKey);
+    }
     const command=buildPublicationCommand({entity,action,record,role,previewAccepted,reason});
     status(root,publicationScope(entity),'Confirmando el cambio con el servidor…','pending');
     const result=await commandBus.execute(command);
+    if(result?.ok===true)confirmedPublicationReceipts.set(receiptKey,result);
     const feedback=mutationFeedback(result,{success:publicationMessage(action),subject:'Este contenido'});
     status(root,publicationScope(entity),feedback.message,feedback.kind);
     if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending)onRender();
     return result;
   }
-  async function approveReport(){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const command=buildApproveReportDraftCommand({id:raw.entityId||createM26Id(),clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'},0);const result=await commandBus.execute(command);
+  async function approveReport(){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const content={clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'};
+    const fingerprint=JSON.stringify(content);
+    const previous=reportSubmissionByClient.get(clientId);
+    const stableId=String(raw.entityId||'').trim()||(previous?.fingerprint===fingerprint?previous.id:createM26Id());
+    const existing=previous?.id===stableId&&previous?.fingerprint===fingerprint?previous:null;
+    if(existing?.result?.ok===true){
+      status(root,'report','Este informe ya quedó aprobado en el servidor. Actualiza la vista antes de volver a enviarlo.','pending');
+      return existing.result;
+    }
+    reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result:null});
+    const command=buildApproveReportDraftCommand({id:stableId,...content},0);
+    const result=await commandBus.execute(command);
+    if(result?.ok===true)reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result});
     const feedback=mutationFeedback(result,{success:'Informe aprobado y listo para publicación.',subject:'El informe'});
     status(root,'report',feedback.message,feedback.kind);
-    if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending){form.reset();onRender();}
+    if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending){reportSubmissionByClient.delete(clientId);form.reset();onRender();}
     return result;}
 
   async function executeWorkflowAction(action,button){
