@@ -57,6 +57,20 @@ test('PROD authorization remains strictly file-only; no native consent request r
   assert.equal(calls.length,1);
 });
 
+test('production can read only its own Health Connect consent status, never reauthorize through QA',async()=>{
+  const {transport,calls}=createMock(prodRuntime());
+  const current=await transport.connected360ProductionAuthorizationStatus(CLIENT_TOKEN);
+  assert.deepEqual(current,{provider:'health_connect',authorized:false,grantId:null,revocationCursor:0,scopes:[]});
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].path,'/rest/v1/rpc/m26_wearable_authorization_status_v2');
+  assert.deepEqual(calls[0].body,{p_provider:'health_connect'});
+  assert.equal(calls[0].authorization,`Bearer ${CLIENT_TOKEN}`);
+  const qa=createMock(qaRuntime());
+  await assert.rejects(qa.transport.connected360ProductionAuthorizationStatus(CLIENT_TOKEN),
+    /M26_V46_PRODUCTION_RUNTIME_REQUIRED/u);
+  assert.equal(qa.calls.length,0);
+});
+
 test('CANARY Health Connect explicit status and CAS grant use exact QA RPCs and client token',async()=>{
   const {transport,calls}=createMock(qaRuntime());
   assert.deepEqual(await transport.wearableAuthorizationStatus(CLIENT_TOKEN,'health_connect'),{
