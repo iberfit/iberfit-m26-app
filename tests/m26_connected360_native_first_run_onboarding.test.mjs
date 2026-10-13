@@ -7,7 +7,7 @@ import {
 } from '../src/m26/onboarding/client-wearable-invitation.js';
 import {clientGuidedWelcomeScopeKey} from '../src/m26/onboarding/client-guided-welcome.js';
 
-function nativeFixture({guide='completed',connect=async()=>({requested:true})}={}){
+function nativeFixture({guide='completed',connect=async()=>({requested:true}),ready=()=>true}={}){
   const cache=new Map(),listener=new Map(),rootListener=new Map();
   const storage={getItem:key=>cache.get(key)||null,setItem:(key,value)=>cache.set(key,String(value))};
   let who='native-owner-a',dialog=null,rendered=0,requested=[];
@@ -37,6 +37,7 @@ function nativeFixture({guide='completed',connect=async()=>({requested:true})}={
     addEventListener(){},removeEventListener(){}};
   const controller=createClientWearableInvitationController({root,scope,
     identityProvider:()=>({role:'client',userId:who}),stateProvider:()=>({collections:{wearableConnections:[]}}),
+    nativeHealthReady:ready,
     connectNativeHealth:async scopes=>{requested.push([...scopes]);return connect(scopes);}});
   function action(name){const button={kind:'action',disabled:false,getAttribute:()=>name};
     listener.get('click')?.({target:{closest:()=>button}});return button;}
@@ -74,6 +75,18 @@ test('native first-run is an explicit, granular one-tap consent with no navigati
   assert.equal(JSON.parse(f.storage.getItem(key)).status,'chosen');
   f.controller.refresh();await flush();
   assert.equal(f.rendered(),1,'no repeat after successful first-run authorization');
+  f.controller.destroy();
+});
+
+test('native welcome waits for the post-login controller without a loading lock or repeated prompt',async()=>{
+  let mounted=false;
+  const f=nativeFixture({ready:()=>mounted});
+  f.controller.mount();await flush();
+  assert.equal(f.dialog(),null);
+  mounted=true;
+  f.rootListener.get('m26:native-wearables-ready')?.();await flush();
+  assert.ok(f.dialog());
+  assert.equal(f.rendered(),1);
   f.controller.destroy();
 });
 
