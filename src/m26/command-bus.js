@@ -213,12 +213,15 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       if (kind === 'ack' || kind === 'duplicate') {
         let acknowledged=null,localReceiptOk=true;
         // The server ACK is authoritative even when local receipt persistence
-        // or cleanup fails. Never fall into the transport retry catch after ACK.
+        // or cleanup fails. A durable ACK tombstone is preferred if removal
+        // fails, so subsequent app loads cannot resend the pending operation.
+        const ackMeta={createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder};
         try {
           if(isExecutionCompletionCommand(command)){
-            acknowledged=await persist(command,'ack',{createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder});
+            acknowledged=await persist(command,'ack',ackMeta);
           }else{
-            await repository.remove(command.operationId);
+            try{await repository.remove(command.operationId);}
+            catch{acknowledged=await persist(command,'ack',ackMeta);}
           }
         }catch{localReceiptOk=false;}
         // The server ACK is authoritative. Post-ACK local reconciliation can
