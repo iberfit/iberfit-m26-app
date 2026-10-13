@@ -212,3 +212,16 @@ test('informes de proceso no convierten el diagnóstico IRI en una señal cotidi
   assert.ok(reports.find((item)=>item.id==='iri').evidence.some((item)=>item.source==='iriAssessments'));
   assert.ok(reports.find((item)=>item.id==='reassessment').evidence.some((item)=>item.source==='iriAssessments'));
 });
+
+test('resumenes semanales y mensuales no duplican la misma ejecucion canonica tras sincronizar',()=>{
+  const state=stateWithHistory();
+  const confirmed=state.collections.sessionExecutions.find(row=>row.id==='e3');
+  state.collections.sessionExecutions.push({...confirmed,revision:2,updatedAt:'2026-09-05T13:00:00Z'});
+  const reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  const weekly=reports.find(report=>report.id==='weekly');
+  const monthly=reports.find(report=>report.id==='monthly');
+  assert.match(weekly.summary,/1 sesión de entrenamiento en 1 día/u);
+  assert.equal(weekly.evidence.find(row=>row.label==='Sesiones confirmadas').text,'1');
+  assert.match(monthly.summary,/3 sesiones ejecutadas/u);
+  assert.equal(monthly.evidence.find(row=>row.label==='Sesiones ejecutadas').text,'3');
+});
