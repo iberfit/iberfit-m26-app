@@ -81,7 +81,13 @@ export function isPublishedSession(record){
 // is still awaiting enablement, and 'en_curso' belongs to recovery, not a
 // second execution. Keep these truths separate across every Client surface.
 export function sessionReadyToStart(record){
-  return publicationState(record)==='disponible'&&sessionHasExecutableBlocks(record);
+  const status=publicationState(record);
+  // M37 canonical first-publish uses 'publicada' until atomic enablement
+  // sets 'disponible'. Never show a new Start on 'en_curso'.
+  // Existing V43/legacy entry points retain their pre-M37 state aliases:
+  // a separate server authorization is still mandatory on submission.
+  const legacyReady=new Set(['published','publicado','active','activo','enabled','habilitado']);
+  return (status==='disponible'||legacyReady.has(status))&&sessionHasExecutableBlocks(record);
 }
 export function sessionDeliveryModality(session={},appointment=null){
   const explicitSession=field(session,'deliveryModality','delivery_modality','modality','modalidad');
