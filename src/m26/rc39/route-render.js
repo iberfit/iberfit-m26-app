@@ -30,6 +30,7 @@ const modalityLabel=(value)=>({
 })[value]||'Modalidad por definir';
 const statusBadge=(text,kind='neutral')=>`<span class="m26-badge is-${escape(kind)}">${escape(text)}</span>`;
 const contractModalityOf=(vm)=>vm?.selectedClient?.modality||null;
+const publishedBody=(session)=>session?.body&&typeof session.body==='object'&&!Array.isArray(session.body)?session.body:session||{};
 const modalityIntro=(role,value)=>{
   const modality=normalizeClientModality(value);
   if(role==='client'){
@@ -47,7 +48,7 @@ const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
   ownership:item.ownership,
   clientCanExecute:Boolean(item.canClientExecute),
   role,
-  hasFullContent:Boolean(Array.isArray(item.session?.blocks)&&item.session.blocks.length),
+  hasFullContent:Boolean(Array.isArray(publishedBody(item.session).blocks)&&publishedBody(item.session).blocks.length),
   isPublished:Boolean(item.visible||item.canClientExecute),
 });
 const experiencePanel=(experience,role)=>{
@@ -96,7 +97,7 @@ const cardActions=(item,role,experience)=>{
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
     actions.push(`<span class="m26-session-supervised-state" aria-label="Sesión supervisada">${escape(experience.primaryLabel)}</span>`);
   }
-  if(['coach','admin'].includes(role)){
+  if(role==='coach'){
     actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Iniciar como ${role==='admin'?'Admin':'Coach'}</button>`);
     if(item.appointment?.changeRequest?.status==='pending'){
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="resolve-change-request" data-appointment-id="${escape(item.appointmentId)}" data-request-id="${escape(item.appointment.changeRequest.id)}" data-resolution="accepted">Aceptar solicitud</button>`);
@@ -109,8 +110,8 @@ const sessionCard=(item,role,contractModality=null)=>{
   const kind=item.ownership==='coach_led'?'coach':item.ownership==='live_online'?'online':'autonomous';
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
   const experience=experienceFor(item,role,contractModality);
-  const content=item.visibility==='full'&&Array.isArray(item.session?.blocks)&&item.session.blocks.length
-    ? `<details class="m26-rc39-session-content"><summary>Ver entrenamiento completo</summary><ol>${item.session.blocks.map((block)=>`<li><strong>${escape(block.name||block.title||'Ejercicio')}</strong><span>${escape([block.sets?`${block.sets} series`:null,block.reps||null,block.restSeconds?`${block.restSeconds} s descanso`:null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ol></details>`
+  const content=item.visibility==='full'&&Array.isArray(publishedBody(item.session).blocks)&&publishedBody(item.session).blocks.length
+    ? `<details class="m26-rc39-session-content"><summary>Ver entrenamiento completo</summary><ol>${publishedBody(item.session).blocks.map((block)=>`<li><strong>${escape(block.name||block.title||'Ejercicio')}</strong><span>${escape([block.sets?`${block.sets} series`:null,block.reps||null,block.restSeconds?`${block.restSeconds} s descanso`:null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ol></details>`
     : `<p class="m26-rc39-summary-copy">${item.ownership==='coach_led'?'Esta sesión la dirige tu Coach. Aparece en tu semana, pero no se reproduce como entrenamiento autónomo desde la aplicación.':item.ownership==='live_online'?'La sesión se realiza en directo con tu Coach.':'El contenido se mostrará cuando esté preparado y publicado.'}</p>`;
   const contractLabel=clientModalityLabel(contractModality);
   return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}" tabindex="-1">
@@ -173,7 +174,7 @@ function renderClientPlanning(vm){
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
-  const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality)).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, cada sesión mostrará claramente si es presencial, autónoma o online en directo.</p><div class="m26-inline-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div></section>`;
+  const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality)).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, verás si esa sesión es presencial con él o autónoma guiada desde la aplicación.</p><div class="m26-inline-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div></section>`;
   const overview=`<section class="m30-planning-overview" data-m30-planning-overview aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>

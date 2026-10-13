@@ -7,6 +7,8 @@ import {resolveSessionExperience} from '../src/m26/domain/modality.js';
 import {actorCanExecuteSession,sessionDeliveryModality,sessionDeliveryOwnership,sessionVisibilityLevel,clientSessionProjection} from '../src/m26/rc39/session-policy.js';
 import {renderSessionBuilder} from '../src/m26/workflows/session-ui.js';
 import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
+import {renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {renderHoyRoute} from '../src/m26/modules/route-render.js';
 
 const exercise={id:'ex1',name_es:'Sentadilla',name:'Sentadilla',pattern:'sentadilla'};
 const catalog={
@@ -127,4 +129,18 @@ test('Interface keeps future live-online unavailable and preserves Android/offli
   assert.match(app,/deliveryOwnership:body\?\.deliveryOwnership/u);
   assert.match(css,/m26-session-delivery-select/u);
   assert.match(css,/min-height:44px/u);
+});
+
+test('Wrapped published sessions show separate guided and presencial experiences in planning and Hoy',()=>{
+ const make=(mode)=>({id:'wrapped-'+mode,clientId:'c1',status:'published',visibleToClient:true,body:{id:'wrapped-'+mode,clientId:'c1',status:'published',title:'Fuerza IBERFIT',deliveryModality:mode,blocks:[{type:'exercise',exerciseId:'ex1',sets:3,reps:'10'}]}});
+ const guided=clientSessionProjection(make('guiada_en_app')),presencial=clientSessionProjection(make('presencial'));
+ const html=renderRc39Route({kind:'planificacion',role:'client',selectedClient:{modality:'hibrido'},rc39:{planningItems:[presencial,guided]}});
+ assert.match(html,/data-session-experience-card="hybrid_coach_led"/u);
+ assert.match(html,/data-session-experience-card="hybrid_autonomous"/u);
+ assert.equal((html.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
+ assert.match(html,/Esta sesión la dirige tu Coach/u);
+ assert.match(html,/Comenzar Live Workout/u);
+ const today=renderHoyRoute({role:'client',clients:[{id:'c1',name:'Cliente',serviceActive:true}],appointments:[{id:'a1',sessionId:guided.id,statusRaw:'confirmada',status:'Confirmada',title:'Fuerza IBERFIT'}],proposals:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0},rc39:{sessionProjections:[presencial,guided]}});
+ assert.match(today,/Entrenar ahora/u);
+ assert.match(today,/data-entity-id="wrapped-guiada_en_app"/u);
 });

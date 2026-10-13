@@ -442,8 +442,8 @@ function renderClientHoyRoute(vm) {
       .filter(
         (item)=>
           item?.canClientExecute===true&&
-          Array.isArray(item?.session?.blocks)&&
-          item.session.blocks.length>0
+          Array.isArray(item?.session?.body?.blocks||item?.session?.blocks)&&
+          (item.session.body?.blocks||item.session.blocks).length>0
       )
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
@@ -547,12 +547,12 @@ function renderClientHoyRoute(vm) {
   }else if(projections.length){
     primary={
       area:'sesion',
-      eyebrow:'Tu entrenamiento',
-      title:firstProjection?.session?.title||'Tu planificación está preparada',
+      eyebrow:projections.every(item=>item?.canClientExecute!==true)?'Tu próxima sesión con Coach':'Tu entrenamiento',
+      title:firstProjection?.session?.body?.title||firstProjection?.session?.title||'Tu planificación está preparada',
       detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
       markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
         <span aria-hidden="true">▶</span>
-        <strong>Abrir mis sesiones</strong>
+        <strong>${projections.every(item=>item?.canClientExecute!==true)?'Ver mis sesiones':'Abrir mis sesiones'}</strong>
         <small>Tienes ${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'} en tu planificación.</small>
       </button>`,
     };
@@ -687,8 +687,8 @@ export function renderHoyRoute(vm) {
       .filter(
         (item)=>
           item?.canClientExecute===true&&
-          Array.isArray(item?.session?.blocks)&&
-          item.session.blocks.length>0
+          Array.isArray(item?.session?.body?.blocks||item?.session?.blocks)&&
+          (item.session.body?.blocks||item.session.blocks).length>0
       )
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
