@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCommandBus,createMemoryKeyValueStore,createKeyValueOperationRepository} from '../src/m26/index.js';
 import {mutationFeedback,publicationActionKey} from '../src/m26/workflows/mutation-feedback.js';
-import {createSessionDraft} from '../src/m26/workflows/session-builder.js';
+import {createSessionDraft,addCatalogExercise,acceptSessionPreview,validateSessionDraft,buildPublishSessionCommand} from '../src/m26/workflows/session-builder.js';
+import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
+import {validateReportDraft} from '../src/m26/workflows/report-workflow.js';
 import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 
 const command={
@@ -95,4 +97,27 @@ test('M39 form routes surface precise validation and keep partial IRI draft save
  assert.ok(source.includes('mutationFeedback(result'));
  assert.ok(source.includes("El servidor confirmó el ciclo. La vista todavía no refleja"));
  assert.ok(source.includes("El servidor confirmó la cita, pero la Agenda aún no refleja"));
+});
+
+
+test('M39 valid short clinical prose is not mislabeled as a missing report field',()=>{
+  const input={clientId:'c-1',assessmentId:'iri-1',title:'Evolución',periodStart:'2026-09-01',
+    periodEnd:'2026-10-13',summary:'Avanza.',conclusions:'Mejora.',recommendations:'Progresar.',reviewAccepted:true};
+  assert.deepEqual(validateReportDraft(input),{ok:true,errors:[]});
+  assert.equal(validateReportDraft({...input,summary:'   '}).errors.includes('summary'),true);
+  assert.equal(validateReportDraft({...input,periodEnd:'2026-08-01'}).errors.includes('chronology'),true);
+  assert.equal(validateReportDraft({...input,reviewAccepted:false}).errors.includes('reviewAccepted'),true);
+});
+
+test('M39 timed plank validates by a recorded duration, not fictitious repetition counts',()=>{
+  const catalog=createExerciseCatalog([{id:'IBF-PLANK-TIMED',name_es:'Plancha frontal',pattern:'core',measurement_profile:'isometric'}]);
+  const draft=createSessionDraft({clientId:'c-1'});
+  addCatalogExercise(draft,'IBF-PLANK-TIMED',catalog);
+  draft.blocks[0].reps='';
+  draft.blocks[0].plannedDurationMinutes='1';
+  assert.deepEqual(validateSessionDraft(draft,catalog),{ok:true,errors:[]});
+  acceptSessionPreview(draft,catalog);
+  assert.equal(buildPublishSessionCommand(draft,catalog,0).type,'SESION_PUBLICAR');
+  draft.blocks[0].plannedDurationMinutes='';
+  assert.equal(validateSessionDraft(draft,catalog).errors.some(x=>x.startsWith('prescription:')),true);
 });
