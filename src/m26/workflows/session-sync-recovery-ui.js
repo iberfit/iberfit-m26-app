@@ -54,7 +54,7 @@ export function sessionCommandFailureReason(source){
   ).trim().toUpperCase();
 }
 
-export function sessionCommandFailureOutcome(source,{role='',action='',phase='action'}={}){
+export function sessionCommandFailureOutcome(source,{role='',action='',phase='action',draft=null,catalog=null}={}){
   const reason=sessionCommandFailureReason(source);
   const coach=isCoachRole(role);
   if(reason!==TRAINING_SERVICE_NOT_ACTIVE){
