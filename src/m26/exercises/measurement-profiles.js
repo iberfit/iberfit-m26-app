@@ -14,6 +14,7 @@ export const EXERCISE_METRIC_FIELDS=Object.freeze({
   plannedWarmupMinutes:{max:240,label:'Calentamiento previsto (min)'},
   plannedCooldownMinutes:{max:240,label:'Vuelta a la calma prevista (min)'},
   plannedPace:{maxLength:16,label:'Ritmo objetivo (min/km)'},
+  plannedPacePer100M:{maxLength:16,label:'Ritmo objetivo de natación (min/100 m)'},
   targetHeartRateBpm:{maxLength:24,label:'FC objetivo (lpm o rango)'},
   targetHeartRateZone:{maxLength:12,label:'Zona de FC (ej. Z2)'},
   plannedCadenceRpm:{max:250,label:'Cadencia objetivo (rpm)'},
@@ -76,7 +77,8 @@ export function metricPrescriptionSummary(p={},exercise={}){
     if(profile.sport==='swimming'&&p.poolLengthM)parts.push('Piscina '+p.poolLengthM+' m');
     if(p.plannedSpeedKmh)parts.push(p.plannedSpeedKmh+' km/h');
     if(p.plannedDurationMinutes!==''&&p.plannedDurationMinutes!=null)parts.push(p.plannedDurationMinutes+' min');
-    if(p.plannedPace)parts.push(p.plannedPace+' min/km');
+    if(p.plannedPace&&profile.sport!=='swimming')parts.push(p.plannedPace+' min/km');
+    if(p.plannedPacePer100M&&profile.sport==='swimming')parts.push(p.plannedPacePer100M+' min/100 m (objetivo)');
     if(p.targetHeartRateZone)parts.push(p.targetHeartRateZone);
     if(p.targetHeartRateBpm)parts.push('FC '+p.targetHeartRateBpm+' lpm');
     if(profile.kind==='intervals'&&p.intervalRepetitions)parts.push(p.intervalRepetitions+' intervalos');
@@ -88,7 +90,7 @@ export function metricPrescriptionSummary(p={},exercise={}){
 }
 export function metricValueValid(field,value){
   if(value===undefined||value===null||String(value).trim()==='')return true;
-  if(field==='plannedPace')return /^\d{1,2}:[0-5]\d$/.test(String(value).trim())&&String(value).trim()!=='0:00';
+  if(['plannedPace','plannedPacePer100M'].includes(field))return /^\d{1,2}:[0-5]\d$/.test(String(value).trim())&&Number(String(value).trim().split(':')[0])*60+Number(String(value).trim().split(':')[1])>0;
   if(field==='targetHeartRateZone')return /^(?:Z[1-7]|zona [1-7])$/i.test(String(value).trim());
   if(field==='targetHeartRateBpm'){
     const match=String(value).trim().match(/^(\d{2,3})(?:\s*[-–]\s*(\d{2,3}))?$/);
