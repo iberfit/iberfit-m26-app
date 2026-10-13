@@ -2,6 +2,7 @@ import {renderCommunicationRoute} from '../communication/route-render.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
+import {sessionHasExecutableBlocks} from '../rc39/session-policy.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
@@ -440,7 +441,7 @@ function renderClientHoyRoute(vm) {
     :[];
   const executableIds=new Set(
     (serviceActive?projections:[])
-      .filter((item)=>item?.canClientStart===true)
+      .filter((item)=>item?.canClientStart===true||(item?.canClientStart==null&&item?.canClientExecute===true&&sessionHasExecutableBlocks(item.session)))
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
   );
@@ -453,7 +454,7 @@ function renderClientHoyRoute(vm) {
       executableIds.has(sessionId);
   })||null;
 
-  const standaloneGuided=serviceActive?projections.find((item)=>item?.canClientStart===true&&!item.appointmentId):null;
+  const standaloneGuided=serviceActive?projections.find((item)=>executableIds.has(String(item?.id||''))&&!item.appointmentId):null;
   const firstProjection=projections[0]||null;
   const nextAppointment=appointments[0]||upcoming[0]||null;
   const planName=client?.cycle?.name||null;
@@ -3975,13 +3976,13 @@ export function renderPlanningRoute(vm){
     </div>
     ${workflowStatus('planning')}
   </form>`:'';
-  const planningNextStep=!hasCycle?'Definir ciclo':!totalSessions?'Crear primera sesión':!publishedSessions?'Revisar publicación':'Programar próxima cita';
-  const planningNextCopy=!hasCycle?'Fija un objetivo, periodo y frecuencia de trabajo para orientar las sesiones.':!totalSessions?'Construye la primera sesión desde el catálogo y revisa su prescripción.':!publishedSessions?'Revisa qué contenido está aprobado y publícalo expresamente cuando esté listo.':'El ciclo y la publicación están preparados. Coordina la próxima cita desde la Agenda.';
+  const planningNextStep=!hasCycle?'Definir ciclo':!totalSessions?'Crear primera sesión':publishedSessions<totalSessions?'Revisar publicación':'Programar próxima cita';
+  const planningNextCopy=!hasCycle?'Fija un objetivo, periodo y frecuencia de trabajo para orientar las sesiones.':!totalSessions?'Construye la primera sesión desde el catálogo y revisa su prescripción.':publishedSessions<totalSessions?'Revisa qué contenido está aprobado y publícalo expresamente cuando esté listo.':'El ciclo y la publicación están preparados. Coordina la próxima cita desde la Agenda.';
   const planningNextControl=!hasCycle
     ?'<a class="m26-primary-action" href="#m26-planning-cycle-editor">Definir ciclo</a>'
     :!totalSessions
       ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
-      :!publishedSessions
+      :publishedSessions<totalSessions
         ?'<a class="m26-primary-action" href="#m26-planning-publications">Revisar publicaciones</a>'
         :'<button type="button" class="m26-primary-action" data-m26-area="agenda">Abrir agenda</button>';
   const title=isClient?'Tu planificación':'Planificación';

@@ -420,8 +420,8 @@ function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
   const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
-  const executable=role==='client'
-    ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout)
+  const executable=role==='client'&&vm.serviceActive!==false
+    ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true||(item.canClientStart==null&&item.canClientExecute===true)))
     :[];
   const clientPrimary=executable.length===1
     ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar Live Workout · ${escape(executable[0].title)}">Comenzar · ${escape(executable[0].title)}</button>`
