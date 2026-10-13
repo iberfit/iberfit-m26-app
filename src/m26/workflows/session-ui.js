@@ -5,6 +5,7 @@ import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise
 import {exerciseDisplayName} from '../exercises/names.js';
 import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
 import {runningPrescriptionAdvisories} from '../exercises/running-prescription-feedback.js';
+import {renderSessionHealthContext} from '../wearables/client-health-snapshot.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
@@ -1200,7 +1201,7 @@ function renderLiveModalityPrescription(planned={},profile={},exercise={},role='
           </div>`;
 }
 
-export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,exerciseMemoryFor=null}={}){
+export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,wearableContext=null,exerciseMemoryFor=null}={}){
   const state=renderActionState(actionState);
   const sync=renderSessionSyncBanner(execution,{role});
   const goal=sessionLiveGoal(session);
@@ -1223,6 +1224,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         ${sessionLiveSummary(execution,session,{ready:true})}
         ${goal}
+        ${isCoach?'':renderSessionHealthContext(wearableContext)}
         <div class="m26-session-live-actions">
           <button type="button" data-session-action="exit-session">Volver</button>
           <button type="button" class="m26-primary-action" data-session-action="start">${isCoach?'Iniciar entrenamiento':'Iniciar sesión'}</button>

@@ -568,6 +568,10 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       clients: Object.freeze(clients),
       coachCockpit,
       challengePreview:challengePreview?Object.freeze({...challengePreview}):null,
+      wearables:overview.role==='client'&&clientId&&selectedHasTraining
+        ?buildWearableViewModel({records:recordsForClient(state,'wearableDailySummaries',clientId),
+          connections:recordsForClient(state,'wearableConnections',clientId),role:'client',now})
+        :null,
       clientGuide,
       operations: Object.freeze(overview.operations),
       alerts: Object.freeze(alerts),

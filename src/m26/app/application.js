@@ -23,6 +23,8 @@ import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
 import {createWearableController} from '../wearables/controller.js';
 import {mergeV47DailyIntoClientProgress} from '../wearables/v47-progress-bridge.js';
+import {buildWearableViewModel} from '../wearables/view-model.js';
+import {recordsForClient} from '../modules/domain-selectors.js';
 import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-channel.js';
 import {createVerificationController,refreshVerificationState} from '../engagement/conflict-center.js';
 import {createShellController} from '../shell/shell-controller.js';
@@ -870,6 +872,10 @@ export async function createM26Application({root=document.querySelector('#app'),
       mediaMap,
       role,
       clientContext:sessionClientContext,
+      wearableContext:role==='client'&&memoryClientId&&
+        String(state?.identity?.clientId||state?.identity?.client_id||'')===memoryClientId
+        ?buildWearableViewModel({records:recordsForClient(state,'wearableDailySummaries',memoryClientId),
+          connections:[],role:'client',now:new Date()}):null,
       exerciseMemoryFor,
     });
     qaStage('rc64-route-vm-start');
