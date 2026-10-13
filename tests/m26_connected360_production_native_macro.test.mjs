@@ -31,7 +31,7 @@ function fixture({
       events.push('capabilities');
       return {ok:true,serverEnabled:enabled};
     },
-    wearableAuthorizationStatus:async()=>{
+    connected360ProductionAuthorizationStatus:async()=>{
       events.push('status');
       return {...state,scopes:[...state.scopes]};
     },
@@ -76,6 +76,12 @@ test('production refuses to authorize or ingest if the server rollout switch is 
   const out=await x.api.sync();
   assert.equal(out.skipped,'release-disabled');
   assert.equal(x.writes.length,0);
+  x.api.destroy();
+});
+test('production never falls back to the QA-only provider status guard',async()=>{
+  const x=fixture({authorized:false,scopes:[]});
+  await x.api.authorize(['steps']);
+  assert.deepEqual(x.events.slice(0,3),['capabilities','status','authorize']);
   x.api.destroy();
 });
 test('first-day user consent is independent from Android OS read',async()=>{
@@ -185,7 +191,7 @@ test('foreground restart never joins an invalidated native-sync promise',async()
   const scopes=['generalHeartRate'];
   const transport={
     connected360ProductionCapabilities:async()=>({serverEnabled:true}),
-    wearableAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes}),
+    connected360ProductionAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes}),
     importConnected360Production:async()=>{writes.push('write');return {inserted:1,updated:0,unchanged:0};},
   };
   const native={readLocal:async()=>({
