@@ -273,7 +273,7 @@ test('Hoy Cliente abre sus sesiones cuando hay sesión disponible pero no una ci
     html,
     /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>(?:Abrir|Ver) mis sesiones<\/strong>/
   );
-  assert.match(html, /Tienes 1 entrenamiento listo para iniciar|aún no hay ninguna habilitada para iniciar/);
+  assert.match(html, /1 sesión para consultar · pendiente de habilitación/);
 });
 
 test('Hoy Cliente evita un CTA de Entrenar vacío cuando todavía no hay sesiones', () => {
