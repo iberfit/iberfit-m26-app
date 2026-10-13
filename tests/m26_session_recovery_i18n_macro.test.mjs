@@ -17,7 +17,7 @@ function actionableMessages(source){
 
 test('todos los mensajes operativos recuperables están clasificados por i18n',()=>{
   const messages=actionableMessages(recovery());
-  assert.equal(messages.length,27,'el contrato operativo esperado debe permanecer explícito');
+  assert.equal(messages.length,31,'el contrato operativo esperado debe permanecer explícito, incluidos los cuatro errores de publicación M35');
   const catalogue=i18n();
   const missing=messages.filter((message)=>!catalogue.includes(`['${message}'`));
   assert.deepEqual(missing,[],'ningún mensaje visible de recuperación puede quedar fuera de ES/EN/FR/PT');
