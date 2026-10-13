@@ -3694,7 +3694,11 @@ function clientContentBody(view,{preview=false}={}){
   if(!view)return '';
   const facts=view.facts?.length?`<div class="m26-client-content-facts">${view.facts.map((item)=>`<span>${escapeHtml(item)}</span>`).join('')}</div>`:'';
   const sections=view.sections?.length?`<div class="m26-client-content-sections">${view.sections.map((section)=>section.items?.length?`<section><h4>${escapeHtml(section.title)}</h4><ol>${section.items.map((entry)=>`<li><strong>${escapeHtml(entry.title)}</strong>${entry.detail?`<span>${escapeHtml(entry.detail)}</span>`:''}</li>`).join('')}</ol></section>`:`<section><h4>${escapeHtml(section.title)}</h4><p>${escapeHtml(section.text)}</p></section>`).join('')}</div>`:'';
-  const details=(sections||facts)?`<details class="m26-client-content-details"${preview?' open':''}><summary>${escapeHtml(preview?'Contenido completo que recibirá el cliente':view.actionLabel||'Consultar detalles')}</summary>${facts}${sections}</details>`:'';
+  const details=(sections||facts)
+    ?preview
+      ?`<div class="m26-client-content-preview-detail">${facts}${sections}</div>`
+      :`<details class="m26-client-content-details"><summary>${escapeHtml(view.actionLabel||'Consultar detalles')}</summary>${facts}${sections}</details>`
+    :'';
   return `<p class="m26-client-content-summary">${escapeHtml(view.summary||'Contenido preparado por tu entrenador.')}</p>${view.dateRange?`<p class="m26-client-content-date">${escapeHtml(view.dateRange)}</p>`:''}${details}`;
 }
 function clientContentCard(item,entity,{canStartSession=true}={}){
@@ -3709,8 +3713,10 @@ function clientContentCard(item,entity,{canStartSession=true}={}){
 }
 function publicationCard(item,entity){
   const actions=item?.publication?.actions||[];
-  const previewLabel=entity==='report'?'Vista previa antes de publicar':'Así lo verá el cliente';const preview=`<section class="m26-publication-preview" aria-label="Vista previa controlada"><p class="m26-eyebrow">${previewLabel}</p><h4>${escapeHtml(item.clientContent?.title||item.title||'Contenido IBERFIT')}</h4>${clientContentBody(item.clientContent,{preview:true})}</section>`;
-  const controls=actions.length?`<details class="m26-publication-actions"><summary>Gestionar publicación</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  const previewLabel=entity==='report'?'Revisar vista previa del informe':'Ver exactamente qué recibirá el Cliente';
+  const preview=`<details class="m26-publication-preview" data-publication-preview-details><summary>${previewLabel}</summary><div class="m26-publication-preview-content"><h4>${escapeHtml(item.clientContent?.title||item.title||'Contenido IBERFIT')}</h4>${clientContentBody(item.clientContent,{preview:true})}</div></details>`;
+  const preferredAction=actions.find((action)=>action.action==='publish')||actions.find((action)=>action.action==='approve')||actions[0]||null;
+  const controls=actions.length?`<details class="m26-publication-actions"><summary>${preferredAction?`Siguiente decisión · ${escapeHtml(preferredAction.label)}`:'Gestionar publicación'}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
   return `<article class="m26-publication-card" data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${controls}</article>`;
 }

@@ -92,7 +92,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="open-change-request" data-appointment-id="${escape(item.appointmentId)}">Solicitar cambio</button>`);
     }
   }
-  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&item.canClientStart===true&&sessionHasExecutableBlocks(item.session)){
+  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true||(item.canClientStart==null&&item.canClientExecute===true))){
     actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar Live Workout</button>`);
   }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
@@ -115,7 +115,7 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true}={})=>{
   const kind=item.ownership==='coach_led'?'coach':item.ownership==='live_online'?'online':'autonomous';
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
   const experience=experienceFor(item,role,contractModality);
-  const content=item.visibility==='full'&&Array.isArray(publishedBody(item.session).blocks)&&publishedBody(item.session).blocks.length
+  const content=item.visibility==='full'&&sessionHasExecutableBlocks(item.session)
     ? `<details class="m26-rc39-session-content"><summary>Ver entrenamiento completo</summary><ol>${publishedBody(item.session).blocks.map((block)=>`<li><strong>${escape(block.name||block.title||'Ejercicio')}</strong><span>${escape([block.sets?`${block.sets} series`:null,block.reps||null,block.restSeconds?`${block.restSeconds} s descanso`:null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ol></details>`
     : `<p class="m26-rc39-summary-copy">${item.ownership==='coach_led'?'Esta sesión la dirige tu Coach. Aparece en tu semana, pero no se reproduce como entrenamiento autónomo desde la aplicación.':item.ownership==='live_online'?'La sesión se realiza en directo con tu Coach.':'El contenido se mostrará cuando esté preparado y publicado.'}</p>`;
   const contractLabel=clientModalityLabel(contractModality);
