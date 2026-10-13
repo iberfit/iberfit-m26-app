@@ -162,3 +162,25 @@ test('M39 report drafts are client-and-assessment scoped and saved without appro
  assert.ok(!save.includes('ensureValidForm('));
  assert.ok(!save.includes('validateReportDraft('));
 });
+
+test('M39 planning offers a partial draft action without requiring validation',()=>{
+ const route=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+ const start=route.indexOf('data-workflow-form="planning"');
+ assert.ok(start>=0);
+ const planning=route.slice(start,start+2800);
+ assert.ok(planning.includes('type="button" data-workflow-action="save-plan-draft"'));
+ assert.ok(planning.includes('data-workflow-action="validate-plan"'));
+ const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+ const save=source.slice(source.indexOf('async function savePlanDraft('),source.indexOf('function queuePlanSave('));
+ assert.ok(save.includes("draftRepository.save(clientId,'planning-cycle',draft)"));
+ assert.ok(save.includes("planFormClientIds.get(form)!==clientId"));
+ assert.ok(!save.includes('ensureValidForm('),'partial save must accept unfinished fields');
+ assert.ok(!save.includes('validateCycleDraft('));
+ assert.ok(source.includes('async function initializePlanForm(form)'));
+ assert.ok(source.includes('editedPlanForms.has(form)'));
+ assert.ok(source.includes('void initializePlanForm(planForm)'));
+ assert.ok(source.includes("else if(action==='save-plan-draft')await savePlanDraft("));
+ assert.ok(source.includes('await planDraftChain;'),'validation waits for previous local writes');
+ assert.ok(source.includes('await reportDraftChain;'),'report approval waits for previous local writes');
+ assert.ok(source.includes('planSaveTimer=setTimeout('));
+});
