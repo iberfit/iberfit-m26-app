@@ -159,7 +159,7 @@ test('un Coach con solo borradores no recibe un falso botón de inicio',()=>{
 
 test('el Coach sí puede iniciar una sesión publicada y visible',()=>{
  const {control}=startButton({
-   sessions:[{id:'ready-1',title:'Fuerza',publication:{status:'published',visibleToClient:true}}],
+   sessions:[{id:'ready-1',title:'Fuerza',status:'disponible',blocks:[{id:'b-ready',exerciseId:'squat',sets:3}],publication:{status:'published',visibleToClient:true}}],
    sessionCounts:{published:1},
  });
  assert.doesNotMatch(control,/disabled/u);
