@@ -16,15 +16,15 @@ test('device hub is a single prominent linking path; import is an optional discl
   const html=renderClientDeviceHub({providers,connections:[],summary},
     {importer:'<form data-wearable-import></form>',deviceSummary:'<p>Historial</p>'});
   assert.match(html,/data-m26-device-hub/u);
-  assert.match(html,/<summary class="m26-device-link-cta">Vincular dispositivo/u);
+  assert.match(html,/<summary class="m26-device-link-cta">Conexión y otras fuentes/u);
   assert.match(html,/<summary>Importar un archivo \(opción avanzada\)<\/summary>/u);
-  assert.match(html,/<summary>Mis datos y permisos<\/summary>/u);
+  assert.match(html,/<summary>Historial de datos y permisos<\/summary>/u);
   assert.match(html,/7 h 35 min/u);
-  assert.match(html,/8230/u);
+  assert.match(html,/8.230/u);
   assert.match(html,/57 lpm/u);
   assert.match(html,/no está disponible en esta versión web/u);
-  assert.ok(html.indexOf('Vincular dispositivo')<html.indexOf('Importar un archivo'));
-  assert.ok(html.indexOf('Vincular dispositivo')<html.indexOf('Mis datos y permisos'));
+  assert.ok(html.indexOf('Conexión y otras fuentes')<html.indexOf('Importar un archivo'));
+  assert.ok(html.indexOf('Conexión y otras fuentes')<html.indexOf('Historial de datos y permisos'));
   assert.match(html,/data-wearable-import/u);
   assert.doesNotMatch(html,/>Conectado</u);
 });

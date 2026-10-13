@@ -48,8 +48,8 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
   const importCount=active.length-automatic.length;
   const status=automatic.length
     ?`${automatic.length} fuente${automatic.length===1?'':'s'} vinculada${automatic.length===1?'':'s'}`
-    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos'
-    :importCount?'Datos incorporados · sin enlace automático':'Sin mediciones confirmadas';
+    :importCount?'Datos incorporados · sin enlace automático'
+    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos':'Sin mediciones confirmadas';
   const primary=MAIN_SOURCES.map(key=>providers.find(item=>item.key===key)).filter(Boolean);
   const others=providers.filter(item=>item.key!=='normalized_file'&&!MAIN_SOURCES.includes(item.key));
   const directAvailable=providers.some(item=>item.usableNow&&item.nativeReady);
