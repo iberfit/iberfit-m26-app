@@ -1297,6 +1297,32 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       throw new Error('M26_V46_PRODUCTION_CAPABILITY_RESPONSE_INVALID');
     return Object.freeze({...value});
   }
+  // Explicit production read path. Do not relax the legacy file-only/Canary
+  // provider gate: that API is also used by manual imports and QA consent.
+  // The backend independently authorizes the signed-in client and restricts
+  // this response to its own health_connect grant and revocation cursor.
+  async function connected360ProductionAuthorizationStatus(token){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.authorizationStatus,{
+      method:'POST',token,body:JSON.stringify({p_provider:'health_connect'}),
+    });
+    const value=Array.isArray(raw)?raw[0]:raw;
+    const supported=new Set(['generalHeartRate','exerciseSessions',
+      'steps','sleepMinutes','restingHeartRate']);
+    if(!value||typeof value!=='object'||value.provider!=='health_connect'
+      ||typeof value.authorized!=='boolean'
+      ||!Number.isSafeInteger(value.revocationCursor)||value.revocationCursor<0
+      ||(value.grantId!==null&&value.grantId!==undefined
+        &&!UUID_PATTERN.test(String(value.grantId)))
+      ||!Array.isArray(value.scopes)||value.scopes.length>16
+      ||new Set(value.scopes).size!==value.scopes.length
+      ||value.scopes.some(v=>typeof v!=='string'||v.length>80)
+      ||(value.authorized===true&&!UUID_PATTERN.test(String(value.grantId||''))))
+      throw new Error('M26_V46_PRODUCTION_AUTHORIZATION_STATUS_INVALID');
+    return Object.freeze({...value,
+      scopes:Object.freeze(value.scopes.filter(v=>supported.has(v)))});
+  }
   async function authorizeConnected360Production(token,{
     expectedGrant=null,expectedCursor,scopes=[],
   }={}){
@@ -1667,6 +1693,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV46,
     extendConnected360QaV46Grant,
     connected360ProductionCapabilities,
+    connected360ProductionAuthorizationStatus,
     connected360ProductionSummary,
     connected360DailyProduction,
     authorizeConnected360Production,
