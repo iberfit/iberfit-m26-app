@@ -5,6 +5,7 @@ import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise
 import {exerciseDisplayName} from '../exercises/names.js';
 import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
 import {runningPrescriptionAdvisories} from '../exercises/running-prescription-feedback.js';
+import {swimmingPrescriptionAdvisories} from '../exercises/swimming-prescription-feedback.js';
 import {renderSessionHealthContext} from '../wearables/client-health-snapshot.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
@@ -204,7 +205,8 @@ function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
   if(profile.cardio){
     return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
       ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
-      ${field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${profile.sport==='swimming'?field('plannedDistanceM','Distancia objetivo (m)',p.plannedDistanceM||'','number',{min:0,step:1,max:100000}):field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${profile.sport==='swimming'?field('poolLengthM','Longitud de piscina (m) · opcional',p.poolLengthM??'','number',{min:15,step:1,max:100}):''}
       ${field('plannedWarmupMinutes','Calentamiento (min) · opcional',p.plannedWarmupMinutes??'','number',{min:0,step:0.5,max:240})}
       ${field('plannedCooldownMinutes','Vuelta a la calma (min) · opcional',p.plannedCooldownMinutes??'','number',{min:0,step:0.5,max:240})}
       <p class="m26-builder-metric-hint m26-wide">Duración y distancia objetivo corresponden al bloque completo; especifica las fases solo cuando formen parte del plan.</p>
@@ -230,6 +232,10 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
     ?runningPrescriptionAdvisories(p,{...exercise,measurementProfile:p.measurementProfile})
       .map(({level,message})=>`<p class="m26-builder-metric-hint" data-running-prescription-advice="${e(level)}">${e(message)}</p>`).join('')
     :'';
+  const swimmingAdvice=cardio&&sport==='swimming'
+    ?swimmingPrescriptionAdvisories(p,{...exercise,measurementProfile:p.measurementProfile})
+      .map(({level,message})=>`<p class="m26-builder-metric-hint" data-swimming-prescription-advice="${e(level)}">${e(message)}</p>`).join('')
+    :'';
   return `${cardio&&['running','walking'].includes(sport)?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
     ${cardio&&sport==='cycling'?field('plannedSpeedKmh','Velocidad objetivo (km/h)',p.plannedSpeedKmh||'','number',{min:0,step:0.1,max:120}):''}
     ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
@@ -240,7 +246,7 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
     ${!cardio&&profile.kind!=='isometric'?field('tempo','Ritmo de ejecución',p.tempo||'controlado','text',{maxLength:80}):''}
     ${field('targetRpe','RPE objetivo',p.targetRpe??7,'number',{min:1,max:10,step:0.5})}
     ${!cardio?field('targetRir','RIR objetivo',p.targetRir??3,'number',{min:0,max:10,step:0.5}):''}
-    ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}${runningAdvice}`;
+    ${cardio?'<p class="m26-builder-metric-hint">Ritmo, FC y potencia son objetivos orientativos. Registra solo datos medidos durante la actividad.</p>':''}${runningAdvice}${swimmingAdvice}`;
 }
 function templateHistoryCoverage(draft={},exerciseMemoryFor=null){
   const items=[];
@@ -1131,7 +1137,7 @@ function recordedSportCorrectionFields(profile,recorded={}){
     const minutes=recorded.seconds==null?'':Number((Number(recorded.seconds)/60).toFixed(6));
     const entries=[
       ['durationMinutes','Tiempo realizado (min)',{max:1440,value:minutes}],
-      ['distanceKm','Distancia realizada (km)',{max:1000,value:actual('distanceKm')}],
+      ...(profile.sport==='swimming'?[['distanceM','Metros nadados',{max:100000,step:1,value:actual('distanceM')}]]:[['distanceKm','Distancia realizada (km)',{max:1000,value:actual('distanceKm')}]]),
       ...(profile.kind==='intervals'?[['intervalsCompleted','Intervalos completados',{min:1,max:1000,step:1,value:actual('intervalsCompleted')}]]:[]),
       ['avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1,value:actual('avgHeartRateBpm')}],
       ...(['running','walking'].includes(profile.sport)?[['paceMinPerKm','Ritmo medio (min/km)',{type:'text',value:actual('paceMinPerKm')}]]:[]),
@@ -1140,7 +1146,7 @@ function recordedSportCorrectionFields(profile,recorded={}){
         ['cadenceRpm','Cadencia (rpm)',{max:250,value:actual('cadenceRpm')}],
         ['powerWatts','Potencia (W)',{max:2500,value:actual('powerWatts')}],
       ]:[]),
-      ['elevationGainM','Desnivel positivo (m)',{max:15000,value:actual('elevationGainM')}],rpe,
+      ...(profile.sport==='swimming'?[]:[['elevationGainM','Desnivel positivo (m)',{max:15000,value:actual('elevationGainM')}]]),rpe,
     ];
     return entries.map(([key,label,options])=>field(key,label,options)).join('');
   }
@@ -1159,18 +1165,18 @@ function recordedSportCorrectionFields(profile,recorded={}){
 function cardioSetEntryFields(profile,planned={},isCoach=false){
  const field=(name,label,{max='',min=0,step='any',type='number',inputmode='decimal',placeholder=''}={})=>`<label data-session-field-priority="primary">${e(label)}<input type="${e(type)}"${max!==''?` max="${e(max)}"`:''} min="${e(min)}" step="${e(step)}" inputmode="${e(inputmode)}" enterkeyhint="next" data-set-field="${e(name)}"${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;
  const duration=field('durationMinutes','Tiempo realizado (min)',{max:1440,step:0.1,placeholder:planned.plannedDurationMinutes||''});
- const distance=field('distanceKm','Distancia realizada (km)',{max:1000,step:0.01,placeholder:planned.plannedDistanceKm||''});
+ const distance=profile.sport==='swimming'?field('distanceM','Metros nadados',{max:100000,step:1,placeholder:planned.plannedDistanceM||''}):field('distanceKm','Distancia realizada (km)',{max:1000,step:0.01,placeholder:planned.plannedDistanceKm||''});
  const interval=profile.kind==='intervals'?field('intervalsCompleted','Intervalos completados',{max:1000,step:1,placeholder:planned.intervalRepetitions||''}):'';
  const hr=field('avgHeartRateBpm','FC media (lpm) · opcional',{min:30,max:250,step:1});
  const pace=['running','walking'].includes(profile.sport)?field('paceMinPerKm','Ritmo medio (min/km) · opcional',{type:'text',inputmode:'text',step:'',placeholder:'06:00'}):'';
  const speed=profile.sport==='cycling'?field('avgSpeedKmh','Velocidad media (km/h) · opcional',{max:140,step:0.1}):'';
  const cadence=profile.sport==='cycling'?field('cadenceRpm','Cadencia media (rpm) · opcional',{max:250,step:1}):'';
  const power=profile.sport==='cycling'?field('powerWatts','Potencia media (W) · opcional',{max:2500,step:1}):'';
- const elevation=field('elevationGainM','Desnivel positivo (m) · opcional',{max:15000,step:1});
+ const elevation=profile.sport==='swimming'?'':field('elevationGainM','Desnivel positivo (m) · opcional',{max:15000,step:1});
  const rpe=field('rpe','RPE real · obligatorio',{min:1,max:10,step:0.5,placeholder:planned.targetRpe||7});
  return `<div class="${isCoach?'m26-session-coach-set-fields':'m26-field-grid m26-session-set-fields'}" data-session-cardio-entry data-session-metric-kind="${e(profile.kind)}">
   <div class="m26-field-grid m26-session-cardio-core">${duration}${distance}${interval}${rpe}</div>
-  <details class="m26-session-options"><summary>FC, ritmo y datos de actividad · opcionales</summary><div class="m26-field-grid">${hr}${pace}${speed}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
+  <details class="m26-session-options"><summary>${profile.sport==='swimming'?'Frecuencia cardíaca y contexto · opcionales':'FC, ritmo y datos de actividad · opcionales'}</summary><div class="m26-field-grid">${hr}${pace}${speed}${cadence}${power}${elevation}</div><small>Introduce únicamente mediciones reales. No se estiman a partir de la carga o las repeticiones.</small></details>
  </div>`;
 }
 function renderLiveModalityPrescription(planned={},profile={},exercise={},role='client'){
