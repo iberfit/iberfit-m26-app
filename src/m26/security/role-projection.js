@@ -4,8 +4,8 @@ import {sessionVisibilityLevel} from '../rc39/session-policy.js';
 const ROLE_ALIASES=Object.freeze({admin:'admin',administrador:'admin',administrator:'admin',coach:'coach',entrenador:'coach',client:'client',cliente:'client'});
 const ALWAYS_PRIVATE_FOR_CLIENT=new Set(['privateNotes','coachAvailability','intelligenceRuns','domainEvents','wearableSyncRuns']);
 const PUBLICATION_SCOPED=new Set(['reports','trainingCycles','sessions']);
-const PUBLIC_STATUSES=new Set(['publicado','published','activo','active','habilitado','enabled','completado','completed']);
-const PRIVATE_STATUSES=new Set(['borrador','draft','pendiente','pending','en_revision','en revisión','review','aprobado','approved','retirado','withdrawn','archivado','archived','anulado','cancelled']);
+const PUBLIC_STATUSES=new Set(['publicado','publicada','published','disponible','en_curso','activo','active','habilitado','enabled','completado','completada','completed']);
+const PRIVATE_STATUSES=new Set(['borrador','draft','pendiente','pending','en_revision','en revisión','review','validado','validada','aprobado','aprobada','approved','retirado','retirada','withdrawn','archivado','archivada','archived','anulado','anulada','cancelled']);
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const SENSITIVE_CLIENT_KEYS=new Set(['body','raw','privatenote','privatenotes','coachnote','coachnotes','internalnote','internalnotes','internalcomment','audit','auditlog','command','commandpayload','cost','price','margin','token','accesstoken','refreshtoken','oauthtoken','secret','secrets','password','credential','credentials','apikey','authorization','prototype','constructor','proto']);
 const MAX_NESTED_DEPTH=6;
@@ -51,9 +51,27 @@ function safeSessionBlocks(record){
       ['restSeconds',['restSeconds','rest_seconds','descanso']],['tempo',['tempo','ritmo']],['range',['range','rango']],
       ['load',['load','carga']],['loadKg',['loadKg','load_kg']],['targetRpe',['targetRpe','target_rpe']],['targetRir',['targetRir','target_rir']],
       ['durationSeconds',['durationSeconds','duration_seconds']],['alternativeId',['alternativeId','alternative_id']],
+      ['plannedDurationMinutes',['plannedDurationMinutes']],['plannedDistanceKm',['plannedDistanceKm']],
+      ['plannedDistanceM',['plannedDistanceM']],['plannedWarmupMinutes',['plannedWarmupMinutes']],
+      ['plannedCooldownMinutes',['plannedCooldownMinutes']],['plannedPace',['plannedPace']],
+      ['targetHeartRateZone',['targetHeartRateZone']],['targetHeartRateBpm',['targetHeartRateBpm']],
+      ['plannedElevationM',['plannedElevationM']],['intervalRepetitions',['intervalRepetitions']],
+      ['intervalWorkSeconds',['intervalWorkSeconds']],['intervalRecoverySeconds',['intervalRecoverySeconds']],
+      ['intervalDistanceM',['intervalDistanceM']],['measurementProfile',['measurementProfile']],
+      ['prescriptionNotes',['prescriptionNotes']],['progression',['progression']],
       ['rounds',['rounds','rondas']],
     ])assign(item,canonical,block,...keys);
     if(Array.isArray(block?.exerciseIds))item.exerciseIds=block.exerciseIds.slice(0,12).map(safeId).filter(Boolean);
+    // Preserve only client-facing prescriptions for circuits, never arbitrary
+    // Coach/private attributes nested in the original exercise payload.
+    if(item.exerciseIds?.length&&block?.prescriptions&&typeof block.prescriptions==='object'&&!Array.isArray(block.prescriptions)){
+      item.prescriptions={};
+      for(const id of item.exerciseIds){
+        const original=block.prescriptions[id];
+        if(original&&typeof original==='object'&&!Array.isArray(original))
+          item.prescriptions[id]=safeSessionBlocks([original])[0]||{};
+      }
+    }
     return item;
   });
 }
@@ -143,6 +161,7 @@ export function projectCollectionsForRole(collections,user,collectionKeys=Object
     if(ALWAYS_PRIVATE_FOR_CLIENT.has(key)){projected[key]=[];continue;}
     projected[key]=records.filter((record)=>{
       if(clientIdOf(record,key)!==own)return false;
+      if(key==='m26Entities'&&['planning','session','report'].includes(String(record?.entityType||'')))return isVisiblePublication(record);
       if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record)&&(key!=='sessions'||sessionVisibilityLevel(record)!=='hidden');
       if(key==='appointments')return isClientVisibleAppointment(record);
       return isVisibleGeneric(record);

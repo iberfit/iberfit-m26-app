@@ -43,7 +43,7 @@ import {guidedRequiredProgress} from '../ui/guided-input.js';
 
 const IRI_DRAFT_SCOPE='iri-first-session';
 const IRI_REMOTE_SYNC_DELAY_MS=4_000;
-const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
+const PUBLISHED_SESSION_STATES=new Set(['published','publicado','publicada','disponible','en_curso','active','activo','enabled','habilitado']);
 const IRI_FIELD_LABELS=Object.freeze({
   assessmentDate:'fecha de evaluación',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',email:'correo electrónico',phone:'teléfono',modality:'modalidad',trainingAddress:'dirección de entrenamiento',primaryObjective:'objetivo principal',screeningAccepted:'cribado y seguridad',trainingExperience:'experiencia',availability:'disponibilidad',bodyCompositionSkipReason:'motivo de no realización',bodyCompositionMeasurement:'al menos una medición corporal',mobilitySkipReason:'motivo de no realización',ankleTrials:'mediciones de tobillo',posteriorTrials:'mediciones de cadena posterior',hipRotationResult:'rotación de cadera',squatDepth:'sentadilla asistida',strengthSkipReason:'motivo de no realización',lowerBodyStrength:'una prueba válida de tren inferior (Silla 30 s o Sentadilla 60 s)',chairStand30s:'silla 30 segundos',pushTest:'prueba de empuje',trxRow:'remo TRX',frontPlank:'plancha frontal',cardioSkipReason:'motivo de no realización',cardioProtocol:'protocolo de capacidad',cardioValid:'validez del test',cardioRepetitions:'repeticiones completas del 1MSTS',cardioHeartRate:'frecuencia cardiaca final y al minuto',cardioHeartRatePair:'frecuencia cardiaca final y al minuto deben registrarse juntas',cardioStepHeight:'altura del escalón',cardioCadence:'cadencia del step test',cardioYmcaStandard:'configuración YMCA estándar',cardioTreadmillLoad:'velocidad e inclinación de la cinta',cardioTreadmillContext:'modo, método de FC y recuperación de la cinta',cardioDuration:'duración del test',diagnosisStrengths:'fortalezas',diagnosisPriorities:'prioridades',coachInterpretation:'interpretación del Coach',initialPlan:'plan inicial',reviewAccepted:'revisión profesional',coreDomains:'al menos dos dominios objetivos completos',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',
 });
@@ -1321,7 +1321,84 @@ export function createWorkflowController({
     status(root,iriReportStatusScope(),'Versión retirada. El historial permanece íntegro y auditable.','success');
   }
 
-  async function validatePlan(){requireCoach();const form=root.querySelector?.('[data-workflow-form="planning"]');if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId,state}=context();requireVisibleClient(clientId);const draft={id:raw.entityId||createM26Id(),clientId,name:String(raw.name||'').trim(),startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),weeklyFrequency:Number(raw.weeklyFrequency||0)||null,sessionDurationMinutes:Number(raw.sessionDurationMinutes||0)||null,modality:normalizeClientModality(raw.modality)||null};const current=(state.collections.trainingCycles||[]).find((item)=>String(item.id)===String(draft.id)&&(item.clientId||item.client_id)===clientId);await draftRepository?.save?.(clientId,'planning-cycle',draft);status(root,'planning','Validando y guardando el ciclo…','pending');const result=await withTimeout(commandBus.execute(buildCycleCommand(draft,Number(current?.revision||0))),20_000,'M26_PLAN_CONFIRM_TIMEOUT');if(!result.ok){status(root,'planning','El ciclo no quedó confirmado. El borrador local se conserva.','pending');return result;}const confirmed=await refreshAndFind('trainingCycles',draft.id,clientId);if(!confirmed)throw new Error('M26_PLAN_CONFIRM_NOT_PERSISTED');await draftRepository?.remove?.(clientId,'planning-cycle');status(root,'planning','Ciclo validado y visible en Planificación.','success');onRender();return result;}
+  async function validatePlan(){
+    requireCoach();
+    const form=root.querySelector?.('[data-workflow-form="planning"]');
+    if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
+    ensureValidForm(form);
+    const raw=values(form);
+    const {clientId,state}=context();
+    requireVisibleClient(clientId);
+    const records=(state.collections.trainingCycles||[]).filter(item=>recordClientId(item)===String(clientId));
+    const sameCycle=(item)=>String(recordBody(item).name||item.name||'').trim()===String(raw.name||'').trim()
+      &&String(recordBody(item).startDate||item.startDate||'').slice(0,10)===String(raw.startDate||'')
+      &&String(recordBody(item).endDate||item.endDate||'').slice(0,10)===String(raw.endDate||'');
+    const backup=await draftRepository?.load?.(clientId,'planning-cycle');
+    const saved=backup?.value&&typeof backup.value==='object'?backup.value:null;
+    const stableId=String(raw.entityId||'').trim()
+      ||(saved?.clientId===clientId&&sameCycle(saved)?String(saved.id||''):null)
+      ||(records.find(sameCycle)?.id||null)
+      ||createM26Id();
+    const draft={id:stableId,clientId,name:String(raw.name||'').trim(),
+      startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),
+      weeklyFrequency:Number(raw.weeklyFrequency||0)||null,
+      sessionDurationMinutes:Number(raw.sessionDurationMinutes||0)||null,
+      modality:normalizeClientModality(raw.modality)||null};
+    const current=records.find(item=>recordId(item)===stableId)||null;
+    await draftRepository?.save?.(clientId,'planning-cycle',draft);
+    // A previously acknowledged save may have failed only its refresh. Never
+    // create another entity or issue PLAN_VALIDAR against validated revision 1.
+    const existingBody=current?recordBody(current):null;
+    const sameValidated=existingBody
+      &&String(existingBody.name||'').trim()===draft.name
+      &&String(existingBody.goal||'').trim()===draft.goal
+      &&String(existingBody.startDate||'').slice(0,10)===draft.startDate
+      &&String(existingBody.endDate||'').slice(0,10)===draft.endDate
+      &&Number(existingBody.weeklyFrequency)===draft.weeklyFrequency
+      &&Number(existingBody.sessionDurationMinutes)===draft.sessionDurationMinutes
+      &&String(existingBody.modality||'')===String(draft.modality||'');
+    const statusNow=current?normalizedStatus(current):'';
+    if(sameValidated&&['validado','aprobado','publicado'].includes(statusNow)){
+      await draftRepository?.remove?.(clientId,'planning-cycle');
+      status(root,'planning','El ciclo ya estaba guardado y confirmado. No se creó ningún duplicado.','success');
+      onRender();
+      return {ok:true,kind:'already-confirmed'};
+    }
+    if(current&&['publicado','aprobado','archivado'].includes(statusNow)){
+      const error=new Error('M35_PLAN_NEW_VERSION_REQUIRED');
+      error.userMessage='Este ciclo ya tiene una decisión de publicación. Conservamos los cambios locales; prepara una nueva versión antes de modificar el contenido confirmado.';
+      throw error;
+    }
+    let revision=Number(current?.revision||0);
+    if(current&&statusNow==='validado'){
+      status(root,'planning','Preparando una nueva revisión del ciclo anterior…','pending');
+      const reopening=await withTimeout(commandBus.execute({
+        type:'PLAN_REABRIR',entityType:'planning',entityId:stableId,clientId,
+        baseRevision:revision,reason:'Cambio del ciclo revisado y confirmado por el Coach.',
+        payload:{patch:{status:'borrador',visibleToClient:false}},
+      }),20_000,'M35_PLAN_REOPEN_TIMEOUT');
+      if(!reopening.ok){
+        status(root,'planning','El ciclo cambió en otro dispositivo. Conservamos el borrador: revisa la versión actual.','error');
+        return reopening;
+      }
+      revision=Number(reopening.response?.remoteRevision||revision+1);
+    }
+    status(root,'planning','Validando y guardando el ciclo…','pending');
+    const result=await withTimeout(commandBus.execute(buildCycleCommand(draft,revision)),20_000,'M26_PLAN_CONFIRM_TIMEOUT');
+    if(!result.ok){
+      const reason=String(result.response?.reason||result.kind||'REJECTED');
+      status(root,'planning',reason==='REVISION_MISMATCH'
+        ?'El ciclo cambió en otro dispositivo. Actualiza el expediente antes de reintentar.'
+        :'El servidor no confirmó el ciclo ('+reason+'). El borrador permanece guardado.','error');
+      return result;
+    }
+    const confirmed=await refreshAndFind('trainingCycles',stableId,clientId);
+    if(!confirmed||normalizedStatus(confirmed)!=='validado')throw new Error('M26_PLAN_CONFIRM_NOT_PERSISTED');
+    await draftRepository?.remove?.(clientId,'planning-cycle');
+    status(root,'planning','Ciclo validado y visible en Planificación.','success');
+    onRender();
+    return result;
+  }
   async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La propuesta está pendiente de confirmación.','pending');return result;}await withTimeout(Promise.resolve(refreshState({reason:'appointment-created'})),15_000,'M26_WORKFLOW_REFRESH_TIMEOUT');status(root,'appointment','Propuesta de cita creada. Aún no es visible para el cliente.','success');form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();return result;}
   async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La cita sigue como propuesta y requiere revisión.','pending');return result;}const confirmed=await refreshAndFind('appointments',appointmentId,clientId);if(!confirmed||!/confirm/i.test(normalizedStatus(confirmed)))throw new Error('M26_APPOINTMENT_CONFIRM_NOT_PERSISTED');status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
   function reuseSession(button){requireCoach();const sessionId=String(button?.dataset?.entityId||'').trim();if(!sessionId)throw new Error('M26_SESSION_REUSE_ID_REQUIRED');const {clientId,state}=context();requireVisibleClient(clientId);const source=(state.collections.sessions||[]).find((item)=>String(item?.id||item?.body?.id||'')===sessionId&&String(item?.clientId||item?.client_id||item?.body?.clientId||item?.body?.client_id||'')===clientId);if(!source)throw new Error('M26_SESSION_REUSE_NOT_VISIBLE');emit(root,'m26:open-session-builder',{clientId,sourceSession:source});status(root,'session','Sesión cargada como borrador independiente. La original no se modifica.','success');}  function openBuilder(button){requireCoach();const {clientId:activeClientId}=context();const requested=String(button?.dataset?.clientId||activeClientId||'').trim();const clientId=requireVisibleClient(requested);emit(root,'m26:open-session-builder',{clientId});status(root,'session','Constructor abierto.','success');}

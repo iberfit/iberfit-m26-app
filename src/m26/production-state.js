@@ -1,6 +1,7 @@
 import {createCommunicationState,projectCommunicationSnapshot} from './communication/state.js';
 import {createAdminState,projectAdminSnapshot} from './admin/admin-state.js';
 import { projectCollectionsForRole, projectRemoteRevisionsForRole, assertClientProjectionSafe, projectIdentityForRole, projectEnvironmentForRole, projectCanaryForRole, projectMetricsForRole } from './security/role-projection.js';
+import {reconcileCanonicalTrainingCollections} from './domain/canonical-training-collections.js';
 export const M26_UI_SCHEMA = 'iberfit-m26-ui-v1';
 
 export const M26_COLLECTION_KEYS = Object.freeze([
@@ -178,9 +179,9 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
   qaStage('rc64-state-start');
   const snapshot = assertProductionSnapshot(rawSnapshot);
   qaStage('rc64-state-assert-ready');
-  const rawCollections = Object.fromEntries(
+  const rawCollections = reconcileCanonicalTrainingCollections(Object.fromEntries(
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
-  );
+  ));
   qaStage('rc64-state-collections-ready');
   const identity=projectIdentityForRole(snapshot.user);
   const applicationAccess=projectApplicationAccess(snapshot.user,identity);
