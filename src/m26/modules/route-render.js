@@ -531,8 +531,16 @@ function renderClientHoyRoute(vm) {
     :'';
 
   let primary;
-  if(!trainingSurface){
-    const iriReady=Boolean(client?.iri?.confirmed);
+  if(!trainingSurface&&client?.trainingServiceStatus==='ended'){
+    primary={
+      area:'sesion',
+      eyebrow:'Entrenamiento finalizado',
+      title:'Tu historial de entrenamiento',
+      detail:'El servicio ha finalizado, pero tus sesiones anteriores permanecen disponibles para consulta.',
+      markup:'<button type="button" class="m26-today-action is-primary" data-m26-area="sesion"><span aria-hidden="true">↗</span><strong>Ver mis sesiones</strong><small>Consulta tu historial sin iniciar sesiones nuevas.</small></button>',
+    };
+  }else if(!trainingSurface){
+    const iriReady=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
     primary={
       area:'informes',
       eyebrow:'Tu punto de partida',
