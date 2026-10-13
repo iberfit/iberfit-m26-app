@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "487faff3c2e3e73b8eabdaddd79a675c88c1c8a3",
+  "sourceBranch": "canary/rc74-4",
+  "notes": "M40 P0: recoverable session review, precise running validation, accurate draft failure and safe publication."
+}
