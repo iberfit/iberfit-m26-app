@@ -50,6 +50,10 @@ test('Client sees swim target separately, and target never becomes measured pace
   assert.equal(execution.queue[0].prescription.plannedPacePer100M,'2:05');
   assert.equal(plannedSetDraftValues(execution,session)?.distanceM,'200');
   assert.equal(plannedSetDraftValues(execution,session)?.pacePer100M,undefined);
+  const ready=renderGuidedExecution({session,execution,catalog,role:'client'});
+  assert.match(ready,/data-session-ready-sport-preview/u);
+  assert.match(ready,/2:05 min\/100 m \(objetivo\)/u);
+  assert.doesNotMatch(ready,/min\/km \(objetivo\)/u);
   startExecution(execution);
   const html=renderGuidedExecution({session,execution,catalog,role:'client'});
   assert.match(html,/2:05 min\/100 m \(objetivo\)/u);
