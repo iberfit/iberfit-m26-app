@@ -296,6 +296,8 @@ export function createWorkflowController({
   const inFlightMutations=new Set();
   const confirmedPublicationReceipts=new Map();
   const reportSubmissionByClient=new Map();
+  let reportDraftChain=Promise.resolve();
+  let planDraftChain=Promise.resolve();
   const iriRemoteConflictByAssessment=new Map();
   let clientListMeasurementGrid=null;
   const clientListMeasurements=[];
@@ -1348,7 +1350,9 @@ export function createWorkflowController({
       weeklyFrequency:raw.weeklyFrequency||'',
       sessionDurationMinutes:raw.sessionDurationMinutes||'',
       modality:raw.modality||''};
-    await draftRepository.save(clientId,'planning-cycle',draft);
+    const write=planDraftChain.then(()=>draftRepository.save(clientId,'planning-cycle',draft));
+    planDraftChain=write.catch(()=>{});
+    await write;
     const entityControl=form.elements?.namedItem?.('entityId');
     if(entityControl)entityControl.value=draft.id;
     if(!silent)status(root,'planning','Borrador del ciclo guardado en este dispositivo. Puedes validar cuando completes los datos.','success');
@@ -1398,6 +1402,8 @@ export function createWorkflowController({
   }
   async function performValidatePlan(){
     requireCoach();
+    clearTimeout(planSaveTimer);planSaveTimer=null;
+    await planDraftChain;
     const form=root.querySelector?.('[data-workflow-form="planning"]');
     if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
     ensureValidForm(form);
@@ -1615,7 +1621,9 @@ export function createWorkflowController({
     if(idField)idField.value=stableId;
     const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId,
       reviewAccepted:raw.reviewAccepted==='on'};
-    await draftRepository.save(clientId,reportDraftScope(assessmentId),payload);
+    const write=reportDraftChain.then(()=>draftRepository.save(clientId,reportDraftScope(assessmentId),payload));
+    reportDraftChain=write.catch(()=>{});
+    await write;
     if(!silent)status(root,'report','Borrador del informe guardado en este dispositivo. Puedes completarlo después.','success');
     return payload;
   }
@@ -1646,7 +1654,7 @@ export function createWorkflowController({
     }
   }
 
-  async function approveReport(){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const content={clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'};
+  async function approveReport(){requireCoach();clearTimeout(reportSaveTimer);reportSaveTimer=null;await reportDraftChain;if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const content={clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'};
     const fingerprint=JSON.stringify(content);
     const previous=reportSubmissionByClient.get(clientId);
     // Local storage may be unavailable (private mode, quota, other tab).
