@@ -144,15 +144,26 @@ export function appointmentConfirmationState(appointment={},now=new Date(),{
   const rawStatus=fold(field(appointment,'status','estado'));
   const confirmedAt=field(appointment,'confirmedByClientAt','confirmed_by_client_at','clientConfirmedAt','client_confirmed_at');
   const changeAt=field(appointment,'changeRequestedAt','change_requested_at');
-  if(confirmedAt)return Object.freeze({state:'confirmed',label:'Confirmada por el cliente',canConfirm:false,canRequestChange:false,opensAt:null,closesAt:null});
-  if(changeAt)return Object.freeze({state:'change_requested',label:'Cambio solicitado',canConfirm:false,canRequestChange:false,opensAt:null,closesAt:null});
+  // A cancellation or terminal state overrides an earlier client confirmation.
   if(TERMINAL_APPOINTMENT_STATES.has(rawStatus))return Object.freeze({state:'closed',label:'Cerrada',canConfirm:false,canRequestChange:false,opensAt:null,closesAt:null});
+  if(changeAt)return Object.freeze({state:'change_requested',label:'Cambio solicitado',canConfirm:false,canRequestChange:false,opensAt:null,closesAt:null});
+  if(confirmedAt)return Object.freeze({state:'confirmed',label:'Confirmada por el cliente',canConfirm:false,canRequestChange:false,opensAt:null,closesAt:null});
   if(start===null||at===null)return Object.freeze({state:'unavailable',label:'Horario pendiente',canConfirm:false,canRequestChange:false,opensAt:null,closesAt:null});
   const opensAt=start-(Math.max(0,Number(openHours)||48)*60*60*1000);
   const closesAt=start-(Math.max(0,Number(closeMinutes)||120)*60*1000);
   if(at<opensAt)return Object.freeze({state:'not_open',label:'Confirmación disponible 48 h antes',canConfirm:false,canRequestChange:false,opensAt:new Date(opensAt).toISOString(),closesAt:new Date(closesAt).toISOString()});
   if(at>=closesAt)return Object.freeze({state:'closed',label:'Gestionar con tu Coach',canConfirm:false,canRequestChange:false,opensAt:new Date(opensAt).toISOString(),closesAt:new Date(closesAt).toISOString()});
   return Object.freeze({state:'open',label:'Confirma tu asistencia',canConfirm:true,canRequestChange:true,opensAt:new Date(opensAt).toISOString(),closesAt:new Date(closesAt).toISOString()});
+}
+export function sessionHasExecutableBlocks(session={}){
+  const blocks=field(session,'blocks','bloques');
+  if(!Array.isArray(blocks))return false;
+  return blocks.some((block)=>{
+    if(!block||typeof block!=='object')return false;
+    const members=block.exerciseIds??block.exercise_ids;
+    if(Array.isArray(members))return members.some((id)=>String(id||'').trim().length>0);
+    return Boolean(field(block,'exerciseId','exercise_id','name','title','exerciseName','exercise_name'));
+  });
 }
 export function actorCanExecuteSession({role,session,appointment=null}={}){
   const normalized=fold(role);
@@ -187,6 +198,7 @@ export function clientSessionProjection(session={},appointment=null,now=new Date
     modality,
     visible:visibility!=='hidden'&&isPublishedSession(session),
     canClientExecute:actorCanExecuteSession({role:'client',session,appointment}),
+    canClientStart:actorCanExecuteSession({role:'client',session,appointment})&&sessionHasExecutableBlocks(session),
     canCoachExecute:true,
     calendarVisible:visibility!=='hidden'&&Boolean(appointment),
     appointmentId:appointment?String(field(appointment,'id','entityId','entity_id')||''):null,

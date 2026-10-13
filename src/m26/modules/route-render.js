@@ -440,12 +440,7 @@ function renderClientHoyRoute(vm) {
     :[];
   const executableIds=new Set(
     (serviceActive?projections:[])
-      .filter(
-        (item)=>
-          item?.canClientExecute===true&&
-          Array.isArray(item?.session?.body?.blocks||item?.session?.blocks)&&
-          (item.session.body?.blocks||item.session.blocks).length>0
-      )
+      .filter((item)=>item?.canClientStart===true)
       .map((item)=>String(item.id||'').trim())
       .filter(Boolean)
   );
@@ -458,6 +453,7 @@ function renderClientHoyRoute(vm) {
       executableIds.has(sessionId);
   })||null;
 
+  const standaloneGuided=serviceActive?projections.find((item)=>item?.canClientStart===true&&!item.appointmentId):null;
   const firstProjection=projections[0]||null;
   const nextAppointment=appointments[0]||upcoming[0]||null;
   const planName=client?.cycle?.name||null;
@@ -544,6 +540,14 @@ function renderClientHoyRoute(vm) {
         <strong>Entrenar ahora</strong>
         <small>${escapeHtml(runnable.title||'Tu sesión confirmada está preparada para hoy.')}</small>
       </button>`,
+    };
+  }else if(standaloneGuided){
+    primary={
+      area:'sesion',
+      eyebrow:'Entrenamiento disponible',
+      title:standaloneGuided.title||'Sesión guiada IBERFIT',
+      detail:'Puedes realizar esta sesión a tu ritmo.',
+      markup:`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(standaloneGuided.id)}"><span aria-hidden="true">▶</span><strong>Entrenar ahora</strong><small>${escapeHtml(standaloneGuided.title||'Sesión guiada preparada para ti')}</small></button>`,
     };
   }else if(projections.length){
     primary={

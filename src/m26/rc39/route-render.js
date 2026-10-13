@@ -2,6 +2,7 @@ import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
 import {coachLaunchSelfCopy} from './view-model.js';
+import {isPublishedSession,sessionHasExecutableBlocks,sessionRequiresConfirmedAppointment} from './session-policy.js';
 
 const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
@@ -48,7 +49,7 @@ const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
   ownership:item.ownership,
   clientCanExecute:Boolean(item.canClientExecute),
   role,
-  hasFullContent:Boolean(Array.isArray(publishedBody(item.session).blocks)&&publishedBody(item.session).blocks.length),
+  hasFullContent:sessionHasExecutableBlocks(item.session),
   isPublished:Boolean(item.visible||item.canClientExecute),
 });
 const experiencePanel=(experience,role)=>{
@@ -63,7 +64,7 @@ const experiencePanel=(experience,role)=>{
     <div class="m26-session-experience__capabilities" aria-label="Capacidades de esta sesión">${caps}</div>
   </section>`;
 };
-const cardActions=(item,role,experience)=>{
+const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   const actions=[];
   const appointmentBody=item.appointment?.body&&typeof item.appointment.body==='object'
     ?item.appointment.body
@@ -91,14 +92,18 @@ const cardActions=(item,role,experience)=>{
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="open-change-request" data-appointment-id="${escape(item.appointmentId)}">Solicitar cambio</button>`);
     }
   }
-  if(role==='client'&&experience.clientLiveWorkout){
+  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&item.canClientStart===true&&sessionHasExecutableBlocks(item.session)){
     actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar Live Workout</button>`);
   }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
     actions.push(`<span class="m26-session-supervised-state" aria-label="Sesión supervisada">${escape(experience.primaryLabel)}</span>`);
   }
   if(role==='coach'){
-    actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Iniciar como ${role==='admin'?'Admin':'Coach'}</button>`);
+    const isAppointmentConfirmed=!item.appointment||['confirmada','confirmado','confirmed'].includes(appointmentStatus);
+    const needsAppointment=sessionRequiresConfirmedAppointment({role,session:item.session,appointment:item.appointment});
+    if(serviceActive&&isPublishedSession(item.session)&&sessionHasExecutableBlocks(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
+      actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Iniciar con Coach</button>`);
+    }
     if(item.appointment?.changeRequest?.status==='pending'){
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="resolve-change-request" data-appointment-id="${escape(item.appointmentId)}" data-request-id="${escape(item.appointment.changeRequest.id)}" data-resolution="accepted">Aceptar solicitud</button>`);
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="resolve-change-request" data-appointment-id="${escape(item.appointmentId)}" data-request-id="${escape(item.appointment.changeRequest.id)}" data-resolution="rejected">No aceptar</button>`);
@@ -106,7 +111,7 @@ const cardActions=(item,role,experience)=>{
   }
   return actions.length?`<div class="m26-rc39-card-actions">${actions.join('')}</div>`:'';
 };
-const sessionCard=(item,role,contractModality=null)=>{
+const sessionCard=(item,role,contractModality=null,{serviceActive=true}={})=>{
   const kind=item.ownership==='coach_led'?'coach':item.ownership==='live_online'?'online':'autonomous';
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
   const experience=experienceFor(item,role,contractModality);
@@ -121,7 +126,7 @@ const sessionCard=(item,role,contractModality=null)=>{
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
     ${item.appointment?.changeRequest?.status==='pending'?`<aside class="m26-notice is-warning"><strong>Cambio solicitado por el cliente</strong><p>${escape(item.appointment.changeRequest.reason||'Sin motivo registrado')}</p></aside>`:''}
     ${content}
-    ${cardActions(item,role,experience)}
+    ${cardActions(item,role,experience,{serviceActive})}
     ${role==='client'&&item.confirmation?.canRequestChange&&item.changeRequestAvailable?`<form class="m26-rc39-change-form" data-rc39-change-form="${escape(item.appointmentId)}" hidden><label>Motivo o alternativa horaria<textarea name="reason" maxlength="500" required></textarea></label><div><button type="submit" class="m26-primary-action">Enviar solicitud</button><button type="button" data-rc39-action="close-change-request">Cancelar</button></div></form>`:''}
   </article>`;
 };
@@ -174,7 +179,7 @@ function renderClientPlanning(vm){
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
-  const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality)).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, verás si esa sesión es presencial con él o autónoma guiada desde la aplicación.</p><div class="m26-inline-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div></section>`;
+  const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false})).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, verás si esa sesión es presencial con él o autónoma guiada desde la aplicación.</p><div class="m26-inline-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div></section>`;
   const overview=`<section class="m30-planning-overview" data-m30-planning-overview aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
@@ -203,7 +208,7 @@ function renderCoachToday(vm){
     const projection=items.find((item)=>item.appointmentId===appointment.id);
     return projection?sessionCard(projection,vm.role,contractModality):`<article class="m26-list-card"><div><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</article>`;
   }).join(''):`<section class="m26-empty"><h3>Sin citas para hoy</h3><p>La agenda no contiene sesiones programadas para este día.</p></section>`;
-  return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Día de Carlos'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section><section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
+  return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Hoy en IBERFIT'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section><section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
 }
 function agendaAppointmentStatus(appointment={}){
   return String(appointment.status||'').trim().toLowerCase();
@@ -427,7 +432,7 @@ function renderSessions(vm){
   const empty=role==='client'
     ?'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality)).join(''):empty}</section></div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false})).join(''):empty}</section></div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
