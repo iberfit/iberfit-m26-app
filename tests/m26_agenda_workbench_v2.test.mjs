@@ -198,6 +198,7 @@ test('acciones Cliente de confirmación, cambio y Live Workout siguen disponible
     visibility:'full',
     visible:true,
     canClientExecute:true,
+    canClientStart:true,
     calendarVisible:true,
     location:'',
     confirmation:{
