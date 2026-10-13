@@ -564,9 +564,9 @@ function renderClientHoyRoute(vm) {
     primary={
       area:'sesion',
       eyebrow:'Entrenamiento disponible',
-      title:standaloneGuided.title||'Sesión guiada IBERFIT',
+      title:standaloneGuided.title||standaloneGuided.session?.body?.title||standaloneGuided.session?.title||'Sesión guiada IBERFIT',
       detail:'Puedes realizar esta sesión a tu ritmo.',
-      markup:`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(standaloneGuided.id)}"><span aria-hidden="true">▶</span><strong>Entrenar ahora</strong><small>${escapeHtml(standaloneGuided.title||'Sesión guiada preparada para ti')}</small></button>`,
+      markup:`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(standaloneGuided.id)}"><span aria-hidden="true">▶</span><strong>Entrenar ahora</strong><small>${escapeHtml(standaloneGuided.title||standaloneGuided.session?.body?.title||standaloneGuided.session?.title||'Sesión guiada preparada para ti')}</small></button>`,
     };
   }else if(projections.length){
     primary={
