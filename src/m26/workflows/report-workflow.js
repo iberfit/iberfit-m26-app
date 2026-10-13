@@ -1,6 +1,6 @@
 import {buildProgressHub} from '../engagement/progress-hub.js';
 import {createM26Id} from '../platform/id.js';
-import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
 
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const DAY_MS=86_400_000;
@@ -29,6 +29,7 @@ function civil(value){const match=String(value||'').trim().match(/^(\d{4}-\d{2}-
 function recordDate(record){return civil(recordValue(record,'completedAt','completed_at','executedAt','executed_at','assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at','scheduledAt','scheduled_at','date','createdAt','created_at'));}
 function timestamp(date){return date?new Date(`${date}T00:00:00Z`).getTime():NaN;}
 function sortNewest(records){return [...records].sort((a,b)=>(timestamp(recordDate(b))||0)-(timestamp(recordDate(a))||0));}
+function uniqueConfirmedExecutions(records){const seen=new Set();return sortNewest(records).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
 function inWindow(record,start,end){const date=recordDate(record);return Boolean(date&&date>=start&&date<=end);}
 function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
@@ -45,7 +46,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   if(!clientId)return Object.freeze([]);
   const end=new Date(now).toISOString().slice(0,10);
   const iris=sortNewest(recordsForClient(state,'iriAssessments',clientId).filter(confirmedIri));
-  const executions=sortNewest(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true}));
+  const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true}));
   const latestIri=iris[0]||null;
   const latestExecution=executions[0]||null;
   const progress=buildProgressHub(state,clientId,{now});
