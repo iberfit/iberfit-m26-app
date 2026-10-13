@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,validateReportDraft} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
@@ -39,6 +39,20 @@ function stateWithHistory(){
 
 test('catálogo premium cubre siete informes sin duplicar diagnóstico y seguimiento',()=>{
   assert.deepEqual(PREMIUM_REPORT_TYPES.map((item)=>item.id),['iri','post-session','weekly','monthly','reassessment','quarterly','year-in-iberfit']);
+});
+
+test('todos los formatos premium, incluido semanal, son aprobables y preservan su tipo',()=>{
+  const base={clientId:'c1',assessmentId:'iri-new',title:'Informe basado en evidencia',
+    periodStart:'2026-08-31',periodEnd:'2026-09-06',
+    summary:'Resumen respaldado por datos canónicos confirmados.',
+    conclusions:'Conclusiones profesionales a partir de las sesiones confirmadas.',
+    recommendations:'Revisar resultados con el coach antes de continuar.',reviewAccepted:true};
+  for(const {id} of PREMIUM_REPORT_TYPES){
+    const draft={...base,reportType:id};
+    assert.deepEqual(validateReportDraft(draft).errors,[],id);
+    assert.equal(normalizeReportDraft(draft).reportType,id);
+    assert.equal(buildApproveReportDraftCommand(draft,0).payload.patch.reportType,id);
+  }
 });
 
 test('portfolio automático usa evidencia canónica y habilita siete tipos con historial suficiente',()=>{
