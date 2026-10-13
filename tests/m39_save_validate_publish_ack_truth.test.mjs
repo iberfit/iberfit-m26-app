@@ -146,7 +146,7 @@ test('M39 report drafts are client-and-assessment scoped and saved without appro
    "'report-approval:'+String(assessmentId||'').trim()",
    "async function saveReportDraft(form,{silent=false}={})",
    "reportFormClientIds.get(form)!==clientId",
-   "await draftRepository.save(clientId,reportDraftScope(assessmentId),payload)",
+   "draftRepository.save(clientId,reportDraftScope(assessmentId),payload)",
    "async function initializeReportForm(form)",
    "editedReportForms.has(form)",
    "String(saved.value.assessmentId||'')!==assessmentId",
@@ -155,6 +155,7 @@ test('M39 report drafts are client-and-assessment scoped and saved without appro
    "saveReportDraft(form,{silent:true})",
    "saveReportDraft(reportForm,{silent:true})",
    "draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId))",
+   "reportDraftChain=write.catch(()=>{})",
  ])assert.ok(workflow.includes(literal),literal);
  const start=workflow.indexOf('async function saveReportDraft(');
  const finish=workflow.indexOf('function queueReportSave(',start);
