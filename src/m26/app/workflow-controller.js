@@ -59,7 +59,9 @@ const GUIDED_FORM_FIELD_LABELS=Object.freeze({
 });
 
 function values(form){return Object.fromEntries(new FormData(form).entries());}
-function invalidFormControls(form){return [...(form?.elements||[])].filter((control)=>typeof control?.checkValidity==='function'&&!control.checkValidity());}
+// checkValidity() emits `invalid` synchronously. Reading ValidityState is
+// side-effect free, including when this runs inside the invalid handler.
+function invalidFormControls(form){return [...(form?.elements||[])].filter((control)=>control?.willValidate!==false&&control?.validity?.valid===false);}
 function clearControlValidation(control){if(!control)return;control.removeAttribute?.('aria-invalid');control.closest?.('label')?.classList?.remove?.('is-invalid');}
 function focusInvalidControl(control){if(!control)return;control.setAttribute?.('aria-invalid','true');control.closest?.('label')?.classList?.add?.('is-invalid');control.scrollIntoView?.({block:'center',behavior:'smooth'});control.focus?.({preventScroll:true});}
 function ensureValidForm(form,{code='M26_FORM_INVALID',labels={},summary='Revisa los campos obligatorios'}={}){

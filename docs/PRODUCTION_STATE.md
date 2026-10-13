@@ -1,5 +1,14 @@
 # IBERFIT · Production State
 
+## WIP vigente · cierre M39 bloqueado por validación recursiva · 2026-10-13
+
+- LIVE leído en `https://app.iberfit.cl/m26/version.json`: M38 `096c9244089f00f990ca3fba82f3829af8e76c9c`, entorno PRODUCTION, proyecto PROD, `qaOnly=false`. M39 NO está promovido.
+- PR #922 fusionado: Canary `4f8b5a6d6debf50dd5faea4abf47c4df360bcbc4`. Exact Deploy `38456939478` SUCCESS; 11/13 workflows postmerge SUCCESS. Coach WebAuthn `38456939395` y Device Experience `38456939296` FAILURE: no promover este SHA.
+- Causa demostrada en artifact `11844307619`: `onInvalid -> invalidFormControls -> checkValidity -> invalid` recursivo, `Maximum call stack size exceeded` y bloqueo al abrir Clientes. La observación pasiva de progreso también disparaba eventos `invalid` al llamar `checkValidity`.
+- Corrección en `fix/m39-validation-recursion-closure`: leer `ValidityState.valid` sin emitir eventos; conservar validación nativa de envío y restricciones. Regresión de navegador añadida a Device Experience (formularios incompletos, rango inválido, envío válido y navegación), más pruebas unitarias.
+- Device Experience falló además esperando el CTA WebAuthn mientras la UI seguía «Confirmando identidad y permisos». Esa causa no está demostrada aún; requiere revalidación y diagnóstico, sin ampliar timeouts ni omitir MFA.
+- Siguiente: CI del cierre, merge protegido, certificación Canary exacta y promoción oficial con verificación LIVE/rollback. La aceptación de running por el usuario sigue pendiente (#919).
+
 ## Canary certificado · cierre PR #869 · 2026-10-11
 
 - [PR #869](https://github.com/iberfit/iberfit-m26-app/pull/869) MERGED. SHA exacto protegido **`053fc83df22062c636149a92a9f6386200928fea`**; 7/7 gates previos y **12/12 postmerge SUCCESS**. La carrera de hidratación entre sesiones (cuenta A → B, relogin misma identidad, refresh legítimo, error tardío y coalescing) queda protegida mediante lease opaco por generación y regresiones reales node:vm.
