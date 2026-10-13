@@ -61,6 +61,13 @@ test('M39 remote ACK cannot be rewritten as pending when local receipt removal f
   assert.equal(remoteCalls,1);
   assert.equal(writes,1,'no post-ACK catch may rewrite an authoritative success as a pending retry');
   assert.equal(stored.get('op-m39-local-cleanup').attempts,0);
+  assert.deepEqual(await bus.pending(),[],'confirmed ACK must not appear as a pending mutation');
+  const flushed=await bus.flushPending({limit:3});
+  assert.equal(flushed.attempted,0,'auto flush must not replay a confirmed mutation');
+  assert.equal(flushed.remaining,0);
+  assert.equal(remoteCalls,1);
+  assert.equal((await bus.retry('op-m39-local-cleanup')).ok,true,'manual retry reuses the ACK instead of resending');
+  assert.equal(remoteCalls,1);
   const feedback=mutationFeedback(result);
   assert.equal(feedback.confirmed,true);
   assert.equal(feedback.retryMutation,false);
