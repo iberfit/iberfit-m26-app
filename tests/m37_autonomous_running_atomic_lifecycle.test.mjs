@@ -74,4 +74,11 @@ test('M37 static SQL keeps canonical authorization, atomic enable, FK and idempo
   assert.ok(last.includes("'blocks',case when v_next_body->>'deliveryModality'='guiada_en_app'"));
   assert.ok(last.includes("'[]'::jsonb end"));
   assert.ok(!first.includes("'blocks',case when v_next_body->>'deliveryModality'='guiada_en_app'"));
+  const guarded=readFileSync(new URL('../supabase/migrations/20261013162700_m37_start_patch_integrity.sql',import.meta.url),'utf8');
+  assert.ok(guarded.includes('M37_START_PATCH_FORBIDDEN'));
+  assert.ok(guarded.includes("(v_payload->'patch') - 'activeExecutionId'"));
+  assert.ok(guarded.includes("v_payload->'patch'->>'activeExecutionId' is distinct from v_execution_id::text"));
+  assert.ok(guarded.includes("SET search_path TO ''"));
+  assert.ok(!/\\bDO\\s+\\$[A-Za-z_]*\\$/i.test(guarded));
+
 });
