@@ -116,6 +116,17 @@ test('M39 confirmed plan validation tolerates unavailable local draft cleanup',(
   assert.match(plan,/return settled;/);
 });
 
+test('M39 complete cycle validation does not falsely fail on browser draft storage errors',()=>{
+  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
+  assert.match(plan,/try\{backup=await draftRepository\?\.load\?\.\(clientId,'planning-cycle'\);\}/);
+  assert.match(plan,/M26_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE/);
+  assert.match(plan,/try\{await draftRepository\?\.save\?\.\(clientId,'planning-cycle',draft\);\}/);
+  assert.match(plan,/M26_PLAN_LOCAL_DRAFT_SAVE_UNAVAILABLE/);
+  assert.match(plan,/M26_PLAN_DRAFT_CLEANUP_PENDING/);
+  assert.match(plan,/commandBus\.execute\(buildCycleCommand\(draft,revision\)\)/);
+});
+
 test('M39 a real rejection remains a rejection and preserves diagnostics',async()=>{
   const repository=createKeyValueOperationRepository({storage:createMemoryKeyValueStore(),ownerId:'coach-m39'});
   const bus=createCommandBus({
