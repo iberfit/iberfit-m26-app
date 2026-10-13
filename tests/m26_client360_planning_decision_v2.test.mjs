@@ -61,6 +61,7 @@ test('client planning overview preserves delivery ownership and reports supervis
           visibility:'full',
           visible:true,
           canClientExecute:true,
+          canClientStart:true,
           session:{blocks:[{name:'Remo',sets:3,reps:'10'}]},
           calendarVisible:false,
         },
