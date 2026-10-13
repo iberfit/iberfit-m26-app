@@ -1,6 +1,10 @@
 const REVIEWABLE_SYNC_STATES=new Set(['conflict','rejected']);
 export const TRAINING_SERVICE_NOT_ACTIVE='TRAINING_SERVICE_NOT_ACTIVE';
 const ACTIONABLE_FAILURE_MESSAGES=Object.freeze({
+  ENTITY_NOT_FOUND:{message:'La sesión aún no existe en el servidor. El borrador está conservado: vuelve a revisar la sesión antes de publicar; no crees copias.',focusSelector:'[data-session-action="preview"]'},
+  REVISION_MISMATCH:{message:'La sesión cambió desde otra pestaña o dispositivo. Actualiza su información antes de volver a publicar.',focusSelector:'[data-session-action="preview"]'},
+  PREVIEW_REQUIRED:{message:'Revisa la vista previa de la sesión y confirma los datos antes de publicarla.',focusSelector:'[data-session-action="preview"]'},
+  M26_SESSION_CONFIRM_NOT_VISIBLE:{message:'La publicación fue aceptada, pero no se pudo confirmar su visibilidad. El borrador se conserva. Revisa el estado antes de repetir.',focusSelector:'[data-session-action="preview"]'},
   M26_EXECUTION_RESULT_REQUIRED:{message:'Registra repeticiones o tiempo antes de completar la serie.',focusSelector:'[data-set-field="reps"]'},
   M26_EXECUTION_REPS_INVALID:{message:'Revisa las repeticiones: deben ser un valor válido entre 0 y 10.000.',focusSelector:'[data-set-field="reps"]'},
   M26_EXECUTION_SECONDS_INVALID:{message:'Revisa el tiempo: debe ser un valor válido entre 0 y 86.400 segundos.',focusSelector:'[data-set-field="seconds"]'},
