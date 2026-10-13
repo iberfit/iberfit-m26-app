@@ -121,3 +121,44 @@ test('M39 timed plank validates by a recorded duration, not fictitious repetitio
   draft.blocks[0].plannedDurationMinutes='';
   assert.equal(validateSessionDraft(draft,catalog).errors.some(x=>x.startsWith('prescription:')),true);
 });
+
+test('M39 reports editor supports incomplete drafts without browser constraints',()=>{
+  const route=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  const start=route.indexOf('data-workflow-form="report-approval"');
+  const end=route.indexOf("`:`<section class=\"m26-notice is-warning",start);
+  assert.ok(start>=0,'reports editor not found');
+  const editor=route.slice(start,end>start?end:start+3300);
+  assert.ok(editor.includes('data-workflow-action="save-report-draft"'));
+  assert.ok(editor.includes('name="entityId"'));
+  assert.ok(editor.includes('name="assessmentId"'));
+  for(const field of ['summary','conclusions','recommendations']){
+    assert.ok(editor.includes(`<textarea name="${field}" maxlength="2500" required>`));
+    assert.ok(!editor.includes(`<textarea name="${field}" minlength="20"`));
+  }
+  assert.ok(editor.includes('type="button" data-workflow-action="save-report-draft"'));
+  assert.ok(editor.includes('data-workflow-action="approve-report"'));
+});
+
+test('M39 report drafts are client-and-assessment scoped and saved without approval validation',()=>{
+ const workflow=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+ for(const literal of [
+   "function reportDraftScope(assessmentId)",
+   "'report-approval:'+String(assessmentId||'').trim()",
+   "async function saveReportDraft(form,{silent=false}={})",
+   "reportFormClientIds.get(form)!==clientId",
+   "await draftRepository.save(clientId,reportDraftScope(assessmentId),payload)",
+   "async function initializeReportForm(form)",
+   "editedReportForms.has(form)",
+   "String(saved.value.assessmentId||'')!==assessmentId",
+   "function queueReportSave(form)",
+   "queueReportSave(reportForm)",
+   "saveReportDraft(form,{silent:true})",
+   "saveReportDraft(reportForm,{silent:true})",
+   "draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId))",
+ ])assert.ok(workflow.includes(literal),literal);
+ const start=workflow.indexOf('async function saveReportDraft(');
+ const finish=workflow.indexOf('function queueReportSave(',start);
+ const save=workflow.slice(start,finish);
+ assert.ok(!save.includes('ensureValidForm('));
+ assert.ok(!save.includes('validateReportDraft('));
+});
