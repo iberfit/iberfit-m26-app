@@ -3,9 +3,9 @@ const ENTITY_ALIASES=Object.freeze({session:'session',sesion:'session',planning:
 const STATUS_ALIASES=Object.freeze({
   draft:'draft',borrador:'draft',
   pending:'review',pendiente:'review',review:'review',revision:'review','en_revision':'review','en revisión':'review',validated:'review',validado:'review',
-  approved:'approved',aprobado:'approved',
-  published:'published',publicado:'published',active:'published',activo:'published',enabled:'published',habilitado:'published',
-  withdrawn:'withdrawn',retirado:'withdrawn',cancelled:'withdrawn',cancelado:'withdrawn',anulado:'withdrawn',
+  approved:'approved',aprobado:'approved',aprobada:'approved',
+  published:'published',publicado:'published',publicada:'published',disponible:'published',en_curso:'published',active:'published',activo:'published',enabled:'published',habilitado:'published',
+  withdrawn:'withdrawn',retirado:'withdrawn',retirada:'withdrawn',cancelled:'withdrawn',cancelado:'withdrawn',cancelada:'withdrawn',anulado:'withdrawn',
   archived:'archived',archivado:'archived',
 });
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
