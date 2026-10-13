@@ -17,7 +17,7 @@ function block(selector){
 test('M41: Client Today still uses canonical functional route and role-scoped CSS',()=>{
   assert.match(routes,/function renderClientHoyRoute\(vm\)/);
   assert.match(routes,/m26-client-home-primary-zone/);
-  assert.match(routes,/data-workflow-action=\\"start-published-session\\"/);
+  assert.ok(routes.includes('data-workflow-action="start-published-session"'));
   assert.match(css,/\.m26-shell\[data-m26-role="client"\] \.m26-client-home-v1/);
 });
 
