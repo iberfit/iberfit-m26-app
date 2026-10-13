@@ -40,6 +40,14 @@ test('canonical and V43 direct table RLS require publication for Cliente',()=>{
   assert.ok(sql.includes("coalesce(lower(body ->> 'visibleToClient')"));
   assert.ok(sql.includes('is_assigned_coach(client_id)'));
   assert.ok(!/\b(?:GRANT|UPDATE|DELETE FROM|TRUNCATE)\b/iu.test(sql),'unexpected privilege/data mutation');
+  const compatibility=readFileSync(new URL(
+    '../supabase/migrations/20261013152213_m36_v43_status_visibility_compat.sql',
+    import.meta.url),'utf8');
+  assert.ok(compatibility.includes("status IN ('active','paused','completed')"));
+  assert.ok(compatibility.includes("status IN ('confirmed','started','completed')"));
+  assert.ok(compatibility.includes("is_assigned_coach(client_id)"));
+  assert.ok(!compatibility.includes("'planned'"),'planned sessions must not be client-visible');
+  assert.ok(!/\b(?:GRANT|UPDATE|DELETE FROM|TRUNCATE)\b/iu.test(compatibility),'unexpected V43 privilege/data mutation');
 });
 
 test('Coach plan validation deduplicates in-flight submissions before draft loading',()=>{
