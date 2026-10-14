@@ -13,6 +13,8 @@ export const REQUIRED=Object.freeze([
   'client_plan_helper_v2','client_session_helper_v2','client_block_helper_v2',
   'client_publication_http_plan_v2','client_publication_http_session_v2',
   'client_publication_helpers_unreachable','client_publication_semantic_privacy',
+  'domain_entities_anon_direct_read_denied','domain_entities_auth_direct_read_denied',
+  'domain_entities_service_read_preserved',
 ]);
 const definition=name=>`pg_catalog.pg_get_functiondef(to_regprocedure('public.${name}'))`;
 const preflight=definition('iberfit_command_preflight_v26_pre_rc74_4h(jsonb)');
@@ -56,6 +58,9 @@ export const QUERY=[
   "  coalesce(position('iberfit_m43_client_safe_session_v2' in pg_catalog.pg_get_functiondef(to_regprocedure('public.iberfit_bootstrap_v26()')))>0,false) AS client_publication_http_session_v2",
   "  NOT has_function_privilege('anon',to_regprocedure('public.iberfit_m43_client_safe_plan_v2(jsonb)'),'EXECUTE') AND NOT has_function_privilege('authenticated',to_regprocedure('public.iberfit_m43_client_safe_plan_v2(jsonb)'),'EXECUTE') AND NOT has_function_privilege('anon',to_regprocedure('public.iberfit_m43_client_safe_session_v2(jsonb)'),'EXECUTE') AND NOT has_function_privilege('authenticated',to_regprocedure('public.iberfit_m43_client_safe_session_v2(jsonb)'),'EXECUTE') AND NOT has_function_privilege('anon',to_regprocedure('public.iberfit_m43_client_safe_block_v2(jsonb)'),'EXECUTE') AND NOT has_function_privilege('authenticated',to_regprocedure('public.iberfit_m43_client_safe_block_v2(jsonb)'),'EXECUTE') AS client_publication_helpers_unreachable",
   "  (SELECT NOT (p.x ? 'publishedSnapshot')\n AND NOT (s.x ? 'publishedSnapshot')\n AND NOT (s.x->'blocks'->0 ? 'coachPrivateNote')\n AND jsonb_array_length(s.x->'blocks')=1\n AND jsonb_array_length(c.x->'blocks')=0\n AND (s.x->'blocks'->0->>'sets')::integer=2\n FROM\n   (SELECT public.iberfit_m43_client_safe_plan_v2('{\"id\":\"QA\",\"name\":\"QA\",\"publishedSnapshot\":{\"secret\":true}}'::jsonb) x) p,\n   (SELECT public.iberfit_m43_client_safe_session_v2('{\"id\":\"QA\",\"deliveryModality\":\"guiada_en_app\",\"blocks\":[{\"id\":\"a\",\"sets\":2,\"coachPrivateNote\":\"QA\"}],\"publishedSnapshot\":{\"secret\":true}}'::jsonb) x) s,\n   (SELECT public.iberfit_m43_client_safe_session_v2('{\"id\":\"QA\",\"deliveryModality\":\"presencial\",\"blocks\":[{\"id\":\"a\",\"sets\":2}]}'::jsonb) x) c) AS client_publication_semantic_privacy",
+  "  has_table_privilege('anon','public.domain_entities_v26','SELECT') IS FALSE AS domain_entities_anon_direct_read_denied",
+  "  has_table_privilege('authenticated','public.domain_entities_v26','SELECT') IS FALSE AS domain_entities_auth_direct_read_denied",
+  "  has_table_privilege('service_role','public.domain_entities_v26','SELECT') IS TRUE AS domain_entities_service_read_preserved",
 ].join('\n');
 export function certify(payload){
   const rows=Array.isArray(payload)?payload:Array.isArray(payload?.result)?payload.result:null;

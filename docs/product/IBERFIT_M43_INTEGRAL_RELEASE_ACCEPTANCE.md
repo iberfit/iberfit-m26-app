@@ -129,3 +129,11 @@ La prueba de regresión detectó además que el proyector de `sessionExecutions`
 La auditoría de QA detectó que los Clientes recibían datos internos en el JSON original de las sesiones y planificaciones publicadas, aunque el frontend los ocultara. Se añade **migración versionada M43 V2** `20261014143500_m43_publication_http_privacy_v2.sql` y rollback específico, que restaura la V1 sin alterar datos. Los helpers de SQL son `SECURITY INVOKER`, no tienen acceso directo desde `anon`/`authenticated`, y proyectan las publicaciones visibles como datos mínimos; los bloques deportivos conservan métricas y prescripciones, mientras la modalidad presencial muestra solo resumen.
 
 El verificador de compatibilidad en PROD amplía su contrato de 22 a **29 comprobaciones**, incluyendo autorización de helpers y el comportamiento semántico de redacción con datos sintéticos. **No declarar aplicado a QA/PROD hasta verificar la migración y no promocionar el frontend con una respuesta incompatible.** La revisión de IRI inicial permanece separada del seguimiento longitudinal.
+
+## M43 cierre RLS/Data API: lectura directa de JSON privado
+
+**Hallazgo bloqueante:** `public.domain_entities_v26` tenía `SELECT` para `authenticated` y `anon`, aunque RLS solo limita filas, no el contenido de `body`/JSONB. Un Cliente autorizado para su sesión publicada podía solicitar directamente la fila sin pasar por el bootstrap sanitizado. Por ello la migración V2, por sí sola, no bastaba para certificar la privacidad.
+
+**Solución M43 V3** `20261014150000_m43_domain_entities_api_read_fence_v3.sql`: revoca exclusivamente la lectura directa de la tabla para los roles externos; conserva `service_role` y la lectura interna a través de las funciones `SECURITY DEFINER` de ámbito. Todas las funciones SQL que referencian directamente la tabla en QA se auditaron como `SECURITY DEFINER`, y el transporte frontend consume RPCs. No se alteran registros, RLS ni concesiones de escritura. Incluye rollback explícito de GRANT (solo para recuperación controlada).
+
+El contrato de producción pasa a **32 comprobaciones**, con puertas separadas para denegación `anon`, denegación `authenticated` y lectura interna `service_role`. **Exige certificación autenticada postmigración y Canary exacto antes de producción.**
