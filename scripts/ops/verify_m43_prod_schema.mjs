@@ -9,6 +9,7 @@ export const REQUIRED=Object.freeze([
   'client_execution_helper','client_execution_http_projection',
   'client_legacy_execution_http_projection','client_execution_anon_denied',
   'client_execution_authenticated_denied','client_execution_no_private_keys',
+  'client_execution_semantic_privacy',
 ]);
 const definition=name=>`pg_catalog.pg_get_functiondef(to_regprocedure('public.${name}'))`;
 const preflight=definition('iberfit_command_preflight_v26_pre_rc74_4h(jsonb)');
@@ -37,7 +38,14 @@ export const QUERY=[
   `  ${fragment(bootstrap,'data,sessionExecutions')} AS client_legacy_execution_http_projection,`,
   "  has_function_privilege('anon',to_regprocedure('public.iberfit_m43_client_safe_execution_v1(jsonb)'),'EXECUTE') IS FALSE AS client_execution_anon_denied,",
   "  has_function_privilege('authenticated',to_regprocedure('public.iberfit_m43_client_safe_execution_v1(jsonb)'),'EXECUTE') IS FALSE AS client_execution_authenticated_denied,",
-  `  coalesce(position('coachPrivateNote' in ${definition('iberfit_m43_client_safe_execution_v1(jsonb)')})=0,false) AS client_execution_no_private_keys`,
+  `  coalesce(position('coachPrivateNote' in ${definition('iberfit_m43_client_safe_execution_v1(jsonb)')})=0,false) AS client_execution_no_private_keys,`,
+  `  (SELECT (x.safe->'results' @> '[{"reps":8,"rpe":7}]'::jsonb)
+    AND NOT (x.safe ? 'events')
+    AND NOT (x.safe->'feedback' ? 'internalNotes')
+    AND x.safe->'feedback'->>'comment'='QA'
+    FROM (SELECT public.iberfit_m43_client_safe_execution_v1(
+      '{"id":"QA","results":{"a":{"reps":8,"rpe":7,"internalNotes":"QA"}},"events":[{"kind":"QA"}],"feedback":{"comment":"QA","internalNotes":"QA"}}'::jsonb
+    ) AS safe) x) AS client_execution_semantic_privacy`,
 ].join('\n');
 export function certify(payload){
   const rows=Array.isArray(payload)?payload:Array.isArray(payload?.result)?payload.result:null;
