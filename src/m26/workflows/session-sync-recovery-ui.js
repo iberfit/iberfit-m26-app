@@ -15,6 +15,10 @@ const ACTIONABLE_FAILURE_MESSAGES=Object.freeze({
   M26_COMMAND_CONTRACT_INVALID:'La aplicación no pudo validar la orden de inicio. Actualiza la sesión y vuelve a entrar; si persiste, el equipo IBERFIT debe revisar la autorización.',
   REVISION_MISMATCH:'La sesión ha cambiado desde que la abriste. Vuelve a entrar desde Sesiones para cargar su última revisión.',
   INVALID_TRANSITION:'El estado de esta sesión ha cambiado y ya no permite iniciar otra ejecución. Revisa la sesión actualizada.',
+  CONFIRMED_APPOINTMENT_REQUIRED:'El servidor solicita una cita confirmada para este inicio. Si tu sesión es guiada en la app, pide al equipo IBERFIT que revise su habilitación.',
+  ACTIVE_EXECUTION_EXISTS:'Ya existe un entrenamiento activo asociado a tu cuenta. Revisa la recuperación de sesión antes de iniciar otro; no se ha creado una ejecución duplicada.',
+  M28_COACH_LED_CLIENT_START_FORBIDDEN:'Esta sesión requiere ejecución supervisada y no puede iniciarse como entrenamiento autónomo. Consulta con tu Coach.',
+  M26_EXECUTION_BLOCK_INVALID:'La prescripción contiene un bloque que no puede ejecutarse. La planificación sigue guardada; tu Coach debe revisar ese ejercicio.',
   M26_EXECUTION_RESULT_REQUIRED:{message:'Registra repeticiones o tiempo antes de completar la serie.',focusSelector:'[data-set-field="reps"]'},
   M26_EXECUTION_REPS_INVALID:{message:'Revisa las repeticiones: deben ser un valor válido entre 0 y 10.000.',focusSelector:'[data-set-field="reps"]'},
   M26_EXECUTION_SECONDS_INVALID:{message:'Revisa el tiempo: debe ser un valor válido entre 0 y 86.400 segundos.',focusSelector:'[data-set-field="seconds"]'},
@@ -107,6 +111,9 @@ export function sessionCommandFailureOutcome(source,{role='',action='',phase='ac
   }
   if(reason!==TRAINING_SERVICE_NOT_ACTIVE){
     if(phase==='sync')return null;
+    if(reason.startsWith('M26_COMMAND_CONTRACT_INVALID:')){
+      return Object.freeze({status:'error',code:'M26_COMMAND_CONTRACT_INVALID',message:ACTIONABLE_FAILURE_MESSAGES.M26_COMMAND_CONTRACT_INVALID});
+    }
     const recovery=ACTIONABLE_FAILURE_MESSAGES[reason];
     if(!recovery)return null;
     return Object.freeze({status:'retry',code:reason,...recovery});
