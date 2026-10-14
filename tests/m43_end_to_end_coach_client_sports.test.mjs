@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMemoryEngagementDraftRepository} from '../src/m26/engagement/activity-drafts.js';
+import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 import {planningDraftScope,restorePlanningDraft,removeConfirmedPlanningDraft} from '../src/m26/workflows/planning-draft-safety.js';
 import {buildCycleCommand} from '../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
@@ -103,6 +104,14 @@ test('M43 integrated: published visibility, explicit enablement, three sports, m
   assert.equal(start.payload.appointmentId,undefined);
   assert.equal(plannedSetDraftValues(execution,enabled).load,'30 kg');
   assert.equal(plannedSetDraftValues(execution,enabled).rpe,'','planned RPE must never become an observed value');
+  // This must use the *client-projected* content, not the Coach's full draft.
+  // A direct builder-only test cannot catch missing safe projection fields.
+  const readyHtml=renderGuidedExecution({session:enabled,execution,catalog,role:'client'});
+  assert.match(readyHtml,/data-session-ready-sport-preview/);
+  assert.match(readyHtml,/02:20 min\\/100 m \\(objetivo\\)/);
+  assert.match(readyHtml,/06:00 min\\/km/);
+  assert.doesNotMatch(readyHtml,/NO MOSTRAR|OTRO CLIENTE/);
+
   startExecution(execution,{actor:{role:'client',clientId,userId:user.id}});
   assert.equal(currentStep(execution,enabled).exerciseId,'IBF-SENTADILLA-FUERZA');
 
@@ -112,6 +121,14 @@ test('M43 integrated: published visibility, explicit enablement, three sports, m
   recordSet(execution,enabled,{durationMinutes:'30',distanceKm:'5',paceMinPerKm:'06:00',rpe:6,actor:user});
   advanceExecution(execution,{actor:user});
   assert.equal(currentStep(execution,enabled).exerciseId,'IBF-NATACION-CROL');
+  const swimPlanned=plannedSetDraftValues(execution,enabled);
+  assert.equal(swimPlanned.distanceM,'400');
+  assert.equal(swimPlanned.rpe,'');
+  assert.equal(Object.hasOwn(swimPlanned,'pacePer100M'),false);
+  const duringSwim=renderGuidedExecution({session:enabled,execution,catalog,role:'client'});
+  assert.match(duringSwim,/02:20 min\\/100 m \\(objetivo\\)/);
+  assert.match(duringSwim,/data-set-field="pacePer100M"/);
+
   recordSet(execution,enabled,{durationMinutes:'10',distanceM:'400',pacePer100M:'02:25',rpe:7,actor:user});
   advanceExecution(execution,{actor:user});
   assert.equal(execution.status,'awaiting_feedback');
