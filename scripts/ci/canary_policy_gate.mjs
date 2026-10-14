@@ -150,6 +150,15 @@ export function evaluateRequiredChecks(required,checkRuns=[]){
       passed.push(name);
       continue;
     }
+    // Ready for Review starts fresh check runs for the same immutable SHA.
+    // A Draft-only skipped/cancelled check may still be the latest visible
+    // result until the Ready jobs are registered by GitHub. Never count it
+    // as green, but keep polling the new candidate rather than failing before
+    // the required suites have even been queued. Timeout remains fail-closed.
+    if(['skipped','cancelled','neutral'].includes(run.conclusion)){
+      pending.push(name);
+      continue;
+    }
     failed.push({name,conclusion:run.conclusion||'unknown'});
   }
 
