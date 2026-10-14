@@ -108,8 +108,8 @@ test('M43 integrated: published visibility, explicit enablement, three sports, m
   // A direct builder-only test cannot catch missing safe projection fields.
   const readyHtml=renderGuidedExecution({session:enabled,execution,catalog,role:'client'});
   assert.match(readyHtml,/data-session-ready-sport-preview/);
-  assert.match(readyHtml,/02:20 min\\/100 m \\(objetivo\\)/);
-  assert.match(readyHtml,/06:00 min\\/km/);
+  assert.ok(readyHtml.includes('02:20 min/100 m (objetivo)'));
+  assert.ok(readyHtml.includes('06:00 min/km'));
   assert.doesNotMatch(readyHtml,/NO MOSTRAR|OTRO CLIENTE/);
 
   startExecution(execution,{actor:{role:'client',clientId,userId:user.id}});
@@ -126,7 +126,7 @@ test('M43 integrated: published visibility, explicit enablement, three sports, m
   assert.equal(swimPlanned.rpe,'');
   assert.equal(Object.hasOwn(swimPlanned,'pacePer100M'),false);
   const duringSwim=renderGuidedExecution({session:enabled,execution,catalog,role:'client'});
-  assert.match(duringSwim,/02:20 min\\/100 m \\(objetivo\\)/);
+  assert.ok(duringSwim.includes('02:20 min/100 m (objetivo)'));
   assert.match(duringSwim,/data-set-field="pacePer100M"/);
 
   recordSet(execution,enabled,{durationMinutes:'10',distanceM:'400',pacePer100M:'02:25',rpe:7,actor:user});
