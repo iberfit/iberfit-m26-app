@@ -277,12 +277,13 @@ test('M43 Coach navigation always closes the tour, preserving the in-progress st
   controller.destroy();
 });
 
-test('M43 explicit Coach route selection takes priority even before shell rerenders',()=>{
+test('M43 explicit Coach route selection takes priority even before shell rerenders',async()=>{
   const harness=createHarness();
   const controller=publicApi.createGuidedTourController({
     ...harness,identityProvider:()=>({role:'coach',userId:'m43-coach-manual-route'}),
   });
   controller.mount();
+  await Promise.resolve(); // The tour auto-opens after the shell's microtask.
   assert.equal(controller.isOpen(),true);
   harness.root.emit('click',{target:{closest(selector){
     return selector==='[data-m26-area]'?{getAttribute(){return 'sesion';}}:null;
