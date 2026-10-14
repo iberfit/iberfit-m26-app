@@ -93,3 +93,7 @@ La certificación autenticada M43 detectó `PLAN_VALIDATE_PREFLIGHT_ENTITY_NOT_F
 La misma migración refuerza la respuesta `SECURITY DEFINER` de bootstrap: el Cliente deja de recibir ciclos o sesiones sin publicar en `trainingCycles`, `sessions`, `m26Entities`, así como eventos internos y revisiones de entidades ocultas. Coach/Admin conservan su proyección completa. El rollback explícito es `supabase/qa-rollbacks/20261014051500_m43_coach_preflight_client_projection_v1_rollback.sql`.
 
 **Situación de entrega:** requiere aplicar y certificar primero en QA con el gate autenticado; no equivale a merge, Canary ni producción.
+
+### QA M43: habilitación atómica después de publicación
+
+La segunda prueba real confirmó que `SESION_PUBLICAR` ya realiza `SESION_HABILITAR` dentro de la misma transacción para sesiones guiadas (M37): el estado confirmado queda `disponible`, revisión 2. Enviar una habilitación adicional genera `INVALID_TRANSITION` correctamente. Se adapta la certificación y el servidor sintético de pruebas para usar el estado y revisión **canónicos** después del ACK, evitando comandos redundantes; las sesiones que no estén todavía disponibles siguen requiriendo habilitación explícita.

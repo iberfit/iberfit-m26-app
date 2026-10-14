@@ -57,7 +57,12 @@ function syntheticServer(){
         entities.trainingCycles.push({...command.payload.patch,id:command.entityId,clientId,status:'validado',revision:1});
       }else if(command.type==='SESION_PUBLICAR'){
         if(activeRole!=='coach'||command.previewAccepted!==true)return {kind:'rejected',reason:'NOT_AUTHORIZED'};
-        entities.sessions.push({...command.payload.patch,id:command.entityId,clientId,status:'publicada',revision:1});
+        // M37: reviewed guided session publication atomically enables it.
+        const guided=command.payload.patch.deliveryModality==='guiada_en_app';
+        remoteRevision=guided?2:1;
+        entities.sessions.push({...command.payload.patch,id:command.entityId,clientId,
+          status:guided?'disponible':'publicada',revision:remoteRevision,
+          autoEnabledAfterPublish:guided});
       }else if(command.type==='SESION_HABILITAR'){
         const session=entities.sessions.find(x=>x.id===command.entityId);
         if(!session||session.status!=='publicada'||command.baseRevision!==session.revision)return {kind:'conflict',reason:'REVISION_MISMATCH'};
@@ -96,23 +101,22 @@ test('M43 full domain-bus flow: plan ACK → publish ACK → enable → Client e
   const publish=dispatchSessionAction({action:'publish',draft,catalog,commandBus:s.bus,online:true,actor:coachActor});
   assert.equal(publish.kind,'command');
   assert.equal((await publish.value).ok,true);
-  assert.equal(s.entities.sessions[0].status,'publicada');
+  assert.equal(s.entities.sessions[0].status,'disponible');
+  assert.equal(s.entities.sessions[0].autoEnabledAfterPublish,true);
+  assert.equal(s.entities.sessions[0].revision,2);
   let projected=projectCollectionsForRole({sessions:s.entities.sessions},clientActor);
   assertClientProjectionSafe(projected,clientActor);
   assert.equal(projected.sessions[0].blocks[0].plannedLoad,'22 kg');
   assert.equal(projected.sessions[0].blocks[1].plannedPace,'06:00');
   assert.equal(projected.sessions[0].blocks[2].plannedPacePer100M,'02:25');
-  assert.equal(clientSessionProjection(projected.sessions[0]).canClientStart,false);
+  assert.equal(clientSessionProjection(projected.sessions[0]).canClientStart,true);
   assert.equal(s.entities.trainingCycles[0].clientId,clientId);
   s.role('client');
   assert.throws(()=>s.bus.execute(buildCycleCommand({...plan(),id:'m43-invalid-plan'},0)),/ROLE_NOT_ALLOWED|M26_COMMAND/);
-  s.role('coach');
-  const enabled=await s.bus.execute({type:'SESION_HABILITAR',entityType:'session',
-    entityId:draft.id,clientId,baseRevision:1,payload:{patch:{status:'disponible'}}});
-  assert.equal(enabled.ok,true);
-  assert.equal(s.entities.sessions[0].status,'disponible');
-  projected=projectCollectionsForRole({sessions:s.entities.sessions},clientActor);
-  assert.equal(clientSessionProjection(projected.sessions[0]).canClientStart,true);
+  // The server has already habilitated the guided session. A separate
+  // HABILITAR would now be an invalid transition, not a missing step.
+  const sessionForClient=projectCollectionsForRole({sessions:s.entities.sessions},clientActor);
+  assert.equal(clientSessionProjection(sessionForClient.sessions[0]).canClientStart,true);
   s.role('client');
   const session=projected.sessions[0];
   const execution=createExecution({session,clientId,executionId:'m43-test-execution'});

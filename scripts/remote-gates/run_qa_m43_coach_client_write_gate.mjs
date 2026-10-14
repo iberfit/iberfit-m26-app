@@ -129,10 +129,24 @@ async function main(){
   await denied(clientA,publishCommand,'CLIENT_CANNOT_PUBLISH');
   await denied(clientB,publishCommand,'FOREIGN_CLIENT_CANNOT_PUBLISH');
   const published=await send(coach,publishCommand,'SESSION_PUBLISH');
-  const enabled=await send(coach,{type:'SESION_HABILITAR',entityType:'session',
-    entityId:draft.id,clientId:idA,baseRevision:Number(published.result.remoteRevision),
-    payload:{patch:{status:'disponible'}}},'SESSION_ENABLE');
-  const [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  // M37 enables reviewed guided sessions atomically during publication.
+  // Do not send a redundant SESION_HABILITAR after a confirmed state change.
+  // Legacy supervised or non-atomic flows still require explicit enablement.
+  let [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  let canonical=clientVisible?.data?.m26Entities?.find(item=>
+    item.entityType==='session'&&String(item.entityId)===String(draft.id));
+  let readyRevision=Number(canonical?.revision??published.result.remoteRevision);
+  if(canonical?.status!=='disponible'){
+    const enabled=await send(coach,{type:'SESION_HABILITAR',entityType:'session',
+      entityId:draft.id,clientId:idA,baseRevision:readyRevision,
+      payload:{patch:{status:'disponible'}}},'SESSION_ENABLE');
+    readyRevision=Number(enabled.result.remoteRevision);
+    [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+    canonical=clientVisible?.data?.m26Entities?.find(item=>
+      item.entityType==='session'&&String(item.entityId)===String(draft.id));
+  }
+  check(canonical?.status==='disponible','GUIDED_SESSION_READY_AFTER_PUBLICATION');
+  check(readyRevision===Number(canonical?.revision),'CANONICAL_SESSION_REVISION');
   check(contains(clientVisible,draft.id,'session')||baseContains(clientVisible,draft.id,'sessions'),
     'CLIENT_SEES_PUBLISHED_SESSION');
   check(!contains(otherVisible,draft.id,'session')&&!baseContains(otherVisible,draft.id,'sessions'),
@@ -142,10 +156,11 @@ async function main(){
   const session={...draft,status:'disponible',deliveryOwnership:'guided_in_app',
     clientVisibilityLevel:'full',visibleToClient:true};
   const execution=createExecution({session,clientId:idA,executionId:randomUUID()});
-  const start=buildStartExecutionCommand(execution,{sessionRevision:Number(enabled.result.remoteRevision)});
+  const start=buildStartExecutionCommand(execution,{sessionRevision:readyRevision});
   await denied(clientB,start,'FOREIGN_CLIENT_CANNOT_START');
-  await send(clientA,start,'CLIENT_START');
+  const started=await send(clientA,start,'CLIENT_START');
   startExecution(execution,{actor:{role:'client',clientId:idA}});
+  execution.revision=Number(started.result.executionRevision||1);
   recordSet(execution,session,{reps:8,load:'20 kg',rpe:7,rir:2});advanceExecution(execution);
   recordSet(execution,session,{distanceKm:5,durationMinutes:30,paceMinPerKm:'06:15',rpe:6});
   advanceExecution(execution);
@@ -153,7 +168,7 @@ async function main(){
   advanceExecution(execution);
   check(execution.status==='awaiting_feedback','THREE_SPORT_RESULTS_RECORDED');
   finishExecution(execution,{sessionRpe:7,pain:false,comment:'QA M43 · sesión sintética finalizada'});
-  await send(clientA,buildExecutionCommand(execution,0),'CLIENT_FINISH_FEEDBACK');
+  await send(clientA,buildExecutionCommand(execution,execution.revision),'CLIENT_FINISH_FEEDBACK');
   evidence.phase='real-client-execution';
 
   const [finalA,finalB]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
