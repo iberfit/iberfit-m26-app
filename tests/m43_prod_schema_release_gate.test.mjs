@@ -21,6 +21,19 @@ test('M43 release gate covers new-plan/session preflight, Client privacy, grants
   assert.match(QUERY,/domain_entities_service_read_preserved/);
   assert.equal(certify([ready]).checks,32);
 });
+test('M43: executable release SQL has exactly 32 comma-separated checks, with no missing or duplicate aliases',()=>{
+  assert.ok(QUERY.startsWith('SELECT\n'));
+  const found=[...QUERY.matchAll(/\bAS ([a-z][a-z0-9_]*)\b/g)].map(match=>match[1]);
+  assert.deepEqual(found,REQUIRED,'SQL aliases must match every required safety check exactly');
+  for(const [index,key] of REQUIRED.entries()){
+    const end=QUERY.indexOf(' AS '+key,QUERY.indexOf('SELECT'));
+    assert.ok(end>0,key+' must be present');
+    const nextLine=QUERY.indexOf('\n',end);
+    const suffix=QUERY.slice(end,nextLine===-1?undefined:nextLine);
+    assert.equal(suffix.endsWith(','),index<REQUIRED.length-1,key+' must delimit next SQL condition');
+  }
+});
+
 test('M43 production gate fails closed on incomplete or malformed backend contracts',()=>{
   for(const key of REQUIRED){
     assert.throws(()=>certify([{...ready,[key]:false}]),new RegExp('M43_PRODUCTION_SCHEMA_INCOMPATIBLE:'+key));
