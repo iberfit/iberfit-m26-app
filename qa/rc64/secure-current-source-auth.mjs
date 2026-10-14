@@ -41,8 +41,9 @@ function isReadOnlyPushConfigRequest(request,url,method){
 }
 
 // Only a private, JWT-authenticated, owner-scoped WebP GET is permitted by
-// readonly visual/auth/device QA. Storage writes, public URLs, arbitrary paths,
-// missing auth and query-string variants must remain blocked.
+// readonly visual/auth/device QA. Storage writes, public URLs and arbitrary
+// queries are forbidden. Exact M42 cacheNonce reads prevent stale private CDN
+// responses without weakening the read-only QA network perimeter.
 const AVATAR_GET_PATH=/^\/storage\/v1\/object\/authenticated\/iberfit-profile-avatars\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/avatar\.webp$/u;
 export function isQaPrivateAvatarRead(request){
   try{
@@ -50,7 +51,9 @@ export function isQaPrivateAvatarRead(request){
     const method=request.method().toUpperCase();
     const headers=request.headers?.()||{};
     return url.origin===SUPABASE_ORIGIN&&method==='GET'&&
-      !url.search&&!url.hash&&AVATAR_GET_PATH.test(url.pathname)&&
+      !url.hash&&AVATAR_GET_PATH.test(url.pathname)&&
+      (!url.search||(url.searchParams.size===1&&
+        /^[0-9]{13}-[1-9][0-9]{0,8}$/u.test(String(url.searchParams.get('cacheNonce')||''))))&&
       /^Bearer [A-Za-z0-9_.~-]+$/u.test(String(headers.authorization||headers.Authorization||''));
   }catch{return false;}
 }

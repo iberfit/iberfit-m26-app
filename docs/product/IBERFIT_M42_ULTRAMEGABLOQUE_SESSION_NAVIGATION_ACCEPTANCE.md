@@ -86,3 +86,7 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - La eliminación remota exige confirmación mediante endpoint metadata privado y descarga autenticada con `cacheNonce` renovado; HTTP 200 en DELETE no constituye éxito suficiente.
 - Se tolera propagación transitoria con 13 comprobaciones acotadas a 2 s (máximo ~24 s); nunca se da por eliminado un objeto todavía accesible.
 - Las lecturas privadas de Cliente/Coach utilizan `cacheNonce` diferente en cada acceso, incluso durante la revalidación por revocación; las fotos nunca usan URL pública.
+
+## QA visual de lecturas privadas CDN
+- Política `qa/rc64/secure-current-source-auth.mjs`: solo GET de avatar privado, URL QA exacta, JWT de usuario y opcional `cacheNonce` con patrón de timestamp-contador. Bloqueados GET de fotos públicas, variables arbitrarias, parámetros duplicados, otras rutas, escritura y otros orígenes.
+- Test de aislamiento `tests/m42_avatar_qa_visual_nonce_perimeter.test.mjs`.
