@@ -22,7 +22,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_media_manifest_v1',
 ]);
 
-test('M43 authenticated Coach navigates real planning and session workspace with usable responsive controls',async({page,context},testInfo)=>{
+test('M43 Coach first-factor enforces genuine device assurance; verify workspace only if MFA is already complete',async({page,context},testInfo)=>{
   const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
     'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD'];
   for(const name of required)expect(process.env[name],name+' must be provided').toBeTruthy();
@@ -40,7 +40,34 @@ test('M43 authenticated Coach navigates real planning and session workspace with
   await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_COACH_EMAIL);
   await page.locator('#m26-login-password').fill(process.env.M26_QA_COACH_PASSWORD);
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
-  await expect(page.locator('.m26-shell[data-m26-role="coach"]')).toBeVisible({timeout:35_000});
+  const shell=page.locator('.m26-shell[data-m26-role="coach"]');
+  const mfaGate=page.getByRole('region',{name:'Protege tu acceso'});
+  await expect.poll(async()=>{
+    if(await shell.isVisible().catch(()=>false))return 'verified-coach';
+    if(await mfaGate.isVisible().catch(()=>false))return 'mfa-required';
+    return 'pending';
+  },{timeout:35_000,message:'Password-first Coach login must reach verified workspace or protected WebAuthn gate'})
+    .not.toBe('pending');
+  const directory=join('recovery','m43-qa','browser');
+  await mkdir(directory,{recursive:true});
+  // Synthetic QA Coach is privileged: password alone intentionally cannot
+  // unlock the workspace. Never fake WebAuthn or inject an elevated role.
+  if(await mfaGate.isVisible().catch(()=>false)){
+    await expect(mfaGate.getByRole('heading',{name:'Protege tu acceso'})).toBeVisible();
+    await expect(mfaGate.getByRole('button',{name:'Configurar este dispositivo'})).toBeVisible();
+    await expect(mfaGate.getByRole('button',{name:'Volver y usar otra cuenta'})).toBeVisible();
+    await expect(shell).toHaveCount(0);
+    const geometry=await page.evaluate(()=>({
+      width:document.documentElement.clientWidth,
+      scrollWidth:document.documentElement.scrollWidth,
+    }));
+    expect(geometry.scrollWidth,'MFA gate must remain responsive').toBeLessThanOrEqual(geometry.width+2);
+    expect(errors,'MFA must not cause uncaught page errors').toEqual([]);
+    await page.screenshot({path:join(directory,`${testInfo.project.name}-coach-mfa-required.png`),fullPage:true});
+    console.log('M43_COACH_BROWSER_ASSURANCE_REQUIRED_WORKSPACE_NOT_CERTIFIED');
+    return;
+  }
+  await expect(shell).toBeVisible();
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:20_000});
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   if(await welcome.isVisible().catch(()=>false)){
@@ -51,9 +78,6 @@ test('M43 authenticated Coach navigates real planning and session workspace with
     const close=page.locator(selector).first();
     if(await close.count())await close.click();
   }
-  const directory=join('recovery','m43-qa','browser');
-  await mkdir(directory,{recursive:true});
-
   const sessions=page.locator('[data-m26-area="sesion"]:visible').first();
   await expect(sessions).toBeVisible({timeout:12_000});
   await sessions.click();
