@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "87891aa35c2f74eb122bf1863962e319a7b0f336",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IBERFIT NEXT M41 · Ultramegabloque sistema visual premium. PR #934 merged. 12/12 post-merge SUCCESS; Canary exact LIVE and deployed desktop/mobile, WebAuthn real Coach/Admin, Device Experience, CI, QA Auth, previous Canary preserved. Promote the exact canonical source without DB migrations."
+}
