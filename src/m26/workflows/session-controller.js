@@ -14,7 +14,7 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
-import {sessionDeliveryModality,sessionDeliveryOwnership} from '../rc39/session-policy.js';
+import {sessionDeliveryModality,sessionDeliveryOwnership,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -110,6 +110,16 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
         (sessionDeliveryModality(session)!=='guiada_en_app'||
           !['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(session))))
         throw new Error('M28_SESSION_COACH_LED_CLIENT_START_FORBIDDEN');
+      if(['client','cliente'].includes(actorRole)){
+        // Publication is not enablement. The UI must never create a local
+        // active workout from an unpublished, hidden or already-started one.
+        if(!actorCanExecuteSession({role:'client',session})||!sessionReadyToStart(session))
+          throw new Error('M43_CLIENT_SESSION_NOT_READY');
+        if((actor?.clientId&&String(actor.clientId)!==String(execution?.clientId))||
+          (session?.clientId&&String(session.clientId)!==String(execution?.clientId))||
+          String(execution?.sessionId||'')!==String(session?.id||''))
+          throw new Error('M43_CLIENT_EXECUTION_SCOPE_CONFLICT');
+      }
       const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision});
       if(!commandBus){startExecution(execution,{actor});return {kind:'execution',value:execution};}
       if(!isOnline(online)){
