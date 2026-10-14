@@ -133,3 +133,29 @@ test('M41 does not corrupt standalone reporting, IRI meaning or the running prod
   assert.match(css.v3,/\.m26-shell\[data-m26-role="coach"\]/);
   assert.match(css.v3,/\.m26-shell\[data-m26-role="admin"\]/);
 });
+
+
+test('M41 comforting Client guidance stays a discreet matte cream dialog above all mobile navigation',()=>{
+  const guide=read('src/m26/onboarding/client-guided-welcome.js');
+  assert.match(guide,/\.m26-client-guided-welcome\{[\s\S]*?background:#F5F5F0/);
+  assert.match(guide,/--m26-client-guide-dock-clearance/);
+  assert.match(guide,/bottom:max\(calc\(8\.5rem \+ env\(safe-area-inset-bottom\)\),var\(--m26-client-guide-dock-clearance,0px\)\)/);
+  assert.match(guide,/getBoundingClientRect\?\.\(\)/);
+  assert.match(guide,/\.m26-client-bottom-nav,\.m26-mobile-nav/);
+  assert.match(guide,/setDialogDockClearance\(\)/);
+  assert.match(guide,/overscroll-behavior:contain/);
+  assert.match(guide,/@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(guide,/data-m26-client-guided-welcome-pause/);
+  const e2e=read('qa/rc64/client-guided-welcome.spec.mjs');
+  assert.match(e2e,/node\.style\.minHeight='154px'/);
+  assert.match(e2e,/dialogBox\.y\+dialogBox\.height<=navBox\.y-4/);
+});
+
+test('M41 Admin visual certification validates the actual matte UI instead of requiring decorative gradients',()=>{
+  const qa=read('qa/admin-interaction/admin-visual-evidence.spec.mjs');
+  assert.match(qa,/expect\(vision\.workspaceBackground\)\.toBe\('none'\)/);
+  assert.match(qa,/expect\(vision\.surfaceBackgroundImage\)\.toBe\('none'\)/);
+  assert.match(qa,/expect\(vision\.workspaceBackgroundColor\)\.toBe\('rgb\(11, 19, 16\)'\)/);
+  assert.match(qa,/expect\(vision\.navBackgroundColor\)\.toMatch/);
+  assert.match(qa,/not\.toMatch\(\/rgb\\\(255/);
+});

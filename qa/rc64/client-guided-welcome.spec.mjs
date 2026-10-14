@@ -112,6 +112,30 @@ test('Client Genie guides a Client-only first run, can pause and completes its j
     await manualGuide.evaluate((node)=>node.click());
     await expectJourneyState(page,{area:'hoy',title:'Hola. Antes de dejarte a tu aire…',state:'idle'});
 
+    // M41 psychological comfort: the helpful dialogue must not compete with
+    // bottom navigation, even if large accessible labels make the dock taller.
+    if(Number(page.viewportSize()?.width||0)<=690){
+      const nav=page.locator('.m26-client-bottom-nav:visible').first();
+      await nav.evaluate((node)=>{
+        node.dataset.m41PreviousMinHeight=node.style.minHeight;
+        node.style.minHeight='154px';
+        window.dispatchEvent(new Event('resize'));
+      });
+      await expect.poll(async()=>{
+        const [dialogBox,navBox]=await Promise.all([
+          page.locator('[data-m26-client-guided-welcome]').boundingBox(),
+          nav.boundingBox(),
+        ]);
+        return Boolean(dialogBox&&navBox&&dialogBox.y+dialogBox.height<=navBox.y-4);
+      },{message:'M41 dynamic Client navigation must always clear the nonmodal welcome',timeout:5_000}).toBe(true);
+      await nav.evaluate((node)=>{
+        node.style.minHeight=node.dataset.m41PreviousMinHeight||'';
+        delete node.dataset.m41PreviousMinHeight;
+        window.dispatchEvent(new Event('resize'));
+      });
+      await expectJourneyState(page,{area:'hoy',title:'Hola. Antes de dejarte a tu aire…',state:'idle'});
+    }
+
     await mkdir('recovery/client-genie-welcome',{recursive:true});
     await page.screenshot({
       path:`recovery/client-genie-welcome/client-genie-welcome-${slug(testInfo.project.name)}.png`,
