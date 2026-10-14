@@ -85,3 +85,11 @@ siendo controles independientes y obligatorios.
 La ruta `scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs` ejecuta los constructores reales del producto frente a Supabase QA con identidades sintéticas de Coach y dos Clientes, sin mocks, service_role ni egress a producción. Certifica ciclos independientes, permisos, ACK e idempotencia, aprobación y publicación, sesión de fuerza/running/natación, habilitación, ejecución autónoma, feedback, historial y aislamiento. Incluye comprobación explícita de que los ciclos no publicados no sean visibles al Cliente. La evidencia queda minimizada en `recovery/m43-qa/coach-client-real-write.json`.
 
 El gate falla ante cualquier bloqueo real o fuga de borradores; no se ignoran resultados para poner CI en verde. Su aprobación no sustituye las pruebas de dispositivos, Canary exacto ni el despliegue certificado a producción.
+
+## Defecto real descubierto por QA y corrección estructural
+
+La certificación autenticada M43 detectó `PLAN_VALIDATE_PREFLIGHT_ENTITY_NOT_FOUND` al crear un ciclo nuevo con Coach autorizado y servicio activo. La función antigua de preflight exigía una entidad existente aun cuando el ejecutor canónico permite `PLAN_VALIDAR` inicial y `SESION_PUBLICAR` inicial con previsualización. La migración `supabase/migrations/20261014051500_m43_coach_preflight_client_projection_v1.sql` reproduce exactamente esos estados iniciales sin relajar autorización, aislamiento de cliente, servicio activo, preview, conflictos ni registro de operaciones.
+
+La misma migración refuerza la respuesta `SECURITY DEFINER` de bootstrap: el Cliente deja de recibir ciclos o sesiones sin publicar en `trainingCycles`, `sessions`, `m26Entities`, así como eventos internos y revisiones de entidades ocultas. Coach/Admin conservan su proyección completa. El rollback explícito es `supabase/qa-rollbacks/20261014051500_m43_coach_preflight_client_projection_v1_rollback.sql`.
+
+**Situación de entrega:** requiere aplicar y certificar primero en QA con el gate autenticado; no equivale a merge, Canary ni producción.
