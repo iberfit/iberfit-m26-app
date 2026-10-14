@@ -2,7 +2,7 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/rc64',
-  testMatch:'m43-client-real-history.spec.mjs',
+  testMatch:/m43-(?:client-real-history|coach-real-workspace)\.spec\.mjs/,
   fullyParallel:false,workers:1,retries:0,
   reporter:'line',timeout:120_000,
   expect:{timeout:15_000},
