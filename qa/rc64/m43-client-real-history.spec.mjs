@@ -65,6 +65,12 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   const sessionLink=page.locator('[data-m26-area="sesion"]:visible').first();
   await expect(sessionLink).toBeVisible({timeout:12_000});
   await sessionLink.click();
+  // A genuine navigation must survive the full post-login progressive mount.
+  // Previously the first-use guide sent the Client back to Today
+  // after Sessions had rendered, leaving a transient false success.
+  await expect(page.locator('[data-m26-controllers="ready"]'),
+    'Client navigation must persist after progressive controller mount').toHaveCount(1,{timeout:20_000});
+  await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible();
   // The currently shipped authenticated Client route is RC39, not the
   // legacy M26 publication route. Never certify a detached mock DOM.
   await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible();
