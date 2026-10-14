@@ -7,6 +7,7 @@ export const AVATAR_MAX_SOURCE_BYTES=5*1024*1024;
 export const AVATAR_MAX_OUTPUT_BYTES=524288;
 const ID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INPUT_MIMES=new Set(['image/jpeg','image/png','image/webp']);
+export const AVATAR_REVALIDATE_MS=120_000;
 
 export function profileAvatarPath(clientId){
   const id=String(clientId||'').trim().toLowerCase();
@@ -68,7 +69,7 @@ export function createClientAvatarController({
     throw new Error('M42_AVATAR_CONTROLLER_REQUIRED');
   let mounted=false,generation=0,observer=null,intersection=null,scheduled=false,busy=false;
   let lastRoleKey='';
-  const cache=new Map(),inFlight=new Map(),missing=new Set(),seen=new WeakSet();
+  const cache=new Map(),inFlight=new Map(),missing=new Set(),checkedAt=new Map();
   const base=String(runtime?.url||'').replace(/\/+$/,'');
   const apikey=String(runtime?.publishableKey||'');
   const resource=(path)=>base+'/storage/v1/object/'+path;
@@ -79,7 +80,7 @@ export function createClientAvatarController({
   };
   function clearCache(){
     for(const url of cache.values())try{scope.URL?.revokeObjectURL?.(url);}catch{}
-    cache.clear();missing.clear();inFlight.clear();
+    cache.clear();missing.clear();checkedAt.clear();inFlight.clear();
   }
   function renderImage(node,url){
     if(!node||!url)return;
@@ -106,13 +107,21 @@ export function createClientAvatarController({
     return String(value);
   }
   function header(bearer){return {apikey,Authorization:'Bearer '+bearer};}
+  function evict(clientId){
+    const old=cache.get(clientId);
+    if(old)try{scope.URL?.revokeObjectURL?.(old);}catch{}
+    cache.delete(clientId);
+    showFallback(clientId);
+  }
   async function load(clientId,{force=false}={}){
     const path=profileAvatarPath(clientId);
     if(!mounted||!base||!apikey||typeof fetchImpl!=='function')return null;
-    if(!force&&cache.has(clientId)){show(clientId,cache.get(clientId));return cache.get(clientId);}
-    if(!force&&missing.has(clientId))return null;
+    const fresh=Date.now()-(checkedAt.get(clientId)||0)<AVATAR_REVALIDATE_MS;
+    if(!force&&fresh&&cache.has(clientId)){show(clientId,cache.get(clientId));return cache.get(clientId);}
+    if(!force&&fresh&&missing.has(clientId))return null;
     if(inFlight.has(clientId))return inFlight.get(clientId);
     const generationAtStart=generation;
+    checkedAt.set(clientId,Date.now());
     const request=(async()=>{
       try{
         const auth=await token();
@@ -120,8 +129,10 @@ export function createClientAvatarController({
           method:'GET',headers:header(auth),credentials:'omit',cache:'no-store',
         });
         if(!mounted||generation!==generationAtStart)return null;
-        if(res.status===404){missing.add(clientId);return null;}
-        if(!res.ok)return null; // No public fallback on 401/403 or errors
+        if([401,403,404].includes(res.status)){
+          evict(clientId);missing.add(clientId);return null;
+        }
+        if(!res.ok)return null; // No public fallback on transient errors
         const blob=await res.blob();
         if(blob.size<=0||blob.size>AVATAR_MAX_OUTPUT_BYTES)return null;
         const url=scope.URL?.createObjectURL?.(blob);
@@ -151,12 +162,11 @@ export function createClientAvatarController({
     for(const node of nodes){
       const clientId=node.getAttribute?.('data-iberfit-avatar-client');
       if(!ID_PATTERN.test(String(clientId||'')))continue;
-      if(cache.has(clientId)){renderImage(node,cache.get(clientId));continue;}
-      if(missing.has(clientId))continue;
-      if(intersection&&!seen.has(node)){
-        seen.add(node);
-        intersection.observe(node);
-      }else if(!intersection)void load(clientId);
+      if(cache.has(clientId))renderImage(node,cache.get(clientId));
+      const fresh=Date.now()-(checkedAt.get(clientId)||0)<AVATAR_REVALIDATE_MS;
+      if(fresh||inFlight.has(clientId))continue;
+      if(intersection)intersection.observe(node);
+      else void load(clientId);
     }
   }
   function schedule(){
@@ -219,7 +229,7 @@ export function createClientAvatarController({
       if(!res.ok)throw new Error('M42_AVATAR_DELETE_FAILED');
       const id=String(identity.clientId).toLowerCase(),old=cache.get(id);
       if(old)scope.URL?.revokeObjectURL?.(old);
-      cache.delete(id);missing.add(id);
+      cache.delete(id);missing.add(id);checkedAt.set(id,Date.now());
       showFallback(id);
       status('Foto retirada. Se muestra de nuevo tu inicial.');
     }catch(error){status(avatarUploadMessage(error),'error');}

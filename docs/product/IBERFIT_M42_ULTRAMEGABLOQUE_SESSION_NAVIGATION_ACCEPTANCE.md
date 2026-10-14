@@ -55,3 +55,9 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - Device Experience Gate en mobile/tablet/desktop y navegación «Más».
 - PR Ready solo tras cierre funcional, certificación única, Canary trusted WebAuthn, promoción oficial y verificación PROD.
 - Nunca declarar libre de errores solo por pasar test unitario o build.
+
+## M42 extensión de fiabilidad
+- Single-flight en apertura de Constructor y Live Workout, sin carreras al doble clic o cambio de roles/cliente.
+- Cualquier respuesta local de recuperación/draft que llegue tras logout o cambio de contexto se descarta.
+- Las fotos privadas se revisan cada 120 s al navegar o reabrir vistas; revocación 401/403 o eliminación 404 retira miniaturas antiguas y revoca URLs locales.
+- Tests añadidos: `m42_workspace_entry_gate.test.mjs` y `m42_avatar_freshness_contract.test.mjs`. Pendiente QA autenticada.
