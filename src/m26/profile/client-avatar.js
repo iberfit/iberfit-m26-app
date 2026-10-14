@@ -45,7 +45,7 @@ async function normalizeAvatar(file,{scope=globalThis}={}){
   try{bitmap=await scope.createImageBitmap(file);}
   catch{throw new Error('M42_AVATAR_IMAGE_INVALID');}
   try{
-    if(bitmap.width<1||bitmap.height<1||bitmap.width>10000||bitmap.height>10000)
+    if(bitmap.width<1||bitmap.height<1||bitmap.width>6000||bitmap.height>6000||bitmap.width*bitmap.height>16000000)
       throw new Error('M42_AVATAR_IMAGE_INVALID');
     const canvas=scope.document.createElement('canvas');
     canvas.width=320;canvas.height=320;
@@ -107,6 +107,13 @@ export function createClientAvatarController({
     return String(value);
   }
   function header(bearer){return {apikey,Authorization:'Bearer '+bearer};}
+  function identityScope(){
+    const identity=getIdentity()||{};
+    return [identity.id||'',identity.role||'',identity.clientId||''].join('|');
+  }
+  function unchangedScope(expected,epoch){
+    return mounted&&generation===epoch&&identityScope()===expected;
+  }
   function evict(clientId){
     const old=cache.get(clientId);
     if(old)try{scope.URL?.revokeObjectURL?.(old);}catch{}
@@ -120,7 +127,7 @@ export function createClientAvatarController({
     if(!force&&fresh&&cache.has(clientId)){show(clientId,cache.get(clientId));return cache.get(clientId);}
     if(!force&&fresh&&missing.has(clientId))return null;
     if(inFlight.has(clientId))return inFlight.get(clientId);
-    const generationAtStart=generation;
+    const generationAtStart=generation,scopeAtStart=identityScope();
     checkedAt.set(clientId,Date.now());
     const request=(async()=>{
       try{
@@ -128,7 +135,7 @@ export function createClientAvatarController({
         const res=await fetchImpl(resource('authenticated/'+AVATAR_BUCKET+'/'+path),{
           method:'GET',headers:header(auth),credentials:'omit',cache:'no-store',
         });
-        if(!mounted||generation!==generationAtStart)return null;
+        if(!unchangedScope(scopeAtStart,generationAtStart))return null;
         if([401,403,404].includes(res.status)){
           evict(clientId);missing.add(clientId);return null;
         }
@@ -137,7 +144,7 @@ export function createClientAvatarController({
         if(blob.size<=0||blob.size>AVATAR_MAX_OUTPUT_BYTES)return null;
         const url=scope.URL?.createObjectURL?.(blob);
         if(!url)return null;
-        if(!mounted||generation!==generationAtStart){scope.URL.revokeObjectURL(url);return null;}
+        if(!unchangedScope(scopeAtStart,generationAtStart)){scope.URL.revokeObjectURL(url);return null;}
         const prior=cache.get(clientId);
         if(prior)scope.URL.revokeObjectURL(prior);
         cache.set(clientId,url);missing.delete(clientId);
@@ -188,16 +195,20 @@ export function createClientAvatarController({
     if(!canEditOwnProfileAvatar(identity))return;
     const file=input.files?.[0];
     if(!file)return;
+    const generationAtStart=generation,scopeAtStart=identityScope();
     busy=true;status('Preparando tu fotografía…');
     try{
       if(scope.navigator?.onLine===false)throw new Error('M42_AVATAR_OFFLINE');
       const blob=await normalizeAvatar(file,{scope});
+      if(!unchangedScope(scopeAtStart,generationAtStart))return;
       const auth=await token();
+      if(!unchangedScope(scopeAtStart,generationAtStart))return;
       const res=await fetchImpl(resource(AVATAR_BUCKET+'/'+profileAvatarPath(identity.clientId)),{
         method:'POST',credentials:'omit',cache:'no-store',
         headers:{...header(auth),'content-type':AVATAR_SOURCE_MIME,'x-upsert':'true'},
         body:blob,
       });
+      if(!unchangedScope(scopeAtStart,generationAtStart))return;
       if(!res.ok){
         if([401,403].includes(res.status))throw new Error('M42_AVATAR_FORBIDDEN');
         throw new Error('M42_AVATAR_UPLOAD_FAILED');
@@ -206,10 +217,13 @@ export function createClientAvatarController({
       const old=cache.get(id);
       if(old)scope.URL?.revokeObjectURL?.(old);
       cache.delete(id);missing.delete(id);
-      await load(id,{force:true});
-      status('Foto actualizada. Tu Coach autorizado podrá verla.');
-    }catch(error){status(avatarUploadMessage(error),'error');}
-    finally{busy=false;input.value='';}
+      const verified=await load(id,{force:true});
+      if(!unchangedScope(scopeAtStart,generationAtStart))return;
+      if(verified)status('Foto actualizada. Tu Coach autorizado podrá verla.','success');
+      else status('Foto guardada, pero no se pudo recuperar su vista. Comprueba la conexión y actualiza la pantalla.','pending');
+    }catch(error){
+      if(unchangedScope(scopeAtStart,generationAtStart))status(avatarUploadMessage(error),'error');
+    }finally{busy=false;input.value='';}
   }
   async function onRemove(event){
     const button=event.target?.closest?.('[data-iberfit-avatar-remove]');
@@ -218,22 +232,26 @@ export function createClientAvatarController({
     if(!canEditOwnProfileAvatar(identity))return;
     if(typeof scope.confirm==='function'&&!scope.confirm('¿Quitar tu foto de perfil?'))return;
     if(scope.navigator?.onLine===false){status(avatarUploadMessage('M42_AVATAR_OFFLINE'),'error');return;}
+    const generationAtStart=generation,scopeAtStart=identityScope();
     busy=true;button.disabled=true;status('Quitando tu fotografía…');
     try{
       const auth=await token();
+      if(!unchangedScope(scopeAtStart,generationAtStart))return;
       const res=await fetchImpl(resource('remove/'+AVATAR_BUCKET),{
         method:'POST',credentials:'omit',cache:'no-store',
         headers:{...header(auth),'content-type':'application/json'},
         body:JSON.stringify({prefixes:[profileAvatarPath(identity.clientId)]}),
       });
+      if(!unchangedScope(scopeAtStart,generationAtStart))return;
       if(!res.ok)throw new Error('M42_AVATAR_DELETE_FAILED');
       const id=String(identity.clientId).toLowerCase(),old=cache.get(id);
       if(old)scope.URL?.revokeObjectURL?.(old);
       cache.delete(id);missing.add(id);checkedAt.set(id,Date.now());
       showFallback(id);
-      status('Foto retirada. Se muestra de nuevo tu inicial.');
-    }catch(error){status(avatarUploadMessage(error),'error');}
-    finally{busy=false;button.disabled=false;}
+      status('Foto retirada. Se muestra de nuevo tu inicial.','success');
+    }catch(error){
+      if(unchangedScope(scopeAtStart,generationAtStart))status(avatarUploadMessage(error),'error');
+    }finally{busy=false;button.disabled=false;}
   }
   const onClick=(event)=>{void onRemove(event);};
   const onChange=(event)=>{void onFileChange(event);};
