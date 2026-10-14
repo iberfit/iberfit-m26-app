@@ -2,12 +2,14 @@ import {createExecution} from '../../src/m26/workflows/session-execution.js';
 import {createSessionController} from '../../src/m26/workflows/session-controller.js';
 import {renderGuidedExecution} from '../../src/m26/workflows/session-ui.js';
 import {createActionState} from '../../src/m26/ui/action-state.js';
+import {projectCollectionsForRole} from '../../src/m26/security/role-projection.js';
 
 const root=document.querySelector('#qa-root');
 if(!root)throw new Error('QA_LIVE_WORKOUT_ROOT_MISSING');
 
 const params=new URLSearchParams(location.search);
 const role=params.get('role')==='client'?'client':'coach';
+const scenario=params.get('scenario')==='sports'?'sports':'strength';
 const CLIENT='22222222-2222-4222-8222-222222222222';
 
 const exercises=Object.freeze([
@@ -15,6 +17,8 @@ const exercises=Object.freeze([
   Object.freeze({id:'qa-split-squat',name_es:'Zancada dividida',pattern:'sentadilla',cues:['Controla la bajada','Mantén estabilidad']}),
   Object.freeze({id:'qa-row',name_es:'Remo con banda',pattern:'tirón',cues:['Hombros lejos de las orejas','Controla el retorno']}),
   Object.freeze({id:'qa-row-alt',name_es:'Remo unilateral',pattern:'tirón',cues:['Tronco estable','Recorrido completo']}),
+  Object.freeze({id:'qa-carrera-continua',name_es:'Carrera continua',pattern:'locomoción',measurement_profile:'endurance',cues:['Ritmo sostenible']}),
+  Object.freeze({id:'qa-natacion-crol',name_es:'Natación crol en piscina',pattern:'acuático',measurement_profile:'endurance',cues:['Nado controlado']}),
 ]);
 
 const catalog=Object.freeze({
@@ -32,7 +36,7 @@ const catalog=Object.freeze({
   },
 });
 
-const session=Object.freeze({
+const defaultSession=Object.freeze({
   id:'qa-live-workout-session',
   clientId:CLIENT,
   title:'Sesión QA Live Workout',
@@ -71,6 +75,32 @@ const session=Object.freeze({
     }),
   ]),
 });
+
+const sportSession=Object.freeze({
+  id:'qa-m43-sports-session',
+  clientId:CLIENT,
+  title:'Entrenamiento guiado · carrera y natación',
+  durationMinutes:50,
+  status:'disponible',
+  visibleToClient:true,
+  deliveryModality:'guiada_en_app',
+  deliveryOwnership:'guided_in_app',
+  clientVisibilityLevel:'full',
+  internalNotes:'QA_PRIVATE_COACH_NOTE_NEVER_CLIENT',
+  blocks:[
+    {id:'qa-block-running',type:'exercise',exerciseId:'qa-carrera-continua',name:'Carrera continua',
+      sets:1,reps:'',plannedDurationMinutes:'30',plannedDistanceKm:'5',
+      plannedPace:'06:00',restSeconds:0,targetRpe:6,targetRir:0},
+    {id:'qa-block-swim',type:'exercise',exerciseId:'qa-natacion-crol',name:'Natación crol en piscina',
+      sets:1,reps:'',plannedDurationMinutes:'10',plannedDistanceM:'400',
+      plannedPacePer100M:'02:20',poolLengthM:'25',restSeconds:0,targetRpe:6,targetRir:0},
+  ],
+});
+const projectedSports=projectCollectionsForRole({
+  sessions:[sportSession,{...sportSession,id:'qa-private',status:'borrador',visibleToClient:false,title:'QA_PRIVATE_SESSION'}],
+},{id:'qa-client-role',role:'client',clientId:CLIENT});
+if(projectedSports.sessions.length!==1)throw new Error('M43_BROWSER_CLIENT_PROJECTION_INVALID');
+const session=scenario==='sports'?(role==='client'?projectedSports.sessions[0]:sportSession):defaultSession;
 
 const execution=createExecution({session,clientId:CLIENT,executionId:'qa-live-workout-execution'});
 const actionState=createActionState();
@@ -141,6 +171,7 @@ globalThis.__IBERFIT_LIVE_WORKOUT_QA__=Object.freeze({
   currentSource:true,
   syntheticQa:true,
   role,
+  scenario,
   state(){
     return structuredClone({
       status:execution.status,
