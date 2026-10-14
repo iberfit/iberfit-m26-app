@@ -91,3 +91,40 @@ test('un rerun posterior prevalece sobre un intento antiguo rojo del mismo check
   );
   assert.equal(result.state,'success');
 });
+
+test('M43 Draft skipped result never becomes green and waits for Ready job to register',()=>{
+  const required=['validate','device-experience-gate-phase-a'];
+  const stale=[
+    {id:10,name:'validate',status:'completed',conclusion:'success'},
+    {id:11,name:'device-experience-gate-phase-a',status:'completed',conclusion:'skipped'},
+  ];
+  const waiting=evaluateRequiredChecks(required,stale);
+  assert.equal(waiting.state,'pending');
+  assert.deepEqual([...waiting.pending],['device-experience-gate-phase-a']);
+  assert.deepEqual([...waiting.passed],['validate']);
+  const started=evaluateRequiredChecks(required,[...stale,
+    {id:12,name:'device-experience-gate-phase-a',status:'in_progress',conclusion:null},
+  ]);
+  assert.equal(started.state,'pending');
+  const certified=evaluateRequiredChecks(required,[...stale,
+    {id:13,name:'device-experience-gate-phase-a',status:'completed',conclusion:'success'},
+  ]);
+  assert.equal(certified.state,'success');
+});
+
+test('M43 stale cancelled/neutral checks wait for a new Ready attempt but cannot certify integration',()=>{
+  for(const conclusion of ['skipped','cancelled','neutral']){
+    const result=evaluateRequiredChecks(['authenticated-client-controls'],[
+      {id:12,name:'authenticated-client-controls',status:'completed',conclusion},
+    ]);
+    assert.equal(result.state,'pending',conclusion);
+    assert.deepEqual([...result.passed],[]);
+    assert.deepEqual([...result.pending],['authenticated-client-controls']);
+  }
+  for(const conclusion of ['failure','timed_out','action_required']){
+    const result=evaluateRequiredChecks(['validate'],[
+      {id:15,name:'validate',status:'completed',conclusion},
+    ]);
+    assert.equal(result.state,'failure',conclusion);
+  }
+});
