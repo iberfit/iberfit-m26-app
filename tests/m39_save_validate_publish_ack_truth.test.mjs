@@ -229,22 +229,21 @@ test('M39 reports editor supports incomplete drafts without browser constraints'
   assert.ok(editor.includes('data-workflow-action="approve-report"'));
 });
 
-test('M39 report drafts are client-and-assessment scoped and saved without approval validation',()=>{
+test('M39/M43 report drafts stay client-scoped, preserve incomplete content and use isolated entity IDs',()=>{
  const workflow=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
  for(const literal of [
-   "function reportDraftScope(assessmentId)",
-   "'report-approval:'+String(assessmentId||'').trim()",
    "async function saveReportDraft(form,{silent=false}={})",
    "reportFormClientIds.get(form)!==clientId",
-   "draftRepository.save(clientId,reportDraftScope(assessmentId),payload)",
+   "const scoped=reportDraftScope(stableId)",
+   "draftRepository.save(clientId,scoped,payload)",
    "async function initializeReportForm(form)",
-   "editedReportForms.has(form)",
-   "String(saved.value.assessmentId||'')!==assessmentId",
+   "updateReportDraftChoices(form,{restoreSingle:true})",
+   "String(draft?.assessmentId||'')!==String(assessmentId)",
    "function queueReportSave(form)",
    "queueReportSave(reportForm)",
    "saveReportDraft(form,{silent:true})",
    "saveReportDraft(reportForm,{silent:true})",
-   "draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId))",
+   "draftRepository?.remove?.(clientId,reportDraftScope(stableId))",
    "reportDraftChain=write.catch(()=>{})",
  ])assert.ok(workflow.includes(literal),literal);
  const start=workflow.indexOf('async function saveReportDraft(');
