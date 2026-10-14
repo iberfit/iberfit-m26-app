@@ -96,7 +96,8 @@ test('M43 integrated: published visibility, explicit enablement, three sports, m
   assert.equal(start.clientId,clientId);
   assert.equal(start.entityId,enabled.id);
   assert.equal(start.payload.appointmentId,undefined);
-  assert.equal(plannedSetDraftValues(execution,enabled).load,undefined);
+  assert.equal(plannedSetDraftValues(execution,enabled).load,'30 kg');
+  assert.equal(plannedSetDraftValues(execution,enabled).rpe,'','planned RPE must never become an observed value');
   startExecution(execution,{actor:{role:'client',clientId,userId:user.id}});
   assert.equal(currentStep(execution,enabled).exerciseId,'IBF-SENTADILLA-FUERZA');
 
