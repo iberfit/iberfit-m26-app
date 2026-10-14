@@ -143,6 +143,13 @@ test('M41 comforting Client guidance stays a discreet matte cream dialog above a
   assert.match(guide,/getBoundingClientRect\?\.\(\)/);
   assert.match(guide,/\.m26-client-bottom-nav,\.m26-mobile-nav/);
   assert.match(guide,/setDialogDockClearance\(\)/);
+  assert.match(guide,/data-m26-client-guide-dock/);
+  assert.match(guide,/dialog\.style\?\.removeProperty\?\.\('--m26-client-guide-dock-clearance'\)/);
+  assert.doesNotMatch(guide,/if\(!dialog\|\|Number\(scope\?\.innerWidth\|\|0\)>690\)return/);
+  assert.match(guide,/\.m26-client-guided-welcome\[data-m26-client-guide-dock="clear"\]/);
+  const navTest=read('qa/rc64/client-guided-welcome.spec.mjs');
+  assert.match(navTest,/TOUCH TABLETS/);
+  assert.match(navTest,/data-m26-client-guide-dock/);
   assert.match(guide,/overscroll-behavior:contain/);
   assert.match(guide,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(guide,/data-m26-client-guided-welcome-pause/);

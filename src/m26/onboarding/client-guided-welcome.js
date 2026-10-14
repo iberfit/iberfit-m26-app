@@ -148,8 +148,8 @@ const STYLE=`
 .m26-client-guided-welcome-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.9rem}
 .m26-client-guided-welcome .m26-eyebrow{
   margin:0 0 .32rem;
-  color:#8c6827;
-  font-size:.69rem;
+  color:#805F27;
+  font-size:.8125rem;
   font-weight:750;
   letter-spacing:.14em;
   text-transform:uppercase;
@@ -187,8 +187,8 @@ const STYLE=`
 .m26-client-guided-welcome .m26-primary-action{
   border:1px solid #bb8d37;
   color:#14251e;
-  background:linear-gradient(180deg,#f1d58e,#d5ad58);
-  box-shadow:0 8px 20px rgba(134,94,25,.18),inset 0 1px 0 rgba(255,255,255,.55);
+  background:#D7BA7C;
+  box-shadow:0 4px 12px rgba(0,0,0,.10);
 }
 .m26-client-guided-welcome .m26-primary-action:hover{filter:brightness(1.025)}
 .m26-client-guided-welcome .m26-text-action{
@@ -349,6 +349,14 @@ const STYLE=`
 @keyframes m26-client-genie-beam{0%,100%{opacity:.38}50%{opacity:1}}
 @keyframes m26-client-genie-burst{0%{transform:scale(.82);opacity:0}30%{opacity:1}100%{transform:scale(1.15);opacity:0}}
 @keyframes m26-client-genie-alert{0%,100%{transform:translateY(0);opacity:.68}50%{transform:translateY(-4px);opacity:1}}
+.m26-client-guided-welcome[data-m26-client-guide-dock="clear"]{
+  top:auto!important;
+  right:max(1rem,env(safe-area-inset-right))!important;
+  bottom:max(calc(6.5rem + env(safe-area-inset-bottom)),var(--m26-client-guide-dock-clearance,0px));
+  max-height:min(50dvh,22rem);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
 @media(max-width:690px){
   .m26-client-guided-welcome{
     left:.7rem!important;
@@ -630,18 +638,27 @@ export function createClientGuidedWelcomeController({
     return true;
   }
   function setDialogDockClearance(){
-    if(!dialog||Number(scope?.innerWidth||0)>690)return;
+    if(!dialog)return;
     const height=Number(scope?.innerHeight||0);
-    if(!height)return;
     let reserve=0;
-    for(const nav of doc?.querySelectorAll?.('.m26-client-bottom-nav,.m26-mobile-nav')||[]){
-      try{
-        const rect=nav.getBoundingClientRect?.();
-        if(!rect||rect.height<=0||rect.width<=0||rect.top<0||rect.top>=height)continue;
-        reserve=Math.max(reserve,Math.ceil(height-rect.top+12));
-      }catch{}
+    if(height>0){
+      for(const nav of doc?.querySelectorAll?.('.m26-client-bottom-nav,.m26-mobile-nav')||[]){
+        try{
+          const paint=scope?.getComputedStyle?.(nav);
+          if(paint?.display==='none'||paint?.visibility==='hidden')continue;
+          const rect=nav.getBoundingClientRect?.();
+          if(!rect||rect.height<=0||rect.width<=0||rect.top<0||rect.top>=height)continue;
+          reserve=Math.max(reserve,Math.ceil(height-rect.top+12));
+        }catch{}
+      }
     }
-    if(reserve>0)dialog.style?.setProperty?.('--m26-client-guide-dock-clearance',reserve+'px');
+    if(reserve>0){
+      dialog.setAttribute?.('data-m26-client-guide-dock','clear');
+      dialog.style?.setProperty?.('--m26-client-guide-dock-clearance',reserve+'px');
+    }else{
+      dialog.removeAttribute?.('data-m26-client-guide-dock');
+      dialog.style?.removeProperty?.('--m26-client-guide-dock-clearance');
+    }
   }
   function schedulePosition(){
     if(positionFrame!==null||!activeTarget)return;

@@ -49,3 +49,7 @@ La revisión no afirma superioridad empírica frente a todos los competidores. N
 - M41 no se considerará cerrado hasta Ready/CI completo, merge, Canary real, MFA real si corresponde y promoción/verificación PROD.
 
 **Riesgos particulares observados en CI:** un test Admin antiguo requería gradiente visual aun cuando el sistema lo retiró por calidad; se reemplaza por aserciones de superficies mates reales. Otro test demostró que en móvil la guía podía solapar la navegación fija; el producto se corrige midiendo el dock y asegurando margen en cada vista.
+
+## M41 · Cierre de la superposición táctil de la guía
+
+La inspección de una captura autenticada de tablet identificó un caso ignorado por el antiguo umbral 690 px: en 1024×1366 el dock del Cliente puede seguir visible. La guía ahora mide cualquier dock visible, reserva espacio real más margen de seguridad, elimina la reserva cuando se oculta y limita el alto con scroll propio. La prueba autenticada ya no asume que «móvil» se decide por ancho: comprueba la no intersección siempre que el dock esté visible, incluido tablet, y ejercita un dock artificialmente más alto. El estado, pausa y salida de la guía continúan sin cambios.

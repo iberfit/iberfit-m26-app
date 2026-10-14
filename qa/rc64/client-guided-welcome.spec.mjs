@@ -50,13 +50,16 @@ async function expectJourneyState(page,{area,title,state}){
   await expect(page.locator('[data-m26-client-context-guide]')).toHaveCount(0);
   await expect(page.locator('[data-m26-guided-tour]')).toHaveCount(0);
 
-  if(mobile){
+  // The Client dock can remain visible on TOUCH TABLETS above 690px.
+  // A width-only mobile check silently missed this and allowed obstruction.
+  const nav=page.locator('.m26-client-bottom-nav:visible').first();
+  if(await nav.count()){
+    await expect(welcome).toHaveAttribute('data-m26-client-guide-dock','clear');
     const dialogBox=await welcome.boundingBox();
-    const nav=page.locator('.m26-client-bottom-nav:visible').first();
-    await expect(nav).toBeVisible();
     const navBox=await nav.boundingBox();
     const dialogBottom=(dialogBox?.y??Infinity)+(dialogBox?.height??0);
-    expect(dialogBottom,'Genie dialogue must finish above fixed Client navigation').toBeLessThanOrEqual((navBox?.y??0)-4);
+    expect(dialogBottom,'Genie dialogue must finish above visible Client navigation, including touch tablets')
+      .toBeLessThanOrEqual((navBox?.y??0)-4);
   }
 }
 
@@ -114,8 +117,8 @@ test('Client Genie guides a Client-only first run, can pause and completes its j
 
     // M41 psychological comfort: the helpful dialogue must not compete with
     // bottom navigation, even if large accessible labels make the dock taller.
-    if(Number(page.viewportSize()?.width||0)<=690){
-      const nav=page.locator('.m26-client-bottom-nav:visible').first();
+    const nav=page.locator('.m26-client-bottom-nav:visible').first();
+    if(await nav.count()){
       await nav.evaluate((node)=>{
         node.dataset.m41PreviousMinHeight=node.style.minHeight;
         node.style.minHeight='154px';
