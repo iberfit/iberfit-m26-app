@@ -42,7 +42,9 @@ test('authenticated workspace cannot fall back to the historical cream canvas',(
 });
 
 test('gold is reserved for priority and primary action while status colors remain semantic',()=>{
-  assert.match(v3,/\.m26-shell \.m26-workspace :is\(\.m26-primary-action,[\s\S]*?linear-gradient\(180deg,#D1AE65,#B98F44\)/u);
+  assert.match(v3,/\.m26-shell \.m26-workspace :is\(\.m26-primary-action,[\s\S]*?background:#C5A059!important/u);
+  assert.match(v3,/background:#D7BA7C!important/u);
+  assert.doesNotMatch(v3,/linear-gradient\(180deg,#D1AE65,#B98F44\)/u);
   assert.match(v3,/--iberfit-v3-success:#10B981/u);
   assert.match(v3,/--iberfit-v3-danger:#EF4444/u);
   assert.match(v3,/\.m26-workspace-action-icon|--iberfit-v3-gold:#C5A059/u);
