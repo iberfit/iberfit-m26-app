@@ -1409,6 +1409,15 @@ const coachQuickRpe=isCoach
 const clientQuickRpe=!isCoach
   ?`<div class="m26-session-client-rpe-quick" data-session-client-rpe-quick role="group" aria-label="Registrar esfuerzo real de la serie"><span>Selecciona tu RPE real · del 1 al 10</span>${Array.from({length:10},(_,index)=>index+1).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
+const setEntryRule=executionProfile.sport==='swimming'
+  ?'Registra tiempo y metros nadados. Si mides el ritmo, utiliza min/100 m; el RPE real es obligatorio.'
+  :['running','walking'].includes(executionProfile.sport)
+    ?'Registra tiempo y distancia realizados. El ritmo medido se expresa en min/km; el RPE real es obligatorio.'
+    :executionProfile.cardio
+      ?'Registra tiempo o distancia realizados, sin confundir objetivos con medidas. El RPE real es obligatorio.'
+      :executionProfile.kind==='carry'
+        ?'Registra distancia o tiempo realizados y RPE real. La carga es opcional.'
+        :'Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.';
 const setEntryFields=executionProfile.cardio
   ?cardioSetEntryFields(executionProfile,planned,isCoach)
   :executionProfile.kind==='carry'?carrySetEntryFields(planned,isCoach)
@@ -1590,7 +1599,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     :`<article class="m26-panel m26-session-live-entry m26-session-live-entry-v3" data-session-live-entry data-session-set-entry="current">
         <p class="m26-eyebrow">Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
         <h3>Registra lo que realmente hiciste</h3>
-        <p class="m26-session-set-rule">Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.</p>
+        <p class="m26-session-set-rule">${e(setEntryRule)}</p>
         ${plannedSetReuse}
         ${previousSetReuse}
         ${setEntryFields}
