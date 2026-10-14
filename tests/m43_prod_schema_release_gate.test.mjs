@@ -4,7 +4,7 @@ import {REQUIRED,QUERY,certify,verify} from '../scripts/ops/verify_m43_prod_sche
 
 const ready=Object.fromEntries(REQUIRED.map(k=>[k,true]));
 test('M43 release gate covers new-plan/session preflight, Client privacy, grants and definer scope',()=>{
-  assert.equal(REQUIRED.length,22);
+  assert.equal(REQUIRED.length,29);
   assert.match(QUERY,/\bSELECT\b/);
   assert.match(QUERY,/initial_plan_preflight/);
   assert.match(QUERY,/initial_session_preflight/);
@@ -15,7 +15,9 @@ test('M43 release gate covers new-plan/session preflight, Client privacy, grants
   assert.match(QUERY,/client_legacy_execution_http_projection/);
   assert.match(QUERY,/client_execution_authenticated_denied/);
   assert.match(QUERY,/client_execution_semantic_privacy/);
-  assert.equal(certify([ready]).checks,22);
+  assert.match(QUERY,/client_publication_semantic_privacy/);
+  assert.match(QUERY,/client_publication_helpers_unreachable/);
+  assert.equal(certify([ready]).checks,29);
 });
 test('M43 production gate fails closed on incomplete or malformed backend contracts',()=>{
   for(const key of REQUIRED){
