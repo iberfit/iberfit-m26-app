@@ -184,3 +184,30 @@ test('M43 integrated: a Coach-led workout remains only a summary for Client, not
   assert.equal(actorCanExecuteSession({role:'coach',session}),true);
   assert.equal(actorCanExecuteSession({role:'admin',session}),false);
 });
+
+test('M43 longitudinal data: Client sees measured sport evidence from current and legacy result shapes, not private fields',()=>{
+  const scoped={id:'execution-own',clientId,sessionId:'session-a',status:'completed',
+    results:{
+      'block-run:1':{blockId:'block-run',exerciseId:'IBF-CARRERA-CONTINUA',setNumber:1,
+        seconds:1800,distanceKm:5,paceMinPerKm:'06:00',rpe:6,
+        internalNotes:'PRIVADO_CABECERA',recordedBy:{userId:'coach-private'}},
+      'block-swim:1':{blockId:'block-swim',exerciseId:'IBF-NATACION-CROL',setNumber:1,
+        seconds:600,distanceM:400,pacePer100M:'02:25',rpe:7,coachPrivateDecision:'PRIVADO_INTERNO'},
+    }};
+  const legacy={id:'execution-legacy',clientId,sessionId:'session-b',status:'completed',
+    results:[{exerciseId:'IBF-SENTADILLA-FUERZA',setNumber:1,reps:8,
+      load:'30 kg',rpe:7,secretCoachNote:'PRIVADO_LEGADO'}]};
+  const foreign={...scoped,id:'execution-foreign',clientId:otherClient};
+  const result=projectCollectionsForRole({sessionExecutions:[scoped,legacy,foreign]},user);
+  assertClientProjectionSafe(result,user);
+  assert.equal(result.sessionExecutions.length,2);
+  const modern=result.sessionExecutions.find(x=>x.id==='execution-own');
+  assert.equal(modern.results.length,2);
+  assert.equal(modern.results[0].exerciseId,'IBF-CARRERA-CONTINUA');
+  assert.equal(modern.results[0].distanceKm,5);
+  assert.equal(modern.results[0].paceMinPerKm,'06:00');
+  assert.equal(modern.results[1].distanceM,400);
+  assert.equal(modern.results[1].pacePer100M,'02:25');
+  assert.equal(result.sessionExecutions.find(x=>x.id==='execution-legacy').results[0].load,'30 kg');
+  assert.doesNotMatch(JSON.stringify(result),/PRIVADO_CABECERA|PRIVADO_INTERNO|PRIVADO_LEGADO|coach-private|execution-foreign/);
+});
