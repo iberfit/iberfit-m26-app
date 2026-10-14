@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 
-async function open(page,role){
-  await page.goto('/qa/live-workout/fixture.html?role='+role,{waitUntil:'domcontentloaded'});
+async function open(page,role,scenario='strength'){
+  await page.goto('/qa/live-workout/fixture.html?role='+role+'&scenario='+scenario,{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_LIVE_WORKOUT_QA__?.mounted===true)).toBe(true);
   await expect(page.locator('#qa-root')).toHaveAttribute('data-qa-role',role);
 }
@@ -156,4 +156,59 @@ test('Live Workout no produce overflow horizontal y mantiene objetivos táctiles
     await expect(page.locator('[data-session-coach-quick-controls]')).toBeVisible();
     await expect(page.locator('[data-session-action="pause"]')).toBeInViewport();
   }
+});
+
+test('M43: Cliente ejecuta running y natación con metas proyectadas, datos reales y feedback en navegador',async({page})=>{
+  await open(page,'client','sports');
+  const ready=page.locator('[data-session-ready-sport-preview]');
+  await expect(ready).toBeVisible();
+  await expect(ready).toContainText('06:00 min/km');
+  await expect(ready).toContainText('02:20 min/100 m (objetivo)');
+  await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
+  await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SESSION');
+  await page.locator('[data-session-action="start"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+
+  const running=page.locator('[data-session-cardio-entry]');
+  await running.locator('[data-set-field="durationMinutes"]').fill('30');
+  await running.locator('[data-set-field="distanceKm"]').fill('5');
+  await running.locator('details > summary').click();
+  await running.locator('[data-set-field="paceMinPerKm"]').fill('06:00');
+  await running.locator('[data-set-field="rpe"]').fill('6');
+  await page.locator('[data-session-action="complete-set"]').click();
+  await expect.poll(async()=>Object.values((await state(page)).results).length).toBe(1);
+  await page.locator('[data-session-action="next"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+
+  const swimming=page.locator('[data-session-cardio-entry]');
+  await expect(page.locator('[data-session-live-entry]')).toContainText('Natación');
+  await swimming.locator('[data-set-field="durationMinutes"]').fill('10');
+  await swimming.locator('[data-set-field="distanceM"]').fill('400');
+  await swimming.locator('details > summary').click();
+  await swimming.locator('[data-set-field="pacePer100M"]').fill('02:25');
+  await swimming.locator('[data-set-field="rpe"]').fill('7');
+  await page.locator('[data-session-action="complete-set"]').click();
+  await expect.poll(async()=>Object.values((await state(page)).results).length).toBe(2);
+  await page.locator('[data-session-action="next"]').click();
+  await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible();
+  await page.locator('[data-session-feedback-rpe]').fill('7');
+  await page.locator('[data-session-feedback-comment]').fill('Carrera y natación completadas; objetivos diferenciados');
+  await page.locator('[data-session-action="finish"]').click();
+  await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible();
+
+  const actual=await state(page);
+  expect(actual.errors).toEqual([]);
+  expect(actual.feedback.sessionRpe).toBe(7);
+  const rows=Object.values(actual.results);
+  expect(rows[0].distanceKm).toBe(5);
+  expect(rows[0].paceMinPerKm).toBe('06:00');
+  expect(rows[1].distanceM).toBe(400);
+  expect(rows[1].pacePer100M).toBe('02:25');
+  expect(rows[1].paceMinPerKm).toBeNull();
+  expect(actual.queue[1].prescription.plannedPacePer100M).toBe('02:20');
+  const bounds=await page.evaluate(()=>({
+    scroll:document.documentElement.scrollWidth,
+    viewport:document.documentElement.clientWidth,
+  }));
+  expect(bounds.scroll).toBeLessThanOrEqual(bounds.viewport+1);
 });
