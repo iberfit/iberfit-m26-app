@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "e6c06cd071e756e4151f83aa75d74c8469103d29",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IBERFIT NEXT M43 certified ultramacro; 12/12 PR checks, QA WebAuthn Coach/Admin real, Canary exact live, PROD SQL 32/32."
+}
