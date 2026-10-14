@@ -1914,6 +1914,8 @@ export function createWorkflowController({
   }
   async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const measurementForm=event.target.closest?.('[data-exercise-measurement-form]');if(measurementForm){event.preventDefault?.();await updateLibraryMeasurementProfile(measurementForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
+    // The saved-draft selector is navigation, never a change to the active report.
+    if(event.target.closest?.('[data-report-draft-choice]'))return;
     const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       try{computed(iriForm);}catch{}clearStatus(root,'iri');queueIriSave();return;
