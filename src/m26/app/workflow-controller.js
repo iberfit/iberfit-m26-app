@@ -2007,7 +2007,7 @@ export function createWorkflowController({
     const reportForm=root.querySelector?.('[data-workflow-form="report-approval"]');
     if(reportForm)tasks.push(Promise.resolve(saveReportDraft(reportForm,{silent:true})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-report-draft',code:String(error?.message||error)});return null;}));
     const planForm=root.querySelector?.('[data-workflow-form="planning"]');
-    if(planForm)tasks.push(Promise.resolve(savePlanDraft(planForm,{silent:true})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-plan-draft',code:String(error?.message||error)});return null;}));
+    if(planForm&&editedPlanForms.has(planForm))tasks.push(Promise.resolve(savePlanDraft(planForm,{silent:true})).catch((error)=>{emit(root,'m26:workflow-error',{action:'flush-plan-draft',code:String(error?.message||error)});return null;}));
     await Promise.allSettled(tasks);
     return true;
   }
