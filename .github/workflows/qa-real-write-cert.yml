@@ -2,6 +2,7 @@ name: IBERFIT QA Real Write Certification
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
     paths:
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
@@ -53,6 +54,7 @@ concurrency:
 
 jobs:
   connected360-v45-synthetic-write:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: connected360-v45-authenticated-synthetic-write
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -91,6 +93,7 @@ jobs:
           retention-days: 14
 
   qa-real-write:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: write-persist-idempotency-isolation
     runs-on: ubuntu-latest
     concurrency:
@@ -196,6 +199,7 @@ jobs:
           retention-days: 30
 
   m43-real-coach-client-qa:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: M43 real Coach-Client QA E2E
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -237,6 +241,7 @@ jobs:
 
 
   m43-real-client-browser:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: M43 real Client browser current-source
     needs: [m43-real-coach-client-qa]
     runs-on: ubuntu-latest

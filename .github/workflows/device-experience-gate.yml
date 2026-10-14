@@ -2,6 +2,7 @@ name: IBERFIT Device Experience Gate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/**'
@@ -51,6 +52,7 @@ concurrency:
 
 jobs:
   contract:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: device-policy-contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -66,6 +68,7 @@ jobs:
       - run: node --test tests/m26_device_experience_gate_contract.test.mjs
 
   workflow-matrix:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: workflow-matrix-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -107,6 +110,7 @@ jobs:
           retention-days: 30
 
   client-coach-qa:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: client-real-coach-webauthn-matrix
     runs-on: ubuntu-latest
     concurrency:
@@ -206,6 +210,7 @@ jobs:
           retention-days: 30
 
   admin-task-matrix:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: admin-synthetic-task-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -252,6 +257,7 @@ jobs:
           retention-days: 30
 
   pwa-upgrade:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: pwa-installed-device-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -290,7 +296,7 @@ jobs:
 
   gate:
     name: device-experience-gate-phase-a
-    if: always()
+    if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     needs: [contract,workflow-matrix,client-coach-qa,admin-task-matrix,pwa-upgrade]
     runs-on: ubuntu-latest
     steps:

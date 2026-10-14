@@ -2,6 +2,7 @@ name: IBERFIT Authenticated Client Interaction
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/app/**'
@@ -42,6 +43,7 @@ concurrency:
 
 jobs:
   authenticated-client-controls:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     concurrency:
       group: iberfit-authenticated-client-interaction-readonly

@@ -2,6 +2,7 @@ name: IBERFIT M26 Fast Lane
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches:
       - canary/rc74-4
     paths:
