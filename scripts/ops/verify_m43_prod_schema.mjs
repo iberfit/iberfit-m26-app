@@ -21,7 +21,7 @@ const preflight=definition('iberfit_command_preflight_v26_pre_rc74_4h(jsonb)');
 const bootstrap=definition('iberfit_bootstrap_v26()');
 const fragment=(expr,needle)=>`coalesce(position('${needle.replaceAll("'","''")}' in ${expr})>0,false)`;
 const pinned=name=>`EXISTS(SELECT 1 FROM pg_catalog.pg_proc p WHERE p.oid=to_regprocedure('public.${name}') AND p.prosecdef AND 'search_path=""'=ANY(p.proconfig))`;
-export const QUERY=[
+const CHECK_SQL=[
   'SELECT',
   "  to_regprocedure('public.iberfit_command_preflight_v26_pre_rc74_4h(jsonb)') IS NOT NULL AS preflight_rpc,",
   "  to_regprocedure('public.iberfit_bootstrap_v26()') IS NOT NULL AS bootstrap_rpc,",
@@ -61,7 +61,12 @@ export const QUERY=[
   "  has_table_privilege('anon','public.domain_entities_v26','SELECT') IS FALSE AS domain_entities_anon_direct_read_denied",
   "  has_table_privilege('authenticated','public.domain_entities_v26','SELECT') IS FALSE AS domain_entities_auth_direct_read_denied",
   "  has_table_privilege('service_role','public.domain_entities_v26','SELECT') IS TRUE AS domain_entities_service_read_preserved",
-].join('\n');
+];
+if(CHECK_SQL.length!==REQUIRED.length+1)
+  throw new Error('M43_PRODUCTION_SCHEMA_CHECK_COUNT_INVALID');
+export const QUERY=CHECK_SQL.map((clause,index)=>
+  index>0&&index<CHECK_SQL.length-1?clause+',':clause
+).join('\n');
 export function certify(payload){
   const rows=Array.isArray(payload)?payload:Array.isArray(payload?.result)?payload.result:null;
   if(!rows||rows.length!==1||!rows[0]||typeof rows[0]!=='object'||Array.isArray(rows[0]))
