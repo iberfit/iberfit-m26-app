@@ -470,6 +470,13 @@ function validatedSetResult(step,input={},previous=null){
   const intervalsCompleted=measuredNumber(input.intervalsCompleted,1,1000,'M26_EXECUTION_INTERVALS_INVALID',true);
   const paceMinPerKm=String(input.paceMinPerKm??'').trim();
   if(paceMinPerKm&&!/^[0-9]{1,2}:[0-5][0-9]$/.test(paceMinPerKm))throw new Error('M26_EXECUTION_PACE_INVALID');
+  // Prescribed and observed metrics are typed by sport. A stale form, an
+  // old tab or a programmatic client must not silently relabel kilometres
+  // as pool metres (or record a running pace during a swim).
+  if(profile.sport==='swimming'&&(distanceKm!==null||paceMinPerKm))
+    throw new Error('M43_SWIM_OBSERVED_UNITS_MISMATCH');
+  if(['running','walking','cycling'].includes(profile.sport)&&distanceM!==null)
+    throw new Error('M43_LAND_OBSERVED_UNITS_MISMATCH');
   const pacePer100M=String(input.pacePer100M??'').trim();
   if(pacePer100M&&profile.sport!=='swimming')throw new Error('M29_SWIM_PACE_SPORT_MISMATCH');
   if(pacePer100M&&(!/^[0-9]{1,2}:[0-5][0-9]$/.test(pacePer100M)||pacePer100M==='0:00'||pacePer100M==='00:00'))throw new Error('M29_SWIM_PACE_INVALID');
@@ -880,7 +887,7 @@ export function addExecutionExercise(execution,{exerciseId,catalog,sets,reps,res
 }
 export function finishExecution(execution,feedback={}, {actor=null}={}){
   if(execution.status!=='awaiting_feedback')throw new Error('M26_EXECUTION_NOT_COMPLETE');
-  const sessionRpe=Number(feedback.sessionRpe||0);if(sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
+  const sessionRpe=Number(feedback.sessionRpe||0);if(!Number.isFinite(sessionRpe)||sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
   const pain=Boolean(feedback.pain),painNotes=pain?String(feedback.painNotes||'').trim().slice(0,1000):'';if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
   clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);delete execution.reviewingHistory;freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
