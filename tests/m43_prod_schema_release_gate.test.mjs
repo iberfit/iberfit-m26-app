@@ -45,5 +45,5 @@ test('M43 production verifier uses read-only management endpoint only and saniti
       return {ok:true,json:async()=>[ready]};
     }});
   assert.equal(requested,true);
-  assert.deepEqual(result,{ready:true,checks:22});
+  assert.deepEqual(result,{ready:true,checks:29});
 });
