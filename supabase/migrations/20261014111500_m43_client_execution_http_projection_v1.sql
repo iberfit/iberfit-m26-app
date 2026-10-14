@@ -99,7 +99,9 @@ begin
 
     v_payload:=jsonb_set(v_payload,'{data,m26Entities}',coalesce((
       select jsonb_agg(case when item->>'entityType'='session_execution'
-        then (item - 'body') || jsonb_build_object('body',public.iberfit_m43_client_safe_execution_v1(item->'body'))
+        then public.iberfit_m43_client_scalar_fields_v1(item,
+          ARRAY['entityType','entityId','clientId','status','revision','updatedAt']::text[])
+          || jsonb_build_object('body',public.iberfit_m43_client_safe_execution_v1(item->'body'))
         else item end)
       from jsonb_array_elements(coalesce(v_payload#>'{data,m26Entities}','[]'::jsonb)) item
       where item->>'entityType' not in ('planning','session','report')
