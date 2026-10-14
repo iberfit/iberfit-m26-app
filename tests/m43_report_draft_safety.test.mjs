@@ -84,6 +84,9 @@ test('M43: controller guards remote approval with a fresh revision and checks ac
   assert.doesNotMatch(approval,/buildApproveReportDraftCommand\(\{id:stableId,\.\.\.content\},0\)[\s\S]*?commandBus\.execute\(prepared\)/);
   assert.match(code,/updateReportDraftChoices\(form,\{restoreSingle:true\}\)/);
   assert.match(code,/onBeforeReportSwitch/);
+  const app=source('src/m26/app/application.js');
+  assert.match(app,/workflow=createWorkflowController\(\{root,store,commandBus,catalog,mediaMap,draftRepository,refreshState:hydrate,/);
+  assert.match(code,/if\(event\.target\.closest\?\.\('\[data-report-draft-choice\]'\)\)return;/);
 });
 
 test('M43: premium candidate begins a new report identity and Coach sees a recovery picker',()=>{
