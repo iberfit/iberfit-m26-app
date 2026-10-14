@@ -896,7 +896,12 @@ export function finishExecution(execution,feedback={}, {actor=null}={}){
   if(execution.status!=='awaiting_feedback')throw new Error('M26_EXECUTION_NOT_COMPLETE');
   const sessionRpe=Number(feedback.sessionRpe||0);if(!Number.isFinite(sessionRpe)||sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
-  const pain=Boolean(feedback.pain),painNotes=pain?String(feedback.painNotes||'').trim().slice(0,1000):'';if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
+  const painRaw=feedback.pain;
+  const painPositive=[true,1,'1','true','on','yes','si','sí'].includes(painRaw);
+  const painNegative=[false,0,'0','false','off','no',null,undefined,''].includes(painRaw);
+  if(!painPositive&&!painNegative)throw new Error('M43_EXECUTION_PAIN_VALUE_INVALID');
+  const pain=painPositive,painNotes=pain?String(feedback.painNotes||'').trim().slice(0,1000):'';
+  if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
   clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);delete execution.reviewingHistory;freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
   event(execution,'SESSION_COMPLETED',execution.feedback,actor);return execution;
 }
