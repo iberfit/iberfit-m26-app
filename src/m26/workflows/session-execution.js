@@ -140,6 +140,13 @@ function createPlanSnapshot(session,queue){
 
 export function createExecution({session,clientId,executionId=uid()}={}){
   if(!session?.id||!clientId)throw new Error('M26_EXECUTION_SESSION_CLIENT_REQUIRED');
+  // Do not create a recoverable local execution under another person's
+  // identity even if the remote command will reject it later.
+  const requested=String(clientId).trim();
+  const wrapper=String(session.clientId??session.client_id??'').trim();
+  const body=String(session.body?.clientId??session.body?.client_id??'').trim();
+  if((wrapper&&wrapper!==requested)||(body&&body!==requested))
+    throw new Error('M43_EXECUTION_CLIENT_SCOPE_CONFLICT');
   const queue=[];
   for(const block of session.blocks||[]){
     if(block.type==='exercise'){const sets=Number(block.sets||1),restSeconds=Number(block.restSeconds??60),targetRpe=Number(block.targetRpe||7),targetRir=Number(block.targetRir??3);if(!block.exerciseId||!Number.isInteger(sets)||sets<1||sets>100||!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_BLOCK_INVALID');queue.push({blockId:block.id,exerciseId:block.exerciseId,sets,prescription:{measurementProfile:exerciseMeasurementProfile({id:block.exerciseId,name_es:block.name,measurementProfile:block.measurementProfile}).kind,...serializedSportTargets(block),reps:String(block.reps||'').trim().slice(0,40)||null,plannedLoad:String(block.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(block.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(block.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(block.progression||'').trim().slice(0,500)||null,alternativeId:block.alternativeId||null}});}
