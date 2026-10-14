@@ -116,7 +116,9 @@ export function sessionCommandFailureOutcome(source,{role='',action='',phase='ac
     }
     const recovery=ACTIONABLE_FAILURE_MESSAGES[reason];
     if(!recovery)return null;
-    return Object.freeze({status:'retry',code:reason,...recovery});
+    // Legacy entries are either strings or structured guidance. Spreading a
+    // string into an object silently drops `message` and hides the real cause.
+    return Object.freeze({status:'retry',code:reason,...(typeof recovery==='string'?{message:recovery}:recovery)});
   }
   if(phase==='sync'){
     return Object.freeze({
