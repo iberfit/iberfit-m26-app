@@ -1,4 +1,6 @@
 import {test,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+import {join} from 'node:path';
 import {
   CANARY_ORIGIN,QA_PROJECT_REF,SUPABASE_ORIGIN,
   installCurrentSourceQaNetworkPolicy,
@@ -74,6 +76,11 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   await expect(history.getByRole('heading',{name:'Sesiones realizadas'})).toBeVisible();
   await expect(history.locator('[data-m43-completed-session]').first()).toBeVisible();
   await expect(history).toContainText(LIVE_MARKER);
+  // Keep synthetic QA browser evidence even on PASS. testInfo.attach alone
+  // is not persisted by the line reporter used in GitHub Actions.
+  const evidenceDirectory=join('recovery','m43-qa','browser');
+  await mkdir(evidenceDirectory,{recursive:true});
+  await page.screenshot({path:join(evidenceDirectory,`${testInfo.project.name}-sessions.png`),fullPage:true});
   const tagRects=await publishedCards.filter({hasText:LIVE_MARKER}).first()
     .locator('.m26-session-experience__capability')
     .evaluateAll(nodes=>nodes.map(node=>{
@@ -98,6 +105,7 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   await expect(page.locator('[data-m27-session-surface="planning"]')).toBeVisible();
   await expect(page.getByRole('heading',{name:/^Planificación ·/})).toBeVisible();
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
+  await page.screenshot({path:join(evidenceDirectory,`${testInfo.project.name}-planning.png`),fullPage:true});
   const geometry=await page.evaluate(()=>({
     width:document.documentElement.clientWidth,
     scrollWidth:document.documentElement.scrollWidth,
