@@ -6,7 +6,7 @@ export const AVATAR_SOURCE_MIME='image/webp';
 export const AVATAR_MAX_SOURCE_BYTES=5*1024*1024;
 export const AVATAR_MAX_OUTPUT_BYTES=524288;
 const ID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const INPUT_MIMES=new Set(['image/jpeg','image/png','image/webp']);
+const INPUT_MIMES=new Set(['image/jpeg','image/png','image/webp','image/heic','image/heif']);
 export const AVATAR_REVALIDATE_MS=120_000;
 
 export function profileAvatarPath(clientId){
@@ -28,7 +28,7 @@ export function canEditOwnProfileAvatar(identity={}){
 }
 export function avatarUploadMessage(error){
   switch(String(error?.message||error||'')){
-    case 'M42_AVATAR_UNSUPPORTED_IMAGE':return 'Utiliza una foto JPG, PNG o WebP.';
+    case 'M42_AVATAR_UNSUPPORTED_IMAGE':return 'Utiliza una foto JPG, PNG, WebP o HEIC compatible con tu dispositivo.';
     case 'M42_AVATAR_FILE_TOO_LARGE':return 'La imagen debe ocupar menos de 5 MB.';
     case 'M42_AVATAR_FILE_TOO_LARGE_PROCESSED':return 'No se ha podido reducir la foto. Prueba con otra imagen.';
     case 'M42_AVATAR_IMAGE_INVALID':return 'No se pudo abrir la imagen. Elige una fotografía válida.';
@@ -37,29 +37,58 @@ export function avatarUploadMessage(error){
     default:return 'No se pudo actualizar la foto. Inténtalo de nuevo.';
   }
 }
-async function normalizeAvatar(file,{scope=globalThis}={}){
-  validateProfileAvatarFile(file);
-  if(typeof scope.createImageBitmap!=='function'||!scope.document?.createElement)
-    throw new Error('M42_AVATAR_IMAGE_INVALID');
-  let bitmap;
-  try{bitmap=await scope.createImageBitmap(file);}
-  catch{throw new Error('M42_AVATAR_IMAGE_INVALID');}
+// Prefer the native bitmap pipeline; Mobile Safari can lack createImageBitmap
+// even though it can decode camera HEIC photos through an <img> element.
+async function decodeAvatarSource(file,scope){
+  if(typeof scope.createImageBitmap==='function'){
+    try{
+      const bitmap=await scope.createImageBitmap(file);
+      return {image:bitmap,dispose:()=>bitmap?.close?.()};
+    }catch{} // Alternate browser decoder, never send source file to backend.
+  }
+  if(!scope.document?.createElement||!scope.URL?.createObjectURL)
+    throw Error('M42_AVATAR_IMAGE_INVALID');
+  const image=scope.document.createElement('img'),url=scope.URL.createObjectURL(file);
   try{
-    if(bitmap.width<1||bitmap.height<1||bitmap.width>6000||bitmap.height>6000||bitmap.width*bitmap.height>16000000)
-      throw new Error('M42_AVATAR_IMAGE_INVALID');
+    await new Promise((resolve,reject)=>{
+      let timer=null,completed=false;
+      const end=(error)=>{
+        if(completed)return;
+        completed=true;if(timer!==null)(scope.clearTimeout||clearTimeout)(timer);
+        image.onload=null;image.onerror=null;
+        error?reject(error):resolve();
+      };
+      image.onload=()=>end(null);
+      image.onerror=()=>end(Error('M42_AVATAR_IMAGE_INVALID'));
+      timer=(scope.setTimeout||setTimeout)(()=>end(Error('M42_AVATAR_IMAGE_INVALID')),12000);
+      image.src=url;
+    });
+    return {image,dispose:()=>scope.URL.revokeObjectURL(url)};
+  }catch(error){scope.URL.revokeObjectURL(url);throw error;}
+}
+export async function normalizeAvatar(file,{scope=globalThis}={}){
+  validateProfileAvatarFile(file);
+  if(!scope.document?.createElement)throw Error('M42_AVATAR_IMAGE_INVALID');
+  const decoded=await decodeAvatarSource(file,scope);
+  const bitmap=decoded.image;
+  try{
+    const width=Number(bitmap.naturalWidth||bitmap.width),height=Number(bitmap.naturalHeight||bitmap.height);
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<1||height<1||
+      width>6000||height>6000||width*height>16000000)
+      throw Error('M42_AVATAR_IMAGE_INVALID');
     const canvas=scope.document.createElement('canvas');
     canvas.width=320;canvas.height=320;
     const ctx=canvas.getContext?.('2d');
-    if(!ctx)throw new Error('M42_AVATAR_IMAGE_INVALID');
-    const edge=Math.min(bitmap.width,bitmap.height);
-    ctx.drawImage(bitmap,(bitmap.width-edge)/2,(bitmap.height-edge)/2,edge,edge,0,0,320,320);
+    if(!ctx)throw Error('M42_AVATAR_IMAGE_INVALID');
+    const edge=Math.min(width,height);
+    ctx.drawImage(bitmap,(width-edge)/2,(height-edge)/2,edge,edge,0,0,320,320);
     for(const quality of [0.82,0.67,0.5]){
       const image=await new Promise(resolve=>canvas.toBlob(resolve,AVATAR_SOURCE_MIME,quality));
       if(image?.type===AVATAR_SOURCE_MIME&&image.size>0&&image.size<=AVATAR_MAX_OUTPUT_BYTES)
         return image;
     }
-    throw new Error('M42_AVATAR_FILE_TOO_LARGE_PROCESSED');
-  }finally{bitmap?.close?.();}
+    throw Error('M42_AVATAR_FILE_TOO_LARGE_PROCESSED');
+  }finally{decoded.dispose();}
 }
 
 export function createClientAvatarController({
