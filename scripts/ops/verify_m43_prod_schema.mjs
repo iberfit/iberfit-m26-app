@@ -6,6 +6,9 @@ export const REQUIRED=Object.freeze([
   'client_revisions_filter','client_events_redacted','client_role_boundary',
   'preflight_anon_denied','bootstrap_anon_denied','bootstrap_authenticated',
   'preflight_definer_pinned','bootstrap_definer_pinned',
+  'client_execution_helper','client_execution_http_projection',
+  'client_legacy_execution_http_projection','client_execution_anon_denied',
+  'client_execution_authenticated_denied','client_execution_no_private_keys',
 ]);
 const definition=name=>`pg_catalog.pg_get_functiondef(to_regprocedure('public.${name}'))`;
 const preflight=definition('iberfit_command_preflight_v26_pre_rc74_4h(jsonb)');
@@ -28,7 +31,13 @@ export const QUERY=[
   "  has_function_privilege('anon',to_regprocedure('public.iberfit_bootstrap_v26()'),'EXECUTE') IS FALSE AS bootstrap_anon_denied,",
   "  has_function_privilege('authenticated',to_regprocedure('public.iberfit_bootstrap_v26()'),'EXECUTE') IS TRUE AS bootstrap_authenticated,",
   `  ${pinned('iberfit_command_preflight_v26_pre_rc74_4h(jsonb)')} AS preflight_definer_pinned,`,
-  `  ${pinned('iberfit_bootstrap_v26()')} AS bootstrap_definer_pinned`,
+  `  ${pinned('iberfit_bootstrap_v26()')} AS bootstrap_definer_pinned,`,
+  "  to_regprocedure('public.iberfit_m43_client_safe_execution_v1(jsonb)') IS NOT NULL AS client_execution_helper,",
+  `  ${fragment(bootstrap,'iberfit_m43_client_safe_execution_v1')} AS client_execution_http_projection,`,
+  `  ${fragment(bootstrap,'data,sessionExecutions')} AS client_legacy_execution_http_projection,`,
+  "  has_function_privilege('anon',to_regprocedure('public.iberfit_m43_client_safe_execution_v1(jsonb)'),'EXECUTE') IS FALSE AS client_execution_anon_denied,",
+  "  has_function_privilege('authenticated',to_regprocedure('public.iberfit_m43_client_safe_execution_v1(jsonb)'),'EXECUTE') IS FALSE AS client_execution_authenticated_denied,",
+  `  coalesce(position('coachPrivateNote' in ${definition('iberfit_m43_client_safe_execution_v1(jsonb)')})=0,false) AS client_execution_no_private_keys`,
 ].join('\n');
 export function certify(payload){
   const rows=Array.isArray(payload)?payload:Array.isArray(payload?.result)?payload.result:null;
