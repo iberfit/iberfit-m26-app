@@ -211,3 +211,14 @@ test('M43 longitudinal data: Client sees measured sport evidence from current an
   assert.equal(result.sessionExecutions.find(x=>x.id==='execution-legacy').results[0].load,'30 kg');
   assert.doesNotMatch(JSON.stringify(result),/PRIVADO_CABECERA|PRIVADO_INTERNO|PRIVADO_LEGADO|coach-private|execution-foreign/);
 });
+
+test('M43 execution fails closed before local persistence when session belongs to a different client',()=>{
+  const {session}=published();
+  const wrong={...session,clientId:otherClient};
+  assert.throws(()=>createExecution({session:wrong,clientId}),/M43_EXECUTION_CLIENT_SCOPE_CONFLICT/);
+  const contradictory={...session,body:{clientId:otherClient}};
+  assert.throws(()=>createExecution({session:contradictory,clientId}),/M43_EXECUTION_CLIENT_SCOPE_CONFLICT/);
+  const compatibleLegacy={...session};delete compatibleLegacy.clientId;
+  assert.equal(createExecution({session:compatibleLegacy,clientId}).clientId,clientId,
+    'legacy sessions without client metadata retain compatible recovery');
+});
