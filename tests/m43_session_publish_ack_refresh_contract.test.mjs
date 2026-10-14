@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {publicationAckRefreshOutcome} from '../src/m26/workflows/session-controller.js';
+import {publicationAckRefreshOutcome,dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 import {createCommandBus} from '../src/m26/command-bus.js';
 import {createMemoryPersistentOperationRepository} from '../src/m26/platform/offline-command-repository.js';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
-import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../src/m26/workflows/session-builder.js';
+import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand,updateSessionDraft} from '../src/m26/workflows/session-builder.js';
 
 test('M43: successful server ACK remains successful when the onPublished UI refresh rejects',async()=>{
   const remoteAck={ok:true,kind:'ack',response:{kind:'ack',remoteRevision:1}};
@@ -65,4 +65,36 @@ test('M43 controller makes the server ACK and UI callback two independent phases
   assert.match(source,/actionState\.status='pending'/);
   assert.match(source,/El servidor confirmó la publicación, pero la vista todavía no se pudo actualizar/);
   assert.doesNotMatch(source,/if\(outcome\.ok&&action==='publish'\)await context\.onPublished/);
+});
+
+test('M43 same published draft reuses receipt without issuing another server publication',async()=>{
+  const clientId='m43-double-publish-client';
+  const catalog=createExerciseCatalog([{id:'m43-run-ack',name_es:'Carrera continua',measurement_profile:'endurance'}]);
+  const draft=createSessionDraft({clientId,title:'Carrera controlada',durationMinutes:45});
+  addCatalogExercise(draft,'m43-run-ack',catalog,{plannedDistanceKm:'5',plannedDurationMinutes:'30'});
+  acceptSessionPreview(draft,catalog);
+  let sent=0;
+  const bus=createCommandBus({
+    repository:createMemoryPersistentOperationRepository({ownerId:'m43-publication-receipt'}),
+    getRole:()=> 'coach',getToken:async()=> 'synthetic',
+    transport:{preflight:async()=>({}),execute:async()=>({kind:'ack',remoteRevision:++sent})},
+    rehydrate:async()=>{throw new Error('M43_SCREEN_REFRESH_FAILED');},
+  });
+  const publish=()=>dispatchSessionAction({action:'publish',draft,catalog,commandBus:bus,online:true,
+    actor:{id:'m43-coach',role:'coach',clientId}});
+  const first=await publish().value;
+  assert.equal(first.ok,true);
+  assert.equal(first.refreshPending,true);
+  assert.equal(sent,1);
+  const repeated=await publish().value;
+  assert.equal(repeated.ok,true);
+  assert.equal(repeated.alreadyConfirmed,true);
+  assert.equal(sent,1,'repeated click after ACK must not make a second server command');
+  updateSessionDraft(draft,'title','Carrera revisada');
+  assert.equal(draft.previewAccepted,false);
+  acceptSessionPreview(draft,catalog);
+  const revised=await publish().value;
+  assert.equal(revised.ok,true);
+  assert.equal(revised.alreadyConfirmed,undefined);
+  assert.equal(sent,2,'a genuinely new reviewed revision may make a new command');
 });
