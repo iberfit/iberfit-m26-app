@@ -188,6 +188,19 @@ async function main(){
     'FOREIGN_CLIENT_HISTORY_PRIVATE');
   check(!leaked&&!contains(finalA,savedId,'planning')&&!baseContains(finalA,savedId,'trainingCycles'),
     'UNPUBLISHED_SECOND_CYCLE_HIDDEN');
+  const raw=finalA?.data?.m26Entities?.find(item=>
+    item.entityType==='session_execution'&&String(item.entityId)===execution.id);
+  check(Boolean(raw?.body),'CLIENT_HTTP_EXECUTION_RETURNED');
+  check(Array.isArray(raw.body.results)&&raw.body.results.length===3,
+    'CLIENT_HTTP_THREE_SPORT_METRICS');
+  check(!['events','incidents','queue','progressSnapshot','sourceRevision'].some(k=>
+    Object.hasOwn(raw.body,k)),'CLIENT_HTTP_EXECUTION_INTERNAL_FIELDS_OMITTED');
+  check(Object.keys(raw.body.feedback||{}).every(k=>
+    ['sessionRpe','comment','pain','painNotes'].includes(k)),
+    'CLIENT_HTTP_FEEDBACK_ALLOWLIST');
+  check((finalA?.data?.sessionExecutions||[]).every(e=>
+    !['events','incidents','queue','progressSnapshot'].some(k=>Object.hasOwn(e,k))),
+    'CLIENT_HTTP_LEGACY_EXECUTION_INTERNAL_FIELDS_OMITTED');
   evidence.phase='complete';
   evidence.passed=true;
 }
