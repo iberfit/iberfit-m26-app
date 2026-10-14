@@ -63,6 +63,23 @@ test('browser contract proves both registration and assertion on current source'
   assert.match(config,/trace:'retain-on-failure'/u);
 });
 
+test('M43 Coach WebAuthn certification navigates real sessions and planning at 320px through desktop',async()=>{
+  const spec=await read('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
+  const workflow=await read('.github/workflows/coach-webauthn-recurring.yml');
+  assert.match(spec,/evidence\.authenticationVerified=true;evidence\.mfaCompleted=true/u);
+  assert.match(spec,/openCertifiedCoachArea\(page,'sesion'\)/u);
+  assert.match(spec,/openCertifiedCoachArea\(page,'planificacion'\)/u);
+  assert.match(spec,/data-m27-session-surface="sessions"/u);
+  assert.match(spec,/Preparación y ejecución/u);
+  assert.match(spec,/mobile-320/u);
+  assert.match(spec,/m43CoachWorkspaceCertified/u);
+  assert.match(spec,/m43-\$\{device\.name\}-coach-sessions\.png/u);
+  assert.match(spec,/m43-\$\{device\.name\}-coach-planning\.png/u);
+  assert.match(workflow,/if: github\.event_name != 'pull_request'/u,
+    'Never run the real QA credential-reset broker from an untrusted PR');
+  assert.match(workflow,/group: iberfit-qa-shared-auth-readonly/u);
+});
+
 test('authenticated readonly gate expects the disposable Coach fixture after cleanup',async()=>{
   const gate=await read('scripts/remote-gates/run_authenticated_readonly_gate.mjs');
   assert.match(gate,/const EXPECTED_COACH_CERT_EMAIL='qa\.rc74\.coach@iberfit\.cl'/u);
