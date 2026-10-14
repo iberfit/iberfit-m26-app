@@ -30,6 +30,11 @@ function boundViewTransition(transition,{windowLike=globalThis.window,maxDuratio
     timer=null;
     try{transition.skipTransition();}catch{}
   },timeoutMs);
+  // Chrome rejects `ready` with AbortError when a superseding route update
+  // skips a decorative transition. Never turn that benign cancellation into
+  // an unhandled page error or a stuck navigation during post-login mounts.
+  if(transition.ready&&typeof transition.ready.then==='function')
+    Promise.resolve(transition.ready).catch(()=>{});
   Promise.resolve(transition.finished).catch(()=>{}).finally(()=>{
     if(timer!==null&&typeof clearTimer==='function')clearTimer(timer);
     timer=null;
