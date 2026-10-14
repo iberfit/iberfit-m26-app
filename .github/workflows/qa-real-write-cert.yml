@@ -290,7 +290,8 @@ jobs:
         with:
           name: iberfit-m43-auth-client-browser-${{ github.run_id }}
           path: |
+            recovery/m43-qa/browser/
             test-results/
             playwright-report/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
