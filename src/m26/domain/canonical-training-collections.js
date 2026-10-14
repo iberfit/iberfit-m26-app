@@ -1,7 +1,13 @@
 // Canonical V26 commands persist in domain_entities_v26; legacy training_cycles
-// and sessions may not have matching rows. Unify those records before role
+// sessions and session executions may not have matching rows. Unify those records before role
 // projection, never fabricate an ACK or leak a Coach draft to a Client.
-const COLLECTION_FOR_ENTITY=Object.freeze({planning:'trainingCycles',session:'sessions'});
+const COLLECTION_FOR_ENTITY=Object.freeze({
+  planning:'trainingCycles',
+  session:'sessions',
+  // EXECUCION_COMPLETAR persists in domain_entities_v26 even without a
+  // legacy session_executions row. Client history must reconcile that ACK.
+  session_execution:'sessionExecutions',
+});
 const validId=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(value);
 const nonnegativeRevision=value=>Number.isSafeInteger(Number(value))&&Number(value)>=0?Number(value):null;
 const ownedBody=entity=>entity?.body&&typeof entity.body==='object'&&!Array.isArray(entity.body)?entity.body:null;

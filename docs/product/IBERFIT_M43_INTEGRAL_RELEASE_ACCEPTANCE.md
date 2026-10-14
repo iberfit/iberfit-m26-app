@@ -105,3 +105,11 @@ La segunda prueba real confirmó que `SESION_PUBLICAR` ya realiza `SESION_HABILI
 ### Capturas reales y RC39: corrección de historial y responsive
 
 Playwright mostró que la interfaz Cliente activa en Sesiones es RC39 (no la ruta anterior M26). La nueva prueba conserva el backend real, pero verifica encabezados, controles y contenido de la pantalla actual. Además se devuelve a RC39 el historial de ejecuciones completadas ya disponible en el view-model canónico (nombre, fecha, número de registros y RPE confirmado), sin exponer eventos internos ni notas privadas. Las etiquetas de capacidades de Live Workout se distribuyen en filas en teléfonos pequeños, y Playwright comprueba visualmente que no se superponen.
+
+### Hallazgo de navegador: ejecución confirmada omitida al reconciliar dominio
+
+En la certificación Playwright autenticada del SHA `f933b643`, RC39 mostraba la sesión publicada pero el historial vacío en escritorio, tablet y móvil. La causa estructural era el adaptador de `domain_entities_v26`: conciliaba `planning` y `session` pero no `session_execution`, y el API V26 confirmaba la ejecución sin depender de un espejo legacy `session_executions`. Se incorpora la conciliación a `sessionExecutions` antes de aplicar la proyección de rol del Cliente. Las pruebas incluyen la hidratación completa, ACK sin espejo legacy, deduplicación por revisión, seguridad de campos privados, integridad de identificadores y ausencia de datos de otro cliente. La nueva prueba E2E real de navegador debe demostrar que el historial se ve después del login.
+
+### Seguridad de feedback tras restaurar ejecución canónica
+
+La prueba de regresión detectó además que el proyector de `sessionExecutions` permitía transmitir propiedades anidadas arbitrarias de `feedback`. Se limita el feedback Cliente al contrato explícito de `finishExecution`: `sessionRpe`, `comment`, `pain`, `painNotes`. Se mantienen intactas las métricas confirmadas en `results`, eliminando la posibilidad de que un campo adicional de notas internas acabe en el Cliente. Esta proyección solo afecta al rol Cliente; el Coach conserva la vista profesional.

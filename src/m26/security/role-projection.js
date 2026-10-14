@@ -107,6 +107,16 @@ function safeExecutionResults(record){
       return item;
     });
 }
+// Execution feedback is client-authored. Project the only sanctioned
+// fields from the canonical finishExecution command; never forward arbitrary
+// nested Coach annotations (even when a key is named coachPrivateNote).
+function safeExecutionFeedback(record){
+  const feedback=field(record,'feedback');
+  if(!feedback||typeof feedback!=='object'||Array.isArray(feedback))return undefined;
+  const out={};
+  for(const key of ['sessionRpe','comment','pain','painNotes'])assign(out,key,feedback,key);
+  return out;
+}
 function publicationBase(record,key){const out=base(record,key);assign(out,'visibleToClient',record,'visibleToClient','visible_to_client');assign(out,'title',record,'title','titulo','name','nombre');assign(out,'createdAt',record,'createdAt','created_at');assign(out,'updatedAt',record,'updatedAt','updated_at');return out;}
 function projectPublication(key,record){
   const out=publicationBase(record,key);
@@ -152,7 +162,7 @@ function projectGeneric(key,record){
     ],
     clientAccess:[['activatedAt',['activatedAt','activated_at']],['lastAccessAt',['lastAccessAt','last_access_at']]],
     iriAssessments:[['assessmentDate',['assessmentDate','assessment_date','evaluatedAt','evaluated_at']],['evaluatedAt',['evaluatedAt','evaluated_at']],['stepFinalHr',['stepFinalHr','step_final_hr']],['stepOneMinuteHr',['stepOneMinuteHr','step_one_minute_hr']],['pushUps',['pushUps','push_ups']],['chairStand30s',['chairStand30s','chair_stand_30s']],['bodyComposition',['bodyComposition','body_composition']],['strengthPatterns',['strengthPatterns','strength_patterns']]],
-    sessionExecutions:[['sessionId',['sessionId','session_id']],['appointmentId',['appointmentId','appointment_id']],['title',['title','sessionTitle','session_title']],['startedAt',['startedAt','started_at']],['completedAt',['completedAt','completed_at','remoteConfirmedAt','remote_confirmed_at','localClosedAt','local_closed_at']],['executionStatus',['executionStatus','execution_status']],['remoteConfirmedAt',['remoteConfirmedAt','remote_confirmed_at']],['localClosedAt',['localClosedAt','local_closed_at']],['updatedAt',['updatedAt','updated_at']],['currentBlockIndex',['currentBlockIndex','current_block_index']],['currentSetIndex',['currentSetIndex','current_set_index']],['feedback',['feedback']],['results',['results','resultados']]],
+    sessionExecutions:[['sessionId',['sessionId','session_id']],['appointmentId',['appointmentId','appointment_id']],['title',['title','sessionTitle','session_title']],['startedAt',['startedAt','started_at']],['completedAt',['completedAt','completed_at','remoteConfirmedAt','remote_confirmed_at','localClosedAt','local_closed_at']],['executionStatus',['executionStatus','execution_status']],['remoteConfirmedAt',['remoteConfirmedAt','remote_confirmed_at']],['localClosedAt',['localClosedAt','local_closed_at']],['updatedAt',['updatedAt','updated_at']],['currentBlockIndex',['currentBlockIndex','current_block_index']],['currentSetIndex',['currentSetIndex','current_set_index']],['results',['results','resultados']]],
     appointments:[['sessionId',['sessionId','session_id']],['title',['title','titulo','name','nombre']],['startAt',['startAt','start_at','scheduledAt','scheduled_at','date']],['endAt',['endAt','end_at']],['location',['location','ubicacion']],['modality',['modality','modalidad']],['visibleToClient',['visibleToClient','visible_to_client']],['confirmedByClientAt',['confirmedByClientAt','confirmed_by_client_at']],['clientResponse',['clientResponse','client_response']],['changeRequestedAt',['changeRequestedAt','change_requested_at']],['changeRequestReason',['changeRequestReason','change_request_reason']],['changeRequest',['changeRequest','change_request']]],
     checkins:[['createdAt',['createdAt','created_at','recordedAt','recorded_at']],['energy',['energy','energia']],['sleep',['sleep','sueno']],['stress',['stress','estres']],['pain',['pain','dolor']],['notes',['notes','notas']],['wearableSummary',['wearableSummary','wearable_summary']]],
     habits:[['title',['title','titulo','name','nombre']],['description',['description','descripcion']],['frequency',['frequency','frecuencia']],['createdAt',['createdAt','created_at']]],
@@ -163,7 +173,11 @@ function projectGeneric(key,record){
   };
   const list=mappings[key];if(!list)return null;
   for(const [canonical,keys] of list)assign(out,canonical,record,...keys);
-  if(key==='sessionExecutions')out.results=safeExecutionResults(record);
+  if(key==='sessionExecutions'){
+    out.results=safeExecutionResults(record);
+    const feedback=safeExecutionFeedback(record);
+    if(feedback)out.feedback=feedback;
+  }
   return out;
 }
 function projectRecordForClient(key,record){return PUBLICATION_SCOPED.has(key)?projectPublication(key,record):projectGeneric(key,record);}
