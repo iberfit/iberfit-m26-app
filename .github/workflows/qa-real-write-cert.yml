@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
     paths:
+      - 'scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs'
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
@@ -25,6 +26,7 @@ on:
   push:
     branches: [canary/rc74-4]
     paths:
+      - 'scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs'
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
@@ -53,6 +55,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+
+  m42-avatar-private-real-qa:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    name: M42 private Client avatar real RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify private Storage owner, Coach and other Client real authenticated access
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs
+      - name: Preserve redacted avatar QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m42-avatar-private-qa-${{ github.run_id }}
+          path: recovery/m42-qa/avatar-private-real-write.json
+          if-no-files-found: warn
+          retention-days: 30
+
   connected360-v45-synthetic-write:
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: connected360-v45-authenticated-synthetic-write

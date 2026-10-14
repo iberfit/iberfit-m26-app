@@ -40,11 +40,50 @@ function isReadOnlyPushConfigRequest(request,url,method){
   }catch{return false;}
 }
 
+// Only a private, JWT-authenticated, owner-scoped WebP GET is permitted by
+// readonly visual/auth/device QA. Storage writes, public URLs and arbitrary
+// queries are forbidden. Exact M42 cacheNonce reads prevent stale private CDN
+// responses without weakening the read-only QA network perimeter.
+const AVATAR_GET_PATH=/^\/storage\/v1\/object\/authenticated\/iberfit-profile-avatars\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/avatar\.webp$/u;
+export function isQaPrivateAvatarRead(request){
+  try{
+    const url=new URL(request.url());
+    const method=request.method().toUpperCase();
+    const headers=request.headers?.()||{};
+    return url.origin===SUPABASE_ORIGIN&&method==='GET'&&
+      !url.hash&&AVATAR_GET_PATH.test(url.pathname)&&
+      (!url.search||(url.searchParams.size===1&&
+        /^[0-9]{13}-[1-9][0-9]{0,8}$/u.test(String(url.searchParams.get('cacheNonce')||''))))&&
+      /^Bearer [A-Za-z0-9_.~-]+$/u.test(String(headers.authorization||headers.Authorization||''));
+  }catch{return false;}
+}
+export async function isQaMissingPrivateAvatarResponse(response){
+  if(!isQaPrivateAvatarRead(response.request())||![400,404].includes(response.status()))return false;
+  try{
+    const body=await response.json();
+    return ['NoSuchKey','not_found'].includes(String(body?.code||''))&&
+      String(body?.error||'').toLowerCase()!=='unauthorized';
+  }catch{return false;}
+}
+export function unexpectedQaResourceErrors(errors,missingAvatarCount=0){
+  const source=Array.isArray(errors)?errors:[];
+  let allowed=0;
+  const unexpected=[];
+  for(const message of source){
+    const text=String(message||'');
+    if(allowed<missingAvatarCount&&/^Failed to load resource: the server responded with a status of (?:400|404)\b/iu.test(text)){
+      ++allowed;
+    }else unexpected.push(text);
+  }
+  return unexpected;
+}
+
 function allowedQaRequest(request,readOnlyRpcs){
   let url;
   try{url=new URL(request.url());}catch{return false;}
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
+  if(isQaPrivateAvatarRead(request))return true;
   if(method==='POST'&&url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')return true;
   if(method==='POST'&&url.pathname==='/auth/v1/logout')return true;
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;

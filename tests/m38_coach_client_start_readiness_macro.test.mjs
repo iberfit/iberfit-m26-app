@@ -105,5 +105,6 @@ test('M38 workflow gate refuses a second or premature execution',()=>{
   assert.ok(controller.includes('M38_SESSION_NOT_YET_AVAILABLE'));
   assert.ok(controller.includes('sessionReadyToStart(session)'));
   const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
-  assert.ok(app.includes('if(!sessionReadyToStart(event.detail.session))'));
+  assert.ok(app.includes('if(!sessionReadyToStart(current))'));
+  assert.ok(app.includes('resolveCurrentSessionForEntry({state:store.getState(),requested,clientId})'));
 });

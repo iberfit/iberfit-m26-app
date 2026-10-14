@@ -5,6 +5,8 @@ import {
   QA_PROJECT_REF,
   SUPABASE_ORIGIN,
   installCurrentSourceQaNetworkPolicy,
+  isQaMissingPrivateAvatarResponse,
+  unexpectedQaResourceErrors,
 } from './secure-current-source-auth.mjs';
 
 const REQUIRED=[
@@ -89,7 +91,20 @@ test('Client Genie guides a Client-only first run, can pause and completes its j
   const page=await context.newPage();
   const consoleErrors=[];
   const pageErrors=[];
+  const missingAvatarResponses=[];
+  const pendingMissingAvatarProbes=[];
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
+  page.on('response',(response)=>{
+    if(![400,404].includes(response.status()))return;
+    // In a fresh QA Client the avatar is optional: Supabase Storage returns
+    // NoSuchKey (HTTP 400). Count only independently verified private-avatar
+    // responses; unknown 400/404 must still fail this test.
+    pendingMissingAvatarProbes.push(
+      isQaMissingPrivateAvatarResponse(response).then((isExpected)=>{
+        if(isExpected)missingAvatarResponses.push(response.url());
+      }).catch(()=>{})
+    );
+  });
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
   try{
@@ -174,7 +189,9 @@ test('Client Genie guides a Client-only first run, can pause and completes its j
     await expect(page.locator('[data-m26-client-guided-welcome]')).toHaveCount(0);
 
     expect(blocked,'Guided welcome attempted a business mutation or foreign request').toEqual([]);
-    expect(consoleErrors).toEqual([]);
+    await Promise.all(pendingMissingAvatarProbes);
+    expect(unexpectedQaResourceErrors(consoleErrors,missingAvatarResponses.length),
+      'Unexpected console errors; only server-confirmed absent private avatars may be exempt').toEqual([]);
     expect(pageErrors).toEqual([]);
   }finally{
     await context.close().catch(()=>{});

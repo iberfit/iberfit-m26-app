@@ -1620,3 +1620,11 @@
 }
 /* ADMIN_USER_DIRECTORY_EDITORIAL_END */
 
+
+/* M42: the Admin directory may view client-supplied private avatars, but
+   retains administrative density and gains no image mutation permission. */
+.m26-admin-client-identity{display:flex;align-items:center;gap:.65rem;min-width:0}
+.m26-admin-client-identity .m26-admin-client-avatar{position:relative;flex:none;display:grid;place-items:center;inline-size:2.15rem;block-size:2.15rem;border-radius:50%;overflow:hidden;color:var(--iberfit-color-accent,#c5a059);background:#172820;border:1px solid rgba(197,160,89,.2);font-weight:700}
+.m26-admin-client-identity .m26-admin-client-name{display:grid;min-width:0;gap:.18rem}
+.m26-admin-client-identity .m26-admin-client-name strong,.m26-admin-client-identity .m26-admin-client-name small{overflow-wrap:anywhere}
+.m26-admin-client-identity .m26-admin-client-avatar img[data-iberfit-avatar-image]{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}

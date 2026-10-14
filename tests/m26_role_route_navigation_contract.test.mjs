@@ -157,6 +157,6 @@ test('La corrección no altera la navegación móvil Coach ni la navegación Cli
   );
   assert.deepEqual(
     navigationKeys('client').mobile,
-    ['hoy','sesion','progreso','actividad'],
+    ['hoy','planificacion','sesion','progreso'],
   );
 });

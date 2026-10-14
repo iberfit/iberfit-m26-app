@@ -1229,6 +1229,7 @@ function rc71SettingsSnapshot(
     role:String(shellVm.identity?.role||''),
     identity:Object.freeze({
       id:identityId,
+      clientId:String(shellVm.identity?.role||'')==='client'?String(clientId||''):null,
       name:String(shellVm.identity?.name||''),
       email:String(shellVm.identity?.email||state?.identity?.email||''),
       roleLabel:String(

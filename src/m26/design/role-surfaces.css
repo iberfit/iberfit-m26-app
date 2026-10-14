@@ -3333,6 +3333,16 @@ m26-echart[data-density="compact"]{
 .m26-session-live-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--iberfit-space-4);min-width:0}.m26-session-live-heading>div:first-child{min-width:0}.m26-session-live-heading h2,.m26-session-live-heading h3{margin:.2rem 0 .35rem}
 .m26-session-live-status,.m26-session-live-progress-badge{flex:0 0 auto;display:grid;justify-items:end;gap:.2rem;padding:.6rem .8rem;border:1px solid color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 28%,transparent);border-radius:var(--iberfit-radius-pill);background:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 9%,transparent)}
 .m26-session-live-progress-badge strong{font-size:clamp(1.35rem,3vw,1.9rem);line-height:1;font-variant-numeric:tabular-nums}.m26-session-live-progress-badge small{color:var(--iberfit-color-text-secondary);white-space:nowrap}
+.m26-session-haptics-control{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-width:0;max-width:100%;width:fit-content;line-height:1.4;cursor:pointer;color:var(--iberfit-color-text-primary)}
+.m26-session-haptics-control>input{margin:0;inline-size:1.3rem;block-size:1.3rem;flex:none;accent-color:var(--iberfit-color-accent)}
+.m26-session-haptics-control>span{display:grid;gap:.1rem;min-width:0;overflow-wrap:anywhere}
+.m26-session-haptics-control strong{font-size:.88rem;font-weight:700;line-height:1.3}
+.m26-session-haptics-control small{font-size:.79rem;font-weight:450;color:var(--iberfit-color-text-secondary);line-height:1.4}
+.m26-session-haptics-control:focus-within{outline:2px solid var(--iberfit-color-accent);outline-offset:4px;border-radius:.4rem}
+.m26-session-duration-consistency{max-width:76ch;border-inline-start:3px solid var(--iberfit-color-accent);padding:.6rem .85rem;background:color-mix(in srgb,var(--iberfit-color-accent) 6%,transparent);border-radius:.25rem}
+.m26-session-duration-consistency strong{font-size:.9rem;font-weight:750;color:var(--iberfit-color-text-primary)}
+.m26-session-duration-consistency p{margin:.3rem 0 0;line-height:1.55;color:var(--iberfit-color-text-secondary);font-size:.86rem}
+
 .m26-session-live-summary,.m26-session-completion-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--iberfit-space-2)}
 .m26-session-live-summary>div,.m26-session-completion-grid>div{display:grid;gap:.3rem;min-width:0;padding:var(--iberfit-space-3);border:1px solid var(--iberfit-color-border);border-radius:var(--iberfit-radius-md);background:color-mix(in srgb,var(--iberfit-color-surface-base) 74%,transparent)}
 .m26-session-live-summary span,.m26-session-completion-grid span,.m26-session-live-goal span,.m26-session-live-cues span,.m26-session-rest-countdown span{color:var(--iberfit-color-text-secondary);font-size:var(--iberfit-font-size-xs);font-weight:var(--iberfit-font-weight-semibold);letter-spacing:.04em;text-transform:uppercase}
@@ -4263,3 +4273,23 @@ m26-echart[data-density="compact"]{
     display:block;
   }
 }
+
+/* M42: personal imagery supports identity without changing the Brand Truth
+   isotipo. Zero client photos are embedded into exported reports or public URLs. */
+.m26-sidebar-user-row{display:flex;align-items:center;gap:.64rem;min-width:0}
+.m26-sidebar-user-row strong{min-width:0;overflow-wrap:anywhere}
+.m26-sidebar-user-avatar,.m26-avatar-settings-preview{display:grid;place-items:center;flex:none;position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 30%,transparent);border-radius:999px;background:var(--iberfit-color-surface-muted,#1a3026);color:var(--iberfit-color-accent,#c5a059);font-weight:750;line-height:1}
+.m26-sidebar-user-avatar{inline-size:2.15rem;block-size:2.15rem;font-size:.95rem}
+.m26-avatar-settings-preview{inline-size:5.5rem;block-size:5.5rem;font-size:2.05rem}
+[data-iberfit-avatar-client]{position:relative;overflow:hidden}
+[data-iberfit-avatar-client] img[data-iberfit-avatar-image]{position:absolute;inset:0;inline-size:100%;block-size:100%;object-fit:cover;border-radius:inherit;display:block;background:var(--iberfit-color-surface-muted,#1a3026)}
+.m26-avatar-settings-editor{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
+.m26-avatar-settings-commands{display:grid;justify-items:start;gap:.45rem;min-width:0;max-width:38rem}
+.m26-avatar-upload-label{display:inline-flex;justify-content:center;align-items:center;position:relative;min-block-size:44px;padding:.7rem 1rem;border:1px solid var(--iberfit-color-accent,#c5a059);border-radius:.6rem;cursor:pointer;font-weight:750}
+.m26-avatar-upload-label:focus-within{outline:3px solid var(--iberfit-color-accent,#c5a059);outline-offset:3px}
+.m26-avatar-upload-label input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.m26-avatar-settings-commands small{font-size:.82rem;color:var(--iberfit-color-text-secondary);line-height:1.5}
+[data-iberfit-avatar-status]:empty{display:none}
+[data-iberfit-avatar-status][data-status="error"]{color:var(--iberfit-color-danger,#ff8686)}
+@media(max-width:420px){.m26-avatar-settings-editor{gap:1rem}.m26-avatar-settings-preview{inline-size:4.6rem;block-size:4.6rem}}
+@media(forced-colors:active){.m26-avatar-upload-label{border:1px solid ButtonText}}

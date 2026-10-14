@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const recovery=()=>fs.readFileSync('src/m26/workflows/session-sync-recovery-ui.js','utf8');
-const i18n=()=>fs.readFileSync('src/m26/ui/i18n-surface.js','utf8');
+const i18n=()=>fs.readFileSync('src/m26/ui/i18n-surface.js','utf8')+'\n'+fs.readFileSync('src/m26/ui/i18n-surface-session.js','utf8');
 
 function actionableMessages(source){
   const block=source.match(/const ACTIONABLE_FAILURE_MESSAGES=Object\.freeze\(\{([\s\S]*?)\}\);/u)?.[1]||'';
@@ -17,9 +17,9 @@ function actionableMessages(source){
 
 test('todos los mensajes operativos recuperables están clasificados por i18n',()=>{
   const messages=actionableMessages(recovery());
-  assert.equal(messages.length,31,'el contrato operativo esperado debe permanecer explícito, incluidos los cuatro errores de publicación M35');
+  assert.equal(messages.length,43,'M42 amplía el contrato sin perder los 31 mensajes previos ni los cuatro errores M35');
   const catalogue=i18n();
-  const missing=messages.filter((message)=>!catalogue.includes(`['${message}'`));
+  const missing=messages.filter((message)=>!catalogue.includes(`['${message}'`)&&!catalogue.includes(`[${JSON.stringify(message)},`));
   assert.deepEqual(missing,[],'ningún mensaje visible de recuperación puede quedar fuera de ES/EN/FR/PT');
 });
 

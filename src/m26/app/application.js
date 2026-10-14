@@ -29,6 +29,9 @@ import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-ch
 import {createVerificationController,refreshVerificationState} from '../engagement/conflict-center.js';
 import {createShellController} from '../shell/shell-controller.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
+import {createClientAvatarController} from '../profile/client-avatar.js';
+import {createWorkspaceEntryGate} from './workspace-entry-gate.js';
+import {resolveCurrentSessionForEntry} from '../workflows/session-entry-freshness.js';
 import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
 import {createProgressiveOnboardingController} from '../onboarding/progressive-onboarding.js';
@@ -496,9 +499,14 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
+  const workspaceEntryGate=createWorkspaceEntryGate({getScope:()=>{
+    const state=store.getState()||{},identity=state.identity||{};
+    return [session?.user?.id||'',identity.id||'',identity.role||'',
+      identity.clientId||'',state.selectedClientId||'',activeApplicationRole||''].join('|');
+  }});
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
   let currentAuthAttemptId=null;
   const authWatchdog=createAuthBusyWatchdog({
@@ -1162,7 +1170,15 @@ export async function createM26Application({root=document.querySelector('#app'),
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
   function onOpenBuilderEvent(event){void onOpenBuilder(event).catch(surfaceWorkspaceError);}
-  function onStartSessionEvent(event){void onStartSession(event).catch(surfaceWorkspaceError);}
+  function onStartSessionEvent(event){
+    const completion=onStartSession(event);
+    // CustomEvent dispatch is synchronous. Expose the actual asynchronous
+    // workspace preparation result to the originating workflow action.
+    if(event?.detail&&typeof event.detail==='object')event.detail.completion=completion;
+    // A programmatic event with no awaiter must never cause an unhandled
+    // rejection or silence diagnostics.
+    void completion.catch(error=>reportSoftDiagnostic('session-entry',error));
+  }
   function safeAppPath(){const pathname=String(locationLike?.pathname||'/');return pathname.startsWith('/')&&!pathname.startsWith('//')?pathname:'/';}
   function replaceAppLocation(target){try{historyLike?.replaceState?.(null,'',target);}catch{}}
   function sanitizePendingIriExternalReportIntent(){
@@ -1257,6 +1273,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       },
     });
     mediaExperience=createExerciseVideoExperienceController({root});
+    avatarController=createClientAvatarController({root,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getIdentity:()=>store.getState().identity||{}});
     workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,refreshState:hydrate,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId,{variant='client'}={})=>variant==='coach'?iriExternalReports.coachReportForPdf(assessmentId):iriExternalReports.clientReportForPdf(assessmentId),getIriPhotogrammetryReport:(assessmentId,{variant='client'}={})=>iriPhotogrammetry.clientSnapshotForPdf(assessmentId,{audience:variant==='coach'?'coach':'client'}),ensureIriPhysicalConsent:(payload)=>iriPhotogrammetry.ensurePhysicalConsent(payload),issueIriReport:async(assessmentId,{variant='client'}={})=>{await refreshSessionIfNeeded();return iriReportGovernance.issue(currentToken(),{assessmentId,audience:variant});},getIriReportHistory:async(assessmentId)=>{await refreshSessionIfNeeded();return iriReportGovernance.history(currentToken(),{assessmentId});},openIriIssuedReport:async(issuanceId)=>{await refreshSessionIfNeeded();return iriReportGovernance.open(currentToken(),{issuanceId});},withdrawIriIssuedReport:async(issuanceId,reason)=>{await refreshSessionIfNeeded();return iriReportGovernance.withdraw(currentToken(),{issuanceId,reason});},getRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.getIriDraft(currentToken(),clientId,assessmentId);},upsertRemoteDraft:async(payload)=>{await refreshSessionIfNeeded();return transport.upsertIriDraft(currentToken(),payload);},deleteRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.deleteIriDraft(currentToken(),clientId,assessmentId);},isOnline:()=>navigator.onLine!==false,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const token=currentToken();await ensurePrivilegedActionAssurance({transport,token,userId:session?.user?.id,friendlyName:'IBERFIT · confirmar creación de cliente'});await transport.clientOnboardingPreflight(token);const result=await transport.createClientDraft(token,payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(token)});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
@@ -1300,6 +1317,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       {name:'guidance',controller:guidance},
       {name:'onboarding',controller:onboarding},
       {name:'media-experience',controller:mediaExperience},
+      {name:'profile-avatars',controller:avatarController},
       {name:'productivity',controller:productivity},
       {name:'workflow',controller:workflow},
       {name:'iri-photogrammetry',controller:iriPhotogrammetry},
@@ -1369,22 +1387,91 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
-  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;let saved=sourceSession?null:await loadSessionDraft(clientId);
-    const savedId=String(saved?.value?.id||'').trim();
-    const alreadyPublished=savedId&&String(saved?.value?.clientId||'')===clientId
-      &&(store.getState().collections.sessions||[]).some(item=>
-        String(item?.id||'')===savedId
-        &&String(item?.clientId||item?.client_id||'')===clientId
-        &&['publicada','publicado','published','disponible','en_curso'].includes(String(item?.status||'').toLowerCase()));
-    if(alreadyPublished){
-      await clearSessionDraft(clientId).catch(error=>reportSoftDiagnostic('session-published-draft-cleanup',error));
-      saved=null;
-    }
-    const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));if(!sourceSession&&!saved)draft.deliveryModality=null;sessionUi={draft,query:'',filters:{},undoRemoval:null,templateUndo:null,templateAdaptation:null,templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();if(runtime.enabled&&draftOnline())void withAuthOperationTimeout(()=>syncSessionTemplateWorkspace({renderAfter:true}),{timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT'}).catch((error)=>reportSoftDiagnostic('coach-template-sync-builder-open',error));}
+  async function onOpenBuilder(event){
+    const clientId=String(event?.detail?.clientId||'');
+    const sourceSession=event?.detail?.sourceSession||null;
+    const sourceId=String(sourceSession?.id||sourceSession?.body?.id||'');
+    return workspaceEntryGate.run('builder:'+clientId+':'+sourceId,async({isCurrent})=>{
+      if(!isCurrent())return false;
+      const state=store.getState(),visible=new Set((state.collections.clients||[]).map(item=>item.id));
+      if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
+        throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
+      if(sessionUi?.execution||sessionUi?.draft)throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
+      let saved=sourceSession?null:await loadSessionDraft(clientId);
+      if(!isCurrent())return false;
+      const savedId=String(saved?.value?.id||'').trim();
+      const alreadyPublished=savedId&&String(saved?.value?.clientId||'')===clientId
+        &&(store.getState().collections.sessions||[]).some(item=>
+          String(item?.id||'')===savedId
+          &&String(item?.clientId||item?.client_id||'')===clientId
+          &&['publicada','publicado','published','disponible','en_curso'].includes(String(item?.status||'').toLowerCase()));
+      if(alreadyPublished){
+        await clearSessionDraft(clientId).catch(error=>reportSoftDiagnostic('session-published-draft-cleanup',error));
+        if(!isCurrent())return false;
+        saved=null;
+      }
+      const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog})
+        :saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));
+      if(!sourceSession&&!saved)draft.deliveryModality=null;
+      if(!isCurrent())return false;
+      sessionUi={draft,query:'',filters:{},undoRemoval:null,templateUndo:null,templateAdaptation:null,
+        templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};
+      if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};
+      else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};
+      store.navigate('sesion');render();
+      if(runtime.enabled&&draftOnline())
+        void withAuthOperationTimeout(()=>syncSessionTemplateWorkspace({renderAfter:true}),
+          {timeoutMs:SESSION_TEMPLATE_SYNC_TIMEOUT_MS,code:'M26_COACH_TEMPLATE_SYNC_TIMEOUT'})
+          .catch(error=>reportSoftDiagnostic('coach-template-sync-builder-open',error));
+      return true;
+    });
+  }
   async function onStartSession(event){
-    const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
-    const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(!sessionReadyToStart(event.detail.session))throw new Error('M38_SESSION_NOT_YET_AVAILABLE');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
-    sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null};store.navigate('sesion');render();
+    const clientId=String(event?.detail?.clientId||'');
+    const requested=event?.detail?.session||null;
+    const sessionId=String(requested?.id||requested?.body?.id||'');
+    return workspaceEntryGate.run('session:'+clientId+':'+sessionId,async({isCurrent})=>{
+      if(!isCurrent())return false;
+      const state=store.getState(),visible=new Set((state.collections.clients||[]).map(item=>item.id));
+      if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
+        throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
+      if(sessionUi?.execution||sessionUi?.draft){
+        if(sessionUi?.session?.id===sessionId&&sessionUi?.execution){
+          store.navigate('sesion');render();return true;
+        }
+        throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
+      }
+      const recovered=await recoveryCoordinator?.latest?.({clientId});
+      if(!isCurrent())return false;
+      if(recovered){
+        sessionUi={draft:null,query:'',actionState:{
+          ...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},
+          session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};
+        store.navigate('sesion');render();return true;
+      }
+      const current=resolveCurrentSessionForEntry({state:store.getState(),requested,clientId});
+      const normalized=normalizePublishedSession(current);
+      if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');
+      const role=String(store.getState().identity?.role||'');
+      if(!normalized.id||!normalized.clientId||!normalized.blocks.length){
+        const node=root.querySelector?.('[data-workflow-status="session"]');
+        if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}
+        return false;
+      }
+      const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);
+      if(!actorCanExecuteSession({role,session:current,appointment}))
+        throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');
+      if(!sessionReadyToStart(current))throw new Error('M38_SESSION_NOT_YET_AVAILABLE');
+      if(sessionRequiresConfirmedAppointment({role,session:current,appointment})&&!appointment?.id){
+        const node=root.querySelector?.('[data-workflow-status="session"]');
+        if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}
+        return false;
+      }
+      if(!isCurrent())return false;
+      sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,
+        execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null};
+      store.navigate('sesion');render();return true;
+    });
   }
   function surfaceRoleSwitchError(error){
     const detail=reportDiagnostic('role-switch',error);
@@ -1405,6 +1492,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       return false;
     }
     const previous=activeApplicationRole;
+    workspaceEntryGate.cancel();
     activeApplicationRole=role;
     try{
       await hydrate({reason:'role-switch'});
@@ -1480,7 +1568,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers({preserveWorkflowDrafts=true}={}){cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset)delete root.dataset.m26Interactive;telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers({preserveWorkflowDrafts=true}={}){workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset)delete root.dataset.m26Interactive;telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;
