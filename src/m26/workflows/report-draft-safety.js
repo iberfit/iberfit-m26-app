@@ -3,7 +3,9 @@
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const FINAL_STATUSES=new Set(['aprobado','approved','publicado','published','archivado','archived']);
 const DRAFT_STATUSES=new Set(['borrador','draft']);
-const FIELDS=['title','assessmentId','periodStart','periodEnd','summary','conclusions','recommendations'];
+const FIELDS=['title','assessmentId','periodStart','periodEnd','summary','conclusions','recommendations',
+  'reportType','coachComment','evidenceSignature','reportModelVersion',
+  'sourceAssessmentId','sourceAssessmentRevision'];
 const value=(record,key)=>record?.[key]??record?.body?.[key]??null;
 
 export function reportDraftScope(entityId){
@@ -55,8 +57,10 @@ export function reportApprovalDecision(reports,clientId,draft){
   if(!Number.isInteger(revision)||revision<1)throw new Error('M43_REPORT_REMOTE_REVISION_UNKNOWN');
   const status=String(value(remote,'status')??value(remote,'estado')??'').trim().toLowerCase();
   if(FINAL_STATUSES.has(status)){
+    // Authoritative replay must match all authored report material, not just prose.
+    // A changed coach annotation or evidence payload is a new version, never an ACK replay.
     const equal=FIELDS.every(field=>String(value(remote,field)??'').trim()===String(draft[field]??'').trim())
-      &&String(value(remote,'reportType')??'')===String(draft.reportType??'');
+      &&JSON.stringify(value(remote,'evidence')??[])===JSON.stringify(draft.evidence??[]);
     return Object.freeze({kind:equal?'already-approved':'new-version-required',baseRevision:revision});
   }
   if(DRAFT_STATUSES.has(status))return Object.freeze({kind:'update-draft',baseRevision:revision});
