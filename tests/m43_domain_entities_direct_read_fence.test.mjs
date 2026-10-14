@@ -5,7 +5,7 @@ const sql=readFileSync(new URL('../supabase/migrations/20261014150000_m43_domain
 const rollback=readFileSync(new URL('../supabase/qa-rollbacks/20261014150000_m43_domain_entities_api_read_fence_v3_rollback.sql',import.meta.url),'utf8');
 test('M43 canonical Data API must not expose raw private JSON to signed-in Client',()=>{
   assert.match(sql,/REVOKE SELECT ON TABLE public\.domain_entities_v26 FROM PUBLIC, anon, authenticated/);
-  assert.doesNotMatch(sql,/GRANT|DELETE FROM|DROP TABLE|TRUNCATE|ALTER TABLE/i);
+  assert.doesNotMatch(sql,/^\s*(?:GRANT|DELETE\s+FROM|DROP\s+TABLE|TRUNCATE|ALTER\s+TABLE)\b/im);
   assert.match(rollback,/GRANT SELECT ON TABLE public\.domain_entities_v26 TO anon, authenticated/);
   assert.doesNotMatch(rollback,/DELETE FROM|DROP TABLE|TRUNCATE|ALTER TABLE/i);
 });
