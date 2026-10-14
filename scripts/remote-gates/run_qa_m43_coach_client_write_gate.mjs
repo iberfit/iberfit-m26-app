@@ -129,6 +129,12 @@ async function main(){
   await denied(clientA,publishCommand,'CLIENT_CANNOT_PUBLISH');
   await denied(clientB,publishCommand,'FOREIGN_CLIENT_CANNOT_PUBLISH');
   const published=await send(coach,publishCommand,'SESSION_PUBLISH');
+  // Double tap / lost ACK: replay the identical published command identity.
+  // A second publication must not alter the canonical revision or create a session.
+  const publishReplay=await rpc('iberfit_execute_command_v26',coach,{p_command:published.command});
+  check(publishReplay?.kind==='ack'&&publishReplay.duplicate===true
+    &&Number(publishReplay.remoteRevision)===Number(published.result.remoteRevision),
+    'SESSION_PUBLISH_IDEMPOTENT_REPLAY');
   // M37 enables reviewed guided sessions atomically during publication.
   // Do not send a redundant SESION_HABILITAR after a confirmed state change.
   // Legacy supervised or non-atomic flows still require explicit enablement.
@@ -168,7 +174,11 @@ async function main(){
   advanceExecution(execution);
   check(execution.status==='awaiting_feedback','THREE_SPORT_RESULTS_RECORDED');
   finishExecution(execution,{sessionRpe:7,pain:false,comment:'QA M43 · sesión sintética finalizada'});
-  await send(clientA,buildExecutionCommand(execution,execution.revision),'CLIENT_FINISH_FEEDBACK');
+  const completed=await send(clientA,buildExecutionCommand(execution,execution.revision),'CLIENT_FINISH_FEEDBACK');
+  const finishReplay=await rpc('iberfit_execute_command_v26',clientA,{p_command:completed.command});
+  check(finishReplay?.kind==='ack'&&finishReplay.duplicate===true
+    &&Number(finishReplay.remoteRevision)===Number(completed.result.remoteRevision),
+    'CLIENT_FINISH_IDEMPOTENT_REPLAY');
   evidence.phase='real-client-execution';
 
   const [finalA,finalB]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
