@@ -23,7 +23,7 @@ test('M43 release gate covers new-plan/session preflight, Client privacy, grants
 });
 test('M43: executable release SQL has exactly 32 comma-separated checks, with no missing or duplicate aliases',()=>{
   assert.ok(QUERY.startsWith('SELECT\n'));
-  const found=[...QUERY.matchAll(/\bAS ([a-z][a-z0-9_]*)\b/g)].map(match=>match[1]);
+  const found=QUERY.split('\n').map(line=>line.match(/\bAS ([a-z][a-z0-9_]*),?$/)?.[1]).filter(Boolean);
   assert.deepEqual(found,REQUIRED,'SQL aliases must match every required safety check exactly');
   for(const [index,key] of REQUIRED.entries()){
     const end=QUERY.indexOf(' AS '+key,QUERY.indexOf('SELECT'));
