@@ -181,7 +181,8 @@ test('M43: Cliente ejecuta running y natación con metas proyectadas, datos real
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
 
   const swimming=page.locator('[data-session-cardio-entry]');
-  await expect(page.locator('[data-session-live-entry]')).toContainText('Natación');
+  await expect.poll(async()=>{const value=await state(page);return value.queue[value.index]?.exerciseId;}).toBe('qa-natacion-crol');
+  await expect(page.locator('[data-session-live-entry]')).toContainText('Registra tiempo y metros nadados');
   await swimming.locator('[data-set-field="durationMinutes"]').fill('10');
   await swimming.locator('[data-set-field="distanceM"]').fill('400');
   await swimming.locator('details > summary').click();
