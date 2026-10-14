@@ -4273,3 +4273,23 @@ m26-echart[data-density="compact"]{
     display:block;
   }
 }
+
+/* M42: personal imagery supports identity without changing the Brand Truth
+   isotipo. Zero client photos are embedded into exported reports or public URLs. */
+.m26-sidebar-user-row{display:flex;align-items:center;gap:.64rem;min-width:0}
+.m26-sidebar-user-row strong{min-width:0;overflow-wrap:anywhere}
+.m26-sidebar-user-avatar,.m26-avatar-settings-preview{display:grid;place-items:center;flex:none;position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 30%,transparent);border-radius:999px;background:var(--iberfit-color-surface-muted,#1a3026);color:var(--iberfit-color-accent,#c5a059);font-weight:750;line-height:1}
+.m26-sidebar-user-avatar{inline-size:2.15rem;block-size:2.15rem;font-size:.95rem}
+.m26-avatar-settings-preview{inline-size:5.5rem;block-size:5.5rem;font-size:2.05rem}
+[data-iberfit-avatar-client]{position:relative;overflow:hidden}
+[data-iberfit-avatar-client] img[data-iberfit-avatar-image]{position:absolute;inset:0;inline-size:100%;block-size:100%;object-fit:cover;border-radius:inherit;display:block;background:var(--iberfit-color-surface-muted,#1a3026)}
+.m26-avatar-settings-editor{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
+.m26-avatar-settings-commands{display:grid;justify-items:start;gap:.45rem;min-width:0;max-width:38rem}
+.m26-avatar-upload-label{display:inline-flex;justify-content:center;align-items:center;position:relative;min-block-size:44px;padding:.7rem 1rem;border:1px solid var(--iberfit-color-accent,#c5a059);border-radius:.6rem;cursor:pointer;font-weight:750}
+.m26-avatar-upload-label:focus-within{outline:3px solid var(--iberfit-color-accent,#c5a059);outline-offset:3px}
+.m26-avatar-upload-label input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.m26-avatar-settings-commands small{font-size:.82rem;color:var(--iberfit-color-text-secondary);line-height:1.5}
+[data-iberfit-avatar-status]:empty{display:none}
+[data-iberfit-avatar-status][data-status="error"]{color:var(--iberfit-color-danger,#ff8686)}
+@media(max-width:420px){.m26-avatar-settings-editor{gap:1rem}.m26-avatar-settings-preview{inline-size:4.6rem;block-size:4.6rem}}
+@media(forced-colors:active){.m26-avatar-upload-label{border:1px solid ButtonText}}

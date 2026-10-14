@@ -127,10 +127,13 @@ function sidebarAccount(vm){
   const guide=String(vm?.identity?.role||'')==='client'
     ?`<button type="button" class="m26-sidebar-guide" data-m26-client-context-guide-open aria-label="Abrir guía contextual de esta pantalla">Guía IBERFIT</button>`
     :'';
+  const ownId=vm.identity.role==='client'?String(vm.identity.clientId||''):'';
+  const initial=String(vm.identity.name||'I').slice(0,1).toUpperCase();
+  const avatar=ownId?`<span class="m26-sidebar-user-avatar" data-iberfit-avatar-client="${escapeHtml(ownId)}" aria-hidden="true">${escapeHtml(initial)}</span>`:'';
   return `<div class="m26-sidebar-footer">
     <div class="m26-sidebar-identity">
       <span>${escapeHtml(identityRoleLabel)}</span>
-      <strong>${escapeHtml(vm.identity.name)}</strong>
+      <div class="m26-sidebar-user-row">${avatar}<strong>${escapeHtml(vm.identity.name)}</strong></div>
     </div>
     ${guide}
     ${settingsMenu(vm)}

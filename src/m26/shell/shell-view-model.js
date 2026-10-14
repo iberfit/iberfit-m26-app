@@ -108,6 +108,7 @@ function createShellViewModelBase(state) {
     route,
     identity: Object.freeze({
       id: state.identity.id,
+      clientId:role==='client'?String(state.identity.clientId||selected?.id||''):null,
       name: state.identity.name || state.identity.displayName || roleLabel(role),
       email: state.identity.email || '',
       role,

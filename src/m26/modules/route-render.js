@@ -139,7 +139,7 @@ function clientCard(client, selected = false) {
 
   return `<article class="m26-client-card${selected ? ' is-selected' : ''}" data-client-text="${escapeHtml(searchable)}" data-client-iri="${iriState}" data-client-modality="${escapeHtml(foldSearch(client.modality))}" data-client-name="${escapeHtml(foldSearch(client.name))}" data-client-priority="${escapeHtml(experiencePriority)}" data-client-stage="${escapeHtml(experienceStage)}">
     <button type="button" data-m26-select-client="${escapeHtml(client.id)}" aria-label="Abrir expediente de ${escapeHtml(client.name)}">
-      <div class="m26-client-avatar" aria-hidden="true">${escapeHtml(client.name.slice(0, 1).toUpperCase())}</div>
+      <div class="m26-client-avatar" data-iberfit-avatar-client="${escapeHtml(client.id)}" aria-hidden="true">${escapeHtml(client.name.slice(0, 1).toUpperCase())}</div>
       <div class="m26-client-copy"><p class="m26-eyebrow">${escapeHtml(client.modality)}</p><h3>${escapeHtml(client.name)}</h3><p>${escapeHtml(iri)} · ${escapeHtml(frequency)}</p><small>${escapeHtml(objective)}</small><strong class="m26-client-next">Siguiente: ${escapeHtml(nextStep)}</strong></div>
       <div class="m26-client-meta">${selected ? badge('Expediente activo', 'success') : ''}${noTrainingService?badge('Sin entrenamiento','neutral'):badge(experienceLabel, experienceStage === 'active' ? 'success' : 'pending')}${badge(statusText, /activ/i.test(statusText) ? 'success' : 'neutral')}${badge(accessText, accessTone)}<small>${noTrainingService?'Sin servicio de entrenamiento activo':client.nextAppointment ? `Próxima cita: ${escapeHtml(client.nextAppointment.dateLabel)}` : 'Sin cita programada'}</small><span class="m26-card-action">Abrir expediente</span></div>
     </button>
@@ -195,7 +195,7 @@ function coachHomeClientCard(client={}) {
       ${actionAttrs}
       aria-label="${escapeHtml(ariaLabel)}"
     >
-      <span class="m26-coach-home-client-avatar" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>
+      <span class="m26-coach-home-client-avatar" data-iberfit-avatar-client="${escapeHtml(client.id||'')}" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>
       <span class="m26-coach-home-client-copy">
         <strong>${escapeHtml(name)}</strong>
         <small>${escapeHtml(modality)} · ${escapeHtml(nextAppointment)}</small>
@@ -1101,7 +1101,7 @@ export function renderClientsRoute(vm) {
             );
             return `<button type="button" class="m26-followup-row is-${escapeHtml(level)}" data-m26-select-client="${escapeHtml(item.id)}" aria-label="Abrir seguimiento de ${escapeHtml(item.name)}">
               <div class="m26-followup-person">
-                <span class="m26-client-avatar" aria-hidden="true">${escapeHtml(item.name.slice(0,1).toUpperCase())}</span>
+                <span class="m26-client-avatar" data-iberfit-avatar-client="${escapeHtml(item.id||'')}" aria-hidden="true">${escapeHtml(item.name.slice(0,1).toUpperCase())}</span>
                 <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.modality)} · ${escapeHtml(adherence)}</small></span>
               </div>
               <div class="m26-followup-context">
@@ -3206,7 +3206,7 @@ export function renderExpedienteRoute(vm) {
             class="m26-profile-brand-logo"
           >
         </div>
-        <span class="m26-profile-client-initial" aria-hidden="true">
+        <span class="m26-profile-client-initial" data-iberfit-avatar-client="${escapeHtml(data.id||data.clientId||'')}" aria-hidden="true">
           ${escapeHtml(data.name.slice(0, 1).toUpperCase())}
         </span>
       </div>
@@ -4501,6 +4501,7 @@ export function renderSettingsRoute(vm){
     <div class="m26-settings-layout">
       <nav class="m26-settings-rail" aria-label="Secciones de ajustes">
         <p class="m26-eyebrow">Ajustes</p>
+        ${vm.role==='client'?'<a href="#m26-settings-avatar">Mi foto</a>':''}
         <a href="#m26-settings-experience">Experiencia</a>
         <a href="#m26-settings-notifications">Avisos</a>
         <a href="#m26-settings-privacy">Privacidad y datos</a>
@@ -4509,6 +4510,21 @@ export function renderSettingsRoute(vm){
       </nav>
 
       <div class="m26-settings-content">
+        ${vm.role==='client'&&vm.identity?.clientId?`<section class="m26-settings-section m26-avatar-settings-section" id="m26-settings-avatar">
+          <header><p class="m26-eyebrow">Tu identidad en IBERFIT</p><h3>Mi foto de perfil</h3>
+            <p>Opcional. La verás junto a tu nombre y podrá verla tu Coach asignado y el equipo de administración autorizado. No se usa en el diagnóstico IRI.</p></header>
+          <div class="m26-avatar-settings-editor">
+            <span class="m26-avatar-settings-preview" aria-hidden="true" data-iberfit-avatar-client="${escapeHtml(vm.identity.clientId)}">${escapeHtml(String(vm.identity.name||'I').slice(0,1).toUpperCase())}</span>
+            <div class="m26-avatar-settings-commands">
+              <label class="m26-avatar-upload-label">Elegir fotografía
+                <input type="file" accept="image/jpeg,image/png,image/webp" data-iberfit-avatar-upload>
+              </label>
+              <button type="button" class="m26-text-action" data-iberfit-avatar-remove>Quitar foto</button>
+              <small>JPG, PNG o WebP. Se adapta a un formato pequeño, sin datos de ubicación.</small>
+              <p data-iberfit-avatar-status role="status" aria-live="polite"></p>
+            </div>
+          </div>
+        </section>`:''}
         <section class="m26-settings-section" id="m26-settings-experience">
           <header>
             <p class="m26-eyebrow">Experiencia</p>
