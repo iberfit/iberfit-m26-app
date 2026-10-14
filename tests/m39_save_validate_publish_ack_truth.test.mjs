@@ -110,7 +110,7 @@ test('M39 remote ACK retains a session-local replay fence if deletion AND tombst
 test('M39 confirmed plan validation tolerates unavailable local draft cleanup',()=>{
   const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
   const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
-  assert.match(plan,/try\{await draftRepository\?\.remove\?\.\(clientId,'planning-cycle'\);\}/);
+  assert.match(plan,/removeConfirmedPlanningDraft\(draftRepository,clientId,stableId\)/);
   assert.match(plan,/catch\(error\)\{[\s\S]*?localDraftOk=false/);
   assert.match(plan,/const settled=localDraftOk\?result:\{\.\.\.result,refreshPending:true,localDraftOk:false\}/);
   assert.match(plan,/return settled;/);
@@ -119,9 +119,9 @@ test('M39 confirmed plan validation tolerates unavailable local draft cleanup',(
 test('M39 complete cycle validation does not falsely fail on browser draft storage errors',()=>{
   const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
   const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
-  assert.match(plan,/try\{backup=await draftRepository\?\.load\?\.\(clientId,'planning-cycle'\);\}/);
-  assert.match(plan,/M26_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE/);
-  assert.match(plan,/try\{await draftRepository\?\.save\?\.\(clientId,'planning-cycle',draft\);\}/);
+  assert.match(plan,/restorePlanningDraft\(draftRepository,clientId,visibleId\)/);
+  assert.match(plan,/M43_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE/);
+  assert.match(plan,/try\{await draftRepository\?\.save\?\.\(clientId,scoped,draft\);\}/);
   assert.match(plan,/M26_PLAN_LOCAL_DRAFT_SAVE_UNAVAILABLE/);
   assert.match(plan,/M26_PLAN_DRAFT_CLEANUP_PENDING/);
   assert.match(plan,/commandBus\.execute\(buildCycleCommand\(draft,revision\)\)/);
