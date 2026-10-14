@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "448c17b65bc6a2b4530569d91a8cfd1f02f7093c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IBERFIT NEXT M41+M42 postmerge 12/12 GREEN, PR #927 and #929"
+}
