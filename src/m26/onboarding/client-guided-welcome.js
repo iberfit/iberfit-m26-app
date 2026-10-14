@@ -529,6 +529,17 @@ function position(node,target,scope,{arriving=false,dialog=null}={}){
 }
 
 
+// Explicit first-use and guided-navigation decisions. The guide may route
+// during its own next-step transition, but never undo a Client-selected route.
+export function clientGuidedWelcomeNavigationDecision({
+  status='never',current='',stepArea='',pending=null,
+}={}){
+  if(status==='never')return current==='hoy'?'start':'defer';
+  if(status==='in-progress'&&current!==stepArea)
+    return pending===stepArea?'guided-transition':'pause';
+  return 'continue';
+}
+
 export function createClientGuidedWelcomeController({
   root,
   identityProvider=()=>({}),
@@ -735,7 +746,7 @@ export function createClientGuidedWelcomeController({
       // A first-use guide must not hijack a route the Client selected while
       // progressive controllers were still mounting after authentication.
       // It can start naturally on Today, or be opened explicitly later.
-      if(currentArea(root)!=='hoy')return;
+      if(clientGuidedWelcomeNavigationDecision({status:state.status,current:currentArea(root)})==='defer')return;
       start(ctx);
       return;
     }
@@ -753,7 +764,9 @@ export function createClientGuidedWelcomeController({
       // Guide-driven transitions declare their destination up front. Any
       // other route change is a real Client navigation, never a reason to
       // force the user back to the onboarding step (or to Today).
-      if(navigationPending!==step.area){pause(ctx);return;}
+      if(clientGuidedWelcomeNavigationDecision({status:state.status,current,stepArea:step.area,pending:navigationPending})==='pause'){
+        pause(ctx);return;
+      }
       navigate(step.area);
       return;
     }
