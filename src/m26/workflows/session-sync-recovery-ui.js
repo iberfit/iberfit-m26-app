@@ -5,6 +5,16 @@ const ACTIONABLE_FAILURE_MESSAGES=Object.freeze({
   REVISION_MISMATCH:{message:'La sesión cambió desde otra pestaña o dispositivo. Actualiza su información antes de volver a publicar.',focusSelector:'[data-session-action="preview"]'},
   PREVIEW_REQUIRED:{message:'Revisa la vista previa de la sesión y confirma los datos antes de publicarla.',focusSelector:'[data-session-action="preview"]'},
   M26_SESSION_CONFIRM_NOT_VISIBLE:{message:'La publicación fue aceptada, pero no se pudo confirmar su visibilidad. El borrador se conserva. Revisa el estado antes de repetir.',focusSelector:'[data-session-action="preview"]'},
+  // These failures occur before a remote start is committed. Give Client a
+  // specific recovery path instead of the generic application error banner.
+  M43_CLIENT_SESSION_NOT_READY:'La sesión ya no está habilitada para iniciar. Actualiza tus sesiones y consulta con tu Coach si sigue apareciendo disponible.',
+  M43_CLIENT_EXECUTION_SCOPE_CONFLICT:'La sesión corresponde a otro expediente o está desactualizada. Vuelve a abrirla desde tu planificación.',
+  M26_OFFLINE_START_NOT_ALLOWED:'Necesitas conexión para confirmar el inicio de esta sesión. Tu planificación sigue disponible y no se ha creado otra ejecución.',
+  M26_AUTH_REQUIRED:'Tu acceso necesita renovarse antes de iniciar. Vuelve a autenticarte y abre la misma sesión; no se han perdido datos.',
+  M26_EXECUTION_NOT_READY:'Esta ejecución ya no está en preparación. Revisa si tienes una sesión en curso o recuperable antes de intentar otra.',
+  M26_COMMAND_CONTRACT_INVALID:'La aplicación no pudo validar la orden de inicio. Actualiza la sesión y vuelve a entrar; si persiste, el equipo IBERFIT debe revisar la autorización.',
+  REVISION_MISMATCH:'La sesión ha cambiado desde que la abriste. Vuelve a entrar desde Sesiones para cargar su última revisión.',
+  INVALID_TRANSITION:'El estado de esta sesión ha cambiado y ya no permite iniciar otra ejecución. Revisa la sesión actualizada.',
   M26_EXECUTION_RESULT_REQUIRED:{message:'Registra repeticiones o tiempo antes de completar la serie.',focusSelector:'[data-set-field="reps"]'},
   M26_EXECUTION_REPS_INVALID:{message:'Revisa las repeticiones: deben ser un valor válido entre 0 y 10.000.',focusSelector:'[data-set-field="reps"]'},
   M26_EXECUTION_SECONDS_INVALID:{message:'Revisa el tiempo: debe ser un valor válido entre 0 y 86.400 segundos.',focusSelector:'[data-set-field="seconds"]'},
