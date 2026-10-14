@@ -220,3 +220,26 @@ test('Client Home keeps Client-safe destinations without exposing Coach-only age
   assert.doesNotMatch(html,/data-m26-area="agenda"/u);
   assert.doesNotMatch(html,/data-m26-area="iri"/u);
 });
+
+test('M42 Client Hoy never sends a real appointment CTA to forbidden Coach Agenda',()=>{
+  const input=vm({serviceKind:'training',clients:[{
+    id:'c1',name:'Cynthia',cycle:{name:'Fuerza Base'},
+    iri:{confirmed:true},serviceActive:true,
+    nextAction:{area:'agenda',label:'Ver próxima cita',reason:'Cita confirmada.'},
+  }]});
+  const html=renderHoyRoute(input);
+  assert.doesNotMatch(html,/data-m26-area="agenda"/u);
+  assert.match(html,/class="m26-client-home-context-action" data-m26-area="planificacion"/u);
+});
+
+test('M42 Client Hoy suppresses supplementary training CTAs during a paused service',()=>{
+  const input=vm({serviceKind:'training',clients:[{
+    id:'c1',name:'Cynthia',cycle:{name:'Fuerza Base'},
+    serviceActive:false,trainingServiceStatus:'paused',
+    nextAction:{area:'planificacion',label:'Continuar entrenamiento',reason:'Plan antiguo'},
+  }],rc39:{sessionProjections:[{id:'old-session',visible:true,canClientStart:true}]}});
+  const html=renderHoyRoute(input);
+  assert.match(html,/Tu entrenamiento está en pausa/u);
+  assert.doesNotMatch(html,/m26-client-home-context-action/u);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+});
