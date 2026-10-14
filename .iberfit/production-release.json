@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "64725ec2ab0b77c46ddb79ff1a79cb3ef72dc71b",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "M43 report draft isolation, verified revisions, exact postmerge 10/10 green PR #930+#931"
+}
