@@ -71,3 +71,8 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - La selección de entrenamiento se reevalúa contra la colección actual una vez resuelta la recuperación asíncrona.
 - No abrir una sesión que haya sido retirada, retirada de la visibilidad, reasignada a otro Cliente o sustituida por otra revisión durante la espera.
 - Mantener evaluación autoritativa posterior en RPC de Supabase; la verificación local no sustituye RLS.
+
+## Experiencia móvil · fotos de perfil
+- Entrada JPG/PNG/WebP/HEIC/HEIF, convertida únicamente en el dispositivo a WebP 320×320 sin EXIF; fallback de decodificación con img y Object URL temporal si Safari no admite createImageBitmap.
+- Descarga/cropping con protección de tamaño y tiempo, URL temporal revocada; nunca se sube original médico ni postural.
+- Regresión `tests/m42_mobile_avatar_heic_fallback.test.mjs`.
