@@ -861,6 +861,30 @@ function syncStateText(execution){
   })[execution?.syncStatus||'clean']||'Estado de sincronización disponible';
 }
 
+// A published prescription is immutable from the Client's preview. Disclose
+// contradictory durations without inventing an observed time or changing the
+// Coach's authoritative plan. Warm-up/cool-down may already be included in
+// the exercise duration, so never sum them here.
+export function sessionDurationConsistency(execution,session){
+  const total=Number(session?.durationMinutes);
+  if(!Number.isFinite(total)||total<=0)return null;
+  const durations=(execution?.queue||[])
+    .map(item=>Number(item?.prescription?.plannedDurationMinutes))
+    .filter(value=>Number.isFinite(value)&&value>total);
+  if(!durations.length)return null;
+  return Object.freeze({sessionMinutes:total,exerciseMinutes:Math.max(...durations)});
+}
+
+function sessionDurationConsistencyNotice(execution,session,{role='client'}={}){
+  const mismatch=sessionDurationConsistency(execution,session);
+  if(!mismatch)return '';
+  const summary=`La sesión indica ${mismatch.sessionMinutes} min, pero un ejercicio tiene ${mismatch.exerciseMinutes} min previstos.`;
+  const guidance=role==='coach'
+    ?'Revisa los tiempos antes de ajustar y volver a publicar la prescripción.'
+    :'Puedes revisar el entrenamiento. Consulta con tu Coach si necesitas aclarar los tiempos antes de empezar.';
+  return `<div class="m26-session-duration-consistency" data-session-duration-consistency role="status"><strong>Revisión de tiempos del plan</strong><p>${e(summary)} ${e(guidance)}</p></div>`;
+}
+
 function sessionLiveSummary(execution,session,{ready=false}={}){
   const totals=executionTotals(execution);
   const plannedMinutes=Number(session?.durationMinutes);
@@ -1246,6 +1270,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         ${sessionLiveSummary(execution,session,{ready:true})}
         ${goal}
         ${readySportPreview}
+        ${sessionDurationConsistencyNotice(execution,session,{role})}
         ${isCoach?'':renderSessionHealthContext(wearableContext)}
         <div class="m26-session-live-actions">
           <button type="button" data-session-action="exit-session">Volver</button>
