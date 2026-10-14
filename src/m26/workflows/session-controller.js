@@ -727,11 +727,28 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
         if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
         renderSession();return false;
       }
-      void telemetry.start(context.execution);
-      await persistContext(getContext());
+      // A confirmed SESION_INICIAR is the source of truth. Local checkpoint
+      // persistence can fail (private mode, quota, crash, another tab) but
+      // must never relabel an already-committed workout as "failed to start".
+      try{void telemetry.start(context.execution);}catch{}
+      try{await persistContext(getContext());}
+      catch(error){
+        if(context?.actionState){
+          context.actionState.status='retry';
+          context.actionState.message='Entrenamiento iniciado y confirmado. No se pudo guardar la copia de recuperación en este dispositivo; comprueba la sincronización antes de salir.';
+        }
+      }
       renderSession();
       return true;
     }catch(error){
+      if(context?.execution?.status==='active'){
+        if(context?.actionState){
+          context.actionState.status='retry';
+          context.actionState.message='El inicio está confirmado. Hubo un problema al actualizar esta pantalla; vuelve a abrir la sesión para recuperar el entrenamiento.';
+        }
+        try{renderSession();}catch{}
+        return true;
+      }
       await persistContext(context).catch(()=>{});
       onError(error);
       const mapped=sessionCommandFailureOutcome(error,{action:'start',role:context?.actor?.role,execution:context?.execution});
