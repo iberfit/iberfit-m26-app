@@ -75,6 +75,8 @@ test('M43: controller always saves and removes an individual cycle identity',()=
   assert.match(workflow,/async function selectPlanDraft\(form,selectedId\)/);
   assert.match(workflow,/if\(editedPlanForms\.has\(form\)\)\{\s*await savePlanDraft/);
   assert.match(workflow,/data-plan-draft-choice/);
+  assert.ok(workflow.includes('validatedFormSnapshot'));
+
   assert.ok(workflow.includes('if(planForm&&editedPlanForms.has(planForm))'));
 
   const route=source('src/m26/modules/route-render.js');
