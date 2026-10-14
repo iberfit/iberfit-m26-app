@@ -142,7 +142,8 @@ test('Guided welcome is accessible, motion-safe, responsive and uses the vector 
   assert.match(source,/aria-modal="false"/u);
   assert.match(source,/min-height:44px/u);
   assert.match(source,/safe-area-inset-bottom/u);
-  assert.match(source,/bottom:calc\(6rem \+ env\(safe-area-inset-bottom\)\)!important;/u);
+  assert.match(source,/bottom:max\(calc\(8\.5rem \+ env\(safe-area-inset-bottom\)\),var\(--m26-client-guide-dock-clearance,0px\)\)!important;/u);
+  assert.match(source,/setDialogDockClearance\(\)/u);
   assert.doesNotMatch(source,/bottom:calc\((?:1|5\.25)rem \+ env\(safe-area-inset-bottom\)\)!important;/u);
   const contextual=read('src/m26/onboarding/client-contextual-guide.js');
   assert.match(contextual,/bottom:calc\(6rem \+ env\(safe-area-inset-bottom\)\)!important;/u);
@@ -151,8 +152,9 @@ test('Guided welcome is accessible, motion-safe, responsive and uses the vector 
   assert.match(source,/data-m26-client-guide-state/u);
   assert.match(source,/m26-client-genie-float/u);
   assert.match(source,/data-m26-client-guide-side="right"/u);
-  assert.match(source,/background:\s*linear-gradient\(145deg,rgba\(255,251,236/u);
-  assert.match(source,/max-height:min\(40vh,21rem\)/u);
+  assert.match(source,/\.m26-client-guided-welcome\{[\s\S]*?background:#F5F5F0/u);
+  assert.match(source,/max-height:min\(45dvh,22rem\)/u);
+  assert.match(source,/overflow-y:auto/u);
   assert.match(source,/0 0 0 9999px rgba\(4,18,13,\.52\)/u);
   assert.match(source,/width:6rem;\s*height:7\.6rem/u);
   assert.match(source,/m26-client-guided-welcome-copy\{margin-top:\.58rem;font-size:\.86rem;line-height:1\.43\}/u);
