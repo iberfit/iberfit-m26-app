@@ -69,3 +69,7 @@ Intervención directa en **las hojas existentes**, sin cuarta capa:
 ## 7. Deuda honesta y próximos módulos
 
 El CSS heredado con `!important` y rutas históricas sigue existiendo; M41 no puede borrarlo sin validar regresiones pantalla por pantalla. La intervención consolida materiales efectivos en V3 pero no pretende reescribir todo el historial RC58–RC74. Los aspectos de organización de contenido Cliente «Hoy» y «Mi plan» corresponden a M42; progreso longitudinal y nuevas visualizaciones a M44; cierre funcional del sistema a M45. No recrear esas capacidades dentro del sistema visual.
+
+### M41 · Correcciones detectadas por navegador auténtico (no contratos simulados)
+
+La primera matriz Ready detectó dos fallos genuinos. Primero, la sección Users360 de Admin mantenía un degradado en una regla de mayor especificidad que los paneles genéricos; se sustituye por el material mate `--iberfit-v3-panel` en la regla existente, sin relajar el test. Segundo, la guía Cliente calculaba correctamente el espacio de la barra inferior en JS, pero la aplicación cargaba realmente la copia CSS de `runtime-static.css`, que no incluía los cambios recientes de `STYLE`; se sincroniza exactamente la sección con el estilo canónico del controlador. Se protege la equivalencia byte a byte (ignorando saltos exteriores) mediante `m41_integral_premium_visual_system.test.mjs`, y se vuelve a exigir la no intersección en Playwright real para móviles y tablets.

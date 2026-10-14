@@ -44,6 +44,10 @@ test('M41 standard surfaces are quiet, matte and role-specific, not layered SaaS
   assert.ok(count(css.v3,/gradient\(/g)<=15,'Do not reinstate excessive gradients in the terminal layer');
   assert.ok(count(css.role,/gradient\(/g)<=80,'Role navigation and heroes must stay restrained');
   assert.equal(count(css.nav,/gradient\(/g),0,'Compact Client navigation must not look like a neon dock');
+  const overview=css.v3.slice(css.v3.indexOf('.m26-admin-user360-overview .m26-admin-stat{'));
+  assert.ok(overview.startsWith('.m26-admin-user360-overview .m26-admin-stat{'));
+  assert.ok(overview.slice(0,450).includes('background:var(--iberfit-v3-panel)!important'));
+  assert.ok(!css.v3.includes('linear-gradient(180deg,rgba(23,40,32,.34),rgba(16,29,24,.18))'));
   assert.doesNotMatch(css.shell,/radial-gradient\(circle at 85% 8%/);
   assert.doesNotMatch(css.auth,/radial-gradient\(circle at 50% -10%/);
   assert.doesNotMatch(css.auth,/background-size: 48px 48px/);
@@ -134,6 +138,24 @@ test('M41 does not corrupt standalone reporting, IRI meaning or the running prod
   assert.match(css.v3,/\.m26-shell\[data-m26-role="admin"\]/);
 });
 
+
+test('M41 shipped CSS exactly mirrors the canonical Client guided welcome design',()=>{
+  const guide=read('src/m26/onboarding/client-guided-welcome.js');
+  const runtime=read('src/m26/design/runtime-static.css');
+  const begin='const STYLE=`'+'\n';
+  const sourceStart=guide.indexOf(begin);
+  const sourceEnd=guide.indexOf('\n`;',sourceStart+begin.length);
+  const marker='/* === Client guided welcome === */'+'\n';
+  const shippedStart=runtime.indexOf(marker);
+  const shippedEnd=runtime.indexOf('/* ===',shippedStart+marker.length);
+  assert.ok(sourceStart>=0&&sourceEnd>sourceStart,'source CSS must exist');
+  assert.ok(shippedStart>=0&&shippedEnd>shippedStart,'runtime CSS must embed the guide');
+  const source=guide.slice(sourceStart+begin.length,sourceEnd).trim();
+  const shipped=runtime.slice(shippedStart+marker.length,shippedEnd).trim();
+  assert.equal(shipped,source,'guide and shipped CSS must remain byte-equivalent');
+  assert.ok(shipped.includes('data-m26-client-guide-dock="clear"'));
+  assert.ok(!shipped.includes('backdrop-filter:blur(16px)'));
+});
 
 test('M41 comforting Client guidance stays a discreet matte cream dialog above all mobile navigation',()=>{
   const guide=read('src/m26/onboarding/client-guided-welcome.js');
