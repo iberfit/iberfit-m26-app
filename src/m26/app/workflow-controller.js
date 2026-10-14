@@ -1558,6 +1558,7 @@ export function createWorkflowController({
       status(root,'planning','El servidor confirmó el ciclo. La vista todavía no refleja la versión guardada; conserva el borrador y actualiza antes de repetir la validación.','pending');
       return {...result,refreshOk:false};
     }
+    if(JSON.stringify(values(form))!==validatedFormSnapshot)return {...result,refreshPending:true,localDraftOk:false};
     let localDraftOk=true;
     try{if(draftRepository)await removeConfirmedPlanningDraft(draftRepository,clientId,stableId);}
     catch(error){
