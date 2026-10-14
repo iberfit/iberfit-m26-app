@@ -81,6 +81,11 @@ test('M43 integrated: published visibility, explicit enablement, three sports, m
   assertClientProjectionSafe(projection,user);
   assert.equal(projection.sessions.length,1);
   assert.equal(projection.sessions[0].id,session.id);
+  assert.equal(projection.sessions[0].blocks[0].plannedLoad,'30 kg');
+  assert.equal(projection.sessions[0].blocks[1].plannedPace,'06:00');
+  assert.equal(projection.sessions[0].blocks[2].plannedPacePer100M,'02:20');
+  assert.equal(projection.sessions[0].blocks[2].poolLengthM,'25');
+  assert.equal(projection.sessions[0].blocks[2].plannedDistanceM,'400');
   assert.doesNotMatch(JSON.stringify(projection),/NO MOSTRAR|OTRO CLIENTE/);
 
   assert.equal(clientSessionProjection(session).visible,true);
