@@ -72,7 +72,7 @@ function safeSessionBlocks(record){
       for(const id of item.exerciseIds){
         const original=block.prescriptions[id];
         if(original&&typeof original==='object'&&!Array.isArray(original))
-          item.prescriptions[id]=safeSessionBlocks([original])[0]||{};
+          item.prescriptions[id]=safeSessionBlocks({blocks:[original]})[0]||{};
       }
     }
     return item;
