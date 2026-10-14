@@ -78,7 +78,35 @@ function safeSessionBlocks(record){
     return item;
   });
 }
-function safeExecutionResults(record){const rows=value(record,'results','resultados');if(!Array.isArray(rows))return [];return rows.slice(0,1000).map((row)=>{const item={};for(const [canonical,keys] of [['blockId',['blockId','block_id']],['setIndex',['setIndex','set_index']],['reps',['reps','repeticiones']],['load',['load','carga']],['loadKg',['loadKg','load_kg']],['rpe',['rpe']],['rir',['rir']],['completed',['completed','completado']],['recordedAt',['recordedAt','recorded_at']]])assign(item,canonical,row,...keys);return item;});}
+function safeExecutionResults(record){
+  const input=value(record,'results','resultados');
+  // Historic execution collections use arrays. Current session execution
+  // commands persist a scoped object keyed by block/exercise/set. Project
+  // both as a bounded array of measured rows; never expose arbitrary keys.
+  const rows=Array.isArray(input)?input:input&&typeof input==='object'?Object.values(input):[];
+  const approved=[
+    ['blockId',['blockId','block_id']],['exerciseId',['exerciseId','exercise_id']],
+    ['setIndex',['setIndex','set_index']],['setNumber',['setNumber','set_number']],
+    ['reps',['reps','repeticiones']],['seconds',['seconds','durationSeconds']],
+    ['load',['load','carga']],['loadKg',['loadKg','load_kg']],
+    ['rpe',['rpe']],['rir',['rir']],
+    ['distanceKm',['distanceKm']],['distanceM',['distanceM']],
+    ['paceMinPerKm',['paceMinPerKm']],['pacePer100M',['pacePer100M']],
+    ['avgSpeedKmh',['avgSpeedKmh']],['avgHeartRateBpm',['avgHeartRateBpm']],
+    ['cadenceRpm',['cadenceRpm']],['powerWatts',['powerWatts']],
+    ['elevationGainM',['elevationGainM']],['intervalsCompleted',['intervalsCompleted']],
+    ['completed',['completed','completado']],
+    ['recordedAt',['recordedAt','recorded_at']],
+    ['completedAt',['completedAt','completed_at']],
+    ['correctedAt',['correctedAt','corrected_at']],
+  ];
+  return rows.slice(0,1000).filter(row=>row&&typeof row==='object'&&!Array.isArray(row))
+    .map(row=>{
+      const item={};
+      for(const [canonical,keys] of approved)assign(item,canonical,row,...keys);
+      return item;
+    });
+}
 function publicationBase(record,key){const out=base(record,key);assign(out,'visibleToClient',record,'visibleToClient','visible_to_client');assign(out,'title',record,'title','titulo','name','nombre');assign(out,'createdAt',record,'createdAt','created_at');assign(out,'updatedAt',record,'updatedAt','updated_at');return out;}
 function projectPublication(key,record){
   const out=publicationBase(record,key);
