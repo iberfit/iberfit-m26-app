@@ -259,7 +259,7 @@ test('contrato RC74.15 conserva política única, recuperación y ausencia de at
   assert.doesNotMatch(controller,/\.click\(\)/);
   assert.doesNotMatch(`${home}\n${policy}\n${intent}\n${shell}\n${controller}`,/SUPABASE_SERVICE_ROLE|service[_-]?role/i);
 
-  assert.match(application,/if\(recovered\)\{[\s\S]*Sesión recuperada desde este dispositivo\.[\s\S]*return true;\}/);
+  assert.match(application,/if\(recovered\)\{[\s\S]*Sesión recuperada desde este dispositivo\.[\s\S]*return true;\s*\}/);
   assert.match(application,/if\(!isCurrent\(\)\)return false;/);
   assert.match(application,/workspaceEntryGate\.run\('session:'\+clientId/);
 });
