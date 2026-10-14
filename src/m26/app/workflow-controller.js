@@ -1675,6 +1675,15 @@ export function createWorkflowController({
       status(root,'report','Tienes varios borradores guardados. Selecciona el que quieras continuar o prepara un informe nuevo.','info');
     }
   }
+  function onBeforeReportSwitch(event){
+    const form=root.querySelector?.('[data-workflow-form="report-approval"]');
+    if(!form||!event?.detail)return;
+    clearTimeout(reportSaveTimer);reportSaveTimer=null;
+    if(!editedReportForms.has(form)){event.detail.wait=reportDraftChain;return;}
+    event.detail.wait=saveReportDraft(form,{silent:true}).then(()=>{
+      editedReportForms.delete(form);
+    });
+  }
   async function selectReportDraft(form,selectedId){
     const {clientId}=context();
     requireVisibleClient(clientId);
@@ -1938,8 +1947,8 @@ export function createWorkflowController({
   }
   function onPageHide(){void flushLocalDrafts();}
   return Object.freeze({
-    mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('invalid',onInvalid,true);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
+    mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('invalid',onInvalid,true);root.addEventListener('input',onInput);root.addEventListener('change',onChange);root.addEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
     flushLocalDrafts,
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
   });
 }
