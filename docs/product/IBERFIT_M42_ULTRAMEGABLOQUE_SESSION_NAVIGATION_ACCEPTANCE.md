@@ -81,3 +81,8 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - La eliminación por propietario falló por usar POST `/object/remove/<bucket>` (interpretado como bucket `remove`). Contrato corregido a DELETE `/storage/v1/object/<bucket>` con `prefixes` y prueba de borrado remoto real.
 - El QA gate limpia SOLO un avatar anterior cuyo contenido coincide byte-a-byte con la imagen sintética conocida, sin borrar fotografías ajenas ni tocar producción.
 - La política visual/read-only acepta únicamente GET privado autenticado `/<uuid>/avatar.webp` de QA y conserva el bloqueo de escrituras/rutas públicas. Ausencia NoSuchKey se trata explícitamente como optativa, sin ocultar errores de autorización/servidor.
+
+## M42 · Cierre de consistencia Storage/CDN de avatares
+- La eliminación remota exige confirmación mediante endpoint metadata privado y descarga autenticada con `cacheNonce` renovado; HTTP 200 en DELETE no constituye éxito suficiente.
+- Se tolera propagación transitoria con 13 comprobaciones acotadas a 2 s (máximo ~24 s); nunca se da por eliminado un objeto todavía accesible.
+- Las lecturas privadas de Cliente/Coach utilizan `cacheNonce` diferente en cada acceso, incluso durante la revalidación por revocación; las fotos nunca usan URL pública.

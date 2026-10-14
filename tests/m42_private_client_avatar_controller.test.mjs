@@ -36,7 +36,9 @@ test('M42 photo is retrieved with owner-scoped token but never embedded as publi
   assert.equal(c.calls.length,1);
   assert.equal(c.calls[0].method,'GET');
   assert.equal(c.calls[0].headers.Authorization,'Bearer private-user-token');
-  assert.ok(c.calls[0].url.endsWith('/storage/v1/object/authenticated/iberfit-profile-avatars/'+profileAvatarPath(clientId)));
+  const requested=new URL(c.calls[0].url);
+  assert.equal(requested.pathname,'/storage/v1/object/authenticated/iberfit-profile-avatars/'+profileAvatarPath(clientId));
+  assert.ok(requested.searchParams.get('cacheNonce'));
   assert.equal(c.image.src,'blob:private-photo');
   c.controller.destroy();
   assert.deepEqual(c.revoked,['blob:private-photo']);

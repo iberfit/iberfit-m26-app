@@ -9,5 +9,6 @@ test('M42 avatar eventually refreshes on other-device photo changes and revocati
   assert.match(src,/detail\?\.code==='NoSuchKey'/u);
   assert.match(src,/evict\(clientId\);missing\.add\(clientId\)/u);
   assert.match(src,/const fresh=Date\.now\(\)-\(checkedAt\.get\(clientId\)\|\|0\)<AVATAR_REVALIDATE_MS/u);
+  assert.match(src,/downloadUrl=endpoint\(clientId\)\+'\?cacheNonce='/u);
   assert.doesNotMatch(src,/seen=new WeakSet/u);
 });

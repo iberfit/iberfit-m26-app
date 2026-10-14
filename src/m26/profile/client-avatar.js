@@ -96,7 +96,7 @@ export function createClientAvatarController({
 }={}){
   if(!root?.addEventListener||typeof getToken!=='function'||typeof getIdentity!=='function')
     throw new Error('M42_AVATAR_CONTROLLER_REQUIRED');
-  let mounted=false,generation=0,observer=null,intersection=null,scheduled=false,busy=false;
+  let mounted=false,generation=0,observer=null,intersection=null,scheduled=false,busy=false,downloadNonce=0;
   let lastRoleKey='';
   const cache=new Map(),inFlight=new Map(),missing=new Set(),checkedAt=new Map();
   const base=String(runtime?.url||'').replace(/\/+$/,'');
@@ -161,7 +161,10 @@ export function createClientAvatarController({
     const request=(async()=>{
       try{
         const auth=await token();
-        const res=await fetchImpl(resource('authenticated/'+AVATAR_BUCKET+'/'+path),{
+        // Force a fresh private CDN cache key for every authenticated read.
+        // A previously cached byte stream must not mask a revoked or removed photo.
+        const downloadUrl=endpoint(clientId)+'?cacheNonce='+encodeURIComponent(String(Date.now())+'-'+(++downloadNonce));
+        const res=await fetchImpl(downloadUrl,{
           method:'GET',headers:header(auth),credentials:'omit',cache:'no-store',
         });
         if(!unchangedScope(scopeAtStart,generationAtStart))return null;

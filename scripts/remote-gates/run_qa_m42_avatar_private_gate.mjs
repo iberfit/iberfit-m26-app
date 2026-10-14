@@ -3,6 +3,7 @@
  * Publishable key + user JWT only. No PROD endpoints and no service role.
  */
 import {mkdir,writeFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
 import {profileAvatarPath,AVATAR_BUCKET} from '../../src/m26/profile/client-avatar.js';
 
 const REF='gjztkdwfmunnzhtvxrsu',BASE='https://'+REF+'.supabase.co';
@@ -24,7 +25,7 @@ async function send(path,{method='GET',token,json,bytes,upsert=false,readBytes=f
  if(u.origin!==BASE||u.username||u.password||
   !['/storage/v1/','/auth/v1/','/rest/v1/'].some(prefix=>u.pathname.startsWith(prefix)))
   throw Error('M42_AVATAR_QA_EGRESS_DENIED');
- const r=await fetch(u,{method,redirect:'error',signal:AbortSignal.timeout(20000),
+ const r=await fetch(u,{method,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20000),
   headers:{apikey:process.env.M26_SUPABASE_PUBLISHABLE_KEY,
    ...(token?{authorization:'Bearer '+token}:{}),
    ...(json?{'content-type':'application/json'}:{}),
@@ -49,9 +50,28 @@ const denied=(r,label)=>check(!r.ok&&[400,401,403,404].includes(r.status),label)
 const own=id=>profileAvatarPath(id);
 const upload=id=>'/storage/v1/object/'+AVATAR_BUCKET+'/'+own(id);
 const privateUrl=id=>'/storage/v1/object/authenticated/'+AVATAR_BUCKET+'/'+own(id);
+const privateInfo=id=>'/storage/v1/object/info/authenticated/'+AVATAR_BUCKET+'/'+own(id);
+const uncachedPrivate=id=>privateUrl(id)+'?cacheNonce='+randomUUID();
 const publicUrl=id=>'/storage/v1/object/public/'+AVATAR_BUCKET+'/'+own(id);
 const remove=()=>'/storage/v1/object/'+AVATAR_BUCKET;
 const picture=Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA','base64');
+// Confirm deletion via the object metadata endpoint (not CDN-served media),
+// then require an independently uncached authenticated download to disappear.
+// Do not treat HTTP 200 from DELETE alone as evidence of removal.
+async function confirmRemoved(token,id,label){
+  let infoGone=false,mediaGone=false;
+  for(let attempt=0;attempt<13;attempt++){
+    const [info,media]=await Promise.all([
+      send(privateInfo(id),{token}),
+      send(uncachedPrivate(id),{token}),
+    ]);
+    infoGone=!info.ok&&[400,404].includes(info.status);
+    mediaGone=!media.ok&&[400,404].includes(media.status);
+    if(infoGone&&mediaGone)break;
+    if(attempt<12)await new Promise(resolve=>setTimeout(resolve,2000));
+  }
+  check(infoGone&&mediaGone,label);
+}
 async function main(){
  ensureQa();
  check(picture.subarray(0,4).toString()==='RIFF'&&picture.subarray(8,12).toString()==='WEBP','WEBP_SYNTHETIC');
@@ -74,8 +94,7 @@ async function main(){
   check(Boolean(before.bytes)&&before.bytes.equals(picture),'PREEXISTING_PHOTO_NOT_SYNTHETIC');
   const cleanup=await send(remove(),{method:'DELETE',token:a,json:{prefixes:[own(idA)]}});
   check(cleanup.ok,'RECOVER_OLD_SYNTHETIC_AVATAR');
-  const fresh=await send(privateUrl(idA),{token:a});
-  check(!fresh.ok&&[400,404].includes(fresh.status),'RECOVERY_CLEANUP_CONFIRMED');
+  await confirmRemoved(a,idA,'RECOVERY_CLEANUP_CONFIRMED');
  }else check([400,404].includes(before.status),'NO_EXISTING_PHOTO');
  evidence.phase='authenticated';
  let touched=false;
@@ -103,8 +122,7 @@ async function main(){
   if(touched){
    const removed=await send(remove(),{method:'DELETE',token:a,json:{prefixes:[own(idA)]}});
    check(removed.ok,'OWNER_DELETE');
-   const after=await send(privateUrl(idA),{token:a});
-   check(!after.ok&&[400,404].includes(after.status),'DELETE_REMOTE_CONFIRMED');
+   await confirmRemoved(a,idA,'DELETE_REMOTE_CONFIRMED');
    evidence.cleanupConfirmed=true;
   }
  }
