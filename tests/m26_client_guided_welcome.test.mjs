@@ -9,6 +9,7 @@ import {
   normalizeClientGuidedWelcomeState,
   clientGuidedWelcomeLegacySeed,
   clientGuidedWelcomeStep,
+  clientGuidedWelcomeNavigationDecision,
   __clientGuidedWelcomeInternals,
 } from '../src/m26/onboarding/client-guided-welcome.js';
 
@@ -103,10 +104,25 @@ test('The Genie controls route movement instead of asking the client to find eac
   assert.match(source,/function navigate\(area\)/u);
   assert.match(source,/destination\.click\?\.\(\)/u);
   assert.match(source,/if\(state\.status==='never'\)\{\s*start\(ctx\)/u);
-  assert.match(source,/if\(current!==step\.area\)\{\s*navigate\(step\.area\)/u);
+  assert.match(source,/if\(current!==step\.area\)\{[\s\S]*?clientGuidedWelcomeNavigationDecision\([\s\S]*?\)==='pause'/u);
+  assert.match(source,/clientGuidedWelcomeNavigationDecision\(\{status:state\.status,current:currentArea\(root\)\}\)==='defer'/u);
   assert.match(source,/data-m26-client-guided-welcome-next/u);
   assert.match(source,/data-m26-client-guided-welcome-pause/u);
   assert.doesNotMatch(source,/data-m26-guided-tour-next|data-m26-guided-tour-previous|<progress/iu);
+});
+
+
+test('M43 first-run guide yields to Client navigation while controllers are mounting',()=>{
+  const decision=clientGuidedWelcomeNavigationDecision;
+  assert.equal(decision({status:'never',current:'hoy'}),'start');
+  assert.equal(decision({status:'never',current:'sesion'}),'defer');
+  assert.equal(decision({status:'never',current:'planificacion'}),'defer');
+  assert.equal(decision({status:'in-progress',current:'hoy',stepArea:'hoy'}),'continue');
+  assert.equal(decision({status:'in-progress',current:'sesion',stepArea:'hoy',pending:null}),'pause');
+  assert.equal(decision({status:'in-progress',current:'sesion',stepArea:'hoy',pending:'sesion'}),'pause');
+  assert.equal(decision({status:'in-progress',current:'sesion',stepArea:'sesion',pending:'sesion'}),'continue');
+  assert.equal(decision({status:'in-progress',current:'hoy',stepArea:'sesion',pending:'sesion'}),'guided-transition');
+  assert.equal(decision({status:'paused',current:'sesion',stepArea:'hoy'}),'continue');
 });
 
 test('Welcome and contextual help never compete, and Live Workout still wins',()=>{
