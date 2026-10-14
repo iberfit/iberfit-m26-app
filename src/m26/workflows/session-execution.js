@@ -140,8 +140,8 @@ function createPlanSnapshot(session,queue){
 
 export function createExecution({session,clientId,executionId=uid()}={}){
   if(!session?.id||!clientId)throw new Error('M26_EXECUTION_SESSION_CLIENT_REQUIRED');
-  // Do not create a recoverable local execution under another person's
-  // identity even if the remote command will reject it later.
+  // Avoid recoverable local executions under a different client identity,
+  // even if a subsequent remote command would reject the mismatch.
   const requested=String(clientId).trim();
   const wrapper=String(session.clientId??session.client_id??'').trim();
   const body=String(session.body?.clientId??session.body?.client_id??'').trim();
