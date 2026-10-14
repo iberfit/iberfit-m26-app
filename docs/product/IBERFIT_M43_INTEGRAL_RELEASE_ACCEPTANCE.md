@@ -101,3 +101,7 @@ La segunda prueba real confirmó que `SESION_PUBLICAR` ya realiza `SESION_HABILI
 ### Certificación UI autenticada posterior a QA API
 
 `playwright.m43-authenticated-browser.config.mjs` incluye pruebas reales de interfaz Cliente en Chromium escritorio (1440), tablet táctil (1024) y móvil táctil (390). El job `M43 real Client browser current-source` se ejecuta **después** de la escritura real Coach→Cliente con `needs`, sobre la compilación exacta del PR y los mismos datos sintéticos de QA. Comprueba inicio de sesión, carga interactiva, sesión publicada e historial, ausencia de ciclos internos, navegación Planificación/Sesiones, desbordamiento horizontal y errores del navegador. Las solicitudes de escritura se bloquean con la política read-only existente, y se adjunta evidencia de pantalla. Su PASS no sustituye Canary exacto, WebKit ni pruebas de Coach con WebAuthn.
+
+### Capturas reales y RC39: corrección de historial y responsive
+
+Playwright mostró que la interfaz Cliente activa en Sesiones es RC39 (no la ruta anterior M26). La nueva prueba conserva el backend real, pero verifica encabezados, controles y contenido de la pantalla actual. Además se devuelve a RC39 el historial de ejecuciones completadas ya disponible en el view-model canónico (nombre, fecha, número de registros y RPE confirmado), sin exponer eventos internos ni notas privadas. Las etiquetas de capacidades de Live Workout se distribuyen en filas en teléfonos pequeños, y Playwright comprueba visualmente que no se superponen.

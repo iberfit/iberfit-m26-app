@@ -63,11 +63,29 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   const sessionLink=page.locator('[data-m26-area="sesion"]:visible').first();
   await expect(sessionLink).toBeVisible({timeout:12_000});
   await sessionLink.click();
-  await expect(page.getByRole('heading',{name:'Tus sesiones guiadas'})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Tus sesiones realizadas'})).toBeVisible();
-  const publishedCards=page.locator('[data-client-content="session"]');
-  await expect(publishedCards.first()).toBeVisible({timeout:12_000});
-  await expect(publishedCards.filter({hasText:LIVE_MARKER}).first()).toBeVisible();
+  // The currently shipped authenticated Client route is RC39, not the
+  // legacy M26 publication route. Never certify a detached mock DOM.
+  await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Tu entrenamiento',exact:true})).toBeVisible();
+  const publishedCards=page.locator('[data-rc39-session]');
+  await expect(publishedCards.filter({hasText:LIVE_MARKER}).first()).toBeVisible({timeout:12_000});
+  const history=page.locator('[data-m43-session-history]');
+  await expect(history).toBeVisible();
+  await expect(history.getByRole('heading',{name:'Sesiones realizadas'})).toBeVisible();
+  await expect(history.locator('[data-m43-completed-session]').first()).toBeVisible();
+  await expect(history).toContainText(LIVE_MARKER);
+  const tagRects=await publishedCards.filter({hasText:LIVE_MARKER}).first()
+    .locator('.m26-session-experience__capability')
+    .evaluateAll(nodes=>nodes.map(node=>{
+      const rect=node.getBoundingClientRect();
+      return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom};
+    }));
+  for(let i=0;i<tagRects.length;i++)for(let j=i+1;j<tagRects.length;j++){
+    const a=tagRects[i],b=tagRects[j];
+    const dx=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+    const dy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+    expect(dx<=1||dy<=1,'Capability pills must not overlap').toBe(true);
+  }
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
   // The real QA acceptance already completed this same published session.
   // Its confirmed history must also render after a new browser login.
@@ -77,7 +95,8 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   const planLink=page.locator('[data-m26-area="planificacion"]:visible').first();
   await expect(planLink).toBeVisible();
   await planLink.click();
-  await expect(page.getByRole('heading',{name:'Tu planificación'})).toBeVisible();
+  await expect(page.locator('[data-m27-session-surface="planning"]')).toBeVisible();
+  await expect(page.getByRole('heading',{name:/^Planificación ·/})).toBeVisible();
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
   const geometry=await page.evaluate(()=>({
     width:document.documentElement.clientWidth,

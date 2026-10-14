@@ -1,4 +1,5 @@
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
+import {renderCompletedSessionHistory} from './completed-session-history.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
 import {coachLaunchSelfCopy} from './view-model.js';
@@ -432,7 +433,7 @@ function renderSessions(vm){
   const empty=role==='client'
     ?'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false})).join(''):empty}</section></div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false})).join(''):empty}</section>${role==='client'?renderCompletedSessionHistory(vm):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
