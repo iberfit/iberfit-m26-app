@@ -27,14 +27,33 @@
   --iberfit-role-radius: var(--iberfit-radius-md);
 }
 
+/* M41 · Deliberate typographic hierarchy without creating a fourth UI.
+ * Editorial for the Client; disciplined reading at the Coach and Admin desk. */
+.m26-shell[data-m26-role="client"] .m26-route-intro h2{
+  font-family:var(--iberfit-font-family-editorial);
+  font-weight:560;
+  font-size:clamp(1.85rem,3.1vw,2.65rem);
+  letter-spacing:-.028em;
+  line-height:1.15;
+}
+.m26-shell[data-m26-role="coach"] .m26-route-intro h2,
+.m26-shell[data-m26-role="admin"] .m26-admin-route h2{
+  font-family:var(--iberfit-font-family-ui);
+  font-weight:650;
+  letter-spacing:-.018em;
+  line-height:1.2;
+}
+.m26-shell[data-m26-role] .m26-route :is(
+  .m26-stat strong,.m26-admin-stat strong,.iberfit-metric-value,
+  .m26-mini-metric strong
+){font-variant-numeric:tabular-nums lining-nums}
+.m26-shell[data-m26-role] .m26-route :is(
+  .m26-panel-heading,.m26-route-intro,.m26-admin-hero,
+  .m26-coach-home-command,.m26-profile-hero
+){min-width:0}
 /* Shared role-aware refinements */
 .m26-shell[data-m26-role] .m26-main {
-  background:
-    radial-gradient(
-      circle at 82% 3%,
-      color-mix(in srgb, var(--iberfit-role-accent) 5%, transparent),
-      transparent 28rem
-    );
+  background: transparent;
 }
 
 .m26-shell[data-m26-role] .m26-nav-item,
@@ -45,12 +64,7 @@
 
 .m26-shell[data-m26-role] .m26-nav-item.is-active {
   border-color: color-mix(in srgb, var(--iberfit-role-accent) 34%, transparent);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--iberfit-role-accent) 17%, transparent),
-      color-mix(in srgb, var(--iberfit-role-accent) 6%, transparent)
-    );
+  background: var(--iberfit-role-accent-soft);
 }
 
 .m26-shell[data-m26-role] .m26-eyebrow,
@@ -83,9 +97,7 @@
 }
 
 .m26-shell[data-m26-role="client"] .m26-sidebar {
-  background:
-    radial-gradient(circle at 20% 8%, rgba(200,166,93,.08), transparent 18rem),
-    linear-gradient(180deg, rgba(15,45,33,.97), rgba(7,21,15,.99));
+  background: #10241B;
 }
 
 .m26-shell[data-m26-role="client"] .m26-nav-group > div {
@@ -115,10 +127,8 @@
   .m26-profile-hero
 ) {
   padding: clamp(var(--iberfit-space-5), 3.5vw, var(--iberfit-space-7));
-  background:
-    radial-gradient(circle at 88% 12%, rgba(228,205,152,.11), transparent 20rem),
-    linear-gradient(135deg, rgba(20,52,36,.96), rgba(8,27,20,.98));
-  box-shadow: var(--iberfit-shadow-elevated);
+  background: #1B392C;
+  box-shadow: 0 9px 26px rgba(0,0,0,.14);
 }
 
 .m26-shell[data-m26-role="client"] .m26-stat-grid {
@@ -151,12 +161,8 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-bottom-nav {
   border-color: color-mix(in srgb, var(--iberfit-color-accent-strong) 24%, transparent);
-  background:
-    radial-gradient(circle at 50% -45%, rgba(228,205,152,.18), transparent 44%),
-    linear-gradient(100deg, rgba(4,31,23,.985), rgba(12,49,37,.985), rgba(4,31,23,.985));
-  box-shadow:
-    0 22px 58px rgba(0,0,0,.42),
-    inset 0 1px 0 rgba(255,245,218,.09);
+  background: rgba(11,26,19,.99);
+  box-shadow: 0 -4px 20px rgba(0,0,0,.16);
 }
 
 /* COACH · professional cockpit, comparison and action density */
@@ -257,9 +263,7 @@
 }
 
 .m26-shell[data-m26-role="admin"] .m26-sidebar {
-  background:
-    radial-gradient(circle at 15% 5%, var(--iberfit-color-role-admin-accent-soft), transparent 18rem),
-    linear-gradient(180deg, rgba(7,29,26,.99), rgba(6,24,21,.99));
+  background: #0F221B;
 }
 
 .m26-shell[data-m26-role="admin"] .m26-brand {
@@ -285,7 +289,7 @@
 
 .m26-shell[data-m26-role="admin"] .m26-nav-item.is-active {
   border-color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 42%, transparent);
-  background: linear-gradient(135deg, var(--iberfit-color-role-admin-accent-soft), rgba(255,255,255,.025));
+  background: var(--iberfit-color-role-admin-accent-soft);
 }
 
 .m26-shell[data-m26-role="admin"] .m26-admin-route {
@@ -349,8 +353,8 @@
 
 .m26-shell[data-m26-role="admin"] .m26-admin-table th {
   color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 68%, var(--iberfit-color-text-primary));
-  font-size: var(--iberfit-font-size-xs);
-  letter-spacing: .06em;
+  font-size: .8125rem;
+  letter-spacing: .045em;
   text-transform: uppercase;
 }
 

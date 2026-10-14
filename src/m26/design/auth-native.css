@@ -18,10 +18,7 @@
     max(clamp(1rem, 3.5vw, 2.5rem), env(safe-area-inset-bottom))
     max(clamp(1rem, 3.5vw, 2.5rem), env(safe-area-inset-left));
   color: #f7f1e4;
-  background:
-    radial-gradient(circle at 50% -10%, rgba(214, 181, 106, .16), transparent 31rem),
-    radial-gradient(circle at 4% 92%, rgba(39, 113, 80, .2), transparent 34rem),
-    linear-gradient(155deg, #081a12 0%, #06130d 52%, #040d09 100%);
+  background:#0B1310;
   isolation: isolate;
 }
 
@@ -31,12 +28,8 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: .2;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, .014) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .5), transparent 74%);
+  opacity:0;
+  background:none;
 }
 
 .m26-auth-stage {
@@ -86,7 +79,7 @@
   .m26-auth-intro-kicker {
     margin: 0;
     color: #d9bb77;
-    font-size: .72rem;
+    font-size: .8125rem;
     font-weight: 800;
     letter-spacing: .2em;
     text-transform: uppercase;
@@ -132,23 +125,23 @@
 
   .m26-auth-pillars dt {
     color: #ead8af;
-    font-size: .76rem;
+    font-size: .875rem;
     font-weight: 760;
     letter-spacing: .01em;
   }
 
   .m26-auth-pillars dd {
     margin: .34rem 0 0;
-    color: #9f998f;
-    font-size: .7rem;
+    color: #D1D8D2;
+    font-size: .875rem;
     line-height: 1.45;
   }
 
   .m26-auth-intro-trust {
     position: relative;
     margin: 0;
-    color: #8f8a81;
-    font-size: .68rem;
+    color: #CFD6CE;
+    font-size: .8125rem;
     font-weight: 600;
     letter-spacing: .04em;
   }
@@ -221,7 +214,7 @@
 .m26-auth-card .m26-eyebrow {
   margin: 0;
   color: #d9bb77;
-  font-size: .68rem;
+  font-size: .8125rem;
   font-weight: 800;
   letter-spacing: .2em;
   line-height: 1;
@@ -238,7 +231,7 @@
 .m26-auth-kicker {
   margin: 0;
   color: #cdb986;
-  font-size: .68rem;
+  font-size: .8125rem;
   font-weight: 760;
   letter-spacing: .14em;
   line-height: 1.2;
@@ -321,15 +314,15 @@
 }
 
 .m26-auth-flow-label strong {
-  color: #aaa293;
-  font-size: .68rem;
+  color: #D2D8D0;
+  font-size: .8125rem;
   font-weight: 720;
   letter-spacing: .015em;
 }
 
 .m26-auth-flow-label > span {
-  color: #777168;
-  font-size: .6rem;
+  color: #CFD6CE;
+  font-size: .8125rem;
   line-height: 1.3;
 }
 

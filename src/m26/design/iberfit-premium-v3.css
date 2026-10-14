@@ -18,7 +18,11 @@
   --iberfit-v3-danger:#EF4444;
   --iberfit-v3-radius-card:12px;
   --iberfit-v3-radius-btn:8px;
-  --iberfit-v3-shadow:0 18px 48px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.018);
+  --iberfit-v3-shadow:0 8px 24px rgba(0,0,0,.12);
+  --iberfit-v3-panel:#152820;
+  --iberfit-v3-panel-raised:#1A3026;
+  --iberfit-v3-edge:rgba(221,198,149,.13);
+  --iberfit-v3-focus:#D7BA7C;
   --iberfit-color-canvas:var(--iberfit-v3-canvas);
   --iberfit-color-surface-base:var(--iberfit-v3-surface);
   --iberfit-color-surface-raised:var(--iberfit-v3-surface-raised);
@@ -34,6 +38,21 @@
   --m26-cream-300:var(--iberfit-v3-text-secondary);
   --m26-muted:var(--iberfit-v3-text-secondary);
   --m26-line:var(--iberfit-v3-line);
+}
+
+/* M41 · One visual grammar, three purposeful products, inherited by existing primitives.
+ * Source tokens and official mark remain unchanged. No additional stylesheet. */
+.m26-shell[data-m26-role="client"]{
+  --iberfit-v3-panel:#192E24;
+  --iberfit-v3-panel-raised:#203B2E;
+}
+.m26-shell[data-m26-role="coach"]{
+  --iberfit-v3-panel:#142820;
+  --iberfit-v3-panel-raised:#193329;
+}
+.m26-shell[data-m26-role="admin"]{
+  --iberfit-v3-panel:#162820;
+  --iberfit-v3-panel-raised:#1C3026;
 }
 
 /* ---------- Authentication: same visual language from first paint onward ---------- */
@@ -173,9 +192,7 @@
   isolation:isolate;
   color-scheme:dark!important;
   color:var(--iberfit-v3-text)!important;
-  background:
-    radial-gradient(circle at 94% 3%,rgba(197,160,89,.035),transparent 26rem),
-    linear-gradient(160deg,#0C1612 0%,var(--iberfit-v3-canvas) 58%,#09100D 100%)!important;
+  background:var(--iberfit-v3-canvas)!important;
   background-color:var(--iberfit-v3-canvas)!important;
 }
 .m26-shell .m26-workspace::before{
@@ -195,14 +212,14 @@
 .m26-shell .m26-main{color:var(--iberfit-v3-text)!important;background:transparent!important}
 .m26-shell .m26-topbar{
   color:var(--iberfit-v3-text)!important;
-  border-bottom:1px solid rgba(197,160,89,.09)!important;
-  background:rgba(11,19,16,.94)!important;
-  box-shadow:0 10px 28px rgba(0,0,0,.14)!important;
-  backdrop-filter:blur(18px) saturate(1.04)!important;
+  border-bottom:1px solid var(--iberfit-v3-edge)!important;
+  background:rgba(11,19,16,.97)!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
 }
 .m26-shell .m26-sidebar{
   border-right:1px solid rgba(197,160,89,.10)!important;
-  background:linear-gradient(180deg,#11241B 0%,#0D1C16 58%,#0A1511 100%)!important;
+  background:#0D1E17!important;
 }
 .m26-shell .m26-brand img{filter:none!important}
 .m26-shell .m26-brand strong,
@@ -227,7 +244,7 @@
 .m26-shell .m26-nav-item.is-active{
   color:var(--iberfit-v3-text)!important;
   border-color:rgba(197,160,89,.18)!important;
-  background:linear-gradient(90deg,rgba(197,160,89,.12),rgba(197,160,89,.035))!important;
+  background:rgba(197,160,89,.095)!important;
   box-shadow:inset 3px 0 0 var(--iberfit-v3-gold)!important;
 }
 
@@ -245,15 +262,13 @@
   color:var(--iberfit-v3-text)!important;
   border-color:var(--iberfit-v3-line)!important;
   border-radius:var(--iberfit-v3-radius-card)!important;
-  background:linear-gradient(150deg,rgba(19,34,28,.96),rgba(14,26,21,.985))!important;
-  box-shadow:var(--iberfit-v3-shadow)!important;
+  background:var(--iberfit-v3-panel)!important;
+  box-shadow:inset 0 1px 0 rgba(245,245,240,.025)!important;
 }
 .m26-shell .m26-workspace :is(
   .m26-stat,.m26-admin-stat,.iberfit-metric
 ){
-  background:
-    radial-gradient(circle at 100% 0%,rgba(197,160,89,.055),transparent 9rem),
-    linear-gradient(150deg,#172820,#101D18)!important;
+  background:var(--iberfit-v3-panel-raised)!important;
 }
 .m26-shell .m26-workspace :is(
   .m26-panel-soft,.m26-field
@@ -275,9 +290,9 @@
 }
 .m26-shell .m26-workspace :is(input,textarea)::placeholder{color:#748179!important}
 .m26-shell .m26-workspace :is(input,select,textarea):focus-visible{
-  border-color:rgba(197,160,89,.55)!important;
-  outline:3px solid rgba(197,160,89,.16)!important;
-  outline-offset:2px!important;
+  border-color:var(--iberfit-v3-focus)!important;
+  outline:3px solid var(--iberfit-v3-focus)!important;
+  outline-offset:3px!important;
 }
 .m26-shell .m26-workspace :is(
   .m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"],
@@ -293,12 +308,12 @@
   color:#17150F!important;
   border-color:#D0AD63!important;
   border-radius:var(--iberfit-v3-radius-btn)!important;
-  background:linear-gradient(180deg,#D1AE65,#B98F44)!important;
-  box-shadow:0 10px 24px rgba(134,100,39,.16),inset 0 1px rgba(255,255,255,.20)!important;
+  background:#C5A059!important;
+  box-shadow:0 5px 14px rgba(0,0,0,.11)!important;
   font-weight:760!important;
 }
 .m26-shell .m26-workspace :is(.m26-primary-action,.iberfit-button[data-variant="primary"]):hover:not(:disabled){
-  background:linear-gradient(180deg,#DCBC76,#C29A50)!important;
+  background:#D7BA7C!important;
 }
 
 /* Status has meaning; gold is not used as a generic success color. */
@@ -351,19 +366,15 @@
 .m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-decision-center{
   color:var(--iberfit-v3-text)!important;
   border-color:rgba(197,160,89,.18)!important;
-  background:
-    radial-gradient(circle at 95% 0%,rgba(197,160,89,.07),transparent 18rem),
-    linear-gradient(145deg,#172A22,#101E18)!important;
+  background:#192B23!important;
 }
 
 /* Coach: low cognitive load, priority first */
 .m26-shell[data-m26-role="coach"] .m26-coach-home-command{
   border-color:rgba(197,160,89,.18)!important;
   border-radius:var(--iberfit-v3-radius-card)!important;
-  background:
-    radial-gradient(circle at 96% 0%,rgba(197,160,89,.075),transparent 18rem),
-    linear-gradient(145deg,#172B22,#101E18)!important;
-  box-shadow:var(--iberfit-v3-shadow)!important;
+  background:#1C3529!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.14)!important;
 }
 .m26-shell[data-m26-role="coach"] .m26-coach-home-glance,
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button{
@@ -373,7 +384,7 @@
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button:hover{background:#192D24!important}
 .m26-shell[data-m26-role="coach"] :is(.m26-client-card.is-active,.m26-client-card[aria-current="true"],[data-selected-client="true"]){
   border-color:rgba(197,160,89,.42)!important;
-  background:linear-gradient(145deg,#1A2E26,#14241D)!important;
+  background:#213B2D!important;
   box-shadow:inset 3px 0 0 var(--iberfit-v3-gold),var(--iberfit-v3-shadow)!important;
 }
 
@@ -383,10 +394,8 @@
 ){
   color:var(--iberfit-v3-text)!important;
   border-color:rgba(197,160,89,.18)!important;
-  background:
-    radial-gradient(circle at 96% 0%,rgba(197,160,89,.09),transparent 15rem),
-    linear-gradient(145deg,#172B22,#0F1D17)!important;
-  box-shadow:var(--iberfit-v3-shadow)!important;
+  background:linear-gradient(145deg,#204033,#14291F)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.15)!important;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace :is(
   .m26-profile-hero,.m26-profile-hero-premium,.m26-hero-panel,.m26-today-hero,.m26-session-live-hero
@@ -405,8 +414,8 @@
 .m26-shell .m26-workspace .m26-mobile-nav{
   color-scheme:dark!important;
   border-top:1px solid rgba(197,160,89,.11)!important;
-  background:rgba(11,19,16,.98)!important;
-  box-shadow:0 -10px 26px rgba(0,0,0,.18)!important;
+  background:rgba(11,19,16,.99)!important;
+  box-shadow:0 -4px 18px rgba(0,0,0,.13)!important;
 }
 .m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item{color:#88968F!important}
 .m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item.is-active{
@@ -433,6 +442,39 @@
     border-radius:10px!important;
   }
   .m26-auth-page::after{width:74vw;right:-26vw;bottom:-10vw;opacity:.028}
+}
+
+/* M41 · Keyboard/touch contract shared across all three roles.
+ * No pointer-event overlays, no transform on fields or cards. */
+.m26-shell .m26-workspace :is(button,a[href],summary,[role="button"],[role="tab"]):focus-visible{
+  outline:3px solid var(--iberfit-v3-focus)!important;
+  outline-offset:3px!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-admin-table,.iberfit-table-shell,.m26-route,.m26-panel,.m26-client-card
+){min-width:0}
+.m26-shell .m26-workspace :is(
+  .m26-stat strong,.m26-admin-stat strong,.iberfit-metric-value,.m26-mini-metric strong
+){font-variant-numeric:tabular-nums lining-nums}
+
+@media(max-width:719px){
+  .m26-shell .m26-workspace :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]),
+    select,textarea
+  ){font-size:1rem!important;min-height:44px}
+  .m26-shell[data-m26-role="client"] .m26-workspace :is(
+    button[data-workflow-action],.m26-primary-action,.iberfit-button
+  ){min-height:48px}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell .m26-workspace :is(
+    .m26-nav-item,.m26-primary-action,.iberfit-button,.m26-client-card,.m26-panel
+  ){transition:none!important;animation:none!important}
+}
+@media(forced-colors:active){
+  .m26-shell .m26-workspace :is(
+    button,a[href],summary,input,select,textarea,[role="button"],[role="tab"]
+  ):focus-visible{outline:3px solid Highlight!important;outline-offset:3px!important}
 }
 
 /* High contrast remains readable without turning the product white. */
