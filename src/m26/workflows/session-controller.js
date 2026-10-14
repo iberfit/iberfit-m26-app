@@ -942,6 +942,9 @@ async function click(event){
       return;
     }
     if(sessionActionPending||action==='start'&&startPending)return;
+    // A stale DOM control, accessibility activation or double tap after ACK
+    // must never send another SESION_INICIAR for an already-active execution.
+    if(action==='start'&&context?.execution?.status!=='ready')return;
     sessionActionPending=true;
     if(action==='start')startPending=true;
     const liveAddOperationId=action==='add-live-exercise'?createM26Id():null;
