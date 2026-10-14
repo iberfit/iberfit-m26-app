@@ -129,6 +129,9 @@ function friendlyError(error){
   if(/M26_PRIVILEGED_ACTION_TIMEOUT|M26_WEBAUTHN_BACKEND_TIMEOUT/.test(code))return 'La confirmación segura tardó demasiado. El expediente no se ha creado; puedes reintentarlo sin perder el formulario.';
   if(/M26_WEBAUTHN_UNSUPPORTED/.test(code))return 'Este dispositivo no permite la confirmación segura necesaria para crear el expediente. Tu formulario permanece guardado.';
   if(/M26_PRIVILEGED_ACTION_(?:IDENTITY_MISMATCH|ASSURANCE_INVALID|FACTOR_INVALID|CHALLENGE_INVALID|CEREMONY_INVALID|NOT_CONFIRMED|AUTH_REQUIRED)/.test(code))return 'No se pudo confirmar de forma segura tu identidad. El expediente no se ha creado y el formulario permanece guardado.';
+  if(/M42_WORKSPACE_ENTRY_BUSY/.test(code))return 'Ya se está preparando una sesión. Espera a que termine antes de abrir otra.';
+  if(/M42_WORKSPACE_ALREADY_ACTIVE/.test(code))return 'Tienes una sesión o un borrador abierto. Termínalo o sal de él antes de abrir otro.';
+  if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
   if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';
@@ -1621,7 +1624,7 @@ export function createWorkflowController({
     }
     status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
   function reuseSession(button){requireCoach();const sessionId=String(button?.dataset?.entityId||'').trim();if(!sessionId)throw new Error('M26_SESSION_REUSE_ID_REQUIRED');const {clientId,state}=context();requireVisibleClient(clientId);const source=(state.collections.sessions||[]).find((item)=>String(item?.id||item?.body?.id||'')===sessionId&&String(item?.clientId||item?.client_id||item?.body?.clientId||item?.body?.client_id||'')===clientId);if(!source)throw new Error('M26_SESSION_REUSE_NOT_VISIBLE');emit(root,'m26:open-session-builder',{clientId,sourceSession:source});status(root,'session','Sesión cargada como borrador independiente. La original no se modifica.','success');}  function openBuilder(button){requireCoach();const {clientId:activeClientId}=context();const requested=String(button?.dataset?.clientId||activeClientId||'').trim();const clientId=requireVisibleClient(requested);emit(root,'m26:open-session-builder',{clientId});status(root,'session','Constructor abierto.','success');}
-  function startSession(button){
+  async function startSession(button){
     const {clientId,state,role}=context();
     requireVisibleClient(clientId);
     requireActiveTrainingService(clientId);
@@ -1650,8 +1653,15 @@ export function createWorkflowController({
       error.userMessage='Esta sesión no tiene ejercicios ejecutables. Pide a tu Coach que revise su publicación.';
       throw error;
     }
-    emit(root,'m26:start-session',{clientId,session});
-    status(root,'session',role==='client'?'Preparando sesión guiada.':'Preparando sesión.','success');
+    const request={clientId,session,completion:null};
+    status(root,'session',role==='client'?'Preparando tu sesión guiada…':'Preparando sesión…','pending');
+    emit(root,'m26:start-session',request);
+    if(request.completion){
+      const opened=await request.completion;
+      if(opened!==true)throw new Error('M42_SESSION_WORKSPACE_UNAVAILABLE');
+    }
+    // Do not call a queued or merely published session "started".
+    status(root,'session','Sesión abierta. Confirma Inicio para comenzar el entrenamiento.','success');
   }
   function generateIntelligence(){
     requireCoach();
@@ -1945,12 +1955,15 @@ export function createWorkflowController({
 
   async function executeWorkflowAction(action,button){
     const {clientId}=context();
-    const key=publicationActionKey({action,entity:button?.dataset?.publicationEntity,entityId:button?.dataset?.entityId||button?.closest?.('form')?.elements?.namedItem?.('entityId')?.value,clientId});
+    const key=action==='start-published-session'
+      ?['m42-session-entry',clientId,String(button?.dataset?.entityId||'auto')].join(':')
+      :publicationActionKey({action,entity:button?.dataset?.publicationEntity,
+        entityId:button?.dataset?.entityId||button?.closest?.('form')?.elements?.namedItem?.('entityId')?.value,clientId});
     if(key&&inFlightMutations.has(key))return;
     if(key)inFlightMutations.add(key);
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
     }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const scope=isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
     finally{
       if(key)inFlightMutations.delete(key);

@@ -1169,7 +1169,15 @@ export async function createM26Application({root=document.querySelector('#app'),
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
   function onOpenBuilderEvent(event){void onOpenBuilder(event).catch(surfaceWorkspaceError);}
-  function onStartSessionEvent(event){void onStartSession(event).catch(surfaceWorkspaceError);}
+  function onStartSessionEvent(event){
+    const completion=onStartSession(event);
+    // CustomEvent dispatch is synchronous. Expose the actual asynchronous
+    // workspace preparation result to the originating workflow action.
+    if(event?.detail&&typeof event.detail==='object')event.detail.completion=completion;
+    // A programmatic event with no awaiter must never cause an unhandled
+    // rejection or silence diagnostics.
+    void completion.catch(error=>reportSoftDiagnostic('session-entry',error));
+  }
   function safeAppPath(){const pathname=String(locationLike?.pathname||'/');return pathname.startsWith('/')&&!pathname.startsWith('//')?pathname:'/';}
   function replaceAppLocation(target){try{historyLike?.replaceState?.(null,'',target);}catch{}}
   function sanitizePendingIriExternalReportIntent(){
@@ -1402,7 +1410,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         saved=null;
       }
       const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog})
-        :saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(store.getState(),clientId));
+        :saved?.value?.clientId===clientId?saved.value:createSessionDraft(sessionDraftDefaultsFromState(state,clientId));
       if(!sourceSession&&!saved)draft.deliveryModality=null;
       if(!isCurrent())return false;
       sessionUi={draft,query:'',filters:{},undoRemoval:null,templateUndo:null,templateAdaptation:null,
@@ -1451,7 +1459,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);
       if(!actorCanExecuteSession({role,session:requested,appointment}))
         throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');
-      if(!sessionReadyToStart(requested))throw new Error('M38_SESSION_NOT_YET_AVAILABLE');
+      if(!sessionReadyToStart(event.detail.session))throw new Error('M38_SESSION_NOT_YET_AVAILABLE');
       if(sessionRequiresConfirmedAppointment({role,session:requested,appointment})&&!appointment?.id){
         const node=root.querySelector?.('[data-workflow-status="session"]');
         if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}
