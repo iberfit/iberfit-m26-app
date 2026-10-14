@@ -30,6 +30,17 @@ function markFailure(execution,error){
   else if(kind==='pending')markExecutionSync(execution,'pending',{operationId,errorCode});
   else markExecutionSync(execution,'rejected',{operationId,errorCode});
 }
+// The remote ACK and the subsequent shell refresh are different outcomes.
+// Never turn a committed publication into a failed command because the local
+// navigation, hydration, or re-render temporarily failed.
+export async function publicationAckRefreshOutcome(result,refresh){
+  if(typeof refresh!=='function')return {ackConfirmed:result?.ok===true,refreshOk:true};
+  try{await refresh(result);return {ackConfirmed:result?.ok===true,refreshOk:true};}
+  catch(error){
+    if(result?.ok!==true)throw error;
+    return {ackConfirmed:true,refreshOk:false,error};
+  }
+}
 function executeAndApply(commandBus,command,apply,execution){
   return Promise.resolve(commandBus.execute(command)).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
 }
@@ -934,7 +945,19 @@ async function click(event){
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'){
+      const publication=await publicationAckRefreshOutcome(outcome.value,context.onPublished);
+      if(!publication.refreshOk){
+        // A second click would generate a different operation ID. Preserve the
+        // confirmed remote result and the local draft until the view recovers.
+        if(actionState){
+          actionState.status='pending';
+          actionState.message='El servidor confirmó la publicación, pero la vista todavía no se pudo actualizar. Conservamos el borrador; revisa la sesión antes de volver a publicar.';
+        }
+        try{await persistContext(getContext());}catch{}
+        context.onPublicationRefreshPending?.(publication.error);
+      }
+    }
     else if(timedOut)void persistContext(getContext()).catch(onError);
     else if(outcome.ok&&['preview','edit-preview'].includes(action)){
       try{await persistContext(getContext());}
