@@ -823,6 +823,19 @@
   text-align:left;
 }
 
+/* Solo IRI: display genuine appointment context without a non-authorized navigation action. */
+.m26-shell[data-m26-role="client"] .m26-client-home-glance .m26-client-home-appointment{
+  display:grid;
+  gap:.28rem;
+  min-width:0;
+  min-height:5.35rem;
+  padding:.78rem .85rem;
+  border:1px solid rgba(216,192,138,.10);
+  border-radius:.9rem;
+  color:var(--iberfit-color-text-primary);
+  background:rgba(17,32,26,.80);
+}
+
 .m26-shell[data-m26-role="client"] .m26-client-home-glance button:hover{
   border-color:rgba(216,192,138,.22);
   background:rgba(22,42,34,.92);
