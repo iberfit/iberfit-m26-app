@@ -7,7 +7,7 @@ export const REQUIRED=Object.freeze([
   'preflight_anon_denied','bootstrap_anon_denied','bootstrap_authenticated',
   'preflight_definer_pinned','bootstrap_definer_pinned',
 ]);
-const definition=name=`pg_catalog.pg_get_functiondef(to_regprocedure('public.${name}'))`;
+const definition=name=>`pg_catalog.pg_get_functiondef(to_regprocedure('public.${name}'))`;
 const preflight=definition('iberfit_command_preflight_v26_pre_rc74_4h(jsonb)');
 const bootstrap=definition('iberfit_bootstrap_v26()');
 const fragment=(expr,needle)=>`coalesce(position('${needle.replaceAll("'","''")}' in ${expr})>0,false)`;
