@@ -66,6 +66,9 @@ test('M43: the remote decision distinguishes first creation, draft update, ACK r
   const approved={...draft,status:'aprobado',revision:8};
   assert.deepEqual(reportApprovalDecision([approved],clientId,normalized),{kind:'already-approved',baseRevision:8});
   assert.deepEqual(reportApprovalDecision([approved],clientId,{...normalized,summary:'Cambio importante'}),{kind:'new-version-required',baseRevision:8});
+  assert.deepEqual(reportApprovalDecision([{...approved,body:{...normalized,coachComment:'Decisión A'}}],clientId,{...normalized,coachComment:'Decisión B'}),{kind:'new-version-required',baseRevision:8});
+  assert.deepEqual(reportApprovalDecision([{...approved,body:{...normalized,evidenceSignature:'signature-older'}}],clientId,{...normalized,evidenceSignature:'signature-new'}),{kind:'new-version-required',baseRevision:8});
+  assert.deepEqual(reportApprovalDecision([{...approved,body:{...normalized,evidence:[{label:'Distancia',text:'5 km',source:'running'}]}}],clientId,{...normalized,evidence:[{label:'Distancia',text:'6 km',source:'running'}]}),{kind:'new-version-required',baseRevision:8});
   assert.throws(()=>reportApprovalDecision([{...draft,clientId:'other'}],clientId,normalized),/M43_REPORT_REMOTE_CLIENT_CONFLICT/);
   assert.throws(()=>reportApprovalDecision([{...draft,revision:null}],clientId,normalized),/M43_REPORT_REMOTE_REVISION_UNKNOWN/);
   assert.throws(()=>reportApprovalDecision([{...draft,status:'desconocido'}],clientId,normalized),/M43_REPORT_REMOTE_STATUS_UNSUPPORTED/);
