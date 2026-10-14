@@ -7,7 +7,8 @@ const state=items=>({collections:{sessions:items}});
 const resolve=(items,requested=base,clientId=owner)=>resolveCurrentSessionForEntry({state:state(items),requested,clientId});
 test('M42 obtains latest authorized published record after async recovery',()=>{
  assert.strictEqual(resolve([base]),base);
- assert.strictEqual(resolve([{...base,status:'publicado'}]),resolve([{...base,status:'publicado'}]));
+ const published={...base,status:'publicado'};
+ assert.strictEqual(resolve([published]),published);
 });
 test('M42 delayed click cannot open session removed or withdrawn during recovery',()=>{
  assert.throws(()=>resolve([]),/M42_SESSION_NO_LONGER_VISIBLE/);
