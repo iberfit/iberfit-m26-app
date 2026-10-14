@@ -123,7 +123,8 @@ test('controlador inicia la sesión publicada seleccionada y no la última por d
   await listeners.click({target:button,preventDefault(){}});
   const start=events.find((event)=>event.type==='m26:start-session');
   assert.equal(start?.detail?.session?.id,'SESSION-27-A');
-  assert.equal(statusNode.textContent,'Preparando sesión guiada.');
+  assert.equal(statusNode.textContent,'Sesión abierta. Confirma Inicio para comenzar el entrenamiento.');
+  assert.equal(statusNode.dataset.status,'success');
   controller.destroy();
 });
 
