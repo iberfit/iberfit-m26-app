@@ -955,7 +955,7 @@ async function click(event){
           actionState.message='El servidor confirmó la publicación, pero la vista todavía no se pudo actualizar. Conservamos el borrador; revisa la sesión antes de volver a publicar.';
         }
         try{await persistContext(getContext());}catch{}
-        context.onPublicationRefreshPending?.(publication.error);
+        try{context.onPublicationRefreshPending?.(publication.error);}catch{}
       }
     }
     else if(timedOut)void persistContext(getContext()).catch(onError);
