@@ -7,6 +7,8 @@ on:
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
+      - 'qa/rc64/m43-client-real-history.spec.mjs'
+      - 'playwright.m43-authenticated-browser.config.mjs'
       - 'supabase/qa-migrations/**'
       - 'supabase/qa-rollbacks/**'
       - 'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs'
@@ -25,6 +27,8 @@ on:
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
+      - 'qa/rc64/m43-client-real-history.spec.mjs'
+      - 'playwright.m43-authenticated-browser.config.mjs'
       - 'supabase/qa-migrations/**'
       - 'supabase/qa-rollbacks/**'
       - 'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs'
@@ -228,5 +232,65 @@ jobs:
         with:
           name: iberfit-m43-real-qa-${{ github.run_id }}
           path: recovery/m43-qa/coach-client-real-write.json
+          if-no-files-found: warn
+          retention-days: 30
+
+
+  m43-real-client-browser:
+    name: M43 real Client browser current-source
+    needs: [m43-real-coach-client-qa]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Restore Chromium browser cache
+        id: chromium-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium if cache missed
+        if: steps.chromium-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Build current-source authenticated QA shell
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Certify Client session and history in mobile tablet desktop
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: npx playwright test --config playwright.m43-authenticated-browser.config.mjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m43-auth-client-browser-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
           if-no-files-found: warn
           retention-days: 30
