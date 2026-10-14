@@ -41,6 +41,15 @@ export async function publicationAckRefreshOutcome(result,refresh){
     return {ackConfirmed:true,refreshOk:false,error};
   }
 }
+// Prevent a second network command while an acknowledged publication is
+// awaiting shell refresh. A changed, re-reviewed prescription gets a new
+// fingerprint; a re-render of the unchanged draft reuses the original receipt.
+const publishedDraftReceipts=new WeakMap();
+function publishDraftFingerprint(draft){
+  return JSON.stringify({id:draft?.id,clientId:draft?.clientId,title:draft?.title,
+    durationMinutes:draft?.durationMinutes,deliveryModality:draft?.deliveryModality,
+    blocks:draft?.blocks});
+}
 function executeAndApply(commandBus,command,apply,execution){
   return Promise.resolve(commandBus.execute(command)).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
 }
@@ -112,8 +121,15 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     case 'save-draft': return {kind:'draft',value:draft};
     case 'publish': {
       if(!isOnline(online))throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');
+      const fingerprint=publishDraftFingerprint(draft);
+      const acknowledged=publishedDraftReceipts.get(draft);
+      if(commandBus&&draft?.previewAccepted===true&&acknowledged?.fingerprint===fingerprint)
+        return {kind:'command',value:Promise.resolve({...acknowledged.result,alreadyConfirmed:true})};
       const command=buildPublishSessionCommand(draft,catalog,draft.revision||0);
-      return commandBus?{kind:'command',value:executeAndApply(commandBus,command,(result)=>{draft.revision=remoteRevision(result,draft.revision);})}:{kind:'command',value:command};
+      return commandBus?{kind:'command',value:executeAndApply(commandBus,command,(result)=>{
+        draft.revision=remoteRevision(result,draft.revision);
+        publishedDraftReceipts.set(draft,{fingerprint,result});
+      })}:{kind:'command',value:command};
     }
     case 'start': {
       const actorRole=String(actor?.role||'').trim().toLowerCase();
