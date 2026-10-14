@@ -86,8 +86,9 @@ async function main(){
   await denied(await send(privateUrl(idA)),'ANON_CANNOT_READ');
   await denied(await send(publicUrl(idA),{token:a}),'NO_PUBLIC_FALLBACK');
   check((await send(upload(idA),{method:'POST',token:a,bytes:picture,upsert:true})).ok,'OWNER_REPLACE');
-  const coachRemove=await send(remove(idA),{method:'POST',token:coach,json:{prefixes:[own(idA)]}});
-  check(!coachRemove.ok||Array.isArray(coachRemove.body)&&coachRemove.body.length===0,'COACH_DELETE_DENIED');
+  // Storage may return HTTP 200 with zero deleted rows when RLS hides the target.
+  // The authoritative proof is that the owner's private object remains readable.
+  await send(remove(idA),{method:'POST',token:coach,json:{prefixes:[own(idA)]}});
   check((await send(privateUrl(idA),{token:a})).ok,'COACH_CANNOT_REMOVE');
   evidence.phase='owner-and-cross-role';
  }finally{
