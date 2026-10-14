@@ -114,6 +114,21 @@ async function verifyViewport(page,label){
   await expect(nav,`${label}: visible Coach navigation`).toBeVisible({timeout:10_000});
 }
 
+// QA-only Coach navigation after a genuine WebAuthn ceremony. On mobile,
+// secondary modules live under Más; never click a hidden desktop sidebar.
+async function openCertifiedCoachArea(page,area){
+  const destination=page.locator(`[data-m26-area="${area}"]:visible`).first();
+  if(!await destination.count()){
+    const more=page.locator('.m26-mobile-more:visible > summary').first();
+    await expect(more,'Coach mobile Más menu must be reachable').toBeVisible({timeout:10_000});
+    await more.click();
+  }
+  await expect(destination,'Coach must expose '+area+' navigation').toBeVisible({timeout:10_000});
+  await destination.click();
+  await expect(page.locator(`[data-m26-area="${area}"][aria-current="page"]:visible`).first(),
+    'Coach selected route must remain active').toBeVisible({timeout:12_000});
+}
+
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
@@ -148,14 +163,40 @@ async function verifyViewport(page,label){
     expect(secondActions,'Second ceremony must not silently re-enrol').not.toContain('registration-options');
     evidence.authenticationVerified=true;evidence.mfaCompleted=true;
 
+    // The real Coach needs an explicit synthetic client context for the
+    // planning and session routes. Never select a production identity.
+    const clientSelector=page.locator('[data-m26-client-select]');
+    await expect(clientSelector,'Coach client context selector').toHaveCount(1);
+    expect(await clientSelector.locator('option:not([value=""])').count(),
+      'QA Coach must have a synthetic client to plan for').toBeGreaterThan(0);
+    if(!await clientSelector.inputValue())await clientSelector.selectOption({index:1});
+    await mkdir(OUT_DIR,{recursive:true});
+
     for(const device of [
       {name:'desktop',width:1440,height:1000,mobile:false,touch:false},
       {name:'tablet-portrait',width:1024,height:1366,mobile:true,touch:true},
       {name:'tablet-landscape',width:1366,height:1024,mobile:true,touch:true},
       {name:'mobile',width:390,height:844,mobile:true,touch:true},
+      {name:'mobile-320',width:320,height:700,mobile:true,touch:true},
     ]){
-      await setDevice(page,cdp,device);await page.waitForTimeout(120);await verifyViewport(page,device.name);evidence.devices.push({...device,passed:true});
+      await setDevice(page,cdp,device);
+      await page.waitForTimeout(120);
+      await verifyViewport(page,device.name);
+      await openCertifiedCoachArea(page,'sesion');
+      await expect(page.locator('[data-m27-session-surface="sessions"]'),
+        device.name+': Coach real session workspace').toBeVisible({timeout:12_000});
+      await expect(page.getByRole('heading',{name:'Preparación y ejecución',exact:true}),
+        device.name+': Coach session heading').toBeVisible();
+      await page.screenshot({path:path.join(OUT_DIR,`m43-${device.name}-coach-sessions.png`),fullPage:true});
+
+      await openCertifiedCoachArea(page,'planificacion');
+      await expect(page.locator('.m26-route').first(),
+        device.name+': Coach real planning route').toBeVisible({timeout:12_000});
+      await verifyViewport(page,device.name+'-m43-planning');
+      await page.screenshot({path:path.join(OUT_DIR,`m43-${device.name}-coach-planning.png`),fullPage:true});
+      evidence.devices.push({...device,passed:true,m43CoachWorkspace:true});
     }
+    evidence.m43CoachWorkspaceCertified=evidence.devices.length===5;
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
     expect(consoleErrors,'Authenticated Coach console must remain clean').toEqual([]);
