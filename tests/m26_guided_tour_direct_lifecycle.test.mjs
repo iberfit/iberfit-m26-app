@@ -23,9 +23,10 @@ function createHarness(){
     getAttribute(name){return targetAttributes.get(name)??null;},
     scrollIntoView(){},
   };
-  const activeArea={getAttribute(name){return name==='data-m26-area'?'hoy':null;}};
+  const state={dialog:null,style:null,area:'hoy'};
+  const activeArea={getAttribute(name){return name==='data-m26-area'?state.area:null;}};
   const focusable={focus(){}};
-  const state={dialog:null,style:null};
+
   const staticStyle={dataset:{iberfitRuntimeStatic:true}};
   const documentLike={
     activeElement:{isConnected:true,focus(){}},
@@ -239,3 +240,54 @@ test('opening mobile Más pauses the guided tour without losing its in-progress 
   controller.destroy();
 });
 
+
+test('M43 Coach first-use guide does not interrupt an explicitly selected Sessions route',async()=>{
+  const harness=createHarness();
+  harness.state.area='sesion';
+  const controller=publicApi.createGuidedTourController({
+    ...harness,identityProvider:()=>({role:'coach',userId:'m43-coach-sessions'}),
+  });
+  controller.mount();
+  await Promise.resolve();
+  assert.equal(controller.isOpen(),false,'Coach working in Sessions must not see the first-use dialog');
+  assert.equal(controller.getState()?.status,'never','the tour remains available later');
+  assert.equal(controller.open(),true,'Coach can still open the guide explicitly');
+  assert.equal(controller.isOpen(),true);
+  controller.destroy();
+});
+
+test('M43 Coach navigation always closes the tour, preserving the in-progress step',async()=>{
+  const harness=createHarness();
+  const controller=publicApi.createGuidedTourController({
+    ...harness,identityProvider:()=>({role:'coach',userId:'m43-coach-mobile'}),
+  });
+  controller.mount();
+  await Promise.resolve();
+  assert.equal(controller.isOpen(),true,'a new Coach at Today receives welcome');
+  const before=controller.getState();
+  harness.state.area='sesion';
+  harness.root.emit('m26:shell-rendered',{target:harness.root});
+  await Promise.resolve();
+  assert.equal(controller.isOpen(),false,'route change must close the intrusive overlay');
+  assert.equal(controller.getState()?.status,'in-progress');
+  assert.equal(controller.getState()?.activeStepId,before.activeStepId);
+  harness.root.emit('m26:shell-rendered',{target:harness.root});
+  await Promise.resolve();
+  assert.equal(controller.isOpen(),false,'late shell hydration must not re-open the tour');
+  controller.destroy();
+});
+
+test('M43 explicit Coach route selection takes priority even before shell rerenders',()=>{
+  const harness=createHarness();
+  const controller=publicApi.createGuidedTourController({
+    ...harness,identityProvider:()=>({role:'coach',userId:'m43-coach-manual-route'}),
+  });
+  controller.mount();
+  assert.equal(controller.isOpen(),true);
+  harness.root.emit('click',{target:{closest(selector){
+    return selector==='[data-m26-area]'?{getAttribute(){return 'sesion';}}:null;
+  }}});
+  assert.equal(controller.isOpen(),false);
+  assert.equal(controller.getState()?.status,'in-progress');
+  controller.destroy();
+});

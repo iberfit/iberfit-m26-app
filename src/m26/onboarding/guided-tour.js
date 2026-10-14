@@ -550,6 +550,7 @@ function createCoreGuidedTourController({
   let previousFocus=null;
   let activeTarget=null;
   let activeStepId=null;
+  let tourOriginArea=null;
   let dialog=null;
   let lastContextKey=null;
   let renderToken=0;
@@ -576,6 +577,7 @@ function createCoreGuidedTourController({
     dialog?.remove?.();
     dialog=null;
     open=false;
+    tourOriginArea=null;
     if(restoreFocus){
       try{
         if(previousFocus?.isConnected!==false)previousFocus?.focus?.({preventScroll:true});
@@ -673,6 +675,7 @@ function createCoreGuidedTourController({
     ensureStyle(documentLike);
     if(!open){
       previousFocus=documentLike.activeElement||null;
+      tourOriginArea=activeArea()||contextValue.tour.home;
       open=true;
     }
     suppressed=false;
@@ -756,6 +759,10 @@ function createCoreGuidedTourController({
       if(open)pauseForExplicitNavigation();
       return;
     }
+    if(event.target?.closest?.('[data-m26-area]')){
+      if(open)pauseForExplicitNavigation();
+      return;
+    }
     if(!event.target?.closest?.('[data-m26-guided-tour-open]'))return;
     queueMicrotask(()=>openTour({restart:true}));
   }
@@ -786,11 +793,18 @@ function createCoreGuidedTourController({
     ensureSettings(contextValue,area);
     markLegacyLauncher();
     if(open){
+      if(tourOriginArea&&area!==tourOriginArea){
+        pauseForExplicitNavigation();
+        return;
+      }
       renderStep(contextValue,activeStepId);
       return;
     }
     const state=repository.read(contextValue.key,contextValue.role);
-    if(!suppressed&&shouldAutoOpenGuidedOnboarding(state))openTour({restart:false});
+    // Never launch the first-use dialog over a Coach's selected workspace.
+    // An explicit "Guía" action can still reopen the tour on any route.
+    if(!suppressed&&area===contextValue.tour.home&&shouldAutoOpenGuidedOnboarding(state))
+      openTour({restart:false});
   }
 
   function refresh(){
