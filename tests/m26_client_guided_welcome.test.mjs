@@ -103,7 +103,7 @@ test('The Genie controls route movement instead of asking the client to find eac
   const source=read('src/m26/onboarding/client-guided-welcome.js');
   assert.match(source,/function navigate\(area\)/u);
   assert.match(source,/destination\.click\?\.\(\)/u);
-  assert.match(source,/if\(state\.status==='never'\)\{\s*start\(ctx\)/u);
+  assert.match(source,/if\(state\.status==='never'\)\{[\s\S]*?clientGuidedWelcomeNavigationDecision\([\s\S]*?\)==='defer'\)return;\s*start\(ctx\)/u);
   assert.match(source,/if\(current!==step\.area\)\{[\s\S]*?clientGuidedWelcomeNavigationDecision\([\s\S]*?\)==='pause'/u);
   assert.match(source,/clientGuidedWelcomeNavigationDecision\(\{status:state\.status,current:currentArea\(root\)\}\)==='defer'/u);
   assert.match(source,/data-m26-client-guided-welcome-next/u);
