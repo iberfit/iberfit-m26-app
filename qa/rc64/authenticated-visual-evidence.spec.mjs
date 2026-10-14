@@ -6,6 +6,9 @@ import {
   SUPABASE_ORIGIN,
   installCurrentSourceQaNetworkPolicy,
   qaRequestLabel,
+  isQaPrivateAvatarRead,
+  isQaMissingPrivateAvatarResponse,
+  unexpectedQaResourceErrors,
 } from './secure-current-source-auth.mjs';
 
 const OUT_DIR='recovery/rc64-authenticated-visual';
@@ -92,6 +95,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
     const blocked=[];
     const unexpectedFailures=[];
     const consoleErrors=[];
+    const avatarChecks=[],missingAvatar=[];
     const pageErrors=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
@@ -99,6 +103,14 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
     });
     const page=await context.newPage();
     page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
+    page.on('response',(response)=>{
+      if(isQaPrivateAvatarRead(response.request())&&response.status()>=400){
+        avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
+          if(ok)missingAvatar.push(true);
+          else unexpectedFailures.push('QA_AVATAR_UNEXPECTED_HTTP_'+response.status());
+        }));
+      }
+    });
     page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
     page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
@@ -133,9 +145,10 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         captures.push({...(await capture(page,{account,project:testInfo.project.name,state:'authenticated-progress',suffix:'progress'})),exerciseAnalyticsCount});
       }
 
+      await Promise.all(avatarChecks);
       expect(blocked,'Visual evidence attempted a business mutation or foreign request').toEqual([]);
       expect(unexpectedFailures).toEqual([]);
-      expect(consoleErrors).toEqual([]);
+      expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length)).toEqual([]);
       expect(pageErrors).toEqual([]);
     }finally{
       await context.close().catch(()=>{});

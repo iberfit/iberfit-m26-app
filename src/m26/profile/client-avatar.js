@@ -165,7 +165,13 @@ export function createClientAvatarController({
           method:'GET',headers:header(auth),credentials:'omit',cache:'no-store',
         });
         if(!unchangedScope(scopeAtStart,generationAtStart))return null;
-        if([401,403,404].includes(res.status)){
+        let missingAtStorage=false;
+        if(res.status===400){
+          try{const detail=await res.clone().json();missingAtStorage=detail?.code==='NoSuchKey';}
+          catch{}
+        }
+        if(!unchangedScope(scopeAtStart,generationAtStart))return null;
+        if(missingAtStorage||[401,403,404].includes(res.status)){
           evict(clientId);missing.add(clientId);return null;
         }
         if(!res.ok)return null; // No public fallback on transient errors
@@ -266,8 +272,8 @@ export function createClientAvatarController({
     try{
       const auth=await token();
       if(!unchangedScope(scopeAtStart,generationAtStart))return;
-      const res=await fetchImpl(resource('remove/'+AVATAR_BUCKET),{
-        method:'POST',credentials:'omit',cache:'no-store',
+      const res=await fetchImpl(resource(AVATAR_BUCKET),{
+        method:'DELETE',credentials:'omit',cache:'no-store',
         headers:{...header(auth),'content-type':'application/json'},
         body:JSON.stringify({prefixes:[profileAvatarPath(identity.clientId)]}),
       });

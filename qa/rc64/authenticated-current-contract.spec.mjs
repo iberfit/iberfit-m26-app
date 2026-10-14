@@ -6,6 +6,9 @@ import {
   SUPABASE_ORIGIN,
   installCurrentSourceQaNetworkPolicy,
   qaRequestLabel,
+  isQaPrivateAvatarRead,
+  isQaMissingPrivateAvatarResponse,
+  unexpectedQaResourceErrors,
 } from './secure-current-source-auth.mjs';
 
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
@@ -197,6 +200,7 @@ test('current authenticated contract separates privileged fail-closed identities
     const blocked=[];
     const externalFailures=[];
     const optionalReadFailures=[];
+    const avatarChecks=[],missingAvatar=[];
     const consoleErrors=[];
     const pageErrors=[];
     // Read-only diagnostic phases; never record secrets or identifying data.
@@ -261,6 +265,12 @@ test('current authenticated contract separates privileged fail-closed identities
       }catch{}
     });
     page.on('response',(response)=>{
+      if(isQaPrivateAvatarRead(response.request())&&response.status()>=400){
+        avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
+          if(ok)missingAvatar.push(true);
+          else externalFailures.push('QA_AVATAR_UNEXPECTED_HTTP_'+response.status());
+        }));
+      }
       try{
         const request=response.request();
         const url=new URL(request.url());
@@ -349,11 +359,12 @@ test('current authenticated contract separates privileged fail-closed identities
         await verifyClientWorkspace(page,{projectName,browserName});
       }
 
+      await Promise.all(avatarChecks);
       expect(blocked,'Authenticated startup attempted a business mutation or foreign request').toEqual([]);
       expect(externalFailures,'Critical authenticated requests must not fail').toEqual([]);
       expect(new Set(optionalReadFailures).size,'Optional read fallbacks must not retry-loop').toBe(optionalReadFailures.length);
       expect(optionalReadFailures.length,'At most one failure per declared optional read is tolerated').toBeLessThanOrEqual(OPTIONAL_READ_PATHS.size);
-      expect(consoleErrors).toEqual([]);
+      expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length)).toEqual([]);
       expect(pageErrors).toEqual([]);
 
       evidenceRoles.push({

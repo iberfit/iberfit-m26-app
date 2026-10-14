@@ -19,7 +19,7 @@ function ensureQa(){
  if(/service[_-]?role|supabase_secret/iu.test(process.env.M26_SUPABASE_PUBLISHABLE_KEY))
   throw Error('M42_AVATAR_QA_SECRET_KEY_FORBIDDEN');
 }
-async function send(path,{method='GET',token,json,bytes,upsert=false}={}){
+async function send(path,{method='GET',token,json,bytes,upsert=false,readBytes=false}={}){
  const u=new URL(path,BASE);
  if(u.origin!==BASE||u.username||u.password||
   !['/storage/v1/','/auth/v1/','/rest/v1/'].some(prefix=>u.pathname.startsWith(prefix)))
@@ -31,10 +31,10 @@ async function send(path,{method='GET',token,json,bytes,upsert=false}={}){
    ...(bytes?{'content-type':'image/webp'}:{}),
    ...(upsert?{'x-upsert':'true'}:{})},
   body:json?JSON.stringify(json):bytes});
- const body=r.headers.get('content-type')?.includes('application/json')
-  ?await r.json().catch(()=>null):null;
- if(!body)await r.arrayBuffer();
- return {ok:r.ok,status:r.status,body};
+ const isJson=r.headers.get('content-type')?.includes('application/json');
+ const body=isJson?await r.json().catch(()=>null):null;
+ const blob=!isJson?Buffer.from(await r.arrayBuffer()):null;
+ return {ok:r.ok,status:r.status,body,bytes:readBytes?blob:null};
 }
 async function login(email,password){
  const r=await send('/auth/v1/token?grant_type=password',{method:'POST',json:{email,password}});
@@ -50,7 +50,7 @@ const own=id=>profileAvatarPath(id);
 const upload=id=>'/storage/v1/object/'+AVATAR_BUCKET+'/'+own(id);
 const privateUrl=id=>'/storage/v1/object/authenticated/'+AVATAR_BUCKET+'/'+own(id);
 const publicUrl=id=>'/storage/v1/object/public/'+AVATAR_BUCKET+'/'+own(id);
-const remove=id=>'/storage/v1/object/remove/'+AVATAR_BUCKET;
+const remove=()=>'/storage/v1/object/'+AVATAR_BUCKET;
 const picture=Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA','base64');
 async function main(){
  ensureQa();
@@ -67,8 +67,16 @@ async function main(){
  const idA=String(ca?.user?.clientId||''),idB=String(cb?.user?.clientId||'');
  check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_CLIENTS');
  check(await rpc('iberfit_can_manage_iri_private_v1',coach,{p_client_id:idA})===true,'COACH_ASSIGNED');
- const before=await send(privateUrl(idA),{token:a});
- check(!before.ok&&[400,404].includes(before.status),'NO_EXISTING_PHOTO');
+ const before=await send(privateUrl(idA),{token:a,readBytes:true});
+ if(before.ok){
+  // Recover ONLY the byte-for-byte synthetic 1×1 QA fixture left by the
+  // previous failed migration gate. Never erase another avatar opportunistically.
+  check(Boolean(before.bytes)&&before.bytes.equals(picture),'PREEXISTING_PHOTO_NOT_SYNTHETIC');
+  const cleanup=await send(remove(),{method:'DELETE',token:a,json:{prefixes:[own(idA)]}});
+  check(cleanup.ok,'RECOVER_OLD_SYNTHETIC_AVATAR');
+  const fresh=await send(privateUrl(idA),{token:a});
+  check(!fresh.ok&&[400,404].includes(fresh.status),'RECOVERY_CLEANUP_CONFIRMED');
+ }else check([400,404].includes(before.status),'NO_EXISTING_PHOTO');
  evidence.phase='authenticated';
  let touched=false;
  try{
@@ -88,12 +96,12 @@ async function main(){
   check((await send(upload(idA),{method:'POST',token:a,bytes:picture,upsert:true})).ok,'OWNER_REPLACE');
   // Storage may return HTTP 200 with zero deleted rows when RLS hides the target.
   // The authoritative proof is that the owner's private object remains readable.
-  await send(remove(idA),{method:'POST',token:coach,json:{prefixes:[own(idA)]}});
+  await send(remove(),{method:'DELETE',token:coach,json:{prefixes:[own(idA)]}});
   check((await send(privateUrl(idA),{token:a})).ok,'COACH_CANNOT_REMOVE');
   evidence.phase='owner-and-cross-role';
  }finally{
   if(touched){
-   const removed=await send(remove(idA),{method:'POST',token:a,json:{prefixes:[own(idA)]}});
+   const removed=await send(remove(),{method:'DELETE',token:a,json:{prefixes:[own(idA)]}});
    check(removed.ok,'OWNER_DELETE');
    const after=await send(privateUrl(idA),{token:a});
    check(!after.ok&&[400,404].includes(after.status),'DELETE_REMOTE_CONFIRMED');

@@ -7,6 +7,9 @@ import {
   SUPABASE_ORIGIN,
   installCurrentSourceQaNetworkPolicy,
   qaRequestLabel,
+  isQaPrivateAvatarRead,
+  isQaMissingPrivateAvatarResponse,
+  unexpectedQaResourceErrors,
 } from './secure-current-source-auth.mjs';
 
 const OUT_DIR='recovery/p0-authenticated-interaction';
@@ -147,6 +150,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   const blocked=[];
   const unexpectedFailures=[];
   const consoleErrors=[];
+  const avatarChecks=[],missingAvatar=[];
   const failedAllowedResponses=[];
   const pageErrors=[];
   await installCurrentSourceQaNetworkPolicy(context,{
@@ -172,7 +176,12 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   page.on('response',(response)=>{
     if(response.status()>=400){
       const label=qaRequestLabel(response.request());
-      if(label.includes('qa-supabase'))failedAllowedResponses.push(label+' HTTP_'+response.status());
+      if(isQaPrivateAvatarRead(response.request())){
+        avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
+          if(ok)missingAvatar.push(true);
+          else failedAllowedResponses.push('QA_AVATAR_UNEXPECTED_HTTP_'+response.status());
+        }));
+      }else if(label.includes('qa-supabase'))failedAllowedResponses.push(label+' HTTP_'+response.status());
     }
   });
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
@@ -357,6 +366,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await expect(notification).toBeChecked({checked:wasChecked});
 
   await page.waitForTimeout(500);
+  await Promise.all(avatarChecks);
   const blockedPreferenceSyncAttempts=blocked.filter((label)=>label===BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
   const unexpectedBlocked=blocked.filter((label)=>label!==BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
   const blockedPreferenceSyncConsoleErrors=consoleErrors.filter((message)=>message===BLOCKED_RESOURCE_CONSOLE_ERROR);
@@ -369,7 +379,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   expect(failedAllowedResponses,'All allowlisted QA reads must succeed').toEqual([]);
   expect(unexpectedBlocked,'Authenticated interaction attempted a business mutation or foreign request').toEqual([]);
   expect(unexpectedFailures).toEqual([]);
-  expect(unexpectedConsoleErrors).toEqual([]);
+  expect(unexpectedQaResourceErrors(unexpectedConsoleErrors,missingAvatar.length)).toEqual([]);
   expect(pageErrors).toEqual([]);
 
   await mkdir(OUT_DIR,{recursive:true});

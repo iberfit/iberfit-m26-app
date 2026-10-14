@@ -76,3 +76,8 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - Entrada JPG/PNG/WebP/HEIC/HEIF, convertida únicamente en el dispositivo a WebP 320×320 sin EXIF; fallback de decodificación con img y Object URL temporal si Safari no admite createImageBitmap.
 - Descarga/cropping con protección de tamaño y tiempo, URL temporal revocada; nunca se sube original médico ni postural.
 - Regresión `tests/m42_mobile_avatar_heic_fallback.test.mjs`.
+
+## Fallo detectado por la certificación real y reparación
+- La eliminación por propietario falló por usar POST `/object/remove/<bucket>` (interpretado como bucket `remove`). Contrato corregido a DELETE `/storage/v1/object/<bucket>` con `prefixes` y prueba de borrado remoto real.
+- El QA gate limpia SOLO un avatar anterior cuyo contenido coincide byte-a-byte con la imagen sintética conocida, sin borrar fotografías ajenas ni tocar producción.
+- La política visual/read-only acepta únicamente GET privado autenticado `/<uuid>/avatar.webp` de QA y conserva el bloqueo de escrituras/rutas públicas. Ausencia NoSuchKey se trata explícitamente como optativa, sin ocultar errores de autorización/servidor.
