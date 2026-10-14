@@ -203,6 +203,6 @@ test('navegación móvil prioriza las acciones frecuentes y conserva Más', () =
 
   assert.deepEqual(
     navigationForRole('client').mobile.map((item)=>item.key),
-    ['hoy','sesion','progreso','actividad']
+    ['hoy','planificacion','sesion','progreso']
   );
 });

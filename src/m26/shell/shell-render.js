@@ -20,19 +20,23 @@ function tx(key,fallback='',params={}){
 const ROLE_NAV_GROUPS=Object.freeze({
   admin:Object.freeze([
     Object.freeze({labelKey:'nav.admin.direction',keys:Object.freeze(['admin-inicio','admin-analitica'])}),
-    Object.freeze({labelKey:'nav.admin.people',keys:Object.freeze(['admin-usuarios','admin-equipo','admin-clientes','admin-expediente','admin-iri','admin-informes','admin-notas','admin-agenda'])}),
-    Object.freeze({labelKey:'nav.admin.operation',keys:Object.freeze(['admin-operaciones','admin-comunicacion','admin-automatizaciones','biblioteca'])}),
+    Object.freeze({labelKey:'nav.admin.people',keys:Object.freeze(['admin-usuarios','admin-equipo','admin-clientes','admin-expediente'])}),
+    Object.freeze({labelKey:'nav.admin.journey',keys:Object.freeze(['admin-agenda','admin-iri','admin-informes','admin-notas'])}),
+    Object.freeze({labelKey:'nav.admin.operation',keys:Object.freeze(['admin-operaciones','admin-comunicacion','admin-automatizaciones','admin-media-review','biblioteca'])}),
     Object.freeze({labelKey:'nav.admin.control',keys:Object.freeze(['admin-auditoria','admin-configuracion'])}),
   ]),
   coach:Object.freeze([
     Object.freeze({labelKey:'nav.coach.day',keys:Object.freeze(['hoy','agenda'])}),
-    Object.freeze({labelKey:'nav.coach.clients',keys:Object.freeze(['clientes','expediente','iri','planificacion','sesion','progreso','actividad','informes','notas','inteligencia'])}),
-    Object.freeze({labelKey:'nav.coach.resources',keys:Object.freeze(['mensajes','biblioteca','retos'])}),
+    Object.freeze({labelKey:'nav.coach.clients',keys:Object.freeze(['clientes','expediente','iri'])}),
+    Object.freeze({labelKey:'nav.coach.training',keys:Object.freeze(['planificacion','sesion','biblioteca'])}),
+    Object.freeze({labelKey:'nav.coach.followup',keys:Object.freeze(['progreso','actividad','informes','notas','inteligencia'])}),
+    Object.freeze({labelKey:'nav.coach.resources',keys:Object.freeze(['mensajes','retos'])}),
     Object.freeze({labelKey:'nav.coach.control',keys:Object.freeze(['verificacion','ajustes'])}),
   ]),
   client:Object.freeze([
     Object.freeze({labelKey:'nav.client.main',keys:Object.freeze(['hoy','planificacion','sesion'])}),
-    Object.freeze({labelKey:'nav.client.followup',keys:Object.freeze(['progreso','informes','actividad','mensajes','retos'])}),
+    Object.freeze({labelKey:'nav.client.followup',keys:Object.freeze(['progreso','informes','actividad'])}),
+    Object.freeze({labelKey:'nav.client.contact',keys:Object.freeze(['mensajes','retos'])}),
     Object.freeze({labelKey:'nav.client.account',keys:Object.freeze(['ajustes'])}),
   ]),
 });

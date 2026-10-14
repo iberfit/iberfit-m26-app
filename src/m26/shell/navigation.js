@@ -44,7 +44,7 @@ const NAVIGATION = Object.freeze({
     primary: ['hoy', 'planificacion', 'sesion', 'progreso'],
     context: ['informes', 'actividad', 'mensajes', 'retos'],
     tools: ['ajustes'],
-    mobile: ['hoy', 'sesion', 'progreso', 'actividad'],
+    mobile: ['hoy', 'planificacion', 'sesion', 'progreso'],
   }),
 });
 
