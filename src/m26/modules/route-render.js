@@ -4010,6 +4010,10 @@ export function renderPlanningRoute(vm){
       </div>
       ${hasCycle?badge('Borrador editable','neutral'):''}
     </div>
+    <label class="m26-wide">Borradores guardados
+      <select data-plan-draft-choice aria-label="Elegir borrador de ciclo"><option value="">Crear un ciclo nuevo</option></select>
+      <small>Selecciona un ciclo anterior para recuperarlo o prepara uno nuevo. Los borradores se guardan por separado.</small>
+    </label>
     <input type="hidden" name="entityId" value="${escapeHtml(vm.currentCycle?.id||cycle.id||'')}">
     <div class="m26-field-grid">
       <label>Nombre del ciclo<input name="name" maxlength="120" value="${escapeHtml(cycleName)}" required></label>

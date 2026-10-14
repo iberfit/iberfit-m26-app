@@ -49,6 +49,9 @@ function publishedSession(){
     id:sessionId,
     clientId,
     revision:3,
+    // A direct Client start needs an explicitly enabled published session.
+    status:'disponible',visibleToClient:true,clientVisibilityLevel:'full',
+    deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
     blocks:[{
       id:'block-1',
       type:'exercise',

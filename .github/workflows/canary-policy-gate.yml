@@ -2,6 +2,7 @@ name: IBERFIT Canary Policy Gate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
   workflow_dispatch:
 
@@ -36,8 +37,14 @@ jobs:
         shell: bash
         run: git fetch --no-tags origin "${{ github.base_ref }}"
 
+      - name: Bloquear la fusión de PR Draft sin certificación completa
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
+        run: |
+          echo 'DRAFT_NOT_CERTIFIED: Ready for Review debe completar todos los checks de Canary.' >&2
+          exit 42
+
       - name: Verificar política de integración Canary
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
         env:
           GH_TOKEN: ${{ github.token }}
           POLICY_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

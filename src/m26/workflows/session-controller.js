@@ -14,7 +14,7 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
-import {sessionDeliveryModality,sessionDeliveryOwnership} from '../rc39/session-policy.js';
+import {sessionDeliveryModality,sessionDeliveryOwnership,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -29,6 +29,27 @@ function markFailure(execution,error){
   if(kind==='conflict')markExecutionSync(execution,'conflict',{operationId,errorCode});
   else if(kind==='pending')markExecutionSync(execution,'pending',{operationId,errorCode});
   else markExecutionSync(execution,'rejected',{operationId,errorCode});
+}
+// The remote ACK and the subsequent shell refresh are different outcomes.
+// Never turn a committed publication into a failed command because the local
+// navigation, hydration, or re-render temporarily failed.
+export async function publicationAckRefreshOutcome(result,refresh){
+  if(typeof refresh!=='function')return {ackConfirmed:result?.ok===true,refreshOk:true};
+  try{await refresh(result);return {ackConfirmed:result?.ok===true,refreshOk:true};}
+  catch(error){
+    if(result?.ok!==true)throw error;
+    return {ackConfirmed:true,refreshOk:false,error};
+  }
+}
+// Prevent a second network command while an acknowledged publication is
+// awaiting shell refresh. A changed, re-reviewed prescription gets a new
+// fingerprint; a re-render of the unchanged draft reuses the original receipt.
+const publishedDraftReceipts=new WeakMap();
+const inFlightDraftPublications=new WeakMap();
+function publishDraftFingerprint(draft){
+  return JSON.stringify({id:draft?.id,clientId:draft?.clientId,title:draft?.title,
+    durationMinutes:draft?.durationMinutes,deliveryModality:draft?.deliveryModality,
+    blocks:draft?.blocks});
 }
 function executeAndApply(commandBus,command,apply,execution){
   return Promise.resolve(commandBus.execute(command)).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
@@ -101,8 +122,26 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     case 'save-draft': return {kind:'draft',value:draft};
     case 'publish': {
       if(!isOnline(online))throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');
+      const fingerprint=publishDraftFingerprint(draft);
+      const acknowledged=publishedDraftReceipts.get(draft);
+      if(commandBus&&draft?.previewAccepted===true&&acknowledged?.fingerprint===fingerprint)
+        return {kind:'command',value:Promise.resolve({...acknowledged.result,alreadyConfirmed:true})};
+      const pending=commandBus&&inFlightDraftPublications.get(draft);
+      if(commandBus&&draft?.previewAccepted===true&&pending?.fingerprint===fingerprint)
+        return {kind:'command',value:pending.promise};
       const command=buildPublishSessionCommand(draft,catalog,draft.revision||0);
-      return commandBus?{kind:'command',value:executeAndApply(commandBus,command,(result)=>{draft.revision=remoteRevision(result,draft.revision);})}:{kind:'command',value:command};
+      if(!commandBus)return {kind:'command',value:command};
+      const operation=executeAndApply(commandBus,command,(result)=>{
+        draft.revision=remoteRevision(result,draft.revision);
+        publishedDraftReceipts.set(draft,{fingerprint,result});
+      });
+      inFlightDraftPublications.set(draft,{fingerprint,promise:operation});
+      // Clear on ACK and rejection. A failed request must allow a real retry.
+      void operation.then(
+        ()=>{if(inFlightDraftPublications.get(draft)?.promise===operation)inFlightDraftPublications.delete(draft);},
+        ()=>{if(inFlightDraftPublications.get(draft)?.promise===operation)inFlightDraftPublications.delete(draft);}
+      );
+      return {kind:'command',value:operation};
     }
     case 'start': {
       const actorRole=String(actor?.role||'').trim().toLowerCase();
@@ -110,6 +149,16 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
         (sessionDeliveryModality(session)!=='guiada_en_app'||
           !['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(session))))
         throw new Error('M28_SESSION_COACH_LED_CLIENT_START_FORBIDDEN');
+      if(['client','cliente'].includes(actorRole)){
+        // Publication is not enablement. The UI must never create a local
+        // active workout from an unpublished, hidden or already-started one.
+        if(!actorCanExecuteSession({role:'client',session})||!sessionReadyToStart(session))
+          throw new Error('M43_CLIENT_SESSION_NOT_READY');
+        if((actor?.clientId&&String(actor.clientId)!==String(execution?.clientId))||
+          (session?.clientId&&String(session.clientId)!==String(execution?.clientId))||
+          String(execution?.sessionId||'')!==String(session?.id||''))
+          throw new Error('M43_CLIENT_EXECUTION_SCOPE_CONFLICT');
+      }
       const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision});
       if(!commandBus){startExecution(execution,{actor});return {kind:'execution',value:execution};}
       if(!isOnline(online)){
@@ -924,7 +973,19 @@ async function click(event){
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'){
+      const publication=await publicationAckRefreshOutcome(outcome.value,context.onPublished);
+      if(!publication.refreshOk){
+        // A second click would generate a different operation ID. Preserve the
+        // confirmed remote result and the local draft until the view recovers.
+        if(actionState){
+          actionState.status='pending';
+          actionState.message='El servidor confirmó la publicación, pero la vista todavía no se pudo actualizar. Conservamos el borrador; revisa la sesión antes de volver a publicar.';
+        }
+        try{await persistContext(getContext());}catch{}
+        try{context.onPublicationRefreshPending?.(publication.error);}catch{}
+      }
+    }
     else if(timedOut)void persistContext(getContext()).catch(onError);
     else if(outcome.ok&&['preview','edit-preview'].includes(action)){
       try{await persistContext(getContext());}
