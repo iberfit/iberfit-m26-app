@@ -79,3 +79,9 @@ Los cambios concurrentes tras el ACK, la coexistencia de borradores y los dobles
 clics en publicación quedan protegidos por pruebas de regresión. La certificación
 autenticada integral, la comprobación de Canary y la promoción a PROD siguen
 siendo controles independientes y obligatorios.
+
+## Certificación autenticada M43 en QA real
+
+La ruta `scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs` ejecuta los constructores reales del producto frente a Supabase QA con identidades sintéticas de Coach y dos Clientes, sin mocks, service_role ni egress a producción. Certifica ciclos independientes, permisos, ACK e idempotencia, aprobación y publicación, sesión de fuerza/running/natación, habilitación, ejecución autónoma, feedback, historial y aislamiento. Incluye comprobación explícita de que los ciclos no publicados no sean visibles al Cliente. La evidencia queda minimizada en `recovery/m43-qa/coach-client-real-write.json`.
+
+El gate falla ante cualquier bloqueo real o fuga de borradores; no se ignoran resultados para poner CI en verde. Su aprobación no sustituye las pruebas de dispositivos, Canary exacto ni el despliegue certificado a producción.
