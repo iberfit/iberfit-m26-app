@@ -57,3 +57,34 @@ export async function removeConfirmedPlanningDraft(repository,clientId,entityId)
   if(legacy&&validRecord(legacy,clientId)&&String(legacy.value.id)===String(entityId))
     await repository.remove(clientId,LEGACY_PLANNING_DRAFT_SCOPE);
 }
+
+// Stable form signature prevents false edit conflicts from field enumeration
+// order while retaining changes to any field, including blank -> nonblank.
+export function planningFormSignature(fields={}){
+  return JSON.stringify(Object.keys(fields).sort().map(key=>[key,String(fields[key]??'')]));
+}
+
+// Remote ACK does not authorize discarding later local changes. Check both
+// before and AFTER asynchronous deletion: a user may type during cleanup.
+// A rescue writes only the same client's same cycle, never another identity.
+export async function finalizeConfirmedPlanningDraft(repository,clientId,entityId,{isCurrent,readEditedDraft}={}){
+  if(typeof isCurrent!=='function'||typeof readEditedDraft!=='function')
+    throw new Error('M43_PLAN_CONFIRM_GUARD_REQUIRED');
+  if(!repository?.remove||!repository?.save)
+    return Object.freeze({cleaned:false,reason:'storage-unavailable'});
+  const scope=planningDraftScope(entityId);
+  async function guard(){
+    if(!isCurrent())return Object.freeze({cleaned:false,reason:'context-changed'});
+    const edited=readEditedDraft();
+    if(!edited)return null;
+    if(String(edited.id||'')!==String(entityId)||String(edited.clientId||'')!==String(clientId))
+      return Object.freeze({cleaned:false,reason:'scope-changed'});
+    await repository.save(clientId,scope,edited);
+    return Object.freeze({cleaned:false,reason:'edited-after-ack'});
+  }
+  const before=await guard();
+  if(before)return before;
+  await removeConfirmedPlanningDraft(repository,clientId,entityId);
+  const after=await guard();
+  return after||Object.freeze({cleaned:true,reason:'confirmed'});
+}

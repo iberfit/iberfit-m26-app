@@ -110,8 +110,9 @@ test('M39 remote ACK retains a session-local replay fence if deletion AND tombst
 test('M39 confirmed plan validation tolerates unavailable local draft cleanup',()=>{
   const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
   const plan=source.slice(source.indexOf('async function performValidatePlan(){'),source.indexOf('async function createAppointment(){'));
-  assert.match(plan,/removeConfirmedPlanningDraft\(draftRepository,clientId,stableId\)/);
-  assert.match(plan,/catch\(error\)\{[\s\S]*?localDraftOk=false/);
+  assert.match(plan,/settleConfirmedPlanDraft\(form,clientId,stableId,validatedFormSnapshot\)/);
+  assert.match(plan,/let localDraftOk=false/);
+  assert.match(plan,/catch\(error\)\{[\s\S]*?M26_PLAN_DRAFT_CLEANUP_PENDING/);
   assert.match(plan,/const settled=localDraftOk\?result:\{\.\.\.result,refreshPending:true,localDraftOk:false\}/);
   assert.match(plan,/return settled;/);
 });

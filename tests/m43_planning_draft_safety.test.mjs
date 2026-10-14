@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createMemoryEngagementDraftRepository} from '../src/m26/engagement/activity-drafts.js';
-import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,removeConfirmedPlanningDraft,LEGACY_PLANNING_DRAFT_SCOPE} from '../src/m26/workflows/planning-draft-safety.js';
+import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,removeConfirmedPlanningDraft,planningFormSignature,finalizeConfirmedPlanningDraft,LEGACY_PLANNING_DRAFT_SCOPE} from '../src/m26/workflows/planning-draft-safety.js';
 
 const source=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const cycle=(id,clientId='client-1',name='Ciclo')=>({
@@ -70,12 +70,14 @@ test('M43: controller always saves and removes an individual cycle identity',()=
   assert.doesNotMatch(save,/draftRepository\.save\(clientId,'planning-cycle'/);
   const validate=workflow.slice(workflow.indexOf('async function performValidatePlan('),workflow.indexOf('async function createAppointment('));
   assert.match(validate,/restorePlanningDraft\(draftRepository,clientId,visibleId\)/);
-  assert.match(validate,/removeConfirmedPlanningDraft\(draftRepository,clientId,stableId\)/);
+  assert.match(validate,/settleConfirmedPlanDraft\(form,clientId,stableId,validatedFormSnapshot\)/);
   assert.match(validate,/draftRepository\?\.save\?\.\(clientId,scoped,draft\)/);
   assert.match(workflow,/async function selectPlanDraft\(form,selectedId\)/);
   assert.match(workflow,/if\(editedPlanForms\.has\(form\)\)\{\s*await savePlanDraft/);
   assert.match(workflow,/data-plan-draft-choice/);
   assert.ok(workflow.includes('validatedFormSnapshot'));
+  assert.match(validate,/if\(localDraftOk\)editedPlanForms\.delete\(form\)/);
+  assert.match(validate,/editedPlanForms\.delete\(form\)/);
 
   assert.ok(workflow.includes('if(planForm&&editedPlanForms.has(planForm))'));
 
@@ -84,4 +86,53 @@ test('M43: controller always saves and removes an individual cycle identity',()=
   assert.match(route,/Crear un ciclo nuevo/);
   const sw=source('public/m26/sw.js');
   assert.match(sw,/\/src\/m26\/workflows\/planning-draft-safety\.js/);
+});
+
+test('M43 ACK guard compares semantic form values, not object key enumeration order',()=>{
+  assert.equal(planningFormSignature({name:'Ciclo',goal:'Fuerza'}),planningFormSignature({goal:'Fuerza',name:'Ciclo'}));
+  assert.notEqual(planningFormSignature({goal:'Fuerza'}),planningFormSignature({goal:'Carrera'}));
+  assert.notEqual(planningFormSignature({goal:''}),planningFormSignature({goal:'Fuerza'}));
+});
+
+test('M43 confirmed plan cleanup rescues edits typed during asynchronous deletion',async()=>{
+  const storage=createMemoryEngagementDraftRepository({ownerId:'coach-m43-late-write'});
+  const original=cycle('late-cycle'),revised={...original,goal:'Carrera y fuerza'};
+  await storage.save('client-1',planningDraftScope(original.id),original);
+  let current=null;
+  const repository={
+    save:(...args)=>storage.save(...args),
+    load:(...args)=>storage.load(...args),
+    remove:async(...args)=>{
+      current=revised; // Input event fired while delete awaited.
+      return storage.remove(...args);
+    },
+  };
+  const settled=await finalizeConfirmedPlanningDraft(repository,'client-1',original.id,{
+    isCurrent:()=>true,readEditedDraft:()=>current,
+  });
+  assert.equal(settled.cleaned,false);
+  assert.equal((await restorePlanningDraft(storage,'client-1',original.id)).value.goal,'Carrera y fuerza');
+});
+
+test('M43 confirmed plan cleanup preserves draft if the active cycle or client changed',async()=>{
+  const storage=createMemoryEngagementDraftRepository({ownerId:'coach-m43-switch'});
+  const original=cycle('switched-cycle');
+  await storage.save('client-1',planningDraftScope(original.id),original);
+  const settled=await finalizeConfirmedPlanningDraft(storage,'client-1',original.id,{
+    isCurrent:()=>false,readEditedDraft:()=>null,
+  });
+  assert.equal(settled.reason,'context-changed');
+  assert.ok(await restorePlanningDraft(storage,'client-1',original.id));
+});
+
+test('M43 clean ACK removes only the exact confirmed cycle, leaving other drafts',async()=>{
+  const storage=createMemoryEngagementDraftRepository({ownerId:'coach-m43-ack-clean'});
+  await storage.save('client-1',planningDraftScope('confirm'),cycle('confirm'));
+  await storage.save('client-1',planningDraftScope('keep'),cycle('keep'));
+  const settled=await finalizeConfirmedPlanningDraft(storage,'client-1','confirm',{
+    isCurrent:()=>true,readEditedDraft:()=>null,
+  });
+  assert.equal(settled.cleaned,true);
+  assert.equal(await restorePlanningDraft(storage,'client-1','confirm'),null);
+  assert.ok(await restorePlanningDraft(storage,'client-1','keep'));
 });

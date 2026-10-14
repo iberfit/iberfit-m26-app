@@ -1,7 +1,7 @@
 import {buildIriCommand} from '../workflows/iri-workflow.js';
 import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
-import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,removeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
+import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,planningFormSignature,finalizeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand} from '../workflows/agenda-workflow.js';
 import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
@@ -1405,6 +1405,11 @@ export function createWorkflowController({
     status(root,'planning','Ciclo recuperado para continuar.','success');
     await updatePlanDraftChoices(form);
   }
+  function planDraftPayload(raw,clientId,stableId){
+    return {id:stableId,clientId,name:String(raw.name||'').trim(),
+      startDate:raw.startDate||'',endDate:raw.endDate||'',goal:String(raw.goal||'').trim(),
+      weeklyFrequency:raw.weeklyFrequency||'',sessionDurationMinutes:raw.sessionDurationMinutes||'',modality:raw.modality||''};
+  }
   async function savePlanDraft(form,{silent=false}={}){
     requireCoach();
     if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
@@ -1415,9 +1420,7 @@ export function createWorkflowController({
     const scope=planningDraftScope(stableId);
     // Pin identity synchronously: overlapping autosaves cannot invent a second ID.
     const entityControl=form.elements?.namedItem?.('entityId');if(entityControl)entityControl.value=stableId;
-    const draft={id:stableId,clientId,name:String(raw.name||'').trim(),
-      startDate:raw.startDate||'',endDate:raw.endDate||'',goal:String(raw.goal||'').trim(),
-      weeklyFrequency:raw.weeklyFrequency||'',sessionDurationMinutes:raw.sessionDurationMinutes||'',modality:raw.modality||''};
+    const draft=planDraftPayload(raw,clientId,stableId);
     const write=planDraftChain.then(()=>draftRepository.save(clientId,scope,draft));
     planDraftChain=write.catch(()=>{});await write;
     if(!silent)status(root,'planning','Borrador del ciclo guardado en este dispositivo. Puedes validarlo cuando completes los datos.','success');
@@ -1445,6 +1448,23 @@ export function createWorkflowController({
       status(root,'planning','No fue posible recuperar los borradores. Ningún ciclo guardado se ha eliminado.','error');
       emit(root,'m26:workflow-error',{action:'load-plan-draft',code:String(error?.message||error)});
     }
+  }
+
+  // A remote ACK and local draft removal must be serialized with autosaves;
+  // later edits, a switched client and a changed cycle must survive cleanup.
+  async function settleConfirmedPlanDraft(form,clientId,stableId,signature){
+    await planDraftChain;
+    // No local repository is a storage limitation, not a server rejection.
+    if(!draftRepository)return {cleaned:true,reason:'no-local-repository'};
+    return finalizeConfirmedPlanningDraft(draftRepository,clientId,stableId,{
+      isCurrent:()=>Boolean(root.contains?.(form)&&context().clientId===clientId
+        &&planFormClientIds.get(form)===clientId
+        &&String(form.elements?.namedItem?.('entityId')?.value||'').trim()===stableId),
+      readEditedDraft:()=>{
+        const raw=values(form);
+        return planningFormSignature(raw)===signature?null:planDraftPayload(raw,clientId,stableId);
+      },
+    });
   }
 
   // Same-tab duplicate submissions must share one server operation. In
@@ -1491,7 +1511,7 @@ export function createWorkflowController({
       ||createM26Id();
     const scoped=planningDraftScope(stableId);
     const entityControl=form.elements?.namedItem?.('entityId');if(entityControl)entityControl.value=stableId;
-    const validatedFormSnapshot=JSON.stringify({...raw,entityId:stableId});
+    const validatedFormSnapshot=planningFormSignature(values(form));
     const draft={id:stableId,clientId,name:String(raw.name||'').trim(),
       startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),
       weeklyFrequency:Number(raw.weeklyFrequency||0)||null,
@@ -1516,8 +1536,14 @@ export function createWorkflowController({
       &&String(existingBody.modality||'')===String(draft.modality||'');
     const statusNow=current?normalizedStatus(current):'';
     if(sameValidated&&['validado','aprobado','publicado'].includes(statusNow)){
-      try{if(draftRepository)await removeConfirmedPlanningDraft(draftRepository,clientId,stableId);}
+      let cleanup={cleaned:false};
+      try{cleanup=await settleConfirmedPlanDraft(form,clientId,stableId,validatedFormSnapshot);}
       catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});}
+      if(!cleanup.cleaned){
+        status(root,'planning','El ciclo ya estaba confirmado. Se conservan los cambios locales o la limpieza pendiente, sin volver a enviarlo.','pending');
+        return {ok:true,kind:'already-confirmed',refreshPending:true,localDraftOk:false};
+      }
+      editedPlanForms.delete(form);
       status(root,'planning','El ciclo ya estaba guardado y confirmado. No se creó ningún duplicado.','success');
       onRender();
       return {ok:true,kind:'already-confirmed'};
@@ -1558,18 +1584,20 @@ export function createWorkflowController({
       status(root,'planning','El servidor confirmó el ciclo. La vista todavía no refleja la versión guardada; conserva el borrador y actualiza antes de repetir la validación.','pending');
       return {...result,refreshOk:false};
     }
-    if(JSON.stringify(values(form))!==validatedFormSnapshot){
-      status(root,'planning','El servidor confirmó el ciclo enviado. Hay cambios posteriores en el editor: conservamos tu borrador y no repetimos la validación.','pending');
-      return {...result,refreshPending:true,localDraftOk:false};
-    }
-    let localDraftOk=true;
-    try{if(draftRepository)await removeConfirmedPlanningDraft(draftRepository,clientId,stableId);}
-    catch(error){
-      localDraftOk=false;
+    let localDraftOk=false;
+    try{
+      const cleanup=await settleConfirmedPlanDraft(form,clientId,stableId,validatedFormSnapshot);
+      localDraftOk=cleanup.cleaned===true;
+    }catch(error){
       emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});
+    }
+    if(!localDraftOk){
+      status(root,'planning','El servidor confirmó el ciclo. Los cambios posteriores o el borrador pendiente de limpieza se conservan. Revisa antes de volver a validar.','pending');
+      return {...result,refreshPending:true,localDraftOk:false};
     }
     // Local cleanup is not a second server confirmation. Preserve the ACK and
     // the editable draft if the browser storage is temporarily unavailable.
+    if(localDraftOk)editedPlanForms.delete(form);
     const settled=localDraftOk?result:{...result,refreshPending:true,localDraftOk:false};
     const feedback=mutationFeedback(settled,{success:'Ciclo validado y visible en Planificación.',subject:'El ciclo'});
     status(root,'planning',feedback.message,feedback.kind);

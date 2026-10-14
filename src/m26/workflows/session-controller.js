@@ -45,6 +45,7 @@ export async function publicationAckRefreshOutcome(result,refresh){
 // awaiting shell refresh. A changed, re-reviewed prescription gets a new
 // fingerprint; a re-render of the unchanged draft reuses the original receipt.
 const publishedDraftReceipts=new WeakMap();
+const inFlightDraftPublications=new WeakMap();
 function publishDraftFingerprint(draft){
   return JSON.stringify({id:draft?.id,clientId:draft?.clientId,title:draft?.title,
     durationMinutes:draft?.durationMinutes,deliveryModality:draft?.deliveryModality,
@@ -125,11 +126,22 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       const acknowledged=publishedDraftReceipts.get(draft);
       if(commandBus&&draft?.previewAccepted===true&&acknowledged?.fingerprint===fingerprint)
         return {kind:'command',value:Promise.resolve({...acknowledged.result,alreadyConfirmed:true})};
+      const pending=commandBus&&inFlightDraftPublications.get(draft);
+      if(commandBus&&draft?.previewAccepted===true&&pending?.fingerprint===fingerprint)
+        return {kind:'command',value:pending.promise};
       const command=buildPublishSessionCommand(draft,catalog,draft.revision||0);
-      return commandBus?{kind:'command',value:executeAndApply(commandBus,command,(result)=>{
+      if(!commandBus)return {kind:'command',value:command};
+      const operation=executeAndApply(commandBus,command,(result)=>{
         draft.revision=remoteRevision(result,draft.revision);
         publishedDraftReceipts.set(draft,{fingerprint,result});
-      })}:{kind:'command',value:command};
+      });
+      inFlightDraftPublications.set(draft,{fingerprint,promise:operation});
+      // Clear on ACK and rejection. A failed request must allow a real retry.
+      void operation.then(
+        ()=>{if(inFlightDraftPublications.get(draft)?.promise===operation)inFlightDraftPublications.delete(draft);},
+        ()=>{if(inFlightDraftPublications.get(draft)?.promise===operation)inFlightDraftPublications.delete(draft);}
+      );
+      return {kind:'command',value:operation};
     }
     case 'start': {
       const actorRole=String(actor?.role||'').trim().toLowerCase();

@@ -98,3 +98,36 @@ test('M43 same published draft reuses receipt without issuing another server pub
   assert.equal(revised.alreadyConfirmed,undefined);
   assert.equal(sent,2,'a genuinely new reviewed revision may make a new command');
 });
+
+test('M43 simultaneous publish taps share one in-flight remote publication command',async()=>{
+  const clientId='m43-publish-concurrent';
+  const catalog=createExerciseCatalog([{id:'m43-run-pending',name_es:'Carrera continua',measurement_profile:'endurance'}]);
+  const draft=createSessionDraft({clientId,title:'Carrera integrada',durationMinutes:45});
+  addCatalogExercise(draft,'m43-run-pending',catalog,{plannedDistanceKm:'5',plannedDurationMinutes:'30'});
+  acceptSessionPreview(draft,catalog);
+  let calls=0,release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  const bus={execute:async()=>{calls++;await gate;return {ok:true,kind:'ack',response:{remoteRevision:1}};}};
+  const send=()=>dispatchSessionAction({action:'publish',draft,catalog,commandBus:bus,online:true}).value;
+  const first=send(),second=send();
+  assert.equal(first,second);
+  release();
+  assert.equal((await first).ok,true);
+  assert.equal(calls,1);
+  assert.equal((await send()).alreadyConfirmed,true);
+  assert.equal(calls,1);
+});
+
+test('M43 failed in-flight publish is retryable and never recorded as confirmed',async()=>{
+  const clientId='m43-publish-retry';
+  const catalog=createExerciseCatalog([{id:'m43-run-retry',name_es:'Carrera continua',measurement_profile:'endurance'}]);
+  const draft=createSessionDraft({clientId,title:'Carrera de recuperación',durationMinutes:45});
+  addCatalogExercise(draft,'m43-run-retry',catalog,{plannedDistanceKm:'5',plannedDurationMinutes:'30'});
+  acceptSessionPreview(draft,catalog);
+  let calls=0;
+  const bus={execute:async()=>{calls++;if(calls===1)throw new Error('M43_RETRYABLE_NETWORK');return {ok:true,kind:'ack',response:{remoteRevision:1}};}};
+  const send=()=>dispatchSessionAction({action:'publish',draft,catalog,commandBus:bus,online:true}).value;
+  await assert.rejects(send(),/M43_RETRYABLE_NETWORK/);
+  assert.equal((await send()).ok,true);
+  assert.equal(calls,2);
+});

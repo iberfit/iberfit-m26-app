@@ -70,3 +70,12 @@ Un Coach puede preparar varios ciclos del mismo cliente, periodizarlos, construi
 | Producción | Workflow `production-promote.yml` | Prohibido hasta cerrar la matriz total |
 
 **Regla de entrega:** los commits intermedios y los checks verdes parciales no cambian el estado del macrobloque. M43 estará terminado cuando todo el sistema integrado funcione en producción y exista evidencia real de los criterios anteriores. Los siguientes M44 y M45, y el cierre pendiente de M41/M42, seguirán exactamente la misma regla de **macrobloque único por M**.
+
+
+### Nota de certificación y control de calidad
+
+El estado verde de CI no sustituye la evidencia de Coach → Cliente contra Supabase QA.
+Los cambios concurrentes tras el ACK, la coexistencia de borradores y los dobles
+clics en publicación quedan protegidos por pruebas de regresión. La certificación
+autenticada integral, la comprobación de Canary y la promoción a PROD siguen
+siendo controles independientes y obligatorios.
