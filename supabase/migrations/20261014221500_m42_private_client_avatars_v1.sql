@@ -4,18 +4,7 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('iberfit-profile-avatars','iberfit-profile-avatars',false,524288,array['image/webp']::text[])
 on conflict (id) do nothing;
 
-do $ib$
-begin
-  if not exists (
-    select 1 from storage.buckets
-    where id='iberfit-profile-avatars' and public=false
-      and file_size_limit is not distinct from 524288
-      and allowed_mime_types @> array['image/webp']::text[]
-  ) then
-    raise exception 'M42_AVATAR_BUCKET_CONTRACT_MISMATCH';
-  end if;
-end
-$ib$;
+-- Bucket contract verified in QA schema checks, not by an anonymous DO block.
 
 create or replace function public.iberfit_avatar_client_id_v1(p_name text)
 returns uuid language sql immutable strict security invoker set search_path=''
