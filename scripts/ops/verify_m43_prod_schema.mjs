@@ -64,9 +64,10 @@ const CHECK_SQL=[
 ];
 if(CHECK_SQL.length!==REQUIRED.length+1)
   throw new Error('M43_PRODUCTION_SCHEMA_CHECK_COUNT_INVALID');
-export const QUERY=CHECK_SQL.map((clause,index)=>
-  index>0&&index<CHECK_SQL.length-1?clause+',':clause
-).join('\n');
+export const QUERY=CHECK_SQL.map((clause,index)=>{
+  const normalized=clause.trimEnd().replace(/,+$/,'');
+  return index>0&&index<CHECK_SQL.length-1?normalized+',':normalized;
+}).join('\n');
 export function certify(payload){
   const rows=Array.isArray(payload)?payload:Array.isArray(payload?.result)?payload.result:null;
   if(!rows||rows.length!==1||!rows[0]||typeof rows[0]!=='object'||Array.isArray(rows[0]))
