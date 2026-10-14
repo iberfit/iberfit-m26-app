@@ -4523,10 +4523,10 @@ export function renderSettingsRoute(vm){
             <span class="m26-avatar-settings-preview" aria-hidden="true" data-iberfit-avatar-client="${escapeHtml(vm.identity.clientId)}">${escapeHtml(String(vm.identity.name||'I').slice(0,1).toUpperCase())}</span>
             <div class="m26-avatar-settings-commands">
               <label class="m26-avatar-upload-label">Elegir fotografía
-                <input type="file" accept="image/jpeg,image/png,image/webp" data-iberfit-avatar-upload>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" data-iberfit-avatar-upload>
               </label>
               <button type="button" class="m26-text-action" data-iberfit-avatar-remove>Quitar foto</button>
-              <small>JPG, PNG o WebP. Se adapta a un formato pequeño, sin datos de ubicación.</small>
+              <small>JPG, PNG, WebP o HEIC (si el dispositivo lo admite). La fotografía se adapta en tu dispositivo a un formato pequeño y se eliminan sus metadatos.</small>
               <p data-iberfit-avatar-status role="status" aria-live="polite"></p>
             </div>
           </div>
