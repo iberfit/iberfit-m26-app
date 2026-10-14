@@ -61,3 +61,8 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - Cualquier respuesta local de recuperación/draft que llegue tras logout o cambio de contexto se descarta.
 - Las fotos privadas se revisan cada 120 s al navegar o reabrir vistas; revocación 401/403 o eliminación 404 retira miniaturas antiguas y revoca URLs locales.
 - Tests añadidos: `m42_workspace_entry_gate.test.mjs` y `m42_avatar_freshness_contract.test.mjs`. Pendiente QA autenticada.
+
+## Verificación real de fotografía privada (M42)
+- Nueva ejecución autenticada y sintética QA del bucket privado: upload, overwrite, lectura propia, lectura Coach asignado, bloqueo Cliente ajeno, bloqueo anónimo, bloqueo público, bloqueo escritura Coach, retirada propietaria y limpieza verificable.
+- Script `scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs`, gatillado por `qa-real-write-cert.yml` cuando el PR está listo (no mientras sea Draft).
+- Se abortan respuestas tardías de cargas fotográficas tras logout o cambio de identidad y un upload confirmado cuya descarga falle se comunica como preview pendiente, no como foto visible.
