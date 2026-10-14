@@ -141,7 +141,7 @@ function ensureControl(root){
   const documentLike=host?.ownerDocument;
   if(!documentLike?.createElement)return false;
   const label=documentLike.createElement('label');
-  label.className='m26-consent';
+  label.className='m26-session-haptics-control';
   label.setAttribute('data-session-haptics-control','');
   const input=documentLike.createElement('input');
   input.type='checkbox';
@@ -155,7 +155,11 @@ function ensureControl(root){
   small.textContent='Opcional en este dispositivo · confirma series y fin de descanso.';
   copy.append(strong,small);
   label.append(input,copy);
-  host.append(label);
+  // Keep the opt-in separate from the title/status layout: long text must
+  // never overlap the ready badge on desktop, tablet or narrow mobile.
+  if(host.matches?.('.m26-session-live-heading')&&host.insertAdjacentElement)
+    host.insertAdjacentElement('afterend',label);
+  else host.append(label);
   return true;
 }
 
