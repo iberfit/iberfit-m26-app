@@ -1,6 +1,7 @@
 import {buildIriCommand} from '../workflows/iri-workflow.js';
 import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
+import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,removeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand} from '../workflows/agenda-workflow.js';
 import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
@@ -311,6 +312,7 @@ export function createWorkflowController({
   const initializedReportForms=new WeakSet();
   const editedReportForms=new WeakSet();
   const reportFormClientIds=new WeakMap();
+  let planSelectionSequence=0;
   const initializedPlanForms=new WeakSet();
   const editedPlanForms=new WeakSet();
   const planFormClientIds=new WeakMap();
@@ -1338,27 +1340,88 @@ export function createWorkflowController({
     status(root,iriReportStatusScope(),'Versión retirada. El historial permanece íntegro y auditable.','success');
   }
 
+  async function updatePlanDraftChoices(form,{restoreSingle=false}={}){
+    const picker=form?.querySelector?.('[data-plan-draft-choice]');
+    const clientId=planFormClientIds.get(form);
+    if(!picker||!clientId||!draftRepository?.list)return;
+    const candidates=await listPlanningDrafts(draftRepository,clientId);
+    if(!root.contains?.(form)||context().clientId!==clientId)return;
+    const id=String(form.elements?.namedItem?.('entityId')?.value||'').trim();
+    const doc=form.ownerDocument;
+    picker.replaceChildren();
+    const blank=doc.createElement('option');blank.value='';blank.textContent='Crear un ciclo nuevo';picker.append(blank);
+    for(const record of candidates){
+      const draft=record.value,option=doc.createElement('option');
+      option.value=String(draft.id);
+      option.textContent=[String(draft.name||'Ciclo sin nombre').slice(0,100),[draft.startDate,draft.endDate].filter(Boolean).join(' → ')].filter(Boolean).join(' · ');
+      picker.append(option);
+    }
+    picker.value=candidates.some(x=>String(x.value.id)===id)?id:'';
+    if(!restoreSingle||editedPlanForms.has(form))return;
+    const candidate=id?candidates.find(x=>String(x.value.id)===id):candidates.length===1?candidates[0]:null;
+    if(candidate){
+      const saved=await restorePlanningDraft(draftRepository,clientId,candidate.value.id);
+      if(!saved?.value||editedPlanForms.has(form)||!root.contains?.(form)||context().clientId!==clientId)return;
+      if(id&&String(form.elements?.namedItem?.('entityId')?.value||'')!==id)return;
+      populateForm(form,saved.value);
+      picker.value=String(saved.value.id);
+      syncGuidedWorkflowProgress(form);
+      status(root,'planning','Borrador de ciclo recuperado desde este dispositivo.','success');
+    }else if(!id&&candidates.length>1){
+      status(root,'planning','Hay varios ciclos guardados. Selecciona cuál continuar o crea uno nuevo.','info');
+    }
+  }
+  async function selectPlanDraft(form,selectedId){
+    const clientId=planFormClientIds.get(form);
+    requireCoach();requireVisibleClient(clientId);
+    if(clientId!==context().clientId)return;
+    const seq=++planSelectionSequence;
+    clearTimeout(planSaveTimer);planSaveTimer=null;
+    await planDraftChain;
+    if(seq!==planSelectionSequence)return;
+    if(editedPlanForms.has(form)){
+      await savePlanDraft(form,{silent:true});
+      editedPlanForms.delete(form);
+    }
+    if(seq!==planSelectionSequence||!root.contains?.(form)||context().clientId!==clientId)return;
+    if(!selectedId){
+      form.reset();
+      for(const field of ['entityId','name','startDate','endDate','goal','weeklyFrequency','sessionDurationMinutes','modality']){
+        const control=form.elements?.namedItem?.(field);if(control)control.value='';
+      }
+      syncGuidedWorkflowProgress(form);
+      status(root,'planning','Nuevo ciclo preparado. Los borradores anteriores se conservan.','info');
+      await updatePlanDraftChoices(form);
+      return;
+    }
+    const saved=await restorePlanningDraft(draftRepository,clientId,selectedId);
+    if(seq!==planSelectionSequence||!root.contains?.(form)||context().clientId!==clientId)return;
+    if(!saved?.value){
+      status(root,'planning','No encontramos ese ciclo guardado. Los otros borradores no se han modificado.','error');
+      return;
+    }
+    populateForm(form,saved.value);
+    syncGuidedWorkflowProgress(form);
+    status(root,'planning','Ciclo recuperado para continuar.','success');
+    await updatePlanDraftChoices(form);
+  }
   async function savePlanDraft(form,{silent=false}={}){
     requireCoach();
     if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');
     if(!draftRepository?.save)throw new Error('M26_PLAN_DRAFT_STORAGE_UNAVAILABLE');
-    const {clientId}=context();
-    requireVisibleClient(clientId);
+    const {clientId}=context();requireVisibleClient(clientId);
     if(planFormClientIds.has(form)&&planFormClientIds.get(form)!==clientId)throw new Error('M26_PLAN_DRAFT_CLIENT_CONTEXT_CHANGED');
-    const raw=values(form);
-    const previousId=String(raw.entityId||'').trim();
-    const draft={id:previousId||createM26Id(),clientId,
-      name:String(raw.name||'').trim(),startDate:raw.startDate||'',
-      endDate:raw.endDate||'',goal:String(raw.goal||'').trim(),
-      weeklyFrequency:raw.weeklyFrequency||'',
-      sessionDurationMinutes:raw.sessionDurationMinutes||'',
-      modality:raw.modality||''};
-    const write=planDraftChain.then(()=>draftRepository.save(clientId,'planning-cycle',draft));
-    planDraftChain=write.catch(()=>{});
-    await write;
-    const entityControl=form.elements?.namedItem?.('entityId');
-    if(entityControl)entityControl.value=draft.id;
-    if(!silent)status(root,'planning','Borrador del ciclo guardado en este dispositivo. Puedes validar cuando completes los datos.','success');
+    const raw=values(form),stableId=String(raw.entityId||'').trim()||createM26Id();
+    const scope=planningDraftScope(stableId);
+    // Pin identity synchronously: overlapping autosaves cannot invent a second ID.
+    const entityControl=form.elements?.namedItem?.('entityId');if(entityControl)entityControl.value=stableId;
+    const draft={id:stableId,clientId,name:String(raw.name||'').trim(),
+      startDate:raw.startDate||'',endDate:raw.endDate||'',goal:String(raw.goal||'').trim(),
+      weeklyFrequency:raw.weeklyFrequency||'',sessionDurationMinutes:raw.sessionDurationMinutes||'',modality:raw.modality||''};
+    const write=planDraftChain.then(()=>draftRepository.save(clientId,scope,draft));
+    planDraftChain=write.catch(()=>{});await write;
+    if(!silent)status(root,'planning','Borrador del ciclo guardado en este dispositivo. Puedes validarlo cuando completes los datos.','success');
+    try{await updatePlanDraftChoices(form);}catch(error){emit(root,'m26:workflow-warning',{action:'plan-draft-selector',code:String(error?.message||error)});}
     return draft;
   }
   function queuePlanSave(form){
@@ -1366,28 +1429,20 @@ export function createWorkflowController({
     planSaveTimer=setTimeout(()=>{
       planSaveTimer=null;
       if(!root.contains?.(form)||planFormClientIds.get(form)!==context().clientId)return;
-      void savePlanDraft(form,{silent:true}).catch((error)=>{
-      status(root,'planning','No fue posible guardar este borrador. Conserva la pantalla abierta y revisa el almacenamiento local.','error');
-      emit(root,'m26:workflow-error',{action:'autosave-plan-draft',code:String(error?.message||error)});
-    });},650);
+      void savePlanDraft(form,{silent:true}).catch(error=>{
+        status(root,'planning','No fue posible guardar este borrador. Conserva la pantalla abierta y revisa el almacenamiento local.','error');
+        emit(root,'m26:workflow-error',{action:'autosave-plan-draft',code:String(error?.message||error)});
+      });
+    },650);
   }
   async function initializePlanForm(form){
     if(!form||initializedPlanForms.has(form))return;
     initializedPlanForms.add(form);
-    const {clientId}=context();
-    planFormClientIds.set(form,clientId);
+    const {clientId}=context();planFormClientIds.set(form,clientId);
     if(!clientId||!draftRepository?.load)return;
-    try{
-      const saved=await draftRepository.load(clientId,'planning-cycle');
-      if(!saved?.value||editedPlanForms.has(form)||!root.contains?.(form)||context().clientId!==clientId)return;
-      if(String(saved.value.clientId||'')!==String(clientId))return;
-      const visibleId=String(form.elements?.namedItem?.('entityId')?.value||'').trim();
-      if(visibleId&&visibleId!==String(saved.value.id||'').trim())return;
-      populateForm(form,saved.value);
-      syncGuidedWorkflowProgress(form);
-      status(root,'planning','Borrador del ciclo recuperado desde este dispositivo.','success');
-    }catch(error){
-      status(root,'planning','No fue posible recuperar el borrador del ciclo. Los datos existentes permanecen intactos.','error');
+    try{await updatePlanDraftChoices(form,{restoreSingle:true});}
+    catch(error){
+      status(root,'planning','No fue posible recuperar los borradores. Ningún ciclo guardado se ha eliminado.','error');
       emit(root,'m26:workflow-error',{action:'load-plan-draft',code:String(error?.message||error)});
     }
   }
@@ -1421,13 +1476,21 @@ export function createWorkflowController({
       &&String(recordBody(item).startDate||item.startDate||'').slice(0,10)===String(raw.startDate||'')
       &&String(recordBody(item).endDate||item.endDate||'').slice(0,10)===String(raw.endDate||'');
     let backup=null;
-    try{backup=await draftRepository?.load?.(clientId,'planning-cycle');}
-    catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE'});}
+    const visibleId=String(raw.entityId||'').trim();
+    try{
+      if(visibleId)backup=await restorePlanningDraft(draftRepository,clientId,visibleId);
+      else{
+        const legacy=await draftRepository?.load?.(clientId,'planning-cycle');
+        if(legacy?.value?.clientId===clientId&&sameCycle(legacy.value))backup=legacy;
+      }
+    }catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M43_PLAN_LOCAL_DRAFT_LOAD_UNAVAILABLE'});}
     const saved=backup?.value&&typeof backup.value==='object'?backup.value:null;
-    const stableId=String(raw.entityId||'').trim()
+    const stableId=visibleId
       ||(saved?.clientId===clientId&&sameCycle(saved)?String(saved.id||''):null)
       ||(records.find(sameCycle)?.id||null)
       ||createM26Id();
+    const scoped=planningDraftScope(stableId);
+    const entityControl=form.elements?.namedItem?.('entityId');if(entityControl)entityControl.value=stableId;
     const draft={id:stableId,clientId,name:String(raw.name||'').trim(),
       startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),
       weeklyFrequency:Number(raw.weeklyFrequency||0)||null,
@@ -1437,7 +1500,7 @@ export function createWorkflowController({
     // A complete valid online cycle must remain submittable when browser
     // storage is unavailable. Keep the form and report local storage errors,
     // but do not present them as a missing field or a server rejection.
-    try{await draftRepository?.save?.(clientId,'planning-cycle',draft);}
+    try{await draftRepository?.save?.(clientId,scoped,draft);}
     catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_LOCAL_DRAFT_SAVE_UNAVAILABLE'});}
     // A previously acknowledged save may have failed only its refresh. Never
     // create another entity or issue PLAN_VALIDAR against validated revision 1.
@@ -1452,7 +1515,7 @@ export function createWorkflowController({
       &&String(existingBody.modality||'')===String(draft.modality||'');
     const statusNow=current?normalizedStatus(current):'';
     if(sameValidated&&['validado','aprobado','publicado'].includes(statusNow)){
-      try{await draftRepository?.remove?.(clientId,'planning-cycle');}
+      try{if(draftRepository)await removeConfirmedPlanningDraft(draftRepository,clientId,stableId);}
       catch(error){emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});}
       status(root,'planning','El ciclo ya estaba guardado y confirmado. No se creó ningún duplicado.','success');
       onRender();
@@ -1495,7 +1558,7 @@ export function createWorkflowController({
       return {...result,refreshOk:false};
     }
     let localDraftOk=true;
-    try{await draftRepository?.remove?.(clientId,'planning-cycle');}
+    try{if(draftRepository)await removeConfirmedPlanningDraft(draftRepository,clientId,stableId);}
     catch(error){
       localDraftOk=false;
       emit(root,'m26:workflow-warning',{action:'validate-plan',code:'M26_PLAN_DRAFT_CLEANUP_PENDING'});
@@ -1920,6 +1983,7 @@ export function createWorkflowController({
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       try{computed(iriForm);}catch{}clearStatus(root,'iri');queueIriSave();return;
     }
+    if(event.target.closest?.('[data-plan-draft-choice]'))return;
     const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearControlValidation(event.target);clearStatus(root,'planning');queuePlanSave(planForm);return;}
     const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearControlValidation(event.target);clearStatus(root,'report');queueReportSave(reportForm);return;}
     const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
@@ -1927,7 +1991,7 @@ export function createWorkflowController({
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){scheduleClientListUpdate(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const selectedDraft=event.target.closest?.('[data-report-draft-choice]');if(selectedDraft){const form=selectedDraft.closest?.('[data-workflow-form="report-approval"]');if(form)void selectReportDraft(form,selectedDraft.value).catch(error=>{status(root,'report',friendlyError(error),'error');emit(root,'m26:workflow-error',{action:'select-report-draft',code:String(error?.message||error)});});return;}const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearStatus(root,'planning');queuePlanSave(planForm);return;}const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearStatus(root,'report');queueReportSave(reportForm);return;}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
+  function onChange(event){const selectedPlan=event.target.closest?.('[data-plan-draft-choice]');if(selectedPlan){const form=selectedPlan.closest?.('[data-workflow-form="planning"]');if(form)void selectPlanDraft(form,selectedPlan.value).catch(error=>{status(root,'planning',friendlyError(error),'error');emit(root,'m26:workflow-error',{action:'select-plan-draft',code:String(error?.message||error)});});return;}const selectedDraft=event.target.closest?.('[data-report-draft-choice]');if(selectedDraft){const form=selectedDraft.closest?.('[data-workflow-form="report-approval"]');if(form)void selectReportDraft(form,selectedDraft.value).catch(error=>{status(root,'report',friendlyError(error),'error');emit(root,'m26:workflow-error',{action:'select-report-draft',code:String(error?.message||error)});});return;}const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearStatus(root,'planning');queuePlanSave(planForm);return;}const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearStatus(root,'report');queueReportSave(reportForm);return;}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
   async function flushLocalDrafts(){
     clearTimeout(iriSaveTimer);
