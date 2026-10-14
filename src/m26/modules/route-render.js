@@ -1,4 +1,5 @@
 import {renderCommunicationRoute} from '../communication/route-render.js';
+import {areaAllowedForRole} from '../shell/navigation.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
@@ -622,8 +623,13 @@ function renderClientHoyRoute(vm) {
   const nextActionLabel=nextAction?.area==='planificacion'
     ?'Revisar mi planificación'
     :nextAction?.label||'Continuar';
-  const nextActionArea=String(nextAction?.area||'actividad');
-  const nextActionMarkup=trainingSurface&&nextAction&&nextActionArea!==primary.area
+  // Coach-oriented next actions may point to Agenda/IRI or other areas the
+  // Client is not authorized to open. Keep a real Client destination and
+  // suppress optional actions while the training service is paused.
+  const requestedNextArea=String(nextAction?.area||'actividad');
+  const nextActionArea=requestedNextArea==='agenda'?'planificacion'
+    :areaAllowedForRole(requestedNextArea,'client')?requestedNextArea:'actividad';
+  const nextActionMarkup=serviceActive&&nextAction&&nextActionArea!==primary.area
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
         <span>Siguiente paso</span>
         <strong>${escapeHtml(nextActionLabel)}</strong>
