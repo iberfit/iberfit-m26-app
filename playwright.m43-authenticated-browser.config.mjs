@@ -19,5 +19,7 @@ export default defineConfig({
       viewport:{width:1024,height:768},hasTouch:true,isMobile:true}},
     {name:'m43-mobile-touch-chromium',use:{browserName:'chromium',
       viewport:{width:390,height:844},hasTouch:true,isMobile:true}},
+    {name:'m43-mobile-320-touch-chromium',use:{browserName:'chromium',
+      viewport:{width:320,height:700},hasTouch:true,isMobile:true}},
   ],
 });
