@@ -222,3 +222,33 @@ test('M43 execution fails closed before local persistence when session belongs t
   assert.equal(createExecution({session:compatibleLegacy,clientId}).clientId,clientId,
     'legacy sessions without client metadata retain compatible recovery');
 });
+
+test('M43 grouped workouts preserve permitted exercise prescriptions without Coach private annotations',()=>{
+  const workout={
+    id:'m43-grouped',clientId,status:'publicada',visibleToClient:true,
+    deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+    blocks:[{
+      id:'group-one',type:'biserie',rounds:3,
+      exerciseIds:['IBF-SENTADILLA-FUERZA','IBF-NATACION-CROL'],
+      prescriptions:{
+        'IBF-SENTADILLA-FUERZA':{reps:'8',plannedLoad:'30 kg',restSeconds:60,targetRpe:7,
+          coachPrivateNote:'M43_NOT_FOR_CLIENT'},
+        'IBF-NATACION-CROL':{plannedDistanceM:'200',plannedPacePer100M:'02:15',
+          poolLengthM:'25',restSeconds:30,targetRpe:6,
+          privateCredentials:'M43_SECRET_DATA'},
+      },
+    }],
+  };
+  const projection=projectCollectionsForRole({sessions:[workout]},user);
+  assertClientProjectionSafe(projection,user);
+  const group=projection.sessions[0].blocks[0];
+  assert.equal(group.type,'biserie');
+  assert.equal(group.rounds,3);
+  assert.equal(group.prescriptions['IBF-SENTADILLA-FUERZA'].reps,'8');
+  assert.equal(group.prescriptions['IBF-SENTADILLA-FUERZA'].plannedLoad,'30 kg');
+  assert.equal(group.prescriptions['IBF-SENTADILLA-FUERZA'].restSeconds,60);
+  assert.equal(group.prescriptions['IBF-NATACION-CROL'].plannedDistanceM,'200');
+  assert.equal(group.prescriptions['IBF-NATACION-CROL'].plannedPacePer100M,'02:15');
+  assert.equal(group.prescriptions['IBF-NATACION-CROL'].poolLengthM,'25');
+  assert.doesNotMatch(JSON.stringify(projection),/M43_NOT_FOR_CLIENT|M43_SECRET_DATA/);
+});
