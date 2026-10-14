@@ -125,8 +125,15 @@ async function openCertifiedCoachArea(page,area){
   }
   await expect(destination,'Coach must expose '+area+' navigation').toBeVisible({timeout:10_000});
   await destination.click();
-  await expect(page.locator(`[data-m26-area="${area}"][aria-current="page"]:visible`).first(),
-    'Coach selected route must remain active').toBeVisible({timeout:12_000});
+  // The current item moves into the collapsed Más panel on mobile.
+  // Route truth is its aria-current state AND the visible main workspace,
+  // not whether the hidden menu button is visibly painted.
+  await expect(page.locator(`[data-m26-area="${area}"][aria-current="page"]`).first(),
+    'Coach selected route must remain active').toHaveCount(1,{timeout:12_000});
+  await expect(page.getByRole('main',{name:area==='sesion'?'Sesiones':'Planificación'}),
+    'Coach selected workspace must be visible').toBeVisible({timeout:12_000});
+  await expect(page.locator('[data-m26-guided-tour]'),
+    'Genio first-use tour must not interrupt an actively selected workspace').toHaveCount(0,{timeout:12_000});
 }
 
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{

@@ -1,6 +1,7 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from '@playwright/test';
+import {MAX_CANARY_EDGE_ATTEMPTS,isRetryableCanaryStaticFailure} from './m43-canary-edge-policy.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
@@ -209,6 +210,10 @@ async function inspectViewport(browser,{name,width,height}){
       console.error(`PRELAUNCH_LIVE_DIAGNOSTICS=${JSON.stringify(diagnostic)}`);
     }
 
+    if(isRetryableCanaryStaticFailure({badResponses,blockedMutations,forbiddenOrigins,pageErrors})){
+      console.warn(`PRELAUNCH_CANARY_EDGE_TRANSIENT_5XX=${JSON.stringify({name,badResponses})}`);
+      throw new Error('PRELAUNCH_CANARY_EDGE_TRANSIENT_5XX');
+    }
     invariant(visibleWarnings.length===0,'PRELAUNCH_LIVE_WARNING_VISIBLE');
     invariant(layout.scrollWidth<=layout.clientWidth+1,'PRELAUNCH_LIVE_HORIZONTAL_OVERFLOW');
     invariant(blockedMutations.length===0,'PRELAUNCH_LIVE_UNEXPECTED_MUTATION_REQUEST');
@@ -236,6 +241,22 @@ async function inspectViewport(browser,{name,width,height}){
   }
 }
 
+async function certifyViewport(browser,viewport){
+  for(let attempt=1;attempt<=MAX_CANARY_EDGE_ATTEMPTS;attempt+=1){
+    try{
+      const result=await inspectViewport(browser,viewport);
+      if(attempt>1)console.log(`PRELAUNCH_CANARY_EDGE_RECOVERED=${viewport.name}:${attempt}`);
+      return Object.freeze({...result,edgeAttempts:attempt});
+    }catch(error){
+      if(error?.message!=='PRELAUNCH_CANARY_EDGE_TRANSIENT_5XX')throw error;
+      if(attempt===MAX_CANARY_EDGE_ATTEMPTS)
+        throw new Error('PRELAUNCH_CANARY_EDGE_5XX_PERSISTENT');
+      await new Promise((resolve)=>setTimeout(resolve,2000*attempt));
+    }
+  }
+  throw new Error('PRELAUNCH_CANARY_EDGE_5XX_PERSISTENT');
+}
+
 await mkdir(EVIDENCE_DIR,{recursive:true});
 
 const versionRaw=await fetchJson(`${CANARY_ORIGIN}/version.json?prelaunch=${Date.now()}`);
@@ -253,8 +274,8 @@ const browser=await chromium.launch({headless:true});
 let viewports;
 try{
   viewports=[];
-  viewports.push(await inspectViewport(browser,{name:'desktop',width:1440,height:1000}));
-  viewports.push(await inspectViewport(browser,{name:'mobile',width:390,height:844}));
+  viewports.push(await certifyViewport(browser,{name:'desktop',width:1440,height:1000}));
+  viewports.push(await certifyViewport(browser,{name:'mobile',width:390,height:844}));
 }finally{
   await browser.close().catch(()=>{});
 }
