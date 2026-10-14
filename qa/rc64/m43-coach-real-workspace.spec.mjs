@@ -65,7 +65,7 @@ test('M43 Coach first-factor enforces genuine device assurance; verify workspace
     expect(errors,'MFA must not cause uncaught page errors').toEqual([]);
     await page.screenshot({path:join(directory,`${testInfo.project.name}-coach-mfa-required.png`),fullPage:true});
     console.log('M43_COACH_BROWSER_ASSURANCE_REQUIRED_WORKSPACE_NOT_CERTIFIED');
-    return;
+    test.skip(true,'Coach post-WebAuthn workspace not certified without genuine QA second factor');
   }
   await expect(shell).toBeVisible();
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:20_000});
