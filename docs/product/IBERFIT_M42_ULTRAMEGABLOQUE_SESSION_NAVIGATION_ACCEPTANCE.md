@@ -66,3 +66,8 @@ Bucket \`iberfit-profile-avatars\` privado. Única ruta canónica por cliente \`
 - Nueva ejecución autenticada y sintética QA del bucket privado: upload, overwrite, lectura propia, lectura Coach asignado, bloqueo Cliente ajeno, bloqueo anónimo, bloqueo público, bloqueo escritura Coach, retirada propietaria y limpieza verificable.
 - Script `scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs`, gatillado por `qa-real-write-cert.yml` cuando el PR está listo (no mientras sea Draft).
 - Se abortan respuestas tardías de cargas fotográficas tras logout o cambio de identidad y un upload confirmado cuya descarga falle se comunica como preview pendiente, no como foto visible.
+
+## M42 · Revalidación de sesión al recuperar estado local
+- La selección de entrenamiento se reevalúa contra la colección actual una vez resuelta la recuperación asíncrona.
+- No abrir una sesión que haya sido retirada, retirada de la visibilidad, reasignada a otro Cliente o sustituida por otra revisión durante la espera.
+- Mantener evaluación autoritativa posterior en RPC de Supabase; la verificación local no sustituye RLS.

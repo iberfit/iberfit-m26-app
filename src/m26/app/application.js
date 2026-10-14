@@ -31,6 +31,7 @@ import {createShellController} from '../shell/shell-controller.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
 import {createClientAvatarController} from '../profile/client-avatar.js';
 import {createWorkspaceEntryGate} from './workspace-entry-gate.js';
+import {resolveCurrentSessionForEntry} from '../workflows/session-entry-freshness.js';
 import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
 import {createProgressiveOnboardingController} from '../onboarding/progressive-onboarding.js';
@@ -1448,7 +1449,8 @@ export async function createM26Application({root=document.querySelector('#app'),
           session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};
         store.navigate('sesion');render();return true;
       }
-      const normalized=normalizePublishedSession(requested);
+      const current=resolveCurrentSessionForEntry({state:store.getState(),requested,clientId});
+      const normalized=normalizePublishedSession(current);
       if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');
       const role=String(store.getState().identity?.role||'');
       if(!normalized.id||!normalized.clientId||!normalized.blocks.length){
@@ -1457,10 +1459,10 @@ export async function createM26Application({root=document.querySelector('#app'),
         return false;
       }
       const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);
-      if(!actorCanExecuteSession({role,session:requested,appointment}))
+      if(!actorCanExecuteSession({role,session:current,appointment}))
         throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');
-      if(!sessionReadyToStart(event.detail.session))throw new Error('M38_SESSION_NOT_YET_AVAILABLE');
-      if(sessionRequiresConfirmedAppointment({role,session:requested,appointment})&&!appointment?.id){
+      if(!sessionReadyToStart(current))throw new Error('M38_SESSION_NOT_YET_AVAILABLE');
+      if(sessionRequiresConfirmedAppointment({role,session:current,appointment})&&!appointment?.id){
         const node=root.querySelector?.('[data-workflow-status="session"]');
         if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}
         return false;

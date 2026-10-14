@@ -131,6 +131,8 @@ function friendlyError(error){
   if(/M26_PRIVILEGED_ACTION_(?:IDENTITY_MISMATCH|ASSURANCE_INVALID|FACTOR_INVALID|CHALLENGE_INVALID|CEREMONY_INVALID|NOT_CONFIRMED|AUTH_REQUIRED)/.test(code))return 'No se pudo confirmar de forma segura tu identidad. El expediente no se ha creado y el formulario permanece guardado.';
   if(/M42_WORKSPACE_ENTRY_BUSY/.test(code))return 'Ya se está preparando una sesión. Espera a que termine antes de abrir otra.';
   if(/M42_WORKSPACE_ALREADY_ACTIVE/.test(code))return 'Tienes una sesión o un borrador abierto. Termínalo o sal de él antes de abrir otro.';
+  if(/M42_SESSION_(?:NO_LONGER_VISIBLE|NO_LONGER_AVAILABLE)/.test(code))return 'La sesión ya no está disponible. Actualiza tu planificación y selecciona una sesión habilitada.';
+  if(/M42_SESSION_UPDATED_REOPEN/.test(code))return 'Tu Coach ha actualizado esta sesión. Abre de nuevo la versión más reciente antes de empezar.';
   if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
