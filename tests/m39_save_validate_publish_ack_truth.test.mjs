@@ -262,7 +262,9 @@ test('M39 planning offers a partial draft action without requiring validation',(
  assert.ok(planning.includes('data-workflow-action="validate-plan"'));
  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
  const save=source.slice(source.indexOf('async function savePlanDraft('),source.indexOf('function queuePlanSave('));
- assert.ok(save.includes("draftRepository.save(clientId,'planning-cycle',draft)"));
+ assert.ok(save.includes('planningDraftScope(stableId)'));
+ assert.ok(save.includes('draftRepository.save(clientId,scope,draft)'));
+ assert.ok(!save.includes("draftRepository.save(clientId,'planning-cycle',draft)"));
  assert.ok(save.includes("planFormClientIds.get(form)!==clientId"));
  assert.ok(!save.includes('ensureValidForm('),'partial save must accept unfinished fields');
  assert.ok(!save.includes('validateCycleDraft('));
