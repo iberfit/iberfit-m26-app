@@ -65,6 +65,33 @@ test('route view transitions fail open without duplicating an invoked update',()
   assert.equal(updates,1);
 });
 
+
+test('M43 interrupted view transition handles rejected ready without blocking route update',async()=>{
+  let updated=0;
+  let readyObserved=false;
+  const skipped=Object.assign(new Error('Transition was skipped'),{name:'AbortError'});
+  const ready={
+    then(_onReady,onError){
+      readyObserved=true;
+      return Promise.reject(skipped).catch(onError);
+    },
+  };
+  const documentLike={startViewTransition(callback){callback();return {
+    ready,finished:Promise.resolve(),skipTransition(){},
+  };}};
+  const windowLike={
+    matchMedia:()=>media(false),
+    setTimeout:()=>1,
+    clearTimeout:()=>{},
+  };
+  const transition=runRouteViewTransition(()=>{updated+=1;},{documentLike,windowLike});
+  assert.ok(transition);
+  assert.equal(updated,1);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(readyObserved,true,'native ready promise must be handled even if skipped');
+});
+
 test('route view transitions fail soft by skipping a stalled native transition',()=>{
   let updates=0;
   let skips=0;
