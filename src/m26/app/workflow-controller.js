@@ -1754,12 +1754,26 @@ export function createWorkflowController({
     }
   }
 
-  async function approveReport(){requireCoach();clearTimeout(reportSaveTimer);reportSaveTimer=null;await reportDraftChain;if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId}=context();requireVisibleClient(clientId);const content={clientId,assessmentId:raw.assessmentId,title:raw.title,periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,conclusions:raw.conclusions,recommendations:raw.recommendations,reviewAccepted:raw.reviewAccepted==='on'};
-    const fingerprint=JSON.stringify(content);
+  async function approveReport(){
+    requireCoach();
+    clearTimeout(reportSaveTimer);reportSaveTimer=null;
+    await reportDraftChain;
+    if(!isOnline())throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');
+    const form=root.querySelector?.('[data-workflow-form="report-approval"]');
+    if(!form)throw new Error('M26_REPORT_FORM_REQUIRED');
+    ensureValidForm(form);
+    const raw=values(form),{clientId}=context();
+    requireVisibleClient(clientId);
+    const content={
+      clientId,assessmentId:raw.assessmentId,title:raw.title,
+      periodStart:raw.periodStart,periodEnd:raw.periodEnd,summary:raw.summary,
+      conclusions:raw.conclusions,recommendations:raw.recommendations,
+      reviewAccepted:raw.reviewAccepted==='on',
+      ...(raw.reportType?{reportType:raw.reportType}:{}),
+      ...(raw.coachComment?{coachComment:raw.coachComment}:{}),
+    };
     const previous=reportSubmissionByClient.get(clientId);
-    // Local storage may be unavailable (private mode, quota, other tab).
-    // It must not block an otherwise valid online approval.
-    const fallbackId=String(raw.entityId||'').trim()||(previous?.fingerprint===fingerprint?previous.id:createM26Id());
+    const fallbackId=String(raw.entityId||'').trim()||createM26Id();
     let savedReport=null;
     try{savedReport=await saveReportDraft(form,{silent:true});}
     catch(error){
@@ -1768,30 +1782,61 @@ export function createWorkflowController({
       emit(root,'m26:workflow-warning',{action:'approve-report',code:'M26_REPORT_LOCAL_DRAFT_SAVE_UNAVAILABLE'});
     }
     const stableId=String(raw.entityId||savedReport?.id||fallbackId).trim();
+    // Materialize premium evidence before refresh/re-render can replace the editor.
+    const prepared=buildApproveReportDraftCommand({id:stableId,...content},0);
+    const fingerprint=JSON.stringify(prepared.payload.patch);
     const existing=previous?.id===stableId&&previous?.fingerprint===fingerprint?previous:null;
     if(existing?.result?.ok===true){
-      status(root,'report','Este informe ya quedó aprobado en el servidor. Actualiza la vista antes de volver a enviarlo.','pending');
+      status(root,'report','El servidor ya confirmó este informe. Consulta su versión antes de volver a aprobarlo.','pending');
       return existing.result;
     }
+    // A fresh canonical snapshot is mandatory: a second tab/device may have
+    // approved this ID since this editor was last rendered.
+    try{
+      await withTimeout(Promise.resolve(refreshState({reason:'report-approval-revision-preflight'})),15_000,'M43_REPORT_REMOTE_PREFLIGHT_TIMEOUT');
+    }catch(error){
+      status(root,'report','No pudimos comprobar la última revisión del informe. Conservamos el borrador; vuelve a intentarlo cuando se recupere la conexión.','error');
+      throw new Error('M43_REPORT_REMOTE_PREFLIGHT_UNAVAILABLE',{cause:error});
+    }
+    if(context().clientId!==clientId)throw new Error('M26_REPORT_DRAFT_CLIENT_CONTEXT_CHANGED');
+    const remote=reportApprovalDecision(store.getState().collections?.reports||[],clientId,prepared.payload.patch);
+    if(remote.kind==='new-version-required'){
+      status(root,'report','Este informe ya está aprobado con otro contenido. Tu borrador permanece guardado; crea una nueva versión independiente para no sobrescribir la publicada.','error');
+      throw new Error('M43_REPORT_NEW_VERSION_REQUIRED');
+    }
+    if(remote.kind==='already-approved'){
+      status(root,'report','Este informe ya estaba aprobado en el servidor. No se envió otra aprobación.','success');
+      return {ok:true,kind:'already-confirmed',refreshOk:true};
+    }
     reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result:null});
-    const command=buildApproveReportDraftCommand({id:stableId,...content},0);
+    const command={...prepared,baseRevision:remote.baseRevision};
     const result=await commandBus.execute(command);
     if(result?.ok===true)reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result});
     const feedback=mutationFeedback(result,{success:'Informe aprobado y listo para publicación.',subject:'El informe'});
     status(root,'report',feedback.message,feedback.kind);
-    if(feedback.confirmed&&result.refreshOk!==false&&!result.refreshPending){
-      let cleanupOk=true;
-      try{await draftRepository?.remove?.(clientId,reportDraftScope(raw.assessmentId));}
-      catch(error){
-        cleanupOk=false;
-        emit(root,'m26:workflow-warning',{action:'approve-report',code:'M26_REPORT_DRAFT_CLEANUP_PENDING'});
-      }
-      if(cleanupOk)reportSubmissionByClient.delete(clientId);
-      form.reset();
-      if(cleanupOk)onRender();
-      else status(root,'report','Informe aprobado y confirmado. La limpieza del borrador local está pendiente; actualiza antes de crear otra versión.','pending');
+    if(!feedback.confirmed)return result;
+    let confirmed=null;
+    try{confirmed=await refreshAndFind('reports',stableId,clientId,{attempts:2});}
+    catch(error){emit(root,'m26:workflow-warning',{action:'approve-report',code:'M43_REPORT_ACK_REFRESH_PENDING'});}
+    if(!confirmed||!['aprobado','approved','publicado','published'].includes(normalizedStatus(confirmed))){
+      status(root,'report','El servidor confirmó el informe, pero aún no vemos su revisión. Conservamos el borrador y no enviaremos otra aprobación a ciegas.','pending');
+      return {...result,refreshPending:true};
     }
-    return result;}
+    let cleanupOk=true;
+    try{await draftRepository?.remove?.(clientId,reportDraftScope(stableId));}
+    catch(error){
+      cleanupOk=false;
+      emit(root,'m26:workflow-warning',{action:'approve-report',code:'M26_REPORT_DRAFT_CLEANUP_PENDING'});
+    }
+    if(cleanupOk){
+      reportSubmissionByClient.delete(clientId);
+      form.reset();
+      onRender();
+    }else{
+      status(root,'report','Informe aprobado y confirmado. Conservamos el borrador local porque su limpieza está pendiente.','pending');
+    }
+    return cleanupOk?result:{...result,refreshPending:true,localDraftOk:false};
+  }
 
   async function executeWorkflowAction(action,button){
     const {clientId}=context();
@@ -1871,7 +1916,7 @@ export function createWorkflowController({
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){scheduleClientListUpdate(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearStatus(root,'planning');queuePlanSave(planForm);return;}const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearStatus(root,'report');queueReportSave(reportForm);return;}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
+  function onChange(event){const selectedDraft=event.target.closest?.('[data-report-draft-choice]');if(selectedDraft){const form=selectedDraft.closest?.('[data-workflow-form="report-approval"]');if(form)void selectReportDraft(form,selectedDraft.value).catch(error=>{status(root,'report',friendlyError(error),'error');emit(root,'m26:workflow-error',{action:'select-report-draft',code:String(error?.message||error)});});return;}const guidedForm=event.target.closest?.('[data-guided-required-form]');if(guidedForm){clearControlValidation(event.target);syncGuidedWorkflowProgress(guidedForm);}const planForm=event.target.closest?.('[data-workflow-form="planning"]');if(planForm){editedPlanForms.add(planForm);clearStatus(root,'planning');queuePlanSave(planForm);return;}const reportForm=event.target.closest?.('[data-workflow-form="report-approval"]');if(reportForm){editedReportForms.add(reportForm);clearStatus(root,'report');queueReportSave(reportForm);return;}const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);syncGuidedWorkflowProgress(appointmentForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
   async function flushLocalDrafts(){
     clearTimeout(iriSaveTimer);
