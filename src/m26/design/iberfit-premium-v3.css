@@ -871,3 +871,36 @@
   -webkit-box-shadow: inset 0 0 0 1000px #0E1B16 !important;
   box-shadow: inset 0 0 0 1000px #0E1B16 !important;
 }
+
+/* M42 · Client Live Workout: one clear step, subordinate facts, quiet save state.
+   Designed on the actual existing class names; Coach execution remains denser. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-guided .m26-session-live-hero{
+  background:#192e24!important;
+  box-shadow:0 4px 22px rgba(0,0,0,.13)!important;
+  border-color:rgba(197,160,89,.2)!important;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-summary{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(.5rem,1.2vw,.9rem);
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-summary>div:last-child{
+  grid-column:1/-1;display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;
+  border:0;border-top:1px solid color-mix(in srgb,var(--iberfit-color-border) 68%,transparent);
+  background:none;border-radius:0;padding:.65rem .2rem .2rem;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-summary>div:last-child>span{
+  letter-spacing:.025em;text-transform:none;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-summary>div:last-child>strong{
+  font-size:.85rem;font-weight:650;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-heading h2{max-width:27ch;overflow-wrap:anywhere}
+.m26-shell[data-m26-role="client"] .m26-session-duration-consistency{max-width:100%;margin-inline:0}
+@media(max-width:520px){
+  .m26-shell[data-m26-role="client"] .m26-session-live-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m26-shell[data-m26-role="client"] .m26-session-live-summary>div:nth-child(3){grid-column:1/-1}
+  .m26-shell[data-m26-role="client"] .m26-session-live-summary>div:last-child{grid-column:1/-1}
+}
+@media(max-width:360px){.m26-shell[data-m26-role="client"] .m26-session-live-summary{grid-template-columns:1fr}
+.m26-shell[data-m26-role="client"] .m26-session-live-summary>div:nth-child(3){grid-column:auto}
+}
