@@ -8,6 +8,7 @@ export default defineConfig({
     'progress-decision-runtime.spec.mjs',
     'iri-photogrammetry-workspace.spec.mjs',
     'login-autofill.spec.mjs',
+    'm41-premium-visual.spec.mjs',
   ],
   fullyParallel:false,
   forbidOnly:true,

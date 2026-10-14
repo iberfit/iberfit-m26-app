@@ -159,7 +159,25 @@ async function lightSurfaceViolations(page){
         if(style.display==='none'||style.visibility==='hidden'||box.width<=0||box.height<=0)return false;
         if(box.width*box.height<6000)return false;
         if(style.backgroundImage&&style.backgroundImage!=='none')return false;
-        return color.r>=230&&color.g>=230&&color.b>=225;
+        if(!(color.r>=230&&color.g>=230&&color.b>=225))return false;
+        // M41: a single intentional warm-paper Client status is allowed only
+        // with actual dark text contrast. Every unintended white island fails.
+        if(element.matches('.m26-shell[data-m26-role="client"] .m26-client-home-clear')){
+          const textNodes=[...element.querySelectorAll('strong,small')];
+          const luminance=({r,g,b})=>{
+            const toLinear=v=>{const c=v/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4};
+            return .2126*toLinear(r)+.7152*toLinear(g)+.0722*toLinear(b);
+          };
+          const background=luminance(color);
+          const accessible=textNodes.length>=2&&textNodes.every(node=>{
+            const foreground=parse(getComputedStyle(node).color);
+            if(!foreground||foreground.a<.99)return false;
+            const l=luminance(foreground);
+            return (Math.max(l,background)+.05)/(Math.min(l,background)+.05)>=4.5;
+          });
+          if(accessible)return false;
+        }
+        return true;
       })
       .slice(0,12)
       .map(({element,box,color})=>({

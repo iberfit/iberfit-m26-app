@@ -117,15 +117,10 @@ const STYLE=`
   border:1px solid rgba(205,166,80,.58);
   border-radius:1.55rem;
   color:#10231b;
-  background:
-    linear-gradient(145deg,rgba(255,251,236,.975),rgba(245,234,202,.94)),
-    rgba(255,248,220,.96);
-  box-shadow:
-    0 24px 70px rgba(0,0,0,.34),
-    0 0 0 1px rgba(255,255,255,.38) inset,
-    0 0 34px rgba(197,160,89,.13);
-  backdrop-filter:blur(16px) saturate(1.08);
-  -webkit-backdrop-filter:blur(16px) saturate(1.08);
+  background:#F5F5F0;
+  box-shadow:0 14px 38px rgba(0,0,0,.22);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
   overflow:visible;
   transform-origin:50% 100%;
 }
@@ -139,7 +134,7 @@ const STYLE=`
   bottom:1.15rem;
   border-right:1px solid rgba(205,166,80,.58);
   border-bottom:1px solid rgba(205,166,80,.58);
-  background:linear-gradient(135deg,rgba(248,238,210,.98),rgba(255,249,230,.96));
+  background:#F5F5F0;
   transform:rotate(-45deg) skew(7deg,7deg);
   border-radius:0 0 .65rem 0;
   box-shadow:6px 8px 18px rgba(0,0,0,.08);
@@ -149,24 +144,12 @@ const STYLE=`
   right:auto;
   transform:rotate(135deg) skew(7deg,7deg);
 }
-.m26-client-guided-welcome::after{
-  content:'';
-  position:absolute;
-  inset:-1px;
-  pointer-events:none;
-  border-radius:inherit;
-  background:linear-gradient(120deg,rgba(255,255,255,.44),transparent 34%,transparent 70%,rgba(197,160,89,.1));
-  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-  mask-composite:exclude;
-  -webkit-mask-composite:xor;
-  padding:1px;
-}
+.m26-client-guided-welcome::after{display:none;}
 .m26-client-guided-welcome-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.9rem}
 .m26-client-guided-welcome .m26-eyebrow{
   margin:0 0 .32rem;
-  color:#8c6827;
-  font-size:.69rem;
+  color:#805F27;
+  font-size:.8125rem;
   font-weight:750;
   letter-spacing:.14em;
   text-transform:uppercase;
@@ -204,8 +187,8 @@ const STYLE=`
 .m26-client-guided-welcome .m26-primary-action{
   border:1px solid #bb8d37;
   color:#14251e;
-  background:linear-gradient(180deg,#f1d58e,#d5ad58);
-  box-shadow:0 8px 20px rgba(134,94,25,.18),inset 0 1px 0 rgba(255,255,255,.55);
+  background:#D7BA7C;
+  box-shadow:0 4px 12px rgba(0,0,0,.10);
 }
 .m26-client-guided-welcome .m26-primary-action:hover{filter:brightness(1.025)}
 .m26-client-guided-welcome .m26-text-action{
@@ -366,21 +349,29 @@ const STYLE=`
 @keyframes m26-client-genie-beam{0%,100%{opacity:.38}50%{opacity:1}}
 @keyframes m26-client-genie-burst{0%{transform:scale(.82);opacity:0}30%{opacity:1}100%{transform:scale(1.15);opacity:0}}
 @keyframes m26-client-genie-alert{0%,100%{transform:translateY(0);opacity:.68}50%{transform:translateY(-4px);opacity:1}}
+.m26-client-guided-welcome[data-m26-client-guide-dock="clear"]{
+  top:auto!important;
+  right:max(1rem,env(safe-area-inset-right))!important;
+  bottom:max(calc(6.5rem + env(safe-area-inset-bottom)),var(--m26-client-guide-dock-clearance,0px));
+  max-height:min(50dvh,22rem);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
 @media(max-width:690px){
   .m26-client-guided-welcome{
     left:.7rem!important;
     right:.7rem!important;
     top:auto!important;
-    bottom:calc(6rem + env(safe-area-inset-bottom))!important;
+    /* Preserve a clear lane above the fixed navigation even when labels wrap.
+     * JS measures the live dock; this fallback also works before hydration. */
+    bottom:max(calc(8.5rem + env(safe-area-inset-bottom)),var(--m26-client-guide-dock-clearance,0px))!important;
     width:auto;
-    max-height:min(40vh,21rem);
-    overflow:visible;
+    max-height:min(45dvh,22rem);
+    overflow-y:auto;
+    overscroll-behavior:contain;
     border-radius:1.3rem;
     padding:.9rem .95rem .85rem;
-    box-shadow:
-      0 18px 48px rgba(0,0,0,.27),
-      0 0 0 1px rgba(255,255,255,.34) inset,
-      0 0 26px rgba(197,160,89,.1);
+    box-shadow:0 12px 30px rgba(0,0,0,.19);
   }
   .m26-client-guided-welcome::before{
     left:auto!important;
@@ -646,9 +637,32 @@ export function createClientGuidedWelcomeController({
     try{destination.click?.();}catch{navigationPending=null;return false;}
     return true;
   }
+  function setDialogDockClearance(){
+    if(!dialog)return;
+    const height=Number(scope?.innerHeight||0);
+    let reserve=0;
+    if(height>0){
+      for(const nav of doc?.querySelectorAll?.('.m26-client-bottom-nav,.m26-mobile-nav')||[]){
+        try{
+          const paint=scope?.getComputedStyle?.(nav);
+          if(paint?.display==='none'||paint?.visibility==='hidden')continue;
+          const rect=nav.getBoundingClientRect?.();
+          if(!rect||rect.height<=0||rect.width<=0||rect.top<0||rect.top>=height)continue;
+          reserve=Math.max(reserve,Math.ceil(height-rect.top+12));
+        }catch{}
+      }
+    }
+    if(reserve>0){
+      dialog.setAttribute?.('data-m26-client-guide-dock','clear');
+      dialog.style?.setProperty?.('--m26-client-guide-dock-clearance',reserve+'px');
+    }else{
+      dialog.removeAttribute?.('data-m26-client-guide-dock');
+      dialog.style?.removeProperty?.('--m26-client-guide-dock-clearance');
+    }
+  }
   function schedulePosition(){
     if(positionFrame!==null||!activeTarget)return;
-    const run=()=>{positionFrame=null;if(dialog&&activeTarget){try{const rect=activeTarget.getBoundingClientRect?.();const height=Number(scope?.innerHeight||0);dialog.setAttribute?.('data-m26-guide-placement',height&&Number(rect?.top||0)>height/2?'top':'bottom');}catch{}}if(presence&&activeTarget)position(presence,activeTarget,scope,{dialog});};
+    const run=()=>{positionFrame=null;setDialogDockClearance();if(dialog&&activeTarget){try{const rect=activeTarget.getBoundingClientRect?.();const height=Number(scope?.innerHeight||0);dialog.setAttribute?.('data-m26-guide-placement',height&&Number(rect?.top||0)>height/2?'top':'bottom');}catch{}}if(presence&&activeTarget)position(presence,activeTarget,scope,{dialog});};
     if(typeof scope?.requestAnimationFrame==='function')positionFrame=scope.requestAnimationFrame(run);else queueMicrotask(run);
   }
 
@@ -670,6 +684,7 @@ export function createClientGuidedWelcomeController({
     position(presence,target,scope,{arriving:!presence?.classList?.contains?.('is-visible'),dialog});
     doc?.body?.insertAdjacentHTML?.('beforeend',dialogHtml(step));
     dialog=doc?.querySelector?.('[data-m26-client-guided-welcome]')||null;
+    setDialogDockClearance();
     schedulePosition();
     if(focus)queueMicrotask(()=>{try{dialog?.querySelector?.('[data-m26-client-guided-welcome-next]')?.focus?.({preventScroll:true});}catch{}});
     return Boolean(dialog);

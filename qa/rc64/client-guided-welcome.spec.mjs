@@ -50,13 +50,16 @@ async function expectJourneyState(page,{area,title,state}){
   await expect(page.locator('[data-m26-client-context-guide]')).toHaveCount(0);
   await expect(page.locator('[data-m26-guided-tour]')).toHaveCount(0);
 
-  if(mobile){
+  // The Client dock can remain visible on TOUCH TABLETS above 690px.
+  // A width-only mobile check silently missed this and allowed obstruction.
+  const nav=page.locator('.m26-client-bottom-nav:visible').first();
+  if(await nav.count()){
+    await expect(welcome).toHaveAttribute('data-m26-client-guide-dock','clear');
     const dialogBox=await welcome.boundingBox();
-    const nav=page.locator('.m26-client-bottom-nav:visible').first();
-    await expect(nav).toBeVisible();
     const navBox=await nav.boundingBox();
     const dialogBottom=(dialogBox?.y??Infinity)+(dialogBox?.height??0);
-    expect(dialogBottom,'Genie dialogue must finish above fixed Client navigation').toBeLessThanOrEqual((navBox?.y??0)-4);
+    expect(dialogBottom,'Genie dialogue must finish above visible Client navigation, including touch tablets')
+      .toBeLessThanOrEqual((navBox?.y??0)-4);
   }
 }
 
@@ -111,6 +114,30 @@ test('Client Genie guides a Client-only first run, can pause and completes its j
     await expect(manualGuide).toHaveCount(1);
     await manualGuide.evaluate((node)=>node.click());
     await expectJourneyState(page,{area:'hoy',title:'Hola. Antes de dejarte a tu aire…',state:'idle'});
+
+    // M41 psychological comfort: the helpful dialogue must not compete with
+    // bottom navigation, even if large accessible labels make the dock taller.
+    const nav=page.locator('.m26-client-bottom-nav:visible').first();
+    if(await nav.count()){
+      await nav.evaluate((node)=>{
+        node.dataset.m41PreviousMinHeight=node.style.minHeight;
+        node.style.minHeight='154px';
+        window.dispatchEvent(new Event('resize'));
+      });
+      await expect.poll(async()=>{
+        const [dialogBox,navBox]=await Promise.all([
+          page.locator('[data-m26-client-guided-welcome]').boundingBox(),
+          nav.boundingBox(),
+        ]);
+        return Boolean(dialogBox&&navBox&&dialogBox.y+dialogBox.height<=navBox.y-4);
+      },{message:'M41 dynamic Client navigation must always clear the nonmodal welcome',timeout:5_000}).toBe(true);
+      await nav.evaluate((node)=>{
+        node.style.minHeight=node.dataset.m41PreviousMinHeight||'';
+        delete node.dataset.m41PreviousMinHeight;
+        window.dispatchEvent(new Event('resize'));
+      });
+      await expectJourneyState(page,{area:'hoy',title:'Hola. Antes de dejarte a tu aire…',state:'idle'});
+    }
 
     await mkdir('recovery/client-genie-welcome',{recursive:true});
     await page.screenshot({
