@@ -1491,6 +1491,7 @@ export function createWorkflowController({
       ||createM26Id();
     const scoped=planningDraftScope(stableId);
     const entityControl=form.elements?.namedItem?.('entityId');if(entityControl)entityControl.value=stableId;
+    const validatedFormSnapshot=JSON.stringify({...raw,entityId:stableId});
     const draft={id:stableId,clientId,name:String(raw.name||'').trim(),
       startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),
       weeklyFrequency:Number(raw.weeklyFrequency||0)||null,
