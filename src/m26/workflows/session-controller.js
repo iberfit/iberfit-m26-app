@@ -720,9 +720,12 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     try{
       const outcome=context.actionState?await runAction(context.actionState,task):{ok:true,value:await task()};
       if(!outcome.ok){
+        // Global diagnostics may supply a generic message. The action-specific
+        // recovery message must be the last committed UI state, not overwritten.
+        onError(outcome.error);
         const mapped=sessionCommandFailureOutcome(outcome.error,{action:'start',role:context?.actor?.role,execution:context?.execution});
         if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
-        onError(outcome.error);renderSession();return false;
+        renderSession();return false;
       }
       void telemetry.start(context.execution);
       await persistContext(getContext());
@@ -731,6 +734,8 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     }catch(error){
       await persistContext(context).catch(()=>{});
       onError(error);
+      const mapped=sessionCommandFailureOutcome(error,{action:'start',role:context?.actor?.role,execution:context?.execution});
+      if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
       renderSession();
       return false;
     }finally{
