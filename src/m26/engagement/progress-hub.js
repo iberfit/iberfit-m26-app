@@ -109,7 +109,7 @@ export function buildProgressHub(
       status:status(adherence28),
       value:percent(adherence28),
       unit:'%',
-      evidence:adherence28===null?'Sin planificación comparable en 28 días':`${summary28.completedSessions} de ${summary28.plannedSessions} sesiones confirmadas en 28 días`,
+      evidence:adherence28===null?'Sin planificación comparable en 28 días':`${summary28.scheduledCompletedSessions??summary28.completedSessions} de ${summary28.plannedSessions} citas programadas cumplidas en 28 días`,
       context:adherence90===null?'Sin ventana comparable de 90 días':`90 días · ${percent(adherence90)}%`,
       source:'appointments+sessionExecutions',
       quality:summary28.dataQuality,
