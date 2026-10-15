@@ -61,3 +61,21 @@ test('P0: app handles role choice as single-flight and confirms server-projected
   assert.match(application,/data-m26-role-choice-status/u);
   assert.doesNotMatch(block,/withActiveRole\(|assurance:\s*'verified'|skipMfa/u);
 });
+
+test('P0 regression: persisted execution cannot block the initial Coach/Admin role chooser',()=>{
+  const setup=bodyBetween(application,
+    '    progressiveControllerMountPromise=(async()=>{',
+    '    })().catch((error)=>{');
+  assert.match(setup,/const choicePending=canSwitchApplication\(accessBeforeChoice\)/u);
+  assert.match(setup,/accessBeforeChoice\.roleChoiceConfirmed!==true/u);
+  assert.match(setup,/const executionRestored=choicePending\?false:await restoreExecutionAfterAuthentication\(\);/u);
+  const handler=bodyBetween(application,'  async function onSwitchRole(event){','  function onInspectOperation');
+  assert.match(handler,/const initialChoice=applicationAccess\.roleChoiceConfirmed!==true;/u);
+  assert.match(handler,/if\(sessionUi&&!initialChoice\)\{/u,'active workouts block switching after role confirmation');
+  assert.match(handler,/if\(sessionUi&&initialChoice\)sessionUi=null;/u,'pre-choice UI is released while durable recovery remains');
+  assert.match(handler,/if\(initialChoice&&\['coach','client'\]\.includes\(role\)\)\{/u);
+  const verifyIndex=handler.indexOf("throw new Error('M26_ROLE_SWITCH_CONFIRMATION_MISSING');");
+  const recoveryIndex=handler.indexOf('await restoreExecutionAfterAuthentication();',verifyIndex);
+  assert.ok(verifyIndex>=0&&recoveryIndex>verifyIndex,'recovery happens only after authoritative role verification');
+  assert.doesNotMatch(handler,/if\(initialChoice&&\['coach','client','admin'\]/u,'Admin cannot auto-resume Coach execution');
+});
