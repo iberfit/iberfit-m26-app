@@ -60,6 +60,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
         type:'NOTIFICATION_MARK_READ',entityId:id,payload:{notificationId:id},
       },state,role));
       const token=await getToken();
+      if(!stillCurrent())throw new Error('M45_COMMUNICATION_ACTOR_CHANGED');
       // Each RPC enforces recipient scope. Bound concurrency to avoid a burst
       // of expensive authorization/bootstrap work for one grouped UI action.
       // Retain every independent ACK/rejection in original order.
@@ -68,6 +69,10 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       await Promise.all(Array.from({length:Math.min(4,commands.length)},async()=>{
         while(cursor<commands.length){
           const index=cursor++;
+          if(!stillCurrent()){
+            results[index]={status:'rejected',reason:new Error('M45_COMMUNICATION_ACTOR_CHANGED')};
+            continue;
+          }
           try{
             const value=await transport.execute(token,commands[index],{application:role});
             results[index]={status:'fulfilled',value};
@@ -108,6 +113,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       }
       const promise=(async()=>{
         const token=await getToken();
+        if(!sameIdentity())throw new Error('M45_COMMUNICATION_ACTOR_CHANGED');
         const response=await transport.execute(token,command,{application:role});
         // A confirmed remote ACK is authoritative. A subsequent hydration failure
         // must never turn a successful send into an apparent failure and duplicate.
