@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isAuthorizedQaAvatarRead} from '../qa/coach-iri-document-privileged/qa-avatar-traffic-policy.mjs';
+import {isAuthorizedQaAvatarRead,isExpectedMissingQaAvatarResponse,isNativeMissingResourceConsoleMessage} from '../qa/coach-iri-document-privileged/qa-avatar-traffic-policy.mjs';
 
 const qaOrigin='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 const id='57f56a87-d04e-47d5-b1cc-8d4939d7c804';
@@ -30,4 +30,16 @@ test('M42 QA: never allow another tenant, path, object, tokenless read or mutati
   for(const [req,caseName] of invalid)
     assert.equal(isAuthorizedQaAvatarRead(req,{qaOrigin}),false,caseName);
   assert.equal(isAuthorizedQaAvatarRead(request(),{}),false,'no implicit QA origin');
+});
+
+test('M42 QA: only authenticated avatar NoSuchKey 400 is an expected absent photo',()=>{
+  assert.equal(isExpectedMissingQaAvatarResponse(request(),400,{code:'NoSuchKey'},{qaOrigin}),true);
+  assert.equal(isExpectedMissingQaAvatarResponse(request(),400,{code:'Unauthorized'},{qaOrigin}),false);
+  assert.equal(isExpectedMissingQaAvatarResponse(request(),403,{code:'NoSuchKey'},{qaOrigin}),false);
+  assert.equal(isExpectedMissingQaAvatarResponse(request(avatar,'POST'),400,{code:'NoSuchKey'},{qaOrigin}),false);
+  assert.equal(isExpectedMissingQaAvatarResponse(request(avatar,'GET',{authorization:''}),400,{code:'NoSuchKey'},{qaOrigin}),false);
+  assert.equal(isExpectedMissingQaAvatarResponse(request(),400,null,{qaOrigin}),false);
+  assert.equal(isNativeMissingResourceConsoleMessage('Failed to load resource: the server responded with a status of 400 ()'),true);
+  assert.equal(isNativeMissingResourceConsoleMessage('Failed to load resource: the server responded with a status of 403 ()'),false);
+  assert.equal(isNativeMissingResourceConsoleMessage('TypeError: fetch failed'),false);
 });
