@@ -739,6 +739,26 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return next;
   }
 
+  // A role-choice dialog is outside the inert application shell. Receive its
+  // activation in capture phase so another workspace click handler cannot
+  // swallow the explicit, already-authorized choice. Sidebar role changes
+  // continue through the normal delegated click handler.
+  function dispatchRoleChoice(button){
+    releasePointerInteraction({deferRender:false});
+    releaseFormInteraction({deferRender:false});
+    root.dispatchEvent(new CustomEvent('m26:switch-role',{
+      bubbles:true,
+      detail:{role:button.getAttribute('data-m26-switch-role')},
+    }));
+  }
+  function onRoleChoiceClick(event){
+    const button=event.target?.closest?.('.m26-role-choice [data-m26-switch-role]');
+    if(!button||!root.contains(button))return;
+    event.preventDefault?.();
+    event.stopImmediatePropagation?.();
+    dispatchRoleChoice(button);
+  }
+
   function onClick(event) {
     const mobileMoreSummary=event.target.closest?.('.m26-mobile-more > summary');
     if(mobileMoreSummary){
@@ -774,7 +794,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
     const roleButton=event.target.closest?.('[data-m26-switch-role]');
     if(roleButton){
-      root.dispatchEvent(new CustomEvent('m26:switch-role',{bubbles:true,detail:{role:roleButton.getAttribute('data-m26-switch-role')}}));
+      dispatchRoleChoice(roleButton);
       return;
     }
 
@@ -909,6 +929,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if (unsubscribe) return;
     generation+=1;
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
+    root.addEventListener('click', onRoleChoiceClick, true);
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
     root.addEventListener('input',onInputActivity);
@@ -944,6 +965,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     interactionFocusTarget=null;
     formInteractionTarget=null;
     markTextEntryActive(null);
+    root.removeEventListener('click', onRoleChoiceClick, true);
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('input',onInputActivity);

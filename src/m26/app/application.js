@@ -491,6 +491,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
+  let roleSwitchBusy=false;
   const workspaceEntryGate=createWorkspaceEntryGate({getScope:()=>{
     const state=store.getState()||{},identity=state.identity||{};
     return [session?.user?.id||'',identity.id||'',identity.role||'',
@@ -1324,7 +1325,14 @@ export async function createM26Application({root=document.querySelector('#app'),
       if(!mounted)return false;
       if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
 
-      const executionRestored=await restoreExecutionAfterAuthentication();
+      // The role chooser is modal and the underlying workspace is inert.
+      // Recovering a persisted live session before the user selects a role
+      // creates sessionUi and makes onSwitchRole reject both valid options.
+      // Keep recovery data durable; resume it only after role confirmation.
+      const accessBeforeChoice=store.getState().applicationAccess||{};
+      const choicePending=canSwitchApplication(accessBeforeChoice)
+        &&accessBeforeChoice.roleChoiceConfirmed!==true;
+      const executionRestored=choicePending?false:await restoreExecutionAfterAuthentication();
       if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
       if(executionRestored)qaStage('rc64-session-auto-recovered');
       render();
@@ -1468,7 +1476,22 @@ export async function createM26Application({root=document.querySelector('#app'),
     render();
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
+  function showRoleChoiceStatus(message='',isError=false){
+    const gateway=root.querySelector?.('.m26-role-choice');
+    if(!gateway)return;
+    const status=gateway.querySelector?.('[data-m26-role-choice-status]');
+    if(status){
+      status.textContent=message;
+      status.dataset.status=isError?'error':'status';
+      status.setAttribute('role',isError?'alert':'status');
+    }
+    gateway.setAttribute('aria-busy',roleSwitchBusy?'true':'false');
+    for(const button of gateway.querySelectorAll?.('[data-m26-switch-role]')||[]){
+      button.disabled=roleSwitchBusy;
+    }
+  }
   async function onSwitchRole(event){
+    if(roleSwitchBusy)return false;
     const role=String(event?.detail?.role||'').trim().toLowerCase();
     const applicationAccess=store.getState().applicationAccess||{};
     const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];
@@ -1476,21 +1499,40 @@ export async function createM26Application({root=document.querySelector('#app'),
       surfaceRoleSwitchError(new Error('M26_ROLE_SWITCH_FORBIDDEN'));
       return false;
     }
-    if(sessionUi){
+    const initialChoice=applicationAccess.roleChoiceConfirmed!==true;
+    if(sessionUi&&!initialChoice){
       try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Finaliza o cierra la sesión antes de cambiar de aplicación.'}}));}catch{}
       return false;
     }
+    // An obsolete pre-choice auto-recovery is a disposable UI projection:
+    // its durable recovery snapshot remains intact and can be resumed after
+    // the identity's permitted application has been explicitly selected.
+    if(sessionUi&&initialChoice)sessionUi=null;
     const previous=activeApplicationRole;
+    roleSwitchBusy=true;
+    showRoleChoiceStatus('Abriendo el espacio autorizado…');
     workspaceEntryGate.cancel();
     activeApplicationRole=role;
     try{
       await hydrate({reason:'role-switch'});
+      const state=store.getState();
+      if(state?.identity?.role!==role||state?.applicationAccess?.roleChoiceConfirmed!==true)
+        throw new Error('M26_ROLE_SWITCH_CONFIRMATION_MISSING');
+      // Do not restore Coach execution state inside Admin. A first-choice
+      // Coach/Client may resume its own durable training context safely.
+      if(initialChoice&&['coach','client'].includes(role)){
+        await restoreExecutionAfterAuthentication();
+      }
       render();
       return true;
     }catch(error){
       activeApplicationRole=previous;
       surfaceRoleSwitchError(error);
+      showRoleChoiceStatus('No se pudo abrir ese espacio. Puedes intentarlo de nuevo.',true);
       return false;
+    }finally{
+      roleSwitchBusy=false;
+      showRoleChoiceStatus(root.querySelector?.('.m26-role-choice [data-m26-role-choice-status]')?.textContent||'',Boolean(root.querySelector?.('.m26-role-choice [data-m26-role-choice-status][data-status="error"]')));
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
