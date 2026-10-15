@@ -42,3 +42,8 @@ The M44 branch workflow runs npm run test:m44:contract and npm run quality:m44:r
 - La publicación y el PDF oficial filtran incluso claves privadas anidadas en evidencia y series temporales. QA transaccional verifica ausencia de filtración.
 - El libro de emisión se hace append-only; únicamente la transición `issued -> withdrawn` puede alterar estado y auditoría, nunca hashes, propietario, versión ni instantánea. Pendiente ensayo SQL negativo antes de desplegar.
 - No promocionar a QA/PROD hasta disponer de prueba Edge real de upload/download/commit/open/revoke bajo identidades distintas y gate visual del PDF emitido.
+
+## Gate ejecutado: 8 migraciones en transacción QA con rollback
+- Verificado en QA con 8 migraciones aplicadas solo dentro de transacción: el ledger no acepta modificar SHA-256, no acepta DELETE, admite una retirada auditada y no permite reactivarla. Toda la operación se revirtió mediante ROLLBACK.
+- El historial versionado también se probó con actores Admin, Cliente y usuario ajeno; el Cliente no recibe razones privadas ni Storage paths.
+- CI #38773189485: tres jobs SUCCESS. No despliegue Edge ni persistencia de migraciones M44 en QA/PROD. Siguiente gate: deploy QA controlado y ensayo HTTP real con usuario validado.

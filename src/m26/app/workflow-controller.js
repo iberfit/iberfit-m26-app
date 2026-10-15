@@ -125,6 +125,17 @@ function clientName(record){const body=recordBody(record);return String(record?.
 function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
+  if(/M44_PDF_ISSUANCE_NOT_AVAILABLE/.test(code))return 'Este informe todavía no tiene un PDF oficial disponible, o su última versión fue retirada. Puedes leer la versión publicada dentro de la aplicación.';
+  if(/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED|M44_PDF_ISSUE_REPLAY_COLLISION/.test(code))return 'Esta versión ya fue retirada o modificada. Para emitir una nueva entrega, el Coach debe preparar, aprobar y publicar una nueva revisión.';
+  if(/M44_PDF_REQUEST_TIMEOUT|M44_PDF_STORAGE_READBACK_FAILED|M44_PDF_SIGNED_URL_FAILED/.test(code))return 'No se ha podido confirmar la entrega del archivo. Puedes repetir la acción; se conservará el identificador para evitar duplicar una emisión.';
+  if(/M44_PDF_PUBLISHED_REPORT_REQUIRED|M44_PDF_SOURCE_AUTHORIZATION_INVALID|M44_PDF_FINALIZE_STALE_SOURCE/.test(code))return 'Este informe no está publicado o sus datos han cambiado. Actualiza los informes y comprueba la versión antes de emitirlo.';
+  if(/M44_PDF_EMISSION_NOT_AVAILABLE|M44_REPORT_GOVERNANCE_BACKEND_DISABLED|M44_PDF_BROKER_CONFIG_MISSING|M44_PDF_BRAND_FONT_FETCH_FAILED/.test(code))return 'La emisión PDF oficial no está disponible en este entorno. El borrador y el informe publicado permanecen intactos.';
+  if(/M44_PDF_AUTH_REQUIRED/.test(code))return 'Tu sesión debe renovarse antes de acceder al documento privado. Inicia sesión de nuevo si es necesario.';
+  if(/M44_PDF_OFFLINE_UNAVAILABLE/.test(code))return 'Necesitas conexión para emitir, retirar o abrir un documento privado. Vuelve a intentarlo al recuperar la red.';
+  if(/M44_PDF_POPUP_BLOCKED/.test(code))return 'El navegador ha bloqueado la pestaña del PDF. Permite abrir una pestaña desde IBERFIT y vuelve a pulsar.';
+  if(/M44_PDF_WITHDRAW_REASON_REQUIRED/.test(code))return 'Indica un motivo claro de al menos tres caracteres para retirar esta versión.';
+  if(/M44_PDF_HISTORY_UNAVAILABLE|M44_PDF_HISTORY_RESPONSE_INVALID/.test(code))return 'No se pudo consultar el historial de versiones. Puedes volver a intentarlo sin modificar ningún informe.';
+  if(/M44_PDF_|M44_REPORT_GOVERNANCE_/.test(code))return 'No se ha podido completar la operación con el informe oficial. Ningún documento debe considerarse emitido sin confirmación del servidor.';
   if(/EXERCISE_NAME_DUPLICATE/.test(code))return 'Ya existe un ejercicio activo con ese nombre. Usa el existente o elige un nombre que lo diferencie.';
   if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creó, pero aún no apareció en el catálogo actualizado. No lo crees de nuevo hasta completar la verificación.';
   if(/CUSTOM_EXERCISE_INVALID|CUSTOM_EXERCISE_LIST_INVALID/.test(code))return 'Revisa los datos del ejercicio personalizado antes de guardarlo.';
