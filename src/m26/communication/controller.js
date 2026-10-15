@@ -109,10 +109,14 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   async function run(input,msg,{onAck}={}){
     if(busy)return false;
     busy=true;
+    // The domain refresh may replace the shell before execute resolves.
+    // Preserve other unsent composers *before* crossing the network boundary.
+    const draftsBefore=captureMessageDrafts(root);
     try{
       const result=await service.execute(input);
-      // Clear the submitted composer before preserving the other local drafts.
       onAck?.();
+      if(input.type==='MESSAGE_SEND')draftsBefore.delete(String(input.entityId||''));
+      restoreMessageDrafts(root,draftsBefore);
       toast(result?.syncPending?msg+' La actualización de esta pantalla está pendiente.':msg);
       if(!result?.syncPending)renderWithoutLosingDrafts();
       return true;
