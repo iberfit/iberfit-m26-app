@@ -63,3 +63,11 @@ test('M44 issued report lifecycle presents actionable Spanish recovery messages 
  'M44_PDF_POPUP_BLOCKED','M44_PDF_WITHDRAW_REASON_REQUIRED'])assert.ok(beginning.includes(code),code);
  assert.ok(beginning.indexOf('M44_PDF_ISSUANCE_NOT_AVAILABLE')<beginning.indexOf('ROLE|FORBIDDEN|CLIENT_CONTEXT'));
 });
+
+
+test('M44 issued-PDF failures route to visible report status, never the session or IRI banner',async()=>{
+ const code=await read('src/m26/app/workflow-controller.js');
+ assert.match(code,/const isEvolutionPdf=\['issue-evolution-pdf','open-issued-evolution-pdf','show-issued-evolution-history','withdraw-issued-evolution-pdf'\]/);
+ assert.match(code,/const scope=isEvolutionPdf\?'report':isIriReport/);
+ assert.match(code,/status\(root,scope,friendlyError\(error\),'error'\)/);
+});
