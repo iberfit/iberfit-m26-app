@@ -1,4 +1,5 @@
 import {buildProgressHub} from '../engagement/progress-hub.js';
+import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND} from './iri-2-longitudinal.js';
@@ -147,6 +148,13 @@ function ensureHiddenField(form,document,name){if(form?.elements?.namedItem?.(na
 function ensurePremiumEditorFields(form,document){
   ensureHiddenField(form,document,'reportType');ensureHiddenField(form,document,'premiumEvidenceSignature');
   if(!form?.elements?.namedItem?.('coachComment')){const label=document.createElement('label');label.className='m26-premium-coach-comment';label.append(createTextElement(document,'span','Comentario del coach'));const textarea=document.createElement('textarea');textarea.name='coachComment';textarea.maxLength=2500;textarea.placeholder='Interpretación profesional, contexto o próximos pasos que quieras dejar registrados.';label.append(textarea);const approve=form.querySelector?.('[data-workflow-action="approve-report"]');if(approve)approve.before(label);else form.append(label);}
+  if(!form.querySelector?.('[data-m44-report-preview]')){
+    const button=document.createElement('button');button.type='button';
+    button.dataset.m44ReportPreview='true';button.textContent='Vista previa editorial A4';
+    button.setAttribute('aria-label','Abrir vista previa privada del informe de evolución en formato A4');
+    const actions=form.querySelector?.('.m26-inline-actions');
+    if(actions)actions.append(button);else form.append(button);
+  }
 }
 function renderPremiumReportCards(host,portfolio,document){
   host.replaceChildren();const intro=document.createElement('div');intro.className='m26-panel-heading';const copy=document.createElement('div');copy.append(createTextElement(document,'p','Informes automáticos','m26-eyebrow'),createTextElement(document,'h2','Preparar desde evidencia real'),createTextElement(document,'p','Selecciona un formato disponible. IBERFIT precarga únicamente datos canónicos; el Coach revisa y aprueba antes de cualquier publicación.'));intro.append(copy);host.append(intro);
@@ -167,7 +175,75 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     ensurePremiumEditorFields(form,document);let host=root.querySelector?.('[data-premium-report-candidates]');if(!host){host=document.createElement('section');host.className='m26-panel m26-panel-soft';host.dataset.premiumReportCandidates='true';form.before(host);}
     const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const signature=premiumPortfolioSignature(portfolio);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document);host.dataset.premiumReportSignature=signature;}return true;
   }
-  async function onClick(event){const button=event.target?.closest?.('[data-premium-report-type]');if(!button||!root.contains?.(button))return;const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)return;const context=browserReportContext(scope);const candidate=premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});if(!candidate?.ready)return;const pending={wait:null};const EventType=scope.CustomEvent||globalThis.CustomEvent;if(typeof EventType==='function')root.dispatchEvent(new EventType('m26:report-before-switch',{detail:pending}));try{if(pending.wait)await pending.wait;}catch{const status=root.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent='No pudimos conservar el informe anterior. Comprueba el almacenamiento antes de cambiar de formato.';status.dataset.status='error';}return;}if(!root.contains?.(form))return;prefillPremiumReport(form,candidate);}
+  async function onClick(event){
+    const preview=event.target?.closest?.('[data-m44-report-preview]');
+    if(preview&&root.contains?.(preview)){
+      event.preventDefault?.();
+      const form=preview.closest?.('[data-workflow-form="report-approval"]');
+      const context=browserReportContext(scope);
+      const message=(detail,tone='error')=>{
+        const target=root.querySelector?.('[data-workflow-status="report"]');
+        if(target){target.textContent=detail;target.dataset.status=tone;}
+      };
+      if(!form||!context.state||!['coach','admin'].includes(context.role)||!context.clientId){
+        message('No tienes acceso a la previsualización de este expediente.');return;
+      }
+      const type=reportType(reportFormValue(form,'reportType'));
+      if(!type||type==='iri'||type==='reassessment'){
+        message('Elige primero un informe de entrenamiento con evidencia confirmada. El IRI y la reevaluación tienen circuitos propios.','info');return;
+      }
+      const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});
+      if(!candidate?.ready||!candidate.evidence?.length){
+        message('No existe evidencia suficiente para preparar este informe.');return;
+      }
+      if(reportFormValue(form,'premiumEvidenceSignature')!==premiumEvidenceSignature(candidate)
+        ||reportFormValue(form,'periodStart')!==candidate.periodStart
+        ||reportFormValue(form,'periodEnd')!==candidate.periodEnd){
+        message('La evidencia o la ventana han cambiado. Selecciona de nuevo el formato antes de crear la vista previa.');return;
+      }
+      const client=(context.state?.collections?.clients||[]).find(item=>
+        String(recordValue(item,'id')||'')===context.clientId);
+      const clientName=cleanText(recordValue(client,'displayName','fullName','name','nombre')||'Cliente IBERFIT',130);
+      const actor=context.state.identity||{};
+      const coachName=cleanText(actor.fullName||actor.name||'Equipo IBERFIT',130);
+      const edited={
+        ...candidate,
+        title:reportFormValue(form,'title'),
+        summary:reportFormValue(form,'summary'),
+        conclusions:reportFormValue(form,'conclusions'),
+        recommendations:reportFormValue(form,'recommendations'),
+        coachComment:reportFormValue(form,'coachComment'),
+      };
+      try{
+        // Open synchronously from the user gesture. No command, remote write or publish.
+        openEvolutionReportPreview({report:edited,clientName,coachName,scope});
+        message('Vista previa privada abierta. No se ha aprobado ni publicado nada.','info');
+      }catch(error){
+        message(error?.message==='M44_REPORT_PREVIEW_POPUP_BLOCKED'
+          ?'El navegador ha bloqueado la ventana. Permite ventanas de IBERFIT para previsualizar el informe.'
+          :'No fue posible preparar la vista previa A4. Conservamos el borrador sin cambios.');
+      }
+      return;
+    }
+    const button=event.target?.closest?.('[data-premium-report-type]');
+    if(!button||!root.contains?.(button))return;
+    const form=root.querySelector?.('[data-workflow-form="report-approval"]');
+    if(!form)return;
+    const context=browserReportContext(scope);
+    if(!context.state||!['coach','admin'].includes(context.role))return;
+    const candidate=premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});
+    if(!candidate?.ready)return;
+    const pending={wait:null},EventType=scope.CustomEvent||globalThis.CustomEvent;
+    if(typeof EventType==='function')root.dispatchEvent(new EventType('m26:report-before-switch',{detail:pending}));
+    try{if(pending.wait)await pending.wait;}
+    catch{
+      const status=root.querySelector?.('[data-workflow-status="report"]');
+      if(status){status.textContent='No pudimos conservar el informe anterior. Comprueba el almacenamiento antes de cambiar de formato.';status.dataset.status='error';}
+      return;
+    }
+    if(!root.contains?.(form)||browserReportContext(scope).clientId!==context.clientId)return;
+    prefillPremiumReport(form,candidate);
+  }
   const observer=new scope.MutationObserver(()=>enhance());observer.observe(root,{childList:true,subtree:true});root.addEventListener('click',onClick);for(const delay of [0,250,1000,2500])scope.setTimeout?.(()=>enhance(),delay);
   const api=Object.freeze({refresh:enhance,destroy(){destroyed=true;observer.disconnect();root.removeEventListener('click',onClick);if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__===api)scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=null;}});scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=api;return api;
 }

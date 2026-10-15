@@ -284,3 +284,12 @@ test('M44: a future-dated execution cannot become a completed report in a past r
   for(const id of ['post-session','weekly','monthly','quarterly','year-in-iberfit'])
     assert.equal(reports.find(report=>report.id===id).ready,false,id);
 });
+
+test('M44 preview wiring is visible in the real report editor and never dispatches a publish command',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/report-workflow.js',import.meta.url),'utf8');
+  assert.match(source,/data-m44-report-preview/);
+  assert.match(source,/openEvolutionReportPreview/);
+  assert.match(source,/Vista previa privada abierta/);
+  assert.match(source,/premiumEvidenceSignature\(candidate\)/);
+  assert.match(source,/event\.preventDefault/);
+});
