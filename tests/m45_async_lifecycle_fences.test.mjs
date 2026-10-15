@@ -496,3 +496,40 @@ test('M45 a rendering fault after a confirmed send cannot invite duplicate submi
     globalThis.FormData=prior;
   }
 });
+
+
+test('M45 stale preference read completion cannot clear the new account single-flight request',async()=>{
+  const h=rootHarness(),old=deferred(),fresh=deferred();
+  let calls=0;
+  const applied=[];
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{
+      notificationPreferences:{
+        status(){
+          calls++;
+          return calls===1?old.promise:fresh.promise;
+        },
+        applyRemote(preferences){applied.push(preferences);}
+      },
+      webPush:{async status(){return {active:false,supported:false};}},
+    },
+    render(){},
+  });
+  controller.mount();
+  await tick();
+  assert.equal(calls,1);
+  h.setIdentity('account-B');
+  h.listeners.get('m26:shell-rendered')();
+  await tick();
+  assert.equal(calls,2);
+  old.resolve({ok:true,preferences:{coachMessages:true}});
+  await tick();
+  h.windowListeners.get('online')();
+  await tick();
+  assert.equal(calls,2,'old promise completion cannot free account B in-flight slot');
+  fresh.resolve({ok:true,preferences:{coachMessages:false}});
+  await tick();
+  assert.deepEqual(applied,[{coachMessages:false}]);
+  controller.destroy();
+});
