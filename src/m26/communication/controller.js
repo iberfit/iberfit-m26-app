@@ -245,7 +245,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   async function run(input,msg,{onAck,form}={}){
     const operation=claimBusy();
-    if(operation===null)return false;
+    if(operation===null){
+      if(form&&form.getAttribute?.('aria-busy')!=='true'){
+        composeFeedback(form,'Hay otra operación en curso. Tu borrador sigue aquí; vuelve a pulsar Enviar cuando termine.');
+      }
+      return false;
+    }
     const lifecycle=lifecycleGeneration;
     const current=()=>mounted&&lifecycle===lifecycleGeneration&&operation===busyVersion;
     if(form)composeFeedback(form,'Enviando mensaje…',{waiting:true});
@@ -303,7 +308,10 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   async function markNotificationGroup(ids){
     const operation=claimBusy();
-    if(operation===null)return false;
+    if(operation===null){
+      toast('Hay otra operación en curso. Los avisos no se han modificado; vuelve a intentarlo al terminar.');
+      return false;
+    }
     const lifecycle=lifecycleGeneration;
     const current=()=>mounted&&lifecycle===lifecycleGeneration&&operation===busyVersion;
     rememberVisibleDrafts();
