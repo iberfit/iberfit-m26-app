@@ -465,3 +465,50 @@ test('M45 account switch while awaiting token prevents sending a command with an
   assert.equal(remoteCalls,0);
   assert.equal(refreshes,0);
 });
+
+
+test('M45 identical operation IDs from two authenticated accounts never share in-flight receipts',async()=>{
+  let identity='coach-A';
+  let acceptA,acceptB,startedA,startedB;
+  const remoteA=new Promise((resolve)=>{acceptA=resolve;});
+  const remoteB=new Promise((resolve)=>{acceptB=resolve;});
+  const sentA=new Promise((resolve)=>{startedA=resolve;});
+  const sentB=new Promise((resolve)=>{startedB=resolve;});
+  const requests=[],refreshes=[];
+  const service=createCommunicationService({
+    transport:{
+      execute(token,command){
+        requests.push({token,body:command.payload.body});
+        if(token==='jwt-A'){startedA();return remoteA;}
+        startedB();return remoteB;
+      },
+    },
+    getToken:async()=>identity==='coach-A'?'jwt-A':'jwt-B',
+    getRole:()=> 'coach',
+    getState:()=>({available:true,identity:{id:identity}}),
+    isOnline:()=>true,
+    refreshState:async({response})=>{refreshes.push(response.account);},
+  });
+  const first=service.execute({
+    ...messageInput('same-operation-id'),
+    payload:{threadId:'thread-a',body:'Mensaje de A'},
+  });
+  await sentA;
+  identity='coach-B';
+  const second=service.execute({
+    ...messageInput('same-operation-id'),
+    payload:{threadId:'thread-b',body:'Mensaje de B'},
+    entityId:'thread-b',
+  });
+  await sentB;
+  acceptB({ok:true,kind:'ack',account:'coach-B'});
+  const completedB=await second;
+  assert.equal(completedB.ok,true);
+  assert.equal(completedB.syncPending,false);
+  acceptA({ok:true,kind:'ack',account:'coach-A'});
+  const completedA=await first;
+  assert.equal(completedA.ok,true);
+  assert.equal(completedA.syncPending,true);
+  assert.deepEqual(requests.map(x=>x.body),['Mensaje de A','Mensaje de B']);
+  assert.deepEqual(refreshes,['coach-B']);
+});
