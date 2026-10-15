@@ -208,3 +208,28 @@ test('M45 grouped notifications limit concurrent backend requests while preservi
   assert.equal(hydrations,1,'a single confirmed batch requires only one readback');
   assert.deepEqual(result.markedIds,commands);
 });
+
+
+test('M45 old-account grouped notification receipts skip global hydration for new user',async()=>{
+  let user='coach-account-A';
+  let release;
+  const pending=new Promise((resolve)=>{release=resolve;});
+  let refreshes=0;
+  const service=createCommunicationService({
+    transport:{execute:()=>pending},
+    getToken:async()=> 'jwt-account-A',
+    getRole:()=> 'coach',
+    getState:()=>({available:true,identity:{id:user}}),
+    isOnline:()=>true,
+    refreshState:async()=>{refreshes++;},
+  });
+  const resultPromise=service.markNotificationsRead([ids[0]]);
+  await Promise.resolve();
+  user='coach-account-B';
+  release({ok:true,kind:'ack'});
+  const result=await resultPromise;
+  assert.equal(result.ok,true);
+  assert.equal(result.markedCount,1);
+  assert.equal(result.syncPending,true);
+  assert.equal(refreshes,0,'no stale notification snapshot may hydrate another account');
+});
