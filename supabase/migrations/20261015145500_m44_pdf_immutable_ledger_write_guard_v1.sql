@@ -22,7 +22,6 @@ BEGIN
  RETURN NEW;
 END $fn$;
 REVOKE ALL ON FUNCTION public.iberfit_m44_issued_pdf_immutability_guard_v1() FROM PUBLIC,anon,authenticated;
-DROP TRIGGER IF EXISTS trg_m44_issued_pdf_immutable ON public.iberfit_evolution_report_issuances_v1;
-CREATE TRIGGER trg_m44_issued_pdf_immutable
+CREATE OR REPLACE TRIGGER trg_m44_issued_pdf_immutable
 BEFORE UPDATE OR DELETE ON public.iberfit_evolution_report_issuances_v1
 FOR EACH ROW EXECUTE FUNCTION public.iberfit_m44_issued_pdf_immutability_guard_v1();

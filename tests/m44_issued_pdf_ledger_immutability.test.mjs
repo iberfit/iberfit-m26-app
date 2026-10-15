@@ -10,3 +10,9 @@ test('M44 PDF issue ledger is append-only and allows only one audited withdrawal
  assert.match(sql,/to_jsonb\(NEW\)-'status'-'withdrawn_at'-'withdrawn_by'-'withdrawn_reason'/);
  assert.match(sql,/REVOKE ALL ON FUNCTION/);
 });
+
+test('M44 ledger trigger remains protected by non-destructive CREATE OR REPLACE',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/20261015145500_m44_pdf_immutable_ledger_write_guard_v1.sql',import.meta.url),'utf8');
+ assert.match(sql,/CREATE OR REPLACE TRIGGER trg_m44_issued_pdf_immutable/);
+ assert.doesNotMatch(sql,/DROP TRIGGER/);
+});
