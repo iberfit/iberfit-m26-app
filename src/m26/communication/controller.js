@@ -99,7 +99,9 @@ export function applyConversationFilter(root,{query='',unreadOnly=false}={}){
   let visible=0;
   const nodes=Array.from(root?.querySelectorAll?.('.m26-thread')||[]);
   for(const node of nodes){
-    const heading=node.querySelector?.('summary')?.textContent||'';
+    // Search only participant and subject, not unread badges or message bodies.
+    const heading=node.querySelector?.('.m45-thread-identity')?.textContent||
+      node.querySelector?.('summary')?.textContent||'';
     const unread=Number(node.getAttribute?.('data-thread-unread-count')||0)>0;
     const show=(!needle||foldConversationSearch(heading).includes(needle))&&(!unreadOnly||unread);
     node.hidden=!show;
@@ -203,9 +205,22 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   function renderWithoutLosingDrafts(){
     rememberVisibleDrafts();
+    const search=root?.querySelector?.('[data-m45-conversation-search]');
+    const focused=search&&root?.ownerDocument?.activeElement===search;
+    const searchStart=focused?search.selectionStart:null;
+    const searchEnd=focused?search.selectionEnd:null;
+    const searchScroll=focused?search.scrollLeft:0;
     render();
     restoreMessageDrafts(root,pendingMessageDrafts);
     applyInboxFilter();
+    if(focused){
+      const next=root?.querySelector?.('[data-m45-conversation-search]');
+      next?.focus?.({preventScroll:true});
+      if(Number.isInteger(searchStart)&&Number.isInteger(searchEnd)){
+        try{next?.setSelectionRange?.(searchStart,searchEnd);}catch{}
+      }
+      if(next)next.scrollLeft=searchScroll||0;
+    }
   }
   function clearLiveMessageComposer(threadId,sentBody){
     for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
