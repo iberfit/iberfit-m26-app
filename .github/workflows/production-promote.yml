@@ -245,7 +245,7 @@ jobs:
           sed -n '/^\[functions.iberfit-evolution-report-emission-v1\]/,+1p' supabase/config.toml \
             | grep -Fq 'verify_jwt = true'
           sha256sum "$broker"
-          # Never pass --no-verify-jwt: JWT verification must stay ON.
+          # Gateway JWT verification is mandatory for M44.
           npx --yes supabase@2.117.0 functions deploy iberfit-evolution-report-emission-v1 \
             --project-ref "${PROD_SUPABASE_REF}"
           npx --yes supabase@2.117.0 functions list --project-ref "${PROD_SUPABASE_REF}" \
