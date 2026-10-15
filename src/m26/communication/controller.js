@@ -162,6 +162,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   const pendingMessageDrafts=new Map();
   const messageRetryFence=createMessageRetryFence();
   let activeCommunicationRole=null;
+  let activeCommunicationIdentity=null;
   let conversationSearch='';
   let onlyUnreadConversations=false;
   let pushBusy=false;
@@ -474,6 +475,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(!activeCommunicationRole){
       const roleNode=root.querySelector?.('[data-communication-role]');
       activeCommunicationRole=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
+      activeCommunicationIdentity=String(roleNode?.dataset?.communicationIdentity||roleNode?.getAttribute?.('data-communication-identity')||'');
     }
     const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
     if(!threadId)return;
@@ -533,8 +535,9 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   function onShellRendered(){
     const roleNode=root.querySelector?.('[data-communication-role]');
     const role=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
-    // Leaving messaging or changing role invalidates in-memory private drafts.
-    if(role!==activeCommunicationRole){
+    const identity=String(roleNode?.dataset?.communicationIdentity||roleNode?.getAttribute?.('data-communication-identity')||'');
+    // Private drafts are bound to both role and the actual authenticated identity.
+    if(role!==activeCommunicationRole||identity!==activeCommunicationIdentity){
       // The controller can survive an in-app role transition. Fence *all*
       // pending account-scoped reads/writes, not only push status.
       lifecycleGeneration+=1;
@@ -554,6 +557,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       conversationSearch='';
       onlyUnreadConversations=false;
       activeCommunicationRole=role;
+      activeCommunicationIdentity=identity;
       const lifecycle=lifecycleGeneration;
       queueMicrotask(()=>{
         if(!mounted||lifecycle!==lifecycleGeneration||!role)return;
@@ -608,6 +612,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       preferenceSyncInFlight=null;
       preferenceHydrationInFlight=null;
       activeCommunicationRole=null;
+      activeCommunicationIdentity=null;
       conversationSearch='';
       onlyUnreadConversations=false;
       pendingMessageDrafts.clear();
