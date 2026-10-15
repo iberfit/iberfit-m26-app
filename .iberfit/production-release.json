@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "ae6f07ec69c8472710ad3185432978982b820f2d",
+  "sourceBranch": "canary/rc74-4",
+  "description": "IBERFIT M42 — certified Client/Coach experience and Live Workout, private avatars, usability and stability."
+}
