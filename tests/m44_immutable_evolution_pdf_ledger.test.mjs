@@ -31,3 +31,15 @@ test('M44 PDF client source is a published projection with zero private Coach no
  for(const secret of ['coachComment','m44DraftFingerprint','createdBy','evidenceSignature'])
    assert.ok(!publicPayload.includes("'"+secret+"'"),secret);
 });
+
+
+test('M44 only trusted broker may finalize PDFs, with actor-scoped server-derived source hash',async()=>{
+ const source=await sql();
+ assert.match(source,/M44_PDF_FINALIZE_SERVICE_ONLY/);
+ assert.match(source,/current_setting\('request\.jwt\.claim\.role',true\)/);
+ assert.match(source,/p_actor_user_id uuid/);
+ assert.match(source,/GRANT EXECUTE ON FUNCTION public\.iberfit_m44_finalize_evolution_report_issue_v1\([\s\S]*?\) TO service_role/);
+ assert.doesNotMatch(source,/GRANT EXECUTE ON FUNCTION public\.iberfit_m44_finalize_evolution_report_issue_v1\([\s\S]*?\) TO authenticated/);
+ assert.match(source,/v_source_hash:=encode\(sha256\(convert_to\(v_source::text,'UTF8'\)\),'hex'\)/);
+ assert.match(source,/client_assignments a/);
+});

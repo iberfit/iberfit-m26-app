@@ -57,6 +57,40 @@ REVOKE ALL ON public.iberfit_evolution_report_issuances_v1 FROM PUBLIC,anon,auth
 
 -- This source is the ONLY payload that a renderer may sign and archive.
 -- Read from the redacted published projection, not raw private domain bodies.
+
+-- Internal-only source builder shared by user-scoped preparation and the
+-- trusted Edge finalizer. Never include private Coach notes.
+CREATE OR REPLACE FUNCTION public.iberfit_m44_private_issued_source_v1(p_report_id uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=''
+AS $fn$
+DECLARE
+ v_report public.reports%rowtype;
+ v_client_name text;
+ v_source jsonb;
+BEGIN
+ SELECT * INTO v_report FROM public.reports WHERE id=p_report_id;
+ IF NOT FOUND OR v_report.status<>'publicado' OR v_report.audience<>'cliente'
+ THEN RAISE EXCEPTION 'M44_PDF_SOURCE_NOT_PUBLISHED' USING errcode='42501';END IF;
+ SELECT name INTO v_client_name FROM public.clients WHERE id=v_report.client_id;
+ v_source:=jsonb_build_object(
+   'reportId',v_report.id,'clientId',v_report.client_id,
+   'revision',v_report.revision,'title',v_report.title,
+   'clientName',coalesce(nullif(v_client_name,''),'Cliente IBERFIT'),
+   'periodStart',v_report.content->>'periodStart',
+   'periodEnd',v_report.content->>'periodEnd',
+   'reportType',v_report.content->>'reportType',
+   'summary',v_report.content->>'summary',
+   'conclusions',v_report.content->>'conclusions',
+   'recommendations',v_report.content->>'recommendations',
+   'evidence',coalesce(v_report.content->'evidence','[]'::jsonb),
+   'activitySeries',coalesce(v_report.content->'activitySeries','[]'::jsonb)
+ );
+
+ RETURN v_source;
+END $fn$;
+REVOKE ALL ON FUNCTION public.iberfit_m44_private_issued_source_v1(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.iberfit_m44_private_issued_source_v1(uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.iberfit_m44_prepare_evolution_report_issue_v1(p_report_id uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $fn$
@@ -80,20 +114,7 @@ BEGIN
     OR coalesce(v_report.content->>'visibleToClient','')<>'true'
     OR v_report.revision<2
  THEN RAISE EXCEPTION 'M44_PDF_ISSUE_CONTENT_NOT_CERTIFIED' USING errcode='22023';END IF;
- SELECT name INTO v_client_name FROM public.clients WHERE id=v_report.client_id;
- v_source:=jsonb_build_object(
-   'reportId',v_report.id,'clientId',v_report.client_id,
-   'revision',v_report.revision,'title',v_report.title,
-   'clientName',coalesce(nullif(v_client_name,''),'Cliente IBERFIT'),
-   'periodStart',v_report.content->>'periodStart',
-   'periodEnd',v_report.content->>'periodEnd',
-   'reportType',v_report.content->>'reportType',
-   'summary',v_report.content->>'summary',
-   'conclusions',v_report.content->>'conclusions',
-   'recommendations',v_report.content->>'recommendations',
-   'evidence',coalesce(v_report.content->'evidence','[]'::jsonb),
-   'activitySeries',coalesce(v_report.content->'activitySeries','[]'::jsonb)
- );
+ v_source:=public.iberfit_m44_private_issued_source_v1(v_report.id);
  IF coalesce(v_source->>'periodStart','')='' OR coalesce(v_source->>'periodEnd','')=''
    OR jsonb_typeof(v_source->'evidence')<>'array'
    OR jsonb_array_length(v_source->'evidence')<1
@@ -108,19 +129,25 @@ END $fn$;
 CREATE OR REPLACE FUNCTION public.iberfit_m44_finalize_evolution_report_issue_v1(
  p_report_id uuid,p_issue_request_id uuid,p_source_revision bigint,
  p_source_sha256 text,p_artifact_path text,p_artifact_sha256 text,
- p_artifact_size_bytes bigint,p_template_version text,p_engine_version text
+ p_artifact_size_bytes bigint,p_template_version text,p_engine_version text,
+ p_actor_user_id uuid
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $fn$
 DECLARE
- v_actor uuid:=auth.uid();
- v_role text:=public.iberfit_current_role_v26();
+ v_actor uuid:=p_actor_user_id;
+ v_role text;
  v_report public.reports%rowtype;
- v_prepared jsonb;
+ v_source jsonb;
+ v_source_hash text;
  v_prev public.iberfit_evolution_report_issuances_v1%rowtype;
  v_issue_id uuid:=gen_random_uuid();
  v_version integer;
 BEGIN
- IF v_actor IS NULL OR coalesce(v_role,'') NOT IN ('coach','admin')
+ IF coalesce(current_setting('request.jwt.claim.role',true),'')<>'service_role'
+    OR v_actor IS NULL
+ THEN RAISE EXCEPTION 'M44_PDF_FINALIZE_SERVICE_ONLY' USING errcode='42501';END IF;
+ SELECT role::text INTO v_role FROM public.user_profiles WHERE user_id=v_actor;
+ IF coalesce(v_role,'') NOT IN ('coach','admin')
  OR p_report_id IS NULL OR p_issue_request_id IS NULL
  OR p_source_sha256 IS NULL OR p_source_sha256 !~ '^[0-9a-f]{64}$'
  OR p_artifact_sha256 IS NULL OR p_artifact_sha256 !~ '^[0-9a-f]{64}$'
@@ -131,10 +158,15 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('m44:issue:'||p_report_id::text,0));
  SELECT * INTO v_report FROM public.reports WHERE id=p_report_id FOR UPDATE;
  IF NOT FOUND OR v_report.status<>'publicado' OR v_report.audience<>'cliente'
- THEN RAISE EXCEPTION 'M44_PDF_FINALIZE_NOT_PUBLISHED' USING errcode='42501'; END IF;
- v_prepared:=public.iberfit_m44_prepare_evolution_report_issue_v1(p_report_id);
- IF (v_prepared->>'sourceRevision')::bigint IS DISTINCT FROM p_source_revision
- OR v_prepared->>'sourceSha256' IS DISTINCT FROM p_source_sha256
+ OR (v_role='coach' AND NOT EXISTS(
+     SELECT 1 FROM public.client_assignments a
+     WHERE a.client_id=v_report.client_id AND a.coach_user_id=v_actor AND a.active
+   ))
+ THEN RAISE EXCEPTION 'M44_PDF_FINALIZE_NOT_PUBLISHED_OR_SCOPE' USING errcode='42501'; END IF;
+ v_source:=public.iberfit_m44_private_issued_source_v1(p_report_id);
+ v_source_hash:=encode(sha256(convert_to(v_source::text,'UTF8')),'hex');
+ IF v_report.revision IS DISTINCT FROM p_source_revision
+ OR v_source_hash IS DISTINCT FROM p_source_sha256
  THEN RAISE EXCEPTION 'M44_PDF_FINALIZE_STALE_SOURCE' USING errcode='40001';END IF;
  IF p_artifact_path IS DISTINCT FROM
     (v_report.client_id::text||'/'||p_report_id::text||'/'||p_issue_request_id::text||'/report.pdf')
@@ -161,7 +193,7 @@ BEGIN
     artifact_path,artifact_sha256,artifact_size_bytes,issued_by
  ) VALUES (
     v_issue_id,p_report_id,v_report.client_id,v_version,p_source_revision,p_issue_request_id,
-    p_template_version,p_engine_version,v_prepared->'sourceSnapshot',p_source_sha256,
+    p_template_version,p_engine_version,v_source,p_source_sha256,
     p_artifact_path,p_artifact_sha256,p_artifact_size_bytes,v_actor
  );
  INSERT INTO public.domain_events_v26(
@@ -232,10 +264,10 @@ BEGIN
 END $fn$;
 
 REVOKE ALL ON FUNCTION public.iberfit_m44_prepare_evolution_report_issue_v1(uuid) FROM PUBLIC,anon;
-REVOKE ALL ON FUNCTION public.iberfit_m44_finalize_evolution_report_issue_v1(uuid,uuid,bigint,text,text,text,bigint,text,text) FROM PUBLIC,anon;
+REVOKE ALL ON FUNCTION public.iberfit_m44_finalize_evolution_report_issue_v1(uuid,uuid,bigint,text,text,text,bigint,text,text,uuid) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.iberfit_m44_authorize_evolution_report_pdf_v1(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.iberfit_m44_withdraw_evolution_report_pdf_v1(uuid,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.iberfit_m44_prepare_evolution_report_issue_v1(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.iberfit_m44_finalize_evolution_report_issue_v1(uuid,uuid,bigint,text,text,text,bigint,text,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.iberfit_m44_finalize_evolution_report_issue_v1(uuid,uuid,bigint,text,text,text,bigint,text,text,uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.iberfit_m44_authorize_evolution_report_pdf_v1(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.iberfit_m44_withdraw_evolution_report_pdf_v1(uuid,text) TO authenticated;
