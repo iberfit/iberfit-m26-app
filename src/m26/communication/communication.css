@@ -153,3 +153,23 @@
 @media(prefers-reduced-motion:reduce){
   .m26-communication-route .m26-thread{transition:none}
 }
+
+/* M45 · Inline delivery state rather than relying on ephemeral toast-only feedback */
+.m26-communication-route .m45-compose-status{
+  display:block;
+  min-height:1.25rem;
+  color:var(--iberfit-color-text-subtle,#cdd4d0);
+  font-size:.8125rem;
+  line-height:1.5;
+  grid-column:1 / -1;
+}
+.m26-communication-route .m30-message-compose[aria-busy="true"]{
+  cursor:progress;
+}
+.m26-communication-route .m30-message-compose[aria-busy="true"] button[type="submit"]{
+  opacity:.7;
+}
+.m26-communication-route .m26-communication-hero [data-m45-communication-retry]{
+  margin-top:1rem;
+  min-height:var(--iberfit-size-touch-target,44px);
+}
