@@ -1325,7 +1325,14 @@ export async function createM26Application({root=document.querySelector('#app'),
       if(!mounted)return false;
       if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
 
-      const executionRestored=await restoreExecutionAfterAuthentication();
+      // The role chooser is modal and the underlying workspace is inert.
+      // Recovering a persisted live session before the user selects a role
+      // creates sessionUi and makes onSwitchRole reject both valid options.
+      // Keep recovery data durable; resume it only after role confirmation.
+      const accessBeforeChoice=store.getState().applicationAccess||{};
+      const choicePending=canSwitchApplication(accessBeforeChoice)
+        &&accessBeforeChoice.roleChoiceConfirmed!==true;
+      const executionRestored=choicePending?false:await restoreExecutionAfterAuthentication();
       if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
       if(executionRestored)qaStage('rc64-session-auto-recovered');
       render();
@@ -1492,10 +1499,15 @@ export async function createM26Application({root=document.querySelector('#app'),
       surfaceRoleSwitchError(new Error('M26_ROLE_SWITCH_FORBIDDEN'));
       return false;
     }
-    if(sessionUi){
+    const initialChoice=applicationAccess.roleChoiceConfirmed!==true;
+    if(sessionUi&&!initialChoice){
       try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Finaliza o cierra la sesión antes de cambiar de aplicación.'}}));}catch{}
       return false;
     }
+    // An obsolete pre-choice auto-recovery is a disposable UI projection:
+    // its durable recovery snapshot remains intact and can be resumed after
+    // the identity's permitted application has been explicitly selected.
+    if(sessionUi&&initialChoice)sessionUi=null;
     const previous=activeApplicationRole;
     roleSwitchBusy=true;
     showRoleChoiceStatus('Abriendo el espacio autorizado…');
@@ -1506,6 +1518,11 @@ export async function createM26Application({root=document.querySelector('#app'),
       const state=store.getState();
       if(state?.identity?.role!==role||state?.applicationAccess?.roleChoiceConfirmed!==true)
         throw new Error('M26_ROLE_SWITCH_CONFIRMATION_MISSING');
+      // Do not restore Coach execution state inside Admin. A first-choice
+      // Coach/Client may resume its own durable training context safely.
+      if(initialChoice&&['coach','client'].includes(role)){
+        await restoreExecutionAfterAuthentication();
+      }
       render();
       return true;
     }catch(error){
