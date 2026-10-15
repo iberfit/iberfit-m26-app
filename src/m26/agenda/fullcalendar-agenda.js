@@ -11,7 +11,7 @@ const ASSETS=Object.freeze({
   locale:'/src/m26/vendor/fullcalendar-7.0.2/es.global.js',
 });
 
-let assetPromise=null;
+const assetPromises=new WeakMap();
 
 function text(value,max=240){
   return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);
@@ -172,9 +172,11 @@ export async function loadFullCalendarStandard({
 }={}){
   if(scope?.FullCalendar?.Calendar)return scope.FullCalendar;
   if(!documentLike?.createElement||!documentLike?.head)throw new Error('M26_RC62_FULLCALENDAR_DOCUMENT_REQUIRED');
-  if(assetPromise)return assetPromise;
+  const owner=scope&&(typeof scope==='object'||typeof scope==='function')?scope:globalThis;
+  const pending=assetPromises.get(owner);
+  if(pending)return pending;
   const deadline=Math.max(20,Math.min(20_000,Number(scriptTimeoutMs)||8_000));
-  assetPromise=(async()=>{
+  const promise=(async()=>{
     addStyle(documentLike,ASSETS.skeleton);
     addStyle(documentLike,ASSETS.themeCss);
     addStyle(documentLike,ASSETS.palette);
@@ -183,11 +185,15 @@ export async function loadFullCalendarStandard({
     await addScript(documentLike,ASSETS.locale,deadline);
     if(!scope?.FullCalendar?.Calendar)throw new Error('M26_RC62_FULLCALENDAR_UNAVAILABLE');
     return scope.FullCalendar;
-  })().catch((error)=>{
-    assetPromise=null;
-    throw error;
-  });
-  return assetPromise;
+  })();
+  assetPromises.set(owner,promise);
+  try{
+    return await promise;
+  }finally{
+    // No fulfilled or rejected loader may be shared with another document
+    // later; only parallel requests in the same context should deduplicate.
+    if(assetPromises.get(owner)===promise)assetPromises.delete(owner);
+  }
 }
 
 function fallbackCard(root,appointmentId){
