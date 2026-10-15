@@ -1,5 +1,5 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
-import {normalizeAppointmentStatus} from '../domain/appointment.js';
+import {confirmedAdherenceEvidence} from './confirmed-adherence.js';
 import {parseDateValue} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
@@ -325,10 +325,6 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   if(!clientId)return null;
   const window=progressWindow({now,days}),{start,end}=window;
   const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
-  // Preserve legacy 'planned' commitments in adherence without making them client-visible confirmed appointments.
-  // No-shows count as planned but not performed. Do not count draft proposals or cancellations.
-  const planned=appointments.filter((item)=>statusOf(item)==='planned'||['confirmada','realizada','ausencia_cliente','ausencia_coach'].includes(normalizeAppointmentStatus(statusOf(item))));
-  const completedAppointments=planned.filter((item)=>normalizeAppointmentStatus(statusOf(item))==='realizada');
   const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
@@ -339,10 +335,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   )
     .map(unwrap)
     .filter((item)=>within(dateOf(item),start,end));
-  const completedIds=new Set(completedExecutions.map((item)=>first(item,'appointmentId','appointment_id')).filter(Boolean));
-  const confirmedCompleted=Math.max(completedAppointments.length,completedIds.size,completedExecutions.length);
-  const plannedCount=planned.length||completedExecutions.length;
-  const adherence=plannedCount?Math.min(1,confirmedCompleted/plannedCount):null;
+  const adherenceEvidence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
+  const {plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence}=adherenceEvidence;
   const rpes=completedExecutions.flatMap(rpeValues);
   const volumeSeries=completedExecutions
     .map((item)=>({date:safeDate(dateOf(item))?.getTime()||0,volume:volumeOf(item)}))
@@ -371,7 +365,10 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
   return Object.freeze({
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
-    plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
+    plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence,
+    scheduledCompletedSessions:adherenceEvidence.scheduledCompleted,
+    standaloneCompletedSessions:adherenceEvidence.standaloneExecutions,
+    adherenceEvidence,
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     iriBaseline,
