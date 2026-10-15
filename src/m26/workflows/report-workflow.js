@@ -130,7 +130,7 @@ function premiumMetadataFromActiveEditor(draft,scope=globalThis){
   const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});const expectedSignature=reportFormValue(form,'premiumEvidenceSignature');const evidenceSignature=premiumEvidenceSignature(candidate);
   const sameEvidence=Boolean(candidate?.ready&&(candidate.assessmentId||'')===String(draft?.assessmentId||'')&&candidate.periodStart===String(draft?.periodStart||'')&&candidate.periodEnd===String(draft?.periodEnd||'')&&expectedSignature&&evidenceSignature===expectedSignature);
   if(!sameEvidence)throw new Error('M26_REPORT_DRAFT_INVALID:premium-evidence-stale');
-  return {reportType:type,coachComment:reportFormValue(form,'coachComment'),evidence:candidate.evidence,reportModelVersion:PREMIUM_REPORT_MODEL_VERSION,evidenceSignature,sourceAssessmentId:type==='iri'?candidate.assessmentId:null,sourceAssessmentRevision:type==='iri'?candidate.assessmentRevision:null};
+  return {reportType:type,coachComment:reportFormValue(form,'coachComment'),evidence:candidate.evidence,reportModelVersion:PREMIUM_REPORT_MODEL_VERSION,evidenceSignature,sourceAssessmentId:type==='iri'?candidate.assessmentId:null,sourceAssessmentRevision:type==='iri'?candidate.assessmentRevision:null,sourceType:candidate.sourceType,sourceId:candidate.sourceId};
 }
 function ensurePremiumReportStyles(document){
   return Boolean(document?.head);
@@ -195,8 +195,16 @@ export function normalizeReportDraft(draft={}){
     if(type==='iri'){
       normalized.sourceAssessmentId=normalized.assessmentId;
       normalized.sourceAssessmentRevision=normalizedRevision(draft.sourceAssessmentRevision??draft.assessmentRevision);
+      normalized.sourceType='iri_assessment';
+      normalized.sourceId=normalized.assessmentId;
+    }else if(type==='post-session'){
+      normalized.sourceType='session_execution';
+      normalized.sourceId=safeId(draft.sourceId);
+    }else if(['weekly','monthly','quarterly','year-in-iberfit'].includes(type)){
+      normalized.sourceType='session_execution_period';
+      normalized.sourceId=null;
     }
-    normalized.evidenceSignature=premiumEvidenceSignature({id:type,assessmentId:normalized.sourceAssessmentId,assessmentRevision:normalized.sourceAssessmentRevision,periodStart:normalized.periodStart,periodEnd:normalized.periodEnd,evidence});
+    normalized.evidenceSignature=premiumEvidenceSignature({id:type,assessmentId:normalized.sourceAssessmentId,assessmentRevision:normalized.sourceAssessmentRevision,sourceType:normalized.sourceType,sourceId:normalized.sourceId,periodStart:normalized.periodStart,periodEnd:normalized.periodEnd,evidence});
   }
   return Object.freeze(normalized);
 }

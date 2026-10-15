@@ -32,6 +32,11 @@ test('M44: training report origins never inherit an unrelated IRI diagnosis',()=
   assert.equal(post.sourceType,'session_execution');
   assert.equal(post.sourceId,'e2');
   assert.equal(reports.find(item=>item.id==='iri').sourceType,'iri_assessment');
+  const normalizedPost=normalizeReportDraft({id:'r-post',clientId:'m44-c1',reportType:'post-session',sourceId:post.sourceId,title:post.title,periodStart:post.periodStart,periodEnd:post.periodEnd,summary:post.summary,conclusions:post.conclusions,recommendations:post.recommendations,reviewAccepted:true,evidence:post.evidence});
+  assert.equal(normalizedPost.sourceType,'session_execution');
+  assert.equal(normalizedPost.sourceId,'e2');
+  assert.match(normalizedPost.evidenceSignature,/"sourceId":"e2"/u);
+  assert.match(normalizedPost.evidenceSignature,/"sourceType":"session_execution"/u);
   const weekly=reports.find(item=>item.id==='weekly');
   assert.equal(weekly.sourceType,'session_execution_period');
   assert.equal(weekly.assessmentId,null);
