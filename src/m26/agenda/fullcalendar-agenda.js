@@ -120,56 +120,67 @@ function addStyle(documentLike,path){
   documentLike.head.append(link);
 }
 
-function addScript(documentLike,path){
+function addScript(documentLike,path,timeoutMs=8_000){
   return new Promise((resolve,reject)=>{
     let existing=documentLike.querySelector?.(`script[data-rc62-fullcalendar="${path}"]`);
     if(existing?.dataset?.failed==='true'){
       existing.remove?.();
       existing=null;
     }
-    const fail=(script)=>{
-      // A failed asset can never emit another load/error. Retaining it makes
-      // subsequent attempts wait forever on a dead script element.
-      if(script?.dataset)script.dataset.failed='true';
-      script?.remove?.();
-      reject(new Error('M26_RC62_FULLCALENDAR_ASSET_FAILED'));
+    if(existing?.dataset?.loaded==='true'){resolve();return;}
+    const script=existing||documentLike.createElement('script');
+    let settled=false;
+    let timer=null;
+    const cleanup=()=>{
+      if(timer!==null)clearTimeout(timer);
+      script.removeEventListener?.('load',onLoad);
+      script.removeEventListener?.('error',onError);
     };
-    if(existing){
-      if(existing.dataset.loaded==='true'){resolve();return;}
-      existing.addEventListener?.('load',()=>{
-        existing.dataset.loaded='true';
-        resolve();
-      },{once:true});
-      existing.addEventListener?.('error',()=>fail(existing),{once:true});
-      return;
-    }
-    const script=documentLike.createElement('script');
+    const fail=(reason)=>{
+      if(settled)return;
+      settled=true;
+      cleanup();
+      // A script that timed out or errored must not trap the next retry
+      // waiting for a browser event that can never arrive.
+      if(script.dataset)script.dataset.failed='true';
+      script.remove?.();
+      reject(new Error(reason));
+    };
+    const onLoad=()=>{
+      if(settled)return;
+      settled=true;
+      cleanup();
+      if(script.dataset)script.dataset.loaded='true';
+      resolve();
+    };
+    const onError=()=>fail('M26_RC62_FULLCALENDAR_ASSET_FAILED');
+    script.addEventListener?.('load',onLoad,{once:true});
+    script.addEventListener?.('error',onError,{once:true});
+    timer=setTimeout(()=>fail('M26_RC62_FULLCALENDAR_ASSET_TIMEOUT'),timeoutMs);
+    if(existing)return;
     script.src=path;
     script.async=false;
     script.dataset.rc62Fullcalendar=path;
-    script.addEventListener('load',()=>{
-      script.dataset.loaded='true';
-      resolve();
-    },{once:true});
-    script.addEventListener('error',()=>fail(script),{once:true});
-    documentLike.head.append(script);
+    try{documentLike.head.append(script);}catch{fail('M26_RC62_FULLCALENDAR_ASSET_FAILED');}
   });
 }
 
 export async function loadFullCalendarStandard({
   scope=globalThis,
   documentLike=globalThis.document,
+  scriptTimeoutMs=8_000,
 }={}){
   if(scope?.FullCalendar?.Calendar)return scope.FullCalendar;
   if(!documentLike?.createElement||!documentLike?.head)throw new Error('M26_RC62_FULLCALENDAR_DOCUMENT_REQUIRED');
   if(assetPromise)return assetPromise;
+  const deadline=Math.max(20,Math.min(20_000,Number(scriptTimeoutMs)||8_000));
   assetPromise=(async()=>{
     addStyle(documentLike,ASSETS.skeleton);
     addStyle(documentLike,ASSETS.themeCss);
     addStyle(documentLike,ASSETS.palette);
-    await addScript(documentLike,ASSETS.core);
-    await addScript(documentLike,ASSETS.themeScript);
-    await addScript(documentLike,ASSETS.locale);
+    await addScript(documentLike,ASSETS.core,deadline);
+    await addScript(documentLike,ASSETS.themeScript,deadline);
+    await addScript(documentLike,ASSETS.locale,deadline);
     if(!scope?.FullCalendar?.Calendar)throw new Error('M26_RC62_FULLCALENDAR_UNAVAILABLE');
     return scope.FullCalendar;
   })().catch((error)=>{
