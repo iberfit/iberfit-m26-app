@@ -1,3 +1,4 @@
+import {createMessageRetryFence} from './message-retry-fence.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(d,k,m=4000)=>String(d.get(k)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,m);
 const NOTIFICATION_PREFERENCE_KEYS=new Set(['sessionReminders','scheduleChanges','planPublished','coachMessages','challenges','milestones']);
@@ -96,6 +97,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let preferenceGeneration=0;
   // Ephemeral in-memory only: never persist private message drafts to storage.
   const pendingMessageDrafts=new Map();
+  const messageRetryFence=createMessageRetryFence();
   let activeCommunicationRole=null;
   let pushBusy=false;
   let pushStatusInFlight=null;
@@ -134,6 +136,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const draftsBefore=new Map(pendingMessageDrafts);
     try{
       const result=await service.execute(input);
+      if(input.type==='MESSAGE_SEND')messageRetryFence.acknowledged(input.entityId,input.operationId);
       onAck?.();
       if(input.type==='MESSAGE_SEND'){
         const sentThread=String(input.entityId||'');
@@ -146,7 +149,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       if(!result?.syncPending)renderWithoutLosingDrafts();
       return true;
     }catch(error){
-      toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Los mensajes requieren conexión.':'No fue posible confirmar la comunicación.');
+      const offline=/ONLINE_REQUIRED/.test(String(error?.message||error));
+      toast(offline
+        ?'Los mensajes requieren conexión. El borrador está disponible para reintentar.'
+        :input.type==='MESSAGE_SEND'
+          ?'No se pudo confirmar el envío. Puedes reintentarlo sin generar un mensaje duplicado.'
+          :'No fue posible confirmar la comunicación.');
       return false;
     }finally{
       busy=false;
@@ -285,8 +293,10 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     }
     if(kind==='message-send'){
       const threadId=text(d,'threadId',200);
+      const body=text(d,'body');
+      const operationId=messageRetryFence.forSend(threadId,body);
       return run(
-        {type:'MESSAGE_SEND',entityId:threadId,payload:{threadId,body:text(d,'body')}},
+        {type:'MESSAGE_SEND',operationId,entityId:threadId,payload:{threadId,body}},
         'Mensaje enviado.',
         {onAck:()=>form.reset?.()},
       );
@@ -329,6 +339,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     // Leaving messaging or changing role invalidates in-memory private drafts.
     if(role!==activeCommunicationRole){
       pendingMessageDrafts.clear();
+      messageRetryFence.clear();
       activeCommunicationRole=role;
     }
     if(role)restoreMessageDrafts(root,pendingMessageDrafts);
@@ -367,6 +378,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       lastPushControl=null;
       activeCommunicationRole=null;
       pendingMessageDrafts.clear();
+      messageRetryFence.clear();
       queuedPreferencePayload=null;
       retryPreferencePayload=null;
     },
