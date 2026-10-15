@@ -512,3 +512,53 @@ test('M45 identical operation IDs from two authenticated accounts never share in
   assert.deepEqual(requests.map(x=>x.body),['Mensaje de A','Mensaje de B']);
   assert.deepEqual(refreshes,['coach-B']);
 });
+
+
+test('M45 preference update does not write across accounts while awaiting bearer token',async()=>{
+  let identity='coach-A',resolveToken;
+  const delayedToken=new Promise((resolve)=>{resolveToken=resolve;});
+  const writes=[];
+  const service=createCommunicationService({
+    transport:{
+      async notificationPreferencesUpsert(bearer,value){writes.push({bearer,value});return {ok:true};},
+    },
+    getToken:()=>delayedToken,
+    getState:()=>({available:true,identity:{id:identity}}),
+    getRole:()=> 'coach',
+    isOnline:()=>true,
+  });
+  const request=service.notificationPreferences.update({coachMessages:false});
+  identity='coach-B';
+  resolveToken('jwt-B');
+  await assert.rejects(()=>request,/M45_COMMUNICATION_ACTOR_CHANGED/);
+  assert.deepEqual(writes,[],'old preference selection cannot mutate account B');
+});
+
+test('M45 preference read and update results are discarded if the account changes in flight',async()=>{
+  let identity='coach-A',finishRead,finishWrite,startedRead,startedWrite;
+  const pendingRead=new Promise((resolve)=>{finishRead=resolve;});
+  const pendingWrite=new Promise((resolve)=>{finishWrite=resolve;});
+  const readStarted=new Promise((resolve)=>{startedRead=resolve;});
+  const writeStarted=new Promise((resolve)=>{startedWrite=resolve;});
+  const calls=[];
+  const service=createCommunicationService({
+    transport:{
+      notificationPreferencesStatus(token){calls.push(['read',token]);startedRead();return pendingRead;},
+      notificationPreferencesUpsert(token,preferences){calls.push(['write',token,preferences]);startedWrite();return pendingWrite;},
+    },
+    getToken:async()=> 'jwt-A',
+    getState:()=>({available:true,identity:{id:identity}}),
+    getRole:()=> 'coach',
+    isOnline:()=>true,
+  });
+  const read=service.notificationPreferences.status();
+  const write=service.notificationPreferences.update({coachMessages:true});
+  await Promise.all([readStarted,writeStarted]);
+  identity='coach-B';
+  finishRead({ok:true,preferences:{coachMessages:false}});
+  finishWrite({ok:true,preferences:{coachMessages:true}});
+  const settled=await Promise.allSettled([read,write]);
+  assert.deepEqual(settled.map(x=>x.status),['rejected','rejected']);
+  assert.ok(settled.every(x=>x.reason?.message==='M45_COMMUNICATION_ACTOR_CHANGED'));
+  assert.equal(calls.length,2,'already-sent requests used original actor token');
+});
