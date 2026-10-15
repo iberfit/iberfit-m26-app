@@ -28,7 +28,7 @@ async function mount(page,role){
         clients:[{id:client}],
       },
     };
-    const calls=[],opens=[];
+    const calls=[],opens=[],withdrawn=new Set();
     const origOpen=window.open,origBlobUrl=URL.createObjectURL;
     URL.createObjectURL=blob=>{if(blob.type!=='application/pdf')throw Error('M44_QA_NOT_PDF');return url;};
     window.open=()=>{
@@ -53,15 +53,16 @@ async function mount(page,role){
       downloadEvolutionPdf:async(id,actualHash)=>{
         if(actualHash!==hash)throw Error('M44_QA_HASH_MISMATCH');
         calls.push(['download',id]);
+        if(withdrawn.has(id))throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
         return new Blob(['%PDF-1.7\\n'+('x'.repeat(1100))],{type:'application/pdf'});
       },
       getEvolutionPdfHistory:async id=>{
         calls.push(['history',id]);
         return {reportId:id,manager:role==='coach'||role==='admin',
-          items:[{issuanceId:issuance,version:1,withdrawn:false,issuedAt:'2026-10-15T13:00:00Z'}]};
+          items:[{issuanceId:issuance,version:1,withdrawn:withdrawn.has(issuance),issuedAt:'2026-10-15T13:00:00Z'}]};
       },
       withdrawEvolutionPdf:async (id,reason)=>{
-        calls.push(['withdraw',id,reason]);return {withdrawn:true};
+        calls.push(['withdraw',id,reason]);withdrawn.add(id);return {withdrawn:true};
       },
     });
     workflow.mount();
@@ -90,6 +91,14 @@ test('M44 Coach can issue, open existing PDF, read version history and withdraw 
   expect(entries).toContainEqual(['history',REPORT]);
   expect(entries).toContainEqual(['open',ISSUED]);
   expect(entries).toContainEqual(['withdraw',ISSUED,'Versión corregida por el Coach']);
+  await expect(page.locator('[data-m44-version-row]')).toContainText('Retirada');
+  await expect(page.locator('[data-m44-version-row] button')).toHaveCount(0);
+  const previousDownloads=entries.filter(x=>x[0]==='download').length;
+  await page.getByRole('button',{name:'Abrir PDF',exact:true}).first().click();
+  await expect(page.locator('[data-workflow-status="report"]')).toContainText('no tiene un PDF oficial disponible');
+  const after=(await log(page)).calls;
+  expect(after.filter(x=>x[0]==='download')).toHaveLength(previousDownloads+1);
+  expect((await log(page)).opens.filter(x=>x===PDF)).toHaveLength(2);
 });
 test('M44 Admin opens published PDF from history without wrongful Client-only denial',async({page})=>{
   await mount(page,'admin');
