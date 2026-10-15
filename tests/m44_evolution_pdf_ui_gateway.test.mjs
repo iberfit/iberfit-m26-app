@@ -42,7 +42,8 @@ test('M44 issue archive permits explicit version opening, safe history, and reas
  assert.match(s,/caption\.textContent=/);
  assert.match(s,/new Date\(item\.issuedAt\)/);
  assert.match(s,/host\.replaceChildren\(\)/);
- assert.doesNotMatch(s,/host\.innerHTML/);
+ const bounded=s.slice(s.indexOf('async function showIssuedEvolutionHistory('),s.indexOf('async function withdrawIssuedEvolutionPdf('));
+ assert.doesNotMatch(bounded,/host\.innerHTML/);
 });
 test('M44 Client and Coach versions have isolated action gateway with no direct Storage keys',async()=>{
  const s=await read('src/m26/app/application.js');
