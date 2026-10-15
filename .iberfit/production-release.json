@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "6010f77623b9b69c7d00f40cf9f6a6e91325675b",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "description": "IBERFIT P0: restaurar selector de Coach/Admin bloqueado, diferir recovery hasta confirmar rol, cache PWA v63-4; 13 certificaciones postmerge y Canary exacto verdes."
+}
