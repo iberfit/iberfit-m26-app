@@ -5,6 +5,7 @@ import {
   createRc62AgendaCalendarController,
   buildRc62AgendaEvents,
   fullCalendarCoachOptions,
+  agendaVisibleHourWindow,
 } from '../src/m26/agenda/fullcalendar-agenda.js';
 
 const tick=()=>new Promise((resolve)=>setImmediate(resolve));
@@ -21,7 +22,7 @@ function calendarHarness({compact=false}={}){
   let compactMatches=compact;
   let onCompactChange=null;
   let lastOptions=null;
-  const calls={construct:0,render:0,remove:0,add:0,destroy:0};
+  const calls={construct:0,render:0,remove:0,add:0,destroy:0,options:[]};
   const scheduled=[];
   let mutation;
   let records=[appointment('a')];
@@ -38,6 +39,7 @@ function calendarHarness({compact=false}={}){
     render(){calls.render+=1;}
     removeAllEvents(){calls.remove+=1;}
     addEventSource(){calls.add+=1;}
+    setOption(name,value){calls.options.push({name,value});}
     destroy(){calls.destroy+=1;}
   }
   class FakeObserver{
@@ -152,4 +154,41 @@ test('M45 agenda uses day view on tablets without degrading the wide Coach week 
   assert.equal(h.calls.destroy,1);
   h.controller.destroy();
   assert.equal(h.calls.destroy,2);
+});
+
+
+test('M45 agenda reveals early and late appointments without all-day clutter',()=>{
+  assert.deepEqual(agendaVisibleHourWindow([]),{
+    slotMinTime:'06:00:00',slotMaxTime:'22:00:00',
+  });
+  const early=buildRc62AgendaEvents([{
+    id:'early',title:'Sesión temprana',
+    startAt:'2026-10-20T05:00:00-03:00',
+    endAt:'2026-10-20T06:00:00-03:00',
+  }]);
+  assert.equal(fullCalendarCoachOptions({events:early}).slotMinTime,'04:00:00');
+  const late=buildRc62AgendaEvents([{
+    id:'late',title:'Sesión nocturna',
+    startAt:'2026-10-20T23:00:00-03:00',
+    endAt:'2026-10-21T00:00:00-03:00',
+  }]);
+  assert.deepEqual(agendaVisibleHourWindow(late),{
+    slotMinTime:'00:00:00',slotMaxTime:'24:00:00',
+  });
+});
+
+test('M45 agenda expands hours when a late appointment arrives after initial render',async()=>{
+  const h=calendarHarness();
+  h.controller.mount();
+  await h.flush();
+  h.setAppointments([appointment('a'),{
+    id:'late',title:'Entrenamiento nocturno',
+    startAt:'2026-10-20T23:00:00-03:00',
+    endAt:'2026-10-21T00:00:00-03:00',
+  }]);
+  h.getMutation()();
+  await h.flush();
+  assert.ok(h.calls.options.some((item)=>item.name==='slotMaxTime'&&item.value==='24:00:00'));
+  assert.ok(h.calls.options.some((item)=>item.name==='slotMinTime'&&item.value==='00:00:00'));
+  h.controller.destroy();
 });
