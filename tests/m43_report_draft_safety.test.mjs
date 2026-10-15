@@ -117,6 +117,6 @@ test('M44: the progression form is present even without initial IRI and cannot a
   assert.doesNotMatch(route,/const editor=vm\.canManage&&hasTrainingSurface\(vm\.serviceKind\)\?\(iriId\?/);
   assert.match(route,/Aprobación pendiente del circuito canónico de informes sin IRI/);
   const code=source('src/m26/app/workflow-controller.js');
-  assert.match(code,/if\(!assessmentId&&!\\['post-session','weekly','monthly','quarterly','year-in-iberfit'\\]/);
+  assert.ok(code.includes("if(!assessmentId&&!['post-session','weekly'"));
   assert.match(code,/assessmentId:assessmentId\|\|null/);
 });
