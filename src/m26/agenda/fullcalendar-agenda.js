@@ -251,12 +251,19 @@ export function createRc62AgendaCalendarController({
       // FullCalendar mutates the DOM; without the signature fence, our own
       // MutationObserver can trigger an unbounded remove/re-add/render loop.
       if(lastEventSignature===signature)return;
-      calendar.removeAllEvents?.();
-      calendar.addEventSource?.(events);
-      const window=agendaVisibleHourWindow(events);
-      calendar.setOption?.('slotMinTime',window.slotMinTime);
-      calendar.setOption?.('slotMaxTime',window.slotMaxTime);
-      lastEventSignature=signature;
+      try{
+        calendar.removeAllEvents?.();
+        calendar.addEventSource?.(events);
+        const window=agendaVisibleHourWindow(events);
+        calendar.setOption?.('slotMinTime',window.slotMinTime);
+        calendar.setOption?.('slotMaxTime',window.slotMaxTime);
+        lastEventSignature=signature;
+      }catch{
+        // A partially updated third-party calendar must never leave a broken
+        // overlay or runaway observer; the accessible appointment cards remain.
+        destroyCalendar();
+        try{host.dataset.calendarStatus='fallback';}catch{}
+      }
       return;
     }
 
@@ -285,9 +292,11 @@ export function createRc62AgendaCalendarController({
       try{host.dataset.calendarStatus='ready';}catch{}
     }catch{
       if(request!==generation)return;
-      try{host.dataset.calendarStatus='fallback';}catch{}
+      try{calendar?.destroy?.();}catch{}
       calendar=null;
       calendarHost=null;
+      lastEventSignature=null;
+      try{host.dataset.calendarStatus='fallback';}catch{}
     }
   }
 
