@@ -82,7 +82,7 @@ type Prepared={ok:boolean;reportId:string;clientId:string;sourceRevision:number;
  sourceSha256:string;artifactBucket:string;sourceSnapshot:{reportId:string;[key:string]:unknown}};
 type Previous={id:string;report_id:string;report_revision:number;source_sha256:string;
  artifact_sha256:string;artifact_path:string;status:string;version:number};
-type Finalized={ok:boolean;kind:string;issuanceId:string;version:number;artifactPath:string;artifactSha256:string};
+type Finalized={ok:boolean;kind:string;issuanceId:string;version:number;artifactPath:string;artifactSha256:string;withdrawn?:boolean};
 type Access={ok:boolean;withdrawn:boolean;artifactBucket:string;artifactPath:string;artifactSha256:string;version:number};
 type Withdrawn={ok:boolean;kind:string;issuanceId:string};
 async function callRpc<T>(client:BrokerClient,name:string,args:Record<string,unknown>):Promise<T>{
