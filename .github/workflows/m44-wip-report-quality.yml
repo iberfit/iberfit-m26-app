@@ -134,3 +134,17 @@ jobs:
           test -s .tmp/rc64-current-surface/m26/evolution-report.css
           test -s .tmp/rc64-current-surface/m26/fonts/inter-latin-wght-normal.woff2
           test -s .tmp/rc64-current-surface/m26/fonts/source-serif-4-latin-wght-normal.woff2
+
+  qa-edge-anonymous-denial:
+    name: QA live Edge anonymous HTTP and CORS negative gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deny all anonymous issued-document access through real QA HTTP
+        run: node qa/m44/qa-edge-anonymous-denial.mjs
