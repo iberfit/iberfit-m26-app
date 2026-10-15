@@ -132,7 +132,7 @@ export function buildProgressHub(
       value:Number.isFinite(summary28.volume)?summary28.volume:null,
       unit:'kg·rep medio',
       evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% frente al periodo anterior`:'Sin suficiente volumen comparable',
-      context:'Solo carga × repeticiones cuando la carga en kg es explícita',
+      context:'Solo carga × repeticiones en kg; la tendencia exige ejercicios, variantes y series comparables',
       source:'sessionExecutions',
       quality:summary28.dataQuality,
     }),
@@ -190,6 +190,6 @@ export function buildProgressHub(
     headline:evidenceCount
       ?`${evidenceCount} de ${pillars.length} áreas con evidencia reciente`
       :'Construyendo tu seguimiento',
-    note:'Evolución reúne señales confirmadas del proceso sin convertirlas en una puntuación global ni modificar automáticamente la planificación. El Diagnóstico IRI se conserva aparte como punto de partida y como hito de reevaluación.',
+    note:'Evolución reúne señales confirmadas del proceso sin convertirlas en una puntuación global ni modificar automáticamente la planificación. El Diagnóstico IRI se conserva aparte como punto de partida; el seguimiento posterior utiliza mediciones propias.',
   });
 }

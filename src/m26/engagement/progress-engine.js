@@ -48,6 +48,24 @@ function setRows(execution){
   return [];
 }
 function rpeValues(execution){return setRows(execution).map((row)=>number(first(row,'rpe','actualRpe','actual_rpe'))).filter(Number.isFinite);}
+// Never infer progression by mixing different movements, variants or set counts.
+function volumeComparisonKey(execution){
+  const rows=setRows(execution);
+  if(!rows.length)return null;
+  const items=[];
+  for(const row of rows){
+    const id=String(first(row,'exerciseId','exercise_id','exerciseKey','exercise_key')||'').trim();
+    const reps=number(first(row,'reps','actualReps','actual_reps'));
+    const load=epKnownLoadKg(row);
+    if(!id||!Number.isFinite(reps)||reps<0||!Number.isFinite(load)||load<0)return null;
+    const variant=String(first(row,'variantId','variant_id','exerciseVariantId','exercise_variant_id')||'');
+    const side=String(first(row,'side','lado','laterality')||'').toLowerCase();
+    const equipment=String(first(row,'equipmentId','equipment_id','equipment')||'').toLowerCase();
+    const mode=String(first(row,'loadMode','load_mode','loadBasis','load_basis')||'').toLowerCase();
+    items.push(JSON.stringify([id,variant,side,equipment,mode]));
+  }
+  return JSON.stringify(items.sort());
+}
 function volumeOf(execution){
   return setRows(execution).reduce((total,row)=>{
     const reps=number(first(row,'reps','actualReps','actual_reps'));
@@ -339,13 +357,15 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const {plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence}=adherenceEvidence;
   const rpes=completedExecutions.flatMap(rpeValues);
   const volumeSeries=completedExecutions
-    .map((item)=>({date:safeDate(dateOf(item))?.getTime()||0,volume:volumeOf(item)}))
+    .map((item)=>({date:safeDate(dateOf(item))?.getTime()||0,volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)}))
     .filter((item)=>item.volume>0)
     .sort((a,b)=>a.date-b.date);
   const volumes=volumeSeries.map((item)=>item.volume);
   const split=Math.ceil(volumes.length/2);
-  const olderVolume=volumes.length>=2?average(volumes.slice(0,split)):null;
-  const recentVolume=volumes.length>=2?average(volumes.slice(split)):null;
+  const comparableVolumes=volumeSeries.length>=2&&volumeSeries[0].comparisonKey!==null
+    &&volumeSeries.every((item)=>item.comparisonKey===volumeSeries[0].comparisonKey);
+  const olderVolume=comparableVolumes?average(volumes.slice(0,split)):null;
+  const recentVolume=comparableVolumes?average(volumes.slice(split)):null;
   const volumeDelta=Number.isFinite(olderVolume)&&olderVolume>0&&Number.isFinite(recentVolume)?((recentVolume-olderVolume)/olderVolume)*100:null;
   const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end)).sort(byDateDesc);
   const wearable=summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});

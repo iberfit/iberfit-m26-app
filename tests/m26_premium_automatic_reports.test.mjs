@@ -64,7 +64,8 @@ test('portfolio automático conserva seis modelos evidenciables y deja reevaluac
   assert.ok(reports.every((report)=>report.dataPolicy==='canonical-only'));
   assert.ok(reports.every((report)=>report.coachCommentLabel==='Comentario del coach'));
   assert.ok(reports.filter(report=>report.ready).every(report=>report.evidence.length>0));
-  assert.ok(reports.filter(report=>report.ready).every(report=>report.assessmentRevision===5));
+  assert.equal(reports.find(report=>report.id==='iri').assessmentRevision,5);
+  assert.ok(reports.filter(report=>report.id!=='iri').every(report=>report.assessmentId===null&&report.assessmentRevision===null));
   assert.equal(reports.find((report)=>report.id==='reassessment').assessmentId,null);
   assert.equal(reports.find((report)=>report.id==='post-session').periodEnd,'2026-09-03');
   assert.match(reports.find((report)=>report.id==='year-in-iberfit').summary,/historial canónico/u);
@@ -171,10 +172,11 @@ test('aprobación conserva tipo, comentario y procedencia sin romper el contrato
   assert.equal(command.payload.patch.coachComment,'Buena continuidad este mes; mantener progresión prudente.');
   assert.equal(command.payload.patch.dataPolicy,'canonical-only');
   assert.equal(command.payload.patch.reportModelVersion,PREMIUM_REPORT_MODEL_VERSION);
-  assert.equal(command.payload.patch.sourceAssessmentId,'iri-new');
-  assert.equal(command.payload.patch.sourceAssessmentRevision,5);
+  assert.equal(command.payload.patch.sourceAssessmentId,undefined);
+  assert.equal(command.payload.patch.sourceAssessmentRevision,undefined);
+  assert.equal(command.payload.patch.assessmentId,null);
   assert.match(command.payload.patch.evidenceSignature,/"modelVersion":"iri2-premium-report-v1"/u);
-  assert.match(command.payload.patch.evidenceSignature,/"assessmentRevision":5/u);
+  assert.match(command.payload.patch.evidenceSignature,/"assessmentRevision":null/u);
   assert.deepEqual(command.payload.patch.evidence,[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}]);
   assert.equal(command.payload.patch.visibleToClient,false);
 });
