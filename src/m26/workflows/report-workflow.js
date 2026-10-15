@@ -30,10 +30,20 @@ function recordsForClient(state,key,clientId){return (state?.collections?.[key]|
 function civil(value){const match=String(value||'').trim().match(/^(\d{4}-\d{2}-\d{2})/);if(!match)return null;const date=new Date(`${match[1]}T00:00:00Z`);return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===match[1]?match[1]:null;}
 function recordDate(record){return civil(recordValue(record,'completedAt','completed_at','executedAt','executed_at','assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at','scheduledAt','scheduled_at','date','createdAt','created_at'));}
 function timestamp(date){return date?new Date(`${date}T00:00:00Z`).getTime():NaN;}
-function sortNewest(records){return [...records].sort((a,b)=>(timestamp(recordDate(b))||0)-(timestamp(recordDate(a))||0));}
-function uniqueConfirmedExecutions(records){const seen=new Set();return sortNewest(records).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
+// A database row creation/plan date is not evidence that a workout happened.
+// The canonic execution table may store its actual date inside summary.completedAt.
+function executionDate(record){
+  const summary=record?.summary&&typeof record.summary==='object'?record.summary:
+    record?.body?.summary&&typeof record.body.summary==='object'?record.body.summary:null;
+  return civil(recordValue(record,
+    'completedAt','completed_at','remoteConfirmedAt','remote_confirmed_at',
+    'localClosedAt','local_closed_at','endedAt','ended_at','executedAt','executed_at')
+    ||summary?.completedAt||summary?.completed_at||null);
+}
+function sortNewest(records,dateOf=recordDate){return [...records].sort((a,b)=>(timestamp(dateOf(b))||0)-(timestamp(dateOf(a))||0));}
+function uniqueConfirmedExecutions(records){const seen=new Set();return sortNewest(records,executionDate).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
-function inWindow(record,start,end){const date=recordDate(record);return Boolean(date&&date>=start&&date<=end);}
+function inWindow(record,start,end){const date=executionDate(record);return Boolean(date&&date>=start&&date<=end);}
 function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
 function isInitialIri(record){
   const type=String(recordValue(record,'assessmentType','assessment_type','type','assessmentKind','kind','phase')||'').trim().toLowerCase();
@@ -49,7 +59,7 @@ function confirmedActivitySeries(executions,start,end,spanDays){
   if(!start||!end||!Number.isInteger(spanDays)||spanDays<1)return Object.freeze([]);
   const last=timestamp(end),firstDate=timestamp(start);
   if(!Number.isFinite(last)||!Number.isFinite(firstDate)||last<firstDate)return Object.freeze([]);
-  const dated=executions.map(item=>recordDate(item)).filter(date=>date&&date>=start&&date<=end);
+  const dated=executions.map(executionDate).filter(date=>date&&date>=start&&date<=end);
   const buckets=[];
   for(let since=firstDate;since<=last;since+=spanDays*DAY_MS){
     const until=Math.min(last,since+(spanDays-1)*DAY_MS);
@@ -71,7 +81,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   if(!clientId)return Object.freeze([]);
   const end=new Date(now).toISOString().slice(0,10);
   const iris=sortNewest(recordsForClient(state,'iriAssessments',clientId).filter(record=>confirmedIri(record)&&isInitialIri(record)));
-  const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true})).filter(record=>recordDate(record)&&recordDate(record)<=end);
+  const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true})).filter(record=>executionDate(record)&&executionDate(record)<=end);
   // The first confirmed initial assessment is the diagnostic baseline.
   // A more recent assessment of type "inicial" must not silently replace it.
   const latestIri=[...iris].sort((a,b)=>{
@@ -90,7 +100,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
       &&pillar.id!=='activity'
       &&pillar.source!=='wearableDailySummaries');
   const latestIriDate=recordDate(latestIri);
-  const latestSessionDate=recordDate(latestExecution);
+  const latestSessionDate=executionDate(latestExecution);
   const assessmentId=iriId(latestIri);
   const assessmentRevision=normalizedRevision(recordValue(latestIri,'revision'));
   const coverage=iriCoverage(latestIri);
@@ -102,7 +112,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const monthlySessions=executions.filter((record)=>inWindow(record,monthlyStart,end));
   const quarterlySessions=executions.filter((record)=>inWindow(record,quarterlyStart,end));
   const yearlySessions=executions.filter((record)=>inWindow(record,yearlyStart,end));
-  const datedHistory=executions.map(recordDate).filter(Boolean).sort();
+  const datedHistory=executions.map(executionDate).filter(Boolean).sort();
   const historyDays=datedHistory.length?Math.floor((timestamp(end)-timestamp(datedHistory[0]))/DAY_MS)+1:0;
   // A confirmed shell without measured domains is not a releasable IRI diagnosis.
   const iriReady=Boolean(latestIri&&latestIriDate&&coverage>0);
@@ -112,7 +122,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
 
   // An observed Health Connect activity is never a confirmed IBERFIT execution.
   // The weekly summary deliberately uses only canonical completed sessions.
-  const weeklyDays=new Set(weeklySessions.map(recordDate).filter(Boolean)).size;
+  const weeklyDays=new Set(weeklySessions.map(executionDate).filter(Boolean)).size;
   const weeklyReady=weeklySessions.length>0;
   const weeklyReport=reportModel({
     id:'weekly',label:'Resumen semanal de entrenamiento',ready:weeklyReady,
@@ -125,7 +135,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     evidence:weeklyReady?[
       evidence('Sesiones confirmadas',String(weeklySessions.length),'sessionExecutions'),
       evidence('Días con entrenamiento confirmado',String(weeklyDays),'sessionExecutions'),
-      evidence('Última sesión confirmada',`${sessionLabel(weeklySessions[0])} · ${recordDate(weeklySessions[0])}`,'sessionExecutions'),
+      evidence('Última sesión confirmada',`${sessionLabel(weeklySessions[0])} · ${executionDate(weeklySessions[0])}`,'sessionExecutions'),
     ]:[],
   });
   const monthlyReady=Boolean(monthlySessions.length>0&&progressEvidence.length>0);

@@ -105,3 +105,34 @@ test('M44 reporting pillars exclude fresh device activity as a substitute for fo
   assert.match(source,/pillar\.source!=='wearableDailySummaries'/);
   assert.match(source,/los datos del dispositivo son solo contexto/u);
 });
+
+
+test('M44 selects actual completedAt inside canonical execution summary, not record creation date',()=>{
+  const fixture=state([
+    {id:'qa-e1',clientId:'m44-c1',status:'cerrada_confirmada',
+      createdAt:'2026-01-01T09:00:00Z',
+      summary:{completedAt:'2026-10-14T09:00:00Z'},results:[{exerciseId:'squat',reps:8,loadKg:40}]},
+    {id:'qa-e2',clientId:'m44-c1',status:'cerrada_confirmada',
+      createdAt:'2026-10-15T10:00:00Z',
+      summary:{completedAt:'2026-10-11T09:00:00Z'},results:[{exerciseId:'squat',reps:8,loadKg:42}]},
+  ]);
+  const reports=buildPremiumReportPortfolio(fixture,'m44-c1',{now});
+  const post=reports.find(r=>r.id==='post-session');
+  const weekly=reports.find(r=>r.id==='weekly');
+  assert.equal(post.sourceId,'qa-e1');
+  assert.equal(post.periodStart,'2026-10-14');
+  assert.match(weekly.summary,/2 sesiones/);
+  assert.equal(weekly.activitySeries.reduce((total,row)=>total+row.count,0),2);
+});
+
+test('M44 a createdAt timestamp cannot fabricate workout completion or join a period histogram',()=>{
+  const fixture=state([{
+    id:'qa-incomplete',clientId:'m44-c1',
+    status:'cerrada_confirmada',createdAt:'2026-10-14T09:00:00Z',
+    results:[{exerciseId:'squat',reps:8,loadKg:40}],
+  }]);
+  const portfolio=buildPremiumReportPortfolio(fixture,'m44-c1',{now});
+  for(const kind of ['post-session','weekly','monthly','quarterly','year-in-iberfit']){
+    assert.equal(portfolio.find(r=>r.id===kind).ready,false,kind);
+  }
+});
