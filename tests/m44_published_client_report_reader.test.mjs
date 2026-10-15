@@ -52,5 +52,6 @@ test('M44 Client opens published content through an explicit action and no hidde
   assert.match(controller,/if\(role!=='client'\|\|!clientId\)/);
   assert.match(controller,/clientContentView\('report',record\)/);
   assert.match(controller,/publicationStatus:'published'/);
-  assert.doesNotMatch(controller,/openPublishedEvolutionReport[\s\S]*?async function executeWorkflowAction[\s\S]*?commandBus\.execute\(\s*buildPublicationCommand\(/u);
+  const reader=controller.slice(controller.indexOf('  function openPublishedEvolutionReport('),controller.indexOf('  async function executeWorkflowAction('));
+  assert.doesNotMatch(reader,/commandBus\.execute|buildPublicationCommand/u);
 });
