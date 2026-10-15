@@ -2,6 +2,8 @@
 // can authorize appointment-based start. Never use another appointment from
 // the same client (including an unlinked or older presencial booking).
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
+export const APPOINTMENT_EARLY_WINDOW_MS=6*60*60*1000;
+export const APPOINTMENT_LATE_WINDOW_MS=24*60*60*1000;
 
 const safeTime=value=>{
   const date=value?new Date(value).getTime():NaN;
@@ -9,7 +11,7 @@ const safeTime=value=>{
 };
 
 export function confirmedAppointmentForSession(
-  records=[],session,now=Date.now(),{earlyWindowMs=6*60*60*1000,lateWindowMs=24*60*60*1000}={}
+  records=[],session,now=Date.now(),{earlyWindowMs=APPOINTMENT_EARLY_WINDOW_MS,lateWindowMs=APPOINTMENT_LATE_WINDOW_MS}={}
 ){
   const at=Number(now);
   if(!Number.isFinite(at)||!session?.id||!session?.clientId)return null;
