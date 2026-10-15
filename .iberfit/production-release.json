@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "1af3a8cdebfa850241150e9e4c2b1081cf13983d",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "description": "IBERFIT M42 cierre: inicio de sesión guiada sin cita ajena, QA WebAuthn IRI y dispositivo certificados; mantener sesión Carrera de prueba."
+}
