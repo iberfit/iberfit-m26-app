@@ -32,3 +32,7 @@ The M44 branch workflow runs npm run test:m44:contract and npm run quality:m44:r
 - Sexta migración (20261015143500): ledger PDF privado, SHA-256 fuente/artefacto, autorización Admin/Coach y denegación Cliente para emisión, ausencia de objeto rechazada, retirada sin pérdida histórica. Validación positiva prepare y negativa de rol sin despliegue.
 - Estado verificado tras los ensayos: QA y PROD, draft RPC no desplegado, PDF ledger no desplegado, tabla reports con cero filas. No declarar informe PDF emitido ni archivado.
 - Falta desarrollar y certificar el renderizador de PDF emitido en Edge, subida real verificada de los bytes, finalización atómica, URLs firmadas/retirada, QA autenticada con tokens reales y suite de regresión completa. El preview de Chromium NO es archivo emitido.
+
+## Edge PDF emisor WIP
+- Broker Supabase Edge `iberfit-evolution-report-emission-v1` renderiza datos únicamente tras RPC `prepare`, verifica SHA-256 del PDF en Storage mediante descarga de lectura, finaliza como service_role y entrega URL temporal de 120 segundos. El Cliente puede abrir solo artefactos autorizados y no retirados.
+- CI hermética incorpora `deno check` y prueba de PDF real sobre datos sintéticos con 12 evidencias, 13 periodos y texto extenso. Esto certifica bytes y paginación del motor, pero NO sustituye el despliegue y ensayo QA de Storage y sesión real.
