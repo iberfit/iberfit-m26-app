@@ -1,0 +1,142 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createCommunicationController} from '../src/m26/communication/controller.js';
+
+const tick=()=>new Promise((resolve)=>setImmediate(resolve));
+function deferred(){
+  let resolve,reject;
+  const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+  return {promise,resolve,reject};
+}
+function pushControl(){
+  const status={textContent:'Comprobando disponibilidad…'};
+  const enable={disabled:false,hidden:false};
+  const disable={disabled:false,hidden:true};
+  return {
+    dataset:{},status,enable,disable,
+    querySelector(selector){
+      if(selector==='[data-m26-web-push-status]')return status;
+      if(selector==='[data-m26-web-push-action="enable"]')return enable;
+      if(selector==='[data-m26-web-push-action="disable-current"]')return disable;
+      return null;
+    },
+  };
+}
+function rootHarness(){
+  const listeners=new Map(),windowListeners=new Map();
+  let current=pushControl(),role='coach';
+  const root={
+    ownerDocument:{defaultView:{
+      addEventListener(name,listener){windowListeners.set(name,listener);},
+      removeEventListener(name){windowListeners.delete(name);},
+    }},
+    querySelector(selector){
+      if(selector==='[data-m26-web-push-control]')return current;
+      if(selector==='[data-communication-role]'&&role)return {dataset:{communicationRole:role}};
+      return null;
+    },
+    querySelectorAll(){return [];},
+    addEventListener(name,callback){listeners.set(name,callback);},
+    removeEventListener(name){listeners.delete(name);},
+  };
+  return {
+    root,listeners,windowListeners,
+    getControl:()=>current,
+    swapControl(){current=pushControl();return current;},
+    setRole(value){role=value;},
+  };
+}
+
+test('M45 an asynchronous push response cannot repaint a control after unmount',async()=>{
+  const h=rootHarness(),remote=deferred();
+  let calls=0;
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{webPush:{status(){calls++;return remote.promise;}}},
+  });
+  const old=h.getControl();
+  controller.mount();
+  await tick();
+  assert.equal(calls,1);
+  controller.destroy();
+  remote.resolve({active:true,supported:true,configured:true});
+  await tick();
+  assert.equal(old.status.textContent,'Comprobando disponibilidad…');
+  assert.equal(old.dataset.m26WebPushActive,undefined);
+});
+
+test('M45 push status attaches only to the latest shell control after a redraw',async()=>{
+  const h=rootHarness(),first=deferred(),second=deferred();
+  let calls=0;
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{webPush:{status(){calls++;return calls===1?first.promise:second.promise;}}},
+  });
+  const old=h.getControl();
+  controller.mount();
+  await tick();
+  assert.equal(calls,1);
+  const current=h.swapControl();
+  h.listeners.get('m26:shell-rendered')();
+  await tick();
+  assert.equal(calls,2,'new control must get its own status request');
+  first.resolve({active:true,supported:true});
+  await tick();
+  assert.equal(old.dataset.m26WebPushActive,undefined);
+  assert.equal(current.dataset.m26WebPushActive,undefined);
+  second.resolve({active:false,supported:true,configured:true});
+  await tick();
+  assert.equal(current.dataset.m26WebPushActive,'false');
+  assert.equal(old.status.textContent,'Comprobando disponibilidad…');
+  controller.destroy();
+});
+
+test('M45 queued preference writes do not replay across logout or role switches',async()=>{
+  const h=rootHarness(),first=deferred(),updates=[];
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{
+      notificationPreferences:{
+        update(payload){
+          updates.push({...payload});
+          return updates.length===1?first.promise:Promise.resolve({ok:true});
+        },
+      },
+    },
+  });
+  function toggle(value){
+    const control={
+      checked:value,type:'checkbox',
+      getAttribute(name){return name==='data-m26-preference'?'notifications.coachMessages':null;},
+    };
+    h.listeners.get('change')({target:{closest(){return control;}}});
+  }
+  controller.mount();
+  toggle(true);
+  toggle(false);
+  assert.deepEqual(updates,[{coachMessages:true}]);
+  controller.destroy();
+  first.resolve({ok:true});
+  await tick();
+  await tick();
+  assert.deepEqual(updates,[{coachMessages:true}],
+    'queued mutation cannot run using a subsequent identity');
+  controller.mount();
+  toggle(false);
+  await tick();
+  assert.deepEqual(updates,[{coachMessages:true},{coachMessages:false}]);
+  controller.destroy();
+});
+
+test('M45 a queued mount callback cannot revive after immediate destroy',async()=>{
+  const h=rootHarness();
+  let calls=0;
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{webPush:{async status(){calls++;return {active:false};}}},
+  });
+  controller.mount();
+  controller.destroy();
+  await tick();
+  assert.equal(calls,0);
+});
