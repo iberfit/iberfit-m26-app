@@ -424,11 +424,12 @@ test('M45 route view-model uses authenticated state identity, not a stale shell 
 
 
 test('M45 an acknowledged old-account message cannot refresh the next account',async()=>{
-  let identity='coach-account-A',release;
+  let identity='coach-account-A',release,started;
   const pending=new Promise((resolve)=>{release=resolve;});
+  const sent=new Promise((resolve)=>{started=resolve;});
   let refreshes=0;
   const service=createCommunicationService({
-    transport:{execute:()=>pending},
+    transport:{execute:()=>{started();return pending;}},
     getToken:async()=> 'jwt-account-A',
     getRole:()=> 'coach',
     getState:()=>({available:true,identity:{id:identity}}),
@@ -436,6 +437,7 @@ test('M45 an acknowledged old-account message cannot refresh the next account',a
     refreshState:async()=>{refreshes++;},
   });
   const resultPromise=service.execute(messageInput('account-A-op'));
+  await sent; // The signed request is already in-flight as account A.
   identity='coach-account-B';
   release({ok:true,kind:'ack'});
   const result=await resultPromise;
