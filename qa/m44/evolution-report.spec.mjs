@@ -1,9 +1,6 @@
 import {test,expect} from '@playwright/test';
-import {readFile} from 'node:fs/promises';
 import {buildEvolutionReportHtml} from '../../src/m26/workflows/evolution-report-document.js';
 
-const css=await readFile(new URL('../../public/m26/evolution-report.css',import.meta.url),'utf8');
-const fixtureCss=css.replace(/^@import[^\n]+\n/gmu,'');
 const synthetic={
   id:'monthly',ready:true,title:'Tu evolución · Octubre 2026',
   periodStart:'2026-09-15',periodEnd:'2026-10-15',
@@ -28,13 +25,17 @@ const html=buildEvolutionReportHtml({
   report:synthetic,clientName:'Persona de prueba IBERFIT',
   coachName:'Equipo IBERFIT',publicationStatus:'published',
 });
-// Remove external stylesheet link. The exact report stylesheet is injected
-// with page.addStyleTag; there is no request to PROD or personal data.
-const selfContained=html.replace(/<link[^>]*data-m44-report-css[^>]*>/u,'');
-async function mount(page){
-  await page.setContent(selfContained,{waitUntil:'domcontentloaded'});
-  await page.addStyleTag({content:fixtureCss});
-  await page.evaluate(()=>document.fonts?.ready);
+// Serve the real typography, stylesheet and official isotipo from the repo,
+ // rather than testing a fallback-font approximation.
+async function mount(page,markup=html){
+  await page.goto('/qa/rc64/fixture.html');
+  await page.setContent(markup,{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>!!document.querySelector('[data-m44-report-css]')?.sheet)).toBe(true);
+  await page.evaluate(async()=>{
+    await document.fonts.ready;
+    const logo=document.querySelector('.m44-brand img');
+    if(logo)await logo.decode();
+  });
 }
 
 test('M44 report is readable without horizontal clipping and contains a table and meaningful date axes',async({page})=>{
@@ -79,4 +80,30 @@ test('M44 printing at true A4 remains free of hidden text and footer collisions'
   expect(pdf.length).toBeGreaterThan(10_000);
   const pagesInPdf=(pdf.toString('latin1').match(/\/Type\s*\/Page\b/gu)||[]).length;
   expect(pagesInPdf).toBe(5);
+});
+
+
+test('M44 official brand font assets and logo are loaded in the real DOM',async({page,request})=>{
+  await mount(page);
+  for(const path of [
+    '/m26/fonts/inter-latin-wght-normal.woff2',
+    '/m26/fonts/source-serif-4-latin-wght-normal.woff2',
+    '/public/isotipo-iberfit.png',
+  ]){
+    const response=await request.get(path);
+    expect(response.status(),path).toBe(200);
+    expect((await response.body()).byteLength,path).toBeGreaterThan(300);
+  }
+  const proof=await page.evaluate(()=>({
+    titleFont:getComputedStyle(document.querySelector('.m44-cover h1')).fontFamily,
+    bodyFont:getComputedStyle(document.body).fontFamily,
+    logoReady:document.querySelector('.m44-brand img')?.naturalWidth>0,
+    serifLoaded:document.fonts.check('16px "Source Serif 4 Variable"'),
+    interLoaded:document.fonts.check('16px "Inter Variable"'),
+  }));
+  expect(proof.titleFont).toContain('Source Serif 4 Variable');
+  expect(proof.bodyFont).toContain('Inter Variable');
+  expect(proof.logoReady).toBe(true);
+  expect(proof.serifLoaded).toBe(true);
+  expect(proof.interLoaded).toBe(true);
 });
