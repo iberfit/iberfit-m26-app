@@ -42,13 +42,13 @@ function code(error:unknown){
  const value=String((error as {message?:string})?.message||error||'').toUpperCase();
  return value.match(/\b(?:M44|IBERFIT)_?[A-Z0-9_:-]{4,90}\b/u)?.[0]||'M44_PDF_BROKER_ERROR';
 }
-function clients(auth:string){
+function clients(auth:string,origin:string){
  const publishable=key('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY');
  const secret=key('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY');
  if(!publishable||!secret||!url)throw Error('M44_PDF_BROKER_CONFIG_MISSING');
  return {
   user:createClient(url,publishable,{auth:{persistSession:false,autoRefreshToken:false},
-   global:{headers:{Authorization:auth}}}),
+   global:{headers:{Authorization:auth,Origin:origin}}}),
   service:createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}}),
  };
 }
@@ -230,7 +230,7 @@ Deno.serve(async(req)=>{
   if(!body||typeof body!=='object'||Array.isArray(body))throw Error('M44_PDF_BODY_INVALID');
   const action=String(body.action||'');
   if(!['issue','open','latest','history','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
-  const {user,service}=clients(bearer);
+  const {user,service}=clients(bearer,origin);
   const auth=await user.auth.getUser(bearer.slice(7).trim());
   if(auth.error||!UUID.test(auth.data?.user?.id||''))throw Error('M44_PDF_AUTH_REQUIRED');
   const actor=auth.data.user.id;
