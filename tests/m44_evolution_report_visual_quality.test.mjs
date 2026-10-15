@@ -118,3 +118,17 @@ test('M44 histogram shows actual period dates and numeric scale, not just hover 
   assert.match(html,/Escala vertical desde 0 hasta 2 sesiones confirmadas/);
   assert.match(html,/Detalle accesible del ritmo de entrenamiento/);
 });
+
+
+test('M44 12 long evidence records are preserved across extra A4 sheets without shrinking typography',()=>{
+  const evidence=Array.from({length:12},(_,i)=>({
+    label:'Detalle confirmado '+i,
+    text:'Explicación profesional verificable. '.repeat(14).slice(0,498),
+    source:'sessionExecutions',quality:'confirmada',
+  }));
+  const html=buildEvolutionReportHtml({report:{...basic,evidence}});
+  assert.equal((html.match(/class="m44-evidence-item"/g)||[]).length,12);
+  assert.ok((html.match(/class="m44-sheet /g)||[]).length>5);
+  assert.match(html,/Detalle confirmado 11/);
+  assert.doesNotMatch(html,/scale\(|transform:scale|font-size:6pt/);
+});

@@ -107,3 +107,40 @@ test('M44 official brand font assets and logo are loaded in the real DOM',async(
   expect(proof.serifLoaded).toBe(true);
   expect(proof.interLoaded).toBe(true);
 });
+
+
+test('M44 full-length canonical evidence is paginated rather than clipped in actual A4',async({page})=>{
+  const evidence=Array.from({length:12},(_,i)=>({
+    label:'Indicador verificable '+String(i+1),
+    text:'Detalle individual de entrenamiento confirmado y procedencia. '.repeat(8).slice(0,490),
+    source:'sessionExecutions',quality:'confirmada',
+  }));
+  const proof=buildEvolutionReportHtml({
+    report:{...synthetic,evidence},clientName:'Persona QA',
+    publicationStatus:'published',
+  });
+  await mount(page,proof);
+  await page.emulateMedia({media:'print'});
+  const results=await page.evaluate(()=>{
+    const sheets=[...document.querySelectorAll('.m44-sheet')];
+    const lines=[...document.querySelectorAll('.m44-evidence-item')];
+    return {
+      pages:sheets.length,evidence:lines.length,
+      unfit:sheets.flatMap((sheet,index)=>{
+        const content=sheet.querySelector('.m44-page-content');
+        return content&&content.scrollHeight>content.clientHeight+2?[index]:[];
+      }),
+      overlapped:sheets.flatMap((sheet,index)=>{
+        const body=sheet.querySelector('.m44-page-content')?.getBoundingClientRect();
+        const footer=sheet.querySelector('.m44-foot')?.getBoundingClientRect();
+        return body&&footer&&body.bottom>footer.top+2?[index]:[];
+      }),
+    };
+  });
+  expect(results.evidence).toBe(12);
+  expect(results.pages).toBeGreaterThan(5);
+  expect(results.unfit).toEqual([]);
+  expect(results.overlapped).toEqual([]);
+  const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true});
+  expect((pdf.toString('latin1').match(/\/Type\s*\/Page\b/gu)||[]).length).toBe(results.pages);
+});

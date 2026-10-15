@@ -89,9 +89,26 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const title=clean(report.title,140)||TYPES[report.id];
   if(!['draft','published'].includes(publicationStatus))throw new Error('M44_REPORT_DOCUMENT_STATUS_INVALID');
   const published=publicationStatus==='published';
-  const maxRows=6;
+  // An evidence sheet must accommodate actual explanation lengths. Six rows
+  // of 500 characters do not fit A4 even if the source count is valid.
+  // Use a conservative per-page reading budget; never scale text down or
+  // silently discard evidence to make a page fit.
+  const maxRows=6,evidenceBudget=28;
+  const evidenceCost=item=>2+
+    Math.ceil(clean(item.text,500).length/75)+
+    Math.ceil(clean(item.label,120).length/65)+
+    Math.ceil(clean(item.source,120).length/80);
   const evidenceChunks=[];
-  for(let offset=0;offset<lines.length;offset+=maxRows)evidenceChunks.push(lines.slice(offset,offset+maxRows));
+  let currentChunk=[],budgetUsed=0;
+  for(const item of lines){
+    const cost=evidenceCost(item);
+    if(currentChunk.length&&(currentChunk.length>=maxRows||budgetUsed+cost>evidenceBudget)){
+      evidenceChunks.push(currentChunk);
+      currentChunk=[];budgetUsed=0;
+    }
+    currentChunk.push(item);budgetUsed+=cost;
+  }
+  if(currentChunk.length)evidenceChunks.push(currentChunk);
   const activitySeries=Array.isArray(report.activitySeries)?report.activitySeries:[];
   const showActivity=report.id!=='post-session'&&activitySeries.length>=2
     &&activitySeries.length<=13
