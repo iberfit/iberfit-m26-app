@@ -83,3 +83,10 @@ El trabajo M44 puede prepararse en la rama WIP. **No PR para cambios parciales.*
 
 ## 7. Auditoría y radar del 15/10 integrados al gate
 P0 #941 abierto por aceptación de la PWA Windows multirrol; #942 fue publicado, sin necesidad de un parche paralelo. La recuperación de sesión no puede bloquear el selector de rol. Para M44, proteger de forma explícita el bootstrap SECURITY DEFINER; Cliente jamás recibe registros privados de reports ni cuerpos de m26Entities report, incluso con roles con permisos previos. Migraciones M44 WIP se prueban en QA sintética antes de aplicar. Valor visual IRI: portada, lectura de periodo, evidencia, tabla, limitaciones, interpretación y próximo paso, con impresión A4 y PDF real por certificar. Adherencia/continuidad: una alternativa autorizada no equivale automáticamente al volumen original ni corrige una ausencia de cita. Wearables: origen y frescura, sin considerarlos ejecuciones. Véase docs/product/IBERFIT_20261015_INTEGRATED_AUDIT_AND_INNOVATION.md.
+
+
+## 8. M44 Playwright documental (WIP, aún no ejecutado en CI)
+- `npm run test:m44:contract`: regresiones de datos/roles y contratos, incluidos reintentos con JSONB.
+- `npm run quality:m44:report:a4`: Chromium real en móvil, tablet y escritorio, datos estrictamente sintéticos; 5 hojas A4, eje/fechas, tabla accesible, privacidad del comentario Coach, desbordamientos, solapamientos y PDF generado. Fuente de estilos `public/m26/evolution-report.css` inyectada sin acceso a producción.
+- Este ensayo usa fuente tipográfica fallback por aislamiento; antes de release verificar **también** Inter/Source Serif reales servidas por la compilación, fotografías/logotipo, contraste y PDF inmutable emitido/autorizado desde servidor.
+- El archivo de QA no implica que el PDF real archivado o la matriz Playwright estén aprobados. CI permanece pendiente hasta activación en PR de integración única.
