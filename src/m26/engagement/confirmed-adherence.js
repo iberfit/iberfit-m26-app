@@ -62,12 +62,16 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
   let standaloneExecutions=0;
   let contradictoryAppointmentLinks=0;
   const matchedAppointmentIds=new Set();
-  for(const {appointmentId} of uniqueExecutions){
+  for(const {appointmentId,sessionId} of uniqueExecutions){
     // Only explicit, noncontradictory, confirmed appointments can be fulfilled.
     // A completed execution cannot retroactively turn a recorded no-show into
     // attendance or resolve a same-revision canonical conflict.
+    // Even an explicit appointmentId cannot fulfill a different linked session:
+    // both sides carrying different canonical session IDs is contradictory.
     const dueAppointment=appointmentId?due.get(appointmentId):null;
-    if(dueAppointment&&['confirmada','realizada'].includes(dueAppointment.status)){
+    const sameSession=!dueAppointment?.sessionId||!sessionId
+      ||dueAppointment.sessionId===sessionId;
+    if(dueAppointment&&sameSession&&['confirmada','realizada'].includes(dueAppointment.status)){
       linkedExecutions++;
       matchedAppointmentIds.add(appointmentId);
       fulfilled.add(appointmentId);
