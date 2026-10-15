@@ -428,3 +428,8 @@ verify_jwt = false
 # identical while avoiding gateway JWT drift.
 [functions.iberfit-iri-report-emission-v1]
 verify_jwt = false
+
+# M44 official evolution PDF broker requires a verified bearer at the gateway
+# as well as its own user-scoped RLS/RPC checks. Never use --no-verify-jwt.
+[functions.iberfit-evolution-report-emission-v1]
+verify_jwt = true
