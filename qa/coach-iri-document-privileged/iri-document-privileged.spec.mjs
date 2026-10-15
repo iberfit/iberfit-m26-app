@@ -1,6 +1,7 @@
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {isAuthorizedQaAvatarRead} from './qa-avatar-traffic-policy.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
@@ -89,6 +90,10 @@ function allowedQaRequest(request,evidence){
   if(method==='POST'&&url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')return true;
   if(method==='POST'&&url.pathname==='/auth/v1/logout')return true;
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
+  if(isAuthorizedQaAvatarRead(request,{qaOrigin:QA_ORIGIN})){
+    evidence.privateAvatarReads.push('authenticated-avatar-get');
+    return true;
+  }
   if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   if(method==='POST'&&url.pathname===WEBAUTHN_PATH){
@@ -326,7 +331,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   const evidence={
     schema:'iberfit.qa-coach-iri-document-privileged-ui.v1',
     projectRef:QA_REF,clientId:CLIENT_ID,synthetic:true,realPersonData:false,
-    webauthnActions:[],draftMutations:[],privilegedMutations:[],reportActions:[],blocked:[],
+    webauthnActions:[],draftMutations:[],privilegedMutations:[],reportActions:[],privateAvatarReads:[],blocked:[],
     analysisValidated:false,photoPublicationGranted:false,clientPdfIssued:false,photoPublicationRevoked:false,
     remoteDraftCas:{certified:false},
   };
