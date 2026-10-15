@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCommunicationService} from '../src/m26/communication/service.js';
+import {createCommunicationController} from '../src/m26/communication/controller.js';
 import {buildNotificationCenter} from '../src/m26/communication/notification-center.js';
 import {renderCommunicationRoute} from '../src/m26/communication/route-render.js';
 
@@ -127,4 +128,41 @@ test('M45 grouped form is capped to twenty independent read ids',()=>{
   assert.match(html,/25 sin leer/);
   assert.match(html,/Marcar 20 de 25 como leídas/);
   assert.equal((html.match(/name="notificationId"/g)||[]).length,20);
+});
+
+
+test('M45 group-read form dispatches precisely the grouped IDs and redraws once after ACK',async()=>{
+  const oldFormData=globalThis.FormData;
+  const handlers=new Map(),calls=[];
+  const idsForForm=ids.slice(0,2);
+  const form={dataset:{communicationForm:'notification-read'},ids:idsForForm};
+  globalThis.FormData=class{constructor(target){this.target=target;}getAll(key){return key==='notificationId'?this.target.ids:[];}};
+  let redraws=0;
+  const root={
+    ownerDocument:{defaultView:null},
+    querySelector(){return null;},
+    querySelectorAll(){return [];},
+    addEventListener(key,handler){handlers.set(key,handler);},
+    removeEventListener(key){handlers.delete(key);},
+  };
+  const controller=createCommunicationController({
+    root,render(){redraws+=1;},
+    service:{
+      async markNotificationsRead(payload){
+        calls.push([...payload]);
+        return {ok:true,markedCount:payload.length,requestedCount:payload.length,syncPending:false};
+      },
+      webPush:{async status(){return {};}},
+    },
+  });
+  try{
+    controller.mount();
+    handlers.get('submit')({target:{closest(selector){return selector==='[data-communication-form]'?form:null;}},preventDefault(){}});
+    await new Promise((resolve)=>setImmediate(resolve));
+    assert.deepEqual(calls,[idsForForm]);
+    assert.equal(redraws,1);
+  }finally{
+    controller.destroy();
+    globalThis.FormData=oldFormData;
+  }
 });
