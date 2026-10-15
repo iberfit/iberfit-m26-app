@@ -188,8 +188,14 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   const windowLike=root?.ownerDocument?.defaultView||globalThis.window||null;
   function rememberVisibleDrafts(){
     for(const [id,draft] of captureMessageDrafts(root)){
-      if(draft.body||draft.open)pendingMessageDrafts.set(id,draft);
-      else pendingMessageDrafts.delete(id);
+      if(draft.body){
+        pendingMessageDrafts.set(id,draft);
+      }else if(!pendingMessageDrafts.get(id)?.body){
+        // Shell-recreated blank composers must never replace a draft captured
+        // before an asynchronous refresh; explicit deletion uses the input event.
+        if(draft.open)pendingMessageDrafts.set(id,draft);
+        else pendingMessageDrafts.delete(id);
+      }
     }
   }
   function applyInboxFilter(){
@@ -201,11 +207,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     restoreMessageDrafts(root,pendingMessageDrafts);
     applyInboxFilter();
   }
-  function clearLiveMessageComposer(threadId){
+  function clearLiveMessageComposer(threadId,sentBody){
     for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
       if(String(form.querySelector?.('[name="threadId"]')?.value||'')!==threadId)continue;
       const textarea=form.querySelector?.('textarea[name="body"]');
-      if(textarea)textarea.value='';
+      // The user can start composing the *next* message during this send.
+      if(textarea&&String(textarea.value||'').trim()===sentBody)textarea.value='';
     }
   }
   function composeFeedback(form,message,{waiting=false}={}){
@@ -225,20 +232,26 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     // The domain refresh may replace the shell before execute resolves.
     // Preserve other unsent composers *before* crossing the network boundary.
     rememberVisibleDrafts();
-    const draftsBefore=new Map(pendingMessageDrafts);
+    let confirmed=false;
     try{
       const result=await service.execute(input);
       // An ACK for account A must never reset account B's composer.
       if(!current())return false;
+      confirmed=true;
       if(input.type==='MESSAGE_SEND')messageRetryFence.acknowledged(input.entityId,input.operationId);
-      onAck?.();
+      // Merge edits entered *while the server request was in flight*. Old
+      // snapshots are not allowed to overwrite newly composed messages.
+      rememberVisibleDrafts();
       if(input.type==='MESSAGE_SEND'){
         const sentThread=String(input.entityId||'');
-        draftsBefore.delete(sentThread);
-        pendingMessageDrafts.delete(sentThread);
-        clearLiveMessageComposer(sentThread);
-      }
-      restoreMessageDrafts(root,draftsBefore);
+        const sentBody=String(input.payload?.body||'').trim();
+        const latest=pendingMessageDrafts.get(sentThread);
+        if(!latest?.body||String(latest.body).trim()===sentBody){
+          pendingMessageDrafts.delete(sentThread);
+          clearLiveMessageComposer(sentThread,sentBody);
+        }
+      }else onAck?.();
+      restoreMessageDrafts(root,pendingMessageDrafts);
       toast(result?.syncPending?msg+' La actualización de esta pantalla está pendiente.':msg);
       if(form)composeFeedback(form,result?.syncPending
         ?'Envío confirmado. La conversación se actualizará al recuperar los datos.'
@@ -247,6 +260,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       return true;
     }catch(error){
       if(!current())return false;
+      if(confirmed){
+        // A redraw/UI exception after the confirmed RPC must not create a
+        // misleading send failure that invites duplicate retries.
+        toast('Operación confirmada. No se pudo actualizar la vista; vuelve a abrir la conversación.');
+        return true;
+      }
       const offline=/ONLINE_REQUIRED/.test(String(error?.message||error));
       const feedback=offline
         ?'Los mensajes requieren conexión. El borrador está disponible para reintentar.'
@@ -466,7 +485,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       return run(
         {type:'MESSAGE_SEND',operationId,entityId:threadId,payload:{threadId,body}},
         'Mensaje enviado.',
-        {onAck:()=>form.reset?.(),form},
+        {form},
       );
     }
     if(kind==='thread-read'){
