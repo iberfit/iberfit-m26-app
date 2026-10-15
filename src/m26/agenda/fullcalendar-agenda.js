@@ -249,6 +249,8 @@ export function createRc62AgendaCalendarController({
   let mounted=false;
   let lastEventSignature=null;
   let lastCalendarDate=null;
+  let failedHost=null;
+  let failedSignature=null;
   let refreshQueued=false;
   let scheduleGeneration=0;
 
@@ -263,6 +265,28 @@ export function createRc62AgendaCalendarController({
     calendar=null;
     calendarHost=null;
     lastEventSignature=null;
+  }
+
+  function showFallback(host,signature){
+    failedHost=host;
+    failedSignature=signature;
+    try{
+      host.dataset.calendarStatus='fallback';
+      const doc=host.ownerDocument||root.ownerDocument||scope?.document;
+      if(!doc?.createElement||!host.replaceChildren)return;
+      const panel=doc.createElement('div');
+      panel.className='m45-agenda-fallback';
+      panel.setAttribute('role','status');
+      const description=doc.createElement('p');
+      description.textContent='No pudimos mostrar el calendario visual. La lista de citas sigue disponible.';
+      const button=doc.createElement('button');
+      button.type='button';
+      button.className='m26-primary-action';
+      button.dataset.rc62AgendaRetry='true';
+      button.textContent='Reintentar calendario';
+      panel.append(description,button);
+      host.replaceChildren(panel);
+    }catch{}
   }
 
   function desktopEligible(){
@@ -280,11 +304,16 @@ export function createRc62AgendaCalendarController({
     const host=root.querySelector('[data-rc62-agenda-calendar]');
     if(!agendaRoleEligible(role)||!host||!desktopEligible()){
       destroyCalendar();
+      failedHost=null;
+      failedSignature=null;
       return;
     }
 
     const events=buildRc62AgendaEvents(state?.collections?.appointments||[]);
     const signature=agendaEventSignature(events);
+    // A vendor failure must not schedule itself forever via MutationObserver.
+    // Changed appointments, explicit retry or reconnect are recovery signals.
+    if(failedHost===host&&failedSignature===signature)return;
     if(calendar&&calendarHost===host){
       // FullCalendar mutates the DOM; without the signature fence, our own
       // MutationObserver can trigger an unbounded remove/re-add/render loop.
@@ -300,7 +329,7 @@ export function createRc62AgendaCalendarController({
         // A partially updated third-party calendar must never leave a broken
         // overlay or runaway observer; the accessible appointment cards remain.
         destroyCalendar();
-        try{host.dataset.calendarStatus='fallback';}catch{}
+        showFallback(host,signature);
       }
       return;
     }
@@ -328,6 +357,8 @@ export function createRc62AgendaCalendarController({
       calendarHost=host;
       lastEventSignature=signature;
       calendar.render();
+      failedHost=null;
+      failedSignature=null;
       try{host.dataset.calendarStatus='ready';}catch{}
     }catch{
       if(request!==generation)return;
@@ -335,7 +366,7 @@ export function createRc62AgendaCalendarController({
       calendar=null;
       calendarHost=null;
       lastEventSignature=null;
-      try{host.dataset.calendarStatus='fallback';}catch{}
+      showFallback(host,signature);
     }
   }
 
@@ -353,10 +384,25 @@ export function createRc62AgendaCalendarController({
   }
 
   function onMediaChange(){scheduleRefresh();}
+  function onRetry(event){
+    if(!event?.target?.closest?.('[data-rc62-agenda-retry]'))return;
+    event.preventDefault?.();
+    failedHost=null;
+    failedSignature=null;
+    scheduleRefresh();
+  }
+  function onReconnect(){
+    if(!failedHost)return;
+    failedHost=null;
+    failedSignature=null;
+    scheduleRefresh();
+  }
   function onCompactChange(){
     // View density is a construction-time option; recreate only on breakpoint
     // transition, never on each MutationObserver delivery.
     destroyCalendar();
+    failedHost=null;
+    failedSignature=null;
     scheduleRefresh();
   }
 
@@ -376,11 +422,15 @@ export function createRc62AgendaCalendarController({
         observer.observe(root,{childList:true,subtree:true});
       }
       mounted=true;
+      root.addEventListener?.('click',onRetry);
+      scope?.addEventListener?.('online',onReconnect);
       scheduleRefresh();
     },
     destroy(){
       if(!mounted)return;
       mounted=false;
+      root.removeEventListener?.('click',onRetry);
+      scope?.removeEventListener?.('online',onReconnect);
       scheduleGeneration++;
       refreshQueued=false;
       observer?.disconnect?.();
@@ -391,6 +441,8 @@ export function createRc62AgendaCalendarController({
       compactMediaQuery=null;
       destroyCalendar();
       lastCalendarDate=null;
+      failedHost=null;
+      failedSignature=null;
     },
     refresh:()=>refresh(),
   });
