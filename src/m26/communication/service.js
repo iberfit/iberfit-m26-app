@@ -9,6 +9,11 @@ export function createCommunicationService({transport,getToken,getState,getRole,
   const webPush=createWebPushCoordinator({
     transport,
     getToken,
+    getIdentityScope:()=>{
+      const id=String(getState()?.identity?.id||'').trim();
+      const role=String(getRole()||'').toLowerCase();
+      return id&&['coach','client'].includes(role)?`${role}:${id}`:'';
+    },
     getRegistration:getPushRegistration,
     vapidPublicKey:webPushPublicKey,
     getVapidPublicKey:async()=>{
