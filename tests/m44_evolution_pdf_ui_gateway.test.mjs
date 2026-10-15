@@ -82,3 +82,18 @@ test('M44 browser preview never places Storage bearerless signed URL in navigati
  assert.match(section,/URL\?\.revokeObjectURL\?/);
  assert.doesNotMatch(section,/popup\.location\.replace\(result\.signedUrl\)/);
 });
+
+test('M44 interactive action registry closes Client/Coach/Admin buttons under their exact privileges',async()=>{
+ const {assertActionAllowed}=await import('../src/m26/ui/interactive-audit.js');
+ const allowed={
+  'open-published-evolution-report':['client'],
+  'issue-evolution-pdf':['coach','admin'],
+  'open-issued-evolution-pdf':['coach','admin','client'],
+  'show-issued-evolution-history':['coach','admin','client'],
+  'withdraw-issued-evolution-pdf':['coach','admin'],
+ };
+ for(const [action,roles] of Object.entries(allowed)){
+  for(const role of ['admin','coach','client'])
+   assert.equal(assertActionAllowed(action,role),roles.includes(role),action+' '+role);
+ }
+});
