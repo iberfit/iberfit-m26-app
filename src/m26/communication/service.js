@@ -53,6 +53,9 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       )||new Set(ids).size!==ids.length)throw new Error('M45_NOTIFICATION_BATCH_INVALID');
       if(!['client','coach'].includes(role))throw new Error('M26_COMMUNICATION_ROLE_FORBIDDEN');
       const state=getState();
+      const identityScope=String(state?.identity?.id||'');
+      const stillCurrent=()=>String(getRole()||'').toLowerCase()===role&&
+        String(getState()?.identity?.id||'')===identityScope;
       const commands=ids.map((id)=>createCommunicationCommand({
         type:'NOTIFICATION_MARK_READ',entityId:id,payload:{notificationId:id},
       },state,role));
@@ -76,10 +79,11 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       const markedIds=ids.filter((_,index)=>results[index].status==='fulfilled');
       if(!markedIds.length)throw results.find((result)=>result.status==='rejected')?.reason
         ||new Error('M45_NOTIFICATION_BATCH_NOT_CONFIRMED');
-      let syncPending=false;
-      try{
-        await refreshState({reason:'communication-notifications-ack',markedIds});
-      }catch{syncPending=true;}
+      let syncPending=!stillCurrent();
+      if(!syncPending){
+        try{await refreshState({reason:'communication-notifications-ack',markedIds});}
+        catch{syncPending=true;}
+      }
       return Object.freeze({
         ok:markedIds.length===ids.length,
         markedCount:markedIds.length,
@@ -91,7 +95,11 @@ export function createCommunicationService({transport,getToken,getState,getRole,
     execute(input){
       if(!isOnline())return Promise.reject(new Error('M26_COMMUNICATION_ONLINE_REQUIRED'));
       const role=String(getRole()||'').toLowerCase();
-      const command=createCommunicationCommand(input,getState(),role);
+      const state=getState();
+      const identityScope=String(state?.identity?.id||'');
+      const sameIdentity=()=>String(getRole()||'').toLowerCase()===role&&
+        String(getState()?.identity?.id||'')===identityScope;
+      const command=createCommunicationCommand(input,state,role);
       const signature=fingerprint(command);
       const current=inFlight.get(command.operationId);
       if(current){
@@ -103,11 +111,10 @@ export function createCommunicationService({transport,getToken,getState,getRole,
         const response=await transport.execute(token,command,{application:role});
         // A confirmed remote ACK is authoritative. A subsequent hydration failure
         // must never turn a successful send into an apparent failure and duplicate.
-        let syncPending=false;
-        try{
-          await refreshState({reason:'communication-ack',response});
-        }catch{
-          syncPending=true;
+        let syncPending=!sameIdentity();
+        if(!syncPending){
+          try{await refreshState({reason:'communication-ack',response});}
+          catch{syncPending=true;}
         }
         if(command.type==='MESSAGE_SEND'&&typeof transport.webPushDispatchKick==='function'){
           void transport.webPushDispatchKick(token,command.operationId).catch(()=>null);
