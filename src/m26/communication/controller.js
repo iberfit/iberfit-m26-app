@@ -162,9 +162,18 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       if(textarea)textarea.value='';
     }
   }
-  async function run(input,msg,{onAck}={}){
+  function composeFeedback(form,message,{waiting=false}={}){
+    if(!form)return;
+    form.setAttribute?.('aria-busy',waiting?'true':'false');
+    const button=form.querySelector?.('button[type="submit"]');
+    if(button)button.disabled=waiting;
+    const status=form.querySelector?.('.m45-compose-status');
+    if(status)status.textContent=message;
+  }
+  async function run(input,msg,{onAck,form}={}){
     if(busy)return false;
     busy=true;
+    if(form)composeFeedback(form,'Enviando mensaje…',{waiting:true});
     // The domain refresh may replace the shell before execute resolves.
     // Preserve other unsent composers *before* crossing the network boundary.
     rememberVisibleDrafts();
@@ -181,17 +190,24 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       }
       restoreMessageDrafts(root,draftsBefore);
       toast(result?.syncPending?msg+' La actualización de esta pantalla está pendiente.':msg);
+      if(form)composeFeedback(form,result?.syncPending
+        ?'Envío confirmado. La conversación se actualizará al recuperar los datos.'
+        :'Mensaje enviado.',{waiting:false});
       if(!result?.syncPending)renderWithoutLosingDrafts();
       return true;
     }catch(error){
       const offline=/ONLINE_REQUIRED/.test(String(error?.message||error));
-      toast(offline
+      const feedback=offline
         ?'Los mensajes requieren conexión. El borrador está disponible para reintentar.'
         :input.type==='MESSAGE_SEND'
           ?'No se pudo confirmar el envío. Puedes reintentarlo sin generar un mensaje duplicado.'
-          :'No fue posible confirmar la comunicación.');
+          :'No fue posible confirmar la comunicación.';
+      if(form)composeFeedback(form,feedback,{waiting:false});
+      toast(feedback);
       return false;
     }finally{
+      if(form)composeFeedback(form,
+        form.querySelector?.('.m45-compose-status')?.textContent||'',{waiting:false});
       busy=false;
     }
   }
@@ -365,7 +381,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       return run(
         {type:'MESSAGE_SEND',operationId,entityId:threadId,payload:{threadId,body}},
         'Mensaje enviado.',
-        {onAck:()=>form.reset?.()},
+        {onAck:()=>form.reset?.(),form},
       );
     }
     if(kind==='thread-read'){
@@ -392,7 +408,26 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(draft?.body)pendingMessageDrafts.set(threadId,draft);
     else pendingMessageDrafts.delete(threadId);
   }
+  async function reloadCommunication(button){
+    if(busy)return false;
+    busy=true;
+    if(button)button.disabled=true;
+    try{
+      if(!service?.reload)throw new Error('M45_COMMUNICATION_RETRY_UNAVAILABLE');
+      await service.reload();
+      renderWithoutLosingDrafts();
+      return true;
+    }catch{
+      toast('No pudimos actualizar las conversaciones. Comprueba la conexión y vuelve a intentarlo.');
+      return false;
+    }finally{
+      if(button)button.disabled=false;
+      busy=false;
+    }
+  }
   function onClickEvent(event){
+    const retryButton=event.target.closest?.('[data-m45-communication-retry]');
+    if(retryButton){event.preventDefault?.();void reloadCommunication(retryButton);return;}
     const pushAction=event.target.closest?.('[data-m26-web-push-action]');
     if(pushAction){void onPushAction(event,pushAction);return;}
     queueMicrotask(()=>{void syncPushControl();});
