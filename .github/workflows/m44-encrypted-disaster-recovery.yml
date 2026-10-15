@@ -1,0 +1,202 @@
+name: IBERFIT M44 Encrypted Offsite Disaster Recovery
+
+on:
+  pull_request:
+    branches: ['canary/rc74-4']
+    paths:
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
+      - 'scripts/ops/m44_encrypted_backup_archive.mjs'
+      - 'scripts/ops/m44_storage_backup_bytes.mjs'
+      - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
+      - 'tests/m44_storage_backup_bytes_contract.test.mjs'
+  push:
+    branches: ['canary/rc74-4']
+    paths:
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Export production DB and Storage; encrypted output; isolated restore'
+        required: true
+        type: choice
+        options: [BACKUP_ENCRYPT_AND_VERIFY_PROD]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-m44-prod-backup-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  crypto-contract:
+    name: m44-encrypted-archive-and-storage-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify encryption integrity and storage contracts
+        run: node --test tests/m44_encrypted_backup_archive_contract.test.mjs tests/m44_storage_backup_bytes_contract.test.mjs
+
+  synthetic-restore:
+    name: m44-synthetic-postgresql17-restore-proof
+    runs-on: ubuntu-latest
+    needs: crypto-contract
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-synthetic-only
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U postgres' --health-interval 10s
+          --health-timeout 5s --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exercise binary dump, authenticated encryption and restored data
+        env:
+          IBERFIT_BACKUP_PASSPHRASE: only-a-synthetic-fixture-passphrase-never-use-in-production-2026
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export PGPASSWORD=local-synthetic-only
+          export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres
+          scratch="$(mktemp -d)"
+          trap 'rm -rf "$scratch"' EXIT
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER postgres:17-alpine \
+            psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE TABLE public.iberfit_restore_fixture(id integer PRIMARY KEY, note text NOT NULL)' >/dev/null
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER postgres:17-alpine \
+            psql -d postgres -v ON_ERROR_STOP=1 -c "INSERT INTO public.iberfit_restore_fixture VALUES (1,'safe fixture')" >/dev/null
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
+            -v "$scratch:/work" postgres:17-alpine pg_dump -Fc -d postgres -t public.iberfit_restore_fixture \
+            -f /work/source.dump
+          node scripts/ops/m44_encrypted_backup_archive.mjs encrypt "$scratch/source.dump" "$scratch/archive.ibf"
+          rm -f "$scratch/source.dump"
+          node scripts/ops/m44_encrypted_backup_archive.mjs decrypt "$scratch/archive.ibf" "$scratch/decrypted.dump"
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER postgres:17-alpine \
+            createdb iberfit_isolated_restore
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
+            -v "$scratch:/work" postgres:17-alpine pg_restore --exit-on-error --no-owner --no-acl \
+            -d iberfit_isolated_restore /work/decrypted.dump
+          result="$(docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER postgres:17-alpine \
+            psql -d iberfit_isolated_restore -At -c 'SELECT count(*) FROM public.iberfit_restore_fixture')"
+          test "$result" = '1'
+          echo 'IBERFIT_SYNTHETIC_POSTGRES17_ENCRYPTED_RESTORE_SUCCESS'
+
+  production-backup:
+    name: m44-prod-db-storage-encrypted-backup-and-restore
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.confirmation == 'BACKUP_ENCRYPT_AND_VERIFY_PROD')
+    needs: [crypto-contract, synthetic-restore]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment: m26-canary-readonly
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-restore-only
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U postgres' --health-interval 10s
+          --health-timeout 5s --health-retries 8
+    env:
+      IBERFIT_PROD_DATABASE_URL: ${{ secrets.IBERFIT_PROD_DATABASE_URL }}
+      IBERFIT_PROD_STORAGE_SERVICE_KEY: ${{ secrets.IBERFIT_PROD_STORAGE_SERVICE_KEY }}
+      IBERFIT_BACKUP_PASSPHRASE: ${{ secrets.IBERFIT_BACKUP_PASSPHRASE }}
+      IBERFIT_PROD_STORAGE_URL: https://pjhmrhejsoofmouedavw.supabase.co
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fail closed if protected production backup credentials are unavailable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${IBERFIT_PROD_DATABASE_URL:-}" || { echo 'IBERFIT_BACKUP_DATABASE_URL_NOT_CONFIGURED'; exit 41; }
+          test -n "${IBERFIT_PROD_STORAGE_SERVICE_KEY:-}" || { echo 'IBERFIT_BACKUP_STORAGE_KEY_NOT_CONFIGURED'; exit 42; }
+          test "${#IBERFIT_BACKUP_PASSPHRASE}" -ge 32 || { echo 'IBERFIT_BACKUP_PASSPHRASE_NOT_CONFIGURED'; exit 43; }
+          node -e 'const x=new URL(process.env.IBERFIT_PROD_DATABASE_URL);
+            if(![x.username,x.hostname].some(v=>v.includes("pjhmrhejsoofmouedavw")))process.exit(44);
+            if(x.protocol!=="postgresql:"&&x.protocol!=="postgres:")process.exit(44);
+            if(x.searchParams.get("sslmode")!=="require"&&x.searchParams.get("sslmode")!=="verify-full")process.exit(45);'
+          echo 'IBERFIT_PROD_TARGET_AND_REQUIRED_SECRETS_PRESENT'
+      - name: Export complete PG17 DB and all Storage object bytes to ephemeral private workspace
+        id: export
+        env:
+          WORK: ${{ runner.temp }}/iberfit-recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$WORK/plain/storage" "$WORK/cipher"
+          echo "$WORK" > "$RUNNER_TEMP/iberfit-backup-work-path"
+          docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
+            -v "$WORK/plain:/work" postgres:17-alpine sh -c \
+            'pg_dump -Fc --no-owner --no-acl --dbname="$IBERFIT_PROD_DATABASE_URL" -f /work/database.pgcustom 2>/work/pg-private-errors'
+          docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
+            -v "$WORK/plain:/work" postgres:17-alpine sh -c \
+            'psql -X -A -t --set=ON_ERROR_STOP=1 --dbname="$IBERFIT_PROD_DATABASE_URL" \
+            -c "SELECT COALESCE(json_agg(json_build_object('\''bucket_id'\'',bucket_id,'\''name'\'',name) ORDER BY bucket_id,name),'\''[]'\''::json) FROM storage.objects" \
+            > /work/storage-inventory.json 2>> /work/pg-private-errors'
+          node scripts/ops/m44_storage_backup_bytes.mjs export "$WORK/plain/storage-inventory.json" "$WORK/plain/storage"
+          rm -f "$WORK/plain/storage-inventory.json" "$WORK/plain/pg-private-errors"
+          tar -C "$WORK/plain" -cf "$WORK/plain.tar" database.pgcustom storage
+          echo 'IBERFIT_PROD_DB_AND_STORAGE_PLAINTEXT_STAGED_PRIVATELY'
+      - name: Encrypt authenticated recovery archive before any upload
+        id: encrypt
+        env:
+          WORK: ${{ runner.temp }}/iberfit-recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          node scripts/ops/m44_encrypted_backup_archive.mjs encrypt "$WORK/plain.tar" "$WORK/cipher/iberfit-prod-recovery.ibf"
+          rm -rf "$WORK/plain" "$WORK/plain.tar"
+          echo 'IBERFIT_CIPHERTEXT_ONLY_READY'
+      - name: Reopen ciphertext and verify restored Storage bytes in isolated workspace
+        id: restore
+        env:
+          WORK: ${{ runner.temp }}/iberfit-recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$WORK/isolated"
+          node scripts/ops/m44_encrypted_backup_archive.mjs decrypt "$WORK/cipher/iberfit-prod-recovery.ibf" "$WORK/restore.tar"
+          tar -C "$WORK/isolated" --no-same-owner --no-same-permissions -xf "$WORK/restore.tar"
+          rm -f "$WORK/restore.tar"
+          node scripts/ops/m44_storage_backup_bytes.mjs verify ignored "$WORK/isolated/storage"
+          docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+            postgres:17-alpine createdb -h 127.0.0.1 -U postgres iberfit_recovery_test
+          # Never stream SQL, error details or actual client data to job logs.
+          if ! docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+            -v "$WORK/isolated:/work" postgres:17-alpine pg_restore --exit-on-error \
+            --no-owner --no-acl -h 127.0.0.1 -U postgres -d iberfit_recovery_test \
+            /work/database.pgcustom > "$WORK/restore-private-log" 2>&1; then
+            echo 'IBERFIT_PROD_DB_LOCAL_RESTORE_FAILED_NO_RECOVERY_CERTIFICATE'
+            exit 51
+          fi
+          echo 'IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS'
+      - name: Publish encrypted archive only, without password or plaintext
+        if: ${{ always() && steps.encrypt.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-prod-ciphertext-${{ github.run_id }}
+          path: ${{ runner.temp }}/iberfit-recovery/cipher/*.ibf
+          retention-days: 30
+          if-no-files-found: error
+      - name: Remove all temporary plaintext and ciphertext from runner
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/iberfit-recovery" "$RUNNER_TEMP/iberfit-backup-work-path"
