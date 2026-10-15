@@ -96,3 +96,12 @@ test('M44: only one complete cardio pair creates one objective IRI domain',()=>{
   assert.equal(report.ready,true);
   assert.match(report.summary,/1 de 3 dominios/u);
 });
+
+
+test('M44 reporting pillars exclude fresh device activity as a substitute for follow-up evidence',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const source=await readFile(new URL('../src/m26/workflows/report-workflow.js',import.meta.url),'utf8');
+  assert.match(source,/pillar\.id!=='activity'/);
+  assert.match(source,/pillar\.source!=='wearableDailySummaries'/);
+  assert.match(source,/los datos del dispositivo son solo contexto/u);
+});

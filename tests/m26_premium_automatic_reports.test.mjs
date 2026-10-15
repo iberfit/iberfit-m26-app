@@ -314,3 +314,40 @@ test('M44 evidence signature binds the temporal distribution; coach note alone c
   const modified=buildApproveReportDraftCommand({...base,activitySeries:base.activitySeries.map((row,i)=>i===0?{...row,count:row.count+1}:row)},0).payload.patch;
   assert.notEqual(first.evidenceSignature,modified.evidenceSignature);
 });
+
+
+test('M44 wearable-only evidence cannot unlock a monthly or quarterly progress report',()=>{
+  const synthetic={collections:{
+    appointments:[],sessions:[],checkins:[],iriAssessments:[],
+    sessionExecutions:[{
+      id:'m44-single',clientId:'w-client',status:'completed',syncStatus:'clean',
+      completedAt:'2026-09-06T08:00:00Z',title:'Única sesión confirmada',results:{},
+    }],
+    wearableDailySummaries:[{
+      id:'device-1',clientId:'w-client',provider:'health_connect',
+      date:'2026-09-06',metrics:{steps:10200},
+      syncStatus:'clean',
+    }],
+  },pendingOperations:[],conflicts:[],rejectedOperations:[]};
+  const portfolio=buildPremiumReportPortfolio(synthetic,'w-client',{now:NOW});
+  assert.equal(portfolio.find(x=>x.id==='post-session').ready,true);
+  assert.equal(portfolio.find(x=>x.id==='weekly').ready,true);
+  assert.equal(portfolio.find(x=>x.id==='monthly').ready,false);
+  assert.equal(portfolio.find(x=>x.id==='quarterly').ready,false);
+  assert.equal(portfolio.find(x=>x.id==='year-in-iberfit').ready,false);
+});
+test('M44 editorial report never claims wearable activity is a confirmed improvement',()=>{
+  const history=stateWithHistory();
+  history.collections.wearableDailySummaries.push({
+    id:'w-device',clientId:'c1',provider:'health_connect',
+    date:'2026-09-06',metrics:{steps:10000},
+  });
+  const portfolio=buildPremiumReportPortfolio(history,'c1',{now:NOW});
+  for(const type of ['monthly','quarterly','year-in-iberfit']){
+    const report=portfolio.find(x=>x.id===type);
+    if(report.ready){
+      assert.equal(report.evidence.some(e=>e.source==='wearableDailySummaries'),false);
+      assert.doesNotMatch(report.summary,/dispositivo.*mejora|mejora.*dispositivo/ui);
+    }
+  }
+});
