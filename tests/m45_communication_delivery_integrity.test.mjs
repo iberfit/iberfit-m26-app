@@ -405,3 +405,19 @@ test('M45 private communication route carries escaped account identity scope',as
   assert.match(html,/data-communication-identity="account-&quot;A&quot;&amp;B"/);
   assert.doesNotMatch(html,/data-communication-identity="account-"A"&B"/);
 });
+
+
+test('M45 route view-model uses authenticated state identity, not a stale shell identity',async()=>{
+  const {createCommunicationRouteViewModel}=await import('../src/m26/communication/view-model.js');
+  const shell={activeArea:'mensajes',identity:{role:'coach',id:'stale-shell-user'}};
+  const communication={available:true,threads:[],messages:[],notifications:[]};
+  const vm=createCommunicationRouteViewModel(
+    {kind:'mensajes',role:'coach'},
+    shell,
+    {identity:{role:'coach',id:'current-auth-user'},communication,collections:{clients:[]}},
+  );
+  assert.equal(vm.communicationIdentityScope,'current-auth-user');
+  assert.equal(vm.kind,'communication');
+  const html=(await import('../src/m26/communication/route-render.js')).renderCommunicationRoute(vm);
+  assert.match(html,/data-communication-identity="current-auth-user"/);
+});
