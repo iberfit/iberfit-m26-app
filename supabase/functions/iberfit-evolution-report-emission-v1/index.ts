@@ -88,7 +88,7 @@ type Access={ok:boolean;withdrawn:boolean;artifactBucket:string;artifactPath:str
 type Withdrawn={ok:boolean;kind:string;issuanceId:string};
 async function callRpc<T>(client:BrokerClient,name:string,args:Record<string,unknown>):Promise<T>{
  // The new migration RPCs are not yet reflected in generated supabase-js types.
- const invoke=client.rpc as unknown as
+ const invoke=client.rpc.bind(client) as unknown as
   (name:string,args:Record<string,unknown>)=>Promise<{data:T|null;error:RpcError|null}>;
  const response=await invoke(name,args);
  if(response.error){
