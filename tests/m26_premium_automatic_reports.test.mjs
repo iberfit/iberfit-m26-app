@@ -293,3 +293,24 @@ test('M44 preview wiring is visible in the real report editor and never dispatch
   assert.match(source,/premiumEvidenceSignature\(candidate\)/);
   assert.match(source,/event\.preventDefault/);
 });
+
+
+test('M44 timeline buckets preserve all confirmed sessions in their civil-date window',()=>{
+  const state=stateWithHistory();
+  const monthly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(item=>item.id==='monthly');
+  assert.ok(monthly.activitySeries.length>=4);
+  assert.equal(monthly.activitySeries.reduce((sum,row)=>sum+row.count,0),3);
+  assert.ok(monthly.activitySeries.every(row=>row.from<=row.to&&Number.isInteger(row.count)&&row.count>=0));
+});
+
+test('M44 evidence signature binds the temporal distribution; coach note alone cannot change the chart',()=>{
+  const source=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW}).find(item=>item.id==='monthly');
+  const base={id:'report-m44-timeline',clientId:'c1',reportType:'monthly',title:source.title,
+    periodStart:source.periodStart,periodEnd:source.periodEnd,summary:source.summary,conclusions:source.conclusions,
+    recommendations:source.recommendations,evidence:source.evidence,activitySeries:source.activitySeries,reviewAccepted:true};
+  const first=buildApproveReportDraftCommand(base,0).payload.patch;
+  const identical=buildApproveReportDraftCommand({...base,coachComment:'Decisión individual del Coach'},0).payload.patch;
+  assert.equal(first.evidenceSignature,identical.evidenceSignature);
+  const modified=buildApproveReportDraftCommand({...base,activitySeries:base.activitySeries.map((row,i)=>i===0?{...row,count:row.count+1}:row)},0).payload.patch;
+  assert.notEqual(first.evidenceSignature,modified.evidenceSignature);
+});

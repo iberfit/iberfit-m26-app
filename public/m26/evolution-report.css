@@ -107,3 +107,18 @@ body{margin:0;padding:25px 10px 40px;background:#142a1e;font-family:'Inter Varia
 /* Proof viewport remains wider than mobile breakpoints; its contents are not
  * interactive and must never cover the report or intercept a touch gesture. */
 .m44-layout-preflight{position:absolute!important;left:-12000px!important;top:-12000px!important;width:1000px!important;height:100px!important;opacity:0!important;pointer-events:none!important;border:0!important}
+
+/* M44 confirmed-activity timeline: chart + accessible source table. */
+.m44-activity-chart{margin:4mm 0 8mm;padding:7mm 5mm 4mm;border:1px solid var(--m44-line);background:#f8f4eb}
+.m44-activity-chart figcaption{margin-bottom:5mm;font-family:'Source Serif 4 Variable',Georgia,serif;font-size:13pt;font-weight:560}
+.m44-activity-chart svg{display:block;width:100%;height:auto;max-height:66mm}
+.m44-activity-bar{fill:#c69d50}
+.m44-activity-value{font-family:'Inter Variable',Arial,sans-serif;font-size:11px;fill:#1b3025;font-weight:700}
+.m44-activity-baseline{stroke:#658072;stroke-width:1.3}
+.m44-activity-chart>p{margin:4mm 0 0;font-size:7.4pt;color:var(--m44-sub);line-height:1.5}
+.m44-activity-table{width:100%;border-collapse:collapse;margin:4mm 0 5mm;font-size:8pt}
+.m44-activity-table caption{text-align:left;font-weight:740;font-size:8pt;margin-bottom:3mm;color:var(--m44-forest)}
+.m44-activity-table th,.m44-activity-table td{padding:1.7mm 2mm;text-align:left;border-bottom:1px solid var(--m44-line)}
+.m44-activity-table th:last-child,.m44-activity-table td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.m44-activity-table th{color:#6b592f;font-size:7pt}
+@media screen and (max-width:825px){.m44-activity-table{font-size:12px}.m44-activity-chart figcaption{font-size:17px}.m44-activity-chart>p{font-size:12px}}

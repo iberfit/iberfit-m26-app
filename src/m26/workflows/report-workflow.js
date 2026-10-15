@@ -45,7 +45,24 @@ function objectiveMeasurement(candidate){if(candidate===null||candidate===undefi
 function iriCoverage(record){if(!record)return 0;const finalHr=recordValue(record,'stepFinalHr','step_final_hr'),oneMinuteHr=recordValue(record,'stepOneMinuteHr','step_one_minute_hr');const cardio=objectiveMeasurement(finalHr)&&objectiveMeasurement(oneMinuteHr);const composition=objectiveMeasurement(recordValue(record,'bodyComposition','body_composition'));const strength=objectiveMeasurement(recordValue(record,'strengthPatterns','strength_patterns'));return [cardio,composition,strength].filter(Boolean).length;}
 function evidence(label,value,source,quality='confirmada'){return Object.freeze({label,text:cleanText(value,500),source,quality});}
 function normalizedRevision(value){if(value===null||value===undefined||value==='')return null;const revision=Number(value);return Number.isInteger(revision)&&revision>=0?revision:null;}
-function reportModel({id,label,ready,reason,periodStart,periodEnd,title,summary,conclusions,recommendations,evidence=[],assessmentId=null,assessmentRevision=null,sourceType=null,sourceId=null}){return Object.freeze({id,label,status:ready?'ready':'insufficient-data',ready:Boolean(ready),reason:ready?null:cleanText(reason,500),periodStart:periodStart||null,periodEnd:periodEnd||null,title:cleanText(title,140),summary:cleanText(summary,2500),conclusions:cleanText(conclusions,2500),recommendations:cleanText(recommendations,2500),evidence:Object.freeze(evidence),assessmentId:assessmentId?String(assessmentId):null,assessmentRevision:normalizedRevision(assessmentRevision),sourceType,sourceId,coachComment:'',coachCommentLabel:'Comentario del coach',dataPolicy:'canonical-only'});}
+function confirmedActivitySeries(executions,start,end,spanDays){
+  if(!start||!end||!Number.isInteger(spanDays)||spanDays<1)return Object.freeze([]);
+  const last=timestamp(end),firstDate=timestamp(start);
+  if(!Number.isFinite(last)||!Number.isFinite(firstDate)||last<firstDate)return Object.freeze([]);
+  const dated=executions.map(item=>recordDate(item)).filter(date=>date&&date>=start&&date<=end);
+  const buckets=[];
+  for(let since=firstDate;since<=last;since+=spanDays*DAY_MS){
+    const until=Math.min(last,since+(spanDays-1)*DAY_MS);
+    const fromDate=new Date(since).toISOString().slice(0,10);
+    const toDate=new Date(until).toISOString().slice(0,10);
+    buckets.push(Object.freeze({
+      from:fromDate,to:toDate,
+      count:dated.filter(date=>date>=fromDate&&date<=toDate).length,
+    }));
+  }
+  return Object.freeze(buckets);
+}
+function reportModel({id,label,ready,reason,periodStart,periodEnd,title,summary,conclusions,recommendations,evidence=[],assessmentId=null,assessmentRevision=null,sourceType=null,sourceId=null,activitySeries=[]}){return Object.freeze({id,label,status:ready?'ready':'insufficient-data',ready:Boolean(ready),reason:ready?null:cleanText(reason,500),periodStart:periodStart||null,periodEnd:periodEnd||null,title:cleanText(title,140),summary:cleanText(summary,2500),conclusions:cleanText(conclusions,2500),recommendations:cleanText(recommendations,2500),evidence:Object.freeze(evidence),assessmentId:assessmentId?String(assessmentId):null,assessmentRevision:normalizedRevision(assessmentRevision),sourceType,sourceId,activitySeries:Object.freeze(activitySeries),coachComment:'',coachCommentLabel:'Comentario del coach',dataPolicy:'canonical-only'});}
 function iriId(record){return recordValue(record,'id');}
 function sessionLabel(record){return cleanText(recordValue(record,'title','name','nombre')||'Sesión IBERFIT',120);}
 function narrative(parts){return parts.filter(Boolean).join(' ');}
@@ -94,7 +111,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const weeklyReport=reportModel({
     id:'weekly',label:'Resumen semanal de entrenamiento',ready:weeklyReady,
     reason:'Se necesita al menos una sesión IBERFIT finalizada y confirmada durante los últimos 7 días.',
-    periodStart:weeklyStart,periodEnd:end,sourceType:'session_execution_period',
+    periodStart:weeklyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:weeklyReady?confirmedActivitySeries(weeklySessions,weeklyStart,end,1):[],
     title:'Resumen semanal de entrenamiento',
     summary:weeklyReady?`En los últimos 7 días se han confirmado ${weeklySessions.length} ${weeklySessions.length===1?'sesión':'sesiones'} de entrenamiento en ${weeklyDays} día${weeklyDays===1?'':'s'}.`:'',
     conclusions:weeklyReady?'Este resumen refleja únicamente sesiones IBERFIT realmente finalizadas; las actividades detectadas por un dispositivo no se consideran sesiones confirmadas.':'',
@@ -106,7 +123,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     ]:[],
   });
   const monthlyReady=Boolean(monthlySessions.length>0&&progressEvidence.length>0);
-  const monthlyReport=reportModel({id:'monthly',label:'Informe mensual',ready:monthlyReady,reason:'Se necesita al menos una sesión confirmada y una señal de progreso con evidencia en los últimos 30 días.',periodStart:monthlyStart,periodEnd:end,sourceType:'session_execution_period',title:'Informe mensual IBERFIT',summary:monthlyReady?`En los últimos 30 días constan ${monthlySessions.length} ${monthlySessions.length===1?'sesión ejecutada':'sesiones ejecutadas'} y ${progressEvidence.length} área${progressEvidence.length===1?'':'s'} del Progress Hub con evidencia reciente.`:'',conclusions:monthlyReady?narrative(progressEvidence.slice(0,3).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:monthlyReady?'Revisar con el cliente la evolución del periodo y registrar el comentario profesional antes de aprobar o publicar el informe.':'',evidence:monthlyReady?[evidence('Sesiones ejecutadas',String(monthlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const monthlyReport=reportModel({id:'monthly',label:'Informe mensual',ready:monthlyReady,reason:'Se necesita al menos una sesión confirmada y una señal de progreso con evidencia en los últimos 30 días.',periodStart:monthlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:monthlyReady?confirmedActivitySeries(monthlySessions,monthlyStart,end,7):[],title:'Informe mensual IBERFIT',summary:monthlyReady?`En los últimos 30 días constan ${monthlySessions.length} ${monthlySessions.length===1?'sesión ejecutada':'sesiones ejecutadas'} y ${progressEvidence.length} área${progressEvidence.length===1?'':'s'} del Progress Hub con evidencia reciente.`:'',conclusions:monthlyReady?narrative(progressEvidence.slice(0,3).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:monthlyReady?'Revisar con el cliente la evolución del periodo y registrar el comentario profesional antes de aprobar o publicar el informe.':'',evidence:monthlyReady?[evidence('Sesiones ejecutadas',String(monthlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   // A second initial IRI is not a follow-up measurement. Until the canonical
   // evolution-followup source and protocol comparator are wired end-to-end,
   // do not offer an invented reassessment based on assessment recency.
@@ -117,16 +134,16 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     summary:'',conclusions:'',recommendations:'',evidence:[],
   });
   const quarterlyReady=Boolean(quarterlySessions.length>0&&progressEvidence.length>=2);
-  const quarterlyReport=reportModel({id:'quarterly',label:'Informe trimestral',ready:quarterlyReady,reason:'Se necesita al menos una sesión confirmada y dos áreas de progreso con evidencia suficiente en el seguimiento reciente.',periodStart:quarterlyStart,periodEnd:end,sourceType:'session_execution_period',title:'Informe trimestral IBERFIT',summary:quarterlyReady?`En la ventana de 90 días constan ${quarterlySessions.length} sesiones ejecutadas y ${progressEvidence.length} áreas de progreso con evidencia confirmada.`:'',conclusions:quarterlyReady?narrative(progressEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:quarterlyReady?'Revisar objetivos, continuidad y próximos hitos con el cliente antes de aprobar el informe trimestral.':'',evidence:quarterlyReady?[evidence('Sesiones ejecutadas',String(quarterlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,5).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const quarterlyReport=reportModel({id:'quarterly',label:'Informe trimestral',ready:quarterlyReady,reason:'Se necesita al menos una sesión confirmada y dos áreas de progreso con evidencia suficiente en el seguimiento reciente.',periodStart:quarterlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:quarterlyReady?confirmedActivitySeries(quarterlySessions,quarterlyStart,end,30):[],title:'Informe trimestral IBERFIT',summary:quarterlyReady?`En la ventana de 90 días constan ${quarterlySessions.length} sesiones ejecutadas y ${progressEvidence.length} áreas de progreso con evidencia confirmada.`:'',conclusions:quarterlyReady?narrative(progressEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:quarterlyReady?'Revisar objetivos, continuidad y próximos hitos con el cliente antes de aprobar el informe trimestral.':'',evidence:quarterlyReady?[evidence('Sesiones ejecutadas',String(quarterlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,5).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   const yearReady=Boolean(historyDays>=300&&yearlySessions.length>0&&progressEvidence.length>0);
-  const yearReport=reportModel({id:'year-in-iberfit',label:'Year in IBERFIT',ready:yearReady,reason:'Se necesitan al menos 300 días de historial de entrenamiento confirmado, una sesión ejecutada en el último año y evidencia reciente de progreso.',periodStart:yearlyStart,periodEnd:end,sourceType:'session_execution_period',title:'Year in IBERFIT',summary:yearReady?`El historial canónico cubre ${historyDays} días y registra ${yearlySessions.length} sesiones ejecutadas en los últimos 365 días.`:'',conclusions:yearReady?narrative(progressEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:yearReady?'Cerrar el año con la interpretación del coach, reconocer los hitos confirmados y acordar el siguiente ciclo de objetivos.':'',evidence:yearReady?[evidence('Historial disponible',`${historyDays} días`,'canonical-store'),evidence('Sesiones del último año',String(yearlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const yearReport=reportModel({id:'year-in-iberfit',label:'Year in IBERFIT',ready:yearReady,reason:'Se necesitan al menos 300 días de historial de entrenamiento confirmado, una sesión ejecutada en el último año y evidencia reciente de progreso.',periodStart:yearlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:yearReady?confirmedActivitySeries(yearlySessions,yearlyStart,end,31):[],title:'Year in IBERFIT',summary:yearReady?`El historial canónico cubre ${historyDays} días y registra ${yearlySessions.length} sesiones ejecutadas en los últimos 365 días.`:'',conclusions:yearReady?narrative(progressEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:yearReady?'Cerrar el año con la interpretación del coach, reconocer los hitos confirmados y acordar el siguiente ciclo de objetivos.':'',evidence:yearReady?[evidence('Historial disponible',`${historyDays} días`,'canonical-store'),evidence('Sesiones del último año',String(yearlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   return Object.freeze([iriReport,postReport,weeklyReport,monthlyReport,reassessmentReport,quarterlyReport,yearReport]);
 }
 
 export function premiumReportByType(state,clientId,type,options={}){return buildPremiumReportPortfolio(state,clientId,options).find((report)=>report.id===String(type||''))||null;}
 export function premiumReportUiCandidates(state,role,clientId,options={}){const normalizedRole=String(role||'').trim().toLowerCase();if(!['coach','admin'].includes(normalizedRole)||!clientId)return Object.freeze([]);return buildPremiumReportPortfolio(state,clientId,options);}
 
-function premiumEvidenceSignature(candidate){return JSON.stringify({modelVersion:PREMIUM_REPORT_MODEL_VERSION,id:candidate?.id||null,assessmentId:candidate?.id==='iri'?(candidate?.assessmentId||null):null,assessmentRevision:candidate?.id==='iri'?normalizedRevision(candidate?.assessmentRevision):null,sourceType:candidate?.sourceType||null,sourceId:candidate?.sourceId||null,periodStart:candidate?.periodStart||null,periodEnd:candidate?.periodEnd||null,evidence:(candidate?.evidence||[]).map((row)=>[row.label,row.text,row.source,row.quality])});}
+function premiumEvidenceSignature(candidate){return JSON.stringify({modelVersion:PREMIUM_REPORT_MODEL_VERSION,id:candidate?.id||null,assessmentId:candidate?.id==='iri'?(candidate?.assessmentId||null):null,assessmentRevision:candidate?.id==='iri'?normalizedRevision(candidate?.assessmentRevision):null,sourceType:candidate?.sourceType||null,sourceId:candidate?.sourceId||null,periodStart:candidate?.periodStart||null,periodEnd:candidate?.periodEnd||null,evidence:(candidate?.evidence||[]).map((row)=>[row.label,row.text,row.source,row.quality]),activitySeries:(candidate?.activitySeries||[]).map(row=>[row.from,row.to,row.count])});}
 function premiumPortfolioSignature(portfolio){return JSON.stringify((portfolio||[]).map((candidate)=>[candidate.id,candidate.ready,candidate.periodStart,candidate.periodEnd,candidate.reason,premiumEvidenceSignature(candidate)]));}
 const PREMIUM_REPORT_UI_STYLE_ID='m26-premium-report-ui-style';
 function browserReportContext(scope=globalThis){const app=scope?.__IBERFIT_M26_APP__;const state=app?.getState?.()||null;const role=String(state?.identity?.role||'').trim().toLowerCase();const clientId=role==='client'?state?.identity?.clientId:state?.selectedClientId;return {state,role,clientId:String(clientId||'').trim()};}
@@ -139,7 +156,7 @@ function premiumMetadataFromActiveEditor(draft,scope=globalThis){
   const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});const expectedSignature=reportFormValue(form,'premiumEvidenceSignature');const evidenceSignature=premiumEvidenceSignature(candidate);
   const sameEvidence=Boolean(candidate?.ready&&(candidate.assessmentId||'')===String(draft?.assessmentId||'')&&candidate.periodStart===String(draft?.periodStart||'')&&candidate.periodEnd===String(draft?.periodEnd||'')&&expectedSignature&&evidenceSignature===expectedSignature);
   if(!sameEvidence)throw new Error('M26_REPORT_DRAFT_INVALID:premium-evidence-stale');
-  return {reportType:type,coachComment:reportFormValue(form,'coachComment'),evidence:candidate.evidence,reportModelVersion:PREMIUM_REPORT_MODEL_VERSION,evidenceSignature,sourceAssessmentId:type==='iri'?candidate.assessmentId:null,sourceAssessmentRevision:type==='iri'?candidate.assessmentRevision:null,sourceType:candidate.sourceType,sourceId:candidate.sourceId};
+  return {reportType:type,coachComment:reportFormValue(form,'coachComment'),evidence:candidate.evidence,reportModelVersion:PREMIUM_REPORT_MODEL_VERSION,evidenceSignature,sourceAssessmentId:type==='iri'?candidate.assessmentId:null,sourceAssessmentRevision:type==='iri'?candidate.assessmentRevision:null,sourceType:candidate.sourceType,sourceId:candidate.sourceId,activitySeries:candidate.activitySeries};
 }
 function ensurePremiumReportStyles(document){
   return Boolean(document?.head);
@@ -288,7 +305,13 @@ export function normalizeReportDraft(draft={}){
       normalized.sourceType='session_execution_period';
       normalized.sourceId=null;
     }
-    normalized.evidenceSignature=premiumEvidenceSignature({id:type,assessmentId:normalized.sourceAssessmentId,assessmentRevision:normalized.sourceAssessmentRevision,sourceType:normalized.sourceType,sourceId:normalized.sourceId,periodStart:normalized.periodStart,periodEnd:normalized.periodEnd,evidence});
+    if(type!=='iri'&&Array.isArray(draft.activitySeries)){
+      const series=draft.activitySeries;
+      if(series.length>13||series.some(row=>!validDate(row?.from)||!validDate(row?.to)||row.from>row.to||!Number.isInteger(row?.count)||row.count<0))
+        throw new Error('M44_REPORT_ACTIVITY_SERIES_INVALID');
+      normalized.activitySeries=series.map(row=>({from:row.from,to:row.to,count:row.count}));
+    }
+    normalized.evidenceSignature=premiumEvidenceSignature({id:type,assessmentId:normalized.sourceAssessmentId,assessmentRevision:normalized.sourceAssessmentRevision,sourceType:normalized.sourceType,sourceId:normalized.sourceId,periodStart:normalized.periodStart,periodEnd:normalized.periodEnd,evidence,activitySeries:normalized.activitySeries});
   }
   return Object.freeze(normalized);
 }

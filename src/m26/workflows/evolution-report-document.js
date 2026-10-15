@@ -33,6 +33,31 @@ function dateLabel(value){
   if(Number.isNaN(+date)||date.toISOString().slice(0,10)!==match[0])return 'Fecha pendiente';
   return new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(date);
 }
+function activityGraphic(series){
+  const values=series.map(row=>row.count);
+  const maximum=Math.max(1,...values);
+  const left=36,right=648,baseline=210,top=35;
+  const slot=(right-left)/series.length;
+  const columns=series.map((row,index)=>{
+    const value=Math.max(0,row.count);
+    const height=value/maximum*(baseline-top);
+    const x=left+slot*index+slot*.19;
+    const y=baseline-height;
+    const width=Math.min(40,slot*.62);
+    const label=row.from===row.to?row.from.slice(5):row.from.slice(5)+' / '+row.to.slice(5);
+    return '<g><rect class="m44-activity-bar" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+width.toFixed(1)+'" height="'+height.toFixed(1)+'" rx="2"/>'+
+      '<text class="m44-activity-value" x="'+(x+width/2).toFixed(1)+'" y="'+Math.max(19,y-8).toFixed(1)+'" text-anchor="middle">'+value+'</text>'+
+      '<title>'+esc(label)+': '+value+' sesiones confirmadas</title></g>';
+  }).join('');
+  const grid='<line x1="'+left+'" y1="'+baseline+'" x2="'+right+'" y2="'+baseline+'" class="m44-activity-baseline"/>';
+  return '<figure class="m44-activity-chart"><figcaption>Sesiones IBERFIT completadas y confirmadas</figcaption>'+
+    '<svg viewBox="0 0 682 240" role="img" aria-label="Histograma de '+series.length+' periodos con una escala que empieza en cero. '+series.map(row=>esc(row.from)+' a '+esc(row.to)+': '+row.count).join('; ')+'">'+grid+columns+'</svg>'+
+    '<p>El eje vertical empieza en cero. Cada barra representa un periodo; la altura muestra exclusivamente sesiones confirmadas, no objetivos previstos ni calidad del esfuerzo.</p></figure>';
+}
+function activityTable(series){
+  return '<table class="m44-activity-table"><caption>Detalle accesible del ritmo de entrenamiento</caption><thead><tr><th scope="col">Periodo</th><th scope="col">Sesiones confirmadas</th></tr></thead><tbody>'+
+    series.map(row=>'<tr><td>'+esc(dateLabel(row.from))+' — '+esc(dateLabel(row.to))+'</td><td>'+row.count+'</td></tr>').join('')+'</tbody></table>';
+}
 function evidenceList(rows,offset=0){
   return rows.map((item,index)=>{
     const source=TRUSTED_SOURCES[item.source]||clean(item.source,100);
@@ -60,7 +85,11 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const maxRows=6;
   const evidenceChunks=[];
   for(let offset=0;offset<lines.length;offset+=maxRows)evidenceChunks.push(lines.slice(offset,offset+maxRows));
-  const total=evidenceChunks.length+3;
+  const activitySeries=Array.isArray(report.activitySeries)?report.activitySeries:[];
+  const showActivity=report.id!=='post-session'&&activitySeries.length>=2
+    &&activitySeries.length<=13
+    &&activitySeries.every(item=>item&&item.from&&item.to&&Number.isInteger(item.count)&&item.count>=0&&item.from<=item.to);
+  const total=evidenceChunks.length+3+(showActivity?1:0);
   const pages=[];
   pages.push('<section class="m44-sheet m44-cover" aria-label="Portada del informe">'+
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
@@ -76,16 +105,25 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<div class="m44-prose m44-report-summary">'+paragraphs(report.summary,2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+
     '<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
+  if(showActivity){
+    const sum=activitySeries.reduce((total,row)=>total+row.count,0);
+    pages.push(page(3,total,'02 · CONTINUIDAD','El ritmo del periodo',
+      '<p class="m44-section-lead">Lo que muestra el calendario</p>'+
+      '<p class="m44-evidence-context">Distribución de las sesiones confirmadas dentro del periodo analizado. Esta visualización ayuda a identificar continuidad o interrupciones en el registro; no califica por sí sola adherencia ni rendimiento.</p>'+
+      activityGraphic(activitySeries)+activityTable(activitySeries)+
+      '<p class="m44-subtle-note">Total representado: '+sum+' sesiones confirmadas. Los periodos sin registros se muestran como cero sesiones <em>confirmadas</em>, no como inactividad demostrada.</p>'));
+  }
+  const firstEvidencePage=showActivity?4:3;
   for(let i=0;i<evidenceChunks.length;i++){
     const chunk=evidenceChunks[i];
-    const idx=3+i;
-    pages.push(page(idx,total,'02 · EVIDENCIA','Resultados verificables',
+    const idx=firstEvidencePage+i;
+    pages.push(page(idx,total,showActivity?'03 · EVIDENCIA':'02 · EVIDENCIA','Resultados verificables',
       '<p class="m44-section-lead">Lo que podemos afirmar</p>'+
       '<p class="m44-evidence-context">Cada dato se acompaña de su procedencia. Cuando falta una medición o un protocolo comparable, no se completa por estimación.</p>'+
       '<ol class="m44-evidence-list" start="'+String(1+i*maxRows)+'">'+evidenceList(chunk,i*maxRows)+'</ol>'+
       '<p class="m44-subtle-note">Esta relación registra evidencias; no equivale a una clasificación automática del estado de salud ni a una recomendación individual.</p>'));
   }
-  pages.push(page(total,total,'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
+  pages.push(page(total,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
     '<div class="m44-decision"><span>INTERPRETACIÓN PROFESIONAL</span><div class="m44-prose">'+paragraphs(report.conclusions,2500)+'</div></div>'+
     '<div class="m44-coach-voice"><span>LA MIRADA DE TU COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>'+
     '<div class="m44-next"><span>PRÓXIMO PASO PROPUESTO</span><div class="m44-prose">'+paragraphs(report.recommendations,2500)+'</div></div>'+

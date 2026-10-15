@@ -78,3 +78,19 @@ test('M44 validates the actual print-size layout even from a mobile preview',asy
   assert.match(source,/await verifyA4Layout\(doc,popup,scope\)/);
   assert.match(css,/\.m44-layout-preflight/);
 });
+
+
+test('M44 dated activity timeline has a grounded chart, a readable table and five A4 pages',()=>{
+  const activitySeries=[
+    {from:'2026-10-09',to:'2026-10-10',count:1},
+    {from:'2026-10-11',to:'2026-10-12',count:0},
+    {from:'2026-10-13',to:'2026-10-15',count:2},
+  ];
+  const html=buildEvolutionReportHtml({report:{...basic,activitySeries}});
+  assert.equal((html.match(/class="m44-sheet /g)||[]).length,5);
+  assert.match(html,/El ritmo del periodo/);
+  assert.match(html,/Detalle accesible del ritmo de entrenamiento/);
+  assert.match(html,/El eje vertical empieza en cero/);
+  assert.match(html,/periodos sin registros se muestran como cero sesiones/);
+  assert.match(html,/5 \/ 5/);
+});
