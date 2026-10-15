@@ -1,11 +1,14 @@
 import {buildNotificationCenter} from './notification-center.js';
 
 const e=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+const MESSAGE_TIME_FORMATTER=new Intl.DateTimeFormat('es-CL',{
+  timeZone:'America/Santiago',dateStyle:'medium',timeStyle:'short',
+});
 function messageTime(value){
   if(!value)return '';
   const d=new Date(value);
   if(!Number.isFinite(d.getTime()))return '';
-  return `<time datetime="${e(d.toISOString())}">${e(new Intl.DateTimeFormat('es-CL',{timeZone:'America/Santiago',dateStyle:'medium',timeStyle:'short'}).format(d))}</time>`;
+  return `<time datetime="${e(d.toISOString())}">${e(MESSAGE_TIME_FORMATTER.format(d))}</time>`;
 }
 function thread(vm,t){
   const unread=Math.max(0,Math.trunc(Number(t.unreadCount)||0));
