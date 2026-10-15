@@ -25,3 +25,11 @@ test('M44 Edge emits 403 for a non-assured Coach, not a generic 400',async()=>{
  const file=await readFile(new URL('../supabase/functions/iberfit-evolution-report-emission-v1/index.ts',import.meta.url),'utf8');
  assert.match(file,/PRIVILEGED_ASSURANCE_REQUIRED\|PRIVILEGED_ROLE_REQUIRED/);
 });
+
+test('M44 expired privileged assurance has a specific Spanish recovery message and preserves the draft',async()=>{
+ const source=await readFile(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+ assert.match(source,/M44_PRIVILEGED_ASSURANCE_REQUIRED\|M44_PRIVILEGED_ROLE_REQUIRED/);
+ assert.match(source,/necesitas verificar de nuevo tu acceso seguro como Coach o Admin/);
+ assert.match(source,/status\(root,'report',friendlyError\(error\),'error'\)/);
+ assert.match(source,/Conservamos el borrador/);
+});

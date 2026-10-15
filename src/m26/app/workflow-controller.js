@@ -126,6 +126,7 @@ function clientName(record){const body=recordBody(record);return String(record?.
 function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
+  if(/M44_PRIVILEGED_ASSURANCE_REQUIRED|M44_PRIVILEGED_ROLE_REQUIRED/.test(code))return 'Para proteger los informes del cliente, necesitas verificar de nuevo tu acceso seguro como Coach o Admin. Conservamos el borrador; completa la verificación y vuelve a intentarlo.';
   if(/M44_PDF_ISSUANCE_NOT_AVAILABLE/.test(code))return 'Este informe todavía no tiene un PDF oficial disponible, o su última versión fue retirada. Puedes leer la versión publicada dentro de la aplicación.';
   if(/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED|M44_PDF_ISSUE_REPLAY_COLLISION/.test(code))return 'Esta versión ya fue retirada o modificada. Para emitir una nueva entrega, el Coach debe preparar, aprobar y publicar una nueva revisión.';
   if(/M44_PDF_REQUEST_TIMEOUT|M44_PDF_STORAGE_READBACK_FAILED|M44_PDF_SIGNED_URL_FAILED/.test(code))return 'No se ha podido confirmar la entrega del archivo. Puedes repetir la acción; se conservará el identificador para evitar duplicar una emisión.';
@@ -1961,6 +1962,10 @@ export function createWorkflowController({
           clientId,reportId:stableId,draft:prepared.payload.patch,
         })),20_000,'M44_REPORT_CREATE_TIMEOUT');
       }catch(error){
+        if(/M44_PRIVILEGED_ASSURANCE_REQUIRED|M44_PRIVILEGED_ROLE_REQUIRED/.test(String(error?.message||error||''))){
+          status(root,'report',friendlyError(error),'error');
+          throw new Error('M44_PRIVILEGED_ASSURANCE_REQUIRED',{cause:error});
+        }
         status(root,'report','No se confirmó la creación privada. El borrador permanece guardado: puedes reintentar tras comprobar la conexión.','error');
         throw new Error('M44_REPORT_CREATE_UNCONFIRMED',{cause:error});
       }
