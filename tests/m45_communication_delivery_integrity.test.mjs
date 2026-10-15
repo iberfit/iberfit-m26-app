@@ -344,3 +344,19 @@ test('M45 send composer exposes live status for assistive technology',async()=>{
   assert.match(html,/class="m45-compose-status" role="status" aria-live="polite"/);
   assert.match(html,/data-communication-form="message-send"/);
 });
+
+
+test('M45 conversation empty copy does not promise an immediate response',async()=>{
+  const {renderCommunicationRoute}=await import('../src/m26/communication/route-render.js');
+  const common={communication:true,kind:'communication',threads:[],notifications:[],clients:[],canOpenThread:false};
+  const client=renderCommunicationRoute({...common,role:'client'});
+  assert.match(client,/Tu coach podrá comunicarse contigo/);
+  assert.doesNotMatch(client,/Selecciona un cliente para comenzar/);
+  const coach=renderCommunicationRoute({...common,role:'coach'});
+  assert.match(coach,/Selecciona un cliente para comenzar/);
+  assert.doesNotMatch(coach,/Tu coach podrá comunicarse contigo/);
+  const thread=renderCommunicationRoute({...common,role:'client',threads:[
+    {id:'thread-a',coachName:'Coach',messages:[],unreadCount:0},
+  ]});
+  assert.match(thread,/no garantiza respuesta inmediata/);
+});
