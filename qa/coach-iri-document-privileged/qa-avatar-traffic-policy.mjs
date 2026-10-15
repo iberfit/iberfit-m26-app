@@ -16,3 +16,13 @@ export function isAuthorizedQaAvatarRead(request,{qaOrigin}={}){
   const nonce=url.searchParams.get('cacheNonce');
   return nonce===null||(/^[0-9]{10,17}-[0-9]{1,8}$/u.test(nonce)&&url.searchParams.getAll('cacheNonce').length===1);
 }
+
+export function isExpectedMissingQaAvatarResponse(request,status,body,{qaOrigin}={}){
+  return status===400&&isAuthorizedQaAvatarRead(request,{qaOrigin})&&
+    body!==null&&typeof body==='object'&&
+    body.code==='NoSuchKey';
+}
+
+export function isNativeMissingResourceConsoleMessage(message){
+  return /^Failed to load resource: the server responded with a status of 400 \(\)$/u.test(String(message||''));
+}
