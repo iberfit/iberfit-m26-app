@@ -168,7 +168,8 @@ test('M45: shell redraw restores unsent private composer without browser persist
   const listeners=new Map();
   let visible=[original];
   let role='coach';
-  original.textarea.closest=()=>original.form;
+  original.textarea.closest=(selector)=>
+    selector==='[data-communication-form="message-send"]'?original.form:null;
   const root={
     ownerDocument:{defaultView:null,activeElement:original.textarea},
     querySelector(selector){
