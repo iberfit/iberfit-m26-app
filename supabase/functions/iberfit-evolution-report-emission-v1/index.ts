@@ -9,7 +9,7 @@ const SHA=/^[0-9a-f]{64}$/iu;
 const QA='gjztkdwfmunnzhtvxrsu',PROD='pjhmrhejsoofmouedavw';
 const url=Deno.env.get('SUPABASE_URL')||'';
 const ref=(()=>{try{return new URL(url).hostname.match(/^([a-z0-9]{20})\.supabase\.co$/u)?.[1]||'';}catch{return '';}})();
-function key(primary,legacy){
+function key(primary:string,legacy:string){
  const raw=Deno.env.get(primary);
  if(raw){try{const ob=JSON.parse(raw);const value=String(ob.default||Object.values(ob)[0]||'').trim();if(value)return value;}catch{}}
  return String(Deno.env.get(legacy)||'').trim();
@@ -17,30 +17,30 @@ function key(primary,legacy){
 const allowed=new Set(ref===QA?['https://m26-canary.iberfit.cl']:
  ref===PROD?['https://app.iberfit.cl','https://coach.iberfit.cl']:[]);
 const appOrigin=ref===QA?'https://m26-canary.iberfit.cl':ref===PROD?'https://app.iberfit.cl':'';
-function uuid(value,label){
+function uuid(value:unknown,label:string){
  const id=String(value||'').trim();
  if(!UUID.test(id))throw Error(label);
  return id;
 }
-function headers(origin){
- const h={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
+function headers(origin:string):Record<string,string>{
+ const h:Record<string,string>={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
   'Vary':'Origin','X-Content-Type-Options':'nosniff','X-IBERFIT-Version':VERSION,
   'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info',
   'Access-Control-Allow-Methods':'POST,OPTIONS','Access-Control-Max-Age':'600'};
  if(allowed.has(origin))h['Access-Control-Allow-Origin']=origin;
  return h;
 }
-function result(status,body,origin){return new Response(status===204?null:JSON.stringify(body),{status,headers:headers(origin)});}
-async function digest(data){
+function result(status:number,body:unknown,origin:string){return new Response(status===204?null:JSON.stringify(body),{status,headers:headers(origin)});}
+async function digest(data:Uint8Array|string){
  const b=typeof data==='string'?new TextEncoder().encode(data):data;
  const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',b));
  return [...hash].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
-function code(error){
- const value=String(error?.message||error||'').toUpperCase();
+function code(error:unknown){
+ const value=String((error as {message?:string})?.message||error||'').toUpperCase();
  return value.match(/\b(?:M44|IBERFIT)_?[A-Z0-9_:-]{4,90}\b/u)?.[0]||'M44_PDF_BROKER_ERROR';
 }
-function clients(auth){
+function clients(auth:string){
  const publishable=key('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY');
  const secret=key('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY');
  if(!publishable||!secret||!url)throw Error('M44_PDF_BROKER_CONFIG_MISSING');
@@ -50,7 +50,7 @@ function clients(auth){
   service:createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}}),
  };
 }
-async function signed(service,path){
+async function signed(service:ReturnType<typeof createClient>,path:string){
  const response=await service.storage.from(BUCKET).createSignedUrl(path,120);
  if(response.error||!response.data?.signedUrl)throw Error('M44_PDF_SIGNED_URL_FAILED');
  return response.data.signedUrl;
@@ -63,7 +63,12 @@ async function logoBytes(){
   return buf.length>100&&buf.length<250_000?buf:null;
  }catch{return null;}
 }
-async function issue({user,service,actor,body}){
+async function issue({user,service,actor,body}:{
+ user:ReturnType<typeof createClient>;
+ service:ReturnType<typeof createClient>;
+ actor:string;
+ body:{reportId?:unknown;issueRequestId?:unknown}
+}){
  const id=uuid(body.reportId,'M44_PDF_REPORT_ID_INVALID');
  const requestId=body.issueRequestId?uuid(body.issueRequestId,'M44_PDF_REQUEST_ID_INVALID'):crypto.randomUUID();
  // User-scoped prepare is the source of truth; browser supplies no content.
@@ -130,7 +135,11 @@ async function issue({user,service,actor,body}){
   throw error;
  }
 }
-async function open({user,service,body}){
+async function open({user,service,body}:{
+ user:ReturnType<typeof createClient>;
+ service:ReturnType<typeof createClient>;
+ body:{issuanceId?:unknown}
+}){
  const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
  const auth=await user.rpc('iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:id});
  if(auth.error)throw auth.error;
