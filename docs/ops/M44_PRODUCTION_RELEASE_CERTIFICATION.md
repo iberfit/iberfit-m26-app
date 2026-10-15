@@ -26,6 +26,13 @@ La aplicación debe permanecer sobre la versión de producción vigente mientras
 
 Revisar migraciones condicionales antes de aplicar. `m44_bootstrap_private_reports_http_fence_v1` exige la huella MD5 de `iberfit_bootstrap_v26()` `c1c623c3724d650dae8e96656490bff9` o `aedea9df3d4986496626e10318628c41`. En revisión QA mostraba la segunda y PROD la primera, ambas expresamente admitidas. Si la huella cambia, detener; nunca sortear el guard.
 
+## Respaldo y recuperabilidad ANTES de la primera migración de producción
+- Ejecutar el workflow `IBERFIT M44 PROD Backup Inventory Readiness` (sin escrituras) contra el proyecto PROD exacto. Su comprobación consulta exclusivamente `GET /v1/projects/{ref}/database/backups`, exige al menos un registro `COMPLETED` reciente (≤48 horas) y nunca descarga datos de clientes.
+- Este inventario NO demuestra por sí solo que un backup pueda restaurarse. Antes de cualquier DDL PROD, verificar de forma independiente una restauración recuperable o un volcado lógico seguro, íntegro y restaurable. No guardar dumps con datos personales en logs ni artefactos sin cifrar.
+- Si Supabase devuelve `403`, no hay backups `COMPLETED` recientes, el proyecto es Free sin respaldo utilizable o falta evidencia de restauración, **BLOQUEAR** migraciones M44 y promoción. No asumir que el plan Free tenga backups restituibles.
+- La verificación de inventario se ejecuta otra vez en `production-promote.yml` *antes* de todos los gates de esquema, Edge y frontend. Si falla, producción conserva su versión anterior.
+- Ref oficial: https://supabase.com/docs/guides/platform/backups . No confundir restaurar Cloudflare Pages con restaurar Postgres, Storage, credenciales o Edge Functions.
+
 ## Certificación obligatoria antes del frontend
 - `node scripts/ops/verify_m44_prod_schema.mjs` usa **solo** el endpoint Management **read-only** y el target exclusivo de PROD. Sus 20 predicados cubren: tablas y RLS; denegación de escritura directa; bucket privado; RPC autentificadas y acceso anónimo denegado; finalización por `service_role` exclusivamente; comprobación moderna del rol; protección append-only y garantías de sesión privilegiada.
 - `supabase/config.toml`: `[functions.iberfit-evolution-report-emission-v1]` exige `verify_jwt = true`.
