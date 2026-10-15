@@ -160,3 +160,47 @@ test('M45: a late remote read never overwrites an explicit newer preference',asy
   assert.deepEqual(updated,[{coachMessages:false}]);
   controller.destroy();
 });
+
+
+test('M45: shell redraw restores unsent private composer without browser persistence',async()=>{
+  const original=composer('thread-a','Texto pendiente que no se debe perder',{focused:true});
+  const replacement=composer('thread-a','',{open:false});
+  const listeners=new Map();
+  let visible=[original];
+  let role='coach';
+  original.textarea.closest=()=>original.form;
+  const root={
+    ownerDocument:{defaultView:null,activeElement:original.textarea},
+    querySelector(selector){
+      if(selector==='[data-communication-role]'&&role){
+        return {dataset:{communicationRole:role}};
+      }
+      return null;
+    },
+    querySelectorAll(selector){
+      return selector==='[data-communication-form="message-send"]'
+        ?visible.map(x=>x.form):[];
+    },
+    addEventListener(name,handler){listeners.set(name,handler);},
+    removeEventListener(name){listeners.delete(name);},
+  };
+  const controller=createCommunicationController({root,service:{webPush:{async status(){return {};}}}});
+  controller.mount();
+  listeners.get('input')({target:original.textarea});
+  visible=[replacement];
+  listeners.get('m26:shell-rendered')();
+  assert.equal(replacement.textarea.value,'Texto pendiente que no se debe perder');
+  assert.equal(replacement.detail.open,true);
+  assert.equal(replacement.textarea.wasFocused,true);
+
+  // The draft is scoped to the communication role, and leaving clears it.
+  role=null;
+  listeners.get('m26:shell-rendered')();
+  const next=composer('thread-a','');
+  visible=[next];
+  role='client';
+  listeners.get('m26:shell-rendered')();
+  assert.equal(next.textarea.value,'');
+  controller.destroy();
+  assert.equal(listeners.size,0);
+});
