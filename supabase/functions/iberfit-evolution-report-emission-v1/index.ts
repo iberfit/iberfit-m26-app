@@ -78,7 +78,7 @@ async function logoBytes(){
  }catch{return null;}
 }
 type BrokerClient=ReturnType<typeof clients>['user'];
-type RpcError={message:string};
+type RpcError={message:string;code?:string};
 type Prepared={ok:boolean;reportId:string;clientId:string;sourceRevision:number;
  sourceSha256:string;artifactBucket:string;sourceSnapshot:{reportId:string;[key:string]:unknown}};
 type Previous={id:string;report_id:string;report_revision:number;source_sha256:string;
@@ -91,7 +91,11 @@ async function callRpc<T>(client:BrokerClient,name:string,args:Record<string,unk
  const invoke=client.rpc as unknown as
   (name:string,args:Record<string,unknown>)=>Promise<{data:T|null;error:RpcError|null}>;
  const response=await invoke(name,args);
- if(response.error)throw Error(response.error.message);
+ if(response.error){
+  const error=new Error(response.error.message) as Error&{sqlstate?:string};
+  error.sqlstate=String(response.error.code||'');
+  throw error;
+ }
  if(response.data===null)throw Error('M44_PDF_RPC_EMPTY_RESPONSE');
  return response.data;
 }
@@ -254,10 +258,14 @@ Deno.serve(async(req)=>{
   }
   return result(200,{ok:true,version:VERSION,...data},origin);
  }catch(e){
-  const c=code(e),status=/AUTH_REQUIRED/.test(c)?401:
+  const c=code(e),sqlstate=String((e as {sqlstate?:string})?.sqlstate||'');
+  const status=sqlstate==='42501'?403:/AUTH_REQUIRED/.test(c)?401:
    /SCOPE|FORBIDDEN|SERVICE_ONLY|NOT_AUTHORIZED|PRIVILEGED_ASSURANCE_REQUIRED|PRIVILEGED_ROLE_REQUIRED/.test(c)?403:
    /NOT_FOUND|NOT_AVAILABLE/.test(c)?404:400;
-  console.error('[m44-pdf]',c);
+  // Error metadata only: never log raw exception text, tokens or client data.
+  console.error('[m44-pdf]',c,'sqlstate',
+   /^[A-Z0-9]{5}$/u.test(sqlstate)?sqlstate:'none',
+   'class',e instanceof Error?e.name:'unknown');
   return result(status,{ok:false,code:c,version:VERSION},origin);
  }
 });
