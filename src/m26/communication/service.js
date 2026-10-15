@@ -38,6 +38,11 @@ export function createCommunicationService({transport,getToken,getState,getRole,
     },
   });
   return Object.freeze({
+    async reload(){
+      if(!isOnline())throw new Error('M26_COMMUNICATION_ONLINE_REQUIRED');
+      await refreshState({reason:'communication-manual-retry'});
+      return Object.freeze({ok:true});
+    },
     async markNotificationsRead(notificationIds){
       if(!isOnline())throw new Error('M26_COMMUNICATION_ONLINE_REQUIRED');
       const role=String(getRole()||'').toLowerCase();
