@@ -126,6 +126,9 @@ jobs:
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
+          # Real QA-only synthetic write, permitted only in the OIDC-authorised
+          # trusted Canary push job after real Coach WebAuthn MFA verification.
+          M26_QA_M44_POSITIVE_CERT: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
