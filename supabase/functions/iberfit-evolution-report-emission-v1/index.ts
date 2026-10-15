@@ -2,6 +2,7 @@ import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
 import {renderEvolutionReportPdf,M44_PDF_TEMPLATE} from './pdf-renderer.js';
+import {ensureStoredPdfArtifact} from './storage-recovery.js';
 
 const VERSION='m44-issued-pdf-broker-2026.10-v1';
 const BUCKET='iberfit-evolution-issued-reports';
@@ -120,8 +121,9 @@ async function issue({user,service,actor,body}:{
    artifactSha256:previous.artifact_sha256,signedUrl:await signed(service,previous.artifact_path),
    expiresIn:120};
  }
+ const sourceFingerprint=`IBERFIT M44 | ${id} | revision ${src.sourceRevision} | ${src.sourceSha256}`;
  const rendered=await renderEvolutionReportPdf({
-  source:src.sourceSnapshot,pdfLib:{PDFDocument,StandardFonts,rgb},
+  source:src.sourceSnapshot,sourceFingerprint,pdfLib:{PDFDocument,StandardFonts,rgb},
   brandImageBytes:await logoBytes(),
   brandFonts:{
    inter:await fontBytes('inter-latin-wght-normal.woff2'),
@@ -134,24 +136,24 @@ async function issue({user,service,actor,body}:{
  // Compute independently after generation and after storage download.
  const hash=await digest(bytes);
  const path=String(src.clientId)+'/'+id+'/'+requestId+'/report.pdf';
- let uploaded=false,finalizeStarted=false;
  try{
-  const save=await service.storage.from(BUCKET).upload(path,bytes,{
-   contentType:'application/pdf',cacheControl:'31536000',upsert:false,
+  // A lost upload acknowledgement or retry may encounter an existing private
+  // object; validate its cryptographic source fingerprint before finalization.
+  const artifact=await ensureStoredPdfArtifact({
+   bucket:service.storage.from(BUCKET),path,bytes,expectedHash:hash,digest,
+   validateExisting:async stored=>{
+    const pdf=await PDFDocument.load(stored);
+    if(pdf.getSubject()!==sourceFingerprint||
+       pdf.getProducer()!==M44_PDF_TEMPLATE||pdf.getPageCount()<1)
+      throw Error('M44_PDF_ORPHAN_REPLAY_COLLISION');
+   },
   });
-  if(save.error)throw save.error;
-  uploaded=true;
-  const downloaded=await service.storage.from(BUCKET).download(path);
-  if(downloaded.error||!downloaded.data)throw Error('M44_PDF_STORAGE_READBACK_FAILED');
-  const actual=new Uint8Array(await downloaded.data.arrayBuffer());
-  if(actual.length!==bytes.length||(await digest(actual))!==hash)
-   throw Error('M44_PDF_STORAGE_CHECKSUM_MISMATCH');
   // Only the service role may bind these verified bytes to an issuance.
-  finalizeStarted=true;
+  // The finalizer rejects a changed source revision under a database lock.
   const persisted=await callRpc<Finalized>(service,'iberfit_m44_finalize_evolution_report_issue_v1',{
    p_report_id:id,p_issue_request_id:requestId,
    p_source_revision:Number(src.sourceRevision),p_source_sha256:src.sourceSha256,
-   p_artifact_path:path,p_artifact_sha256:hash,p_artifact_size_bytes:bytes.length,
+   p_artifact_path:path,p_artifact_sha256:artifact.sha256,p_artifact_size_bytes:artifact.size,
    p_template_version:rendered.templateVersion,p_engine_version:VERSION,
    p_actor_user_id:actor,
   });
@@ -163,17 +165,15 @@ async function issue({user,service,actor,body}:{
   if(record.withdrawn===true)
    throw Error('M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED');
   if(record.kind==='already-issued'&&canonicalPath!==path){
-   await service.storage.from(BUCKET).remove([path]);uploaded=false;
+   await service.storage.from(BUCKET).remove([path]);
   }
   return {kind:record.kind,issuanceId:record.issuanceId,version:record.version,
-   artifactSha256:record.artifactSha256||hash,pages:rendered.pages,
+   artifactSha256:record.artifactSha256||artifact.sha256,pages:rendered.pages,
    signedUrl:await signed(service,canonicalPath),expiresIn:120};
  }catch(error){
-  // A finalize call can commit but lose its ACK. Deleting the PDF on a
-  // signing/network error after that point would corrupt an official record.
-  // Preserve a private orphan and reconcile it by issueRequestId on retry.
-  if(uploaded&&!finalizeStarted)
-    await service.storage.from(BUCKET).remove([path]).catch(()=>{});
+  // Even before our finalization, a parallel retry can have committed this
+  // identical path. NEVER delete it on error: preserve the official ledger
+  // and let the next authorized retry reconcile by issueRequestId.
   throw error;
  }
 }

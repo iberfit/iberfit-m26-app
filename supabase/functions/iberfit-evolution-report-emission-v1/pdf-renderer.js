@@ -24,7 +24,7 @@ function wrap(font,size,v,width){
  if(line)lines.push(line);
  return lines.length?lines:['Sin registro'];
 }
-export async function renderEvolutionReportPdf({source,pdfLib,brandImageBytes,brandFonts,fontkit,generatedAt}={}){
+export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,brandImageBytes,brandFonts,fontkit,generatedAt}={}){
  if(!source||!pdfLib?.PDFDocument||!pdfLib?.StandardFonts||!pdfLib?.rgb)
   throw Error('M44_PDF_RENDER_INPUT_INVALID');
  if(!/^[0-9a-f]{8}-/iu.test(String(source.reportId||''))||
@@ -179,6 +179,7 @@ export async function renderEvolutionReportPdf({source,pdfLib,brandImageBytes,br
  }
  doc.setTitle('IBERFIT / Informe de evolucion / '+safe(source.clientName,70));
  doc.setCreator('IBERFIT');doc.setProducer(M44_PDF_TEMPLATE);
+ if(sourceFingerprint)doc.setSubject(String(sourceFingerprint));
  doc.setCreationDate(new Date(generatedAt||new Date().toISOString()));
  const bytes=await doc.save({useObjectStreams:false});
  if(bytes.length<1024||bytes.length>20971520)throw Error('M44_PDF_RENDER_SIZE_INVALID');

@@ -8,9 +8,9 @@ test('M44 server emits its own PDF from the authorized published source, never b
  assert.match(t,/renderEvolutionReportPdf\(/);
  assert.doesNotMatch(t,/body\.pdf|body\.pdfBytes|body\.sourceSnapshot|body\.clientName/);
  assert.match(t,/M44_PDF_SOURCE_AUTHORIZATION_INVALID/);
- assert.match(t,/upsert:false/);
- assert.match(t,/download\(path\)/);
- assert.match(t,/M44_PDF_STORAGE_CHECKSUM_MISMATCH/);
+ assert.match(t,/ensureStoredPdfArtifact\(/);
+ assert.match(t,/sourceFingerprint/);
+ assert.match(t,/validateExisting:async stored/);
  assert.match(t,/callRpc<Finalized>\(service,'iberfit_m44_finalize_evolution_report_issue_v1'/);
  assert.match(t,/p_actor_user_id:actor/);
 });
@@ -25,9 +25,9 @@ test('M44 broker enforces strict origin, JWT, no-store, per-request idempotency 
 
 test('M44 lost ACK after database finalization can never delete the issued immutable PDF',async()=>{
  const t=await source();
- assert.match(t,/let uploaded=false,finalizeStarted=false/);
- assert.match(t,/finalizeStarted=true;\s*const persisted=await callRpc<Finalized>/);
- assert.match(t,/if\(uploaded&&!finalizeStarted\)/);
+ assert.match(t,/await ensureStoredPdfArtifact/);
+ assert.match(t,/const persisted=await callRpc<Finalized>/);
+ assert.doesNotMatch(t,/if\(uploaded&&!finalizeStarted\)/);
  assert.doesNotMatch(t,/if\(uploaded\)await service\.storage\.from\(BUCKET\)\.remove/);
  assert.match(t,/issueRequestId/);
 });
