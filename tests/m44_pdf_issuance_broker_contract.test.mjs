@@ -21,3 +21,13 @@ test('M44 broker enforces strict origin, JWT, no-store, per-request idempotency 
  "M44_PDF_WITHDRAW_REASON_INVALID","M44_PDF_ISSUANCE_NOT_AVAILABLE"])
  assert.ok(t.includes(claim),claim);
 });
+
+
+test('M44 lost ACK after database finalization can never delete the issued immutable PDF',async()=>{
+ const t=await source();
+ assert.match(t,/let uploaded=false,finalizeStarted=false/);
+ assert.match(t,/finalizeStarted=true;\s*const persisted=await callRpc<Finalized>/);
+ assert.match(t,/if\(uploaded&&!finalizeStarted\)/);
+ assert.doesNotMatch(t,/if\(uploaded\)await service\.storage\.from\(BUCKET\)\.remove/);
+ assert.match(t,/issueRequestId/);
+});

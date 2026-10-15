@@ -117,7 +117,7 @@ async function issue({user,service,actor,body}:{
  // Compute independently after generation and after storage download.
  const hash=await digest(bytes);
  const path=String(src.clientId)+'/'+id+'/'+requestId+'/report.pdf';
- let uploaded=false;
+ let uploaded=false,finalizeStarted=false;
  try{
   const save=await service.storage.from(BUCKET).upload(path,bytes,{
    contentType:'application/pdf',cacheControl:'31536000',upsert:false,
@@ -130,6 +130,7 @@ async function issue({user,service,actor,body}:{
   if(actual.length!==bytes.length||(await digest(actual))!==hash)
    throw Error('M44_PDF_STORAGE_CHECKSUM_MISMATCH');
   // Only the service role may bind these verified bytes to an issuance.
+  finalizeStarted=true;
   const persisted=await callRpc<Finalized>(service,'iberfit_m44_finalize_evolution_report_issue_v1',{
    p_report_id:id,p_issue_request_id:requestId,
    p_source_revision:Number(src.sourceRevision),p_source_sha256:src.sourceSha256,
@@ -147,7 +148,11 @@ async function issue({user,service,actor,body}:{
    artifactSha256:record.artifactSha256||hash,pages:rendered.pages,
    signedUrl:await signed(service,canonicalPath),expiresIn:120};
  }catch(error){
-  if(uploaded)await service.storage.from(BUCKET).remove([path]).catch(()=>{});
+  // A finalize call can commit but lose its ACK. Deleting the PDF on a
+  // signing/network error after that point would corrupt an official record.
+  // Preserve a private orphan and reconcile it by issueRequestId on retry.
+  if(uploaded&&!finalizeStarted)
+    await service.storage.from(BUCKET).remove([path]).catch(()=>{});
   throw error;
  }
 }
