@@ -10,7 +10,7 @@ test('M44 server emits its own PDF from the authorized published source, never b
  assert.match(t,/M44_PDF_SOURCE_AUTHORIZATION_INVALID/);
  assert.match(t,/ensureStoredPdfArtifact\(/);
  assert.match(t,/sourceFingerprint/);
- assert.match(t,/validateExisting:async stored/);
+ assert.match(t,/validateExisting:async \\(stored:Uint8Array\\)=>/);
  assert.match(t,/callRpc<Finalized>\(service,'iberfit_m44_finalize_evolution_report_issue_v1'/);
  assert.match(t,/p_actor_user_id:actor/);
 });
