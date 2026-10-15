@@ -443,3 +443,23 @@ test('M45 an acknowledged old-account message cannot refresh the next account',a
   assert.equal(result.syncPending,true,'the original account is no longer visible');
   assert.equal(refreshes,0,'never hydrate the replacement identity from an old operation');
 });
+
+
+test('M45 account switch while awaiting token prevents sending a command with another account JWT',async()=>{
+  let identity='coach-A',resolveToken,remoteCalls=0,refreshes=0;
+  const pendingToken=new Promise((resolve)=>{resolveToken=resolve;});
+  const service=createCommunicationService({
+    transport:{async execute(){remoteCalls++;return {ok:true,kind:'ack'};}},
+    getToken:()=>pendingToken,
+    getState:()=>({available:true,identity:{id:identity}}),
+    getRole:()=> 'coach',
+    isOnline:()=>true,
+    refreshState:async()=>{refreshes++;},
+  });
+  const result=service.execute(messageInput('before-token-account-A'));
+  identity='coach-B';
+  resolveToken('jwt-B');
+  await assert.rejects(()=>result,/M45_COMMUNICATION_ACTOR_CHANGED/);
+  assert.equal(remoteCalls,0);
+  assert.equal(refreshes,0);
+});
