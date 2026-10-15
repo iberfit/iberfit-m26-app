@@ -16,7 +16,8 @@ async function mount(page,role){
       '<button type="button" data-workflow-action="issue-evolution-pdf" data-entity-id="'+report+'">Emitir PDF</button>'+
       '<button type="button" data-workflow-action="open-issued-evolution-pdf" data-entity-id="'+report+'">Abrir PDF</button>'+
       '<button type="button" data-workflow-action="show-issued-evolution-history" data-entity-id="'+report+'">Historial</button>'+
-      '<div data-m44-pdf-history aria-live="polite"></div></article>';
+      '<div data-m44-pdf-history aria-live="polite"></div></article>'+
+      '<p data-workflow-status="report" role="status" aria-live="polite"></p>';
     document.body.replaceChildren(root);
     const state={
       identity:{role,clientId:client},
@@ -92,8 +93,7 @@ test('M44 Admin opens published PDF from history without wrongful Client-only de
 test('M44 Cliente reads published PDF but cannot emit or withdraw',async({page})=>{
   await mount(page,'client');
   await page.getByRole('button',{name:'Emitir PDF'}).click();
-  await expect.poll(async()=>page.evaluate(()=>document.body.textContent.includes('No se ha podido completar')||
-     document.body.textContent.includes('informe oficial'))).toBe(true);
+  await expect(page.locator('[data-workflow-status="report"]')).toContainText('informe oficial');
   let result=await log(page);
   expect(result.calls.filter(x=>x[0]==='issue')).toHaveLength(0);
   await page.getByRole('button',{name:'Abrir PDF',exact:true}).first().click();
