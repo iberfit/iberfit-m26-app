@@ -90,6 +90,24 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
   const id=requireUuid(reportId,'M44_PDF_REPORT_ID_INVALID');
   return opening(await request(token,{action:'latest',reportId:id}));
  }
+ async function history(token,{reportId}={}){
+  const id=requireUuid(reportId,'M44_PDF_REPORT_ID_INVALID');
+  const result=await request(token,{action:'history',reportId:id});
+  if(result.reportId!==id||!Array.isArray(result.items))
+   throw Error('M44_PDF_HISTORY_RESPONSE_INVALID');
+  const items=result.items.flatMap(item=>{
+   const issuanceId=clean(item?.issuanceId,80);
+   if(!UUID.test(issuanceId))return [];
+   return [Object.freeze({
+    issuanceId,version:Number(item.version||0),issuedAt:clean(item.issuedAt,60),
+    withdrawn:item.withdrawn===true,withdrawnAt:clean(item.withdrawnAt,60),
+    withdrawnReason:clean(item.withdrawnReason,500),
+    artifactSha256:clean(item.artifactSha256,64),
+   })];
+  });
+  return Object.freeze({reportId:id,manager:result.manager===true,
+    items:Object.freeze(items)});
+ }
  async function open(token,{issuanceId}={}){
   const id=requireUuid(issuanceId,'M44_PDF_ISSUANCE_INVALID');
   return opening(await request(token,{action:'open',issuanceId:id}));
@@ -101,5 +119,5 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
   const response=await request(token,{action:'withdraw',issuanceId:id,reason:why});
   return Object.freeze({issuanceId:id,withdrawn:response.kind==='withdrawn'||response.kind==='already-withdrawn'});
  }
- return Object.freeze({issue,latest,open,withdraw});
+ return Object.freeze({issue,latest,history,open,withdraw});
 }

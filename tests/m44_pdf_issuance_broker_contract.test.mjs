@@ -58,3 +58,11 @@ test('M44 withdrawn revision cannot leak a new signed URL via retry of already-i
  assert.ok(block>0&&signed>block);
  assert.match(final,/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED/);
 });
+
+
+test('M44 PDF history does not read from service ledger without actor RPC authorization',async()=>{
+ const s=await source(),start=s.indexOf("else if(action==='history')");
+ assert.ok(start>0);
+ assert.match(s.slice(start,start+400),/callRpc<.*>\(user,'iberfit_m44_report_issued_pdf_history_v1'/);
+ assert.match(s,/M44_PDF_REPORT_ID_INVALID/);
+});

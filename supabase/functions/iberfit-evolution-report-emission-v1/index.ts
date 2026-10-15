@@ -229,7 +229,7 @@ Deno.serve(async(req)=>{
   const body=JSON.parse(raw);
   if(!body||typeof body!=='object'||Array.isArray(body))throw Error('M44_PDF_BODY_INVALID');
   const action=String(body.action||'');
-  if(!['issue','open','latest','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
+  if(!['issue','open','latest','history','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
   const {user,service}=clients(bearer);
   const auth=await user.auth.getUser(bearer.slice(7).trim());
   if(auth.error||!UUID.test(auth.data?.user?.id||''))throw Error('M44_PDF_AUTH_REQUIRED');
@@ -238,6 +238,10 @@ Deno.serve(async(req)=>{
   if(action==='issue')data=await issue({user,service,actor,body});
   else if(action==='open')data=await open({user,service,body});
   else if(action==='latest')data=await latest({user,service,body});
+  else if(action==='history'){
+   const reportId=uuid(body.reportId,'M44_PDF_REPORT_ID_INVALID');
+   data=await callRpc<{ok:boolean;reportId:string;manager:boolean;items:unknown[]}>(user,'iberfit_m44_report_issued_pdf_history_v1',{p_report_id:reportId});
+  }
   else{
    const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
    const reason=String(body.reason||'').trim();

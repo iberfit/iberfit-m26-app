@@ -52,3 +52,21 @@ test('M44 client latest never asks server to issue a document',async()=>{
  await service.latest('jwt',{reportId:uid});
  assert.deepEqual(requests,[{action:'latest',reportId:uid}]);
 });
+
+
+test('M44 document history is scoped and strips arbitrary metadata, without changing issuance state',async()=>{
+ const calls=[];
+ const service=createEvolutionReportGovernanceService({runtime:qa,fetchImpl:async(_,args)=>{
+  calls.push(JSON.parse(args.body));
+  return {ok:true,status:200,json:async()=>({
+   ok:true,reportId:uid,manager:true,items:[
+    {issuanceId:issue,version:1,issuedAt:'2026-10-15T12:00:00Z',withdrawn:true,
+     withdrawnReason:'Rectificado',artifactPath:'PRIVATE_STORAGE_OBJECT_SHOULD_NOT_LEAK'},
+   ],
+  })};
+ }});
+ const found=await service.history('jwt',{reportId:uid});
+ assert.equal(found.items[0].artifactPath,undefined);
+ assert.equal(found.items[0].withdrawn,true);
+ assert.deepEqual(calls,[{action:'history',reportId:uid}]);
+});
