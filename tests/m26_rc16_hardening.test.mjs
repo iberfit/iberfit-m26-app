@@ -103,8 +103,8 @@ test('progreso interpreta resultados por clave, cargas con unidad y fechas canó
   const state={collections:{
     appointments:[{id:'a1',clientId:'c1',scheduledAt:'2026-06-25T10:00:00Z',status:'completed'},{id:'a2',clientId:'c1',scheduledAt:'2026-07-18T10:00:00Z',status:'completed'}],
     sessionExecutions:[
-      {id:'e-new',clientId:'c1',completedAt:'2026-07-18T11:00:00Z',status:'completed',results:{'x:1':{reps:10,load:'20 kg',rpe:8}}},
-      {id:'e-old',clientId:'c1',completedAt:'2026-06-25T11:00:00Z',status:'completed',results:{'x:1':{reps:10,load:'10 kg',rpe:6}}},
+      {id:'e-new',clientId:'c1',completedAt:'2026-07-18T11:00:00Z',status:'completed',results:{'x:1':{exerciseId:'bench-press',reps:10,load:'20 kg',rpe:8}}},
+      {id:'e-old',clientId:'c1',completedAt:'2026-06-25T11:00:00Z',status:'completed',results:{'x:1':{exerciseId:'bench-press',reps:10,load:'10 kg',rpe:6}}},
     ],
     checkins:[{id:'ch1',clientId:'c1',recordedAt:'2026-07-17T09:00:00Z',energy:7,sleep:6,stress:4,pain:0}],
     iriAssessments:[{id:'i1',clientId:'c1',assessmentDate:'2026-07-16',score:75},{id:'i0',clientId:'c1',assessmentDate:'2026-06-10',score:70}],

@@ -79,7 +79,8 @@ test('M43: controller guards remote approval with a fresh revision and checks ac
   const approval=code.slice(code.indexOf('  async function approveReport(){'),code.indexOf('  async function executeWorkflowAction'));
   assert.match(approval,/refreshState\(\{reason:'report-approval-revision-preflight'\}\)/);
   assert.match(approval,/reportApprovalDecision\(store\.getState\(\)\.collections\?\.reports/);
-  assert.match(approval,/baseRevision:remote\.baseRevision/);
+  assert.match(approval,/let baseRevision=remote\.baseRevision/);
+  assert.match(approval,/const command=\{\.\.\.prepared,baseRevision\}/);
   assert.match(approval,/remote\.kind==='already-approved'/);
   assert.match(approval,/remote\.kind==='new-version-required'/);
   assert.match(approval,/refreshAndFind\('reports',stableId,clientId/);
@@ -100,4 +101,70 @@ test('M43: premium candidate begins a new report identity and Coach sees a recov
   const route=source('src/m26/modules/route-render.js');
   assert.match(route,/data-report-draft-choice/);
   assert.match(route,/Preparar un informe nuevo/);
+});
+
+test('M44: report draft without IRI remains recoverable under its own client and report identity',async()=>{
+  const repo=createMemoryEngagementDraftRepository({ownerId:'coach-m44-training-only'});
+  const training={...data('r-training'),assessmentId:null,reportType:'weekly'};
+  await repo.save(clientId,reportDraftScope(training.id),training);
+  const restored=await restoreReportDraft(repo,clientId,null,training.id);
+  assert.equal(restored?.value?.reportType,'weekly');
+  assert.equal(restored?.value?.assessmentId,null);
+  assert.equal(await restoreReportDraft(repo,'foreign-client',null,training.id),null);
+  assert.equal(await restoreReportDraft(repo,clientId,null,'missing'),null);
+});
+test('M44: the progression form is present even without initial IRI and cannot approve it unsafely',()=>{
+  const route=source('src/m26/modules/route-render.js');
+  assert.doesNotMatch(route,/const editor=vm\.canManage&&hasTrainingSurface\(vm\.serviceKind\)\?\(iriId\?/);
+  assert.match(route,/Selecciona primero un informe de entrenamiento con evidencia confirmada/);
+  const code=source('src/m26/app/workflow-controller.js');
+  assert.ok(code.includes("if(!assessmentId&&!['post-session','weekly'"));
+  assert.match(code,/assessmentId:assessmentId\|\|null/);
+});
+
+
+test('M44: public.reports content JSONB matches approved report replay without creating duplicate',()=>{
+  const approved=buildApproveReportDraftCommand({...data('m44-ack-1'),reportType:'weekly'},0).payload.patch;
+  const server={
+    id:approved.id,client_id:clientId,revision:2,status:'aprobado',
+    report_type:'weekly',title:approved.title,summary:approved.summary,
+    content:structuredClone(approved),
+  };
+  assert.deepEqual(reportApprovalDecision([server],clientId,approved),
+    {kind:'already-approved',baseRevision:2});
+  assert.deepEqual(reportApprovalDecision([server],clientId,{...approved,coachComment:'Cambio profesional'}),
+    {kind:'new-version-required',baseRevision:2});
+  assert.deepEqual(reportApprovalDecision([server],clientId,{...approved,evidence:[{label:'Carga',text:'9 kg',source:'sessionExecutions'}]}),
+    {kind:'new-version-required',baseRevision:2});
+});
+
+test('M44: activitySeries and lineaged source IDs are material in remote acknowledgement',()=>{
+  const base={...data('m44-ack-2'),assessmentId:null,reportType:'monthly',
+    sourceType:'session_execution_period',sourceId:null,
+    activitySeries:[{from:'2026-10-01',to:'2026-10-07',count:2}],
+  };
+  const payload=buildApproveReportDraftCommand(base,0).payload.patch;
+  const server={id:payload.id,client_id:clientId,status:'aprobado',revision:4,content:structuredClone(payload)};
+  assert.equal(reportApprovalDecision([server],clientId,payload).kind,'already-approved');
+  assert.equal(reportApprovalDecision([server],clientId,{...payload,activitySeries:[{from:'2026-10-01',to:'2026-10-07',count:3}]}).kind,'new-version-required');
+  assert.equal(reportApprovalDecision([server],clientId,{...payload,sourceId:'different'}).kind,'new-version-required');
+});
+
+
+test('M44: JSONB reordered object keys do not falsely create a new approved report version',()=>{
+  const normalized=buildApproveReportDraftCommand({
+    ...data('jsonb-order'),reportType:'weekly',
+    evidence:[{label:'Sesiones',text:'2',source:'sessionExecutions',quality:'confirmada'}],
+    activitySeries:[{from:'2026-10-01',to:'2026-10-07',count:2}],
+  },0).payload.patch;
+  const asPgJsonb=value=>Array.isArray(value)?value.map(asPgJsonb)
+    :value&&typeof value==='object'
+      ?Object.fromEntries(Object.entries(value).reverse().map(([key,val])=>[key,asPgJsonb(val)]))
+      :value;
+  const server={
+    id:normalized.id,client_id:clientId,status:'aprobado',revision:2,
+    content:asPgJsonb(normalized),
+  };
+  assert.deepEqual(reportApprovalDecision([server],clientId,normalized),
+    {kind:'already-approved',baseRevision:2});
 });

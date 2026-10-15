@@ -33,9 +33,9 @@ function coachState(){
       }],
       sessionExecutions:[
         {id:'e1',clientId:'c1',sessionId:'s1',appointmentId:'a1',status:'completed',syncStatus:'clean',completedAt:'2026-09-04T11:00:00Z',results:{x:{exerciseId:'exercise-1',reps:8,loadKg:100,rpe:7}}},
-        {id:'e2',clientId:'c1',sessionId:'s1',appointmentId:'a2',status:'completed',syncStatus:'clean',completedAt:'2026-09-11T11:00:00Z',results:{x:{exerciseId:'exercise-2',reps:8,loadKg:100,rpe:7}}},
-        {id:'e3',clientId:'c1',sessionId:'s1',appointmentId:'a3',status:'completed',syncStatus:'clean',completedAt:'2026-09-18T11:00:00Z',results:{x:{exerciseId:'exercise-3',reps:8,loadKg:50,rpe:7}}},
-        {id:'e4',clientId:'c1',sessionId:'s1',appointmentId:'a4',status:'completed',syncStatus:'clean',completedAt:'2026-09-25T11:00:00Z',results:{x:{exerciseId:'exercise-4',reps:8,loadKg:50,rpe:7}}},
+        {id:'e2',clientId:'c1',sessionId:'s1',appointmentId:'a2',status:'completed',syncStatus:'clean',completedAt:'2026-09-11T11:00:00Z',results:{x:{exerciseId:'exercise-1',reps:8,loadKg:100,rpe:7}}},
+        {id:'e3',clientId:'c1',sessionId:'s1',appointmentId:'a3',status:'completed',syncStatus:'clean',completedAt:'2026-09-18T11:00:00Z',results:{x:{exerciseId:'exercise-1',reps:8,loadKg:50,rpe:7}}},
+        {id:'e4',clientId:'c1',sessionId:'s1',appointmentId:'a4',status:'completed',syncStatus:'clean',completedAt:'2026-09-25T11:00:00Z',results:{x:{exerciseId:'exercise-1',reps:8,loadKg:50,rpe:7}}},
       ],
       iriAssessments:[],
       checkins:[],
@@ -170,12 +170,16 @@ test('Cockpit expone contrato de decisión sin score y enlaza solo a una ruta re
   const item=cockpit.items[0];
 
   assert.equal(item.clientId,'c1');
-  assert.equal(item.decisionType,'plan-execution-review');
+  // The same verified series also creates a strength signal; the cockpit
+  // legitimately prioritizes strength review before the secondary volume alert.
+  assert.equal(item.decisionType,'possible-stagnation');
   assert.equal(item.operationalPriority.id,'review');
   assert.equal(item.operationalPriority.label,'Revisar');
   assert.equal(item.nextAction.area,'progreso');
   assert.equal(item.recommendedActions[0].area,'progreso');
-  assert.ok(item.evidence.some((value)=>/Cambio reciente -50%/u.test(value)));
+  assert.ok(item.evidence.length>0,'The prioritized strength review must still explain its evidence');
+  assert.ok(alerts.some(alert=>alert.id==='progress-volume-review'&&/Cambio reciente -50%/u.test(alert.detail)),
+    'Volume warning remains available, but is not falsely promoted above the strength review');
   assert.equal(item.requiresHumanDecision,true);
   assert.equal(item.automaticPrescription,false);
   assert.equal(Object.hasOwn(item,'score'),false);

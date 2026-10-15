@@ -1392,6 +1392,17 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...r});
   }
 
+  async function createReportDraft(token,{clientId,reportId,draft}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!clientId||!reportId||!draft||typeof draft!=='object')throw new Error('M44_REPORT_CREATE_INPUT_INVALID');
+    const raw=await request('/rest/v1/rpc/iberfit_m44_create_report_draft_v1',{
+      method:'POST',token,body:JSON.stringify({p_client_id:clientId,p_report_id:reportId,p_draft:draft}),
+    });
+    if(raw?.ok!==true||!['created','already-created'].includes(raw.kind)||Number(raw.remoteRevision)!==1)
+      throw new Error('M44_REPORT_CREATE_NOT_CONFIRMED');
+    return Object.freeze(raw);
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     let result;
@@ -1711,6 +1722,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     updateExerciseMeasurementProfile,
     commandRegistry,
     clientOnboardingPreflight,
+    createReportDraft,
     createClientDraft,
     preflight: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.preflight, token, { p_command: command })),
     execute: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.execute, token, { p_command: command })),

@@ -74,10 +74,25 @@ jobs:
           test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
           test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
 
+      # Backup inventory must be confirmed BEFORE any M44 schema or Edge promotion.
+      # This guard is read-only. A completed backup inventory entry still
+      # requires independent restore verification prior to the first PROD DDL.
+      - name: Certify recent recoverable-snapshot inventory for M44 (fail closed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/m44_prod_backup_inventory_guard.mjs
+
       - name: Certify Connected360 V47 production database (fail closed)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
+
+
+      # M44 has a separate schema and privileged ACL boundary.
+      - name: Certify M44 PDF production schema and isolation (fail closed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/verify_m44_prod_schema.mjs
 
       - name: Full regression before production
         shell: bash
@@ -221,6 +236,38 @@ jobs:
             --no-verify-jwt
           npx --yes supabase@2.117.0 functions list --project-ref "${PROD_SUPABASE_REF}" \
             | grep -F 'iberfit-iri-report-emission-v1'
+
+      - name: Deploy and verify protected M44 evolution PDF broker to production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
+          broker='supabase/functions/iberfit-evolution-report-emission-v1/index.ts'
+          test -s "$broker"
+          test -s 'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js'
+          test -s 'supabase/functions/iberfit-evolution-report-emission-v1/storage-recovery.js'
+          grep -Fq 'M44_PDF_AUTH_REQUIRED' "$broker"
+          grep -Fq 'M44_PDF_ORIGIN_FORBIDDEN' "$broker"
+          sed -n '/^\[functions.iberfit-evolution-report-emission-v1\]/,+1p' supabase/config.toml \
+            | grep -Fq 'verify_jwt = true'
+          sha256sum "$broker"
+          # Gateway JWT verification is mandatory for M44.
+          npx --yes supabase@2.117.0 functions deploy iberfit-evolution-report-emission-v1 \
+            --project-ref "${PROD_SUPABASE_REF}"
+          npx --yes supabase@2.117.0 functions list --project-ref "${PROD_SUPABASE_REF}" \
+            | grep -F 'iberfit-evolution-report-emission-v1'
+          # Non-mutating denial probe; no user or report data.
+          response="$(mktemp)"
+          code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 \
+            -o "$response" -w '%{http_code}' -X POST \
+            -H "Origin: https://${APP_DOMAIN}" \
+            -H 'Content-Type: application/json' \
+            "${PROD_SUPABASE_URL}/functions/v1/iberfit-evolution-report-emission-v1" \
+            -d '{"action":"history","reportId":"00000000-0000-4000-8000-000000000000"}')"
+          test "$code" = '401' || { echo "M44_PROD_NO_JWT_DENIAL_HTTP_${code}" >&2; rm -f "$response"; exit 41; }
+          rm -f "$response"
 
       - name: Deploy and verify guarded exercise media broker to production
         env:

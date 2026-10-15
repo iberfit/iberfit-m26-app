@@ -49,7 +49,9 @@ export function findDestructiveSql(sql) {
   const rules = [
     ['DROP_TABLE', /\bDROP\s+TABLE\b/],
     ['DROP_SCHEMA', /\bDROP\s+SCHEMA\b/],
-    ['TRUNCATE', /\bTRUNCATE(?:\s+TABLE)?\b/],
+    // TRUNCATE as executable statement is forbidden; REVOKE TRUNCATE is a
+    // security-tightening ACL operation and must not be confused with execution.
+    ['TRUNCATE', /(?:^|;)\s*TRUNCATE\b(?:\s+TABLE\b)?/],
     ['DROP_COLUMN', /\bALTER\s+TABLE\b[^;]*\bDROP\s+COLUMN\b/],
     ['ALTER_COLUMN_TYPE', /\bALTER\s+TABLE\b[^;]*\bALTER\s+COLUMN\b[^;]*\b(?:TYPE|SET\s+DATA\s+TYPE)\b/],
     ['ALTER_TABLE_RENAME', /\bALTER\s+TABLE\b[^;]*\bRENAME\s+TO\b/],

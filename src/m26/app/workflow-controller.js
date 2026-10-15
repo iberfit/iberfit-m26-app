@@ -1,4 +1,7 @@
 import {buildIriCommand} from '../workflows/iri-workflow.js';
+import {clientContentView} from '../publication/client-content.js';
+import {openEvolutionReportPreview} from '../workflows/evolution-report-document.js';
+import {evolutionPdfActionScope} from '../workflows/evolution-pdf-access.js';
 import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
 import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,planningFormSignature,finalizeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
@@ -123,6 +126,20 @@ function clientName(record){const body=recordBody(record);return String(record?.
 function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
+  if(/M44_PRIVILEGED_ASSURANCE_REQUIRED|M44_PRIVILEGED_ROLE_REQUIRED/.test(code))return 'Para proteger los informes del cliente, necesitas verificar de nuevo tu acceso seguro como Coach o Admin. Conservamos el borrador; completa la verificación y vuelve a intentarlo.';
+  if(/M44_PDF_DOWNLOAD_INTEGRITY_INVALID|M44_PDF_STORAGE_CHECKSUM_MISMATCH/.test(code))return 'La comprobación de integridad del documento ha fallado. No se ha abierto el archivo; consulta con el equipo IBERFIT.';
+  if(/M44_PDF_ALREADY_ISSUED_OPEN_RETRY/.test(code))return 'El PDF oficial ya quedó emitido y archivado, pero no pudo abrirse. Accede a él desde el historial de versiones; no hace falta emitirlo de nuevo.';
+  if(/M44_PDF_ISSUANCE_NOT_AVAILABLE/.test(code))return 'Este informe todavía no tiene un PDF oficial disponible, o su última versión fue retirada. Puedes leer la versión publicada dentro de la aplicación.';
+  if(/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED|M44_PDF_ISSUE_REPLAY_COLLISION/.test(code))return 'Esta versión ya fue retirada o modificada. Para emitir una nueva entrega, el Coach debe preparar, aprobar y publicar una nueva revisión.';
+  if(/M44_PDF_REQUEST_TIMEOUT|M44_PDF_STORAGE_READBACK_FAILED|M44_PDF_SIGNED_URL_FAILED/.test(code))return 'No se ha podido confirmar la entrega del archivo. Puedes repetir la acción; se conservará el identificador para evitar duplicar una emisión.';
+  if(/M44_PDF_PUBLISHED_REPORT_REQUIRED|M44_PDF_SOURCE_AUTHORIZATION_INVALID|M44_PDF_FINALIZE_STALE_SOURCE/.test(code))return 'Este informe no está publicado o sus datos han cambiado. Actualiza los informes y comprueba la versión antes de emitirlo.';
+  if(/M44_PDF_EMISSION_NOT_AVAILABLE|M44_REPORT_GOVERNANCE_BACKEND_DISABLED|M44_PDF_BROKER_CONFIG_MISSING|M44_PDF_BRAND_FONT_FETCH_FAILED/.test(code))return 'La emisión PDF oficial no está disponible en este entorno. El borrador y el informe publicado permanecen intactos.';
+  if(/M44_PDF_AUTH_REQUIRED/.test(code))return 'Tu sesión debe renovarse antes de acceder al documento privado. Inicia sesión de nuevo si es necesario.';
+  if(/M44_PDF_OFFLINE_UNAVAILABLE/.test(code))return 'Necesitas conexión para emitir, retirar o abrir un documento privado. Vuelve a intentarlo al recuperar la red.';
+  if(/M44_PDF_POPUP_BLOCKED/.test(code))return 'El navegador ha bloqueado la pestaña del PDF. Permite abrir una pestaña desde IBERFIT y vuelve a pulsar.';
+  if(/M44_PDF_WITHDRAW_REASON_REQUIRED/.test(code))return 'Indica un motivo claro de al menos tres caracteres para retirar esta versión.';
+  if(/M44_PDF_HISTORY_UNAVAILABLE|M44_PDF_HISTORY_RESPONSE_INVALID/.test(code))return 'No se pudo consultar el historial de versiones. Puedes volver a intentarlo sin modificar ningún informe.';
+  if(/M44_PDF_|M44_REPORT_GOVERNANCE_/.test(code))return 'No se ha podido completar la operación con el informe oficial. Ningún documento debe considerarse emitido sin confirmación del servidor.';
   if(/EXERCISE_NAME_DUPLICATE/.test(code))return 'Ya existe un ejercicio activo con ese nombre. Usa el existente o elige un nombre que lo diferencie.';
   if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creó, pero aún no apareció en el catálogo actualizado. No lo crees de nuevo hasta completar la verificación.';
   if(/CUSTOM_EXERCISE_INVALID|CUSTOM_EXERCISE_LIST_INVALID/.test(code))return 'Revisa los datos del ejercicio personalizado antes de guardarlo.';
@@ -296,7 +313,8 @@ export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
-  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
+  issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,downloadEvolutionPdf=null,withdrawEvolutionPdf=null,
+  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,reportSaveTimer=null,planSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
@@ -1742,10 +1760,10 @@ export function createWorkflowController({
     const found=new Map();
     for(const record of records){
       const draft=record?.value,id=String(draft?.id||'').trim();
-      if(!id||String(draft?.clientId||'')!==String(clientId)||String(draft?.assessmentId||'')!==String(assessmentId))continue;
+      if(!id||String(draft?.clientId||'')!==String(clientId)||String(draft?.assessmentId||'')!==String(assessmentId||''))continue;
       let scoped;
       try{scoped=reportDraftScope(id);}catch{continue;}
-      if(record.scope!==scoped&&record.scope!==legacyReportDraftScope(assessmentId))continue;
+      if(record.scope!==scoped&&!(assessmentId&&record.scope===legacyReportDraftScope(assessmentId)))continue;
       const existing=found.get(id);
       if(!existing||record.scope===scoped&&existing.scope!==scoped)found.set(id,record);
     }
@@ -1755,7 +1773,7 @@ export function createWorkflowController({
     const picker=form?.querySelector?.('[data-report-draft-choice]');
     if(!picker)return;
     const {clientId}=context(),assessmentId=String(form.elements?.namedItem?.('assessmentId')?.value||'').trim();
-    if(!clientId||!assessmentId)return;
+    if(!clientId)return;
     const candidates=await availableReportDrafts(clientId,assessmentId);
     if(!root.contains?.(form)||context().clientId!==clientId)return;
     const current=String(form.elements?.namedItem?.('entityId')?.value||'').trim();
@@ -1832,12 +1850,13 @@ export function createWorkflowController({
     if(reportFormClientIds.has(form)&&reportFormClientIds.get(form)!==clientId)throw new Error('M26_REPORT_DRAFT_CLIENT_CONTEXT_CHANGED');
     const raw=values(form);
     const assessmentId=String(raw.assessmentId||'').trim();
-    if(!assessmentId)throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
+    const type=String(raw.reportType||'');
+    if(!assessmentId&&!['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(type))throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
     const stableId=String(raw.entityId||'').trim()||createM26Id();
     const scoped=reportDraftScope(stableId);
     const idField=form.elements?.namedItem?.('entityId');
     if(idField)idField.value=stableId;
-    const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId,
+    const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId:assessmentId||null,
       reviewAccepted:raw.reviewAccepted==='on'};
     const write=reportDraftChain.then(()=>draftRepository.save(clientId,scoped,payload));
     reportDraftChain=write.catch(()=>{});
@@ -1862,7 +1881,7 @@ export function createWorkflowController({
     const {clientId}=context();
     reportFormClientIds.set(form,clientId);
     const assessmentId=String(form.elements?.namedItem?.('assessmentId')?.value||'').trim();
-    if(!clientId||!assessmentId||!draftRepository?.load)return;
+    if(!clientId||!draftRepository?.load)return;
     try{
       await updateReportDraftChoices(form,{restoreSingle:true});
     }catch(error){
@@ -1925,8 +1944,39 @@ export function createWorkflowController({
       status(root,'report','Este informe ya estaba aprobado en el servidor. No se envió otra aprobación.','success');
       return {ok:true,kind:'already-confirmed',refreshOk:true};
     }
+    let baseRevision=remote.baseRevision;
+    if(remote.kind==='create'){
+      const type=String(prepared.payload.patch.reportType||'');
+      if(!['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(type)){
+        status(root,'report','Este formato requiere un documento previo confirmado o un circuito específico. No se ha enviado la aprobación.','error');
+        throw new Error('M44_REPORT_CREATION_TYPE_NOT_SUPPORTED');
+      }
+      if(typeof createReportDraft!=='function'){
+        status(root,'report','La creación segura de informes todavía no está disponible. Borrador conservado.','pending');
+        throw new Error('M44_REPORT_CREATE_BACKEND_NOT_READY');
+      }
+      status(root,'report','Creando documento privado y verificando las evidencias en el servidor…','pending');
+      // The server creates only a private draft with revision 1. It rejects
+      // stale activity, wrong client, duplicated ID and unconfirmed workouts.
+      let created=null;
+      try{
+        created=await withTimeout(Promise.resolve(createReportDraft({
+          clientId,reportId:stableId,draft:prepared.payload.patch,
+        })),20_000,'M44_REPORT_CREATE_TIMEOUT');
+      }catch(error){
+        if(/M44_PRIVILEGED_ASSURANCE_REQUIRED|M44_PRIVILEGED_ROLE_REQUIRED/.test(String(error?.message||error||''))){
+          status(root,'report',friendlyError(error),'error');
+          throw new Error('M44_PRIVILEGED_ASSURANCE_REQUIRED',{cause:error});
+        }
+        status(root,'report','No se confirmó la creación privada. El borrador permanece guardado: puedes reintentar tras comprobar la conexión.','error');
+        throw new Error('M44_REPORT_CREATE_UNCONFIRMED',{cause:error});
+      }
+      if(created?.ok!==true||Number(created.remoteRevision)!==1)
+        throw new Error('M44_REPORT_CREATE_NOT_CONFIRMED');
+      baseRevision=1;
+    }
     reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result:null});
-    const command={...prepared,baseRevision:remote.baseRevision};
+    const command={...prepared,baseRevision};
     const result=await commandBus.execute(command);
     if(result?.ok===true)reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result});
     const feedback=mutationFeedback(result,{success:'Informe aprobado y listo para publicación.',subject:'El informe'});
@@ -1955,6 +2005,156 @@ export function createWorkflowController({
     return cleanupOk?result:{...result,refreshPending:true,localDraftOk:false};
   }
 
+  function issuedHistoryHost(button){
+    return button?.closest?.('[data-m44-pdf-card]')?.querySelector?.('[data-m44-pdf-history]')||null;
+  }
+  async function showIssuedEvolutionHistory(button){
+    if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
+    const host=issuedHistoryHost(button);
+    if(!host||typeof getEvolutionPdfHistory!=='function')throw new Error('M44_PDF_HISTORY_UNAVAILABLE');
+    const {clientId,role,state}=context(),id=String(button?.dataset?.entityId||'');
+    const scope=evolutionPdfActionScope({state,role,clientId,reportId:id,action:'history'});
+    if(!scope.allowed)throw new Error(scope.code);
+    host.textContent='Consultando las versiones emitidas...';
+    try{
+      const history=await getEvolutionPdfHistory(id);
+      const document=host.ownerDocument||globalThis.document;
+      host.replaceChildren();
+      if(!history.items.length){
+        const empty=document.createElement('p');
+        empty.className='m26-field-help';
+        empty.textContent='Todavía no hay ningún PDF oficial emitido para este informe.';
+        host.append(empty);return history;
+      }
+      const title=document.createElement('p');
+      title.className='m26-eyebrow';
+      title.textContent=history.items.length===1?'1 versión documentada':history.items.length+' versiones documentadas';
+      host.append(title);
+      for(const item of history.items){
+        const line=document.createElement('div');
+        line.className='m26-inline-actions m44-pdf-version';
+        line.dataset.m44VersionRow='true';
+        const caption=document.createElement('span');
+        const date=item.issuedAt?new Date(item.issuedAt):null;
+        const readable=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString('es-CL'):'fecha no disponible';
+        caption.textContent='Versión '+item.version+' · '+readable+(item.withdrawn?' · Retirada':' · Disponible');
+        line.append(caption);
+        if(item.withdrawn){
+          if(history.manager&&item.withdrawnReason){
+            const reason=document.createElement('small');
+            reason.textContent='Motivo: '+item.withdrawnReason;
+            line.append(reason);
+          }
+        }else{
+          const open=document.createElement('button');
+          open.type='button';open.dataset.workflowAction='open-issued-evolution-pdf';
+          open.dataset.entityId=id;open.dataset.issuanceId=item.issuanceId;
+          open.textContent='Abrir PDF';line.append(open);
+          if(history.manager){
+            const label=document.createElement('label');
+            label.textContent='Motivo de retirada';
+            const input=document.createElement('input');
+            input.type='text';input.required=true;input.minLength=3;input.maxLength=500;
+            input.placeholder='Indica por qué se retira esta versión';
+            input.dataset.m44WithdrawReason='true';label.append(input);line.append(label);
+            const withdraw=document.createElement('button');
+            withdraw.type='button';withdraw.dataset.workflowAction='withdraw-issued-evolution-pdf';
+            withdraw.dataset.entityId=id;withdraw.dataset.issuanceId=item.issuanceId;
+            withdraw.textContent='Retirar esta versión';line.append(withdraw);
+          }
+        }
+        host.append(line);
+      }
+      return history;
+    }catch(error){
+      host.textContent='No se pudo consultar el historial. Pulsa «Consultar versiones PDF» para volver a intentarlo.';
+      throw error;
+    }
+  }
+  async function withdrawIssuedEvolutionPdf(button){
+    requireCoach();
+    if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
+    if(typeof withdrawEvolutionPdf!=='function')throw new Error('M44_PDF_WITHDRAW_UNAVAILABLE');
+    const row=button?.closest?.('[data-m44-version-row]');
+    const reason=String(row?.querySelector?.('[data-m44-withdraw-reason]')?.value||'').trim();
+    if(reason.length<3||reason.length>500)throw new Error('M44_PDF_WITHDRAW_REASON_REQUIRED');
+    const id=String(button?.dataset?.issuanceId||'');
+    await withdrawEvolutionPdf(id,reason);
+    const host=issuedHistoryHost(button);
+    if(host){
+      const container=host.closest('[data-m44-pdf-card]');
+      const refresh=container?.querySelector('[data-workflow-action="show-issued-evolution-history"]');
+      if(refresh)await showIssuedEvolutionHistory(refresh).catch(()=>{});
+    }
+    status(root,'report','Versión retirada con trazabilidad. No se permiten nuevas descargas; las copias previamente guardadas por una persona no pueden recuperarse a distancia.','success');
+  }
+
+  async function handleIssuedEvolutionPdf(button,{issue=false}={}){
+    if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
+    const {role,clientId,state}=context();
+    const id=String(button?.dataset?.entityId||'').trim();
+    const scope=evolutionPdfActionScope({state,role,clientId,reportId:id,action:issue?'issue':'open'});
+    if(!scope.allowed)throw new Error(scope.code);
+    if(issue){
+      requireCoach();
+      requireVisibleClient(clientId);
+      if(typeof issueEvolutionReport!=='function')throw new Error('M44_PDF_EMISSION_NOT_AVAILABLE');
+    }else if(typeof getLatestEvolutionPdf!=='function'&&typeof openEvolutionPdfById!=='function'){
+      throw new Error('M44_PDF_READER_NOT_AVAILABLE');
+    }
+    // Open synchronously from the user gesture; navigation follows authorization.
+    const popup=globalThis.open?.('about:blank','_blank');
+    if(!popup)throw new Error('M44_PDF_POPUP_BLOCKED');
+    try{
+      const issuanceId=String(button?.dataset?.issuanceId||'').trim();
+      const result=issue?await issueEvolutionReport(id):
+        issuanceId&&typeof openEvolutionPdfById==='function'?await openEvolutionPdfById(issuanceId):await getLatestEvolutionPdf(id);
+      if(!result?.issuanceId||!result?.sha256||result.delivery!=='authenticated-pdf')
+        throw new Error('M44_PDF_AUTHENTICATED_DELIVERY_REQUIRED');
+      let pdf;
+      try{
+        if(typeof downloadEvolutionPdf!=='function')throw new Error('M44_PDF_READER_NOT_AVAILABLE');
+        // An authorised check happens for each delivery, including after withdrawal.
+        pdf=await downloadEvolutionPdf(result.issuanceId,result.sha256);
+      }catch(error){
+        if(issue)throw new Error('M44_PDF_ALREADY_ISSUED_OPEN_RETRY',{cause:error});
+        throw error;
+      }
+      const objectUrl=globalThis.URL?.createObjectURL?.(pdf);
+      if(!objectUrl)throw new Error('M44_PDF_BLOB_URL_UNAVAILABLE');
+      try{popup.location.replace(objectUrl);}catch(error){
+        globalThis.URL?.revokeObjectURL?.(objectUrl);
+        throw error;
+      }
+      // In-memory viewer URL, never a bearer-independent Storage signed link.
+      globalThis.setTimeout?.(()=>globalThis.URL?.revokeObjectURL?.(objectUrl),900000);
+      status(root,'report',issue?'PDF oficial emitido y archivado · versión '+result.version:'PDF oficial abierto · versión '+result.version,'success');
+      return result;
+    }catch(error){
+      try{popup.close?.();}catch{}
+      throw error;
+    }
+  }
+
+  function openPublishedEvolutionReport(button){
+    const {clientId,state,role}=context();
+    if(role!=='client'||!clientId)throw new Error('M44_PUBLISHED_REPORT_ROLE_DENIED');
+    const id=String(button?.dataset?.entityId||'').trim();
+    const record=(state.collections?.reports||[]).find(item=>{
+      const body=item?.body||{};
+      return String(item.id||body.id||'')===id&&
+        String(item.clientId||item.client_id||body.clientId||body.client_id||'')===String(clientId);
+    });
+    if(!record)throw new Error('M44_PUBLISHED_REPORT_NOT_FOUND');
+    const safeView=clientContentView('report',record);
+    if(!safeView.reportDocument)throw new Error('M44_PUBLISHED_REPORT_NOT_AVAILABLE');
+    const clientName=String(state.identity?.name||state.identity?.fullName||'Cliente IBERFIT');
+    return openEvolutionReportPreview({
+      report:safeView.reportDocument,clientName,coachName:'Equipo IBERFIT',
+      publicationStatus:'published',
+    });
+  }
+
   async function executeWorkflowAction(action,button){
     const {clientId}=context();
     const key=action==='start-published-session'
@@ -1965,8 +2165,8 @@ export function createWorkflowController({
     if(key)inFlightMutations.add(key);
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
-    }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const scope=isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
+      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else if(action==='show-issued-evolution-history')await showIssuedEvolutionHistory(button);else if(action==='withdraw-issued-evolution-pdf')await withdrawIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+    }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const isEvolutionPdf=['issue-evolution-pdf','open-issued-evolution-pdf','show-issued-evolution-history','withdraw-issued-evolution-pdf'].includes(action);const scope=isEvolutionPdf?'report':isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
     finally{
       if(key)inFlightMutations.delete(key);
       if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}
