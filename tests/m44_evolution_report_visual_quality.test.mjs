@@ -103,3 +103,18 @@ test('M44 client publication view has a different legal label and no private coa
   assert.doesNotMatch(html,/BORRADOR PRIVADO/);
   assert.doesNotMatch(html,/LA MIRADA DE TU COACH/);
 });
+
+
+test('M44 histogram shows actual period dates and numeric scale, not just hover titles',()=>{
+  const html=buildEvolutionReportHtml({report:{...basic,activitySeries:[
+    {from:'2026-10-09',to:'2026-10-10',count:1},
+    {from:'2026-10-11',to:'2026-10-12',count:0},
+    {from:'2026-10-13',to:'2026-10-15',count:2},
+  ]}});
+  assert.match(html,/class="m44-activity-date"/);
+  assert.match(html,/10\\/09/);
+  assert.match(html,/10\\/11/);
+  assert.match(html,/10\\/13/);
+  assert.match(html,/Escala vertical desde 0 hasta 2 sesiones confirmadas/);
+  assert.match(html,/Detalle accesible del ritmo de entrenamiento/);
+});

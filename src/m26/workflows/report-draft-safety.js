@@ -10,7 +10,17 @@ const FIELDS=['title','assessmentId','periodStart','periodEnd','summary','conclu
 // in its content JSONB column. M26 domain snapshots instead use body JSONB.
 // Both paths must preserve the same revision/identity and replay semantics.
 const value=(record,key)=>record?.[key]??record?.body?.[key]??record?.content?.[key]??null;
-const canonical=(value)=>value===null||value===undefined?'':typeof value==='object'?JSON.stringify(value):String(value).trim();
+// PostgreSQL JSONB does not preserve JavaScript object key insertion order.
+// Canonicalize keys recursively to avoid false version conflicts after reload.
+function canonicalJson(value){
+  if(Array.isArray(value))return value.map(canonicalJson);
+  if(value&&typeof value==='object'){
+    return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalJson(value[key])]));
+  }
+  return value;
+}
+const canonical=(value)=>value===null||value===undefined?'':typeof value==='object'
+  ?JSON.stringify(canonicalJson(value)):String(value).trim();
 
 export function reportDraftScope(entityId){
   const id=String(entityId||'').trim();

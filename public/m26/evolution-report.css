@@ -122,3 +122,6 @@ body{margin:0;padding:25px 10px 40px;background:#142a1e;font-family:'Inter Varia
 .m44-activity-table th:last-child,.m44-activity-table td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .m44-activity-table th{color:#6b592f;font-size:7pt}
 @media screen and (max-width:825px){.m44-activity-table{font-size:12px}.m44-activity-chart figcaption{font-size:17px}.m44-activity-chart>p{font-size:12px}}
+
+.m44-activity-date{font-family:'Inter Variable',Arial,sans-serif;font-size:11px;fill:#405548;font-variant-numeric:tabular-nums}
+.m44-activity-guide{stroke:#bfc9bf;stroke-dasharray:3 5;stroke-width:1}

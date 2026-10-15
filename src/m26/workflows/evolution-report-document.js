@@ -45,14 +45,19 @@ function activityGraphic(series){
     const y=baseline-height;
     const width=Math.min(40,slot*.62);
     const label=row.from===row.to?row.from.slice(5):row.from.slice(5)+' / '+row.to.slice(5);
+    // Dates remain legible directly on the graph. The accessible HTML table
+    // below supplies full years and both endpoints where labels are compact.
+    const tick=row.from.slice(5).replace('-','/');
     return '<g><rect class="m44-activity-bar" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+width.toFixed(1)+'" height="'+height.toFixed(1)+'" rx="2"/>'+
       '<text class="m44-activity-value" x="'+(x+width/2).toFixed(1)+'" y="'+Math.max(19,y-8).toFixed(1)+'" text-anchor="middle">'+value+'</text>'+
+      '<text class="m44-activity-date" x="'+(x+width/2).toFixed(1)+'" y="229" text-anchor="middle">'+esc(tick)+'</text>'+
       '<title>'+esc(label)+': '+value+' sesiones confirmadas</title></g>';
   }).join('');
-  const grid='<line x1="'+left+'" y1="'+baseline+'" x2="'+right+'" y2="'+baseline+'" class="m44-activity-baseline"/>';
+  const grid='<line x1="'+left+'" y1="'+baseline+'" x2="'+right+'" y2="'+baseline+'" class="m44-activity-baseline"/>'+
+    '<line x1="'+left+'" y1="'+top+'" x2="'+right+'" y2="'+top+'" class="m44-activity-guide"/>';
   return '<figure class="m44-activity-chart"><figcaption>Sesiones IBERFIT completadas y confirmadas</figcaption>'+
     '<svg viewBox="0 0 682 240" role="img" aria-label="Histograma de '+series.length+' periodos con una escala que empieza en cero. '+series.map(row=>esc(row.from)+' a '+esc(row.to)+': '+row.count).join('; ')+'">'+grid+columns+'</svg>'+
-    '<p>El eje vertical empieza en cero. Cada barra representa un periodo; la altura muestra exclusivamente sesiones confirmadas, no objetivos previstos ni calidad del esfuerzo.</p></figure>';
+    '<p>Escala vertical desde 0 hasta '+maximum+' sesiones confirmadas por periodo. Las fechas abreviadas se desarrollan en la tabla. La barra muestra actividad confirmada, no el esfuerzo ni una tasa de adherencia.</p></figure>';
 }
 function activityTable(series){
   return '<table class="m44-activity-table"><caption>Detalle accesible del ritmo de entrenamiento</caption><thead><tr><th scope="col">Periodo</th><th scope="col">Sesiones confirmadas</th></tr></thead><tbody>'+

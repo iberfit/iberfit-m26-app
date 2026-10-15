@@ -149,3 +149,22 @@ test('M44: activitySeries and lineaged source IDs are material in remote acknowl
   assert.equal(reportApprovalDecision([server],clientId,{...payload,activitySeries:[{from:'2026-10-01',to:'2026-10-07',count:3}]}).kind,'new-version-required');
   assert.equal(reportApprovalDecision([server],clientId,{...payload,sourceId:'different'}).kind,'new-version-required');
 });
+
+
+test('M44: JSONB reordered object keys do not falsely create a new approved report version',()=>{
+  const normalized=buildApproveReportDraftCommand({
+    ...data('jsonb-order'),reportType:'weekly',
+    evidence:[{label:'Sesiones',text:'2',source:'sessionExecutions',quality:'confirmada'}],
+    activitySeries:[{from:'2026-10-01',to:'2026-10-07',count:2}],
+  },0).payload.patch;
+  const asPgJsonb=value=>Array.isArray(value)?value.map(asPgJsonb)
+    :value&&typeof value==='object'
+      ?Object.fromEntries(Object.entries(value).reverse().map(([key,val])=>[key,asPgJsonb(val)]))
+      :value;
+  const server={
+    id:normalized.id,client_id:clientId,status:'aprobado',revision:2,
+    content:asPgJsonb(normalized),
+  };
+  assert.deepEqual(reportApprovalDecision([server],clientId,normalized),
+    {kind:'already-approved',baseRevision:2});
+});
