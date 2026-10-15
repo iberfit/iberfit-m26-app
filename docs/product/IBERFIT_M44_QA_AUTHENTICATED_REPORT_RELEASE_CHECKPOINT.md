@@ -1,3 +1,45 @@
+# M44 · checkpoint operativo vigente (15/10/2026)
+
+**Estado:** no promover a Canary ni PROD todavía. Esta sección prevalece sobre
+las notas históricas posteriores del documento.
+
+- **HEAD probado:** `e83e4563b7b66ca7495f06b748f748724fabe607`.
+- **CI:** `#38798997830` SUCCESS — contratos M43/M44, WebAuthn QA negativo
+  (3 cuentas y 9 operaciones denegadas), Edge/PDF real, empaquetado y
+  Chromium A4 desktop/tablet/mobile, incluyendo retirada visual e intento
+  posterior de descarga bloqueado.
+- **Supabase QA:** función `iberfit-evolution-report-emission-v1` **v9 ACTIVE,
+  JWT obligatorio**; la base de QA contiene las migraciones M44 y el cierre de
+  verificación privilegiada. IRI inicial conserva su circuito independiente.
+- **Cambio fundamental frente al checkpoint anterior:** M44 ya **no entrega
+  enlaces firmados** de Storage con caducidad de 120 segundos. Emisión, último
+  y apertura exponen únicamente identificador de la emisión, versión, SHA-256
+  y modo `authenticated-pdf`; la obtención de bytes es otra petición
+  `download` con bearer, scope de Cliente/Coach/Admin, consulta de estado de
+  retirada y checksum verificado por servidor y cliente. El visor usa una URL
+  `blob:` local en memoria, revocada posteriormente. No afirmar que se pueden
+  eliminar remotamente las copias ya guardadas por terceros ni detener las
+  descargas iniciadas antes de la retirada.
+- **Pruebas reales QA:** denegaciones HTTP para Coach sin MFA, dos Clientes,
+  acceso interno y descarga no autorizada. `iberfit_evolution_report_issuances_v1`
+  y Storage siguen sin emisiones oficiales; no hay evidencia de ciclo completo
+  positivo con PDF real emitido en sesión WebAuthn validada.
+- **Prueba preparada para Canary autorizado:** `qa/m44/verified-webauthn-readonly.mjs`
+  enlazada con el navegador real del workflow OIDC de Coach; requiere una
+  sesión WebAuthn verificada y comprueba que el control M44 pasa la MFA antes
+  de negar un informe inexistente. **Pendiente de ejecución en Canary**, sin
+  ampliar la autorización OIDC del broker y sin fabricar tokens.
+- **Aprobaciones pendientes:** ensayo completo sintético con sesión MFA real
+  (crear/publicar/emitir/descargar/historial/retirar/versionar, sin datos reales),
+  compatibilidad de PR + merge a Canary y verificación de la PWA Coach/Admin
+  del P0 `#941`. `#925` permanece en seguimiento. PROD intacta.
+- **Linter Supabase:** el ledger tiene RLS sin políticas de lectura a propósito
+  (deny-all directo), y las RPC públicas `SECURITY DEFINER` tienen controles
+  explícitos de contexto, MFA y alcance; comprobar excepciones de linter
+  conscientemente, no añadir políticas permisivas para silenciar advertencias.
+
+---
+
 # IBERFIT M44 — QA autenticada y certificación visual
 Fecha: 15/10/2026 · WIP; ningún informe M44 nuevo en PROD.
 
