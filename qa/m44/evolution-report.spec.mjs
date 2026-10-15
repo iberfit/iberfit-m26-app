@@ -144,3 +144,37 @@ test('M44 full-length canonical evidence is paginated rather than clipped in act
   const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true});
   expect((pdf.toString('latin1').match(/\/Type\s*\/Page\b/gu)||[]).length).toBe(results.pages);
 });
+
+
+test('M44 long summary, Coach interpretation and next steps remain complete in real-font PDF',async({page})=>{
+  const summary='Lectura contextual de lo confirmado y sus límites. '.repeat(46);
+  const conclusions='Interpretación que no reemplaza la evaluación profesional individual. '.repeat(37);
+  const recommendations='Recomendación acordada que preserva la incertidumbre y la prioridad personal. '.repeat(30);
+  const coachComment='Nota privada de trabajo, exclusivamente para el Coach responsable. '.repeat(29);
+  const markup=buildEvolutionReportHtml({
+    report:{...synthetic,summary,conclusions,recommendations,coachComment},
+    publicationStatus:'draft',
+  });
+  await mount(page,markup);
+  await page.emulateMedia({media:'print'});
+  const proof=await page.evaluate(()=>{
+    const sheets=[...document.querySelectorAll('.m44-sheet')];
+    return {
+      count:sheets.length,
+      content:sheets.map(p=>p.textContent).join(' '),
+      clipped:sheets.some(sheet=>{
+        const body=sheet.querySelector('.m44-page-content');
+        const foot=sheet.querySelector('.m44-foot');
+        return body&&(body.scrollHeight>body.clientHeight+2||
+          (foot&&body.getBoundingClientRect().bottom>foot.getBoundingClientRect().top+2));
+      }),
+    };
+  });
+  expect(proof.count).toBeGreaterThan(7);
+  expect(proof.content).toContain('Nota privada de trabajo');
+  expect(proof.content).toContain('Recomendación acordada');
+  expect(proof.content).toContain('Transparencia del informe');
+  expect(proof.clipped).toBe(false);
+  const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true});
+  expect((pdf.toString('latin1').match(/\/Type\s*\/Page\b/gu)||[]).length).toBe(proof.count);
+});

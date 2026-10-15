@@ -145,3 +145,20 @@ test('M44 variable evidence chunks retain continuous numeric labels, not sparse 
     .map(match=>Number(match[1]));
   assert.deepEqual(indices,Array.from({length:12},(_,i)=>i+1));
 });
+
+
+test('M44 very long evidence-based explanations get their own continuation pages with every word preserved',()=>{
+  const summary='Registro confirmado del periodo con explicación individual. '.repeat(40).trim();
+  const conclusions='Interpretación profesional sobre el historial comparable. '.repeat(45).trim();
+  const recommendations='Recomendación prudente para el siguiente bloque. '.repeat(40).trim();
+  const coachComment='Comentario de trabajo exclusivamente para el Coach. '.repeat(40).trim();
+  const html=buildEvolutionReportHtml({report:{...basic,summary,conclusions,recommendations,coachComment}});
+  assert.ok((html.match(/class="m44-sheet /g)||[]).length>7);
+  assert.match(html,/El periodo en detalle/);
+  assert.match(html,/La interpretación/);
+  assert.match(html,/El siguiente paso/);
+  assert.match(html,/La mirada del Coach/);
+  assert.match(html,/Comentario de trabajo exclusivamente para el Coach/);
+  assert.match(html,/Transparencia del informe/);
+  assert.match(html,new RegExp(String((html.match(/class="m44-sheet /g)||[]).length)+' \\/ '+String((html.match(/class="m44-sheet /g)||[]).length)));
+});
