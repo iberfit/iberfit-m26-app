@@ -233,3 +233,56 @@ test('M45 old-account grouped notification receipts skip global hydration for ne
   assert.equal(result.syncPending,true);
   assert.equal(refreshes,0,'no stale notification snapshot may hydrate another account');
 });
+
+
+test('M45 actor changed before JWT retrieval aborts batch with no recipient writes',async()=>{
+  let identity='coach-A',releaseToken;
+  const tokenWait=new Promise((resolve)=>{releaseToken=resolve;});
+  let calls=0;
+  const service=createCommunicationService({
+    transport:{async execute(){calls++;return {ok:true,kind:'ack'};}},
+    getToken:()=>tokenWait,
+    getRole:()=> 'coach',
+    getState:()=>({available:true,identity:{id:identity}}),
+    isOnline:()=>true,
+  });
+  const promise=service.markNotificationsRead(ids);
+  identity='coach-B';
+  releaseToken('jwt-B');
+  await assert.rejects(()=>promise,/M45_COMMUNICATION_ACTOR_CHANGED/);
+  assert.equal(calls,0);
+});
+
+test('M45 long notification batch stops dispatching when account changes during early RPCs',async()=>{
+  let identity='coach-A',finishFirst;
+  const early=new Promise((resolve)=>{finishFirst=resolve;});
+  let calls=0,refreshes=0;
+  const batch=Array.from({length:9},(_,i)=>
+    `95ae4c9e-66d6-4e09-81f6-${String(851579900001+i).padStart(12,'0')}`
+  );
+  const service=createCommunicationService({
+    transport:{
+      async execute(){
+        calls++;
+        await early;
+        return {ok:true,kind:'ack'};
+      },
+    },
+    getToken:async()=> 'jwt-A',
+    getRole:()=> 'coach',
+    getState:()=>({available:true,identity:{id:identity}}),
+    isOnline:()=>true,
+    refreshState:async()=>{refreshes++;},
+  });
+  const pending=service.markNotificationsRead(batch);
+  await new Promise((resolve)=>setImmediate(resolve));
+  assert.equal(calls,4,'bound parallel group writes at four');
+  identity='coach-B';
+  finishFirst();
+  const result=await pending;
+  assert.equal(calls,4,'remaining five writes must be discarded after identity switch');
+  assert.equal(result.ok,false);
+  assert.equal(result.markedCount,4);
+  assert.equal(result.syncPending,true);
+  assert.equal(refreshes,0,'no result from account A should hydrate account B');
+});
