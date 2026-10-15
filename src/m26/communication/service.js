@@ -110,8 +110,11 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       const sameIdentity=()=>String(getRole()||'').toLowerCase()===role&&
         String(getState()?.identity?.id||'')===identityScope;
       const command=createCommunicationCommand(input,state,role);
+      // Idempotency receipts belong to the authenticated actor, not only to
+      // the caller-provided operation ID. Never share an old user's promise.
+      const operationKey=`${role}:${identityScope}:${command.operationId}`;
       const signature=fingerprint(command);
-      const current=inFlight.get(command.operationId);
+      const current=inFlight.get(operationKey);
       if(current){
         if(current.signature!==signature)return Promise.reject(new Error('M26_COMMUNICATION_OPERATION_ID_COLLISION'));
         return current.promise;
@@ -131,8 +134,8 @@ export function createCommunicationService({transport,getToken,getState,getRole,
           void transport.webPushDispatchKick(token,command.operationId).catch(()=>null);
         }
         return Object.freeze({ok:true,command,response,syncPending});
-      })().finally(()=>inFlight.delete(command.operationId));
-      inFlight.set(command.operationId,{signature,promise});
+      })().finally(()=>inFlight.delete(operationKey));
+      inFlight.set(operationKey,{signature,promise});
       return promise;
     },
     notificationPreferences,
