@@ -91,3 +91,35 @@ jobs:
         run: deno check --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json supabase/functions/iberfit-evolution-report-emission-v1/index.ts
       - name: Generate and re-open a long report PDF from synthetic data
         run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-net --allow-read qa/m44/pdf-issuer-smoke.mjs
+
+  prepublication-app-build:
+    name: M44 full packaged app and module graph preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install exact locked dependencies
+        run: npm ci
+      - name: Check touched runtime modules for syntax regressions
+        run: |
+          node --check src/m26/app/application.js
+          node --check src/m26/app/workflow-controller.js
+          node --check src/m26/modules/route-render.js
+          node --check src/m26/workflows/report-workflow.js
+          node --check src/m26/workflows/evolution-report-document.js
+          node --check src/m26/workflows/evolution-report-governance.js
+      - name: Build entire client candidate and validate module imports and budgets
+        run: npm run build:rc29
+      - name: Verify M44 official PDF entrypoints are packaged
+        run: |
+          test -s dist/m26-prepublicacion-infraestructura-candidate/src/m26/workflows/evolution-report-governance.js
+          test -s dist/m26-prepublicacion-infraestructura-candidate/src/m26/workflows/evolution-report-document.js
+          test -s dist/m26-prepublicacion-infraestructura-candidate/m26/evolution-report.css
+          test -s dist/m26-prepublicacion-infraestructura-candidate/m26/fonts/inter-latin-wght-normal.woff2
+          test -s dist/m26-prepublicacion-infraestructura-candidate/m26/fonts/source-serif-4-latin-wght-normal.woff2
