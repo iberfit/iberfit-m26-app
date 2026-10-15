@@ -37,6 +37,12 @@ function safeClass(value){
   return text(value,80).toLowerCase().replace(/[^a-z0-9_-]+/gu,'-').replace(/^-+|-+$/gu,'');
 }
 
+function agendaEventSignature(events){
+  return JSON.stringify(events.map(({id,title,start,end,classNames})=>({
+    id,title,start,end,classNames,
+  })).sort((a,b)=>a.id.localeCompare(b.id)));
+}
+
 export function agendaRoleEligible(role){
   return text(role,40).toLowerCase()==='coach';
 }
@@ -187,12 +193,16 @@ export function createRc62AgendaCalendarController({
   let calendarHost=null;
   let generation=0;
   let mounted=false;
+  let lastEventSignature=null;
+  let refreshQueued=false;
+  let scheduleGeneration=0;
 
   function destroyCalendar(){
     generation++;
     try{calendar?.destroy?.();}catch{}
     calendar=null;
     calendarHost=null;
+    lastEventSignature=null;
   }
 
   function desktopEligible(){
@@ -214,9 +224,14 @@ export function createRc62AgendaCalendarController({
     }
 
     const events=buildRc62AgendaEvents(state?.collections?.appointments||[]);
+    const signature=agendaEventSignature(events);
     if(calendar&&calendarHost===host){
+      // FullCalendar mutates the DOM; without the signature fence, our own
+      // MutationObserver can trigger an unbounded remove/re-add/render loop.
+      if(lastEventSignature===signature)return;
       calendar.removeAllEvents?.();
       calendar.addEventSource?.(events);
+      lastEventSignature=signature;
       return;
     }
 
@@ -236,6 +251,7 @@ export function createRc62AgendaCalendarController({
         fullCalendarCoachOptions({events,onAppointmentFocus:focusAppointment})
       );
       calendarHost=host;
+      lastEventSignature=signature;
       calendar.render();
       try{host.dataset.calendarStatus='ready';}catch{}
     }catch{
@@ -247,7 +263,14 @@ export function createRc62AgendaCalendarController({
   }
 
   function scheduleRefresh(){
-    const run=()=>{void refresh();};
+    if(!mounted||refreshQueued)return;
+    refreshQueued=true;
+    const request=++scheduleGeneration;
+    const run=()=>{
+      if(request!==scheduleGeneration)return;
+      refreshQueued=false;
+      if(mounted)void refresh();
+    };
     if(typeof scope?.requestAnimationFrame==='function')scope.requestAnimationFrame(run);
     else queueMicrotask(run);
   }
@@ -272,12 +295,14 @@ export function createRc62AgendaCalendarController({
     },
     destroy(){
       if(!mounted)return;
+      mounted=false;
+      scheduleGeneration++;
+      refreshQueued=false;
       observer?.disconnect?.();
       observer=null;
       mediaQuery?.removeEventListener?.('change',onMediaChange);
       mediaQuery=null;
       destroyCalendar();
-      mounted=false;
     },
     refresh:()=>refresh(),
   });
