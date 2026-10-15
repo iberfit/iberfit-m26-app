@@ -55,16 +55,17 @@ test('todos los formatos premium, incluido semanal, son aprobables y preservan s
   }
 });
 
-test('portfolio automático usa evidencia canónica y habilita siete tipos con historial suficiente',()=>{
+test('portfolio automático conserva seis modelos evidenciables y deja reevaluación pendiente de seguimiento real',()=>{
   const reports=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW});
   assert.equal(reports.length,7);
-  assert.ok(reports.every((report)=>report.ready===true));
-  assert.ok(reports.every((report)=>report.status==='ready'));
+  assert.equal(reports.filter(report=>report.ready).length,6);
+  assert.equal(reports.find(report=>report.id==='reassessment').ready,false);
+  assert.ok(reports.filter(report=>report.id!=='reassessment').every(report=>report.status==='ready'));
   assert.ok(reports.every((report)=>report.dataPolicy==='canonical-only'));
   assert.ok(reports.every((report)=>report.coachCommentLabel==='Comentario del coach'));
-  assert.ok(reports.every((report)=>report.evidence.length>0));
-  assert.ok(reports.every((report)=>report.assessmentRevision===5));
-  assert.equal(reports.find((report)=>report.id==='reassessment').periodStart,'2026-03-01');
+  assert.ok(reports.filter(report=>report.ready).every(report=>report.evidence.length>0));
+  assert.ok(reports.filter(report=>report.ready).every(report=>report.assessmentRevision===5));
+  assert.equal(reports.find((report)=>report.id==='reassessment').assessmentId,null);
   assert.equal(reports.find((report)=>report.id==='post-session').periodEnd,'2026-09-03');
   assert.match(reports.find((report)=>report.id==='year-in-iberfit').summary,/historial canónico/u);
   const diagnostic=reports.find((report)=>report.id==='iri');
@@ -72,7 +73,8 @@ test('portfolio automático usa evidencia canónica y habilita siete tipos con h
   const monthly=reports.find((report)=>report.id==='monthly');
   const quarterly=reports.find((report)=>report.id==='quarterly');
   assert.ok(diagnostic.evidence.some((item)=>item.source==='iriAssessments'));
-  assert.ok(reassessment.evidence.some((item)=>item.source==='iriAssessments'));
+  assert.equal(reassessment.evidence.length,0);
+  assert.match(reassessment.reason,/seguimiento confirmadas/u);
   assert.equal(monthly.evidence.some((item)=>item.source==='iriAssessments'),false);
   assert.equal(quarterly.evidence.some((item)=>item.source==='iriAssessments'),false);
 });
@@ -210,7 +212,7 @@ test('informes de proceso no convierten el diagnóstico IRI en una señal cotidi
     assert.equal(report.evidence.some((item)=>item.source==='iriAssessments'),false);
   }
   assert.ok(reports.find((item)=>item.id==='iri').evidence.some((item)=>item.source==='iriAssessments'));
-  assert.ok(reports.find((item)=>item.id==='reassessment').evidence.some((item)=>item.source==='iriAssessments'));
+  assert.equal(reports.find((item)=>item.id==='reassessment').ready,false);
 });
 
 test('resumenes semanales y mensuales no duplican la misma ejecucion canonica tras sincronizar',()=>{
@@ -235,4 +237,48 @@ test('resumen semanal usa plural correcto con dos sesiones confirmadas sin infla
   const weekly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(report=>report.id==='weekly');
   assert.match(weekly.summary,/2 sesiones de entrenamiento en 2 días/u);
   assert.doesNotMatch(weekly.summary,/sesiónes/u);
+});
+
+test('M44: training-only client sees evidence-only report candidates without an IRI prerequisite',()=>{
+  const state=stateWithHistory();
+  state.collections.iriAssessments=[];
+  const reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  assert.equal(reports.find(report=>report.id==='iri').ready,false);
+  for(const id of ['post-session','weekly','monthly','quarterly','year-in-iberfit']){
+    const candidate=reports.find(report=>report.id===id);
+    assert.equal(candidate.ready,true,id+' requires real training, not initial IRI');
+    assert.equal(candidate.assessmentId,null);
+    assert.equal(candidate.evidence.some(row=>row.source==='iriAssessments'),false);
+  }
+  assert.equal(reports.find(report=>report.id==='reassessment').ready,false);
+});
+
+test('M44: a follow-up assessment cannot silently replace the baseline IRI diagnosis',()=>{
+  const state=stateWithHistory();
+  state.collections.iriAssessments=[
+    {...state.collections.iriAssessments[1],id:'followup-new',type:'evolution-followup'},
+  ];
+  const reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  assert.equal(reports.find(report=>report.id==='iri').ready,false);
+  assert.equal(reports.find(report=>report.id==='reassessment').ready,false);
+  assert.equal(reports.find(report=>report.id==='post-session').ready,true);
+});
+
+test('M44: two old IRI initial diagnoses alone cannot authorize a fabricated longitudinal reassessment',()=>{
+  const reports=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW});
+  const followup=reports.find(report=>report.id==='reassessment');
+  assert.equal(followup.ready,false);
+  assert.equal(followup.evidence.length,0);
+  assert.match(followup.reason,/Dos diagnósticos IRI iniciales no constituyen una reevaluación/u);
+});
+
+test('M44: a future-dated execution cannot become a completed report in a past report window',()=>{
+  const state=stateWithHistory();
+  state.collections.iriAssessments=[];
+  state.collections.sessionExecutions=state.collections.sessionExecutions.map(item=>({
+    ...item,completedAt:'2027-01-01T11:00:00Z',
+  }));
+  const reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  for(const id of ['post-session','weekly','monthly','quarterly','year-in-iberfit'])
+    assert.equal(reports.find(report=>report.id===id).ready,false,id);
 });
