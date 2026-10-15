@@ -57,11 +57,22 @@ export function createCommunicationService({transport,getToken,getState,getRole,
         type:'NOTIFICATION_MARK_READ',entityId:id,payload:{notificationId:id},
       },state,role));
       const token=await getToken();
-      // Each RPC enforces recipient scope; concurrent independent rows avoid
-      // sequential network waterfalls. Never treat rejected RPCs as success.
-      const results=await Promise.allSettled(commands.map((command)=>
-        transport.execute(token,command,{application:role})
-      ));
+      // Each RPC enforces recipient scope. Bound concurrency to avoid a burst
+      // of expensive authorization/bootstrap work for one grouped UI action.
+      // Retain every independent ACK/rejection in original order.
+      const results=new Array(commands.length);
+      let cursor=0;
+      await Promise.all(Array.from({length:Math.min(4,commands.length)},async()=>{
+        while(cursor<commands.length){
+          const index=cursor++;
+          try{
+            const value=await transport.execute(token,commands[index],{application:role});
+            results[index]={status:'fulfilled',value};
+          }catch(reason){
+            results[index]={status:'rejected',reason};
+          }
+        }
+      }));
       const markedIds=ids.filter((_,index)=>results[index].status==='fulfilled');
       if(!markedIds.length)throw results.find((result)=>result.status==='rejected')?.reason
         ||new Error('M45_NOTIFICATION_BATCH_NOT_CONFIRMED');
