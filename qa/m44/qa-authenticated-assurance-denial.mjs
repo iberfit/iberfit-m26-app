@@ -66,6 +66,19 @@ assert.equal(response.status,403,'M44_EDGE_MFA_REQUIRED_'+String(rejected.code||
 assert.equal(rejected.code,'M44_PRIVILEGED_ASSURANCE_REQUIRED');
 assert.ok(!rejected.signedUrl&&!rejected.sourceSnapshot);
 passed++;
+// Authenticated PDF streaming is prohibited without verified Coach assurance.
+// Unrelated Client credentials must not retrieve PDF bytes or internal paths.
+for(const [label,token] of [['COACH_MFA',coach],['CLIENT_A',clientA],['CLIENT_B',clientB]]){
+ const r=await send('/functions/v1/iberfit-evolution-report-emission-v1',
+  {action:'download',issuanceId:randomUUID()},token);
+ const contentType=String(r.headers.get('content-type')||'');
+ const denied=await r.json().catch(()=>({}));
+ assert.ok([403,404].includes(r.status),label+'_DOWNLOAD_MUST_FAIL_CLOSED_'+r.status);
+ assert.ok(contentType.includes('application/json'),label+'_DOWNLOAD_MUST_NOT_RETURN_PDF');
+ assert.equal(denied.ok,false,label+'_PDF_NOT_DELIVERED');
+ assert.equal(denied.signedUrl,undefined,label+'_NO_BEARERLESS_URL');
+ passed++;
+}
 console.log(JSON.stringify({ok:true,environment:'QA',realAuthenticatedSessions:3,
  deniedPrivilegedOperations:passed,assuranceRequired:true,executedMutations:0,
  productionTouched:false,serviceRoleUsed:false}));
