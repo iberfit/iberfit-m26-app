@@ -51,11 +51,18 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       const promise=(async()=>{
         const token=await getToken();
         const response=await transport.execute(token,command,{application:role});
-        await refreshState({reason:'communication-ack',response});
+        // A confirmed remote ACK is authoritative. A subsequent hydration failure
+        // must never turn a successful send into an apparent failure and duplicate.
+        let syncPending=false;
+        try{
+          await refreshState({reason:'communication-ack',response});
+        }catch{
+          syncPending=true;
+        }
         if(command.type==='MESSAGE_SEND'&&typeof transport.webPushDispatchKick==='function'){
           void transport.webPushDispatchKick(token,command.operationId).catch(()=>null);
         }
-        return Object.freeze({ok:true,command,response});
+        return Object.freeze({ok:true,command,response,syncPending});
       })().finally(()=>inFlight.delete(command.operationId));
       inFlight.set(command.operationId,{signature,promise});
       return promise;
