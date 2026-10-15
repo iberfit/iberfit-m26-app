@@ -261,3 +261,86 @@ test('M45: a superseded preference failure never sends the old value on reconnec
   );
   controller.destroy();
 });
+
+
+test('M45 failed bootstrap offers a clear and explicit recovery path',async()=>{
+  const {renderCommunicationRoute}=await import('../src/m26/communication/route-render.js');
+  const html=renderCommunicationRoute({communication:true,kind:'communication-unavailable',role:'client'});
+  assert.match(html,/data-m45-communication-retry/);
+  assert.match(html,/Volver a intentar/);
+  assert.match(html,/Tus datos no se han modificado/);
+  assert.doesNotMatch(html,/data-communication-form="message-send"/);
+});
+
+test('M45 manual recovery rehydrates without sending mutations or leaving the button locked',async()=>{
+  const handlers=new Map();
+  let calls=0,renders=0;
+  const button={disabled:false};
+  const root={
+    ownerDocument:{defaultView:null},
+    querySelector(){return null;},
+    querySelectorAll(){return [];},
+    addEventListener(type,handler){handlers.set(type,handler);},
+    removeEventListener(type){handlers.delete(type);},
+  };
+  const controller=createCommunicationController({
+    root,
+    service:{
+      async reload(){calls+=1;return {ok:true};},
+      webPush:{async status(){return {active:false};}},
+    },
+    render(){renders+=1;},
+  });
+  controller.mount();
+  handlers.get('click')({
+    target:{closest(selector){return selector==='[data-m45-communication-retry]'?button:null;}},
+    preventDefault(){},
+  });
+  await tick();
+  await tick();
+  assert.equal(calls,1);
+  assert.equal(renders,1);
+  assert.equal(button.disabled,false);
+  controller.destroy();
+});
+
+test('M45 failed explicit recovery retains a functional retry button',async()=>{
+  const handlers=new Map();
+  let renders=0;
+  const button={disabled:false};
+  const root={
+    ownerDocument:{defaultView:null},
+    querySelector(){return null;},
+    querySelectorAll(){return [];},
+    addEventListener(type,handler){handlers.set(type,handler);},
+    removeEventListener(type){handlers.delete(type);},
+  };
+  const controller=createCommunicationController({
+    root,
+    service:{
+      async reload(){throw Error('network unavailable');},
+      webPush:{async status(){return {active:false};}},
+    },
+    render(){renders+=1;},
+  });
+  controller.mount();
+  handlers.get('click')({
+    target:{closest(selector){return selector==='[data-m45-communication-retry]'?button:null;}},
+    preventDefault(){},
+  });
+  await tick();
+  assert.equal(renders,0);
+  assert.equal(button.disabled,false);
+  controller.destroy();
+});
+
+test('M45 send composer exposes live status for assistive technology',async()=>{
+  const {renderCommunicationRoute}=await import('../src/m26/communication/route-render.js');
+  const html=renderCommunicationRoute({
+    communication:true,kind:'communication',role:'client',threads:[
+      {id:'thread-a',messages:[],unreadCount:0,coachName:'Coach'},
+    ],notifications:[],clients:[],canOpenThread:false,
+  });
+  assert.match(html,/class="m45-compose-status" role="status" aria-live="polite"/);
+  assert.match(html,/data-communication-form="message-send"/);
+});
