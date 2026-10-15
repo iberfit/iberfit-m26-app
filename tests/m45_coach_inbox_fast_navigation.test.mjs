@@ -217,3 +217,68 @@ test('M45 focused Coach search keeps caret and query when a preference refresh r
   assert.deepEqual(entries.map(x=>x.hidden),[true,false]);
   controller.destroy();
 });
+
+
+test('M45 quick follow-up helpers are exclusively for Coach and never auto-send',async()=>{
+  const base={communication:true,kind:'communication',threads:[
+    {id:'thread-one',clientName:'Cliente',coachName:'Coach',messages:[],unreadCount:0},
+  ],notifications:[],clients:[],canOpenThread:false};
+  const coach=renderCommunicationRoute({...base,role:'coach'});
+  assert.match(coach,/data-m45-compose-prompt="session"/);
+  assert.match(coach,/data-m45-compose-prompt="recovery"/);
+  assert.match(coach,/data-m45-compose-prompt="next"/);
+  assert.match(coach,/solo se envía al pulsar Enviar/);
+  const client=renderCommunicationRoute({...base,role:'client'});
+  assert.doesNotMatch(client,/data-m45-compose-prompt/);
+
+  const handlers=new Map();
+  const draft={value:'Mi texto previo',focus(){this.focused=true;},
+    setSelectionRange(a,b){this.selection=[a,b];}};
+  let sends=0,role='coach';
+  let form;
+  draft.closest=(selector)=>selector==='[data-communication-form="message-send"]'?form:null;
+  form={
+    querySelector(selector){
+      if(selector==='[name="threadId"]')return {value:'thread-one'};
+      if(selector==='textarea[name="body"]')return draft;
+      return null;
+    },
+    closest(){return {open:true};},
+  };
+  const promptButton={
+    dataset:{m45ComposePrompt:'session'},
+    closest(selector){
+      if(selector==='[data-m45-compose-prompt]')return this;
+      if(selector==='[data-communication-form="message-send"]')return form;
+      return null;
+    },
+  };
+  const root={
+    ownerDocument:{defaultView:null,activeElement:draft},
+    querySelector(selector){
+      return selector==='[data-communication-role]'
+        ?{dataset:{communicationRole:role,communicationIdentity:'coach-account'}}:null;
+    },
+    querySelectorAll(selector){
+      return selector==='[data-communication-form="message-send"]'?[form]:[];
+    },
+    addEventListener(name,fn){handlers.set(name,fn);},
+    removeEventListener(name){handlers.delete(name);},
+  };
+  const controller=createCommunicationController({root,service:{
+    async execute(){sends++;return {ok:true};},
+  }});
+  controller.mount();
+  handlers.get('click')({target:promptButton,preventDefault(){}});
+  assert.match(draft.value,/^Mi texto previo\n\n¿Cómo te sentiste/);
+  assert.equal(draft.focused,true);
+  assert.equal(draft.selection[0],draft.value.length);
+  assert.equal(sends,0,'insertion is never a send operation');
+  role='client';
+  const before=draft.value;
+  handlers.get('click')({target:promptButton,preventDefault(){}});
+  assert.equal(draft.value,before,'Client must never use privileged Coach shortcut');
+  assert.equal(sends,0);
+  controller.destroy();
+});
+
