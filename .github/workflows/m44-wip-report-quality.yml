@@ -93,12 +93,18 @@ jobs:
         run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-net --allow-read qa/m44/pdf-issuer-smoke.mjs
 
   prepublication-app-build:
-    name: M44 full packaged app and module graph preflight
+    name: M44 real Canary packager, relative budgets and module integrity
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
+      - name: Checkout exact Canary comparison base
+        uses: actions/checkout@v4
+        with:
+          ref: canary/rc74-4
+          path: .tmp/m44-base
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -106,7 +112,7 @@ jobs:
           cache: npm
       - name: Install exact locked dependencies
         run: npm ci
-      - name: Check touched runtime modules for syntax regressions
+      - name: Check changed browser runtime code
         run: |
           node --check src/m26/app/application.js
           node --check src/m26/app/workflow-controller.js
@@ -114,12 +120,17 @@ jobs:
           node --check src/m26/workflows/report-workflow.js
           node --check src/m26/workflows/evolution-report-document.js
           node --check src/m26/workflows/evolution-report-governance.js
-      - name: Build entire client candidate and validate module imports and budgets
-        run: npm run build:rc29
-      - name: Verify M44 official PDF entrypoints are packaged
+      - name: Package real Canary baseline with current deployment packager
+        working-directory: .tmp/m44-base
+        run: node qa/rc64/build-current-surface.mjs
+      - name: Package full WIP application with same deployment packager
+        run: node qa/rc64/build-current-surface.mjs
+      - name: Compare payloads against deployed branch and enforce growth ceilings
+        run: node qa/m44/compare-real-package-budget.mjs .tmp/m44-base/.tmp/rc64-current-surface .tmp/rc64-current-surface
+      - name: Confirm M44 official fonts and PDF modules are actually packaged
         run: |
-          test -s dist/m26-prepublicacion-infraestructura-candidate/src/m26/workflows/evolution-report-governance.js
-          test -s dist/m26-prepublicacion-infraestructura-candidate/src/m26/workflows/evolution-report-document.js
-          test -s dist/m26-prepublicacion-infraestructura-candidate/m26/evolution-report.css
-          test -s dist/m26-prepublicacion-infraestructura-candidate/m26/fonts/inter-latin-wght-normal.woff2
-          test -s dist/m26-prepublicacion-infraestructura-candidate/m26/fonts/source-serif-4-latin-wght-normal.woff2
+          test -s .tmp/rc64-current-surface/src/m26/workflows/evolution-report-governance.js
+          test -s .tmp/rc64-current-surface/src/m26/workflows/evolution-report-document.js
+          test -s .tmp/rc64-current-surface/m26/evolution-report.css
+          test -s .tmp/rc64-current-surface/m26/fonts/inter-latin-wght-normal.woff2
+          test -s .tmp/rc64-current-surface/m26/fonts/source-serif-4-latin-wght-normal.woff2
