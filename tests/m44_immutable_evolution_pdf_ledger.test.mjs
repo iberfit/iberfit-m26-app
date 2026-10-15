@@ -46,3 +46,12 @@ test('M44 only trusted broker may finalize PDFs, with actor-scoped server-derive
  assert.match(source,/v_source_hash:=encode\(sha256\(convert_to\(v_source::text,'UTF8'\)\),'hex'\)/);
  assert.match(source,/client_assignments a/);
 });
+
+test('M44 public ledger migration explicitly passes central RLS and service-only access policy',async()=>{
+ const {analyzeMigration}=await import('../scripts/ci/check_migration_security_policy.mjs');
+ const source=await sql();
+ assert.deepEqual(analyzeMigration(source,{file:'m44-ledger.sql'}),[]);
+ assert.match(source,/IBERFIT-POLICY: public\.iberfit_evolution_report_issuances_v1 = service-role-only/);
+ assert.match(source,/GRANT SELECT, INSERT, UPDATE ON TABLE public\.iberfit_evolution_report_issuances_v1 TO service_role/);
+ assert.doesNotMatch(source,/GRANT DELETE ON TABLE public\.iberfit_evolution_report_issuances_v1 TO service_role/);
+});
