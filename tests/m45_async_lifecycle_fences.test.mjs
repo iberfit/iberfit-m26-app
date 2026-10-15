@@ -140,3 +140,43 @@ test('M45 a queued mount callback cannot revive after immediate destroy',async()
   await tick();
   assert.equal(calls,0);
 });
+
+
+test('M45 account scope changes prevent an old Coach write queue from executing as Client',async()=>{
+  const h=rootHarness(),oldRequest=deferred(),updates=[];
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{
+      notificationPreferences:{
+        update(payload){
+          updates.push({...payload});
+          return updates.length===1?oldRequest.promise:Promise.resolve({ok:true});
+        },
+      },
+    },
+  });
+  function change(value){
+    const checkbox={
+      type:'checkbox',checked:value,
+      getAttribute(name){return name==='data-m26-preference'?'notifications.coachMessages':null;},
+    };
+    h.listeners.get('change')({target:{closest(){return checkbox;}}});
+  }
+  controller.mount();
+  h.listeners.get('m26:shell-rendered')();
+  await tick();
+  change(true);
+  change(false);
+  assert.deepEqual(updates,[{coachMessages:true}]);
+  h.setRole('client');
+  h.listeners.get('m26:shell-rendered')();
+  oldRequest.resolve({ok:true});
+  await tick();
+  await tick();
+  assert.deepEqual(updates,[{coachMessages:true}],
+    'Coach queued mutations must not run after role switch');
+  change(false);
+  await tick();
+  assert.deepEqual(updates,[{coachMessages:true},{coachMessages:false}]);
+  controller.destroy();
+});
