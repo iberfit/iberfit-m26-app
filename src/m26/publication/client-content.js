@@ -69,10 +69,24 @@ export function clientContentView(entity,record={},{previewForPublication=false}
       dateRange:dateRange(record),facts:Object.freeze(facts),sections:immutableSections(sections),actionLabel:visibility==='summary_only'?'Ver información de la sesión':'Ver detalles de la sesión',
     });
   }
-  const summary=clean(field(record,'summary','resumen'),MAX_SECTION_TEXT)||'Informe de evolución preparado por tu entrenador.';
+  // Published reports use a separate whitelisted, client-safe projection.
+  // The full canonical report and private coach notes remain hidden by RLS.
+  const publishedContent=record?.content&&typeof record.content==='object'&&!Array.isArray(record.content)
+    ?record.content:bodyOf(record)?.content&&typeof bodyOf(record).content==='object'
+      ?bodyOf(record).content:{};
+  const publicReportValue=(...keys)=>{
+    const value=field(record,...keys);
+    if(value!==null)return value;
+    for(const key of keys){
+      if(publishedContent[key]!==undefined&&publishedContent[key]!==null&&publishedContent[key]!=='')
+        return publishedContent[key];
+    }
+    return null;
+  };
+  const summary=clean(publicReportValue('summary','resumen'),MAX_SECTION_TEXT)||'Informe de evolución preparado por tu entrenador.';
   const sections=[
-    ['Conclusiones',field(record,'conclusions','conclusiones')],
-    ['Próximos pasos',field(record,'recommendations','recomendaciones','nextSteps','next_steps')],
+    ['Conclusiones',publicReportValue('conclusions','conclusiones')],
+    ['Próximos pasos',publicReportValue('recommendations','recomendaciones','nextSteps','next_steps')],
   ].map(([sectionTitle,value])=>({title:sectionTitle,text:clean(value,MAX_SECTION_TEXT)})).filter((section)=>section.text);
   return Object.freeze({
     entity:kind,id,title,eyebrow:'Tu informe',summary,dateRange:dateRange(record),facts:Object.freeze([]),
