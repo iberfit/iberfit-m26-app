@@ -195,6 +195,29 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       busy=false;
     }
   }
+  async function markNotificationGroup(ids){
+    if(busy)return false;
+    busy=true;
+    rememberVisibleDrafts();
+    try{
+      if(!service?.markNotificationsRead)throw new Error('M45_GROUP_READ_UNAVAILABLE');
+      const result=await service.markNotificationsRead(ids);
+      const total=Number(result?.requestedCount)||ids.length;
+      const marked=Number(result?.markedCount)||0;
+      if(!marked)throw new Error('M45_GROUP_READ_NOT_CONFIRMED');
+      if(result.ok){
+        toast(marked===1?'Notificación leída.':`${marked} notificaciones leídas.`);
+      }else{
+        toast(`${marked} de ${total} avisos marcados como leídos. Los restantes siguen pendientes.`);
+      }
+      if(result.syncPending)toast('El servidor confirmó la lectura. La actualización de la pantalla está pendiente.');
+      else renderWithoutLosingDrafts();
+      return result.ok;
+    }catch{
+      toast('No se pudo confirmar la lectura. Los avisos permanecen disponibles para reintentar.');
+      return false;
+    }finally{busy=false;}
+  }
   function applyPushState(control,state){
     if(!control)return false;
     const status=control.querySelector?.('[data-m26-web-push-status]');
@@ -349,8 +372,11 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       const threadId=text(d,'threadId',200);
       return run({type:'MESSAGE_MARK_READ',entityId:threadId,payload:{threadId}},'Conversación actualizada.');
     }
-    const notificationId=text(d,'notificationId',200);
-    return run({type:'NOTIFICATION_MARK_READ',entityId:notificationId,payload:{notificationId}},'Notificación leída.');
+    if(kind==='notification-read'){
+      const ids=d.getAll('notificationId').map((value)=>String(value||'').trim());
+      return markNotificationGroup(ids);
+    }
+    return false;
   }
   function onSubmitEvent(event){void onSubmit(event).catch(()=>toast('No fue posible procesar la comunicación.'));}
   function onInputEvent(event){
