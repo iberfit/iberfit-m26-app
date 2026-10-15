@@ -30,6 +30,7 @@ function publicVapidKey(value){
 export function createWebPushCoordinator({
   transport,
   getToken,
+  getIdentityScope=null,
   getRegistration=async()=>globalThis.navigator?.serviceWorker?.getRegistration?.('/'),
   vapidPublicKey='',
   getVapidPublicKey=null,
@@ -43,6 +44,15 @@ export function createWebPushCoordinator({
   requireDependency(getToken,'M26_PUSH_TOKEN_PROVIDER_REQUIRED');
   let cachedVapidPublicKey=publicVapidKey(vapidPublicKey);
   let vapidKeyInFlight=null;
+  function actorScope(){
+    if(typeof getIdentityScope!=='function')return null;
+    const scope=String(getIdentityScope()||'').trim();
+    if(!scope)throw new Error('M45_PUSH_ACTOR_REQUIRED');
+    return scope;
+  }
+  function requireSameActor(expected){
+    if(expected!==null&&actorScope()!==expected)throw new Error('M45_PUSH_ACTOR_CHANGED');
+  }
 
   async function token(){
     const value=String(await getToken()||'').trim();
@@ -114,6 +124,7 @@ export function createWebPushCoordinator({
 
   async function enable(){
     requireOnline();
+    const expectedActor=actorScope();
     const resolvedKey=await resolveVapidPublicKey({force:!cachedVapidPublicKey,failClosed:true});
     const before=await inspect({vapidPublicKey:resolvedKey});
     if(!before.supported)throw new Error('M26_PUSH_UNSUPPORTED');
@@ -126,7 +137,10 @@ export function createWebPushCoordinator({
     const sw=await registration();
     const local=await subscribe({registration:sw,vapidPublicKey:resolvedKey});
     try{
-      const backend=normalizedBackendState(await transport.webPushUpsert(await token(),local.serialized));
+      requireSameActor(expectedActor);
+      const authToken=await token();
+      requireSameActor(expectedActor);
+      const backend=normalizedBackendState(await transport.webPushUpsert(authToken,local.serialized));
       if(!backend.active)throw new Error('M26_PUSH_UPSERT_NOT_CONFIRMED');
       return Object.freeze({ok:true,active:true,created:local.created===true,subscriptionCount:Math.max(1,backend.subscriptionCount||1),updatedAt:backend.updatedAt});
     }catch(error){
@@ -139,21 +153,31 @@ export function createWebPushCoordinator({
 
   async function disableCurrent(){
     requireOnline();
+    const expectedActor=actorScope();
     const sw=await registration();
     const current=await sw.pushManager.getSubscription();
     if(!current)return Object.freeze({ok:true,active:false,changed:false});
     const endpoint=pushEndpoint(current.endpoint);
-    await transport.webPushRevoke(await token(),endpoint);
+    requireSameActor(expectedActor);
+    const authToken=await token();
+    requireSameActor(expectedActor);
+    await transport.webPushRevoke(authToken,endpoint);
+    requireSameActor(expectedActor);
     const local=await unsubscribe({registration:sw});
     return Object.freeze({ok:local.ok!==false,active:false,changed:local.changed===true});
   }
 
   async function disableAll(){
     requireOnline();
-    const result=await transport.webPushRevoke(await token());
+    const expectedActor=actorScope();
+    const authToken=await token();
+    requireSameActor(expectedActor);
+    const result=await transport.webPushRevoke(authToken);
+    requireSameActor(expectedActor);
     let local=Object.freeze({ok:true,changed:false});
     try{
       const sw=await getRegistration();
+      requireSameActor(expectedActor);
       if(sw?.pushManager)local=await unsubscribe({registration:sw});
     }catch{}
     return Object.freeze({ok:result?.ok===true&&local.ok!==false,active:false,changed:Number(result?.deletedCount||0)>0||local.changed===true,deletedCount:Math.max(0,Number(result?.deletedCount||0)||0)});
