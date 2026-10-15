@@ -58,6 +58,24 @@ Categorías con identidad y fuente propias:
 - Error y recuperación en carga, guardado, aprobación, publicación, archivo, descarga. No bloquear navegación ni perder borradores.
 - Perfil Coach optimizado para consulta rápida en sesión real, cliente centrado en claridad, Admin en control.
 
+## 5 bis. Contrato editorial y entrega visual de informes M44 (WIP)
+
+**Experiencia al nivel de un IRI, con otra función:** el IRI fotografía el inicio; el informe de evolución cuenta lo realmente sucedido y documenta la siguiente decisión. Se emplean Inter Variable, Source Serif 4, verde bosque profundo, papel crema y un único acento dorado, sin gráficos decorativos ni métricas inventadas.
+
+- **Portada** con nombre, periodo y tipo, voz humana y aviso inequívoco de borrador cuando corresponda. Nunca afirmar emisión ni publicación por abrir o imprimir una vista previa.
+- **Lectura del periodo**: qué se hizo, qué datos son comparables y límites. La escritura factual inicial proviene de sesiones canónicas confirmadas; no de actividad wearable ni de planes futuros.
+- **Resultados**: indicadores trazables con fecha, unidad y fuente; la lista se pagina sin perder filas ni reiniciar numeración. Si no existe una serie compatible, no dibujar una tendencia.
+- **Interpretación y próximos pasos**: conclusiones, comentario independiente del Coach y acciones propuestas. Ninguna frase sintética debe suplantar una decisión humana.
+- **Metodología visible**: evidencia, procedencia, rango temporal, frescura/calidad, IRI separado, limitaciones. Fotos solo con consentimiento específico y acceso revocable.
+- **Maquetación**: A4 real 210 × 297 mm, color apto para imprimir, contraste, tipografía legible y control explícito para guardar como PDF; cabecera/pie y paginación. El contenido no puede invadir el pie ni salir recortado. Preview responsive que comprueba A4 en viewport independiente cuando se abre desde móvil.
+- **Privacidad**: sin HTML persistido en localStorage; ventana privada creada desde gesto de usuario, sin publicación ni acciones remotas implícitas. Los PDF emitidos definitivos exigirán un artefacto autoritativo privado e inmutable, con aprobación, versión, SHA, permisos y retirada, como ocurre con el IRI.
+
+### Estado implementado exclusivamente en WIP
+
+`src/m26/workflows/evolution-report-document.js` y `public/m26/evolution-report.css` crean el dossier editorial de previsualización. `report-workflow.js` ofrece botón de vista previa privada solo a Coach/Admin con procedencia/firma vigente; el formulario ahora admite borradores locales propios de entrenamiento sin IRI, sin alterar el circuito diagnóstico. Los controles de impresión comprueban fuentes, hoja de estilos y ajuste A4; los desbordamientos bloquean impresión en vez de recortar datos.
+
+**Pendiente imprescindible antes de producto:** RPC de creación de informe con autorización y trazabilidad, aprobación/publicación/retirada a través del mismo dominio y RLS verificada, emisión real de PDF con bytes y hash comprobados, adecuación editorial Cliente vs Coach, validaciones con dos clientes/roles, ejecución de Node/Playwright y snapshots en móvil/tablet/escritorio; no hay CI WIP confirmada ni certificación Canary/PROD.
+
 ## 6. Gobernanza de integración
 
 El trabajo M44 puede prepararse en la rama WIP. **No PR para cambios parciales.** Tras cierre del P0 #942, sincronizar la rama contra el SHA PROD verificado, ejecutar todos los tests y E2E, generar *una sola PR M44* con evidencia y promocionar mediante canal oficial a `app.iberfit.cl`. Mantener #939 (corrección visual de carrera) fuera de este ultramegabloque hasta el momento acordado.
