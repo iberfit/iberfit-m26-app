@@ -60,3 +60,14 @@ The M44 branch workflow runs npm run test:m44:contract and npm run quality:m44:r
 - PROD no modificada por M44: la tabla de ledger y la RPC de borradores aún no existen. #941 (P0) y #925 (P1) continúan abiertos según sus criterios de aceptación.
 - La integración de una nueva prueba Auth completa en GitHub Actions con secretos QA gestionados fue intentada pero bloqueada por el control de seguridad de herramientas. No se introdujeron ni divulgaron secretos, ni se desplegó una puerta trasera.
 - Gate pendiente: ensayo HTTP autenticado completo con cuentas QA autorizadas, validación multitab y revisión con scope, P0 PWA contextual, regresión final y promoción controlada por Canary hasta PROD.
+
+## 15/10/2026 — MFA M44 + Edge Auth real QA (checkpoint de continuación)
+
+- WIP rama `4ff5234e098621f09a4f1fd96a176021ddb01d46`: bloqueo de cinco RPC privilegiadas M44 a la verificación v65d de sesión activa (WebAuthn/email OTP). Se preserva Cliente propio, y cuentas Coach/Admin multirrol.
+- Migración QA persistida `m44_privileged_assurance_fence_v1`; funciones internas ya no tienen EXECUTE para `anon` ni `authenticated`. No alterar identidad, RLS global ni producción.
+- Edge QA `iberfit-evolution-report-emission-v1` v8 ACTIVE; corrige `client.rpc.bind(client)` para no perder el receptor Supabase en el broker y conserva `verify_jwt=true`.
+- Certificación CI hospedada `#38795988060`: PASS 6/6, incluido el gate nuevo de **tres sesiones autenticadas reales** y **seis denegaciones** por MFA / alcance / acceso interno; sin escrituras, service_role ni PROD.
+- La certificación positiva de **publicar+emitir PDF+descargar SHA-256+Cliente/Coach/Admin+retirar y versionar** con una sesión MFA verdaderamente verificada **no existe todavía**. No confundir 6 denegaciones con emisión positiva.
+- El broker QA de WebAuthn usa OIDC con referencias de workflow fijadas a Canary y no puede invocarse desde esta rama WIP sin debilitar su lista de confianza. Mantener esa restricción; certificar WebAuthn positivo durante el gate autorizado en Canary con fixture sintético.
+- Storage firmado: la retirada bloquea la generación de URLs nuevas, pero una URL previamente emitida puede seguir vigente durante su expiración (actualmente 120 segundos). La retirada no invalida mágicamente los enlaces anteriores. Exigir contrato explícito de ventana residual o rediseñar la descarga para revocación inmediata antes de PROD.
+- P0 #941 requiere aceptación contextual de PWA Coach/Admin; P1 #925 sigue abierto conforme a sus criterios. M44 NO está en PROD.

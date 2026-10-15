@@ -66,3 +66,9 @@ test('M44 PDF history does not read from service ledger without actor RPC author
  assert.match(s.slice(start,start+400),/callRpc<.*>\(user,'iberfit_m44_report_issued_pdf_history_v1'/);
  assert.match(s,/M44_PDF_REPORT_ID_INVALID/);
 });
+
+test('M44 typed Edge RPC retains its Supabase client receiver during hosted invocation',async()=>{
+ const s=await source();
+ assert.match(s,/client\.rpc\.bind\(client\)/u);
+ assert.doesNotMatch(s,/const invoke=client\.rpc as unknown as/u);
+});
