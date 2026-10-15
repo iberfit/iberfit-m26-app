@@ -129,6 +129,10 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 .m26-role-choice-option strong{font-family:var(--m26-font-display,Georgia,serif);font-size:1.35rem;font-weight:560}
 .m26-role-choice-option span{max-width:27ch;line-height:1.45}
 .m26-role-choice-option b{align-self:end;margin-top:.5rem;color:var(--m26-gold-300);font-size:.78rem;letter-spacing:.04em}
+.m26-role-choice-status:empty{display:none}
+.m26-role-choice-status{margin:.9rem 0 0;padding:.7rem .85rem;border-left:2px solid var(--m26-gold-300);color:var(--m26-cream-100);font-size:.91rem;line-height:1.45}
+.m26-role-choice-status[data-status="error"]{border-color:var(--m26-danger,#d98783)}
+.m26-role-choice[aria-busy="true"] .m26-role-choice-option{opacity:.65;cursor:wait}
 .m26-role-choice-footnote{margin:1rem 0 0;color:var(--m26-muted);font-size:.8rem}
 @media (min-width:720px) and (max-width:1179px){
   .m26-shell[data-m26-role="coach"] .m26-sidebar-footer,

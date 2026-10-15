@@ -46,7 +46,8 @@ test('M42 both workspace routes share gate and abandon stale async resumes',()=>
   assert.match(application,/workspaceEntryGate\.run\('builder:'\+clientId/u);
   assert.match(application,/workspaceEntryGate\.run\('session:'\+clientId/u);
   assert.match(application,/if\(!isCurrent\(\)\)return false;/u);
-  assert.match(application,/const previous=activeApplicationRole;\s*workspaceEntryGate\.cancel\(\)/u);
+  assert.match(application,/const previous=activeApplicationRole;[\s\S]{0,280}workspaceEntryGate\.cancel\(\)/u);
+  assert.match(application,/workspaceEntryGate\.cancel\(\);\s*activeApplicationRole=role;/u);
   assert.match(application,/function destroyControllers[^\n]+workspaceEntryGate\.cancel\(\)/u);
   assert.match(application,/M42_WORKSPACE_ALREADY_ACTIVE/u);
 });

@@ -68,11 +68,16 @@ test('authenticated setup restores before first final render and only consumes d
   assert.ok(setupStart>=0&&setupEnd>setupStart);
   const setup=source.slice(setupStart,setupEnd);
 
-  const restore=setup.indexOf('const executionRestored=await restoreExecutionAfterAuthentication();');
+  const restore=setup.indexOf('const executionRestored=choicePending?false:await restoreExecutionAfterAuthentication();');
   const render=setup.indexOf('render();',restore);
   const external=setup.indexOf('if(!executionRestored)await consumePendingIriExternalReportIntent();',render);
   assert.ok(restore>=0&&render>restore&&external>render);
+  assert.ok(setup.includes('const choicePending=canSwitchApplication(accessBeforeChoice)'));
+  assert.ok(setup.includes('accessBeforeChoice.roleChoiceConfirmed!==true'));
   assert.ok(setup.includes("if(executionRestored)qaStage('rc64-session-auto-recovered');"));
+  const roleSwitch=source.slice(source.indexOf('async function onSwitchRole(event){'),source.indexOf('function onInspectOperation'));
+  assert.ok(roleSwitch.includes("if(initialChoice&&['coach','client'].includes(role))"),'persisted session only restores after explicit initial Coach/Client selection');
+  assert.ok(roleSwitch.includes('await restoreExecutionAfterAuthentication();'));
 });
 
 test('existing manual start recovery remains available as a second continuity path',()=>{

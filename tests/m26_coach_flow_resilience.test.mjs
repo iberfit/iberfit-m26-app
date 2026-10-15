@@ -64,7 +64,8 @@ test('role switching contains UI-boundary failures instead of rethrowing them',a
   const block=source.slice(start,end);
 
   assert.match(block,/surfaceRoleSwitchError\(new Error\('M26_ROLE_SWITCH_FORBIDDEN'\)\)/u);
-  assert.match(block,/activeApplicationRole=previous;\s*surfaceRoleSwitchError\(error\);\s*return false;/u);
+  assert.match(block,/activeApplicationRole=previous;\s*surfaceRoleSwitchError\(error\);\s*showRoleChoiceStatus\([^;]+,true\);\s*return false;/u);
+  assert.match(block,/finally\{\s*roleSwitchBusy=false/u);
   assert.doesNotMatch(block,/throw error/u);
 });
 
