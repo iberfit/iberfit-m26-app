@@ -298,7 +298,7 @@ export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
-  issueEvolutionReport=null,getLatestEvolutionPdf=null,
+  issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,withdrawEvolutionPdf=null,
   getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
@@ -1986,6 +1986,95 @@ export function createWorkflowController({
     return cleanupOk?result:{...result,refreshPending:true,localDraftOk:false};
   }
 
+  function issuedHistoryHost(button){
+    return button?.closest?.('[data-m44-pdf-card]')?.querySelector?.('[data-m44-pdf-history]')||null;
+  }
+  async function showIssuedEvolutionHistory(button){
+    if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
+    const host=issuedHistoryHost(button);
+    if(!host||typeof getEvolutionPdfHistory!=='function')throw new Error('M44_PDF_HISTORY_UNAVAILABLE');
+    const {clientId,role,state}=context(),id=String(button?.dataset?.entityId||'');
+    const permitted=(state.collections?.reports||[]).some(r=>{
+      const body=r?.body||{};
+      return String(r.id||body.id||'')===id&&
+        String(r.clientId||r.client_id||body.clientId||body.client_id||'')===String(clientId||'');
+    });
+    if(!permitted||!['client','cliente','coach','admin'].includes(role))
+      throw new Error('M44_PDF_HISTORY_SCOPE_DENIED');
+    host.textContent='Consultando las versiones emitidas...';
+    try{
+      const history=await getEvolutionPdfHistory(id);
+      const document=host.ownerDocument||globalThis.document;
+      host.replaceChildren();
+      if(!history.items.length){
+        const empty=document.createElement('p');
+        empty.className='m26-field-help';
+        empty.textContent='Todavía no hay ningún PDF oficial emitido para este informe.';
+        host.append(empty);return history;
+      }
+      const title=document.createElement('p');
+      title.className='m26-eyebrow';
+      title.textContent=history.items.length===1?'1 versión documentada':history.items.length+' versiones documentadas';
+      host.append(title);
+      for(const item of history.items){
+        const line=document.createElement('div');
+        line.className='m26-inline-actions m44-pdf-version';
+        line.dataset.m44VersionRow='true';
+        const caption=document.createElement('span');
+        const date=item.issuedAt?new Date(item.issuedAt):null;
+        const readable=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString('es-CL'):'fecha no disponible';
+        caption.textContent='Versión '+item.version+' · '+readable+(item.withdrawn?' · Retirada':' · Disponible');
+        line.append(caption);
+        if(item.withdrawn){
+          if(history.manager&&item.withdrawnReason){
+            const reason=document.createElement('small');
+            reason.textContent='Motivo: '+item.withdrawnReason;
+            line.append(reason);
+          }
+        }else{
+          const open=document.createElement('button');
+          open.type='button';open.dataset.workflowAction='open-issued-evolution-pdf';
+          open.dataset.entityId=id;open.dataset.issuanceId=item.issuanceId;
+          open.textContent='Abrir PDF';line.append(open);
+          if(history.manager){
+            const label=document.createElement('label');
+            label.textContent='Motivo de retirada';
+            const input=document.createElement('input');
+            input.type='text';input.required=true;input.minLength=3;input.maxLength=500;
+            input.placeholder='Indica por qué se retira esta versión';
+            input.dataset.m44WithdrawReason='true';label.append(input);line.append(label);
+            const withdraw=document.createElement('button');
+            withdraw.type='button';withdraw.dataset.workflowAction='withdraw-issued-evolution-pdf';
+            withdraw.dataset.entityId=id;withdraw.dataset.issuanceId=item.issuanceId;
+            withdraw.textContent='Retirar esta versión';line.append(withdraw);
+          }
+        }
+        host.append(line);
+      }
+      return history;
+    }catch(error){
+      host.textContent='No se pudo consultar el historial. Pulsa «Consultar versiones PDF» para volver a intentarlo.';
+      throw error;
+    }
+  }
+  async function withdrawIssuedEvolutionPdf(button){
+    requireCoach();
+    if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
+    if(typeof withdrawEvolutionPdf!=='function')throw new Error('M44_PDF_WITHDRAW_UNAVAILABLE');
+    const row=button?.closest?.('[data-m44-version-row]');
+    const reason=String(row?.querySelector?.('[data-m44-withdraw-reason]')?.value||'').trim();
+    if(reason.length<3||reason.length>500)throw new Error('M44_PDF_WITHDRAW_REASON_REQUIRED');
+    const id=String(button?.dataset?.issuanceId||'');
+    await withdrawEvolutionPdf(id,reason);
+    const host=issuedHistoryHost(button);
+    if(host){
+      const container=host.closest('[data-m44-pdf-card]');
+      const refresh=container?.querySelector('[data-workflow-action="show-issued-evolution-history"]');
+      if(refresh)await showIssuedEvolutionHistory(refresh).catch(()=>{});
+    }
+    status(root,'report','Versión retirada con trazabilidad. Las URLs ya emitidas pueden seguir accesibles hasta su vencimiento de 120 segundos.','success');
+  }
+
   async function handleIssuedEvolutionPdf(button,{issue=false}={}){
     if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
     const {role,clientId,state}=context();
@@ -2003,13 +2092,16 @@ export function createWorkflowController({
       if(typeof issueEvolutionReport!=='function')throw new Error('M44_PDF_EMISSION_NOT_AVAILABLE');
     }else{
       if(!['client','cliente'].includes(role)||!clientId)throw new Error('M44_PDF_CLIENT_ACCESS_REQUIRED');
+      if(!['client','cliente','coach','admin'].includes(role))throw new Error('M44_PDF_READER_ROLE_DENIED');
       if(typeof getLatestEvolutionPdf!=='function')throw new Error('M44_PDF_READER_NOT_AVAILABLE');
     }
     // Open synchronously from the user gesture; navigation follows authorization.
     const popup=globalThis.open?.('about:blank','_blank');
     if(!popup)throw new Error('M44_PDF_POPUP_BLOCKED');
     try{
-      const result=issue?await issueEvolutionReport(id):await getLatestEvolutionPdf(id);
+      const issuanceId=String(button?.dataset?.issuanceId||'').trim();
+      const result=issue?await issueEvolutionReport(id):
+        issuanceId&&typeof openEvolutionPdfById==='function'?await openEvolutionPdfById(issuanceId):await getLatestEvolutionPdf(id);
       if(!result?.signedUrl)throw new Error('M44_PDF_SIGNED_URL_REQUIRED');
       popup.location.replace(result.signedUrl);
       status(root,'report',issue?'PDF oficial emitido y archivado · versión '+result.version:'PDF oficial abierto · versión '+result.version,'success');
@@ -2049,7 +2141,7 @@ export function createWorkflowController({
     if(key)inFlightMutations.add(key);
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else if(action==='show-issued-evolution-history')await showIssuedEvolutionHistory(button);else if(action==='withdraw-issued-evolution-pdf')await withdrawIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
     }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const scope=isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
     finally{
       if(key)inFlightMutations.delete(key);

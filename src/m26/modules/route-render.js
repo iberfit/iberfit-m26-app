@@ -3766,9 +3766,9 @@ function clientContentCard(item,entity,{canStartSession=true}={}){
             ?'<p class="m26-client-session-guidance" role="status">Sesión publicada, pendiente de habilitación. Podrás iniciarla cuando tu Coach confirme que está disponible.</p>'
             :'<p class="m26-client-session-guidance">Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.</p>';
   const reportAction=entity==='report'&&view.reportDocument
-    ?`<div class="m26-inline-actions"><button type="button" class="m26-primary-action m26-report-document-open" data-workflow-action="open-published-evolution-report" data-entity-id="${escapeHtml(item.id)}">Leer informe A4</button><button type="button" data-workflow-action="open-issued-evolution-pdf" data-entity-id="${escapeHtml(item.id)}">Abrir PDF oficial emitido</button></div>`
+    ?`<div class="m26-inline-actions"><button type="button" class="m26-primary-action m26-report-document-open" data-workflow-action="open-published-evolution-report" data-entity-id="${escapeHtml(item.id)}">Leer informe A4</button><button type="button" data-workflow-action="open-issued-evolution-pdf" data-entity-id="${escapeHtml(item.id)}">Abrir último PDF oficial</button><button type="button" data-workflow-action="show-issued-evolution-history" data-entity-id="${escapeHtml(item.id)}">Ver versiones</button><div data-m44-pdf-history aria-live="polite" class="m26-wide"></div></div>`
     :'';
-  return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}${reportAction}</article>`;
+  return `<article class="m26-client-content-card" ${entity==='report'?'data-m44-pdf-card':''} data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}${reportAction}</article>`;
 }
 function publicationCard(item,entity){
   const actions=item?.publication?.actions||[];
@@ -3779,8 +3779,11 @@ function publicationCard(item,entity){
   const issued=entity==='report'&&String(item.statusRaw||'').toLowerCase()==='publicado'
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="issue-evolution-pdf" data-entity-id="${escapeHtml(item.id||'')}">Emitir y archivar PDF para el Cliente</button></div>`
     :'';
+  const pdfHistory=entity==='report'
+    ?`<section class="m26-pdf-history" aria-label="Versiones de informes emitidos"><button type="button" data-workflow-action="show-issued-evolution-history" data-entity-id="${escapeHtml(item.id||'')}">Consultar versiones PDF</button><div data-m44-pdf-history aria-live="polite"></div></section>`
+    :'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
-  return `<article class="m26-publication-card" data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${controls}</article>`;
+  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}</article>`;
 }
 function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true}={}){if(!items?.length)return emptyState(emptyTitle,clientView?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.':'No hay contenido dentro del alcance seleccionado.');return `<div class="m26-stack">${items.map((item)=>clientView?clientContentCard(item,entity,{canStartSession}):publicationCard(item,entity)).join('')}</div>`;}
 function selectedOption(value, expected) {

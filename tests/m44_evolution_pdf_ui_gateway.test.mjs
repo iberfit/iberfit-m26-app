@@ -27,3 +27,27 @@ test('M44 app constructs isolated verified governance with refresh token on ever
  assert.match(s,/evolutionReportGovernance\.issue\(currentToken\(\),\{reportId\}\)/);
  assert.match(s,/evolutionReportGovernance\.latest\(currentToken\(\),\{reportId\}\)/);
 });
+
+
+test('M44 issue archive permits explicit version opening, safe history, and reasoned withdraw only to Coach',async()=>{
+ const s=await read('src/m26/app/workflow-controller.js');
+ for(const phrase of [
+ 'function issuedHistoryHost(', 'async function showIssuedEvolutionHistory(',
+ 'async function withdrawIssuedEvolutionPdf(', 'requireCoach();',
+ 'history.manager','input.dataset.m44WithdrawReason','open.dataset.issuanceId',
+ "action==='show-issued-evolution-history'", "action==='withdraw-issued-evolution-pdf'",
+ 'Las URLs ya emitidas pueden seguir accesibles hasta su vencimiento de 120 segundos',
+ ])
+ assert.ok(s.includes(phrase),phrase);
+ assert.match(s,/caption\.textContent=/);
+ assert.match(s,/new Date\(item\.issuedAt\)/);
+ assert.match(s,/host\.replaceChildren\(\)/);
+ assert.doesNotMatch(s,/host\.innerHTML/);
+});
+test('M44 Client and Coach versions have isolated action gateway with no direct Storage keys',async()=>{
+ const s=await read('src/m26/app/application.js');
+ for(const symbol of ['getEvolutionPdfHistory:async','openEvolutionPdfById:async','withdrawEvolutionPdf:async',
+ 'evolutionReportGovernance.history(currentToken()','evolutionReportGovernance.open(currentToken()',
+ 'evolutionReportGovernance.withdraw(currentToken()'])
+ assert.ok(s.includes(symbol),symbol);
+});
