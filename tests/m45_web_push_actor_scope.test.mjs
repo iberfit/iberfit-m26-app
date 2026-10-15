@@ -9,12 +9,16 @@ function deferred(){
 }
 const endpoint='https://push.example.test/subscription-iberfit-client-device';
 const registration={pushManager:{getSubscription:async()=>({endpoint})}};
-function harness({gateSubscription=null,gateToken=null}={}){
+function harness({gateSubscription=null,gateToken=null,gateUpsert=null}={}){
   let identity='coach:account-A';
   const writes=[],unsubscribes=[];
   const coordinator=createWebPushCoordinator({
     transport:{
-      async webPushUpsert(token,serialized){writes.push({type:'upsert',token,serialized});return {ok:true,active:true,subscriptionCount:1};},
+      async webPushUpsert(token,serialized){
+        writes.push({type:'upsert',token,serialized});
+        if(gateUpsert)await gateUpsert.promise;
+        return {ok:true,active:true,subscriptionCount:1};
+      },
       async webPushRevoke(token,target){writes.push({type:'revoke',token,target});return {ok:true,deletedCount:1};},
     },
     getToken:()=>gateToken?.promise||Promise.resolve('jwt-A'),
@@ -90,4 +94,19 @@ test('M45 unchanged authenticated account can still enable, disable and revoke i
   const all=await h.coordinator.disableAll();
   assert.equal(all.ok,true);
   assert.equal(h.writes[2].target,undefined);
+});
+
+
+test('M45 an upsert ACK arriving after account change compensates with old-account revoke',async()=>{
+  const pending=deferred(),h=harness({gateUpsert:pending});
+  const enabling=h.coordinator.enable();
+  await new Promise((resolve)=>setImmediate(resolve));
+  assert.equal(h.writes.length,1,'old account request was already sent');
+  h.changeIdentity('coach:account-B');
+  pending.resolve();
+  await assert.rejects(()=>enabling,/M45_PUSH_ACTOR_CHANGED/);
+  assert.deepEqual(h.writes.map(x=>x.type),['upsert','revoke']);
+  assert.equal(h.writes[1].token,'jwt-A');
+  assert.equal(h.writes[1].target,endpoint);
+  assert.equal(h.unsubscribes.length,1);
 });
