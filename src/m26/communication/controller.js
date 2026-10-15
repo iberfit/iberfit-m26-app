@@ -155,6 +155,8 @@ export function createMessageRetryFence({newId,maxPending=64}={}){
 export function createCommunicationController({root,service,render=()=>{}}={}){
   let busy=false;
   let mounted=false;
+  let lifecycleGeneration=0;
+  let pushStatusGeneration=0;
   let preferenceGeneration=0;
   // Ephemeral in-memory only: never persist private message drafts to storage.
   const pendingMessageDrafts=new Map();
@@ -282,29 +284,47 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     return true;
   }
   async function syncPushControl({force=false}={}){
+    if(!mounted)return false;
     const control=root.querySelector?.('[data-m26-web-push-control]');
     if(!control)return false;
     const now=Date.now();
-    if(control!==lastPushControl)force=true;
-    lastPushControl=control;
+    if(control!==lastPushControl){
+      // Shell replaced the element while a remote status call was in flight.
+      // No stale response may paint the old control, or suppress a new query.
+      pushStatusGeneration+=1;
+      pushStatusInFlight=null;
+      lastPushControl=control;
+      force=true;
+    }
     if(!force&&now-lastPushSyncAt<30_000)return true;
     if(pushStatusInFlight)return pushStatusInFlight;
-    pushStatusInFlight=(async()=>{
+    const requestGeneration=pushStatusGeneration;
+    const requestLifecycle=lifecycleGeneration;
+    const isCurrent=()=>mounted&&requestLifecycle===lifecycleGeneration&&
+      requestGeneration===pushStatusGeneration&&
+      root.querySelector?.('[data-m26-web-push-control]')===control;
+    let operation;
+    operation=(async()=>{
       try{
         const state=await service.webPush.status();
+        if(!isCurrent())return false;
         lastPushSyncAt=Date.now();
         applyPushState(control,state);
         return true;
       }catch(error){
+        if(!isCurrent())return false;
         const status=control.querySelector?.('[data-m26-web-push-status]');
         if(status)status.textContent=pushErrorMessage(error);
         return false;
-      }finally{pushStatusInFlight=null;}
+      }finally{
+        if(pushStatusInFlight===operation)pushStatusInFlight=null;
+      }
     })();
-    return pushStatusInFlight;
+    pushStatusInFlight=operation;
+    return operation;
   }
   async function syncNotificationPreferences(payload,{force=false,announceFailure=false}={}){
-    if(!payload||!service?.notificationPreferences?.update)return false;
+    if(!mounted||!payload||!service?.notificationPreferences?.update)return false;
     const normalized=Object.freeze(Object.fromEntries(Object.entries(payload).filter(([key,value])=>NOTIFICATION_PREFERENCE_KEYS.has(key)&&typeof value==='boolean')));
     if(!Object.keys(normalized).length)return false;
     const signature=JSON.stringify(normalized);
@@ -313,14 +333,19 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       queuedPreferencePayload=mergePreferencePayload(queuedPreferencePayload,normalized);
       return preferenceSyncInFlight;
     }
-    preferenceSyncInFlight=(async()=>{
+    const lifecycle=lifecycleGeneration;
+    const isCurrent=()=>mounted&&lifecycle===lifecycleGeneration;
+    let operation;
+    operation=(async()=>{
       try{
         await service.notificationPreferences.update(normalized);
+        if(!isCurrent())return false;
         retryPreferencePayload=clearSyncedPreferenceKeys(retryPreferencePayload,normalized);
         lastPreferenceSignature=signature;
         lastPreferenceSyncAt=Date.now();
         return true;
       }catch(error){
+        if(!isCurrent())return false;
         // A failed older request must never requeue a value that the user has
         // already changed again while the request was in flight.
         const stillCurrent=Object.fromEntries(
@@ -332,13 +357,18 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
         if(announceFailure)toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Preferencia guardada en este dispositivo. Se sincronizará al recuperar la conexión.':'Preferencia guardada en este dispositivo. IBERFIT volverá a intentar sincronizarla.');
         return false;
       }finally{
-        preferenceSyncInFlight=null;
-        const queued=queuedPreferencePayload;
-        queuedPreferencePayload=null;
-        if(queued)queueMicrotask(()=>{void syncNotificationPreferences(queued,{force:true});});
+        if(preferenceSyncInFlight===operation){
+          preferenceSyncInFlight=null;
+          const queued=queuedPreferencePayload;
+          queuedPreferencePayload=null;
+          if(queued&&isCurrent())queueMicrotask(()=>{
+            if(isCurrent())void syncNotificationPreferences(queued,{force:true});
+          });
+        }
       }
     })();
-    return preferenceSyncInFlight;
+    preferenceSyncInFlight=operation;
+    return operation;
   }
   function syncVisibleNotificationPreferences({force=false}={}){
     const payload=preferencePayloadFromRoot(root);
@@ -376,26 +406,27 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const action=String(button.dataset.m26WebPushAction||'');
     if(!['enable','disable-current'].includes(action))return false;
     pushBusy=true;
+    const lifecycle=lifecycleGeneration;
     button.disabled=true;
     try{
-      if(action==='enable'){
-        await service.webPush.enable();
-        toast('Avisos activados en este dispositivo.');
-      }else{
-        await service.webPush.disableCurrent();
-        toast('Avisos desactivados en este dispositivo.');
-      }
+      if(action==='enable')await service.webPush.enable();
+      else await service.webPush.disableCurrent();
+      if(!mounted||lifecycle!==lifecycleGeneration)return false;
+      toast(action==='enable'?'Avisos activados en este dispositivo.':'Avisos desactivados en este dispositivo.');
       lastPushSyncAt=0;
       await syncPushControl({force:true});
       return true;
     }catch(error){
+      if(!mounted||lifecycle!==lifecycleGeneration)return false;
       toast(pushErrorMessage(error));
       await syncPushControl({force:true});
       return false;
     }finally{
-      pushBusy=false;
-      const control=root.querySelector?.('[data-m26-web-push-control]');
-      if(control)void syncPushControl({force:true});
+      if(mounted&&lifecycle===lifecycleGeneration){
+        pushBusy=false;
+        const control=root.querySelector?.('[data-m26-web-push-control]');
+        if(control)void syncPushControl({force:true});
+      }
     }
   }
   async function onSubmit(event){
@@ -523,20 +554,26 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   return Object.freeze({
     mount(){
+      if(mounted)return;
       mounted=true;
+      lifecycleGeneration+=1;
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('click',onClickEvent);
       root.addEventListener('input',onInputEvent);
       root.addEventListener('change',onChangeEvent);
       root.addEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.addEventListener?.('online',onOnline,{passive:true});
+      const lifecycle=lifecycleGeneration;
       queueMicrotask(()=>{
+        if(!mounted||lifecycle!==lifecycleGeneration)return;
         void hydrateNotificationPreferences({force:true});
         void syncPushControl({force:true});
       });
     },
     destroy(){
       mounted=false;
+      lifecycleGeneration+=1;
+      pushStatusGeneration+=1;
       preferenceGeneration+=1;
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('click',onClickEvent);
@@ -545,6 +582,10 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       root.removeEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.removeEventListener?.('online',onOnline);
       lastPushControl=null;
+      pushStatusInFlight=null;
+      pushBusy=false;
+      preferenceSyncInFlight=null;
+      preferenceHydrationInFlight=null;
       activeCommunicationRole=null;
       conversationSearch='';
       onlyUnreadConversations=false;
