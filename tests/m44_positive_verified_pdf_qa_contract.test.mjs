@@ -15,7 +15,7 @@ test('M44 positive QA gate covers real report lifecycle, idempotent issuance and
  const s=await content();
  for(const token of ["buildApproveReportDraftCommand","buildPublicationCommand",
   "iberfit_m44_create_report_draft_v1","iberfit_execute_command_v26",
-  "action:'download'","createHash('sha256')","edge('issue'",
+  "edge('download'","createHash('sha256')","edge('issue'",
   "edge('withdraw'","edge('history'","edge('latest'","M44_QA_WITHDRAWN_PDF_LEAK"])
   assert.ok(s.includes(token),token);
  assert.match(s,/finally\s*\{/);
