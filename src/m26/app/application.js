@@ -9,7 +9,7 @@ import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} f
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
 import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart} from '../rc39/session-policy.js';
-import {normalizeAppointmentRecord} from '../domain/appointment.js';
+import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS} from './confirmed-session-appointment.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
@@ -95,18 +95,7 @@ function normalizePublishedSession(record){
 function nextExpiry(session){return sessionExpiresSoon(session);}
 function safeTime(value){const time=value?new Date(value).getTime():NaN;return Number.isFinite(time)?time:null;}
 const PUBLISHED_SESSION_STATES=new Set(['disponible','published','publicado','active','activo','enabled','habilitado']);
-const APPOINTMENT_EARLY_WINDOW_MS=6*60*60*1000;
-const APPOINTMENT_LATE_WINDOW_MS=24*60*60*1000;
 function publishedSessionForClient(records=[],clientId){return records.map(normalizePublishedSession).filter((item)=>item.id&&item.clientId===clientId&&item.blocks.length&&PUBLISHED_SESSION_STATES.has(String(item.status||'').trim().toLowerCase())).sort((a,b)=>Number(b.revision||0)-Number(a.revision||0)||(safeTime(b.createdAt)||0)-(safeTime(a.createdAt)||0))[0]||null;}
-function confirmedAppointmentForSession(records=[],session,now=Date.now(),{earlyWindowMs=APPOINTMENT_EARLY_WINDOW_MS,lateWindowMs=APPOINTMENT_LATE_WINDOW_MS}={}){
-  const at=Number(now);if(!Number.isFinite(at)||!session?.id||!session?.clientId)return null;
-  const lower=at-Math.max(0,Number(earlyWindowMs)||0),upper=at+Math.max(0,Number(lateWindowMs)||0);
-  const inWindow=(item)=>{const start=safeTime(item.startAt||item.start_at||item.scheduledAt||item.scheduled_at||item.date);const end=safeTime(item.endAt||item.end_at);if(start===null)return false;return (end??start)>=lower&&start<=upper;};
-  const matching=records.map(normalizeAppointmentRecord).filter((item)=>item.clientId===session.clientId&&item.status==='confirmada'&&inWindow(item));
-  const linked=matching.filter((item)=>String(item.sessionId||item.session_id||'')===String(session.id));
-  const candidates=linked.length?linked:matching.filter((item)=>!String(item.sessionId||item.session_id||''));
-  return candidates.sort((a,b)=>(safeTime(a.startAt||a.start_at||a.scheduledAt||a.scheduled_at||a.date)||Number.MAX_SAFE_INTEGER)-(safeTime(b.startAt||b.start_at||b.scheduledAt||b.scheduled_at||b.date)||Number.MAX_SAFE_INTEGER))[0]||null;
-}
 function friendlyError(error){
   const code=String(error?.message||error||'');
   if(/M35_SESSION_CONFIRM_NOT_VISIBLE/.test(code))return 'El servidor aceptó la publicación, pero no pudimos confirmar que aparezca en el expediente. El borrador se conserva; no crees otra sesión.';

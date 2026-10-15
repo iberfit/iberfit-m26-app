@@ -14,7 +14,7 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
-import {sessionDeliveryModality,sessionDeliveryOwnership,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
+import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -159,7 +159,12 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
           String(execution?.sessionId||'')!==String(session?.id||''))
           throw new Error('M43_CLIENT_EXECUTION_SCOPE_CONFLICT');
       }
-      const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision});
+      // A guided workout is autonomous. A stale appointment from this client's
+      // calendar or recovered local state must never be attached to its start.
+      // The server authorizes the persisted session, not a client assertion.
+      const appointmentForStart=sessionRequiresConfirmedAppointment({role:actorRole,session})
+        ?(payload.appointmentId||appointmentId):null;
+      const command=buildStartExecutionCommand(execution,{appointmentId:appointmentForStart,sessionRevision:payload.sessionRevision??sessionRevision});
       if(!commandBus){startExecution(execution,{actor});return {kind:'execution',value:execution};}
       if(!isOnline(online)){
         if(offlinePermit?.canStart!==true)throw new Error('M26_OFFLINE_START_NOT_ALLOWED');

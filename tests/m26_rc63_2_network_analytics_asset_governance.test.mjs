@@ -242,11 +242,11 @@ test('RC63.2 stabilizes historical RC62.3 and RC63.1 transient assertions',()=>{
   assert.doesNotMatch(rc631,/RC63_2=IN_PROGRESS_NETWORK_ANALYTICS_ASSET_GOVERNANCE/u);
 });
 
-test('RC63.2 versions release shell closes RC63 and opens RC64',()=>{
+test('RC63.2 historical release remains recorded after M42 cache rotation',()=>{
   const sw=read('public/m26/sw.js');
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
-  assert.match(sw,/VERSION='m26-rc63-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);
+  assert.match(sw,/VERSION='m26-rc63-3'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc63-2'/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc63-2[^\n]*m26-rc63-1/u);
   assert.match(sw,/m26-rc59-0b[^\n]*m26-rc59-0a[^\n]*m26-rc58-6/u);
   assert.match(roadmap,/RC63=CLOSED_EXERCISE_MEDIA_EXPERIENCE/u);

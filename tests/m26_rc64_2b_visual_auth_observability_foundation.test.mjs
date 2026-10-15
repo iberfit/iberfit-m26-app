@@ -390,8 +390,8 @@ test('RC64.2B1 quality observability module is part of the generated PWA shell a
   assert.match(generator,/\['ls-files','--','src\/m26','public\/m26'\]/u);
   assert.match(generator,/repoPath\.startsWith\('src\/m26\/'\)/u);
   assert.match(generator,/!\['\.js','\.css'\]\.includes\(extension\)/u);
-  assert.match(sw,/VERSION='m26-rc63-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);
+  assert.match(sw,/VERSION='m26-rc63-3'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc63-2'/u);
 });
 test('RC64.2B1 validate job fetches full Git history required by RC56 hardware provenance',()=>{
   const ci=read('.github/workflows/ci.yml');
