@@ -4,17 +4,11 @@
 REVOKE ALL ON public.iberfit_evolution_report_issuances_v1 FROM PUBLIC,anon,authenticated;
 GRANT SELECT ON public.iberfit_evolution_report_issuances_v1 TO service_role;
 
-DO $m44_acl$
-BEGIN
- IF NOT has_table_privilege('service_role',
-      'public.iberfit_evolution_report_issuances_v1','SELECT')
- THEN RAISE EXCEPTION 'M44_PDF_SERVICE_LEDGER_SELECT_MISSING';END IF;
- IF has_table_privilege('anon',
-      'public.iberfit_evolution_report_issuances_v1','SELECT')
-   OR has_table_privilege('authenticated',
-      'public.iberfit_evolution_report_issuances_v1','SELECT')
- THEN RAISE EXCEPTION 'M44_PDF_LEDGER_EXPOSED_TO_BROWSER';END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_roles
-               WHERE rolname='service_role' AND rolbypassrls)
- THEN RAISE EXCEPTION 'M44_PDF_SERVICE_RLS_BYPASS_UNAVAILABLE';END IF;
-END $m44_acl$;
+-- M44_PDF_SERVICE_LEDGER_SELECT_MISSING: declarative fail-closed verification; no arbitrary DO/EXECUTE.
+SELECT 1 / (CASE WHEN has_table_privilege('service_role',
+ 'public.iberfit_evolution_report_issuances_v1','SELECT')
+ AND NOT has_table_privilege('anon',
+ 'public.iberfit_evolution_report_issuances_v1','SELECT')
+ AND NOT has_table_privilege('authenticated',
+ 'public.iberfit_evolution_report_issuances_v1','SELECT')
+ AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role' AND rolbypassrls) THEN 1 ELSE 0 END) AS m44_pdf_service_ledger_select_missing;

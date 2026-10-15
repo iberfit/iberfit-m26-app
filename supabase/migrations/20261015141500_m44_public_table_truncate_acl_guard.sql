@@ -7,16 +7,10 @@ revoke truncate on all tables in schema public from anon, authenticated;
 alter default privileges for role postgres in schema public
   revoke truncate on tables from anon, authenticated;
 
-do $security_guard$
-declare
-  v_count integer;
-begin
-  select count(*) into v_count
-  from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='public' and c.relkind in ('r','p')
-    and (has_table_privilege('anon',c.oid,'TRUNCATE')
-      or has_table_privilege('authenticated',c.oid,'TRUNCATE'));
-  if v_count<>0 then
-    raise exception 'M44_PUBLIC_TRUNCATE_GRANTS_NOT_REVOKED: %',v_count;
-  end if;
-end $security_guard$;
+-- M44_PUBLIC_TRUNCATE_GRANTS_NOT_REVOKED: declarative fail-closed verification; no arbitrary DO/EXECUTE.
+SELECT 1 / (CASE WHEN NOT EXISTS (
+ SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+ WHERE n.nspname='public' AND c.relkind IN ('r','p')
+   AND (has_table_privilege('anon',c.oid,'TRUNCATE')
+    OR has_table_privilege('authenticated',c.oid,'TRUNCATE'))
+) THEN 1 ELSE 0 END) AS m44_public_truncate_grants_not_revoked;

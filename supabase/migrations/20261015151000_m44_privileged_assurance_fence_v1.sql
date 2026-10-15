@@ -5,16 +5,13 @@
 -- Renamed implementations are private to service_role: browser cannot bypass.
 -- Never weaken or redefine the application's existing assurance policy.
 BEGIN;
-DO $preflight$
-BEGIN
- IF to_regprocedure('public.iberfit_privileged_assurance_context_v65d()') IS NULL
-    OR to_regprocedure('public.iberfit_m44_create_report_draft_v1(uuid,uuid,jsonb)') IS NULL
-    OR to_regprocedure('public.iberfit_m44_prepare_evolution_report_issue_v1(uuid)') IS NULL
-    OR to_regprocedure('public.iberfit_m44_authorize_evolution_report_pdf_v1(uuid)') IS NULL
-    OR to_regprocedure('public.iberfit_m44_report_issued_pdf_history_v1(uuid)') IS NULL
-    OR to_regprocedure('public.iberfit_m44_withdraw_evolution_report_pdf_v1(uuid,text)') IS NULL
- THEN RAISE EXCEPTION 'M44_PRIVILEGED_ASSURANCE_PRECONDITION_FAILED'; END IF;
-END $preflight$;
+-- M44_PRIVILEGED_ASSURANCE_PRECONDITION_FAILED: declarative fail-closed verification; no arbitrary DO/EXECUTE.
+SELECT 1 / (CASE WHEN to_regprocedure('public.iberfit_privileged_assurance_context_v65d()') IS NOT NULL
+ AND to_regprocedure('public.iberfit_m44_create_report_draft_v1(uuid,uuid,jsonb)') IS NOT NULL
+ AND to_regprocedure('public.iberfit_m44_prepare_evolution_report_issue_v1(uuid)') IS NOT NULL
+ AND to_regprocedure('public.iberfit_m44_authorize_evolution_report_pdf_v1(uuid)') IS NOT NULL
+ AND to_regprocedure('public.iberfit_m44_report_issued_pdf_history_v1(uuid)') IS NOT NULL
+ AND to_regprocedure('public.iberfit_m44_withdraw_evolution_report_pdf_v1(uuid,text)') IS NOT NULL THEN 1 ELSE 0 END) AS m44_privileged_assurance_precondition_failed;
 
 CREATE OR REPLACE FUNCTION public.iberfit_m44_require_privileged_assurance_v1()
 RETURNS void LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=''
@@ -110,19 +107,17 @@ GRANT EXECUTE ON FUNCTION public.iberfit_m44_authorize_evolution_report_pdf_v1(u
 GRANT EXECUTE ON FUNCTION public.iberfit_m44_report_issued_pdf_history_v1(uuid) TO authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.iberfit_m44_withdraw_evolution_report_pdf_v1(uuid,text) TO authenticated,service_role;
 
-DO $assertions$
-DECLARE v text;
-BEGIN
- FOREACH v IN ARRAY ARRAY[
- 'iberfit_m44_create_report_draft_impl_v1(uuid,uuid,jsonb)',
- 'iberfit_m44_prepare_evolution_report_issue_impl_v1(uuid)',
- 'iberfit_m44_authorize_evolution_report_pdf_impl_v1(uuid)',
- 'iberfit_m44_report_issued_pdf_history_impl_v1(uuid)',
- 'iberfit_m44_withdraw_evolution_report_pdf_impl_v1(uuid,text)']
- LOOP
-  IF has_function_privilege('authenticated',('public.'||v)::regprocedure,'EXECUTE')
-     OR has_function_privilege('anon',('public.'||v)::regprocedure,'EXECUTE')
-  THEN RAISE EXCEPTION 'M44_PRIVILEGED_IMPL_EXPOSED: %',v; END IF;
- END LOOP;
-END $assertions$;
+-- M44_PRIVILEGED_IMPL_EXPOSED: declarative fail-closed verification; no arbitrary DO/EXECUTE.
+SELECT 1 / (CASE WHEN NOT EXISTS (
+ SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ WHERE n.nspname='public'
+ AND p.proname IN (
+ 'iberfit_m44_create_report_draft_impl_v1',
+ 'iberfit_m44_prepare_evolution_report_issue_impl_v1',
+ 'iberfit_m44_authorize_evolution_report_pdf_impl_v1',
+ 'iberfit_m44_report_issued_pdf_history_impl_v1',
+ 'iberfit_m44_withdraw_evolution_report_pdf_impl_v1')
+ AND (has_function_privilege('authenticated',p.oid,'EXECUTE')
+   OR has_function_privilege('anon',p.oid,'EXECUTE'))
+) THEN 1 ELSE 0 END) AS m44_privileged_impl_exposed;
 COMMIT;

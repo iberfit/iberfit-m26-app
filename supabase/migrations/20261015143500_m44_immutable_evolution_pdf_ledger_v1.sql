@@ -1,25 +1,22 @@
 -- M44 premium evolution: immutable published-report PDF ledger.
 -- WIP: never deploy until the exact PDF engine and QA negative-role tests exist.
 -- Use the same issued-artifact governance contract as IRI, not the IRI table.
-DO $prereq$
-BEGIN
-  IF to_regprocedure('public.iberfit_m44_report_public_projection_v1()') IS NULL
-     OR to_regprocedure('public.iberfit_m44_create_report_draft_v1(uuid,uuid,jsonb)') IS NULL
-  THEN RAISE EXCEPTION 'M44_ISSUANCE_REQUIRES_REPORT_LIFECYCLE'; END IF;
-END $prereq$;
+-- M44_ISSUANCE_REQUIRES_REPORT_LIFECYCLE: declarative fail-closed verification; no arbitrary DO/EXECUTE.
+SELECT 1 / (CASE WHEN to_regprocedure('public.iberfit_m44_report_public_projection_v1()') IS NOT NULL
+ AND to_regprocedure('public.iberfit_m44_create_report_draft_v1(uuid,uuid,jsonb)') IS NOT NULL THEN 1 ELSE 0 END) AS m44_issuance_requires_report_lifecycle;
 
 INSERT INTO storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 VALUES ('iberfit-evolution-issued-reports','iberfit-evolution-issued-reports',false,
   20971520,ARRAY['application/pdf']::text[])
 ON CONFLICT(id) DO NOTHING;
 
-DO $bucket$
-BEGIN
- IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id='iberfit-evolution-issued-reports'
-     AND public=false AND file_size_limit<=20971520
-     AND (allowed_mime_types @> ARRAY['application/pdf']::text[]))
- THEN RAISE EXCEPTION 'M44_PRIVATE_PDF_BUCKET_NOT_VERIFIED';END IF;
-END $bucket$;
+-- M44_PRIVATE_PDF_BUCKET_NOT_VERIFIED: declarative fail-closed verification; no arbitrary DO/EXECUTE.
+SELECT 1 / (CASE WHEN EXISTS (
+ SELECT 1 FROM storage.buckets
+ WHERE id='iberfit-evolution-issued-reports'
+   AND public=false AND file_size_limit<=20971520
+   AND allowed_mime_types @> ARRAY['application/pdf']::text[]
+) THEN 1 ELSE 0 END) AS m44_private_pdf_bucket_not_verified;
 
 CREATE TABLE IF NOT EXISTS public.iberfit_evolution_report_issuances_v1 (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

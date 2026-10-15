@@ -7,6 +7,7 @@ test('P0: future releases retain the verified least-privilege TRUNCATE revocatio
   assert.match(sql,/alter default privileges for role postgres in schema public/i);
   assert.match(sql,/has_table_privilege\('anon',c\.oid,'TRUNCATE'\)/);
   assert.match(sql,/has_table_privilege\('authenticated',c\.oid,'TRUNCATE'\)/);
-  assert.match(sql,/raise exception 'M44_PUBLIC_TRUNCATE_GRANTS_NOT_REVOKED/);
+  assert.match(sql,/AS m44_public_truncate_grants_not_revoked/);
+  assert.doesNotMatch(sql,/\\bDO\\s+\\$/iu);
   assert.doesNotMatch(sql,/\bgrant\s+truncate\b/i);
 });
