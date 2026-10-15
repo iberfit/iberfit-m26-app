@@ -177,11 +177,14 @@ function fallbackCard(root,appointmentId){
 export function fullCalendarCoachOptions({
   events=[],
   compact=false,
+  initialDate=null,
   onAppointmentFocus=()=>{},
 }={}){
   const window=agendaVisibleHourWindow(events);
+  const validatedDate=initialDate&&safeDate(initialDate);
   return Object.freeze({
     initialView:compact?'timeGridDay':'timeGridWeek',
+    ...(validatedDate?{initialDate:validatedDate}:{}),
     locale:'es',
     timeZone:RC62_AGENDA_TIME_ZONE,
     themeSystem:'monarch',
@@ -231,11 +234,17 @@ export function createRc62AgendaCalendarController({
   let generation=0;
   let mounted=false;
   let lastEventSignature=null;
+  let lastCalendarDate=null;
   let refreshQueued=false;
   let scheduleGeneration=0;
 
   function destroyCalendar(){
     generation++;
+    try{
+      const displayed=calendar?.getDate?.();
+      const date=safeDate(displayed);
+      if(date)lastCalendarDate=date;
+    }catch{}
     try{calendar?.destroy?.();}catch{}
     calendar=null;
     calendarHost=null;
@@ -298,6 +307,7 @@ export function createRc62AgendaCalendarController({
         fullCalendarCoachOptions({
           events,
           compact:compactMediaQuery?.matches===true,
+          initialDate:lastCalendarDate,
           onAppointmentFocus:focusAppointment,
         })
       );
@@ -366,6 +376,7 @@ export function createRc62AgendaCalendarController({
       compactMediaQuery?.removeEventListener?.('change',onCompactChange);
       compactMediaQuery=null;
       destroyCalendar();
+      lastCalendarDate=null;
     },
     refresh:()=>refresh(),
   });
