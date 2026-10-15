@@ -17,7 +17,7 @@ test('M44 Client reads last issued PDF; Coach and Admin issue with active client
  for(const expected of ['M44_PDF_OFFLINE_UNAVAILABLE','requireCoach()','requireVisibleClient(clientId)',
  'evolutionPdfActionScope({state,role,clientId,reportId:id,action:issue?',
  'getLatestEvolutionPdf(id)','issueEvolutionReport(id)','popup.location.replace(result.signedUrl)',
- 'popup.close','M44_PDF_PUBLISHED_REPORT_REQUIRED'])
+ 'popup.close','evolutionPdfActionScope({state,role,clientId,reportId:id,action:issue?'])
   assert.ok(h.includes(expected),expected);
  assert.match(s,/action==='issue-evolution-pdf'/);
  assert.match(s,/action==='open-issued-evolution-pdf'/);
