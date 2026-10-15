@@ -354,7 +354,9 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
           )
         );
         retryPreferencePayload=mergePreferencePayload(retryPreferencePayload,stillCurrent);
-        if(announceFailure)toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Preferencia guardada en este dispositivo. Se sincronizará al recuperar la conexión.':'Preferencia guardada en este dispositivo. IBERFIT volverá a intentar sincronizarla.');
+        if(announceFailure)toast(/ONLINE_REQUIRED/.test(String(error?.message||error))
+          ?'Cambio pendiente de sincronizar. Conservaremos tu elección en esta pantalla y reintentaremos al volver la conexión.'
+          :'No se confirmó la preferencia en IBERFIT. La selección permanece visible y se reintentará al recuperar la conexión.');
         return false;
       }finally{
         if(preferenceSyncInFlight===operation){
