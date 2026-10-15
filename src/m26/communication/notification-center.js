@@ -221,7 +221,7 @@ function freezeCounts(items){
     if(item.priority==='action-required')counts.actionRequired+=1;
     else if(item.priority==='important')counts.important+=1;
     else counts.informational+=1;
-    if(item.unread)counts.unread+=1;
+    if(item.unread)counts.unread+=list(item.unreadSourceIds).length||1;
   }
   return Object.freeze(counts);
 }
