@@ -79,3 +79,7 @@ Categorías con identidad y fuente propias:
 ## 6. Gobernanza de integración
 
 El trabajo M44 puede prepararse en la rama WIP. **No PR para cambios parciales.** Tras cierre del P0 #942, sincronizar la rama contra el SHA PROD verificado, ejecutar todos los tests y E2E, generar *una sola PR M44* con evidencia y promocionar mediante canal oficial a `app.iberfit.cl`. Mantener #939 (corrección visual de carrera) fuera de este ultramegabloque hasta el momento acordado.
+
+
+## 7. Auditoría y radar del 15/10 integrados al gate
+P0 #941 abierto por aceptación de la PWA Windows multirrol; #942 fue publicado, sin necesidad de un parche paralelo. La recuperación de sesión no puede bloquear el selector de rol. Para M44, proteger de forma explícita el bootstrap SECURITY DEFINER; Cliente jamás recibe registros privados de reports ni cuerpos de m26Entities report, incluso con roles con permisos previos. Migraciones M44 WIP se prueban en QA sintética antes de aplicar. Valor visual IRI: portada, lectura de periodo, evidencia, tabla, limitaciones, interpretación y próximo paso, con impresión A4 y PDF real por certificar. Adherencia/continuidad: una alternativa autorizada no equivale automáticamente al volumen original ni corrige una ausencia de cita. Wearables: origen y frescura, sin considerarlos ejecuciones. Véase docs/product/IBERFIT_20261015_INTEGRATED_AUDIT_AND_INNOVATION.md.
