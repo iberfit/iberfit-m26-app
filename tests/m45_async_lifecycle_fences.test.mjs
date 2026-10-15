@@ -370,7 +370,8 @@ test('M45 late send acknowledgement cannot clear a new account draft or block it
 });
 
 
-test('M45 a new message typed during a slow send is never cleared by the previous ACK',async()=>{
+for(const secondDraft of ['Segundo mensaje todavía sin enviar','Primer mensaje']){
+test(`M45 later composer edit ${JSON.stringify(secondDraft)} survives ACK of prior send`,async()=>{
   const prior=globalThis.FormData;
   const handlers=new Map(),remote=deferred();
   let visible,resetCount=0,renderCount=0;
@@ -434,13 +435,13 @@ test('M45 a new message typed during a slow send is never cleared by the previou
     });
     await tick();
     assert.equal(executeCount,1);
-    submitted.textarea.value='Segundo mensaje todavía sin enviar';
+    submitted.textarea.value=secondDraft;
     submitted.textarea.selectionStart=9;
     handlers.get('input')({target:submitted.textarea});
     remote.resolve({ok:true,syncPending:false});
     await tick();
     assert.equal(resetCount,0,'old form must never be reset when user has continued typing');
-    assert.equal(visible.textarea.value,'Segundo mensaje todavía sin enviar');
+    assert.equal(visible.textarea.value,secondDraft);
     assert.equal(renderCount,1);
     assert.equal(visible.details.open,true);
   }finally{
@@ -448,7 +449,7 @@ test('M45 a new message typed during a slow send is never cleared by the previou
     globalThis.FormData=prior;
   }
 });
-
+}
 test('M45 a rendering fault after a confirmed send cannot invite duplicate submissions',async()=>{
   const prior=globalThis.FormData,handlers=new Map();
   let operations=0;
