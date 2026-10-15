@@ -533,8 +533,18 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const role=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
     // Leaving messaging or changing role invalidates in-memory private drafts.
     if(role!==activeCommunicationRole){
+      // The controller can survive an in-app role transition. Fence *all*
+      // pending account-scoped reads/writes, not only push status.
+      lifecycleGeneration+=1;
+      preferenceGeneration+=1;
+      preferenceSyncInFlight=null;
+      preferenceHydrationInFlight=null;
+      queuedPreferencePayload=null;
+      retryPreferencePayload=null;
+      for(const key of Object.keys(explicitPreferenceChoices))delete explicitPreferenceChoices[key];
       pushStatusGeneration+=1;
       pushStatusInFlight=null;
+      pushBusy=false;
       lastPushControl=null;
       lastPushSyncAt=0;
       pendingMessageDrafts.clear();
@@ -542,6 +552,11 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       conversationSearch='';
       onlyUnreadConversations=false;
       activeCommunicationRole=role;
+      const lifecycle=lifecycleGeneration;
+      queueMicrotask(()=>{
+        if(!mounted||lifecycle!==lifecycleGeneration||!role)return;
+        void hydrateNotificationPreferences({force:true});
+      });
     }
     if(role){
       restoreMessageDrafts(root,pendingMessageDrafts);
