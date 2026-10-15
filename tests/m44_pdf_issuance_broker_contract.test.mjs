@@ -36,7 +36,7 @@ test('M44 lost ACK after database finalization can never delete the issued immut
 test('M44 latest PDF version is selected server-side but only released through user-scoped authorization',async()=>{
  const text=await source();
  const start=text.indexOf('async function latest(');
- const end=text.indexOf('Deno.serve(',start);
+ const end=text.indexOf('async function downloadVerified(',start);
  assert.ok(start>0&&end>start);
  const method=text.slice(start,end);
  assert.match(method,/\.eq\('report_id',id\)/);
