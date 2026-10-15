@@ -37,9 +37,11 @@ export async function renderEvolutionReportPdf({source,pdfLib,brandImageBytes,br
  // This is the same Inter/Source Serif identity used by the HTML A4 preview.
  if(!fontkit||!brandFonts?.inter||!brandFonts?.serif)
   throw Error('M44_PDF_BRAND_FONTS_REQUIRED');
+ // Variable WOFF2 subsetting in fontkit 1.1.1 can corrupt glyph offsets.
+ // Embed the complete first-party typefaces instead of accepting clipped output.
  doc.registerFontkit(fontkit);
- const serif=await doc.embedFont(brandFonts.serif,{subset:true});
- const sans=await doc.embedFont(brandFonts.inter,{subset:true});
+ const serif=await doc.embedFont(brandFonts.serif,{subset:false});
+ const sans=await doc.embedFont(brandFonts.inter,{subset:false});
  const serifBold=await doc.embedFont(StandardFonts.TimesRomanBold);
  const bold=await doc.embedFont(StandardFonts.HelveticaBold);
  const color=k=>rgb(...C[k]),pages=[];
