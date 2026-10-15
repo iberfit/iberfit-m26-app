@@ -9,7 +9,7 @@ import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} f
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
 import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart} from '../rc39/session-policy.js';
-import {confirmedAppointmentForSession} from './confirmed-session-appointment.js';
+import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS} from './confirmed-session-appointment.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
