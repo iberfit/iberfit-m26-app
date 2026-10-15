@@ -154,6 +154,15 @@ export function createMessageRetryFence({newId,maxPending=64}={}){
 
 export function createCommunicationController({root,service,render=()=>{}}={}){
   let busy=false;
+  let busyVersion=0;
+  function claimBusy(){
+    if(busy)return null;
+    busy=true;
+    return ++busyVersion;
+  }
+  function releaseBusy(version){
+    if(busyVersion===version)busy=false;
+  }
   let mounted=false;
   let lifecycleGeneration=0;
   let pushStatusGeneration=0;
@@ -208,8 +217,10 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(status)status.textContent=message;
   }
   async function run(input,msg,{onAck,form}={}){
-    if(busy)return false;
-    busy=true;
+    const operation=claimBusy();
+    if(operation===null)return false;
+    const lifecycle=lifecycleGeneration;
+    const current=()=>mounted&&lifecycle===lifecycleGeneration&&operation===busyVersion;
     if(form)composeFeedback(form,'Enviando mensaje…',{waiting:true});
     // The domain refresh may replace the shell before execute resolves.
     // Preserve other unsent composers *before* crossing the network boundary.
@@ -217,6 +228,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const draftsBefore=new Map(pendingMessageDrafts);
     try{
       const result=await service.execute(input);
+      // An ACK for account A must never reset account B's composer.
+      if(!current())return false;
       if(input.type==='MESSAGE_SEND')messageRetryFence.acknowledged(input.entityId,input.operationId);
       onAck?.();
       if(input.type==='MESSAGE_SEND'){
@@ -233,6 +246,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       if(!result?.syncPending)renderWithoutLosingDrafts();
       return true;
     }catch(error){
+      if(!current())return false;
       const offline=/ONLINE_REQUIRED/.test(String(error?.message||error));
       const feedback=offline
         ?'Los mensajes requieren conexión. El borrador está disponible para reintentar.'
@@ -243,18 +257,21 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       toast(feedback);
       return false;
     }finally{
-      if(form)composeFeedback(form,
+      if(current()&&form)composeFeedback(form,
         form.querySelector?.('.m45-compose-status')?.textContent||'',{waiting:false});
-      busy=false;
+      releaseBusy(operation);
     }
   }
   async function markNotificationGroup(ids){
-    if(busy)return false;
-    busy=true;
+    const operation=claimBusy();
+    if(operation===null)return false;
+    const lifecycle=lifecycleGeneration;
+    const current=()=>mounted&&lifecycle===lifecycleGeneration&&operation===busyVersion;
     rememberVisibleDrafts();
     try{
       if(!service?.markNotificationsRead)throw new Error('M45_GROUP_READ_UNAVAILABLE');
       const result=await service.markNotificationsRead(ids);
+      if(!current())return false;
       const total=Number(result?.requestedCount)||ids.length;
       const marked=Number(result?.markedCount)||0;
       if(!marked)throw new Error('M45_GROUP_READ_NOT_CONFIRMED');
@@ -267,9 +284,9 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       else renderWithoutLosingDrafts();
       return result.ok;
     }catch{
-      toast('No se pudo confirmar la lectura. Los avisos permanecen disponibles para reintentar.');
+      if(current())toast('No se pudo confirmar la lectura. Los avisos permanecen disponibles para reintentar.');
       return false;
-    }finally{busy=false;}
+    }finally{releaseBusy(operation);}
   }
   function applyPushState(control,state){
     if(!control)return false;
@@ -484,24 +501,25 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     else pendingMessageDrafts.delete(threadId);
   }
   async function reloadCommunication(button,{quiet=false}={}){
-    if(busy||!mounted)return false;
-    busy=true;
+    if(!mounted)return false;
+    const operation=claimBusy();
+    if(operation===null)return false;
     const lifecycle=lifecycleGeneration;
     if(button)button.disabled=true;
     try{
       if(!service?.reload)throw new Error('M45_COMMUNICATION_RETRY_UNAVAILABLE');
       await service.reload();
-      if(!mounted||lifecycle!==lifecycleGeneration)return false;
+      if(!mounted||lifecycle!==lifecycleGeneration||operation!==busyVersion)return false;
       renderWithoutLosingDrafts();
       return true;
     }catch{
-      if(!quiet&&mounted&&lifecycle===lifecycleGeneration){
+      if(!quiet&&mounted&&lifecycle===lifecycleGeneration&&operation===busyVersion){
         toast('No pudimos actualizar las conversaciones. Comprueba la conexión y vuelve a intentarlo.');
       }
       return false;
     }finally{
       if(button)button.disabled=false;
-      busy=false;
+      releaseBusy(operation);
     }
   }
   function onClickEvent(event){
@@ -542,6 +560,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const identity=String(roleNode?.dataset?.communicationIdentity||roleNode?.getAttribute?.('data-communication-identity')||'');
     // Private drafts are bound to both role and the actual authenticated identity.
     if(role!==activeCommunicationRole||identity!==activeCommunicationIdentity){
+      busy=false;
+      busyVersion+=1;
       // The controller can survive an in-app role transition. Fence *all*
       // pending account-scoped reads/writes, not only push status.
       lifecycleGeneration+=1;
@@ -607,6 +627,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     },
     destroy(){
       mounted=false;
+      busy=false;
+      busyVersion+=1;
       lifecycleGeneration+=1;
       pushStatusGeneration+=1;
       preferenceGeneration+=1;
