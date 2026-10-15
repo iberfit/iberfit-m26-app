@@ -33,7 +33,7 @@ function headers(origin:string):Record<string,string>{
 function result(status:number,body:unknown,origin:string){return new Response(status===204?null:JSON.stringify(body),{status,headers:headers(origin)});}
 async function digest(data:Uint8Array|string){
  const b=typeof data==='string'?new TextEncoder().encode(data):data;
- const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',b));
+ const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',Uint8Array.from(b).buffer));
  return [...hash].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 function code(error:unknown){
@@ -63,6 +63,24 @@ async function logoBytes(){
   return buf.length>100&&buf.length<250_000?buf:null;
  }catch{return null;}
 }
+type BrokerClient=ReturnType<typeof createClient>;
+type RpcError={message:string};
+type Prepared={ok:boolean;reportId:string;clientId:string;sourceRevision:number;
+ sourceSha256:string;artifactBucket:string;sourceSnapshot:{reportId:string;[key:string]:unknown}};
+type Previous={id:string;report_id:string;report_revision:number;source_sha256:string;
+ artifact_sha256:string;artifact_path:string;status:string;version:number};
+type Finalized={ok:boolean;kind:string;issuanceId:string;version:number;artifactPath:string;artifactSha256:string};
+type Access={ok:boolean;withdrawn:boolean;artifactBucket:string;artifactPath:string;artifactSha256:string;version:number};
+type Withdrawn={ok:boolean;kind:string;issuanceId:string};
+async function callRpc<T>(client:BrokerClient,name:string,args:Record<string,unknown>):Promise<T>{
+ // The new migration RPCs are not yet reflected in generated supabase-js types.
+ const invoke=client.rpc as unknown as
+  (name:string,args:Record<string,unknown>)=>Promise<{data:T|null;error:RpcError|null}>;
+ const response=await invoke(name,args);
+ if(response.error)throw Error(response.error.message);
+ if(response.data===null)throw Error('M44_PDF_RPC_EMPTY_RESPONSE');
+ return response.data;
+}
 async function issue({user,service,actor,body}:{
  user:ReturnType<typeof createClient>;
  service:ReturnType<typeof createClient>;
@@ -72,9 +90,7 @@ async function issue({user,service,actor,body}:{
  const id=uuid(body.reportId,'M44_PDF_REPORT_ID_INVALID');
  const requestId=body.issueRequestId?uuid(body.issueRequestId,'M44_PDF_REQUEST_ID_INVALID'):crypto.randomUUID();
  // User-scoped prepare is the source of truth; browser supplies no content.
- const pre=await user.rpc('iberfit_m44_prepare_evolution_report_issue_v1',{p_report_id:id});
- if(pre.error)throw pre.error;
- const src=pre.data;
+ const src=await callRpc<Prepared>(user,'iberfit_m44_prepare_evolution_report_issue_v1',{p_report_id:id});
  if(!src?.ok||src.reportId!==id||!SHA.test(src.sourceSha256)||
     src.artifactBucket!==BUCKET||src.sourceSnapshot?.reportId!==id)
   throw Error('M44_PDF_SOURCE_AUTHORIZATION_INVALID');
@@ -83,7 +99,7 @@ async function issue({user,service,actor,body}:{
   .eq('issue_request_id',requestId).maybeSingle();
  if(prior.error)throw prior.error;
  if(prior.data){
-  const previous=prior.data;
+  const previous=prior.data as Previous;
   if(previous.report_id!==id||previous.report_revision!==Number(src.sourceRevision)||
      previous.source_sha256!==src.sourceSha256||previous.status!=='issued')
    throw Error('M44_PDF_ISSUE_REPLAY_COLLISION');
@@ -114,15 +130,15 @@ async function issue({user,service,actor,body}:{
   if(actual.length!==bytes.length||(await digest(actual))!==hash)
    throw Error('M44_PDF_STORAGE_CHECKSUM_MISMATCH');
   // Only the service role may bind these verified bytes to an issuance.
-  const persisted=await service.rpc('iberfit_m44_finalize_evolution_report_issue_v1',{
+  const persisted=await callRpc<Finalized>(service,'iberfit_m44_finalize_evolution_report_issue_v1',{
    p_report_id:id,p_issue_request_id:requestId,
    p_source_revision:Number(src.sourceRevision),p_source_sha256:src.sourceSha256,
    p_artifact_path:path,p_artifact_sha256:hash,p_artifact_size_bytes:bytes.length,
    p_template_version:rendered.templateVersion,p_engine_version:VERSION,
    p_actor_user_id:actor,
   });
-  if(persisted.error||!persisted.data?.ok)throw persisted.error||Error('M44_PDF_ISSUE_FINALIZE_FAILED');
-  const record=persisted.data,canonicalPath=record.artifactPath;
+  if(!persisted.ok)throw Error('M44_PDF_ISSUE_FINALIZE_FAILED');
+  const record=persisted,canonicalPath=record.artifactPath;
   if(!canonicalPath||typeof canonicalPath!=='string')throw Error('M44_PDF_CANONICAL_PATH_MISSING');
   if(record.kind==='already-issued'&&canonicalPath!==path){
    await service.storage.from(BUCKET).remove([path]);uploaded=false;
@@ -141,9 +157,7 @@ async function open({user,service,body}:{
  body:{issuanceId?:unknown}
 }){
  const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
- const auth=await user.rpc('iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:id});
- if(auth.error)throw auth.error;
- const row=auth.data;
+ const row=await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:id});
  if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET)
   throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
  return {kind:'opened',issuanceId:id,version:row.version,
@@ -176,11 +190,11 @@ Deno.serve(async(req)=>{
    const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
    const reason=String(body.reason||'').trim();
    if(reason.length<3||reason.length>500)throw Error('M44_PDF_WITHDRAW_REASON_INVALID');
-   const response=await user.rpc('iberfit_m44_withdraw_evolution_report_pdf_v1',{
+   const response=await callRpc<Withdrawn>(user,'iberfit_m44_withdraw_evolution_report_pdf_v1',{
     p_issuance_id:id,p_reason:reason,
    });
-   if(response.error||!response.data?.ok)throw response.error||Error('M44_PDF_WITHDRAW_FAILED');
-   data=response.data;
+   if(!response.ok)throw Error('M44_PDF_WITHDRAW_FAILED');
+   data=response;
   }
   return result(200,{ok:true,version:VERSION,...data},origin);
  }catch(e){
