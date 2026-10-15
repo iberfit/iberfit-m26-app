@@ -204,3 +204,60 @@ test('M45: shell redraw restores unsent private composer without browser persist
   controller.destroy();
   assert.equal(listeners.size,0);
 });
+
+
+test('M45: a superseded preference failure never sends the old value on reconnect',async()=>{
+  const handlers=new Map();
+  const windowHandlers=new Map();
+  let rejectFirst;
+  const updates=[];
+  const root={
+    ownerDocument:{defaultView:{
+      addEventListener(name,handler){windowHandlers.set(name,handler);},
+      removeEventListener(name){windowHandlers.delete(name);},
+    }},
+    querySelector(){return null;},
+    querySelectorAll(){return [];},
+    addEventListener(name,handler){handlers.set(name,handler);},
+    removeEventListener(name){handlers.delete(name);},
+  };
+  const controller=createCommunicationController({
+    root,
+    service:{
+      notificationPreferences:{
+        async status(){return {ok:true,preferences:{}};},
+        applyRemote(){return true;},
+        update(payload){
+          updates.push({...payload});
+          if(updates.length===1)return new Promise((resolve,reject)=>{rejectFirst=reject;});
+          return Promise.resolve({ok:true,preferences:payload});
+        },
+      },
+      webPush:{async status(){return {active:false};}},
+    },
+  });
+  function send(value){
+    const control={
+      type:'checkbox',checked:value,
+      getAttribute(name){return name==='data-m26-preference'?'notifications.coachMessages':null;},
+    };
+    handlers.get('change')({target:{closest(){return control;}}});
+  }
+  controller.mount();
+  await tick();
+  send(true);
+  send(false);
+  assert.deepEqual(updates,[{coachMessages:true}]);
+  rejectFirst(new Error('network-failure'));
+  await tick();
+  await tick();
+  assert.deepEqual(updates,[{coachMessages:true},{coachMessages:false}]);
+  windowHandlers.get('online')();
+  await tick();
+  assert.equal(
+    updates.some((payload,index)=>index>1&&payload.coachMessages===true),
+    false,
+    'older value must never be resurrected on reconnection',
+  );
+  controller.destroy();
+});
