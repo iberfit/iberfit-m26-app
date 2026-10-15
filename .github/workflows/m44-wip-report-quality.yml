@@ -1,0 +1,77 @@
+name: IBERFIT M44 WIP Report Quality
+
+on:
+  push:
+    branches:
+      - feat/m44-integral-progress-reporting-ultramegabloque
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/workflows/**'
+      - 'src/m26/engagement/**'
+      - 'src/m26/publication/client-content.js'
+      - 'src/m26/app/workflow-controller.js'
+      - 'src/m26/modules/route-render.js'
+      - 'supabase/migrations/*m44*'
+      - 'tests/m44*'
+      - 'tests/m43_report_draft_safety.test.mjs'
+      - 'tests/m26_premium_automatic_reports.test.mjs'
+      - 'qa/m44/**'
+      - 'public/m26/evolution-report.css'
+      - 'playwright.m44-report.config.mjs'
+      - '.github/workflows/m44-wip-report-quality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-m44-report-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reports-contract:
+    name: M44 and M43 canonical reporting contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Execute M44 and M43 contracts
+        run: npm run test:m44:contract
+
+  report-a4-chromium:
+    name: M44 premium A4 Chromium desktop tablet mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Certify PDF and layout at three viewport sizes
+        run: npm run quality:m44:report:a4
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m44-report-a4-${{ github.run_id }}
+          path: |
+            test-results/**
+            playwright-report/**
+          if-no-files-found: warn
+          retention-days: 14
