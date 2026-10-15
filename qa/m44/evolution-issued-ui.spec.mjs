@@ -3,11 +3,12 @@ import {test,expect} from '@playwright/test';
 const CLIENT='11111111-1111-4111-8111-111111111111';
 const REPORT='22222222-2222-4222-8222-222222222222';
 const ISSUED='33333333-3333-4333-8333-333333333333';
-const PDF='https://gjztkdwfmunnzhtvxrsu.supabase.co/storage/v1/object/sign/iberfit-evolution-issued-reports/qa.pdf?token=synthetic';
+const PDF='blob:https://m26-canary.iberfit.cl/qa-authenticated-pdf';
+const HASH='f'.repeat(64);
 
 async function mount(page,role){
   await page.goto('/qa/rc64/fixture.html');
-  await page.evaluate(async ({role,client,report,issuance,url})=>{
+  await page.evaluate(async ({role,client,report,issuance,url,hash})=>{
     const {createWorkflowController}=await import('/src/m26/app/workflow-controller.js');
     const root=document.createElement('section');
     root.id='m44-issued-qa-root';
@@ -28,7 +29,8 @@ async function mount(page,role){
       },
     };
     const calls=[],opens=[];
-    const origOpen=window.open;
+    const origOpen=window.open,origBlobUrl=URL.createObjectURL;
+    URL.createObjectURL=blob=>{if(blob.type!=='application/pdf')throw Error('M44_QA_NOT_PDF');return url;};
     window.open=()=>{
       const popup={closed:false,location:{replace:x=>opens.push(x)},
         close(){this.closed=true;}};
@@ -40,13 +42,18 @@ async function mount(page,role){
       catalog:[],mediaMap:{},isOnline:()=>true,
       issueEvolutionReport:async id=>{
         calls.push(['issue',id]);
-        return {signedUrl:url,version:1};
+        return {issuanceId:issuance,sha256:hash,delivery:'authenticated-pdf',version:1};
       },
       getLatestEvolutionPdf:async id=>{
-        calls.push(['latest',id]);return {signedUrl:url,version:1};
+        calls.push(['latest',id]);return {issuanceId:issuance,sha256:hash,delivery:'authenticated-pdf',version:1};
       },
       openEvolutionPdfById:async id=>{
-        calls.push(['open',id]);return {signedUrl:url,version:1};
+        calls.push(['open',id]);return {issuanceId:issuance,sha256:hash,delivery:'authenticated-pdf',version:1};
+      },
+      downloadEvolutionPdf:async(id,actualHash)=>{
+        if(actualHash!==hash)throw Error('M44_QA_HASH_MISMATCH');
+        calls.push(['download',id]);
+        return new Blob(['%PDF-1.7\\n'+('x'.repeat(1100))],{type:'application/pdf'});
       },
       getEvolutionPdfHistory:async id=>{
         calls.push(['history',id]);
@@ -58,8 +65,8 @@ async function mount(page,role){
       },
     });
     workflow.mount();
-    window.__m44Fixture={calls,opens,workflow,state,restore:()=>{workflow.destroy();window.open=origOpen;}};
-  },{role,client:CLIENT,report:REPORT,issuance:ISSUED,url:PDF});
+    window.__m44Fixture={calls,opens,workflow,state,restore:()=>{workflow.destroy();window.open=origOpen;URL.createObjectURL=origBlobUrl;}};
+  },{role,client:CLIENT,report:REPORT,issuance:ISSUED,url:PDF,hash:HASH});
 }
 async function log(page){return page.evaluate(()=>({
   calls:window.__m44Fixture.calls,
@@ -69,7 +76,7 @@ async function log(page){return page.evaluate(()=>({
 test('M44 Coach can issue, open existing PDF, read version history and withdraw with reason',async({page})=>{
   await mount(page,'coach');
   await page.getByRole('button',{name:'Emitir PDF'}).click();
-  await expect.poll(async()=> (await log(page)).calls.length).toBe(1);
+  await expect.poll(async()=> (await log(page)).calls.length).toBe(2);
   await page.getByRole('button',{name:'Historial'}).click();
   await expect(page.locator('[data-m44-version-row]')).toHaveCount(1);
   await page.getByRole('button',{name:'Abrir PDF',exact:true}).last().click();
@@ -79,6 +86,7 @@ test('M44 Coach can issue, open existing PDF, read version history and withdraw 
   await expect.poll(async()=> (await log(page)).calls.some(x=>x[0]==='withdraw')).toBe(true);
   const entries=(await log(page)).calls;
   expect(entries).toContainEqual(['issue',REPORT]);
+  expect(entries.filter(x=>x[0]==='download')).toHaveLength(2);
   expect(entries).toContainEqual(['history',REPORT]);
   expect(entries).toContainEqual(['open',ISSUED]);
   expect(entries).toContainEqual(['withdraw',ISSUED,'Versión corregida por el Coach']);
