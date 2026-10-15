@@ -186,6 +186,31 @@ async function open({user,service,body}:{
   artifactSha256:row.artifactSha256,signedUrl:await signed(service,row.artifactPath),
   expiresIn:120};
 }
+async function latest({user,service,body}:{
+ user:BrokerClient;
+ service:BrokerClient;
+ body:{reportId?:unknown}
+}){
+ const id=uuid(body.reportId,'M44_PDF_REPORT_ID_INVALID');
+ // The service may find the candidate but ONLY the user-scoped authorization
+ // RPC may release the row. No client can enumerate private ledger entries.
+ const found=await service.from('iberfit_evolution_report_issuances_v1')
+  .select('id')
+  .eq('report_id',id)
+  .eq('status','issued')
+  .order('issued_at',{ascending:false})
+  .limit(1).maybeSingle();
+ if(found.error)throw found.error;
+ if(!found.data?.id)throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
+ const row=await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{
+  p_issuance_id:found.data.id,
+ });
+ if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET)
+  throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
+ return {kind:'latest-issued',issuanceId:found.data.id,version:row.version,
+  artifactSha256:row.artifactSha256,
+  signedUrl:await signed(service,row.artifactPath),expiresIn:120};
+}
 Deno.serve(async(req)=>{
  const origin=String(req.headers.get('origin')||'').trim().toLowerCase();
  if(!appOrigin||!allowed.has(origin))return result(403,{ok:false,code:'M44_PDF_ORIGIN_FORBIDDEN'},origin);
@@ -200,7 +225,7 @@ Deno.serve(async(req)=>{
   const body=JSON.parse(raw);
   if(!body||typeof body!=='object'||Array.isArray(body))throw Error('M44_PDF_BODY_INVALID');
   const action=String(body.action||'');
-  if(!['issue','open','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
+  if(!['issue','open','latest','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
   const {user,service}=clients(bearer);
   const auth=await user.auth.getUser(bearer.slice(7).trim());
   if(auth.error||!UUID.test(auth.data?.user?.id||''))throw Error('M44_PDF_AUTH_REQUIRED');
@@ -208,6 +233,7 @@ Deno.serve(async(req)=>{
   let data;
   if(action==='issue')data=await issue({user,service,actor,body});
   else if(action==='open')data=await open({user,service,body});
+  else if(action==='latest')data=await latest({user,service,body});
   else{
    const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
    const reason=String(body.reason||'').trim();

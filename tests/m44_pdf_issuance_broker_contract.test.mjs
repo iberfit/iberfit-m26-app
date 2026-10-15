@@ -31,3 +31,18 @@ test('M44 lost ACK after database finalization can never delete the issued immut
  assert.doesNotMatch(t,/if\(uploaded\)await service\.storage\.from\(BUCKET\)\.remove/);
  assert.match(t,/issueRequestId/);
 });
+
+
+test('M44 latest PDF version is selected server-side but only released through user-scoped authorization',async()=>{
+ const text=await source();
+ const start=text.indexOf('async function latest(');
+ const end=text.indexOf('Deno.serve(',start);
+ assert.ok(start>0&&end>start);
+ const method=text.slice(start,end);
+ assert.match(method,/\.eq\('report_id',id\)/);
+ assert.match(method,/\.eq\('status','issued'\)/);
+ assert.match(method,/callRpc<Access>\(user,'iberfit_m44_authorize_evolution_report_pdf_v1'/);
+ assert.match(method,/M44_PDF_ISSUANCE_NOT_AVAILABLE/);
+ assert.match(text,/else if\(action==='latest'\)data=await latest/);
+ assert.doesNotMatch(method,/service\.storage\.from\(BUCKET\)\.download/);
+});
