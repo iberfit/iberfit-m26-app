@@ -36,3 +36,9 @@ The M44 branch workflow runs npm run test:m44:contract and npm run quality:m44:r
 ## Edge PDF emisor WIP
 - Broker Supabase Edge `iberfit-evolution-report-emission-v1` renderiza datos únicamente tras RPC `prepare`, verifica SHA-256 del PDF en Storage mediante descarga de lectura, finaliza como service_role y entrega URL temporal de 120 segundos. El Cliente puede abrir solo artefactos autorizados y no retirados.
 - CI hermética incorpora `deno check` y prueba de PDF real sobre datos sintéticos con 12 evidencias, 13 periodos y texto extenso. Esto certifica bytes y paginación del motor, pero NO sustituye el despliegue y ensayo QA de Storage y sesión real.
+
+## M44 PDF emitido: historial seguro e inmutabilidad (15/10/2026)
+- El backend añade consulta de versiones autorizada por RPC y nunca revela rutas de Storage al navegador. QA transaccional con ROLLBACK verifica dos versiones, una retirada; Admin ve ambas, Cliente ve solo la vigente, usuario ajeno recibe denegación.
+- La publicación y el PDF oficial filtran incluso claves privadas anidadas en evidencia y series temporales. QA transaccional verifica ausencia de filtración.
+- El libro de emisión se hace append-only; únicamente la transición `issued -> withdrawn` puede alterar estado y auditoría, nunca hashes, propietario, versión ni instantánea. Pendiente ensayo SQL negativo antes de desplegar.
+- No promocionar a QA/PROD hasta disponer de prueba Edge real de upload/download/commit/open/revoke bajo identidades distintas y gate visual del PDF emitido.
