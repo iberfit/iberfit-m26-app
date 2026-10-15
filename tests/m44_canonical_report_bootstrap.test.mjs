@@ -59,3 +59,13 @@ test('M44 server guard rejects absent evidence/role/type fields rather than trea
   const report=await get('src/m26/workflows/report-workflow.js');
   assert.match(report,/normalized\.reviewAccepted=true/);
 });
+
+
+test('M44 every canonical draft creation writes a server-side audit event without publishing',async()=>{
+  const sql=await get('supabase/migrations/20261015141000_m44_report_canonical_draft_bootstrap_v1.sql');
+  assert.match(sql,/insert into public\.domain_events_v26/);
+  assert.match(sql,/INFORME_CREAR_BORRADOR_M44/);
+  assert.match(sql,/'applied',null,'borrador'/);
+  assert.match(sql,/evidenceSignature/);
+  assert.doesNotMatch(sql,/'applied',null,'publicado'/);
+});

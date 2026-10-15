@@ -183,6 +183,18 @@ begin
     v_body,'borrador',1,v_actor
   );
   perform public.iberfit_persist_entity_v26('report',p_report_id,p_client_id,'borrador',1,v_body);
+  -- Durable provenance for each first creation, linked to the actor and client.
+  -- Publishing still requires the original canonical INFORME_APROBAR/PUBLICAR commands.
+  insert into public.domain_events_v26(
+    operation_id,command_type,entity_type,entity_id,client_id,
+    actor_user_id,actor_role,phase,from_status,to_status,
+    base_revision,remote_revision,details
+  ) values (
+    gen_random_uuid(),'INFORME_CREAR_BORRADOR_M44','report',p_report_id,p_client_id,
+    v_actor,v_role,'applied',null,'borrador',
+    0,1,jsonb_build_object('reportType',v_type,'sourceType',v_source_type,
+      'evidenceSignature',p_draft->>'evidenceSignature','private',true)
+  );
   return jsonb_build_object('ok',true,'kind','created','entityId',p_report_id,'remoteRevision',1);
 end
 $function$;
