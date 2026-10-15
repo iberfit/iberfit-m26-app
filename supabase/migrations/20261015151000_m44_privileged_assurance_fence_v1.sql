@@ -27,7 +27,9 @@ BEGIN
   THEN RAISE EXCEPTION 'M44_PRIVILEGED_ROLE_REQUIRED' USING errcode='42501'; END IF;
   v_context:=public.iberfit_privileged_assurance_context_v65d();
   IF v_context->>'iberfitAssurance' IS DISTINCT FROM 'verified'
-     OR v_context->>'privilegedRole' IS DISTINCT FROM v_role
+     OR coalesce((v_context->>'privileged')::boolean,false) IS DISTINCT FROM true
+     -- Dual-role accounts may have active Coach while assurance correctly
+     -- resolves the strongest authorized application role as Admin.
      OR coalesce(v_context->>'origin','') NOT IN
       ('https://m26-canary.iberfit.cl','https://app.iberfit.cl','https://coach.iberfit.cl')
      OR nullif(v_context->>'verifiedAt','') IS NULL
