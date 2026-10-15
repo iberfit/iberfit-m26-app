@@ -533,6 +533,10 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const role=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
     // Leaving messaging or changing role invalidates in-memory private drafts.
     if(role!==activeCommunicationRole){
+      pushStatusGeneration+=1;
+      pushStatusInFlight=null;
+      lastPushControl=null;
+      lastPushSyncAt=0;
       pendingMessageDrafts.clear();
       messageRetryFence.clear();
       conversationSearch='';
