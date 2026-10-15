@@ -39,7 +39,10 @@ test('M44 only trusted broker may finalize PDFs, with actor-scoped server-derive
  assert.match(source,/current_setting\('request\.jwt\.claim\.role',true\)/);
  assert.match(source,/p_actor_user_id uuid/);
  assert.match(source,/GRANT EXECUTE ON FUNCTION public\.iberfit_m44_finalize_evolution_report_issue_v1\([\s\S]*?\) TO service_role/);
- assert.doesNotMatch(source,/GRANT EXECUTE ON FUNCTION public\.iberfit_m44_finalize_evolution_report_issue_v1\([\s\S]*?\) TO authenticated/);
+ const finalizeGrant=source.split('\n').filter(line=>line.startsWith('GRANT EXECUTE ON FUNCTION public.iberfit_m44_finalize_evolution_report_issue_v1('));
+ assert.equal(finalizeGrant.length,1);
+ assert.ok(finalizeGrant[0].endsWith(' TO service_role;'));
+ assert.equal(finalizeGrant.some(line=>line.endsWith(' TO authenticated;')),false);
  assert.match(source,/v_source_hash:=encode\(sha256\(convert_to\(v_source::text,'UTF8'\)\),'hex'\)/);
  assert.match(source,/client_assignments a/);
 });
