@@ -112,9 +112,9 @@ test('M44 histogram shows actual period dates and numeric scale, not just hover 
     {from:'2026-10-13',to:'2026-10-15',count:2},
   ]}});
   assert.match(html,/class="m44-activity-date"/);
-  assert.match(html,/10\\/09/);
-  assert.match(html,/10\\/11/);
-  assert.match(html,/10\\/13/);
+  assert.match(html,/10\/09/);
+  assert.match(html,/10\/11/);
+  assert.match(html,/10\/13/);
   assert.match(html,/Escala vertical desde 0 hasta 2 sesiones confirmadas/);
   assert.match(html,/Detalle accesible del ritmo de entrenamiento/);
 });
