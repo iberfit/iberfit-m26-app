@@ -361,3 +361,47 @@ test('M45 conversation empty copy does not promise an immediate response',async(
   ]});
   assert.match(thread,/no garantiza respuesta inmediata/);
 });
+
+
+test('M45 same-role account switch clears unsent private drafts and operation identity',async()=>{
+  const handlers=new Map();
+  const old=composer('thread-a','Borrador confidencial de la cuenta A',{focused:true});
+  const fresh=composer('thread-a','',{open:false});
+  old.textarea.closest=(selector)=>selector==='[data-communication-form="message-send"]'?old.form:null;
+  let shown=old;
+  let identity='account-A';
+  const root={
+    ownerDocument:{defaultView:null,activeElement:old.textarea},
+    querySelector(selector){
+      if(selector==='[data-communication-role]')return {
+        dataset:{communicationRole:'coach',communicationIdentity:identity},
+      };
+      return null;
+    },
+    querySelectorAll(selector){
+      return selector==='[data-communication-form="message-send"]'?[shown.form]:[];
+    },
+    addEventListener(name,fn){handlers.set(name,fn);},
+    removeEventListener(name){handlers.delete(name);},
+  };
+  const controller=createCommunicationController({root,service:{webPush:{async status(){return {};}}}});
+  controller.mount();
+  handlers.get('input')({target:old.textarea});
+  identity='account-B';
+  shown=fresh;
+  handlers.get('m26:shell-rendered')();
+  assert.equal(fresh.textarea.value,'','another Coach account must never see the draft');
+  assert.equal(fresh.detail.open,false);
+  controller.destroy();
+});
+
+test('M45 private communication route carries escaped account identity scope',async()=>{
+  const {renderCommunicationRoute}=await import('../src/m26/communication/route-render.js');
+  const html=renderCommunicationRoute({
+    communication:true,kind:'communication',role:'coach',
+    communicationIdentityScope:'account-"A"&B',threads:[],notifications:[],
+    clients:[],canOpenThread:false,
+  });
+  assert.match(html,/data-communication-identity="account-&quot;A&quot;&amp;B"/);
+  assert.doesNotMatch(html,/data-communication-identity="account-"A"&B"/);
+});
