@@ -238,7 +238,8 @@ jobs:
           echo 'IBERFIT_PROD_SCHEMA_SNAPSHOT_ONLY_NOT_RESTORABLE'
           echo '::warning::IBERFIT production has no verified managed backup; this catalog snapshot is NOT a recoverable database copy.'
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-            printf '%s\\n' '### IBERFIT PROD recovery NOT certified' 'Only structural metadata was captured. NO database row, Auth or Storage restoration was verified. Production migrations remain blocked.' >> "$GITHUB_STEP_SUMMARY"
+            echo '### IBERFIT PROD recovery NOT certified' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Only structural metadata was captured. NO database row, Auth or Storage restoration was verified. Production migrations remain blocked.' >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ "${{ steps.diff.outputs.has_migration_changes }}" = 'true' ]; then
             echo 'IBERFIT_PROD_MIGRATION_BLOCKED_FULL_BACKUP_NOT_VERIFIED' >&2
