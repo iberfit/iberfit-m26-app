@@ -24,7 +24,7 @@ function pushControl(){
 }
 function rootHarness(){
   const listeners=new Map(),windowListeners=new Map();
-  let current=pushControl(),role='coach';
+  let current=pushControl(),role='coach',identity='account-A';
   const root={
     ownerDocument:{defaultView:{
       addEventListener(name,listener){windowListeners.set(name,listener);},
@@ -32,7 +32,7 @@ function rootHarness(){
     }},
     querySelector(selector){
       if(selector==='[data-m26-web-push-control]')return current;
-      if(selector==='[data-communication-role]'&&role)return {dataset:{communicationRole:role}};
+      if(selector==='[data-communication-role]'&&role)return {dataset:{communicationRole:role,communicationIdentity:identity}};
       return null;
     },
     querySelectorAll(){return [];},
@@ -44,6 +44,7 @@ function rootHarness(){
     getControl:()=>current,
     swapControl(){current=pushControl();return current;},
     setRole(value){role=value;},
+    setIdentity(value){identity=value;},
   };
 }
 
@@ -225,5 +226,55 @@ test('M45 old account reconnect response never rerenders after identity transiti
   remote.resolve({ok:true});
   await tick();
   assert.equal(renders,0,'stale Coach reload cannot paint the Client view');
+  controller.destroy();
+});
+
+
+test('M45 same-role identity switch fences stale web push result and preference queue',async()=>{
+  const h=rootHarness(),statusA=deferred(),statusB=deferred(),saveA=deferred();
+  const snapshots=[],writes=[];
+  let pushCalls=0;
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{
+      webPush:{
+        status(){
+          pushCalls++;
+          return pushCalls===1?statusA.promise:statusB.promise;
+        },
+      },
+      notificationPreferences:{
+        update(payload){
+          writes.push({...payload});
+          return writes.length===1?saveA.promise:Promise.resolve({ok:true});
+        },
+      },
+    },
+  });
+  controller.mount();
+  await tick();
+  const checkbox=(value)=>({
+    type:'checkbox',checked:value,
+    getAttribute(name){return name==='data-m26-preference'?'notifications.coachMessages':null;},
+  });
+  const change=(value)=>h.listeners.get('change')({
+    target:{closest(){return checkbox(value);}},
+  });
+  change(true);
+  change(false);
+  const previous=h.getControl();
+  h.setIdentity('account-B');
+  const next=h.swapControl();
+  h.listeners.get('m26:shell-rendered')();
+  await tick();
+  statusA.resolve({active:true});
+  saveA.resolve({ok:true});
+  await tick();
+  await tick();
+  assert.deepEqual(writes,[{coachMessages:true}], 'old account queue must be cancelled');
+  assert.equal(previous.dataset.m26WebPushActive,undefined);
+  statusB.resolve({active:false});
+  await tick();
+  assert.equal(next.dataset.m26WebPushActive,'false');
   controller.destroy();
 });
