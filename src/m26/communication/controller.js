@@ -176,6 +176,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let preferenceGeneration=0;
   // Ephemeral in-memory only: never persist private message drafts to storage.
   const pendingMessageDrafts=new Map();
+  const messageEditRevisions=new Map();
   const messageRetryFence=createMessageRetryFence();
   let activeCommunicationRole=null;
   let activeCommunicationIdentity=null;
@@ -257,6 +258,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     // The domain refresh may replace the shell before execute resolves.
     // Preserve other unsent composers *before* crossing the network boundary.
     rememberVisibleDrafts();
+    const sentThread=String(input.entityId||'');
+    const sentRevision=messageEditRevisions.get(sentThread)||0;
     let confirmed=false;
     try{
       const result=await service.execute(input);
@@ -268,10 +271,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       // snapshots are not allowed to overwrite newly composed messages.
       rememberVisibleDrafts();
       if(input.type==='MESSAGE_SEND'){
-        const sentThread=String(input.entityId||'');
         const sentBody=String(input.payload?.body||'').trim();
         const latest=pendingMessageDrafts.get(sentThread);
-        if(!latest?.body||String(latest.body).trim()===sentBody){
+        // A new input event is a new draft even if the user types the exact
+        // same text as the message being acknowledged.
+        const editedSinceSend=(messageEditRevisions.get(sentThread)||0)!==sentRevision;
+        if(!editedSinceSend&&(!latest?.body||String(latest.body).trim()===sentBody)){
           pendingMessageDrafts.delete(sentThread);
           clearLiveMessageComposer(sentThread,sentBody);
         }
@@ -548,6 +553,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     }
     const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
     if(!threadId)return;
+    messageEditRevisions.set(threadId,(messageEditRevisions.get(threadId)||0)+1);
     const draft=captureMessageDraft(form,root)?.[1];
     if(draft?.body)pendingMessageDrafts.set(threadId,draft);
     else pendingMessageDrafts.delete(threadId);
@@ -647,12 +653,15 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       queuedPreferencePayload=null;
       retryPreferencePayload=null;
       for(const key of Object.keys(explicitPreferenceChoices))delete explicitPreferenceChoices[key];
+      lastPreferenceSignature='';
+      lastPreferenceSyncAt=0;
       pushStatusGeneration+=1;
       pushStatusInFlight=null;
       pushBusy=false;
       lastPushControl=null;
       lastPushSyncAt=0;
       pendingMessageDrafts.clear();
+      messageEditRevisions.clear();
       messageRetryFence.clear();
       conversationSearch='';
       onlyUnreadConversations=false;
@@ -724,10 +733,13 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       conversationSearch='';
       onlyUnreadConversations=false;
       pendingMessageDrafts.clear();
+      messageEditRevisions.clear();
       messageRetryFence.clear();
       queuedPreferencePayload=null;
       retryPreferencePayload=null;
       for(const key of Object.keys(explicitPreferenceChoices))delete explicitPreferenceChoices[key];
+      lastPreferenceSignature='';
+      lastPreferenceSyncAt=0;
     },
   });
 }
