@@ -76,7 +76,11 @@ test('communication and admin DOM handlers consume rejected operations',async()=
   ]);
 
   assert.match(communication,/function onSubmitEvent\(event\)\{void onSubmit\(event\)\.catch/u);
-  assert.match(communication,/finally\{\s*busy=false;\s*\}/u);
+  // M45 uses a generation-owned lock: clearing an older operation must not
+  // unlock a new account's in-flight mutation after a role/identity transition.
+  assert.match(communication,/function releaseBusy\\(version\\)\\{/u);
+  assert.match(communication,/if\\(busyVersion===version\\)busy=false;/u);
+  assert.match(communication,/finally\\{[\\s\\S]*?releaseBusy\\(operation\\);/u);
   assert.doesNotMatch(communication,/catch\(error\)\{[^}]*throw error/u);
 
   assert.match(admin,/function onSubmitEvent\(event\)/u);
