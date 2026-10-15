@@ -40,14 +40,29 @@ function safeClass(value){
 const clockInSantiago=new Intl.DateTimeFormat('en-GB',{
   timeZone:RC62_AGENDA_TIME_ZONE,hour:'2-digit',hourCycle:'h23',
 });
+const dayInSantiago=new Intl.DateTimeFormat('en-CA',{
+  timeZone:RC62_AGENDA_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',
+});
+function agendaLocalHour(value){
+  const date=value?new Date(value):null;
+  if(!date||!Number.isFinite(date.getTime()))return null;
+  const hour=Number(clockInSantiago.formatToParts(date).find((part)=>part.type==='hour')?.value);
+  return Number.isInteger(hour)&&hour>=0&&hour<24?hour:null;
+}
 export function agendaVisibleHourWindow(events=[]){
   let min=6,max=22;
   for(const event of Array.isArray(events)?events:[]){
-    for(const value of [event?.start,event?.end]){
-      const time=value?new Date(value):null;
-      if(!time||!Number.isFinite(time.getTime()))continue;
-      const hour=Number(clockInSantiago.formatToParts(time).find((part)=>part.type==='hour')?.value);
-      if(!Number.isInteger(hour)||hour<0||hour>23)continue;
+    const start=event?.start?new Date(event.start):null;
+    const end=event?.end?new Date(event.end):null;
+    const midnightEnd=start&&end&&Number.isFinite(start.getTime())&&
+      Number.isFinite(end.getTime())&&end>start&&
+      agendaLocalHour(end)===0&&dayInSantiago.format(start)!==dayInSantiago.format(end);
+    for(const [kind,value] of [['start',event?.start],['end',event?.end]]){
+      const hour=agendaLocalHour(value);
+      if(hour===null)continue;
+      // End at next-day 00:00 is the previous day's 24:00 boundary.
+      // Do not force the whole week to begin at 00:00 for that one endpoint.
+      if(kind==='end'&&midnightEnd){max=24;continue;}
       if(hour<6)min=Math.min(min,Math.max(0,hour-1));
       if(hour>=22)max=Math.max(max,Math.min(24,hour+2));
     }
