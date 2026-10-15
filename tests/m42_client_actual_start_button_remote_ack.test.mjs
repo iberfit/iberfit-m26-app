@@ -12,7 +12,7 @@ const session={
   blocks:[{id:'run-block',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',sets:1,
     restSeconds:0,targetRpe:5,targetRir:0,plannedDurationMinutes:48}],
 };
-function fixture({throwPersist=true,remoteAck=true}={}){
+function fixture({throwPersist=true,remoteAck=true,appointmentId=null}={}){
   const handlers=new Map(),calls=[],errors=[];
   const button={disabled:false,
     attrs:new Map([['data-session-action','start']]),
@@ -42,7 +42,7 @@ function fixture({throwPersist=true,remoteAck=true}={}){
   };
   const context={execution,session,actionState:state,actor:{role:'client',clientId,id:'client-user'},
     commandBus:bus,recoveryCoordinator:recovery,catalog:{get(){return null;}},
-    online:true,sessionRevision:2,appointmentId:null};
+    online:true,sessionRevision:2,appointmentId};
   const inert={addEventListener(){},removeEventListener(){}};
   const controller=createSessionController({root,getContext:()=>context,render(){},onError:e=>errors.push(e),
     liveTelemetryController:{start(){},pause(){},resume(){},stop(){}},
@@ -75,5 +75,17 @@ test('M42 rejected remote start is not treated as success or locally active',asy
   assert.equal(f.execution.status,'ready');
   assert.equal(f.execution.events.length,0);
   assert.match(f.state.message,/última revisión/i);
+  f.controller.destroy();
+});
+
+test('M42 autonomous Client start excludes any stale or unrelated confirmed appointment ID',async()=>{
+  const f=fixture({throwPersist:false,appointmentId:'10000000-0000-4000-8000-000000000399'});
+  f.controller.mount();
+  await f.handlers.get('click')(f.event);
+  assert.equal(f.calls.length,1);
+  assert.equal(f.calls[0].type,'SESION_INICIAR');
+  assert.equal(f.calls[0].payload.appointmentId,undefined,
+    'a guided-in-app start must not be turned into a supervised appointment start');
+  assert.equal(f.execution.status,'active');
   f.controller.destroy();
 });
