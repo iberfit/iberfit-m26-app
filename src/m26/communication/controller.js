@@ -107,6 +107,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let preferenceHydrationInFlight=null;
   let queuedPreferencePayload=null;
   let retryPreferencePayload=null;
+  const explicitPreferenceChoices=Object.create(null);
   let lastPreferenceSignature='';
   let lastPreferenceSyncAt=0;
   const windowLike=root?.ownerDocument?.defaultView||globalThis.window||null;
@@ -213,7 +214,14 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
         lastPreferenceSyncAt=Date.now();
         return true;
       }catch(error){
-        retryPreferencePayload=mergePreferencePayload(retryPreferencePayload,normalized);
+        // A failed older request must never requeue a value that the user has
+        // already changed again while the request was in flight.
+        const stillCurrent=Object.fromEntries(
+          Object.entries(normalized).filter(([key,value])=>
+            !Object.hasOwn(explicitPreferenceChoices,key)||explicitPreferenceChoices[key]===value
+          )
+        );
+        retryPreferencePayload=mergePreferencePayload(retryPreferencePayload,stillCurrent);
         if(announceFailure)toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Preferencia guardada en este dispositivo. Se sincronizará al recuperar la conexión.':'Preferencia guardada en este dispositivo. IBERFIT volverá a intentar sincronizarla.');
         return false;
       }finally{
@@ -233,6 +241,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   async function hydrateNotificationPreferences({force=false}={}){
     if(!service?.notificationPreferences?.status)return false;
+    // The server can momentarily be behind local explicit writes.
+    if(preferenceSyncInFlight||queuedPreferencePayload||retryPreferencePayload)return false;
     if(preferenceHydrationInFlight&&!force)return preferenceHydrationInFlight;
     const requestedGeneration=preferenceGeneration;
     preferenceHydrationInFlight=(async()=>{
@@ -331,6 +341,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const payload=preferencePayloadFromControl(event.target?.closest?.('[data-m26-preference]'));
     if(!payload)return;
     preferenceGeneration+=1;
+    Object.assign(explicitPreferenceChoices,payload);
     void syncNotificationPreferences(payload,{force:true,announceFailure:true});
   }
   function onShellRendered(){
@@ -381,6 +392,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       messageRetryFence.clear();
       queuedPreferencePayload=null;
       retryPreferencePayload=null;
+      for(const key of Object.keys(explicitPreferenceChoices))delete explicitPreferenceChoices[key];
     },
   });
 }
