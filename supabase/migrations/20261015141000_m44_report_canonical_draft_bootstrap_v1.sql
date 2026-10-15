@@ -40,6 +40,19 @@ begin
   then
     raise exception 'M44_REPORT_IDENTITY_INVALID' using errcode='22023';
   end if;
+  -- Explicit document schema and bounded payload. Never persist arbitrary
+  -- keys from a browser even if its authenticated actor is a Coach.
+  if octet_length(p_draft::text)>32768
+     or (p_draft - array[
+       'id','clientId','assessmentId','title','periodStart','periodEnd',
+       'summary','conclusions','recommendations','format','visibility',
+       'singleReport','status','visibleToClient','reportType','coachComment',
+       'evidence','dataPolicy','reviewAccepted','reportModelVersion',
+       'sourceType','sourceId','evidenceSignature','activitySeries'
+     ]::text[])<>'{}'::jsonb
+  then
+    raise exception 'M44_REPORT_PAYLOAD_SCHEMA_OR_SIZE_INVALID' using errcode='22023';
+  end if;
   v_type := p_draft->>'reportType';
   if coalesce(v_type,'') not in ('post-session','weekly','monthly','quarterly','year-in-iberfit') then
     raise exception 'M44_REPORT_TYPE_NOT_SUPPORTED' using errcode='22023';

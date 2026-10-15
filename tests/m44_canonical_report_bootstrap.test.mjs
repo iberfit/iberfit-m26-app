@@ -78,3 +78,14 @@ test('M44 report RPC refuses forged initial-IRI references and unsupported model
   assert.match(sql,/reportModelVersion' is distinct from 'iri2-premium-report-v1'/);
   assert.match(sql,/assessmentId/);
 });
+
+
+test('M44 private report RPC rejects oversized and extra-field payloads before persistence',async()=>{
+  const sql=await get('supabase/migrations/20261015141000_m44_report_canonical_draft_bootstrap_v1.sql');
+  assert.match(sql,/octet_length\(p_draft::text\)>32768/);
+  assert.match(sql,/p_draft - array\[/);
+  assert.match(sql,/M44_REPORT_PAYLOAD_SCHEMA_OR_SIZE_INVALID/);
+  for(const key of ['activitySeries','evidenceSignature','coachComment','reportModelVersion']){
+    assert.match(sql,new RegExp("'"+key+"'"));
+  }
+});
