@@ -181,3 +181,10 @@ test('only the atomic canonical lifecycle widening is data safe',()=>{
   ])assert.ok(findDestructiveSql(unsafe).includes('DROP_CONSTRAINT'),unsafe);
   assert.ok(findDestructiveSql(lifecycleExpansion+' drop table public.clients;').includes('DROP_TABLE'));
 });
+
+test('data safety gate distinguishes tightening TRUNCATE privileges from executing TRUNCATE',()=>{
+ assert.deepEqual(findDestructiveSql('revoke truncate on all tables in schema public from anon, authenticated;'),[]);
+ assert.deepEqual(findDestructiveSql('revoke truncate on table public.reports from authenticated; TRUNCATE TABLE public.reports;'),['TRUNCATE']);
+ assert.deepEqual(findDestructiveSql('begin; truncate public.reports; commit;'),['TRUNCATE']);
+ assert.deepEqual(findDestructiveSql('drop trigger dangerous on public.clients;'),['DROP_TRIGGER']);
+});

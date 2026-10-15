@@ -40,7 +40,7 @@ function stateFixture(){
         {id:'A1',clientId:CLIENT,scheduledAt:`${day(2)}T10:00:00.000Z`,status:'completed'},
         {id:'A2',clientId:CLIENT,scheduledAt:`${day(9)}T10:00:00.000Z`,status:'completed'},
         {id:'A3',clientId:CLIENT,scheduledAt:`${day(16)}T10:00:00.000Z`,status:'completed'},
-        {id:'A4',clientId:CLIENT,scheduledAt:`${day(23)}T10:00:00.000Z`,status:'planned'},
+        {id:'A4',clientId:CLIENT,scheduledAt:`${day(23)}T10:00:00.000Z`,status:'confirmada'},
       ],
       sessionExecutions:[],
       checkins:[],

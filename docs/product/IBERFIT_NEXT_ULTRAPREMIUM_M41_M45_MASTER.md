@@ -183,3 +183,7 @@ Fallo real comunicado: pantalla Coach, sesión «SESIÓN Carrera», 45 min, avis
 IBERFIT NEXT termina cuando **cada capacidad anterior está integrada** en la app real, sin regresiones significativas, con calidad visual y UX verificadas en todas las plataformas, roles separados, historia real de progreso, errores precisos y publicación segura. El objetivo no es apariencia por sí sola: **claridad, criterio, calidez humana, rendimiento, trazabilidad, continuidad y la sensación de estar atendido por un equipo excepcional.**
 
 > Regla permanente aprobada: **mejorar sin degradar, evolucionar sin duplicar, y no confundir código terminado con producción ni con experiencia certificada.**
+
+
+## 6 bis. Radar operativo e innovación del 15/10/2026
+El documento transversal docs/product/IBERFIT_20261015_INTEGRATED_AUDIT_AND_INNOVATION.md fija puertas de seguridad y las nuevas oportunidades sin duplicarlas. P0 #941: aceptar PWA Windows Coach/Admin; no confundir corrección productiva con aceptación contextual. Después certificar M44, M45/Connected 360 y, posteriormente, Continuidad 360 (alternativas aprobadas por Coach sobre el constructor existente, sin equivalencia ficticia). Conexión automática wearable independiente del proveedor, con frescura/coste/consentimiento. Dictado supervisado y actividad breve voluntaria se consideran experimentos posteriores; no promesas ni módulos a duplicar.

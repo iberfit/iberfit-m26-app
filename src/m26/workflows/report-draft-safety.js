@@ -5,8 +5,22 @@ const FINAL_STATUSES=new Set(['aprobado','approved','publicado','published','arc
 const DRAFT_STATUSES=new Set(['borrador','draft']);
 const FIELDS=['title','assessmentId','periodStart','periodEnd','summary','conclusions','recommendations',
   'reportType','coachComment','evidenceSignature','reportModelVersion',
-  'sourceAssessmentId','sourceAssessmentRevision'];
-const value=(record,key)=>record?.[key]??record?.body?.[key]??null;
+  'sourceAssessmentId','sourceAssessmentRevision','sourceType','sourceId','dataPolicy','activitySeries'];
+// Supabase returns reports through public.reports with report-specific values
+// in its content JSONB column. M26 domain snapshots instead use body JSONB.
+// Both paths must preserve the same revision/identity and replay semantics.
+const value=(record,key)=>record?.[key]??record?.body?.[key]??record?.content?.[key]??null;
+// PostgreSQL JSONB does not preserve JavaScript object key insertion order.
+// Canonicalize keys recursively to avoid false version conflicts after reload.
+function canonicalJson(value){
+  if(Array.isArray(value))return value.map(canonicalJson);
+  if(value&&typeof value==='object'){
+    return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalJson(value[key])]));
+  }
+  return value;
+}
+const canonical=(value)=>value===null||value===undefined?'':typeof value==='object'
+  ?JSON.stringify(canonicalJson(value)):String(value).trim();
 
 export function reportDraftScope(entityId){
   const id=String(entityId||'').trim();
@@ -30,13 +44,15 @@ export async function restoreReportDraft(repository,clientId,assessmentId,entity
   if(scope){
     const current=await repository.load(clientId,scope);
     if(current){
-      if(String(current.value?.id||'')!==String(entityId)||String(current.value?.assessmentId||'')!==String(assessmentId)||String(current.value?.clientId||'')!==String(clientId))
+      if(String(current.value?.id||'')!==String(entityId)||String(current.value?.assessmentId||'')!==String(assessmentId||'')||String(current.value?.clientId||'')!==String(clientId))
         throw new Error('M43_REPORT_DRAFT_IDENTITY_CONFLICT');
       return current;
     }
   }
   // Older clients stored one report under the assessment ID. Read without
   // deleting; only the explicit save to a unique entity key migrates it.
+  // A training report without IRI never probes an assessment-only legacy scope.
+  if(!assessmentId)return null;
   const legacy=await repository.load(clientId,legacyReportDraftScope(assessmentId));
   if(!legacy)return null;
   if(String(legacy.value?.clientId||'')!==String(clientId)||String(legacy.value?.assessmentId||'')!==String(assessmentId))
@@ -59,8 +75,8 @@ export function reportApprovalDecision(reports,clientId,draft){
   if(FINAL_STATUSES.has(status)){
     // Authoritative replay must match all authored report material, not just prose.
     // A changed coach annotation or evidence payload is a new version, never an ACK replay.
-    const equal=FIELDS.every(field=>String(value(remote,field)??'').trim()===String(draft[field]??'').trim())
-      &&JSON.stringify(value(remote,'evidence')??[])===JSON.stringify(draft.evidence??[]);
+    const equal=FIELDS.every(field=>canonical(value(remote,field))===canonical(draft[field]))
+      &&canonical(value(remote,'evidence')??[])===canonical(draft.evidence??[]);
     return Object.freeze({kind:equal?'already-approved':'new-version-required',baseRevision:revision});
   }
   if(DRAFT_STATUSES.has(status))return Object.freeze({kind:'update-draft',baseRevision:revision});

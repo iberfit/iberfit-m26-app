@@ -5,7 +5,7 @@ import path from 'node:path';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const ROOTS=['src/m26/modules','src/m26/app','src/m26/admin','src/m26/ui','src/m26/workflows','src/m26/wearables','src/m26/onboarding'];
-const EXCLUDES=[/i18n(?:-|\.)/,/guided-tour\.js$/,/(?:protocol|catalog|norms|evidence)/,/base\.js$/,/iri-report-document\.js$/,/iri-report-visuals\.js$/,/report-workflow\.js$/,/iri-external-report-controller\.js$/,/iri-report-page\.js$/,/contextual-guidance\.js$/,/historical-acquisition\.js$/,/contracts\.js$/,/exercise-video-player\.js$/,/exercise-media\.js$/];
+const EXCLUDES=[/i18n(?:-|\.)/,/guided-tour\.js$/,/(?:protocol|catalog|norms|evidence)/,/base\.js$/,/iri-report-document\.js$/,/evolution-report-document\.js$/,/iri-report-visuals\.js$/,/report-workflow\.js$/,/iri-external-report-controller\.js$/,/iri-report-page\.js$/,/contextual-guidance\.js$/,/historical-acquisition\.js$/,/contracts\.js$/,/exercise-video-player\.js$/,/exercise-media\.js$/];
 const SPANISH=/[áéíóúüñÁÉÍÓÚÜÑ¿¡]|\b(?:cliente|clientes|sesión|sesiones|entrenamiento|entrenador|agenda|revisar|pendiente|confirmad[oa]s?|disponible|datos|informe|cita|evaluación|progreso|siguiente|guardad[oa]|selecciona|bienestar|sueño|estrés|dispositivo|expediente|planificación|ejercicio|ejercicios|sincronización|contraseña|seguimiento|carga|series|repeticiones)\b/iu;
 const QUOTED=/(?:'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`\\]*(?:\\.[^`\\]*)*)`)/gs;
 
@@ -48,4 +48,11 @@ test('rendered Spanish UI literals are classified by the i18n surface',()=>{
     }
   }
   assert.deepEqual(residual,[],`Untranslated visible Spanish UI:\n${residual.map((item)=>`${item.file}:${item.line} ${item.text}`).join('\n')}`);
+});
+
+test('M44 A4 report copy is classified as a document template, not an unlocalized UI control',()=>{
+ const file=fs.readFileSync('src/m26/workflows/evolution-report-document.js','utf8');
+ assert.match(file,/EVOLUCIÓN · SEGUIMIENTO PERSONALIZADO/);
+ assert.ok(EXCLUDES.some(pattern=>pattern.test('src/m26/workflows/evolution-report-document.js')));
+ assert.notEqual(iberfitSurfaceTranslate('Indica por qué se retira esta versión',{language:'en'}),'Indica por qué se retira esta versión');
 });

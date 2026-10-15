@@ -70,7 +70,7 @@ function stateFixture(){
   };
 }
 
-test('Progress summary counts every canonical completed-status alias',()=>{
+test('Progress summary counts completed-status aliases without inventing scheduled appointments',()=>{
   const summary=computeProgressSummary(
     stateFixture(),
     CLIENT,
@@ -78,8 +78,9 @@ test('Progress summary counts every canonical completed-status alias',()=>{
   );
 
   assert.equal(summary.completedSessions,2);
-  assert.equal(summary.plannedSessions,2);
-  assert.equal(summary.adherence,1);
+  assert.equal(summary.plannedSessions,0);
+  assert.equal(summary.adherence,null);
+  assert.equal(summary.standaloneCompletedSessions,2);
   assert.equal(summary.lastExecutionAt,'2026-09-03T11:00:00.000Z');
 });
 

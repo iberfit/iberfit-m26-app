@@ -82,6 +82,13 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'generate-intelligence':{roles:['admin','coach'],domain:'workflow'},
   'manage-publication':{roles:['admin','coach'],domain:'publication'},
   'approve-report':{roles:['admin','coach'],domain:'publication'},
+  // M44: Client may open only an authorized published/issued report.
+  // Coach/Admin issuance and withdrawal also require backend MFA and client scope.
+  'open-published-evolution-report':{roles:['client'],domain:'report-evolution'},
+  'issue-evolution-pdf':{roles:['admin','coach'],domain:'report-evolution'},
+  'open-issued-evolution-pdf':{roles:['admin','coach','client'],domain:'report-evolution'},
+  'show-issued-evolution-history':{roles:['admin','coach','client'],domain:'report-evolution'},
+  'withdraw-issued-evolution-pdf':{roles:['admin','coach'],domain:'report-evolution'},
 });
 
 const ACTION_ATTRIBUTE=/data-(?:session-action|m26-action|engagement-action|verification-action|workflow-action)=["']([^"']+)["']/;
