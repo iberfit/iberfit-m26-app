@@ -416,16 +416,20 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     return true;
   }
   async function hydrateNotificationPreferences({force=false}={}){
-    if(!service?.notificationPreferences?.status)return false;
-    // The server can momentarily be behind local explicit writes.
+    if(!mounted||!service?.notificationPreferences?.status)return false;
+    // Never start parallel preference reads for the same session. Role/identity
+    // transitions explicitly invalidate the old in-flight request.
     if(preferenceSyncInFlight||queuedPreferencePayload||retryPreferencePayload)return false;
-    if(preferenceHydrationInFlight&&!force)return preferenceHydrationInFlight;
+    if(preferenceHydrationInFlight)return preferenceHydrationInFlight;
     const requestedGeneration=preferenceGeneration;
-    preferenceHydrationInFlight=(async()=>{
+    const lifecycle=lifecycleGeneration;
+    let operation;
+    operation=(async()=>{
       try{
         const remote=await service.notificationPreferences.status();
-        // A stale read must not overwrite an explicit choice made in the meantime.
-        if(!mounted||requestedGeneration!==preferenceGeneration)return false;
+        // An earlier request cannot overwrite a newer explicit choice/account.
+        if(!mounted||requestedGeneration!==preferenceGeneration||
+          lifecycle!==lifecycleGeneration)return false;
         service.notificationPreferences.applyRemote?.(remote?.preferences||{});
         lastPreferenceSignature=JSON.stringify(remote?.preferences||{});
         lastPreferenceSyncAt=Date.now();
@@ -434,10 +438,11 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       }catch{
         return false;
       }finally{
-        preferenceHydrationInFlight=null;
+        if(preferenceHydrationInFlight===operation)preferenceHydrationInFlight=null;
       }
     })();
-    return preferenceHydrationInFlight;
+    preferenceHydrationInFlight=operation;
+    return operation;
   }
   async function onPushAction(event,button){
     event.preventDefault();
