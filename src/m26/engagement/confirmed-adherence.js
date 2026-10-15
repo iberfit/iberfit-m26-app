@@ -17,7 +17,8 @@ function appointmentKind(row){
   const raw=String(field(row,'status','estado')||'').toLowerCase().trim();
   return raw==='planned'?'planned':normalizeAppointmentStatus(raw);
 }
-const DUE_STATUSES=new Set(['planned','confirmada','realizada','ausencia_cliente','ausencia_coach']);
+// A merely planned proposal is not a confirmed commitment or a valid denominator.
+const DUE_STATUSES=new Set(['confirmada','realizada','ausencia_cliente','ausencia_coach']);
 function appointmentRows(rows){
   const appointments=new Map();
   let withoutIdentity=0;
@@ -30,7 +31,7 @@ function appointmentRows(rows){
     // is quarantined rather than deciding based on array order.
     const value={id,status,revision:revision(row),sessionId:stableId(field(row,'sessionId','session_id'))};
     if(!current||value.revision>current.revision)appointments.set(id,value);
-    else if(current.revision===value.revision&&(current.status!==value.status||current.sessionId!==value.sessionId))
+    else if(current.revision===value.revision&&(current.conflict||current.status!==value.status||current.sessionId!==value.sessionId))
       appointments.set(id,{...value,status:null,conflict:true});
   }
   return {appointments,withoutIdentity};
@@ -40,34 +41,46 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
   const source=appointmentRows(appointments);
   const due=new Map([...source.appointments].filter(([,value])=>DUE_STATUSES.has(value.status)&&!value.conflict));
   const fulfilled=new Set([...due].filter(([,value])=>value.status==='realizada').map(([id])=>id));
-  const uniqueExecutions=new Map();
+  const executionsById=new Map();
   let executionsWithoutIdentity=0;
   for(const raw of Array.isArray(executions)?executions:[]){
     const row=body(raw),id=stableId(field(row,'id','executionId','execution_id'));
     if(!id){executionsWithoutIdentity++;continue;}
-    if(!uniqueExecutions.has(id))uniqueExecutions.set(id,row);
+    const value={
+      row,revision:revision(row),
+      appointmentId:stableId(field(row,'appointmentId','appointment_id')),
+      sessionId:stableId(field(row,'sessionId','session_id')),
+    };
+    const previous=executionsById.get(id);
+    if(!previous||value.revision>previous.revision)executionsById.set(id,value);
+    else if(value.revision===previous.revision&&(previous.conflict||value.appointmentId!==previous.appointmentId||value.sessionId!==previous.sessionId))
+      executionsById.set(id,{...value,conflict:true});
   }
-
+  const uniqueExecutions=[...executionsById.values()].filter(value=>!value.conflict);
+  const conflictingExecutions=executionsById.size-uniqueExecutions.length;
   let linkedExecutions=0;
   let standaloneExecutions=0;
+  let contradictoryAppointmentLinks=0;
   const matchedAppointmentIds=new Set();
-  for(const row of uniqueExecutions.values()){
-    const appointmentId=stableId(field(row,'appointmentId','appointment_id'));
-    // Only a canonical explicit appointment link can change adherence.
-    // Session ID alone may be shared by multiple recurring appointments.
-    if(appointmentId&&due.has(appointmentId)){
+  for(const {appointmentId} of uniqueExecutions){
+    // Only explicit, noncontradictory, confirmed appointments can be fulfilled.
+    // A completed execution cannot retroactively turn a recorded no-show into
+    // attendance or resolve a same-revision canonical conflict.
+    const dueAppointment=appointmentId?due.get(appointmentId):null;
+    if(dueAppointment&&['confirmada','realizada'].includes(dueAppointment.status)){
       linkedExecutions++;
       matchedAppointmentIds.add(appointmentId);
       fulfilled.add(appointmentId);
     }else{
       standaloneExecutions++;
+      if(dueAppointment)contradictoryAppointmentLinks++;
     }
   }
 
   const plannedSessions=due.size;
   const scheduledCompleted=fulfilled.size;
   const unlinkedCompletedAppointments=[...fulfilled].filter(id=>!matchedAppointmentIds.has(id)).length;
-  const completedSessions=uniqueExecutions.size+unlinkedCompletedAppointments;
+  const completedSessions=uniqueExecutions.length+unlinkedCompletedAppointments;
   const adherence=plannedSessions?Math.round((scheduledCompleted/plannedSessions)*1000)/1000:null;
 
   return Object.freeze({
@@ -77,6 +90,7 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
     unverifiedAppointments:source.withoutIdentity,
     unverifiedExecutions:executionsWithoutIdentity,
     conflictingAppointments:[...source.appointments.values()].filter(row=>row.conflict).length,
+    conflictingExecutions,contradictoryAppointmentLinks,
     denominatorSource:'scheduled-appointments-only',
     completionSource:'confirmed-executions-plus-unmatched-completed-appointments',
     interpretation:'La actividad completada no implica cumplimiento de una cita. Las sesiones autónomas cuentan como actividad y solo modifican la adherencia si existe una cita vinculada de forma explícita.',
