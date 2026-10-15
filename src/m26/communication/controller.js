@@ -483,17 +483,21 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(draft?.body)pendingMessageDrafts.set(threadId,draft);
     else pendingMessageDrafts.delete(threadId);
   }
-  async function reloadCommunication(button){
-    if(busy)return false;
+  async function reloadCommunication(button,{quiet=false}={}){
+    if(busy||!mounted)return false;
     busy=true;
+    const lifecycle=lifecycleGeneration;
     if(button)button.disabled=true;
     try{
       if(!service?.reload)throw new Error('M45_COMMUNICATION_RETRY_UNAVAILABLE');
       await service.reload();
+      if(!mounted||lifecycle!==lifecycleGeneration)return false;
       renderWithoutLosingDrafts();
       return true;
     }catch{
-      toast('No pudimos actualizar las conversaciones. Comprueba la conexión y vuelve a intentarlo.');
+      if(!quiet&&mounted&&lifecycle===lifecycleGeneration){
+        toast('No pudimos actualizar las conversaciones. Comprueba la conexión y vuelve a intentarlo.');
+      }
       return false;
     }finally{
       if(button)button.disabled=false;
@@ -571,11 +575,17 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     queueMicrotask(()=>{void syncPushControl();});
   }
   function onOnline(){
+    if(!mounted)return;
     const retry=retryPreferencePayload;
     retryPreferencePayload=null;
     if(retry)void syncNotificationPreferences(retry,{force:true});
     else void hydrateNotificationPreferences({force:true});
     void syncPushControl({force:true});
+    // Read-only recovery for the currently visible messaging route.
+    // No polling or automatic writes; manual retry remains available.
+    if(root.querySelector?.('[data-communication-role]')){
+      void reloadCommunication(null,{quiet:true});
+    }
   }
   return Object.freeze({
     mount(){
