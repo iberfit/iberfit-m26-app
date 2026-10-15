@@ -50,7 +50,7 @@ function clients(auth:string){
   service:createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}}),
  };
 }
-async function signed(service:ReturnType<typeof createClient>,path:string){
+async function signed(service:BrokerClient,path:string){
  const response=await service.storage.from(BUCKET).createSignedUrl(path,120);
  if(response.error||!response.data?.signedUrl)throw Error('M44_PDF_SIGNED_URL_FAILED');
  return response.data.signedUrl;
@@ -63,7 +63,7 @@ async function logoBytes(){
   return buf.length>100&&buf.length<250_000?buf:null;
  }catch{return null;}
 }
-type BrokerClient=ReturnType<typeof createClient>;
+type BrokerClient=ReturnType<typeof clients>['user'];
 type RpcError={message:string};
 type Prepared={ok:boolean;reportId:string;clientId:string;sourceRevision:number;
  sourceSha256:string;artifactBucket:string;sourceSnapshot:{reportId:string;[key:string]:unknown}};
@@ -82,8 +82,8 @@ async function callRpc<T>(client:BrokerClient,name:string,args:Record<string,unk
  return response.data;
 }
 async function issue({user,service,actor,body}:{
- user:ReturnType<typeof createClient>;
- service:ReturnType<typeof createClient>;
+ user:BrokerClient;
+ service:BrokerClient;
  actor:string;
  body:{reportId?:unknown;issueRequestId?:unknown}
 }){
@@ -152,8 +152,8 @@ async function issue({user,service,actor,body}:{
  }
 }
 async function open({user,service,body}:{
- user:ReturnType<typeof createClient>;
- service:ReturnType<typeof createClient>;
+ user:BrokerClient;
+ service:BrokerClient;
  body:{issuanceId?:unknown}
 }){
  const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
