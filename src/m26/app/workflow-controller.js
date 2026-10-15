@@ -1742,10 +1742,10 @@ export function createWorkflowController({
     const found=new Map();
     for(const record of records){
       const draft=record?.value,id=String(draft?.id||'').trim();
-      if(!id||String(draft?.clientId||'')!==String(clientId)||String(draft?.assessmentId||'')!==String(assessmentId))continue;
+      if(!id||String(draft?.clientId||'')!==String(clientId)||String(draft?.assessmentId||'')!==String(assessmentId||''))continue;
       let scoped;
       try{scoped=reportDraftScope(id);}catch{continue;}
-      if(record.scope!==scoped&&record.scope!==legacyReportDraftScope(assessmentId))continue;
+      if(record.scope!==scoped&&!(assessmentId&&record.scope===legacyReportDraftScope(assessmentId)))continue;
       const existing=found.get(id);
       if(!existing||record.scope===scoped&&existing.scope!==scoped)found.set(id,record);
     }
@@ -1755,7 +1755,7 @@ export function createWorkflowController({
     const picker=form?.querySelector?.('[data-report-draft-choice]');
     if(!picker)return;
     const {clientId}=context(),assessmentId=String(form.elements?.namedItem?.('assessmentId')?.value||'').trim();
-    if(!clientId||!assessmentId)return;
+    if(!clientId)return;
     const candidates=await availableReportDrafts(clientId,assessmentId);
     if(!root.contains?.(form)||context().clientId!==clientId)return;
     const current=String(form.elements?.namedItem?.('entityId')?.value||'').trim();
@@ -1832,12 +1832,13 @@ export function createWorkflowController({
     if(reportFormClientIds.has(form)&&reportFormClientIds.get(form)!==clientId)throw new Error('M26_REPORT_DRAFT_CLIENT_CONTEXT_CHANGED');
     const raw=values(form);
     const assessmentId=String(raw.assessmentId||'').trim();
-    if(!assessmentId)throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
+    const type=String(raw.reportType||'');
+    if(!assessmentId&&!['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(type))throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
     const stableId=String(raw.entityId||'').trim()||createM26Id();
     const scoped=reportDraftScope(stableId);
     const idField=form.elements?.namedItem?.('entityId');
     if(idField)idField.value=stableId;
-    const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId,
+    const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId:assessmentId||null,
       reviewAccepted:raw.reviewAccepted==='on'};
     const write=reportDraftChain.then(()=>draftRepository.save(clientId,scoped,payload));
     reportDraftChain=write.catch(()=>{});
@@ -1862,7 +1863,7 @@ export function createWorkflowController({
     const {clientId}=context();
     reportFormClientIds.set(form,clientId);
     const assessmentId=String(form.elements?.namedItem?.('assessmentId')?.value||'').trim();
-    if(!clientId||!assessmentId||!draftRepository?.load)return;
+    if(!clientId||!draftRepository?.load)return;
     try{
       await updateReportDraftChoices(form,{restoreSingle:true});
     }catch(error){

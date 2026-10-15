@@ -30,13 +30,15 @@ export async function restoreReportDraft(repository,clientId,assessmentId,entity
   if(scope){
     const current=await repository.load(clientId,scope);
     if(current){
-      if(String(current.value?.id||'')!==String(entityId)||String(current.value?.assessmentId||'')!==String(assessmentId)||String(current.value?.clientId||'')!==String(clientId))
+      if(String(current.value?.id||'')!==String(entityId)||String(current.value?.assessmentId||'')!==String(assessmentId||'')||String(current.value?.clientId||'')!==String(clientId))
         throw new Error('M43_REPORT_DRAFT_IDENTITY_CONFLICT');
       return current;
     }
   }
   // Older clients stored one report under the assessment ID. Read without
   // deleting; only the explicit save to a unique entity key migrates it.
+  // A training report without IRI never probes an assessment-only legacy scope.
+  if(!assessmentId)return null;
   const legacy=await repository.load(clientId,legacyReportDraftScope(assessmentId));
   if(!legacy)return null;
   if(String(legacy.value?.clientId||'')!==String(clientId)||String(legacy.value?.assessmentId||'')!==String(assessmentId))

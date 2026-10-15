@@ -101,3 +101,22 @@ test('M43: premium candidate begins a new report identity and Coach sees a recov
   assert.match(route,/data-report-draft-choice/);
   assert.match(route,/Preparar un informe nuevo/);
 });
+
+test('M44: report draft without IRI remains recoverable under its own client and report identity',async()=>{
+  const repo=createMemoryEngagementDraftRepository({ownerId:'coach-m44-training-only'});
+  const training={...data('r-training'),assessmentId:null,reportType:'weekly'};
+  await repo.save(clientId,reportDraftScope(training.id),training);
+  const restored=await restoreReportDraft(repo,clientId,null,training.id);
+  assert.equal(restored?.value?.reportType,'weekly');
+  assert.equal(restored?.value?.assessmentId,null);
+  assert.equal(await restoreReportDraft(repo,'foreign-client',null,training.id),null);
+  assert.equal(await restoreReportDraft(repo,clientId,null,'missing'),null);
+});
+test('M44: the progression form is present even without initial IRI and cannot approve it unsafely',()=>{
+  const route=source('src/m26/modules/route-render.js');
+  assert.doesNotMatch(route,/const editor=vm\.canManage&&hasTrainingSurface\(vm\.serviceKind\)\?\(iriId\?/);
+  assert.match(route,/Aprobación pendiente del circuito canónico de informes sin IRI/);
+  const code=source('src/m26/app/workflow-controller.js');
+  assert.match(code,/if\(!assessmentId&&!\\['post-session','weekly','monthly','quarterly','year-in-iberfit'\\]/);
+  assert.match(code,/assessmentId:assessmentId\|\|null/);
+});
