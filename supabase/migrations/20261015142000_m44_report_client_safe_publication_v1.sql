@@ -11,8 +11,7 @@ begin
   return new;
 end
 $function$;
-drop trigger if exists trg_m44_report_private_body_guard on public.domain_entities_v26;
-create trigger trg_m44_report_private_body_guard
+create or replace trigger trg_m44_report_private_body_guard
 before insert or update on public.domain_entities_v26
 for each row execute function public.iberfit_m44_report_private_body_guard_v1();
 
@@ -71,12 +70,17 @@ begin
   return new;
 end
 $function$;
-drop trigger if exists trg_m44_report_client_safe_projection on public.domain_entities_v26;
-create trigger trg_m44_report_client_safe_projection
+create or replace trigger trg_m44_report_client_safe_projection
 after insert or update on public.domain_entities_v26
 for each row execute function public.iberfit_m44_report_public_projection_v1();
 
-drop policy if exists m44_private_canonical_report_body on public.domain_entities_v26;
+-- The policy must not exist before this additive migration; never drop a
+-- security policy and expose report bodies between DDL statements.
+SELECT 1 / (CASE WHEN NOT EXISTS (
+ SELECT 1 FROM pg_policies WHERE schemaname='public'
+ AND tablename='domain_entities_v26'
+ AND policyname='m44_private_canonical_report_body'
+) THEN 1 ELSE 0 END) AS m44_report_private_policy_precondition;
 create policy m44_private_canonical_report_body
 on public.domain_entities_v26 as restrictive for select to authenticated
 using (entity_type<>'report' or coalesce(public.iberfit_current_role_v26(),'') in ('coach','admin'));

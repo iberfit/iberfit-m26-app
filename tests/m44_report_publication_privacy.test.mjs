@@ -24,3 +24,11 @@ test('M44 client report renderer uses only whitelisted report-content fields',as
   assert.match(source,/publicReportValue\('recommendations'/);
   assert.doesNotMatch(source,/publicReportValue\('coachComment'/);
 });
+
+test('M44 publication protections are installed atomically without DROP TRIGGER or DROP POLICY',async()=>{
+ const sql=await readFile(new URL('../supabase/migrations/20261015142000_m44_report_client_safe_publication_v1.sql',import.meta.url),'utf8');
+ assert.match(sql,/create or replace trigger trg_m44_report_private_body_guard/);
+ assert.match(sql,/create or replace trigger trg_m44_report_client_safe_projection/);
+ assert.match(sql,/m44_report_private_policy_precondition/);
+ assert.doesNotMatch(sql,/drop trigger|drop policy/i);
+});
