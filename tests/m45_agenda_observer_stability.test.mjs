@@ -6,6 +6,7 @@ import {
   buildRc62AgendaEvents,
   fullCalendarCoachOptions,
   agendaVisibleHourWindow,
+  loadFullCalendarStandard,
 } from '../src/m26/agenda/fullcalendar-agenda.js';
 
 const tick=()=>new Promise((resolve)=>setImmediate(resolve));
@@ -254,4 +255,55 @@ test('M45 calendar date input rejects invalid dates instead of injecting state',
   assert.equal('initialDate' in fullCalendarCoachOptions({initialDate:'not-a-date'}),false);
   assert.equal(fullCalendarCoachOptions({initialDate:'2026-11-24T12:00:00-03:00'}).initialDate,
     '2026-11-24T15:00:00.000Z');
+});
+
+
+test('M45 a failed third-party calendar script can be fetched successfully on explicit retry',async()=>{
+  const entries=[];
+  let attempts=0;
+  const scope={};
+  const fakeDocument={
+    querySelector(selector){
+      const found=entries.find((entry)=>
+        entry.tag==='script'
+          ?selector===`script[data-rc62-fullcalendar="${entry.dataset.rc62Fullcalendar}"]`
+          :selector===`link[data-rc62-fullcalendar="${entry.dataset.rc62Fullcalendar}"]`
+      );
+      return found||null;
+    },
+    createElement(tag){
+      return {
+        tag,dataset:{},listeners:{},
+        addEventListener(name,handler){this.listeners[name]=handler;},
+        remove(){
+          const index=entries.indexOf(this);
+          if(index>=0)entries.splice(index,1);
+        },
+      };
+    },
+    head:{
+      append(node){
+        entries.push(node);
+        if(node.tag!=='script')return;
+        queueMicrotask(()=>{
+          if(node.src.includes('all.global.js')){
+            attempts++;
+            if(attempts===1){node.listeners.error();return;}
+          }
+          if(node.src.includes('es.global.js'))scope.FullCalendar={Calendar:class {}};
+          node.listeners.load();
+        });
+      },
+    },
+  };
+  await assert.rejects(
+    ()=>loadFullCalendarStandard({scope,documentLike:fakeDocument}),
+    /M26_RC62_FULLCALENDAR_ASSET_FAILED/,
+  );
+  assert.equal(entries.filter(x=>x.tag==='script'&&x.src.includes('all.global.js')).length,0,
+    'failed script is discarded, not left awaiting events forever');
+  const result=await loadFullCalendarStandard({scope,documentLike:fakeDocument});
+  assert.equal(typeof result.Calendar,'function');
+  assert.equal(attempts,2,'the second attempt loads a fresh script');
+  assert.equal(entries.filter(x=>x.tag==='script'&&x.src.includes('all.global.js')).length,1);
 });
