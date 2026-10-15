@@ -258,3 +258,10 @@
   .m26-communication-route .m45-inbox-search{flex-basis:100%}
   .m26-communication-route .m45-unread-toggle{width:100%}
 }
+
+/* Native hidden state must win over base thread display rules. */
+.m26-communication-route .m26-thread[hidden]{display:none!important}
+.m26-communication-route .m45-inbox-search input::-webkit-search-cancel-button{cursor:pointer}
+@media(hover:none){
+  .m26-communication-route .m45-unread-toggle{touch-action:manipulation}
+}
