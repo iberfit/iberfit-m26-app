@@ -166,3 +166,14 @@ test('M45 group-read form dispatches precisely the grouped IDs and redraws once 
     globalThis.FormData=oldFormData;
   }
 });
+
+
+test('M45 read status without timestamp is not reported as unread',()=>{
+  const center=buildNotificationCenter({role:'coach',notifications:[
+    {id:ids[0],status:'read',actionArea:'agenda',readAt:null},
+    {id:ids[1],status:'pending',actionArea:'agenda',readAt:null},
+  ]});
+  assert.equal(center.items.length,1);
+  assert.equal(center.counts.unread,1);
+  assert.deepEqual(center.items[0].unreadSourceIds,[ids[1]]);
+});
