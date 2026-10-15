@@ -26,11 +26,12 @@ test('cipher archive alone goes to artifacts, restores cannot reach production',
  assert.match(w,/rm -rf "\$RUNNER_TEMP\/iberfit-recovery"/);
 });
 test('database and Storage both included and authenticated before sign-off',()=>{
+ const production=w.split('  production-backup:')[1]||'';
  const indexes=['pg_dump -Fc','FROM storage.objects','m44_storage_backup_bytes.mjs export',
  'm44_encrypted_backup_archive.mjs encrypt','m44_encrypted_backup_archive.mjs decrypt',
  'm44_storage_backup_bytes.mjs verify','pg_restore --exit-on-error'];
  for(let i=1;i<indexes.length;i++)
-  assert.ok(w.indexOf(indexes[i])>w.indexOf(indexes[i-1]),'Order mismatch: '+indexes[i]);
+  assert.ok(production.indexOf(indexes[i])>production.indexOf(indexes[i-1]),'Order mismatch: '+indexes[i]);
  assert.match(w,/IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS/);
  assert.match(storage,/sha256/);
  assert.match(db,/aes-256-gcm/);
