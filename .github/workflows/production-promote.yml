@@ -74,6 +74,14 @@ jobs:
           test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
           test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
 
+      # Backup inventory must be confirmed BEFORE any M44 schema or Edge promotion.
+      # This guard is read-only. A completed backup inventory entry still
+      # requires independent restore verification prior to the first PROD DDL.
+      - name: Certify recent recoverable-snapshot inventory for M44 (fail closed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/m44_prod_backup_inventory_guard.mjs
+
       - name: Certify Connected360 V47 production database (fail closed)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
