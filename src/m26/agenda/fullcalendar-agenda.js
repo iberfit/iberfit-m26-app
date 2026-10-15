@@ -122,11 +122,25 @@ function addStyle(documentLike,path){
 
 function addScript(documentLike,path){
   return new Promise((resolve,reject)=>{
-    const existing=documentLike.querySelector?.(`script[data-rc62-fullcalendar="${path}"]`);
+    let existing=documentLike.querySelector?.(`script[data-rc62-fullcalendar="${path}"]`);
+    if(existing?.dataset?.failed==='true'){
+      existing.remove?.();
+      existing=null;
+    }
+    const fail=(script)=>{
+      // A failed asset can never emit another load/error. Retaining it makes
+      // subsequent attempts wait forever on a dead script element.
+      if(script?.dataset)script.dataset.failed='true';
+      script?.remove?.();
+      reject(new Error('M26_RC62_FULLCALENDAR_ASSET_FAILED'));
+    };
     if(existing){
       if(existing.dataset.loaded==='true'){resolve();return;}
-      existing.addEventListener?.('load',resolve,{once:true});
-      existing.addEventListener?.('error',()=>reject(new Error('M26_RC62_FULLCALENDAR_ASSET_FAILED')),{once:true});
+      existing.addEventListener?.('load',()=>{
+        existing.dataset.loaded='true';
+        resolve();
+      },{once:true});
+      existing.addEventListener?.('error',()=>fail(existing),{once:true});
       return;
     }
     const script=documentLike.createElement('script');
@@ -137,7 +151,7 @@ function addScript(documentLike,path){
       script.dataset.loaded='true';
       resolve();
     },{once:true});
-    script.addEventListener('error',()=>reject(new Error('M26_RC62_FULLCALENDAR_ASSET_FAILED')),{once:true});
+    script.addEventListener('error',()=>fail(script),{once:true});
     documentLike.head.append(script);
   });
 }
