@@ -90,6 +90,33 @@ function restoreMessageDrafts(root,drafts){
     }
   }
 }
+// Filtering uses only visible thread headings; never indexes private message bodies.
+function foldConversationSearch(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/gu,'').toLocaleLowerCase('es-CL').trim();
+}
+export function applyConversationFilter(root,{query='',unreadOnly=false}={}){
+  const needle=foldConversationSearch(query);
+  let visible=0;
+  const nodes=Array.from(root?.querySelectorAll?.('.m26-thread')||[]);
+  for(const node of nodes){
+    const heading=node.querySelector?.('summary')?.textContent||'';
+    const unread=Number(node.getAttribute?.('data-thread-unread-count')||0)>0;
+    const show=(!needle||foldConversationSearch(heading).includes(needle))&&(!unreadOnly||unread);
+    node.hidden=!show;
+    if(show)visible+=1;
+  }
+  const field=root?.querySelector?.('[data-m45-conversation-search]');
+  if(field&&field.value!==query)field.value=query;
+  const toggle=root?.querySelector?.('[data-m45-unread-toggle]');
+  if(toggle)toggle.setAttribute?.('aria-pressed',unreadOnly?'true':'false');
+  const feedback=root?.querySelector?.('[data-m45-filter-feedback]');
+  if(feedback){
+    feedback.textContent=!nodes.length?''
+      :visible===0?'No hay conversaciones que coincidan con este filtro.'
+      :`${visible} de ${nodes.length} conversaciones visibles`;
+  }
+  return Object.freeze({visible,total:nodes.length});
+}
 // IBERFIT M45: in-memory replay identity for ambiguous message delivery.
 // No drafts or recipient IDs are written to browser storage.
 export function createMessageRetryFence({newId,maxPending=64}={}){
@@ -133,6 +160,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   const pendingMessageDrafts=new Map();
   const messageRetryFence=createMessageRetryFence();
   let activeCommunicationRole=null;
+  let conversationSearch='';
+  let onlyUnreadConversations=false;
   let pushBusy=false;
   let pushStatusInFlight=null;
   let lastPushSyncAt=0;
@@ -147,13 +176,18 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   const windowLike=root?.ownerDocument?.defaultView||globalThis.window||null;
   function rememberVisibleDrafts(){
     for(const [id,draft] of captureMessageDrafts(root)){
-      if(draft.body)pendingMessageDrafts.set(id,draft);
+      if(draft.body||draft.open)pendingMessageDrafts.set(id,draft);
+      else pendingMessageDrafts.delete(id);
     }
+  }
+  function applyInboxFilter(){
+    applyConversationFilter(root,{query:conversationSearch,unreadOnly:onlyUnreadConversations});
   }
   function renderWithoutLosingDrafts(){
     rememberVisibleDrafts();
     render();
     restoreMessageDrafts(root,pendingMessageDrafts);
+    applyInboxFilter();
   }
   function clearLiveMessageComposer(threadId){
     for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
@@ -396,6 +430,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   function onSubmitEvent(event){void onSubmit(event).catch(()=>toast('No fue posible procesar la comunicación.'));}
   function onInputEvent(event){
+    const search=event.target?.closest?.('[data-m45-conversation-search]');
+    if(search){
+      conversationSearch=String(search.value||'').slice(0,120);
+      applyInboxFilter();
+      return;
+    }
     const form=event.target?.closest?.('[data-communication-form="message-send"]');
     if(!form)return;
     if(!activeCommunicationRole){
@@ -426,6 +466,18 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     }
   }
   function onClickEvent(event){
+    const unreadToggle=event.target.closest?.('[data-m45-unread-toggle]');
+    if(unreadToggle){
+      event.preventDefault?.();
+      onlyUnreadConversations=!onlyUnreadConversations;
+      applyInboxFilter();
+      return;
+    }
+    const threadSummary=event.target.closest?.('.m26-thread summary');
+    if(threadSummary){
+      queueMicrotask(()=>rememberVisibleDrafts());
+      return;
+    }
     const retryButton=event.target.closest?.('[data-m45-communication-retry]');
     if(retryButton){event.preventDefault?.();void reloadCommunication(retryButton);return;}
     const pushAction=event.target.closest?.('[data-m26-web-push-action]');
@@ -452,9 +504,14 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(role!==activeCommunicationRole){
       pendingMessageDrafts.clear();
       messageRetryFence.clear();
+      conversationSearch='';
+      onlyUnreadConversations=false;
       activeCommunicationRole=role;
     }
-    if(role)restoreMessageDrafts(root,pendingMessageDrafts);
+    if(role){
+      restoreMessageDrafts(root,pendingMessageDrafts);
+      applyInboxFilter();
+    }
     queueMicrotask(()=>{void syncPushControl();});
   }
   function onOnline(){
@@ -489,6 +546,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       windowLike?.removeEventListener?.('online',onOnline);
       lastPushControl=null;
       activeCommunicationRole=null;
+      conversationSearch='';
+      onlyUnreadConversations=false;
       pendingMessageDrafts.clear();
       messageRetryFence.clear();
       queuedPreferencePayload=null;
