@@ -300,6 +300,7 @@ export function normalizeReportDraft(draft={}){
   const evidence=evidenceRows(draft.evidence);if(evidence.length)normalized.evidence=evidence;
   if(type){
     normalized.dataPolicy='canonical-only';
+    normalized.reviewAccepted=true;
     normalized.reportModelVersion=PREMIUM_REPORT_MODEL_VERSION;
     if(type==='iri'){
       normalized.sourceAssessmentId=normalized.assessmentId;

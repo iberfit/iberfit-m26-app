@@ -48,3 +48,14 @@ test('M44 training-only approval is enabled only when a confirmed premium candid
   assert.match(premium,/approve\.disabled=false/);
   assert.match(premium,/candidate\.id/);
 });
+
+
+test('M44 server guard rejects absent evidence/role/type fields rather than treating SQL NULL as false',async()=>{
+  const sql=await get('supabase/migrations/20261015141000_m44_report_canonical_draft_bootstrap_v1.sql');
+  assert.match(sql,/coalesce\(v_role,''\) not in/);
+  assert.match(sql,/coalesce\(p_draft->>'periodStart',''\) !~/);
+  assert.match(sql,/jsonb_typeof\(p_draft->'evidence'\) is distinct from 'array'/);
+  assert.match(sql,/jsonb_typeof\(v_series\) is distinct from 'array'/);
+  const report=await get('src/m26/workflows/report-workflow.js');
+  assert.match(report,/normalized\.reviewAccepted=true/);
+});

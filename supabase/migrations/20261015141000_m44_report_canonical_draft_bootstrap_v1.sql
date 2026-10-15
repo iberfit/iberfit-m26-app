@@ -27,25 +27,25 @@ declare
   v_body jsonb;
   v_fingerprint text;
 begin
-  if v_actor is null or v_role not in ('coach','admin')
-     or not public.iberfit_can_access_client_v26(p_client_id)
-     or not public.iberfit_canary_enabled_v26(p_client_id)
-     or (v_role='coach' and not public.is_assigned_coach(p_client_id))
+  if v_actor is null or coalesce(v_role,'') not in ('coach','admin')
+     or not coalesce(public.iberfit_can_access_client_v26(p_client_id),false)
+     or not coalesce(public.iberfit_canary_enabled_v26(p_client_id),false)
+     or (v_role='coach' and not coalesce(public.is_assigned_coach(p_client_id),false))
   then
     raise exception 'M44_REPORT_ACCESS_DENIED' using errcode='42501';
   end if;
-  if p_client_id is null or p_report_id is null or jsonb_typeof(p_draft)<>'object'
+  if p_client_id is null or p_report_id is null or jsonb_typeof(p_draft) is distinct from 'object'
      or p_draft->>'clientId' is distinct from p_client_id::text
      or p_draft->>'id' is distinct from p_report_id::text
   then
     raise exception 'M44_REPORT_IDENTITY_INVALID' using errcode='22023';
   end if;
   v_type := p_draft->>'reportType';
-  if v_type not in ('post-session','weekly','monthly','quarterly','year-in-iberfit') then
+  if coalesce(v_type,'') not in ('post-session','weekly','monthly','quarterly','year-in-iberfit') then
     raise exception 'M44_REPORT_TYPE_NOT_SUPPORTED' using errcode='22023';
   end if;
-  if p_draft->>'periodStart' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-    or p_draft->>'periodEnd' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+  if coalesce(p_draft->>'periodStart','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+    or coalesce(p_draft->>'periodEnd','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
     raise exception 'M44_REPORT_PERIOD_INVALID' using errcode='22023';
   end if;
   v_start := (p_draft->>'periodStart')::date;
@@ -73,13 +73,13 @@ begin
   then
     raise exception 'M44_REPORT_REVIEW_OR_PROVENANCE_INVALID' using errcode='22023';
   end if;
-  if jsonb_typeof(p_draft->'evidence')<>'array'
+  if jsonb_typeof(p_draft->'evidence') is distinct from 'array'
      or jsonb_array_length(p_draft->'evidence') not between 1 and 12
      or nullif(p_draft->>'evidenceSignature','') is null then
     raise exception 'M44_REPORT_EVIDENCE_REQUIRED' using errcode='22023';
   end if;
   for v_item in select value from jsonb_array_elements(p_draft->'evidence') as evidence(value) loop
-    if jsonb_typeof(v_item)<>'object'
+    if jsonb_typeof(v_item) is distinct from 'object'
       or length(btrim(coalesce(v_item->>'label',''))) not between 1 and 120
       or length(btrim(coalesce(v_item->>'text',''))) not between 1 and 500
       or length(btrim(coalesce(v_item->>'source',''))) not between 1 and 120
@@ -119,16 +119,16 @@ begin
   -- Check full bucket coverage and every count against the same server truth.
   v_series := p_draft->'activitySeries';
   if v_type<>'post-session' then
-    if jsonb_typeof(v_series)<>'array' or jsonb_array_length(v_series)<2
+    if jsonb_typeof(v_series) is distinct from 'array' or jsonb_array_length(v_series)<2
        or jsonb_array_length(v_series)>13 then
       raise exception 'M44_REPORT_ACTIVITY_SERIES_REQUIRED' using errcode='22023';
     end if;
     v_last:=v_start-1;
     for v_item in select value from jsonb_array_elements(v_series) as segments(value) loop
-      if jsonb_typeof(v_item)<>'object'
+      if jsonb_typeof(v_item) is distinct from 'object'
          or coalesce(v_item->>'from','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
          or coalesce(v_item->>'to','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-         or jsonb_typeof(v_item->'count')<>'number' then
+         or jsonb_typeof(v_item->'count') is distinct from 'number' then
         raise exception 'M44_REPORT_ACTIVITY_SERIES_INVALID' using errcode='22023';
       end if;
       v_segment_start:=(v_item->>'from')::date;
