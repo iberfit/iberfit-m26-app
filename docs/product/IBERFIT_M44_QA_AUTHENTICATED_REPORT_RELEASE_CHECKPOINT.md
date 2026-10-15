@@ -47,3 +47,16 @@ The M44 branch workflow runs npm run test:m44:contract and npm run quality:m44:r
 - Verificado en QA con 8 migraciones aplicadas solo dentro de transacción: el ledger no acepta modificar SHA-256, no acepta DELETE, admite una retirada auditada y no permite reactivarla. Toda la operación se revirtió mediante ROLLBACK.
 - El historial versionado también se probó con actores Admin, Cliente y usuario ajeno; el Cliente no recibe razones privadas ni Storage paths.
 - CI #38773189485: tres jobs SUCCESS. No despliegue Edge ni persistencia de migraciones M44 en QA/PROD. Siguiente gate: deploy QA controlado y ensayo HTTP real con usuario validado.
+
+
+## Checkpoint actualizado — 15/10/2026 · M44 en QA, todavía no en PROD
+
+- Rama de integración M44 en `435a2fef1b37b431fcc68dc8f8bd348bb73c15df`; base Canary `6010f77623b9b69c7d00f40cf9f6a6e91325675b`.
+- GitHub Actions `#38790292272`: cinco trabajos SUCCESS (contratos, Chromium A4 responsive, Deno PDF real, paquete Canary y HTTP anónimo negativo).
+- QA Supabase `gjztkdwfmunnzhtvxrsu`: 10 migraciones M44 persistidas, emisor Edge `iberfit-evolution-report-emission-v1` **versión 3 ACTIVE** con JWT obligatorio y PDF de procedencia firmemente vinculado a ID/revisión/SHA de fuente autorizada.
+- Libro de emisión en QA: 0 filas; Storage privado de PDF emitido: 0 objetos. No declarar ciclo autenticado positivo hasta emitir bajo Auth real, verificar descarga SHA-256, roles, historial, retirada y reintentos.
+- Recuperación robusta: reintento del mismo `issueRequestId` comprueba el PDF efectivamente guardado antes de finalizar; no elimina un objeto que otra ejecución concurrente podría haber oficializado.
+- Calidad editorial: el PDF emitido ya no trunca arbitrariamente la evidencia a las doce primeras filas; se preserva íntegra dentro del límite de seguridad, con prueba de 20 evidencias reales en el motor (sintéticas, sin datos personales).
+- PROD no modificada por M44: la tabla de ledger y la RPC de borradores aún no existen. #941 (P0) y #925 (P1) continúan abiertos según sus criterios de aceptación.
+- La integración de una nueva prueba Auth completa en GitHub Actions con secretos QA gestionados fue intentada pero bloqueada por el control de seguridad de herramientas. No se introdujeron ni divulgaron secretos, ni se desplegó una puerta trasera.
+- Gate pendiente: ensayo HTTP autenticado completo con cuentas QA autorizadas, validación multitab y revisión con scope, P0 PWA contextual, regresión final y promoción controlada por Canary hasta PROD.
