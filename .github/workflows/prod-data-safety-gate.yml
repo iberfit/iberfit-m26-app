@@ -163,7 +163,8 @@ jobs:
             productionMigrationApproved:false
           },null,2)+'\n');
           NODE
-            echo 'IBERFIT_PROD_RECOVERY_READY managed backup/PITR'
+            echo 'IBERFIT_PROD_MANAGED_BACKUP_INVENTORY_AVAILABLE_RESTORE_NOT_TESTED'
+            echo '::notice::Managed backup inventory detected; restoration was not exercised in this workflow.'
             exit 0
           fi
 
@@ -235,6 +236,10 @@ jobs:
           # Allow code-only safety reviews; deny migration candidates absent
           # independent managed/restore-tested full backup.
           echo 'IBERFIT_PROD_SCHEMA_SNAPSHOT_ONLY_NOT_RESTORABLE'
+          echo '::warning::IBERFIT production has no verified managed backup; this catalog snapshot is NOT a recoverable database copy.'
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            printf '%s\\n' '### IBERFIT PROD recovery NOT certified' 'Only structural metadata was captured. NO database row, Auth or Storage restoration was verified. Production migrations remain blocked.' >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "${{ steps.diff.outputs.has_migration_changes }}" = 'true' ]; then
             echo 'IBERFIT_PROD_MIGRATION_BLOCKED_FULL_BACKUP_NOT_VERIFIED' >&2
             exit 47
