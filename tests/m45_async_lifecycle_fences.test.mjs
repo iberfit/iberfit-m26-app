@@ -368,3 +368,131 @@ test('M45 late send acknowledgement cannot clear a new account draft or block it
     globalThis.FormData=originalFormData;
   }
 });
+
+
+test('M45 a new message typed during a slow send is never cleared by the previous ACK',async()=>{
+  const prior=globalThis.FormData;
+  const handlers=new Map(),remote=deferred();
+  let visible,resetCount=0,renderCount=0;
+  const formFor=(body)=>{
+    const textarea={
+      value:body,scrollTop:0,selectionStart:0,selectionEnd:0,
+      setSelectionRange(){},focus(){},
+    };
+    const details={open:true};
+    const status={textContent:''};
+    const button={disabled:false};
+    const form={
+      dataset:{communicationForm:'message-send'},
+      querySelector(selector){
+        if(selector==='[name="threadId"]')return {value:'thread-A'};
+        if(selector==='textarea[name="body"]')return textarea;
+        if(selector==='button[type="submit"]')return button;
+        if(selector==='.m45-compose-status')return status;
+        return null;
+      },
+      closest(selector){return selector==='details.m26-thread'?details:null;},
+      setAttribute(){},
+      reset(){resetCount++;textarea.value='';},
+    };
+    textarea.closest=(selector)=>selector==='[data-communication-form="message-send"]'?form:null;
+    return {form,textarea,status,button,details};
+  };
+  visible=formFor('Primer mensaje');
+  const root={
+    ownerDocument:{defaultView:null,activeElement:visible.textarea},
+    querySelector(selector){
+      return selector==='[data-communication-role]'
+        ?{dataset:{communicationRole:'coach',communicationIdentity:'account-A'}}:null;
+    },
+    querySelectorAll(selector){
+      return selector==='[data-communication-form="message-send"]'?[visible.form]:[];
+    },
+    addEventListener(name,cb){handlers.set(name,cb);},
+    removeEventListener(name){handlers.delete(name);},
+  };
+  globalThis.FormData=class{
+    constructor(form){this.form=form;}
+    get(key){
+      if(key==='threadId')return 'thread-A';
+      if(key==='body')return this.form.querySelector('textarea[name="body"]').value;
+      return null;
+    }
+  };
+  let executeCount=0;
+  const controller=createCommunicationController({
+    root,
+    service:{execute(){executeCount++;return remote.promise;}},
+    render(){renderCount++;visible=formFor('');},
+  });
+  try{
+    controller.mount();
+    const submitted=visible;
+    handlers.get('submit')({
+      target:{closest(selector){return selector==='[data-communication-form]'?submitted.form:null;}},
+      preventDefault(){},
+    });
+    await tick();
+    assert.equal(executeCount,1);
+    submitted.textarea.value='Segundo mensaje todavía sin enviar';
+    submitted.textarea.selectionStart=9;
+    handlers.get('input')({target:submitted.textarea});
+    remote.resolve({ok:true,syncPending:false});
+    await tick();
+    assert.equal(resetCount,0,'old form must never be reset when user has continued typing');
+    assert.equal(visible.textarea.value,'Segundo mensaje todavía sin enviar');
+    assert.equal(renderCount,1);
+    assert.equal(visible.details.open,true);
+  }finally{
+    controller.destroy();
+    globalThis.FormData=prior;
+  }
+});
+
+test('M45 a rendering fault after a confirmed send cannot invite duplicate submissions',async()=>{
+  const prior=globalThis.FormData,handlers=new Map();
+  let operations=0;
+  const textarea={value:'Mensaje confirmado',scrollTop:0};
+  const button={disabled:false},status={textContent:''};
+  const form={
+    dataset:{communicationForm:'message-send'},
+    querySelector(sel){
+      if(sel==='[name="threadId"]')return {value:'thread-A'};
+      if(sel==='textarea[name="body"]')return textarea;
+      if(sel==='button[type="submit"]')return button;
+      if(sel==='.m45-compose-status')return status;
+      return null;
+    },
+    closest(){return {open:true};},
+    setAttribute(){},
+  };
+  const root={
+    ownerDocument:{defaultView:null,activeElement:null},
+    querySelector(){return null;},
+    querySelectorAll(sel){return sel==='[data-communication-form="message-send"]'?[form]:[];},
+    addEventListener(name,cb){handlers.set(name,cb);},
+    removeEventListener(name){handlers.delete(name);},
+  };
+  globalThis.FormData=class{
+    get(key){return key==='threadId'?'thread-A':key==='body'?'Mensaje confirmado':null;}
+  };
+  const controller=createCommunicationController({
+    root,service:{async execute(){operations++;return {ok:true,syncPending:false};}},
+    render(){throw Error('rendering backend refreshed, but UI failed');},
+  });
+  try{
+    controller.mount();
+    handlers.get('submit')({
+      target:{closest(sel){return sel==='[data-communication-form]'?form:null;}},
+      preventDefault(){},
+    });
+    await tick();
+    assert.equal(operations,1);
+    assert.equal(button.disabled,false,'confirmed RPC releases its UI lock');
+    assert.equal(status.textContent,'Mensaje enviado.');
+    assert.equal(textarea.value,'','sent message is cleared after ACK');
+  }finally{
+    controller.destroy();
+    globalThis.FormData=prior;
+  }
+});
