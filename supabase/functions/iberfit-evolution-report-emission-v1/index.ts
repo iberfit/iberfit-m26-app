@@ -52,11 +52,8 @@ function clients(auth:string,origin:string){
   service:createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}}),
  };
 }
-async function signed(service:BrokerClient,path:string){
- const response=await service.storage.from(BUCKET).createSignedUrl(path,120);
- if(response.error||!response.data?.signedUrl)throw Error('M44_PDF_SIGNED_URL_FAILED');
- return response.data.signedUrl;
-}
+// No bearer-independent signed URLs: a withdrawn report must become
+// unavailable to NEW downloads immediately, not after a Storage token expires.
 async function fontBytes(name:string){
  // Restricted to static bundled official font assets on the known IBERFIT site.
  const response=await fetch(appOrigin+'/m26/fonts/'+name,{
@@ -122,8 +119,7 @@ async function issue({user,service,actor,body}:{
      previous.source_sha256!==src.sourceSha256||previous.status!=='issued')
    throw Error('M44_PDF_ISSUE_REPLAY_COLLISION');
   return {kind:'already-issued',issuanceId:previous.id,version:previous.version,
-   artifactSha256:previous.artifact_sha256,signedUrl:await signed(service,previous.artifact_path),
-   expiresIn:120};
+   artifactSha256:previous.artifact_sha256,delivery:'authenticated-pdf'};
  }
  const sourceFingerprint=`IBERFIT M44 | ${id} | revision ${src.sourceRevision} | ${src.sourceSha256}`;
  const rendered=await renderEvolutionReportPdf({
@@ -173,7 +169,7 @@ async function issue({user,service,actor,body}:{
   }
   return {kind:record.kind,issuanceId:record.issuanceId,version:record.version,
    artifactSha256:record.artifactSha256||artifact.sha256,pages:rendered.pages,
-   signedUrl:await signed(service,canonicalPath),expiresIn:120};
+   delivery:'authenticated-pdf'};
  }catch(error){
   // Even before our finalization, a parallel retry can have committed this
   // identical path. NEVER delete it on error: preserve the official ledger
@@ -191,8 +187,7 @@ async function open({user,service,body}:{
  if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET)
   throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
  return {kind:'opened',issuanceId:id,version:row.version,
-  artifactSha256:row.artifactSha256,signedUrl:await signed(service,row.artifactPath),
-  expiresIn:120};
+  artifactSha256:row.artifactSha256,delivery:'authenticated-pdf'};
 }
 async function latest({user,service,body}:{
  user:BrokerClient;
@@ -217,7 +212,27 @@ async function latest({user,service,body}:{
   throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
  return {kind:'latest-issued',issuanceId:found.data.id,version:row.version,
   artifactSha256:row.artifactSha256,
-  signedUrl:await signed(service,row.artifactPath),expiresIn:120};
+  delivery:'authenticated-pdf'};
+}
+async function downloadVerified({user,service,body}:{
+ user:BrokerClient;service:BrokerClient;body:{issuanceId?:unknown}
+}){
+ const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
+ // This authorization runs for EVERY byte request, after any withdrawal.
+ const row=await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{
+  p_issuance_id:id,
+ });
+ if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET||
+    !SHA.test(String(row.artifactSha256||'')))
+  throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
+ const downloaded=await service.storage.from(BUCKET).download(row.artifactPath);
+ if(downloaded.error||!downloaded.data)throw Error('M44_PDF_STORAGE_READBACK_FAILED');
+ const bytes=new Uint8Array(await downloaded.data.arrayBuffer());
+ if(bytes.length<1024||bytes.length>20*1024*1024)
+  throw Error('M44_PDF_STORAGE_BYTES_INVALID');
+ if(await digest(bytes)!==row.artifactSha256)
+  throw Error('M44_PDF_STORAGE_CHECKSUM_MISMATCH');
+ return {bytes,version:row.version,sha256:row.artifactSha256};
 }
 Deno.serve(async(req)=>{
  const origin=String(req.headers.get('origin')||'').trim().toLowerCase();
@@ -234,7 +249,7 @@ Deno.serve(async(req)=>{
   const body=JSON.parse(raw);
   if(!body||typeof body!=='object'||Array.isArray(body))throw Error('M44_PDF_BODY_INVALID');
   const action=String(body.action||'');
-  if(!['issue','open','latest','history','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
+  if(!['issue','open','latest','history','withdraw','download'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
   phase='clients';
   const {user,service}=clients(bearer,origin);
   phase='getUser';
@@ -243,6 +258,17 @@ Deno.serve(async(req)=>{
   const actor=auth.data.user.id;
   phase='domain';
   let data;
+  if(action==='download'){
+   const file=await downloadVerified({user,service,body});
+   return new Response(Uint8Array.from(file.bytes).buffer,{
+    status:200,headers:{...headers(origin),
+     'Content-Type':'application/pdf',
+     'Content-Disposition':`inline; filename="IBERFIT-Evolucion-v${file.version}.pdf"`,
+     'X-IBERFIT-SHA256':file.sha256,
+     'X-Content-Type-Options':'nosniff',
+    },
+   });
+  }
   if(action==='issue')data=await issue({user,service,actor,body});
   else if(action==='open')data=await open({user,service,body});
   else if(action==='latest')data=await latest({user,service,body});

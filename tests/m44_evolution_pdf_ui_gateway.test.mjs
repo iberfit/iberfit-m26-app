@@ -16,7 +16,7 @@ test('M44 Client reads last issued PDF; Coach and Admin issue with active client
  const h=s.slice(from,to);
  for(const expected of ['M44_PDF_OFFLINE_UNAVAILABLE','requireCoach()','requireVisibleClient(clientId)',
  'evolutionPdfActionScope({state,role,clientId,reportId:id,action:issue?',
- 'getLatestEvolutionPdf(id)','issueEvolutionReport(id)','popup.location.replace(result.signedUrl)',
+ 'getLatestEvolutionPdf(id)','issueEvolutionReport(id)','downloadEvolutionPdf(result.issuanceId,result.sha256)','popup.location.replace(objectUrl)',
  'popup.close','evolutionPdfActionScope({state,role,clientId,reportId:id,action:issue?'])
   assert.ok(h.includes(expected),expected);
  assert.match(s,/action==='issue-evolution-pdf'/);
@@ -37,7 +37,7 @@ test('M44 issue archive permits explicit version opening, safe history, and reas
  'async function withdrawIssuedEvolutionPdf(', 'requireCoach();',
  'history.manager','input.dataset.m44WithdrawReason','open.dataset.issuanceId',
  "action==='show-issued-evolution-history'", "action==='withdraw-issued-evolution-pdf'",
- 'Las URLs ya emitidas pueden seguir accesibles hasta su vencimiento de 120 segundos',
+ 'No se permiten nuevas descargas',
  ])
  assert.ok(s.includes(phrase),phrase);
  assert.match(s,/caption\.textContent=/);
@@ -70,4 +70,15 @@ test('M44 issued-PDF failures route to visible report status, never the session 
  assert.match(code,/const isEvolutionPdf=\['issue-evolution-pdf','open-issued-evolution-pdf','show-issued-evolution-history','withdraw-issued-evolution-pdf'\]/);
  assert.match(code,/const scope=isEvolutionPdf\?'report':isIriReport/);
  assert.match(code,/status\(root,scope,friendlyError\(error\),'error'\)/);
+});
+
+test('M44 browser preview never places Storage bearerless signed URL in navigation',async()=>{
+ const app=await read('src/m26/app/application.js'),view=await read('src/m26/app/workflow-controller.js');
+ const start=view.indexOf('async function handleIssuedEvolutionPdf(');
+ const end=view.indexOf('function openPublishedEvolutionReport(',start);
+ const section=view.slice(start,end);
+ assert.match(app,/evolutionReportGovernance\.download\(currentToken\(\),\{issuanceId,sha256\}\)/);
+ assert.match(section,/URL\?\.createObjectURL\?\.\(pdf\)/);
+ assert.match(section,/URL\?\.revokeObjectURL\?/);
+ assert.doesNotMatch(section,/popup\.location\.replace\(result\.signedUrl\)/);
 });

@@ -127,6 +127,8 @@ function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
   if(/M44_PRIVILEGED_ASSURANCE_REQUIRED|M44_PRIVILEGED_ROLE_REQUIRED/.test(code))return 'Para proteger los informes del cliente, necesitas verificar de nuevo tu acceso seguro como Coach o Admin. Conservamos el borrador; completa la verificación y vuelve a intentarlo.';
+  if(/M44_PDF_DOWNLOAD_INTEGRITY_INVALID|M44_PDF_STORAGE_CHECKSUM_MISMATCH/.test(code))return 'La comprobación de integridad del documento ha fallado. No se ha abierto el archivo; consulta con el equipo IBERFIT.';
+  if(/M44_PDF_ALREADY_ISSUED_OPEN_RETRY/.test(code))return 'El PDF oficial ya quedó emitido y archivado, pero no pudo abrirse. Accede a él desde el historial de versiones; no hace falta emitirlo de nuevo.';
   if(/M44_PDF_ISSUANCE_NOT_AVAILABLE/.test(code))return 'Este informe todavía no tiene un PDF oficial disponible, o su última versión fue retirada. Puedes leer la versión publicada dentro de la aplicación.';
   if(/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED|M44_PDF_ISSUE_REPLAY_COLLISION/.test(code))return 'Esta versión ya fue retirada o modificada. Para emitir una nueva entrega, el Coach debe preparar, aprobar y publicar una nueva revisión.';
   if(/M44_PDF_REQUEST_TIMEOUT|M44_PDF_STORAGE_READBACK_FAILED|M44_PDF_SIGNED_URL_FAILED/.test(code))return 'No se ha podido confirmar la entrega del archivo. Puedes repetir la acción; se conservará el identificador para evitar duplicar una emisión.';
@@ -311,7 +313,7 @@ export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
-  issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,withdrawEvolutionPdf=null,
+  issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,downloadEvolutionPdf=null,withdrawEvolutionPdf=null,
   getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
@@ -2084,7 +2086,7 @@ export function createWorkflowController({
       const refresh=container?.querySelector('[data-workflow-action="show-issued-evolution-history"]');
       if(refresh)await showIssuedEvolutionHistory(refresh).catch(()=>{});
     }
-    status(root,'report','Versión retirada con trazabilidad. Las URLs ya emitidas pueden seguir accesibles hasta su vencimiento de 120 segundos.','success');
+    status(root,'report','Versión retirada con trazabilidad. No se permiten nuevas descargas; las copias previamente guardadas por una persona no pueden recuperarse a distancia.','success');
   }
 
   async function handleIssuedEvolutionPdf(button,{issue=false}={}){
@@ -2107,8 +2109,25 @@ export function createWorkflowController({
       const issuanceId=String(button?.dataset?.issuanceId||'').trim();
       const result=issue?await issueEvolutionReport(id):
         issuanceId&&typeof openEvolutionPdfById==='function'?await openEvolutionPdfById(issuanceId):await getLatestEvolutionPdf(id);
-      if(!result?.signedUrl)throw new Error('M44_PDF_SIGNED_URL_REQUIRED');
-      popup.location.replace(result.signedUrl);
+      if(!result?.issuanceId||!result?.sha256||result.delivery!=='authenticated-pdf')
+        throw new Error('M44_PDF_AUTHENTICATED_DELIVERY_REQUIRED');
+      let pdf;
+      try{
+        if(typeof downloadEvolutionPdf!=='function')throw new Error('M44_PDF_READER_NOT_AVAILABLE');
+        // An authorised check happens for each delivery, including after withdrawal.
+        pdf=await downloadEvolutionPdf(result.issuanceId,result.sha256);
+      }catch(error){
+        if(issue)throw new Error('M44_PDF_ALREADY_ISSUED_OPEN_RETRY',{cause:error});
+        throw error;
+      }
+      const objectUrl=globalThis.URL?.createObjectURL?.(pdf);
+      if(!objectUrl)throw new Error('M44_PDF_BLOB_URL_UNAVAILABLE');
+      try{popup.location.replace(objectUrl);}catch(error){
+        globalThis.URL?.revokeObjectURL?.(objectUrl);
+        throw error;
+      }
+      // In-memory viewer URL, never a bearer-independent Storage signed link.
+      globalThis.setTimeout?.(()=>globalThis.URL?.revokeObjectURL?.(objectUrl),900000);
       status(root,'report',issue?'PDF oficial emitido y archivado · versión '+result.version:'PDF oficial abierto · versión '+result.version,'success');
       return result;
     }catch(error){

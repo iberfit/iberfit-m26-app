@@ -17,7 +17,7 @@ test('M44 server emits its own PDF from the authorized published source, never b
 test('M44 broker enforces strict origin, JWT, no-store, per-request idempotency and short URLs',async()=>{
  const t=await source();
  for(const claim of ["auth.getUser(","Access-Control-Allow-Origin","Cache-Control","no-store",
- "M44_PDF_ORIGIN_FORBIDDEN","M44_PDF_ISSUE_REPLAY_COLLISION","already-issued","expiresIn:120",
+ "M44_PDF_ORIGIN_FORBIDDEN","M44_PDF_ISSUE_REPLAY_COLLISION","already-issued","authenticated-pdf",
  "M44_PDF_WITHDRAW_REASON_INVALID","M44_PDF_ISSUANCE_NOT_AVAILABLE"])
  assert.ok(t.includes(claim),claim);
 });
@@ -48,14 +48,14 @@ test('M44 latest PDF version is selected server-side but only released through u
 });
 
 
-test('M44 withdrawn revision cannot leak a new signed URL via retry of already-issued finalization',async()=>{
+test('M44 withdrawn revision cannot be returned as downloadable after retry of already-issued finalization',async()=>{
  const s=await source();
  const start=s.indexOf("const persisted=await callRpc<Finalized>"),end=s.indexOf('}catch(error){',start);
  assert.ok(start>0&&end>start);
  const final=s.slice(start,end);
  const block=final.indexOf("if(record.withdrawn===true)");
- const signed=final.indexOf("signed(service,canonicalPath)");
- assert.ok(block>0&&signed>block);
+ const delivery=final.indexOf("delivery:'authenticated-pdf'");
+ assert.ok(block>0&&delivery>block);
  assert.match(final,/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED/);
 });
 
@@ -71,4 +71,16 @@ test('M44 typed Edge RPC retains its Supabase client receiver during hosted invo
  const s=await source();
  assert.match(s,/client\.rpc\.bind\(client\)/u);
  assert.doesNotMatch(s,/const invoke=client\.rpc as unknown as/u);
+});
+
+test('M44 byte delivery re-authorizes every request, hashes stored bytes, never generates a signed Storage URL',async()=>{
+ const t=await source();
+ assert.match(t,/async function downloadVerified/);
+ assert.match(t,/callRpc<Access>\(user,'iberfit_m44_authorize_evolution_report_pdf_v1'/);
+ assert.match(t,/if\(!row\?\.ok\|\|row\.withdrawn/);
+ assert.match(t,/await digest\(bytes\)!==row\.artifactSha256/);
+ assert.match(t,/action==='download'/);
+ assert.match(t,/Content-Disposition/);
+ assert.doesNotMatch(t,/createSignedUrl\(/);
+ assert.doesNotMatch(t,/signedUrl:await signed\(/);
 });

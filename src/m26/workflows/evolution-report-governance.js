@@ -16,16 +16,7 @@ function config(runtime){
  if(!key)throw Error('M44_REPORT_GOVERNANCE_KEY_REQUIRED');
  return {origin,publishableKey:key};
 }
-function signedUrl(value,origin){
- const raw=clean(value);
- if(!raw)throw Error('M44_PDF_SIGNED_URL_REQUIRED');
- let url;
- try{url=new URL(raw);}catch{throw Error('M44_PDF_SIGNED_URL_INVALID');}
- if(url.protocol!=='https:'||url.hostname!==new URL(origin).hostname||
-  !url.pathname.startsWith('/storage/v1/object/sign/iberfit-evolution-issued-reports/'))
-  throw Error('M44_PDF_SIGNED_URL_INVALID');
- return url.href;
-}
+const SHA=/^[0-9a-f]{64}$/u;
 export function createEvolutionReportGovernanceService({runtime,fetchImpl=globalThis.fetch,
  uuidFactory=()=>globalThis.crypto?.randomUUID?.(),storage=globalThis.sessionStorage}={}){
  const settings=config(runtime);
@@ -72,12 +63,15 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
    throw error;
   }finally{globalThis.clearTimeout(timer);}
  }
- const opening=(value)=>Object.freeze({
-  issuanceId:requireUuid(value.issuanceId,'M44_PDF_ISSUANCE_INVALID_RESPONSE'),
-  signedUrl:signedUrl(value.signedUrl,settings.origin),
-  version:Number(value.version||0),sha256:clean(value.artifactSha256,64),
-  expiresIn:Number(value.expiresIn||0),
- });
+ const opening=(value)=>{
+  const hash=clean(value.artifactSha256,64);
+  if(value.delivery!=='authenticated-pdf'||!SHA.test(hash))
+   throw Error('M44_PDF_AUTHENTICATED_DELIVERY_REQUIRED');
+  return Object.freeze({
+   issuanceId:requireUuid(value.issuanceId,'M44_PDF_ISSUANCE_INVALID_RESPONSE'),
+   version:Number(value.version||0),sha256:hash,delivery:'authenticated-pdf',
+  });
+ };
  async function issue(token,{reportId}={}){
   const id=requireUuid(reportId,'M44_PDF_REPORT_ID_INVALID');
   const row=pendingRequest(id);
@@ -112,6 +106,44 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
   const id=requireUuid(issuanceId,'M44_PDF_ISSUANCE_INVALID');
   return opening(await request(token,{action:'open',issuanceId:id}));
  }
+ async function download(token,{issuanceId,sha256}={}){
+  const id=requireUuid(issuanceId,'M44_PDF_ISSUANCE_INVALID');
+  const expected=clean(sha256,64);
+  if(!SHA.test(expected))throw Error('M44_PDF_EXPECTED_SHA256_REQUIRED');
+  const jwt=clean(token,20000);
+  if(!jwt)throw Error('M44_PDF_AUTH_REQUIRED');
+  const controller=new AbortController();
+  const timer=globalThis.setTimeout(()=>controller.abort(),60000);
+  try{
+   const response=await fetchImpl(settings.origin+DEST,{
+    method:'POST',credentials:'omit',cache:'no-store',redirect:'error',
+    referrerPolicy:'no-referrer',signal:controller.signal,
+    headers:{authorization:'Bearer '+jwt,apikey:settings.publishableKey,
+     'content-type':'application/json','x-client-info':'iberfit-m44-web/1'},
+    body:JSON.stringify({action:'download',issuanceId:id}),
+   });
+   if(!response.ok){
+    const body=await response.json().catch(()=>({}));
+    const err=Error(clean(body.code||body.message,400)||'M44_PDF_DOWNLOAD_DENIED');
+    err.status=response.status;
+    throw err;
+   }
+   if(!String(response.headers?.get?.('content-type')||'').startsWith('application/pdf'))
+    throw Error('M44_PDF_DOWNLOAD_MIME_INVALID');
+   const buffer=await response.arrayBuffer();
+   if(buffer.byteLength<1024||buffer.byteLength>20*1024*1024)
+    throw Error('M44_PDF_DOWNLOAD_SIZE_INVALID');
+   const api=globalThis.crypto?.subtle;
+   if(!api)throw Error('M44_PDF_DOWNLOAD_CRYPTO_UNAVAILABLE');
+   const hash=Array.from(new Uint8Array(await api.digest('SHA-256',buffer)))
+    .map(v=>v.toString(16).padStart(2,'0')).join('');
+   if(hash!==expected)throw Error('M44_PDF_DOWNLOAD_INTEGRITY_INVALID');
+   return new Blob([buffer],{type:'application/pdf'});
+  }catch(error){
+   if(error?.name==='AbortError')throw Error('M44_PDF_REQUEST_TIMEOUT');
+   throw error;
+  }finally{globalThis.clearTimeout(timer);}
+ }
  async function withdraw(token,{issuanceId,reason}={}){
   const id=requireUuid(issuanceId,'M44_PDF_ISSUANCE_INVALID');
   const why=clean(reason,500);
@@ -119,5 +151,5 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
   const response=await request(token,{action:'withdraw',issuanceId:id,reason:why});
   return Object.freeze({issuanceId:id,withdrawn:response.kind==='withdrawn'||response.kind==='already-withdrawn'});
  }
- return Object.freeze({issue,latest,history,open,withdraw});
+ return Object.freeze({issue,latest,history,open,download,withdraw});
 }
