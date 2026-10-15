@@ -17,7 +17,7 @@ function appointment(id,start='2026-10-16T10:00:00-03:00'){
   };
 }
 
-function calendarHarness({compact=false}={}){
+function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
   const host={dataset:{},isConnected:true};
   let compactMatches=compact;
   let onCompactChange=null;
@@ -36,9 +36,9 @@ function calendarHarness({compact=false}={}){
   };
   class FakeCalendar{
     constructor(host,options){calls.construct+=1;lastOptions=options;}
-    render(){calls.render+=1;}
+    render(){calls.render+=1;if(failRender)throw Error('vendor render failure');}
     removeAllEvents(){calls.remove+=1;}
-    addEventSource(){calls.add+=1;}
+    addEventSource(){calls.add+=1;if(failUpdate)throw Error('vendor update failure');}
     setOption(name,value){calls.options.push({name,value});}
     destroy(){calls.destroy+=1;}
   }
@@ -72,7 +72,7 @@ function calendarHarness({compact=false}={}){
     await tick();
   }
   return {
-    controller,calls,flush,
+    controller,calls,flush,host,
     getMutation:()=>mutation,
     getOptions:()=>lastOptions,
     setCompact(value){compactMatches=value;onCompactChange?.();},
@@ -191,4 +191,33 @@ test('M45 agenda expands hours when a late appointment arrives after initial ren
   assert.ok(h.calls.options.some((item)=>item.name==='slotMaxTime'&&item.value==='24:00:00'));
   assert.ok(h.calls.options.some((item)=>item.name==='slotMinTime'&&item.value==='00:00:00'));
   h.controller.destroy();
+});
+
+
+test('M45 a third-party calendar render exception releases resources and falls back to cards',async()=>{
+  const h=calendarHarness({failRender:true});
+  h.controller.mount();
+  await h.flush();
+  assert.equal(h.calls.construct,1);
+  assert.equal(h.calls.destroy,1);
+  assert.equal(h.host.dataset.calendarStatus,'fallback');
+  // No retry loop when the third-party renderer is permanently broken.
+  assert.equal(h.calls.render,1);
+  h.controller.destroy();
+  assert.equal(h.calls.destroy,1,'failed instance must not be leaked or destroyed again');
+});
+
+test('M45 a partial calendar update failure is contained, with no stale overlay',async()=>{
+  const h=calendarHarness({failUpdate:true});
+  h.controller.mount();
+  await h.flush();
+  assert.equal(h.calls.construct,1);
+  h.setAppointments([appointment('a'),appointment('b','2026-10-16T12:00:00-03:00')]);
+  h.getMutation()();
+  await h.flush();
+  assert.equal(h.calls.destroy,1);
+  assert.equal(h.host.dataset.calendarStatus,'fallback');
+  assert.equal(h.calls.add,1);
+  h.controller.destroy();
+  assert.equal(h.calls.destroy,1);
 });
