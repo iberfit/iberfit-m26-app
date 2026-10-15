@@ -90,6 +90,9 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let busy=false;
   let mounted=false;
   let preferenceGeneration=0;
+  // Ephemeral in-memory only: never persist private message drafts to storage.
+  const pendingMessageDrafts=new Map();
+  let activeCommunicationRole=null;
   let pushBusy=false;
   let pushStatusInFlight=null;
   let lastPushSyncAt=0;
@@ -101,21 +104,39 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let lastPreferenceSignature='';
   let lastPreferenceSyncAt=0;
   const windowLike=root?.ownerDocument?.defaultView||globalThis.window||null;
+  function rememberVisibleDrafts(){
+    for(const [id,draft] of captureMessageDrafts(root)){
+      if(draft.body)pendingMessageDrafts.set(id,draft);
+    }
+  }
   function renderWithoutLosingDrafts(){
-    const drafts=captureMessageDrafts(root);
+    rememberVisibleDrafts();
     render();
-    restoreMessageDrafts(root,drafts);
+    restoreMessageDrafts(root,pendingMessageDrafts);
+  }
+  function clearLiveMessageComposer(threadId){
+    for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
+      if(String(form.querySelector?.('[name="threadId"]')?.value||'')!==threadId)continue;
+      const textarea=form.querySelector?.('textarea[name="body"]');
+      if(textarea)textarea.value='';
+    }
   }
   async function run(input,msg,{onAck}={}){
     if(busy)return false;
     busy=true;
     // The domain refresh may replace the shell before execute resolves.
     // Preserve other unsent composers *before* crossing the network boundary.
-    const draftsBefore=captureMessageDrafts(root);
+    rememberVisibleDrafts();
+    const draftsBefore=new Map(pendingMessageDrafts);
     try{
       const result=await service.execute(input);
       onAck?.();
-      if(input.type==='MESSAGE_SEND')draftsBefore.delete(String(input.entityId||''));
+      if(input.type==='MESSAGE_SEND'){
+        const sentThread=String(input.entityId||'');
+        draftsBefore.delete(sentThread);
+        pendingMessageDrafts.delete(sentThread);
+        clearLiveMessageComposer(sentThread);
+      }
       restoreMessageDrafts(root,draftsBefore);
       toast(result?.syncPending?msg+' La actualización de esta pantalla está pendiente.':msg);
       if(!result?.syncPending)renderWithoutLosingDrafts();
@@ -274,6 +295,15 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     return run({type:'NOTIFICATION_MARK_READ',entityId:notificationId,payload:{notificationId}},'Notificación leída.');
   }
   function onSubmitEvent(event){void onSubmit(event).catch(()=>toast('No fue posible procesar la comunicación.'));}
+  function onInputEvent(event){
+    const form=event.target?.closest?.('[data-communication-form="message-send"]');
+    if(!form)return;
+    const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
+    if(!threadId)return;
+    const draft=captureMessageDrafts(root).get(threadId);
+    if(draft?.body)pendingMessageDrafts.set(threadId,draft);
+    else pendingMessageDrafts.delete(threadId);
+  }
   function onClickEvent(event){
     const pushAction=event.target.closest?.('[data-m26-web-push-action]');
     if(pushAction){void onPushAction(event,pushAction);return;}
@@ -285,7 +315,17 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     preferenceGeneration+=1;
     void syncNotificationPreferences(payload,{force:true,announceFailure:true});
   }
-  function onShellRendered(){queueMicrotask(()=>{void syncPushControl();});}
+  function onShellRendered(){
+    const roleNode=root.querySelector?.('[data-communication-role]');
+    const role=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
+    // Leaving messaging or changing role invalidates in-memory private drafts.
+    if(role!==activeCommunicationRole){
+      pendingMessageDrafts.clear();
+      activeCommunicationRole=role;
+    }
+    if(role)restoreMessageDrafts(root,pendingMessageDrafts);
+    queueMicrotask(()=>{void syncPushControl();});
+  }
   function onOnline(){
     const retry=retryPreferencePayload;
     retryPreferencePayload=null;
@@ -298,6 +338,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       mounted=true;
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('click',onClickEvent);
+      root.addEventListener('input',onInputEvent);
       root.addEventListener('change',onChangeEvent);
       root.addEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.addEventListener?.('online',onOnline,{passive:true});
@@ -311,10 +352,13 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       preferenceGeneration+=1;
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('click',onClickEvent);
+      root.removeEventListener('input',onInputEvent);
       root.removeEventListener('change',onChangeEvent);
       root.removeEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.removeEventListener?.('online',onOnline);
       lastPushControl=null;
+      activeCommunicationRole=null;
+      pendingMessageDrafts.clear();
       queuedPreferencePayload=null;
       retryPreferencePayload=null;
     },
