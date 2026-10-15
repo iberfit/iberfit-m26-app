@@ -71,7 +71,7 @@ function footer(page,total){
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44wip-1'}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44wip-1',publicationStatus='draft'}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -82,6 +82,8 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   if(lines.length!==report.evidence.length||lines.length>12)throw new Error('M44_REPORT_PREVIEW_EVIDENCE_INVALID');
   const name=clean(clientName,130)||'Cliente IBERFIT',coach=clean(coachName,130)||'Equipo IBERFIT';
   const title=clean(report.title,140)||TYPES[report.id];
+  if(!['draft','published'].includes(publicationStatus))throw new Error('M44_REPORT_DOCUMENT_STATUS_INVALID');
+  const published=publicationStatus==='published';
   const maxRows=6;
   const evidenceChunks=[];
   for(let offset=0;offset<lines.length;offset+=maxRows)evidenceChunks.push(lines.slice(offset,offset+maxRows));
@@ -99,7 +101,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<p class="m44-cover-description">No se trata solo de entrenar. Se trata de comprender lo realizado, valorar la evidencia y decidir con criterio qué hacer después.</p>'+
     '<div class="m44-cover-rule" aria-hidden="true"></div>'+
     '<div class="m44-cover-meta"><div><span>Preparado para</span><strong>'+esc(name)+'</strong></div><div><span>Periodo analizado</span><strong>'+esc(dateLabel(report.periodStart))+' — '+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Revisión profesional</span><strong>'+esc(coach)+'</strong></div></div>'+
-    '<div class="m44-cover-bottom"><span>BORRADOR PRIVADO · VISTA PREVIA SIN PUBLICAR</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
+    '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':'BORRADOR PRIVADO · VISTA PREVIA SIN PUBLICAR')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
   pages.push(page(2,total,'01 · LA LECTURA','Qué hemos hecho',
     '<p class="m44-section-lead">El periodo en contexto</p>'+
     '<div class="m44-prose m44-report-summary">'+paragraphs(report.summary,2500)+'</div>'+
@@ -125,9 +127,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   }
   pages.push(page(total,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
     '<div class="m44-decision"><span>INTERPRETACIÓN PROFESIONAL</span><div class="m44-prose">'+paragraphs(report.conclusions,2500)+'</div></div>'+
-    '<div class="m44-coach-voice"><span>LA MIRADA DE TU COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>'+
+    (published?'':'<div class="m44-coach-voice"><span>LA MIRADA DE TU COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
     '<div class="m44-next"><span>PRÓXIMO PASO PROPUESTO</span><div class="m44-prose">'+paragraphs(report.recommendations,2500)+'</div></div>'+
-    '<div class="m44-method"><h3>Transparencia del informe</h3><p>Fuente principal: '+esc(TRUSTED_SOURCES[report.sourceType]||'Evidencia canónica IBERFIT')+'. Ventana: '+esc(dateLabel(report.periodStart))+' a '+esc(dateLabel(report.periodEnd))+'. Este documento es una previsualización; no confirma aprobación, publicación ni entrega. La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p><p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>'));
+    '<div class="m44-method"><h3>Transparencia del informe</h3><p>Fuente principal: '+esc(TRUSTED_SOURCES[report.sourceType]||'Evidencia canónica IBERFIT')+'. Ventana: '+esc(dateLabel(report.periodStart))+' a '+esc(dateLabel(report.periodEnd))+'. '+(published?'Esta copia de lectura procede del informe visible en la plataforma. No constituye por sí sola un artefacto PDF firmado o archivado.':'Este documento es una previsualización; no confirma aprobación, publicación ni entrega.')+' La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p><p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>'));
   return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Vista previa IBERFIT · '+esc(name)+'</title><link rel="stylesheet" href="'+esc(stylesheetHref)+'" data-m44-report-css></head><body><nav class="m44-toolbar" aria-label="Acciones de la vista previa"><span data-m44-print-status>Verificando diseño A4…</span><button type="button" data-m44-print disabled>Imprimir o guardar como PDF</button><button type="button" data-m44-close>Cerrar</button></nav>'+pages.join('')+'</body></html>';
 }
 function pageOverflow(doc){
@@ -172,10 +174,10 @@ async function verifyA4Layout(doc,popup,scope){
     return geometries&&!pageOverflow(target);
   }finally{frame.remove();}
 }
-export function openEvolutionReportPreview({report,clientName,coachName,scope=globalThis}={}){
+export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,stylesheetHref:origin+'/m26/evolution-report.css?v=m44wip-1'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44wip-1'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{
@@ -193,7 +195,7 @@ export function openEvolutionReportPreview({report,clientName,coachName,scope=gl
       const logo=doc.querySelector('.m44-brand img');
       if(logo&&!logo.complete)await Promise.race([new Promise(resolve=>{logo.addEventListener('load',resolve,{once:true});logo.addEventListener('error',resolve,{once:true});}),new Promise(resolve=>scope.setTimeout(resolve,3000))]);
       if(!await verifyA4Layout(doc,popup,scope)){status.textContent='El contenido no cabe con seguridad en A4. Ajusta las notas antes de imprimir.';print.disabled=true;return;}
-      ready=true;print.disabled=false;status.textContent='Vista previa privada · diseño A4 verificado';
+      ready=true;print.disabled=false;status.textContent=published?'Copia de consulta del informe publicado · A4 verificado':'Vista previa privada · diseño A4 verificado';
     };
     stylesheet.addEventListener('load',()=>{void finish().catch(()=>{status.textContent='No se pudo validar el diseño.';});},{once:true});
     stylesheet.addEventListener('error',()=>{status.textContent='No se pudo cargar el diseño. No se puede imprimir.';},{once:true});
@@ -213,6 +215,6 @@ export function openEvolutionReportPreview({report,clientName,coachName,scope=gl
     close.addEventListener('click',()=>popup.close());
     popup.focus?.();
   }catch(error){try{popup.close?.();}catch{}throw error;}
-  return Object.freeze({ok:true,mode:'private-a4-preview',published:false,downloaded:false});
+  return Object.freeze({ok:true,mode:publicationStatus==='published'?'published-client-readonly':'private-a4-preview',published:publicationStatus==='published',downloaded:false});
 }
 export const __m44EvolutionReportTestables=Object.freeze({dateLabel,pageOverflow,esc,clean});

@@ -88,8 +88,30 @@ export function clientContentView(entity,record={},{previewForPublication=false}
     ['Conclusiones',publicReportValue('conclusions','conclusiones')],
     ['Próximos pasos',publicReportValue('recommendations','recomendaciones','nextSteps','next_steps')],
   ].map(([sectionTitle,value])=>({title:sectionTitle,text:clean(value,MAX_SECTION_TEXT)})).filter((section)=>section.text);
+  const reportType=clean(publicReportValue('reportType','report_type'),50);
+  const status=String(field(record,'status','estado')||'').trim().toLowerCase();
+  const audience=String(field(record,'audience','visibility')||'').trim().toLowerCase();
+  const available=['publicado','published'].includes(status)&&audience==='cliente'
+    &&['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(reportType);
+  const evidence=publicReportValue('evidence'),activitySeries=publicReportValue('activitySeries');
+  const reportDocument=available&&Array.isArray(evidence)&&evidence.length>0?Object.freeze({
+    id:reportType,ready:true,title,summary,
+    conclusions:clean(publicReportValue('conclusions'),MAX_SECTION_TEXT),
+    recommendations:clean(publicReportValue('recommendations'),MAX_SECTION_TEXT),
+    periodStart:clean(publicReportValue('periodStart','period_start'),10),
+    periodEnd:clean(publicReportValue('periodEnd','period_end'),10),
+    evidence:Object.freeze(evidence.slice(0,12).map(row=>Object.freeze({
+      label:clean(row?.label,120),text:clean(row?.text,500),
+      source:clean(row?.source,120),quality:clean(row?.quality,60),
+    }))),
+    activitySeries:Object.freeze((Array.isArray(activitySeries)?activitySeries:[]).slice(0,13).map(row=>Object.freeze({
+      from:clean(row?.from,10),to:clean(row?.to,10),count:boundedNumber(row?.count,{min:0,max:100000,integer:true}),
+    }))),
+    sourceType:reportType==='post-session'?'session_execution':'session_execution_period',
+  }):null;
   return Object.freeze({
     entity:kind,id,title,eyebrow:'Tu informe',summary,dateRange:dateRange(record),facts:Object.freeze([]),
+    reportDocument,
     sections:immutableSections(sections),actionLabel:'Leer el informe',
   });
 }

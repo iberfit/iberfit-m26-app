@@ -3765,7 +3765,10 @@ function clientContentCard(item,entity,{canStartSession=true}={}){
           :item?.canClientExecute===true
             ?'<p class="m26-client-session-guidance" role="status">Sesión publicada, pendiente de habilitación. Podrás iniciarla cuando tu Coach confirme que está disponible.</p>'
             :'<p class="m26-client-session-guidance">Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.</p>';
-  return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}</article>`;
+  const reportAction=entity==='report'&&view.reportDocument
+    ?`<button type="button" class="m26-primary-action m26-report-document-open" data-workflow-action="open-published-evolution-report" data-entity-id="${escapeHtml(item.id)}">Abrir informe premium A4</button>`
+    :'';
+  return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}${reportAction}</article>`;
 }
 function publicationCard(item,entity){
   const actions=item?.publication?.actions||[];

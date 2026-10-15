@@ -94,3 +94,12 @@ test('M44 dated activity timeline has a grounded chart, a readable table and fiv
   assert.match(html,/periodos sin registros se muestran como cero sesiones/);
   assert.match(html,/5 \/ 5/);
 });
+
+
+test('M44 client publication view has a different legal label and no private coach notes',()=>{
+  const html=buildEvolutionReportHtml({report:basic,publicationStatus:'published'});
+  assert.match(html,/CONSULTA DE INFORME PUBLICADO EN PLATAFORMA/);
+  assert.match(html,/No constituye por sí sola un artefacto PDF firmado o archivado/);
+  assert.doesNotMatch(html,/BORRADOR PRIVADO/);
+  assert.doesNotMatch(html,/LA MIRADA DE TU COACH/);
+});
