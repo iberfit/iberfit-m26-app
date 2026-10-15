@@ -56,6 +56,15 @@ export function evaluateBackupReadiness(
     if (recoveryBaseMs === null) {
       throw new Error('PROD_BACKUP_PITR_RECOVERY_BASE_MISSING');
     }
+    // PITR metadata without a bounded, recent recoverable base is not evidence
+    // of a usable restore point. Do not accept a historic WAL-G flag alone.
+    const recoveryAgeHours = (nowMs - recoveryBaseMs) / 3_600_000;
+    if (recoveryAgeHours < -1) {
+      throw new Error('PROD_BACKUP_PITR_TIMESTAMP_IN_FUTURE');
+    }
+    if (recoveryAgeHours > maxDailyBackupAgeHours) {
+      throw new Error(`PROD_BACKUP_PITR_BASE_TOO_OLD:${recoveryAgeHours.toFixed(2)}h`);
+    }
 
     return {
       ok: true,
@@ -64,7 +73,7 @@ export function evaluateBackupReadiness(
       walgEnabled,
       completedBackupCount: completed.length,
       latestBackupAt: new Date(recoveryBaseMs).toISOString(),
-      ageHours: Number(((nowMs - recoveryBaseMs) / 3_600_000).toFixed(2)),
+      ageHours: Number(recoveryAgeHours.toFixed(2)),
     };
   }
 

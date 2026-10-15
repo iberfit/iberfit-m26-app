@@ -188,3 +188,16 @@ test('data safety gate distinguishes tightening TRUNCATE privileges from executi
  assert.deepEqual(findDestructiveSql('begin; truncate public.reports; commit;'),['TRUNCATE']);
  assert.deepEqual(findDestructiveSql('drop trigger dangerous on public.clients;'),['DROP_TRIGGER']);
 });
+
+test('old Production Data Safety Gate never treats schema-only snapshot as restorable and excludes raw artifacts',async()=>{
+ const fs=await import('node:fs');
+ const workflow=fs.readFileSync(new URL('../.github/workflows/prod-data-safety-gate.yml',import.meta.url),'utf8');
+ assert.match(workflow,/SCHEMA_ONLY_NOT_A_BACKUP/);
+ assert.match(workflow,/productionMigrationApproved:false/);
+ assert.match(workflow,/IBERFIT_PROD_MIGRATION_BLOCKED_FULL_BACKUP_NOT_VERIFIED/);
+ assert.doesNotMatch(workflow,/echo 'IBERFIT_PROD_RECOVERY_READY Free-plan logical schema snapshot'/);
+ const artifact=workflow.split('      - name: Preserve production recovery evidence')[1]||'';
+ assert.ok(artifact.includes('prod-schema-recovery-summary.json'));
+ assert.doesNotMatch(artifact,/^\s+recovery\/prod-schema-recovery-snapshot\.json\s*$/m);
+ assert.doesNotMatch(artifact,/^\s+recovery\/prod-backup-readiness\.json\s*$/m);
+});

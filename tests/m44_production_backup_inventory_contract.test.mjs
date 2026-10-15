@@ -51,3 +51,13 @@ test('backup inventory denies QA and refuses hidden HTTP/service errors',async()
  await assert.rejects(verifyBackupInventory({projectRef:PROD_REF,accessToken:'x'.repeat(30),
   fetchImpl:async()=>{throw Error('network');}}),/API_UNREACHABLE/);
 });
+
+test('M44 inventory accounts for managed PITR with fresh WAL-G physical recovery base',()=>{
+ const payload=(at)=>({pitr_enabled:true,walg_enabled:true,backups:[],physical_backup_data:{latest_physical_backup_date_unix:Math.floor(at/1000)}});
+ const proof=certifyBackupInventory(payload(now-2*3600000),{nowMs:now});
+ assert.equal(proof.mode,'PITR');
+ assert.equal(proof.ready,true);
+ assert.equal(proof.restoreTestVerified,false);
+ assert.throws(()=>certifyBackupInventory(payload(now-80*3600000),{nowMs:now}),/PITR_BASE_TOO_OLD/);
+ assert.throws(()=>certifyBackupInventory({...payload(now-3600000),walg_enabled:false},{nowMs:now}),/PITR_WITHOUT_WALG/);
+});

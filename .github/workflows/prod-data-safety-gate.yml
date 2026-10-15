@@ -127,7 +127,7 @@ jobs:
             tests/m26_prod_backup_readiness.test.mjs \
             tests/m26_prod_schema_recovery_snapshot.test.mjs
 
-      - name: Verify recoverable Supabase production state before schema change
+      - name: Assess managed backups and schema-only evidence (no PROD DDL)
         if: ${{ steps.diff.outputs.requires_recovery_check == 'true' }}
         shell: bash
         env:
@@ -158,10 +158,13 @@ jobs:
           fs.writeFileSync('recovery/prod-recovery-readiness-summary.json',JSON.stringify({
             ...summary,
             projectRef:process.env.PROD_SUPABASE_REF,
-            recoveryAuthority:'SUPABASE_MANAGED_BACKUP'
+            recoveryAuthority:'SUPABASE_MANAGED_INVENTORY',
+            restoreTestVerified:false,
+            productionMigrationApproved:false
           },null,2)+'\n');
           NODE
-            echo 'IBERFIT_PROD_RECOVERY_READY managed backup/PITR'
+            echo 'IBERFIT_PROD_MANAGED_BACKUP_INVENTORY_AVAILABLE_RESTORE_NOT_TESTED'
+            echo '::notice::Managed backup inventory detected; restoration was not exercised in this workflow.'
             exit 0
           fi
 
@@ -224,10 +227,24 @@ jobs:
             ...summary,
             plan:'free',
             managedBackupError:'PROD_BACKUP_COMPLETED_BACKUP_MISSING',
-            recoveryAuthority:'IBERFIT_LOGICAL_SCHEMA_SNAPSHOT'
+            recoveryAuthority:'SCHEMA_ONLY_NOT_A_BACKUP',
+             restoreTestVerified:false,
+             productionMigrationApproved:false
           },null,2)+'\n');
           NODE
-          echo 'IBERFIT_PROD_RECOVERY_READY Free-plan logical schema snapshot'
+          # A schema snapshot recovers DDL, never records, Auth or Storage objects.
+          # Allow code-only safety reviews; deny migration candidates absent
+          # independent managed/restore-tested full backup.
+          echo 'IBERFIT_PROD_SCHEMA_SNAPSHOT_ONLY_NOT_RESTORABLE'
+          echo '::warning::IBERFIT production has no verified managed backup; this catalog snapshot is NOT a recoverable database copy.'
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            echo '### IBERFIT PROD recovery NOT certified' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Only structural metadata was captured. NO database row, Auth or Storage restoration was verified. Production migrations remain blocked.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${{ steps.diff.outputs.has_migration_changes }}" = 'true' ]; then
+            echo 'IBERFIT_PROD_MIGRATION_BLOCKED_FULL_BACKUP_NOT_VERIFIED' >&2
+            exit 47
+          fi
 
       - name: Record recovery gate applicability
         if: ${{ steps.diff.outputs.requires_recovery_check != 'true' }}
@@ -238,10 +255,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: iberfit-prod-recovery-readiness-${{ github.run_id }}
+          # Raw catalog data includes SQL function definitions and constants.
+          # Upload attestations only; never publish raw snapshots to artifacts.
           path: |
-            recovery/prod-backup-readiness.json
             recovery/prod-backup-readiness-summary.json
-            recovery/prod-schema-recovery-snapshot.json
             recovery/prod-schema-recovery-summary.json
             recovery/prod-recovery-readiness-summary.json
           if-no-files-found: warn

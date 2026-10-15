@@ -54,7 +54,7 @@ test('accepts PITR only with WAL-G and a physical recovery base', () => {
       pitr_enabled: true,
       backups: [],
       physical_backup_data: {
-        latest_physical_backup_date_unix: Math.floor(Date.parse('2026-09-25T03:00:00.000Z') / 1000),
+        latest_physical_backup_date_unix: Math.floor(Date.parse('2026-09-28T03:00:00.000Z') / 1000),
       },
     },
     { nowMs: NOW },
@@ -95,4 +95,13 @@ test('rejects PITR when no recovery base exists', () => {
     ),
     /PROD_BACKUP_PITR_RECOVERY_BASE_MISSING/,
   );
+});
+
+test('PITR inventory fails if latest physical base is stale or implausibly future-dated',()=>{
+  const payload=(when)=>({walg_enabled:true,pitr_enabled:true,backups:[],physical_backup_data:{latest_physical_backup_date_unix:Math.floor(when/1000)}});
+  assert.throws(()=>evaluateBackupReadiness(payload(NOW-80*3600000),{nowMs:NOW,maxDailyBackupAgeHours:48}),/PROD_BACKUP_PITR_BASE_TOO_OLD/u);
+  assert.throws(()=>evaluateBackupReadiness(payload(NOW+2*3600000),{nowMs:NOW,maxDailyBackupAgeHours:48}),/PROD_BACKUP_PITR_TIMESTAMP_IN_FUTURE/u);
+  const good=evaluateBackupReadiness(payload(NOW-3*3600000),{nowMs:NOW,maxDailyBackupAgeHours:48});
+  assert.equal(good.mode,'PITR');
+  assert.equal(good.ageHours,3);
 });
