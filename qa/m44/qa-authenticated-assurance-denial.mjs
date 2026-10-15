@@ -62,7 +62,7 @@ for(const [label,token,method,args] of [
 const response=await send('/functions/v1/iberfit-evolution-report-emission-v1',
  {action:'issue',reportId:randomUUID(),issueRequestId:randomUUID()},coach);
 const rejected=await response.json().catch(()=>({}));
-assert.equal(response.status,403,'M44_EDGE_MFA_REQUIRED');
+assert.equal(response.status,403,'M44_EDGE_MFA_REQUIRED_'+String(rejected.code||'UNKNOWN').slice(0,70));
 assert.equal(rejected.code,'M44_PRIVILEGED_ASSURANCE_REQUIRED');
 assert.ok(!rejected.signedUrl&&!rejected.sourceSnapshot);
 passed++;
