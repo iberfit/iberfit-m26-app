@@ -90,7 +90,7 @@ test('M44 dated activity timeline has a grounded chart, a readable table and fiv
   assert.equal((html.match(/class="m44-sheet /g)||[]).length,5);
   assert.match(html,/El ritmo del periodo/);
   assert.match(html,/Detalle accesible del ritmo de entrenamiento/);
-  assert.match(html,/El eje vertical empieza en cero/);
+  assert.match(html,/Escala vertical desde 0 hasta/);
   assert.match(html,/periodos sin registros se muestran como cero sesiones/);
   assert.match(html,/5 \/ 5/);
 });
