@@ -173,3 +173,18 @@
   margin-top:1rem;
   min-height:var(--iberfit-size-touch-target,44px);
 }
+
+/* M45 · Clear expectations in the Coach–Client relationship */
+.m26-communication-route .m45-conversation-empty{
+  max-width:52ch;
+  color:var(--iberfit-color-text-subtle,#cdd4d0);
+  font-size:.9375rem;
+  line-height:1.6;
+}
+.m26-communication-route .m45-response-expectation{
+  grid-column:1 / -1;
+  margin:0;
+  font-size:.8125rem;
+  line-height:1.5;
+  color:var(--iberfit-color-text-secondary,#9aa8a1);
+}
