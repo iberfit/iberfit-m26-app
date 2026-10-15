@@ -227,6 +227,7 @@ Deno.serve(async(req)=>{
  const bearer=String(req.headers.get('authorization')||'');
  if(!bearer.startsWith('Bearer ')||bearer.length>20000)
   return result(401,{ok:false,code:'M44_PDF_AUTH_REQUIRED'},origin);
+ let phase='request';
  try{
   const raw=await req.text();
   if(!raw||raw.length>2400)throw Error('M44_PDF_BODY_INVALID');
@@ -234,10 +235,13 @@ Deno.serve(async(req)=>{
   if(!body||typeof body!=='object'||Array.isArray(body))throw Error('M44_PDF_BODY_INVALID');
   const action=String(body.action||'');
   if(!['issue','open','latest','history','withdraw'].includes(action))throw Error('M44_PDF_ACTION_INVALID');
+  phase='clients';
   const {user,service}=clients(bearer,origin);
+  phase='getUser';
   const auth=await user.auth.getUser(bearer.slice(7).trim());
   if(auth.error||!UUID.test(auth.data?.user?.id||''))throw Error('M44_PDF_AUTH_REQUIRED');
   const actor=auth.data.user.id;
+  phase='domain';
   let data;
   if(action==='issue')data=await issue({user,service,actor,body});
   else if(action==='open')data=await open({user,service,body});
@@ -265,7 +269,7 @@ Deno.serve(async(req)=>{
   // Error metadata only: never log raw exception text, tokens or client data.
   console.error('[m44-pdf]',c,'sqlstate',
    /^[A-Z0-9]{5}$/u.test(sqlstate)?sqlstate:'none',
-   'class',e instanceof Error?e.name:'unknown');
+   'class',e instanceof Error?e.name:'unknown','phase',phase);
   return result(status,{ok:false,code:c,version:VERSION},origin);
  }
 });
