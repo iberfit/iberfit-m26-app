@@ -1,7 +1,7 @@
 import {defineConfig,devices} from '@playwright/test';
 export default defineConfig({
   testDir:'./qa/m44',
-  testMatch:'evolution-report.spec.mjs',
+  testMatch:['evolution-report.spec.mjs','evolution-issued-ui.spec.mjs'],
   fullyParallel:false,
   forbidOnly:Boolean(process.env.CI),
   retries:0,
