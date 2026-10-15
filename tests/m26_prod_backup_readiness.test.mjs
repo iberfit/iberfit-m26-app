@@ -54,7 +54,7 @@ test('accepts PITR only with WAL-G and a physical recovery base', () => {
       pitr_enabled: true,
       backups: [],
       physical_backup_data: {
-        latest_physical_backup_date_unix: Math.floor(Date.parse('2026-09-25T03:00:00.000Z') / 1000),
+        latest_physical_backup_date_unix: Math.floor(Date.parse('2026-09-28T03:00:00.000Z') / 1000),
       },
     },
     { nowMs: NOW },
