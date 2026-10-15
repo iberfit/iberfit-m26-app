@@ -142,10 +142,11 @@ function fallbackCard(root,appointmentId){
 
 export function fullCalendarCoachOptions({
   events=[],
+  compact=false,
   onAppointmentFocus=()=>{},
 }={}){
   return Object.freeze({
-    initialView:'timeGridWeek',
+    initialView:compact?'timeGridDay':'timeGridWeek',
     locale:'es',
     timeZone:RC62_AGENDA_TIME_ZONE,
     themeSystem:'monarch',
@@ -189,6 +190,7 @@ export function createRc62AgendaCalendarController({
 
   let observer=null;
   let mediaQuery=null;
+  let compactMediaQuery=null;
   let calendar=null;
   let calendarHost=null;
   let generation=0;
@@ -248,7 +250,11 @@ export function createRc62AgendaCalendarController({
       };
       calendar=new FullCalendar.Calendar(
         host,
-        fullCalendarCoachOptions({events,onAppointmentFocus:focusAppointment})
+        fullCalendarCoachOptions({
+          events,
+          compact:compactMediaQuery?.matches===true,
+          onAppointmentFocus:focusAppointment,
+        })
       );
       calendarHost=host;
       lastEventSignature=signature;
@@ -276,13 +282,21 @@ export function createRc62AgendaCalendarController({
   }
 
   function onMediaChange(){scheduleRefresh();}
+  function onCompactChange(){
+    // View density is a construction-time option; recreate only on breakpoint
+    // transition, never on each MutationObserver delivery.
+    destroyCalendar();
+    scheduleRefresh();
+  }
 
   return Object.freeze({
     mount(){
       if(mounted)return;
       try{
         mediaQuery=scope?.matchMedia?.('(min-width: 720px)')||null;
+        compactMediaQuery=scope?.matchMedia?.('(max-width: 1099px)')||null;
         mediaQuery?.addEventListener?.('change',onMediaChange);
+        compactMediaQuery?.addEventListener?.('change',onCompactChange);
       }catch{
         mediaQuery=null;
       }
@@ -302,6 +316,8 @@ export function createRc62AgendaCalendarController({
       observer=null;
       mediaQuery?.removeEventListener?.('change',onMediaChange);
       mediaQuery=null;
+      compactMediaQuery?.removeEventListener?.('change',onCompactChange);
+      compactMediaQuery=null;
       destroyCalendar();
     },
     refresh:()=>refresh(),
