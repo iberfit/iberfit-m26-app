@@ -173,7 +173,14 @@ test('M45 agenda reveals early and late appointments without all-day clutter',()
     endAt:'2026-10-21T00:00:00-03:00',
   }]);
   assert.deepEqual(agendaVisibleHourWindow(late),{
-    slotMinTime:'00:00:00',slotMaxTime:'24:00:00',
+    slotMinTime:'06:00:00',slotMaxTime:'24:00:00',
+  });
+  const fromNineToMidnight=buildRc62AgendaEvents([{
+    id:'evening',startAt:'2026-10-20T21:00:00-03:00',
+    endAt:'2026-10-21T00:00:00-03:00',
+  }]);
+  assert.deepEqual(agendaVisibleHourWindow(fromNineToMidnight),{
+    slotMinTime:'06:00:00',slotMaxTime:'24:00:00',
   });
 });
 
@@ -189,7 +196,7 @@ test('M45 agenda expands hours when a late appointment arrives after initial ren
   h.getMutation()();
   await h.flush();
   assert.ok(h.calls.options.some((item)=>item.name==='slotMaxTime'&&item.value==='24:00:00'));
-  assert.ok(h.calls.options.some((item)=>item.name==='slotMinTime'&&item.value==='00:00:00'));
+  assert.ok(h.calls.options.some((item)=>item.name==='slotMinTime'&&item.value==='06:00:00'));
   h.controller.destroy();
 });
 
