@@ -70,6 +70,11 @@ begin
      or p_draft->>'dataPolicy' is distinct from 'canonical-only'
      or length(coalesce(p_draft->>'coachComment',''))>2500
      or nullif(coalesce(p_draft->>'assessmentId',''),'') is not null
+     -- Training evolution must never borrow the IRI's diagnostic identity,
+     -- including hidden lineage keys from a custom RPC payload.
+     or nullif(coalesce(p_draft->>'sourceAssessmentId',''),'') is not null
+     or nullif(coalesce(p_draft->>'sourceAssessmentRevision',''),'') is not null
+     or p_draft->>'reportModelVersion' is distinct from 'iri2-premium-report-v1'
   then
     raise exception 'M44_REPORT_REVIEW_OR_PROVENANCE_INVALID' using errcode='22023';
   end if;

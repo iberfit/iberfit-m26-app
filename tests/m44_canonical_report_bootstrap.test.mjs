@@ -69,3 +69,12 @@ test('M44 every canonical draft creation writes a server-side audit event withou
   assert.match(sql,/evidenceSignature/);
   assert.doesNotMatch(sql,/'applied',null,'publicado'/);
 });
+
+
+test('M44 report RPC refuses forged initial-IRI references and unsupported model versions',async()=>{
+  const sql=await get('supabase/migrations/20261015141000_m44_report_canonical_draft_bootstrap_v1.sql');
+  assert.match(sql,/p_draft->>'sourceAssessmentId'/);
+  assert.match(sql,/p_draft->>'sourceAssessmentRevision'/);
+  assert.match(sql,/reportModelVersion' is distinct from 'iri2-premium-report-v1'/);
+  assert.match(sql,/assessmentId/);
+});
