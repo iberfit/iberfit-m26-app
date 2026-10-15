@@ -1,6 +1,6 @@
 // Branded, server-owned M44 evolution PDF renderer. pdf-lib injected by Edge.
 // Rendering is based on the canonical, redacted, published server snapshot.
-export const M44_PDF_TEMPLATE='iberfit-evolution-a4-v1';
+export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v2';
 const W=595.28,H=841.89;
 const C={forest:[.064,.145,.117],forest2:[.15,.27,.21],gold:[.73,.58,.30],
  cream:[.975,.965,.94],ink:[.12,.20,.17],muted:[.37,.44,.40],rule:[.80,.83,.79]};
@@ -24,7 +24,7 @@ function wrap(font,size,v,width){
  if(line)lines.push(line);
  return lines.length?lines:['Sin registro'];
 }
-export async function renderEvolutionReportPdf({source,pdfLib,brandImageBytes,generatedAt}={}){
+export async function renderEvolutionReportPdf({source,pdfLib,brandImageBytes,brandFonts,fontkit,generatedAt}={}){
  if(!source||!pdfLib?.PDFDocument||!pdfLib?.StandardFonts||!pdfLib?.rgb)
   throw Error('M44_PDF_RENDER_INPUT_INVALID');
  if(!/^[0-9a-f]{8}-/iu.test(String(source.reportId||''))||
@@ -33,9 +33,14 @@ export async function renderEvolutionReportPdf({source,pdfLib,brandImageBytes,ge
   !Array.isArray(source.evidence)||!source.evidence.length)
   throw Error('M44_PDF_SOURCE_NOT_CANONICAL');
  const {PDFDocument,StandardFonts,rgb}=pdfLib,doc=await PDFDocument.create();
- const serif=await doc.embedFont(StandardFonts.TimesRoman);
+ // Reject issuance if the actual first-party brand fonts are missing.
+ // This is the same Inter/Source Serif identity used by the HTML A4 preview.
+ if(!fontkit||!brandFonts?.inter||!brandFonts?.serif)
+  throw Error('M44_PDF_BRAND_FONTS_REQUIRED');
+ doc.registerFontkit(fontkit);
+ const serif=await doc.embedFont(brandFonts.serif,{subset:true});
+ const sans=await doc.embedFont(brandFonts.inter,{subset:true});
  const serifBold=await doc.embedFont(StandardFonts.TimesRomanBold);
- const sans=await doc.embedFont(StandardFonts.Helvetica);
  const bold=await doc.embedFont(StandardFonts.HelveticaBold);
  const color=k=>rgb(...C[k]),pages=[];
  function add(kind='inside'){

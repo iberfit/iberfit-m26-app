@@ -1,4 +1,5 @@
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
+import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
 import {renderEvolutionReportPdf,M44_PDF_TEMPLATE} from '../../supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js';
 
 const source={
@@ -21,7 +22,11 @@ const source={
  })),
 };
 const result=await renderEvolutionReportPdf({
- source,pdfLib:{PDFDocument,StandardFonts,rgb},
+ source,pdfLib:{PDFDocument,StandardFonts,rgb},fontkit,
+ brandFonts:{
+  inter:await Deno.readFile('public/m26/fonts/inter-latin-wght-normal.woff2'),
+  serif:await Deno.readFile('public/m26/fonts/source-serif-4-latin-wght-normal.woff2'),
+ },
  generatedAt:'2026-10-15T12:00:00.000Z',
 });
 if(!(result.bytes instanceof Uint8Array)||result.bytes.length<1024||

@@ -1,5 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
+import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
 import {renderEvolutionReportPdf,M44_PDF_TEMPLATE} from './pdf-renderer.js';
 
 const VERSION='m44-issued-pdf-broker-2026.10-v1';
@@ -55,6 +56,18 @@ async function signed(service:BrokerClient,path:string){
  if(response.error||!response.data?.signedUrl)throw Error('M44_PDF_SIGNED_URL_FAILED');
  return response.data.signedUrl;
 }
+async function fontBytes(name:string){
+ // Restricted to static bundled official font assets on the known IBERFIT site.
+ const response=await fetch(appOrigin+'/m26/fonts/'+name,{
+  signal:AbortSignal.timeout(5000),
+ });
+ if(!response.ok||Number(response.headers.get('content-length')||0)>2_000_000)
+  throw Error('M44_PDF_BRAND_FONT_FETCH_FAILED');
+ const bytes=new Uint8Array(await response.arrayBuffer());
+ if(bytes.length<1000||bytes.length>2_000_000)
+  throw Error('M44_PDF_BRAND_FONT_SIZE_INVALID');
+ return bytes;
+}
 async function logoBytes(){
  try{
   const res=await fetch(appOrigin+'/public/isotipo-iberfit.png',{signal:AbortSignal.timeout(4500)});
@@ -109,7 +122,11 @@ async function issue({user,service,actor,body}:{
  }
  const rendered=await renderEvolutionReportPdf({
   source:src.sourceSnapshot,pdfLib:{PDFDocument,StandardFonts,rgb},
-  brandImageBytes:await logoBytes(),generatedAt:new Date().toISOString(),
+  brandImageBytes:await logoBytes(),
+  brandFonts:{
+   inter:await fontBytes('inter-latin-wght-normal.woff2'),
+   serif:await fontBytes('source-serif-4-latin-wght-normal.woff2'),
+  },fontkit,generatedAt:new Date().toISOString(),
  });
  const bytes=rendered.bytes;
  if(!(bytes instanceof Uint8Array)||bytes.length<1024||bytes.length>20*1024*1024)

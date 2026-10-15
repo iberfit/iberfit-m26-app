@@ -90,4 +90,4 @@ jobs:
       - name: Compile exact Edge issuer and its PDF renderer
         run: deno check --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json supabase/functions/iberfit-evolution-report-emission-v1/index.ts
       - name: Generate and re-open a long report PDF from synthetic data
-        run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-net qa/m44/pdf-issuer-smoke.mjs
+        run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-net --allow-read qa/m44/pdf-issuer-smoke.mjs
