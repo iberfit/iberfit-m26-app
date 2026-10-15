@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMessageRetryFence} from '../src/m26/communication/message-retry-fence.js';
+import {createMessageRetryFence} from '../src/m26/communication/controller.js';
 import {createCommunicationService} from '../src/m26/communication/service.js';
 
 test('M45 same message after uncertain timeout reuses the exact remote operation receipt',async()=>{
