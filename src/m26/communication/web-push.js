@@ -142,6 +142,7 @@ export function createWebPushCoordinator({
       requireSameActor(expectedActor);
       const backend=normalizedBackendState(await transport.webPushUpsert(authToken,local.serialized));
       if(!backend.active)throw new Error('M26_PUSH_UPSERT_NOT_CONFIRMED');
+      requireSameActor(expectedActor);
       return Object.freeze({ok:true,active:true,created:local.created===true,subscriptionCount:Math.max(1,backend.subscriptionCount||1),updatedAt:backend.updatedAt});
     }catch(error){
       if(local.created===true){
@@ -180,6 +181,7 @@ export function createWebPushCoordinator({
       requireSameActor(expectedActor);
       if(sw?.pushManager)local=await unsubscribe({registration:sw});
     }catch{}
+    requireSameActor(expectedActor);
     return Object.freeze({ok:result?.ok===true&&local.ok!==false,active:false,changed:Number(result?.deletedCount||0)>0||local.changed===true,deletedCount:Math.max(0,Number(result?.deletedCount||0)||0)});
   }
 
