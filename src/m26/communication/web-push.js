@@ -136,15 +136,28 @@ export function createWebPushCoordinator({
     }
     const sw=await registration();
     const local=await subscribe({registration:sw,vapidPublicKey:resolvedKey});
+    let authToken=null;
+    let upsertAttempted=false;
     try{
       requireSameActor(expectedActor);
-      const authToken=await token();
+      authToken=await token();
       requireSameActor(expectedActor);
+      upsertAttempted=true;
       const backend=normalizedBackendState(await transport.webPushUpsert(authToken,local.serialized));
       if(!backend.active)throw new Error('M26_PUSH_UPSERT_NOT_CONFIRMED');
       requireSameActor(expectedActor);
       return Object.freeze({ok:true,active:true,created:local.created===true,subscriptionCount:Math.max(1,backend.subscriptionCount||1),updatedAt:backend.updatedAt});
     }catch(error){
+      // The account may switch *during* the remote upsert. The old bearer
+      // token can still be valid, so compensate with recipient-scoped revoke
+      // before abandoning this old session's device registration.
+      if(upsertAttempted&&authToken&&expectedActor!==null){
+        let changed=false;
+        try{changed=actorScope()!==expectedActor;}catch{changed=true;}
+        if(changed){
+          try{await transport.webPushRevoke(authToken,pushEndpoint(local.serialized?.endpoint));}catch{}
+        }
+      }
       if(local.created===true){
         try{await unsubscribe({registration:sw});}catch{}
       }
