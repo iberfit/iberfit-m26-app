@@ -22,6 +22,7 @@ function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
   let compactMatches=compact;
   let onCompactChange=null;
   let lastOptions=null;
+  let lastCalendar=null;
   const calls={construct:0,render:0,remove:0,add:0,destroy:0,options:[]};
   const scheduled=[];
   let mutation;
@@ -35,7 +36,8 @@ function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
     removeEventListener(name,fn){if(onCompactChange===fn)onCompactChange=null;},
   };
   class FakeCalendar{
-    constructor(host,options){calls.construct+=1;lastOptions=options;}
+    constructor(host,options){calls.construct+=1;lastOptions=options;lastCalendar=this;this.date=new Date(options.initialDate||'2026-10-20T12:00:00-03:00');}
+    getDate(){return this.date;}
     render(){calls.render+=1;if(failRender)throw Error('vendor render failure');}
     removeAllEvents(){calls.remove+=1;}
     addEventSource(){calls.add+=1;if(failUpdate)throw Error('vendor update failure');}
@@ -75,6 +77,7 @@ function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
     controller,calls,flush,host,
     getMutation:()=>mutation,
     getOptions:()=>lastOptions,
+    selectDate(value){lastCalendar.date=new Date(value);},
     setCompact(value){compactMatches=value;onCompactChange?.();},
     setAppointments(value){records=value;},
   };
@@ -227,4 +230,28 @@ test('M45 a partial calendar update failure is contained, with no stale overlay'
   assert.equal(h.calls.add,1);
   h.controller.destroy();
   assert.equal(h.calls.destroy,1);
+});
+
+
+test('M45 Coach retains chosen agenda day when moving tablet to desktop and back',async()=>{
+  const h=calendarHarness();
+  h.controller.mount();
+  await h.flush();
+  h.selectDate('2026-11-24T12:00:00-03:00');
+  h.setCompact(true);
+  await h.flush();
+  assert.equal(h.getOptions().initialView,'timeGridDay');
+  assert.equal(h.getOptions().initialDate,new Date('2026-11-24T12:00:00-03:00').toISOString());
+  h.selectDate('2026-11-26T12:00:00-03:00');
+  h.setCompact(false);
+  await h.flush();
+  assert.equal(h.getOptions().initialView,'timeGridWeek');
+  assert.equal(h.getOptions().initialDate,new Date('2026-11-26T12:00:00-03:00').toISOString());
+  h.controller.destroy();
+});
+
+test('M45 calendar date input rejects invalid dates instead of injecting state',()=>{
+  assert.equal('initialDate' in fullCalendarCoachOptions({initialDate:'not-a-date'}),false);
+  assert.equal(fullCalendarCoachOptions({initialDate:'2026-11-24T12:00:00-03:00'}).initialDate,
+    '2026-11-24T15:00:00.000Z');
 });
