@@ -278,3 +278,93 @@ test('M45 same-role identity switch fences stale web push result and preference 
   assert.equal(next.dataset.m26WebPushActive,'false');
   controller.destroy();
 });
+
+
+test('M45 late send acknowledgement cannot clear a new account draft or block its send',async()=>{
+  const originalFormData=globalThis.FormData;
+  const handlers=new Map();
+  const oldAck=deferred();
+  const executed=[];
+  let identity='account-A';
+  let renders=0;
+  function composer(message){
+    const textarea={value:message,selectionStart:0,selectionEnd:0,scrollTop:0,
+      focus(){},setSelectionRange(){}};
+    const status={textContent:''};
+    const button={disabled:false};
+    const details={open:true};
+    const form={
+      dataset:{communicationForm:'message-send'},
+      querySelector(selector){
+        if(selector==='[name="threadId"]')return {value:'thread-a'};
+        if(selector==='textarea[name="body"]')return textarea;
+        if(selector==='button[type="submit"]')return button;
+        if(selector==='.m45-compose-status')return status;
+        return null;
+      },
+      closest(selector){return selector==='details.m26-thread'?details:null;},
+      setAttribute(){},
+      reset(){textarea.value='';},
+    };
+    return {form,textarea};
+  }
+  const a=composer('Mensaje privado de A');
+  const b=composer('Mensaje privado de B');
+  let visible=a;
+  const root={
+    ownerDocument:{defaultView:null,activeElement:null},
+    querySelector(selector){
+      return selector==='[data-communication-role]'
+        ?{dataset:{communicationRole:'coach',communicationIdentity:identity}}:null;
+    },
+    querySelectorAll(selector){
+      return selector==='[data-communication-form="message-send"]'?[visible.form]:[];
+    },
+    addEventListener(name,handler){handlers.set(name,handler);},
+    removeEventListener(name){handlers.delete(name);},
+  };
+  globalThis.FormData=class{
+    constructor(form){this.form=form;}
+    get(key){
+      return key==='threadId'?'thread-a':key==='body'
+        ?this.form.querySelector('textarea[name="body"]').value:null;
+    }
+  };
+  const controller=createCommunicationController({
+    root,
+    service:{
+      execute(command){
+        executed.push(command.payload.body);
+        if(command.payload.body==='Mensaje privado de A')return oldAck.promise;
+        return Promise.resolve({ok:true,syncPending:false});
+      },
+    },
+    render(){renders++;},
+  });
+  const submit=(form)=>handlers.get('submit')({
+    target:{closest(selector){return selector==='[data-communication-form]'?form:null;}},
+    preventDefault(){},
+  });
+  try{
+    controller.mount();
+    submit(a.form);
+    await tick();
+    assert.deepEqual(executed,['Mensaje privado de A']);
+    identity='account-B';
+    visible=b;
+    handlers.get('m26:shell-rendered')();
+    submit(b.form);
+    await tick();
+    assert.deepEqual(executed,['Mensaje privado de A','Mensaje privado de B']);
+    assert.equal(b.textarea.value,'','account B send must succeed immediately');
+    b.textarea.value='Nuevo borrador exclusivo de B';
+    const rendersAfterB=renders;
+    oldAck.resolve({ok:true,syncPending:false});
+    await tick();
+    assert.equal(b.textarea.value,'Nuevo borrador exclusivo de B');
+    assert.equal(renders,rendersAfterB,'old ACK cannot paint new account');
+  }finally{
+    controller.destroy();
+    globalThis.FormData=originalFormData;
+  }
+});
