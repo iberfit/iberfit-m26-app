@@ -46,3 +46,15 @@ test('M44 latest PDF version is selected server-side but only released through u
  assert.match(text,/else if\(action==='latest'\)data=await latest/);
  assert.doesNotMatch(method,/service\.storage\.from\(BUCKET\)\.download/);
 });
+
+
+test('M44 withdrawn revision cannot leak a new signed URL via retry of already-issued finalization',async()=>{
+ const s=await source();
+ const start=s.indexOf("const persisted=await callRpc<Finalized>"),end=s.indexOf('}catch(error){',start);
+ assert.ok(start>0&&end>start);
+ const final=s.slice(start,end);
+ const block=final.indexOf("if(record.withdrawn===true)");
+ const signed=final.indexOf("signed(service,canonicalPath)");
+ assert.ok(block>0&&signed>block);
+ assert.match(final,/M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED/);
+});

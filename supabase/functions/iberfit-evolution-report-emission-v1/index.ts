@@ -158,6 +158,10 @@ async function issue({user,service,actor,body}:{
   if(!persisted.ok)throw Error('M44_PDF_ISSUE_FINALIZE_FAILED');
   const record=persisted,canonicalPath=record.artifactPath;
   if(!canonicalPath||typeof canonicalPath!=='string')throw Error('M44_PDF_CANONICAL_PATH_MISSING');
+  // An issued revision that was withdrawn must never become downloadable
+  // again through duplicate issuance, even if the PDF bytes still exist.
+  if(record.withdrawn===true)
+   throw Error('M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED');
   if(record.kind==='already-issued'&&canonicalPath!==path){
    await service.storage.from(BUCKET).remove([path]);uploaded=false;
   }
