@@ -24,7 +24,12 @@ function notificationAction(item){
 }
 function notificationRead(item){
   if(!item?.persistent||!item.unread||!item.sourceId)return '';
-  return `<form data-communication-form="notification-read" class="m26-notification-read"><input type="hidden" name="notificationId" value="${e(item.sourceId)}"><button type="submit">Marcar leída</button></form>`;
+  const ids=[...new Set((Array.isArray(item.unreadSourceIds)?item.unreadSourceIds:[item.sourceId]).filter(Boolean))];
+  const selected=ids.slice(0,20);
+  const inputs=selected.map((id)=>`<input type="hidden" name="notificationId" value="${e(id)}">`).join('');
+  const label=ids.length>20?`Marcar ${selected.length} de ${ids.length} como leídas`
+    :ids.length>1?`Marcar ${ids.length} como leídas`:'Marcar leída';
+  return `<form data-communication-form="notification-read" class="m26-notification-read">${inputs}<button type="submit">${e(label)}</button></form>`;
 }
 function notificationCard(item){
   const grouped=Number(item?.count||0)>1?`<small>${e(item.count)} avisos relacionados agrupados</small>`:'';
@@ -41,7 +46,7 @@ function webPushControl(){
 function notificationCenter(vm){
   const center=buildNotificationCenter({role:vm.role,notifications:vm.notifications,coachCockpit:vm.coachCockpit});
   const unread=center.counts.unread;
-  const summary=unread?`${unread} ${unread===1?'sin leer':'sin leer'}`:'Al día';
+  const summary=unread?`${unread} sin leer`:'Al día';
   const content=center.items.length
     ?`${notificationGroup(center,'action-required','Requiere acción')}${notificationGroup(center,'important','Importante')}${notificationGroup(center,'informational','Informativo')}`
     :`<div class="m26-notification-empty"><strong>${e(center.emptyTitle)}</strong><p>${e(center.emptyBody)}</p></div>`;
