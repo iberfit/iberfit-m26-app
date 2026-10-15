@@ -18,6 +18,8 @@ SELECT 1 / (CASE WHEN EXISTS (
    AND allowed_mime_types @> ARRAY['application/pdf']::text[]
 ) THEN 1 ELSE 0 END) AS m44_private_pdf_bucket_not_verified;
 
+-- IBERFIT-TABLE-ACCESS: public.iberfit_evolution_report_issuances_v1 :: sealed official evolution PDF ledger; only service_role may access storage provenance, while user-scoped SECURITY DEFINER RPCs enforce per-client scope and verified privileged assurance.
+-- IBERFIT-POLICY: public.iberfit_evolution_report_issuances_v1 = service-role-only
 CREATE TABLE IF NOT EXISTS public.iberfit_evolution_report_issuances_v1 (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  report_id uuid NOT NULL REFERENCES public.reports(id) ON DELETE RESTRICT,
@@ -51,6 +53,8 @@ CREATE TABLE IF NOT EXISTS public.iberfit_evolution_report_issuances_v1 (
 CREATE INDEX IF NOT EXISTS idx_m44_issue_client ON public.iberfit_evolution_report_issuances_v1(client_id,issued_at DESC);
 ALTER TABLE public.iberfit_evolution_report_issuances_v1 ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.iberfit_evolution_report_issuances_v1 FROM PUBLIC,anon,authenticated;
+-- Explicit least-privilege Edge and finalizer access; DELETE remains forbidden.
+GRANT SELECT, INSERT, UPDATE ON TABLE public.iberfit_evolution_report_issuances_v1 TO service_role;
 
 -- This source is the ONLY payload that a renderer may sign and archive.
 -- Read from the redacted published projection, not raw private domain bodies.
