@@ -296,7 +296,7 @@ export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
-  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
+  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,reportSaveTimer=null,planSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
@@ -1926,8 +1926,35 @@ export function createWorkflowController({
       status(root,'report','Este informe ya estaba aprobado en el servidor. No se envió otra aprobación.','success');
       return {ok:true,kind:'already-confirmed',refreshOk:true};
     }
+    let baseRevision=remote.baseRevision;
+    if(remote.kind==='create'){
+      const type=String(prepared.payload.patch.reportType||'');
+      if(!['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(type)){
+        status(root,'report','Este formato requiere un documento previo confirmado o un circuito específico. No se ha enviado la aprobación.','error');
+        throw new Error('M44_REPORT_CREATION_TYPE_NOT_SUPPORTED');
+      }
+      if(typeof createReportDraft!=='function'){
+        status(root,'report','La creación segura de informes todavía no está disponible. Borrador conservado.','pending');
+        throw new Error('M44_REPORT_CREATE_BACKEND_NOT_READY');
+      }
+      status(root,'report','Creando documento privado y verificando las evidencias en el servidor…','pending');
+      // The server creates only a private draft with revision 1. It rejects
+      // stale activity, wrong client, duplicated ID and unconfirmed workouts.
+      let created=null;
+      try{
+        created=await withTimeout(Promise.resolve(createReportDraft({
+          clientId,reportId:stableId,draft:prepared.payload.patch,
+        })),20_000,'M44_REPORT_CREATE_TIMEOUT');
+      }catch(error){
+        status(root,'report','No se confirmó la creación privada. El borrador permanece guardado: puedes reintentar tras comprobar la conexión.','error');
+        throw new Error('M44_REPORT_CREATE_UNCONFIRMED',{cause:error});
+      }
+      if(created?.ok!==true||Number(created.remoteRevision)!==1)
+        throw new Error('M44_REPORT_CREATE_NOT_CONFIRMED');
+      baseRevision=1;
+    }
     reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result:null});
-    const command={...prepared,baseRevision:remote.baseRevision};
+    const command={...prepared,baseRevision};
     const result=await commandBus.execute(command);
     if(result?.ok===true)reportSubmissionByClient.set(clientId,{id:stableId,fingerprint,result});
     const feedback=mutationFeedback(result,{success:'Informe aprobado y listo para publicación.',subject:'El informe'});
