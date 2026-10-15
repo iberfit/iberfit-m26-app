@@ -42,11 +42,54 @@ function mergePreferencePayload(left,right){
 function clearSyncedPreferenceKeys(pending,synced){
   if(!pending)return null;
   const next={...pending};
-  for(const key of Object.keys(synced||{}))delete next[key];
+  // A delayed ACK must not delete a newer local choice for the same key.
+  for(const [key,value] of Object.entries(synced||{})){
+    if(Object.hasOwn(next,key)&&next[key]===value)delete next[key];
+  }
   return Object.keys(next).length?Object.freeze(next):null;
+}
+function captureMessageDrafts(root){
+  const drafts=new Map();
+  for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
+    const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
+    const textarea=form.querySelector?.('textarea[name="body"]');
+    if(!threadId||!textarea)continue;
+    const details=form.closest?.('details.m26-thread');
+    const focused=root?.ownerDocument?.activeElement===textarea;
+    drafts.set(threadId,{
+      body:textarea.value,
+      open:details?.open===true,
+      focused,
+      start:focused?textarea.selectionStart:null,
+      end:focused?textarea.selectionEnd:null,
+      scrollTop:textarea.scrollTop||0,
+    });
+  }
+  return drafts;
+}
+function restoreMessageDrafts(root,drafts){
+  if(!drafts?.size)return;
+  for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
+    const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
+    const previous=drafts.get(threadId);
+    const textarea=form.querySelector?.('textarea[name="body"]');
+    if(!previous||!textarea)continue;
+    textarea.value=previous.body;
+    const details=form.closest?.('details.m26-thread');
+    if(details&&previous.open)details.open=true;
+    textarea.scrollTop=previous.scrollTop;
+    if(previous.focused){
+      textarea.focus?.({preventScroll:true});
+      if(Number.isInteger(previous.start)&&Number.isInteger(previous.end)){
+        textarea.setSelectionRange?.(previous.start,previous.end);
+      }
+    }
+  }
 }
 export function createCommunicationController({root,service,render=()=>{}}={}){
   let busy=false;
+  let mounted=false;
+  let preferenceGeneration=0;
   let pushBusy=false;
   let pushStatusInFlight=null;
   let lastPushSyncAt=0;
@@ -58,13 +101,20 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let lastPreferenceSignature='';
   let lastPreferenceSyncAt=0;
   const windowLike=root?.ownerDocument?.defaultView||globalThis.window||null;
-  async function run(input,msg){
+  function renderWithoutLosingDrafts(){
+    const drafts=captureMessageDrafts(root);
+    render();
+    restoreMessageDrafts(root,drafts);
+  }
+  async function run(input,msg,{onAck}={}){
     if(busy)return false;
     busy=true;
     try{
-      await service.execute(input);
-      toast(msg);
-      render();
+      const result=await service.execute(input);
+      // Clear the submitted composer before preserving the other local drafts.
+      onAck?.();
+      toast(result?.syncPending?msg+' La actualización de esta pantalla está pendiente.':msg);
+      if(!result?.syncPending)renderWithoutLosingDrafts();
       return true;
     }catch(error){
       toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Los mensajes requieren conexión.':'No fue posible confirmar la comunicación.');
@@ -147,13 +197,16 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   async function hydrateNotificationPreferences({force=false}={}){
     if(!service?.notificationPreferences?.status)return false;
     if(preferenceHydrationInFlight&&!force)return preferenceHydrationInFlight;
+    const requestedGeneration=preferenceGeneration;
     preferenceHydrationInFlight=(async()=>{
       try{
         const remote=await service.notificationPreferences.status();
+        // A stale read must not overwrite an explicit choice made in the meantime.
+        if(!mounted||requestedGeneration!==preferenceGeneration)return false;
         service.notificationPreferences.applyRemote?.(remote?.preferences||{});
         lastPreferenceSignature=JSON.stringify(remote?.preferences||{});
         lastPreferenceSyncAt=Date.now();
-        render();
+        renderWithoutLosingDrafts();
         return true;
       }catch{
         return false;
@@ -203,9 +256,11 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     }
     if(kind==='message-send'){
       const threadId=text(d,'threadId',200);
-      const ok=await run({type:'MESSAGE_SEND',entityId:threadId,payload:{threadId,body:text(d,'body')}},'Mensaje enviado.');
-      if(ok)form.reset();
-      return ok;
+      return run(
+        {type:'MESSAGE_SEND',entityId:threadId,payload:{threadId,body:text(d,'body')}},
+        'Mensaje enviado.',
+        {onAck:()=>form.reset?.()},
+      );
     }
     if(kind==='thread-read'){
       const threadId=text(d,'threadId',200);
@@ -223,6 +278,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   function onChangeEvent(event){
     const payload=preferencePayloadFromControl(event.target?.closest?.('[data-m26-preference]'));
     if(!payload)return;
+    preferenceGeneration+=1;
     void syncNotificationPreferences(payload,{force:true,announceFailure:true});
   }
   function onShellRendered(){queueMicrotask(()=>{void syncPushControl();});}
@@ -235,6 +291,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   return Object.freeze({
     mount(){
+      mounted=true;
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('click',onClickEvent);
       root.addEventListener('change',onChangeEvent);
@@ -246,6 +303,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       });
     },
     destroy(){
+      mounted=false;
+      preferenceGeneration+=1;
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('click',onClickEvent);
       root.removeEventListener('change',onChangeEvent);
@@ -263,4 +322,6 @@ export const __communicationControllerInternals=Object.freeze({
   preferencePayloadFromRoot,
   mergePreferencePayload,
   clearSyncedPreferenceKeys,
+  captureMessageDrafts,
+  restoreMessageDrafts,
 });
