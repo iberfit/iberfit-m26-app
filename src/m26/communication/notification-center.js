@@ -98,6 +98,7 @@ function persistentItem(notification,role,index){
   const id=text(notification?.id,200)||`persisted-${index}`;
   const createdAt=text(notification?.createdAt,80)||null;
   const readAt=text(notification?.readAt,80)||null;
+  const unread=!readAt&&text(notification?.status,32).toLowerCase()!=='read';
   const dedupeTarget=action
     ?`${action.area}:${action.entityId||'global'}`
     :`notice:${id}`;
@@ -114,10 +115,10 @@ function persistentItem(notification,role,index){
     action,
     createdAt,
     readAt,
-    unread:!readAt,
+    unread,
     count:1,
     sourceIds:Object.freeze([id]),
-    unreadSourceIds:Object.freeze(readAt?[]:[id]),
+    unreadSourceIds:Object.freeze(unread?[id]:[]),
   });
 }
 
