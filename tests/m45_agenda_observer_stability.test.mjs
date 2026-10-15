@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   createRc62AgendaCalendarController,
   buildRc62AgendaEvents,
+  fullCalendarCoachOptions,
 } from '../src/m26/agenda/fullcalendar-agenda.js';
 
 const tick=()=>new Promise((resolve)=>setImmediate(resolve));
@@ -15,8 +16,11 @@ function appointment(id,start='2026-10-16T10:00:00-03:00'){
   };
 }
 
-function calendarHarness(){
+function calendarHarness({compact=false}={}){
   const host={dataset:{},isConnected:true};
+  let compactMatches=compact;
+  let onCompactChange=null;
+  let lastOptions=null;
   const calls={construct:0,render:0,remove:0,add:0,destroy:0};
   const scheduled=[];
   let mutation;
@@ -24,8 +28,13 @@ function calendarHarness(){
   const viewport={
     matches:true,addEventListener(){},removeEventListener(){},
   };
+  const compactViewport={
+    get matches(){return compactMatches;},
+    addEventListener(name,fn){if(name==='change')onCompactChange=fn;},
+    removeEventListener(name,fn){if(onCompactChange===fn)onCompactChange=null;},
+  };
   class FakeCalendar{
-    constructor(){calls.construct+=1;}
+    constructor(host,options){calls.construct+=1;lastOptions=options;}
     render(){calls.render+=1;}
     removeAllEvents(){calls.remove+=1;}
     addEventSource(){calls.add+=1;}
@@ -39,7 +48,7 @@ function calendarHarness(){
   const scope={
     FullCalendar:{Calendar:FakeCalendar},
     MutationObserver:FakeObserver,
-    matchMedia:()=>viewport,
+    matchMedia:(query)=>query==='(max-width: 1099px)'?compactViewport:viewport,
     requestAnimationFrame(callback){scheduled.push(callback);},
   };
   const root={
@@ -60,7 +69,13 @@ function calendarHarness(){
     for(const callback of scheduled.splice(0))callback();
     await tick();
   }
-  return {controller,calls,flush,getMutation:()=>mutation,setAppointments(value){records=value;}};
+  return {
+    controller,calls,flush,
+    getMutation:()=>mutation,
+    getOptions:()=>lastOptions,
+    setCompact(value){compactMatches=value;onCompactChange?.();},
+    setAppointments(value){records=value;},
+  };
 }
 
 test('M45 agenda ignores its own FullCalendar DOM mutations when events are unchanged',async()=>{
@@ -118,4 +133,23 @@ test('M45 agenda refuses invalid or reversed appointment times',()=>{
     {id:'reverse',startAt:'2026-10-16T12:00:00-03:00',endAt:'2026-10-16T11:00:00-03:00'},
   ]);
   assert.deepEqual(events.map(({id})=>id),['valid']);
+});
+
+
+test('M45 agenda uses day view on tablets without degrading the wide Coach week view',async()=>{
+  assert.equal(fullCalendarCoachOptions({events:[]}).initialView,'timeGridWeek');
+  assert.equal(fullCalendarCoachOptions({events:[],compact:true}).initialView,'timeGridDay');
+  const h=calendarHarness({compact:true});
+  h.controller.mount();
+  await h.flush();
+  assert.equal(h.getOptions().initialView,'timeGridDay');
+  assert.equal(h.getOptions().editable,false);
+  assert.equal(h.getOptions().selectable,false);
+  h.setCompact(false);
+  await h.flush();
+  assert.equal(h.getOptions().initialView,'timeGridWeek');
+  assert.equal(h.calls.construct,2);
+  assert.equal(h.calls.destroy,1);
+  h.controller.destroy();
+  assert.equal(h.calls.destroy,2);
 });
