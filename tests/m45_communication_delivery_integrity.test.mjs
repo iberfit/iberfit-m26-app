@@ -421,3 +421,25 @@ test('M45 route view-model uses authenticated state identity, not a stale shell 
   const html=(await import('../src/m26/communication/route-render.js')).renderCommunicationRoute(vm);
   assert.match(html,/data-communication-identity="current-auth-user"/);
 });
+
+
+test('M45 an acknowledged old-account message cannot refresh the next account',async()=>{
+  let identity='coach-account-A',release;
+  const pending=new Promise((resolve)=>{release=resolve;});
+  let refreshes=0;
+  const service=createCommunicationService({
+    transport:{execute:()=>pending},
+    getToken:async()=> 'jwt-account-A',
+    getRole:()=> 'coach',
+    getState:()=>({available:true,identity:{id:identity}}),
+    isOnline:()=>true,
+    refreshState:async()=>{refreshes++;},
+  });
+  const resultPromise=service.execute(messageInput('account-A-op'));
+  identity='coach-account-B';
+  release({ok:true,kind:'ack'});
+  const result=await resultPromise;
+  assert.equal(result.ok,true,'the server ACK remains authoritative');
+  assert.equal(result.syncPending,true,'the original account is no longer visible');
+  assert.equal(refreshes,0,'never hydrate the replacement identity from an old operation');
+});
