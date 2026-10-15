@@ -253,6 +253,9 @@ export function createRc62AgendaCalendarController({
       if(lastEventSignature===signature)return;
       calendar.removeAllEvents?.();
       calendar.addEventSource?.(events);
+      const window=agendaVisibleHourWindow(events);
+      calendar.setOption?.('slotMinTime',window.slotMinTime);
+      calendar.setOption?.('slotMaxTime',window.slotMaxTime);
       lastEventSignature=signature;
       return;
     }
