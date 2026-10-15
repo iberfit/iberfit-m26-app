@@ -48,22 +48,26 @@ function clearSyncedPreferenceKeys(pending,synced){
   }
   return Object.keys(next).length?Object.freeze(next):null;
 }
+function captureMessageDraft(form,root){
+  const threadId=String(form?.querySelector?.('[name="threadId"]')?.value||'');
+  const textarea=form?.querySelector?.('textarea[name="body"]');
+  if(!threadId||!textarea)return null;
+  const details=form.closest?.('details.m26-thread');
+  const focused=root?.ownerDocument?.activeElement===textarea;
+  return [threadId,{
+    body:textarea.value,
+    open:details?.open===true,
+    focused,
+    start:focused?textarea.selectionStart:null,
+    end:focused?textarea.selectionEnd:null,
+    scrollTop:textarea.scrollTop||0,
+  }];
+}
 function captureMessageDrafts(root){
   const drafts=new Map();
   for(const form of root?.querySelectorAll?.('[data-communication-form="message-send"]')||[]){
-    const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
-    const textarea=form.querySelector?.('textarea[name="body"]');
-    if(!threadId||!textarea)continue;
-    const details=form.closest?.('details.m26-thread');
-    const focused=root?.ownerDocument?.activeElement===textarea;
-    drafts.set(threadId,{
-      body:textarea.value,
-      open:details?.open===true,
-      focused,
-      start:focused?textarea.selectionStart:null,
-      end:focused?textarea.selectionEnd:null,
-      scrollTop:textarea.scrollTop||0,
-    });
+    const draft=captureMessageDraft(form,root);
+    if(draft)drafts.set(...draft);
   }
   return drafts;
 }
@@ -304,7 +308,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     }
     const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
     if(!threadId)return;
-    const draft=captureMessageDrafts(root).get(threadId);
+    const draft=captureMessageDraft(form,root)?.[1];
     if(draft?.body)pendingMessageDrafts.set(threadId,draft);
     else pendingMessageDrafts.delete(threadId);
   }
