@@ -9,7 +9,9 @@ const serialized=Object.freeze({endpoint:'https://push.example.test/device-a',ex
 function harness({state=baseState,online=true,subscribeCreated=true,upsertError=null,permissionResult={ok:true,permission:'granted',reason:null},existingSubscription=null,statusResponse={ok:true,active:false,subscriptionCount:0,updatedAt:null}}={}){
   const calls=[];
   const subscription=existingSubscription||{endpoint:serialized.endpoint,getKey:(name)=>new Uint8Array(name==='p256dh'?[1,2,3]:[4,5,6]).buffer};
-  const registration={pushManager:{getSubscription:async()=>existingSubscription}};
+  // Model browser state after subscribe(), not just the state at harness creation.
+  let activeSubscription=existingSubscription;
+  const registration={pushManager:{getSubscription:async()=>activeSubscription}};
   const transport={
     webPushStatus:async(token,endpoint)=>{calls.push(['status',token,endpoint??null]);return statusResponse;},
     webPushUpsert:async(token,payload)=>{calls.push(['upsert',token,payload]);if(upsertError)throw upsertError;return {ok:true,active:true,subscriptionCount:1,updatedAt:'2026-09-19T19:00:00Z'};},
@@ -23,8 +25,16 @@ function harness({state=baseState,online=true,subscribeCreated=true,upsertError=
     isOnline:()=>online,
     inspect:async()=>state,
     requestPermission:async()=>{calls.push(['permission']);return permissionResult;},
-    subscribe:async()=>{calls.push(['subscribe']);return {subscription,serialized,created:subscribeCreated};},
-    unsubscribe:async()=>{calls.push(['unsubscribe']);return {ok:true,changed:true};},
+    subscribe:async()=>{
+      calls.push(['subscribe']);
+      if(subscribeCreated)activeSubscription=subscription;
+      return {subscription,serialized,created:subscribeCreated};
+    },
+    unsubscribe:async()=>{
+      calls.push(['unsubscribe']);
+      activeSubscription=null;
+      return {ok:true,changed:true};
+    },
   });
   return {coordinator,calls,registration,subscription};
 }
