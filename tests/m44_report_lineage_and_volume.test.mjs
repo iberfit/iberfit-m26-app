@@ -59,11 +59,40 @@ test('M44: IRI baseline is the earliest initial diagnosis even when another conf
   const iri=buildPremiumReportPortfolio(fixture,'m44-c1',{now}).find(item=>item.id==='iri');
   assert.equal(iri.sourceId,'iri-original');
   assert.equal(iri.assessmentRevision,3);
-  assert.match(iri.summary,/0 de 3 dominios/u,'empty measurements cannot be counted as baseline coverage');
+  assert.equal(iri.ready,false,'an empty confirmed IRI must not become a diagnostic report');
+  assert.equal(iri.evidence.length,0);
+  assert.equal(iri.summary,'');
 });
 
 test('M44: unknown IRI revision is null, not falsely represented as version zero',()=>{
   const fixture=state([session('e1','squat',40)]);
   const report=buildPremiumReportPortfolio(fixture,'m44-c1',{now}).find(item=>item.id==='weekly');
   assert.equal(report.assessmentRevision,null);
+});
+
+
+test('M44: missing heart-rate values cannot be coerced to zero and fake an IRI cardio domain',()=>{
+  const base=state([session('e1','squat',40)]);
+  base.collections.iriAssessments=[{
+    id:'iri-empty-hr',clientId:'m44-c1',status:'confirmed',assessmentType:'inicial',
+    assessmentDate:'2026-10-01',firstSessionCompletedAt:'2026-10-01',
+    stepFinalHr:null,stepOneMinuteHr:null,
+    bodyComposition:{},strengthPatterns:{},
+  }];
+  const report=buildPremiumReportPortfolio(base,'m44-c1',{now}).find(x=>x.id==='iri');
+  assert.equal(report.ready,false);
+  assert.deepEqual(report.evidence,[]);
+  assert.equal(report.summary,'');
+});
+
+test('M44: only one complete cardio pair creates one objective IRI domain',()=>{
+  const fixture=state([session('e1','squat',40)]);
+  fixture.collections.iriAssessments=[{
+    id:'iri-real-hr',clientId:'m44-c1',status:'confirmed',
+    assessmentDate:'2026-10-01',firstSessionCompletedAt:'2026-10-01',
+    stepFinalHr:151,stepOneMinuteHr:128,bodyComposition:{},strengthPatterns:{},
+  }];
+  const report=buildPremiumReportPortfolio(fixture,'m44-c1',{now}).find(x=>x.id==='iri');
+  assert.equal(report.ready,true);
+  assert.match(report.summary,/1 de 3 dominios/u);
 });
