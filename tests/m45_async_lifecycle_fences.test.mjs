@@ -533,3 +533,72 @@ test('M45 stale preference read completion cannot clear the new account single-f
   assert.deepEqual(applied,[{coachMessages:false}]);
   controller.destroy();
 });
+
+
+test('M45 Coach sees a clear pending message when trying another thread during a send',async()=>{
+  const oldFormData=globalThis.FormData;
+  const events=new Map(),hold=deferred();
+  let networkCalls=0;
+  const compose=(id,body)=>{
+    const textarea={value:body,scrollTop:0};
+    const status={textContent:''};
+    const button={disabled:false};
+    let pending='false';
+    const form={
+      dataset:{communicationForm:'message-send'},
+      querySelector(selector){
+        if(selector==='[name="threadId"]')return {value:id};
+        if(selector==='textarea[name="body"]')return textarea;
+        if(selector==='.m45-compose-status')return status;
+        if(selector==='button[type="submit"]')return button;
+        return null;
+      },
+      closest(){return {open:true};},
+      setAttribute(key,value){if(key==='aria-busy')pending=value;},
+      getAttribute(key){return key==='aria-busy'?pending:null;},
+    };
+    return {form,textarea,status};
+  };
+  const first=compose('thread-a','Mensaje A');
+  const second=compose('thread-b','Mensaje B');
+  const root={
+    ownerDocument:{defaultView:null,activeElement:null},
+    querySelector(){return null;},
+    querySelectorAll(selector){return selector==='[data-communication-form="message-send"]'
+      ?[first.form,second.form]:[];},
+    addEventListener(name,fn){events.set(name,fn);},
+    removeEventListener(name){events.delete(name);},
+  };
+  globalThis.FormData=class{
+    constructor(form){this.form=form;}
+    get(key){return this.form.querySelector(key==='body'
+      ?'textarea[name="body"]':'[name="threadId"]')?.value||null;}
+  };
+  const controller=createCommunicationController({root,service:{
+    execute(){
+      networkCalls++;
+      return networkCalls===1?hold.promise:Promise.resolve({ok:true,syncPending:true});
+    },
+  }});
+  const send=(x)=>events.get('submit')({target:{
+    closest(sel){return sel==='[data-communication-form]'?x.form:null;},
+  },preventDefault(){}});
+  try{
+    controller.mount();
+    send(first);
+    await tick();
+    send(second);
+    await tick();
+    assert.equal(networkCalls,1);
+    assert.match(second.status.textContent,/otra operación en curso/);
+    assert.equal(second.textarea.value,'Mensaje B');
+    hold.resolve({ok:true,syncPending:true});
+    await tick();
+    send(second);
+    await tick();
+    assert.equal(networkCalls,2);
+  }finally{
+    controller.destroy();
+    globalThis.FormData=oldFormData;
+  }
+});
