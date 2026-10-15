@@ -61,7 +61,7 @@ export async function backupStorage({inventory,outDir,fetchImpl=fetch}){
 export async function verifyStorage(outDir){
  const meta=JSON.parse(await fs.promises.readFile(path.join(outDir,'manifest.json'),'utf8'));
  if(meta.schema!=='iberfit.storage.backup.v1'||meta.project!==REF)throw Error(FAIL+'MANIFEST_INVALID');
- const objects=verifyInventory(meta.objects);
+ const objects=verifyInventory(meta.objects.map(x=>({bucket_id:x.bucket,name:x.name})));
  let count=0,total=0;
  for(let i=0;i<objects.length;i++){
   const entry=meta.objects[i],expected='files/'+String(i).padStart(6,'0')+'.bin';
