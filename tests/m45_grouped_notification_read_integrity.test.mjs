@@ -177,3 +177,34 @@ test('M45 read status without timestamp is not reported as unread',()=>{
   assert.equal(center.counts.unread,1);
   assert.deepEqual(center.items[0].unreadSourceIds,[ids[1]]);
 });
+
+
+test('M45 grouped notifications limit concurrent backend requests while preserving all acknowledgements',async()=>{
+  let active=0,peak=0,remoteCalls=0,hydrations=0;
+  const commands=Array.from({length:20},(_,i)=>
+    `95ae4c9e-66d6-4e09-81f6-${String(851579900001+i).padStart(12,'0')}`
+  );
+  const service=createCommunicationService({
+    transport:{
+      async execute(){
+        active+=1;remoteCalls+=1;
+        peak=Math.max(peak,active);
+        await new Promise((resolve)=>setImmediate(resolve));
+        active-=1;
+        return {ok:true,kind:'ack'};
+      },
+    },
+    getToken:async()=> 'jwt-test',
+    getRole:()=> 'coach',
+    getState:()=>({available:true,identity:{id:'member'}}),
+    isOnline:()=>true,
+    refreshState:async()=>{hydrations++;},
+  });
+  const result=await service.markNotificationsRead(commands);
+  assert.equal(result.ok,true);
+  assert.equal(result.markedCount,20);
+  assert.equal(remoteCalls,20);
+  assert.equal(peak,4,'never overwhelm backend with twenty concurrent mutations');
+  assert.equal(hydrations,1,'a single confirmed batch requires only one readback');
+  assert.deepEqual(result.markedIds,commands);
+});
