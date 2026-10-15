@@ -180,3 +180,37 @@ test('M44: a verified execution never reverses an explicit no-show without autho
   assert.equal(evidence.completedSessions,1,'confirmed training stays a separate activity');
   assert.equal(evidence.contradictoryAppointmentLinks,1,'Coach can investigate evidence conflict');
 });
+
+test('M44: explicit appointment ID cannot fulfil a different linked session',()=>{
+  const evidence=confirmedAdherenceEvidence({
+    appointments:[appointment('a1','confirmada',{sessionId:'s-presencial'})],
+    executions:[execution('e-guided',{appointmentId:'a1',sessionId:'s-guided'})],
+  });
+  assert.equal(evidence.plannedSessions,1);
+  assert.equal(evidence.scheduledCompleted,0);
+  assert.equal(evidence.completedSessions,1,'verified standalone exercise remains activity');
+  assert.equal(evidence.adherence,0);
+  assert.equal(evidence.linkedExecutions,0);
+  assert.equal(evidence.contradictoryAppointmentLinks,1);
+});
+
+test('M44: explicit appointment ID still links when canonical session IDs agree',()=>{
+  const evidence=confirmedAdherenceEvidence({
+    appointments:[appointment('a1','confirmada',{sessionId:'s1'})],
+    executions:[execution('e1',{appointmentId:'a1',sessionId:'s1'})],
+  });
+  assert.equal(evidence.scheduledCompleted,1);
+  assert.equal(evidence.completedSessions,1);
+  assert.equal(evidence.linkedExecutions,1);
+  assert.equal(evidence.adherence,1);
+});
+
+test('M44: an appointment without a session identity retains a valid explicit link',()=>{
+  const evidence=confirmedAdherenceEvidence({
+    appointments:[appointment('a1','confirmada')],
+    executions:[execution('e1',{appointmentId:'a1',sessionId:'s1'})],
+  });
+  assert.equal(evidence.scheduledCompleted,1);
+  assert.equal(evidence.completedSessions,1);
+  assert.equal(evidence.adherence,1);
+});
