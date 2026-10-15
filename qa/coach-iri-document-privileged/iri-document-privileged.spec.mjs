@@ -2,6 +2,7 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isAuthorizedQaAvatarRead} from './qa-avatar-traffic-policy.mjs';
+import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
@@ -344,6 +345,14 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   const page=await context.newPage();
   const consoleErrors=[];
   const pageErrors=[];
+  const missingAvatar=[],avatarChecks=[],unexpectedAvatarFailures=[];
+  page.on('response',(response)=>{
+    if(!isAuthorizedQaAvatarRead(response.request(),{qaOrigin:QA_ORIGIN})||response.status()<400)return;
+    avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then((expected)=>{
+      if(expected)missingAvatar.push(true);
+      else unexpectedAvatarFailures.push('QA_AVATAR_UNEXPECTED_HTTP_'+response.status());
+    }).catch(()=>unexpectedAvatarFailures.push('QA_AVATAR_RESPONSE_UNREADABLE')));
+  });
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
   const {cdp,authenticatorId}=await addAuthenticator(page);
@@ -407,6 +416,9 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     }
     await mkdir(OUT_DIR,{recursive:true});
     evidence.generatedAt=new Date().toISOString();
+    await Promise.all(avatarChecks);
+    evidence.expectedMissingPrivateAvatars=missingAvatar.length;
+    evidence.unexpectedPrivateAvatarResponses=unexpectedAvatarFailures.length;
     await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
     await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
     await cdp.send('WebAuthn.disable').catch(()=>{});
@@ -414,7 +426,9 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   }
 
   expect(evidence.blocked,'Only the explicitly authorized QA surface may be contacted').toEqual([]);
-  expect(consoleErrors,'Privileged Coach IRI UI must keep a clean console').toEqual([]);
+  expect(unexpectedAvatarFailures,'Private-avatar HTTP failures must be independently verified NoSuchKey responses').toEqual([]);
+  expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length),
+    'Coach IRI UI may only report verified absent optional private avatars').toEqual([]);
   expect(pageErrors,'Privileged Coach IRI UI must keep a clean page').toEqual([]);
   expect(evidence.draftMutations.every((rpc)=>IRI_DRAFT_RPCS.has(rpc)),'Any observed IRI draft traffic must stay inside the scoped allowlist').toBe(true);
   expect(evidence.remoteDraftCas?.certified).toBe(true);
