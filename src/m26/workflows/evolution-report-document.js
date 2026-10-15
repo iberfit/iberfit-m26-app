@@ -195,7 +195,7 @@ export function openEvolutionReportPreview({report,clientName,coachName,publicat
       const logo=doc.querySelector('.m44-brand img');
       if(logo&&!logo.complete)await Promise.race([new Promise(resolve=>{logo.addEventListener('load',resolve,{once:true});logo.addEventListener('error',resolve,{once:true});}),new Promise(resolve=>scope.setTimeout(resolve,3000))]);
       if(!await verifyA4Layout(doc,popup,scope)){status.textContent='El contenido no cabe con seguridad en A4. Ajusta las notas antes de imprimir.';print.disabled=true;return;}
-      ready=true;print.disabled=false;status.textContent=published?'Copia de consulta del informe publicado · A4 verificado':'Vista previa privada · diseño A4 verificado';
+      ready=true;print.disabled=false;status.textContent=publicationStatus==='published'?'Copia de consulta del informe publicado · A4 verificado':'Vista previa privada · diseño A4 verificado';
     };
     stylesheet.addEventListener('load',()=>{void finish().catch(()=>{status.textContent='No se pudo validar el diseño.';});},{once:true});
     stylesheet.addEventListener('error',()=>{status.textContent='No se pudo cargar el diseño. No se puede imprimir.';},{once:true});
