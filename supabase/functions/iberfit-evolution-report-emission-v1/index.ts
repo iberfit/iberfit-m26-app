@@ -255,7 +255,7 @@ Deno.serve(async(req)=>{
   return result(200,{ok:true,version:VERSION,...data},origin);
  }catch(e){
   const c=code(e),status=/AUTH_REQUIRED/.test(c)?401:
-   /SCOPE|FORBIDDEN|SERVICE_ONLY|NOT_AUTHORIZED/.test(c)?403:
+   /SCOPE|FORBIDDEN|SERVICE_ONLY|NOT_AUTHORIZED|PRIVILEGED_ASSURANCE_REQUIRED|PRIVILEGED_ROLE_REQUIRED/.test(c)?403:
    /NOT_FOUND|NOT_AVAILABLE/.test(c)?404:400;
   console.error('[m44-pdf]',c);
   return result(status,{ok:false,code:c,version:VERSION},origin);

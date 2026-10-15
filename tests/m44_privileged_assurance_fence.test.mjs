@@ -20,3 +20,8 @@ test('M44 Edge forwards only previously approved Origin for session-bound assura
  assert.match(source,/global:\{headers:\{Authorization:auth,Origin:origin\}\}/);
  assert.match(source,/const \{user,service\}=clients\(bearer,origin\)/);
 });
+
+test('M44 Edge emits 403 for a non-assured Coach, not a generic 400',async()=>{
+ const file=await readFile(new URL('../supabase/functions/iberfit-evolution-report-emission-v1/index.ts',import.meta.url),'utf8');
+ assert.match(file,/PRIVILEGED_ASSURANCE_REQUIRED\|PRIVILEGED_ROLE_REQUIRED/);
+});
