@@ -8,9 +8,10 @@ function deferred(){
   return {promise,resolve};
 }
 const endpoint='https://push.example.test/subscription-iberfit-client-device';
-const registration={pushManager:{getSubscription:async()=>({endpoint})}};
 function harness({gateSubscription=null,gateToken=null,gateUpsert=null}={}){
   let identity='coach:account-A';
+  let currentEndpoint=endpoint;
+  const registration={pushManager:{getSubscription:async()=>({endpoint:currentEndpoint})}};
   const writes=[],unsubscribes=[];
   const coordinator=createWebPushCoordinator({
     transport:{
@@ -36,6 +37,7 @@ function harness({gateSubscription=null,gateToken=null,gateUpsert=null}={}){
   return {
     coordinator,writes,unsubscribes,
     changeIdentity(value){identity=value;},
+    replaceCurrentSubscription(value){currentEndpoint=value;},
   };
 }
 
@@ -109,4 +111,19 @@ test('M45 an upsert ACK arriving after account change compensates with old-accou
   assert.equal(h.writes[1].token,'jwt-A');
   assert.equal(h.writes[1].target,endpoint);
   assert.equal(h.unsubscribes.length,1);
+});
+
+
+test('M45 late old-account push failure cannot unsubscribe the replacement user endpoint',async()=>{
+  const gate=deferred(),h=harness({gateUpsert:gate});
+  const enable=h.coordinator.enable();
+  await new Promise((resolve)=>setImmediate(resolve));
+  const replacement='https://push.example.test/replacement-for-account-B';
+  h.changeIdentity('client:account-B');
+  h.replaceCurrentSubscription(replacement);
+  gate.resolve();
+  await assert.rejects(()=>enable,/M45_PUSH_ACTOR_CHANGED/);
+  assert.deepEqual(h.writes.map(x=>x.type),['upsert','revoke']);
+  assert.equal(h.writes[1].target,endpoint,'old account endpoint is revoked with old token');
+  assert.equal(h.unsubscribes.length,0,'new account browser subscription is preserved');
 });
