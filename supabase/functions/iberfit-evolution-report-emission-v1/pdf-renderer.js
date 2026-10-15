@@ -32,6 +32,9 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   !/^\d{4}-\d{2}-\d{2}$/u.test(String(source.periodEnd||''))||
   !Array.isArray(source.evidence)||!source.evidence.length)
   throw Error('M44_PDF_SOURCE_NOT_CANONICAL');
+ // Never silently omit authorized evidence from a signed professional report.
+ // An extreme payload is rejected for Coach review instead of being clipped.
+ if(source.evidence.length>80)throw Error('M44_PDF_EVIDENCE_VOLUME_REVIEW_REQUIRED');
  const {PDFDocument,StandardFonts,rgb}=pdfLib,doc=await PDFDocument.create();
  // Reject issuance if the actual first-party brand fonts are missing.
  // This is the same Inter/Source Serif identity used by the HTML A4 preview.
@@ -154,7 +157,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  sectionPage('03  /  EVIDENCIA','Resultados verificables');
  flow('Cada dato conserva su procedencia. No se rellenan mediciones ausentes con estimaciones.',
    {colorName:'muted',gap:16});
- for(const [i,item] of source.evidence.slice(0,12).entries()){
+ for(const [i,item] of source.evidence.entries()){
   if(y<183)continuation();
   heading(String(i+1).padStart(2,'0')+'  /  '+safe(item?.label,120));
   flow(fallback(safe(item?.text,500)),{gap:4});

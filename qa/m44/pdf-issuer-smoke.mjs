@@ -10,7 +10,7 @@ const source={
  summary:'Historial confirmado. No atribuimos mejoria sin mediciones comparables. '.repeat(30),
  conclusions:'Interpretacion profesional fundada en registros verificables. '.repeat(35),
  recommendations:'Mantener trabajo progresivo y acordar la siguiente sesion con Coach. '.repeat(25),
- evidence:Array.from({length:12},(_,i)=>({
+ evidence:Array.from({length:20},(_,i)=>({
   label:'Registro verificado '+(i+1),
   text:'Evidencia de entrenamiento confirmada. '.repeat(14),
   source:'sessionExecutions',quality:'confirmada',
@@ -21,8 +21,9 @@ const source={
   count:i%3,
  })),
 };
+const sourceFingerprint=`IBERFIT M44 | ${source.reportId} | revision ${source.revision} | ${'a'.repeat(64)}`;
 const result=await renderEvolutionReportPdf({
- source,pdfLib:{PDFDocument,StandardFonts,rgb},fontkit,
+ source,sourceFingerprint,pdfLib:{PDFDocument,StandardFonts,rgb},fontkit,
  brandFonts:{
   inter:await Deno.readFile('public/m26/fonts/inter-latin-wght-normal.woff2'),
   serif:await Deno.readFile('public/m26/fonts/source-serif-4-latin-wght-normal.woff2'),
@@ -36,7 +37,8 @@ const pages=doc.getPages();
 if(pages.length!==result.pages||pages.length<5)throw Error('M44_PDF_PAGINATION_MISMATCH');
 if(result.templateVersion!==M44_PDF_TEMPLATE)throw Error('M44_PDF_TEMPLATE_MISMATCH');
 if(!String(doc.getTitle()||'').includes('IBERFIT'))throw Error('M44_PDF_BRANDING_NOT_PRESENT');
+if(doc.getSubject()!==sourceFingerprint)throw Error('M44_PDF_SOURCE_FINGERPRINT_MISSING');
 const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',result.bytes));
 if(digest.length!==32)throw Error('M44_PDF_HASH_INVALID');
 console.log(JSON.stringify({ok:true,report:'synthetic only',
- pages:pages.length,bytes:result.bytes.length,sha256Bytes:digest.length,template:M44_PDF_TEMPLATE}));
+ pages:pages.length,evidenceRows:source.evidence.length,bytes:result.bytes.length,sha256Bytes:digest.length,template:M44_PDF_TEMPLATE}));
