@@ -1,6 +1,7 @@
 import {buildIriCommand} from '../workflows/iri-workflow.js';
 import {clientContentView} from '../publication/client-content.js';
 import {openEvolutionReportPreview} from '../workflows/evolution-report-document.js';
+import {evolutionPdfActionScope} from '../workflows/evolution-pdf-access.js';
 import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
 import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,planningFormSignature,finalizeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
@@ -2005,13 +2006,8 @@ export function createWorkflowController({
     const host=issuedHistoryHost(button);
     if(!host||typeof getEvolutionPdfHistory!=='function')throw new Error('M44_PDF_HISTORY_UNAVAILABLE');
     const {clientId,role,state}=context(),id=String(button?.dataset?.entityId||'');
-    const permitted=(state.collections?.reports||[]).some(r=>{
-      const body=r?.body||{};
-      return String(r.id||body.id||'')===id&&
-        String(r.clientId||r.client_id||body.clientId||body.client_id||'')===String(clientId||'');
-    });
-    if(!permitted||!['client','cliente','coach','admin'].includes(role))
-      throw new Error('M44_PDF_HISTORY_SCOPE_DENIED');
+    const scope=evolutionPdfActionScope({state,role,clientId,reportId:id,action:'history'});
+    if(!scope.allowed)throw new Error(scope.code);
     host.textContent='Consultando las versiones emitidas...';
     try{
       const history=await getEvolutionPdfHistory(id);
@@ -2090,21 +2086,14 @@ export function createWorkflowController({
     if(!isOnline())throw new Error('M44_PDF_OFFLINE_UNAVAILABLE');
     const {role,clientId,state}=context();
     const id=String(button?.dataset?.entityId||'').trim();
-    const record=(state.collections?.reports||[]).find(item=>{
-      const body=item?.body||{};
-      return String(item.id||body.id||'')===id&&
-        String(item.clientId||item.client_id||body.clientId||body.client_id||'')===String(clientId);
-    });
-    if(!record||!['publicado','published'].includes(String(record.status||record?.body?.status||'').toLowerCase()))
-      throw new Error('M44_PDF_PUBLISHED_REPORT_REQUIRED');
+    const scope=evolutionPdfActionScope({state,role,clientId,reportId:id,action:issue?'issue':'open'});
+    if(!scope.allowed)throw new Error(scope.code);
     if(issue){
       requireCoach();
       requireVisibleClient(clientId);
       if(typeof issueEvolutionReport!=='function')throw new Error('M44_PDF_EMISSION_NOT_AVAILABLE');
-    }else{
-      if(!['client','cliente'].includes(role)||!clientId)throw new Error('M44_PDF_CLIENT_ACCESS_REQUIRED');
-      if(!['client','cliente','coach','admin'].includes(role))throw new Error('M44_PDF_READER_ROLE_DENIED');
-      if(typeof getLatestEvolutionPdf!=='function')throw new Error('M44_PDF_READER_NOT_AVAILABLE');
+    }else if(typeof getLatestEvolutionPdf!=='function'&&typeof openEvolutionPdfById!=='function'){
+      throw new Error('M44_PDF_READER_NOT_AVAILABLE');
     }
     // Open synchronously from the user gesture; navigation follows authorization.
     const popup=globalThis.open?.('about:blank','_blank');
