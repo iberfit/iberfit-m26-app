@@ -37,6 +37,25 @@ function safeClass(value){
   return text(value,80).toLowerCase().replace(/[^a-z0-9_-]+/gu,'-').replace(/^-+|-+$/gu,'');
 }
 
+const clockInSantiago=new Intl.DateTimeFormat('en-GB',{
+  timeZone:RC62_AGENDA_TIME_ZONE,hour:'2-digit',hourCycle:'h23',
+});
+export function agendaVisibleHourWindow(events=[]){
+  let min=6,max=22;
+  for(const event of Array.isArray(events)?events:[]){
+    for(const value of [event?.start,event?.end]){
+      const time=value?new Date(value):null;
+      if(!time||!Number.isFinite(time.getTime()))continue;
+      const hour=Number(clockInSantiago.formatToParts(time).find((part)=>part.type==='hour')?.value);
+      if(!Number.isInteger(hour)||hour<0||hour>23)continue;
+      if(hour<6)min=Math.min(min,Math.max(0,hour-1));
+      if(hour>=22)max=Math.max(max,Math.min(24,hour+2));
+    }
+  }
+  const clock=(hour)=>`${String(hour).padStart(2,'0')}:00:00`;
+  return Object.freeze({slotMinTime:clock(min),slotMaxTime:clock(max)});
+}
+
 function agendaEventSignature(events){
   return JSON.stringify(events.map(({id,title,start,end,classNames})=>({
     id,title,start,end,classNames,
@@ -145,6 +164,7 @@ export function fullCalendarCoachOptions({
   compact=false,
   onAppointmentFocus=()=>{},
 }={}){
+  const window=agendaVisibleHourWindow(events);
   return Object.freeze({
     initialView:compact?'timeGridDay':'timeGridWeek',
     locale:'es',
@@ -155,8 +175,8 @@ export function fullCalendarCoachOptions({
     nowIndicator:true,
     expandRows:true,
     height:'auto',
-    slotMinTime:'06:00:00',
-    slotMaxTime:'22:00:00',
+    slotMinTime:window.slotMinTime,
+    slotMaxTime:window.slotMaxTime,
     editable:false,
     selectable:false,
     eventStartEditable:false,
