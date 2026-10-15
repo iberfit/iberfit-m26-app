@@ -124,3 +124,59 @@ test('M44: comparisons never leak another client or infer completions from weara
   assert.equal(summary.scheduledCompletedSessions,0);
   assert.equal(summary.adherence,0);
 });
+
+test('M44: proposal or unconfirmed planned appointment is not a contracted denominator',()=>{
+  const summary=progress([
+    appointment('a-proposed','propuesta'),
+    appointment('a-planned','planned'),
+    appointment('a-draft','borrador'),
+  ],[execution('e-autonomous')]);
+  assert.equal(summary.plannedSessions,0);
+  assert.equal(summary.adherence,null);
+  assert.equal(summary.completedSessions,1);
+});
+
+test('M44: same-revision contradictory execution sources never silently fulfill a confirmed slot',()=>{
+  const evidence=confirmedAdherenceEvidence({
+    appointments:[appointment('a1','confirmada'),appointment('a2','confirmada')],
+    executions:[
+      execution('e1',{appointmentId:'a1',sessionId:'s1',revision:4}),
+      execution('e1',{appointmentId:'a2',sessionId:'s1',revision:4}),
+      execution('e1',{appointmentId:'a1',sessionId:'s1',revision:4}),
+    ],
+  });
+  assert.equal(evidence.conflictingExecutions,1);
+  assert.equal(evidence.plannedSessions,2);
+  assert.equal(evidence.scheduledCompleted,0);
+  assert.equal(evidence.completedSessions,0);
+  assert.equal(evidence.adherence,0);
+});
+
+test('M44: newest verified revision wins an execution link instead of arrival order',()=>{
+  for(const reverse of [false,true]){
+    const rows=[
+      execution('e1',{appointmentId:'a1',revision:1}),
+      execution('e1',{appointmentId:'a2',revision:2}),
+    ];
+    const evidence=confirmedAdherenceEvidence({
+      appointments:[appointment('a1','confirmada'),appointment('a2','confirmada')],
+      executions:reverse?rows.reverse():rows,
+    });
+    assert.equal(evidence.conflictingExecutions,0);
+    assert.equal(evidence.completedSessions,1);
+    assert.equal(evidence.scheduledCompleted,1);
+    assert.equal(evidence.adherence,0.5);
+  }
+});
+
+test('M44: a verified execution never reverses an explicit no-show without authoritative appointment transition',()=>{
+  const evidence=confirmedAdherenceEvidence({
+    appointments:[appointment('a-no-show','ausencia_cliente')],
+    executions:[execution('e1',{appointmentId:'a-no-show',revision:2})],
+  });
+  assert.equal(evidence.plannedSessions,1);
+  assert.equal(evidence.scheduledCompleted,0);
+  assert.equal(evidence.adherence,0);
+  assert.equal(evidence.completedSessions,1,'confirmed training stays a separate activity');
+  assert.equal(evidence.contradictoryAppointmentLinks,1,'Coach can investigate evidence conflict');
+});
