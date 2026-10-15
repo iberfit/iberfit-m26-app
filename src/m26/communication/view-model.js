@@ -1,4 +1,4 @@
-import {messagesForThread} from './state.js';
+import {groupCommunicationMessages} from './state.js';
 import {buildCrmRenewalSummary} from '../engagement/crm-renewals.js';
 import {augmentCoachCockpitWithCrm} from '../experience/coach-cockpit.js';
 
@@ -332,7 +332,19 @@ export function createCommunicationRouteViewModel(base,shellVm,state){
   const projected=applyCommercialCoachCockpit(portfolio,state,now);
   const area=String(shellVm?.activeArea||state?.activeArea||'');
   const role=String(shellVm?.identity?.role||state?.identity?.role||'').toLowerCase();
+  const communicationIdentityScope=String(state?.identity?.id||shellVm?.identity?.id||'').trim();
   if(area!=='mensajes'||!['client','coach'].includes(role))return projected;
   if(state?.communication?.available!==true)return Object.freeze({...projected,communication:true,kind:'communication-unavailable',reason:state?.communication?.reason||'backend_unavailable',role});
-  return Object.freeze({...projected,communication:true,kind:'communication',role,threads:Object.freeze((state.communication.threads||[]).map((t)=>Object.freeze({...structuredClone(t),messages:messagesForThread(state,t.id)}))),notifications:Object.freeze(structuredClone(state.communication.notifications||[])),clients:role==='coach'?Object.freeze(structuredClone(state.collections?.clients||[])):Object.freeze([]),canOpenThread:role==='coach'});
+  const threads=state.communication.threads||[];
+  const groupedMessages=groupCommunicationMessages(state,threads.map((t)=>t.id));
+  return Object.freeze({
+    ...projected,communication:true,communicationIdentityScope,kind:'communication',role,
+    threads:Object.freeze(threads.map((thread)=>Object.freeze({
+      ...structuredClone(thread),
+      messages:groupedMessages.get(String(thread.id))||Object.freeze([]),
+    }))),
+    notifications:Object.freeze(structuredClone(state.communication.notifications||[])),
+    clients:role==='coach'?Object.freeze(structuredClone(state.collections?.clients||[])):Object.freeze([]),
+    canOpenThread:role==='coach',
+  });
 }

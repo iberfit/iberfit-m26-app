@@ -98,6 +98,7 @@ function persistentItem(notification,role,index){
   const id=text(notification?.id,200)||`persisted-${index}`;
   const createdAt=text(notification?.createdAt,80)||null;
   const readAt=text(notification?.readAt,80)||null;
+  const unread=!readAt&&text(notification?.status,32).toLowerCase()!=='read';
   const dedupeTarget=action
     ?`${action.area}:${action.entityId||'global'}`
     :`notice:${id}`;
@@ -114,10 +115,10 @@ function persistentItem(notification,role,index){
     action,
     createdAt,
     readAt,
-    unread:!readAt,
+    unread,
     count:1,
     sourceIds:Object.freeze([id]),
-    unreadSourceIds:Object.freeze(readAt?[]:[id]),
+    unreadSourceIds:Object.freeze(unread?[id]:[]),
   });
 }
 
@@ -221,7 +222,7 @@ function freezeCounts(items){
     if(item.priority==='action-required')counts.actionRequired+=1;
     else if(item.priority==='important')counts.important+=1;
     else counts.informational+=1;
-    if(item.unread)counts.unread+=1;
+    if(item.unread)counts.unread+=list(item.unreadSourceIds).length||1;
   }
   return Object.freeze(counts);
 }
