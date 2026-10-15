@@ -159,7 +159,15 @@ export function createWebPushCoordinator({
         }
       }
       if(local.created===true){
-        try{await unsubscribe({registration:sw});}catch{}
+        try{
+          const createdEndpoint=pushEndpoint(local.serialized?.endpoint);
+          const active=await sw?.pushManager?.getSubscription?.();
+          // Never remove a replacement subscription established for the new
+          // authenticated user on the same shared browser.
+          if(active?.endpoint===createdEndpoint){
+            await unsubscribe({registration:sw});
+          }
+        }catch{}
       }
       throw error;
     }
