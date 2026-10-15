@@ -5,7 +5,12 @@ const CLIENTS=new Set(['client','cliente']);
 const PUBLISHED=new Set(['publicado','published']);
 function value(record,...keys){
  const body=record?.body&&typeof record.body==='object'?record.body:{};
- return keys.map(k=>record?.[k]??body[k]).find(v=>v!==undefined&&v!==null)||'';
+ for(const key of keys){
+   for(const candidate of [record?.[key],body[key]]){
+     if(candidate!==undefined&&candidate!==null&&String(candidate).trim()!=='')return candidate;
+   }
+ }
+ return '';
 }
 export function evolutionPdfActionScope({state,role,clientId,reportId,action}={}){
  const roleName=String(role||'').trim().toLowerCase();

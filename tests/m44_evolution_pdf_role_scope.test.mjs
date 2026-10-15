@@ -49,3 +49,14 @@ test('M44 real controller connects all PDF actions through shared role/scope pol
  assert.match(code,/action:issue\?'issue':'open'/);
  assert.doesNotMatch(code,/if\(!\['client','cliente'\]\.includes\(role\)\|\|!clientId\)throw new Error\('M44_PDF_CLIENT_ACCESS_REQUIRED'\)/);
 });
+
+
+test('M44 published report identity falls back to canonical body when legacy shell fields are blank',()=>{
+ const state={collections:{
+   clients:[{id:client}],
+   reports:[{id:report,clientId:'',status:'',body:{clientId:client,status:'publicado'}}],
+ }};
+ for(const role of ['client','coach','admin']){
+   assert.equal(decide(role,'open',{state}).allowed,true);
+ }
+});
