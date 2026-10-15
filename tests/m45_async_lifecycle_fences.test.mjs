@@ -180,3 +180,50 @@ test('M45 account scope changes prevent an old Coach write queue from executing 
   assert.deepEqual(updates,[{coachMessages:true},{coachMessages:false}]);
   controller.destroy();
 });
+
+
+test('M45 online reconnect coalesces read-only conversation reloads without repeated writes',async()=>{
+  const h=rootHarness(),remote=deferred();
+  let reloads=0,renders=0;
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{
+      reload(){reloads++;return remote.promise;},
+      webPush:{async status(){return {active:false,supported:true};}},
+    },
+    render(){renders++;},
+  });
+  controller.mount();
+  await tick();
+  const onOnline=h.windowListeners.get('online');
+  onOnline();
+  onOnline();
+  assert.equal(reloads,1,'same reconnect cannot start concurrent snapshot calls');
+  remote.resolve({ok:true});
+  await tick();
+  assert.equal(renders,1);
+  controller.destroy();
+  assert.equal(h.windowListeners.size,0);
+});
+
+test('M45 old account reconnect response never rerenders after identity transition',async()=>{
+  const h=rootHarness(),remote=deferred();
+  let renders=0;
+  const controller=createCommunicationController({
+    root:h.root,
+    service:{
+      reload(){return remote.promise;},
+      webPush:{async status(){return {active:false,supported:true};}},
+    },
+    render(){renders++;},
+  });
+  controller.mount();
+  await tick();
+  h.windowListeners.get('online')();
+  h.setRole('client');
+  h.listeners.get('m26:shell-rendered')();
+  remote.resolve({ok:true});
+  await tick();
+  assert.equal(renders,0,'stale Coach reload cannot paint the Client view');
+  controller.destroy();
+});
