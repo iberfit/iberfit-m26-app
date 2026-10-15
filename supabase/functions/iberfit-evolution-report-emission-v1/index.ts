@@ -141,7 +141,7 @@ async function issue({user,service,actor,body}:{
   // object; validate its cryptographic source fingerprint before finalization.
   const artifact=await ensureStoredPdfArtifact({
    bucket:service.storage.from(BUCKET),path,bytes,expectedHash:hash,digest,
-   validateExisting:async stored=>{
+   validateExisting:async (stored:Uint8Array)=>{
     const pdf=await PDFDocument.load(stored);
     if(pdf.getSubject()!==sourceFingerprint||
        pdf.getProducer()!==M44_PDF_TEMPLATE||pdf.getPageCount()<1)

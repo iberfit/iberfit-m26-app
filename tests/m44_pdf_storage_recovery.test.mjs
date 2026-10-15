@@ -63,19 +63,19 @@ test('M44 rejects a pre-existing object with a different source fingerprint with
  assert.deepEqual(storage.objects.get('safe/report.pdf'),old);
 });
 test('M44 rejects incomplete bytes or readback divergence and never deletes a path',async()=>{
- const storage=bucket(),data=bytes('original');
+ const storage=bucket(),data=bytes('original'),hash=await digest(data);
  const corrupted={...storage,
   async download(){return {error:null,data:new Blob([bytes('tampered')])};},
  };
  await assert.rejects(()=>ensureStoredPdfArtifact({
-  bucket:corrupted,path:'safe/report.pdf',bytes:data,expectedHash:await digest(data),digest,
+  bucket:corrupted,path:'safe/report.pdf',bytes:data,expectedHash:hash,digest,
   validateExisting:async()=>{},
  }),/M44_PDF_STORAGE_CHECKSUM_MISMATCH/);
  assert.ok(storage.objects.has('safe/report.pdf'));
  const missing={async upload(){return {error:Error('upload refused')};},
   async download(){return {error:Error('missing')};}};
  await assert.rejects(()=>ensureStoredPdfArtifact({
-  bucket:missing,path:'safe/report.pdf',bytes:data,expectedHash:await digest(data),digest,
+  bucket:missing,path:'safe/report.pdf',bytes:data,expectedHash:hash,digest,
   validateExisting:async()=>{},
  }),/upload refused/);
 });
