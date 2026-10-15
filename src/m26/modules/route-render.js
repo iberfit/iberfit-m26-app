@@ -3766,7 +3766,7 @@ function clientContentCard(item,entity,{canStartSession=true}={}){
             ?'<p class="m26-client-session-guidance" role="status">Sesión publicada, pendiente de habilitación. Podrás iniciarla cuando tu Coach confirme que está disponible.</p>'
             :'<p class="m26-client-session-guidance">Sesión en preparación. Tu Coach revisará los ejercicios antes de habilitarla.</p>';
   const reportAction=entity==='report'&&view.reportDocument
-    ?`<button type="button" class="m26-primary-action m26-report-document-open" data-workflow-action="open-published-evolution-report" data-entity-id="${escapeHtml(item.id)}">Abrir informe premium A4</button>`
+    ?`<div class="m26-inline-actions"><button type="button" class="m26-primary-action m26-report-document-open" data-workflow-action="open-published-evolution-report" data-entity-id="${escapeHtml(item.id)}">Leer informe A4</button><button type="button" data-workflow-action="open-issued-evolution-pdf" data-entity-id="${escapeHtml(item.id)}">Abrir PDF oficial emitido</button></div>`
     :'';
   return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}" data-client-session-executable="${executable?'true':'false'}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}${reportAction}</article>`;
 }
@@ -3776,8 +3776,11 @@ function publicationCard(item,entity){
   const preview=`<details class="m26-publication-preview" data-publication-preview-details><summary>${previewLabel}</summary><div class="m26-publication-preview-content"><p class="m26-eyebrow">Contenido completo que recibirá el cliente</p><h4>${escapeHtml(item.clientContent?.title||item.title||'Contenido IBERFIT')}</h4>${clientContentBody(item.clientContent,{preview:true})}</div></details>`;
   const preferredAction=actions.find((action)=>action.action==='publish')||actions.find((action)=>action.action==='approve')||actions[0]||null;
   const controls=actions.length?`<details class="m26-publication-actions"><summary>Gestionar publicación${preferredAction?` · ${escapeHtml(preferredAction.label)}`:''}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  const issued=entity==='report'&&String(item.statusRaw||'').toLowerCase()==='publicado'
+    ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="issue-evolution-pdf" data-entity-id="${escapeHtml(item.id||'')}">Emitir y archivar PDF para el Cliente</button></div>`
+    :'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
-  return `<article class="m26-publication-card" data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${controls}</article>`;
+  return `<article class="m26-publication-card" data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${controls}</article>`;
 }
 function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true}={}){if(!items?.length)return emptyState(emptyTitle,clientView?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.':'No hay contenido dentro del alcance seleccionado.');return `<div class="m26-stack">${items.map((item)=>clientView?clientContentCard(item,entity,{canStartSession}):publicationCard(item,entity)).join('')}</div>`;}
 function selectedOption(value, expected) {
