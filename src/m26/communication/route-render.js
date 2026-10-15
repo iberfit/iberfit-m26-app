@@ -10,6 +10,21 @@ function messageTime(value){
   if(!Number.isFinite(d.getTime()))return '';
   return `<time datetime="${e(d.toISOString())}">${e(MESSAGE_TIME_FORMATTER.format(d))}</time>`;
 }
+function coachComposeAssists(vm){
+  if(vm?.role!=='coach')return '';
+  const shortcuts=[
+    ['session','Después de la sesión'],
+    ['recovery','Recuperación'],
+    ['next','Próxima sesión'],
+  ];
+  return `<div class="m45-compose-assists" aria-label="Atajos de seguimiento para Coach">
+    <span>Empezar con una idea</span>
+    <div class="m45-compose-assist-actions">${shortcuts.map(([key,label])=>
+      `<button type="button" data-m45-compose-prompt="${key}">${e(label)}</button>`
+    ).join('')}</div>
+    <small>El texto se puede editar; solo se envía al pulsar Enviar.</small>
+  </div>`;
+}
 function thread(vm,t){
   const unread=Math.max(0,Math.trunc(Number(t.unreadCount)||0));
   const badge=unread?`<span class="m30-thread-unread" data-thread-unread="${e(unread)}" aria-label="${e(unread)} mensajes sin leer">${e(unread)} nuevos</span>`:'';
@@ -17,7 +32,7 @@ function thread(vm,t){
   const history=messages.length?messages.map((m)=>`<article class="m26-message is-${e(m.senderRole)}"><strong>${e(m.senderRole==='client'?'Cliente':'Coach')}</strong><p>${e(m.body)}</p>${messageTime(m.createdAt)}</article>`).join(''):'<p>Sin mensajes todavía.</p>';
   const heading=e(vm.role==='client'?t.coachName||'Tu Coach':t.clientName||'Cliente');
   const subject=t.subject?`<small class="m45-thread-subject">${e(t.subject)}</small>`:'';
-  return `<details class="m26-thread" data-thread-unread-count="${e(unread)}"><summary><span class="m45-thread-identity"><strong>${heading}</strong>${subject}</span>${badge}</summary><div class="m26-thread-body">${history}<form data-communication-form="message-send" class="m30-message-compose" data-guided-required-form><input type="hidden" name="threadId" value="${e(t.id)}"><label class="m32-message-label">Escribe tu mensaje<textarea name="body" maxlength="4000" required placeholder="Escribe un mensaje…"></textarea></label><small data-guided-required-progress aria-live="polite"></small><span class="m45-compose-status" role="status" aria-live="polite"></span><button type="submit" class="m26-primary-action">Enviar</button><small class="m45-response-expectation">Este canal es para el seguimiento de entrenamiento; no garantiza respuesta inmediata.</small></form><form data-communication-form="thread-read" class="m30-thread-read"><input type="hidden" name="threadId" value="${e(t.id)}"><button type="submit">Marcar como leída</button></form></div></details>`;
+  return `<details class="m26-thread" data-thread-unread-count="${e(unread)}"><summary><span class="m45-thread-identity"><strong>${heading}</strong>${subject}</span>${badge}</summary><div class="m26-thread-body">${history}<form data-communication-form="message-send" class="m30-message-compose" data-guided-required-form><input type="hidden" name="threadId" value="${e(t.id)}"><label class="m32-message-label">Escribe tu mensaje<textarea name="body" maxlength="4000" required placeholder="Escribe un mensaje…"></textarea></label>${coachComposeAssists(vm)}<small data-guided-required-progress aria-live="polite"></small><span class="m45-compose-status" role="status" aria-live="polite"></span><button type="submit" class="m26-primary-action">Enviar</button><small class="m45-response-expectation">Este canal es para el seguimiento de entrenamiento; no garantiza respuesta inmediata.</small></form><form data-communication-form="thread-read" class="m30-thread-read"><input type="hidden" name="threadId" value="${e(t.id)}"><button type="submit">Marcar como leída</button></form></div></details>`;
 }
 function notificationAction(item){
   const action=item?.action;
