@@ -33,6 +33,12 @@ Revisar migraciones condicionales antes de aplicar. `m44_bootstrap_private_repor
 - La verificación de inventario se ejecuta otra vez en `production-promote.yml` *antes* de todos los gates de esquema, Edge y frontend. Si falla, producción conserva su versión anterior.
 - Ref oficial: https://supabase.com/docs/guides/platform/backups . No confundir restaurar Cloudflare Pages con restaurar Postgres, Storage, credenciales o Edge Functions.
 
+## Coherencia de controles y privacidad de evidencia
+- `prod-data-safety-gate.yml` es un control de revisión de cambios, no prueba por sí solo de restauración integral. Un `LOGICAL_SCHEMA_SNAPSHOT` del plan Free sirve para auditar DDL, restricciones y hash del esquema; **no contiene filas, autenticación, objetos ni permisos externos recuperables**. Se etiqueta `SCHEMA_ONLY_NOT_A_BACKUP` y `productionMigrationApproved:false`; si un PR introduce migraciones y falta backup completo, se bloquea.
+- Las evidencias compartidas en GitHub Actions deben limitarse a resúmenes de estado y hashes; no publicar el JSON de catálogos (incluye cuerpos de funciones, posibles literales internos) ni backups completos de usuarios.
+- Los controles de backups M44 y Data Safety usan el mismo evaluador de respaldo gestionado, con comprobación de WAL-G/PITR, base física reciente y tolerancia de antigüedad estricta; los resúmenes no certifican por sí solos una restauración probada.
+- Verificar la disponibilidad de backups de forma independiente del envío de frontend. **Producción sin respaldo integral restaurable = no aplicar las doce migraciones M44.**
+
 ## Certificación obligatoria antes del frontend
 - `node scripts/ops/verify_m44_prod_schema.mjs` usa **solo** el endpoint Management **read-only** y el target exclusivo de PROD. Sus 20 predicados cubren: tablas y RLS; denegación de escritura directa; bucket privado; RPC autentificadas y acceso anónimo denegado; finalización por `service_role` exclusivamente; comprobación moderna del rol; protección append-only y garantías de sesión privilegiada.
 - `supabase/config.toml`: `[functions.iberfit-evolution-report-emission-v1]` exige `verify_jwt = true`.
