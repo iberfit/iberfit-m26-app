@@ -368,3 +368,51 @@ test('M45 a real reconnect retries a failed calendar only once',async()=>{
   assert.equal(h.host.dataset.calendarStatus,'ready');
   h.controller.destroy();
 });
+
+
+test('M45 hanging FullCalendar vendor asset times out, cleans dead script and can retry',async()=>{
+  const nodes=[];
+  const scope={};
+  let attempts=0;
+  const documentLike={
+    querySelector(selector){
+      return nodes.find((node)=>
+        selector===`${node.tag}[data-rc62-fullcalendar="${node.dataset.rc62Fullcalendar}"]`
+      )||null;
+    },
+    createElement(tag){
+      return {
+        tag,dataset:{},listeners:{},
+        addEventListener(name,fn){this.listeners[name]=fn;},
+        removeEventListener(name,fn){if(this.listeners[name]===fn)delete this.listeners[name];},
+        remove(){
+          const index=nodes.indexOf(this);
+          if(index>=0)nodes.splice(index,1);
+        },
+      };
+    },
+    head:{
+      append(node){
+        nodes.push(node);
+        if(node.tag!=='script')return;
+        if(node.src.includes('all.global.js')){
+          attempts++;
+          if(attempts===1)return; // Simulated connection stall: no load/error.
+        }
+        queueMicrotask(()=>{
+          if(node.src.includes('es.global.js'))scope.FullCalendar={Calendar:class {}};
+          node.listeners.load?.();
+        });
+      },
+    },
+  };
+  await assert.rejects(
+    ()=>loadFullCalendarStandard({scope,documentLike,scriptTimeoutMs:25}),
+    /M26_RC62_FULLCALENDAR_ASSET_TIMEOUT/,
+  );
+  assert.equal(nodes.some(x=>x.tag==='script'&&x.src.includes('all.global.js')),false,
+    'a timed out script must be removed from the DOM');
+  const instance=await loadFullCalendarStandard({scope,documentLike,scriptTimeoutMs:25});
+  assert.equal(typeof instance.Calendar,'function');
+  assert.equal(attempts,2);
+});
