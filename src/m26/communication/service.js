@@ -6,6 +6,15 @@ function fingerprint(command){return JSON.stringify(canonical({type:command.type
 const NOTIFICATION_PREFERENCE_KEYS=Object.freeze(['sessionReminders','scheduleChanges','planPublished','coachMessages','challenges','milestones']);
 export function createCommunicationService({transport,getToken,getState,getRole,isOnline=()=>true,refreshState=async()=>{},webPushPublicKey=globalThis.__IBERFIT_M26_RUNTIME__?.webPushPublicKey||'',getPushRegistration}={}){
   const inFlight=new Map();
+  const preferenceActor=()=>{
+    const role=String(getRole()||'').toLowerCase();
+    const id=String(getState()?.identity?.id||'').trim();
+    if(!id||!['coach','client'].includes(role))throw new Error('M45_COMMUNICATION_ACTOR_REQUIRED');
+    return `${role}:${id}`;
+  };
+  const samePreferenceActor=(actor)=>{
+    try{return preferenceActor()===actor;}catch{return false;}
+  };
   const webPush=createWebPushCoordinator({
     transport,
     getToken,
@@ -25,11 +34,21 @@ export function createCommunicationService({transport,getToken,getState,getRole,
   const notificationPreferences=Object.freeze({
     async status(){
       if(!isOnline())throw new Error('M26_NOTIFICATION_PREFERENCES_ONLINE_REQUIRED');
-      return transport.notificationPreferencesStatus(await getToken());
+      const actor=preferenceActor();
+      const bearer=await getToken();
+      if(!samePreferenceActor(actor))throw new Error('M45_COMMUNICATION_ACTOR_CHANGED');
+      const result=await transport.notificationPreferencesStatus(bearer);
+      if(!samePreferenceActor(actor))throw new Error('M45_COMMUNICATION_ACTOR_CHANGED');
+      return result;
     },
     async update(preferences){
       if(!isOnline())throw new Error('M26_NOTIFICATION_PREFERENCES_ONLINE_REQUIRED');
-      return transport.notificationPreferencesUpsert(await getToken(),preferences);
+      const actor=preferenceActor();
+      const bearer=await getToken();
+      if(!samePreferenceActor(actor))throw new Error('M45_COMMUNICATION_ACTOR_CHANGED');
+      const result=await transport.notificationPreferencesUpsert(bearer,preferences);
+      if(!samePreferenceActor(actor))throw new Error('M45_COMMUNICATION_ACTOR_CHANGED');
+      return result;
     },
     applyRemote(preferences){
       const scope=String(getState()?.identity?.id||'').trim();
