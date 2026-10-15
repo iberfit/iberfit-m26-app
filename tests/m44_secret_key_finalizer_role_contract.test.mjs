@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const baselineUrl=new URL('../supabase/migrations/20261015143500_m44_immutable_evolution_pdf_ledger_v1.sql',import.meta.url);
-const hardeningUrl=new URL('../supabase/migrations/20261015214000_m44_pdf_modern_service_role_guard_v1.sql',import.meta.url);
+const hardeningUrl=new URL('../supabase/migrations/20261015214000_m44_pdf_privileged_invoker_guard_v1.sql',import.meta.url);
 const signature='public.iberfit_m44_finalize_evolution_report_issue_v1(uuid,uuid,bigint,text,text,text,bigint,text,text,uuid)';
 const legacyGuard="coalesce(current_setting('request.jwt.claim.role',true),'')<>'service_role'";
 const modernGuard="coalesce(current_setting('role',true),'')<>'service_role'";
