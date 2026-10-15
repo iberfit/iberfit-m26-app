@@ -132,3 +132,16 @@ test('M44 12 long evidence records are preserved across extra A4 sheets without 
   assert.match(html,/Detalle confirmado 11/);
   assert.doesNotMatch(html,/scale\(|transform:scale|font-size:6pt/);
 });
+
+
+test('M44 variable evidence chunks retain continuous numeric labels, not sparse 01 07 13 numbering',()=>{
+  const evidence=Array.from({length:12},(_,i)=>({
+    label:'Prueba documental '+i,
+    text:'Registro largo con explicación verificable. '.repeat(12).slice(0,495),
+    source:'sessionExecutions',
+  }));
+  const html=buildEvolutionReportHtml({report:{...basic,evidence}});
+  const indices=[...html.matchAll(/class="m44-evidence-number">(\d+)<\/div>/gu)]
+    .map(match=>Number(match[1]));
+  assert.deepEqual(indices,Array.from({length:12},(_,i)=>i+1));
+});

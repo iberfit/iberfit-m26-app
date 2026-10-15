@@ -138,13 +138,16 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
       '<p class="m44-subtle-note">Total representado: '+sum+' sesiones confirmadas. Los periodos sin registros se muestran como cero sesiones <em>confirmadas</em>, no como inactividad demostrada.</p>'));
   }
   const firstEvidencePage=showActivity?4:3;
+  let evidenceOffset=0;
   for(let i=0;i<evidenceChunks.length;i++){
     const chunk=evidenceChunks[i];
+    const offset=evidenceOffset;
+    evidenceOffset+=chunk.length;
     const idx=firstEvidencePage+i;
     pages.push(page(idx,total,showActivity?'03 · EVIDENCIA':'02 · EVIDENCIA','Resultados verificables',
       '<p class="m44-section-lead">Lo que podemos afirmar</p>'+
       '<p class="m44-evidence-context">Cada dato se acompaña de su procedencia. Cuando falta una medición o un protocolo comparable, no se completa por estimación.</p>'+
-      '<ol class="m44-evidence-list" start="'+String(1+i*maxRows)+'">'+evidenceList(chunk,i*maxRows)+'</ol>'+
+      '<ol class="m44-evidence-list" start="'+String(1+offset)+'">'+evidenceList(chunk,offset)+'</ol>'+
       '<p class="m44-subtle-note">Esta relación registra evidencias; no equivale a una clasificación automática del estado de salud ni a una recomendación individual.</p>'));
   }
   pages.push(page(total,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
