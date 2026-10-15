@@ -12,7 +12,8 @@ function fakeThread(label,unread){
   const summary={textContent:label};
   return {
     hidden:false,
-    querySelector(selector){return selector==='summary'?summary:null;},
+    querySelector(selector){return selector==='summary'?summary:
+      selector==='.m45-thread-identity'?{textContent:label}:null;},
     getAttribute(name){return name==='data-thread-unread-count'?String(unread):null;},
   };
 }
@@ -144,5 +145,75 @@ test('M45 an expanded empty conversation survives the remote preference repaint'
   release({ok:true,preferences:{}});
   await tick();
   assert.equal(nextDetails.open,true);
+  controller.destroy();
+});
+
+
+test('M45 conversation search ignores unread badge copy and the private message body',()=>{
+  const thread=fakeThread('María — recuperación',2);
+  const x=inboxRoot([thread]);
+  assert.equal(applyConversationFilter(x.root,{query:'nuevos'}).visible,0);
+  assert.equal(applyConversationFilter(x.root,{query:'recuperacion'}).visible,1);
+  assert.equal(applyConversationFilter(x.root,{query:'contenido privado'}).visible,0);
+});
+
+test('M45 focused Coach search keeps caret and query when a preference refresh redraws the route',async()=>{
+  let release;
+  const remote=new Promise((resolve)=>{release=resolve;});
+  let search={
+    value:'',selectionStart:0,selectionEnd:0,scrollLeft:0,
+    focus(){},
+    setSelectionRange(){},
+  };
+  const previous=search;
+  const entries=[fakeThread('Ángela',1),fakeThread('Óscar',0)];
+  const events=new Map();
+  const document={defaultView:null,activeElement:previous};
+  const root={
+    ownerDocument:document,
+    querySelector(selector){
+      if(selector==='[data-m45-conversation-search]')return search;
+      if(selector==='[data-communication-role]')return {dataset:{communicationRole:'coach',communicationIdentity:'account-1'}};
+      if(selector==='[data-m45-unread-toggle]')return {setAttribute(){}};
+      if(selector==='[data-m45-filter-feedback]')return {textContent:''};
+      return null;
+    },
+    querySelectorAll(selector){return selector==='.m26-thread'?entries:[];},
+    addEventListener(type,handler){events.set(type,handler);},
+    removeEventListener(type){events.delete(type);},
+  };
+  let renderCount=0;
+  const controller=createCommunicationController({
+    root,
+    service:{
+      notificationPreferences:{status:()=>remote,applyRemote(){}},
+      webPush:{async status(){return {active:false,supported:false};}},
+    },
+    render(){
+      renderCount++;
+      search={
+        value:'',selectionStart:0,selectionEnd:0,scrollLeft:0,
+        wasFocused:false,
+        focus(){this.wasFocused=true;document.activeElement=this;},
+        setSelectionRange(a,b){this.selection=[a,b];},
+      };
+    },
+  });
+  controller.mount();
+  previous.value='oscar';
+  previous.selectionStart=2;
+  previous.selectionEnd=2;
+  previous.scrollLeft=8;
+  previous.closest=(selector)=>selector==='[data-m45-conversation-search]'?previous:null;
+  events.get('input')({target:previous});
+  await tick();
+  release({ok:true,preferences:{}});
+  await tick();
+  assert.equal(renderCount,1);
+  assert.equal(search.value,'oscar');
+  assert.equal(search.wasFocused,true);
+  assert.deepEqual(search.selection,[2,2]);
+  assert.equal(search.scrollLeft,8);
+  assert.deepEqual(entries.map(x=>x.hidden),[true,false]);
   controller.destroy();
 });
