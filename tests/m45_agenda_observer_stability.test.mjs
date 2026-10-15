@@ -19,14 +19,26 @@ function appointment(id,start='2026-10-16T10:00:00-03:00'){
 }
 
 function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
-  const host={dataset:{},isConnected:true};
+  const documentLike={createElement(tag){
+    return {
+      tag,dataset:{},children:[],
+      setAttribute(){},
+      append(...children){this.children.push(...children);},
+    };
+  }};
+  const host={
+    dataset:{},isConnected:true,ownerDocument:documentLike,children:[],
+    replaceChildren(...children){this.children=children;},
+  };
   let compactMatches=compact;
+  let renderFails=failRender;
   let onCompactChange=null;
   let lastOptions=null;
   let lastCalendar=null;
   const calls={construct:0,render:0,remove:0,add:0,destroy:0,options:[]};
   const scheduled=[];
   let mutation;
+  const events=new Map(),onlineEvents=new Map();
   let records=[appointment('a')];
   const viewport={
     matches:true,addEventListener(){},removeEventListener(){},
@@ -39,7 +51,7 @@ function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
   class FakeCalendar{
     constructor(host,options){calls.construct+=1;lastOptions=options;lastCalendar=this;this.date=new Date(options.initialDate||'2026-10-20T12:00:00-03:00');}
     getDate(){return this.date;}
-    render(){calls.render+=1;if(failRender)throw Error('vendor render failure');}
+    render(){calls.render+=1;if(renderFails)throw Error('vendor render failure');}
     removeAllEvents(){calls.remove+=1;}
     addEventSource(){calls.add+=1;if(failUpdate)throw Error('vendor update failure');}
     setOption(name,value){calls.options.push({name,value});}
@@ -55,8 +67,13 @@ function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
     MutationObserver:FakeObserver,
     matchMedia:(query)=>query==='(max-width: 1099px)'?compactViewport:viewport,
     requestAnimationFrame(callback){scheduled.push(callback);},
+    addEventListener(name,callback){onlineEvents.set(name,callback);},
+    removeEventListener(name){onlineEvents.delete(name);},
   };
   const root={
+    ownerDocument:documentLike,
+    addEventListener(name,callback){events.set(name,callback);},
+    removeEventListener(name){events.delete(name);},
     querySelector(selector){
       return selector==='[data-rc62-agenda-calendar]'?host:null;
     },
@@ -75,8 +92,10 @@ function calendarHarness({compact=false,failRender=false,failUpdate=false}={}){
     await tick();
   }
   return {
-    controller,calls,flush,host,
+    controller,calls,flush,host,events,
     getMutation:()=>mutation,
+    setRenderFailure(value){renderFails=value;},
+    reconnect(){onlineEvents.get('online')?.();},
     getOptions:()=>lastOptions,
     selectDate(value){lastCalendar.date=new Date(value);},
     setCompact(value){compactMatches=value;onCompactChange?.();},
@@ -306,4 +325,46 @@ test('M45 a failed third-party calendar script can be fetched successfully on ex
   assert.equal(typeof result.Calendar,'function');
   assert.equal(attempts,2,'the second attempt loads a fresh script');
   assert.equal(entries.filter(x=>x.tag==='script'&&x.src.includes('all.global.js')).length,1);
+});
+
+
+test('M45 a failed calendar shows accessible retry, with no automatic infinite observer loop',async()=>{
+  const h=calendarHarness({failRender:true});
+  h.controller.mount();
+  await h.flush();
+  assert.equal(h.host.dataset.calendarStatus,'fallback');
+  const panel=h.host.children[0];
+  assert.equal(panel.children[0].textContent,
+    'No pudimos mostrar el calendario visual. La lista de citas sigue disponible.');
+  assert.equal(panel.children[1].textContent,'Reintentar calendario');
+  assert.equal(panel.children[1].dataset.rc62AgendaRetry,'true');
+  for(let i=0;i<5;i++){
+    h.getMutation()();
+    await h.flush();
+  }
+  assert.equal(h.calls.construct,1,'observer mutations cannot create an endless failure loop');
+  assert.equal(h.calls.render,1);
+  h.setRenderFailure(false);
+  h.events.get('click')({
+    target:{closest(selector){return selector==='[data-rc62-agenda-retry]'?{}:null;}},
+    preventDefault(){},
+  });
+  await h.flush();
+  assert.equal(h.calls.construct,2);
+  assert.equal(h.host.dataset.calendarStatus,'ready');
+  h.controller.destroy();
+  assert.equal(h.events.size,0,'retry listener must be detached');
+});
+
+test('M45 a real reconnect retries a failed calendar only once',async()=>{
+  const h=calendarHarness({failRender:true});
+  h.controller.mount();
+  await h.flush();
+  assert.equal(h.calls.render,1);
+  h.setRenderFailure(false);
+  h.reconnect();
+  await h.flush();
+  assert.equal(h.calls.render,2);
+  assert.equal(h.host.dataset.calendarStatus,'ready');
+  h.controller.destroy();
 });
