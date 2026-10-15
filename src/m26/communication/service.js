@@ -38,6 +38,40 @@ export function createCommunicationService({transport,getToken,getState,getRole,
     },
   });
   return Object.freeze({
+    async markNotificationsRead(notificationIds){
+      if(!isOnline())throw new Error('M26_COMMUNICATION_ONLINE_REQUIRED');
+      const role=String(getRole()||'').toLowerCase();
+      const ids=Array.isArray(notificationIds)?notificationIds:[];
+      // One bounded interaction, no implicit privileged bulk mutation.
+      if(!ids.length||ids.length>20||ids.some((id)=>
+        typeof id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(id)
+      )||new Set(ids).size!==ids.length)throw new Error('M45_NOTIFICATION_BATCH_INVALID');
+      if(!['client','coach'].includes(role))throw new Error('M26_COMMUNICATION_ROLE_FORBIDDEN');
+      const state=getState();
+      const commands=ids.map((id)=>createCommunicationCommand({
+        type:'NOTIFICATION_MARK_READ',entityId:id,payload:{notificationId:id},
+      },state,role));
+      const token=await getToken();
+      // Each RPC enforces recipient scope; concurrent independent rows avoid
+      // sequential network waterfalls. Never treat rejected RPCs as success.
+      const results=await Promise.allSettled(commands.map((command)=>
+        transport.execute(token,command,{application:role})
+      ));
+      const markedIds=ids.filter((_,index)=>results[index].status==='fulfilled');
+      if(!markedIds.length)throw results.find((result)=>result.status==='rejected')?.reason
+        ||new Error('M45_NOTIFICATION_BATCH_NOT_CONFIRMED');
+      let syncPending=false;
+      try{
+        await refreshState({reason:'communication-notifications-ack',markedIds});
+      }catch{syncPending=true;}
+      return Object.freeze({
+        ok:markedIds.length===ids.length,
+        markedCount:markedIds.length,
+        requestedCount:ids.length,
+        markedIds:Object.freeze(markedIds),
+        syncPending,
+      });
+    },
     execute(input){
       if(!isOnline())return Promise.reject(new Error('M26_COMMUNICATION_ONLINE_REQUIRED'));
       const role=String(getRole()||'').toLowerCase();
