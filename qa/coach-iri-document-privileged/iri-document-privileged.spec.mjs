@@ -2,6 +2,7 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {certifyM44VerifiedAssuranceBoundary} from '../m44/verified-webauthn-readonly.mjs';
+import {certifyM44PositiveEvolutionPdf} from '../m44/positive-webauthn-issued-pdf.mjs';
 import {isAuthorizedQaAvatarRead} from './qa-avatar-traffic-policy.mjs';
 import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 
@@ -383,6 +384,13 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
       context,accessToken:session.accessToken,
       publishableKey:process.env.M26_SUPABASE_PUBLISHABLE_KEY,
     });
+    if(process.env.M26_QA_M44_POSITIVE_CERT==='true'){
+      evidence.m44PositiveIssue=await certifyM44PositiveEvolutionPdf({
+        context,accessToken:session.accessToken,
+        publishableKey:process.env.M26_SUPABASE_PUBLISHABLE_KEY,
+        assuranceVerified:evidence.m44VerifiedBoundary?.assurance==='verified',
+      });
+    }
     await certifyRemoteDraftCas(context,session,evidence);
     await openSyntheticClient(page);
     await openPhotography(page);
