@@ -82,8 +82,21 @@ BEGIN
    'summary',v_report.content->>'summary',
    'conclusions',v_report.content->>'conclusions',
    'recommendations',v_report.content->>'recommendations',
-   'evidence',coalesce(v_report.content->'evidence','[]'::jsonb),
-   'activitySeries',coalesce(v_report.content->'activitySeries','[]'::jsonb)
+   'evidence',coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'label',item->>'label','text',item->>'text',
+        'source',item->>'source','quality',left(coalesce(item->>'quality',''),120)
+      ) order by ord)
+      from jsonb_array_elements(coalesce(v_report.content->'evidence','[]'::jsonb))
+      with ordinality as evidence(item,ord)
+    ),'[]'::jsonb),
+   'activitySeries',coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'from',item->>'from','to',item->>'to','count',item->'count'
+      ) order by ord)
+      from jsonb_array_elements(coalesce(v_report.content->'activitySeries','[]'::jsonb))
+      with ordinality as series(item,ord)
+    ),'[]'::jsonb)
  );
 
  RETURN v_source;

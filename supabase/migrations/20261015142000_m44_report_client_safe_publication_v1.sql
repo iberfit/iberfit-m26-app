@@ -39,8 +39,21 @@ begin
     'recommendations',new.body->>'recommendations',
     'periodStart',new.body->>'periodStart',
     'periodEnd',new.body->>'periodEnd',
-    'evidence',coalesce(new.body->'evidence','[]'::jsonb),
-    'activitySeries',coalesce(new.body->'activitySeries','[]'::jsonb),
+    'evidence',coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'label',item->>'label','text',item->>'text',
+        'source',item->>'source','quality',left(coalesce(item->>'quality',''),120)
+      ) order by ord)
+      from jsonb_array_elements(coalesce(new.body->'evidence','[]'::jsonb))
+      with ordinality as evidence(item,ord)
+    ),'[]'::jsonb),
+    'activitySeries',coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'from',item->>'from','to',item->>'to','count',item->'count'
+      ) order by ord)
+      from jsonb_array_elements(coalesce(new.body->'activitySeries','[]'::jsonb))
+      with ordinality as series(item,ord)
+    ),'[]'::jsonb),
     'format','a4-premium','visibleToClient',true
   );
   update public.reports r set
