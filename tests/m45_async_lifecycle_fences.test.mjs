@@ -232,7 +232,7 @@ test('M45 old account reconnect response never rerenders after identity transiti
 
 test('M45 same-role identity switch fences stale web push result and preference queue',async()=>{
   const h=rootHarness(),statusA=deferred(),statusB=deferred(),saveA=deferred();
-  const snapshots=[],writes=[];
+  const writes=[];
   let pushCalls=0;
   const controller=createCommunicationController({
     root:h.root,
