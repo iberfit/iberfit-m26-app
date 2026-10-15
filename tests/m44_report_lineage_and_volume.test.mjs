@@ -48,3 +48,22 @@ test('M44: reports based on training do not require IRI; historical and diagnost
   assert.ok(validateReportDraft({...draft,reportType:'iri'}).errors.includes('assessmentId'));
   assert.ok(validateReportDraft(draft).errors.includes('assessmentId'));
 });
+
+
+test('M44: IRI baseline is the earliest initial diagnosis even when another confirmed initial record is newer',()=>{
+  const fixture=state([session('e1','squat',40),session('e2','squat',50)]);
+  fixture.collections.iriAssessments=[
+    {id:'iri-newer',clientId:'m44-c1',assessmentType:'inicial',status:'confirmed',revision:5,assessmentDate:'2026-10-10',firstSessionCompletedAt:'2026-10-10',bodyComposition:[]},
+    {id:'iri-original',clientId:'m44-c1',assessmentType:'inicial',status:'confirmed',revision:3,assessmentDate:'2026-09-01',firstSessionCompletedAt:'2026-09-01',bodyComposition:[]},
+  ];
+  const iri=buildPremiumReportPortfolio(fixture,'m44-c1',{now}).find(item=>item.id==='iri');
+  assert.equal(iri.sourceId,'iri-original');
+  assert.equal(iri.assessmentRevision,3);
+  assert.match(iri.summary,/0 de 3 dominios/u,'empty measurements cannot be counted as baseline coverage');
+});
+
+test('M44: unknown IRI revision is null, not falsely represented as version zero',()=>{
+  const fixture=state([session('e1','squat',40)]);
+  const report=buildPremiumReportPortfolio(fixture,'m44-c1',{now}).find(item=>item.id==='weekly');
+  assert.equal(report.assessmentRevision,null);
+});

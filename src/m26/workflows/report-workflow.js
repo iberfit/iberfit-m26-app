@@ -40,10 +40,10 @@ function isInitialIri(record){
   // follow-up records must never be projected as the initial diagnosis.
   return !type||['inicial','initial',IRI_INITIAL_DIAGNOSTIC_KIND].includes(type);
 }
-function objectiveMeasurement(candidate){if(candidate===null||candidate===undefined||candidate==='')return false;if(Number.isFinite(Number(candidate)))return true;if(Array.isArray(candidate))return candidate.some(objectiveMeasurement);if(typeof candidate==='object')return Object.values(candidate).some(objectiveMeasurement);return false;}
+function objectiveMeasurement(candidate){if(candidate===null||candidate===undefined||candidate==='')return false;if(Array.isArray(candidate))return candidate.some(objectiveMeasurement);if(typeof candidate==='object')return Object.values(candidate).some(objectiveMeasurement);if(typeof candidate==='number')return Number.isFinite(candidate);if(typeof candidate==='string')return candidate.trim()!==''&&Number.isFinite(Number(candidate));return false;}
 function iriCoverage(record){if(!record)return 0;const cardio=Number.isFinite(Number(recordValue(record,'stepFinalHr','step_final_hr')))&&Number.isFinite(Number(recordValue(record,'stepOneMinuteHr','step_one_minute_hr')));const composition=objectiveMeasurement(recordValue(record,'bodyComposition','body_composition'));const strength=objectiveMeasurement(recordValue(record,'strengthPatterns','strength_patterns'));return [cardio,composition,strength].filter(Boolean).length;}
 function evidence(label,value,source,quality='confirmada'){return Object.freeze({label,text:cleanText(value,500),source,quality});}
-function normalizedRevision(value){const revision=Number(value);return Number.isInteger(revision)&&revision>=0?revision:null;}
+function normalizedRevision(value){if(value===null||value===undefined||value==='')return null;const revision=Number(value);return Number.isInteger(revision)&&revision>=0?revision:null;}
 function reportModel({id,label,ready,reason,periodStart,periodEnd,title,summary,conclusions,recommendations,evidence=[],assessmentId=null,assessmentRevision=null,sourceType=null,sourceId=null}){return Object.freeze({id,label,status:ready?'ready':'insufficient-data',ready:Boolean(ready),reason:ready?null:cleanText(reason,500),periodStart:periodStart||null,periodEnd:periodEnd||null,title:cleanText(title,140),summary:cleanText(summary,2500),conclusions:cleanText(conclusions,2500),recommendations:cleanText(recommendations,2500),evidence:Object.freeze(evidence),assessmentId:assessmentId?String(assessmentId):null,assessmentRevision:normalizedRevision(assessmentRevision),sourceType,sourceId,coachComment:'',coachCommentLabel:'Comentario del coach',dataPolicy:'canonical-only'});}
 function iriId(record){return recordValue(record,'id');}
 function sessionLabel(record){return cleanText(recordValue(record,'title','name','nombre')||'Sesión IBERFIT',120);}
@@ -54,7 +54,14 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const end=new Date(now).toISOString().slice(0,10);
   const iris=sortNewest(recordsForClient(state,'iriAssessments',clientId).filter(record=>confirmedIri(record)&&isInitialIri(record)));
   const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true})).filter(record=>recordDate(record)&&recordDate(record)<=end);
-  const latestIri=iris[0]||null;
+  // The first confirmed initial assessment is the diagnostic baseline.
+  // A more recent assessment of type "inicial" must not silently replace it.
+  const latestIri=[...iris].sort((a,b)=>{
+    const at=timestamp(recordDate(a)),bt=timestamp(recordDate(b));
+    const byDate=(Number.isFinite(at)?at:Infinity)-(Number.isFinite(bt)?bt:Infinity);
+    return Number.isFinite(byDate)&&byDate!==0?byDate:
+      (normalizedRevision(recordValue(b,'revision'))??-1)-(normalizedRevision(recordValue(a,'revision'))??-1);
+  })[0]||null;
   const latestExecution=executions[0]||null;
   const progress=buildProgressHub(state,clientId,{now});
   const progressEvidence=(progress?.pillars||[]).filter((pillar)=>pillar.status!=='insufficient');
