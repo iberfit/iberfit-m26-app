@@ -298,6 +298,10 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   function onInputEvent(event){
     const form=event.target?.closest?.('[data-communication-form="message-send"]');
     if(!form)return;
+    if(!activeCommunicationRole){
+      const roleNode=root.querySelector?.('[data-communication-role]');
+      activeCommunicationRole=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
+    }
     const threadId=String(form.querySelector?.('[name="threadId"]')?.value||'');
     if(!threadId)return;
     const draft=captureMessageDrafts(root).get(threadId);
