@@ -332,12 +332,13 @@ export function createCommunicationRouteViewModel(base,shellVm,state){
   const projected=applyCommercialCoachCockpit(portfolio,state,now);
   const area=String(shellVm?.activeArea||state?.activeArea||'');
   const role=String(shellVm?.identity?.role||state?.identity?.role||'').toLowerCase();
+  const communicationIdentityScope=String(state?.identity?.id||shellVm?.identity?.id||'').trim();
   if(area!=='mensajes'||!['client','coach'].includes(role))return projected;
   if(state?.communication?.available!==true)return Object.freeze({...projected,communication:true,kind:'communication-unavailable',reason:state?.communication?.reason||'backend_unavailable',role});
   const threads=state.communication.threads||[];
   const groupedMessages=groupCommunicationMessages(state,threads.map((t)=>t.id));
   return Object.freeze({
-    ...projected,communication:true,kind:'communication',role,
+    ...projected,communication:true,communicationIdentityScope,kind:'communication',role,
     threads:Object.freeze(threads.map((thread)=>Object.freeze({
       ...structuredClone(thread),
       messages:groupedMessages.get(String(thread.id))||Object.freeze([]),
