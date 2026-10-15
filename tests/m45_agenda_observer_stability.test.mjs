@@ -11,7 +11,7 @@ const tick=()=>new Promise((resolve)=>setImmediate(resolve));
 function appointment(id,start='2026-10-16T10:00:00-03:00'){
   return {
     id,title:'Sesión presencial',startAt:start,
-    endAt:'2026-10-16T11:00:00-03:00',status:'confirmed',modality:'presencial',
+    endAt:new Date(new Date(start).getTime()+60*60*1000).toISOString(),status:'confirmed',modality:'presencial',
   };
 }
 
