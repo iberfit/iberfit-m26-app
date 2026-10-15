@@ -55,3 +55,15 @@ test('M44 long evidence is paginated without hiding items',()=>{
 test('M44 popup guard fails safely when no browser origin is available',()=>{
   assert.throws(()=>openEvolutionReportPreview({report:basic,scope:{}}),/ORIGIN_REQUIRED/);
 });
+
+test('M44 evidence appendix numbering remains continuous across pages',()=>{
+  const evidence=Array.from({length:9},(_,i)=>({label:'Resultado '+i,text:'Evidencia '+i,source:'sessionExecutions'}));
+  const html=buildEvolutionReportHtml({report:{...basic,evidence}});
+  assert.match(html,/m44-evidence-number">07<\/div>/u);
+  assert.match(html,/m44-evidence-number">09<\/div>/u);
+});
+test('M44 validation checks page content overflow beyond the visible footer',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/evolution-report-document.js',import.meta.url),'utf8');
+  assert.match(source,/content\.scrollHeight/u);
+  assert.match(source,/content\.clientHeight/u);
+});

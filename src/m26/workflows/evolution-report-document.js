@@ -33,10 +33,10 @@ function dateLabel(value){
   if(Number.isNaN(+date)||date.toISOString().slice(0,10)!==match[0])return 'Fecha pendiente';
   return new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(date);
 }
-function evidenceList(rows){
+function evidenceList(rows,offset=0){
   return rows.map((item,index)=>{
     const source=TRUSTED_SOURCES[item.source]||clean(item.source,100);
-    return '<li class="m44-evidence-item"><div class="m44-evidence-number">'+String(index+1).padStart(2,'0')+'</div><div><h3>'+esc(clean(item.label,120))+'</h3><p>'+esc(clean(item.text,500))+'</p><small>Fuente: '+esc(source)+
+    return '<li class="m44-evidence-item"><div class="m44-evidence-number">'+String(offset+index+1).padStart(2,'0')+'</div><div><h3>'+esc(clean(item.label,120))+'</h3><p>'+esc(clean(item.text,500))+'</p><small>Fuente: '+esc(source)+
       (item.quality?' · Calidad declarada: '+esc(clean(item.quality,60)):'')+'</small></div></li>';
   }).join('');
 }
@@ -82,7 +82,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     pages.push(page(idx,total,'02 · EVIDENCIA','Resultados verificables',
       '<p class="m44-section-lead">Lo que podemos afirmar</p>'+
       '<p class="m44-evidence-context">Cada dato se acompaña de su procedencia. Cuando falta una medición o un protocolo comparable, no se completa por estimación.</p>'+
-      '<ol class="m44-evidence-list" start="'+String(1+i*maxRows)+'">'+evidenceList(chunk)+'</ol>'+
+      '<ol class="m44-evidence-list" start="'+String(1+i*maxRows)+'">'+evidenceList(chunk,i*maxRows)+'</ol>'+
       '<p class="m44-subtle-note">Esta relación registra evidencias; no equivale a una clasificación automática del estado de salud ni a una recomendación individual.</p>'));
   }
   pages.push(page(total,total,'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
@@ -96,7 +96,11 @@ function pageOverflow(doc){
   return [...doc.querySelectorAll('.m44-sheet')].some((page)=>{
     const content=page.querySelector('.m44-page-content');
     const footer=page.querySelector('.m44-foot');
-    return Boolean(content&&footer&&content.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-8);
+    if(!content||!footer)return Number(page.scrollHeight)>Number(page.clientHeight)+2;
+    // Bounding rectangles alone miss clipped content in flex layouts.
+    // Compare the full scroll height as well as the A4 footer boundary.
+    return Number(content.scrollHeight)>Number(content.clientHeight)+2
+      ||content.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-8;
   });
 }
 export function openEvolutionReportPreview({report,clientName,coachName,scope=globalThis}={}){
@@ -117,6 +121,8 @@ export function openEvolutionReportPreview({report,clientName,coachName,scope=gl
     let ready=false;
     const finish=async()=>{
       await Promise.race([doc.fonts?.ready||Promise.resolve(),new Promise((resolve)=>scope.setTimeout(resolve,3000))]);
+      const logo=doc.querySelector('.m44-brand img');
+      if(logo&&!logo.complete)await Promise.race([new Promise(resolve=>{logo.addEventListener('load',resolve,{once:true});logo.addEventListener('error',resolve,{once:true});}),new Promise(resolve=>scope.setTimeout(resolve,3000))]);
       if(pageOverflow(doc)){status.textContent='El contenido no cabe en A4. Reduce la longitud de las notas antes de imprimir.';print.disabled=true;return;}
       ready=true;print.disabled=false;status.textContent='Vista previa privada · diseño A4 verificado';
     };
