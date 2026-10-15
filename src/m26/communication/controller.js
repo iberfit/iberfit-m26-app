@@ -342,6 +342,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(!payload)return;
     preferenceGeneration+=1;
     Object.assign(explicitPreferenceChoices,payload);
+    if(retryPreferencePayload){
+      const current=Object.fromEntries(Object.entries(retryPreferencePayload).filter(
+        ([key,value])=>!Object.hasOwn(payload,key)||payload[key]===value
+      ));
+      retryPreferencePayload=Object.keys(current).length?Object.freeze(current):null;
+    }
     void syncNotificationPreferences(payload,{force:true,announceFailure:true});
   }
   function onShellRendered(){
