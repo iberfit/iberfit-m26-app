@@ -301,8 +301,8 @@ test('RC64.2A PWA app-shell retains canonical critical CSS after strict CSP exte
   assert.equal(generator.includes('RC58_5C_B_LINKED_STYLE_MISSING'),true);
   assert.equal(generator.includes('for(const linkedStyle of linkedStylesFromIndex())'),true);
   assert.equal(sw.includes('"/m26/preauth-critical.css"'),true);
-  assert.equal(sw.includes("VERSION='m26-rc63-2'"),true);
-  assert.equal(sw.includes("PREVIOUS_VERSION='m26-rc63-1'"),true);
+  assert.equal(sw.includes("VERSION='m26-rc63-3'"),true);
+  assert.equal(sw.includes("PREVIOUS_VERSION='m26-rc63-2'"),true);
 });
 
 test('RC64.2A direct Lighthouse Chromium launch disables sandbox only on GitHub Linux loopback',async()=>{
