@@ -60,7 +60,7 @@ begin
   end if;
   foreach v_text in array array['title','summary','conclusions','recommendations'] loop
     if nullif(btrim(coalesce(p_draft->>v_text,'')),'') is null
-      or length(p_draft->>v_text)>case v_text when 'title' then 140 else 2500 end
+      or length(p_draft->>v_text) > (case when v_text='title' then 140 else 2500 end)
     then
       raise exception 'M44_REPORT_REQUIRED_CONTENT_INVALID: %', v_text using errcode='22023';
     end if;
