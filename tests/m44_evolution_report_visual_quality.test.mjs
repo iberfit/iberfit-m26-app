@@ -67,3 +67,14 @@ test('M44 validation checks page content overflow beyond the visible footer',asy
   assert.match(source,/content\.scrollHeight/u);
   assert.match(source,/content\.clientHeight/u);
 });
+
+test('M44 validates the actual print-size layout even from a mobile preview',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/evolution-report-document.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../public/m26/evolution-report.css',import.meta.url),'utf8');
+  assert.match(source,/async function verifyA4Layout/);
+  assert.match(source,/max-width: 825px/);
+  assert.match(source,/frame\.contentDocument/);
+  assert.match(source,/target\.importNode\(page,true\)/);
+  assert.match(source,/await verifyA4Layout\(doc,popup,scope\)/);
+  assert.match(css,/\.m44-layout-preflight/);
+});

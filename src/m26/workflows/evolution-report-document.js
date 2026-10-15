@@ -103,6 +103,37 @@ function pageOverflow(doc){
       ||content.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-8;
   });
 }
+async function verifyA4Layout(doc,popup,scope){
+  // Mobile screen mode deliberately reflows sheets for readability. Check the
+  // actual 210×297 mm desktop/print geometry in an off-screen viewport instead.
+  if(!popup.matchMedia?.('(max-width: 825px)')?.matches)return !pageOverflow(doc);
+  const frame=doc.createElement('iframe');
+  frame.className='m44-layout-preflight';
+  frame.setAttribute('aria-hidden','true');
+  frame.setAttribute('tabindex','-1');
+  doc.body.append(frame);
+  try{
+    const target=frame.contentDocument;
+    if(!target?.head||!target?.body)return false;
+    const link=target.createElement('link');
+    link.rel='stylesheet';link.href=doc.querySelector('[data-m44-report-css]')?.href||'';
+    target.head.append(link);
+    target.body.replaceChildren(...[...doc.querySelectorAll('.m44-sheet')].map((page)=>target.importNode(page,true)));
+    await Promise.race([
+      new Promise((resolve)=>{if(link.sheet){resolve();return;}link.addEventListener('load',resolve,{once:true});link.addEventListener('error',resolve,{once:true});}),
+      new Promise((resolve)=>scope.setTimeout(resolve,5000)),
+    ]);
+    if(!link.sheet)return false;
+    await Promise.race([target.fonts?.ready||Promise.resolve(),new Promise(resolve=>scope.setTimeout(resolve,3000))]);
+    const pages=[...target.querySelectorAll('.m44-sheet')];
+    const geometries=pages.every(page=>{
+      const styles=frame.contentWindow?.getComputedStyle(page);
+      const height=parseFloat(styles?.height||'0'),width=parseFloat(styles?.width||'0');
+      return height>=1050&&width>=740;
+    });
+    return geometries&&!pageOverflow(target);
+  }finally{frame.remove();}
+}
 export function openEvolutionReportPreview({report,clientName,coachName,scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
@@ -123,15 +154,23 @@ export function openEvolutionReportPreview({report,clientName,coachName,scope=gl
       await Promise.race([doc.fonts?.ready||Promise.resolve(),new Promise((resolve)=>scope.setTimeout(resolve,3000))]);
       const logo=doc.querySelector('.m44-brand img');
       if(logo&&!logo.complete)await Promise.race([new Promise(resolve=>{logo.addEventListener('load',resolve,{once:true});logo.addEventListener('error',resolve,{once:true});}),new Promise(resolve=>scope.setTimeout(resolve,3000))]);
-      if(pageOverflow(doc)){status.textContent='El contenido no cabe en A4. Reduce la longitud de las notas antes de imprimir.';print.disabled=true;return;}
+      if(!await verifyA4Layout(doc,popup,scope)){status.textContent='El contenido no cabe con seguridad en A4. Ajusta las notas antes de imprimir.';print.disabled=true;return;}
       ready=true;print.disabled=false;status.textContent='Vista previa privada · diseño A4 verificado';
     };
     stylesheet.addEventListener('load',()=>{void finish().catch(()=>{status.textContent='No se pudo validar el diseño.';});},{once:true});
     stylesheet.addEventListener('error',()=>{status.textContent='No se pudo cargar el diseño. No se puede imprimir.';},{once:true});
     if(stylesheet.sheet)void finish().catch(()=>{});
-    print.addEventListener('click',()=>{
-      if(!ready||pageOverflow(doc)){print.disabled=true;status.textContent='El ajuste A4 requiere revisión.';return;}
-      popup.print();
+    print.addEventListener('click',async()=>{
+      if(!ready)return;
+      print.disabled=true;
+      try{
+        if(!await verifyA4Layout(doc,popup,scope)){
+          ready=false;status.textContent='El ajuste A4 requiere revisión.';return;
+        }
+        popup.print();
+      }catch{
+        ready=false;status.textContent='No pudimos verificar el documento para imprimir.';
+      }finally{print.disabled=!ready;}
     });
     close.addEventListener('click',()=>popup.close());
     popup.focus?.();

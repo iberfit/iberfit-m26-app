@@ -103,3 +103,7 @@ body{margin:0;padding:25px 10px 40px;background:#142a1e;font-family:'Inter Varia
   .m44-foot{margin-top:auto}
   .m44-cover{background:var(--m44-forest)!important;color:#faf6ea!important}
 }
+
+/* Proof viewport remains wider than mobile breakpoints; its contents are not
+ * interactive and must never cover the report or intercept a touch gesture. */
+.m44-layout-preflight{position:absolute!important;left:-12000px!important;top:-12000px!important;width:1000px!important;height:100px!important;opacity:0!important;pointer-events:none!important;border:0!important}
