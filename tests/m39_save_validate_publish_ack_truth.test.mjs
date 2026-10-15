@@ -239,7 +239,7 @@ test('M39/M43 report drafts stay client-scoped, preserve incomplete content and 
    "draftRepository.save(clientId,scoped,payload)",
    "async function initializeReportForm(form)",
    "updateReportDraftChoices(form,{restoreSingle:true})",
-   "String(draft?.assessmentId||'')!==String(assessmentId)",
+   "String(draft?.assessmentId||'')!==String(assessmentId||'')",
    "function queueReportSave(form)",
    "queueReportSave(reportForm)",
    "saveReportDraft(form,{silent:true})",

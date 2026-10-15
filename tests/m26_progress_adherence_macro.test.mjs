@@ -63,13 +63,13 @@ test('confirmed activities of a different person never enter this client adheren
  assert.equal(summary.adherence,0);
 });
 
-test('legacy planned commitments preserve historical adherence, whereas proposals remain excluded',()=>{
+test('legacy unconfirmed planned proposals cannot inflate attendance denominator',()=>{
  const summary=progress([
   appointment('done','completed'), appointment('legacy','planned'), appointment('proposal','propuesta')
  ]);
- assert.equal(summary.plannedSessions,2);
+ assert.equal(summary.plannedSessions,1);
  assert.equal(summary.completedSessions,1);
- assert.equal(summary.adherence,0.5);
+ assert.equal(summary.adherence,1);
 });
 
 test('no appointments or executions have missing adherence, not invented zero',()=>{

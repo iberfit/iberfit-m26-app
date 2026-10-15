@@ -5,6 +5,10 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // M44: withdrawn-version reason is an interactive Coach/Admin field, not report copy.
+  ['Indica por qué se retira esta versión','Explain why this version is being withdrawn',
+   'Indiquez pourquoi cette version est retirée',
+   'Indique por que motivo esta versão é retirada'],
   // CONNECTED360: reveal the verified developer-subscription prerequisite.
   ['Requiere suscripción y autorización segura','Requires a subscription and secure authorization','Nécessite un abonnement et une autorisation sécurisée','Requer subscrição e autorização segura'],
   // COACH_COMPLETION_EVIDENCE_360: factual plan-versus-recorded comparison with multilingual parity.
