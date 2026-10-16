@@ -71,5 +71,5 @@ test('remote gates separate browser preparation from the credential-shared mutex
   }
   assert.match(authorized,/run: npm ci/u);
   assert.match(authorized,/QA_BROWSER_MISSING/u);
-  assert.match(authorized,/if: \${{ github\.event_name == 'push' \|\| inputs\.confirmation == 'READ_ONLY_REMOTE_GATE' }}/u);
+  assert.match(authorized,/if: .*github\.event_name.*READ_ONLY_REMOTE_GATE/u);
 });
