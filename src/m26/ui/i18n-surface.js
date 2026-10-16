@@ -5,6 +5,21 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE360: Admin agenda human-first identity, format and empty-state copy.
+  // SIGNATURE360: appointment statuses are user-facing states in all four languages.
+  ['Cuando tengas una cita, aparecerá aquí.','Your next appointment will appear here.','Votre prochain rendez-vous apparaîtra ici.','A sua próxima marcação aparecerá aqui.'],
+  ['Programada','Scheduled','Programmée','Agendada'],
+  ['Confirmada','Confirmed','Confirmée','Confirmada'],
+  ['Cancelada','Cancelled','Annulée','Cancelada'],
+  ['Reprogramada','Rescheduled','Reprogrammée','Reagendada'],
+  ['No asistió','Did not attend','Absence','Não compareceu'],
+  ['Fecha y hora','Date and time','Date et heure','Data e hora'],
+  ['Cliente sin identificar','Unidentified client','Client non identifié','Cliente não identificado'],
+  ['Sin Coach indicado','No Coach specified','Aucun Coach indiqué','Sem Coach indicado'],
+  ['No indicada','Not specified','Non indiquée','Não indicada'],
+  ['Modalidad','Format','Modalité','Modalidade'],
+  ['Agenda global','Organization-wide agenda','Agenda générale','Agenda global'],
+  ['Supervisa todas las citas y modalidades.','Review appointments and their formats.','Suivez les rendez-vous et leurs modalités.','Acompanhe as marcações e modalidades.'],
   // Entrenamiento guiado: nomenclatura estable y accesible en cuatro idiomas.
   ['Comenzar entrenamiento','Start workout','Commencer l’entraînement','Começar treino'],
   ['Guardar y salir','Save and leave','Enregistrer et quitter','Guardar e sair'],

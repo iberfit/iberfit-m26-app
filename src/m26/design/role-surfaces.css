@@ -858,12 +858,7 @@
   border-color:
     rgba(235,219,182,.12);
 
-  background:
-    linear-gradient(
-      180deg,
-      rgba(5,20,14,.94),
-      rgba(8,29,20,.96)
-    );
+  background:var(--iberfit-color-surface-base);
 
   box-shadow:
     var(--iberfit-premium-inset);
@@ -871,7 +866,6 @@
   transition:
     border-color 150ms ease,
     box-shadow 150ms ease,
-    transform 150ms ease,
     background 150ms ease;
 }
 
@@ -885,13 +879,11 @@
   select,
   textarea
 ):focus {
-  transform: translateY(-1px);
-
   border-color:
     color-mix(
       in srgb,
       var(--iberfit-role-accent, var(--iberfit-color-accent))
-      48%,
+      62%,
       transparent
     );
 
@@ -901,7 +893,7 @@
       color-mix(
         in srgb,
         var(--iberfit-role-accent, var(--iberfit-color-accent))
-        10%,
+        22%,
         transparent
       ),
     0 8px 18px rgba(0,0,0,.13);

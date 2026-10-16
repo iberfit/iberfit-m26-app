@@ -1000,6 +1000,38 @@
   }
 }
 
+/* SIGNATURE 360: maintain true table semantics and reachable horizontal scrolling. */
+.m26-shell[data-m26-role="admin"] .m26-admin-agenda-table{
+  scroll-padding-inline:1rem;
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-agenda-table:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-agenda-table table{min-width:740px}
+.m26-shell[data-m26-role="admin"] .m26-admin-agenda-table td:first-child strong{
+  display:block;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-agenda-table td:first-child small{
+  display:block;
+  color:var(--iberfit-color-text-secondary);
+  overflow-wrap:anywhere;
+}
+@media(max-width:700px){
+  .m26-shell[data-m26-role="admin"] .m26-admin-agenda-table :is(th,td):first-child{
+    position:sticky;
+    left:0;
+    min-width:145px;
+    max-width:190px;
+    background:var(--iberfit-color-surface-base,#13221c);
+    box-shadow:1px 0 0 var(--iberfit-color-border-strong);
+  }
+  .m26-shell[data-m26-role="admin"] .m26-admin-agenda-table thead th:first-child{z-index:3}
+  .m26-shell[data-m26-role="admin"] .m26-admin-agenda-table tbody td:first-child{z-index:1}
+}
+
 /* ADMIN_PREMIUM_DENSITY_END */
 
 

@@ -656,11 +656,15 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
-      <button type="button" data-m26-area="sesion">
+      ${nextAppointment?`<button type="button" data-m26-area="sesion">
         <span>Próxima cita</span>
-        <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
-        <small>${escapeHtml(nextAppointment?.title||'Tu Coach la añadirá aquí')}</small>
-      </button>
+        <strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong>
+        <small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small>
+      </button>`:`<button type="button" data-m26-area="sesion" aria-label="Ver mis sesiones">
+        <span>Próxima cita</span>
+        <strong>Sin cita programada</strong>
+        <small>Cuando tengas una cita, aparecerá aquí.</small>
+      </button>`}
       <button type="button" data-m26-area="planificacion"${planReady?` data-m26-client-guide="plan-entry"${planGuideEventKey?` data-m26-client-guide-event-key="${escapeHtml(planGuideEventKey)}"`:''}`:''}>
         <span>Tu plan</span>
         <strong>${escapeHtml(planName||'En preparación')}</strong>
@@ -4760,7 +4764,7 @@ function renderRouteContent(vm) {
 /* M26_CLIENT_BOTTOM_NAV_V2 */
 const CLIENT_BOTTOM_NAV_ITEMS = Object.freeze([
   {key:'hoy',label:'Hoy',area:'hoy',activeKinds:['hoy']},
-  {key:'planificacion',label:'Planificación',area:'planificacion',activeKinds:['planificacion']},
+  {key:'planificacion',label:'Planificación',shortLabel:'Tu plan',area:'planificacion',activeKinds:['planificacion']},
   {key:'sesiones',label:'Sesiones',area:'sesion',activeKinds:['sesion']},
   {key:'progreso',label:'Progreso',area:'progreso',activeKinds:['progreso']},
 ]);
@@ -4786,7 +4790,7 @@ function clientBottomNavItem(item,currentKind,{adherenceReview=false,progressRea
         ?' data-m26-client-guide="progress-entry"'
         :''
     :'';
-  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${guideAttribute}${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
+  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${guideAttribute} aria-label="${escapeHtml(item.label)}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon" aria-hidden="true">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label m26-client-bottom-nav-label-full" aria-hidden="true">${escapeHtml(item.label)}</span><span class="m26-client-bottom-nav-label m26-client-bottom-nav-label-compact" aria-hidden="true">${escapeHtml(item.shortLabel||item.label)}</span></button>`;
 }
 
 function clientBottomNavMore(currentKind){
