@@ -137,7 +137,7 @@ test('Hoy Cliente inicia directamente la sesión publicada vinculada a su cita',
 
   assert.match(
     html,
-    />Iniciar entrenamiento</
+    />Comenzar entrenamiento</
   );
 });
 test('Clientes abre expediente mediante atributos de datos, no handlers inline', () => {
