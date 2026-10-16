@@ -36,7 +36,7 @@ const publishedBody=(session)=>session?.body&&typeof session.body==='object'&&!A
 const modalityIntro=(role,value)=>{
   const modality=normalizeClientModality(value);
   if(role==='client'){
-    if(modality==='presencial')return 'Tus sesiones presenciales muestran horario, asistencia y contexto. La ejecución principal la dirige tu Coach; solo una sesión publicada expresamente como autónoma abre Live Workout.';
+    if(modality==='presencial')return 'Tus sesiones presenciales muestran horario, asistencia y contexto. La ejecución principal la dirige tu Coach; solo una sesión publicada expresamente como autónoma abre entrenamiento guiado.';
     if(modality==='hibrido')return 'Tu plan híbrido comparte una sola progresión: cada sesión indica si hoy entrenas presencialmente con tu Coach o de forma autónoma, guiado desde la app.';
     if(modality==='online')return 'Tu experiencia online prioriza las sesiones autónomas guiadas desde IBERFIT, con RIR/RPE, descansos, historial y revisión posterior del Coach.';
     return 'Cada sesión respeta su forma real de entrega, visibilidad y permisos antes de permitir la ejecución.';
@@ -56,7 +56,7 @@ const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
 const experiencePanel=(experience,role)=>{
   const caps=experience.capabilities.map((label)=>`<span class="m26-session-experience__capability">${escape(label)}</span>`).join('');
   const roleNote=role==='coach'
-    ? `<p class="m26-session-experience__role-note">Vista Coach · ${escape(experience.clientLiveWorkout?'el atleta puede ejecutar esta sesión desde Live Workout':'la ejecución permanece supervisada')}</p>`
+    ? `<p class="m26-session-experience__role-note">Vista Coach · ${escape(experience.clientLiveWorkout?'el atleta puede ejecutar esta sesión desde entrenamiento guiado':'la ejecución permanece supervisada')}</p>`
     : role==='admin'
       ? '<p class="m26-session-experience__role-note">Vista Admin · supervisión sin cambiar la propiedad de ejecución</p>'
       : '';
@@ -94,7 +94,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
     }
   }
   if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true)){
-    actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar Live Workout</button>`);
+    actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento guiado</button>`);
   }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
     actions.push(`<span class="m26-session-supervised-state" aria-label="Sesión supervisada">${escape(experience.primaryLabel)}</span>`);
@@ -103,7 +103,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
     const isAppointmentConfirmed=!item.appointment||['confirmada','confirmado','confirmed'].includes(appointmentStatus);
     const needsAppointment=sessionRequiresConfirmedAppointment({role,session:item.session,appointment:item.appointment});
     if(serviceActive&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
-      actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Iniciar con Coach</button>`);
+      actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar con Coach</button>`);
     }
     if(item.appointment?.changeRequest?.status==='pending'){
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="resolve-change-request" data-appointment-id="${escape(item.appointmentId)}" data-request-id="${escape(item.appointment.changeRequest.id)}" data-resolution="accepted">Aceptar solicitud</button>`);
@@ -190,7 +190,7 @@ function renderClientPlanning(vm){
     <div class="m30-planning-overview-metrics">
       <div><span>Total</span><strong>${escape(items.length)}</strong><small>sesiones</small></div>
       <div><span>Con Coach</span><strong>${escape(supervised)}</strong><small>supervisadas</small></div>
-      <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>Live Workout</small></div>
+      <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>entrenamiento guiado</small></div>
     </div>
   </section>`;
   return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>Planificación · ${escape(clientModalityLabel(contractModality))}</h2><p>${escape(modalityIntro('client',contractModality))}</p></div>${statusBadge(sessionCountShort,'neutral')}</section>${overview}<section class="m26-rc39-week">${cards}</section></div>`;
@@ -425,7 +425,7 @@ function renderSessions(vm){
     ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true))
     :[];
   const clientPrimary=executable.length===1
-    ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar Live Workout · ${escape(executable[0].title)}">Comenzar · ${escape(executable[0].title)}</button>`
+    ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar entrenamiento guiado · ${escape(executable[0].title)}">Comenzar entrenamiento · ${escape(executable[0].title)}</button>`
     :'';
   const routePrimary=['coach','admin'].includes(role)
     ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
