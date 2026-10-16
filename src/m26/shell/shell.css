@@ -1615,3 +1615,28 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
       none;
   }
 }
+
+
+/* Taller de sesiones · UX Coach/Cliente: resultado incremental sin overlays */
+.m26-session-builder > header{flex-wrap:wrap;min-width:0}
+.m26-session-builder [data-session-search]{width:100%;min-height:48px}
+.m26-session-builder [data-session-search]:focus-visible,
+.m26-session-builder [data-session-action="show-more-results"]:focus-visible,
+.m26-session-builder [data-session-action="discard-draft"]:focus-visible{
+  outline:2px solid var(--m26-gold-300,#dfbf7e);outline-offset:3px
+}
+.m26-exercise-result-count{margin:.5rem 0 .75rem;font-size:.86rem;line-height:1.5;color:var(--m26-muted,#b7bbb5)}
+.m26-exercise-more{width:100%;min-height:46px;margin-top:.75rem;padding:.7rem 1rem;border:1px solid var(--m26-line,rgba(184,145,66,.3));border-radius:.75rem;color:inherit;background:transparent;text-align:center}
+.m26-exercise-more:hover{border-color:var(--m26-gold-300,#dfbf7e)}
+.m26-draft-discard{max-width:100%;min-width:0;border:1px solid rgba(184,145,66,.24);border-radius:.75rem;padding:.35rem .65rem}
+.m26-draft-discard summary{cursor:pointer;min-height:38px;display:flex;align-items:center;list-style:none;font-size:.875rem}
+.m26-draft-discard summary::-webkit-details-marker{display:none}
+.m26-draft-discard[open]{max-width:min(100%,24rem)}
+.m26-draft-discard p{max-width:25rem;margin:.5rem 0;font-size:.82rem;line-height:1.5;color:var(--m26-muted,#b7bbb5)}
+.m26-draft-discard button{min-height:44px;border-color:var(--m26-danger,#a24e48);color:inherit}
+@media(max-width:760px){
+  .m26-session-builder > header > .m26-inline-actions{width:100%;justify-content:flex-start}
+  .m26-session-builder > header > .m26-inline-actions > *{flex:1 1 auto}
+  .m26-session-builder > header > .m26-inline-actions button{min-width:0}
+  .m26-session-builder .m26-exercise-results{max-height:45dvh;overscroll-behavior:contain}
+}
