@@ -250,6 +250,11 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
   const credentialSubmitToShellMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  // The shell's interactive milestone precedes progressively mounted controllers.
+  // Wait for the real persistence handler before asserting preference writes.
+  await expect(page.locator('#app[data-m26-controllers="ready"]'),
+    'All progressive controllers must mount before checking preference persistence'
+  ).toHaveCount(1,{timeout:20_000});
   const credentialSubmitToInteractiveMs=performance.now()-credentialSubmitStartMs;
   traceAuthNetwork=false;
   const authNetworkWaterfall=authRequestRecords
