@@ -1640,3 +1640,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .m26-session-builder > header > .m26-inline-actions button{min-width:0}
   .m26-session-builder .m26-exercise-results{max-height:45dvh;overscroll-behavior:contain}
 }
+
+.m26-builder-essentials{grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.m26-builder-advanced{margin-top:.5rem;padding-top:.55rem;border-top:1px solid var(--m26-line,rgba(184,145,66,.2))}
+.m26-builder-advanced>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--m26-cream-300,#e8ddc6);font-size:.82rem}
+.m26-builder-advanced[open]>.m26-field-grid{margin-top:.75rem}
+.m26-builder-advanced>summary:focus-visible{outline:2px solid var(--m26-gold-300,#dfbf7e);outline-offset:3px}
+.m26-exercise-result-copy strong{color:var(--m26-cream-100,#f5f0e4)}
+.m26-exercise-result-copy small,.m26-exercise-result-copy em{color:var(--m26-cream-300,#c8c3b8)}
+@media(max-width:560px){.m26-builder-essentials{grid-template-columns:minmax(0,1fr)}}
