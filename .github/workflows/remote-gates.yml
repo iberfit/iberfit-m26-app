@@ -32,14 +32,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  preflight:
+  # Browser installation, visual snapshots and the optional live Canary probe
+  # do not need shared Coach/Client QA accounts. Keep them outside the mutex.
+  prepare-ui:
     if: ${{ github.event_name == 'push' || inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
     runs-on: ubuntu-latest
-    concurrency:
-      group: iberfit-qa-shared-auth-readonly
-      queue: max
-      cancel-in-progress: false
-    environment: m26-canary-readonly
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -48,44 +49,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-      - name: Ejecutar gate autenticado sin mutaciones
-        env:
-          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
-          M26_QA_ONLY: 'true'
-          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
-          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
-          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
-          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
-          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
-          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
-      - name: Conservar evidencia remota
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rc29-evidencia-gate-remoto
-          path: |
-            recovery/RC29_REMOTE_*.json
-            recovery/RC74_4_REMOTE_*.json
-          if-no-files-found: warn
-          retention-days: 7
+          cache: npm
       - name: Preparar dependencias Playwright RC64.2B
-        run: |
-          npm ci
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
-          npx playwright install-deps chromium webkit firefox
-      - name: Restore Playwright browser cache
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-all
-      - name: Install Chromium WebKit and Firefox on cache miss
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium webkit firefox
+        run: npm ci
       - name: Verify Playwright browser cache
         run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium,firefox,webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
       - name: Validar Canary desplegado en navegador real
@@ -118,6 +84,56 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+
+  preflight:
+    needs: prepare-ui
+    if: ${{ github.event_name == 'push' || inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    environment: m26-canary-readonly
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install deterministic dependencies in version-matched browser image
+        run: npm ci
+      - name: Confirm browser binaries before shared credential certification
+        run: node --input-type=module -e "import fs from 'node:fs'; import {chromium,firefox,webkit} from '@playwright/test'; for(const [name,browser] of Object.entries({chromium,firefox,webkit})) if(!fs.existsSync(browser.executablePath()))throw new Error('QA_BROWSER_MISSING:'+name);"
+      - name: Ejecutar gate autenticado sin mutaciones
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+      - name: Conservar evidencia remota
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc29-evidencia-gate-remoto
+          path: |
+            recovery/RC29_REMOTE_*.json
+            recovery/RC74_4_REMOTE_*.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Ejecutar smoke autenticado RC64.2B sobre fuente actual sin mutaciones
         id: auth_smoke
         env:
