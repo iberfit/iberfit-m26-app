@@ -92,3 +92,9 @@ test('recovered ACL is also exercised with real tenant-scoped DML RLS',()=>{
  assert.match(sh,/IBERFIT_M44_RLS_DML_STRIPPED_UNEXPECTEDLY_PERMITTED/);
  assert.match(sh,/IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_DIVERGED/);
 });
+
+test('synthetic drill remains valid POSIX sh after any source change',()=>{
+ const result=spawnSync('sh',['-n','scripts/ops/m44_synthetic_acl_restore_drill.sh'],
+  {encoding:'utf8',env:{PATH:process.env.PATH},timeout:7000});
+ assert.equal(result.status,0,result.stderr);
+});
