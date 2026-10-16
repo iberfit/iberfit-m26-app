@@ -7,7 +7,6 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 const ROWS=Object.freeze([
   // SIGNATURE360: Admin agenda human-first identity, format and empty-state copy.
   // SIGNATURE360: appointment statuses are user-facing states in all four languages.
-  ['Sin cita programada','No appointment scheduled','Aucun rendez-vous prévu','Sem marcação agendada'],
   ['Cuando tengas una cita, aparecerá aquí.','Your next appointment will appear here.','Votre prochain rendez-vous apparaîtra ici.','A sua próxima marcação aparecerá aqui.'],
   ['Programada','Scheduled','Programmée','Agendada'],
   ['Confirmada','Confirmed','Confirmée','Confirmada'],

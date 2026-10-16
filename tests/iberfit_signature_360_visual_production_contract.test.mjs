@@ -132,7 +132,7 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
   assert.match(withAppointment,/Sesión presencial/);
   assert.doesNotMatch(withAppointment,/Sin cita programada/);
   for(const [spanish,en,fr,pt] of [
-    ['Sin cita programada','No appointment scheduled','Aucun rendez-vous prévu','Sem marcação agendada'],
+    ['Sin cita programada','No appointment scheduled','Aucun rendez-vous programmé','Sem consulta agendada'],
     ['Cuando tengas una cita, aparecerá aquí.','Your next appointment will appear here.','Votre prochain rendez-vous apparaîtra ici.','A sua próxima marcação aparecerá aqui.'],
   ]){
     for(const [locale,translation] of [['en',en],['fr',fr],['pt',pt]]){
