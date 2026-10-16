@@ -7,6 +7,11 @@ on:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/ops/m44_encrypted_backup_archive.mjs'
       - 'scripts/ops/m44_storage_backup_bytes.mjs'
+      - 'scripts/ops/m44_storage_metadata_snapshot.sql'
+      - 'scripts/ops/m44_storage_metadata_parity.mjs'
+      - 'scripts/ops/m44_platform_recovery_catalog.sql'
+      - 'tests/m44_storage_metadata_parity.test.mjs'
+      - 'tests/m44_storage_full_recovery_workflow.test.mjs'
       - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
       - 'tests/m44_storage_backup_bytes_contract.test.mjs'
   push:
@@ -38,7 +43,12 @@ jobs:
         with:
           node-version: '22'
       - name: Verify encryption integrity and storage contracts
-        run: node --test tests/m44_encrypted_backup_archive_contract.test.mjs tests/m44_storage_backup_bytes_contract.test.mjs
+        run: |
+          node --test \
+            tests/m44_encrypted_backup_archive_contract.test.mjs \
+            tests/m44_storage_backup_bytes_contract.test.mjs \
+            tests/m44_storage_metadata_parity.test.mjs \
+            tests/m44_storage_full_recovery_workflow.test.mjs
 
   synthetic-restore:
     name: m44-synthetic-postgresql17-restore-proof
@@ -153,14 +163,40 @@ jobs:
           docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
             -v "$WORK/plain:/work" postgres:17-alpine sh -c \
             'pg_dump -Fc --no-owner --no-acl --dbname="$IBERFIT_PROD_DATABASE_URL" -f /work/database.pgcustom 2>/work/pg-private-errors'
+          # This source inventory is intentionally plaintext ONLY inside the
+          # temporary runner workspace; its paths and metadata are encrypted.
           docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
-            -v "$WORK/plain:/work" postgres:17-alpine sh -c \
-            'psql -X -A -t --set=ON_ERROR_STOP=1 --dbname="$IBERFIT_PROD_DATABASE_URL" \
-            -c "SELECT COALESCE(json_agg(json_build_object('\''bucket_id'\'',bucket_id,'\''name'\'',name) ORDER BY bucket_id,name),'\''[]'\''::json) FROM storage.objects" \
-            > /work/storage-inventory.json 2>> /work/pg-private-errors'
+            -v "$WORK/plain:/work" \
+            -v "$PWD/scripts/ops/m44_storage_metadata_snapshot.sql:/storage-query.sql:ro" \
+            postgres:17-alpine sh -c \
+            'psql -X -A -t -v ON_ERROR_STOP=1 --dbname="$IBERFIT_PROD_DATABASE_URL" \
+             -f /storage-query.sql > /work/storage-inventory.json 2>> /work/pg-private-errors'
           node scripts/ops/m44_storage_backup_bytes.mjs export "$WORK/plain/storage-inventory.json" "$WORK/plain/storage"
-          rm -f "$WORK/plain/storage-inventory.json" "$WORK/plain/pg-private-errors"
-          tar -C "$WORK/plain" -cf "$WORK/plain.tar" database.pgcustom storage
+          # Second independent read detects objects altered/added/deleted while
+          # byte downloads were in progress (name, ID, version, updated_at, size).
+          docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
+            -v "$WORK/plain:/work" \
+            -v "$PWD/scripts/ops/m44_storage_metadata_snapshot.sql:/storage-query.sql:ro" \
+            postgres:17-alpine sh -c \
+            'psql -X -A -t -v ON_ERROR_STOP=1 --dbname="$IBERFIT_PROD_DATABASE_URL" \
+             -f /storage-query.sql > /work/storage-post-inventory.json 2>> /work/pg-private-errors'
+          node scripts/ops/m44_storage_metadata_parity.mjs source \
+            "$WORK/plain/storage-inventory.json" "$WORK/plain/storage-post-inventory.json" \
+            "$WORK/plain/storage/manifest.json"
+          # Capture the owner/ACL/RLS/constraint catalog INSIDE ciphertext for
+          # a future role+Auth restore drill; snapshot parity alone is not proof.
+          docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
+            -v "$WORK/plain:/work" \
+            -v "$PWD/scripts/ops/m44_platform_recovery_catalog.sql:/catalog-query.sql:ro" \
+            postgres:17-alpine sh -c \
+            'psql -X -A -t -v ON_ERROR_STOP=1 --dbname="$IBERFIT_PROD_DATABASE_URL" \
+             -f /catalog-query.sql > /work/platform-catalog-source.json 2>> /work/pg-private-errors'
+          node --input-type=module -e 'import fs from "node:fs";import {validatePlatformCatalog} from "./scripts/ops/m44_platform_recovery_compare.mjs";validatePlatformCatalog(JSON.parse(fs.readFileSync(process.argv[1],"utf8")))' \
+            "$WORK/plain/platform-catalog-source.json"
+          rm -f "$WORK/plain/pg-private-errors"
+          tar -C "$WORK/plain" -cf "$WORK/plain.tar" \
+            database.pgcustom storage storage-inventory.json \
+            storage-post-inventory.json platform-catalog-source.json
           echo 'IBERFIT_PROD_DB_AND_STORAGE_PLAINTEXT_STAGED_PRIVATELY'
       - name: Encrypt authenticated recovery archive before any upload
         id: encrypt
@@ -196,6 +232,23 @@ jobs:
             echo 'IBERFIT_PROD_DB_LOCAL_RESTORE_FAILED_NO_RECOVERY_CERTIFICATE'
             exit 51
           fi
+          # Restored metadata MUST refer to precisely the encrypted Storage
+          # bytes. Query ONLY the isolated localhost database, never PROD.
+          docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+            -v "$WORK/isolated:/work" \
+            -v "$PWD/scripts/ops/m44_storage_metadata_snapshot.sql:/storage-query.sql:ro" \
+            postgres:17-alpine sh -c \
+            'psql -X -A -t -v ON_ERROR_STOP=1 \
+             -h 127.0.0.1 -U supabase_admin -d iberfit_recovery_test \
+             -f /storage-query.sql > /work/isolated-db-storage-inventory.json \
+             2> /work/isolation-private-errors'
+          node scripts/ops/m44_storage_metadata_parity.mjs isolated \
+            "$WORK/isolated/storage-inventory.json" \
+            "$WORK/isolated/isolated-db-storage-inventory.json" \
+            "$WORK/isolated/storage/manifest.json"
+          node --input-type=module -e 'import fs from "node:fs";import {validatePlatformCatalog} from "./scripts/ops/m44_platform_recovery_compare.mjs";validatePlatformCatalog(JSON.parse(fs.readFileSync(process.argv[1],"utf8")))' \
+            "$WORK/isolated/platform-catalog-source.json"
+          echo 'IBERFIT_SOURCE_CATALOG_ENCRYPTED_PLATFORM_RECOVERY_NOT_YET_VERIFIED'
           echo 'IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS'
       - name: Publish verified encrypted archive for immediate private-drive transfer
         if: ${{ steps.restore.outcome == 'success' }}

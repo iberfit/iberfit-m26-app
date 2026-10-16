@@ -27,11 +27,15 @@ test('cipher archive alone goes to artifacts, restores cannot reach production',
 });
 test('database and Storage both included and authenticated before sign-off',()=>{
  const production=w.split('  production-backup:')[1]||'';
- const indexes=['pg_dump -Fc','FROM storage.objects','m44_storage_backup_bytes.mjs export',
+ const indexes=['pg_dump -Fc','m44_storage_metadata_snapshot.sql:/storage-query.sql:ro','m44_storage_backup_bytes.mjs export',
  'm44_encrypted_backup_archive.mjs encrypt','m44_encrypted_backup_archive.mjs decrypt',
  'm44_storage_backup_bytes.mjs verify','pg_restore --exit-on-error'];
  for(let i=1;i<indexes.length;i++)
   assert.ok(production.indexOf(indexes[i])>production.indexOf(indexes[i-1]),'Order mismatch: '+indexes[i]);
+ const snapshot=fs.readFileSync(new URL('../scripts/ops/m44_storage_metadata_snapshot.sql',import.meta.url),'utf8');
+ assert.match(snapshot,/FROM storage\.objects;/);
+ assert.match(production,/m44_storage_metadata_parity\.mjs source/);
+ assert.match(production,/m44_storage_metadata_parity\.mjs isolated/);
  assert.match(w,/IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS/);
  assert.match(storage,/sha256/);
  assert.match(db,/aes-256-gcm/);
