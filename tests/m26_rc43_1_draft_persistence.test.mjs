@@ -144,15 +144,12 @@ test('RC43.1 muestra diagnostico y evita error falso con fallback', () => {
   );
 
   assert.ok(
-    sessionController.includes(
-      'Borrador guardado de forma segura.',
-    ),
+    sessionController.includes('sessionDraftSaveOutcome(getContext()?.draftPersistence)'),
+    'El acuse mostrado procede del estado real de persistencia',
   );
-
-  assert.doesNotMatch(
-    sessionController,
-    /Borrador guardado en este dispositivo\./u,
-  );
+  assert.match(sessionController,/La sincronización remota no está confirmada/u);
+  assert.match(sessionController,/No se ha confirmado el guardado del borrador/u);
+  assert.doesNotMatch(sessionController,/action==='save-draft'&&actionState\)\{actionState\.status='success'/u);
 });
 
 test('RC43.1 dispone de rollback guardado', () => {
