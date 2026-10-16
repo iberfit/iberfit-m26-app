@@ -89,7 +89,7 @@ test('cada sesión Cliente tiene una acción ligada a su identificador exacto',(
   const html=routeHtml(client,'sesion');
   assert.match(html,/data-entity-id="SESSION-27-A"/);
   assert.match(html,/data-entity-id="SESSION-27-B"/);
-  assert.equal((html.match(/Comenzar entrenamiento/g)||[]).length,2);
+  assert.equal((html.match(/>Comenzar entrenamiento<\/button>/g)||[]).length,2);
 });
 
 test('vista Coach muestra la representación segura exacta y no campos privados',()=>{
