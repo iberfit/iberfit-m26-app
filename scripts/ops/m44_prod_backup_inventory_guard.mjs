@@ -64,7 +64,7 @@ export async function verifyProductionBackupSafety({projectRef,accessToken,
  let managedError;
  try{return await verifyBackupInventory({projectRef,accessToken,fetchImpl,nowMs});}
  catch(e){managedError=e;}
- const attemptingOffsite=Boolean(runId||fileId||driveFolderId||githubToken||driveAccessToken||oauthRefreshToken);
+ const attemptingOffsite=Boolean(runId||fileId||driveFolderId||driveAccessToken||oauthRefreshToken);
  if(!attemptingOffsite)throw managedError;
  const token=await acquireDriveAccessToken({accessToken:driveAccessToken,
   clientId:oauthClientId,clientSecret:oauthClientSecret,
