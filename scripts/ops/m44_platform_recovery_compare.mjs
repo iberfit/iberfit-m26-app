@@ -33,6 +33,11 @@ export function comparePlatformCatalog(source,restored){
   mismatchCategories:Object.freeze(mismatched),
   // These fingerprints never certify external Auth, secrets, running APIs,
   // encryption root keys, actual data completeness or customer login.
+  // Legacy v1 digests do not include pg_namespace.nspacl or
+  // per-column pg_attribute.attacl. These are explicit coverage gaps.
+  schemaAclVerified:false,
+  columnAclVerified:false,
+  effectivePrivilegesVerified:false,
   platformRecoveryVerified:false,
   requiresIndependentRestore:true
  });
