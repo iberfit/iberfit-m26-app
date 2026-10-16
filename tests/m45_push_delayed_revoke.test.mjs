@@ -8,7 +8,7 @@ function deferred(){
   return {promise,resolve};
 }
 
-function harness(){
+function harness({unsubscribeOk=true}={}){
   const started=deferred(),finish=deferred();
   const initial='https://push.example.test/original-device';
   let current=initial;
@@ -33,7 +33,7 @@ function harness(){
     unsubscribe:async()=>{
       recorded.push({action:'unsubscribe',endpoint:current});
       current=null;
-      return {ok:true,changed:true};
+      return {ok:unsubscribeOk,changed:unsubscribeOk};
     },
   });
   return {coordinator,recorded,started,finish,initial,
@@ -119,4 +119,15 @@ test('M45 original no-target PWA unsubscribe API remains backward compatible',as
   const result=await unsubscribeWebPush({registration});
   assert.equal(result.ok,true);
   assert.equal(unsubscribed,1);
+});
+
+
+test('M45 unsuccessful local unsubscribe never confirms device push deactivation',async()=>{
+  const h=harness({unsubscribeOk:false});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M26_PUSH_UNSUBSCRIBE_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,1);
 });
