@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {createHash, randomBytes} from 'node:crypto';
-import {mkdtemp, readFile, readdir, rm, stat} from 'node:fs/promises';
+import {mkdtemp, readFile, readdir, readlink, rm, stat, symlink, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -88,5 +88,27 @@ test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed
     assert.doesNotMatch(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
    }
   }
+ });
+});
+
+
+test('ZIP unwrap refuses existing files and dangling symlinks without removing them',async()=>{
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'source.zip');
+  fixture('zip-valid',zip);
+  const expected=sha256(await readFile(zip));
+  const existing=path.join(dir,'existing.ibf');
+  await writeFile(existing,'preserve-private-file');
+  const denied=run(guard,'unwrap',zip,expected,existing);
+  assert.notEqual(denied.status,0);
+  assert.equal((await readFile(existing,'utf8')),'preserve-private-file');
+  const missing=path.join(dir,'not-yet-created.ibf');
+  const alias=path.join(dir,'dangling.ibf');
+  await symlink(missing,alias);
+  const linked=run(guard,'unwrap',zip,expected,alias);
+  assert.notEqual(linked.status,0);
+  assert.equal(await readlink(alias),missing);
+  await assert.rejects(stat(missing),{code:'ENOENT'});
+  assert.doesNotMatch(linked.output,/CIPHERTEXT_VERIFIED/);
  });
 });
