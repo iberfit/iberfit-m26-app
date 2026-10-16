@@ -26,7 +26,13 @@ test('Signature 360 inventories exactly every navigable surface for each role',(
 
 test('Signature360 always requires production evidence and broad responsive/states',()=>{
   assert.equal(coverage.target,'https://app.iberfit.cl');
-  assert.equal(coverage.status,'WIP_NOT_PRODUCTION');
+  assert.ok(['WIP_NOT_PRODUCTION','PRODUCTION_VERIFIED'].includes(coverage.status),'explicit certification state required');
+  if(coverage.status==='PRODUCTION_VERIFIED'){
+    assert.match(coverage.productionSha||'',/^[0-9a-f]{40}$/,'production source SHA must be exact');
+    assert.match(coverage.productionProofUrl||'',/^https:\/\//,'link to exact live deployment evidence');
+    for(const role of roles) for(const entry of coverage.roles[role])
+      assert.equal(entry.evidenceStatus,'verified',`${role}:${entry.area} lacks authenticated visual evidence`);
+  }
   for(const width of [320,390,768,1024,1440]) assert.ok(coverage.viewports.includes(width));
   for(const state of ['loading','empty','populated','error','retry','offline','conflict','session-expired'])
     assert.ok(coverage.screenStates.includes(state),state);
