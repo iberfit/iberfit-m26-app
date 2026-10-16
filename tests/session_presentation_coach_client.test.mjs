@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 import {renderSessionsRoute,renderPlanningRoute} from '../src/m26/modules/route-render.js';
 import {sessionPresentation} from '../src/m26/experience/session-presentation.js';
+import {projectCollectionsForRole,assertClientProjectionSafe} from '../src/m26/security/role-projection.js';
 import {renderClientSessionPresentation,renderCoachSessionPreview} from '../src/m26/experience/session-render.js';
 
 const catalog=[
@@ -102,4 +103,27 @@ test('Pantallas Planificación y Sesiones conservan el mismo contraste de modali
   assert.match(html,/data-entity-id="guided"/);
   assert.doesNotMatch(html,/INSTRUCCIÓN INTERNA/);
  }
+});
+
+test('Proyección Cliente elimina prescripciones dirigidas y conserva rondas y ejercicios de biserie guiada',()=>{
+ const prepared=[
+  {...directed,clientVisibilityLevel:'full',coachNotes:'NO-COMPARTIR'},
+  {...autonomous,blocks:[{...block},{...group,prescriptions:{
+   row:{...group.prescriptions.row,internalNote:'NO-COMPARTIR'},
+   squat:group.prescriptions.squat,
+  }}]},
+  session('hidden','coach_led',{clientVisibilityLevel:'hidden'}),
+ ];
+ const safe=projectCollectionsForRole({sessions:prepared},{id:'client-u',role:'client',clientId:'c1'});
+ assert.equal(safe.sessions.length,2);
+ assert.equal(safe.sessions[0].blocks.length,0);
+ assert.equal(safe.sessions[1].blocks[1].type,'biserie');
+ assert.equal(safe.sessions[1].blocks[1].rounds,3);
+ assert.deepEqual(safe.sessions[1].blocks[1].exerciseIds,['row','squat']);
+ assert.equal(safe.sessions[1].blocks[1].prescriptions.row.reps,'10');
+ assert.doesNotMatch(JSON.stringify(safe),/NO-COMPARTIR|internalNote|coachNotes/);
+ assert.equal(assertClientProjectionSafe(safe.sessions?{sessions:safe.sessions}:safe,{id:'client-u',role:'client',clientId:'c1'}),true);
+ const projectedView=sessionPresentation(safe.sessions[1],{role:'client',catalog});
+ assert.equal(projectedView.blocks[1].exercises.length,2);
+ assert.equal(projectedView.blocks[1].rounds,3);
 });
