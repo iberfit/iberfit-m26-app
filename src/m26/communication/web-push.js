@@ -206,7 +206,8 @@ export function createWebPushCoordinator({
       throw new Error('M45_PUSH_SUBSCRIPTION_CHANGED');
     const local=await unsubscribe({registration:sw,subscription:currentAfterRevoke});
     requireSameActor(expectedActor);
-    return Object.freeze({ok:local.ok!==false,active:false,changed:local.changed===true});
+    if(local?.ok===false)throw new Error('M26_PUSH_UNSUBSCRIBE_NOT_CONFIRMED');
+    return Object.freeze({ok:true,active:false,changed:local.changed===true});
   }
 
   async function disableAll(){
