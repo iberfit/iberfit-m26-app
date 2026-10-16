@@ -1,0 +1,171 @@
+{
+  "schema": "iberfit.m44.edge-runtime-recovery-inventory.v1",
+  "project_ref": "pjhmrhejsoofmouedavw",
+  "note": "Reference names only; not evidence of configured value, restore readiness, or hosted service access",
+  "classes": {
+    "supabase_provided_or_legacy": [
+      "SUPABASE_ANON_KEY",
+      "SUPABASE_PUBLISHABLE_KEYS",
+      "SUPABASE_SECRET_KEYS",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_URL"
+    ],
+    "nonstandard_fallback": [
+      "SUPABASE_PUBLISHABLE_KEY"
+    ],
+    "external_or_operator_provided": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "IBERFIT_WEB_PUSH_VAPID_PRIVATE_KEY",
+      "IBERFIT_WEB_PUSH_VAPID_PUBLIC_KEY",
+      "IBERFIT_WEB_PUSH_VAPID_SUBJECT"
+    ],
+    "optional_configuration": [
+      "GEMINI_MODEL",
+      "IBERFIT_CANONICAL_CATALOG_URL"
+    ]
+  },
+  "functions": [
+    {
+      "slug": "iberfit-admin-client-invite-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-admin-media-review-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-admin-user-decommission-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-ai",
+      "referenced_names": [
+        "GEMINI_API_KEY",
+        "GEMINI_MODEL",
+        "GOOGLE_API_KEY",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-catalog-admin",
+      "referenced_names": [
+        "GEMINI_API_KEY",
+        "GEMINI_MODEL",
+        "GOOGLE_API_KEY",
+        "IBERFIT_CANONICAL_CATALOG_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-client-onboarding-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "historical_source_not_to_deploy"
+    },
+    {
+      "slug": "iberfit-email-assurance-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-exercise-media-auto-factory-v1",
+      "referenced_names": [
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-exercise-media-publisher",
+      "referenced_names": [
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-iri-report-emission-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-one-time-create-juan-v1",
+      "referenced_names": [],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-p0-email-delivery-probe-20260911",
+      "referenced_names": [],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-web-push-sender-v1",
+      "referenced_names": [
+        "IBERFIT_WEB_PUSH_VAPID_PRIVATE_KEY",
+        "IBERFIT_WEB_PUSH_VAPID_PUBLIC_KEY",
+        "IBERFIT_WEB_PUSH_VAPID_SUBJECT",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "iberfit-webauthn-v1",
+      "referenced_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEYS",
+        "SUPABASE_SECRET_KEYS",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "deployment_policy": "canonical"
+    },
+    {
+      "slug": "noop",
+      "referenced_names": [],
+      "deployment_policy": "canonical"
+    }
+  ]
+}
