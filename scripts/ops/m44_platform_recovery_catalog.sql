@@ -5,7 +5,7 @@
 WITH material AS (
  SELECT
   (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.role_name),'[]'::jsonb)
-   FROM (SELECT rolname AS role_name,rolcanlogin AS can_login,rolcreatedb AS create_db,
+   FROM (SELECT rolname AS role_name,rolsuper AS superuser,rolcanlogin AS can_login,rolcreatedb AS create_db,
           rolcreaterole AS create_role,rolbypassrls AS bypass_rls,rolinherit AS inherits,
           rolreplication AS replicates,rolconnlimit AS connection_limit
          FROM pg_catalog.pg_roles WHERE rolname NOT LIKE 'pg_%') x) AS roles,
@@ -54,6 +54,24 @@ WITH material AS (
          JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
          JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
          WHERE NOT t.tgisinternal AND n.nspname IN ('public','auth','storage')) x) AS triggers,
+  (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.schema_name,x.table_name,x.constraint_name),'[]'::jsonb)
+   FROM (SELECT n.nspname AS schema_name,coalesce(t.relname,'') AS table_name,
+          c.conname AS constraint_name,c.contype::text AS constraint_type,
+          c.convalidated,c.condeferrable,c.condeferred,
+          md5(pg_catalog.pg_get_constraintdef(c.oid,true)) AS definition_md5
+         FROM pg_catalog.pg_constraint c
+         JOIN pg_catalog.pg_namespace n ON n.oid=c.connamespace
+         LEFT JOIN pg_catalog.pg_class t ON t.oid=c.conrelid
+         WHERE n.nspname IN ('public','auth','storage')) x) AS constraints,
+  (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.schema_name,x.table_name,x.index_name),'[]'::jsonb)
+   FROM (SELECT n.nspname AS schema_name,t.relname AS table_name,idx.relname AS index_name,
+          i.indisunique,i.indisprimary,i.indisvalid,i.indisready,
+          md5(pg_catalog.pg_get_indexdef(i.indexrelid)) AS definition_md5
+         FROM pg_catalog.pg_index i
+         JOIN pg_catalog.pg_class t ON t.oid=i.indrelid
+         JOIN pg_catalog.pg_class idx ON idx.oid=i.indexrelid
+         JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace
+         WHERE n.nspname IN ('public','auth','storage')) x) AS indexes,
   (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.extension_name),'[]'::jsonb)
    FROM (SELECT e.extname AS extension_name,e.extversion AS version,
           n.nspname AS schema_name
@@ -74,6 +92,8 @@ SELECT jsonb_build_object(
  'function_security',encode(sha256(convert_to(function_security::text,'UTF8')),'hex'),
  'policies',encode(sha256(convert_to(policies::text,'UTF8')),'hex'),
  'triggers',encode(sha256(convert_to(triggers::text,'UTF8')),'hex'),
+ 'constraints',encode(sha256(convert_to(constraints::text,'UTF8')),'hex'),
+ 'indexes',encode(sha256(convert_to(indexes::text,'UTF8')),'hex'),
  'extensions',encode(sha256(convert_to(extensions::text,'UTF8')),'hex'),
  'bucket_configuration',encode(sha256(convert_to(bucket_configuration::text,'UTF8')),'hex'),
  'migration_history',encode(sha256(convert_to(migration_history::text,'UTF8')),'hex')
