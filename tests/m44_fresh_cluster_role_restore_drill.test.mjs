@@ -30,6 +30,9 @@ test('both fresh clusters have no Docker network or published ports',()=>{
  assert.match(script,/docker inspect -f/);
  assert.match(script,/docker port "\$1"/);
  assert.match(script,/docker rm -f "\$src" "\$dst"/);
+ assert.match(script,/docker run --rm --network "container:\$src"/);
+ assert.match(script,/docker run --rm --network "container:\$dst"/);
+ assert.match(script,/postgres:17-alpine/);
  assert.doesNotMatch(script,/--network host|--publish|--link|-p 5432:5432|curl |wget |ssh /);
  assert.match(workflow,/name: m44-fresh-cluster-roles-acl-rls-proof/);
  assert.match(workflow,/IBERFIT_M44_FRESH_CLUSTER_SYNTHETIC_ONLY: 'true'/);
