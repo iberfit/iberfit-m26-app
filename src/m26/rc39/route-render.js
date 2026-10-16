@@ -94,7 +94,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
     }
   }
   if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true)){
-    actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento guiado</button>`);
+    actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento</button>`);
   }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
     actions.push(`<span class="m26-session-supervised-state" aria-label="Sesión supervisada">${escape(experience.primaryLabel)}</span>`);
@@ -425,7 +425,7 @@ function renderSessions(vm){
     ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true))
     :[];
   const clientPrimary=executable.length===1
-    ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar entrenamiento guiado · ${escape(executable[0].title)}">Comenzar entrenamiento · ${escape(executable[0].title)}</button>`
+    ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar entrenamiento · ${escape(executable[0].title)}">Comenzar entrenamiento · ${escape(executable[0].title)}</button>`
     :'';
   const routePrimary=['coach','admin'].includes(role)
     ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
