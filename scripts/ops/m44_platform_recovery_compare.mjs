@@ -8,7 +8,7 @@ import {pathToFileURL} from 'node:url';
 export const SCHEMA='iberfit.m44.platform.catalog.v1';
 export const CATEGORIES=Object.freeze([
  'roles','role_memberships','relation_security','default_privileges',
- 'function_security','policies','triggers','extensions',
+ 'function_security','policies','triggers','constraints','indexes','extensions',
  'bucket_configuration','migration_history'
 ]);
 const PREFIX='M44_PLATFORM_CATALOG_';
