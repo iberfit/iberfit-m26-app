@@ -115,3 +115,12 @@ test('M42: Cliente comienza entrenamiento y sale sin pantalla inglesa ni modal i
   assert.ok(exit.indexOf('persistContext(context)')>=0);
   assert.ok(exit.indexOf('persistContext(context)')<exit.indexOf('context.onExit'));
 });
+
+test('M42: Pantallas de planificación y citas no mezclan inglés ni login con ejercicio',()=>{
+  const planning=readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
+  const routes=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.doesNotMatch(planning,/Live Workout|Leave workout/u);
+  assert.match(planning,/Comenzar entrenamiento/u);
+  assert.match(routes,/Comenzar entrenamiento/u);
+  assert.doesNotMatch(routes,/>Iniciar sesión preparada<|>Iniciar entrenamiento</u);
+});
