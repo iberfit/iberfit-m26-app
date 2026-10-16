@@ -57,4 +57,8 @@ test('isolated production restore uses exact Supabase PostgreSQL engine with Vau
  assert.ok(production.includes('image: supabase/postgres:17.6.1.147'));
  assert.ok(production.includes('pg_restore --exit-on-error'));
  assert.ok(!production.includes('image: postgres:17-alpine'));
+ assert.equal(w.split('POSTGRES_USER: supabase_admin').length-1,2);
+ assert.ok(w.includes('PGUSER=supabase_admin'));
+ assert.ok(production.includes('-U supabase_admin -d iberfit_recovery_test'));
+
 });
