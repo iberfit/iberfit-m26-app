@@ -1,0 +1,103 @@
+name: IBERFIT Free Encrypted PROD Database Backup
+# Safe to leave disabled. Scheduled GitHub jobs run only from the default branch.
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-free-encrypted-prod-db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: github.event_name == 'workflow_dispatch' || vars.IBERFIT_FREE_BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 25
+    env:
+      PROD_BACKUP_DB_URL: ${{ secrets.IBERFIT_PROD_BACKUP_DB_URL }}
+      BACKUP_RSA_PUBLIC_KEY_B64: ${{ vars.IBERFIT_BACKUP_RSA_PUBLIC_KEY_B64 }}
+      SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify backup source and cryptographic contract
+        run: |
+          set -euo pipefail
+          node --test tests/free_recovery_crypto.test.mjs
+          test -n "$PROD_BACKUP_DB_URL" || { echo 'FREE_RECOVERY_PROD_BACKUP_SECRET_MISSING'; exit 45; }
+          test -n "$BACKUP_RSA_PUBLIC_KEY_B64" || { echo 'FREE_RECOVERY_RSA_PUBLIC_KEY_MISSING'; exit 46; }
+          node --input-type=module -e "import {assertProdConnection} from './scripts/ops/free_recovery_crypto.mjs';assertProdConnection(process.env.PROD_BACKUP_DB_URL)"
+      - name: Read-only PostgreSQL custom-format export including Auth, private and Storage metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/iberfit-free-backup"
+          mkdir -m 700 "$backup_dir"
+          # Pass the secret only as container environment; do not print/echo it.
+          docker run --rm --network host --user "$(id -u):$(id -g)" \
+            --env PROD_BACKUP_DB_URL \
+            --mount "type=bind,src=$backup_dir,dst=/archive" \
+            postgres:17 \
+            sh -eu -c 'exec pg_dump --dbname="$PROD_BACKUP_DB_URL" --no-owner --no-acl --format=custom --file=/archive/database.dump'
+          test -s "$backup_dir/database.dump" || { echo 'FREE_RECOVERY_ARCHIVE_EMPTY'; exit 47; }
+      - name: Verify archive integrity and critical schema scope (not a full restore)
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/iberfit-free-backup"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --mount "type=bind,src=$backup_dir,dst=/archive,readonly" \
+            postgres:17 pg_restore --list /archive/database.dump > "$backup_dir/toc.txt"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {assertArchiveList} from './scripts/ops/free_recovery_crypto.mjs';
+          assertArchiveList(fs.readFileSync(path.join(process.env.RUNNER_TEMP,'iberfit-free-backup','toc.txt'),'utf8'));
+          console.log('FREE_RECOVERY_CRITICAL_DATABASE_ENTRIES_PRESENT;RESTORE_NOT_VERIFIED');
+          NODE
+      - name: Encrypt for public repository and destroy local plaintext
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/iberfit-free-backup"
+          output_dir="$RUNNER_TEMP/iberfit-encrypted-only"
+          mkdir -m 700 "$output_dir"
+          node --input-type=module <<'NODE'
+          import path from 'node:path';
+          import {encryptBackup} from './scripts/ops/free_recovery_crypto.mjs';
+          const result=await encryptBackup({
+            sourcePath:path.join(process.env.RUNNER_TEMP,'iberfit-free-backup','database.dump'),
+            encryptedPath:path.join(process.env.RUNNER_TEMP,'iberfit-encrypted-only','database.enc'),
+            manifestPath:path.join(process.env.RUNNER_TEMP,'iberfit-encrypted-only','manifest.json'),
+            publicKey:Buffer.from(process.env.BACKUP_RSA_PUBLIC_KEY_B64,'base64').toString('utf8'),
+            sourceSha:process.env.SOURCE_SHA,
+          });
+          console.log('FREE_RECOVERY_ENCRYPTED_DB_ONLY_BYTES='+result.ciphertextBytes);
+          NODE
+          rm -f "$backup_dir/database.dump" "$backup_dir/toc.txt"
+          test ! -e "$backup_dir/database.dump"
+      - name: Publish only encrypted artifacts within free allowance
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-free-encrypted-db-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/iberfit-encrypted-only/database.enc
+            ${{ runner.temp }}/iberfit-encrypted-only/manifest.json
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      - name: Always wipe unencrypted runner files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/iberfit-free-backup/database.dump" "$RUNNER_TEMP/iberfit-free-backup/toc.txt"
+          echo 'FREE_RECOVERY=DATABASE_ENCRYPTED_ONLY;FULL_RESTORE=NOT_VERIFIED;STORAGE_BINARY_OBJECTS=NOT_INCLUDED'
