@@ -84,9 +84,11 @@ test('authenticated readonly gate expects the disposable Coach fixture after cle
   const gate=await read('scripts/remote-gates/run_authenticated_readonly_gate.mjs');
   assert.match(gate,/const EXPECTED_COACH_CERT_EMAIL='qa\.rc74\.coach@iberfit\.cl'/u);
   assert.match(gate,/RC74_4_REMOTE_COACH_CERT_IDENTITY_MISMATCH/u);
-  assert.match(gate,/assurance\?\.webauthnRequired!==true\|\|assurance\?\.credentialEnrolled!==false/u);
-  assert.match(gate,/privilegedGate:\{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true/u);
+  assert.match(gate,/assurance\?\.webauthnRequired!==true\|\|\s*typeof assurance\?\.credentialEnrolled!=='boolean'/u);
+  assert.match(gate,/privilegedGate:\{ok:true,iberfitAssurance:'required',credentialEnrolled:assurance\.credentialEnrolled,webauthnRequired:true/u);
   assert.match(gate,/RC74_4_SERVICE_ROLE_FORBIDDEN/u);
+  assert.match(gate,/assurance\?\.supabaseAal!=='aal1'/u);
+  assert.match(gate,/bootstrapResult\?\.status!==403/u);
   assert.doesNotMatch(gate,/credentialEnrolled!==true/u);
 });
 
