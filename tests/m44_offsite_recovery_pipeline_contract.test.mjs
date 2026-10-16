@@ -49,12 +49,12 @@ test('public code repository never publishes unverified or long-lived production
 });
 
 test('isolated production restore uses exact Supabase PostgreSQL engine with Vault installed',()=>{
- assert.equal((w.match(/image: supabase\\/postgres:17\\.6\\.1\\.147/g)||[]).length,2);
- assert.match(w,/pg_config --sharedir/);
- assert.match(w,/supabase_vault\\.control/);
- assert.match(w,/IBERFIT_SUPABASE_PG17_VAULT_EXTENSION_AVAILABLE/);
+ assert.equal(w.split('image: supabase/postgres:17.6.1.147').length-1,2);
+ assert.ok(w.includes('pg_config --sharedir'));
+ assert.ok(w.includes('supabase_vault.control'));
+ assert.ok(w.includes('IBERFIT_SUPABASE_PG17_VAULT_EXTENSION_AVAILABLE'));
  const production=w.split('  production-backup:')[1]||'';
- assert.match(production,/image: supabase\\/postgres:17\\.6\\.1\\.147/);
- assert.match(production,/pg_restore --exit-on-error/);
- assert.doesNotMatch(production,/image: postgres:17-alpine/);
+ assert.ok(production.includes('image: supabase/postgres:17.6.1.147'));
+ assert.ok(production.includes('pg_restore --exit-on-error'));
+ assert.ok(!production.includes('image: postgres:17-alpine'));
 });
