@@ -46,9 +46,9 @@ jobs:
     needs: crypto-contract
     services:
       postgres:
-        image: postgres:17-alpine
+        image: supabase/postgres:17.6.1.147
         env:
-          POSTGRES_USER: postgres
+          POSTGRES_USER: supabase_admin
           POSTGRES_PASSWORD: local-synthetic-only
           POSTGRES_DB: postgres
         ports: ['5432:5432']
@@ -60,6 +60,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify matching Supabase Vault extension binaries are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh supabase/postgres:17.6.1.147 -c 'test -f "$(pg_config --sharedir)/extension/supabase_vault.control"'
+          echo 'IBERFIT_SUPABASE_PG17_VAULT_EXTENSION_AVAILABLE'
       - name: Exercise binary dump, authenticated encryption and restored data
         env:
           IBERFIT_BACKUP_PASSPHRASE: only-a-synthetic-fixture-passphrase-never-use-in-production-2026
@@ -68,7 +74,7 @@ jobs:
           set -euo pipefail
           umask 077
           export PGPASSWORD=local-synthetic-only
-          export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres
+          export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=supabase_admin
           scratch="$(mktemp -d)"
           trap 'rm -rf "$scratch"' EXIT
           docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER postgres:17-alpine \
@@ -100,9 +106,9 @@ jobs:
     environment: m26-canary-readonly
     services:
       postgres:
-        image: postgres:17-alpine
+        image: supabase/postgres:17.6.1.147
         env:
-          POSTGRES_USER: postgres
+          POSTGRES_USER: supabase_admin
           POSTGRES_PASSWORD: isolated-restore-only
           POSTGRES_DB: postgres
         ports: ['5432:5432']
@@ -181,11 +187,11 @@ jobs:
           rm -f "$WORK/restore.tar"
           node scripts/ops/m44_storage_backup_bytes.mjs verify ignored "$WORK/isolated/storage"
           docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
-            postgres:17-alpine createdb -h 127.0.0.1 -U postgres iberfit_recovery_test
+            postgres:17-alpine createdb -h 127.0.0.1 -U supabase_admin iberfit_recovery_test
           # Never stream SQL, error details or actual client data to job logs.
           if ! docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
             -v "$WORK/isolated:/work" postgres:17-alpine pg_restore --exit-on-error \
-            --no-owner --no-acl -h 127.0.0.1 -U postgres -d iberfit_recovery_test \
+            --no-owner --no-acl -h 127.0.0.1 -U supabase_admin -d iberfit_recovery_test \
             /work/database.pgcustom > "$WORK/restore-private-log" 2>&1; then
             echo 'IBERFIT_PROD_DB_LOCAL_RESTORE_FAILED_NO_RECOVERY_CERTIFICATE'
             exit 51
