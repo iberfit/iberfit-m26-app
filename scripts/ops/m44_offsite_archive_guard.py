@@ -264,6 +264,10 @@ def unpack_tar(archive, directory):
     if ROLE_FILE in present:
         require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
         validate_optional_role_archive(base / ROLE_FILE)
+    # Print the stronger evidence marker only AFTER every enriched component
+    # including optional global roles has passed validation.
+    if extension:
+        print("IBERFIT_OFFSITE_ENRICHED_STORAGE_BYTES_SHA256_VERIFIED")
     print("IBERFIT_OFFSITE_DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED")
 
 def main():
