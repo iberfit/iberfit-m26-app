@@ -79,7 +79,7 @@ test('fresh-cluster function restore preserves SECURITY DEFINER owner and fails 
  assert.match(script,/REVOKE ALL ON FUNCTION[^;\n]* FROM PUBLIC/);
  assert.match(script,/GRANT EXECUTE ON FUNCTION/);
  assert.match(script,/has_function_privilege/);
- assert.match(script,/aclexplode\(COALESCE\(p.proacl,acl_default/);
+ assert.match(script,/aclexplode\(COALESCE\(p.proacl,acldefault/);
  assert.match(script,/rolbypassrls/);
  assert.match(script,/rolcanlogin/);
  assert.match(script,/rolsuper/);
