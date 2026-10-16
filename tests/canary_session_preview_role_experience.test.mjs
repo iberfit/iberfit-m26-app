@@ -46,7 +46,8 @@ test('Cliente autónomo: Ver sesión completo y ejercicios con medios honestos; 
 test('Visibilidad summary_only contradictoria oculta prescripción aunque tenga bloques',()=>{
  const guided=item('guiada','guided_in_app','summary_only');
  const value=html('client',[guided]);
- assert.doesNotMatch(value,/Press de pecho|Ver sesión|Sin referencia visual/);
+ assert.doesNotMatch(value,/Press de pecho|Ver sesión|Sin referencia visual|Comenzar entrenamiento/);
+ assert.match(value,/El detalle de esta sesión estará disponible/);
 });
 test('Coach conserva acceso a prescripción de sesiones dirigidas y conoce visibilidad del cliente',()=>{
  const value=html('coach',[item('presencial','coach_led','summary_only')]);
@@ -70,4 +71,15 @@ test('Una cita no resucita detalles de un entrenamiento retirado ni el botón de
    rc39:{role:'client',appointments:[appointment],sessionProjections:[hidden]},sessionPreviewAssets:{catalog:exercises,mediaMap:null}});
  assert.match(result,/Entrenamiento con cita/);
  assert.doesNotMatch(result,/Press de pecho|data-rc39-session="guiada"|data-workflow-action="start-published-session"/);
+});
+
+
+test('Cliente no recibe prescripción ni CTA si la proyección contradice al servidor',()=>{
+ const misleading=item('guiada','guided_in_app','full');
+ misleading.session={...misleading.session,deliveryOwnership:'coach_led',deliveryModality:'presencial',clientVisibilityLevel:'full'};
+ let value=html('client',[misleading]);
+ assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Press de pecho/);
+ const wrongId={...item('guiada','guided_in_app','full'),id:'OTRA-SESION'};
+ value=html('client',[wrongId]);
+ assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Press de pecho/);
 });
