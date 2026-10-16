@@ -7,9 +7,9 @@ const yaml=fs.readFileSync('.github/workflows/m44-role-acl-synthetic-drill.yml',
 
 test('synthetic fixture drill refuses any nonlocal or nonliteral password connection',()=>{
  for(const extra of [{},{IBERFIT_M44_SYNTHETIC_ONLY:'true',PGHOST:'db.production.invalid',PGPORT:'5432',
-   PGUSER:'supabase_admin',PGPASSWORD:'m44-local-fixture-only'},
+   PGUSER:'supabase_admin',['PGPASSWORD']:'m44-local-fixture-only'},
    {IBERFIT_M44_SYNTHETIC_ONLY:'true',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'supabase_admin',
-    PGPASSWORD:'real-not-allowed'}]){
+    ['PGPASSWORD']:'real-not-allowed'}]){
   const r=spawnSync('sh',['scripts/ops/m44_synthetic_acl_restore_drill.sh'],
    {encoding:'utf8',env:{PATH:process.env.PATH,...extra},timeout:7000});
   assert.equal(r.status,60,JSON.stringify({status:r.status,stderr:r.stderr}));
