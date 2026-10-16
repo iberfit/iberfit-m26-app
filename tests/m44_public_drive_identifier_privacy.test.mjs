@@ -10,9 +10,9 @@ const documentation=readdirSync(docs)
   .filter(name=>(name.startsWith('M44_')||name==='IBERFIT_DRIVE_PRIVATE_RECOVERY_ROUTING.md')&&name.endsWith('.md'));
 
 const privateDriveIdentifierPatterns=[
-  /\\bDrive:\\s*[a-zA-Z0-9_-]{20,}\\b/g,
-  /drive\\.google\\.com\\/(?:file\\/d|drive\\/folders)\\/[a-zA-Z0-9_-]{20,}/gi,
-  /\\b(?:driveFileId|driveFolderId|googleDriveFileId)\\s*[:=]\\s*[`'"]?[a-zA-Z0-9_-]{20,}/gi,
+  /\bDrive:\s*[a-zA-Z0-9_-]{20,}\b/g,
+  /drive\.google\.com\/(?:file\/d|drive\/folders)\/[a-zA-Z0-9_-]{20,}/gi,
+  /\b(?:driveFileId|driveFolderId|googleDriveFileId)\s*[:=]\s*[`'"]?[a-zA-Z0-9_-]{20,}/gi,
 ];
 
 test('M44 public operational evidence never includes a raw private Google Drive file or folder identifier',()=>{
