@@ -1,4 +1,5 @@
 import {isClientVisibleAppointment} from '../domain/appointment.js';
+import {isPublishedSession,sessionVisibilityLevel,sessionDeliveryOwnership} from '../rc39/session-policy.js';
 
 const ROLE_ALIASES=Object.freeze({admin:'admin',administrador:'admin',administrator:'admin',coach:'coach',entrenador:'coach',client:'client',cliente:'client'});
 const ALWAYS_PRIVATE_FOR_CLIENT=new Set(['privateNotes','coachAvailability','intelligenceRuns','domainEvents','wearableSyncRuns']);
@@ -42,7 +43,7 @@ function base(record,key){
 }
 function safeSessionBlocks(record){
   const blocks=value(record,'blocks','bloques');if(!Array.isArray(blocks))return [];
-  return blocks.slice(0,120).map((block)=>{
+  return blocks.slice(0,100).map((block)=>{
     const item={};
     for(const [canonical,keys] of [
       ['id',['id']],['type',['type','tipo']],['groupId',['groupId','group_id']],['exerciseId',['exerciseId','exercise_id']],
@@ -51,6 +52,24 @@ function safeSessionBlocks(record){
       ['load',['load','carga']],['loadKg',['loadKg','load_kg']],['targetRpe',['targetRpe','target_rpe']],['targetRir',['targetRir','target_rir']],
       ['durationSeconds',['durationSeconds','duration_seconds']],['alternativeId',['alternativeId','alternative_id']],
     ])assign(item,canonical,block,...keys);
+    // Un grupo necesita las rondas y la prescripción POR ejercicio. Solo
+    // proyectar campos autorizados, nunca la estructura arbitraria original.
+    if(['biserie','triserie','circuito','amrap','tabata'].includes(String(item.type||''))){
+      assign(item,'rounds',block,'rounds','rondas');
+      const ids=(Array.isArray(block.exerciseIds)?block.exerciseIds:[])
+        .map((id)=>safeId(id)).filter(Boolean).slice(0,12);
+      item.exerciseIds=ids;
+      const prescriptions=block.prescriptions&&typeof block.prescriptions==='object'&&!Array.isArray(block.prescriptions)?block.prescriptions:{};
+      item.prescriptions=Object.fromEntries(ids.map((id)=>{
+        const input=prescriptions[id]&&typeof prescriptions[id]==='object'&&!Array.isArray(prescriptions[id])?prescriptions[id]:{};
+        const output={};
+        for(const [field,keys] of [
+          ['reps',['reps']],['restSeconds',['restSeconds','rest_seconds']],['tempo',['tempo']],
+          ['targetRpe',['targetRpe','target_rpe']],['targetRir',['targetRir','target_rir']],['alternativeId',['alternativeId','alternative_id']],
+        ])assign(output,field,input,...keys);
+        return [id,output];
+      }));
+    }
     return item;
   });
 }
@@ -61,7 +80,7 @@ function projectPublication(key,record){
   if(key==='trainingCycles'){
     assign(out,'name',record,'name','nombre','title','titulo');assign(out,'goal',record,'goal','objective','objetivo','summary','resumen');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');
   }else if(key==='sessions'){
-    assign(out,'objective',record,'objective','goal','objetivo','summary','resumen');assign(out,'durationMinutes',record,'durationMinutes','duration_minutes','duracionMinutos','duration');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');assign(out,'clientVisibilityLevel',record,'clientVisibilityLevel','client_visibility_level');assign(out,'deliveryOwnership',record,'deliveryOwnership','delivery_ownership');assign(out,'deliveryModality',record,'deliveryModality','delivery_modality','modality','modalidad');const visibility=String(value(record,'clientVisibilityLevel','client_visibility_level')||'full').trim().toLowerCase();out.blocks=visibility==='summary_only'?[]:safeSessionBlocks(record);
+    assign(out,'objective',record,'objective','goal','objetivo','summary','resumen');assign(out,'durationMinutes',record,'durationMinutes','duration_minutes','duracionMinutos','duration');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');assign(out,'clientVisibilityLevel',record,'clientVisibilityLevel','client_visibility_level');assign(out,'deliveryOwnership',record,'deliveryOwnership','delivery_ownership');assign(out,'deliveryModality',record,'deliveryModality','delivery_modality','modality','modalidad');const showPrescription=isPublishedSession(record)&&sessionVisibilityLevel(record)==='full'&&['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(record));out.blocks=showPrescription?safeSessionBlocks(record):[];
   }else if(key==='reports'){
     assign(out,'periodStart',record,'periodStart','period_start');assign(out,'periodEnd',record,'periodEnd','period_end');assign(out,'summary',record,'summary','resumen');assign(out,'conclusions',record,'conclusions','conclusiones');assign(out,'recommendations',record,'recommendations','recomendaciones','nextSteps','next_steps');
   }
@@ -140,7 +159,7 @@ export function projectCollectionsForRole(collections,user,collectionKeys=Object
     if(ALWAYS_PRIVATE_FOR_CLIENT.has(key)){projected[key]=[];continue;}
     projected[key]=records.filter((record)=>{
       if(clientIdOf(record,key)!==own)return false;
-      if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record);
+      if(PUBLICATION_SCOPED.has(key))return isVisiblePublication(record)&&(key!=='sessions'||sessionVisibilityLevel(record)!=='hidden');
       if(key==='appointments')return isClientVisibleAppointment(record);
       return isVisibleGeneric(record);
     }).map((record)=>projectRecordForClient(key,record)).filter(Boolean);
