@@ -29,7 +29,13 @@ test('smoke autenticado cubre Chromium, WebKit y Firefox sin acoplar CPU throttl
     assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
     assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
     assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
-    assert.doesNotMatch(workflow,/playwright install --with-deps/u);
+    const containerPreflight=workflow.split('  preflight:')[1]?.split('  firefox-native-auth-smoke:')[0]||'';
+    const nativeFirefox=workflow.split('  firefox-native-auth-smoke:')[1]?.split('  exercise-media-broker-probe:')[0]||'';
+    assert.ok(containerPreflight.length>0&&nativeFirefox.length>0);
+    assert.doesNotMatch(containerPreflight,/playwright install --with-deps/u);
+    assert.match(nativeFirefox,/playwright install --with-deps firefox/u);
+    assert.match(nativeFirefox,/--project=authenticated-readonly-firefox/u);
+    assert.match(nativeFirefox,/group: iberfit-qa-shared-auth-readonly/u);
   assert.match(spec,/browserName==='chromium'/u);
   assert.match(spec,/if\(chromiumEngine\)/u);
   assert.match(spec,/newCDPSession\(page\)/u);
