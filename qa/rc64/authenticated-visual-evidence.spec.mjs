@@ -164,12 +164,21 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         }
         const visibleDockLabels=page.locator('.m26-client-bottom-nav-label:visible');
         if(await visibleDockLabels.count()){
+          // line-height may compute to 0 or 'normal' in a compact navigation slot.
+          // Count real text fragments instead of dividing the element height by
+          // that computed value, without weakening the one-line visual contract.
           const labelMetrics=await visibleDockLabels.evaluateAll((labels)=>labels.map((label)=>{
             const style=getComputedStyle(label);
-            return {label:label.textContent?.trim(),height:label.getBoundingClientRect().height,lineHeight:parseFloat(style.lineHeight)};
+            const range=label.ownerDocument.createRange();
+            range.selectNodeContents(label);
+            const lineTops=new Set([...range.getClientRects()]
+              .filter((rect)=>rect.width>0&&rect.height>0)
+              .map((rect)=>Math.round(rect.top)));
+            return {label:label.textContent?.trim(),whiteSpace:style.whiteSpace,renderedLines:lineTops.size};
           }));
           for(const label of labelMetrics){
-            expect(label.height,`Dock label must occupy one line: ${label.label}`).toBeLessThanOrEqual(label.lineHeight+2);
+            expect(label.whiteSpace,`Dock caption must not wrap: ${label.label}`).toBe('nowrap');
+            expect(label.renderedLines,`Dock label must occupy one line: ${label.label}`).toBe(1);
           }
           const planningNav=page.locator('button.m26-client-bottom-nav-item[data-m26-area="planificacion"]');
           await expect(planningNav).toHaveAttribute('aria-label','Planificación');
