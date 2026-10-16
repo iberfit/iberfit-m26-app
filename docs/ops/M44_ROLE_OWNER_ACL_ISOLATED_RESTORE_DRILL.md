@@ -2,7 +2,7 @@
 
 ## Propósito y límites
 
-Se ha confirmado que el respaldo IBERFIT utiliza `pg_dump -Fc --no-owner --no-acl` y `pg_restore --no-owner --no-acl`. Puede preservar filas, índices y políticas RLS, pero **no garantiza los propietarios de los objetos ni los GRANT y DEFAULT PRIVILEGES**. El archivo global cifrado `global-roles.sql` preserva definiciones de roles sin contraseñas; no restituye por sí mismo permisos de cada tabla.
+Las copias históricas se generaron con `pg_dump -Fc --no-owner --no-acl` y se verificaron inicialmente con `pg_restore --no-owner --no-acl`. En formato personalizado de PostgreSQL 17, `pg_dump --no-owner` es ignorado (los propietarios siguen referenciados en el TOC), mientras que `pg_dump --no-acl` **elimina los GRANT/REVOKE del archivo**. El nuevo backup M44 omite ambas opciones en `pg_dump -Fc`, conserva esas ACL y sigue haciendo el primer restore **deliberadamente** con `pg_restore --no-owner --no-acl` para comprobar los datos sin aplicar permisos a ciegas. El archivo global cifrado `global-roles.sql` preserva definiciones de roles sin contraseñas; no restituye por sí mismo permisos de cada tabla.
 
 `scripts/ops/m44_synthetic_acl_restore_drill.sh` y `.github/workflows/m44-role-acl-synthetic-drill.yml` ejecutan una prueba adversarial íntegramente **sintética** en PostgreSQL 17, sin obtener credenciales ni hacer consultas a PROD/QA:
 
@@ -16,6 +16,6 @@ Los roles del ensayo se crean en el mismo clúster aislado porque en Supabase re
 
 ## Próxima prueba necesaria con una copia real
 
-Usando exclusivamente el respaldo cifrado autenticado, en un sandbox PostgreSQL 17 **sin red y no compartido**, contrastar las 12 categorías del catálogo source con una reconstrucción de propietarios/ACL y aplicar una comprobación de acceso representativa por rol. Para ello hacen falta fuentes de DDL de propietarios y permisos exactos; el dump `--no-owner --no-acl` y las huellas SHA por categoría no bastan por sí solos para reconstruirlos. Capturarlos y conservarlos dentro del cifrado exigirá actualizar conjuntamente el exportador y el validador externo estricto, preservando compatibilidad histórica.
+Usando exclusivamente el respaldo cifrado autenticado, en un sandbox PostgreSQL 17 **sin red y no compartido**, contrastar las 12 categorías del catálogo source con una reconstrucción de propietarios/ACL y aplicar una comprobación de acceso representativa por rol. Para la copia nueva, el dump personalizado incluye los propietarios y ACL y permite revisar un segundo restore **en sandbox** con el conjunto de roles previamente reconciliado. Las huellas SHA por categoría, por sí solas, siguen siendo insuficientes. La restauración operativa exige comparar catálogos, privilegios y sesiones como usuarios limitados; nunca ejecutar automáticamente un replay de roles y GRANT contra producción. Las copias históricas generadas con `--no-acl` no recuperan retroactivamente estas entradas. El verificador externo estricto mantiene el mismo formato TAR y no se debe declarar `platformRecoveryVerified=true` por este cambio.
 
 Los pasos no deben ejecutarse directamente sobre `app.iberfit.cl` o `pjhmrhejsoofmouedavw`. Tampoco hay que eliminar o restablecer las sesiones de Auth de QA sin un cambio separado y autorizado. Véase https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore.
