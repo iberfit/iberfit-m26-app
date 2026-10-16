@@ -92,6 +92,7 @@ test('M44 historical and enriched genuine layouts are both accepted',async()=>{
    const r=call(guard,'unpack',tar,dst);
    assert.equal(r.ok,true,r.stderr);
    assert.match(r.stdout,/ARCHIVE_STRUCTURE_VERIFIED/);
+   assert.match(r.stdout,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
    assert.deepEqual((await readdir(dst)).sort(),
     mode==='roles-valid'?['database.pgcustom','global-roles.sql','platform-catalog-source.json','storage','storage-inventory.json','storage-post-inventory.json']:
     mode==='enriched'?['database.pgcustom','platform-catalog-source.json','storage','storage-inventory.json','storage-post-inventory.json']:
@@ -114,7 +115,7 @@ test('M44 extension cannot be partial, corrupt, mismatched or unknown',async()=>
    const r=call(guard,'unpack',tar,dst);
    assert.equal(r.ok,false,mode+' unexpectedly passed');
    assert.deepEqual(await readdir(dst),[],mode+' left decrypted output after rejection');
-   assert.doesNotMatch(r.stdout,/DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED|ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   assert.doesNotMatch(r.stdout,/DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED|ENRICHED_STORAGE_BYTES_SHA256_VERIFIED|STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
    assert.doesNotMatch(r.stderr,/f\/a\.bin|private|11111111/);
   }
  });
