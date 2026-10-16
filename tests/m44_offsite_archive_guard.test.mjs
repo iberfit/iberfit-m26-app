@@ -147,3 +147,38 @@ sys.exit(15)
   }
  });
 });
+
+
+test('publish failure after first recovered component rolls back and preserves unrelated files',async()=>{
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'restore');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const wrapper=[
+   'import importlib.util,sys',
+   'spec=importlib.util.spec_from_file_location("m44_fixture",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'rename=guard.os.rename',
+   'count=[0]',
+   'def fail_on_second(source,target):',
+   ' count[0]+=1',
+   ' if count[0]==2:raise OSError("synthetic-publish-failure")',
+   ' return rename(source,target)',
+   'guard.os.rename=fail_on_second',
+   'try:guard.unpack_tar(sys.argv[2],sys.argv[3])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(18)'
+  ].join('\n');
+  const rejected=run('-c',wrapper,guard,tar,out);
+  assert.equal(rejected.status,0,rejected.output);
+  assert.deepEqual(await readdir(out),[],'partial publish must rollback');
+  assert.doesNotMatch(rejected.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+  const sentinel=path.join(out,'operator-file.txt');
+  await writeFile(sentinel,'preserve');
+  const preexisting=run(guard,'unpack',tar,out);
+  assert.notEqual(preexisting.status,0);
+  assert.deepEqual(await readdir(out),['operator-file.txt']);
+  assert.equal(await readFile(sentinel,'utf8'),'preserve');
+ });
+});
