@@ -7,14 +7,14 @@ import path from 'node:path';
 
 const guard='scripts/ops/m44_offsite_archive_guard.py';
 const build=String.raw`
-import io,json,sys,tarfile
+import hashlib,io,json,sys,tarfile
 mode,dest=sys.argv[1:]
 a=dict(bucket_id='private',name='f/a.bin',
  id='11111111-1111-4111-8111-111111111111',
  version='v1',updated_at='2026-10-16T02:01:02.123456Z',size='3')
 rows=[a]
 entry=dict(bucket='private',name='f/a.bin',relative='files/000000.bin',
- bytes=3,sha256='a'*64)
+ bytes=3,sha256=hashlib.sha256(b'abc').hexdigest())
 manifest=dict(schema='iberfit.storage.backup.v1',project='pjhmrhejsoofmouedavw',
  objects=[entry])
 catalog=dict(schema='iberfit.m44.platform.catalog.v1')
@@ -30,6 +30,11 @@ if mode!='legacy':
  if mode=='duplicate': rows=[a,a]
  if mode=='missing-manifest':parts[1]=('storage/manifest.json',b'{}')
  if mode=='bad-catalog': catalog['roles']='not SHA'
+ if mode=='bad-storage-hash':entry['sha256']='b'*64
+ if mode=='bad-storage-size':entry['bytes']=2
+ if mode=='tampered-storage-bytes':parts[2]=('storage/files/000000.bin',b'xyz')
+ if mode=='missing-storage-file':parts.pop(2)
+ if mode=='orphan-storage-file':parts.append(('storage/files/000001.bin',b'unknown')
  parts.extend([
   ('storage-inventory.json',json.dumps([dict(a, size='3')]).encode()),
   ('storage-post-inventory.json',json.dumps(rows).encode()),
@@ -86,13 +91,29 @@ test('M44 historical and enriched genuine layouts are both accepted',async()=>{
 });
 test('M44 extension cannot be partial, corrupt, mismatched or unknown',async()=>{
  await inScratch(async d=>{
-  for(const mode of ['changed','duplicate','missing-manifest','bad-catalog','partial','bad-json','extra-member','fake-meta','legacy-traversal','roles-legacy','roles-password','roles-missing','roles-truncated']){
+  for(const mode of ['changed','duplicate','missing-manifest','bad-catalog','partial','bad-json','extra-member','fake-meta','legacy-traversal','roles-legacy','roles-password','roles-missing','roles-truncated','bad-storage-hash','bad-storage-size','tampered-storage-bytes','missing-storage-file','orphan-storage-file']){
    const tar=path.join(d,mode+'.tar'),dst=path.join(d,mode);
    assert.equal(call('-c',build,mode,tar).ok,true);
    await mkdir(dst);
    const r=call(guard,'unpack',tar,dst);
    assert.equal(r.ok,false,mode+' unexpectedly passed');
    assert.doesNotMatch(r.stderr,/f\/a\.bin|private|11111111/);
+  }
+ });
+});
+
+
+test('M44 restored enriched archive validates every binary blob, not just metadata',async()=>{
+ await inScratch(async d=>{
+  const modes=['enriched','roles-valid','bad-storage-hash','bad-storage-size',
+   'tampered-storage-bytes','missing-storage-file','orphan-storage-file'];
+  for(const mode of modes){
+   const tar=path.join(d,mode+'.tar'),dst=path.join(d,mode);
+   assert.equal(call('-c',build,mode,tar).ok,true);
+   await mkdir(dst);
+   const result=call(guard,'unpack',tar,dst);
+   assert.equal(result.ok,mode==='enriched'||mode==='roles-valid',mode);
+   assert.doesNotMatch(result.stdout+result.stderr,/f\/a\.bin|11111111|ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad/);
   }
  });
 });
