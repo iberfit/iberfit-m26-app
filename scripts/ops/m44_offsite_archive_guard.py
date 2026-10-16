@@ -37,7 +37,8 @@ def unwrap_zip(archive, expected_sha, destination):
             "EXPECTED_DIGEST_INVALID")
     require(hash_file(archive) == expected_sha, "SOURCE_CHECKSUM_MISMATCH")
     target = pathlib.Path(destination)
-    require(not target.exists(), "DESTINATION_ALREADY_EXISTS")
+    require(not target.exists() and not target.is_symlink(),
+            "DESTINATION_ALREADY_EXISTS")
     with zipfile.ZipFile(archive) as bundle:
         entries = bundle.infolist()
         require(len(entries) == 1, "ZIP_ENTRY_COUNT_INVALID")
@@ -50,21 +51,28 @@ def unwrap_zip(archive, expected_sha, destination):
         require(info.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
                 "ZIP_COMPRESSION_UNSUPPORTED")
         require(53 <= info.file_size <= MAX_CIPHER, "CIPHERTEXT_SIZE_INVALID")
+        created = False
         try:
-            with bundle.open(info) as source, open(target, "xb") as output:
-                os.chmod(target, 0o600)
-                total = 0
-                header = source.read(8)
-                require(header == b"IBFBAK01", "CIPHERTEXT_HEADER_INVALID")
-                output.write(header)
-                total += len(header)
-                for chunk in iter(lambda: source.read(1024 * 1024), b""):
-                    total += len(chunk)
-                    require(total <= MAX_CIPHER, "CIPHERTEXT_LIMIT_EXCEEDED")
-                    output.write(chunk)
-                require(total == info.file_size, "CIPHERTEXT_TRUNCATED")
+            with bundle.open(info) as source:
+                # Exclusive create guarantees the ZIP cannot overwrite a
+                # preexisting file. Mark creation *before* any subsequent
+                # operation that may raise so cleanup only removes our output.
+                with open(target, "xb") as output:
+                    created = True
+                    os.chmod(target, 0o600)
+                    total = 0
+                    header = source.read(8)
+                    require(header == b"IBFBAK01", "CIPHERTEXT_HEADER_INVALID")
+                    output.write(header)
+                    total += len(header)
+                    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                        total += len(chunk)
+                        require(total <= MAX_CIPHER, "CIPHERTEXT_LIMIT_EXCEEDED")
+                        output.write(chunk)
+                    require(total == info.file_size, "CIPHERTEXT_TRUNCATED")
         except BaseException:
-            target.unlink(missing_ok=True)
+            if created:
+                target.unlink(missing_ok=True)
             raise
     print("IBERFIT_OFFSITE_DRIVE_CIPHERTEXT_VERIFIED")
 
