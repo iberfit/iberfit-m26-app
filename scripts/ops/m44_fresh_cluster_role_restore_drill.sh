@@ -63,7 +63,8 @@ GRANT SELECT ON iberfit_m44_fresh_fixture.rows TO iberfit_m44_fresh_reader;
 ALTER DEFAULT PRIVILEGES FOR ROLE iberfit_m44_fresh_owner
  IN SCHEMA iberfit_m44_fresh_fixture GRANT SELECT ON TABLES TO iberfit_m44_fresh_reader;
 SQL
-docker exec --user 0 -e "PGPASSWORD=$pass" "$src" \
+docker run --rm --network "container:$src" \
+ -e "PGPASSWORD=$pass" -v "$work:/work" postgres:17-alpine \
  pg_dumpall -h 127.0.0.1 -U supabase_admin -d postgres \
  --roles-only --no-role-passwords -f /work/global-roles.sql \
  >"$work/private-export.log" 2>&1 ||
@@ -78,7 +79,8 @@ docker exec --user 0 -e "PGPASSWORD=$pass" "$src" \
    fi
    exit 64
  }
-docker exec --user 0 -e "PGPASSWORD=$pass" "$src" \
+docker run --rm --network "container:$src" \
+ -e "PGPASSWORD=$pass" -v "$work:/work" postgres:17-alpine \
  pg_dump -h 127.0.0.1 -U supabase_admin -d postgres \
  -Fc -n iberfit_m44_fresh_fixture -f /work/data.pgcustom \
  >>"$work/private-export.log" 2>&1 ||
@@ -98,7 +100,8 @@ CREATE ROLE iberfit_m44_fresh_reader NOLOGIN;
 CREATE ROLE iberfit_m44_fresh_coach NOLOGIN;
 GRANT iberfit_m44_fresh_reader TO iberfit_m44_fresh_coach;
 SQL
-docker exec --user 0 -e "PGPASSWORD=$pass" "$dst" \
+docker run --rm --network "container:$dst" \
+ -e "PGPASSWORD=$pass" -v "$work:/work" postgres:17-alpine \
  pg_restore --exit-on-error -h 127.0.0.1 -U supabase_admin -d postgres \
  /work/data.pgcustom >"$work/private-restore.log" 2>&1 ||
  { echo 'IBERFIT_M44_FRESH_CLUSTER_RESTORE_FAILED' >&2; exit 68; }
