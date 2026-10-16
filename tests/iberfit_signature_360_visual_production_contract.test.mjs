@@ -62,6 +62,10 @@ test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',(
   const item=css.slice(itemStart,hoverStart);
   const hover=css.slice(hoverStart,focusStart);
   assert.match(item,/min-height:\s*66px/,'primary tap targets remain comfortable');
+  const declaredTargets=[...css.matchAll(/\.m26-client-bottom-nav-item\s*\{([^}]*)\}/g)]
+    .map(([,rules])=>rules.match(/min-height:\s*(\d+)px/)?.[1]).filter(Boolean).map(Number);
+  assert.ok(declaredTargets.length>=2,'desktop and mobile dock target sizes must be checked');
+  for(const height of declaredTargets)assert.ok(height>=66,`Client dock target falls below 66px at a responsive breakpoint: ${height}px`);
   assert.doesNotMatch(item,/transition:[\s\S]*?transform/,'touch target must not animate position');
   assert.doesNotMatch(hover,/transform\s*:/,'hover cannot move navigation targets');
   assert.match(css,/env\(safe-area-inset-bottom\)/,'notch and home indicator clearance is preserved');
