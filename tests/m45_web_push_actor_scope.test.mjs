@@ -127,3 +127,70 @@ test('M45 late old-account push failure cannot unsubscribe the replacement user 
   assert.equal(h.writes[1].target,endpoint,'old account endpoint is revoked with old token');
   assert.equal(h.unsubscribes.length,0,'new account browser subscription is preserved');
 });
+
+function statusHarness({gateInspect=null,gateToken=null,gateStatus=null}={}){
+  let identity='coach:account-A';
+  const statusCalls=[];
+  const coordinator=createWebPushCoordinator({
+    transport:{
+      async webPushStatus(bearer,endpoint){
+        statusCalls.push({bearer,endpoint});
+        if(gateStatus)await gateStatus.promise;
+        return {ok:true,active:true,subscriptionCount:1};
+      },
+    },
+    getToken:()=>gateToken?.promise||Promise.resolve('jwt-A'),
+    getIdentityScope:()=>identity,
+    getRegistration:async()=>({pushManager:{
+      getSubscription:async()=>({endpoint}),
+    }}),
+    vapidPublicKey:'A'.repeat(43),
+    inspect:async()=>{
+      if(gateInspect)await gateInspect.promise;
+      return {supported:true,secure:true,configured:true,permission:'granted',
+        subscribed:true,active:true,reason:null};
+    },
+    isOnline:()=>true,
+  });
+  return {coordinator,statusCalls,changeIdentity(value){identity=value;}};
+}
+
+test('M45 push status refuses a stale browser inspection after a same-role account switch',async()=>{
+  const waiting=deferred(),h=statusHarness({gateInspect:waiting});
+  const result=h.coordinator.status();
+  await new Promise((resolve)=>setImmediate(resolve));
+  h.changeIdentity('coach:account-B');
+  waiting.resolve();
+  await assert.rejects(()=>result,/M45_PUSH_ACTOR_CHANGED/);
+  assert.deepEqual(h.statusCalls,[],'a stale endpoint must never reach the next account RPC');
+});
+
+test('M45 push status never sends a refreshed bearer for account B with account A endpoint',async()=>{
+  const waiting=deferred(),h=statusHarness({gateToken:waiting});
+  const result=h.coordinator.status();
+  await new Promise((resolve)=>setImmediate(resolve));
+  h.changeIdentity('client:account-B');
+  waiting.resolve('jwt-B');
+  await assert.rejects(()=>result,/M45_PUSH_ACTOR_CHANGED/);
+  assert.deepEqual(h.statusCalls,[],'no remote query under the new identity');
+});
+
+test('M45 push status discards a remote status reply after logout or identity change',async()=>{
+  const waiting=deferred(),h=statusHarness({gateStatus:waiting});
+  const result=h.coordinator.status();
+  await new Promise((resolve)=>setImmediate(resolve));
+  assert.equal(h.statusCalls.length,1,'request started with the original account');
+  assert.equal(h.statusCalls[0].bearer,'jwt-A');
+  h.changeIdentity('coach:account-B');
+  waiting.resolve();
+  await assert.rejects(()=>result,/M45_PUSH_ACTOR_CHANGED/);
+});
+
+test('M45 push status for the same stable account preserves a valid active result',async()=>{
+  const h=statusHarness();
+  const result=await h.coordinator.status();
+  assert.equal(result.active,true);
+  assert.equal(result.backendActive,true);
+  assert.equal(h.statusCalls.length,1);
+  assert.equal(h.statusCalls[0].endpoint,endpoint);
+});
