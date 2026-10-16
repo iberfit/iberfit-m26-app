@@ -111,6 +111,34 @@ test('Cliente conserva flujo limpio, puede sustituir antes de progresar y omitir
   expect(skipped.errors).toEqual([]);
 });
 
+test('Cliente usa Comenzar entrenamiento y Guardar y salir sin Leave workout ni perder borrador',async({page})=>{
+  await open(page,'client');
+  const launch=page.locator('[data-session-action="start"]');
+  await expect(launch).toHaveText('Comenzar entrenamiento');
+  await launch.click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+
+  const exit=page.locator('.m26-session-live-quick-exit [data-session-action="exit-session"]');
+  await expect(exit).toBeVisible();
+  const bounds=await exit.boundingBox();
+  expect(bounds?.height||0).toBeGreaterThanOrEqual(44);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Leave workout',{exact:true})).toHaveCount(0);
+
+  await page.locator('[data-set-field="reps"]').fill('11');
+  await page.locator('[data-set-field="load"]').fill('22 kg');
+  await exit.click();
+  await expect.poll(async()=>(await state(page)).exits).toBe(1);
+  const persisted=await state(page);
+  expect(persisted.status).toBe('active');
+  expect(persisted.persistedCount).toBeGreaterThan(0);
+  expect(persisted.lastPersisted?.execution?.activeSetDraft?.values?.reps).toBe('11');
+  expect(persisted.lastPersisted?.execution?.activeSetDraft?.values?.load).toBe('22 kg');
+  expect(persisted.errors).toEqual([]);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Leave workout',{exact:true})).toHaveCount(0);
+});
+
 test('Recovery browser flush conserva el borrador activo al ocultar o abandonar la página',async({page})=>{
   await open(page,'coach');
   await page.locator('[data-session-action="start"]').click();
