@@ -86,3 +86,11 @@ test('M45: an account switch during revoke does not unsubscribe another account'
   await assert.rejects(()=>pending,/M45_PUSH_ACTOR_CHANGED/);
   assert.equal(h.recorded.some(x=>x.action==='unsubscribe'),false);
 });
+
+test('M45 explains replacement subscription and avoids a false disabled confirmation',async()=>{
+  const {__communicationControllerInternals}=await import('../src/m26/communication/controller.js');
+  const copy=__communicationControllerInternals.pushErrorMessage(new Error('M45_PUSH_SUBSCRIPTION_CHANGED'));
+  assert.match(copy,/otra pestaña/);
+  assert.match(copy,/Revisa su estado/);
+  assert.doesNotMatch(copy,/desactivados en este dispositivo/);
+});
