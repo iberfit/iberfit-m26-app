@@ -65,4 +65,10 @@ test('backup includes passwordless roles within ciphertext and never replays int
  assert.match(w,/database\.pgcustom\s+global-roles\.sql\s+storage/);
  assert.doesNotMatch(w,/psql[^\n]*-f [^\n]*global-roles\.sql/);
  assert.match(w,/IBERFIT_GLOBAL_ROLES_ARCHIVED_BUT_NOT_APPLIED/);
+ assert.match(w,/IBERFIT_SYNTHETIC_GLOBAL_ROLES_PASSWORDLESS_PG17_VERIFIED/);
+ assert.match(w,/Prove passwordless global role export against isolated PostgreSQL 17/);
+ assert.match(w,/pg_dumpall --roles-only/);
+ assert.match(w,/\$scratch\/synthetic-roles\.sql/);
+ assert.match(w,/IBERFIT_GLOBAL_ROLES_ENCRYPTABLE/);
+
 });
