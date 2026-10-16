@@ -1,8 +1,8 @@
 -- Exact baseline captured read-only from QA and production 2026-10-16.
 -- Do NOT restore blindly: only restore if the installed function is known to be our optimized version.
--- Replace placeholder guard with exact installed MD5 after staging QA, before merge.
+-- Rollback is fail-closed: exact optimized installed SHA metadata verified in QA.
 DO $p0_rollback_guard$ BEGIN
- IF position('v_updates:=v_updates || jsonb_build_object' in pg_get_functiondef('public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure))=0 THEN
+ IF md5(pg_get_functiondef('public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure)) <> '7416e0d52d6fa069cf467e95420d4034' THEN
   RAISE EXCEPTION 'P0_BOOTSTRAP_ROLLBACK_REVIEW_REQUIRED';
  END IF;
 END $p0_rollback_guard$;
