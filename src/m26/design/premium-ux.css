@@ -923,6 +923,37 @@ body {
 }
 
 
+/* Sesiones Coach → Cliente · prescripción profunda sin saturar el resumen. */
+.m26-rc39-session-card .m26-session-supervised-duration{margin:.45rem 0 0;color:var(--iberfit-color-text-secondary,#d7cbb2);font-size:.86rem}
+.m26-session-preview-disclosure{margin-top:.85rem;border:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.26));border-radius:.8rem;overflow:hidden;background:rgba(3,20,13,.17)}
+.m26-session-preview-disclosure>summary{display:flex;align-items:center;min-height:48px;padding:.9rem 1rem;cursor:pointer;font-size:.92rem;font-weight:650;list-style:none;color:var(--iberfit-color-text-primary,#f4edda)}
+.m26-session-preview-disclosure>summary::-webkit-details-marker{display:none}
+.m26-session-preview-disclosure>summary:after{content:'+';margin-inline-start:auto;font-size:1.2rem;line-height:1;color:var(--iberfit-color-accent,#dabf7e)}
+.m26-session-preview-disclosure[open]>summary:after{content:'−'}
+.m26-session-preview-disclosure>summary:focus-visible,.m26-session-preview-technique>summary:focus-visible{outline:2px solid var(--iberfit-color-accent,#dabf7e);outline-offset:-3px}
+.m26-session-preview-body{padding:.25rem .9rem .9rem}
+.m26-session-preview-client-note{margin:.3rem 0 .75rem;font-size:.82rem;line-height:1.55;color:var(--iberfit-color-text-secondary,#d7cbb2)}
+.m26-session-preview-blocks{display:grid;gap:.75rem;padding:0;margin:0;list-style:none}
+.m26-session-preview-block{min-width:0;padding:.85rem;border:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2));border-radius:.7rem;background:rgba(7,29,19,.36)}
+.m26-session-preview-block>h4{margin:0 0 .7rem;font-size:.9rem;color:var(--iberfit-color-text-primary,#f4edda)}
+.m26-session-preview-exercise{display:grid;grid-template-columns:minmax(0,145px) minmax(0,1fr);gap:.85rem;min-width:0;align-items:start}
+.m26-session-preview-exercise+.m26-session-preview-exercise{margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2))}
+.m26-session-preview-media{min-width:0;max-width:145px}
+.m26-session-preview-media :is(img,.m26-exercise-media-fallback){max-width:100%;height:auto}
+.m26-session-preview-exercise-body{min-width:0}
+.m26-session-preview-exercise h5{margin:0 0 .35rem;overflow-wrap:anywhere;font-size:1rem;line-height:1.36;color:var(--iberfit-color-text-primary,#f4edda)}
+.m26-session-preview-equipment,.m26-session-preview-cue{margin:.45rem 0;color:var(--iberfit-color-text-secondary,#d7cbb2);font-size:.79rem;line-height:1.55}
+.m26-session-preview-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.4rem;margin:.55rem 0}
+.m26-session-preview-facts>div{min-width:0;padding:.44rem .52rem;background:rgba(241,233,211,.055);border-radius:.4rem}
+.m26-session-preview-facts dt{font-size:.67rem;color:var(--iberfit-color-text-secondary,#d7cbb2)}
+.m26-session-preview-facts dd{margin:.15rem 0 0;overflow-wrap:anywhere;font-size:.84rem;font-weight:650;color:var(--iberfit-color-text-primary,#f4edda)}
+.m26-session-preview-technique{margin:.45rem 0;border-top:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2))}
+.m26-session-preview-technique>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:.82rem;color:var(--iberfit-color-text-secondary,#d7cbb2)}
+.m26-session-preview-technique ul{margin:.2rem 0 .6rem;padding-inline-start:1.2rem;font-size:.8rem;line-height:1.65}
+.m26-session-preview-technique p{font-size:.8rem;line-height:1.6}
+@media(max-width:560px){.m26-session-preview-body{padding:.2rem .6rem .65rem}.m26-session-preview-block{padding:.7rem}.m26-session-preview-exercise{grid-template-columns:minmax(0,1fr)}.m26-session-preview-media{max-width:160px}.m26-session-preview-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.m26-session-preview-disclosure{scroll-behavior:auto}}
+
 /* LIVE_WORKOUT_FOCUS_V3_BEGIN */
 .m26-session-live-v3{
   --m26-live-v3-gap:clamp(.68rem,1.2vw,.95rem);
@@ -2127,33 +2158,3 @@ body {
 .m26-session-live-exit-action[aria-busy="true"]{opacity:.7;cursor:progress}
 @media(max-width:560px){.m26-session-live-quick-exit>.m26-session-live-exit-action{width:100%}.m26-session-live-actions>.m26-session-live-exit-action{flex:1 1 100%}}
 
-/* Sesiones Coach → Cliente · prescripción profunda sin saturar el resumen. */
-.m26-rc39-session-card .m26-session-supervised-duration{margin:.45rem 0 0;color:var(--iberfit-color-text-secondary,#d7cbb2);font-size:.86rem}
-.m26-session-preview-disclosure{margin-top:.85rem;border:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.26));border-radius:.8rem;overflow:hidden;background:rgba(3,20,13,.17)}
-.m26-session-preview-disclosure>summary{display:flex;align-items:center;min-height:48px;padding:.9rem 1rem;cursor:pointer;font-size:.92rem;font-weight:650;list-style:none;color:var(--iberfit-color-text-primary,#f4edda)}
-.m26-session-preview-disclosure>summary::-webkit-details-marker{display:none}
-.m26-session-preview-disclosure>summary:after{content:'+';margin-inline-start:auto;font-size:1.2rem;line-height:1;color:var(--iberfit-color-accent,#dabf7e)}
-.m26-session-preview-disclosure[open]>summary:after{content:'−'}
-.m26-session-preview-disclosure>summary:focus-visible,.m26-session-preview-technique>summary:focus-visible{outline:2px solid var(--iberfit-color-accent,#dabf7e);outline-offset:-3px}
-.m26-session-preview-body{padding:.25rem .9rem .9rem}
-.m26-session-preview-client-note{margin:.3rem 0 .75rem;font-size:.82rem;line-height:1.55;color:var(--iberfit-color-text-secondary,#d7cbb2)}
-.m26-session-preview-blocks{display:grid;gap:.75rem;padding:0;margin:0;list-style:none}
-.m26-session-preview-block{min-width:0;padding:.85rem;border:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2));border-radius:.7rem;background:rgba(7,29,19,.36)}
-.m26-session-preview-block>h4{margin:0 0 .7rem;font-size:.9rem;color:var(--iberfit-color-text-primary,#f4edda)}
-.m26-session-preview-exercise{display:grid;grid-template-columns:minmax(0,145px) minmax(0,1fr);gap:.85rem;min-width:0;align-items:start}
-.m26-session-preview-exercise+.m26-session-preview-exercise{margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2))}
-.m26-session-preview-media{min-width:0;max-width:145px}
-.m26-session-preview-media :is(img,.m26-exercise-media-fallback){max-width:100%;height:auto}
-.m26-session-preview-exercise-body{min-width:0}
-.m26-session-preview-exercise h5{margin:0 0 .35rem;overflow-wrap:anywhere;font-size:1rem;line-height:1.36;color:var(--iberfit-color-text-primary,#f4edda)}
-.m26-session-preview-equipment,.m26-session-preview-cue{margin:.45rem 0;color:var(--iberfit-color-text-secondary,#d7cbb2);font-size:.79rem;line-height:1.55}
-.m26-session-preview-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.4rem;margin:.55rem 0}
-.m26-session-preview-facts>div{min-width:0;padding:.44rem .52rem;background:rgba(241,233,211,.055);border-radius:.4rem}
-.m26-session-preview-facts dt{font-size:.67rem;color:var(--iberfit-color-text-secondary,#d7cbb2)}
-.m26-session-preview-facts dd{margin:.15rem 0 0;overflow-wrap:anywhere;font-size:.84rem;font-weight:650;color:var(--iberfit-color-text-primary,#f4edda)}
-.m26-session-preview-technique{margin:.45rem 0;border-top:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2))}
-.m26-session-preview-technique>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:.82rem;color:var(--iberfit-color-text-secondary,#d7cbb2)}
-.m26-session-preview-technique ul{margin:.2rem 0 .6rem;padding-inline-start:1.2rem;font-size:.8rem;line-height:1.65}
-.m26-session-preview-technique p{font-size:.8rem;line-height:1.6}
-@media(max-width:560px){.m26-session-preview-body{padding:.2rem .6rem .65rem}.m26-session-preview-block{padding:.7rem}.m26-session-preview-exercise{grid-template-columns:minmax(0,1fr)}.m26-session-preview-media{max-width:160px}.m26-session-preview-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(prefers-reduced-motion:reduce){.m26-session-preview-disclosure{scroll-behavior:auto}}
