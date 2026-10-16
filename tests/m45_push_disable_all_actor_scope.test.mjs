@@ -10,7 +10,7 @@ function deferred(){
 const originalEndpoint='https://push.example.test/coach-A-device';
 const replacementEndpoint='https://push.example.test/client-B-device';
 
-function harness({belongs=true,localPresent=true,unsubscribeOk=true,gateStatus=false,gateRevoke=false}={}){
+function harness({belongs=true,localPresent=true,unsubscribeOk=true,revokeOk=true,gateStatus=false,gateRevoke=false}={}){
   const statusEntered=deferred();
   const statusFinish=deferred();
   const revokeEntered=deferred();
@@ -38,7 +38,7 @@ function harness({belongs=true,localPresent=true,unsubscribeOk=true,gateStatus=f
         calls.push(['revoke',bearer,endpoint]);
         revokeEntered.resolve();
         if(gateRevoke)await revokeFinish.promise;
-        return {ok:true,deletedCount:belongs?1:2};
+        return {ok:revokeOk,deletedCount:revokeOk?(belongs?1:2):0};
       },
     },
     getToken:async()=> 'jwt-A',
@@ -120,4 +120,11 @@ test('M45 disable-all rejects a failed browser unsubscribe instead of reporting 
   const h=harness({unsubscribeOk:false});
   await assert.rejects(()=>h.coordinator.disableAll(),/M26_PUSH_UNSUBSCRIBE_NOT_CONFIRMED/);
   assert.deepEqual(h.calls.filter(c=>c[0]==='unsubscribe').map(c=>c[1]),[originalEndpoint]);
+});
+
+test('M45 disable-all negative remote revoke ACK leaves browser subscription untouched',async()=>{
+  const h=harness({revokeOk:false});
+  await assert.rejects(()=>h.coordinator.disableAll(),/M26_PUSH_REVOKE_NOT_CONFIRMED/);
+  assert.deepEqual(h.calls.filter(c=>c[0]==='unsubscribe'),[]);
+  assert.equal(h.calls.filter(c=>c[0]==='revoke').length,1);
 });
