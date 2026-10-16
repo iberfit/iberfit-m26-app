@@ -25,19 +25,22 @@ function fixture(overrides={}){
   status:'completed',conclusion:'success',steps:required.map(name=>({name,conclusion:'success'}))}]};
  const artifacts={total_count:1,artifacts:[{name:'iberfit-prod-ciphertext-'+runId,
   size_in_bytes:bytes.length,digest:'sha256:'+digest,workflow_run:{id:runId,head_sha:backupSha}}]};
+ const folder={id:'private-folder-id',mimeType:'application/vnd.google-apps.folder',
+  shared:false,trashed:false,permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]};
  const meta={id:'private-file-id',mimeType:'application/zip',size:String(bytes.length),
   shared:false,trashed:false,parents:['private-folder-id'],
   permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]};
  const input={sourceSha,runId,fileId:'private-file-id',driveFolderId:'private-folder-id',
   githubToken:'test-github-token',driveAccessToken:'test-drive-access-token',nowMs};
- const data={run,jobs,artifacts,meta,compare:{status:'ahead',behind_by:0}};
+ const data={run,jobs,artifacts,meta,folder,compare:{status:'ahead',behind_by:0}};
  for(const [k,v] of Object.entries(overrides))if(k in data)data[k]=v;
  const fetchImpl=async url=>{
   let payload=url.includes('/compare/')?data.compare:
     url.includes('/jobs?')?data.jobs:
     url.includes('/artifacts?')?data.artifacts:
     url.includes('/actions/runs/')?data.run:
-    url.includes('alt=media')?null:data.meta;
+    url.includes('alt=media')?null:
+    url.includes('/drive/v3/files/private-folder-id?')?data.folder:data.meta;
   if(payload===null)return {ok:true,body:new ReadableStream({start(c){c.enqueue(bytes);c.close();}})};
   return {ok:true,json:async()=>payload};
  };
@@ -96,4 +99,34 @@ test('48h archival integrity does not imply 2h production migration RPO',async()
  assert.equal((await verifyIndependentOffsiteRecovery(f.args)).offsiteBytesVerified,true);
  await assert.rejects(verifyIndependentOffsiteRecovery({...f.args,maxAgeMs:2*3600000}),/BACKUP_NOT_RECENT/);
  await assert.rejects(verifyIndependentOffsiteRecovery({...f.args,maxAgeMs:49*3600000}),/MAX_AGE_INVALID/);
+});
+
+test('reject shared, trashed, foreign-owned and shared-drive parent folders',async()=>{
+ for(const patch of [
+  {shared:true},{trashed:true},{driveId:'shared-drive-id'},
+  {permissions:[{type:'anyone',role:'reader'}]},
+  {permissions:[{type:'user',role:'owner',emailAddress:'someone-else@example.org'}]},
+  {permissions:[]},{mimeType:'text/plain'}
+ ]){
+  const f=fixture();
+  Object.assign(f.data.folder,patch);
+  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/DRIVE_FOLDER_CUSTODY_INVALID/);
+ }
+});
+test('reject truncated GitHub pages, absent total counts and ambiguous artifact names',async()=>{
+ const cases=[
+  {jobs:{total_count:2,jobs:[{name:'m44-prod-db-storage-encrypted-backup-and-restore',status:'completed',conclusion:'success',steps:required.map(name=>({name,conclusion:'success'}))}]}},
+  {jobs:{jobs:[{name:'m44-prod-db-storage-encrypted-backup-and-restore',status:'completed',conclusion:'success',steps:required.map(name=>({name,conclusion:'success'}))}]}},
+  {artifacts:{artifacts:[],total_count:1}},
+  {artifacts:{artifacts:[],total_count:0}}
+ ];
+ for(const patch of cases){
+  const f=fixture(patch);
+  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/JOBS_INCOMPLETE|ARTIFACT_LIST_INCOMPLETE|ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
+ }
+ const f=fixture();
+ const duplicate=f.data.artifacts.artifacts[0];
+ f.data.artifacts.artifacts.push({...duplicate});
+ f.data.artifacts.total_count=2;
+ await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
 });
