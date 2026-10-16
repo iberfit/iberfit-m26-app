@@ -31,7 +31,7 @@ import {createShellController} from '../shell/shell-controller.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
 import {createClientAvatarController} from '../profile/client-avatar.js';
 import {createWorkspaceEntryGate} from './workspace-entry-gate.js';
-import {resolveCurrentSessionForEntry} from '../workflows/session-entry-freshness.js';
+import {resolveCurrentSessionForEntry,resolveRecoveredSessionForEntry} from '../workflows/session-entry-freshness.js';
 import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
 import {createProgressiveOnboardingController} from '../onboarding/progressive-onboarding.js';
@@ -1145,7 +1145,12 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   async function restoreExecution(){
     await recoveryCoordinator?.purgeExpired?.();const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
-    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>visible.has(item.execution?.clientId)&&(state.identity?.role!=='client'||item.execution?.clientId===own));if(!snapshot?.execution||!snapshot?.session)return false;
+    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>{
+      if(!visible.has(item.execution?.clientId)||(state.identity?.role==='client'&&item.execution?.clientId!==own))return false;
+      try{return Boolean(resolveRecoveredSessionForEntry({
+        state,snapshot:item,clientId:item.execution.clientId,role:String(state.identity?.role||'client'),
+      }));}catch{return false;}
+    });if(!snapshot?.execution||!snapshot?.session)return false;
     sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
@@ -1440,9 +1445,19 @@ export async function createM26Application({root=document.querySelector('#app'),
         }
         throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
       }
+      // Cross-device withdrawal is authoritative. A stale local snapshot
+      // must not override the current published state when the Client enters.
+      if(store.getState().identity?.role==='client'&&draftOnline()){
+        await hydrate({reason:'session-entry-authoritative'});
+        if(!isCurrent())return false;
+      }
       const recovered=await recoveryCoordinator?.latest?.({clientId});
       if(!isCurrent())return false;
       if(recovered){
+        resolveRecoveredSessionForEntry({
+          state:store.getState(),snapshot:recovered,clientId,requestedId:sessionId,
+          role:String(store.getState().identity?.role||'client'),
+        });
         sessionUi={draft:null,query:'',actionState:{
           ...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},
           session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};
