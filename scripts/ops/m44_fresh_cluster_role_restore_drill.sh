@@ -71,9 +71,10 @@ if ! docker run --rm --network "container:$src" postgres:17-alpine \
  echo 'IBERFIT_M44_FRESH_CLUSTER_CLIENT_CONNECTIVITY_FAILED' >&2; exit 64
 fi
 docker run --rm --network "container:$src" \
- -e "PGPASSWORD=$pass" -v "$work:/work" postgres:17-alpine \
- pg_dumpall -h 127.0.0.1 -U supabase_admin -d postgres \
- --roles-only --no-role-passwords -f /work/global-roles.sql \
+ -e "PGPASSWORD=$pass" -e PGDATABASE=postgres \
+ -e PGHOST=127.0.0.1 -e PGUSER=supabase_admin \
+ -v "$work:/work" postgres:17-alpine \
+ pg_dumpall --roles-only --no-role-passwords -f /work/global-roles.sql \
  >"$work/private-export.log" 2>&1 ||
  { if grep -Eqi 'permission denied|could not open|read-only file system' "$work/private-export.log"; then
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_OUTPUT_DENIED' >&2
