@@ -316,7 +316,7 @@ test('Sesiones Cliente no ofrece inicio autónomo para una sesión presencial di
   );
 });
 
-test('Sesiones Cliente ofrece un CTA superior exacto cuando solo existe un Live Workout ejecutable', () => {
+test('Sesiones Cliente ofrece un único comienzo autorizado dentro de Ver sesión', () => {
   const base = ready('client');
   const state = ready('client', {
     activeArea: 'sesion',
@@ -348,11 +348,9 @@ test('Sesiones Cliente ofrece un CTA superior exacto cuando solo existe un Live 
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
-  assert.match(
-    html,
-    /data-session-primary-start data-workflow-action="start-published-session" data-entity-id="s-live"/
-  );
-  assert.match(html, />Comenzar entrenamiento · Fuerza autónoma<\/button>/);
+  assert.doesNotMatch(html, /data-session-primary-start/);
+  assert.match(html, /<summary>Ver sesión<\/summary>/);
+  assert.equal([...html.matchAll(/data-workflow-action="start-published-session"/g)].length,1);
   assert.match(
     html,
     /data-workflow-action="start-published-session" data-entity-id="s-live">Comenzar entrenamiento<\/button>/
