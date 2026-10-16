@@ -90,3 +90,10 @@ test('OAuth refresh requires all protected credentials and rejects invalid reply
   fetchImpl:async()=>({ok:true,json:async()=>({access_token:'x'.repeat(40)})})});
  assert.equal(token,'x'.repeat(40));
 });
+
+test('48h archival integrity does not imply 2h production migration RPO',async()=>{
+ const f=fixture();
+ assert.equal((await verifyIndependentOffsiteRecovery(f.args)).offsiteBytesVerified,true);
+ await assert.rejects(verifyIndependentOffsiteRecovery({...f.args,maxAgeMs:2*3600000}),/BACKUP_NOT_RECENT/);
+ await assert.rejects(verifyIndependentOffsiteRecovery({...f.args,maxAgeMs:49*3600000}),/MAX_AGE_INVALID/);
+});
