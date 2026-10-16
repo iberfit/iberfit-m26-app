@@ -17,7 +17,7 @@ test('protected encrypted PG17 custom dump retains owners and GRANT/REVOKE conte
 test('TOC ACL and DEFAULT ACL proof happens after decryption and before restore success',()=>{
  const decrypt=prod.indexOf('m44_encrypted_backup_archive.mjs decrypt');
  const toc=prod.indexOf('pg_restore --list /work/database.pgcustom');
- const acl=prod.indexOf('IBERFIT_PGCUSTOM_ROLE_ACL_OR_DEFAULT_PRIVILEGE_MISSING');
+ const acl=prod.indexOf('m44_acl_toc_selector.mjs');
  const valid=prod.indexOf('IBERFIT_PGCUSTOM_ACL_DEFAULTS_ARCHIVED_ENCRYPTED_ONLY');
  const restore=prod.indexOf('pg_restore --exit-on-error');
  const done=prod.indexOf('IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS');
