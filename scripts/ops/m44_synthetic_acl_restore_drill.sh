@@ -51,8 +51,6 @@ GRANT USAGE ON SCHEMA m44_acl_fixture TO iberfit_m44_fixture_reader;
 GRANT SELECT ON m44_acl_fixture.exercise TO iberfit_m44_fixture_reader;
 ALTER DEFAULT PRIVILEGES FOR ROLE iberfit_m44_fixture_owner
   IN SCHEMA m44_acl_fixture GRANT SELECT ON TABLES TO iberfit_m44_fixture_reader;
--- A separate limited DML role has SQL grants on all operations; RLS
--- must be the control that denies cross-tenant reads and writes.
 GRANT USAGE ON SCHEMA m44_acl_fixture TO iberfit_m44_fixture_writer;
 GRANT SELECT, INSERT, UPDATE, DELETE ON m44_acl_fixture.exercise TO iberfit_m44_fixture_writer;
 CREATE POLICY m44_writer_select_scope ON m44_acl_fixture.exercise
@@ -131,56 +129,15 @@ reader_count() {
 if reader_count "$stripped" >/dev/null 2>&1; then
  echo 'IBERFIT_M44_ACL_STRIPPED_ROLE_QUERY_PERMITTED' >&2; exit 69
 fi
-# Functional proof of tenant-scoped DML as a real limited role, without data
-# persistence: each permitted change is inside an explicit rollback.
+# Verify actual tenant-scoped DML using a restricted synthetic role.
+# Writes roll back. A denied write must fail specifically due to RLS.
 writer_exec() {
  psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
   -c "BEGIN; SET LOCAL ROLE iberfit_m44_fixture_writer; $2; ROLLBACK;"
 }
 writer_count() {
  output="$(writer_exec "$1" "$2" 2>/dev/null)" || return 1
- observed="$(printf '%s\n' "$output" | grep -E '^[0-9]+ The TOC remains
-# private: names are never logged. Non-ACL statements are commented out,
-# while owner changes are explicitly reconciled in the sandbox afterward.
-pg_restore --list "$work/synthetic.acl.pgcustom" > "$work/synthetic-toc-private.list"
-awk '
- /^[0-9]+;/ {
-   if ($0 ~ /^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+ACL[[:space:]]/) {
-     print; grants++; next
-   }
-   if ($0 ~ /^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+DEFAULT ACL[[:space:]]/) {
-     print; defaults++; next
-   }
-   print ";" $0; next
- }
- { print }
- END { if (grants < 1 || defaults < 1) exit 72 }
-' "$work/synthetic-toc-private.list" > "$work/synthetic-acl-only-private.list" ||
- { echo 'IBERFIT_M44_ACL_ONLY_SELECTION_FAILED' >&2; exit 72; }
-pg_restore --exit-on-error --no-owner --use-list="$work/synthetic-acl-only-private.list" \
-  --dbname="$stripped" "$work/synthetic.acl.pgcustom"
-rm -f "$work/synthetic-toc-private.list" "$work/synthetic-acl-only-private.list"
-psql -X -q -v ON_ERROR_STOP=1 -d "$stripped" <<'SQL'
-ALTER SCHEMA m44_acl_fixture OWNER TO iberfit_m44_fixture_owner;
-ALTER TABLE m44_acl_fixture.exercise OWNER TO iberfit_m44_fixture_owner;
-SQL
-if [ "$(catalog "$stripped")" != "$source_result" ]; then
-  echo 'IBERFIT_M44_ACL_ONLY_REPLAY_CATALOG_DIVERGED' >&2; exit 73
-fi
-if [ "$(reader_count "$stripped")" != "1" ]; then
-  echo 'IBERFIT_M44_ACL_ONLY_REPLAY_RLS_DIVERGED' >&2; exit 74
-fi
-echo 'IBERFIT_M44_SELECTIVE_ACL_DEFAULT_PRIVILEGES_REPLAY_SYNTHETIC_ONLY'
-# Full data rows may be present even when tenant permissions were lost.
-for db in "$src" "$stripped" "$repaired"; do
- rows="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$db" \
-   -c 'SELECT count(*) FROM m44_acl_fixture.exercise')"
- [ "$rows" = "2" ] || { echo 'IBERFIT_M44_ACL_FIXTURE_DATA_MISMATCH' >&2; exit 70; }
-done
-echo 'IBERFIT_M44_ACL_STRIPPED_RESTORE_DENIED_AS_EXPECTED'
-echo 'IBERFIT_M44_ACL_OWNERS_GRANTS_DEFAULTS_RLS_RECONCILED_SYNTHETIC_ONLY'
-echo 'IBERFIT_M44_PLATFORM_RECOVERY_NOT_CERTIFIED'
- | tail -n 1)"
+ observed="$(printf '%s\n' "$output" | grep -E '^[0-9]+$' | tail -n 1)"
  [ "$observed" = "$3" ]
 }
 writer_rls_rejects() {
