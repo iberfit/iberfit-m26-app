@@ -61,11 +61,11 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
    throw Error(PREFIX+'DISTINCT_FILES_REQUIRED');
   const proof=certifyPlatformCatalog(readSnapshot(sourcePath),readSnapshot(restoredPath));
   process.stdout.write('IBERFIT_PLATFORM_CATALOG_PARITY_ONLY:'+String(proof.catalogParity)+
-   ':hosted_auth_NOT_certified\\n');
+   ':hosted_auth_NOT_certified\n');
  }catch(error){
   // Never print file paths, source catalog values, SQL or private identifiers.
   const code=String(error?.message||'');
   process.stderr.write(code.startsWith(PREFIX)?code:PREFIX+'CHECK_FAILED');
-  process.stderr.write('\\n');process.exitCode=1;
+  process.stderr.write('\n');process.exitCode=1;
  }
 }
