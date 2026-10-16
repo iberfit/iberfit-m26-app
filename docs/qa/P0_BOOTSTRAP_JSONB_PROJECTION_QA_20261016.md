@@ -17,7 +17,7 @@
 
 ## Seguridad y reversibilidad
 - No cambios en Auth/WebAuthn, RLS, grants, esquemas de tablas, SQL de filtrado, parámetros de timeout ni identidad de sesión.
-- La migración aborta ante cualquier variación del MD5 baseline. El rollback solo puede restaurar desde el MD5 de la versión optimizada que probamos.
+- La migración aborta ante cualquier variación del MD5 baseline. En QA se aplicó el guard procedimental de la candidata; el artefacto versionado sustituye ese guard por dos SELECT fail-closed equivalentes, para cumplir la política append-only del repositorio. El cuerpo SQL de la función instalada y la versión final es idéntico. El rollback solo puede restaurar desde el MD5 de la versión optimizada que probamos.
 - QA post-apply metadata: owner/postgres y ACL equivalentes. PROD MD5 original inalterado.
 - **Mantener #974 abierto** hasta pasar repetidamente el gate remoto MFA/no-enrolado/403 y los tests de estrés, observar error rate y corregir si persisten timeouts.
 - Las modificaciones visuales #966/#993 siguen en sus propios PR y no deben fusionarse como consecuencia de esta migración sin sus gates completos.

@@ -10,6 +10,7 @@ test('P0 bootstrap JSONB optimization is guarded and preserves security-definer 
   assert.match(migration,/115246a2fb1aea298d023e44508c7dba/);
   assert.match(migration,/P0_BOOTSTRAP_BASELINE_CHANGED_REVIEW_REQUIRED/);
   assert.match(migration,/P0_BOOTSTRAP_SECURITY_ATTRIBUTES_CHANGED/);
+  assert.doesNotMatch(executable(migration),/\bDO\s+\$/i,'migration must not include anonymous DO blocks');
   assert.match(migration,/STABLE SECURITY DEFINER/);
   assert.match(migration,/SET search_path TO ''/);
   assert.match(migration,/v_data:=v_data \|\| v_updates;/);

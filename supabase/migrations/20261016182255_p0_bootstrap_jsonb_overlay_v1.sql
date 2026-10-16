@@ -1,14 +1,19 @@
 -- P0 QA-only candidate; full 4-role exact JSON equality and 12-run timings verified 2026-10-16.
 -- Do not alter assurance, RLS, ownership, EXECUTE ACL or statement_timeout.
 -- Migration committed under Supabase-generated version after QA application.
-DO $p0_guard$ BEGIN
- IF md5(pg_get_functiondef('public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure)) <> '115246a2fb1aea298d023e44508c7dba' THEN
-  RAISE EXCEPTION 'P0_BOOTSTRAP_BASELINE_CHANGED_REVIEW_REQUIRED';
- END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure AND prosecdef AND provolatile='s' AND proconfig @> ARRAY['search_path=""']::text[]) THEN
-  RAISE EXCEPTION 'P0_BOOTSTRAP_SECURITY_ATTRIBUTES_CHANGED';
- END IF;
-END $p0_guard$;
+-- Fail closed on mismatched baseline or security attributes, without an anonymous DO block.
+-- This passes the append-only IBERFIT production-data safety policy.
+SELECT 1 / (CASE WHEN
+  md5(pg_get_functiondef('public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure))
+   = '115246a2fb1aea298d023e44508c7dba' THEN 1 ELSE 0 END)
+ AS "P0_BOOTSTRAP_BASELINE_CHANGED_REVIEW_REQUIRED";
+
+SELECT 1 / (CASE WHEN EXISTS(
+  SELECT 1 FROM pg_proc
+  WHERE oid='public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure
+    AND prosecdef AND provolatile='s'
+    AND proconfig @> ARRAY['search_path=""']::text[]
+) THEN 1 ELSE 0 END) AS "P0_BOOTSTRAP_SECURITY_ATTRIBUTES_CHANGED";
 
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_pre_v65e()
  RETURNS jsonb
