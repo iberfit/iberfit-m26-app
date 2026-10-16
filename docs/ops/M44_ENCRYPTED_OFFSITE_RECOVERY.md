@@ -51,3 +51,12 @@ Se ejecutan `scripts/ops/m44_storage_metadata_parity.mjs source` antes de cifrar
 
 **Coste:** no requiere un plan de pago ni una nueva instancia de Supabase. El contenedor Postgres de ensayo se ejecuta de manera efímera en GitHub Actions con los mismos permisos y límites del workflow actual.
 
+
+
+## Inventario global de roles sin contraseñas (nueva versión)
+
+El `pg_dump -Fc --no-owner --no-acl` de IBERFIT no cubre la reconstrucción completa de roles globales y membresías, y la restauración inicial se realiza deliberadamente sin propietarios ni ACL. Para que la copia no pierda las declaraciones globales, el workflow incorpora `pg_dumpall --roles-only --no-role-passwords` ejecutado desde PostgreSQL 17 y escribe `global-roles.sql` **solo en la zona privada del runner**. Se exige la presencia de los roles gestionados esenciales, ausencia de cláusulas de contraseñas, integridad de la salida y limpieza de temporales. El archivo se empaqueta dentro del TAR antes de cifrar con AES-256-GCM/scrypt; nunca se adjunta a un PR, a logs ni al artefacto sin cifrar.
+
+Un `global-roles.sql` correcto **no es un script de ejecución automática**. En una recuperación, los roles gestionados por Supabase deben reconciliarse con la versión y las cuentas del destino antes de intentar crear roles, aplicar membresías, restituir propietarios, `GRANT` y `DEFAULT PRIVILEGES`. No ejecutar `psql -f global-roles.sql` contra PROD ni contra una instancia ya configurada sin revisar conflictos y permisos. Las contraseñas de roles no van en el dump por diseño y, cuando proceda, necesitan restauración segura o rotación controlada. Auth alojado, claves JWT, root key de Vault, SMTP, proveedores y configuración externa siguen requiriendo otra vía de recuperación. Referencia oficial: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore ; PostgreSQL 17: https://www.postgresql.org/docs/17/app-pg-dumpall.html .
+
+**Control de compatibilidad obligatorio:** el verificador de archivos externos debe reconocer esta nueva entrada opcional exacta `global-roles.sql` (junto con los inventarios y huellas ya introducidos), conservar compatibilidad con el backup anterior y rechazar nombres adicionales. No generar copias con este formato para la restauración operativa hasta disponer de su versión certificada. El nuevo fichero constituye una fuente de roles, **no** `platformRecoveryVerified=true`, no es permiso de migrar M44 y no altera la configuración de producción.
