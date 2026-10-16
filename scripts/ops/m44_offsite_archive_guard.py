@@ -256,6 +256,15 @@ def unpack_tar(archive, directory):
                 shutil.copyfileobj(source, output, length=1024 * 1024)
     require({"database.pgcustom", "storage/manifest.json"}.issubset(present),
             "TAR_REQUIRED_COMPONENT_MISSING")
+    # Even legacy backups claim a PostgreSQL custom-format dump. Reject an
+    # empty/wrongly labeled body before reporting a structurally valid TAR.
+    # The real pg_restore is STILL required to prove SQL restorability.
+    database_dump = base / "database.pgcustom"
+    require(database_dump.is_file() and not database_dump.is_symlink()
+            and database_dump.stat().st_size >= 16,
+            "PGCUSTOM_ARCHIVE_INVALID")
+    with database_dump.open("rb") as stream:
+        require(stream.read(5) == b"PGDMP", "PGCUSTOM_MAGIC_INVALID")
     extension = present.intersection(EXTRA_FILES)
     require(not extension or extension == EXTRA_FILES,
             "PARTIAL_ENRICHED_ARCHIVE")
