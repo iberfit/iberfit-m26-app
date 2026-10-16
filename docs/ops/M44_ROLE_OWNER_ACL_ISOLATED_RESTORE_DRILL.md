@@ -54,3 +54,12 @@ La ampliación **no usa ni verifica los datos auténticos del respaldo externo**
 El workflow `.github/workflows/m44-role-acl-synthetic-drill.yml` ejecuta ahora PostgreSQL 17 Supabase y el cliente `psql/pg_dump/pg_restore` en **un mismo contenedor temporal Docker con `--network none` y sin `--publish`**. La comunicación SQL se limita a `127.0.0.1` dentro del propio contenedor. Se comprueba con `docker inspect` que el modo de red sea `none` y con `docker port` que no existan puertos publicados. La descarga previa de la imagen por Docker puede utilizar la red del host, pero el contenedor en ejecución no dispone de conectividad exterior. El contenedor, las bases ficticias y el directorio temporal se destruyen con una trampa de limpieza al finalizar.
 
 La comprobación de sintaxis `sh -n`, los tests herméticos y la ejecución PostgreSQL 17 deben pasar. Este endurecimiento **no convierte el ensayo sintético en una restauración de la copia real de IBERFIT** ni modifica el bloqueo de PROD.
+
+
+## Prueba funcional específica de ACL de esquema y columna
+
+La prueba sintética conserva además una concesión `SELECT(content)` **únicamente a nivel de columna**, con `USAGE` del esquema y RLS que limita la lectura a la fila del ámbito 1. Este actor debe recuperar la lectura de `content`, pero no puede consultar `tenant_id`. Un segundo actor dispone de `GRANT SELECT` sobre toda la tabla y de una política RLS permisiva, pero **carece de `USAGE` del esquema**; PostgreSQL debe rechazar su consulta expresamente por permiso de esquema. Así se distinguen la ACL del esquema, el permiso de tabla, el permiso de columna y RLS.
+
+La matriz se comprueba en origen ficticio, restauración completa y restauración por replay selectivo. El primer restore con `--no-acl` tiene que negar la lectura del actor con concesión por columna. El catálogo sintético pasa de siete a doce propiedades verificadas, incorporando capacidades explícitas de ambos roles.
+
+Esta prueba demuestra que el `pg_dump` sintético conserva esas ACL y que se pueden reproducir en PostgreSQL 17. **No llena automáticamente las lagunas del catálogo de huellas v1 de una copia real**; esas verificaciones siguen pendientes, al igual que la continuidad operativa Auth/Storage/Vault y los accesos por rol de IBERFIT en un destino recuperado.
