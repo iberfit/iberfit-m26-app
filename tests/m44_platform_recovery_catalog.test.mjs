@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {readFile} from 'node:fs/promises';
+import {ACCESS_SCHEMA,ACCESS_CATEGORIES,validateAccessCatalog,compareAccessCatalog} from '../scripts/ops/m44_platform_recovery_compare.mjs';
 import {CATEGORIES,SCHEMA,validatePlatformCatalog,
  comparePlatformCatalog,certifyPlatformCatalog} from '../scripts/ops/m44_platform_recovery_compare.mjs';
 
@@ -117,5 +118,71 @@ test('catalog file evidence refuses symlinks, hardlinks and readable-by-others f
    chmodSync(recovered,0o600);
   }
   assert.equal(run(source,recovered).status,0);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+
+const accessSnapshot=()=>Object.fromEntries([
+ ['schema',ACCESS_SCHEMA],...ACCESS_CATEGORIES.map((k,i)=>[k,fakeHash(i+100)])
+]);
+test('versioned sidecar hashes schema, column and database ACL without exposing identifiers',async()=>{
+ const sql=await readFile('scripts/ops/m44_access_acl_supplement_v1.sql','utf8');
+ for(const key of ACCESS_CATEGORIES)assert.match(sql,new RegExp("'"+key+"'"));
+ for(const key of ['pg_namespace','nspacl','pg_attribute','attacl','pg_database','datacl','current_database()'])
+  assert.ok(sql.includes(key),key);
+ assert.match(sql,/sha256\(/);
+ assert.doesNotMatch(sql,/\b(?:UPDATE|TRUNCATE|DELETE|DROP|CREATE|ALTER|GRANT|REVOKE)\s+(?:FROM|INTO|TABLE|DATABASE|SCHEMA|ON)\b/i);
+ assert.doesNotMatch(sql,/\b(?:rolpassword|auth\.users|vault\.secrets|storage\.objects)\b/i);
+});
+test('every ACL sidecar drift is detected independently and never certifies platform recovery',()=>{
+ const source=accessSnapshot();
+ assert.equal(validateAccessCatalog(source),true);
+ const pass=compareAccessCatalog(source,{...source});
+ assert.equal(pass.aclSupplementParity,true);
+ assert.equal(pass.effectivePrivilegesVerified,false);
+ assert.equal(pass.platformRecoveryVerified,false);
+ for(const key of ACCESS_CATEGORIES){
+  const dest={...source,[key]:fakeHash(555)};
+  const delta=compareAccessCatalog(source,dest);
+  assert.deepEqual(delta.mismatchCategories,[key]);
+  assert.equal(delta.aclSupplementParity,false);
+  assert.equal(delta.platformRecoveryVerified,false);
+ }
+ for(const bad of [null,{},[],{...source,schema:SCHEMA},
+  {...source,column_acl:'x'.repeat(64)},{...source,unexpected:fakeHash(11)}])
+  assert.throws(()=>validateAccessCatalog(bad),/M44_PLATFORM_CATALOG_ACCESS_/);
+});
+test('legacy catalog CLI retains 2-path format; 4-path sidecar is strict and private',async()=>{
+ const {mkdtempSync,writeFileSync,rmSync}=await import('node:fs');
+ const os=await import('node:os'),path=await import('node:path');
+ const {spawnSync}=await import('node:child_process');
+ const dir=mkdtempSync(path.join(os.tmpdir(),'iberfit-m44-access-sidecar-'));
+ const files=['src-v1.json','dst-v1.json','src-acl.json','dst-acl.json']
+  .map(name=>path.join(dir,name));
+ const run=(...args)=>spawnSync(process.execPath,['scripts/ops/m44_platform_recovery_compare.mjs',...args],
+  {encoding:'utf8',timeout:10000});
+ try{
+  for(let i=0;i<2;i++)writeFileSync(files[i],JSON.stringify(catalog()),{mode:0o600});
+  for(let i=2;i<4;i++)writeFileSync(files[i],JSON.stringify(accessSnapshot()),{mode:0o600});
+  const original=run(...files.slice(0,2));
+  assert.equal(original.status,0,original.stderr);
+  assert.match(original.stdout,
+   /IBERFIT_PLATFORM_CATALOG_PARITY_ONLY:true:hosted_auth_NOT_certified/);
+  const all=run(...files);
+  assert.equal(all.status,0,all.stderr);
+  assert.match(all.stdout,/aclSupplementParity:true:hosted_auth_NOT_certified/);
+  const missing=run(...files.slice(0,3));
+  assert.notEqual(missing.status,0);
+  assert.match(missing.stderr,/INPUT_COUNT_INVALID/);
+  const duplicate=run(files[0],files[1],files[2],files[2]);
+  assert.notEqual(duplicate.status,0);
+  assert.match(duplicate.stderr,/DISTINCT_FILES_REQUIRED/);
+  const changed={...accessSnapshot(),schema_acl:fakeHash(887)};
+  writeFileSync(files[3],JSON.stringify(changed),{mode:0o600});
+  const drift=run(...files);
+  assert.notEqual(drift.status,0);
+  assert.match(drift.stderr,/M44_PLATFORM_CATALOG_ACCESS_MISMATCH:schema_acl/);
+  assert.equal(drift.stderr.includes(dir),false);
+  assert.doesNotMatch(drift.stderr,/00000000000000000000000/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
