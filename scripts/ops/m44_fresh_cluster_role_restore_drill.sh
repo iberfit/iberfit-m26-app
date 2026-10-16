@@ -88,7 +88,12 @@ docker run --rm --network "container:$src" \
    elif grep -Eqi 'could not connect|connection refused|authentication failed|pg_hba.conf|timeout' "$work/private-export.log"; then
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_DB_CONNECTION_FAILED' >&2
    else
+     # A bounded diagnostics string from an entirely synthetic PostgreSQL
+     # cluster. Strip numbers, punctuation, paths and special characters
+     # before logging to prevent leaking raw SQL, paths or secrets.
+     hint="$(head -n 2 "$work/private-export.log" | sed -E 's/[^[:alpha:] ]/ /g' | tr -s ' ' | cut -c 1-140)"
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_FAILED' >&2
+     printf 'IBERFIT_M44_FRESH_CLUSTER_SYNTHETIC_ERROR_CLASS:%s\n' "$hint" >&2
    fi
    exit 64
  }
