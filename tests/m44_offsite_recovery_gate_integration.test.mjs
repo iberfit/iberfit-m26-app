@@ -71,6 +71,11 @@ test('even valid real-run and Drive archive evidence cannot authorize incomplete
   })};
   if(url.includes('/compare/'))return {ok:true,json:async()=>({status:'ahead',behind_by:0})};
   if(url.includes('alt=media'))return {ok:true,body:new ReadableStream({start(c){c.enqueue(bytes);c.close();}})};
+  if(url.includes('drive/v3/files/expected-folder?'))return {ok:true,json:async()=>({
+   id:'expected-folder',mimeType:'application/vnd.google-apps.folder',
+   trashed:false,shared:false,
+   permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]
+  })};
   if(url.includes('drive/v3/files/'))return {ok:true,json:async()=>({
    id:'expected-file',trashed:false,shared:false,mimeType:'application/zip',
    size:String(bytes.length),parents:['expected-folder'],
