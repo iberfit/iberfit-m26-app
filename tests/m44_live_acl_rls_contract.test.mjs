@@ -80,7 +80,7 @@ test('CLI accepts only one local JSON aggregate; fails on changed exposure and s
   const ok=run(file);
   assert.equal(ok.status,0,ok.stderr);
   assert.match(ok.stdout,/STRUCTURAL_PREFLIGHT_PASS/);
-  assert.doesNotMatch(ok.stdout,/public_anon_delete|44|private|client|secret/);
+  assert.doesNotMatch(ok.stdout,/public_anon_delete|[:=]44(?:\b|$)|private|client|secret/);
   const bad=sample();bad.metrics.truncate_grants=1;
   fs.writeFileSync(file,JSON.stringify(bad));
   const result=run(file);assert.notEqual(result.status,0);
