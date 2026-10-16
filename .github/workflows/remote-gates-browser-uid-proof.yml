@@ -1,0 +1,50 @@
+name: IBERFIT Remote Gates Browser UID Proof
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - '.github/workflows/remote-gates.yml'
+      - '.github/workflows/remote-gates-browser-uid-proof.yml'
+      - 'tests/m26_shared_qa_auth_concurrency_contract.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  unprivileged-playwright:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --user 1000:1000
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify unprivileged runner and install immutable dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "if(process.getuid()!==1000)throw new Error('QA_FIREFOX_NONROOT_UID_REQUIRED')"
+          npm ci
+      - name: Launch and close Chromium WebKit Firefox without QA secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {chromium,webkit,firefox} from '@playwright/test';
+          if(process.getuid()!==1000)throw new Error('QA_BROWSER_PROOF_MUST_NOT_RUN_AS_ROOT');
+          for(const [name,engine] of Object.entries({chromium,webkit,firefox})){
+            const browser=await engine.launch();
+            await browser.close();
+            console.log('QA_NONROOT_BROWSER_OK:'+name);
+          }
+          NODE

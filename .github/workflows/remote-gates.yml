@@ -91,6 +91,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      # Firefox explicitly refuses to launch as root in this image.
+      # Run ALL authenticated browser checks as non-root; never skip Firefox.
+      options: --user 1000:1000
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     concurrency:
