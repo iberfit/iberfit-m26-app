@@ -103,3 +103,27 @@ test('synthetic drill remains valid POSIX sh after any source change',()=>{
   {encoding:'utf8',env:{PATH:process.env.PATH},timeout:7000});
  assert.equal(result.status,0,result.stderr);
 });
+
+test('schema USAGE and per-column SELECT privileges are restored, not inferred from RLS',()=>{
+ assert.match(sh,/CREATE ROLE iberfit_m44_fixture_column_reader NOLOGIN/);
+ assert.match(sh,/CREATE ROLE iberfit_m44_fixture_schema_denied NOLOGIN/);
+ assert.match(sh,/GRANT SELECT\(content\) ON m44_acl_fixture\.exercise TO iberfit_m44_fixture_column_reader/);
+ assert.match(sh,/GRANT SELECT ON m44_acl_fixture\.exercise TO iberfit_m44_fixture_schema_denied/);
+ assert.match(sh,/CREATE POLICY m44_column_reader_scope/);
+ assert.match(sh,/CREATE POLICY m44_schema_denied_open/);
+ assert.match(sh,/has_column_privilege/);
+ assert.match(sh,/has_schema_privilege/);
+ assert.match(sh,/NOT has_schema_privilege/);
+ assert.match(sh,/NOT has_column_privilege/);
+ assert.match(sh,/'1,1,1,1,1,1,1,1,1,1,1,1'/);
+ assert.match(sh,/SET ROLE iberfit_m44_fixture_column_reader/);
+ assert.match(sh,/SET ROLE iberfit_m44_fixture_schema_denied/);
+ assert.match(sh,/SELECT tenant_id FROM m44_acl_fixture\.exercise/);
+ assert.match(sh,/permission denied for schema/);
+ assert.match(sh,/permission denied for \(table\|column\)/);
+ assert.match(sh,/verify_fine_grants "\$src"/);
+ assert.match(sh,/verify_fine_grants "\$repaired"/);
+ assert.match(sh,/verify_fine_grants "\$stripped"/);
+ assert.match(sh,/IBERFIT_M44_SCHEMA_COLUMN_ACL_FULL_RESTORE_SYNTHETIC_VERIFIED/);
+ assert.match(sh,/IBERFIT_M44_SCHEMA_COLUMN_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED/);
+});
