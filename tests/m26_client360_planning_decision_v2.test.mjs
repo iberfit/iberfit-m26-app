@@ -62,7 +62,7 @@ test('client planning overview preserves delivery ownership and reports supervis
           visible:true,
           canClientExecute:true,
           canClientStart:true,
-          session:{blocks:[{name:'Remo',sets:3,reps:'10'}]},
+          session:{id:'session-app',clientId:'client-1',status:'disponible',deliveryOwnership:'guided_in_app',deliveryModality:'guiada_en_app',clientVisibilityLevel:'full',blocks:[{type:'exercise',exerciseId:'remo',name:'Remo',sets:3,reps:'10'}]},
           calendarVisible:false,
         },
       ],
