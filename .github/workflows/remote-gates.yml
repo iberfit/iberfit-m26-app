@@ -147,7 +147,19 @@ jobs:
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: npm run quality:rc64:auth-smoke
+        # Firefox's Linux user-namespace sandbox is blocked by the Docker
+        # seccomp profile in this job; run it on native Linux below instead.
+        # All six Chromium/WebKit projects remain mandatory here.
+        run: |
+          set -euo pipefail
+          node qa/rc64/build-authenticated-surface.mjs
+          npx playwright test --config playwright.authenticated.config.mjs \
+            --project=authenticated-readonly-chromium \
+            --project=authenticated-readonly-tablet-chromium \
+            --project=authenticated-readonly-tablet-landscape-chromium \
+            --project=authenticated-readonly-mobile-chromium \
+            --project=authenticated-readonly-webkit \
+            --project=authenticated-readonly-mobile-webkit
 
       - name: Reproducir P0 login colgado y certificar recuperación sin freeze
         run: npm run quality:p0:auth-no-freeze
@@ -184,6 +196,53 @@ jobs:
           path: recovery/rc64-authenticated-visual/**
           if-no-files-found: error
           retention-days: 7
+
+  # Firefox remains a mandatory authenticated QA test, but native Ubuntu
+  # supports its user namespace sandbox whereas the pinned CI job container
+  # denies clone(CLONE_NEWUSER) with EPERM. Do NOT disable Firefox sandbox.
+  firefox-native-auth-smoke:
+    needs: preflight
+    if: ${{ github.event_name == 'push' || inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
+    runs-on: ubuntu-24.04
+    environment: m26-canary-readonly
+    timeout-minutes: 20
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install deterministic app dependencies
+        run: npm ci
+      - name: Install native Firefox runtime and platform libraries
+        run: npx playwright install --with-deps firefox
+      - name: Authenticate Firefox on QA with sandbox active
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -z "${MOZ_DISABLE_CONTENT_SANDBOX:-}"
+          test -z "${MOZ_DISABLE_GMP_SANDBOX:-}"
+          test -z "${MOZ_DISABLE_RDD_SANDBOX:-}"
+          node qa/rc64/build-authenticated-surface.mjs
+          npx playwright test --config playwright.authenticated.config.mjs \
+            --project=authenticated-readonly-firefox
+          echo 'IBERFIT_QA_FIREFOX_NATIVE_SANDBOX_AUTHENTICATED_VERIFIED'
 
   exercise-media-broker-probe:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation == 'EXERCISE_MEDIA_BROKER_PROBE' && github.ref == 'refs/heads/canary/rc74-4' }}
