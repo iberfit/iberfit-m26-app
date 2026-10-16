@@ -26,7 +26,8 @@ function utc(s){
   err('TIMESTAMP_INVALID');
  return t;
 }
-export function measureOffsiteTimeline(evidence){
+export function measureOffsiteTimeline(evidence,{nowMs=Date.now()}={}){
+ if(!Number.isFinite(nowMs)||nowMs<=0)err('CLOCK_INVALID');
  if(!exact(evidence,['schema','workflow','drive'])||evidence.schema!==SCHEMA)
   err('SCHEMA_INVALID');
  const w=evidence.workflow,d=evidence.drive;
@@ -43,6 +44,7 @@ export function measureOffsiteTimeline(evidence){
  if(d.shared!==false||d.ownerCount!==1)err('CLAIMED_PRIVACY_INCORRECT');
  const start=utc(w.startedAt),end=utc(w.finishedAt);
  const created=utc(d.createdAt),verified=utc(d.verifiedAt);
+ if(start>nowMs+60000||verified>nowMs+60000)err('EVENT_FROM_FUTURE');
  // Recording an external copy after the workflow is meaningful only with
  // ordered timestamps. Never accept an arbitrary clock or future timestamps.
  if(end<start||created<end||verified<created||
