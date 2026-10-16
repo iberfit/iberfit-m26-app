@@ -61,7 +61,7 @@ const SESSION_COPY=Object.freeze({
     eyebrow:'IBERFIT Presencial · Sesión autónoma',
     headline:'Sesión preparada para ejecutar',
     description:'Esta sesión concreta está publicada para ejecución autónoma aunque tu servicio sea presencial.',
-    capabilities:['Live Workout','RIR / RPE','Descansos','Offline'],
+    capabilities:['Entrenamiento guiado','RIR / RPE','Descansos','Sin conexión'],
   }),
   presencial_live_online:Object.freeze({
     eyebrow:'IBERFIT Presencial · Online en directo',
@@ -79,7 +79,7 @@ const SESSION_COPY=Object.freeze({
     eyebrow:'IBERFIT Híbrido · Hoy autónomo',
     headline:'Hoy entrenas desde IBERFIT',
     description:'La sesión autónoma conserva la misma progresión del plan híbrido y habilita registro, RIR/RPE y descansos desde la app.',
-    capabilities:['Live Workout','RIR / RPE','Descansos','Offline'],
+    capabilities:['Entrenamiento guiado','RIR / RPE','Descansos','Sin conexión'],
   }),
   hybrid_live_online:Object.freeze({
     eyebrow:'IBERFIT Híbrido · Online en directo',
@@ -88,10 +88,10 @@ const SESSION_COPY=Object.freeze({
     capabilities:['Coach en directo','Registro compartido','Feedback'],
   }),
   online_autonomous:Object.freeze({
-    eyebrow:'IBERFIT Online · Live Workout',
+    eyebrow:'IBERFIT Online · Entrenamiento guiado',
     headline:'Tu entrenamiento, guiado paso a paso',
     description:'Registra cargas y repeticiones con mínima fricción. IBERFIT conserva el histórico para progresión y feedback asíncrono del Coach.',
-    capabilities:['Live Workout','RIR / RPE','Descansos','Offline','Feedback'],
+    capabilities:['Entrenamiento guiado','RIR / RPE','Descansos','Sin conexión','Feedback'],
   }),
   online_live_coach:Object.freeze({
     eyebrow:'IBERFIT Online · Coach en directo',
@@ -152,7 +152,7 @@ export function resolveSessionExperience({
     asyncFeedback:contract==='online'||contract==='hibrido'||remote,
     offlineEligible:liveWorkout&&!remote,
     requiresConnection:remote,
-    primaryLabel:liveWorkout?'Comenzar Live Workout':resolvedOwnership==='live_online'?'Sesión online con tu Coach':'Sesión con tu Coach',
+    primaryLabel:liveWorkout?'Comenzar entrenamiento':resolvedOwnership==='live_online'?'Sesión online con tu Coach':'Sesión con tu Coach',
     primaryEnabled:liveWorkout,
   });
 }
