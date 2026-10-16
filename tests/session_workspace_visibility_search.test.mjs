@@ -6,6 +6,7 @@ import {renderSessionsRoute} from '../src/m26/modules/route-render.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
 import {renderSessionBuilder,renderSessionExerciseResults,renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 import {createExecution,startExecution,pauseExecution} from '../src/m26/workflows/session-execution.js';
+import {createSessionController} from '../src/m26/workflows/session-controller.js';
 import {__applicationInternals} from '../src/m26/app/application.js';
 
 const makeSession=(id,status,extra={})=>({
@@ -96,4 +97,41 @@ test('Entrenamiento guiado permite guardar y salir sin bloquear todo con un moda
   assert.match(renderGuidedExecution({execution,session:draft,catalog}),/Guardar y salir/);
   pauseExecution(execution);
   assert.match(renderGuidedExecution({execution,session:draft,catalog}),/Guardar y salir/);
+});
+
+test('Al escribir letras sucesivas no se desmonta el input de búsqueda del Coach',()=>{
+  const listeners=new Map();
+  const results={innerHTML:''};
+  const search={
+    value:'',
+    closest(selector){return selector==='[data-session-search]'?this:null;},
+  };
+  const root={
+    addEventListener(type,fn){listeners.set(type,fn);},
+    removeEventListener(type){listeners.delete(type);},
+    querySelector(selector){return selector==='[data-session-search-results]'?results:null;},
+  };
+  let query='',searchLimit=36,fullRenders=0;
+  const draft=createSessionDraft({clientId:'client-1'});
+  const ctrl=createSessionController({
+    root,
+    liveTelemetryController:{stop:async()=>{}},
+    getContext:()=>({
+      draft,catalog,query,searchLimit,role:'coach',
+      setQuery(next){query=next;},
+      setSearchLimit(next){searchLimit=next;},
+    }),
+    render:()=>{fullRenders++;},
+  });
+  ctrl.mount();
+  for(const value of ['P','PR','PRE']){
+    search.value=value;
+    listeners.get('input')({target:search});
+    assert.match(results.innerHTML,/ejercicios encontrados/);
+    assert.equal(query,value);
+    assert.equal(fullRenders,0,'El shell no se re-renderiza con cada letra');
+    assert.ok(listeners.has('input'),'El evento sigue escuchando el input original');
+  }
+  assert.match(results.innerHTML,/Prensa de piernas/);
+  ctrl.destroy();
 });
