@@ -50,6 +50,7 @@ sql "$src" >"$work/private-setup.log" 2>&1 <<'SQL'
 CREATE ROLE iberfit_m44_fresh_owner NOLOGIN;
 CREATE ROLE iberfit_m44_fresh_reader NOLOGIN;
 CREATE ROLE iberfit_m44_fresh_coach NOLOGIN;
+CREATE ROLE iberfit_m44_fresh_intruder NOLOGIN;
 GRANT iberfit_m44_fresh_reader TO iberfit_m44_fresh_coach;
 CREATE SCHEMA iberfit_m44_fresh_fixture AUTHORIZATION iberfit_m44_fresh_owner;
 CREATE TABLE iberfit_m44_fresh_fixture.rows(id integer PRIMARY KEY, tenant_id integer NOT NULL, label text NOT NULL);
@@ -62,6 +63,18 @@ GRANT USAGE ON SCHEMA iberfit_m44_fresh_fixture TO iberfit_m44_fresh_reader;
 GRANT SELECT ON iberfit_m44_fresh_fixture.rows TO iberfit_m44_fresh_reader;
 ALTER DEFAULT PRIVILEGES FOR ROLE iberfit_m44_fresh_owner
  IN SCHEMA iberfit_m44_fresh_fixture GRANT SELECT ON TABLES TO iberfit_m44_fresh_reader;
+-- A high-risk SECURITY DEFINER entry point must keep its owner,
+-- explicit search_path and restricted EXECUTE grant after pg_restore.
+CREATE FUNCTION iberfit_m44_fresh_fixture.visible_row_count()
+ RETURNS integer LANGUAGE sql SECURITY DEFINER
+ SET search_path = pg_catalog, iberfit_m44_fresh_fixture
+ AS 'SELECT count(*)::integer FROM iberfit_m44_fresh_fixture.rows WHERE tenant_id=1';
+ALTER FUNCTION iberfit_m44_fresh_fixture.visible_row_count()
+ OWNER TO iberfit_m44_fresh_owner;
+REVOKE ALL ON FUNCTION iberfit_m44_fresh_fixture.visible_row_count() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION iberfit_m44_fresh_fixture.visible_row_count()
+ TO iberfit_m44_fresh_coach;
+GRANT USAGE ON SCHEMA iberfit_m44_fresh_fixture TO iberfit_m44_fresh_intruder;
 SQL
 # Assert the client shares only the source's isolated namespace and can
 # reach the synthetic PostgreSQL server before attempting the roles dump.
@@ -104,7 +117,7 @@ docker run --rm --network "container:$src" \
  -Fc -n iberfit_m44_fresh_fixture -f /work/data.pgcustom \
  >>"$work/private-export.log" 2>&1 ||
  { echo 'IBERFIT_M44_FRESH_CLUSTER_DUMP_FAILED' >&2; exit 65; }
-for role in owner reader coach; do
+for role in owner reader coach intruder; do
  grep -Eq "^CREATE ROLE iberfit_m44_fresh_$role;$" "$work/global-roles.sql" ||
   { echo 'IBERFIT_M44_FRESH_CLUSTER_ROLE_MISSING' >&2; exit 66; }
 done
@@ -122,6 +135,7 @@ sql "$dst" >"$work/private-target.log" 2>&1 <<'SQL'
 CREATE ROLE iberfit_m44_fresh_owner NOLOGIN;
 CREATE ROLE iberfit_m44_fresh_reader NOLOGIN;
 CREATE ROLE iberfit_m44_fresh_coach NOLOGIN;
+CREATE ROLE iberfit_m44_fresh_intruder NOLOGIN;
 GRANT iberfit_m44_fresh_reader TO iberfit_m44_fresh_coach;
 SQL
 docker run --rm --network "container:$dst" \
@@ -130,7 +144,7 @@ docker run --rm --network "container:$dst" \
  /work/data.pgcustom >"$work/private-restore.log" 2>&1 ||
  { echo 'IBERFIT_M44_FRESH_CLUSTER_RESTORE_FAILED' >&2; exit 68; }
 check_cluster() {
- local db="$1" structure count member
+ local db="$1" structure count member definer noaccess privileges
  structure="$(sql "$db" -c "
  SELECT concat_ws(',',
   (n.nspowner='iberfit_m44_fresh_owner'::regrole)::int,
@@ -150,10 +164,40 @@ check_cluster() {
  ) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='iberfit_m44_fresh_fixture' AND c.relname='rows';")" || return 1
  [[ "$structure" == '1,1,1,1,1,1,1' ]] || return 1
+ # Record *effective* execution rights and the dangerous owner/security
+ # combination without printing function bodies or private SQL.
+ privileges="$(sql "$db" -c "
+ SELECT concat_ws(',',
+  p.prosecdef::int,
+  (p.proowner='iberfit_m44_fresh_owner'::regrole)::int,
+  (p.proconfig @> ARRAY['search_path=pg_catalog, iberfit_m44_fresh_fixture'])::int,
+  has_function_privilege('iberfit_m44_fresh_coach',p.oid,'EXECUTE')::int,
+  (NOT has_function_privilege('iberfit_m44_fresh_reader',p.oid,'EXECUTE'))::int,
+  (NOT has_function_privilege('iberfit_m44_fresh_intruder',p.oid,'EXECUTE'))::int,
+  (NOT has_function_privilege('PUBLIC',p.oid,'EXECUTE'))::int
+ ) FROM pg_proc p
+ WHERE p.oid='iberfit_m44_fresh_fixture.visible_row_count()'::regprocedure;")" || return 1
+ [[ "$privileges" == '1,1,1,1,1,1,1' ]] || return 1
+ noaccess="$(sql "$db" -c "
+ SELECT concat_ws(',',
+  (NOT rolcanlogin)::int,(NOT rolbypassrls)::int,(NOT rolsuper)::int)
+ FROM pg_roles WHERE rolname LIKE 'iberfit_m44_fresh_%'
+ ORDER BY rolname;")" || return 1
+ [[ "$(printf '%s\n' "$noaccess" | grep -cx '1,1,1')" == 4 ]] || return 1
  count="$(sql "$db" -c 'SET ROLE iberfit_m44_fresh_reader; SELECT count(*) FROM iberfit_m44_fresh_fixture.rows;')" || return 1
  [[ "${count##*$'\n'}" == 1 ]] || return 1
  member="$(sql "$db" -c 'SET ROLE iberfit_m44_fresh_coach; SELECT count(*) FROM iberfit_m44_fresh_fixture.rows;')" || return 1
  [[ "${member##*$'\n'}" == 1 ]] || return 1
+ definer="$(sql "$db" -c 'SET ROLE iberfit_m44_fresh_coach; SELECT iberfit_m44_fresh_fixture.visible_row_count();')" || return 1
+ [[ "${definer##*$'\n'}" == 1 ]] || return 1
+ # SELECT is denied at function permission, not only at RLS or schema level.
+ for forbidden in iberfit_m44_fresh_reader iberfit_m44_fresh_intruder; do
+  if sql "$db" -c "SET ROLE $forbidden; SELECT iberfit_m44_fresh_fixture.visible_row_count();" \
+       > "$work/negative-execute-private.log" 2>&1; then
+    return 1
+  fi
+  grep -qi 'permission denied for function' "$work/negative-execute-private.log" || return 1
+ done
  [[ "$(sql "$db" -c "SELECT string_agg(id::text||':'||tenant_id::text||':'||label,',' ORDER BY id) FROM iberfit_m44_fresh_fixture.rows;")" == '1:1:visible-synthetic,2:2:hidden-synthetic' ]]
 }
 check_cluster "$src" ||
