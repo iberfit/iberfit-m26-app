@@ -69,8 +69,14 @@ export async function verifyProductionBackupSafety({projectRef,accessToken,
  const token=await acquireDriveAccessToken({accessToken:driveAccessToken,
   clientId:oauthClientId,clientSecret:oauthClientSecret,
   refreshToken:oauthRefreshToken,fetchImpl});
- return verifyIndependentOffsiteRecovery({sourceSha,runId,fileId,driveFolderId,
+ const proof=await verifyIndependentOffsiteRecovery({sourceSha,runId,fileId,driveFolderId,
   githubToken,driveAccessToken:token,fetchImpl,nowMs});
+ // GitHub restore + Drive digest does not establish Supabase Auth, grants,
+ // owner/role reconstruction or compatible managed configuration.
+ // Never authorize PROD DDL on ciphertext availability alone.
+ if(proof.platformRecoveryVerified!==true)
+  throw Error(prefix+'PLATFORM_RECOVERY_UNVERIFIED');
+ return proof;
 }
 if(process.argv[1]?.endsWith('/m44_prod_backup_inventory_guard.mjs')){
  verifyProductionBackupSafety({projectRef:process.env.PROD_SUPABASE_REF,
