@@ -18,7 +18,7 @@ const PREFIX='IBERFIT_EDGE_RECOVERY_';
 export function loadInventory(file=INVENTORY){
   const obj=JSON.parse(fs.readFileSync(file,'utf8'));
   if(obj?.schema!==EXPECTED_SCHEMA || obj.source_project_ref!==PRODUCTION_REF ||
-     typeof obj.capture_date_utc!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(obj.capture_date_utc)||
+     typeof obj.capture_date_utc!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(obj.capture_date_utc)||
      !Array.isArray(obj.sources)||obj.sources.length!==15)
     throw Error(PREFIX+'MANIFEST_INVALID');
   const names=new Set();
@@ -43,7 +43,7 @@ export function loadInventory(file=INVENTORY){
 }
 
 function gitBlobSha1(bytes){
- return createHash('sha1').update(Buffer.from(`blob ${bytes.length}\\0`)).update(bytes).digest('hex');
+ return createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex');
 }
 
 export function validateLocalSources(inventory=loadInventory(),root=path.resolve(HERE,'../..')){
@@ -63,12 +63,12 @@ export function validateLocalSources(inventory=loadInventory(),root=path.resolve
     if(item.source_state==='historical_live_snapshot_not_deploy_target'){
       const canonical=fs.readFileSync(path.join(rootReal,'supabase/functions/iberfit-client-onboarding-v1/index.ts'),'utf8');
       if(!canonical.includes('M26_CLIENT_ONBOARDING_RETIRED')||
-         !/status\\s*:\\s*410/.test(canonical)||
+         !/status\s*:\s*410/.test(canonical)||
          canonical===bytes.toString('utf8'))
         throw Error(PREFIX+'ONBOARDING_RETIRED_BOUNDARY_INVALID');
     }
     if(['noop','iberfit-one-time-create-juan-v1','iberfit-p0-email-delivery-probe-20260911'].includes(item.slug)){
-      if(!/status\\s*:\\s*410/.test(bytes.toString('utf8')))
+      if(!/status\s*:\s*410/.test(bytes.toString('utf8')))
         throw Error(PREFIX+'RETIRED_ENDPOINT_REACTIVATION:'+item.slug);
     }
     if(/(?:eyJ[a-zA-Z0-9_-]{70,}|sb_secret_[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{35})/.test(bytes.toString('utf8')))
