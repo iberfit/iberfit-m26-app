@@ -79,6 +79,17 @@ function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
   });
 }
 
+// An acknowledged local draft save is not the same as a remote copy.
+// Present only persistence guarantees actually established by the store.
+export function sessionDraftSaveOutcome(persistence=null){
+  const local=persistence?.local===true;
+  const remote=persistence?.remote===true;
+  if(local&&remote)return Object.freeze({status:'success',message:'Borrador guardado en este dispositivo y sincronizado correctamente.'});
+  if(local)return Object.freeze({status:'pending',message:'Borrador guardado en este dispositivo. La sincronización remota no está confirmada; vuelve a guardar con conexión antes de cambiar de dispositivo.'});
+  if(remote)return Object.freeze({status:'retry',message:'Borrador sincronizado, pero no se pudo confirmar una copia local en este dispositivo. Puedes volver a guardarlo.'});
+  return Object.freeze({status:'error',message:'No se ha confirmado el guardado del borrador. Mantén esta pantalla abierta y vuelve a intentarlo.'});
+}
+
 export function manualSessionSyncOutcome(execution,result={},error=null,{role=''}={}){
   const errorSpecific=sessionCommandFailureOutcome(error,{role,phase:'sync'});
   if(errorSpecific)return errorSpecific;
@@ -1038,7 +1049,7 @@ async function click(event){
     else if(outcome.ok)await persistContext(getContext());
     // On invalid preview, never replace the actionable validation message with
     // a secondary local-storage error. Autosave remains scheduled separately.
-    if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){if(action==='start'&&context?.execution?.status==='active'){
+    if(outcome.ok&&action==='save-draft'&&actionState){const confirmation=sessionDraftSaveOutcome(getContext()?.draftPersistence);actionState.status=confirmation.status;actionState.message=confirmation.message;}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){if(action==='start'&&context?.execution?.status==='active'){
       // A committed start must remain authoritative even if the UI refresh
       // throws. No second SESION_INICIAR with another operation ID.
       if(actionState){
