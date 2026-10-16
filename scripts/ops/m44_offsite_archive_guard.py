@@ -146,58 +146,66 @@ def inventory_rows(payload):
     return result
 
 
-def validate_enriched_archive(base, archived_members):
-    before = inventory_rows(protected_json(base / "storage-inventory.json"))
-    after = inventory_rows(protected_json(base / "storage-post-inventory.json"))
-    require(before == after, "INVENTORY_CHANGED_DURING_EXPORT")
+def validate_storage_manifest(base, archived_members):
+    # Every historical generation has a Storage manifest inside its
+    # authenticated TAR, even if it predates before/after inventories.
     manifest = protected_json(base / "storage" / "manifest.json")
     require(isinstance(manifest, dict)
-            and manifest.get("schema") == "iberfit.storage.backup.v1"
-            and manifest.get("project") == "pjhmrhejsoofmouedavw"
-            and isinstance(manifest.get("objects"), list),
+            and set(manifest) == {"schema", "project", "objects"}
+            and manifest["schema"] == "iberfit.storage.backup.v1"
+            and manifest["project"] == "pjhmrhejsoofmouedavw"
+            and isinstance(manifest["objects"], list)
+            and len(manifest["objects"]) <= MAX_ITEMS,
             "MANIFEST_INVALID")
-    objects = manifest["objects"]
-    require(len(objects) == len(before), "MANIFEST_COUNT_MISMATCH")
     seen = set()
-    for idx, x in enumerate(objects):
+    expected_members = set()
+    result = {}
+    for idx, x in enumerate(manifest["objects"]):
         require(isinstance(x, dict)
-                and isinstance(x.get("bucket"), str) and bool(x["bucket"])
-                and isinstance(x.get("name"), str) and bool(x["name"])
-                and x.get("relative") == "files/" + str(idx).zfill(6) + ".bin"
-                and type(x.get("bytes")) is int and x["bytes"] >= 0
-                and isinstance(x.get("sha256"), str)
-                and HEX64.fullmatch(x["sha256"]), "MANIFEST_ENTRY_INVALID")
-        k = (x["bucket"], x["name"])
-        require(k not in seen and k in before, "MANIFEST_OBJECT_MISMATCH")
-        seen.add(k)
-        size = before[k][3]
-        require(size is None or int(size) == x["bytes"],
-                "STORAGE_SIZE_MISMATCH")
-    require(seen == set(before), "INVENTORY_MANIFEST_MISMATCH")
+                and set(x) == {"bucket", "name", "relative", "bytes", "sha256"}
+                and isinstance(x["bucket"], str) and bool(x["bucket"])
+                and isinstance(x["name"], str) and bool(x["name"])
+                and x["relative"] == "files/" + str(idx).zfill(6) + ".bin"
+                and type(x["bytes"]) is int
+                and 0 <= x["bytes"] <= MAX_STORAGE_OBJECT_BYTES
+                and isinstance(x["sha256"], str)
+                and HEX64.fullmatch(x["sha256"]),
+                "MANIFEST_ENTRY_INVALID")
+        key = (x["bucket"], x["name"])
+        require(key not in seen, "MANIFEST_OBJECT_DUPLICATE")
+        seen.add(key)
+        expected_members.add("storage/" + x["relative"])
+        result[key] = x["bytes"]
 
-    # A catalog entry and two matching inventories do not prove that the
-    # recovered Storage byte files exist or match their declared checksums.
-    # Verify the EXACT tar member set first: neither missing nor orphaned
-    # blobs may be accepted as a successfully unpacked enriched archive.
-    expected_members = {
-        "storage/" + item["relative"] for item in objects
-    }
+    # Never accept a successful historical unpack with missing, extra or
+    # tampered Storage bytes just because it lacks enriched inventories.
     actual_members = {
         name for name in archived_members if name.startswith("storage/files/")
     }
     require(actual_members == expected_members, "STORAGE_FILES_SET_MISMATCH")
-
-    for item in objects:
-        require(item["bytes"] <= MAX_STORAGE_OBJECT_BYTES,
-                "STORAGE_OBJECT_LIMIT_EXCEEDED")
-        target = base / "storage" / item["relative"]
+    for idx, x in enumerate(manifest["objects"]):
+        target = base / "storage" / x["relative"]
         require(target.is_file() and not target.is_symlink(),
                 "STORAGE_FILE_NOT_REGULAR")
-        require(target.stat().st_size == item["bytes"],
+        require(target.stat().st_size == x["bytes"],
                 "STORAGE_FILE_SIZE_MISMATCH")
-        require(hash_file(target) == item["sha256"],
+        require(hash_file(target) == x["sha256"],
                 "STORAGE_FILE_CHECKSUM_MISMATCH")
+    return result
 
+
+def validate_enriched_archive(base, manifest_sizes):
+    before = inventory_rows(protected_json(base / "storage-inventory.json"))
+    after = inventory_rows(protected_json(base / "storage-post-inventory.json"))
+    require(before == after, "INVENTORY_CHANGED_DURING_EXPORT")
+    require(len(manifest_sizes) == len(before),
+            "MANIFEST_COUNT_MISMATCH")
+    require(set(manifest_sizes) == set(before),
+            "INVENTORY_MANIFEST_MISMATCH")
+    for key, bytes_count in manifest_sizes.items():
+        size = before[key][3]
+        require(size is None or int(size) == bytes_count,
+                "STORAGE_SIZE_MISMATCH")
     catalog = protected_json(base / "platform-catalog-source.json")
     require(isinstance(catalog, dict) and
             set(catalog) == CATALOG_KEYS | {"schema"} and
@@ -295,11 +303,15 @@ def unpack_tar(archive, directory):
                 "PGCUSTOM_ARCHIVE_INVALID")
         with database_dump.open("rb") as stream:
             require(stream.read(5) == b"PGDMP", "PGCUSTOM_MAGIC_INVALID")
+        # Both legacy and enriched backups carry Storage hashes. The
+        # inventories/catalog are additional guarantees, never a reason
+        # to skip the bytes check on an older authenticated archive.
+        manifest_sizes = validate_storage_manifest(stage, present)
         extension = present.intersection(EXTRA_FILES)
         require(not extension or extension == EXTRA_FILES,
                 "PARTIAL_ENRICHED_ARCHIVE")
         if extension:
-            validate_enriched_archive(stage, present)
+            validate_enriched_archive(stage, manifest_sizes)
         if ROLE_FILE in present:
             require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
             validate_optional_role_archive(stage / ROLE_FILE)
@@ -323,6 +335,7 @@ def unpack_tar(archive, directory):
             raise
     # No unverified snapshot is announced. This marker is only emitted
     # after staging and full publication have both succeeded.
+    print("IBERFIT_OFFSITE_STORAGE_MANIFEST_BYTES_SHA256_VERIFIED")
     if extension:
         print("IBERFIT_OFFSITE_ENRICHED_STORAGE_BYTES_SHA256_VERIFIED")
     print("IBERFIT_OFFSITE_DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED")
