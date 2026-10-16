@@ -259,8 +259,15 @@ def unpack_tar(archive, directory):
                     (stage / name).mkdir(parents=True, exist_ok=True)
                     continue
                 require(member.isfile() and allowed_tar_file(name), "TAR_UNSAFE_ENTRY")
-                limit = (MAX_JSON_BYTES if name in EXTRA_FILES else
-                         MAX_ROLES_BYTES if name == ROLE_FILE else MAX_TAR_BYTES)
+                # Apply producer-compatible limits at the TAR header
+                # BEFORE writing the untrusted member to private staging.
+                # Legacy Storage is still accepted; excessive blobs are not.
+                limit = (MAX_JSON_BYTES
+                         if name in EXTRA_FILES or name == "storage/manifest.json"
+                         else MAX_ROLES_BYTES if name == ROLE_FILE
+                         else MAX_STORAGE_OBJECT_BYTES
+                         if name.startswith("storage/files/")
+                         else MAX_TAR_BYTES)
                 require(0 <= member.size <= limit, "TAR_MEMBER_TOO_LARGE")
                 total += member.size
                 require(total <= MAX_TAR_BYTES and len(present) <= MAX_ITEMS,
@@ -273,6 +280,10 @@ def unpack_tar(archive, directory):
                 with source, open(target, "xb") as output:
                     os.chmod(target, 0o600)
                     shutil.copyfileobj(source, output, length=1024 * 1024)
+                    # A maliciously truncated TAR may have a valid header
+                    # but fewer extracted bytes; never publish it.
+                    require(output.tell() == member.size,
+                            "TAR_MEMBER_SIZE_MISMATCH")
         require({"database.pgcustom", "storage/manifest.json"}.issubset(present),
                 "TAR_REQUIRED_COMPONENT_MISSING")
         # Even legacy backups claim a PostgreSQL custom-format dump. Reject an
