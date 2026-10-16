@@ -114,6 +114,8 @@ for(const session of sessions){
   if(expectedRole==='coach'){
     const assurance=await rpc('iberfit_privileged_assurance_context_v65d',session.token,{});
     const reportedRole=normalizeRegistryRole(assurance?.privilegedRole);
+    // Preserve the exact fail-closed contract. Diagnostic field names below
+    // never print response values, roles, IDs, credentials or tokens.
     if(
       assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
       assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==false||
@@ -121,6 +123,24 @@ for(const session of sessions){
       assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
       assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||reportedRole!=='coach'
     ){
+      const coachAssuranceChecks={
+        ok:assurance?.ok===true,
+        privileged:assurance?.privileged===true,
+        mfaRequired:assurance?.mfaRequired===true,
+        webauthnRequired:assurance?.webauthnRequired===true,
+        credentialEnrolled:assurance?.credentialEnrolled===false,
+        emailOtpAvailable:assurance?.emailOtpAvailable===true,
+        iberfitAssurance:assurance?.iberfitAssurance==='required',
+        supabaseAal:assurance?.supabaseAal==='aal1',
+        origin:assurance?.origin===CANARY_ORIGIN,
+        rpId:assurance?.rpId==='m26-canary.iberfit.cl',
+        privilegedRole:reportedRole==='coach',
+      };
+      const failedCoachAssuranceChecks=Object.entries(coachAssuranceChecks)
+        .filter(([,valid])=>valid!==true).map(([name])=>name);
+      if(failedCoachAssuranceChecks.length){
+        console.error(`RC65_C2_REMOTE_COACH_ASSURANCE_FAILED_FIELDS:${failedCoachAssuranceChecks.join(',')}`);
+      }
       throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
     }
 

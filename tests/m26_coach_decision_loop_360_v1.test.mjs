@@ -148,7 +148,7 @@ test('next-session preparation makes follow-up the primary action only when revi
   assert.match(html,/data-m26-target-focus="action-outcome">Revisar seguimiento antes de entrenar/u);
   assert.match(html,/data-workflow-action="reuse-session" data-entity-id="session-1">Adaptar una copia de esta sesión/u);
   assert.doesNotMatch(html,/class="m26-primary-action" data-workflow-action="reuse-session"/u);
-  assert.match(html,/Iniciar sesión preparada/u);
+  assert.match(html,/Comenzar entrenamiento preparado/u);
 });
 
 test('completed Coach session hands off to follow-up instead of a generic expediente action',()=>{

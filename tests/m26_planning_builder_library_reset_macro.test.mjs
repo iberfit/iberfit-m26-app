@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 test('el reset de biblioteca solo aparece cuando existe búsqueda o filtro activo',()=>{
   const ui=fs.readFileSync('src/m26/workflows/session-ui.js','utf8');
-  assert.match(ui,/const libraryResetMarkup=\(String\(query\|\|''\)\.trim\(\)\|\|activeFilterCount\)\?/u);
+  assert.match(ui,/const reset=\(String\(query\|\|''\)\.trim\(\)\|\|activeFilterCount\)\?/u);
   assert.match(ui,/data-session-action="clear-library-filters"/u);
 });
 

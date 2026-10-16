@@ -236,7 +236,7 @@ test('Hoy Cliente inicia directamente una sesión autónoma confirmada vinculada
     (html.match(/data-workflow-action="start-published-session" data-entity-id="s1"/gu)||[]).length,
     1,
   );
-  assert.doesNotMatch(html,/>Iniciar entrenamiento<\/button>/u);
+  assert.doesNotMatch(html,/>Comenzar entrenamiento<\/button>/u);
 });
 
 test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrenamiento autónomo', () => {
@@ -254,7 +254,7 @@ test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrena
   );
   assert.doesNotMatch(
     html,
-    />Iniciar entrenamiento<\/button>/
+    />Comenzar entrenamiento<\/button>/
   );
 });
 
@@ -316,7 +316,7 @@ test('Sesiones Cliente no ofrece inicio autónomo para una sesión presencial di
   );
 });
 
-test('Sesiones Cliente ofrece un CTA superior exacto cuando solo existe un Live Workout ejecutable', () => {
+test('Sesiones Cliente ofrece un único comienzo autorizado dentro de Ver sesión', () => {
   const base = ready('client');
   const state = ready('client', {
     activeArea: 'sesion',
@@ -348,14 +348,12 @@ test('Sesiones Cliente ofrece un CTA superior exacto cuando solo existe un Live 
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
+  assert.doesNotMatch(html, /data-session-primary-start/);
+  assert.match(html, /<summary>Ver sesión<\/summary>/);
+  assert.equal([...html.matchAll(/data-workflow-action="start-published-session"/g)].length,1);
   assert.match(
     html,
-    /data-session-primary-start data-workflow-action="start-published-session" data-entity-id="s-live"/
-  );
-  assert.match(html, />Comenzar · Fuerza autónoma<\/button>/);
-  assert.match(
-    html,
-    /data-workflow-action="start-published-session" data-entity-id="s-live">Comenzar Live Workout<\/button>/
+    /data-workflow-action="start-published-session" data-entity-id="s-live">Comenzar entrenamiento<\/button>/
   );
 });
 
@@ -398,11 +396,11 @@ test('Sesiones Cliente nunca elige implícitamente entre varios Live Workout eje
   assert.doesNotMatch(html, /data-session-primary-start/);
   assert.match(
     html,
-    /data-workflow-action="start-published-session" data-entity-id="s-old">Comenzar Live Workout<\/button>/
+    /data-workflow-action="start-published-session" data-entity-id="s-old">Comenzar entrenamiento<\/button>/
   );
   assert.match(
     html,
-    /data-workflow-action="start-published-session" data-entity-id="s-new">Comenzar Live Workout<\/button>/
+    /data-workflow-action="start-published-session" data-entity-id="s-new">Comenzar entrenamiento<\/button>/
   );
   assert.equal(
     [...html.matchAll(/data-workflow-action="start-published-session"/g)].length,
