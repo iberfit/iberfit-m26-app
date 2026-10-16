@@ -30,6 +30,8 @@ psql -X -q -v ON_ERROR_STOP=1 -d postgres <<'SQL'
 CREATE ROLE iberfit_m44_fixture_owner NOLOGIN;
 CREATE ROLE iberfit_m44_fixture_reader NOLOGIN;
 CREATE ROLE iberfit_m44_fixture_writer NOLOGIN;
+CREATE ROLE iberfit_m44_fixture_column_reader NOLOGIN;
+CREATE ROLE iberfit_m44_fixture_schema_denied NOLOGIN;
 SQL
 for db in "$src" "$stripped" "$repaired"; do
   createdb "$db"
@@ -61,6 +63,16 @@ CREATE POLICY m44_writer_update_scope ON m44_acl_fixture.exercise
  FOR UPDATE TO iberfit_m44_fixture_writer USING (tenant_id = 1) WITH CHECK (tenant_id = 1);
 CREATE POLICY m44_writer_delete_scope ON m44_acl_fixture.exercise
  FOR DELETE TO iberfit_m44_fixture_writer USING (tenant_id = 1);
+-- Column-only grant: this actor cannot SELECT the tenant_id or id columns.
+GRANT USAGE ON SCHEMA m44_acl_fixture TO iberfit_m44_fixture_column_reader;
+GRANT SELECT(content) ON m44_acl_fixture.exercise TO iberfit_m44_fixture_column_reader;
+CREATE POLICY m44_column_reader_scope ON m44_acl_fixture.exercise
+ FOR SELECT TO iberfit_m44_fixture_column_reader USING (tenant_id = 1);
+-- Counterexample: table GRANT and permissive policy WITHOUT schema USAGE.
+-- A full restore and ACL-only replay must still deny this role.
+GRANT SELECT ON m44_acl_fixture.exercise TO iberfit_m44_fixture_schema_denied;
+CREATE POLICY m44_schema_denied_open ON m44_acl_fixture.exercise
+ FOR SELECT TO iberfit_m44_fixture_schema_denied USING (true);
 SQL
 pg_dump -Fc --dbname="$src" --schema=m44_acl_fixture --file="$work/synthetic.acl.pgcustom"
 pg_restore --list "$work/synthetic.acl.pgcustom" > "$work/synthetic-toc-private.list"
@@ -97,7 +109,12 @@ catalog() {
    WHERE d.defaclrole='iberfit_m44_fixture_owner'::regrole
     AND d.defaclnamespace=n.oid AND d.defaclobjtype='r'
     AND x.grantee='iberfit_m44_fixture_reader'::regrole
-    AND x.privilege_type='SELECT')::integer
+    AND x.privilege_type='SELECT')::integer,
+  has_schema_privilege('iberfit_m44_fixture_column_reader',n.oid,'USAGE')::integer,
+  has_column_privilege('iberfit_m44_fixture_column_reader',c.oid,'content','SELECT')::integer,
+  (NOT has_column_privilege('iberfit_m44_fixture_column_reader',c.oid,'tenant_id','SELECT'))::integer,
+  has_table_privilege('iberfit_m44_fixture_schema_denied',c.oid,'SELECT')::integer,
+  (NOT has_schema_privilege('iberfit_m44_fixture_schema_denied',n.oid,'USAGE'))::integer
  ) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='m44_acl_fixture' AND c.relname='exercise'
   AND c.relkind='r';"
@@ -105,7 +122,7 @@ catalog() {
 source_result="$(catalog "$src")"
 stripped_result="$(catalog "$stripped")"
 repaired_result="$(catalog "$repaired")"
-if [ "$source_result" != '1,1,1,1,1,1,1' ]; then
+if [ "$source_result" != '1,1,1,1,1,1,1,1,1,1,1,1' ]; then
  echo 'IBERFIT_M44_ACL_SOURCE_FIXTURE_INVALID' >&2; exit 64
 fi
 if [ "$stripped_result" = "$source_result" ]; then
@@ -162,6 +179,32 @@ if writer_count "$stripped" 'SELECT count(*) FROM m44_acl_fixture.exercise' 1; t
  echo 'IBERFIT_M44_RLS_DML_STRIPPED_UNEXPECTEDLY_PERMITTED' >&2; exit 76
 fi
 echo 'IBERFIT_M44_RLS_DML_SOURCE_AND_FULL_RESTORE_SYNTHETIC_VERIFIED'
+# Prove schema grants and column-only grants survive each restore route.
+column_visible() {
+ output="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
+   -c 'SET ROLE iberfit_m44_fixture_column_reader; SELECT content FROM m44_acl_fixture.exercise;')" || return 1
+ [ "$(printf '%s\n' "$output" | tail -n 1)" = 'synthetic-visible' ]
+}
+column_denied() {
+ if output="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
+  -c 'SET ROLE iberfit_m44_fixture_column_reader; SELECT tenant_id FROM m44_acl_fixture.exercise;' 2>&1)"; then return 1; fi
+ printf '%s\n' "$output" | grep -Eqi 'permission denied for (table|column)'
+}
+schema_denied() {
+ if output="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
+  -c 'SET ROLE iberfit_m44_fixture_schema_denied; SELECT content FROM m44_acl_fixture.exercise;' 2>&1)"; then return 1; fi
+ printf '%s\n' "$output" | grep -qi 'permission denied for schema'
+}
+verify_fine_grants() {
+ column_visible "$1" && column_denied "$1" && schema_denied "$1"
+}
+if ! verify_fine_grants "$src" || ! verify_fine_grants "$repaired"; then
+ echo 'IBERFIT_M44_SCHEMA_COLUMN_ACL_SOURCE_OR_RESTORE_DIVERGED' >&2; exit 78
+fi
+if column_visible "$stripped" >/dev/null 2>&1; then
+ echo 'IBERFIT_M44_SCHEMA_COLUMN_ACL_STRIPPED_UNEXPECTEDLY_PERMITTED' >&2; exit 79
+fi
+echo 'IBERFIT_M44_SCHEMA_COLUMN_ACL_FULL_RESTORE_SYNTHETIC_VERIFIED'
 # Recover grants WITHOUT re-importing schema or row data. The TOC remains
 # private: names are never logged. Non-ACL statements are commented out,
 # while owner changes are explicitly reconciled in the sandbox afterward.
@@ -197,6 +240,10 @@ if ! verify_writer_rls "$stripped"; then
  echo 'IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_DIVERGED' >&2; exit 77
 fi
 echo 'IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED'
+if ! verify_fine_grants "$stripped"; then
+ echo 'IBERFIT_M44_SCHEMA_COLUMN_ACL_REPLAY_DIVERGED' >&2; exit 80
+fi
+echo 'IBERFIT_M44_SCHEMA_COLUMN_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED'
 echo 'IBERFIT_M44_SELECTIVE_ACL_DEFAULT_PRIVILEGES_REPLAY_SYNTHETIC_ONLY'
 # Full data rows may be present even when tenant permissions were lost.
 for db in "$src" "$stripped" "$repaired"; do
