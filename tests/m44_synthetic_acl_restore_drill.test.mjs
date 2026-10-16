@@ -59,7 +59,7 @@ test('permission denied from psql is propagated, never masked by tail pipeline',
 test('selective recovery replays only ACL and DEFAULT ACL, never table rows or DDL',()=>{
  assert.match(sh,/pg_restore --list "\$work\/synthetic\.acl\.pgcustom"/);
  assert.match(sh,/--use-list="\$work\/synthetic-acl-only-private\.list"/);
- assert.match(sh,/DEFAULT ACL\[\[:space:\]\]/);
+ assert.ok(sh.includes('DEFAULT ACL[[:space:]]'));
  assert.match(sh,/grants < 1 \|\| defaults < 1/);
  assert.match(sh,/IBERFIT_M44_ACL_ONLY_SELECTION_FAILED/);
  assert.match(sh,/IBERFIT_M44_ACL_ONLY_REPLAY_CATALOG_DIVERGED/);
