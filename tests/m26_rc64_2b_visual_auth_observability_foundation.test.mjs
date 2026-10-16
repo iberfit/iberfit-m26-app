@@ -332,7 +332,8 @@ test('RC64.2B1 protected workflow generates Linux candidates and auth evidence w
   assert.match(workflow,/contents: read/u);
   assert.match(workflow,/quality:rc64:visual:update/u);
   assert.match(workflow,/rc64-2b-linux-visual-baseline-candidates/u);
-  assert.match(workflow,/quality:rc64:auth-smoke/u);
+  assert.match(workflow,/npx playwright test --config playwright.authenticated.config.mjs/u);
+  assert.match(workflow,/--project=authenticated-readonly-firefox/u);
   assert.match(workflow,/rc64-2b-authenticated-readonly-evidence/u);
   assert.match(workflow,/steps\.visual_candidates\.outcome == 'success'/u);
   assert.match(workflow,/id: auth_smoke/u);
@@ -381,7 +382,14 @@ test('RC64.2B1 remote workflow separates visual preparation and protected authen
     assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
     assert.match(workflow,/Verify Playwright browser cache/u);
     assert.match(workflow,/npm ci/u);
-    assert.doesNotMatch(workflow,/playwright install --with-deps/u);
+    const containerPreflight=workflow.split('  preflight:')[1]?.split('  firefox-native-auth-smoke:')[0]||'';
+    const nativeFirefox=workflow.split('  firefox-native-auth-smoke:')[1]?.split('  exercise-media-broker-probe:')[0]||'';
+    assert.ok(containerPreflight.length&&nativeFirefox.length,'Both QA browser jobs must exist');
+    assert.doesNotMatch(containerPreflight,/playwright install --with-deps/u);
+    assert.match(nativeFirefox,/playwright install --with-deps firefox/u);
+    assert.match(nativeFirefox,/needs: preflight/u);
+    assert.match(nativeFirefox,/environment: m26-canary-readonly/u);
+    assert.match(nativeFirefox,/group: iberfit-qa-shared-auth-readonly/u);
 });
 test('RC64.2B1 quality observability module is part of the generated PWA shell after tracking',()=>{
   const sw=read('public/m26/sw.js');
