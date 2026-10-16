@@ -355,7 +355,7 @@ test('RC64.2B1 roadmap remains open until remote Linux/auth evidence is reviewed
   assert.match(evidence,/versionar los PNG Linux aprobados/u);
   assert.match(evidence,/nunca email, token, userId, clientId, contraseña ni salud/u);
 });
-test('RC64.2B1 remote workflow keeps every appended quality action inside preflight steps',()=>{
+test('RC64.2B1 remote workflow separates visual preparation and protected authentication',()=>{
   const workflow=read('.github/workflows/remote-gates.yml');
 
   assert.doesNotMatch(workflow,/^- name:/mu);
@@ -375,12 +375,13 @@ test('RC64.2B1 remote workflow keeps every appended quality action inside prefli
 
   assert.match(workflow,/^permissions:\r?\n {2}contents: read$/mu);
   assert.match(workflow,/^ {4}steps:$/mu);
-  assert.match(workflow,/actions\/cache@v4/u);
-  assert.match(workflow,/hashFiles\('package-lock\.json'\)/u);
-  assert.match(workflow,/playwright install-deps chromium webkit firefox/u);
-  assert.match(workflow,/cache-hit != 'true'/u);
-  assert.match(workflow,/playwright install chromium webkit firefox/u);
-  assert.doesNotMatch(workflow,/playwright install --with-deps/u);
+    assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,'remote: SHA-pinned Playwright image required');
+    assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+    assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
+    assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+    assert.match(workflow,/Verify Playwright browser cache/u);
+    assert.match(workflow,/npm ci/u);
+    assert.doesNotMatch(workflow,/playwright install --with-deps/u);
 });
 test('RC64.2B1 quality observability module is part of the generated PWA shell after tracking',()=>{
   const sw=read('public/m26/sw.js');

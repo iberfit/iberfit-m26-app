@@ -12,6 +12,14 @@ const workflows={
 
 test('Playwright browser cache is lockfile-bound and preserves deterministic installs',()=>{
   for(const [name,workflow] of Object.entries(workflows)){
+    if(name==='remote'){
+    assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,'remote: SHA-pinned Playwright image required');
+    assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+    assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
+    assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+      assert.match(workflow,/npm ci/u,'remote: deterministic npm ci required');
+      continue;
+    }
     assert.match(workflow,/actions\/cache@v4/u,`${name}: cache action missing`);
     assert.match(workflow,/~\/\.cache\/ms-playwright/u,`${name}: Playwright cache path missing`);
     assert.match(workflow,/hashFiles\('package-lock\.json'\)/u,`${name}: lockfile cache key missing`);
@@ -46,10 +54,11 @@ test('Admin browser shards preserve Chromium WebKit and Firefox independently',(
 
 test('Remote gate preserves the full Chromium WebKit and Firefox bundle',()=>{
   const workflow=workflows.remote;
-  assert.match(workflow,/install-deps chromium webkit firefox/u,'remote: cross-browser deps missing');
-  assert.match(workflow,/install chromium webkit firefox/u,'remote: cross-browser miss install missing');
-  assert.match(workflow,/chromium, firefox, webkit/u,'remote: browser readiness matrix missing');
-  assert.match(workflow,/-all/u,'remote: all-browser cache namespace missing');
+    assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,'remote: SHA-pinned Playwright image required');
+    assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+    assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
+    assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+    assert.match(workflow,/chromium,firefox,webkit/u,'remote: three browser readiness checks required');
 });
 
 test('Playwright cache optimization never caches node_modules',()=>{
