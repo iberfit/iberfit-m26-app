@@ -117,7 +117,8 @@ test('invalid endpoint fails closed before a revoke request',async()=>{
 
 test('disable all devices revokes server registrations and also removes this browser subscription when present',async()=>{
   const existing={endpoint:serialized.endpoint};
-  const {coordinator,calls}=harness({existingSubscription:existing});
+  // The server must attest that the local endpoint belongs to this actor.
+  const {coordinator,calls}=harness({existingSubscription:existing,statusResponse:{ok:true,active:true,subscriptionCount:2,updatedAt:null}});
   const result=await coordinator.disableAll();
   assert.equal(result.ok,true);
   assert.equal(result.deletedCount,2);
