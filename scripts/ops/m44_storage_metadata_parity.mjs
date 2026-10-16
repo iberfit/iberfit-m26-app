@@ -34,6 +34,7 @@ function manifestCheck(manifest,rows){
   !Array.isArray(manifest.objects)||manifest.objects.length!==rows.length)
   fail('MANIFEST_INVALID');
  const keys=new Set();
+ const source=new Map(rows.map(x=>[key(x[0],x[1]),x]));
  for(let i=0;i<manifest.objects.length;i++){
   const x=manifest.objects[i];
   if(!x||typeof x.bucket!=='string'||!x.bucket||
@@ -43,6 +44,12 @@ function manifestCheck(manifest,rows){
    fail('MANIFEST_ENTRY_INVALID');
   const k=key(x.bucket,x.name);
   if(keys.has(k))fail('MANIFEST_DUPLICATE');keys.add(k);
+  // The DB's declared byte size must match the actual downloaded file
+  // whenever Storage supplies a size; SHA256 verification is independent.
+  const expected=source.get(k);
+  if(expected&&expected[5]!==null&&
+    (!Number.isSafeInteger(Number(expected[5]))||Number(expected[5])!==x.bytes))
+    fail('MANIFEST_BYTE_SIZE_MISMATCH');
  }
  for(const row of rows)if(!keys.has(key(row[0],row[1])))fail('MANIFEST_OBJECT_MISMATCH');
  return manifest.objects.length;
