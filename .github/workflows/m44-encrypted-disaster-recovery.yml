@@ -116,7 +116,12 @@ jobs:
             elif grep -Eqi 'does not exist|database' "$scratch/pg-private-errors"; then
               echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_DATABASE_FAILED'
             else
+              # This branch uses ONLY hard-coded disposable synthetic credentials,
+              # a fresh local container and synthetic role names. No PROD data.
+              # Allow the exact PostgreSQL client diagnostic to diagnose a
+              # previously unknown incompatibility; never do this in PROD.
               echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_UNKNOWN'
+              cat "$scratch/pg-private-errors" >&2
             fi
             exit 61
           fi
