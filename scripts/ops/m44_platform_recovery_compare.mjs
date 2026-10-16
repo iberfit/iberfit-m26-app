@@ -44,14 +44,36 @@ export function certifyPlatformCatalog(source,restored){
  return result;
 }
 function readSnapshot(filename){
- const stat=fs.statSync(filename);
- if(!stat.isFile()||stat.size<200||stat.size>8192)
+ // The proof files are deliberately local and private; never follow a link
+ // to a different file after the metadata check. Open one descriptor and
+ // compare metadata before/after reading to reject obvious concurrent edits.
+ let fd;
+ try{
+  const link=fs.lstatSync(filename);
+  if(!link.isFile()||link.isSymbolicLink())throw Error(PREFIX+'FILE_INVALID');
+  fd=fs.openSync(filename,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW||0));
+  const before=fs.fstatSync(fd);
+  if(!before.isFile()||before.nlink!==1||before.size<200||before.size>8192)
+   throw Error(PREFIX+'FILE_INVALID');
+  if(process.platform!=='win32'&&(before.mode&0o077)!==0)
+   throw Error(PREFIX+'PRIVATE_MODE_REQUIRED');
+  const content=fs.readFileSync(fd,'utf8');
+  const after=fs.fstatSync(fd);
+  if(before.dev!==after.dev||before.ino!==after.ino||
+     before.size!==after.size||before.mtimeMs!==after.mtimeMs||
+     before.ctimeMs!==after.ctimeMs)
+   throw Error(PREFIX+'FILE_CHANGED_DURING_READ');
+  let payload;
+  try{payload=JSON.parse(content);}catch{throw Error(PREFIX+'JSON_INVALID');}
+  validatePlatformCatalog(payload);
+  return payload;
+ }catch(error){
+  const code=String(error?.message||'');
+  if(code.startsWith(PREFIX))throw error;
   throw Error(PREFIX+'FILE_INVALID');
- let payload;
- try{payload=JSON.parse(fs.readFileSync(filename,'utf8'));}
- catch{throw Error(PREFIX+'JSON_INVALID');}
- validatePlatformCatalog(payload);
- return payload;
+ }finally{
+  if(fd!==undefined)fs.closeSync(fd);
+ }
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{
