@@ -12,11 +12,13 @@ test('authenticated remote gate binds privileged requests to the Canary WebAuthn
 });
 
 test('remote gate preserves privileged WebAuthn requirements after recurring cleanup while primary-auth bootstrap remains fail-closed', () => {
-  assert.match(source, /credentialEnrolled!==false/);
+  assert.match(source, /typeof assurance\?\.credentialEnrolled!=='boolean'/);
   assert.match(source, /webauthnRequired!==true/);
   assert.match(source, /iberfitAssurance!=='required'/);
   assert.match(source, /primaryAuthRead:\{[\s\S]*?ok:true,status:403,expectedBlocked:true/);
   assert.match(source, /privilegedGate:\{ok:true/);
-  assert.match(source, /credentialEnrolled:false/);
+  assert.match(source, /bootstrapResult\?\.status!==403/);
+  assert.match(source, /assurance\?\.supabaseAal!=='aal1'/);
+  assert.match(source, /credentialEnrolled:assurance\.credentialEnrolled/);
   assert.doesNotMatch(source, /\/functions\/v1\/iberfit-webauthn-v1/);
 });
