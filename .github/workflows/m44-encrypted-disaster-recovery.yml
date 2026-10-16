@@ -127,8 +127,11 @@ jobs:
           test -n "${IBERFIT_PROD_STORAGE_SERVICE_KEY:-}" || { echo 'IBERFIT_BACKUP_STORAGE_KEY_NOT_CONFIGURED'; exit 42; }
           test "${#IBERFIT_BACKUP_PASSPHRASE}" -ge 32 || { echo 'IBERFIT_BACKUP_PASSPHRASE_NOT_CONFIGURED'; exit 43; }
           node -e 'const x=new URL(process.env.IBERFIT_PROD_DATABASE_URL);
-            if(![x.username,x.hostname].some(v=>v.includes("pjhmrhejsoofmouedavw")))process.exit(44);
+            const ref="pjhmrhejsoofmouedavw";
+            if(x.username!=="postgres."+ref)process.exit(44);
+            if(x.hostname!=="db."+ref+".supabase.co" && !/^[a-z0-9-]+\.pooler\.supabase\.com$/i.test(x.hostname))process.exit(44);
             if(x.protocol!=="postgresql:"&&x.protocol!=="postgres:")process.exit(44);
+            if(x.port!=="5432"||x.pathname!=="/postgres")process.exit(44);
             if(x.searchParams.get("sslmode")!=="require"&&x.searchParams.get("sslmode")!=="verify-full")process.exit(45);'
           echo 'IBERFIT_PROD_TARGET_AND_REQUIRED_SECRETS_PRESENT'
       - name: Export complete PG17 DB and all Storage object bytes to ephemeral private workspace
@@ -188,13 +191,13 @@ jobs:
             exit 51
           fi
           echo 'IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS'
-      - name: Publish encrypted archive only, without password or plaintext
-        if: ${{ always() && steps.encrypt.outcome == 'success' }}
+      - name: Publish verified encrypted archive for immediate private-drive transfer
+        if: ${{ steps.restore.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: iberfit-prod-ciphertext-${{ github.run_id }}
           path: ${{ runner.temp }}/iberfit-recovery/cipher/*.ibf
-          retention-days: 30
+          retention-days: 1
           if-no-files-found: error
       - name: Remove all temporary plaintext and ciphertext from runner
         if: always()
