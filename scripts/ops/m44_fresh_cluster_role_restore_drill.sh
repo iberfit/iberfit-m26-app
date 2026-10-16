@@ -108,6 +108,11 @@ for role in owner reader coach; do
  grep -Eq "^CREATE ROLE iberfit_m44_fresh_$role;$" "$work/global-roles.sql" ||
   { echo 'IBERFIT_M44_FRESH_CLUSTER_ROLE_MISSING' >&2; exit 66; }
 done
+# The exported GLOBAL archive itself must retain the membership. Checking
+# target membership alone could otherwise conceal a broken roles archive.
+if ! grep -Eq '^GRANT[[:space:]]+iberfit_m44_fresh_reader[[:space:]]+TO[[:space:]]+iberfit_m44_fresh_coach([[:space:];]|$)' "$work/global-roles.sql"; then
+ echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBAL_MEMBERSHIP_NOT_ARCHIVED' >&2; exit 71
+fi
 if grep -Eiq '\bPASSWORD\b' "$work/global-roles.sql"; then
  echo 'IBERFIT_M44_FRESH_CLUSTER_PASSWORD_FORBIDDEN' >&2; exit 67
 fi
