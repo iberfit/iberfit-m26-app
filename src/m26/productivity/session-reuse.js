@@ -1,5 +1,5 @@
 import {createM26Id} from '../platform/id.js';
-import {createSessionDraft,validateSessionDraft} from '../workflows/session-builder.js';
+import {createSessionDraft,validateSessionDraft,sessionDraftDeliveryMode} from '../workflows/session-builder.js';
 
 export const SESSION_TEMPLATE_SCHEMA_VERSION='iberfit.session-template.v1';
 export const SESSION_TEMPLATE_MAX_ITEMS=20;
@@ -71,6 +71,7 @@ export function createReusableSessionDraft(record,{clientId,catalog,titleSuffix=
     clientId,
     title,
     durationMinutes:positiveInt(source.durationMinutes||source.duration_minutes,50,{min:10,max:240}),
+    deliveryMode:sessionDraftDeliveryMode(source),
   });
   draft.blocks=instantiateBlocks(source.blocks||[]);
   draft.previewAccepted=false;
@@ -89,6 +90,7 @@ export function sessionTemplateSnapshot(draft={}){
   return Object.freeze({
     title:text(draft.title||'Sesión IBERFIT',120)||'Sesión IBERFIT',
     durationMinutes:positiveInt(draft.durationMinutes,50,{min:10,max:240}),
+    deliveryMode:sessionDraftDeliveryMode(draft),
     blocks:Object.freeze((draft.blocks||[]).map((block)=>Object.freeze(safeTemplateBlock(block)))),
   });
 }
@@ -182,6 +184,7 @@ export function createDraftFromSessionTemplate(template,{clientId,catalog}={}){
     clientId,
     title:text(snapshot.title||template.name||'Sesión IBERFIT',120),
     durationMinutes:positiveInt(snapshot.durationMinutes,50,{min:10,max:240}),
+    deliveryMode:sessionDraftDeliveryMode(snapshot),
   });
   draft.blocks=instantiateBlocks(snapshot.blocks||[]);
   draft.previewAccepted=false;
