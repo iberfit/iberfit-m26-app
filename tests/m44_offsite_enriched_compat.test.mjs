@@ -134,9 +134,10 @@ test('M44 restored enriched archive validates every binary blob, not just metada
    if(result.ok){
     assert.match(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
     assert.ok((await readdir(dst)).includes('database.pgcustom'));
-   }else assert.deepEqual(await readdir(dst),[],mode+' leaked extracted files');
-
-   else assert.doesNotMatch(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   }else{
+    assert.deepEqual(await readdir(dst),[],mode+' leaked extracted files');
+    assert.doesNotMatch(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   }
    assert.doesNotMatch(result.stdout+result.stderr,/f\/a\.bin|11111111|ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad/);
   }
  });
