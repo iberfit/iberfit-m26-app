@@ -81,7 +81,7 @@ test('recovered ACL is also exercised with real tenant-scoped DML RLS',()=>{
    ' TO iberfit_m44_fixture_writer'));
  }
  assert.match(sh,/FOR INSERT TO iberfit_m44_fixture_writer WITH CHECK \(tenant_id = 1\)/);
- assert.match(sh,/FOR UPDATE TO iberfit_m44_fixture_writer USING \(tenant_id = 1\) WITH CHECK \(tenant_id = 1\)/);
+ assert.match(sh,/FOR UPDATE TO iberfit_m44_fixture_writer\s+USING \(tenant_id = 1\) WITH CHECK \(tenant_id = 1\)/);
  assert.match(sh,/SET LOCAL ROLE iberfit_m44_fixture_writer/);
  assert.match(sh,/BEGIN; SET LOCAL ROLE[\s\S]*?ROLLBACK/);
  assert.match(sh,/violates row-level security policy/);
