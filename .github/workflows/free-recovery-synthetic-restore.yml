@@ -1,0 +1,28 @@
+name: IBERFIT Free Recovery Synthetic Restore Drill
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'scripts/ops/free_recovery_crypto.mjs'
+      - 'scripts/ops/free_recovery_synthetic_rehearsal.sh'
+      - 'tests/free_recovery_crypto.test.mjs'
+      - '.github/workflows/free-recovery-synthetic-restore.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-postgres-drill:
+    name: Synthetic encrypted backup and isolated restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Cryptography regression before any export
+        run: node --test tests/free_recovery_crypto.test.mjs tests/client_backup_drive_naming.test.mjs
+      - name: Synthetic-only PostgreSQL backup, encrypted transport, and restore
+        run: bash scripts/ops/free_recovery_synthetic_rehearsal.sh
