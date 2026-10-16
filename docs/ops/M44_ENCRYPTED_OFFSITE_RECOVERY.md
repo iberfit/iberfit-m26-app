@@ -35,3 +35,19 @@ El acceso de conectores disponible no permite crear estos secretos en GitHub ni 
 ## Evidencia mínima
 
 SHA fuente exacto; run del workflow; número de objetos verificados y tamaño cifrado (nunca rutas ni contenido), pg_restore aislado concluido, copia cifrada externa localizable y prueba de recuperación de clave independiente, inventario de versión y fecha de backup, snapshot de estado inmutable y checklist de recuperación Auth/Storage; QA Canary positivo y revisión de seguridad post-release.
+
+## Certificación de consistencia Storage / base de datos (16-10-2026)
+
+La exportación M44 exige ahora la igualdad de **tres inventarios de metadatos** y el contenido de un cuarto manifiesto:
+
+1. **Inventario PostgreSQL antes de descargar:** `storage.objects` con `bucket_id`, `name`, `id`, `version`, `updated_at` UTC y `metadata.size`. Solo en el workspace privado.
+2. **Inventario PostgreSQL después de descargar:** los mismos campos. Un alta, baja, reemplazo de objeto o cambio de metadatos durante el proceso provoca fallo cerrado antes de cifrar.
+3. **Inventario del PostgreSQL restaurado aisladamente:** consulta contra `127.0.0.1` y `iberfit_recovery_test`, **nunca** contra producción. Debe coincidir con la primera captura; evita aceptar metadatos que no pertenecen al `pg_dump`.
+4. **Manifiesto de archivos descargados:** nombres y buckets deben coincidir exactamente; `m44_storage_backup_bytes.mjs verify` coteja además cada tamaño y SHA-256 de los archivos.
+
+Se ejecutan `scripts/ops/m44_storage_metadata_parity.mjs source` antes de cifrar y `... isolated` después de `pg_restore`. Ante divergencia solo se muestra un código de fallo genérico, nunca rutas ni nombres de clientes. Ambos inventarios y sus metadatos quedan **dentro del TAR autenticado y cifrado**, no como artefactos públicos. También se cifra `platform-catalog-source.json`, huella SHA-256 del catálogo de roles, ACL, políticas, funciones, constraints, índices y migraciones. Conservar esta fuente permite comparar más adelante contra una restauración operativa de roles.
+
+**Alcance exacto:** esta prueba detecta cambios de identidad, versión, timestamp o tamaño reflejados en `storage.objects` durante la copia. No garantiza atomicidad distribuida frente a modificaciones que no actualicen esos campos, ni preserva por sí misma los roles, sus passwords, la clave raíz de Vault, Auth alojado, JWT, SMTP, Realtime o los secrets Edge. Tampoco constituye ensayo de recuperación integral de Supabase. Hasta completar ese ensayo, el gate externo de promoción mantiene `platformRecoveryVerified=false`. El respaldo anterior a este cambio mantiene su evidencia histórica, pero no debe presentarse como si hubiera superado los nuevos controles.
+
+**Coste:** no requiere un plan de pago ni una nueva instancia de Supabase. El contenedor Postgres de ensayo se ejecuta de manera efímera en GitHub Actions con los mismos permisos y límites del workflow actual.
+
