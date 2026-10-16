@@ -14,6 +14,9 @@ on:
       - 'tests/m44_role_globals_encrypted_backup.test.mjs'
       - 'tests/m44_storage_metadata_parity.test.mjs'
       - 'tests/m44_storage_full_recovery_workflow.test.mjs'
+      - 'tests/m44_pgcustom_acl_archive_contract.test.mjs'
+      - 'scripts/ops/m44_acl_toc_selector.mjs'
+      - 'tests/m44_acl_toc_selector.test.mjs'
       - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
       - 'tests/m44_storage_backup_bytes_contract.test.mjs'
   push:
@@ -51,7 +54,9 @@ jobs:
             tests/m44_storage_backup_bytes_contract.test.mjs \
             tests/m44_storage_metadata_parity.test.mjs \
             tests/m44_storage_full_recovery_workflow.test.mjs \
-            tests/m44_role_globals_encrypted_backup.test.mjs
+            tests/m44_role_globals_encrypted_backup.test.mjs \
+            tests/m44_pgcustom_acl_archive_contract.test.mjs \
+            tests/m44_acl_toc_selector.test.mjs
 
   synthetic-restore:
     name: m44-synthetic-postgresql17-restore-proof
@@ -208,7 +213,7 @@ jobs:
           echo "$WORK" > "$RUNNER_TEMP/iberfit-backup-work-path"
           docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
             -v "$WORK/plain:/work" postgres:17-alpine sh -c \
-            'pg_dump -Fc --no-owner --no-acl --dbname="$IBERFIT_PROD_DATABASE_URL" -f /work/database.pgcustom 2>/work/pg-private-errors'
+            'pg_dump -Fc --dbname="$IBERFIT_PROD_DATABASE_URL" -f /work/database.pgcustom 2>/work/pg-private-errors'
           # PostgreSQL globals (roles and memberships) are NOT in pg_dump -Fc.
           # Export WITHOUT any role passwords, only to the ephemeral private
           # workspace. Never print the SQL or grant the runner public access.
@@ -276,6 +281,21 @@ jobs:
           node scripts/ops/m44_encrypted_backup_archive.mjs decrypt "$WORK/cipher/iberfit-prod-recovery.ibf" "$WORK/restore.tar"
           tar -C "$WORK/isolated" --no-same-owner --no-same-permissions -xf "$WORK/restore.tar"
           rm -f "$WORK/restore.tar"
+          # Verify the encrypted PG17 custom archive retained BOTH object
+          # GRANT/REVOKE and ALTER DEFAULT PRIVILEGES entries. The existing
+          # first-stage --no-acl restore remains restricted on purpose.
+          # TOC entries can include private object names: never print them.
+          docker run --rm --network host \
+            -v "$WORK/isolated:/work" postgres:17-alpine sh -c \
+            'pg_restore --list /work/database.pgcustom > /work/acl-toc-private.list'
+          # Construct a strictly allowlisted ACL-only TOC for a future
+          # isolated role reconciliation drill. Do NOT replay it in this
+          # first-stage data restore or against PROD/QA.
+          node scripts/ops/m44_acl_toc_selector.mjs \
+            "$WORK/isolated/acl-toc-private.list" \
+            "$WORK/isolated/acl-only-private.list"
+          rm -f "$WORK/isolated/acl-toc-private.list" "$WORK/isolated/acl-only-private.list"
+          echo 'IBERFIT_PGCUSTOM_ACL_DEFAULTS_ARCHIVED_ENCRYPTED_ONLY'
           node scripts/ops/m44_storage_backup_bytes.mjs verify ignored "$WORK/isolated/storage"
           docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
             postgres:17-alpine createdb -h 127.0.0.1 -U supabase_admin iberfit_recovery_test

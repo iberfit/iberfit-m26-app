@@ -51,6 +51,16 @@ ALTER DEFAULT PRIVILEGES FOR ROLE iberfit_m44_fixture_owner
   IN SCHEMA m44_acl_fixture GRANT SELECT ON TABLES TO iberfit_m44_fixture_reader;
 SQL
 pg_dump -Fc --dbname="$src" --schema=m44_acl_fixture --file="$work/synthetic.acl.pgcustom"
+pg_restore --list "$work/synthetic.acl.pgcustom" > "$work/synthetic-toc-private.list"
+if ! grep -Eq '^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+ACL[[:space:]]' \
+     "$work/synthetic-toc-private.list" ||
+   ! grep -Eq '^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+DEFAULT ACL[[:space:]]' \
+     "$work/synthetic-toc-private.list"; then
+  echo 'IBERFIT_M44_SYNTHETIC_ACL_ARCHIVE_INCOMPLETE' >&2
+  exit 71
+fi
+rm -f "$work/synthetic-toc-private.list"
+echo 'IBERFIT_M44_SYNTHETIC_PGCUSTOM_ACL_DEFAULTS_RETAINED'
 pg_restore --exit-on-error --no-owner --no-acl --dbname="$stripped" "$work/synthetic.acl.pgcustom"
 pg_restore --exit-on-error --no-owner --dbname="$repaired" "$work/synthetic.acl.pgcustom"
 # In a managed Supabase target the roles already exist; here we deliberately
@@ -107,6 +117,38 @@ reader_count() {
 if reader_count "$stripped" >/dev/null 2>&1; then
  echo 'IBERFIT_M44_ACL_STRIPPED_ROLE_QUERY_PERMITTED' >&2; exit 69
 fi
+# Recover grants WITHOUT re-importing schema or row data. The TOC remains
+# private: names are never logged. Non-ACL statements are commented out,
+# while owner changes are explicitly reconciled in the sandbox afterward.
+pg_restore --list "$work/synthetic.acl.pgcustom" > "$work/synthetic-toc-private.list"
+awk '
+ /^[0-9]+;/ {
+   if ($0 ~ /^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+ACL[[:space:]]/) {
+     print; grants++; next
+   }
+   if ($0 ~ /^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+DEFAULT ACL[[:space:]]/) {
+     print; defaults++; next
+   }
+   print ";" $0; next
+ }
+ { print }
+ END { if (grants < 1 || defaults < 1) exit 72 }
+' "$work/synthetic-toc-private.list" > "$work/synthetic-acl-only-private.list" ||
+ { echo 'IBERFIT_M44_ACL_ONLY_SELECTION_FAILED' >&2; exit 72; }
+pg_restore --exit-on-error --no-owner --use-list="$work/synthetic-acl-only-private.list" \
+  --dbname="$stripped" "$work/synthetic.acl.pgcustom"
+rm -f "$work/synthetic-toc-private.list" "$work/synthetic-acl-only-private.list"
+psql -X -q -v ON_ERROR_STOP=1 -d "$stripped" <<'SQL'
+ALTER SCHEMA m44_acl_fixture OWNER TO iberfit_m44_fixture_owner;
+ALTER TABLE m44_acl_fixture.exercise OWNER TO iberfit_m44_fixture_owner;
+SQL
+if [ "$(catalog "$stripped")" != "$source_result" ]; then
+  echo 'IBERFIT_M44_ACL_ONLY_REPLAY_CATALOG_DIVERGED' >&2; exit 73
+fi
+if [ "$(reader_count "$stripped")" != "1" ]; then
+  echo 'IBERFIT_M44_ACL_ONLY_REPLAY_RLS_DIVERGED' >&2; exit 74
+fi
+echo 'IBERFIT_M44_SELECTIVE_ACL_DEFAULT_PRIVILEGES_REPLAY_SYNTHETIC_ONLY'
 # Full data rows may be present even when tenant permissions were lost.
 for db in "$src" "$stripped" "$repaired"; do
  rows="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$db" \
