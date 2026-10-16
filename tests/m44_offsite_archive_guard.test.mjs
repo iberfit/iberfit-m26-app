@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {createHash, randomBytes} from 'node:crypto';
-import {mkdtemp, readFile, rm, stat} from 'node:fs/promises';
+import {mkdtemp, readFile, readdir, rm, stat} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -84,6 +84,8 @@ test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed
     assert.match(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
    }else{
     assert.notEqual(result.status,0,mode);
+    assert.deepEqual(await readdir(out),[],mode+' left partially extracted bytes');
+    assert.doesNotMatch(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
    }
   }
  });
