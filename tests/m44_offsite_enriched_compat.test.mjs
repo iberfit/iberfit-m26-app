@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {mkdtemp,mkdir,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,readdir,rm,stat,symlink,writeFile,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -92,6 +92,11 @@ test('M44 historical and enriched genuine layouts are both accepted',async()=>{
    const r=call(guard,'unpack',tar,dst);
    assert.equal(r.ok,true,r.stderr);
    assert.match(r.stdout,/ARCHIVE_STRUCTURE_VERIFIED/);
+   assert.deepEqual((await readdir(dst)).sort(),
+    mode==='roles-valid'?['database.pgcustom','global-roles.sql','platform-catalog-source.json','storage','storage-inventory.json','storage-post-inventory.json']:
+    mode==='enriched'?['database.pgcustom','platform-catalog-source.json','storage','storage-inventory.json','storage-post-inventory.json']:
+    ['database.pgcustom','storage']);
+   assert.equal((await stat(path.join(dst,'database.pgcustom'))).isFile(),true);
    if(mode==='legacy'){
     assert.doesNotMatch(r.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    }else{
@@ -108,6 +113,8 @@ test('M44 extension cannot be partial, corrupt, mismatched or unknown',async()=>
    await mkdir(dst);
    const r=call(guard,'unpack',tar,dst);
    assert.equal(r.ok,false,mode+' unexpectedly passed');
+   assert.deepEqual(await readdir(dst),[],mode+' left decrypted output after rejection');
+   assert.doesNotMatch(r.stdout,/DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED|ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    assert.doesNotMatch(r.stderr,/f\/a\.bin|private|11111111/);
   }
  });
@@ -124,7 +131,11 @@ test('M44 restored enriched archive validates every binary blob, not just metada
    await mkdir(dst);
    const result=call(guard,'unpack',tar,dst);
    assert.equal(result.ok,mode==='enriched'||mode==='roles-valid',mode);
-   if(result.ok)assert.match(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   if(result.ok){
+    assert.match(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+    assert.ok((await readdir(dst)).includes('database.pgcustom'));
+   }else assert.deepEqual(await readdir(dst),[],mode+' leaked extracted files');
+
    else assert.doesNotMatch(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    assert.doesNotMatch(result.stdout+result.stderr,/f\/a\.bin|11111111|ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad/);
   }
@@ -140,8 +151,25 @@ test('legacy and enriched TAR reject missing PostgreSQL custom-format bytes befo
    await mkdir(dst);
    const verdict=call(guard,'unpack',tar,dst);
    assert.equal(verdict.ok,false,mode);
+   assert.deepEqual(await readdir(dst),[],mode+' left plaintext after invalid PGDMP header');
    assert.doesNotMatch(verdict.stdout,/DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED|ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    assert.doesNotMatch(verdict.stderr,/database\.pgcustom|storage\/files/);
   }
+ });
+});
+
+
+test('rejecting a supplied symlink never deletes or writes outside the recovery directory',async()=>{
+ await inScratch(async d=>{
+  const tar=path.join(d,'valid.tar'),outside=path.join(d,'protected'),destination=path.join(d,'alias');
+  assert.equal(call('-c',build,'enriched',tar).ok,true);
+  await mkdir(outside);
+  await writeFile(path.join(outside,'sentinel.txt'),'must remain intact');
+  await symlink(outside,destination,'dir');
+  const result=call(guard,'unpack',tar,destination);
+  assert.equal(result.ok,false);
+  assert.equal(await readFile(path.join(outside,'sentinel.txt'),'utf8'),'must remain intact');
+  assert.deepEqual(await readdir(outside),['sentinel.txt']);
+  assert.doesNotMatch(result.stdout,/ARCHIVE_STRUCTURE_VERIFIED/);
  });
 });
