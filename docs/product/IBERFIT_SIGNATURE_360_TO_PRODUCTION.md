@@ -1,0 +1,56 @@
+# IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
+
+**Inicio:** 16-10-2026. **Base exacta de trabajo:** Canary `656b9d2aaf6afaf43c0262f7979ba6e962a5a1f2`.
+**Estado inicial:** WIP aislado. **Destino único de aceptación:** `https://app.iberfit.cl` (PRODUCCIÓN), nunca solo un PR, commit, CI o Canary.
+**Precedencia:** seguridad/autorización > integridad/no pérdida de datos > no bloqueos > funcionamiento > UX > rendimiento > belleza visual.
+**Fuente canónica existente:** `IBERFIT_NEXT_ULTRAPREMIUM_M41_M45_MASTER.md`, sistema M41, tokens de marca y QA del dispositivo. Este documento añade aceptación integral, no sustituye ni duplica esos contratos.
+
+## 1. Resultado esperado (tres productos, una marca)
+
+- **Cliente:** la primera capa comunica qué toca, por qué, cuándo y cómo avanzar. Editorial, humana, cálida, motivadora sin manipulación ni mensajes de culpa. Sesión disponible alcanzable en <=2 toques. Persona Solo IRI ve diagnóstico, no una falsa suscripción de entrenamiento. IRI inicial separado de evolución.
+- **Coach:** velocidad operativa durante una sesión presencial real. Buscar y registrar sin saltos de foco, teclado, scroll o pérdida de cliente seleccionado; trabajo compacto y visualmente sofisticado. Mantener prescripción completa (series, tempo, RPE/RIR, descansos, cardio, circuitos, biseries, triseries, AMRAP, Tabata, sustituciones, revisión y publicación).
+- **Admin:** centro de decisiones empresarial y de seguridad, no réplica de la interfaz del Coach ni tabla CRUD como portada. Datos operativos en lenguaje humano, decisiones priorizadas, auditoría accesible, permisos comprobados en backend, confirmación segura ante acciones críticas.
+
+## 2. Dirección gráfica y comportamiento
+
+Paleta estrictamente acorde con `src/m26/design/tokens.css` / fuente de generación: bosque profundo `#0B1310`, `#13221C`, crema `#F5F5F0`, oro sobrio `#C5A059`. No retocar el isotipo ni cambiar fuentes autohospedadas. Inter para la interfaz operativa; serif editorial selectiva para títulos del Cliente. Dorado no significa éxito: los colores semánticos de estados son independientes.
+
+Eliminar ruido **sin eliminar datos ni funcionalidades**: menos tarjetas anidadas, menos bordes redundantes, sin gradientes/neón/glow, sin hover/focus que mueva campos bajo el dedo. Definir y auditar jerarquía tipográfica, contraste, iconografía, estados y espacios; no introducir otra hoja "override final". Consolidar reglas existentes con evidencias de compatibilidad.
+
+### Cada pantalla y estado son parte de la entrega
+El inventario machine-readable `qa/visual/signature-360-coverage.json` contiene **todas las rutas navegables por rol** del contrato actual. Un test Node obliga a actualizar el inventario si se modifica navegación. La presencia en inventario **NO equivale** a pantalla rediseñada ni certificada.
+
+Para **cada ruta** se exige matriz en móvil 320/390px, tablet 768/1024px y escritorio 1440px, además de dispositivo táctil real cuando corresponda. Capturar:
+1. Primer acceso, carga, empty, contenido normal, datos extensos, conexión deficiente, error recuperable y reintento.
+2. Módulos internos: scroll, pestañas, overlays, diálogos, formularios, teclado físico y virtual, selects nativos, menús "Más", navegación y safe areas.
+3. Estado visual y funcional de cada CTA, accesibilidad WCAG 2.2 AA, zoom 200%, contraste, focus-visible, lector de pantalla y reduced motion.
+4. Autenticación/sesión expirada, refresh, back/forward, PWA y multi-dispositivo, cuidando idempotencia y persistencia de borradores.
+5. Descripciones humanas, datos fiables y trazabilidad: no mostrar éxito por un guardado local, ni permitir iniciar sesión retirada o no publicada.
+6. Cambios visuales verificados mediante comparación con la base exacta y pruebas de usuario/tarea; no aceptar solo un screenshot bonito.
+
+### Puntos de control específicos
+- **Cliente:** Hoy, Plan, Sesiones/Live, Progreso, Informes IRI, Actividad, Mensajes, Retos, Ajustes, estado Solo IRI, sin servicio, pausa, entrenamiento supervisado/autónomo.
+- **Coach:** Hoy, cartera, expediente, IRI, builder y catálogo, borradores/plantillas, aprobación/publicación, agenda, Live, descanso/feedback, progreso, comunicación, herramientas profesionales.
+- **Admin:** Command Center, usuarios/roles, CRM, equipo, agenda, operación, auditoría, automatizaciones, analítica, Media, configuración, permisos. Identificadores técnicos solo en divulgaciones avanzadas, nunca como nombre principal de persona.
+- **Transversal:** login, WebAuthn/OTP, recuperación, conectividad, PWA, modales, navegación por rol, consentimiento, errores, pagos no disponibles y protecciones RLS.
+
+## 3. Protección del trabajo paralelo
+
+Frente de **solo experiencia y diseño**. No cambiar RLS, migraciones, backups, secretos, release branch ni lógica de sesión sin revisión de dependencias. Los PR en paralelo M44 (#964/#965) y sesiones (#963, creado contra `main`) no deben ser fusionados a ciegas ni modificados desde aquí. Recapturar SHA y conflictos antes de integrar; no duplicar M41 ni M45.
+
+## 4. Definición contractual de terminado — PRODUCCIÓN
+
+Un cierre válido exige **las siete evidencias**:
+1. Integración de una macrounidad completa, sin funciones perdidas ni CSS duplicado; pruebas unitarias, integración, E2E, accesibilidad y visual.
+2. Auditoría de todos los roles y rutas del inventario, además de casos relevantes de diálogo/scroll/dispositivo, con evidencia independiente de aceptación. Inventario = cobertura, no aprobación.
+3. PR final sobre `canary/rc74-4` rehecho contra SHA actual; branch protection y gates requeridos verdes, incluidos Device Experience y evidencia visual real autenticada.
+4. Merge exacto y **Canary realmente desplegado**, SHA certificado por `IBERFIT Canary Exact Deploy`, WebAuthn/QA real cuando sea aplicable; sin bloqueos conocidos.
+5. Promoción por la **pipeline existente** `.github/workflows/production-promote.yml`, basada en `release/prod-<SHA>` + `.iberfit/production-release.json`, con garantías de backup/rollback y autorización apropiada. NO desplegar manualmente al margen.
+6. Verificar por fuente confiable `https://app.iberfit.cl/m26/version.json` y artefactos de despliegue/rollback que PROD efectivamente sirve el SHA exacto esperado; smoke real de Cliente, Coach y Admin, PWA y navegación, sin mutar datos reales.
+7. Comparación postproducción de flujos críticos, métricas de error/rendimiento y confirmación de que la recuperación sigue operativa. Si algún gate falla, **no proclamar PROD listo** y aplicar la política de rollback.
+
+**La palabra "terminado" queda prohibida para estado Draft, PR, CI verde, merge o Canary.** Solo `PRODUCCIÓN VERIFICADA` tras evidencias de los pasos anteriores.
+
+## 5. Orden del macrobloque
+
+Comenzar con estabilidad de foco, inputs y estructura visual compartida; continuar por rutas Cliente, Coach y Admin manteniendo cada rol especializado; después accesibilidad, sesiones reales, estados raros, rendimiento, QA visual global y promoción a producción. No publicar el primer ajuste aislado como si fuera una entrega integral. El candidato permanece Draft hasta cierre real.
