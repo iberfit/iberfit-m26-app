@@ -38,3 +38,12 @@ test('database and Storage both included and authenticated before sign-off',()=>
  assert.match(db,/scryptSync/);
  assert.match(storage,/DOWNLOAD_DENIED_OR_MISSING/);
 });
+
+test('public code repository never publishes unverified or long-lived production ciphertext',()=>{
+ assert.match(w,/if: \$\{\{ steps\.restore\.outcome == 'success' \}\}/);
+ assert.match(w,/retention-days: 1/);
+ assert.doesNotMatch(w,/if: \$\{\{ always\(\) && steps\.encrypt\.outcome == 'success' \}\}/);
+ assert.match(w,/x\.username!==\"postgres\.\"\+ref/);
+ assert.match(w,/pooler\\\.supabase\\\.com/);
+ assert.match(w,/x\.port!==\"5432\"/);
+});
