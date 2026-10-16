@@ -34,7 +34,7 @@ if mode!='legacy':
  if mode=='bad-storage-size':entry['bytes']=2
  if mode=='tampered-storage-bytes':parts[2]=('storage/files/000000.bin',b'xyz')
  if mode=='missing-storage-file':parts.pop(2)
- if mode=='orphan-storage-file':parts.append(('storage/files/000001.bin',b'unknown')
+ if mode=='orphan-storage-file':parts.append(('storage/files/000001.bin',b'unknown'))
  parts.extend([
   ('storage-inventory.json',json.dumps([dict(a, size='3')]).encode()),
   ('storage-post-inventory.json',json.dumps(rows).encode()),
