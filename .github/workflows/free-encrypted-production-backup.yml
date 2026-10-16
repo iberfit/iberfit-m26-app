@@ -16,7 +16,7 @@ jobs:
   backup:
     if: github.event_name == 'workflow_dispatch' || vars.IBERFIT_FREE_BACKUP_ENABLED == 'true'
     runs-on: ubuntu-latest
-    environment: m26-canary-readonly
+    environment: m26-prod-backup-readonly
     timeout-minutes: 25
     env:
       PROD_BACKUP_DB_URL: ${{ secrets.IBERFIT_PROD_BACKUP_DB_URL }}
