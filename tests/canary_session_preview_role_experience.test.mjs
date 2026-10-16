@@ -41,7 +41,9 @@ test('Cliente autónomo: Ver sesión completo y ejercicios con medios honestos; 
  }
  assert.match(value,/data-entity-id="guiada"/);
  assert.equal((value.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
- assert.match(value,/<details class="m26-rc39-session-content[^"]*">[\\s\\S]*data-workflow-action="start-published-session"[\\s\\S]*<\\/details>/);
+ const disclosure=value.indexOf('<details class="m26-rc39-session-content');
+ const launch=value.indexOf('data-workflow-action="start-published-session"');
+ assert.ok(disclosure>=0&&launch>disclosure&&value.indexOf('</details>',launch)>launch);
  assert.doesNotMatch(value,/data-session-primary-start/);
  assert.match(value,/loading="lazy"|Sin referencia visual/);
  assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
