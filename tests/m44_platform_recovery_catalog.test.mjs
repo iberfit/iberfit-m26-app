@@ -186,3 +186,14 @@ test('legacy catalog CLI retains 2-path format; 4-path sidecar is strict and pri
   assert.doesNotMatch(drift.stderr,/00000000000000000000000/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('PG17 ACL supplement fixture is strictly isolated and does not depend on secrets',async()=>{
+ const y=await readFile('.github/workflows/m44-access-acl-sidecar-synthetic.yml','utf8');
+ assert.match(y,/--network none/);
+ assert.match(y,/docker port "\$container"/);
+ assert.match(y,/docker inspect --format/);
+ assert.match(y,/IBERFIT_M44_ACL_SIDECAR_PG17_SCHEMA_COLUMN_DATABASE_DRIFT_VERIFIED/);
+ for(const key of ACCESS_CATEGORIES)assert.match(y,new RegExp('check_change[^\\n]* '+key));
+ assert.doesNotMatch(y,/--network host|ports:|--publish|secrets\.|SUPABASE_ACCESS_TOKEN|IBERFIT_PROD_DATABASE_URL/);
+ assert.match(y,/IBERFIT_M44_PLATFORM_RECOVERY_NOT_CERTIFIED/);
+});
