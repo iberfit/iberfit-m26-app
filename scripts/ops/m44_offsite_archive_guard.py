@@ -74,6 +74,13 @@ EXTRA_FILES = frozenset((
     "storage-post-inventory.json",
     "platform-catalog-source.json",
 ))
+ROLE_FILE = "global-roles.sql"
+MAX_ROLES_BYTES = 8 * 1024 * 1024
+CORE_ROLES = (
+    "postgres", "anon", "authenticated", "authenticator",
+    "service_role", "supabase_admin", "supabase_auth_admin",
+    "supabase_storage_admin",
+)
 CATALOG_KEYS = frozenset((
     "roles", "role_memberships", "relation_security", "default_privileges",
     "function_security", "policies", "triggers", "constraints", "indexes",
@@ -86,7 +93,7 @@ TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z")
 
 
 def allowed_tar_file(name):
-    return name in EXTRA_FILES or name in ("database.pgcustom", "storage/manifest.json") or (
+    return name in EXTRA_FILES or name == ROLE_FILE or name in ("database.pgcustom", "storage/manifest.json") or (
         re.fullmatch(r"storage/files/[0-9]{6,12}\.bin", name) is not None)
 
 
@@ -166,6 +173,33 @@ def validate_enriched_archive(base):
             "PLATFORM_CATALOG_INVALID")
 
 
+
+def validate_optional_role_archive(path):
+    require(path.is_file() and not path.is_symlink(), "ROLES_NOT_REGULAR")
+    size = path.stat().st_size
+    require(300 <= size <= MAX_ROLES_BYTES, "ROLES_SIZE_INVALID")
+    try:
+        sql = path.read_text(encoding="utf-8")
+    except UnicodeError:
+        raise ValueError("IBERFIT_OFFSITE_ROLES_UTF8_INVALID")
+    require(re.search(r"^--\s*PostgreSQL database cluster dump",
+                      sql, flags=re.M) is not None,
+            "ROLES_PGDUMP_HEADER_MISSING")
+    require("PostgreSQL database cluster dump complete" in sql,
+            "ROLES_PGDUMP_TRAILER_MISSING")
+    # Role-password declarations are forbidden even if the dump is encrypted.
+    # Never print raw SQL, role names, arguments or recovered paths.
+    require(re.search(r"\bPASSWORD\b", sql, re.I) is None,
+            "ROLES_PASSWORD_CLAUSE_FORBIDDEN")
+    for name in CORE_ROLES:
+        quoted = re.escape(name)
+        require(re.search(
+            r"\bCREATE\s+ROLE\s+(?:\"" + quoted + r"\"|" + quoted + r")\s*;",
+            sql, re.I) is not None, "ROLES_REQUIRED_ROLE_MISSING")
+    require(re.search(r"\bALTER\s+ROLE\s+", sql, re.I) is not None,
+            "ROLES_ATTRIBUTES_MISSING")
+
+
 def unpack_tar(archive, directory):
     base = pathlib.Path(directory).resolve()
     require(base.is_dir() and not any(base.iterdir()), "RESTORE_DIR_NOT_EMPTY")
@@ -181,7 +215,8 @@ def unpack_tar(archive, directory):
                 (base / name).mkdir(parents=True, exist_ok=True)
                 continue
             require(member.isfile() and allowed_tar_file(name), "TAR_UNSAFE_ENTRY")
-            limit = MAX_JSON_BYTES if name in EXTRA_FILES else MAX_TAR_BYTES
+            limit = (MAX_JSON_BYTES if name in EXTRA_FILES else
+                     MAX_ROLES_BYTES if name == ROLE_FILE else MAX_TAR_BYTES)
             require(0 <= member.size <= limit, "TAR_MEMBER_TOO_LARGE")
             total += member.size
             require(total <= MAX_TAR_BYTES and len(present) <= MAX_ITEMS,
@@ -201,6 +236,9 @@ def unpack_tar(archive, directory):
             "PARTIAL_ENRICHED_ARCHIVE")
     if extension:
         validate_enriched_archive(base)
+    if ROLE_FILE in present:
+        require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
+        validate_optional_role_archive(base / ROLE_FILE)
     print("IBERFIT_OFFSITE_DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED")
 
 def main():
