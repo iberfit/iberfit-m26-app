@@ -25,6 +25,8 @@ for key in ('roles','role_memberships','relation_security','default_privileges',
 parts=[('database.pgcustom',b'PGDMP backed fixture'),
  ('storage/manifest.json',json.dumps(manifest).encode()),
  ('storage/files/000000.bin',b'abc')]
+if mode in ('invalid-dump-magic','empty-dump'):
+ parts[0]=('database.pgcustom',b'database not a custom archive' if mode=='invalid-dump-magic' else b'')
 if mode!='legacy':
  if mode=='changed': a['size']='4'
  if mode=='duplicate': rows=[a,a]
@@ -100,7 +102,7 @@ test('M44 historical and enriched genuine layouts are both accepted',async()=>{
 });
 test('M44 extension cannot be partial, corrupt, mismatched or unknown',async()=>{
  await inScratch(async d=>{
-  for(const mode of ['changed','duplicate','missing-manifest','bad-catalog','partial','bad-json','extra-member','fake-meta','legacy-traversal','roles-legacy','roles-password','roles-missing','roles-truncated','bad-storage-hash','bad-storage-size','tampered-storage-bytes','missing-storage-file','orphan-storage-file']){
+  for(const mode of ['changed','duplicate','missing-manifest','bad-catalog','partial','bad-json','extra-member','fake-meta','legacy-traversal','roles-legacy','roles-password','roles-missing','roles-truncated','bad-storage-hash','bad-storage-size','tampered-storage-bytes','missing-storage-file','orphan-storage-file','invalid-dump-magic','empty-dump']){
    const tar=path.join(d,mode+'.tar'),dst=path.join(d,mode);
    assert.equal(call('-c',build,mode,tar).ok,true);
    await mkdir(dst);
@@ -125,6 +127,21 @@ test('M44 restored enriched archive validates every binary blob, not just metada
    if(result.ok)assert.match(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    else assert.doesNotMatch(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    assert.doesNotMatch(result.stdout+result.stderr,/f\/a\.bin|11111111|ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad/);
+  }
+ });
+});
+
+
+test('legacy and enriched TAR reject missing PostgreSQL custom-format bytes before success',async()=>{
+ await inScratch(async d=>{
+  for(const mode of ['invalid-dump-magic','empty-dump']){
+   const tar=path.join(d,mode+'.tar'),dst=path.join(d,mode);
+   assert.equal(call('-c',build,mode,tar).ok,true);
+   await mkdir(dst);
+   const verdict=call(guard,'unpack',tar,dst);
+   assert.equal(verdict.ok,false,mode);
+   assert.doesNotMatch(verdict.stdout,/DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED|ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   assert.doesNotMatch(verdict.stderr,/database\.pgcustom|storage\/files/);
   }
  });
 });
