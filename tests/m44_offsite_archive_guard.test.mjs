@@ -178,7 +178,7 @@ test('publish failure after first recovered component rolls back and preserves u
    'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
    'rename=guard.os.rename',
    'old_publish=guard.publish_verified_archive',
-   'def use_windows_fallback(stage,destination,existed):',
+   'def use_windows_fallback(stage,destination,existed,**kwargs):',
    ' return old_publish(stage,destination,existed,supports_replace_directory=False)',
    'guard.publish_verified_archive=use_windows_fallback',
    'count=[0]',
