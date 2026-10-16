@@ -242,17 +242,60 @@ def validate_optional_role_archive(path):
             "ROLES_ATTRIBUTES_MISSING")
 
 
+def publish_verified_archive(stage, destination, existed, *,
+                             supports_replace_directory=None):
+    # Linux/POSIX can replace an existing EMPTY directory atomically. Windows
+    # cannot replace even an empty existing directory; keep the old, tested
+    # rollback for that one compatibility path. A destination that does not
+    # exist supports atomic rename on either OS.
+    if supports_replace_directory is None:
+        supports_replace_directory = os.name != "nt"
+    require(not destination.is_symlink(), "RESTORE_DIR_SYMLINK_FORBIDDEN")
+    if existed:
+        require(destination.is_dir() and not any(destination.iterdir()),
+                "RESTORE_DESTINATION_CHANGED")
+    else:
+        require(not destination.exists(), "RESTORE_DESTINATION_CHANGED")
+    if not existed or supports_replace_directory:
+        # Staging is a sibling, so this is one same-filesystem namespace
+        # operation. A crash cannot expose a partially moved file set.
+        os.replace(stage, destination)
+        return
+    # Windows compatibility when the caller supplied an existing empty dir.
+    # This fallback remains only exception-safe, not crash-atomic.
+    published = []
+    try:
+        for child in stage.iterdir():
+            final = destination / child.name
+            require(not final.exists() and not final.is_symlink(),
+                    "RESTORE_DESTINATION_CHANGED")
+            os.rename(child, final)
+            published.append(final)
+    except BaseException:
+        for final in reversed(published):
+            if final.is_dir() and not final.is_symlink():
+                shutil.rmtree(final)
+            else:
+                final.unlink(missing_ok=True)
+        raise
+
+
 def unpack_tar(archive, directory):
     # Refuse the supplied symlink itself instead of silently resolving it
     # to a different location that might hold unrelated data.
     supplied = pathlib.Path(directory)
     require(not supplied.is_symlink(), "RESTORE_DIR_SYMLINK_FORBIDDEN")
     base = supplied.resolve()
-    require(base.is_dir() and not any(base.iterdir()), "RESTORE_DIR_NOT_EMPTY")
-    # Never put unvalidated plaintext in the operator-visible final destination.
-    # TemporaryDirectory is 0700 and removes partially extracted files on
-    # errors in TAR parsing, manifests, roles or byte/hash validation.
-    with tempfile.TemporaryDirectory(prefix=".m44-private-stage-", dir=base) as temp:
+    existed = base.exists()
+    require(not existed or (base.is_dir() and not any(base.iterdir())),
+            "RESTORE_DIR_NOT_EMPTY")
+    require(base.parent.is_dir(), "RESTORE_PARENT_INVALID")
+    # Staging lives in a sibling private directory, NEVER under final output.
+    # This permits same-filesystem atomic rename on POSIX, and on Windows
+    # when the destination has not been created by the caller.
+    # Failed validation removes staging without changing final destination.
+    with tempfile.TemporaryDirectory(prefix=".m44-private-stage-",
+                                     dir=base.parent) as temp:
         stage = pathlib.Path(temp)
         os.chmod(stage, 0o700)
         present = set()
@@ -315,24 +358,9 @@ def unpack_tar(archive, directory):
         if ROLE_FILE in present:
             require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
             validate_optional_role_archive(stage / ROLE_FILE)
-        # Publish only after every component has passed validation.
-        # The destination was required to be empty before staging began.
-        # Roll back any already moved top-level components if publishing fails.
-        published = []
-        try:
-            for child in stage.iterdir():
-                final = base / child.name
-                require(not final.exists() and not final.is_symlink(),
-                        "RESTORE_DESTINATION_CHANGED")
-                os.rename(child, final)
-                published.append(final)
-        except BaseException:
-            for final in reversed(published):
-                if final.is_dir() and not final.is_symlink():
-                    shutil.rmtree(final)
-                else:
-                    final.unlink(missing_ok=True)
-            raise
+        # All members, hashes and optional role data must pass before a
+        # single publish operation makes them visible.
+        publish_verified_archive(stage, base, existed)
     # No unverified snapshot is announced. This marker is only emitted
     # after staging and full publication have both succeeded.
     print("IBERFIT_OFFSITE_STORAGE_MANIFEST_BYTES_SHA256_VERIFIED")
