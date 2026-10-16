@@ -177,6 +177,10 @@ test('publish failure after first recovered component rolls back and preserves u
    'spec=importlib.util.spec_from_file_location("m44_fixture",sys.argv[1])',
    'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
    'rename=guard.os.rename',
+   'old_publish=guard.publish_verified_archive',
+   'def use_windows_fallback(stage,destination,existed):',
+   ' return old_publish(stage,destination,existed,supports_replace_directory=False)',
+   'guard.publish_verified_archive=use_windows_fallback',
    'count=[0]',
    'def fail_on_second(source,target):',
    ' count[0]+=1',
@@ -197,5 +201,91 @@ test('publish failure after first recovered component rolls back and preserves u
   assert.notEqual(preexisting.status,0);
   assert.deepEqual(await readdir(out),['operator-file.txt']);
   assert.equal(await readFile(sentinel,'utf8'),'preserve');
+ });
+});
+
+
+test('atomic publication exposes complete recovered set in one POSIX filesystem rename',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'not-yet-created');
+  const inspect=[
+   'import importlib.util,os,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'replace=guard.os.replace',
+   'def inspect(source,target):',
+   ' source=pathlib.Path(source);target=pathlib.Path(target)',
+   ' assert not target.exists(), "final target exposed before commit"',
+   ' assert source.parent==target.parent, "cross-filesystem staging"',
+   ' assert set(p.name for p in source.iterdir())=={"database.pgcustom","storage"}, "staging incomplete"',
+   ' assert source.stat().st_mode&0o777==0o700, "private staging permission missing"',
+   ' return replace(source,target)',
+   'guard.os.replace=inspect',
+   'guard.unpack_tar(sys.argv[2],sys.argv[3])'
+  ].join('\n');
+  const result=run('-c',inspect,guard,tar,out);
+  assert.equal(result.status,0,result.output);
+  assert.deepEqual((await readdir(out)).sort(),['database.pgcustom','storage']);
+  assert.deepEqual((await readdir(dir)).sort(),['not-yet-created','source.tar'],
+   'staging directory must not survive successful commit');
+  assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+ });
+});
+test('atomic commit failure leaves old output unchanged and removes private sibling staging',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'already-empty');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const wrapper=[
+   'import importlib.util,os,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'def fail_replace(source,target):',
+   ' assert pathlib.Path(target).is_dir() and not list(pathlib.Path(target).iterdir())',
+   ' raise OSError("synthetic atomic commit rejected")',
+   'guard.os.replace=fail_replace',
+   'try:guard.unpack_tar(sys.argv[2],sys.argv[3])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(19)'
+  ].join('\n');
+  const r=run('-c',wrapper,guard,tar,out);
+  assert.equal(r.status,0,r.output);
+  assert.deepEqual(await readdir(out),[],'failed commit must not expose recovered files');
+  assert.deepEqual((await readdir(dir)).sort(),['already-empty','source.tar'],
+   'no private plaintext stage should survive a handled commit failure');
+  assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+ });
+});
+test('atomic replace rejects concurrent destination content without deleting operator data',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'restore');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const wrapper=[
+   'import importlib.util,os,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'replace=guard.os.replace',
+   'def concurrent_writer(source,target):',
+   ' pathlib.Path(target,"operator.txt").write_text("preserve")',
+   ' return replace(source,target)',
+   'guard.os.replace=concurrent_writer',
+   'try:guard.unpack_tar(sys.argv[2],sys.argv[3])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(18)'
+  ].join('\n');
+  const r=run('-c',wrapper,guard,tar,out);
+  assert.equal(r.status,0,r.output);
+  assert.deepEqual(await readdir(out),['operator.txt']);
+  assert.equal(await readFile(path.join(out,'operator.txt'),'utf8'),'preserve');
+  assert.deepEqual((await readdir(dir)).sort(),['restore','source.tar']);
+  assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
  });
 });
