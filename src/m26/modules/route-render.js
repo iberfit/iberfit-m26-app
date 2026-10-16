@@ -43,7 +43,7 @@ function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
   const controls=confirmable
     ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="confirm-appointment" data-entity-id="${escapeHtml(item.id)}">Confirmar cita</button><small>Al confirmar será visible para el cliente.</small></div>`
     : startable
-      ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.sessionId)}">Iniciar entrenamiento</button><small>Abre la sesión publicada vinculada a esta cita.</small></div>`
+      ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.sessionId)}">Comenzar entrenamiento</button><small>Abre la sesión publicada vinculada a esta cita.</small></div>`
       : '';
   return `<article class="m26-list-card m26-appointment-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div><div class="m26-appointment-state">${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}${controls}</div></article>`;
 }
@@ -1059,7 +1059,7 @@ function clientContentBody(view,{preview=false}={}){
 }
 function clientContentCard(item,entity,{mediaMap=null}={}){
   if(entity==='session')return renderClientSessionPresentation(item,{mediaMap});
-  const view=item.clientContent||{};const sessionAction=entity==='session'?(item.canClientExecute===true?`<button type="button" class="m26-primary-action m26-client-session-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.id)}">Comenzar esta sesión</button>`:'<p class="m26-field-help">Sesión dirigida por tu entrenador. Consulta las indicaciones y tu agenda.</p>'):'';
+  const view=item.clientContent||{};const sessionAction=entity==='session'?(item.canClientExecute===true?`<button type="button" class="m26-primary-action m26-client-session-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.id)}">Comenzar entrenamiento</button>`:'<p class="m26-field-help">Sesión dirigida por tu entrenador. Consulta las indicaciones y tu agenda.</p>'):'';
   return `<article class="m26-client-content-card" data-client-content="${escapeHtml(entity)}"><div><p class="m26-eyebrow">${escapeHtml(view.eyebrow||'IBERFIT')}</p><h3>${escapeHtml(view.title||item.title||'Contenido IBERFIT')}</h3>${clientContentBody(view)}</div>${sessionAction}</article>`;
 }
 function publicationCard(item,entity,{mediaMap=null}={}){
