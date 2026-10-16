@@ -70,3 +70,25 @@ test('selective recovery replays only ACL and DEFAULT ACL, never table rows or D
  // database would hide duplication and could overwrite tenant data.
  assert.match(sh,/print ";" \$0; next/);
 });
+
+test('recovered ACL is also exercised with real tenant-scoped DML RLS',()=>{
+ assert.match(sh,/CREATE ROLE iberfit_m44_fixture_writer NOLOGIN/);
+ assert.match(sh,/tenant_id integer NOT NULL/);
+ assert.match(sh,/GRANT SELECT, INSERT, UPDATE, DELETE ON m44_acl_fixture\.exercise TO iberfit_m44_fixture_writer/);
+ for(const kind of ['SELECT','INSERT','UPDATE','DELETE']){
+  assert.match(sh,new RegExp('CREATE POLICY m44_writer_'+
+   kind.toLowerCase()+'_scope[\\s\\S]*?FOR '+kind+
+   ' TO iberfit_m44_fixture_writer'));
+ }
+ assert.match(sh,/FOR INSERT TO iberfit_m44_fixture_writer WITH CHECK \(tenant_id = 1\)/);
+ assert.match(sh,/FOR UPDATE TO iberfit_m44_fixture_writer USING \(tenant_id = 1\) WITH CHECK \(tenant_id = 1\)/);
+ assert.match(sh,/SET LOCAL ROLE iberfit_m44_fixture_writer/);
+ assert.match(sh,/BEGIN; SET LOCAL ROLE[\s\S]*?ROLLBACK/);
+ assert.match(sh,/violates row-level security policy/);
+ assert.match(sh,/WHERE id=2 RETURNING id/);
+ assert.match(sh,/SET tenant_id=2 WHERE id=1/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_SOURCE_AND_FULL_RESTORE_SYNTHETIC_VERIFIED/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_STRIPPED_UNEXPECTEDLY_PERMITTED/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_DIVERGED/);
+});
