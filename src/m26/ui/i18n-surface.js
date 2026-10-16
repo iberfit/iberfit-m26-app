@@ -5,6 +5,13 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // Entrenamiento guiado: nomenclatura estable y accesible en cuatro idiomas.
+  ['Comenzar entrenamiento','Start workout','Commencer l’entraînement','Começar treino'],
+  ['Guardar y salir','Save and leave','Enregistrer et quitter','Guardar e sair'],
+  ['Comenzar entrenamiento preparado','Start prepared workout','Commencer l’entraînement préparé','Começar treino preparado'],
+  ['Comenzar con Coach','Start with coach','Commencer avec le coach','Começar com o treinador'],
+  ['Entrenamiento guiado','Guided workout','Entraînement guidé','Treino guiado'],
+  ['Sin conexión','Offline','Hors connexion','Sem ligação'],
   // M44: withdrawn-version reason is an interactive Coach/Admin field, not report copy.
   ['Indica por qué se retira esta versión','Explain why this version is being withdrawn',
    'Indiquez pourquoi cette version est retirée',
