@@ -130,6 +130,10 @@ test('versioned sidecar hashes schema, column and database ACL without exposing 
  for(const key of ACCESS_CATEGORIES)assert.match(sql,new RegExp("'"+key+"'"));
  for(const key of ['pg_namespace','nspacl','pg_attribute','attacl','pg_database','datacl','current_database()'])
   assert.ok(sql.includes(key),key);
+ // Compare privilege *semantics*, not database names that intentionally
+ // differ during disaster recovery. No name may enter the digest payload.
+ assert.doesNotMatch(sql,/d\.datname\s+AS\s+database_name/);
+ assert.match(sql,/WHERE d\.datname=current_database\(\)/);
  assert.match(sql,/sha256\(/);
  assert.doesNotMatch(sql,/\b(?:UPDATE|TRUNCATE|DELETE|DROP|CREATE|ALTER|GRANT|REVOKE)\s+(?:FROM|INTO|TABLE|DATABASE|SCHEMA|ON)\b/i);
  assert.doesNotMatch(sql,/\b(?:rolpassword|auth\.users|vault\.secrets|storage\.objects)\b/i);
@@ -193,6 +197,9 @@ test('PG17 ACL supplement fixture is strictly isolated and does not depend on se
  assert.match(y,/docker port "\$container"/);
  assert.match(y,/docker inspect --format/);
  assert.match(y,/IBERFIT_M44_ACL_SIDECAR_PG17_SCHEMA_COLUMN_DATABASE_DRIFT_VERIFIED/);
+ assert.match(y,/IBERFIT_M44_ACL_SIDECAR_RENAMED_RESTORE_PARITY_VERIFIED/);
+ assert.match(y,/CREATE DATABASE iberfit_m44_acl_sidecar_restored/);
+ assert.match(y,/compareAccessCatalog\(original,renamed\)/);
  for(const key of ACCESS_CATEGORIES)assert.match(y,new RegExp('check_change[^\\n]* '+key));
  assert.doesNotMatch(y,/--network host|ports:|--publish|secrets\.|SUPABASE_ACCESS_TOKEN|IBERFIT_PROD_DATABASE_URL/);
  assert.match(y,/IBERFIT_M44_PLATFORM_RECOVERY_NOT_CERTIFIED/);
