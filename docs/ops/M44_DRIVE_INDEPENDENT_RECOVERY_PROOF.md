@@ -10,7 +10,17 @@ El verificador scripts/ops/m44_offsite_archive_guard.py comprueba procedencia y 
 
 La comprobación ZIP/SHA no acredita descifrado por una clave recuperada externamente. La única prueba de autenticidad criptográfica es la validación AES-256-GCM del motor canónico scripts/ops/m44_encrypted_backup_archive.mjs. No crear un segundo cifrador o restaurador paralelo.
 
-## Ensayo independiente obligatorio (todavía pendiente)
+## Ensayos independientes efectuados: cuatro generaciones; última copia pendiente
+
+El runbook se originó cuando solo existía un respaldo lógico. Al **16/10/2026** hay evidencia adicional confirmada por el operador Windows, introduciendo su clave en ventana local oculta, sin GitHub/Supabase ni secretos transmitidos al chat:
+
+- Generaciones 1–3: recuperación externa de dump PG17 y bytes de 126 objetos Storage; la tercera agregó declaraciones de roles globales sin contraseñas **preservadas, no aplicadas**.
+- Generación 4 (GitHub run 38849763961, Drive privado 1MY1JPF4B7zlx3WBl7L1cGeAS1u6DUylL): operador verificó SHA-256, AES-256-GCM, TAR, 126 objetos Storage, existencia de ACL y DEFAULT ACL en TOC y restauración PostgreSQL 17 en contenedor Docker sin red y sin puertos, eliminado al finalizar. Roles y ACL **no aplicados**: --no-owner --no-acl.
+- Generación 5 (GitHub run 38888628869, Drive privado 199Ys6j8DjYBluF2k-k-xQF_9hovqv_Jk, SHA-256 3fd6a9aff8beda8342973da357824d04b3f6ef6508ba381d2495cea25a7d18bd): tres jobs GitHub SUCCESS, subida privada y descarga posterior desde Drive cotejada con el artefacto GitHub; **pendiente ensayo independiente offline con clave externa de esta última generación**.
+
+La restauración PostgreSQL+Storage fuera de GitHub ya está demostrada con copias anteriores. La recuperación *integral* de Supabase, incluyendo aplicación real de roles/ACL, Auth alojado, JWT, Edge Functions, Vault y secretos, todavía NO lo está. Es incorrecto inferir recuperación de plataforma por presencia de ACL en un archivo. Ninguna de estas pruebas autoriza M44 PROD.
+
+## Procedimiento repetible de prueba externa
 
 1. Descargar los bytes del ZIP desde Drive, sin recuperar el artefacto temporal de GitHub.
 2. Recuperar una clave de cifrado conservada de forma independiente y segura fuera de GitHub, sin mostrarla en chat, logs ni código.
@@ -30,4 +40,4 @@ El modo TLS sslmode=require cifra el tráfico pero no verifica plenamente la ide
 
 La recuperación aislada de PostgreSQL no demuestra recuperación integral de la configuración gestionada de Auth, Vault, Edge Functions, secretos y servicios externos. M44 tiene 12 migraciones en QA y ninguna confirmada en PROD en el inventario realizado: revisar inmediatamente antes de promoción.
 
-ESTADO: evidencia externa parcial; ninguna afirmación de recuperación totalmente independiente ni autorización de despliegue a PROD.
+ESTADO: recuperación independiente de PostgreSQL y Storage acreditada hasta la cuarta generación; roles y ACL archivados sin aplicación. Última copia pendiente de ensayo externo. Recuperación integral de plataforma y RTO/RPO **no certificados**; ninguna autorización de despliegue a PROD. Para duraciones observables de transferencia externa, consultar docs/ops/M44_RTO_RPO_MEASUREMENT_EVIDENCE.md.
