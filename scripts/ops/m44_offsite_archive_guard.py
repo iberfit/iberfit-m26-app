@@ -15,6 +15,7 @@ CIPHER_NAME = "iberfit-prod-recovery.ibf"
 MAX_CIPHER = 1024 * 1024 * 1024
 MAX_TAR_BYTES = 2 * 1024 * 1024 * 1024
 MAX_ITEMS = 100000
+MAX_STORAGE_OBJECT_BYTES = 256 * 1024 * 1024  # Matches the exporter limit
 
 
 def require(condition, reason):
@@ -136,7 +137,7 @@ def inventory_rows(payload):
     return result
 
 
-def validate_enriched_archive(base):
+def validate_enriched_archive(base, archived_members):
     before = inventory_rows(protected_json(base / "storage-inventory.json"))
     after = inventory_rows(protected_json(base / "storage-post-inventory.json"))
     require(before == after, "INVENTORY_CHANGED_DURING_EXPORT")
@@ -164,6 +165,30 @@ def validate_enriched_archive(base):
         require(size is None or int(size) == x["bytes"],
                 "STORAGE_SIZE_MISMATCH")
     require(seen == set(before), "INVENTORY_MANIFEST_MISMATCH")
+
+    # A catalog entry and two matching inventories do not prove that the
+    # recovered Storage byte files exist or match their declared checksums.
+    # Verify the EXACT tar member set first: neither missing nor orphaned
+    # blobs may be accepted as a successfully unpacked enriched archive.
+    expected_members = {
+        "storage/" + item["relative"] for item in objects
+    }
+    actual_members = {
+        name for name in archived_members if name.startswith("storage/files/")
+    }
+    require(actual_members == expected_members, "STORAGE_FILES_SET_MISMATCH")
+
+    for item in objects:
+        require(item["bytes"] <= MAX_STORAGE_OBJECT_BYTES,
+                "STORAGE_OBJECT_LIMIT_EXCEEDED")
+        target = base / "storage" / item["relative"]
+        require(target.is_file() and not target.is_symlink(),
+                "STORAGE_FILE_NOT_REGULAR")
+        require(target.stat().st_size == item["bytes"],
+                "STORAGE_FILE_SIZE_MISMATCH")
+        require(hash_file(target) == item["sha256"],
+                "STORAGE_FILE_CHECKSUM_MISMATCH")
+
     catalog = protected_json(base / "platform-catalog-source.json")
     require(isinstance(catalog, dict) and
             set(catalog) == CATALOG_KEYS | {"schema"} and
@@ -235,7 +260,7 @@ def unpack_tar(archive, directory):
     require(not extension or extension == EXTRA_FILES,
             "PARTIAL_ENRICHED_ARCHIVE")
     if extension:
-        validate_enriched_archive(base)
+        validate_enriched_archive(base, present)
     if ROLE_FILE in present:
         require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
         validate_optional_role_archive(base / ROLE_FILE)
