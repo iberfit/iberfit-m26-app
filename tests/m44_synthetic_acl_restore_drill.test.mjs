@@ -18,8 +18,13 @@ test('synthetic fixture drill refuses any nonlocal or nonliteral password connec
  }
 });
 test('workflow can never consume production credentials or call Supabase endpoints',()=>{
- assert.match(yaml,/image: supabase\/postgres:17\.6\.1\.147/);
- assert.match(yaml,/postgres:17-alpine sh \/drill\.sh/);
+ assert.match(yaml,/supabase\/postgres:17\.6\.1\.147/);
+ assert.match(yaml,/docker run --detach --name "\$container" --network none/);
+ assert.match(yaml,/docker exec[\s\S]*?"\$container" sh \/drill\.sh/);
+ assert.match(yaml,/docker inspect --format/);
+ assert.match(yaml,/docker port "\$container"/);
+ assert.match(yaml,/IBERFIT_M44_SYNTHETIC_DATABASE_NETWORK_NONE_NO_PORTS_VERIFIED/);
+ assert.doesNotMatch(yaml,/--network host|ports:|--publish|-p 5432:5432|services:/);
  assert.match(yaml,/IBERFIT_M44_SYNTHETIC_ONLY=true/);
  assert.match(yaml,/permissions:\s*\n  contents: read/);
  assert.match(yaml,/PGHOST=127\.0\.0\.1/);
