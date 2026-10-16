@@ -112,3 +112,38 @@ test('ZIP unwrap refuses existing files and dangling symlinks without removing t
   assert.doesNotMatch(linked.output,/CIPHERTEXT_VERIFIED/);
  });
 });
+
+
+test('reject TAR size bomb at member header and truncated copy before final publication',async()=>{
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const python=String.raw\`
+import importlib.util,sys
+spec=importlib.util.spec_from_file_location('m44_fixture_guard',sys.argv[1])
+guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)
+mode,archive,destination=sys.argv[2:]
+if mode=='storage':guard.MAX_STORAGE_OBJECT_BYTES=4
+elif mode=='manifest':guard.MAX_JSON_BYTES=1
+elif mode=='shortcopy':
+ def one_byte(source,destination,length):destination.write(source.read(1))
+ guard.shutil.copyfileobj=one_byte
+else:sys.exit(13)
+try:guard.unpack_tar(archive,destination)
+except ValueError as e:
+ if str(e) not in ('IBERFIT_OFFSITE_TAR_MEMBER_TOO_LARGE',
+                   'IBERFIT_OFFSITE_TAR_MEMBER_SIZE_MISMATCH'):
+  sys.exit(14)
+ sys.exit(0)
+sys.exit(15)
+\`;
+  for(const mode of ['storage','manifest','shortcopy']){
+   const out=path.join(dir,mode);
+   await import('node:fs/promises').then(fs=>fs.mkdir(out));
+   const r=run('-c',python,guard,mode,tar,out);
+   assert.equal(r.status,0,mode+':'+r.output);
+   assert.deepEqual(await readdir(out),[],mode+' left unverified files');
+   assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+  }
+ });
+});
