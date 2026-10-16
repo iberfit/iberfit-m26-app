@@ -4,7 +4,7 @@ import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} fr
 import {getIberfitLanguage} from '../ui/i18n.js';
 import {coachLaunchSelfCopy} from './view-model.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
-import {isPublishedSession,sessionHasExecutableBlocks,sessionReadyToStart,sessionRequiresConfirmedAppointment} from './session-policy.js';
+import {isPublishedSession,sessionHasExecutableBlocks,sessionReadyToStart,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionIdOf} from './session-policy.js';
 
 const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
@@ -94,7 +94,10 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="open-change-request" data-appointment-id="${escape(item.appointmentId)}">Solicitar cambio</button>`);
     }
   }
-  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true)){
+  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&item.visible===true&&item.visibility==='full'&&
+     item.canClientExecute===true&&item.canClientStart===true&&
+     sessionIdOf(item.session)===String(item.id||'')&&actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment})&&
+     sessionHasExecutableBlocks(item.session)){
     actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento</button>`);
   }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
@@ -185,11 +188,15 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
   const experience=experienceFor(item,role,contractModality);
   const supervised=item.ownership==='coach_led'||item.ownership==='live_online';
-  const canInspect=role!=='client'||(item.visible===true&&!supervised&&item.visibility==='full');
+  const canInspect=role!=='client'||(item.visible===true&&!supervised&&item.visibility==='full'&&
+    item.canClientExecute===true&&sessionIdOf(item.session)===String(item.id||'')&&
+    actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment}));
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
   const content=detailAvailable
     ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
-    : `<p class="m26-rc39-summary-copy">${item.ownership==='coach_led'?'Esta sesión la dirige tu Coach.':'La sesión se realiza en directo con tu Coach.'}</p>`;
+    : `<p class="m26-rc39-summary-copy">${supervised
+       ?(item.ownership==='coach_led'?'Esta sesión la dirige tu Coach.':'La sesión se realiza en directo con tu Coach.')
+       :'El detalle de esta sesión estará disponible cuando tu Coach lo habilite.'}</p>`;
   const duration=previewNumber(publishedBody(item.session).durationMinutes??item.session?.durationMinutes,{min:1,max:1440});
   const summaryMeta=role==='client'&&supervised?`<p class="m26-session-supervised-duration">${duration?`${escape(duration)} min · `:''}Con tu entrenador</p>`:'';
   const experienceHtml=role==='client'&&supervised?'':experiencePanel(experience,role);
