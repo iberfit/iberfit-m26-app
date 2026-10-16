@@ -202,7 +202,7 @@ export function createWebPushCoordinator({
     // Revoke is scoped to auth.uid() on the server. A zero-row result means
     // this browser's endpoint was not owned by the authenticated actor:
     // never unsubscribe a different account's PushSubscription.
-    if(!Number.isSafeInteger(Number(revokeResult.deletedCount))||Number(revokeResult.deletedCount)<1)
+    if(!Number.isSafeInteger(revokeResult.deletedCount)||revokeResult.deletedCount<1)
       throw new Error('M45_PUSH_OWNERSHIP_NOT_CONFIRMED');
     // Another tab can replace or remove the browser subscription while the
     // server revokes the original. Do not remove the replacement or claim that
