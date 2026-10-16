@@ -27,7 +27,13 @@ metrics AS (
     count(*) FILTER (WHERE schema_name='public' AND rolname='anon')::int AS public_tables,
     count(*) FILTER (WHERE can_truncate)::int AS truncate_grants,
     count(*) FILTER (WHERE NOT rls_enabled
-      AND (can_select OR can_insert OR can_update OR can_delete))::int AS unprotected_dml_grants,
+      AND (can_select OR can_insert OR can_update OR can_delete
+        OR pg_catalog.has_any_column_privilege('anon',relation_oid,'SELECT')
+        OR pg_catalog.has_any_column_privilege('anon',relation_oid,'INSERT')
+        OR pg_catalog.has_any_column_privilege('anon',relation_oid,'UPDATE')
+        OR pg_catalog.has_any_column_privilege('authenticated',relation_oid,'SELECT')
+        OR pg_catalog.has_any_column_privilege('authenticated',relation_oid,'INSERT')
+        OR pg_catalog.has_any_column_privilege('authenticated',relation_oid,'UPDATE')))::int AS unprotected_dml_grants,
     count(*) FILTER (WHERE schema_name='public' AND rolname='anon' AND can_delete)::int AS public_anon_delete,
     count(*) FILTER (WHERE schema_name='public' AND rolname='anon' AND can_trigger)::int AS public_anon_trigger,
     count(*) FILTER (WHERE schema_name='public' AND rolname='authenticated' AND can_delete)::int AS public_authenticated_delete,
