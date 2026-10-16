@@ -60,7 +60,7 @@ export async function encryptBackup({sourcePath,encryptedPath,manifestPath,publi
     const metadata={
       schema:RECOVERY_SCHEMA,projectRef:PROD,createdAt:new Date().toISOString(),sourceSha,
       encryption:'AES-256-GCM+RSA-OAEP-SHA256',
-      databaseArchiveValidated:true,fullRestoreVerified:false,storageObjectBytesIncluded:false,
+      databaseArchiveValidated:false,fullRestoreVerified:false,storageObjectBytesIncluded:false,
       productionMigrationApproved:false,
     };
     const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
@@ -82,7 +82,7 @@ export async function decryptBackup({encryptedPath,manifest,privateKey}){
   if(manifest?.schema!==RECOVERY_SCHEMA||manifest?.projectRef!==PROD
     ||!(/^[a-f0-9]{40}$/u.test(manifest?.sourceSha||''))
     ||manifest.encryption!=='AES-256-GCM+RSA-OAEP-SHA256'
-    ||manifest.databaseArchiveValidated!==true
+    ||manifest.databaseArchiveValidated!==false
     ||manifest.fullRestoreVerified!==false
     ||manifest.storageObjectBytesIncluded!==false
     ||manifest.productionMigrationApproved!==false)

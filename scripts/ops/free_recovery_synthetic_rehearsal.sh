@@ -75,7 +75,7 @@ const manifest=await encryptBackup({
  publicKey:await fs.readFile(path.join(dir,'synthetic-public.pem'),'utf8'),
  sourceSha:'b'.repeat(40)
 });
-if(manifest.fullRestoreVerified!==false||manifest.storageObjectBytesIncluded!==false)
+if(manifest.databaseArchiveValidated!==false||manifest.fullRestoreVerified!==false||manifest.storageObjectBytesIncluded!==false)
   throw Error('FREE_REHEARSAL_NOT_PRODUCTION_RESTORE');
 const plaintext=await decryptBackup({
  encryptedPath,manifest,

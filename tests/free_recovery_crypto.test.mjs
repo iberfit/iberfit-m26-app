@@ -13,6 +13,7 @@ test('RSA envelope round-trip and ciphertext tamper detection',async()=>{
     const contents=crypto.randomBytes(2048);await writeFile(sourcePath,contents);
     const manifest=await encryptBackup({sourcePath,encryptedPath,manifestPath,publicKey,sourceSha:'a'.repeat(40)});
     assert.equal(manifest.fullRestoreVerified,false);
+    assert.equal(manifest.databaseArchiveValidated,false,'encryption alone cannot attest pg_restore --list');
     assert.equal(manifest.productionMigrationApproved,false);
     assert.equal(manifest.productionMigrationApproved,false);
     assert.equal(manifest.storageObjectBytesIncluded,false);
