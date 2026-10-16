@@ -127,3 +127,11 @@ test('schema USAGE and per-column SELECT privileges are restored, not inferred f
  assert.match(sh,/IBERFIT_M44_SCHEMA_COLUMN_ACL_FULL_RESTORE_SYNTHETIC_VERIFIED/);
  assert.match(sh,/IBERFIT_M44_SCHEMA_COLUMN_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED/);
 });
+
+test('tenant visibility is exact and all synthetic writes must rollback',()=>{
+ assert.match(sh,/count\(\*\)=1 AND min\(content\)='synthetic-visible'/);
+ assert.match(sh,/string_agg\(id::text/);
+ assert.match(sh,/1:1:synthetic-visible,2:2:synthetic-hidden/);
+ assert.match(sh,/IBERFIT_M44_ACL_FIXTURE_CONTENT_CHANGED_AFTER_ROLLBACK/);
+ assert.match(sh,/IBERFIT_M44_SYNTHETIC_DATA_CONTENT_AND_ROLLBACK_VERIFIED/);
+});
