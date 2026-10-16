@@ -47,3 +47,14 @@ test('never reveal private names or object IDs in thrown errors',()=>{
  catch(e){assert.equal(e.message,'IBERFIT_M44_STORAGE_PARITY_INVENTORY_COUNT_DRIFT');
   assert.doesNotMatch(e.message,/private-iri|person|image|11111111/);}
 });
+
+test('Storage declared size must equal downloaded manifest bytes when present',()=>{
+ const bad=manifest();bad.objects[0].bytes=10;
+ assert.throws(()=>certifyStorageMetadataParity({
+  before:snapshot(),after:snapshot(),manifest:bad,phase:'isolated'
+ }),/MANIFEST_BYTE_SIZE_MISMATCH/);
+ const noSize=snapshot();noSize[0].size=null;
+ assert.equal(certifyStorageMetadataParity({
+  before:noSize,after:noSize,manifest:bad,phase:'isolated'
+ }).ok,true);
+});
