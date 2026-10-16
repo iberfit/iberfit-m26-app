@@ -77,7 +77,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       )||new Set(ids).size!==ids.length)throw new Error('M45_NOTIFICATION_BATCH_INVALID');
       if(!['client','coach'].includes(role))throw new Error('M26_COMMUNICATION_ROLE_FORBIDDEN');
       const state=getState();
-      const identityScope=String(state?.identity?.id||'');
+      const identityScope=String(getIdentity()?.id||'');
       const stillCurrent=()=>String(getRole()||'').toLowerCase()===role&&
         String(getIdentity()?.id||'')===identityScope;
       const commands=ids.map((id)=>createCommunicationCommand({
@@ -125,7 +125,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       if(!isOnline())return Promise.reject(new Error('M26_COMMUNICATION_ONLINE_REQUIRED'));
       const role=String(getRole()||'').toLowerCase();
       const state=getState();
-      const identityScope=String(state?.identity?.id||'');
+      const identityScope=String(getIdentity()?.id||'');
       const sameIdentity=()=>String(getRole()||'').toLowerCase()===role&&
         String(getIdentity()?.id||'')===identityScope;
       const command=createCommunicationCommand(input,state,role);
