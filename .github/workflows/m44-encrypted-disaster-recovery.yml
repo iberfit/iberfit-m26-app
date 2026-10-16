@@ -46,7 +46,7 @@ jobs:
     needs: crypto-contract
     services:
       postgres:
-        image: postgres:17-alpine
+        image: supabase/postgres:17.6.1.147
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: local-synthetic-only
@@ -60,6 +60,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify matching Supabase Vault extension binaries are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh supabase/postgres:17.6.1.147 -c 'test -f "$(pg_config --sharedir)/extension/supabase_vault.control"'
+          echo 'IBERFIT_SUPABASE_PG17_VAULT_EXTENSION_AVAILABLE'
       - name: Exercise binary dump, authenticated encryption and restored data
         env:
           IBERFIT_BACKUP_PASSPHRASE: only-a-synthetic-fixture-passphrase-never-use-in-production-2026
@@ -100,7 +106,7 @@ jobs:
     environment: m26-canary-readonly
     services:
       postgres:
-        image: postgres:17-alpine
+        image: supabase/postgres:17.6.1.147
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: isolated-restore-only
