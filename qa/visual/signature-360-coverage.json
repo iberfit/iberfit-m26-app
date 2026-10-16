@@ -1,0 +1,321 @@
+{
+  "version": 1,
+  "title": "IBERFIT SIGNATURE 360 — visual & functional route acceptance",
+  "baseSha": "656b9d2aaf6afaf43c0262f7979ba6e962a5a1f2",
+  "target": "https://app.iberfit.cl",
+  "status": "WIP_NOT_PRODUCTION",
+  "screenStates": [
+    "loading",
+    "empty",
+    "populated",
+    "error",
+    "retry",
+    "offline",
+    "conflict",
+    "session-expired"
+  ],
+  "viewports": [
+    320,
+    390,
+    768,
+    1024,
+    1440
+  ],
+  "roles": {
+    "client": [
+      {
+        "area": "hoy",
+        "acceptance": "Momento adecuado, acción única y contexto cálido",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "planificacion",
+        "acceptance": "Plan y semana comprensibles, fechas/modalidad claras",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "sesion",
+        "acceptance": "Prescripción legible; inicio, pausa, registro y salida robustos",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "progreso",
+        "acceptance": "Evidencia, comparación y significado comprensible",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "informes",
+        "acceptance": "Documento IRI separado de evolución profesional",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "actividad",
+        "acceptance": "Bienestar y dispositivos secundarios, consentimiento claro",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "mensajes",
+        "acceptance": "Comunicación humana y estados remotos verdaderos",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "retos",
+        "acceptance": "Participación voluntaria, sin culpabilización",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "ajustes",
+        "acceptance": "Preferencias, privacidad, dispositivos y soporte",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      }
+    ],
+    "coach": [
+      {
+        "area": "hoy",
+        "acceptance": "Acción inmediata y cliente de contexto sin ruido",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "clientes",
+        "acceptance": "Cartera escaneable; prioridad y filtrado rápido",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "agenda",
+        "acceptance": "Tiempo y modalidad inequívocos, sin falsas citas",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "biblioteca",
+        "acceptance": "Búsqueda incremental estable con imagen biomecánica",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "expediente",
+        "acceptance": "Contexto profesional y continuidad sin saltos",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "iri",
+        "acceptance": "Evaluación inicial trazable, sin mezclar evolución",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "planificacion",
+        "acceptance": "Ciclo y prescripción editables sin publicación accidental",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "sesion",
+        "acceptance": "Constructor, borradores, revisión, publicación y ejecución sin fricción",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "progreso",
+        "acceptance": "Gráficos comparables para decidir progresión/regresión",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "actividad",
+        "acceptance": "Readiness, fatiga y señales contextualizadas",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "informes",
+        "acceptance": "Informes editoriales legibles y datos confirmados",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "retos",
+        "acceptance": "Configurar acompañamiento sin gamificación intrusiva",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "notas",
+        "acceptance": "Registro privado rápido, legible y protegido",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "inteligencia",
+        "acceptance": "Decisiones explicadas, fuentes y calidad de evidencia",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "mensajes",
+        "acceptance": "Comunicación y ACK sin pérdidas de texto",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "ajustes",
+        "acceptance": "Preferencias y autenticación coherentes",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "verificacion",
+        "acceptance": "Conflictos/sincronización con recuperación clara",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      }
+    ],
+    "admin": [
+      {
+        "area": "admin-inicio",
+        "acceptance": "Prioridades de dirección y acciones sobre excepciones",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-usuarios",
+        "acceptance": "Acceso/roles seguros, directorio legible",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-equipo",
+        "acceptance": "Capacidad y asignaciones sin errores de persona",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-clientes",
+        "acceptance": "Pipeline, perfiles, servicio Solo IRI y CRM",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-agenda",
+        "acceptance": "Agenda global humana, Coach y cliente por nombre",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-expediente",
+        "acceptance": "Historial y expediente restringido claro",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-iri",
+        "acceptance": "Acceso a información inicial sin falsa evolución",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-informes",
+        "acceptance": "Entrega, control y estado de informes",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-notas",
+        "acceptance": "Trazabilidad de notas restringidas",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-operaciones",
+        "acceptance": "Incident ownership, severidad y resolución verificable",
+        "priority": "P0",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-media-review",
+        "acceptance": "Media Factory segura y revisión visual",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-comunicacion",
+        "acceptance": "Plantillas y envíos claramente atribuibles",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-automatizaciones",
+        "acceptance": "Reglas comprensibles, simulación y auditoría",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "biblioteca",
+        "acceptance": "Catálogo verificado sin permisos de publicación indebidos",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-analitica",
+        "acceptance": "KPI con periodos, fuentes y acción recomendada",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-auditoria",
+        "acceptance": "Actor/entidad/resultado legibles con IDs subordinados",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      },
+      {
+        "area": "admin-configuracion",
+        "acceptance": "Preferencias organizativas e impacto claro",
+        "priority": "P1",
+        "evidenceStatus": "pending"
+      }
+    ]
+  },
+  "crossCutting": [
+    "auth-and-recovery",
+    "mfa-webauthn-otp",
+    "role-switching",
+    "client-selection",
+    "desktop-navigation",
+    "mobile-more",
+    "keyboard-and-focus",
+    "forms-and-selects",
+    "modals-and-overlays",
+    "touch-and-safe-area",
+    "pwa-background-reconnect",
+    "multiple-device-conflict",
+    "data-trust-and-freshness",
+    "full-error-recovery",
+    "no-data-loss",
+    "reduced-motion",
+    "visual-contrast-wcag-aa",
+    "performance-and-cache"
+  ],
+  "releaseEvidence": [
+    "ci",
+    "unit-integration",
+    "e2e-authenticated-role-matrix",
+    "a11y-and-device",
+    "canary-exact-sha",
+    "production-promotion-workflow",
+    "production-exact-sha",
+    "postprod-smoke",
+    "rollback-ready"
+  ]
+}
