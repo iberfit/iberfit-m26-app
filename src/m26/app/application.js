@@ -85,6 +85,9 @@ function confirmedAppointmentForSession(records=[],session,now=Date.now(),{early
 }
 function friendlyError(error){
   const code=String(error?.message||error||'');
+  if(/M26_SESSION_NOT_AVAILABLE|M26_SESSION_PUBLISHED_REQUIRED/.test(code))return 'Este entrenamiento ya no está disponible. Tu entrenador puede actualizarlo o publicar uno nuevo.';
+  if(/M26_SESSION_REMOTE_VALIDATION_REQUIRED/.test(code))return 'Para comprobar que esta sesión sigue disponible, conecta el dispositivo a internet y vuelve a intentarlo.';
+  if(/M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION/.test(code))return 'Para descartar el borrador sincronizado necesitas conexión. No se ha eliminado ningún dato.';
   if(/AUTH|SESSION_EXPIRED|401|403/.test(code))return 'La sesión perdió autorización. Vuelve a entrar.';
   if(/TIMEOUT|NETWORK|FETCH/.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
   if(/QA_ACCOUNT_REQUIRED/.test(code))return 'Esta cuenta no está autorizada para este acceso.';
