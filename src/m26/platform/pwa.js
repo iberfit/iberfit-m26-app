@@ -95,10 +95,14 @@ export async function subscribeWebPush({registration,vapidPublicKey,notification
   const subscription=existing||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey});
   return Object.freeze({subscription,serialized:serializePushSubscription(subscription),created:!existing});
 }
-export async function unsubscribeWebPush({registration}={}){
+export async function unsubscribeWebPush({registration,subscription:targetSubscription=null}={}){
   if(!registration?.pushManager)return Object.freeze({ok:true,changed:false});
-  let subscription=null;
-  try{subscription=await registration.pushManager.getSubscription();}catch{}
+  // An explicitly captured subscription must remain the target even if
+  // another tab replaces pushManager.getSubscription() before the operation.
+  let subscription=targetSubscription;
+  if(!subscription){
+    try{subscription=await registration.pushManager.getSubscription();}catch{}
+  }
   if(!subscription)return Object.freeze({ok:true,changed:false});
   let ok=false;
   try{ok=await subscription.unsubscribe();}catch{}
