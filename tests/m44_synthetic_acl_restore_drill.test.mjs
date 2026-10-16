@@ -49,3 +49,9 @@ test('no real production data or external network in synthetic workload',()=>{
  assert.match(sh,/synthetic-hidden/);
  assert.match(sh,/IBERFIT_M44_ACL_DRILL_NONEMPTY_SANDBOX/);
 });
+
+test('permission denied from psql is propagated, never masked by tail pipeline',()=>{
+ assert.match(sh,/output="\$\(psql[\s\S]*?\)" \|\| return 1/);
+ assert.match(sh,/printf '%s\\n' "\$output" \| tail -n 1/);
+ assert.doesNotMatch(sh,/psql[\s\S]{0,130}\| tail -n 1/);
+});
