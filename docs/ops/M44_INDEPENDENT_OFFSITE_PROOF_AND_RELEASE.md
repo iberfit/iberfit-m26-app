@@ -77,3 +77,15 @@ Esto impide aceptar por accidente determinados archivos de evidencia no privados
 ### Cobertura explícitamente incompleta de la versión 1 de doce huellas
 
 El resumen de `relation_security` de la versión archivada incorpora `pg_class.relacl`, propietarios y RLS, pero **no incluye expresamente** las ACL de esquemas (`pg_namespace.nspacl`) ni las ACL por columna (`pg_attribute.attacl`). Dos catálogos con las mismas doce huellas podrían, por ello, tener diferencias de acceso efectivo. El comparador expone ahora `schemaAclVerified=false`, `columnAclVerified=false` y `effectivePrivilegesVerified=false`, incluso ante coincidencia total. Esto es un límite del contrato **v1** del backup, no un permiso para reinterpretar respaldos anteriores con otro algoritmo silenciosamente. Antes de certificar recuperación deberá acreditarse por separado que las ACL de esquema/columna y las operaciones reales de roles limitados coinciden, o introducir una evolución versionada y retrocompatible del catálogo.
+
+
+### Verificación directa de bytes desde Drive (16/10/2026; generación más reciente de la carpeta)
+
+Se inspeccionó mediante acceso autenticado de Drive la carpeta de copias generales cifradas: **cinco generaciones** accesibles. La generación más reciente que figuraba en esa carpeta se creó a las `2026-10-16T10:44:43.988Z` y corresponde al run de GitHub Actions [38888628869](https://github.com/iberfit/iberfit-m26-app/actions/runs/38888628869), sobre Canary. El fichero ZIP tiene **32.143.146 bytes**. El archivo, su carpeta contenedora y las carpetas ascendentes hasta Mi unidad figuraban como no compartidos, con un único permiso `owner` por cada elemento consultado.
+
+Se descargó el ZIP **desde Drive**, no desde GitHub, se calculó su SHA-256 localmente y se contrastó contra el digest publicado por GitHub Actions para el artefacto original, sin exponer identificadores privados de Drive:
+`3fd6a9aff8beda8342973da357824d04b3f6ef6508ba381d2495cea25a7d18bd`.
+
+La inspección sin extraer contenidos confirmó un único miembro denominado `iberfit-prod-recovery.ibf`, de **32.133.172 bytes**, con cabecera exacta `IBFBAK01`. Se comprobó asimismo que los tres jobs del workflow de backup original figuraban con conclusión `success`. Tras el cotejo se eliminó el ZIP temporal del entorno local de verificación.
+
+**Alcance:** `offsiteCiphertextBytesVerified=true` para esa generación y momento; el checksum acredita identidad de bytes con el artefacto original, no autenticidad AES-256-GCM sin la clave. **No se descifró** el contenido, ni se ejecutó `pg_restore`, ni se verificaron los roles y ACL operativos, Auth alojado, Vault, JWT, Storage restaurado en entorno independiente, inicio de sesión por perfil o RTO/RPO. Por tanto `latestGenerationIndependentDecryptionVerified=false`, `platformRecoveryVerified=false`, `rtoCertified=false`, `rpoCertified=false` y la promoción M44 permanece bloqueada. Los permisos visibles de Drive son una instantánea; no garantizan por sí solos la recuperación futura ni excluyen riesgos de cuenta o proveedor.
