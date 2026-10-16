@@ -15,6 +15,7 @@ function harness({gateSubscription=null,gateToken=null,gateUpsert=null}={}){
   const writes=[],unsubscribes=[];
   const coordinator=createWebPushCoordinator({
     transport:{
+      async webPushStatus(){return {ok:true,active:true,subscriptionCount:1};},
       async webPushUpsert(token,serialized){
         writes.push({type:'upsert',token,serialized});
         if(gateUpsert)await gateUpsert.promise;
