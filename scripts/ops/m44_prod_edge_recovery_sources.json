@@ -1,0 +1,127 @@
+{
+  "schema": "iberfit.m44.prod.edge-recovery-source.v1",
+  "source_project_ref": "pjhmrhejsoofmouedavw",
+  "capture_date_utc": "2026-10-16",
+  "sources": [
+    {
+      "slug": "iberfit-admin-client-invite-v1",
+      "verify_jwt": false,
+      "live_bundle_sha256": "4d2dff2482f791787993455c52daea17e81d6b69093ca362e3c2c07b52ee4399",
+      "source_path": "supabase/functions/iberfit-admin-client-invite-v1/index.ts",
+      "source_git_blob_sha1": "a6ee9759dbc99267fff6cbc256d6dd906109fdea",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-admin-media-review-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "be973278cd5ccd107fe124c51863cecd1ccebef384b28a9104c390c68388a0a8",
+      "source_path": "supabase/functions/iberfit-admin-media-review-v1/index.ts",
+      "source_git_blob_sha1": "10d060e8d51e14de5dbe07b26b54a605d12093df",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-admin-user-decommission-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "2f30798cc2b1540ff133ebc65a2feabba3340184409a4d7494afcafc0958908c",
+      "source_path": "supabase/functions/iberfit-admin-user-decommission-v1/index.ts",
+      "source_git_blob_sha1": "6d23f595acd18bfbe8acf3d711159791bb508a32",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-ai",
+      "verify_jwt": true,
+      "live_bundle_sha256": "aeefcf8e1b5a383a1e5082bbdc0cfd879acc8fb88b1994eb21e0f65a48c7fa55",
+      "source_path": "supabase/functions/iberfit-ai/index.ts",
+      "source_git_blob_sha1": "440f6723cd030b5ae1075e4c41b136db6caa6029",
+      "source_state": "recovered_canonical_from_live"
+    },
+    {
+      "slug": "iberfit-catalog-admin",
+      "verify_jwt": true,
+      "live_bundle_sha256": "0e86310a37959505bc57d99e78daf6aec237a83a7c3387a558ee1c358b14b344",
+      "source_path": "supabase/functions/iberfit-catalog-admin/index.ts",
+      "source_git_blob_sha1": "a437f8de3b88191f31d9e42578eda8f3ba365bea",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-client-onboarding-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "1ec589a18cf01bd75d716d62ebbbcf0854e57989a1626980afb8b0df1790af81",
+      "source_path": "scripts/ops/m44_legacy_edge_source/iberfit-client-onboarding-v1-prod-20261016.ts",
+      "source_git_blob_sha1": "f548cee43998b6753d3cf2fd28766dede0515cd3",
+      "source_state": "historical_live_snapshot_not_deploy_target"
+    },
+    {
+      "slug": "iberfit-email-assurance-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "3407cc4b30f5c0f37b79fb0e30698cb1742f46665cebf936e375f4210136faa9",
+      "source_path": "supabase/functions/iberfit-email-assurance-v1/index.ts",
+      "source_git_blob_sha1": "6709a38be76efaf04dac3b6b2203b82d6d536407",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-exercise-media-auto-factory-v1",
+      "verify_jwt": false,
+      "live_bundle_sha256": "1b1698fbc3c8201bf7a0642d260fdeaae8a2544ec20048cb0343f3476f243dd8",
+      "source_path": "supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts",
+      "source_git_blob_sha1": "3b74be941772ec79bff1f411c842e1b11ede14a4",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-exercise-media-publisher",
+      "verify_jwt": false,
+      "live_bundle_sha256": "836413ecb31f3e102b58126336d616448491e01554711248101947466ac8330c",
+      "source_path": "supabase/functions/iberfit-exercise-media-publisher/index.ts",
+      "source_git_blob_sha1": "03fbaf9a79a10304d6a25a2e2a93ca19c315c8c9",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-iri-report-emission-v1",
+      "verify_jwt": false,
+      "live_bundle_sha256": "f32f3327dc52a2f1a3c8dfb3c89fcae51e5f9ad24730b2f2fc9bfc42771c5a1c",
+      "source_path": "supabase/functions/iberfit-iri-report-emission-v1/index.ts",
+      "source_git_blob_sha1": "088e8a8aa1a0c5b0c67d337e14182c6ebaad728c",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-one-time-create-juan-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "8c0615ee417edf37f158832f6f0819322f6ecebcfd35a12e26359e0477aac088",
+      "source_path": "supabase/functions/iberfit-one-time-create-juan-v1/index.ts",
+      "source_git_blob_sha1": "7e65ccddb869ad28dfb1c107344938f8a0fc4d5e",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-p0-email-delivery-probe-20260911",
+      "verify_jwt": true,
+      "live_bundle_sha256": "8b1895fb1e447fd18474fb444e9027c34534d86875638a9a39439981745a6185",
+      "source_path": "supabase/functions/iberfit-p0-email-delivery-probe-20260911/index.ts",
+      "source_git_blob_sha1": "c57ebf753ad3d24a7defd73a49a697e9166d7cd8",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-web-push-sender-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "54a9cea133978dad55a920e93e3442311e8d10affe79304b82d965936b47fb5f",
+      "source_path": "supabase/functions/iberfit-web-push-sender-v1/index.ts",
+      "source_git_blob_sha1": "6d25d3734a2c468ce3ce342e4cf223701c85ced4",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "iberfit-webauthn-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "05300cf2a65a24fc4476b76f13ffbe7591a00cd235fbf53e4a22e0f63ae6d641",
+      "source_path": "supabase/functions/iberfit-webauthn-v1/index.ts",
+      "source_git_blob_sha1": "8b5d6561bc171f59346ae68bcb1d3c2467038154",
+      "source_state": "canonical"
+    },
+    {
+      "slug": "noop",
+      "verify_jwt": true,
+      "live_bundle_sha256": "72b1b76b28222a2ec8457cb8f4d3d70bb716496a723d06011b5c3883dd6446b9",
+      "source_path": "supabase/functions/noop/index.ts",
+      "source_git_blob_sha1": "36d57c21af734d0ec14ed407cfcdcd8228721d60",
+      "source_state": "canonical"
+    }
+  ]
+}
