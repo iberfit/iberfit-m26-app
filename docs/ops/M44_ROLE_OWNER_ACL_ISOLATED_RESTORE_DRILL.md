@@ -38,3 +38,12 @@ El ensayo exige ambos tipos de registro y falla ante divergencia. El TOC privado
 En el workflow de respaldo productivo se ejecuta **después** de descifrar el archivo autenticado y antes de `pg_restore --no-owner --no-acl`. La lista privada se elimina una vez comprobada, **no se ejecuta** contra producción ni QA y no se publica junto al ZIP. Su propósito es acreditar que el respaldo cifrado real permite preparar una recuperación limitada de permisos. El uso de `--use-list` sigue demostrándose exclusivamente con las dos filas sintéticas en PostgreSQL 17.
 
 **Límite:** validar la lista no equivale a restaurar ACL operativas, propietarios ni roles; tampoco certifica Auth gestionado, JWT, Vault, sesiones, SMTP u OAuth. Un archivo `pg_dump` podría ejecutar SQL controlado por su origen, por lo que el replay de un backup real requiere además procedencia autenticada, contenedor sin red, roles conciliados y comparación del catálogo con pruebas de acceso por rol. No se modifica `platformRecoveryVerified=false`.
+
+
+## Cobertura adicional de escrituras aisladas (sin datos reales)
+
+El ensayo sintético ahora crea un tercer rol ficticio sin inicio de sesión, `iberfit_m44_fixture_writer`, con permisos SQL `SELECT`, `INSERT`, `UPDATE` y `DELETE` sobre una tabla con dos filas ficticias de ámbitos distintos. Las cuatro políticas RLS permiten exclusivamente `tenant_id = 1` para este rol. Así se comprueba la diferencia entre un `GRANT` SQL existente y un acceso real permitido por política.
+
+La prueba ejecuta con `SET LOCAL ROLE` las cuatro operaciones y verifica: lectura de una sola fila, inserción del propio ámbito, rechazo explícito por RLS de inserción fuera del ámbito, actualización propia, invisibilidad de la fila ajena, rechazo de reasignación de ámbito y borrado permitido/denegado según el ámbito. Las operaciones se ejecutan dentro de transacciones con `ROLLBACK`; los errores se clasifican localmente sin registrar filas. Se comprueba el origen sintético, el destino recreado con ACL y el destino inicialmente desprovisto de permisos tras el replay selectivo de ACL. Antes del replay, este último debe negar el acceso.
+
+La ampliación **no usa ni verifica los datos auténticos del respaldo externo**, no demuestra aislamiento de Cliente/Coach/Admin en IBERFIT real, no reconstruye Auth gestionado y **no modifica** `platformRecoveryVerified=false`, la promoción a PROD ni los procedimientos de otro frente. El resultado válido exige ejecución de PostgreSQL 17 en CI; un test de texto o una revisión estática no bastan.
