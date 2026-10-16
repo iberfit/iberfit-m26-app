@@ -49,11 +49,7 @@ test('M45: revoke of old endpoint cannot unsubscribe a replacement browser subsc
   const replacement='https://push.example.test/replacement-device';
   h.setCurrent(replacement);
   h.finish.resolve();
-  const result=await pending;
-  assert.equal(result.ok,true);
-  assert.equal(result.active,true);
-  assert.equal(result.subscriptionChanged,true);
-  assert.equal(result.changed,true);
+  await assert.rejects(()=>pending,/M45_PUSH_SUBSCRIPTION_CHANGED/);
   assert.deepEqual(h.recorded,[{action:'revoke',token:'jwt-A',endpoint:h.initial}]);
 });
 
@@ -63,10 +59,7 @@ test('M45: a second tab may remove the original push subscription before revoke 
   await h.started.promise;
   h.setCurrent(null);
   h.finish.resolve();
-  const result=await pending;
-  assert.equal(result.ok,true);
-  assert.equal(result.active,false);
-  assert.equal(result.subscriptionChanged,true);
+  await assert.rejects(()=>pending,/M45_PUSH_SUBSCRIPTION_CHANGED/);
   assert.equal(h.recorded.some(x=>x.action==='unsubscribe'),false);
 });
 
