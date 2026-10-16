@@ -117,7 +117,7 @@
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-  overflow-wrap:normal;
+  overflow-wrap:anywhere;
   text-align:center;
 }
 
@@ -275,6 +275,7 @@
     line-height:1.15;
     font-weight: 620;
     letter-spacing: -0.025em;
+    overflow-wrap:normal;
   }
 
   button.m26-client-bottom-nav-item .m26-client-bottom-nav-label-full {

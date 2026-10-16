@@ -4786,7 +4786,7 @@ function clientBottomNavItem(item,currentKind,{adherenceReview=false,progressRea
         ?' data-m26-client-guide="progress-entry"'
         :''
     :'';
-  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}" aria-label="${escapeHtml(item.label)}"${guideAttribute}${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon" aria-hidden="true">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label m26-client-bottom-nav-label-full" aria-hidden="true">${escapeHtml(item.label)}</span><span class="m26-client-bottom-nav-label m26-client-bottom-nav-label-compact" aria-hidden="true">${escapeHtml(item.shortLabel||item.label)}</span></button>`;
+  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${guideAttribute} aria-label="${escapeHtml(item.label)}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon" aria-hidden="true">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label m26-client-bottom-nav-label-full" aria-hidden="true">${escapeHtml(item.label)}</span><span class="m26-client-bottom-nav-label m26-client-bottom-nav-label-compact" aria-hidden="true">${escapeHtml(item.shortLabel||item.label)}</span></button>`;
 }
 
 function clientBottomNavMore(currentKind){
