@@ -195,8 +195,9 @@ export function createWebPushCoordinator({
     requireSameActor(expectedActor);
     const authToken=await token();
     requireSameActor(expectedActor);
-    await transport.webPushRevoke(authToken,endpoint);
+    const revokeResult=await transport.webPushRevoke(authToken,endpoint);
     requireSameActor(expectedActor);
+    if(revokeResult?.ok!==true)throw new Error('M26_PUSH_REVOKE_NOT_CONFIRMED');
     // Another tab can replace or remove the browser subscription while the
     // server revokes the original. Do not remove the replacement or claim that
     // the entire device was disabled: tell the UI to recheck actual state.
@@ -236,6 +237,7 @@ export function createWebPushCoordinator({
     }
     const result=await transport.webPushRevoke(authToken);
     requireSameActor(expectedActor);
+    if(result?.ok!==true)throw new Error('M26_PUSH_REVOKE_NOT_CONFIRMED');
     let local=Object.freeze({ok:true,changed:false});
     if(ownedByActor&&original&&sw?.pushManager){
       const current=await sw.pushManager.getSubscription();
