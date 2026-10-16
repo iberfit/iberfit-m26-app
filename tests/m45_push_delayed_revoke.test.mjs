@@ -8,7 +8,7 @@ function deferred(){
   return {promise,resolve};
 }
 
-function harness({unsubscribeOk=true,revokeOk=true}={}){
+function harness({unsubscribeOk=true,revokeOk=true,revokeDeletedCount=null}={}){
   const started=deferred(),finish=deferred();
   const initial='https://push.example.test/original-device';
   let current=initial;
@@ -23,7 +23,7 @@ function harness({unsubscribeOk=true,revokeOk=true}={}){
         recorded.push({action:'revoke',token,endpoint});
         started.resolve();
         await finish.promise;
-        return {ok:revokeOk,deletedCount:revokeOk?1:0};
+        return {ok:revokeOk,deletedCount:revokeDeletedCount===null?(revokeOk?1:0):revokeDeletedCount};
       },
     },
     getToken:async()=> 'jwt-A',
@@ -139,5 +139,24 @@ test('M45 disable-current refuses unconfirmed server revoke without unsubscribin
   h.finish.resolve();
   await assert.rejects(()=>pending,/M26_PUSH_REVOKE_NOT_CONFIRMED/);
   assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45: device revoke with zero owned rows must never unsubscribe a foreign endpoint',async()=>{
+  const h=harness({revokeDeletedCount:0});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45: malformed revoke row count cannot authorize browser unsubscribe',async()=>{
+  const h=harness({revokeDeletedCount:'invalid'});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
   assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
 });
