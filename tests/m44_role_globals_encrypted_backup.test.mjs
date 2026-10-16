@@ -69,6 +69,6 @@ test('backup includes passwordless roles within ciphertext and never replays int
  assert.match(w,/Prove passwordless global role export against isolated PostgreSQL 17/);
  assert.match(w,/pg_dumpall --roles-only/);
  assert.match(w,/\$scratch\/synthetic-roles\.sql/);
- assert.match(w,/IBERFIT_GLOBAL_ROLES_ENCRYPTABLE/);
+ assert.match(fs.readFileSync('scripts/ops/m44_global_roles_archive_check.mjs','utf8'),/IBERFIT_GLOBAL_ROLES_ENCRYPTABLE/);
 
 });
