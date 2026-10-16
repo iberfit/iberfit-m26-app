@@ -65,3 +65,12 @@ La matriz se comprueba en origen ficticio, restauración completa y restauració
 Esta prueba demuestra que el `pg_dump` sintético conserva esas ACL y que se pueden reproducir en PostgreSQL 17. **No llena automáticamente las lagunas del catálogo de huellas v1 de una copia real**; esas verificaciones siguen pendientes, al igual que la continuidad operativa Auth/Storage/Vault y los accesos por rol de IBERFIT en un destino recuperado.
 
 Como protección adicional frente a falsos positivos, el control de lectura por columna exige **exactamente una fila visible**, no solo que el último valor devuelto coincida. Después de las pruebas DML se valida en cada base ficticia la identidad y el contenido exacto de ambas filas; una actualización que hubiera escapado a un `ROLLBACK` causaría fallo cerrado aunque el recuento continuase siendo dos.
+
+
+## Segunda prueba: restauración hacia un clúster PostgreSQL 17 NUEVO
+
+`scripts/ops/m44_fresh_cluster_role_restore_drill.sh` y el job `m44-fresh-cluster-roles-acl-rls-proof` preparan **dos contenedores Supabase PostgreSQL 17 independientes**, con `--network none`, ningún puerto publicado y datos exclusivamente ficticios. El clúster de destino empieza sin los tres roles del fixture.
+
+En el origen se crean rol propietario, lector y coach ficticio con membresía heredada; se exportan `pg_dumpall --roles-only --no-role-passwords` y `pg_dump -Fc`. Antes de restaurar, se comprueba que el archivo de roles contiene los roles esperados y no declara contraseñas. **No se ejecuta jamás `global-roles.sql` contra el destino.** Únicamente se reconcilian tres roles sintéticos previamente permitidos y su membresía, para evitar el replay ciego de roles gestionados. Después se aplica el dump ficticio al clúster nuevo y se cotejan propietarios, `GRANT`, `ALTER DEFAULT PRIVILEGES`, membresía, RLS, consultas como lector/coach y contenido exacto de las dos filas.
+
+La nueva prueba complementa, sin reemplazar, el drill original de tres bases de datos dentro de un mismo clúster. **No recupera usuarios reales ni passwords de roles, Auth alojado, claves JWT, Vault, Storage ni Edge Functions**. Tampoco acredita la recuperación de roles gestionados en una instancia Supabase nueva, migración productiva ni RTO/RPO. Mantiene `platformRecoveryVerified=false` y no ejecuta ninguna consulta ni escritura sobre PROD o QA.
