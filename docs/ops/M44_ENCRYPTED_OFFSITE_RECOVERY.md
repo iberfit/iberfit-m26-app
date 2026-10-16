@@ -20,8 +20,8 @@ El acceso de conectores disponible no permite crear estos secretos en GitHub ni 
 3. Descargar cada objeto privado desde Storage, preservando solo dentro de la copia su ruta original, tamaño y SHA-256. Cada archivo se almacena con nombre local opaco.
 4. Empaquetar PostgreSQL + Storage en TAR local, cifrar en streaming con scrypt y AES-256-GCM; borrar material sin cifrar inicial.
 5. Descifrar dentro de un segundo directorio aislado, verificar autenticidad y hashes de cada archivo; restaurar el dump en PostgreSQL 17 de prueba por `pg_restore --exit-on-error --no-owner --no-acl`. No retornar datos de usuarios ni SQL en logs.
-6. Guardar **solo el archivo .ibf** en GitHub Actions como copia externa a Supabase (retención actual: 30 días). El archivo exige la contraseña independiente. Emitir `IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS` solo si ambas validaciones pasan.
-7. El cifrado de GitHub Actions es un primer respaldo externo, **no sustituye el almacenamiento independiente de largo plazo**. Antes de autorizar M44 PROD, se requiere adicionalmente custodia externa duradera y prueba de recuperación de sistemas Supabase gestionados (auth, extensiones, buckets) con RTO/RPO documentados.
+6. Publicar **solo archivo .ibf verificado**, temporalmente en GitHub Actions (retención máxima: **1 día**). El repositorio de código es público: el ZIP cifrado se transfiere en cuanto esté disponible a la **carpeta privada de Google Drive de IBERFIT**, bajo titular `iberfit.cl@gmail.com`, compartida con nadie; verificar permisos de acceso y tamaño del archivo. GitHub no constituye el repositorio durable de recuperación. Emitir `IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS` solo si ambas validaciones pasan.
+7. Después de transferir el archivo cifrado a Drive privado, verificar que puede recuperarse sin exponer la clave, su checksum, contenido comprimido y la retención. Mantener una segunda copia offline si se requiere protección frente a borrado de la cuenta de Drive. Antes de autorizar M44 PROD, verificar también la restauración de sistemas gestionados Supabase (Auth, extensiones y buckets) y documentar RTO/RPO.
 
 ## Bloqueos deliberados
 
