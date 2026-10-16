@@ -69,7 +69,7 @@ catalog() {
   c.relrowsecurity::integer,
   EXISTS(SELECT 1 FROM pg_policies p WHERE p.schemaname='m44_acl_fixture'
     AND p.tablename='exercise' AND p.policyname='m44_reader_own_scope'
-    AND p.cmd='SELECT' AND p.roles=ARRAY['iberfit_m44_fixture_reader'])::integer,
+    AND p.cmd='SELECT' AND p.roles::text[]=ARRAY['iberfit_m44_fixture_reader'])::integer,
   EXISTS(SELECT 1 FROM pg_default_acl d
    JOIN LATERAL aclexplode(d.defaclacl) x ON true
    WHERE d.defaclrole='iberfit_m44_fixture_owner'::regrole
