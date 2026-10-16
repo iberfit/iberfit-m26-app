@@ -19,3 +19,13 @@ Los roles del ensayo se crean en el mismo clúster aislado porque en Supabase re
 Usando exclusivamente el respaldo cifrado autenticado, en un sandbox PostgreSQL 17 **sin red y no compartido**, contrastar las 12 categorías del catálogo source con una reconstrucción de propietarios/ACL y aplicar una comprobación de acceso representativa por rol. Para la copia nueva, el dump personalizado incluye los propietarios y ACL y permite revisar un segundo restore **en sandbox** con el conjunto de roles previamente reconciliado. Las huellas SHA por categoría, por sí solas, siguen siendo insuficientes. La restauración operativa exige comparar catálogos, privilegios y sesiones como usuarios limitados; nunca ejecutar automáticamente un replay de roles y GRANT contra producción. Las copias históricas generadas con `--no-acl` no recuperan retroactivamente estas entradas. El verificador externo estricto mantiene el mismo formato TAR y no se debe declarar `platformRecoveryVerified=true` por este cambio.
 
 Los pasos no deben ejecutarse directamente sobre `app.iberfit.cl` o `pjhmrhejsoofmouedavw`. Tampoco hay que eliminar o restablecer las sesiones de Auth de QA sin un cambio separado y autorizado. Véase https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore.
+
+
+## Ensayo adicional: replay selectivo, sin volver a importar datos
+
+El drill PostgreSQL 17 ahora certifica dos vías independientes:
+
+- **Reinstalación completa de un dump sintético con ACL:** `pg_restore --no-owner`, seguido de reconciliación explícita de propietarios.
+- **Recuperación por etapas sobre la base inicialmente desprovista de ACL:** genera una lista privada con `pg_restore --list`, conserva únicamente registros cuyo tipo sea exactamente `ACL` o `DEFAULT ACL`, comenta todas las demás entradas y aplica `pg_restore --use-list` a **la misma base ya restaurada**. Después reconcilia el propietario ficticio, compara las siete propiedades del catálogo con el origen, comprueba `SET ROLE` y que la política RLS solo muestra una de dos filas. La importación de privilegios no debe importar de nuevo tablas, datos, funciones ni políticas.
+
+El ensayo exige ambos tipos de registro y falla ante divergencia. El TOC privado se elimina; no se exponen nombres de objetos del archivo. Sigue siendo exclusivamente **sintético y confinado a localhost**. El siguiente paso con el respaldo real requiere reconciliar los roles gestionados del PostgreSQL de destino y comprobar las doce huellas independientes y Auth alojado, sin ejecutar SQL de producción fuera de un sandbox seguro. Este ensayo no modifica el gate de despliegue ni afirma que el procedimiento sea seguro para ejecutarlo sobre PROD.
