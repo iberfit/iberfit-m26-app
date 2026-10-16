@@ -116,7 +116,8 @@ for(const session of sessions){
     const reportedRole=normalizeRegistryRole(assurance?.privilegedRole);
     if(
       assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
-      assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==false||
+      assurance?.webauthnRequired!==true||
+      typeof assurance?.credentialEnrolled!=='boolean'||
       assurance?.emailOtpAvailable!==true||
       assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
       assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||reportedRole!=='coach'
@@ -124,6 +125,10 @@ for(const session of sessions){
       throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
     }
 
+    // Enrollment is a user-scoped server fact, not authorization. An isolated QA
+    // Coach may have an enrolled credential after a real ceremony; both boolean
+    // states MUST retain required assurance, AAL1 and a 403 primary bootstrap.
+    // Never accept undefined/string/truthy values or infer WebAuthn verification.
     // A privileged AAL1 coach must not be allowed through the primary bootstrap.
     // The bootstrap becomes readable only after IBERFIT privileged assurance is established.
     const bootstrapResult=await rpcResult('iberfit_bootstrap_v26',session.token,{});
@@ -144,7 +149,7 @@ for(const session of sessions){
     roles.push({
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
       canaryActive:null,environmentName:environment.environment,privacy:null,
-      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true,emailOtpAvailable:true,
+      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:assurance.credentialEnrolled,webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
       primaryAuthRead:{
         ok:true,status:403,expectedBlocked:true,code:bootstrapCode,message:bootstrapMessage,
