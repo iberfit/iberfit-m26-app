@@ -48,6 +48,8 @@ test('exported globals are passwordless and NEVER executed unreviewed on destina
  assert.match(script,/CREATE ROLE iberfit_m44_fresh_coach NOLOGIN/);
  assert.match(script,/grep -Eq "\^CREATE ROLE iberfit_m44_fresh_\$role;\$"/);
  assert.match(script,/IBERFIT_M44_FRESH_CLUSTER_PASSWORD_FORBIDDEN/);
+ assert.match(script,/IBERFIT_M44_FRESH_CLUSTER_GLOBAL_MEMBERSHIP_NOT_ARCHIVED/);
+ assert.match(script,/grep -Eq '\^GRANT/);
  assert.match(script,/never execute/);
  assert.doesNotMatch(script,/psql\s+-f\s+\/work\/global-roles|psql\s+--file.*global-roles/);
 });
