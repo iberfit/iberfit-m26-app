@@ -677,12 +677,26 @@ function builderFacetOptions(values=[],selected='',allLabel='Todos'){
 function builderActiveFilterCount(filters={}){
   return ['pattern','equipment','difficulty','intent'].reduce((count,key)=>count+(String(filters?.[key]||'').trim()?1:0),0);
 }
-export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
+export function renderSessionLibraryResults({draft,catalog,query='',filters={},mediaMap,role='coach'}={}){
   const matchingExercises=catalog.search(query,filters);
   const results=matchingExercises.slice(0,24);
   const remainingResults=matchingExercises.slice(24);
-  const activeGroup=draft.activeGroupId?(draft.blocks||[]).find((block)=>block.id===draft.activeGroupId):null;
+  const activeGroup=draft?.activeGroupId?(draft.blocks||[]).find(block=>block.id===draft.activeGroupId):null;
   const activeGroupExerciseIds=new Set(activeGroup?.exerciseIds||[]);
+  const cards=results.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}>${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class="m26-exercise-result-add" aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
+  const remainingCards=remainingResults.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-list-card" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}><span><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small></span><span aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('');
+  const remainingResultsMarkup=remainingResults.length?`<details class="m26-exercise-results-more"><summary>Ver ${e(remainingResults.length)} ejercicios más</summary><div class="m26-exercise-results">${remainingCards}</div></details>`:'';
+
+  const activeFilterCount=builderActiveFilterCount(filters);
+  const reset=(String(query||'').trim()||activeFilterCount)?'<button type="button" class="m26-builder-library-reset" data-session-action="clear-library-filters">Limpiar búsqueda y filtros</button>':'';
+  return Object.freeze({count:matchingExercises.length,
+    markup:`${reset}<div class="m26-exercise-results">${cards}</div>${remainingResultsMarkup}`});
+}
+export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
+  const searchResults=renderSessionLibraryResults({draft,catalog,query,filters,mediaMap,role});
+  const matchingExercises={length:searchResults.count};
+  const activeGroup=draft.activeGroupId?(draft.blocks||[]).find((block)=>block.id===draft.activeGroupId):null;
+
   const activeGroupLimit=activeGroup?.type==='biserie'?2:activeGroup?.type==='triserie'?3:activeGroup?12:0;
   const activeGroupTargetMarkup=activeGroup?`<div class="m26-builder-group-target" data-session-active-group-target role="status" aria-live="polite"><span><small>Añadiendo al grupo activo</small><strong>${e(groupName(activeGroup.type))} · ${e(activeGroup.exerciseIds.length)}/${e(activeGroupLimit)} ejercicios</strong></span><button type="button" data-session-action="close-group">Cerrar grupo</button></div>`:'';
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Añade ejercicios desde la biblioteca.</p>';
@@ -690,9 +704,6 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
   const templateHistory=templateAdaptation?.templateName?templateHistoryCoverage(draft,exerciseMemoryFor):null;
   const undoRemovalMarkup=undoRemoval?.block?.id?`<div class="m26-notice m26-builder-undo" data-session-builder-undo role="status"><span>Bloque eliminado del borrador.</span><button type="button" data-session-action="restore-block">Deshacer</button></div>`:'';
   const templateUndoMarkup=templateUndo?.draft?.id?`<div class="m26-notice m26-builder-undo" data-session-template-undo role="status"><span>Plantilla aplicada al borrador.</span><button type="button" data-session-action="restore-template-load">Deshacer plantilla</button></div>`:'';
-  const cards=results.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}>${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class="m26-exercise-result-add" aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
-  const remainingCards=remainingResults.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-list-card" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}><span><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small></span><span aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('');
-  const remainingResultsMarkup=remainingResults.length?`<details class="m26-exercise-results-more"><summary>Ver ${e(remainingResults.length)} ejercicios más</summary><div class="m26-exercise-results">${remainingCards}</div></details>`:'';
   const facets=catalog.facets||{};
   const activeFilterCount=builderActiveFilterCount(filters);
   const filterControls=`<div class="m26-builder-library-filters" role="group" aria-label="Filtrar biblioteca">
@@ -701,7 +712,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
     <label>Dificultad<select data-session-filter="difficulty">${builderFacetOptions(facets.difficulty,filters.difficulty,'Todas las dificultades')}</select></label>
     <label>Objetivo<select data-session-filter="intent">${builderFacetOptions(facets.intent,filters.intent,'Todos los objetivos')}</select></label>
   </div>`;
-  const libraryResetMarkup=(String(query||'').trim()||activeFilterCount)?`<button type="button" class="m26-builder-library-reset" data-session-action="clear-library-filters">Limpiar búsqueda y filtros</button>`:'';
+
   const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button><button type="button" data-session-action="publish" disabled aria-disabled="true" title="Revisa la sesión antes de publicarla">Publicar sesión</button>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
   const adaptationSource=templateAdaptation?.source==='cycle'?'ciclo':templateAdaptation?.source==='profile'?'perfil':null;
@@ -777,10 +788,8 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
         <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Añadir</p><h3>Biblioteca</h3></div><span data-session-library-result-count aria-live="polite">${e(plural(matchingExercises.length,'resultado','resultados'))}${activeFilterCount?` · ${e(plural(activeFilterCount,'filtro','filtros'))}`:''}</span></div>
         <label>Buscar ejercicio<input type="search" value="${e(query)}" data-session-search autocomplete="off" placeholder="Nombre, patrón o material"></label>
         ${filterControls}
-        ${libraryResetMarkup}
         ${activeGroupTargetMarkup}
-        <div class="m26-exercise-results">${cards}</div>
-        ${remainingResultsMarkup}
+        <div data-session-search-results>${searchResults.markup}</div>
         ${mediaMap?renderExerciseMediaCredit({compact:true}):''}
       </aside>
       <main id="m26-session-builder-program" class="m26-panel m26-builder-program" data-session-jump-target="program" tabindex="-1" aria-label="Estructura de la sesión">
