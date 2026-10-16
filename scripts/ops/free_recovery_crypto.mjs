@@ -11,12 +11,17 @@ export function assertProdConnection(urlString){
   if(!['postgres:','postgresql:'].includes(parsed.protocol)
     ||parsed.username!=='postgres.'+PROD
     ||!parsed.password
-    ||!parsed.hostname.endsWith('.pooler.supabase.com')
+    ||!/^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$/u.test(parsed.hostname)
     ||parsed.port!=='5432'
     ||parsed.pathname!=='/postgres'
-    ||!['require','verify-ca','verify-full'].includes(parsed.searchParams.get('sslmode')))
+    ||parsed.hash
+    ||parsed.searchParams.getAll('sslmode').length!==1
+    ||parsed.searchParams.get('sslmode')!=='verify-full'
+    ||parsed.searchParams.getAll('sslrootcert').length!==1
+    ||!['system','/archive/ca.pem'].includes(parsed.searchParams.get('sslrootcert'))
+    ||Array.from(parsed.searchParams.keys()).some((key)=>!['sslmode','sslrootcert'].includes(key)))
     throw Error('RECOVERY_PRODUCTION_SESSION_POOLER_REQUIRED');
-  return {projectRef:PROD,encryptedTransport:true};
+  return {projectRef:PROD,encryptedTransport:true,certificateVerified:true};
 }
 export function assertArchiveList(toc){
   const lines=String(toc||'').split(/\r?\n/u);
@@ -25,6 +30,17 @@ export function assertArchiveList(toc){
       throw Error('RECOVERY_CRITICAL_TABLE_MISSING:'+schema+'.'+table);
   }
   return true;
+}
+function authenticatedScope(metadata){
+  return Buffer.from(JSON.stringify({
+    schema:metadata.schema,projectRef:metadata.projectRef,
+    sourceSha:metadata.sourceSha,createdAt:metadata.createdAt,
+    encryption:metadata.encryption,
+    databaseArchiveValidated:metadata.databaseArchiveValidated,
+    fullRestoreVerified:metadata.fullRestoreVerified,
+    storageObjectBytesIncluded:metadata.storageObjectBytesIncluded,
+    productionMigrationApproved:metadata.productionMigrationApproved,
+  }),'utf8');
 }
 function rsaPub(pem){
   let key;
@@ -41,25 +57,35 @@ export async function encryptBackup({sourcePath,encryptedPath,manifestPath,publi
   const plaintext=await readFile(sourcePath);
   const key=crypto.randomBytes(32),iv=crypto.randomBytes(12);
   try{
-    const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
-    const encrypted=Buffer.concat([cipher.update(plaintext),cipher.final()]);
-    const wrapped=crypto.publicEncrypt({key:pub,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},key);
     const metadata={
       schema:RECOVERY_SCHEMA,projectRef:PROD,createdAt:new Date().toISOString(),sourceSha,
-      encryption:'AES-256-GCM+RSA-OAEP-SHA256',iv:iv.toString('base64'),
-      wrappedKey:wrapped.toString('base64'),tag:cipher.getAuthTag().toString('base64'),
-      ciphertextSha256:crypto.createHash('sha256').update(encrypted).digest('hex'),
-      ciphertextBytes:encrypted.length,
+      encryption:'AES-256-GCM+RSA-OAEP-SHA256',
       databaseArchiveValidated:true,fullRestoreVerified:false,storageObjectBytesIncluded:false,
       productionMigrationApproved:false,
     };
+    const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+    cipher.setAAD(authenticatedScope(metadata));
+    const encrypted=Buffer.concat([cipher.update(plaintext),cipher.final()]);
+    const wrapped=crypto.publicEncrypt({key:pub,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},key);
+    Object.assign(metadata,{
+      iv:iv.toString('base64'),wrappedKey:wrapped.toString('base64'),
+      tag:cipher.getAuthTag().toString('base64'),
+      ciphertextSha256:crypto.createHash('sha256').update(encrypted).digest('hex'),
+      ciphertextBytes:encrypted.length,
+    });
     await writeFile(encryptedPath,encrypted,{flag:'wx',mode:0o600});
     await writeFile(manifestPath,JSON.stringify(metadata,null,2)+'\n',{flag:'wx',mode:0o600});
     return metadata;
   }finally{key.fill(0);plaintext.fill(0);}
 }
 export async function decryptBackup({encryptedPath,manifest,privateKey}){
-  if(manifest?.schema!==RECOVERY_SCHEMA||manifest?.projectRef!==PROD)
+  if(manifest?.schema!==RECOVERY_SCHEMA||manifest?.projectRef!==PROD
+    ||!(/^[a-f0-9]{40}$/u.test(manifest?.sourceSha||''))
+    ||manifest.encryption!=='AES-256-GCM+RSA-OAEP-SHA256'
+    ||manifest.databaseArchiveValidated!==true
+    ||manifest.fullRestoreVerified!==false
+    ||manifest.storageObjectBytesIncluded!==false
+    ||manifest.productionMigrationApproved!==false)
     throw Error('RECOVERY_MANIFEST_SCOPE_INVALID');
   const bytes=await readFile(encryptedPath);
   const digest=crypto.createHash('sha256').update(bytes).digest('hex');
@@ -68,6 +94,7 @@ export async function decryptBackup({encryptedPath,manifest,privateKey}){
   const key=crypto.privateDecrypt({key:privateKey,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},Buffer.from(manifest.wrappedKey,'base64'));
   try{
     const decipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(manifest.iv,'base64'));
+    decipher.setAAD(authenticatedScope(manifest));
     decipher.setAuthTag(Buffer.from(manifest.tag,'base64'));
     return Buffer.concat([decipher.update(bytes),decipher.final()]);
   }finally{key.fill(0);}

@@ -14,19 +14,29 @@ test('RSA envelope round-trip and ciphertext tamper detection',async()=>{
     const manifest=await encryptBackup({sourcePath,encryptedPath,manifestPath,publicKey,sourceSha:'a'.repeat(40)});
     assert.equal(manifest.fullRestoreVerified,false);
     assert.equal(manifest.productionMigrationApproved,false);
+    assert.equal(manifest.productionMigrationApproved,false);
     assert.equal(manifest.storageObjectBytesIncluded,false);
     assert.deepEqual(await decryptBackup({encryptedPath,manifest,privateKey}),contents);
+    await assert.rejects(()=>decryptBackup({encryptedPath,manifest:{...manifest,createdAt:'2001-01-01T00:00:00Z'},privateKey}),/Unsupported state or unable to authenticate data|authenticate|bad decrypt/iu);
+    await assert.rejects(()=>decryptBackup({encryptedPath,manifest:{...manifest,sourceSha:'b'.repeat(40)},privateKey}),/Unsupported state or unable to authenticate data|authenticate|bad decrypt/iu);
+    await assert.rejects(()=>decryptBackup({encryptedPath,manifest:{...manifest,fullRestoreVerified:true},privateKey}),/RECOVERY_MANIFEST_SCOPE_INVALID/u);
     const tampered=await readFile(encryptedPath);tampered[0]^=1;await writeFile(encryptedPath,tampered);
     await assert.rejects(()=>decryptBackup({encryptedPath,manifest,privateKey}),/TAMPERED/u);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 test('Restrict source to TLS PROD session pooler with exact username',()=>{
-  const good='postgresql://postgres.pjhmrhejsoofmouedavw:pass@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require';
+  const good='postgresql://postgres.pjhmrhejsoofmouedavw:pass@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=system';
   assert.equal(assertProdConnection(good).encryptedTransport,true);
+  assert.equal(assertProdConnection(good).certificateVerified,true);
+  assert.equal(assertProdConnection(good.replace('sslrootcert=system','sslrootcert=/archive/ca.pem')).certificateVerified,true);
   for(const bad of [
     good.replace('postgres.pjhmrhejsoofmouedavw','postgres.gjztkdwfmunnzhtvxrsu'),
-    good.replace('5432','6543'),good.replace('sslmode=require','sslmode=disable'),
-    good.replace('pooler.supabase.com','attacker.test')
+    good.replace('5432','6543'),good.replace('sslmode=verify-full','sslmode=require'),
+    good.replace('sslmode=verify-full','sslmode=verify-ca'),
+    good.replace('sslrootcert=system','sslrootcert=/tmp/untrusted.pem'),
+    good.replace('pooler.supabase.com','attacker.test'),
+    good.replace('&sslrootcert=system',''),
+    good+'&sslmode=disable',good+'&options=-cdefault_transaction_read_only=off'
   ])assert.throws(()=>assertProdConnection(bad),/RECOVERY_PRODUCTION_SESSION_POOLER_REQUIRED/u);
 });
 test('Archive must include actual Client, Auth and Storage metadata tables',()=>{

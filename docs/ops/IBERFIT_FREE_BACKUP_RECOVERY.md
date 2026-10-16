@@ -33,3 +33,6 @@ La identidad debe proceder de `public.clients.id` y `public.clients.name`, no de
 **Aún no existen respaldos individuales en Drive.** Estas carpetas son exclusivamente una estructura ya creada. Un respaldo general no puede etiquetarse como si perteneciera a una sola persona: debe comprobarse `ONE_CLIENT`, su ID y el contenido segregado. Los informes IRI y de evolución conservarán sus carpetas funcionales, distintas de los archivos técnicos cifrados.
 
 No almacenar identificadores y nombres de clientes reales en el repositorio público o sus logs. Comprobar permisos e integridad antes de cualquier subida.
+
+## Protección del canal de extracción
+El contrato exige conexión a un pooler de sesión PROD con `sslmode=verify-full` y CA validada (`sslrootcert=system` o `sslrootcert=/archive/ca.pem`, cuyo certificado público se provee como secreto de entorno). `sslmode=require` cifra pero **no valida la identidad del servidor**, y no es aceptable en respaldos de usuarios. El exportador fuerza `default_transaction_read_only=on` y no utiliza red de host. La procedencia SHA y los indicadores de recuperación del manifiesto están autenticados con AES-GCM; alterarlos invalida el descifrado. Todo cambio sigue fail-closed.

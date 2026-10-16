@@ -22,6 +22,7 @@ jobs:
       PROD_BACKUP_DB_URL: ${{ secrets.IBERFIT_PROD_BACKUP_DB_URL }}
       BACKUP_RSA_PUBLIC_KEY_B64: ${{ vars.IBERFIT_BACKUP_RSA_PUBLIC_KEY_B64 }}
       SOURCE_SHA: ${{ github.sha }}
+      BACKUP_CA_PEM_B64: ${{ secrets.IBERFIT_BACKUP_CA_PEM_B64 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,15 +37,25 @@ jobs:
           test -n "$PROD_BACKUP_DB_URL" || { echo 'FREE_RECOVERY_PROD_BACKUP_SECRET_MISSING'; exit 45; }
           test -n "$BACKUP_RSA_PUBLIC_KEY_B64" || { echo 'FREE_RECOVERY_RSA_PUBLIC_KEY_MISSING'; exit 46; }
           node --input-type=module -e "import {assertProdConnection} from './scripts/ops/free_recovery_crypto.mjs';assertProdConnection(process.env.PROD_BACKUP_DB_URL)"
+          mkdir -p "$RUNNER_TEMP/iberfit-free-backup"
+          chmod 700 "$RUNNER_TEMP/iberfit-free-backup"
+          # Private Supabase CA can be supplied as an Environment secret.
+          if [[ "$PROD_BACKUP_DB_URL" == *"sslrootcert=/archive/ca.pem"* ]]; then
+            test -n "$BACKUP_CA_PEM_B64" || { echo 'FREE_RECOVERY_CA_MISSING'; exit 48; }
+            printf '%s' "$BACKUP_CA_PEM_B64" | base64 --decode > "$RUNNER_TEMP/iberfit-free-backup/ca.pem"
+            chmod 600 "$RUNNER_TEMP/iberfit-free-backup/ca.pem"
+            grep -q -- 'BEGIN CERTIFICATE' "$RUNNER_TEMP/iberfit-free-backup/ca.pem" || { echo 'FREE_RECOVERY_CA_FORMAT_INVALID'; exit 49; }
+          fi
       - name: Read-only PostgreSQL custom-format export including Auth, private and Storage metadata
         shell: bash
         run: |
           set -euo pipefail
           backup_dir="$RUNNER_TEMP/iberfit-free-backup"
-          mkdir -m 700 "$backup_dir"
-          # Pass the secret only as container environment; do not print/echo it.
-          docker run --rm --network host --user "$(id -u):$(id -g)" \
-            --env PROD_BACKUP_DB_URL \
+          test -d "$backup_dir" || { echo 'FREE_RECOVERY_RUNTIME_DIR_MISSING'; exit 50; }
+          # Verify peer certificate and prevent even incidental DB modifications.
+          export PGOPTIONS='-c default_transaction_read_only=on'
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --env PROD_BACKUP_DB_URL --env PGOPTIONS \
             --mount "type=bind,src=$backup_dir,dst=/archive" \
             postgres:17 \
             sh -eu -c 'exec pg_dump --dbname="$PROD_BACKUP_DB_URL" --no-owner --no-acl --format=custom --file=/archive/database.dump'
@@ -83,7 +94,7 @@ jobs:
           });
           console.log('FREE_RECOVERY_ENCRYPTED_DB_ONLY_BYTES='+result.ciphertextBytes);
           NODE
-          rm -f "$backup_dir/database.dump" "$backup_dir/toc.txt"
+          rm -f "$backup_dir/database.dump" "$backup_dir/toc.txt" "$backup_dir/ca.pem"
           test ! -e "$backup_dir/database.dump"
       - name: Publish only encrypted artifacts within free allowance
         uses: actions/upload-artifact@v4
@@ -99,5 +110,5 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -f "$RUNNER_TEMP/iberfit-free-backup/database.dump" "$RUNNER_TEMP/iberfit-free-backup/toc.txt"
+          rm -f "$RUNNER_TEMP/iberfit-free-backup/database.dump" "$RUNNER_TEMP/iberfit-free-backup/toc.txt" "$RUNNER_TEMP/iberfit-free-backup/ca.pem"
           echo 'FREE_RECOVERY=DATABASE_ENCRYPTED_ONLY;FULL_RESTORE=NOT_VERIFIED;STORAGE_BINARY_OBJECTS=NOT_INCLUDED'
