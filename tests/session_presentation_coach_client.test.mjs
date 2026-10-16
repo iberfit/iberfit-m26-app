@@ -62,7 +62,7 @@ test('Cliente autónomo abre Ver sesión con grupos, medios visuales, prescripci
  assert.equal(view.blocks[1].rounds,3);
  assert.equal(view.blocks[1].exercises.length,2);
  const html=renderClientSessionPresentation({sessionView:view});
- for(const fragment of ['<summary>Ver sesión','data-entity-id="guided"','Iniciar sesión','Press de pecho con mancuernas','Remo con TRX','Sentadilla a silla','Biserie','3 rondas','8–12','75 s','RPE','RIR','3-1-1','Alternativa','Técnica e indicaciones','data-preview-exercise="press"']){
+ for(const fragment of ['<summary>Ver sesión','data-entity-id="guided"','Comenzar entrenamiento','Press de pecho con mancuernas','Remo con TRX','Sentadilla a silla','Biserie','3 rondas','8–12','75 s','RPE','RIR','3-1-1','Alternativa','Técnica e indicaciones','data-preview-exercise="press"']){
    assert.ok(html.includes(fragment),fragment);
  }
  assert.doesNotMatch(html,/INSTRUCCIÓN INTERNA/);
