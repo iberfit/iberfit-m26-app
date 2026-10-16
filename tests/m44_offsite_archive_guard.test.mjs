@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const guard='scripts/ops/m44_offsite_archive_guard.py';
 const makeFixture=String.raw`
-import io, pathlib, stat, sys, tarfile, zipfile
+import hashlib, io, json, pathlib, stat, sys, tarfile, zipfile
 mode,dest = sys.argv[1:]
 if mode.startswith('zip'):
     payload=b'IBFBAK01'+bytes(range(256))*4
@@ -20,9 +20,23 @@ if mode.startswith('zip'):
         if mode=='zip-extra': f.writestr('extra.sql','not allowed')
 elif mode.startswith('tar'):
     with tarfile.open(dest,'w') as f:
-        for name,body in [('database.pgcustom',b'PGDMP safe synthetic'),
-                          ('storage/manifest.json',b'{}'),
-                          ('storage/files/000000.bin',b'fixture')]:
+        manifest=dict(schema='iberfit.storage.backup.v1',
+          project='pjhmrhejsoofmouedavw',
+          objects=[dict(bucket='private-fixture',name='file.bin',
+            relative='files/000000.bin',bytes=len(b'fixture'),
+            sha256=hashlib.sha256(b'fixture').hexdigest())])
+        parts=[('database.pgcustom',b'PGDMP safe synthetic'),
+          ('storage/manifest.json',json.dumps(manifest).encode()),
+          ('storage/files/000000.bin',b'fixture')]
+        if mode=='tar-tampered-storage':
+            parts[-1]=('storage/files/000000.bin',b'changed')
+        if mode=='tar-missing-storage':
+            parts.pop()
+        if mode=='tar-bad-manifest':
+            parts[1]=('storage/manifest.json',b'{}')
+        if mode=='tar-extra-storage':
+            parts.append(('storage/files/000001.bin',b'extra'))
+        for name,body in parts:
             info=tarfile.TarInfo(name)
             info.size=len(body)
             f.addfile(info,io.BytesIO(body))
@@ -74,7 +88,7 @@ test('Offsite verification rejects checksum mismatch, traversal, extra ZIP files
 });
 test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed',async()=>{
  await sandbox(async dir=>{
-  for(const mode of ['tar-valid','tar-traversal','tar-symlink']){
+  for(const mode of ['tar-valid','tar-traversal','tar-symlink','tar-tampered-storage','tar-missing-storage','tar-bad-manifest','tar-extra-storage']){
    const tar=path.join(dir,mode+'.tar'),out=path.join(dir,mode);
    fixture(mode,tar);
    await import('node:fs/promises').then(fs=>fs.mkdir(out));
@@ -82,9 +96,12 @@ test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed
    if(mode==='tar-valid'){
     assert.equal(result.status,0,result.output);
     assert.match(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+    assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+    assert.doesNotMatch(result.output,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    }else{
     assert.notEqual(result.status,0,mode);
     assert.deepEqual(await readdir(out),[],mode+' left partially extracted bytes');
+    assert.doesNotMatch(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
     assert.doesNotMatch(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
    }
   }
