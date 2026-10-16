@@ -10,6 +10,8 @@ on:
       - 'scripts/ops/m44_storage_metadata_snapshot.sql'
       - 'scripts/ops/m44_storage_metadata_parity.mjs'
       - 'scripts/ops/m44_platform_recovery_catalog.sql'
+      - 'scripts/ops/m44_global_roles_archive_check.mjs'
+      - 'tests/m44_role_globals_encrypted_backup.test.mjs'
       - 'tests/m44_storage_metadata_parity.test.mjs'
       - 'tests/m44_storage_full_recovery_workflow.test.mjs'
       - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
@@ -48,7 +50,8 @@ jobs:
             tests/m44_encrypted_backup_archive_contract.test.mjs \
             tests/m44_storage_backup_bytes_contract.test.mjs \
             tests/m44_storage_metadata_parity.test.mjs \
-            tests/m44_storage_full_recovery_workflow.test.mjs
+            tests/m44_storage_full_recovery_workflow.test.mjs \
+            tests/m44_role_globals_encrypted_backup.test.mjs
 
   synthetic-restore:
     name: m44-synthetic-postgresql17-restore-proof
@@ -76,6 +79,49 @@ jobs:
           set -euo pipefail
           docker run --rm --entrypoint sh supabase/postgres:17.6.1.147 -c 'test -f "$(pg_config --sharedir)/extension/supabase_vault.control"'
           echo 'IBERFIT_SUPABASE_PG17_VAULT_EXTENSION_AVAILABLE'
+      - name: Prove passwordless global role export against isolated PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export PGPASSWORD=local-synthetic-only
+          export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=supabase_admin
+          scratch="$(mktemp -d)"
+          trap 'rm -rf "$scratch"' EXIT
+          # This is a throwaway container database, never IBERFIT PROD or QA.
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
+            postgres:17-alpine psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+            > /dev/null 2> "$scratch/pg-private-errors" <<'SQL'
+          SELECT format('CREATE ROLE %I;', roles.role_name)
+            FROM (VALUES ('postgres'),('anon'),('authenticated'),('authenticator'),
+                 ('service_role'),('supabase_admin'),('supabase_auth_admin'),
+                 ('supabase_storage_admin')) AS roles(role_name)
+            WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles p WHERE p.rolname=roles.role_name)
+          \gexec
+          SQL
+          if ! docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
+            -v "$scratch:/work" postgres:17-alpine pg_dumpall --roles-only \
+            --no-role-passwords --database=postgres --file=/work/synthetic-roles.sql \
+            > /dev/null 2> "$scratch/pg-private-errors"; then
+            # Only a predefined non-sensitive error CATEGORY may enter CI.
+            # The original stderr remains private and is deleted by trap.
+            if grep -Eqi 'unrecognized option|invalid option' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_OPTION_UNSUPPORTED'
+            elif grep -Eqi 'permission denied|must be superuser|not permitted' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_PRIVILEGE_DENIED'
+            elif grep -Eqi 'could not connect|connection to server|password authentication' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_AUTH_FAILED'
+            elif grep -Eqi 'could not open output file|No such file or directory|Is a directory' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_OUTPUT_PATH_FAILED'
+            elif grep -Eqi 'does not exist|database' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_DATABASE_FAILED'
+            else
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_UNKNOWN'
+            fi
+            exit 61
+          fi
+          node scripts/ops/m44_global_roles_archive_check.mjs "$scratch/synthetic-roles.sql"
+          echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLES_PASSWORDLESS_PG17_VERIFIED'
       - name: Exercise binary dump, authenticated encryption and restored data
         env:
           IBERFIT_BACKUP_PASSPHRASE: only-a-synthetic-fixture-passphrase-never-use-in-production-2026
@@ -163,6 +209,15 @@ jobs:
           docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
             -v "$WORK/plain:/work" postgres:17-alpine sh -c \
             'pg_dump -Fc --no-owner --no-acl --dbname="$IBERFIT_PROD_DATABASE_URL" -f /work/database.pgcustom 2>/work/pg-private-errors'
+          # PostgreSQL globals (roles and memberships) are NOT in pg_dump -Fc.
+          # Export WITHOUT any role passwords, only to the ephemeral private
+          # workspace. Never print the SQL or grant the runner public access.
+          docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
+            -v "$WORK/plain:/work" postgres:17-alpine sh -c \
+            'pg_dumpall --roles-only --no-role-passwords \
+              --dbname="$IBERFIT_PROD_DATABASE_URL" \
+              --file=/work/global-roles.sql 2>> /work/pg-private-errors'
+          node scripts/ops/m44_global_roles_archive_check.mjs "$WORK/plain/global-roles.sql"
           # This source inventory is intentionally plaintext ONLY inside the
           # temporary runner workspace; its paths and metadata are encrypted.
           docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
@@ -195,7 +250,7 @@ jobs:
             "$WORK/plain/platform-catalog-source.json"
           rm -f "$WORK/plain/pg-private-errors"
           tar -C "$WORK/plain" -cf "$WORK/plain.tar" \
-            database.pgcustom storage storage-inventory.json \
+            database.pgcustom global-roles.sql storage storage-inventory.json \
             storage-post-inventory.json platform-catalog-source.json
           echo 'IBERFIT_PROD_DB_AND_STORAGE_PLAINTEXT_STAGED_PRIVATELY'
       - name: Encrypt authenticated recovery archive before any upload
@@ -248,6 +303,10 @@ jobs:
             "$WORK/isolated/storage/manifest.json"
           node --input-type=module -e 'import fs from "node:fs";import {validatePlatformCatalog} from "./scripts/ops/m44_platform_recovery_compare.mjs";validatePlatformCatalog(JSON.parse(fs.readFileSync(process.argv[1],"utf8")))' \
             "$WORK/isolated/platform-catalog-source.json"
+          node scripts/ops/m44_global_roles_archive_check.mjs "$WORK/isolated/global-roles.sql"
+          # Role SQL is evidence only, never executed in a PROD connection or
+          # claimed to be a restoration of hosted Supabase authentication.
+          echo 'IBERFIT_GLOBAL_ROLES_ARCHIVED_BUT_NOT_APPLIED'
           echo 'IBERFIT_SOURCE_CATALOG_ENCRYPTED_PLATFORM_RECOVERY_NOT_YET_VERIFIED'
           echo 'IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS'
       - name: Publish verified encrypted archive for immediate private-drive transfer
