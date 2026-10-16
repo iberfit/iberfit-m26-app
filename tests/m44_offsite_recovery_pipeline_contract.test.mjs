@@ -15,7 +15,7 @@ test('offsite production archive cannot run for pull requests and requires prote
  assert.match(w,/IBERFIT_BACKUP_PASSPHRASE_NOT_CONFIGURED/);
 });
 test('cipher archive alone goes to artifacts, restores cannot reach production',()=>{
- const upload=w.split('      - name: Publish encrypted archive only')[1]?.split('      - name: Remove all temporary plaintext')[0];
+ const upload=w.split('      - name: Publish verified encrypted archive for immediate private-drive transfer')[1]?.split('      - name: Remove all temporary plaintext')[0];
  assert.ok(upload);
  assert.match(upload,/\/cipher\/\*\.ibf/);
  assert.doesNotMatch(upload,/pgcustom|storage-inventory|plain\.tar|\/isolated/);
