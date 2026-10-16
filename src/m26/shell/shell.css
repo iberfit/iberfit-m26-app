@@ -1701,3 +1701,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .m26-session-prescription-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
   .m26-session-preview-start,.m26-client-session-card .m26-client-session-action{width:100%}
 }
+
+/* La ficha modal de sesión es vertical y no hereda las columnas de las tarjetas editoriales. */
+.m26-client-content-card.m26-client-session-card{display:block}
