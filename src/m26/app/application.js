@@ -8,7 +8,7 @@ import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} f
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
 import {actorCanExecuteSession,sessionRequiresConfirmedAppointment} from '../rc39/session-policy.js';
-import {publicationSummary} from '../workflows/publication-workflow.js';
+import {publicationSummary,publicationStatus} from '../workflows/publication-workflow.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
@@ -344,6 +344,16 @@ export async function createM26Application({root=document.querySelector('#app'),
     const localTime=localRecord?.updatedAt?new Date(localRecord.updatedAt).getTime():0;
     const remoteTime=remoteRecord?.updatedAt?new Date(remoteRecord.updatedAt).getTime():0;
     const selected=remoteRecord&&(!localRecord||remoteTime>=localTime)?remoteRecord:localRecord;
+    // Un borrador de un ID que ya se publicó o retiró no debe renacer por caché
+    // local, especialmente después de una limpieza remota incompleta.
+    if(selected?.value?.id){
+      const authoritative=currentClientSession(selected.value.id,clientId);
+      if(authoritative&&['published','withdrawn','archived'].includes(publicationStatus(authoritative))){
+        try{await clearSessionDraft(clientId);}
+        catch(error){reportDiagnostic('session-draft-stale-cleanup',error);}
+        return undefined;
+      }
+    }
     if(selected===remoteRecord){
       try{
         await draftRepository.save(clientId,SESSION_DRAFT_SCOPE,remoteRecord.value);
@@ -411,7 +421,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       visible.has(item.execution?.clientId) &&
       (state.identity?.role!=='client'||(
         item.execution?.clientId===own &&
-        clientSessionIsAvailable(currentClientSession(item.session?.id,item.execution.clientId,state))
+        clientSessionIsAvailable(currentClientSession(item.session?.id,item.execution.clientId,state)) &&
+        Number(normalizePublishedSession(currentClientSession(item.session?.id,item.execution.clientId,state)).revision||0)===Number(item.session?.revision||0)
       ))
     );if(!snapshot?.execution||!snapshot?.session)return false;
     sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
@@ -486,7 +497,19 @@ export async function createM26Application({root=document.querySelector('#app'),
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
-    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:store.getState().identity?.role,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setSearchLimit:(limit)=>{if(sessionUi)sessionUi.searchLimit=limit;},autosaveDraft:saveSessionDraft,discardDraft:discardCurrentSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
+    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:store.getState().identity?.role,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setSearchLimit:(limit)=>{if(sessionUi)sessionUi.searchLimit=limit;},autosaveDraft:saveSessionDraft,discardDraft:discardCurrentSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{
+      // El ACK de publicación ya es autoritativo. Un fallo posterior al limpiar
+      // un borrador no debe presentarse como fallo de publicación duplicable.
+      const clientId=sessionUi?.draft?.clientId;
+      try{
+        const cleanup=await clearSessionDraft(clientId);
+        if(cleanup.remote!==true)throw new Error('M26_SESSION_DRAFT_REMOTE_CLEANUP_PENDING');
+      }catch(error){
+        reportDiagnostic('session-draft-post-publish-cleanup',error);
+        try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:'La sesión se publicó. No se pudo confirmar la limpieza del borrador sincronizado; se ocultará al recuperarlo.'}}));}catch{}
+      }
+      sessionUi=null;store.navigate('sesion');
+    },onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     qaStage('rc64-shell-mount-start');
@@ -559,7 +582,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(sessionRequiresConfirmedAppointment({role,session:selected,appointment})&&!appointment?.id)throw new Error('M26_SESSION_APPOINTMENT_REQUIRED');
     const recoverable=(await recoveryCoordinator?.list?.({clientId})||[]).find((item)=>
       String(item.session?.id||'')===requestedId &&
-      String(item.execution?.clientId||'')===clientId
+      String(item.execution?.clientId||'')===clientId &&
+      Number(item.session?.revision||0)===Number(normalized.revision||0)
     );
     if(recoverable){
       sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recoverable.session,execution:recoverable.execution,appointmentId:recoverable.appointmentId||appointment?.id||null};
