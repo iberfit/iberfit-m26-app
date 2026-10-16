@@ -44,7 +44,7 @@ test('Cliente solo recibe sesiones publicadas y visibles y no puede iniciar sesi
   assert.match(html,/Sesión vigente/);
   assert.match(html,/Sesión dirigida/);
   assert.doesNotMatch(html,/Sesión retirada|Sesión borrador|Sesión sin-visibilidad|Sesión contradictoria/);
-  assert.match(html,/Sesión dirigida por tu entrenador/);
+  assert.match(html,/Tu entrenador dirigirá la sesión/);
   assert.equal((html.match(/data-entity-id="vigente"/g)||[]).length,1);
   assert.doesNotMatch(html,/data-entity-id="dirigida"/);
 });
