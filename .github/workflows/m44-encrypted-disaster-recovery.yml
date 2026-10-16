@@ -11,6 +11,7 @@ on:
       - 'scripts/ops/m44_storage_metadata_parity.mjs'
       - 'scripts/ops/m44_platform_recovery_catalog.sql'
       - 'tests/m44_storage_metadata_parity.test.mjs'
+      - 'tests/m44_storage_full_recovery_workflow.test.mjs'
       - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
       - 'tests/m44_storage_backup_bytes_contract.test.mjs'
   push:
@@ -46,7 +47,8 @@ jobs:
           node --test \
             tests/m44_encrypted_backup_archive_contract.test.mjs \
             tests/m44_storage_backup_bytes_contract.test.mjs \
-            tests/m44_storage_metadata_parity.test.mjs
+            tests/m44_storage_metadata_parity.test.mjs \
+            tests/m44_storage_full_recovery_workflow.test.mjs
 
   synthetic-restore:
     name: m44-synthetic-postgresql17-restore-proof
