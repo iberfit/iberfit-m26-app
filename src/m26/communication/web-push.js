@@ -190,6 +190,7 @@ export function createWebPushCoordinator({
     const expectedActor=actorScope();
     const sw=await registration();
     const current=await sw.pushManager.getSubscription();
+    requireSameActor(expectedActor);
     if(!current)return Object.freeze({ok:true,active:false,changed:false});
     const endpoint=pushEndpoint(current.endpoint);
     requireSameActor(expectedActor);
