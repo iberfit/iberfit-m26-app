@@ -112,9 +112,17 @@
   font-weight: 560;
   line-height: 1;
   letter-spacing: -0.018em;
-  white-space:normal;
-  overflow-wrap:anywhere;
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow-wrap:normal;
   text-align:center;
+}
+
+.m26-client-bottom-nav-label-compact {
+  display:none;
 }
 
 .m26-client-bottom-nav-more {
@@ -267,6 +275,14 @@
     line-height:1.15;
     font-weight: 620;
     letter-spacing: -0.025em;
+  }
+
+  button.m26-client-bottom-nav-item .m26-client-bottom-nav-label-full {
+    display:none;
+  }
+
+  button.m26-client-bottom-nav-item .m26-client-bottom-nav-label-compact {
+    display:block;
   }
 
   .m26-client-bottom-nav-spark {

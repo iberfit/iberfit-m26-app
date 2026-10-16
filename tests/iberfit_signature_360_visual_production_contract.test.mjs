@@ -76,6 +76,27 @@ test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',(
   assert.doesNotMatch(css,/gradient\(/,'Client dock should remain matte');
 });
 
+test('Signature360 Client dock uses accessible compact labels without splitting words',()=>{
+  const render=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const home=fs.readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
+  assert.match(render,/shortLabel:'Tu plan'/,'Client mobile short label must be explicit, not CSS pseudo-content');
+  assert.match(render,/aria-label="\$\{escapeHtml\(item\.label\)\}"/,'full destination name remains accessible');
+  assert.match(render,/m26-client-bottom-nav-label-compact/);
+  assert.match(css,/white-space:nowrap/,'nav words must remain together at narrow widths');
+  assert.match(css,/text-overflow:ellipsis/,'avoid spilling into adjacent hit targets');
+  assert.match(css,/button\.m26-client-bottom-nav-item \.m26-client-bottom-nav-label-full\s*\{\s*display:none;/);
+  assert.match(css,/button\.m26-client-bottom-nav-item \.m26-client-bottom-nav-label-compact\s*\{\s*display:block;/);
+  const start=home.indexOf('CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE');
+  const end=home.indexOf('CLIENT360_DECISION_V2_BEGIN',start);
+  const hoy=home.slice(start,end);
+  assert.match(hoy,/\.m26-client-home-secondary-disclosure > summary\{\s*display:grid;/,'Mobile disclosure summary is a stable two-column grid');
+  assert.match(hoy,/\.m26-client-home-secondary-disclosure > summary::after\{\s*grid-column:2;/,'Disclosure indicator stays in its own column');
+  for(const [language,expected] of [['en','Your plan'],['fr','Votre plan'],['pt','O seu plano']]){
+    assert.equal(iberfitSurfaceTranslate('Tu plan',{language}),expected);
+  }
+});
+
 test('Signature360 appointment states remain localized in ES/EN/FR/PT',()=>{
   const values=[
     ['Programada','Scheduled','Programmée','Agendada'],

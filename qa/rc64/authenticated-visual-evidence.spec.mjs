@@ -150,6 +150,27 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         expect(layout.scrollWidth,'Client Hoy cannot cause horizontal document scrolling').toBeLessThanOrEqual(layout.viewportWidth+1);
         const motion=await primaryAction.evaluate((button)=>getComputedStyle(button).transitionDuration);
         expect(motion,'Reduced-motion accessibility must apply to the primary Hoy action').toBe('0s');
+        const visibleDockLabels=page.locator('.m26-client-bottom-nav-label:visible');
+        if(await visibleDockLabels.count()){
+          const labelMetrics=await visibleDockLabels.evaluateAll((labels)=>labels.map((label)=>{
+            const style=getComputedStyle(label);
+            return {label:label.textContent?.trim(),height:label.getBoundingClientRect().height,lineHeight:parseFloat(style.lineHeight)};
+          }));
+          for(const label of labelMetrics){
+            expect(label.height,`Dock label must occupy one line: ${label.label}`).toBeLessThanOrEqual(label.lineHeight+2);
+          }
+          const planningNav=page.locator('button.m26-client-bottom-nav-item[data-m26-area="planificacion"]');
+          await expect(planningNav).toHaveAttribute('aria-label','Planificación');
+          if((projectUse.viewport?.width||0)<=690){
+            await expect(planningNav.locator('.m26-client-bottom-nav-label-compact')).toHaveText('Tu plan');
+          }
+        }
+        if((projectUse.viewport?.width||0)<=680){
+          const disclosure=page.locator('.m26-client-home-secondary-disclosure > summary');
+          const summaryDisplay=await disclosure.evaluate((node)=>getComputedStyle(node).display);
+          expect(summaryDisplay,'Mobile disclosure indicator needs a stable two-column layout').toBe('grid');
+        }
+
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
 
 
