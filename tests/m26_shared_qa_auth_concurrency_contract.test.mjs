@@ -46,3 +46,30 @@ test('synthetic and PWA device jobs are not unnecessarily serialized behind shar
   assert.doesNotMatch(admin,new RegExp(sharedGroup,'u'));
   assert.doesNotMatch(pwa,new RegExp(sharedGroup,'u'));
 });
+
+
+test('remote gates separate browser preparation from the credential-shared mutex',()=>{
+  const preparation=jobBlock(remote,'  prepare-ui:','\n  preflight:');
+  const authorized=jobBlock(remote,'  preflight:','\n  exercise-media-broker-probe:');
+  assert.match(preparation,/container:\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[a-f0-9]{64}/u);
+  assert.match(preparation,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+  assert.match(preparation,/Generar candidatos visuales canónicos Linux RC64\.2B/u);
+  assert.match(preparation,/Verify Playwright browser cache/u);
+  assert.doesNotMatch(preparation,/iberfit-qa-shared-auth-readonly|M26_QA_COACH_PASSWORD|M26_QA_CLIENT_A_PASSWORD/u);
+  assert.match(authorized,/needs: prepare-ui/u);
+  assert.match(authorized,/container:\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[a-f0-9]{64}/u);
+  assert.match(authorized,/concurrency:\s+group: iberfit-qa-shared-auth-readonly\s+queue: max\s+cancel-in-progress: false/u);
+  assert.match(authorized,/environment: m26-canary-readonly/u);
+  assert.doesNotMatch(authorized,/Generar candidatos visuales canónicos Linux|Restore Playwright browser cache|playwright install-deps/u);
+  for(const authenticated of [
+    'Ejecutar gate autenticado sin mutaciones',
+    'Ejecutar smoke autenticado RC64.2B sobre fuente actual sin mutaciones',
+    'Capturar evidencia visual autenticada RC64 sin mutaciones',
+  ]){
+    assert.ok(authorized.includes(authenticated),'Authenticated check left the protected preflight: '+authenticated);
+    assert.ok(!preparation.includes(authenticated),'Authenticated check leaked to preparation: '+authenticated);
+  }
+  assert.match(authorized,/run: npm ci/u);
+  assert.match(authorized,/QA_BROWSER_MISSING/u);
+  assert.match(authorized,/if: .*github\.event_name.*READ_ONLY_REMOTE_GATE/u);
+});
