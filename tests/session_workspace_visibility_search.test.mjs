@@ -81,7 +81,7 @@ test('Buscador incremental P → PR filtra y prioriza coincidencias de nombre si
 test('Constructor permite descartar con confirmación integrada y conserva búsqueda accesible',()=>{
   const draft=createSessionDraft({clientId:'client-1'});
   addCatalogExercise(draft,'ex-0',catalog);
-  const html=renderSessionBuilder({draft,catalog,query:'PR'});
+  const html=renderSessionBuilder({draft,catalog,query:''});
   assert.match(html,/data-session-action="discard-draft"/);
   assert.match(html,/Eliminará este borrador/);
   assert.match(html,/data-session-search-results/);
