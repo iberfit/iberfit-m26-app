@@ -8,6 +8,7 @@ import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} f
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
 import {actorCanExecuteSession,sessionRequiresConfirmedAppointment} from '../rc39/session-policy.js';
+import {publicationSummary} from '../workflows/publication-workflow.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
@@ -64,7 +65,7 @@ function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
 function normalizePublishedSession(record){
   const body=record?.body&&typeof record.body==='object'?record.body:record;
   const blocks=Array.isArray(body?.blocks)?structuredClone(body.blocks):[];
-  return {id:record?.id||body?.id,clientId:record?.clientId||record?.client_id||body?.clientId||body?.client_id,title:body?.title||body?.name||'Sesión IBERFIT',durationMinutes:Number(body?.durationMinutes||body?.duration_minutes||50),status:body?.status||record?.status||'published',blocks,revision:Number(record?.revision||body?.revision||0),createdAt:record?.createdAt||record?.created_at||body?.createdAt||body?.created_at||null};
+  return {id:record?.id||body?.id,clientId:record?.clientId||record?.client_id||body?.clientId||body?.client_id,title:body?.title||body?.name||'Sesión IBERFIT',durationMinutes:Number(body?.durationMinutes||body?.duration_minutes||50),status:record?.status||record?.estado||body?.status||'draft',visibleToClient:record?.visibleToClient??record?.visible_to_client??body?.visibleToClient??body?.visible_to_client??null,blocks,revision:Number(record?.revision||body?.revision||0),createdAt:record?.createdAt||record?.created_at||body?.createdAt||body?.created_at||null};
 }
 function nextExpiry(session){return sessionExpiresSoon(session);}
 function safeTime(value){const time=value?new Date(value).getTime():NaN;return Number.isFinite(time)?time:null;}
@@ -72,7 +73,7 @@ const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo
 const CONFIRMED_APPOINTMENT_STATES=new Set(['confirmed','confirmado','scheduled','agendado']);
 const APPOINTMENT_EARLY_WINDOW_MS=6*60*60*1000;
 const APPOINTMENT_LATE_WINDOW_MS=24*60*60*1000;
-function publishedSessionForClient(records=[],clientId){return records.map(normalizePublishedSession).filter((item)=>item.id&&item.clientId===clientId&&item.blocks.length&&PUBLISHED_SESSION_STATES.has(String(item.status||'').trim().toLowerCase())).sort((a,b)=>Number(b.revision||0)-Number(a.revision||0)||(safeTime(b.createdAt)||0)-(safeTime(a.createdAt)||0))[0]||null;}
+function publishedSessionForClient(records=[],clientId){return records.map(normalizePublishedSession).filter((item)=>item.id&&item.clientId===clientId&&item.blocks.length&&item.visibleToClient!==false&&PUBLISHED_SESSION_STATES.has(String(item.status||'').trim().toLowerCase())).sort((a,b)=>Number(b.revision||0)-Number(a.revision||0)||(safeTime(b.createdAt)||0)-(safeTime(a.createdAt)||0))[0]||null;}
 function confirmedAppointmentForSession(records=[],session,now=Date.now(),{earlyWindowMs=APPOINTMENT_EARLY_WINDOW_MS,lateWindowMs=APPOINTMENT_LATE_WINDOW_MS}={}){
   const at=Number(now);if(!Number.isFinite(at)||!session?.id||!session?.clientId)return null;
   const lower=at-Math.max(0,Number(earlyWindowMs)||0),upper=at+Math.max(0,Number(lateWindowMs)||0);
@@ -258,7 +259,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   function renderRoute(shellVm,state){
     qaStage('rc64-route-start');
     const role=shellVm?.identity?.role||state?.identity?.role||'client';
-    if(sessionUi?.draft)return renderSessionBuilder({draft:sessionUi.draft,catalog,query:sessionUi.query,templates:sessionUi.templates||[],actionState:sessionUi.actionState,mediaMap,role});
+    if(sessionUi?.draft)return renderSessionBuilder({draft:sessionUi.draft,catalog,query:sessionUi.query,searchLimit:sessionUi.searchLimit||36,templates:sessionUi.templates||[],actionState:sessionUi.actionState,mediaMap,role});
     if(sessionUi?.execution)return renderGuidedExecution({execution:sessionUi.execution,session:sessionUi.session,catalog,actionState:sessionUi.actionState,mediaMap,role});
     qaStage('rc64-route-vm-start');
     const routeVm=createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap});
@@ -380,9 +381,39 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
     return Object.freeze({ok:true,local,remote});
   }
+  async function discardCurrentSessionDraft(){
+    const clientId=String(sessionUi?.draft?.clientId||'');
+    if(!clientId)throw new Error('M26_SESSION_DRAFT_REQUIRED');
+    if(!draftOnline())throw new Error('M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION');
+    // Primero borrado remoto confirmado; nunca prometer eliminación definitiva
+    // cuando una copia sincronizada aún podría reaparecer en otro dispositivo.
+    await refreshSessionIfNeeded();
+    await transport.deleteSessionDraft(currentToken(),clientId,SESSION_DRAFT_SCOPE);
+    await draftRepository?.remove?.(clientId,SESSION_DRAFT_SCOPE);
+    sessionUi=null;
+    store.navigate('sesion');
+    render();
+    return Object.freeze({ok:true});
+  }
+  function currentClientSession(sessionId,clientId,state=store.getState()){
+    return (state.collections.sessions||[]).find((item)=>
+      String(item.id||item.body?.id||'')===String(sessionId||'') &&
+      String(item.clientId||item.client_id||item.body?.clientId||item.body?.client_id||'')===String(clientId||'')
+    )||null;
+  }
+  function clientSessionIsAvailable(record){
+    return Boolean(record&&publicationSummary({entity:'session',record,role:'client'}).visibleToClient&&
+      actorCanExecuteSession({role:'client',session:record}));
+  }
   async function restoreExecution(){
     await recoveryCoordinator?.purgeExpired?.();const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
-    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>visible.has(item.execution?.clientId)&&(state.identity?.role!=='client'||item.execution?.clientId===own));if(!snapshot?.execution||!snapshot?.session)return false;
+    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>
+      visible.has(item.execution?.clientId) &&
+      (state.identity?.role!=='client'||(
+        item.execution?.clientId===own &&
+        clientSessionIsAvailable(currentClientSession(item.session?.id,item.execution.clientId,state))
+      ))
+    );if(!snapshot?.execution||!snapshot?.session)return false;
     sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
@@ -455,7 +486,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
-    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
+    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:store.getState().identity?.role,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setSearchLimit:(limit)=>{if(sessionUi)sessionUi.searchLimit=limit;},autosaveDraft:saveSessionDraft,discardDraft:discardCurrentSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     qaStage('rc64-shell-mount-start');
@@ -501,11 +532,41 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
-  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft({clientId});sessionUi={draft,query:'',templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();}
+  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const sourceSession=event?.detail?.sourceSession||null;const saved=sourceSession?null:await loadSessionDraft(clientId);const draft=sourceSession?createReusableSessionDraft(sourceSession,{clientId,catalog}):saved?.value?.clientId===clientId?saved.value:createSessionDraft({clientId});sessionUi={draft,query:'',searchLimit:36,templates:sessionTemplateRepository?.list?.()||[],actionState:createActionState(),execution:null,session:null};if(sourceSession)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Sesión reutilizada como borrador independiente. Revisa y publica solo cuando corresponda.'};else if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();}
   async function onStartSession(event){
-    const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
-    const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
-    sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null};store.navigate('sesion');render();
+    const clientId=String(event?.detail?.clientId||'');
+    let state=store.getState();
+    const role=String(state.identity?.role||'');
+    const visible=new Set((state.collections.clients||[]).map((item)=>item.id));
+    if(!visible.has(clientId)||(role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
+    const requestedId=String(event?.detail?.session?.id||event?.detail?.session?.body?.id||'');
+    if(!requestedId)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');
+    // El cliente nunca puede iniciar desde una tarjeta o snapshot cacheado sin
+    // contrastar el estado remoto vigente. Un retiro puede ocurrir en otro equipo.
+    if(role==='client'){
+      if(!draftOnline())throw new Error('M26_SESSION_REMOTE_VALIDATION_REQUIRED');
+      await hydrate({reason:'session-start-validation'});
+      state=store.getState();
+    }
+    const authoritative=currentClientSession(requestedId,clientId,state);
+    if(role==='client'&&!clientSessionIsAvailable(authoritative))throw new Error('M26_SESSION_NOT_AVAILABLE');
+    const selected=authoritative||event.detail.session;
+    const normalized=normalizePublishedSession(selected);
+    if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');
+    const appointment=confirmedAppointmentForSession(state.collections.appointments||[],normalized);
+    if(!actorCanExecuteSession({role,session:selected,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');
+    if(!normalized.id||!normalized.blocks.length)throw new Error('M26_SESSION_NOT_AVAILABLE');
+    if(sessionRequiresConfirmedAppointment({role,session:selected,appointment})&&!appointment?.id)throw new Error('M26_SESSION_APPOINTMENT_REQUIRED');
+    const recoverable=(await recoveryCoordinator?.list?.({clientId})||[]).find((item)=>
+      String(item.session?.id||'')===requestedId &&
+      String(item.execution?.clientId||'')===clientId
+    );
+    if(recoverable){
+      sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recoverable.session,execution:recoverable.execution,appointmentId:recoverable.appointmentId||appointment?.id||null};
+      store.navigate('sesion');render();return;
+    }
+    sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,execution:createExecution({session:normalized,clientId}),appointmentId:appointment?.id||null};
+    store.navigate('sesion');render();
   }
   async function onSwitchRole(event){
     const role=String(event?.detail?.role||'').trim().toLowerCase();
