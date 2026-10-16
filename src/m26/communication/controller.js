@@ -9,6 +9,7 @@ const COACH_MESSAGE_ASSISTS=Object.freeze({
 function pushErrorMessage(error){
   const code=String(error?.message||error||'');
   if(/SUBSCRIPTION_CHANGED/.test(code))return 'Los avisos de este dispositivo cambiaron en otra pestaña. Revisa su estado actualizado.';
+  if(/OWNERSHIP_NOT_CONFIRMED/.test(code))return 'La suscripción de este navegador no corresponde a tu cuenta activa. No se ha eliminado. Revisa el estado de tus avisos.';
   if(/ONLINE_REQUIRED/.test(code))return 'Necesitas conexión para cambiar los avisos de este dispositivo.';
   if(/PERMISSION_DENIED/.test(code))return 'El navegador tiene los avisos bloqueados. Puedes cambiarlos desde los permisos del sitio.';
   if(/PERMISSION_NOT_GRANTED/.test(code))return 'No se activaron los avisos. Puedes intentarlo de nuevo cuando quieras.';
