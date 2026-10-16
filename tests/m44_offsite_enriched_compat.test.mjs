@@ -39,6 +39,22 @@ if mode!='legacy':
  if mode=='bad-json':parts[-1]=('platform-catalog-source.json',b'{bad json}')
  if mode=='extra-member':parts.append(('untrusted.ini',b'x'))
  if mode=='fake-meta':parts.append(('storage-inventory.json',b'[]'))
+if mode.startswith('roles'):
+ if mode=='roles-legacy':
+  parts=[v for v in parts if v[0] not in (
+   'storage-inventory.json','storage-post-inventory.json','platform-catalog-source.json')]
+ role_names=['postgres','anon','authenticated','authenticator','service_role',
+  'supabase_admin','supabase_auth_admin','supabase_storage_admin']
+ lines=['--','-- PostgreSQL database cluster dump','--',
+  '-- Dumped from database version 17.6','-- Dumped by pg_dumpall version 17.6']
+ for role in role_names:
+  if mode=='roles-missing' and role=='service_role':continue
+  lines.extend(['CREATE ROLE '+role+';',
+   'ALTER ROLE '+role+' WITH NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOLOGIN NOREPLICATION;'])
+ lines.append('-- PostgreSQL database cluster dump complete')
+ if mode=='roles-password':lines.append("ALTER ROLE postgres WITH PASSWORD 'fixture-not-real';")
+ if mode=='roles-truncated':lines=[x for x in lines if 'dump complete' not in x]
+ parts.append(('global-roles.sql','\n'.join(lines).encode()))
 if mode=='legacy-traversal':parts.append(('../evil.txt',b'not allowed'))
 with tarfile.open(dest,'w') as f:
  for name,body in parts:
@@ -58,7 +74,7 @@ async function inScratch(fn){
 }
 test('M44 historical and enriched genuine layouts are both accepted',async()=>{
  await inScratch(async d=>{
-  for(const mode of ['legacy','enriched']){
+  for(const mode of ['legacy','enriched','roles-valid']){
    const tar=path.join(d,mode+'.tar'),dst=path.join(d,mode);
    assert.equal(call('-c',build,mode,tar).ok,true);
    await mkdir(dst);
@@ -70,7 +86,7 @@ test('M44 historical and enriched genuine layouts are both accepted',async()=>{
 });
 test('M44 extension cannot be partial, corrupt, mismatched or unknown',async()=>{
  await inScratch(async d=>{
-  for(const mode of ['changed','duplicate','missing-manifest','bad-catalog','partial','bad-json','extra-member','fake-meta','legacy-traversal']){
+  for(const mode of ['changed','duplicate','missing-manifest','bad-catalog','partial','bad-json','extra-member','fake-meta','legacy-traversal','roles-legacy','roles-password','roles-missing','roles-truncated']){
    const tar=path.join(d,mode+'.tar'),dst=path.join(d,mode);
    assert.equal(call('-c',build,mode,tar).ok,true);
    await mkdir(dst);
