@@ -79,6 +79,35 @@ jobs:
           set -euo pipefail
           docker run --rm --entrypoint sh supabase/postgres:17.6.1.147 -c 'test -f "$(pg_config --sharedir)/extension/supabase_vault.control"'
           echo 'IBERFIT_SUPABASE_PG17_VAULT_EXTENSION_AVAILABLE'
+      - name: Prove passwordless global role export against isolated PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export PGPASSWORD=local-synthetic-only
+          export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=supabase_admin
+          scratch="$(mktemp -d)"
+          trap 'rm -rf "$scratch"' EXIT
+          # This is a throwaway container database, never IBERFIT PROD or QA.
+          docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
+            postgres:17-alpine psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+            > /dev/null 2> "$scratch/pg-private-errors" <<'SQL'
+          SELECT format('CREATE ROLE %I;', roles.role_name)
+            FROM (VALUES ('postgres'),('anon'),('authenticated'),('authenticator'),
+                 ('service_role'),('supabase_admin'),('supabase_auth_admin'),
+                 ('supabase_storage_admin')) AS roles(role_name)
+            WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles p WHERE p.rolname=roles.role_name)
+          \gexec
+          SQL
+          if ! docker run --rm --network host -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
+            -v "$scratch:/work" postgres:17-alpine pg_dumpall --roles-only \
+            --no-role-passwords --dbname=postgres --file=/work/synthetic-roles.sql \
+            > /dev/null 2> "$scratch/pg-private-errors"; then
+            echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_FAILED'
+            exit 61
+          fi
+          node scripts/ops/m44_global_roles_archive_check.mjs "$scratch/synthetic-roles.sql"
+          echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLES_PASSWORDLESS_PG17_VERIFIED'
       - name: Exercise binary dump, authenticated encryption and restored data
         env:
           IBERFIT_BACKUP_PASSPHRASE: only-a-synthetic-fixture-passphrase-never-use-in-production-2026
