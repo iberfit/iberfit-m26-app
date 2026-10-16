@@ -182,8 +182,8 @@ echo 'IBERFIT_M44_RLS_DML_SOURCE_AND_FULL_RESTORE_SYNTHETIC_VERIFIED'
 # Prove schema grants and column-only grants survive each restore route.
 column_visible() {
  output="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
-   -c 'SET ROLE iberfit_m44_fixture_column_reader; SELECT content FROM m44_acl_fixture.exercise;')" || return 1
- [ "$(printf '%s\n' "$output" | tail -n 1)" = 'synthetic-visible' ]
+   -c "SET ROLE iberfit_m44_fixture_column_reader; SELECT (count(*)=1 AND min(content)='synthetic-visible')::integer FROM m44_acl_fixture.exercise;")" || return 1
+ [ "$(printf '%s\n' "$output" | tail -n 1)" = '1' ]
 }
 column_denied() {
  if output="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
@@ -250,7 +250,13 @@ for db in "$src" "$stripped" "$repaired"; do
  rows="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$db" \
    -c 'SELECT count(*) FROM m44_acl_fixture.exercise')"
  [ "$rows" = "2" ] || { echo 'IBERFIT_M44_ACL_FIXTURE_DATA_MISMATCH' >&2; exit 70; }
+ # A count alone would miss a mutation that escaped an expected ROLLBACK.
+ snapshot="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$db" \
+   -c "SELECT string_agg(id::text || ':' || tenant_id::text || ':' || content, ',' ORDER BY id) FROM m44_acl_fixture.exercise")" || exit 81
+ [ "$snapshot" = '1:1:synthetic-visible,2:2:synthetic-hidden' ] ||
+  { echo 'IBERFIT_M44_ACL_FIXTURE_CONTENT_CHANGED_AFTER_ROLLBACK' >&2; exit 82; }
 done
+echo 'IBERFIT_M44_SYNTHETIC_DATA_CONTENT_AND_ROLLBACK_VERIFIED'
 echo 'IBERFIT_M44_ACL_STRIPPED_RESTORE_DENIED_AS_EXPECTED'
 echo 'IBERFIT_M44_ACL_OWNERS_GRANTS_DEFAULTS_RLS_RECONCILED_SYNTHETIC_ONLY'
 echo 'IBERFIT_M44_PLATFORM_RECOVERY_NOT_CERTIFIED'
