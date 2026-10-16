@@ -26,7 +26,8 @@ El acceso de conectores disponible no permite crear estos secretos en GitHub ni 
 ## Bloqueos deliberados
 
 - Proyecto/destino equivocado, falta de TLS, password, clave Storage, objeto ausente, descarga parcial, hash alterado, tamaño excesivo, fallo de `pg_dump`, de cifrado o `pg_restore` => no hay certificación integral.
-- `pg_restore` en PostgreSQL genérico puede fallar al restaurar esquemas dependientes de extensiones o roles propios de Supabase. En tal caso **no** afirmar que la copia completa es restaurable; documentar incompatibilidades y ajustar el entorno de ensayo Supabase local **sin tocar producción**.
+- El primer ensayo real confirmó que `pg_dump` + 126 objetos Storage + AES-256-GCM funcionaron, pero el restore genérico PostgreSQL 17 falló por falta de `supabase_vault` (instalada en PROD, versión `0.3.1`). La imagen de ensayo se ha igualado a `supabase/postgres:17.6.1.147` y ahora se verifica la presencia del archivo de control Vault. **Solo un restore real completado certifica la recuperación**; no se infiere éxito por una prueba sintética.
+- La imagen Supabase de ensayo puede tener otras dependencias o roles gestionados; si `pg_restore` falla, conservar errores detallados únicamente en el runner privado, no imprimir SQL o identificadores personales, y ajustar la restauración **sin tocar producción**.
 - El backup de PostgreSQL guarda metadatos de `storage.objects` pero no los bytes: por eso el exportador Storage es obligatorio y se verifica independientemente.
 - Si el archivo cifrado no está almacenado fuera de Supabase y su clave no está custodiada externamente, no hay evidencia suficiente de recuperación ante desastre.
 - La mera ejecución con estado verde de la CI de código no desbloquea `production-promote.yml`; los 12 cambios M44 siguen bloqueados hasta documentar las evidencias de restauración real y acceso a backup.
