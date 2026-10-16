@@ -171,9 +171,16 @@ function renderRc39SessionPreview(record,{catalog=[],mediaMap=null,role='client'
   const source=publishedBody(record);
   // A malformed legacy block must not break the entire Client/Coach route.
   // Keep valid prescription blocks in order; ignore null, sparse or array entries.
-  const blocks=Array.isArray(source.blocks)
-    ?source.blocks.filter((block)=>block&&typeof block==='object'&&!Array.isArray(block)).slice(0,120)
-    :[];
+  // Iterate only until we collect 120 valid blocks: a large imported list
+  // must not allocate a second unbounded array or slow down session opening.
+  const blocks=[];
+  if(Array.isArray(source.blocks)){
+    for(const block of source.blocks){
+      if(!block||typeof block!=='object'||Array.isArray(block))continue;
+      blocks.push(block);
+      if(blocks.length===120)break;
+    }
+  }
   if(!blocks.length)return '<p class="m26-rc39-summary-copy">Los ejercicios estarán disponibles cuando el entrenador complete la planificación.</p>';
   const byId=new Map((Array.isArray(catalog)?catalog:[]).filter((x)=>x?.id).map((x)=>[String(x.id),x]));
   const rows=blocks.map((block,index)=>{

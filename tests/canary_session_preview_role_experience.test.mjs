@@ -127,3 +127,14 @@ test('El limite de 120 bloques se aplica despues de descartar bloques nulos',()=
   assert.match(value,/Comenzar entrenamiento/);
   assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
 });
+
+
+test('La vista previa conserva exactamente el maximo de 120 bloques validos',()=>{
+  const long=item('guiada','guided_in_app','full');
+  long.session={...long.session,blocks:Array.from({length:125},(_,index)=>({
+    id:'block-'+index,type:'exercise',exerciseId:'press',sets:1,reps:'8'
+  }))};
+  const value=html('client',[long]);
+  assert.equal((value.match(/class="m26-session-preview-block"/g)||[]).length,120);
+  assert.doesNotMatch(value,/Ejercicio 121/);
+});
