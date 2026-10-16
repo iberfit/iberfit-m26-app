@@ -154,7 +154,7 @@ test('draft fallback is reviewable but never startable',()=>{
   assert.match(html,/Preparar próxima sesión/u);
   assert.match(html,/Continuar o crear sesión/u);
   assert.doesNotMatch(html,/Adaptar una copia de esta sesión/u);
-  assert.doesNotMatch(html,/Iniciar sesión preparada/u);
+  assert.doesNotMatch(html,/Comenzar entrenamiento preparado/u);
 });
 
 test('published preparation exposes explicit start action and safety copy',()=>{
@@ -166,7 +166,7 @@ test('published preparation exposes explicit start action and safety copy',()=>{
     nextSessionPreparation:prep,
   });
   assert.match(html,/data-next-session-preparation/u);
-  assert.match(html,/Iniciar sesión preparada/u);
+  assert.match(html,/Comenzar entrenamiento preparado/u);
   assert.match(html,/data-entity-id="session-published"/u);
   assert.match(html,/no modifica cargas, ejercicios, planificación ni mensajes automáticamente/iu);
 });
@@ -184,10 +184,10 @@ test('Coach dossier acts on the prepared session without forcing a second naviga
     html,
     /data-workflow-action="start-published-session"[\s\S]{0,180}?data-entity-id="session-published"/u,
   );
-  assert.match(html,/Iniciar sesión preparada/u);
+  assert.match(html,/Comenzar entrenamiento preparado/u);
   assert.doesNotMatch(
     html,
-    /data-m26-area="sesion">Iniciar sesión preparada/u,
+    /data-m26-area="sesion">Comenzar entrenamiento preparado/u,
   );
 
   // Review signals remain visible and the direct start is secondary, so the
