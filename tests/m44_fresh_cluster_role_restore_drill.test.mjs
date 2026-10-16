@@ -40,6 +40,9 @@ test('both fresh clusters have no Docker network or published ports',()=>{
 });
 test('exported globals are passwordless and NEVER executed unreviewed on destination',()=>{
  assert.match(script,/pg_dumpall[\s\S]*?--roles-only --no-role-passwords/);
+ assert.match(script,/PGDATABASE=postgres/);
+ assert.match(script,/PGHOST=127\.0\.0\.1/);
+ assert.doesNotMatch(script,/pg_dumpall[^\n]*-d postgres/);
  assert.match(script,/CREATE ROLE iberfit_m44_fresh_owner NOLOGIN/);
  assert.match(script,/CREATE ROLE iberfit_m44_fresh_reader NOLOGIN/);
  assert.match(script,/CREATE ROLE iberfit_m44_fresh_coach NOLOGIN/);
