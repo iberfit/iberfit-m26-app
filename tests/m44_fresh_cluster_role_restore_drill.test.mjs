@@ -68,3 +68,24 @@ test('actual roles membership owners RLS defaults and fixture bytes must match n
  assert.match(script,/IBERFIT_M44_FRESH_CLUSTER_ROLES_MEMBERSHIP_ACL_RLS_RECONCILED_SYNTHETIC_ONLY/);
  assert.match(script,/IBERFIT_M44_PLATFORM_RECOVERY_NOT_CERTIFIED/);
 });
+
+
+test('fresh-cluster function restore preserves SECURITY DEFINER owner and fails closed on EXECUTE',()=>{
+ assert.match(script,/CREATE ROLE iberfit_m44_fresh_intruder NOLOGIN/);
+ assert.match(script,/CREATE FUNCTION iberfit_m44_fresh_fixture\.visible_row_count/);
+ assert.match(script,/SECURITY DEFINER/);
+ assert.match(script,/SET search_path = pg_catalog, iberfit_m44_fresh_fixture/);
+ assert.match(script,/OWNER TO iberfit_m44_fresh_owner/);
+ assert.match(script,/REVOKE ALL ON FUNCTION[^;\n]* FROM PUBLIC/);
+ assert.match(script,/GRANT EXECUTE ON FUNCTION/);
+ assert.match(script,/has_function_privilege/);
+ assert.match(script,/aclexplode\(COALESCE\(p.proacl,acl_default/);
+ assert.match(script,/rolbypassrls/);
+ assert.match(script,/rolcanlogin/);
+ assert.match(script,/rolsuper/);
+ assert.match(script,/SET ROLE iberfit_m44_fresh_coach; SELECT iberfit_m44_fresh_fixture.visible_row_count/);
+ assert.match(script,/permission denied for function/);
+ assert.match(script,/check_cluster "\$src"/);
+ assert.match(script,/check_cluster "\$dst"/);
+ assert.doesNotMatch(script,/REVOKE ALL ON FUNCTION[^;\n]* FROM (?:iberfit_m44_fresh_reader|iberfit_m44_fresh_intruder)/);
+});
