@@ -66,3 +66,10 @@ M44 tiene 12 migraciones presentes en QA y ausentes de PROD en este checkpoint. 
 Antes de tocar PROD: copia reciente recuperable, validación de integridad por tablas, auditoría de migraciones, plan de reversión, ensayo de roles/permisos y aprobación técnica del estado exacto SHA. Después: validar el mismo SHA en Canary, permisos por rol, informe IRI inicial **separado** de evolución, PDFs, Storage, Edge, clientes reales y recuperación de errores.
 
 **Política:** ningún permiso amplio, `service_role` en navegador ni exención incondicional del gate para salvar un error de despliegue. No son necesarias suscripciones de pago.
+
+
+### Endurecimiento de lectura de los catálogos privados
+
+Al comparar las doce huellas, `m44_platform_recovery_compare.mjs` abre cada evidencia mediante un único descriptor de archivo y rechaza enlaces simbólicos, archivos enlazados mediante hardlink, tamaños anómalos o cambios de metadatos observables durante la lectura. En sistemas POSIX exige que el archivo no conceda permisos a grupo ni a terceros (por ejemplo, `0600`). En Windows se conserva la validación de archivo regular y se requiere controlar el acceso mediante ACL del sistema, sin inferir seguridad a partir de bits POSIX. Los errores no imprimen las rutas, digest o contenidos.
+
+Esto impide aceptar por accidente determinados archivos de evidencia no privados o sustituidos, pero **no demuestra la procedencia del snapshot**, no impide todas las alteraciones concurrentes ni acredita aislamiento del PostgreSQL de destino, autenticación alojada o recuperación integral. Los dos catálogos deben proceder de extracciones realmente independientes, custodiadas y verificadas. `platformRecoveryVerified=false` permanece obligatorio.
