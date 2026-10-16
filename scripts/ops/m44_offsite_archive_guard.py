@@ -35,45 +35,77 @@ def hash_file(path):
 def unwrap_zip(archive, expected_sha, destination):
     require(re.fullmatch(r"[0-9a-f]{64}", expected_sha or "") is not None,
             "EXPECTED_DIGEST_INVALID")
-    require(hash_file(archive) == expected_sha, "SOURCE_CHECKSUM_MISMATCH")
     target = pathlib.Path(destination)
     require(not target.exists() and not target.is_symlink(),
             "DESTINATION_ALREADY_EXISTS")
-    with zipfile.ZipFile(archive) as bundle:
-        entries = bundle.infolist()
-        require(len(entries) == 1, "ZIP_ENTRY_COUNT_INVALID")
-        info = entries[0]
-        mode = (info.external_attr >> 16) & 0xFFFF
-        require(info.filename == CIPHER_NAME and not info.is_dir(),
-                "ZIP_ENTRY_NAME_INVALID")
-        require(not stat.S_ISLNK(mode) and (mode == 0 or stat.S_ISREG(mode)),
-                "ZIP_ENTRY_TYPE_INVALID")
-        require(info.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
-                "ZIP_COMPRESSION_UNSUPPORTED")
-        require(53 <= info.file_size <= MAX_CIPHER, "CIPHERTEXT_SIZE_INVALID")
-        created = False
-        try:
-            with bundle.open(info) as source:
-                # Exclusive create guarantees the ZIP cannot overwrite a
-                # preexisting file. Mark creation *before* any subsequent
-                # operation that may raise so cleanup only removes our output.
-                with open(target, "xb") as output:
-                    created = True
-                    os.chmod(target, 0o600)
+    require(target.parent.is_dir(), "DESTINATION_PARENT_INVALID")
+    # The ZIP bytes checked by SHA-256 must be the SAME opened inode that
+    # ZipFile parses. This avoids replacing the ZIP path between hashing and
+    # extraction. Reject symlink inputs (O_NOFOLLOW on POSIX where available).
+    source_path = pathlib.Path(archive)
+    require(not source_path.is_symlink(), "SOURCE_SYMLINK_FORBIDDEN")
+    open_flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    open_flags |= getattr(os, "O_NOFOLLOW", 0)
+    with os.fdopen(os.open(source_path, open_flags), "rb") as archive_fd:
+        require(stat.S_ISREG(os.fstat(archive_fd.fileno()).st_mode),
+                "SOURCE_NOT_REGULAR")
+        digest = hashlib.sha256()
+        for block in iter(lambda: archive_fd.read(1024 * 1024), b""):
+            digest.update(block)
+        require(digest.hexdigest() == expected_sha,
+                "SOURCE_CHECKSUM_MISMATCH")
+        archive_fd.seek(0)
+        with zipfile.ZipFile(archive_fd) as bundle:
+            entries = bundle.infolist()
+            require(len(entries) == 1, "ZIP_ENTRY_COUNT_INVALID")
+            info = entries[0]
+            mode = (info.external_attr >> 16) & 0xFFFF
+            require(info.filename == CIPHER_NAME and not info.is_dir(),
+                    "ZIP_ENTRY_NAME_INVALID")
+            require(not stat.S_ISLNK(mode) and
+                    (mode == 0 or stat.S_ISREG(mode)),
+                    "ZIP_ENTRY_TYPE_INVALID")
+            require(info.compress_type in (zipfile.ZIP_STORED,
+                                           zipfile.ZIP_DEFLATED),
+                    "ZIP_COMPRESSION_UNSUPPORTED")
+            require(53 <= info.file_size <= MAX_CIPHER,
+                    "CIPHERTEXT_SIZE_INVALID")
+            # Stage encrypted ciphertext on the destination filesystem. Even
+            # SIGKILL mid-extraction leaves the caller's final .ibf ABSENT;
+            # the abandoned private staged file is still encrypted and must
+            # be swept from the ephemeral recovery volume after a crash.
+            handle, staged_name = tempfile.mkstemp(
+                prefix=".m44-cipher-stage-", dir=target.parent)
+            staged = pathlib.Path(staged_name)
+            try:
+                with os.fdopen(handle, "wb") as output:
+                    os.chmod(staged, 0o600)
                     total = 0
-                    header = source.read(8)
-                    require(header == b"IBFBAK01", "CIPHERTEXT_HEADER_INVALID")
-                    output.write(header)
-                    total += len(header)
-                    for chunk in iter(lambda: source.read(1024 * 1024), b""):
-                        total += len(chunk)
-                        require(total <= MAX_CIPHER, "CIPHERTEXT_LIMIT_EXCEEDED")
-                        output.write(chunk)
-                    require(total == info.file_size, "CIPHERTEXT_TRUNCATED")
-        except BaseException:
-            if created:
-                target.unlink(missing_ok=True)
-            raise
+                    with bundle.open(info) as source:
+                        header = source.read(8)
+                        require(header == b"IBFBAK01",
+                                "CIPHERTEXT_HEADER_INVALID")
+                        output.write(header)
+                        total += len(header)
+                        for chunk in iter(
+                                lambda: source.read(1024 * 1024), b""):
+                            total += len(chunk)
+                            require(total <= MAX_CIPHER,
+                                    "CIPHERTEXT_LIMIT_EXCEEDED")
+                            output.write(chunk)
+                        require(total == info.file_size,
+                                "CIPHERTEXT_TRUNCATED")
+                    output.flush()
+                    os.fsync(output.fileno())
+                # No-overwrite atomic publication: POSIX hardlink (EEXIST
+                # preserves even a concurrently created dangling symlink),
+                # or Windows rename (which fails if the target exists).
+                if os.name == "nt":
+                    os.rename(staged, target)
+                else:
+                    os.link(staged, target)
+            finally:
+                staged.unlink(missing_ok=True)
     print("IBERFIT_OFFSITE_DRIVE_CIPHERTEXT_VERIFIED")
 
 
