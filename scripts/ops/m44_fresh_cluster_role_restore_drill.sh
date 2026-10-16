@@ -63,6 +63,13 @@ GRANT SELECT ON iberfit_m44_fresh_fixture.rows TO iberfit_m44_fresh_reader;
 ALTER DEFAULT PRIVILEGES FOR ROLE iberfit_m44_fresh_owner
  IN SCHEMA iberfit_m44_fresh_fixture GRANT SELECT ON TABLES TO iberfit_m44_fresh_reader;
 SQL
+# Assert the client shares only the source's isolated namespace and can
+# reach the synthetic PostgreSQL server before attempting the roles dump.
+if ! docker run --rm --network "container:$src" postgres:17-alpine \
+ pg_isready -h 127.0.0.1 -p 5432 -U supabase_admin -d postgres \
+ > "$work/private-connectivity.log" 2>&1; then
+ echo 'IBERFIT_M44_FRESH_CLUSTER_CLIENT_CONNECTIVITY_FAILED' >&2; exit 64
+fi
 docker run --rm --network "container:$src" \
  -e "PGPASSWORD=$pass" -v "$work:/work" postgres:17-alpine \
  pg_dumpall -h 127.0.0.1 -U supabase_admin -d postgres \
@@ -70,10 +77,16 @@ docker run --rm --network "container:$src" \
  >"$work/private-export.log" 2>&1 ||
  { if grep -Eqi 'permission denied|could not open|read-only file system' "$work/private-export.log"; then
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_OUTPUT_DENIED' >&2
-   elif grep -Eqi 'permission|must be superuser|not allowed' "$work/private-export.log"; then
+   elif grep -Eqi 'superuser|database.*permission|role.*permission' "$work/private-export.log"; then
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_DB_DENIED' >&2
    elif grep -Eqi 'unrecognized option|invalid option' "$work/private-export.log"; then
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_OPTION_UNSUPPORTED' >&2
+   elif grep -Eqi 'not found|not installed|no such file|unknown command' "$work/private-export.log"; then
+     echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_CLIENT_UNAVAILABLE' >&2
+   elif grep -Eqi 'network|container|daemon|runtime|oci|bridge' "$work/private-export.log"; then
+     echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_DOCKER_EXEC_FAILED' >&2
+   elif grep -Eqi 'could not connect|connection refused|authentication failed|pg_hba.conf|timeout' "$work/private-export.log"; then
+     echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_DB_CONNECTION_FAILED' >&2
    else
      echo 'IBERFIT_M44_FRESH_CLUSTER_GLOBALS_FAILED' >&2
    fi
