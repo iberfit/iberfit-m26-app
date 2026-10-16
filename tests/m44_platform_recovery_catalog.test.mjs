@@ -77,3 +77,42 @@ test('CLI validates distinct private catalog files without echoing paths or hash
   assert.doesNotMatch(mismatch.stderr,/0000000000000000/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('catalog file evidence refuses symlinks, hardlinks and readable-by-others files',async()=>{
+ const {mkdtempSync,writeFileSync,symlinkSync,linkSync,unlinkSync,chmodSync,rmSync}=await import('node:fs');
+ const os=await import('node:os'),path=await import('node:path');
+ const {spawnSync}=await import('node:child_process');
+ const dir=mkdtempSync(path.join(os.tmpdir(),'iberfit-m44-catalog-private-'));
+ const run=(a,b)=>spawnSync(process.execPath,
+  ['scripts/ops/m44_platform_recovery_compare.mjs',a,b],
+  {encoding:'utf8',timeout:10000});
+ try{
+  const source=path.join(dir,'source.json');
+  const recovered=path.join(dir,'restored.json');
+  const alias=path.join(dir,'alias.json');
+  const hard=path.join(dir,'hard.json');
+  const body=JSON.stringify(catalog());
+  writeFileSync(source,body,{mode:0o600});
+  writeFileSync(recovered,body,{mode:0o600});
+  assert.equal(run(source,recovered).status,0);
+  symlinkSync(recovered,alias);
+  const linked=run(source,alias);
+  assert.notEqual(linked.status,0);
+  assert.match(linked.stderr,/M44_PLATFORM_CATALOG_FILE_INVALID/);
+  assert.doesNotMatch(linked.stderr,/alias\.json|source\.json|restored\.json/);
+  unlinkSync(alias);
+  linkSync(recovered,hard);
+  const hardLinked=run(source,recovered);
+  assert.notEqual(hardLinked.status,0);
+  assert.match(hardLinked.stderr,/M44_PLATFORM_CATALOG_FILE_INVALID/);
+  unlinkSync(hard);
+  if(process.platform!=='win32'){
+   chmodSync(recovered,0o644);
+   const shared=run(source,recovered);
+   assert.notEqual(shared.status,0);
+   assert.match(shared.stderr,/M44_PLATFORM_CATALOG_PRIVATE_MODE_REQUIRED/);
+   chmodSync(recovered,0o600);
+  }
+  assert.equal(run(source,recovered).status,0);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
