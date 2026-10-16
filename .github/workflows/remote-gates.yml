@@ -91,9 +91,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
-      # Firefox explicitly refuses to launch as root in this image.
-      # Run ALL authenticated browser checks as non-root; never skip Firefox.
-      options: --user 1000:1000
+      # Keep runner actions as root for mounted /__w/_temp file commands.
+      # Launch browser smoke itself as pwuser, preserving Firefox sandbox.
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     concurrency:
@@ -150,7 +149,15 @@ jobs:
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: npm run quality:rc64:auth-smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub runner owns its temp commands; only Playwright must be non-root.
+          # Ensure generated QA surfaces and minimized evidence can be written.
+          mkdir -p .tmp recovery test-results playwright-report
+          chown -R pwuser:pwuser .tmp test-results playwright-report
+          chown pwuser:pwuser recovery
+          runuser -u pwuser -- npm run quality:rc64:auth-smoke
 
       - name: Reproducir P0 login colgado y certificar recuperación sin freeze
         run: npm run quality:p0:auth-no-freeze

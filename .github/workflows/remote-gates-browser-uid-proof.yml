@@ -18,7 +18,6 @@ jobs:
     timeout-minutes: 15
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
-      options: --user 1000:1000
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
@@ -29,17 +28,18 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Verify unprivileged runner and install immutable dependencies
+      - name: Install immutable dependencies through the normal GitHub runner
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module -e "if(process.getuid()!==1000)throw new Error('QA_FIREFOX_NONROOT_UID_REQUIRED')"
           npm ci
+          id pwuser
+          command -v runuser
       - name: Launch and close Chromium WebKit Firefox without QA secrets
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE'
+          runuser -u pwuser -- node --input-type=module <<'NODE'
           import {chromium,webkit,firefox} from '@playwright/test';
           if(process.getuid()!==1000)throw new Error('QA_BROWSER_PROOF_MUST_NOT_RUN_AS_ROOT');
           for(const [name,engine] of Object.entries({chromium,webkit,firefox})){

@@ -78,9 +78,11 @@ test('remote gates separate browser preparation from the credential-shared mutex
 test('authenticated remote preflight runs as unprivileged Playwright user without dropping Firefox',()=>{
   const preparation=jobBlock(remote,'  prepare-ui:','\n  preflight:');
   const authorized=jobBlock(remote,'  preflight:','\n  exercise-media-broker-probe:');
-  assert.match(authorized,/container:\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[a-f0-9]{64}[\s\S]*?options: --user 1000:1000/u);
+  assert.match(authorized,/container:\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[a-f0-9]{64}/u);
   assert.doesNotMatch(preparation,/options: --user 1000:1000/u);
-  assert.match(authorized,/run: npm run quality:rc64:auth-smoke/u);
+  assert.doesNotMatch(authorized,/options: --user 1000:1000/u);
+  assert.match(authorized,/chown -R pwuser:pwuser \.tmp test-results playwright-report/u);
+  assert.match(authorized,/runuser -u pwuser -- npm run quality:rc64:auth-smoke/u);
   assert.match(authorized,/M26_QA_ONLY: 'true'/u);
   assert.match(authorized,/group: iberfit-qa-shared-auth-readonly/u);
   const config=read('playwright.authenticated.config.mjs');
@@ -89,7 +91,8 @@ test('authenticated remote preflight runs as unprivileged Playwright user withou
   }
   const proof=read('.github/workflows/remote-gates-browser-uid-proof.yml');
   assert.match(proof,/pull_request:/u);
-  assert.match(proof,/options: --user 1000:1000/u);
+  assert.doesNotMatch(proof,/options: --user 1000:1000/u);
+  assert.match(proof,/runuser -u pwuser -- node --input-type=module/u);
   assert.match(proof,/process\.getuid\(\)/u);
   assert.match(proof,/Object\.entries\(\{chromium,webkit,firefox\}\)/u);
   assert.match(proof,/await engine\.launch\(\)/u);
