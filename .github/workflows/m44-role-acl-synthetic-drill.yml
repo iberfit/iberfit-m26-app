@@ -52,19 +52,19 @@ jobs:
           # The image may be pulled by the Docker daemon beforehand;
           # the running database and pg_dump/pg_restore share ONE container
           # whose network is disabled. No host or runner ports are published.
-          docker run --detach --name "$container" --network none \\
-            -e POSTGRES_USER=supabase_admin \\
-            -e POSTGRES_PASSWORD=m44-local-fixture-only \\
-            -e POSTGRES_DB=postgres \\
-            -v "$scratch:/work" \\
-            -v "$PWD/scripts/ops/m44_synthetic_acl_restore_drill.sh:/drill.sh:ro" \\
+          docker run --detach --name "$container" --network none \
+            -e POSTGRES_USER=supabase_admin \
+            -e POSTGRES_PASSWORD=m44-local-fixture-only \
+            -e POSTGRES_DB=postgres \
+            -v "$scratch:/work" \
+            -v "$PWD/scripts/ops/m44_synthetic_acl_restore_drill.sh:/drill.sh:ro" \
             supabase/postgres:17.6.1.147 >/dev/null
           test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container")" = none
           test -z "$(docker port "$container")"
           ready=false
           for attempt in $(seq 1 90); do
-            if docker exec -e PGPASSWORD=m44-local-fixture-only "$container" \\
-              psql -X -A -t -h 127.0.0.1 -p 5432 -U supabase_admin -d postgres \\
+            if docker exec -e PGPASSWORD=m44-local-fixture-only "$container" \
+              psql -X -A -t -h 127.0.0.1 -p 5432 -U supabase_admin -d postgres \
               -v ON_ERROR_STOP=1 -c 'SELECT 1' 2>/dev/null | grep -qx 1; then
               ready=true
               break
@@ -76,11 +76,11 @@ jobs:
             exit 61
           fi
           docker exec "$container" sh -n /drill.sh
-          docker exec \\
-            -e IBERFIT_M44_SYNTHETIC_ONLY=true \\
-            -e PGHOST=127.0.0.1 -e PGPORT=5432 \\
-            -e PGDATABASE=postgres -e PGUSER=supabase_admin \\
-            -e PGPASSWORD=m44-local-fixture-only \\
-            -e IBERFIT_M44_DRILL_DIR=/work \\
+          docker exec \
+            -e IBERFIT_M44_SYNTHETIC_ONLY=true \
+            -e PGHOST=127.0.0.1 -e PGPORT=5432 \
+            -e PGDATABASE=postgres -e PGUSER=supabase_admin \
+            -e PGPASSWORD=m44-local-fixture-only \
+            -e IBERFIT_M44_DRILL_DIR=/work \
             "$container" sh /drill.sh
           echo 'IBERFIT_M44_SYNTHETIC_DATABASE_NETWORK_NONE_NO_PORTS_VERIFIED'
