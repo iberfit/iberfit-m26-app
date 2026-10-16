@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           runuser -u pwuser -- node --input-type=module <<'NODE'
           import {chromium,webkit,firefox} from '@playwright/test';
-          if(process.getuid()!==1000)throw new Error('QA_BROWSER_PROOF_MUST_NOT_RUN_AS_ROOT');
+          if(process.getuid()===0)throw new Error('QA_BROWSER_PROOF_MUST_NOT_RUN_AS_ROOT');
           for(const [name,engine] of Object.entries({chromium,webkit,firefox})){
             const browser=await engine.launch();
             await browser.close();

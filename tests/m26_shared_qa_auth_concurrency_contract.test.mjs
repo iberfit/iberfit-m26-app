@@ -93,7 +93,7 @@ test('authenticated remote preflight runs as unprivileged Playwright user withou
   assert.match(proof,/pull_request:/u);
   assert.doesNotMatch(proof,/options: --user 1000:1000/u);
   assert.match(proof,/runuser -u pwuser -- node --input-type=module/u);
-  assert.match(proof,/process\.getuid\(\)/u);
+  assert.match(proof,/process\.getuid\(\)===0/u);
   assert.match(proof,/Object\.entries\(\{chromium,webkit,firefox\}\)/u);
   assert.match(proof,/await engine\.launch\(\)/u);
   assert.match(proof,/await browser\.close\(\)/u);
