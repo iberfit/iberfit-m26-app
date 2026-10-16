@@ -101,6 +101,18 @@ export function isAuthenticatedInteractionRelevant(file){
   ]).has(path);
 }
 
+// RC39 session changes must execute the isolated session QA matrix, not only
+// the general Node/Device gates. Absent checks remain pending (fail closed).
+export function isSessionQARelevant(file){
+  const path=normalizePath(file);
+  return new Set([
+    'src/m26/rc39/route-render.js',
+    'src/m26/rc39/session-policy.js',
+    'tests/canary_session_preview_role_experience.test.mjs',
+    '.github/workflows/session-qa-isolated.yml',
+  ]).has(path);
+}
+
 export function requiredChecksForFiles(files=[]){
   const normalized=[...new Set(files.map(normalizePath).filter(Boolean))];
   const required=[...ALWAYS_REQUIRED];
@@ -116,6 +128,10 @@ export function requiredChecksForFiles(files=[]){
   }
   if(normalized.some(isAuthenticatedInteractionRelevant)){
     required.push('authenticated-client-controls');
+  }
+  if(normalized.some(isSessionQARelevant)){
+    // Exact check-run names verified against the isolated workflow in GitHub.
+    required.push('offline','browser-live-workout','qa-readonly');
   }
 
   return Object.freeze(required);
