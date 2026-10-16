@@ -94,9 +94,11 @@ if [ "$repaired_result" != "$source_result" ]; then
 fi
 # The role's real query is filtered by RLS, not just permitted by GRANT.
 reader_count() {
- psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
-   -c 'SET ROLE iberfit_m44_fixture_reader; SELECT count(*) FROM m44_acl_fixture.exercise;' \
-   | tail -n 1
+ # Do NOT pipe psql directly into tail: POSIX sh would retain tail's exit
+ # status and accept an SQL permission-denied error as a successful query.
+ output="$(psql -X -A -t -v ON_ERROR_STOP=1 -d "$1" \
+   -c 'SET ROLE iberfit_m44_fixture_reader; SELECT count(*) FROM m44_acl_fixture.exercise;')" || return 1
+ printf '%s\n' "$output" | tail -n 1
 }
 [ "$(reader_count "$src")" = "1" ] ||
  { echo 'IBERFIT_M44_ACL_SOURCE_ROLE_QUERY_INVALID' >&2; exit 67; }
