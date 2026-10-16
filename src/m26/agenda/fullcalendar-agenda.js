@@ -11,7 +11,7 @@ const ASSETS=Object.freeze({
   locale:'/src/m26/vendor/fullcalendar-7.0.2/es.global.js',
 });
 
-let assetPromise=null;
+const assetPromises=new WeakMap();
 
 function text(value,max=240){
   return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);
@@ -35,6 +35,46 @@ function safeDate(value){
 
 function safeClass(value){
   return text(value,80).toLowerCase().replace(/[^a-z0-9_-]+/gu,'-').replace(/^-+|-+$/gu,'');
+}
+
+const clockInSantiago=new Intl.DateTimeFormat('en-GB',{
+  timeZone:RC62_AGENDA_TIME_ZONE,hour:'2-digit',hourCycle:'h23',
+});
+const dayInSantiago=new Intl.DateTimeFormat('en-CA',{
+  timeZone:RC62_AGENDA_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',
+});
+function agendaLocalHour(value){
+  const date=value?new Date(value):null;
+  if(!date||!Number.isFinite(date.getTime()))return null;
+  const hour=Number(clockInSantiago.formatToParts(date).find((part)=>part.type==='hour')?.value);
+  return Number.isInteger(hour)&&hour>=0&&hour<24?hour:null;
+}
+export function agendaVisibleHourWindow(events=[]){
+  let min=6,max=22;
+  for(const event of Array.isArray(events)?events:[]){
+    const start=event?.start?new Date(event.start):null;
+    const end=event?.end?new Date(event.end):null;
+    const midnightEnd=start&&end&&Number.isFinite(start.getTime())&&
+      Number.isFinite(end.getTime())&&end>start&&
+      agendaLocalHour(end)===0&&dayInSantiago.format(start)!==dayInSantiago.format(end);
+    for(const [kind,value] of [['start',event?.start],['end',event?.end]]){
+      const hour=agendaLocalHour(value);
+      if(hour===null)continue;
+      // End at next-day 00:00 is the previous day's 24:00 boundary.
+      // Do not force the whole week to begin at 00:00 for that one endpoint.
+      if(kind==='end'&&midnightEnd){max=24;continue;}
+      if(hour<6)min=Math.min(min,Math.max(0,hour-1));
+      if(hour>=22)max=Math.max(max,Math.min(24,hour+2));
+    }
+  }
+  const clock=(hour)=>`${String(hour).padStart(2,'0')}:00:00`;
+  return Object.freeze({slotMinTime:clock(min),slotMaxTime:clock(max)});
+}
+
+function agendaEventSignature(events){
+  return JSON.stringify(events.map(({id,title,start,end,classNames})=>({
+    id,title,start,end,classNames,
+  })).sort((a,b)=>a.id.localeCompare(b.id)));
 }
 
 export function agendaRoleEligible(role){
@@ -80,49 +120,80 @@ function addStyle(documentLike,path){
   documentLike.head.append(link);
 }
 
-function addScript(documentLike,path){
+function addScript(documentLike,path,timeoutMs=8_000){
   return new Promise((resolve,reject)=>{
-    const existing=documentLike.querySelector?.(`script[data-rc62-fullcalendar="${path}"]`);
-    if(existing){
-      if(existing.dataset.loaded==='true'){resolve();return;}
-      existing.addEventListener?.('load',resolve,{once:true});
-      existing.addEventListener?.('error',()=>reject(new Error('M26_RC62_FULLCALENDAR_ASSET_FAILED')),{once:true});
-      return;
+    let existing=documentLike.querySelector?.(`script[data-rc62-fullcalendar="${path}"]`);
+    if(existing?.dataset?.failed==='true'){
+      existing.remove?.();
+      existing=null;
     }
-    const script=documentLike.createElement('script');
+    if(existing?.dataset?.loaded==='true'){resolve();return;}
+    const script=existing||documentLike.createElement('script');
+    let settled=false;
+    let timer=null;
+    const cleanup=()=>{
+      if(timer!==null)clearTimeout(timer);
+      script.removeEventListener?.('load',onLoad);
+      script.removeEventListener?.('error',onError);
+    };
+    const fail=(reason)=>{
+      if(settled)return;
+      settled=true;
+      cleanup();
+      // A script that timed out or errored must not trap the next retry
+      // waiting for a browser event that can never arrive.
+      if(script.dataset)script.dataset.failed='true';
+      script.remove?.();
+      reject(new Error(reason));
+    };
+    const onLoad=()=>{
+      if(settled)return;
+      settled=true;
+      cleanup();
+      if(script.dataset)script.dataset.loaded='true';
+      resolve();
+    };
+    const onError=()=>fail('M26_RC62_FULLCALENDAR_ASSET_FAILED');
+    script.addEventListener?.('load',onLoad,{once:true});
+    script.addEventListener?.('error',onError,{once:true});
+    timer=setTimeout(()=>fail('M26_RC62_FULLCALENDAR_ASSET_TIMEOUT'),timeoutMs);
+    if(existing)return;
     script.src=path;
     script.async=false;
     script.dataset.rc62Fullcalendar=path;
-    script.addEventListener('load',()=>{
-      script.dataset.loaded='true';
-      resolve();
-    },{once:true});
-    script.addEventListener('error',()=>reject(new Error('M26_RC62_FULLCALENDAR_ASSET_FAILED')),{once:true});
-    documentLike.head.append(script);
+    try{documentLike.head.append(script);}catch{fail('M26_RC62_FULLCALENDAR_ASSET_FAILED');}
   });
 }
 
 export async function loadFullCalendarStandard({
   scope=globalThis,
   documentLike=globalThis.document,
+  scriptTimeoutMs=8_000,
 }={}){
   if(scope?.FullCalendar?.Calendar)return scope.FullCalendar;
   if(!documentLike?.createElement||!documentLike?.head)throw new Error('M26_RC62_FULLCALENDAR_DOCUMENT_REQUIRED');
-  if(assetPromise)return assetPromise;
-  assetPromise=(async()=>{
+  const owner=scope&&(typeof scope==='object'||typeof scope==='function')?scope:globalThis;
+  const pending=assetPromises.get(owner);
+  if(pending)return pending;
+  const deadline=Math.max(20,Math.min(20_000,Number(scriptTimeoutMs)||8_000));
+  const promise=(async()=>{
     addStyle(documentLike,ASSETS.skeleton);
     addStyle(documentLike,ASSETS.themeCss);
     addStyle(documentLike,ASSETS.palette);
-    await addScript(documentLike,ASSETS.core);
-    await addScript(documentLike,ASSETS.themeScript);
-    await addScript(documentLike,ASSETS.locale);
+    await addScript(documentLike,ASSETS.core,deadline);
+    await addScript(documentLike,ASSETS.themeScript,deadline);
+    await addScript(documentLike,ASSETS.locale,deadline);
     if(!scope?.FullCalendar?.Calendar)throw new Error('M26_RC62_FULLCALENDAR_UNAVAILABLE');
     return scope.FullCalendar;
-  })().catch((error)=>{
-    assetPromise=null;
-    throw error;
-  });
-  return assetPromise;
+  })();
+  assetPromises.set(owner,promise);
+  try{
+    return await promise;
+  }finally{
+    // No fulfilled or rejected loader may be shared with another document
+    // later; only parallel requests in the same context should deduplicate.
+    if(assetPromises.get(owner)===promise)assetPromises.delete(owner);
+  }
 }
 
 function fallbackCard(root,appointmentId){
@@ -136,10 +207,15 @@ function fallbackCard(root,appointmentId){
 
 export function fullCalendarCoachOptions({
   events=[],
+  compact=false,
+  initialDate=null,
   onAppointmentFocus=()=>{},
 }={}){
+  const window=agendaVisibleHourWindow(events);
+  const validatedDate=initialDate&&safeDate(initialDate);
   return Object.freeze({
-    initialView:'timeGridWeek',
+    initialView:compact?'timeGridDay':'timeGridWeek',
+    ...(validatedDate?{initialDate:validatedDate}:{}),
     locale:'es',
     timeZone:RC62_AGENDA_TIME_ZONE,
     themeSystem:'monarch',
@@ -148,8 +224,8 @@ export function fullCalendarCoachOptions({
     nowIndicator:true,
     expandRows:true,
     height:'auto',
-    slotMinTime:'06:00:00',
-    slotMaxTime:'22:00:00',
+    slotMinTime:window.slotMinTime,
+    slotMaxTime:window.slotMaxTime,
     editable:false,
     selectable:false,
     eventStartEditable:false,
@@ -183,16 +259,51 @@ export function createRc62AgendaCalendarController({
 
   let observer=null;
   let mediaQuery=null;
+  let compactMediaQuery=null;
   let calendar=null;
   let calendarHost=null;
   let generation=0;
   let mounted=false;
+  let lastEventSignature=null;
+  let lastCalendarDate=null;
+  let failedHost=null;
+  let failedSignature=null;
+  let refreshQueued=false;
+  let scheduleGeneration=0;
 
   function destroyCalendar(){
     generation++;
+    try{
+      const displayed=calendar?.getDate?.();
+      const date=safeDate(displayed);
+      if(date)lastCalendarDate=date;
+    }catch{}
     try{calendar?.destroy?.();}catch{}
     calendar=null;
     calendarHost=null;
+    lastEventSignature=null;
+  }
+
+  function showFallback(host,signature){
+    failedHost=host;
+    failedSignature=signature;
+    try{
+      host.dataset.calendarStatus='fallback';
+      const doc=host.ownerDocument||root.ownerDocument||scope?.document;
+      if(!doc?.createElement||!host.replaceChildren)return;
+      const panel=doc.createElement('div');
+      panel.className='m45-agenda-fallback';
+      panel.setAttribute('role','status');
+      const description=doc.createElement('p');
+      description.textContent='No pudimos mostrar el calendario visual. La lista de citas sigue disponible.';
+      const button=doc.createElement('button');
+      button.type='button';
+      button.className='m26-primary-action';
+      button.dataset.rc62AgendaRetry='true';
+      button.textContent='Reintentar calendario';
+      panel.append(description,button);
+      host.replaceChildren(panel);
+    }catch{}
   }
 
   function desktopEligible(){
@@ -210,13 +321,33 @@ export function createRc62AgendaCalendarController({
     const host=root.querySelector('[data-rc62-agenda-calendar]');
     if(!agendaRoleEligible(role)||!host||!desktopEligible()){
       destroyCalendar();
+      failedHost=null;
+      failedSignature=null;
       return;
     }
 
     const events=buildRc62AgendaEvents(state?.collections?.appointments||[]);
+    const signature=agendaEventSignature(events);
+    // A vendor failure must not schedule itself forever via MutationObserver.
+    // Changed appointments, explicit retry or reconnect are recovery signals.
+    if(failedHost===host&&failedSignature===signature)return;
     if(calendar&&calendarHost===host){
-      calendar.removeAllEvents?.();
-      calendar.addEventSource?.(events);
+      // FullCalendar mutates the DOM; without the signature fence, our own
+      // MutationObserver can trigger an unbounded remove/re-add/render loop.
+      if(lastEventSignature===signature)return;
+      try{
+        calendar.removeAllEvents?.();
+        calendar.addEventSource?.(events);
+        const window=agendaVisibleHourWindow(events);
+        calendar.setOption?.('slotMinTime',window.slotMinTime);
+        calendar.setOption?.('slotMaxTime',window.slotMaxTime);
+        lastEventSignature=signature;
+      }catch{
+        // A partially updated third-party calendar must never leave a broken
+        // overlay or runaway observer; the accessible appointment cards remain.
+        destroyCalendar();
+        showFallback(host,signature);
+      }
       return;
     }
 
@@ -233,33 +364,73 @@ export function createRc62AgendaCalendarController({
       };
       calendar=new FullCalendar.Calendar(
         host,
-        fullCalendarCoachOptions({events,onAppointmentFocus:focusAppointment})
+        fullCalendarCoachOptions({
+          events,
+          compact:compactMediaQuery?.matches===true,
+          initialDate:lastCalendarDate,
+          onAppointmentFocus:focusAppointment,
+        })
       );
       calendarHost=host;
+      lastEventSignature=signature;
       calendar.render();
+      failedHost=null;
+      failedSignature=null;
       try{host.dataset.calendarStatus='ready';}catch{}
     }catch{
       if(request!==generation)return;
-      try{host.dataset.calendarStatus='fallback';}catch{}
+      try{calendar?.destroy?.();}catch{}
       calendar=null;
       calendarHost=null;
+      lastEventSignature=null;
+      showFallback(host,signature);
     }
   }
 
   function scheduleRefresh(){
-    const run=()=>{void refresh();};
+    if(!mounted||refreshQueued)return;
+    refreshQueued=true;
+    const request=++scheduleGeneration;
+    const run=()=>{
+      if(request!==scheduleGeneration)return;
+      refreshQueued=false;
+      if(mounted)void refresh();
+    };
     if(typeof scope?.requestAnimationFrame==='function')scope.requestAnimationFrame(run);
     else queueMicrotask(run);
   }
 
   function onMediaChange(){scheduleRefresh();}
+  function onRetry(event){
+    if(!event?.target?.closest?.('[data-rc62-agenda-retry]'))return;
+    event.preventDefault?.();
+    failedHost=null;
+    failedSignature=null;
+    scheduleRefresh();
+  }
+  function onReconnect(){
+    if(!failedHost)return;
+    failedHost=null;
+    failedSignature=null;
+    scheduleRefresh();
+  }
+  function onCompactChange(){
+    // View density is a construction-time option; recreate only on breakpoint
+    // transition, never on each MutationObserver delivery.
+    destroyCalendar();
+    failedHost=null;
+    failedSignature=null;
+    scheduleRefresh();
+  }
 
   return Object.freeze({
     mount(){
       if(mounted)return;
       try{
         mediaQuery=scope?.matchMedia?.('(min-width: 720px)')||null;
+        compactMediaQuery=scope?.matchMedia?.('(max-width: 1099px)')||null;
         mediaQuery?.addEventListener?.('change',onMediaChange);
+        compactMediaQuery?.addEventListener?.('change',onCompactChange);
       }catch{
         mediaQuery=null;
       }
@@ -268,16 +439,27 @@ export function createRc62AgendaCalendarController({
         observer.observe(root,{childList:true,subtree:true});
       }
       mounted=true;
+      root.addEventListener?.('click',onRetry);
+      scope?.addEventListener?.('online',onReconnect);
       scheduleRefresh();
     },
     destroy(){
       if(!mounted)return;
+      mounted=false;
+      root.removeEventListener?.('click',onRetry);
+      scope?.removeEventListener?.('online',onReconnect);
+      scheduleGeneration++;
+      refreshQueued=false;
       observer?.disconnect?.();
       observer=null;
       mediaQuery?.removeEventListener?.('change',onMediaChange);
       mediaQuery=null;
+      compactMediaQuery?.removeEventListener?.('change',onCompactChange);
+      compactMediaQuery=null;
       destroyCalendar();
-      mounted=false;
+      lastCalendarDate=null;
+      failedHost=null;
+      failedSignature=null;
     },
     refresh:()=>refresh(),
   });

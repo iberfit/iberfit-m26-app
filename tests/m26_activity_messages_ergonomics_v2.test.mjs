@@ -93,5 +93,14 @@ test('responsive activity and messaging refinements never hide or lock existing 
   assert.doesNotMatch(activity,/display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/iu);
   assert.ok(communication.includes('.m30-message-compose'));
   assert.ok(communication.includes('.m30-communication-grid>.m26-notification-center{grid-column:auto;order:-1}'));
-  assert.doesNotMatch(communication.slice(communication.indexOf('/* IBERFIT M30')),/display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/iu);
+  // M45 filters only nonmatching conversation <details> elements via hidden.
+  // The legacy guard still forbids hiding any message action, form or other
+  // communication controls; the one explicit opt-in rule is tested separately.
+  const scopedHidden='.m26-communication-route .m26-thread[hidden]{display:none!important}';
+  assert.equal(communication.split(scopedHidden).length-1,1,
+    'only nonmatching conversation rows may have a dedicated hidden rule');
+  const visibleControls=communication.slice(communication.indexOf('/* IBERFIT M30'))
+    .replace(scopedHidden,'');
+  assert.doesNotMatch(visibleControls,
+    /display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/iu);
 });
