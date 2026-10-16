@@ -29,10 +29,11 @@ WITH material AS (
     AND c.relkind IN ('r','p','v','m','f')
     AND a.attnum>0 AND NOT a.attisdropped
   ) x) AS column_acl,
- (SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY x.database_name),'[]'::jsonb)
+ -- A recovery database deliberately has a different name. Fingerprint
+ -- its owner and effective ACL, not the incidental target database name.
+ (SELECT COALESCE(jsonb_agg(to_jsonb(x)),'[]'::jsonb)
   FROM (
-   SELECT d.datname AS database_name,
-    pg_catalog.pg_get_userbyid(d.datdba) AS owner_name,
+   SELECT pg_catalog.pg_get_userbyid(d.datdba) AS owner_name,
     COALESCE(d.datacl::text,'') AS database_acl,
     d.datallowconn AS allows_connections,
     d.datconnlimit AS connection_limit
