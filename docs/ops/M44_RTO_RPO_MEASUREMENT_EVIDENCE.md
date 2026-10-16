@@ -10,7 +10,7 @@ Se cotejaron metadatos en vivo del workflow cifrado de GitHub Actions y de su fi
 | Workflow terminado con éxito | 2026-10-16 10:42:58 |
 | Archivo cifrado creado en Drive privado | 2026-10-16 10:44:43.988 |
 
-SHA-256: 3fd6a9aff8beda8342973da357824d04b3f6ef6508ba381d2495cea25a7d18bd. Tamaño: 32.143.146 bytes. Drive: 199Ys6j8DjYBluF2k-k-xQF_9hovqv_Jk. Fichero privado, no compartido y de propietario único. Las copias anteriores siguen conservadas.
+SHA-256: 3fd6a9aff8beda8342973da357824d04b3f6ef6508ba381d2495cea25a7d18bd. Tamaño: 32.143.146 bytes. Drive: identificador del archivo reservado exclusivamente al registro privado de custodia (no publicar en GitHub). Fichero privado, no compartido y de propietario único. Las copias anteriores siguen conservadas.
 
 - Workflow completo: **231 segundos** (3 min 51 s).
 - Desde finalización del workflow hasta Drive: **106 segundos** (aproximadamente 1 min 46 s).
