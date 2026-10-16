@@ -51,6 +51,16 @@ ALTER DEFAULT PRIVILEGES FOR ROLE iberfit_m44_fixture_owner
   IN SCHEMA m44_acl_fixture GRANT SELECT ON TABLES TO iberfit_m44_fixture_reader;
 SQL
 pg_dump -Fc --dbname="$src" --schema=m44_acl_fixture --file="$work/synthetic.acl.pgcustom"
+pg_restore --list "$work/synthetic.acl.pgcustom" > "$work/synthetic-toc-private.list"
+if ! grep -Eq '^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+ACL[[:space:]]' \
+     "$work/synthetic-toc-private.list" ||
+   ! grep -Eq '^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+DEFAULT ACL[[:space:]]' \
+     "$work/synthetic-toc-private.list"; then
+  echo 'IBERFIT_M44_SYNTHETIC_ACL_ARCHIVE_INCOMPLETE' >&2
+  exit 71
+fi
+rm -f "$work/synthetic-toc-private.list"
+echo 'IBERFIT_M44_SYNTHETIC_PGCUSTOM_ACL_DEFAULTS_RETAINED'
 pg_restore --exit-on-error --no-owner --no-acl --dbname="$stripped" "$work/synthetic.acl.pgcustom"
 pg_restore --exit-on-error --no-owner --dbname="$repaired" "$work/synthetic.acl.pgcustom"
 # In a managed Supabase target the roles already exist; here we deliberately
