@@ -93,6 +93,20 @@ test('Signature360 Admin agenda displays people, ownership and localized dates, 
     assert.ok(html.includes(text),text);
   }
   assert.doesNotMatch(html,/<td>uuid-client-123<\/td>/,'technical ID cannot be the primary attendee label');
+  assert.match(html,/<td>Presencial<\/td>/,'use the existing canonical sports modality label');
+  assert.match(html,/>Programada<\/span>/,'show a human-readable appointment status');
+  const modalities=renderAdminRoute({...vm,appointments:[
+    {modality:'guiada_en_app',status:'confirmed'},
+    {modality:'online',status:'completed'},
+    {modality:'hibrido',status:'rescheduled'},
+    {modality:'unknown_custom_mode',status:'unknown_custom_status'},
+  ]});
+  for(const label of ['Guiada en la aplicación','En línea','Híbrido','Confirmada','Completada','Reprogramada']){
+    assert.ok(modalities.includes(label),`agenda human label: ${label}`);
+  }
+  assert.ok(modalities.includes('unknown_custom_mode'),'unknown appointment modes remain visible for tracing');
+  assert.ok(modalities.includes('unknown_custom_status'),'unknown statuses must remain visible instead of being misclassified');
+
   assert.doesNotMatch(html,/2026-10-16T15:30:00Z/,'render should use organization-local date');
   const missing=renderAdminRoute({...vm,appointments:[{
     clientId:'missing-client',status:'scheduled',

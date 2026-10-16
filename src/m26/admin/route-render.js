@@ -1,3 +1,4 @@
+import {appointmentModalityLabel,clientModalityLabel,normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
 const e=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const safeJson=(value)=>JSON.stringify(value??null).replaceAll('&','\\u0026').replaceAll('<','\\u003c').replaceAll('>','\\u003e').replaceAll('\\u2028','\\u2028').replaceAll('\\u2029','\\u2029');
 const badge=(v)=>`<span class="m26-admin-badge">${e(v||'Sin estado')}</span>`;
@@ -24,6 +25,26 @@ function adminStatusLabel(value){
     won:'Ganado',
     lost:'Perdido',
   })[key]||String(value||'Sin estado');
+}
+function adminAgendaModalityLabel(value){
+  const raw=String(value??'').trim();
+  if(!raw)return 'No indicada';
+  if(normalizeAppointmentModality(raw))return appointmentModalityLabel(raw);
+  if(normalizeClientModality(raw))return clientModalityLabel(raw);
+  return raw;
+}
+function adminAgendaStatusLabel(value){
+  const raw=String(value??'').trim();
+  const key=raw.toLowerCase().replace(/[\s-]+/gu,'_');
+  return ({
+    scheduled:'Programada',
+    confirmed:'Confirmada',
+    completed:'Completada',
+    cancelled:'Cancelada',
+    canceled:'Cancelada',
+    rescheduled:'Reprogramada',
+    no_show:'No asistió',
+  })[key]||adminStatusLabel(raw);
 }
 function adminRoleLabel(value){
   const key=String(value||'').trim().toLowerCase();
@@ -494,7 +515,7 @@ function renderClients(vm){
   }));
   return `<div class="m26-admin-route">${intro('Servicio','Personas y clientes','Acompaña el recorrido desde el primer contacto hasta la reactivación.')}${vm.canManage?`<section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Alta segura</p><h3>Nueva persona</h3><p>IBERFIT crea el expediente con el servicio correcto. El acceso a la app es una decisión separada: puede enviarse una invitación o mantenerse como expediente interno.</p></div></div>${create}</section>`:''}${lead}<section class="m26-admin-panel"><h3>Leads</h3>${vm.leads.length?leadTable:empty('Sin leads','Los contactos aparecerán aquí.')}</section><section class="m26-admin-panel"><h3>Personas con expediente</h3><label>Filtrar relación<select data-admin-person-filter><option value="all">Todas las personas</option><option value="training">Con entrenamiento</option><option value="no-training">Sin entrenamiento activo</option><option value="onboarding">En incorporación</option><option value="inactive">Relación inactiva</option></select></label><p data-admin-person-filter-status role="status" aria-live="polite"></p><p class="m26-data-footnote">Persona, evaluación IRI y servicio de entrenamiento son dimensiones distintas. Una evaluación no activa entrenamiento y el entrenamiento no exige un IRI previo.</p>${vm.clients.length?clients:empty('Sin personas','No hay expedientes visibles.')}</section>${vm.canManage&&vm.clients.length?clientEditDialog(vm):''}</div>`;
 }
-function renderSimple(vm){if(vm.kind==='admin-agenda')return `<div class="m26-admin-route">${intro('Capacidad','Agenda global','Supervisa todas las citas y modalidades.')}<section class="m26-admin-panel">${vm.appointments.length?rows(['Fecha y hora','Cliente','Coach','Modalidad','Estado'],vm.appointments.map((x)=>`<tr><td>${e(adminDateLabel(x.startAt||x.start_at||x.startsAt||x.starts_at||x.scheduledAt||x.scheduled_at||x.date||'',{timeZone:vm.organization?.timezone,locale:vm.organization?.locale})||'Fecha por confirmar')}</td><td><strong>${e(x.clientName||x.client_name||'Cliente sin identificar')}</strong><small>${e(!x.clientName&&!x.client_name?(x.clientId||x.client_id||''):'')}</small></td><td>${e(x.coachName||x.coach_name||'Sin Coach indicado')}</td><td>${e(x.modality||x.mode||'No indicada')}</td><td>${badge(x.status)}</td></tr>`)):empty('Agenda vacía','No hay citas visibles.')}</section></div>`;
+function renderSimple(vm){if(vm.kind==='admin-agenda')return `<div class="m26-admin-route">${intro('Capacidad','Agenda global','Supervisa todas las citas y modalidades.')}<section class="m26-admin-panel">${vm.appointments.length?rows(['Fecha y hora','Cliente','Coach','Modalidad','Estado'],vm.appointments.map((x)=>`<tr><td>${e(adminDateLabel(x.startAt||x.start_at||x.startsAt||x.starts_at||x.scheduledAt||x.scheduled_at||x.date||'',{timeZone:vm.organization?.timezone,locale:vm.organization?.locale})||'Fecha por confirmar')}</td><td><strong>${e(x.clientName||x.client_name||'Cliente sin identificar')}</strong><small>${e(!x.clientName&&!x.client_name?(x.clientId||x.client_id||''):'')}</small></td><td>${e(x.coachName||x.coach_name||'Sin Coach indicado')}</td><td>${e(adminAgendaModalityLabel(x.modality||x.modalidad||x.mode))}</td><td>${badge(adminAgendaStatusLabel(x.status))}</td></tr>`)):empty('Agenda vacía','No hay citas visibles.')}</section></div>`;
   if(vm.kind==='admin-operaciones'){const create=vm.canManage?form('task-create',`<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select><input name="taskType" value="manual_review"><input name="title" required placeholder="Título"><textarea name="detail" placeholder="Detalle"></textarea>`,'Crear tarea'):'';return `<div class="m26-admin-route">${intro('Control','Centro operativo','Centraliza incidencias y excepciones.')}${create}<section class="m26-admin-panel">${vm.tasks.length?vm.tasks.map((x)=>`<div class="m26-admin-list-item"><div><strong>${e(x.title||x.type)}</strong><p>${e(x.detail||'')}</p></div>${badge(x.status)}${vm.canManage&&!['resolved','cancelled'].includes(x.status)?form('task-resolve',`<input type="hidden" name="taskId" value="${e(x.id)}"><input type="hidden" name="baseRevision" value="${e(x.revision||0)}"><input name="reason" minlength="3" required placeholder="Resolución">`,'Resolver'):''}</div>`).join(''):empty('Sin tareas','No hay incidencias abiertas.')}</section></div>`;}
   if(vm.kind==='admin-comunicacion'){const create=vm.canManage?form('template-save',`<input name="key" pattern="[a-z0-9_.:-]{3,80}" required placeholder="Clave"><input name="name" required placeholder="Nombre"><select name="channel"><option value="in_app">In-app</option><option value="email">Email</option><option value="push">Push</option></select><input name="subject" placeholder="Asunto"><textarea name="body" required placeholder="Contenido"></textarea>`,'Guardar plantilla'):'';return `<div class="m26-admin-route">${intro('Relación','Comunicación','Gestiona plantillas y revisa entregas.')}${create}<section class="m26-admin-panel">${vm.templates.length?vm.templates.map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.name||x.key)}</strong>${badge(x.status)}</div>`).join(''):empty('Sin plantillas','Crea la primera plantilla.')}</section></div>`;}
   if(vm.kind==='admin-automatizaciones'){const create=vm.canManage?form('automation-save',`<input name="key" pattern="[a-z0-9_.:-]{3,80}" required placeholder="Clave"><input name="name" required placeholder="Nombre"><select name="triggerType"><option value="appointment_window_open">Cita</option><option value="client_inactive">Inactividad</option><option value="checkin_due">Check-in</option><option value="iri_review_due">Revisión IRI</option></select><select name="actionType"><option value="notification">Notificación</option><option value="operational_task">Tarea</option></select><select name="status"><option value="draft">Borrador</option><option value="active">Activa</option><option value="paused">Pausada</option></select><textarea name="configuration" placeholder='{"templateKey":"appointment.reminder"}'></textarea>`,'Guardar regla'):'';return `<div class="m26-admin-route">${intro('Eficiencia','Automatizaciones','Automatiza tareas, nunca decisiones profesionales.')}${create}<section class="m26-admin-panel">${vm.rules.length?vm.rules.map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.name||x.key)}</strong>${badge(x.status)}</div>`).join(''):empty('Sin reglas','No hay automatizaciones.')}</section></div>`;}
