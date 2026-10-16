@@ -8,6 +8,7 @@ const COACH_MESSAGE_ASSISTS=Object.freeze({
 });
 function pushErrorMessage(error){
   const code=String(error?.message||error||'');
+  if(/SUBSCRIPTION_CHANGED/.test(code))return 'Los avisos de este dispositivo cambiaron en otra pestaña. Revisa su estado actualizado.';
   if(/ONLINE_REQUIRED/.test(code))return 'Necesitas conexión para cambiar los avisos de este dispositivo.';
   if(/PERMISSION_DENIED/.test(code))return 'El navegador tiene los avisos bloqueados. Puedes cambiarlos desde los permisos del sitio.';
   if(/PERMISSION_NOT_GRANTED/.test(code))return 'No se activaron los avisos. Puedes intentarlo de nuevo cuando quieras.';
@@ -745,6 +746,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
 }
 
 export const __communicationControllerInternals=Object.freeze({
+  pushErrorMessage,
   preferencePayloadFromControl,
   preferencePayloadFromRoot,
   mergePreferencePayload,

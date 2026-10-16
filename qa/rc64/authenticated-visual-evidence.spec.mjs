@@ -164,21 +164,30 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         }
         const visibleDockLabels=page.locator('.m26-client-bottom-nav-label:visible');
         if(await visibleDockLabels.count()){
-          // line-height may compute to 0 or 'normal' in a compact navigation slot.
-          // Count real text fragments instead of dividing the element height by
-          // that computed value, without weakening the one-line visual contract.
+          // Range.getClientRects() is empty in Chromium 320px for the visible
+          // compact text slot even when its element has a nonzero painted height.
+          // Verify a real visible box, nonwrapping CSS and no vertical clipping.
+          // Horizontal overflow remains contained by the dock's ellipsis styling.
           const labelMetrics=await visibleDockLabels.evaluateAll((labels)=>labels.map((label)=>{
             const style=getComputedStyle(label);
-            const range=label.ownerDocument.createRange();
-            range.selectNodeContents(label);
-            const lineTops=new Set([...range.getClientRects()]
-              .filter((rect)=>rect.width>0&&rect.height>0)
-              .map((rect)=>Math.round(rect.top)));
-            return {label:label.textContent?.trim(),whiteSpace:style.whiteSpace,renderedLines:lineTops.size};
+            const rect=label.getBoundingClientRect();
+            return {
+              label:label.textContent?.trim(),
+              whiteSpace:style.whiteSpace,
+              overflowX:style.overflowX,
+              textOverflow:style.textOverflow,
+              renderedHeight:rect.height,
+              clientHeight:label.clientHeight,
+              scrollHeight:label.scrollHeight,
+            };
           }));
           for(const label of labelMetrics){
             expect(label.whiteSpace,`Dock caption must not wrap: ${label.label}`).toBe('nowrap');
-            expect(label.renderedLines,`Dock label must occupy one line: ${label.label}`).toBe(1);
+            expect(label.renderedHeight,`Dock label must be painted: ${label.label}`).toBeGreaterThan(0);
+            expect(label.clientHeight,`Dock label must reserve vertical space: ${label.label}`).toBeGreaterThan(0);
+            expect(label.scrollHeight,`Dock label cannot clip a second line: ${label.label}`).toBeLessThanOrEqual(label.clientHeight+1);
+            expect(label.overflowX,`Dock caption must not overflow its hit target: ${label.label}`).toBe('hidden');
+            expect(label.textOverflow,`Dock caption must have an accessible overflow fallback: ${label.label}`).toBe('ellipsis');
           }
           const planningNav=page.locator('button.m26-client-bottom-nav-item[data-m26-area="planificacion"]');
           await expect(planningNav).toHaveAttribute('aria-label','Planificación');
