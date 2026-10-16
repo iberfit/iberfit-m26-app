@@ -51,3 +51,21 @@ test('Signature360 form focus remains visually stable across Cliente/Coach/Admin
   assert.ok(!/transform:\s*translateY\(/.test(form),'focus must not physically move form fields');
   assert.match(form,/outline-offset|box-shadow\s*:/,'focus must retain visible focus indication');
 });
+
+test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const itemStart=css.indexOf('.m26-client-bottom-nav-item {');
+  const hoverStart=css.indexOf('.m26-client-bottom-nav-item:hover');
+  const focusStart=css.indexOf('.m26-client-bottom-nav-item:focus-visible',hoverStart);
+  assert.ok(itemStart>=0&&hoverStart>itemStart&&focusStart>hoverStart);
+  const item=css.slice(itemStart,hoverStart);
+  const hover=css.slice(hoverStart,focusStart);
+  assert.match(item,/min-height:\\s*66px/,'primary tap targets remain comfortable');
+  assert.doesNotMatch(item,/transition:[\\s\\S]*?transform/,'touch target must not animate position');
+  assert.doesNotMatch(hover,/transform\\s*:/,'hover cannot move navigation targets');
+  assert.match(css,/env\\(safe-area-inset-bottom\\)/,'notch and home indicator clearance is preserved');
+  assert.match(css,/@media \\(prefers-reduced-motion:\\s*reduce\\)/,'motion accessibility is preserved');
+  assert.match(css,/\.m26-client-bottom-nav-item:focus-visible/,'keyboard focus must remain visible');
+  assert.match(css,/box-shadow:inset 0 2px 0 #C5A059/,'existing M41 active-state signature is retained');
+  assert.doesNotMatch(css,/gradient\\(/,'Client dock should remain matte');
+});
