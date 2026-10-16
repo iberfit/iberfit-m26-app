@@ -97,6 +97,12 @@ jobs:
     needs: offline
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
+    # The Coach WebAuthn ceremony temporarily enrolls the SAME synthetic QA
+    # account. Never certify that account during registration/reset/cleanup.
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
