@@ -66,7 +66,7 @@ test('Buscador incremental P → PR filtra y prioriza coincidencias de nombre si
   const p=renderSessionExerciseResults({catalog,query:'P',limit:36});
   const pr=renderSessionExerciseResults({catalog,query:'PR',limit:36});
   assert.match(pr,/30 ejercicios encontrados/);
-  assert.match(pr,/Press de pecho/);
+  assert.match(pr,/Empuje de pecho/);
   assert.match(pr,/Prensa de piernas/);
   assert.doesNotMatch(pr,/Sentadilla controlada/);
   assert.match(pr,/data-session-action="add-exercise"/);
