@@ -39,7 +39,14 @@ test('shared authenticated QA remains globally serialized and non-cancellable in
 test('concurrency optimization does not remove browser cache or deterministic dependency contracts',()=>{
   for(const [name,workflow] of [['daily',daily],['admin',admin],['remote',remote]]){
     assert.match(workflow,/npm ci/u,`${name}: npm ci missing`);
+    if(name==='remote'){
+    assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,'remote: SHA-pinned Playwright image required');
+    assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+    assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
+    assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+    }else{
     assert.match(workflow,/actions\/cache@v4/u,`${name}: Playwright cache missing`);
     assert.match(workflow,/playwright install-deps/u,`${name}: Playwright system deps missing`);
+    }
   }
 });
