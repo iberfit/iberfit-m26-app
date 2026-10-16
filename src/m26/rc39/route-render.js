@@ -66,6 +66,13 @@ const experiencePanel=(experience,role)=>{
     <div class="m26-session-experience__capabilities" aria-label="Capacidades de esta sesión">${caps}</div>
   </section>`;
 };
+// All start entry points (card and route header) share the same effective
+// authorization. Stale projections must never resurrect a hidden/supervised CTA.
+const clientCanStartProjection=(item)=>Boolean(item?.visible===true&&item?.visibility==='full'&&
+  item?.canClientExecute===true&&item?.canClientStart===true&&
+  sessionIdOf(item?.session)===String(item?.id||'')&&
+  actorCanExecuteSession({role:'client',session:item?.session,appointment:item?.appointment})&&
+  sessionHasExecutableBlocks(item?.session));
 const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   const actions=[];
   const appointmentBody=item.appointment?.body&&typeof item.appointment.body==='object'
@@ -94,10 +101,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="open-change-request" data-appointment-id="${escape(item.appointmentId)}">Solicitar cambio</button>`);
     }
   }
-  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&item.visible===true&&item.visibility==='full'&&
-     item.canClientExecute===true&&item.canClientStart===true&&
-     sessionIdOf(item.session)===String(item.id||'')&&actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment})&&
-     sessionHasExecutableBlocks(item.session)){
+  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)){
     actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento</button>`);
   }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
@@ -503,7 +507,7 @@ function renderSessions(vm){
   const contractModality=contractModalityOf(vm);
   const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
   const executable=role==='client'&&vm.serviceActive!==false
-    ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout&&sessionHasExecutableBlocks(item.session)&&(item.canClientStart===true))
+    ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout&&clientCanStartProjection(item))
     :[];
   const clientPrimary=executable.length===1
     ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar entrenamiento · ${escape(executable[0].title)}">Comenzar entrenamiento · ${escape(executable[0].title)}</button>`
