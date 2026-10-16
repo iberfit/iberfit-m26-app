@@ -125,6 +125,19 @@ test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch c
   assert.doesNotMatch(compact,/font-size:\.76rem/,'do not regress to tiny mobile labels');
 });
 
+test('Signature360 Client Hoy respects reduced motion and forced-colors contrast',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
+  const section=css.slice(css.indexOf('CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE'),css.indexOf('CLIENT360_DECISION_V2_BEGIN'));
+  assert.match(section,/@media\(prefers-reduced-motion:reduce\)\s*\{/);
+  const reduced=section.slice(section.indexOf('@media(prefers-reduced-motion:reduce)'));
+  assert.match(reduced,/\.m26-shell\[data-m26-role="client"\] \.m26-client-home-primary-zone \.m26-today-action\.is-primary\s*\{\s*transition:none;/);
+  assert.match(section,/@media\(forced-colors:active\)/);
+  const contrast=section.slice(section.indexOf('@media(forced-colors:active)'));
+  for(const color of ['Canvas','CanvasText','ButtonFace','ButtonText','Highlight'])
+    assert.ok(contrast.includes(color),`System color token absent: ${color}`);
+  assert.doesNotMatch(contrast,/forced-color-adjust:\s*none/,'Allow system forced color adjustments');
+});
+
 test('Signature360 Admin agenda keeps accessible horizontal scroll and chronological order',()=>{
   const css=fs.readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
   assert.match(css,/\.m26-admin-agenda-table:focus-visible/);

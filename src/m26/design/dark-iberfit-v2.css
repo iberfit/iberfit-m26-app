@@ -1179,6 +1179,30 @@
 
 
 
+/* SIGNATURE360 · Client Hoy honors system accessibility settings at final specificity. */
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary{
+    transition:none;
+    scroll-behavior:auto;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-client-home-hero{
+    background:Canvas;
+    border-color:CanvasText;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary,
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary:hover{
+    background:ButtonFace;
+    color:ButtonText;
+    border-color:ButtonText;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary:focus-visible,
+  .m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary:focus-visible{
+    outline-color:Highlight;
+  }
+}
+
 /* CLIENT360_DECISION_V2_BEGIN */
 .m26-shell .m26-client360-v2{
   gap:clamp(.72rem,1.25vw,1.05rem);
