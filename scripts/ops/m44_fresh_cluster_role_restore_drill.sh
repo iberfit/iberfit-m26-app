@@ -39,7 +39,7 @@ start() {
   { echo 'IBERFIT_M44_FRESH_CLUSTER_START_FAILED' >&2; exit 62; }
 }
 sql() {
- docker exec -e "PGPASSWORD=$pass" "$1" \
+ docker exec -i -e "PGPASSWORD=$pass" "$1" \
   psql -X -A -t -v ON_ERROR_STOP=1 -h 127.0.0.1 -U supabase_admin -d postgres "${@:2}"
 }
 start "$src"
