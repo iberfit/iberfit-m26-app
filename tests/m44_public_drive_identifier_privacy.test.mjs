@@ -11,6 +11,7 @@ const documentation=readdirSync(docs)
 
 const privateDriveIdentifierPatterns=[
   /\bDrive:\s*[a-zA-Z0-9_-]{20,}\b/g,
+  /\bDrive\s+(?:privado|file|folder|archivo|carpeta)\s+[a-zA-Z0-9_-]{20,}\b/gi,
   /drive\.google\.com\/(?:file\/d|drive\/folders)\/[a-zA-Z0-9_-]{20,}/gi,
   /\b(?:driveFileId|driveFolderId|googleDriveFileId)\s*[:=]\s*[`'"]?[a-zA-Z0-9_-]{20,}/gi,
 ];
