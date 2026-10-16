@@ -4,11 +4,11 @@ import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map((k)=>[k,canonical(value[k])]));return value;}
 function fingerprint(command){return JSON.stringify(canonical({type:command.type,entityId:command.entityId,baseRevision:command.baseRevision,payload:command.payload}));}
 const NOTIFICATION_PREFERENCE_KEYS=Object.freeze(['sessionReminders','scheduleChanges','planPublished','coachMessages','challenges','milestones']);
-export function createCommunicationService({transport,getToken,getState,getRole,isOnline=()=>true,refreshState=async()=>{},webPushPublicKey=globalThis.__IBERFIT_M26_RUNTIME__?.webPushPublicKey||'',getPushRegistration}={}){
+export function createCommunicationService({transport,getToken,getState,getRole,getIdentity=()=>getState()?.identity,isOnline=()=>true,refreshState=async()=>{},webPushPublicKey=globalThis.__IBERFIT_M26_RUNTIME__?.webPushPublicKey||'',getPushRegistration}={}){
   const inFlight=new Map();
   const preferenceActor=()=>{
     const role=String(getRole()||'').toLowerCase();
-    const id=String(getState()?.identity?.id||'').trim();
+    const id=String(getIdentity()?.id||'').trim();
     if(!id||!['coach','client'].includes(role))throw new Error('M45_COMMUNICATION_ACTOR_REQUIRED');
     return `${role}:${id}`;
   };
@@ -19,7 +19,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
     transport,
     getToken,
     getIdentityScope:()=>{
-      const id=String(getState()?.identity?.id||'').trim();
+      const id=String(getIdentity()?.id||'').trim();
       const role=String(getRole()||'').toLowerCase();
       return id&&['coach','client'].includes(role)?`${role}:${id}`:'';
     },
@@ -51,7 +51,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       return result;
     },
     applyRemote(preferences){
-      const scope=String(getState()?.identity?.id||'').trim();
+      const scope=String(getIdentity()?.id||'').trim();
       if(!scope)throw new Error('M26_NOTIFICATION_PREFERENCE_SCOPE_REQUIRED');
       if(!preferences||typeof preferences!=='object'||Array.isArray(preferences))throw new Error('M26_NOTIFICATION_PREFERENCES_REQUIRED');
       for(const key of NOTIFICATION_PREFERENCE_KEYS){
@@ -79,7 +79,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       const state=getState();
       const identityScope=String(state?.identity?.id||'');
       const stillCurrent=()=>String(getRole()||'').toLowerCase()===role&&
-        String(getState()?.identity?.id||'')===identityScope;
+        String(getIdentity()?.id||'')===identityScope;
       const commands=ids.map((id)=>createCommunicationCommand({
         type:'NOTIFICATION_MARK_READ',entityId:id,payload:{notificationId:id},
       },state,role));
@@ -127,7 +127,7 @@ export function createCommunicationService({transport,getToken,getState,getRole,
       const state=getState();
       const identityScope=String(state?.identity?.id||'');
       const sameIdentity=()=>String(getRole()||'').toLowerCase()===role&&
-        String(getState()?.identity?.id||'')===identityScope;
+        String(getIdentity()?.id||'')===identityScope;
       const command=createCommunicationCommand(input,state,role);
       // Idempotency receipts belong to the authenticated actor, not only to
       // the caller-provided operation ID. Never share an old user's promise.
