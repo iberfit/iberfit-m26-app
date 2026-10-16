@@ -6,7 +6,7 @@ const source=fs.readFileSync('scripts/remote-gates/run_authenticated_readonly_ga
 
 test('RC65-C2 remote gate keeps privileged Coach requirements and fail-closes primary-auth bootstrap until assurance',()=>{
   assert.match(source,/iberfit_privileged_assurance_context_v65d/u);
-  assert.match(source,/credentialEnrolled!==false/u);
+  assert.match(source,/typeof assurance\?\.credentialEnrolled!=='boolean'/u);
   assert.match(source,/webauthnRequired!==true/u);
   assert.match(source,/iberfitAssurance!=='required'/u);
   assert.match(source,/supabaseAal!=='aal1'/u);
@@ -35,7 +35,7 @@ test('RC65-C2 remote gate keeps both Client bootstraps and privacy/isolation con
 test('RC65-C2 remote gate evidence records the disposable Coach fixture without credential material',()=>{
   assert.match(source,/privilegedGate:\{/u);
   assert.match(source,/iberfitAssurance:'required'/u);
-  assert.match(source,/credentialEnrolled:false/u);
+  assert.match(source,/credentialEnrolled:assurance\.credentialEnrolled/u);
   assert.match(source,/webauthnRequired:true/u);
   assert.match(source,/primaryAuthRead:\{[\s\S]*?ok:true,status:403,expectedBlocked:true,code:bootstrapCode,message:bootstrapMessage/u);
   assert.doesNotMatch(source,/web_authn_credential|public_key_b64|credentialResponse|challengeId/u);
