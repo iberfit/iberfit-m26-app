@@ -213,18 +213,46 @@ export function createWebPushCoordinator({
   async function disableAll(){
     requireOnline();
     const expectedActor=actorScope();
+    // Capture the browser subscription before any remote mutation. A shared
+    // browser may still be subscribed to a different authenticated user.
+    let sw=null;
+    let original=null;
+    try{
+      sw=await getRegistration();
+      original=await sw?.pushManager?.getSubscription?.()||null;
+    }catch{}
+    requireSameActor(expectedActor);
+    const endpoint=original?.endpoint?pushEndpoint(original.endpoint):null;
     const authToken=await token();
     requireSameActor(expectedActor);
+    let ownedByActor=false;
+    if(endpoint){
+      // The owner-scoped RPC checks user_id = auth.uid() for this endpoint.
+      // Never unsubscribe another account's browser subscription.
+      const remote=normalizedBackendState(await transport.webPushStatus(authToken,endpoint));
+      requireSameActor(expectedActor);
+      if(!remote.ok)throw new Error('M26_PUSH_STATUS_NOT_CONFIRMED');
+      ownedByActor=remote.active;
+    }
     const result=await transport.webPushRevoke(authToken);
     requireSameActor(expectedActor);
     let local=Object.freeze({ok:true,changed:false});
-    try{
-      const sw=await getRegistration();
+    if(ownedByActor&&original&&sw?.pushManager){
+      const current=await sw.pushManager.getSubscription();
       requireSameActor(expectedActor);
-      if(sw?.pushManager)local=await unsubscribe({registration:sw});
-    }catch{}
-    requireSameActor(expectedActor);
-    return Object.freeze({ok:result?.ok===true&&local.ok!==false,active:false,changed:Number(result?.deletedCount||0)>0||local.changed===true,deletedCount:Math.max(0,Number(result?.deletedCount||0)||0)});
+      if(current?.endpoint!==endpoint)throw new Error('M45_PUSH_SUBSCRIPTION_CHANGED');
+      // Always target the captured PushSubscription: a second browser read
+      // inside unsubscribe() could otherwise remove a replacement endpoint.
+      local=await unsubscribe({registration:sw,subscription:current});
+      requireSameActor(expectedActor);
+      if(local?.ok===false)throw new Error('M26_PUSH_UNSUBSCRIBE_NOT_CONFIRMED');
+    }
+    return Object.freeze({
+      ok:result?.ok===true,
+      active:false,
+      changed:Number(result?.deletedCount||0)>0||local.changed===true,
+      deletedCount:Math.max(0,Number(result?.deletedCount||0)||0),
+    });
   }
 
   return Object.freeze({status,enable,disableCurrent,disableAll});
