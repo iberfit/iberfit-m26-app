@@ -91,8 +91,9 @@ test('authenticated remote preflight runs as unprivileged Playwright user withou
   assert.match(proof,/pull_request:/u);
   assert.match(proof,/options: --user 1000:1000/u);
   assert.match(proof,/process\.getuid\(\)/u);
-  assert.match(proof,/firefox\.launch\(\)/u);
-  assert.match(proof,/webkit\.launch\(\)/u);
-  assert.match(proof,/chromium\.launch\(\)/u);
+  assert.match(proof,/Object\.entries\(\{chromium,webkit,firefox\}\)/u);
+  assert.match(proof,/await engine\.launch\(\)/u);
+  assert.match(proof,/await browser\.close\(\)/u);
+  assert.match(proof,/QA_NONROOT_BROWSER_OK/u);
   assert.doesNotMatch(proof,/M26_QA_.*(?:EMAIL|PASSWORD)|secrets\.|service_role/u);
 });
