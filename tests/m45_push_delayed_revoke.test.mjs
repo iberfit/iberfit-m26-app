@@ -8,7 +8,7 @@ function deferred(){
   return {promise,resolve};
 }
 
-function harness({unsubscribeOk=true,revokeOk=true}={}){
+function harness({unsubscribeOk=true,revokeOk=true,revokeDeletedCount=null}={}){
   const started=deferred(),finish=deferred();
   const initial='https://push.example.test/original-device';
   let current=initial;
@@ -23,7 +23,7 @@ function harness({unsubscribeOk=true,revokeOk=true}={}){
         recorded.push({action:'revoke',token,endpoint});
         started.resolve();
         await finish.promise;
-        return {ok:revokeOk,deletedCount:revokeOk?1:0};
+        return {ok:revokeOk,deletedCount:revokeDeletedCount===null?(revokeOk?1:0):revokeDeletedCount};
       },
     },
     getToken:async()=> 'jwt-A',
@@ -139,5 +139,84 @@ test('M45 disable-current refuses unconfirmed server revoke without unsubscribin
   h.finish.resolve();
   await assert.rejects(()=>pending,/M26_PUSH_REVOKE_NOT_CONFIRMED/);
   assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45: device revoke with zero owned rows must never unsubscribe a foreign endpoint',async()=>{
+  const h=harness({revokeDeletedCount:0});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45: malformed revoke row count cannot authorize browser unsubscribe',async()=>{
+  const h=harness({revokeDeletedCount:'invalid'});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45 explains foreign endpoint without offering a false push deactivation receipt',async()=>{
+  const {__communicationControllerInternals}=await import('../src/m26/communication/controller.js');
+  const copy=__communicationControllerInternals.pushErrorMessage(new Error('M45_PUSH_OWNERSHIP_NOT_CONFIRMED'));
+  assert.match(copy,/no corresponde a tu cuenta activa/);
+  assert.match(copy,/No se ha eliminado/);
+  assert.doesNotMatch(copy,/Avisos desactivados/);
+});
+
+test('M45: empty browser subscription after account change cannot confirm stale disable',async()=>{
+  const started=deferred(),release=deferred();
+  let actor='coach:account-A';
+  let serverCalls=0;
+  const coordinator=createWebPushCoordinator({
+    transport:{async webPushRevoke(){serverCalls++;return {ok:true,deletedCount:1};}},
+    getToken:async()=> 'jwt-A',
+    getIdentityScope:()=>actor,
+    getRegistration:async()=>({pushManager:{async getSubscription(){
+      started.resolve();
+      await release.promise;
+      return null;
+    }}}),
+    isOnline:()=>true,
+  });
+  const pending=coordinator.disableCurrent();
+  await started.promise;
+  actor='client:account-B';
+  release.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_ACTOR_CHANGED/);
+  assert.equal(serverCalls,0);
+});
+
+test('M45: no subscription for unchanged actor remains a safe idempotent disable',async()=>{
+  const coordinator=createWebPushCoordinator({
+    transport:{async webPushRevoke(){throw new Error('unexpected revoke');}},
+    getToken:async()=> 'jwt-A',
+    getIdentityScope:()=> 'coach:account-A',
+    getRegistration:async()=>({pushManager:{getSubscription:async()=>null}}),
+    isOnline:()=>true,
+  });
+  assert.deepEqual(await coordinator.disableCurrent(),{ok:true,active:false,changed:false});
+});
+
+test('M45: boolean revoke row count cannot be coerced into endpoint ownership',async()=>{
+  const h=harness({revokeDeletedCount:true});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45: string revoke row count cannot authorize browser subscription removal',async()=>{
+  const h=harness({revokeDeletedCount:'1'});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
   assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
 });
