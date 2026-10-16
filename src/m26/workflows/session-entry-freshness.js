@@ -34,3 +34,27 @@ export function resolveCurrentSessionForEntry({state,requested,clientId}={}){
     throw Error('M42_SESSION_UPDATED_REOPEN');
   return latest;
 }
+
+/** Prevent an old local execution from re-opening a withdrawn or replaced
+ * session. Does not delete recovery data: conflicts remain available for review.
+ */
+export function resolveRecoveredSessionForEntry({state,snapshot,clientId,requestedId=null,role='client'}={}){
+  const saved=snapshot?.session;
+  const execution=snapshot?.execution;
+  const sessionId=clean(of(saved,'id','entityId','entity_id'));
+  if(!saved||!execution||!sessionId||clean(execution.sessionId)!==sessionId||
+     clean(execution.clientId)!==clean(clientId))
+    throw Error('M42_RECOVERY_SNAPSHOT_SCOPE_INVALID');
+  if(requestedId!==null&&clean(requestedId)!==sessionId)
+    throw Error('M42_RECOVERY_OTHER_SESSION_ACTIVE');
+  const latest=resolveCurrentSessionForEntry({state,requested:saved,clientId});
+  if(role==='client'){
+    const ownership=clean(of(latest,'deliveryOwnership','delivery_ownership'));
+    const modality=clean(of(latest,'deliveryModality','delivery_modality'));
+    const visibility=clean(of(latest,'clientVisibilityLevel','client_visibility_level'));
+    if(visibility==='hidden'||visibility==='summary_only'||ownership==='coach_led'||
+       ownership==='live_online'||modality==='presencial'||of(latest,'visibleToClient')===false)
+      throw Error('M42_RECOVERY_NO_LONGER_EXECUTABLE');
+  }
+  return latest;
+}
