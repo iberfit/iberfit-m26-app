@@ -5,6 +5,9 @@ import {evaluateBackupReadiness} from '../data-safety/check_prod_backup_readines
 import {acquireDriveAccessToken,verifyIndependentOffsiteRecovery} from './m44_offsite_recovery_proof.mjs';
 export const PROD_REF='pjhmrhejsoofmouedavw';
 export const MAX_AGE_MS=48*60*60*1000;
+// Separate release RPO bound. A two-day-old encrypted copy is not an
+// acceptable rollback point immediately before new production migrations.
+export const MAX_OFFSITE_RELEASE_AGE_MS=2*60*60*1000;
 const prefix='M44_PROD_BACKUP_';
 export function certifyBackupInventory(payload,{nowMs=Date.now()}={}){
  if(!payload||typeof payload!=='object'||Array.isArray(payload)||!Array.isArray(payload.backups))
@@ -70,7 +73,8 @@ export async function verifyProductionBackupSafety({projectRef,accessToken,
   clientId:oauthClientId,clientSecret:oauthClientSecret,
   refreshToken:oauthRefreshToken,fetchImpl});
  const proof=await verifyIndependentOffsiteRecovery({sourceSha,runId,fileId,driveFolderId,
-  githubToken,driveAccessToken:token,fetchImpl,nowMs});
+  githubToken,driveAccessToken:token,fetchImpl,nowMs,
+  maxAgeMs:MAX_OFFSITE_RELEASE_AGE_MS});
  // GitHub restore + Drive digest does not establish Supabase Auth, grants,
  // owner/role reconstruction or compatible managed configuration.
  // Never authorize PROD DDL on ciphertext availability alone.
