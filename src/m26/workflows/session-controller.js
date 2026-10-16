@@ -155,6 +155,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     }
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}
-    if(draftField||blockField)queueAutosave(context);}
+    if(draftField||blockField)queueAutosave(context);
+    if(draftField?.getAttribute('data-session-draft-field')==='deliveryMode')render?.();}
   return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',click);root.addEventListener('input',input);mounted=true;},destroy(){if(!mounted)return;root.removeEventListener('click',click);root.removeEventListener('input',input);mounted=false;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave});
 }
