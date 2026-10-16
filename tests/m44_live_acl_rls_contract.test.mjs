@@ -22,6 +22,7 @@ test('Read-only preflight exact catalog, no customer rows and no data-changing S
  const text=fs.readFileSync('scripts/ops/m44_live_acl_rls_preflight.sql','utf8');
  assert.match(text,/WHERE n\.nspname IN \('public','storage','auth','vault'\)/);
  assert.match(text,/pg_catalog\.has_table_privilege/);
+ assert.match(text,/pg_catalog\.has_any_column_privilege/);
  assert.match(text,/c\.relrowsecurity/);
  assert.match(text,/json_build_object/);
  const executable=text.replace(/--[^\n]*\n/g,'');
