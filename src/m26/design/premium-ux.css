@@ -2118,3 +2118,11 @@ body {
 @media(prefers-reduced-motion:reduce){
   .m26-shell .m26-publication-preview,.m26-shell .m26-publication-actions{scroll-behavior:auto}
 }
+
+/* Salida no invasiva: Coach/Cliente guardan el estado antes de navegar. */
+.m26-session-live-quick-exit{display:flex;justify-content:flex-end;margin:.3rem 0 .65rem}
+.m26-session-live-exit-action{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:0;padding:.6rem .95rem;border:1px solid var(--m26-line,rgba(221,196,142,.42));border-radius:.7rem;background:transparent;color:var(--m26-cream-100,#f6f0e2);font:inherit;font-weight:550;line-height:1.3;cursor:pointer}
+.m26-session-live-exit-action:hover{border-color:var(--m26-gold-300,#e1c489)}
+.m26-session-live-exit-action:focus-visible{outline:2px solid var(--m26-gold-300,#e1c489);outline-offset:3px}
+.m26-session-live-exit-action[aria-busy="true"]{opacity:.7;cursor:progress}
+@media(max-width:560px){.m26-session-live-quick-exit>.m26-session-live-exit-action{width:100%}.m26-session-live-actions>.m26-session-live-exit-action{flex:1 1 100%}}
