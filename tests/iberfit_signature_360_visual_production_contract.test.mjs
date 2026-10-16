@@ -92,6 +92,29 @@ test('Signature360 appointment states remain localized in ES/EN/FR/PT',()=>{
   }
 });
 
+test('Signature360 Admin agenda keeps accessible horizontal scroll and chronological order',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
+  assert.match(css,/\.m26-admin-agenda-table:focus-visible/);
+  assert.match(css,/\.m26-admin-agenda-table :is\(th,td\):first-child/);
+  assert.match(css,/position:sticky/);
+  const appointments=[
+    {clientName:'Second Person',startAt:'2026-10-18T12:00:00Z',status:'scheduled'},
+    {clientName:'Undated Person',startAt:null,status:'scheduled'},
+    {clientName:'First Person',startAt:'2026-10-17T12:00:00Z',status:'scheduled'},
+  ];
+  const html=renderAdminRoute({admin:true,kind:'admin-agenda',
+    organization:{timezone:'America/Santiago',locale:'es-CL'},appointments});
+  assert.ok(html.includes('class="m26-admin-table m26-admin-agenda-table" role="region" aria-label="Agenda global" tabindex="0"'));
+  assert.match(html,/<th scope="col">Cliente<\/th>/);
+  assert.match(html,/<tr><td><strong>First Person<\/strong>/);
+  assert.ok(html.indexOf('First Person')<html.indexOf('Second Person'));
+  assert.ok(html.indexOf('Second Person')<html.indexOf('Undated Person'));
+  assert.equal(appointments[0].clientName,'Second Person','render must not reorder source state');
+  const empty=renderAdminRoute({admin:true,kind:'admin-agenda',appointments:[]});
+  assert.match(empty,/Agenda vacía/);
+  assert.doesNotMatch(empty,/tabindex="0"/);
+});
+
 test('Signature360 Admin agenda displays people, ownership and localized dates, not raw UUIDs',()=>{
   const vm={
     admin:true,kind:'admin-agenda',
