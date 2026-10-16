@@ -88,3 +88,42 @@ test('Cliente no recibe prescripción ni CTA si la proyección contradice al ser
  value=html('client',[wrongId]);
  assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Press de pecho/);
 });
+
+test('Vista previa robusta: bloques nulos, dispersos y arrays importados no bloquean Cliente ni Coach',()=>{
+  const broken=item('guiada','guided_in_app','full');
+  broken.session={...broken.session,blocks:[null,undefined,[],...blocks]};
+  for(const role of ['client','coach']){
+    const value=html(role,[broken]);
+    assert.match(value,/Press de pecho/);
+    assert.match(value,/Remo TRX/);
+    assert.match(value,/Biserie/);
+    assert.match(value,/Ejercicio 1/);
+    assert.doesNotMatch(value,/Ejercicio 4|NOTA PRIVADA NO MOSTRAR/);
+    if(role==='client')assert.match(value,/Comenzar entrenamiento/);
+  }
+});
+
+
+test('Una sesion con todos los bloques importados invalidos no ofrece inicio Cliente ni Coach',()=>{
+  const broken=item('guiada','guided_in_app','full');
+  broken.session={...broken.session,blocks:[null,undefined,[],false,0,'invalido',{}]};
+  for(const role of ['client','coach']){
+    const value=html(role,[broken]);
+    assert.match(value,/Fuerza autónoma/);
+    assert.match(value,/El detalle de esta sesión estará disponible/);
+    assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Comenzar con Coach|data-workflow-action="start-published-session"/);
+    assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
+  }
+});
+
+test('El limite de 120 bloques se aplica despues de descartar bloques nulos',()=>{
+  const broken=item('guiada','guided_in_app','full');
+  broken.session={...broken.session,blocks:[...Array.from({length:130},()=>null),...blocks]};
+  const value=html('client',[broken]);
+  assert.match(value,/Ver sesión/);
+  assert.match(value,/Press de pecho/);
+  assert.match(value,/Biserie/);
+  assert.match(value,/Ejercicio 1/);
+  assert.match(value,/Comenzar entrenamiento/);
+  assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
+});

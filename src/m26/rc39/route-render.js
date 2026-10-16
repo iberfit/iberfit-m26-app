@@ -169,7 +169,11 @@ const renderPreviewExercise=(id,plan,{catalog,mediaMap,role})=>{
 };
 function renderRc39SessionPreview(record,{catalog=[],mediaMap=null,role='client'}={}){
   const source=publishedBody(record);
-  const blocks=Array.isArray(source.blocks)?source.blocks.slice(0,120):[];
+  // A malformed legacy block must not break the entire Client/Coach route.
+  // Keep valid prescription blocks in order; ignore null, sparse or array entries.
+  const blocks=Array.isArray(source.blocks)
+    ?source.blocks.filter((block)=>block&&typeof block==='object'&&!Array.isArray(block)).slice(0,120)
+    :[];
   if(!blocks.length)return '<p class="m26-rc39-summary-copy">Los ejercicios estarán disponibles cuando el entrenador complete la planificación.</p>';
   const byId=new Map((Array.isArray(catalog)?catalog:[]).filter((x)=>x?.id).map((x)=>[String(x.id),x]));
   const rows=blocks.map((block,index)=>{
