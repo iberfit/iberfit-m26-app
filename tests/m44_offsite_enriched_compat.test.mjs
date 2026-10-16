@@ -86,6 +86,11 @@ test('M44 historical and enriched genuine layouts are both accepted',async()=>{
    const r=call(guard,'unpack',tar,dst);
    assert.equal(r.ok,true,r.stderr);
    assert.match(r.stdout,/ARCHIVE_STRUCTURE_VERIFIED/);
+   if(mode==='legacy'){
+    assert.doesNotMatch(r.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   }else{
+    assert.match(r.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   }
   }
  });
 });
@@ -113,6 +118,8 @@ test('M44 restored enriched archive validates every binary blob, not just metada
    await mkdir(dst);
    const result=call(guard,'unpack',tar,dst);
    assert.equal(result.ok,mode==='enriched'||mode==='roles-valid',mode);
+   if(result.ok)assert.match(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
+   else assert.doesNotMatch(result.stdout,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    assert.doesNotMatch(result.stdout+result.stderr,/f\/a\.bin|11111111|ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad/);
   }
  });
