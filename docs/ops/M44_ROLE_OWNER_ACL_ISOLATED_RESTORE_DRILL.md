@@ -47,3 +47,10 @@ El ensayo sintético ahora crea un tercer rol ficticio sin inicio de sesión, `i
 La prueba ejecuta con `SET LOCAL ROLE` las cuatro operaciones y verifica: lectura de una sola fila, inserción del propio ámbito, rechazo explícito por RLS de inserción fuera del ámbito, actualización propia, invisibilidad de la fila ajena, rechazo de reasignación de ámbito y borrado permitido/denegado según el ámbito. Las operaciones se ejecutan dentro de transacciones con `ROLLBACK`; los errores se clasifican localmente sin registrar filas. Se comprueba el origen sintético, el destino recreado con ACL y el destino inicialmente desprovisto de permisos tras el replay selectivo de ACL. Antes del replay, este último debe negar el acceso.
 
 La ampliación **no usa ni verifica los datos auténticos del respaldo externo**, no demuestra aislamiento de Cliente/Coach/Admin en IBERFIT real, no reconstruye Auth gestionado y **no modifica** `platformRecoveryVerified=false`, la promoción a PROD ni los procedimientos de otro frente. El resultado válido exige ejecución de PostgreSQL 17 en CI; un test de texto o una revisión estática no bastan.
+
+
+## Aislamiento reforzado del ensayo sintético
+
+El workflow `.github/workflows/m44-role-acl-synthetic-drill.yml` ejecuta ahora PostgreSQL 17 Supabase y el cliente `psql/pg_dump/pg_restore` en **un mismo contenedor temporal Docker con `--network none` y sin `--publish`**. La comunicación SQL se limita a `127.0.0.1` dentro del propio contenedor. Se comprueba con `docker inspect` que el modo de red sea `none` y con `docker port` que no existan puertos publicados. La descarga previa de la imagen por Docker puede utilizar la red del host, pero el contenedor en ejecución no dispone de conectividad exterior. El contenedor, las bases ficticias y el directorio temporal se destruyen con una trampa de limpieza al finalizar.
+
+La comprobación de sintaxis `sh -n`, los tests herméticos y la ejecución PostgreSQL 17 deben pasar. Este endurecimiento **no convierte el ensayo sintético en una restauración de la copia real de IBERFIT** ni modifica el bloqueo de PROD.
