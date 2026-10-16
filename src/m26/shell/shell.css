@@ -1654,3 +1654,50 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-session-leave-action{min-height:44px;border:1px solid var(--m26-line,rgba(184,145,66,.28));border-radius:.7rem;padding:.55rem .85rem;background:transparent;color:var(--m26-cream-100,#f5f0e4)}
 .m26-session-leave-action:focus-visible{outline:2px solid var(--m26-gold-300,#dfbf7e);outline-offset:3px}
 @media(max-width:560px){.m26-guided>header>.m26-session-leave-action{width:100%}}
+
+/* IBERFIT NEXT · Sesiones por modalidad: resumen presencial, inspección guiada */
+.m26-client-session-card{min-width:0;padding:1.15rem 1.2rem;border:1px solid var(--m26-line,rgba(198,165,101,.25));border-radius:1rem;background:var(--m26-forest-900,#102b20);color:var(--m26-cream-100,#f3eddd)}
+.m26-client-session-card+.m26-client-session-card{margin-top:.15rem}
+.m26-client-session-heading{min-width:0}
+.m26-client-session-heading h3{margin:.2rem 0 .55rem;font-size:clamp(1.12rem,2vw,1.42rem);line-height:1.3;font-weight:650;overflow-wrap:anywhere;color:var(--m26-cream-100,#f3eddd)}
+.m26-session-summary-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .8rem;font-size:.85rem;color:var(--m26-cream-300,#d8cdb7)}
+.m26-session-summary-meta span+span{padding-left:.8rem;border-left:1px solid rgba(229,202,157,.32)}
+.m26-session-scheduled-at{margin:.55rem 0 0;color:var(--m26-cream-300,#d8cdb7);font-size:.84rem}
+.m26-session-summary-hint{margin:.7rem 0 0;font-size:.83rem;line-height:1.5;color:var(--m26-cream-300,#d8cdb7)}
+.m26-session-preview-disclosure,.m26-coach-session-detail{margin-top:.9rem;border-top:1px solid var(--m26-line,rgba(198,165,101,.25))}
+.m26-session-preview-disclosure>summary,.m26-coach-session-detail>summary{display:flex;justify-content:space-between;align-items:center;gap:.65rem;min-height:48px;padding:.65rem 0;cursor:pointer;font-weight:650;color:var(--m26-cream-100,#f3eddd);list-style:none}
+.m26-session-preview-disclosure>summary::-webkit-details-marker,.m26-coach-session-detail>summary::-webkit-details-marker{display:none}
+.m26-session-preview-disclosure>summary:focus-visible,.m26-coach-session-detail>summary:focus-visible,.m26-session-technique>summary:focus-visible{outline:2px solid var(--m26-gold-300,#dfbf7e);outline-offset:3px;border-radius:.35rem}
+.m26-session-preview-disclosure[open]>summary>span{transform:rotate(180deg)}
+.m26-session-preview-content{min-width:0;padding:.75rem 0 .25rem}
+.m26-session-preview-intro{max-width:64ch;margin:0 0 1rem;color:var(--m26-cream-300,#d8cdb7);font-size:.86rem;line-height:1.6}
+.m26-session-preview-list{display:grid;gap:.9rem;padding:0;list-style:none;counter-reset:none;margin:.9rem 0 1rem}
+.m26-session-preview-block{min-width:0;border:1px solid var(--m26-line,rgba(198,165,101,.22));border-radius:.9rem;padding:1rem;background:rgba(4,19,13,.25)}
+.m26-session-preview-block>h3{margin:0 0 .85rem;font-size:.94rem;font-weight:650;color:var(--m26-cream-100,#f3eddd)}
+.m26-session-preview-exercise{display:grid;grid-template-columns:minmax(95px,135px) minmax(0,1fr);gap:1rem;align-items:start;min-width:0}
+.m26-session-preview-exercise+.m26-session-preview-exercise{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--m26-line,rgba(198,165,101,.2))}
+.m26-session-preview-exercise>.m26-exercise-media,.m26-session-preview-exercise>.m26-exercise-media-experience,.m26-session-preview-exercise>.m26-exercise-media-fallback{max-width:135px;min-width:0}
+.m26-session-preview-copy{min-width:0}
+.m26-session-preview-copy h4{margin:0 0 .25rem;font-size:1rem;line-height:1.35;color:var(--m26-cream-100,#f3eddd)}
+.m26-session-exercise-equipment{margin:0 0 .7rem;font-size:.8rem;color:var(--m26-cream-300,#d8cdb7)}
+.m26-session-prescription-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:.55rem}
+.m26-session-detail-fact{display:grid;align-content:start;gap:.2rem;min-width:0;padding:.5rem .6rem;border-radius:.5rem;background:rgba(240,231,208,.06)}
+.m26-session-detail-fact small{font-size:.7rem;line-height:1.3;color:var(--m26-cream-300,#d8cdb7)}
+.m26-session-detail-fact strong{font-size:.86rem;overflow-wrap:anywhere;color:var(--m26-cream-100,#f3eddd)}
+.m26-session-alternative{font-size:.84rem;line-height:1.5}
+.m26-session-technique{margin-top:.55rem}
+.m26-session-technique>summary{padding:.45rem 0;min-height:44px;cursor:pointer;font-size:.82rem;color:var(--m26-cream-300,#d8cdb7)}
+.m26-session-technique h5{margin:.8rem 0 .3rem;font-size:.84rem;color:var(--m26-cream-100,#f3eddd)}
+.m26-session-technique ol,.m26-session-technique ul{padding-left:1.25rem;margin:.4rem 0;font-size:.83rem;line-height:1.65}
+.m26-session-preview-start{display:grid;gap:.6rem;justify-items:start;margin-top:1rem}
+.m26-session-preview-start small{font-size:.76rem;line-height:1.5;color:var(--m26-cream-300,#d8cdb7)}
+.m26-client-session-card .m26-client-session-action{min-height:48px;min-width:180px}
+.m26-coach-session-detail .m26-session-preview-content>p{font-size:.85rem;line-height:1.6;color:var(--m26-cream-300,#d8cdb7)}
+@media(max-width:560px){
+  .m26-client-session-card{padding:1rem}
+  .m26-session-preview-block{padding:.75rem}
+  .m26-session-preview-exercise{grid-template-columns:minmax(0,1fr);gap:.65rem}
+  .m26-session-preview-exercise>.m26-exercise-media,.m26-session-preview-exercise>.m26-exercise-media-experience,.m26-session-preview-exercise>.m26-exercise-media-fallback{max-width:160px}
+  .m26-session-prescription-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m26-session-preview-start,.m26-client-session-card .m26-client-session-action{width:100%}
+}
