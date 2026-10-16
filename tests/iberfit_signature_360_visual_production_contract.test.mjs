@@ -92,6 +92,39 @@ test('Signature360 appointment states remain localized in ES/EN/FR/PT',()=>{
   }
 });
 
+test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch controls',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
+  const start=css.indexOf('CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE');
+  const end=css.indexOf('CLIENT360_DECISION_V2_BEGIN',start);
+  assert.ok(start>0&&end>start,'read the existing canonical Client Hoy stylesheet, not an override');
+  const home=css.slice(start,end);
+  const rule=(selector)=>{
+    const pos=home.indexOf(selector+'{');
+    assert.ok(pos>=0,`Missing Client Hoy selector: ${selector}`);
+    return home.slice(pos,home.indexOf('}',pos)+1);
+  };
+  const hero=rule('.m26-shell[data-m26-role="client"] .m26-client-home-hero');
+  assert.doesNotMatch(hero,/gradient\(/,'Hero must be matte without gradients');
+  assert.match(hero,/background:var\(--iberfit-color-surface-base\)/);
+  const greeting=rule('.m26-shell[data-m26-role="client"] .m26-client-home-greeting h2');
+  assert.match(greeting,/overflow-wrap:anywhere/,'long names must never overflow 320px');
+  assert.match(greeting,/line-height:1\.15/,'editorial heading needs comfortable line spacing');
+  const detail=rule('.m26-shell[data-m26-role="client"] .m26-client-home-greeting > p:not(.m26-eyebrow)');
+  assert.match(detail,/line-height:1\.55/,'secondary copy must remain legible');
+  const primary=rule('.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary');
+  assert.match(primary,/transform:none/);
+  assert.doesNotMatch(primary,/transition:[^;]*transform/,'CTA must not jump under a finger');
+  const hover=rule('.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary:hover');
+  assert.match(hover,/transform:none/,'avoid inherited translateY on hover');
+  const focus=rule('.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary:focus-visible');
+  assert.match(focus,/outline:3px solid/);
+  const secondary=rule('.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary:focus-visible');
+  assert.match(secondary,/outline:3px solid/,'secondary disclosure needs keyboard-visible focus');
+  const compact=home.slice(home.lastIndexOf('@media(max-width:390px)'));
+  assert.match(compact,/font-size:\.875rem/,'secondary actions remain readable on 320px screens');
+  assert.doesNotMatch(compact,/font-size:\.76rem/,'do not regress to tiny mobile labels');
+});
+
 test('Signature360 Admin agenda keeps accessible horizontal scroll and chronological order',()=>{
   const css=fs.readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
   assert.match(css,/\.m26-admin-agenda-table:focus-visible/);
