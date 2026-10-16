@@ -1,0 +1,50 @@
+name: IBERFIT QA Firefox Native Sandbox Probe
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - '.github/workflows/qa-firefox-native-sandbox-probe.yml'
+      - '.github/workflows/remote-gates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firefox-native-no-secrets:
+    name: firefox-native-sandbox-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned application dependencies
+        run: npm ci
+      - name: Install Firefox runtime on native GitHub runner
+        run: npx playwright install --with-deps firefox
+      - name: Launch Firefox without disabling content sandbox
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {firefox} from '@playwright/test';
+          for(const name of ['MOZ_DISABLE_CONTENT_SANDBOX','MOZ_DISABLE_GMP_SANDBOX',
+            'MOZ_DISABLE_RDD_SANDBOX','MOZ_DISABLE_SOCKET_PROCESS_SANDBOX']){
+            if(process.env[name])throw new Error('FIREFOX_SANDBOX_WEAKENING_FORBIDDEN');
+          }
+          const browser=await firefox.launch({headless:true});
+          try{
+            const page=await browser.newPage();
+            await page.goto('data:text/html,<title>IBERFIT Firefox sandbox probe</title><main>ready</main>');
+            if(await page.locator('main').textContent()!=='ready')
+              throw new Error('FIREFOX_BROWSER_PROBE_FAILED');
+          }finally{await browser.close();}
+          console.log('IBERFIT_FIREFOX_NATIVE_SANDBOX_BROWSER_LAUNCH_VERIFIED');
+          NODE
