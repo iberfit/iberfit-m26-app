@@ -254,7 +254,7 @@ function renderClientPlanning(vm){
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
-  const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false})).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, verás si esa sesión es presencial con él o autónoma guiada desde la aplicación.</p><div class="m26-inline-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div></section>`;
+  const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, verás si esa sesión es presencial con él o autónoma guiada desde la aplicación.</p><div class="m26-inline-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div></section>`;
   const overview=`<section class="m30-planning-overview" data-m30-planning-overview aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
@@ -281,7 +281,7 @@ function renderCoachToday(vm){
   });
   const list=todayAppointments.length?todayAppointments.map((appointment)=>{
     const projection=items.find((item)=>item.appointmentId===appointment.id);
-    return projection?sessionCard(projection,vm.role,contractModality):`<article class="m26-list-card"><div><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</article>`;
+    return projection?sessionCard(projection,vm.role,contractModality,vm.sessionPreviewAssets||{}):`<article class="m26-list-card"><div><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</article>`;
   }).join(''):`<section class="m26-empty"><h3>Sin citas para hoy</h3><p>La agenda no contiene sesiones programadas para este día.</p></section>`;
   return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Hoy en IBERFIT'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section><section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
 }
@@ -407,7 +407,7 @@ function renderAgenda(vm){
     ?appointments.map((appointment)=>{
       const item=projections.find((projection)=>projection.appointmentId===appointment.id);
       return item
-        ?sessionCard(item,role,contractModality)
+        ?sessionCard(item,role,contractModality,vm.sessionPreviewAssets||{})
         :renderAgendaStandaloneCard(appointment,role);
     }).join('')
     :'<section class="m26-empty"><h3>Agenda vacía</h3><p>No hay citas dentro del alcance actual.</p></section>';
@@ -507,7 +507,7 @@ function renderSessions(vm){
   const empty=role==='client'
     ?'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false})).join(''):empty}</section>${role==='client'?renderCompletedSessionHistory(vm):''}</div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):empty}</section>${role==='client'?renderCompletedSessionHistory(vm):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
