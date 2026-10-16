@@ -746,6 +746,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
 }
 
 export const __communicationControllerInternals=Object.freeze({
+  pushErrorMessage,
   preferencePayloadFromControl,
   preferencePayloadFromRoot,
   mergePreferencePayload,
