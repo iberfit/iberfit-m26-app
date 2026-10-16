@@ -168,3 +168,37 @@ test('M45 explains foreign endpoint without offering a false push deactivation r
   assert.match(copy,/No se ha eliminado/);
   assert.doesNotMatch(copy,/Avisos desactivados/);
 });
+
+test('M45: empty browser subscription after account change cannot confirm stale disable',async()=>{
+  const started=deferred(),release=deferred();
+  let actor='coach:account-A';
+  let serverCalls=0;
+  const coordinator=createWebPushCoordinator({
+    transport:{async webPushRevoke(){serverCalls++;return {ok:true,deletedCount:1};}},
+    getToken:async()=> 'jwt-A',
+    getIdentityScope:()=>actor,
+    getRegistration:async()=>({pushManager:{async getSubscription(){
+      started.resolve();
+      await release.promise;
+      return null;
+    }}}),
+    isOnline:()=>true,
+  });
+  const pending=coordinator.disableCurrent();
+  await started.promise;
+  actor='client:account-B';
+  release.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_ACTOR_CHANGED/);
+  assert.equal(serverCalls,0);
+});
+
+test('M45: no subscription for unchanged actor remains a safe idempotent disable',async()=>{
+  const coordinator=createWebPushCoordinator({
+    transport:{async webPushRevoke(){throw new Error('unexpected revoke');}},
+    getToken:async()=> 'jwt-A',
+    getIdentityScope:()=> 'coach:account-A',
+    getRegistration:async()=>({pushManager:{getSubscription:async()=>null}}),
+    isOnline:()=>true,
+  });
+  assert.deepEqual(await coordinator.disableCurrent(),{ok:true,active:false,changed:false});
+});
