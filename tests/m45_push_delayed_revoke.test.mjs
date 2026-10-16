@@ -94,3 +94,29 @@ test('M45 explains replacement subscription and avoids a false disabled confirma
   assert.match(copy,/Revisa su estado/);
   assert.doesNotMatch(copy,/desactivados en este dispositivo/);
 });
+
+test('M45 low-level unsubscribe targets captured subscription instead of a new one',async()=>{
+  const {unsubscribeWebPush}=await import('../src/m26/platform/pwa.js');
+  const calls=[];
+  const old={endpoint:'https://push.example.test/old',
+    async unsubscribe(){calls.push('old');return true;}};
+  const replacement={endpoint:'https://push.example.test/new',
+    async unsubscribe(){calls.push('replacement');return true;}};
+  const registration={pushManager:{
+    async getSubscription(){calls.push('get-current');return replacement;},
+  }};
+  const result=await unsubscribeWebPush({registration,subscription:old});
+  assert.deepEqual(result,{ok:true,changed:true});
+  assert.deepEqual(calls,['old'],'never reacquire another tab\'s endpoint');
+});
+
+test('M45 original no-target PWA unsubscribe API remains backward compatible',async()=>{
+  const {unsubscribeWebPush}=await import('../src/m26/platform/pwa.js');
+  let unsubscribed=0;
+  const registration={pushManager:{
+    async getSubscription(){return {async unsubscribe(){unsubscribed+=1;return true;}};},
+  }};
+  const result=await unsubscribeWebPush({registration});
+  assert.equal(result.ok,true);
+  assert.equal(unsubscribed,1);
+});
