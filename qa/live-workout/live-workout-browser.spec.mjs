@@ -241,3 +241,45 @@ test('M43: Cliente ejecuta running y natación con metas proyectadas, datos real
   }));
   expect(bounds.scroll).toBeLessThanOrEqual(bounds.viewport+1);
 });
+
+test('Canary sesión programada y guiada: previa completa sin fuga privada ni overflow móvil',async({page})=>{
+  await open(page,'client');
+  await page.evaluate(async()=>{
+    const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
+    const blocks=[{type:'exercise',exerciseId:'qa-press',sets:3,reps:'8-10',restSeconds:60,targetRpe:7,cues:['Progresión técnica']}];
+    const session=(id,ownership,visibility)=>({
+      id,title:id==='guided'?'Fuerza autónoma':'Fuerza con Coach',status:'published',
+      deliveryModality:ownership==='coach_led'?'presencial':'guiada_en_app',
+      deliveryOwnership:ownership,durationMinutes:50,blocks,privateCoachNote:'QA_PRIVATE_NO_CLIENT',
+    });
+    const projection=(id,ownership,visibility)=>({
+      id,title:id==='guided'?'Fuerza autónoma':'Fuerza con Coach',
+      ownership,visibility,visible:true,modality:ownership==='coach_led'?'presencial':'guiada_en_app',
+      canClientExecute:ownership!=='coach_led',canClientStart:ownership!=='coach_led',
+      session:session(id,ownership,visibility),appointmentId:null,
+    });
+    const vm={kind:'sesion',role:'client',serviceActive:true,selectedClient:{modality:'hibrido'},
+      rc39:{sessionProjections:[projection('coach','coach_led','summary_only'),projection('guided','guided_in_app','full')],appointments:[]},
+      sessionPreviewAssets:{catalog:[{id:'qa-press',name_es:'Press de pecho',equipment:'Mancuernas',
+        cues:['Escápulas estables'],instructions_es:['Descenso controlado']}],mediaMap:null}};
+    const area=document.createElement('section');area.id='qa-client-session-previews';
+    area.innerHTML=renderRc39Route(vm);document.body.appendChild(area);
+  });
+  const direct=page.locator('#qa-client-session-previews [data-rc39-session="coach"]');
+  const guided=page.locator('#qa-client-session-previews [data-rc39-session="guided"]');
+  await expect(direct).toContainText('Fuerza con Coach');
+  await expect(direct).toContainText('50 min');
+  await expect(direct).not.toContainText('Press de pecho');
+  await expect(direct.locator('details.m26-session-preview-disclosure')).toHaveCount(0);
+  await expect(guided.locator('details.m26-session-preview-disclosure')).toHaveCount(1);
+  await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await expect(guided.locator('.m26-session-preview-exercise h5')).toHaveText('Press de pecho');
+  await expect(guided).toContainText('8-10');
+  await expect(guided).toContainText('Sin referencia visual');
+  await expect(guided.locator('[data-workflow-action="start-published-session"]')).toHaveText('Comenzar entrenamiento');
+  await expect(page.locator('#qa-client-session-previews')).not.toContainText('QA_PRIVATE_NO_CLIENT');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const geometry=await guided.evaluate(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth}));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width+1);
+});
+
