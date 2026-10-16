@@ -31,7 +31,7 @@ import {createShellController} from '../shell/shell-controller.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
 import {createClientAvatarController} from '../profile/client-avatar.js';
 import {createWorkspaceEntryGate} from './workspace-entry-gate.js';
-import {resolveCurrentSessionForEntry} from '../workflows/session-entry-freshness.js';
+import {resolveCurrentSessionForEntry,resolveRecoveredSessionForEntry} from '../workflows/session-entry-freshness.js';
 import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
 import {createProgressiveOnboardingController} from '../onboarding/progressive-onboarding.js';
@@ -1145,7 +1145,12 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   async function restoreExecution(){
     await recoveryCoordinator?.purgeExpired?.();const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
-    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>visible.has(item.execution?.clientId)&&(state.identity?.role!=='client'||item.execution?.clientId===own));if(!snapshot?.execution||!snapshot?.session)return false;
+    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>{
+      if(!visible.has(item.execution?.clientId)||(state.identity?.role==='client'&&item.execution?.clientId!==own))return false;
+      try{return Boolean(resolveRecoveredSessionForEntry({
+        state,snapshot:item,clientId:item.execution.clientId,role:String(state.identity?.role||'client'),
+      }));}catch{return false;}
+    });if(!snapshot?.execution||!snapshot?.session)return false;
     sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
@@ -1271,7 +1276,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
-    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},templateUndo:sessionUi?.templateUndo||null,restoreTemplateLoad:restoreCurrentTemplateLoad,clearTemplateUndo:clearCurrentTemplateUndo,autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const draft=sessionUi?.draft;const clientId=String(draft?.clientId||'');const sessionId=String(draft?.id||'');const published=()=>Boolean(sessionId&&clientId&&(store.getState().collections.sessions||[]).some(item=>String(item?.id||'')===sessionId&&String(item?.clientId||item?.client_id||'')===clientId&&['publicada','published','publicado','disponible'].includes(String(item?.status||'').toLowerCase())));if(!published())await hydrate({reason:'session-published-verify'});if(!published())throw new Error('M35_SESSION_CONFIRM_NOT_VISIBLE');await clearSessionDraft(clientId).catch(error=>reportDiagnostic('session-draft-cleanup-after-publish',error));sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{reportSoftDiagnostic('session-action',error);if(sessionUi){const recovery=sessionCommandFailureOutcome(error,{role:store.getState().identity?.role,draft:sessionUi.draft,catalog});sessionUi.actionState.status=recovery?.status||'error';sessionUi.actionState.message=recovery?.message||friendlyError(error);}render();}});
+    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:String(store.getState().identity?.role||'coach'),commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},templateUndo:sessionUi?.templateUndo||null,restoreTemplateLoad:restoreCurrentTemplateLoad,clearTemplateUndo:clearCurrentTemplateUndo,autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const draft=sessionUi?.draft;const clientId=String(draft?.clientId||'');const sessionId=String(draft?.id||'');const published=()=>Boolean(sessionId&&clientId&&(store.getState().collections.sessions||[]).some(item=>String(item?.id||'')===sessionId&&String(item?.clientId||item?.client_id||'')===clientId&&['publicada','published','publicado','disponible'].includes(String(item?.status||'').toLowerCase())));if(!published())await hydrate({reason:'session-published-verify'});if(!published())throw new Error('M35_SESSION_CONFIRM_NOT_VISIBLE');await clearSessionDraft(clientId).catch(error=>reportDiagnostic('session-draft-cleanup-after-publish',error));sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{reportSoftDiagnostic('session-action',error);if(sessionUi){const recovery=sessionCommandFailureOutcome(error,{role:store.getState().identity?.role,draft:sessionUi.draft,catalog});sessionUi.actionState.status=recovery?.status||'error';sessionUi.actionState.message=recovery?.message||friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
@@ -1440,9 +1445,19 @@ export async function createM26Application({root=document.querySelector('#app'),
         }
         throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
       }
+      // Cross-device withdrawal is authoritative. A stale local snapshot
+      // must not override the current published state when the Client enters.
+      if(store.getState().identity?.role==='client'&&draftOnline()){
+        await hydrate({reason:'session-entry-authoritative'});
+        if(!isCurrent())return false;
+      }
       const recovered=await recoveryCoordinator?.latest?.({clientId});
       if(!isCurrent())return false;
       if(recovered){
+        resolveRecoveredSessionForEntry({
+          state:store.getState(),snapshot:recovered,clientId,requestedId:sessionId,
+          role:String(store.getState().identity?.role||'client'),
+        });
         sessionUi={draft:null,query:'',actionState:{
           ...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},
           session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};

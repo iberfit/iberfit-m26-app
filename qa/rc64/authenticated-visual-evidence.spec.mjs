@@ -148,8 +148,20 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           return {scrollWidth:root.scrollWidth,viewportWidth:root.clientWidth};
         });
         expect(layout.scrollWidth,'Client Hoy cannot cause horizontal document scrolling').toBeLessThanOrEqual(layout.viewportWidth+1);
-        const motion=await primaryAction.evaluate((button)=>getComputedStyle(button).transitionDuration);
-        expect(motion,'Reduced-motion accessibility must apply to the primary Hoy action').toBe('0s');
+        const transitionMs=await primaryAction.evaluate((button)=>getComputedStyle(button)
+          .transitionDuration.split(',').map((value)=>{
+            const duration=String(value||'').trim();
+            const numeric=Number.parseFloat(duration);
+            if(!Number.isFinite(numeric))return Number.NaN;
+            if(duration.endsWith('ms'))return numeric;
+            if(duration.endsWith('s'))return numeric*1000;
+            return Number.NaN;
+          }));
+        expect(transitionMs.length,'At least one computed transition duration must be reported').toBeGreaterThan(0);
+        for(const milliseconds of transitionMs){
+          expect(Number.isFinite(milliseconds),'Reduced-motion duration must be a finite CSS time').toBe(true);
+          expect(milliseconds,'Reduced-motion accessibility allows at most one millisecond').toBeLessThanOrEqual(1);
+        }
         const visibleDockLabels=page.locator('.m26-client-bottom-nav-label:visible');
         if(await visibleDockLabels.count()){
           const labelMetrics=await visibleDockLabels.evaluateAll((labels)=>labels.map((label)=>{

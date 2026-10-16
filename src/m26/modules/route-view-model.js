@@ -1318,5 +1318,12 @@ export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
       adminContextBase,
     });
   }
-  return createAdminRouteViewModel(communication,shellVm,state,now);
+  const result=createAdminRouteViewModel(communication,shellVm,state,now);
+  if(!['planificacion','sesion','agenda'].includes(result?.kind))return result;
+  // The catalogue and validated media manifest are presentation-only.
+  // They never modify the Client's RLS-projected session data.
+  return Object.freeze({...result,sessionPreviewAssets:Object.freeze({
+    catalog:Array.isArray(options.catalog)?options.catalog:[],
+    mediaMap:options.mediaMap||null,
+  })});
 }

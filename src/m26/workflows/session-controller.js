@@ -14,6 +14,7 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
+import {renderSessionLibraryResults} from './session-ui.js';
 import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
@@ -76,6 +77,17 @@ function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
     const timer=setTimeout(()=>{if(settled)return;settled=true;try{onTimeout();}catch{}reject(sessionActionTimeout());},timeoutMs);
     Promise.resolve(promise).then((value)=>finish(resolve,value),(error)=>finish(reject,error));
   });
+}
+
+// An acknowledged local draft save is not the same as a remote copy.
+// Present only persistence guarantees actually established by the store.
+export function sessionDraftSaveOutcome(persistence=null){
+  const local=persistence?.local===true;
+  const remote=persistence?.remote===true;
+  if(local&&remote)return Object.freeze({status:'success',message:'Borrador guardado en este dispositivo y sincronizado correctamente.'});
+  if(local)return Object.freeze({status:'pending',message:'Borrador guardado en este dispositivo. La sincronización remota no está confirmada; vuelve a guardar con conexión antes de cambiar de dispositivo.'});
+  if(remote)return Object.freeze({status:'retry',message:'Borrador sincronizado, pero no se pudo confirmar una copia local en este dispositivo. Puedes volver a guardarlo.'});
+  return Object.freeze({status:'error',message:'No se ha confirmado el guardado del borrador. Mantén esta pantalla abierta y vuelve a intentarlo.'});
 }
 
 export function manualSessionSyncOutcome(execution,result={},error=null,{role=''}={}){
@@ -1037,7 +1049,7 @@ async function click(event){
     else if(outcome.ok)await persistContext(getContext());
     // On invalid preview, never replace the actionable validation message with
     // a secondary local-storage error. Autosave remains scheduled separately.
-    if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){if(action==='start'&&context?.execution?.status==='active'){
+    if(outcome.ok&&action==='save-draft'&&actionState){const confirmation=sessionDraftSaveOutcome(getContext()?.draftPersistence);actionState.status=confirmation.status;actionState.message=confirmation.message;}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){if(action==='start'&&context?.execution?.status==='active'){
       // A committed start must remain authoritative even if the UI refresh
       // throws. No second SESION_INICIAR with another operation ID.
       if(actionState){
@@ -1055,25 +1067,22 @@ async function click(event){
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
     }}finally{sessionActionPending=false;if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
-      // The whole builder is rendered on each search. Restore active text input
-      // and caret to avoid losing keyboard focus, particularly on mobile.
-      const wasFocused=root.ownerDocument?.activeElement===search;
-      let range=null;
-      if(wasFocused){
-        try{range=[search.selectionStart,search.selectionEnd,search.selectionDirection];}catch{}
-      }
       context.setQuery?.(search.value);
-      renderSession();
-      if(wasFocused){
-        const replacement=root.querySelector?.('[data-session-search]');
-        if(replacement){
-          try{
-            replacement.focus({preventScroll:true});
-            if(range&&Number.isInteger(range[0])&&Number.isInteger(range[1]))
-              replacement.setSelectionRange(range[0],range[1],range[2]||'none');
-          }catch{replacement.focus?.();}
+      const holder=root.querySelector?.('[data-session-search-results]');
+      if(holder&&context.draft&&context.catalog){
+        // Only update matches; never replace Coach's focused input or set editors.
+        const result=renderSessionLibraryResults({
+          draft:context.draft,catalog:context.catalog,query:search.value,
+          filters:context.filters||{},mediaMap:context.mediaMap||null,
+          role:context.role||'coach',
+        });
+        holder.innerHTML=result.markup;
+        const count=root.querySelector?.('[data-session-library-result-count]');
+        if(count){
+          const n=Number(result.count)||0,active=Object.values(context.filters||{}).filter(Boolean).length;
+          count.textContent=`${n} ${n===1?'resultado':'resultados'}${active?` · ${active} ${active===1?'filtro':'filtros'}`:''}`;
         }
-      }
+      }else renderSession();
     }
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{context.clearTemplateUndo?.();dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}

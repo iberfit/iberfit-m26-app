@@ -184,6 +184,9 @@ test('Signature360 Client Hoy evidence includes authenticated compact mobile 320
   assert.match(spec,/authenticated-client-hoy/);
   assert.match(spec,/scrollWidth/);
   assert.match(spec,/transitionDuration/);
+  assert.match(spec,/toBeLessThanOrEqual\(1\)/,'effective reduced motion must not last more than one millisecond');
+  assert.match(spec,/Number\.isFinite\(milliseconds\)/,'non-numeric durations cannot bypass reduced-motion gate');
+  assert.doesNotMatch(spec,/toBe\('0s'\)/,'avoid browser-specific serialization of a near-zero transition');
   assert.match(spec,/businessMutationsPerformed:false/,'authenticated evidence must remain read-only');
 });
 

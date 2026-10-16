@@ -215,7 +215,7 @@ test('RC74.1.2 Hoy Coach expone inicio directo de la cita confirmada',()=>{
     proposals:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0},coachCockpit:null,
   });
   assert.match(html,/data-workflow-action="start-published-session"/u);
-  assert.match(html,/Iniciar entrenamiento/u);
+  assert.match(html,/Comenzar entrenamiento/u);
 });
 test('RC74.1.2 Sesiones Coach conserva constructor y añade inicio directo',()=>{
   const html=renderSessionsRoute({role:'coach',canBuild:true,sessions:[],executions:[],sessionCounts:{published:0}});

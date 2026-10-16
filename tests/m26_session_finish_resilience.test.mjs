@@ -95,7 +95,7 @@ test('el feedback final ofrece salida segura para terminar después sin marcar l
   const execution=awaitingFeedback();
   const html=renderGuidedExecution({execution,session:{id:execution.sessionId,title:'Fuerza A'},catalog:{get:()=>null,search:()=>[]},actionState:createActionState(),role:'client'});
   assert.match(html,/data-session-action="exit-session"/);
-  assert.match(html,/Salir y terminar después/);
+  assert.match(html,/Guardar y salir/);
   assert.match(html,/data-session-action="finish"/);
   assert.equal(execution.status,'awaiting_feedback');
 });

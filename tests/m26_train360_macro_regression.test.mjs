@@ -114,10 +114,11 @@ test('UX comunica cierre de grupo y diferencia prescripción de ejecución',()=>
   assert.match(ui,/No se autocompleta la carga realizada/);
 });
 
-test('búsqueda restaura foco y cursor después de reconstruir la biblioteca',()=>{
+test('búsqueda preserva foco y cursor porque no reconstruye el editor',()=>{
   const controller=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
-  assert.match(controller,/replacement\.focus\(\{preventScroll:true\}\)/);
-  assert.match(controller,/replacement\.setSelectionRange/);
+  assert.match(controller,/holder\.innerHTML=result\.markup/);
+  assert.match(controller,/if\(holder&&context\.draft&&context\.catalog\)/);
+  assert.doesNotMatch(controller,/replacement\.setSelectionRange/);
 });
 
 test('referencias previas sin repeticiones no prescriben cero por coerción de null o vacío',()=>{

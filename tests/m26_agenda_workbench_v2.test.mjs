@@ -173,7 +173,7 @@ test('cita enlazada conserva confirmación Coach y acciones de sesión existente
   }));
   assert.match(confirmedHtml,/data-workflow-action="start-published-session"/);
   assert.match(html,/data-rc39-action="download-calendar"/);
-  assert.match(html,/Ver entrenamiento completo/);
+  assert.match(html,/Revisar prescripción y vista del cliente/);
 });
 
 test('acciones Cliente de confirmación, cambio y Live Workout siguen disponibles cuando corresponde',()=>{
@@ -231,7 +231,7 @@ test('acciones Cliente de confirmación, cambio y Live Workout siguen disponible
   assert.match(html,/data-rc39-action="open-change-request"/);
   assert.match(html,/data-rc39-change-form="APT-CLIENT"/);
   assert.match(html,/data-workflow-action="start-published-session"/);
-  assert.match(html,/Comenzar Live Workout/);
+  assert.match(html,/Comenzar entrenamiento/);
 });
 
 test('Agenda V2 conserva el vacío y los landmarks históricos',()=>{

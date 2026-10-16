@@ -96,6 +96,12 @@ jobs:
   qa-readonly:
     needs: offline
     runs-on: ubuntu-latest
+    # Shared QA Coach/Client identities are exercised by Device Experience and
+    # Canary deploy gates. Do not overlap their authenticated certification.
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
     environment: m26-canary-readonly
     timeout-minutes: 10
     steps:
