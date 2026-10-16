@@ -202,3 +202,21 @@ test('M45: no subscription for unchanged actor remains a safe idempotent disable
   });
   assert.deepEqual(await coordinator.disableCurrent(),{ok:true,active:false,changed:false});
 });
+
+test('M45: boolean revoke row count cannot be coerced into endpoint ownership',async()=>{
+  const h=harness({revokeDeletedCount:true});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
+
+test('M45: string revoke row count cannot authorize browser subscription removal',async()=>{
+  const h=harness({revokeDeletedCount:'1'});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
+});
