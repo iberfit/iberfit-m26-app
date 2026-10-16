@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const guard='scripts/ops/m44_offsite_archive_guard.py';
-const makeFixture=String.raw\`
+const makeFixture=String.raw`
 import io, pathlib, stat, sys, tarfile, zipfile
 mode,dest = sys.argv[1:]
 if mode.startswith('zip'):
@@ -35,7 +35,7 @@ elif mode.startswith('tar'):
             info.type=tarfile.SYMTYPE
             info.linkname='/etc/passwd'
             f.addfile(info)
-\`;
+`;
 function run(...args){
  const r=spawnSync('python3',args,{encoding:'utf8',timeout:15000});
  return {status:r.status,output:(r.stdout||'')+(r.stderr||''),error:r.error};
