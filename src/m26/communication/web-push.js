@@ -190,6 +190,7 @@ export function createWebPushCoordinator({
     const expectedActor=actorScope();
     const sw=await registration();
     const current=await sw.pushManager.getSubscription();
+    requireSameActor(expectedActor);
     if(!current)return Object.freeze({ok:true,active:false,changed:false});
     const endpoint=pushEndpoint(current.endpoint);
     requireSameActor(expectedActor);
@@ -198,6 +199,11 @@ export function createWebPushCoordinator({
     const revokeResult=await transport.webPushRevoke(authToken,endpoint);
     requireSameActor(expectedActor);
     if(revokeResult?.ok!==true)throw new Error('M26_PUSH_REVOKE_NOT_CONFIRMED');
+    // Revoke is scoped to auth.uid() on the server. A zero-row result means
+    // this browser's endpoint was not owned by the authenticated actor:
+    // never unsubscribe a different account's PushSubscription.
+    if(!Number.isSafeInteger(revokeResult.deletedCount)||revokeResult.deletedCount<1)
+      throw new Error('M45_PUSH_OWNERSHIP_NOT_CONFIRMED');
     // Another tab can replace or remove the browser subscription while the
     // server revokes the original. Do not remove the replacement or claim that
     // the entire device was disabled: tell the UI to recheck actual state.
