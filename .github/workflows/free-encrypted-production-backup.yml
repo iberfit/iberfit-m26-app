@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   backup:
-    if: github.event_name == 'workflow_dispatch' || vars.IBERFIT_FREE_BACKUP_ENABLED == 'true'
+    if: github.ref == 'refs/heads/prepublicacion/rc29' && vars.IBERFIT_FREE_BACKUP_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: m26-prod-backup-readonly
     timeout-minutes: 25
