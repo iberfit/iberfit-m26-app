@@ -47,6 +47,18 @@ De acuerdo con [Supabase, Backup and Restore using the CLI](https://supabase.com
 
 **Criterio de aceptación operativo:** recuperar el respaldo desde Drive y la clave desde custodia independiente en un sandbox; ensayar Auth y sesiones representativas sin datos sensibles en logs; contrastar permisos y RLS con el inventario de origen; comprobar referencia de Storage sin errores; generar informe de certificación de RPO/RTO, versión y SHA. No crear nuevos proyectos Supabase de pago para la prueba.
 
+## Huella de recuperación PostgreSQL / Auth (control P0)
+
+Se incorpora `scripts/ops/m44_platform_recovery_catalog.sql`: consulta **solo de lectura** válida en PostgreSQL 17 que devuelve un único objeto JSON con **diez SHA-256**, sin nombres de clientes, datos de tablas, secretos, funciones fuente ni relaciones de acceso en el resultado. Abarca roles, membresías, relaciones/propietarios/ACL/RLS, privilegios por defecto, funciones y su código resumido, políticas, triggers, extensiones, configuración de buckets y migraciones.
+
+`scripts/ops/m44_platform_recovery_compare.mjs` compara esos diez resúmenes entre el origen y **una restauración real aislada**. Rechaza diferencias, digest inválidos, categorías inventadas y el intento de usar la misma ruta como ambos extremos. El comparador emite solamente nombres de categorías distintas; jamás hashes ni datos privados. Su resultado en caso de igualdad es `catalogParity=true`, pero deliberadamente **`platformRecoveryVerified=false`**.
+
+Para el ensayo aislado, capturar el JSON del origen y el destino en archivos temporales de permisos 0600, separados físicamente, mediante `psql -X -A -t -v ON_ERROR_STOP=1 -f scripts/ops/m44_platform_recovery_catalog.sql`. Compararlos con `node scripts/ops/m44_platform_recovery_compare.mjs ORIGEN.json RESTAURADO.json`. El origen solo admite lectura; no se debe enviar una consulta de esta clase contra un destino de producción como si fuera sandbox. Borrar ambos archivos privados tras el ensayo. No almacenar el contenido de catálogos ni contraseñas en el repositorio público.
+
+**Observación del 16/10/2026 (solo lectura):** la consulta se ejecutó en Supabase PROD y QA y produjo diez huellas válidas por entorno. Coincidieron `roles` y `extensions`; difirieron `policies`, `triggers`, `role_memberships`, `function_security`, `migration_history`, `relation_security`, `default_privileges` y `bucket_configuration`. Esto es compatible con el desfase de M44 y las diferencias reales entre entornos; **NO es un ensayo de restauración** y no debe interpretarse como fallo de un restore.
+
+Las huellas son necesarias pero no suficientes: no comprueban contenido de filas ni usuarios, claves de cifrado Vault, configuración alojada Auth, proveedores SMTP, JWT, Edge Functions, RTO/RPO, archivos físicos de Storage ni la procedencia del sandbox. Estos aspectos siguen requiriendo evidencias diferenciadas. El `pg_restore --no-owner --no-acl` canónico puede restablecer tablas sin propietarios ni concesiones originales; por eso una restauración SQL correcta no equivale a conservar el modelo de acceso. La documentación oficial de Supabase describe exportación separada de roles y restauración de elementos gestionados: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore.
+
 ## Promoción
 
 M44 tiene 12 migraciones presentes en QA y ausentes de PROD en este checkpoint. El workflow `production-promote.yml` no ejecuta esas migraciones: exige el esquema **ya aplicado** antes del frontend. No ejecutar una promoción parcial ni omitir esos gates.
