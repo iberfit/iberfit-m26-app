@@ -17,5 +17,6 @@ export default defineConfig({
     {name:'authenticated-visual-tablet-chromium',use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true}},
     {name:'authenticated-visual-tablet-landscape-chromium',use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true}},
     {name:'authenticated-visual-mobile-chromium',use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true}},
+    {name:'authenticated-visual-compact-mobile-chromium',use:{browserName:'chromium',viewport:{width:320,height:720},hasTouch:true,isMobile:true}},
   ],
 });

@@ -125,6 +125,19 @@ test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch c
   assert.doesNotMatch(compact,/font-size:\.76rem/,'do not regress to tiny mobile labels');
 });
 
+test('Signature360 Client Hoy evidence includes authenticated compact mobile 320px and real overflow checks',()=>{
+  const config=fs.readFileSync(new URL('../playwright.authenticated-visual.config.mjs',import.meta.url),'utf8');
+  const spec=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  assert.match(config,/authenticated-visual-compact-mobile-chromium/);
+  assert.match(config,/width:320,height:720/);
+  assert.match(spec,/data-m26-area="hoy"/);
+  assert.match(spec,/m26-client-home-v1/);
+  assert.match(spec,/authenticated-client-hoy/);
+  assert.match(spec,/scrollWidth/);
+  assert.match(spec,/transitionDuration/);
+  assert.match(spec,/businessMutationsPerformed:false/,'authenticated evidence must remain read-only');
+});
+
 test('Signature360 Client Hoy respects reduced motion and forced-colors contrast',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
   const section=css.slice(css.indexOf('CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE'),css.indexOf('CLIENT360_DECISION_V2_BEGIN'));

@@ -135,6 +135,24 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('.m26-route').first()).toBeVisible({timeout:10_000});
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-shell'}));
 
+        // SIGNATURE 360: certify Client Hoy in the live authenticated surface.
+        // Stay on the synthetic read-only QA account; do not start a workout or write data.
+        const todayNav=page.locator('[data-m26-area="hoy"]:visible').first();
+        await expect(todayNav).toBeVisible({timeout:5_000});
+        await todayNav.click();
+        await expect(page.locator('.m26-client-home-v1')).toBeVisible({timeout:10_000});
+        const primaryAction=page.locator('.m26-client-home-primary-zone .m26-today-action.is-primary');
+        await expect(primaryAction).toBeVisible({timeout:5_000});
+        const layout=await page.evaluate(()=>{
+          const root=document.documentElement;
+          return {scrollWidth:root.scrollWidth,viewportWidth:root.clientWidth};
+        });
+        expect(layout.scrollWidth,'Client Hoy cannot cause horizontal document scrolling').toBeLessThanOrEqual(layout.viewportWidth+1);
+        const motion=await primaryAction.evaluate((button)=>getComputedStyle(button).transitionDuration);
+        expect(motion,'Reduced-motion accessibility must apply to the primary Hoy action').toBe('0s');
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
+
+
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
         await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();
