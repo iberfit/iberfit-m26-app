@@ -123,11 +123,16 @@ fi
 pg_restore --list "$work/synthetic.acl.pgcustom" > "$work/synthetic-toc-private.list"
 awk '
  /^[0-9]+;/ {
-   if ($0 ~ /[[:space:]](ACL|DEFAULT ACL)[[:space:]]/) {print; n++; next}
+   if ($0 ~ /^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+ACL[[:space:]]/) {
+     print; grants++; next
+   }
+   if ($0 ~ /^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+DEFAULT ACL[[:space:]]/) {
+     print; defaults++; next
+   }
    print ";" $0; next
  }
  { print }
- END { if (n < 2) exit 72 }
+ END { if (grants < 1 || defaults < 1) exit 72 }
 ' "$work/synthetic-toc-private.list" > "$work/synthetic-acl-only-private.list" ||
  { echo 'IBERFIT_M44_ACL_ONLY_SELECTION_FAILED' >&2; exit 72; }
 pg_restore --exit-on-error --no-owner --use-list="$work/synthetic-acl-only-private.list" \
