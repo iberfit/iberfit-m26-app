@@ -175,7 +175,7 @@ check_cluster() {
   (NOT has_function_privilege('iberfit_m44_fresh_reader',p.oid,'EXECUTE'))::int,
   (NOT has_function_privilege('iberfit_m44_fresh_intruder',p.oid,'EXECUTE'))::int,
   (NOT EXISTS(
-   SELECT 1 FROM aclexplode(COALESCE(p.proacl,acl_default('f',p.proowner))) x
+   SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x
    WHERE x.grantee=0 AND x.privilege_type='EXECUTE'))::int
  ) FROM pg_proc p
  WHERE p.oid='iberfit_m44_fresh_fixture.visible_row_count()'::regprocedure;")" || { echo 'IBERFIT_M44_FRESH_CLUSTER_FUNCTION_QUERY_FAILED' >&2; return 1; }
