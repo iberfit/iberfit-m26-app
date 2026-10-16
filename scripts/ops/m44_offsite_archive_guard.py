@@ -8,6 +8,7 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import tarfile
 import zipfile
 
@@ -226,55 +227,83 @@ def validate_optional_role_archive(path):
 
 
 def unpack_tar(archive, directory):
-    base = pathlib.Path(directory).resolve()
+    # Refuse the supplied symlink itself instead of silently resolving it
+    # to a different location that might hold unrelated data.
+    supplied = pathlib.Path(directory)
+    require(not supplied.is_symlink(), "RESTORE_DIR_SYMLINK_FORBIDDEN")
+    base = supplied.resolve()
     require(base.is_dir() and not any(base.iterdir()), "RESTORE_DIR_NOT_EMPTY")
-    present = set()
-    total = 0
-    with tarfile.open(archive, mode="r:") as bundle:
-        for member in bundle:
-            name = member.name.removeprefix("./").rstrip("/")
-            require(name not in present, "TAR_DUPLICATE_ENTRY")
-            present.add(name)
-            if member.isdir():
-                require(name in ("storage", "storage/files"), "TAR_UNSAFE_DIRECTORY")
-                (base / name).mkdir(parents=True, exist_ok=True)
-                continue
-            require(member.isfile() and allowed_tar_file(name), "TAR_UNSAFE_ENTRY")
-            limit = (MAX_JSON_BYTES if name in EXTRA_FILES else
-                     MAX_ROLES_BYTES if name == ROLE_FILE else MAX_TAR_BYTES)
-            require(0 <= member.size <= limit, "TAR_MEMBER_TOO_LARGE")
-            total += member.size
-            require(total <= MAX_TAR_BYTES and len(present) <= MAX_ITEMS,
-                    "TAR_LIMIT_EXCEEDED")
-            target = base / name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            require(target.resolve().is_relative_to(base), "TAR_PATH_ESCAPE")
-            source = bundle.extractfile(member)
-            require(source is not None, "TAR_MEMBER_MISSING")
-            with source, open(target, "xb") as output:
-                os.chmod(target, 0o600)
-                shutil.copyfileobj(source, output, length=1024 * 1024)
-    require({"database.pgcustom", "storage/manifest.json"}.issubset(present),
-            "TAR_REQUIRED_COMPONENT_MISSING")
-    # Even legacy backups claim a PostgreSQL custom-format dump. Reject an
-    # empty/wrongly labeled body before reporting a structurally valid TAR.
-    # The real pg_restore is STILL required to prove SQL restorability.
-    database_dump = base / "database.pgcustom"
-    require(database_dump.is_file() and not database_dump.is_symlink()
-            and database_dump.stat().st_size >= 16,
-            "PGCUSTOM_ARCHIVE_INVALID")
-    with database_dump.open("rb") as stream:
-        require(stream.read(5) == b"PGDMP", "PGCUSTOM_MAGIC_INVALID")
-    extension = present.intersection(EXTRA_FILES)
-    require(not extension or extension == EXTRA_FILES,
-            "PARTIAL_ENRICHED_ARCHIVE")
-    if extension:
-        validate_enriched_archive(base, present)
-    if ROLE_FILE in present:
-        require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
-        validate_optional_role_archive(base / ROLE_FILE)
-    # Print the stronger evidence marker only AFTER every enriched component
-    # including optional global roles has passed validation.
+    # Never put unvalidated plaintext in the operator-visible final destination.
+    # TemporaryDirectory is 0700 and removes partially extracted files on
+    # errors in TAR parsing, manifests, roles or byte/hash validation.
+    with tempfile.TemporaryDirectory(prefix=".m44-private-stage-", dir=base) as temp:
+        stage = pathlib.Path(temp)
+        os.chmod(stage, 0o700)
+        present = set()
+        total = 0
+        with tarfile.open(archive, mode="r:") as bundle:
+            for member in bundle:
+                name = member.name.removeprefix("./").rstrip("/")
+                require(name not in present, "TAR_DUPLICATE_ENTRY")
+                present.add(name)
+                if member.isdir():
+                    require(name in ("storage", "storage/files"), "TAR_UNSAFE_DIRECTORY")
+                    (stage / name).mkdir(parents=True, exist_ok=True)
+                    continue
+                require(member.isfile() and allowed_tar_file(name), "TAR_UNSAFE_ENTRY")
+                limit = (MAX_JSON_BYTES if name in EXTRA_FILES else
+                         MAX_ROLES_BYTES if name == ROLE_FILE else MAX_TAR_BYTES)
+                require(0 <= member.size <= limit, "TAR_MEMBER_TOO_LARGE")
+                total += member.size
+                require(total <= MAX_TAR_BYTES and len(present) <= MAX_ITEMS,
+                        "TAR_LIMIT_EXCEEDED")
+                target = stage / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                require(target.resolve().is_relative_to(stage), "TAR_PATH_ESCAPE")
+                source = bundle.extractfile(member)
+                require(source is not None, "TAR_MEMBER_MISSING")
+                with source, open(target, "xb") as output:
+                    os.chmod(target, 0o600)
+                    shutil.copyfileobj(source, output, length=1024 * 1024)
+        require({"database.pgcustom", "storage/manifest.json"}.issubset(present),
+                "TAR_REQUIRED_COMPONENT_MISSING")
+        # Even legacy backups claim a PostgreSQL custom-format dump. Reject an
+        # empty/wrongly labeled body before reporting a structurally valid TAR.
+        # The real pg_restore is STILL required to prove SQL restorability.
+        database_dump = stage / "database.pgcustom"
+        require(database_dump.is_file() and not database_dump.is_symlink()
+                and database_dump.stat().st_size >= 16,
+                "PGCUSTOM_ARCHIVE_INVALID")
+        with database_dump.open("rb") as stream:
+            require(stream.read(5) == b"PGDMP", "PGCUSTOM_MAGIC_INVALID")
+        extension = present.intersection(EXTRA_FILES)
+        require(not extension or extension == EXTRA_FILES,
+                "PARTIAL_ENRICHED_ARCHIVE")
+        if extension:
+            validate_enriched_archive(stage, present)
+        if ROLE_FILE in present:
+            require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
+            validate_optional_role_archive(stage / ROLE_FILE)
+        # Publish only after every component has passed validation.
+        # The destination was required to be empty before staging began.
+        # Roll back any already moved top-level components if publishing fails.
+        published = []
+        try:
+            for child in stage.iterdir():
+                final = base / child.name
+                require(not final.exists() and not final.is_symlink(),
+                        "RESTORE_DESTINATION_CHANGED")
+                os.rename(child, final)
+                published.append(final)
+        except BaseException:
+            for final in reversed(published):
+                if final.is_dir() and not final.is_symlink():
+                    shutil.rmtree(final)
+                else:
+                    final.unlink(missing_ok=True)
+            raise
+    # No unverified snapshot is announced. This marker is only emitted
+    # after staging and full publication have both succeeded.
     if extension:
         print("IBERFIT_OFFSITE_ENRICHED_STORAGE_BYTES_SHA256_VERIFIED")
     print("IBERFIT_OFFSITE_DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED")
