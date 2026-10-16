@@ -289,3 +289,37 @@ test('atomic replace rejects concurrent destination content without deleting ope
   assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
  });
 });
+
+
+test('mounted empty recovery directory stages internally and avoids atomic root replacement',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'mounted-destination');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const code=[
+   'import importlib.util,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'guard.os.path.ismount=lambda x:True',
+   'def no_atomic_replace(source,destination):',
+   ' raise AssertionError("mounted volume root must never be replaced")',
+   'guard.os.replace=no_atomic_replace',
+   'original=guard.publish_verified_archive',
+   'def check_volume(stage,destination,existed,**kwargs):',
+   ' assert existed and stage.parent==destination',
+   ' assert list(destination.iterdir())==[stage]',
+   ' assert kwargs.get("supports_replace_directory") is False',
+   ' return original(stage,destination,existed,**kwargs)',
+   'guard.publish_verified_archive=check_volume',
+   'guard.unpack_tar(sys.argv[2],sys.argv[3])'
+  ].join('\n');
+  const result=run('-c',code,guard,tar,out);
+  assert.equal(result.status,0,result.output);
+  assert.deepEqual((await readdir(out)).sort(),['database.pgcustom','storage']);
+  assert.deepEqual((await readdir(dir)).sort(),['mounted-destination','source.tar'],
+   'must not leave a private staging directory outside mounted destination');
+  assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+ });
+});
