@@ -89,7 +89,7 @@ test('Signature360 Admin agenda displays people, ownership and localized dates, 
     }],
   };
   const html=renderAdminRoute(vm);
-  for(const text of ['Agenda global','Fecha y hora','Cliente','Coach','Modalidad','Estado','Ana Pérez','Coach Roberto','presencial']){
+  for(const text of ['Agenda global','Fecha y hora','Cliente','Coach','Modalidad','Estado','Ana Pérez','Coach Roberto','Presencial']){
     assert.ok(html.includes(text),text);
   }
   assert.doesNotMatch(html,/<td>uuid-client-123<\/td>/,'technical ID cannot be the primary attendee label');

@@ -251,7 +251,7 @@
   .m26-client-bottom-nav-item {
     flex-direction: column;
     gap: 5px;
-    min-height: 64px;
+    min-height: 66px;
     padding: 7px 3px;
     border-radius: 19px;
   }
