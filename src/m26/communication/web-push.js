@@ -177,7 +177,7 @@ export function createWebPushCoordinator({
           // Never remove a replacement subscription established for the new
           // authenticated user on the same shared browser.
           if(active?.endpoint===createdEndpoint){
-            await unsubscribe({registration:sw});
+            await unsubscribe({registration:sw,subscription:active});
           }
         }catch{}
       }
@@ -204,7 +204,7 @@ export function createWebPushCoordinator({
     requireSameActor(expectedActor);
     if(currentAfterRevoke?.endpoint!==endpoint)
       throw new Error('M45_PUSH_SUBSCRIPTION_CHANGED');
-    const local=await unsubscribe({registration:sw});
+    const local=await unsubscribe({registration:sw,subscription:currentAfterRevoke});
     requireSameActor(expectedActor);
     return Object.freeze({ok:local.ok!==false,active:false,changed:local.changed===true});
   }
