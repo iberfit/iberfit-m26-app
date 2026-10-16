@@ -12,6 +12,11 @@ const ROWS=Object.freeze([
   ['Comenzar con Coach','Start with coach','Commencer avec le coach','Começar com o treinador'],
   ['Entrenamiento guiado','Guided workout','Entraînement guidé','Treino guiado'],
   ['Sin conexión','Offline','Hors connexion','Sem ligação'],
+  // M42: draft receipt must distinguish local save, remote sync and recovery risk.
+  ['Borrador guardado en este dispositivo y sincronizado correctamente.','Draft saved on this device and synced successfully.','Brouillon enregistré sur cet appareil et synchronisé avec succès.','Rascunho guardado neste dispositivo e sincronizado com sucesso.'],
+  ['Borrador guardado en este dispositivo. La sincronización remota no está confirmada; vuelve a guardar con conexión antes de cambiar de dispositivo.','Draft saved on this device. Remote sync has not been confirmed; save again while online before switching devices.','Brouillon enregistré sur cet appareil. La synchronisation distante n’est pas confirmée ; enregistrez à nouveau en ligne avant de changer d’appareil.','Rascunho guardado neste dispositivo. A sincronização remota não está confirmada; volte a guardar com ligação antes de mudar de dispositivo.'],
+  ['Borrador sincronizado, pero no se pudo confirmar una copia local en este dispositivo. Puedes volver a guardarlo.','Draft synced, but a local copy on this device could not be confirmed. You can save it again.','Brouillon synchronisé, mais aucune copie locale n’a pu être confirmée sur cet appareil. Vous pouvez l’enregistrer à nouveau.','Rascunho sincronizado, mas não foi possível confirmar uma cópia local neste dispositivo. Pode voltar a guardá-lo.'],
+  ['No se ha confirmado el guardado del borrador. Mantén esta pantalla abierta y vuelve a intentarlo.','The draft save was not confirmed. Keep this screen open and try again.','L’enregistrement du brouillon n’a pas été confirmé. Gardez cet écran ouvert et réessayez.','O rascunho não foi confirmado como guardado. Mantenha este ecrã aberto e tente novamente.'],
   // M44: withdrawn-version reason is an interactive Coach/Admin field, not report copy.
   ['Indica por qué se retira esta versión','Explain why this version is being withdrawn',
    'Indiquez pourquoi cette version est retirée',
