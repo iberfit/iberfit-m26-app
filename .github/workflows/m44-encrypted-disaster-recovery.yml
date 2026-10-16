@@ -103,7 +103,21 @@ jobs:
             -v "$scratch:/work" postgres:17-alpine pg_dumpall --roles-only \
             --no-role-passwords --dbname=postgres --file=/work/synthetic-roles.sql \
             > /dev/null 2> "$scratch/pg-private-errors"; then
-            echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_FAILED'
+            # Only a predefined non-sensitive error CATEGORY may enter CI.
+            # The original stderr remains private and is deleted by trap.
+            if grep -Eqi 'unrecognized option|invalid option' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_OPTION_UNSUPPORTED'
+            elif grep -Eqi 'permission denied|must be superuser|not permitted' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_PRIVILEGE_DENIED'
+            elif grep -Eqi 'could not connect|connection to server|password authentication' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_AUTH_FAILED'
+            elif grep -Eqi 'could not open output file|No such file or directory|Is a directory' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_OUTPUT_PATH_FAILED'
+            elif grep -Eqi 'does not exist|database' "$scratch/pg-private-errors"; then
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_DATABASE_FAILED'
+            else
+              echo 'IBERFIT_SYNTHETIC_GLOBAL_ROLE_EXPORT_UNKNOWN'
+            fi
             exit 61
           fi
           node scripts/ops/m44_global_roles_archive_check.mjs "$scratch/synthetic-roles.sql"
