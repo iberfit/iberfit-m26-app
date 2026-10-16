@@ -14,6 +14,7 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
+import {renderSessionLibraryResults} from './session-ui.js';
 import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
@@ -1055,25 +1056,22 @@ async function click(event){
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
     }}finally{sessionActionPending=false;if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
-      // The whole builder is rendered on each search. Restore active text input
-      // and caret to avoid losing keyboard focus, particularly on mobile.
-      const wasFocused=root.ownerDocument?.activeElement===search;
-      let range=null;
-      if(wasFocused){
-        try{range=[search.selectionStart,search.selectionEnd,search.selectionDirection];}catch{}
-      }
       context.setQuery?.(search.value);
-      renderSession();
-      if(wasFocused){
-        const replacement=root.querySelector?.('[data-session-search]');
-        if(replacement){
-          try{
-            replacement.focus({preventScroll:true});
-            if(range&&Number.isInteger(range[0])&&Number.isInteger(range[1]))
-              replacement.setSelectionRange(range[0],range[1],range[2]||'none');
-          }catch{replacement.focus?.();}
+      const holder=root.querySelector?.('[data-session-search-results]');
+      if(holder&&context.draft&&context.catalog){
+        // Only update matches; never replace Coach's focused input or set editors.
+        const result=renderSessionLibraryResults({
+          draft:context.draft,catalog:context.catalog,query:search.value,
+          filters:context.filters||{},mediaMap:context.mediaMap||null,
+          role:context.role||'coach',
+        });
+        holder.innerHTML=result.markup;
+        const count=root.querySelector?.('[data-session-library-result-count]');
+        if(count){
+          const n=Number(result.count)||0,active=Object.values(context.filters||{}).filter(Boolean).length;
+          count.textContent=`${n} ${n===1?'resultado':'resultados'}${active?` · ${active} ${active===1?'filtro':'filtros'}`:''}`;
         }
-      }
+      }else renderSession();
     }
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{context.clearTemplateUndo?.();dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
