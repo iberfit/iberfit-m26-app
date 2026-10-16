@@ -59,3 +59,10 @@ El modo `unpack` ya no escribe los ficheros descifrados directamente en la ruta 
 El modo `unwrap` rechaza también enlaces simbólicos colgantes y nunca elimina un archivo/alias preexistente si falla la apertura exclusiva; solo limpia el fichero de salida que ha conseguido crear. Esta protección evita borrar accidentalmente contenido externo al fallar una verificación.
 
 **Límites:** la eliminación normal de archivos temporales no equivale a borrado criptográfico seguro del soporte físico. Un cierre forzado del proceso, pérdida de energía o un adversario concurrente con acceso al mismo usuario puede requerir limpieza posterior del entorno aislado; por eso el procedimiento debe ejecutarse en almacenamiento efímero cifrado y destruir el contenedor/volumen al finalizar. Estas garantías son de higiene local y no certifican la restauración completa de Supabase ni la integridad del backup sin autenticación AES-GCM.
+
+
+## Defensa ante archivos excesivos, truncados o publicación incompleta
+
+Antes de escribir un miembro TAR, el guard comprueba su tamaño **declarado en la cabecera**: hasta 256 MiB por fichero de Storage (límite del exportador), hasta 64 MiB para manifiestos/inventarios JSON, hasta 8 MiB para roles y hasta el límite global de 2 GiB para el dump PostgreSQL. La suma completa mantiene el límite de 2 GiB. Además comprueba que el número de bytes realmente copiados de cada miembro coincide exactamente con su tamaño declarado; una copia corta falla antes de publicar componentes.
+
+Las pruebas negativas ejercitan también una interrupción **simulada** durante la publicación del segundo componente: después de fallar, no debe quedar el primer componente visible y deben conservarse los archivos del operador que ya existían en el directorio. Esto prueba recuperación ante excepciones gestionadas, **no atomicidad fuerte frente a SIGKILL, pérdida de alimentación o escritura concurrente de un proceso con los mismos permisos**. El ensayo independiente debe seguir usando un directorio vacío dentro de un volumen efímero y cifrado; la salida nunca implica que el servicio completo haya sido reconstruido.
