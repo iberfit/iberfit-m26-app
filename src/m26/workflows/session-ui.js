@@ -1274,7 +1274,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         ${isCoach?'':renderSessionHealthContext(wearableContext)}
         <div class="m26-session-live-actions">
           <button type="button" data-session-action="exit-session">Volver</button>
-          <button type="button" class="m26-primary-action" data-session-action="start">${isCoach?'Iniciar entrenamiento':'Iniciar sesión'}</button>
+          <button type="button" class="m26-primary-action" data-session-action="start">Comenzar entrenamiento</button>
         </div>
       </div>
     </section>`;
@@ -1331,7 +1331,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
         <div class="m26-session-live-actions">
           ${reviewLastSetAction}
-          <button type="button" data-session-action="exit-session">Salir y terminar después</button>
+          <button type="button" data-session-action="exit-session">Guardar y salir</button>
           <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
         </div>
       </div>
