@@ -32,6 +32,10 @@ if mode!='legacy':
  if mode=='bad-catalog': catalog['roles']='not SHA'
  if mode=='bad-storage-hash':entry['sha256']='b'*64
  if mode=='bad-storage-size':entry['bytes']=2
+ # The fixture's TAR bytes are serialized above: serialize the mutated
+ # declaration again so negative cases really contain the tampered manifest.
+ if mode in ('bad-storage-hash','bad-storage-size'):
+  parts[1]=('storage/manifest.json',json.dumps(manifest).encode())
  if mode=='tampered-storage-bytes':parts[2]=('storage/files/000000.bin',b'xyz')
  if mode=='missing-storage-file':parts.pop(2)
  if mode=='orphan-storage-file':parts.append(('storage/files/000001.bin',b'unknown'))
