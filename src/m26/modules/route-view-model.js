@@ -48,6 +48,7 @@ import {
 } from '../workflows/publication-workflow.js';
 import { clientContentView } from '../publication/client-content.js';
 import {clientSessionProjection} from '../rc39/session-policy.js';
+import {sessionPresentation} from '../experience/session-presentation.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -306,27 +307,29 @@ function compactActivity(record) {
   };
 }
 
-function publicationItems(records, entity, role) {
+function publicationItems(records, entity, role, options={}) {
   // El servidor determina la publicación. Nunca renderizar una sesión retirada,
   // en borrador o con visibilidad revocada como entrenable para Cliente.
   const visibleRecords = role === 'client' && entity === 'session'
-    ? records.filter((record) => publicationSummary({entity, record, role}).visibleToClient && clientSessionProjection(record).visible)
+    ? records.filter((record) => sessionPresentation(record,{role,catalog:options.catalog,appointments:options.appointments}).visible)
     : records;
   return visibleRecords.map((record) => {
     const clientContent = clientContentView(entity, record);
+    const sessionView = entity==='session'?sessionPresentation(record,{role,catalog:options.catalog,appointments:options.appointments}):null;
     if (role === 'client') {
       return Object.freeze({
         id: clientContent.id,
         clientId: text(record, 'clientId', 'client_id'),
         title: clientContent.title,
-        clientContent,
-        ...(entity==='session'?{canClientExecute:clientSessionProjection(record).canClientExecute}:{}),
+        clientContent:entity==='session'?Object.freeze({...clientContent,summary:'',facts:Object.freeze([]),sections:Object.freeze([])}):clientContent,
+        ...(sessionView?{sessionView,canClientExecute:sessionView.canStart}:{}),
       });
     }
     return Object.freeze({
       ...compactActivity(record),
       publication: publicationSummary({ entity, record, role }),
       clientContent,
+      ...(sessionView?{sessionView}:{}),
     });
   });
 }
@@ -526,13 +529,15 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const cycles = recordsForClient(state, 'trainingCycles', clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const role = String(shellVm.identity?.role || '');
+    const sessionOptions={catalog:options.catalog,appointments:state.collections?.appointments||[]};
     return Object.freeze({
       kind: 'planificacion',
+      sessionMediaMap:options.mediaMap||null,
       clientId,
       role,
       canEdit: ['admin', 'coach'].includes(role),
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
-      sessions: Object.freeze(publicationItems(sessions, 'session', role)),
+      sessions: Object.freeze(publicationItems(sessions, 'session', role, sessionOptions)),
       cycleCounts: publicationCounts(cycles),
       sessionCounts: publicationCounts(sessions),
       currentCycle: clone(cycles[0] || null),
@@ -558,12 +563,14 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
+    const sessionOptions={catalog:options.catalog,appointments:state.collections?.appointments||[]};
     return Object.freeze({
       kind: 'sesion',
+      sessionMediaMap:options.mediaMap||null,
       clientId,
       role,
       canBuild: ['admin', 'coach'].includes(role),
-      sessions: Object.freeze(publicationItems(sessions, 'session', role)),
+      sessions: Object.freeze(publicationItems(sessions, 'session', role, sessionOptions)),
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
     });
