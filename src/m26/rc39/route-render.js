@@ -3,6 +3,7 @@ import {renderCompletedSessionHistory} from './completed-session-history.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
 import {coachLaunchSelfCopy} from './view-model.js';
+import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {isPublishedSession,sessionHasExecutableBlocks,sessionReadyToStart,sessionRequiresConfirmedAppointment} from './session-policy.js';
 
 const escape=(value)=>String(value??'')
@@ -112,17 +113,90 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   }
   return actions.length?`<div class="m26-rc39-card-actions">${actions.join('')}</div>`:'';
 };
-const sessionCard=(item,role,contractModality=null,{serviceActive=true}={})=>{
+const previewGroupLabels=Object.freeze({
+  biserie:'Biserie',triserie:'Triserie',circuito:'Circuito',amrap:'AMRAP',tabata:'Tabata',
+});
+const previewNumber=(value,{min=0,max=100000}={})=>{
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=min&&number<=max?number:null;
+};
+const previewName=(id,source={},catalog=new Map())=>{
+  const exercise=catalog.get(String(id||''))||{};
+  return String(exercise.name_es||exercise.name||source.name||source.title||id||'Ejercicio');
+};
+const previewFacts=(plan={})=>{
+  const facts=[
+    [previewNumber(plan.sets,{min:1,max:100}),'Series'],
+    [plan.reps||null,'Repeticiones / tiempo'],
+    [previewNumber(plan.restSeconds,{max:3600})===null?null:`${plan.restSeconds} s`,'Descanso'],
+    [previewNumber(plan.targetRpe,{min:1,max:10}),'RPE'],
+    [previewNumber(plan.targetRir,{max:10}),'RIR'],
+    [plan.tempo||null,'Ritmo'],
+    [plan.plannedLoad||plan.load||null,'Carga prevista'],
+    [plan.plannedDurationMinutes||null,'Duración (min)'],
+    [plan.plannedDistanceKm||null,'Distancia (km)'],
+    [plan.plannedDistanceM||null,'Distancia (m)'],
+    [plan.plannedPace||plan.plannedPacePer100M||null,'Ritmo objetivo'],
+    [plan.targetHeartRateZone||null,'Zona de FC'],
+  ].filter(([value])=>value!==null&&value!==undefined&&String(value).trim()!=='');
+  return facts.length?`<dl class="m26-session-preview-facts">${facts.map(([value,label])=>`<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>`:'';
+};
+const renderPreviewExercise=(id,plan,{catalog,mediaMap,role})=>{
+  const exercise=catalog.get(String(id||''))||{};
+  const name=previewName(id,plan,catalog);
+  const tech=[...(Array.isArray(exercise.instructions_es)?exercise.instructions_es:[]),
+    ...(Array.isArray(exercise.cues)?exercise.cues:[])].slice(0,7)
+    .map((value)=>String(value||'').trim()).filter(Boolean);
+  const precautions=(Array.isArray(exercise.precautions)?exercise.precautions:[]).slice(0,3);
+  const alternative=plan.alternativeId?previewName(plan.alternativeId,{},catalog):'';
+  const media=renderExerciseMedia({manifest:mediaMap,exercise:{...exercise,id,name_es:name},role,compact:true,fallback:true,priority:false});
+  return `<div class="m26-session-preview-exercise">
+    <div class="m26-session-preview-media">${media}</div>
+    <div class="m26-session-preview-exercise-body"><h5>${escape(name)}</h5>
+      ${exercise.equipment?`<p class="m26-session-preview-equipment">${escape(exercise.equipment)}</p>`:''}
+      ${previewFacts(plan)}
+      ${plan.prescriptionNotes?`<p class="m26-session-preview-cue">${escape(plan.prescriptionNotes)}</p>`:''}
+      ${alternative?`<p class="m26-session-preview-cue"><strong>Alternativa:</strong> ${escape(alternative)}</p>`:''}
+      ${tech.length||precautions.length?`<details class="m26-session-preview-technique"><summary>Cómo realizarlo</summary>
+      ${tech.length?`<ul>${tech.map((x)=>`<li>${escape(x)}</li>`).join('')}</ul>`:''}
+      ${precautions.length?`<p><strong>Precauciones:</strong> ${precautions.map(escape).join(' · ')}</p>`:''}</details>`:''}
+    </div></div>`;
+};
+function renderRc39SessionPreview(record,{catalog=[],mediaMap=null,role='client'}={}){
+  const source=publishedBody(record);
+  const blocks=Array.isArray(source.blocks)?source.blocks.slice(0,120):[];
+  if(!blocks.length)return '<p class="m26-rc39-summary-copy">Los ejercicios estarán disponibles cuando el entrenador complete la planificación.</p>';
+  const byId=new Map((Array.isArray(catalog)?catalog:[]).filter((x)=>x?.id).map((x)=>[String(x.id),x]));
+  const rows=blocks.map((block,index)=>{
+    const group=previewGroupLabels[String(block?.type||'').toLowerCase()];
+    const ids=group&&Array.isArray(block.exerciseIds)?block.exerciseIds.slice(0,12):[];
+    const list=ids.length?ids:[block.exerciseId||block.id||''];
+    const label=group?`${group}${previewNumber(block.rounds,{min:1,max:100})?` · ${block.rounds} rondas`:''}`:`Ejercicio ${index+1}`;
+    return `<li class="m26-session-preview-block"><h4>${escape(label)}</h4>${list.map((id)=>{
+      const individual=ids.length?(block.prescriptions?.[id]||{}):block;
+      return renderPreviewExercise(id,individual,{catalog:byId,mediaMap,role});
+    }).join('')}</li>`;
+  }).join('');
+  return `<ol class="m26-session-preview-blocks">${rows}</ol>${mediaMap?renderExerciseMediaCredit({compact:true}):''}`;
+}
+const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[],mediaMap=null}={})=>{
   const kind=item.ownership==='coach_led'?'coach':item.ownership==='live_online'?'online':'autonomous';
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
   const experience=experienceFor(item,role,contractModality);
-  const content=item.visibility==='full'&&sessionHasExecutableBlocks(item.session)
-    ? `<details class="m26-rc39-session-content"><summary>Ver entrenamiento completo</summary><ol>${publishedBody(item.session).blocks.map((block)=>`<li><strong>${escape(block.name||block.title||'Ejercicio')}</strong><span>${escape([block.sets?`${block.sets} series`:null,block.reps||null,block.restSeconds?`${block.restSeconds} s descanso`:null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ol></details>`
-    : `<p class="m26-rc39-summary-copy">${item.ownership==='coach_led'?'Esta sesión la dirige tu Coach. Aparece en tu semana, pero no se reproduce como entrenamiento autónomo desde la aplicación.':item.ownership==='live_online'?'La sesión se realiza en directo con tu Coach.':'El contenido se mostrará cuando esté preparado y publicado.'}</p>`;
+  const supervised=item.ownership==='coach_led'||item.ownership==='live_online';
+  const canInspect=role!=='client'||(!supervised&&item.visibility==='full');
+  const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
+  const content=detailAvailable
+    ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
+    : `<p class="m26-rc39-summary-copy">${item.ownership==='coach_led'?'Esta sesión la dirige tu Coach.':'La sesión se realiza en directo con tu Coach.'}</p>`;
+  const duration=previewNumber(publishedBody(item.session).durationMinutes??item.session?.durationMinutes,{min:1,max:1440});
+  const summaryMeta=role==='client'&&supervised?`<p class="m26-session-supervised-duration">${duration?`${escape(duration)} min · `:''}Con tu entrenador</p>`:'';
+  const experienceHtml=role==='client'&&supervised?'':experiencePanel(experience,role);
   const contractLabel=clientModalityLabel(contractModality);
   return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}" tabindex="-1">
-    <header><div><p class="m26-eyebrow">${escape(ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3><p>${escape(formatDate(item.startAt))}</p></div><div>${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${statusBadge(visibility,'neutral')}</div></header>
-    ${experiencePanel(experience,role)}
+    <header><div><p class="m26-eyebrow">${escape(ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3><p>${escape(formatDate(item.startAt))}</p>${summaryMeta}</div><div>${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${statusBadge(visibility,'neutral')}</div></header>
+    ${experienceHtml}
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
     ${item.appointment?.changeRequest?.status==='pending'?`<aside class="m26-notice is-warning"><strong>Cambio solicitado por el cliente</strong><p>${escape(item.appointment.changeRequest.reason||'Sin motivo registrado')}</p></aside>`:''}
