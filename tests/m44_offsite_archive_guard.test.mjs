@@ -118,7 +118,7 @@ test('reject TAR size bomb at member header and truncated copy before final publ
  await sandbox(async dir=>{
   const tar=path.join(dir,'source.tar');
   fixture('tar-valid',tar);
-  const python=String.raw\`
+  const python=String.raw`
 import importlib.util,sys
 spec=importlib.util.spec_from_file_location('m44_fixture_guard',sys.argv[1])
 guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)
@@ -136,7 +136,7 @@ except ValueError as e:
   sys.exit(14)
  sys.exit(0)
 sys.exit(15)
-\`;
+`;
   for(const mode of ['storage','manifest','shortcopy']){
    const out=path.join(dir,mode);
    await import('node:fs/promises').then(fs=>fs.mkdir(out));
