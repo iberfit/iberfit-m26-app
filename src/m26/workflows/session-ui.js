@@ -1356,6 +1356,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         ${sessionLiveSummary(execution,session)}
         <div class="m26-session-live-actions">
           <button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button>
+          <button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button>
         </div>
         <details class="m26-session-options">
           <summary>Cancelar esta sesión</summary>
@@ -1660,6 +1661,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <small data-session-progress-label>${e(progressLabel)}</small>
         </div>
       </div>
+      <div class="m26-session-live-quick-exit"><button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button></div>
       ${timerStrip(execution)}
       <progress class="m26-progress" max="100" value="${progress}" aria-label="Progreso ${progress}%">${progress}%</progress>
       ${goal}
