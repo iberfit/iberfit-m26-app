@@ -5,6 +5,12 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'scripts/ops/m44_prod_backup_inventory_guard.mjs'
+      - 'scripts/ops/m44_offsite_recovery_proof.mjs'
+      - 'tests/m44_offsite_recovery_proof.test.mjs'
+      - 'tests/m44_offsite_recovery_gate_integration.test.mjs'
+      - 'scripts/ops/m44_platform_recovery_catalog.sql'
+      - 'scripts/ops/m44_platform_recovery_compare.mjs'
+      - 'tests/m44_platform_recovery_catalog.test.mjs'
       - 'tests/m44_production_backup_inventory_contract.test.mjs'
       - '.github/workflows/m44-prod-backup-readiness.yml'
       - '.github/workflows/production-promote.yml'
@@ -12,6 +18,7 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'scripts/ops/m44_prod_backup_inventory_guard.mjs'
+      - 'scripts/ops/m44_offsite_recovery_proof.mjs'
       - '.github/workflows/m44-prod-backup-readiness.yml'
   workflow_dispatch:
     inputs:
@@ -38,7 +45,12 @@ jobs:
         with:
           node-version: '22'
       - name: Certify fail-closed inventory source
-        run: node --test tests/m44_production_backup_inventory_contract.test.mjs
+        run: |
+          node --test \
+            tests/m44_production_backup_inventory_contract.test.mjs \
+            tests/m44_offsite_recovery_proof.test.mjs \
+            tests/m44_offsite_recovery_gate_integration.test.mjs \
+            tests/m44_platform_recovery_catalog.test.mjs
 
   inventory:
     name: m44-prod-backup-readonly-check
