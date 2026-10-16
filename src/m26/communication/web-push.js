@@ -195,9 +195,23 @@ export function createWebPushCoordinator({
     requireSameActor(expectedActor);
     const authToken=await token();
     requireSameActor(expectedActor);
-    await transport.webPushRevoke(authToken,endpoint);
+    const revoked=await transport.webPushRevoke(authToken,endpoint);
     requireSameActor(expectedActor);
+    // A different tab or account may replace the browser subscription while
+    // the original endpoint is being revoked remotely. Never unsubscribe the
+    // replacement merely because the old endpoint's revoke was acknowledged.
+    const currentAfterRevoke=await sw.pushManager.getSubscription();
+    requireSameActor(expectedActor);
+    if(currentAfterRevoke?.endpoint!==endpoint){
+      return Object.freeze({
+        ok:true,
+        active:Boolean(currentAfterRevoke),
+        changed:Number(revoked?.deletedCount||0)>0,
+        subscriptionChanged:true,
+      });
+    }
     const local=await unsubscribe({registration:sw});
+    requireSameActor(expectedActor);
     return Object.freeze({ok:local.ok!==false,active:false,changed:local.changed===true});
   }
 
