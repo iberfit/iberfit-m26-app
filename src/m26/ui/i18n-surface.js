@@ -6,6 +6,12 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
   // SIGNATURE360: Admin agenda human-first identity, format and empty-state copy.
+  // SIGNATURE360: appointment statuses are user-facing states in all four languages.
+  ['Programada','Scheduled','Programmée','Agendada'],
+  ['Confirmada','Confirmed','Confirmée','Confirmada'],
+  ['Cancelada','Cancelled','Annulée','Cancelada'],
+  ['Reprogramada','Rescheduled','Reprogrammée','Reagendada'],
+  ['No asistió','Did not attend','Absence','Não compareceu'],
   ['Fecha y hora','Date and time','Date et heure','Data e hora'],
   ['Cliente sin identificar','Unidentified client','Client non identifié','Cliente não identificado'],
   ['Sin Coach indicado','No Coach specified','Aucun Coach indiqué','Sem Coach indicado'],

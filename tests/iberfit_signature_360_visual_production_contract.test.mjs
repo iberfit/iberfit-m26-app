@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {navigationForRole} from '../src/m26/shell/navigation.js';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const coverage=JSON.parse(fs.readFileSync(new URL('../qa/visual/signature-360-coverage.json',import.meta.url),'utf8'));
 const roles=['client','coach','admin'];
@@ -73,6 +74,22 @@ test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',(
   assert.match(css,/\.m26-client-bottom-nav-item:focus-visible/,'keyboard focus must remain visible');
   assert.match(css,/box-shadow:inset 0 2px 0 #C5A059/,'existing M41 active-state signature is retained');
   assert.doesNotMatch(css,/gradient\(/,'Client dock should remain matte');
+});
+
+test('Signature360 appointment states remain localized in ES/EN/FR/PT',()=>{
+  const values=[
+    ['Programada','Scheduled','Programmée','Agendada'],
+    ['Confirmada','Confirmed','Confirmée','Confirmada'],
+    ['Completada','Completed','Terminée','Concluída'],
+    ['Cancelada','Cancelled','Annulée','Cancelada'],
+    ['Reprogramada','Rescheduled','Reprogrammée','Reagendada'],
+    ['No asistió','Did not attend','Absence','Não compareceu'],
+  ];
+  for(const [es,en,fr,pt] of values){
+    for(const [language,expected] of [['en',en],['fr',fr],['pt',pt]]){
+      assert.equal(iberfitSurfaceTranslate(es,{language}),expected,`${language}: ${es}`);
+    }
+  }
 });
 
 test('Signature360 Admin agenda displays people, ownership and localized dates, not raw UUIDs',()=>{
