@@ -26,9 +26,10 @@ async function readJson(url,token,fetchImpl) {
  if(!r?.ok)fail('REMOTE_HTTP_'+(Number.isInteger(r?.status)?r.status:'UNKNOWN'));
  try{return await r.json();}catch{fail('REMOTE_JSON_INVALID');}
 }
-function requireRecent(iso,nowMs) {
+function requireRecent(iso,nowMs,maxAgeMs=MAX_BACKUP_AGE_MS) {
  const time=Date.parse(iso||'');
- if(!Number.isFinite(time)||time>nowMs+60000||nowMs-time>MAX_BACKUP_AGE_MS)fail('BACKUP_NOT_RECENT');
+ if(!Number.isFinite(maxAgeMs)||maxAgeMs<=0||maxAgeMs>MAX_BACKUP_AGE_MS)fail('MAX_AGE_INVALID');
+ if(!Number.isFinite(time)||time>nowMs+60000||nowMs-time>maxAgeMs)fail('BACKUP_NOT_RECENT');
  return time;
 }
 export async function acquireDriveAccessToken({accessToken,clientId,clientSecret,refreshToken,fetchImpl=fetch}={}){
@@ -47,7 +48,7 @@ export async function acquireDriveAccessToken({accessToken,clientId,clientSecret
 }
 export async function verifyIndependentOffsiteRecovery({
  sourceSha,runId,fileId,driveFolderId,githubToken,driveAccessToken,
- fetchImpl=fetch,nowMs=Date.now()
+ fetchImpl=fetch,nowMs=Date.now(),maxAgeMs=MAX_BACKUP_AGE_MS
 }={}){
  requireConfig({sourceSha,runId,fileId,driveFolderId,githubToken,driveAccessToken,fetchImpl,nowMs});
  const api='https://api.github.com/repos/'+REPO;
@@ -57,7 +58,7 @@ export async function verifyIndependentOffsiteRecovery({
   run.path!==RECOVERY_WORKFLOW||run.head_branch!=='canary/rc74-4'||
   !sha40(run.head_sha)||run.status!=='completed'||run.conclusion!=='success')
   fail('RUN_IDENTITY_INVALID');
- requireRecent(run.created_at,nowMs);
+ requireRecent(run.created_at,nowMs,maxAgeMs);
  // An earlier verified backup is allowed only if it is an ancestor of the
  // EXACT source being promoted. A different repo/branch/source is forbidden.
  const compare=await readJson(api+'/compare/'+run.head_sha+'...'+sourceSha,githubToken,fetchImpl);
