@@ -244,19 +244,21 @@ def validate_optional_role_archive(path):
 
 def publish_verified_archive(stage, destination, existed, *,
                              supports_replace_directory=None):
-    # Linux/POSIX can replace an existing EMPTY directory atomically. Windows
-    # cannot replace even an empty existing directory; keep the old, tested
-    # rollback for that one compatibility path. A destination that does not
-    # exist supports atomic rename on either OS.
+    # POSIX replaces an EMPTY directory atomically. Windows cannot replace
+    # an existing directory; and a mounted destination cannot be replaced
+    # even on POSIX. Keep the explicit rollback fallback for those cases.
     if supports_replace_directory is None:
         supports_replace_directory = os.name != "nt"
     require(not destination.is_symlink(), "RESTORE_DIR_SYMLINK_FORBIDDEN")
+    staging_inside_mount = stage.parent == destination
     if existed:
-        require(destination.is_dir() and not any(destination.iterdir()),
-                "RESTORE_DESTINATION_CHANGED")
+        require(destination.is_dir(), "RESTORE_DESTINATION_CHANGED")
+        contents = list(destination.iterdir())
+        require(contents == [stage] if staging_inside_mount
+                else not contents, "RESTORE_DESTINATION_CHANGED")
     else:
         require(not destination.exists(), "RESTORE_DESTINATION_CHANGED")
-    if not existed or supports_replace_directory:
+    if (not existed or supports_replace_directory) and not staging_inside_mount:
         # Staging is a sibling, so this is one same-filesystem namespace
         # operation. A crash cannot expose a partially moved file set.
         os.replace(stage, destination)
@@ -290,12 +292,18 @@ def unpack_tar(archive, directory):
     require(not existed or (base.is_dir() and not any(base.iterdir())),
             "RESTORE_DIR_NOT_EMPTY")
     require(base.parent.is_dir(), "RESTORE_PARENT_INVALID")
-    # Staging lives in a sibling private directory, NEVER under final output.
-    # This permits same-filesystem atomic rename on POSIX, and on Windows
-    # when the destination has not been created by the caller.
-    # Failed validation removes staging without changing final destination.
+    # A mount point or separate device must keep decrypted temporary bytes
+    # within the explicitly selected recovery volume. Replacing that root
+    # with os.replace is not portable and often returns EBUSY/EXDEV.
+    mounted_target = existed and (
+        os.path.ismount(base)
+        or base.stat().st_dev != base.parent.stat().st_dev
+    )
+    stage_parent = base if mounted_target else base.parent
+    # Sibling staging permits an atomic namespace commit. Mount targets
+    # instead retain the previous rollback implementation for compatibility.
     with tempfile.TemporaryDirectory(prefix=".m44-private-stage-",
-                                     dir=base.parent) as temp:
+                                     dir=stage_parent) as temp:
         stage = pathlib.Path(temp)
         os.chmod(stage, 0o700)
         present = set()
@@ -360,7 +368,9 @@ def unpack_tar(archive, directory):
             validate_optional_role_archive(stage / ROLE_FILE)
         # All members, hashes and optional role data must pass before a
         # single publish operation makes them visible.
-        publish_verified_archive(stage, base, existed)
+        publish_verified_archive(stage, base, existed,
+                                 supports_replace_directory=(
+                                     os.name != "nt" and not mounted_target))
     # No unverified snapshot is announced. This marker is only emitted
     # after staging and full publication have both succeeded.
     print("IBERFIT_OFFSITE_STORAGE_MANIFEST_BYTES_SHA256_VERIFIED")
