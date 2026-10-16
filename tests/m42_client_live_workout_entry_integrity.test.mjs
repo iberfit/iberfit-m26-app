@@ -100,7 +100,7 @@ test('M42: Cliente comienza entrenamiento y sale sin pantalla inglesa ni modal i
   startExecution(execution);
   const active=renderGuidedExecution({session,execution,catalog,role:'client'});
   assert.match(active,/data-session-live-state="active"/u);
-  assert.match(active,/data-session-live-quick-exit/u);
+  assert.match(active,/class="m26-session-live-quick-exit"/u);
   assert.match(active,/data-session-action="exit-session">Guardar y salir<\/button>/u);
   assert.doesNotMatch(active,/Leave workout|Live Workout/iu);
 
