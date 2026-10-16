@@ -1,6 +1,11 @@
 import { validateSessionProposal } from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
+const SESSION_DELIVERY_MODES=new Set(['guided','coach_led']);
+export function sessionDraftDeliveryMode(draft={}){
+  if(draft.deliveryMode==='guided'||draft.deliveryMode==='coach_led')return draft.deliveryMode;
+  return draft.deliveryOwnership==='coach_led'||draft.deliveryModality==='presencial'||draft.clientVisibilityLevel==='summary_only'?'coach_led':'guided';
+}
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
 function boundedNumber(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
 function text(value,fallback='',max=120){const out=String(value??fallback).trim();return out.slice(0,max)||String(fallback);}
@@ -12,7 +17,7 @@ function normalizePrescription(input={},fallback={}){return {
   targetRir:boundedNumber(input.targetRir,fallback.targetRir??3,{min:0,max:10}),
   alternativeId:input.alternativeId||fallback.alternativeId||null,
 };}
-export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),status:'draft',previewAccepted:false,blocks:[],revision:0};}
+export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50,deliveryMode='guided'}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');if(!SESSION_DELIVERY_MODES.has(deliveryMode))throw new Error('M26_SESSION_DELIVERY_MODE_INVALID');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),deliveryMode,status:'draft',previewAccepted:false,blocks:[],revision:0};}
 export function invalidateSessionPreview(draft){draft.previewAccepted=false;return draft;}
 export function addCatalogExercise(draft,exerciseId,catalog,prescription={}){const ex=catalog.get(exerciseId);if(!ex)throw new Error('M26_SESSION_EXERCISE_NOT_IN_CATALOG');if(draft.activeGroupId){const group=draft.blocks.find((b)=>b.id===draft.activeGroupId);if(!group)throw new Error('M26_SESSION_ACTIVE_GROUP_MISSING');group.prescriptions=group.prescriptions||{};if(!group.exerciseIds.includes(exerciseId)){group.exerciseIds.push(exerciseId);group.prescriptions[exerciseId]=normalizePrescription(prescription);}const limit=group.type==='biserie'?2:group.type==='triserie'?3:null;if(limit&&group.exerciseIds.length>=limit)delete draft.activeGroupId;return invalidateSessionPreview(draft);}draft.blocks.push({id:createM26Id(),type:'exercise',exerciseId,name:ex.name_es,sets:positiveInt(prescription.sets,3),...normalizePrescription(prescription)});return invalidateSessionPreview(draft);}
 export function addTrainingGroup(draft,type,exerciseIds=[]){if(!GROUP_TYPES.has(type))throw new Error('M26_SESSION_GROUP_INVALID');const id=createM26Id();const unique=[...new Set(exerciseIds)];draft.blocks.push({id,type,exerciseIds:unique,rounds:type==='tabata'?8:3,prescriptions:Object.fromEntries(unique.map((exerciseId)=>[exerciseId,normalizePrescription({})]))});draft.activeGroupId=id;invalidateSessionPreview(draft);return draft;}
@@ -40,7 +45,7 @@ export function duplicateSessionBlock(draft,blockId){
 }
 export function removeSessionBlock(draft,blockId){draft.blocks=draft.blocks.filter((block)=>block.id!==blockId);if(draft.activeGroupId===blockId)delete draft.activeGroupId;return invalidateSessionPreview(draft);}
 export function moveSessionBlock(draft,blockId,direction){const index=draft.blocks.findIndex((block)=>block.id===blockId);if(index<0)throw new Error('M26_SESSION_BLOCK_MISSING');const delta=direction==='up'?-1:direction==='down'?1:0;if(!delta)throw new Error('M26_SESSION_MOVE_INVALID');const target=index+delta;if(target<0||target>=draft.blocks.length)return draft;[draft.blocks[index],draft.blocks[target]]=[draft.blocks[target],draft.blocks[index]];return invalidateSessionPreview(draft);}
-export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}
+export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else if(field==='deliveryMode'){if(!SESSION_DELIVERY_MODES.has(value))throw new Error('M26_SESSION_DELIVERY_MODE_INVALID');draft.deliveryMode=value;}else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}
 export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,catalog}={}){const block=draft.blocks.find((item)=>item.id===blockId);if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');if(block.type==='exercise'){
   if(field==='sets')block.sets=positiveInt(value,block.sets||3);
   else if(['reps','tempo'].includes(field))block[field]=text(value,block[field],40);
@@ -58,6 +63,7 @@ export function acceptSessionPreview(draft,catalog){const check=validateSessionD
 export function validateSessionDraft(draft,catalog){
  const errors=[],seenBlocks=new Set();
  if(!draft?.clientId)errors.push('clientId');
+ if(draft?.deliveryMode!==undefined&&!SESSION_DELIVERY_MODES.has(draft.deliveryMode))errors.push('deliveryMode');
  if(!String(draft?.title||'').trim()||String(draft.title).length>120)errors.push('title');
  const duration=Number(draft?.durationMinutes);if(!Number.isInteger(duration)||duration<10||duration>240)errors.push('durationMinutes');
  if(!Array.isArray(draft?.blocks)||!draft.blocks.length||draft.blocks.length>100)errors.push('blocks');
@@ -88,6 +94,11 @@ export function buildPublishSessionCommand(draft,catalog,baseRevision=0){
  const check=validateSessionDraft(draft,catalog);if(!check.ok)throw new Error(`M26_SESSION_DRAFT_INVALID:${check.errors.join(',')}`);
  if(draft.previewAccepted!==true)throw new Error('M26_SESSION_PREVIEW_REQUIRED');
  const patch=structuredClone(draft);delete patch.activeGroupId;
+ const deliveryMode=sessionDraftDeliveryMode(draft);
+ patch.deliveryMode=deliveryMode;
+ patch.deliveryOwnership=deliveryMode==='coach_led'?'coach_led':'client_autonomous';
+ patch.deliveryModality=deliveryMode==='coach_led'?'presencial':'guiada_en_app';
+ patch.clientVisibilityLevel=deliveryMode==='coach_led'?'summary_only':'full';
  patch.status='published';patch.visibleToClient=true;patch.publishedAt=new Date().toISOString();
  return {type:'SESION_PUBLICAR',entityType:'session',entityId:draft.id,clientId:draft.clientId,baseRevision,previewAccepted:true,payload:{patch}};
 }
