@@ -660,11 +660,11 @@ function renderClientHoyRoute(vm) {
         <span>Próxima cita</span>
         <strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong>
         <small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small>
-      </button>`:`<div class="m26-client-home-appointment" aria-label="Próxima cita">
+      </button>`:`<button type="button" data-m26-area="sesion" aria-label="Ver mis sesiones">
         <span>Próxima cita</span>
         <strong>Sin cita programada</strong>
         <small>Cuando tengas una cita, aparecerá aquí.</small>
-      </div>`}
+      </button>`}
       <button type="button" data-m26-area="planificacion"${planReady?` data-m26-client-guide="plan-entry"${planGuideEventKey?` data-m26-client-guide-event-key="${escapeHtml(planGuideEventKey)}"`:''}`:''}>
         <span>Tu plan</span>
         <strong>${escapeHtml(planName||'En preparación')}</strong>

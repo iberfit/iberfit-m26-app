@@ -119,11 +119,11 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
     clients:[{name:'Cliente de prueba'}],appointments:[],upcoming:[],
     rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
   const empty=renderRouteView(vm);
-  assert.match(empty,/m26-client-home-appointment/);
+  assert.match(empty,/<button type="button" data-m26-area="sesion" aria-label="Ver mis sesiones">/);
   assert.match(empty,/Sin cita programada/);
   assert.match(empty,/Cuando tengas una cita, aparecerá aquí\./);
   assert.doesNotMatch(empty,/Tu Coach la añadirá aquí/,'do not fabricate a future Coach booking');
-  assert.doesNotMatch(empty,/<button type="button" data-m26-area="sesion">\s*<span>Próxima cita<\/span>/,'empty calendar cannot be an actionable appointment');
+  assert.match(empty,/data-m26-area="sesion" aria-label="Ver mis sesiones"/,'existing Client session destination remains available without a fictitious booking');
   const withAppointment=renderRouteView({...vm,appointments:[{
     id:'appointment-confirmed',dateLabel:'17 oct · 11:00',title:'Sesión presencial',statusRaw:'confirmada',
   }]});
