@@ -69,6 +69,19 @@ test('out-of-order, malformed and unbounded timestamps are rejected',()=>{
   assert.throws(()=>measureOffsiteTimeline(o),/IBERFIT_M44_OFFSITE_TIMELINE_/);
  }
 });
+test('future or invalid observer clocks fail closed even if sequence seems valid',()=>{
+ const snapshot=fixture();
+ assert.throws(()=>measureOffsiteTimeline(snapshot,{nowMs:Date.parse('2026-10-16T10:42:00Z')}),
+   /EVENT_FROM_FUTURE/);
+ assert.throws(()=>measureOffsiteTimeline(snapshot,{nowMs:NaN}),
+   /CLOCK_INVALID/);
+ const far=fixture();
+ far.workflow.startedAt='2099-10-16T10:39:07Z';
+ far.workflow.finishedAt='2099-10-16T10:42:58Z';
+ far.drive.createdAt='2099-10-16T10:44:43.988Z';
+ far.drive.verifiedAt='2099-10-16T10:45:43.988Z';
+ assert.throws(()=>measureOffsiteTimeline(far),/EVENT_FROM_FUTURE/);
+});
 test('exact object schemas prevent unapproved metadata and secrets entering evidence',()=>{
  for(const mutation of [
   x=>{x.secret='NEVER-PERSIST-ME';},
