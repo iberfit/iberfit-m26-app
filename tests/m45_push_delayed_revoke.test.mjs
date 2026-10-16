@@ -8,7 +8,7 @@ function deferred(){
   return {promise,resolve};
 }
 
-function harness({unsubscribeOk=true}={}){
+function harness({unsubscribeOk=true,revokeOk=true}={}){
   const started=deferred(),finish=deferred();
   const initial='https://push.example.test/original-device';
   let current=initial;
@@ -23,7 +23,7 @@ function harness({unsubscribeOk=true}={}){
         recorded.push({action:'revoke',token,endpoint});
         started.resolve();
         await finish.promise;
-        return {ok:true,deletedCount:1};
+        return {ok:revokeOk,deletedCount:revokeOk?1:0};
       },
     },
     getToken:async()=> 'jwt-A',
@@ -130,4 +130,14 @@ test('M45 unsuccessful local unsubscribe never confirms device push deactivation
   await assert.rejects(()=>pending,/M26_PUSH_UNSUBSCRIBE_NOT_CONFIRMED/);
   assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
   assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,1);
+});
+
+test('M45 disable-current refuses unconfirmed server revoke without unsubscribing browser',async()=>{
+  const h=harness({revokeOk:false});
+  const pending=h.coordinator.disableCurrent();
+  await h.started.promise;
+  h.finish.resolve();
+  await assert.rejects(()=>pending,/M26_PUSH_REVOKE_NOT_CONFIRMED/);
+  assert.equal(h.recorded.filter(x=>x.action==='revoke').length,1);
+  assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
 });
