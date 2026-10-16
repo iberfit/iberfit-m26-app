@@ -1,5 +1,27 @@
 import { spawnSync } from 'node:child_process';import fs from 'node:fs';import path from 'node:path';
-const root=process.cwd();const steps=[];function run(name,command,args){const result=spawnSync(command,args,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe']});steps.push({name,command:[command,...args].join(' '),status:result.status,stdout:result.stdout,stderr:result.stderr,ok:result.status===0});process.stdout.write(result.stdout||'');process.stderr.write(result.stderr||'');if(result.status!==0)throw new Error(`RC29_VALIDATION_FAILED:${name}`);return result.stdout;}
+// The full RC29 test suite can emit over Node's spawnSync default 1 MiB
+// stdout cap. This is a CLI validation task; keep a bounded but realistic
+// capture limit and surface the exit mechanism, never private child output.
+const MAX_RC29_OUTPUT_BYTES=64*1024*1024;
+const root=process.cwd();
+const steps=[];
+function run(name,command,args){
+ const result=spawnSync(command,args,{
+  cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe'],
+  maxBuffer:MAX_RC29_OUTPUT_BYTES
+ });
+ const ok=result.status===0&&!result.error;
+ steps.push({name,command:[command,...args].join(' '),status:result.status,ok});
+ process.stdout.write(result.stdout||'');
+ process.stderr.write(result.stderr||'');
+ if(!ok){
+  const cause=result.error?.code||
+   (result.signal?'SIGNAL_'+result.signal:
+    Number.isInteger(result.status)?'EXIT_'+result.status:'UNKNOWN');
+  throw new Error('RC29_VALIDATION_FAILED:'+name+':'+cause);
+ }
+ return result.stdout;
+}
 run('repository-hygiene','node',['scripts/remote-gates/check_repository_hygiene.mjs']);
 const testFiles=fs.readdirSync(path.join(root,'tests')).filter((name)=>name.endsWith('.test.mjs')).sort().map((name)=>`tests/${name}`);
 const testOutput=run('tests','node',['--test',...testFiles]);

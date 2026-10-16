@@ -25,11 +25,11 @@ test('smoke autenticado cubre Chromium, WebKit y Firefox sin acoplar CPU throttl
   assert.match(config,/authenticated-readonly-webkit/u);
   assert.match(config,/authenticated-readonly-mobile-webkit/u);
   assert.match(config,/authenticated-readonly-firefox/u);
-  assert.match(workflow,/actions\/cache@v4/u);
-  assert.match(workflow,/playwright install-deps chromium webkit firefox/u);
-  assert.match(workflow,/cache-hit != 'true'/u);
-  assert.match(workflow,/playwright install chromium webkit firefox/u);
-  assert.doesNotMatch(workflow,/playwright install --with-deps/u);
+    assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,'remote: SHA-pinned Playwright image required');
+    assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+    assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
+    assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+    assert.doesNotMatch(workflow,/playwright install --with-deps/u);
   assert.match(spec,/browserName==='chromium'/u);
   assert.match(spec,/if\(chromiumEngine\)/u);
   assert.match(spec,/newCDPSession\(page\)/u);
