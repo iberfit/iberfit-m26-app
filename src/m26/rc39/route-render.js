@@ -185,7 +185,7 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
   const experience=experienceFor(item,role,contractModality);
   const supervised=item.ownership==='coach_led'||item.ownership==='live_online';
-  const canInspect=role!=='client'||(!supervised&&item.visibility==='full');
+  const canInspect=role!=='client'||(item.visible===true&&!supervised&&item.visibility==='full');
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
   const content=detailAvailable
     ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
@@ -280,7 +280,7 @@ function renderCoachToday(vm){
     return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(new Date(item.startAt))===todayKey;
   });
   const list=todayAppointments.length?todayAppointments.map((appointment)=>{
-    const projection=items.find((item)=>item.appointmentId===appointment.id);
+    const projection=items.find((item)=>item.appointmentId===appointment.id&&(vm.role!=='client'||item.visible===true));
     return projection?sessionCard(projection,vm.role,contractModality,vm.sessionPreviewAssets||{}):`<article class="m26-list-card"><div><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</article>`;
   }).join(''):`<section class="m26-empty"><h3>Sin citas para hoy</h3><p>La agenda no contiene sesiones programadas para este día.</p></section>`;
   return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Hoy en IBERFIT'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section><section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
@@ -405,7 +405,7 @@ function renderAgenda(vm){
 
   const cards=appointments.length
     ?appointments.map((appointment)=>{
-      const item=projections.find((projection)=>projection.appointmentId===appointment.id);
+      const item=projections.find((projection)=>projection.appointmentId===appointment.id&&(!isClient||projection.visible===true));
       return item
         ?sessionCard(item,role,contractModality,vm.sessionPreviewAssets||{})
         :renderAgendaStandaloneCard(appointment,role);
