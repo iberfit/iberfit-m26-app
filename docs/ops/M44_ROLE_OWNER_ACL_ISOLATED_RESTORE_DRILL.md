@@ -63,3 +63,5 @@ La prueba sintética conserva además una concesión `SELECT(content)` **únicam
 La matriz se comprueba en origen ficticio, restauración completa y restauración por replay selectivo. El primer restore con `--no-acl` tiene que negar la lectura del actor con concesión por columna. El catálogo sintético pasa de siete a doce propiedades verificadas, incorporando capacidades explícitas de ambos roles.
 
 Esta prueba demuestra que el `pg_dump` sintético conserva esas ACL y que se pueden reproducir en PostgreSQL 17. **No llena automáticamente las lagunas del catálogo de huellas v1 de una copia real**; esas verificaciones siguen pendientes, al igual que la continuidad operativa Auth/Storage/Vault y los accesos por rol de IBERFIT en un destino recuperado.
+
+Como protección adicional frente a falsos positivos, el control de lectura por columna exige **exactamente una fila visible**, no solo que el último valor devuelto coincida. Después de las pruebas DML se valida en cada base ficticia la identidad y el contenido exacto de ambas filas; una actualización que hubiera escapado a un `ROLLBACK` causaría fallo cerrado aunque el recuento continuase siendo dos.
