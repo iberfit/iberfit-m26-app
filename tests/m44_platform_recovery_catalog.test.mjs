@@ -24,6 +24,9 @@ test('exact catalog parity is only a necessary property, not platform recovery c
  const x=certifyPlatformCatalog(src,dst);
  assert.equal(x.catalogParity,true);
  assert.equal(x.platformRecoveryVerified,false);
+ assert.equal(x.schemaAclVerified,false);
+ assert.equal(x.columnAclVerified,false);
+ assert.equal(x.effectivePrivilegesVerified,false);
  assert.equal(x.requiresIndependentRestore,true);
 });
 test('role grants, policies, function owners and migration drift deny parity individually',()=>{
