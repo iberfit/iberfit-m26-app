@@ -163,7 +163,7 @@ check_cluster() {
     AND m.inherit_option)::int
  ) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='iberfit_m44_fresh_fixture' AND c.relname='rows';")" || return 1
- [[ "$structure" == '1,1,1,1,1,1,1' ]] || return 1
+ [[ "$structure" == '1,1,1,1,1,1,1' ]] || { echo 'IBERFIT_M44_FRESH_CLUSTER_STRUCTURAL_ACL_MISMATCH' >&2; return 1; }
  # Record *effective* execution rights and the dangerous owner/security
  # combination without printing function bodies or private SQL.
  privileges="$(sql "$db" -c "
@@ -179,23 +179,24 @@ check_cluster() {
    WHERE x.grantee=0 AND x.privilege_type='EXECUTE'))::int
  ) FROM pg_proc p
  WHERE p.oid='iberfit_m44_fresh_fixture.visible_row_count()'::regprocedure;")" || return 1
- [[ "$privileges" == '1,1,1,1,1,1,1' ]] || return 1
+ [[ "$privileges" == '1,1,1,1,1,1,1' ]] || { echo 'IBERFIT_M44_FRESH_CLUSTER_FUNCTION_SECURITY_MISMATCH' >&2; return 1; }
  noaccess="$(sql "$db" -c "
  SELECT concat_ws(',',
   (NOT rolcanlogin)::int,(NOT rolbypassrls)::int,(NOT rolsuper)::int)
  FROM pg_roles WHERE rolname LIKE 'iberfit_m44_fresh_%'
  ORDER BY rolname;")" || return 1
- [[ "$(printf '%s\n' "$noaccess" | grep -cx '1,1,1')" == 4 ]] || return 1
+ [[ "$(printf '%s\n' "$noaccess" | grep -cx '1,1,1')" == 4 ]] || { echo 'IBERFIT_M44_FRESH_CLUSTER_ROLE_CAPABILITIES_MISMATCH' >&2; return 1; }
  count="$(sql "$db" -c 'SET ROLE iberfit_m44_fresh_reader; SELECT count(*) FROM iberfit_m44_fresh_fixture.rows;')" || return 1
  [[ "${count##*$'\n'}" == 1 ]] || return 1
  member="$(sql "$db" -c 'SET ROLE iberfit_m44_fresh_coach; SELECT count(*) FROM iberfit_m44_fresh_fixture.rows;')" || return 1
  [[ "${member##*$'\n'}" == 1 ]] || return 1
  definer="$(sql "$db" -c 'SET ROLE iberfit_m44_fresh_coach; SELECT iberfit_m44_fresh_fixture.visible_row_count();')" || return 1
- [[ "${definer##*$'\n'}" == 1 ]] || return 1
+ [[ "${definer##*$'\n'}" == 1 ]] || { echo 'IBERFIT_M44_FRESH_CLUSTER_ALLOWED_FUNCTION_EXEC_FAILED' >&2; return 1; }
  # SELECT is denied at function permission, not only at RLS or schema level.
  for forbidden in iberfit_m44_fresh_reader iberfit_m44_fresh_intruder; do
   if sql "$db" -c "SET ROLE $forbidden; SELECT iberfit_m44_fresh_fixture.visible_row_count();" \
        > "$work/negative-execute-private.log" 2>&1; then
+    echo 'IBERFIT_M44_FRESH_CLUSTER_FORBIDDEN_FUNCTION_EXEC_SUCCEEDED' >&2
     return 1
   fi
   grep -qi 'permission denied for function' "$work/negative-execute-private.log" || return 1
