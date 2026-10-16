@@ -103,9 +103,9 @@ export async function verifyIndependentOffsiteRecovery({
  // A private file inside a shared ancestor is not independent private custody.
  // Resolve the actual authenticated owner's My Drive root; never trust a
  // caller-provided root ID or an omitted parents field as evidence.
- const fields='id,mimeType,shared,trashed,driveId,parents,permissions(type,role,emailAddress)';
+ const folderFields='id,mimeType,shared,trashed,driveId,parents,permissions(type,role,emailAddress)';
  const driveApi='https://www.googleapis.com/drive/v3/files/';
- const root=await readJson(driveApi+'root?fields='+encodeURIComponent(fields),driveAccessToken,fetchImpl);
+ const root=await readJson(driveApi+'root?fields='+encodeURIComponent(folderFields),driveAccessToken,fetchImpl);
  const ownerOnly=(item,id)=>item?.id===id&&item.mimeType==='application/vnd.google-apps.folder'&&
   item.shared===false&&item.trashed===false&&item.driveId==null&&
   Array.isArray(item.permissions)&&item.permissions.length===1&&
@@ -120,7 +120,7 @@ export async function verifyIndependentOffsiteRecovery({
   if(visited.size>=MAX_DEPTH)fail('DRIVE_ANCESTRY_DEPTH_EXCEEDED');
   visited.add(currentFolderId);
   const folder=await readJson(driveApi+encodeURIComponent(currentFolderId)+
-   '?fields='+encodeURIComponent(fields),driveAccessToken,fetchImpl);
+   '?fields='+encodeURIComponent(folderFields),driveAccessToken,fetchImpl);
   if(!ownerOnly(folder,currentFolderId))fail('DRIVE_FOLDER_CUSTODY_INVALID');
   if(!Array.isArray(folder.parents)||folder.parents.length!==1||
      typeof folder.parents[0]!=='string'||!folder.parents[0])
