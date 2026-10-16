@@ -5,6 +5,14 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE360: Admin agenda human-first identity, format and empty-state copy.
+  ['Fecha y hora','Date and time','Date et heure','Data e hora'],
+  ['Cliente sin identificar','Unidentified client','Client non identifié','Cliente não identificado'],
+  ['Sin Coach indicado','No Coach specified','Aucun Coach indiqué','Sem Coach indicado'],
+  ['No indicada','Not specified','Non indiquée','Não indicada'],
+  ['Modalidad','Format','Modalité','Modalidade'],
+  ['Agenda global','Organization-wide agenda','Agenda générale','Agenda global'],
+  ['Supervisa todas las citas y modalidades.','Review appointments and their formats.','Suivez les rendez-vous et leurs modalités.','Acompanhe as marcações e modalidades.'],
   // M44: withdrawn-version reason is an interactive Coach/Admin field, not report copy.
   ['Indica por qué se retira esta versión','Explain why this version is being withdrawn',
    'Indiquez pourquoi cette version est retirée',
