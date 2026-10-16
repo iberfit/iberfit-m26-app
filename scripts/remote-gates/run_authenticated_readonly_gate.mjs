@@ -116,19 +116,29 @@ for(const session of sessions){
     const reportedRole=normalizeRegistryRole(assurance?.privilegedRole);
     if(
       assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
-      assurance?.webauthnRequired!==true||
-      typeof assurance?.credentialEnrolled!=='boolean'||
+      assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==false||
       assurance?.emailOtpAvailable!==true||
       assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
       assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||reportedRole!=='coach'
     ){
-      throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
+      // Fixed-label diagnostics only: no values, identities, credentials or tokens.
+      // Keep all existing assurance requirements unchanged and fail closed.
+      const failedChecks=[
+        ['response',assurance?.ok!==true],
+        ['privileged',assurance?.privileged!==true],
+        ['mfaRequired',assurance?.mfaRequired!==true],
+        ['webauthnRequired',assurance?.webauthnRequired!==true],
+        ['credentialUnenrolled',assurance?.credentialEnrolled!==false],
+        ['emailOtpAvailable',assurance?.emailOtpAvailable!==true],
+        ['assuranceRequired',assurance?.iberfitAssurance!=='required'],
+        ['aal1',assurance?.supabaseAal!=='aal1'],
+        ['canaryOrigin',assurance?.origin!==CANARY_ORIGIN],
+        ['canaryRp',assurance?.rpId!=='m26-canary.iberfit.cl'],
+        ['coachRole',reportedRole!=='coach'],
+      ].filter((entry)=>entry[1]).map((entry)=>entry[0]);
+      throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED:'+failedChecks.join(','));
     }
 
-    // Enrollment is a user-scoped server fact, not authorization. An isolated QA
-    // Coach may have an enrolled credential after a real ceremony; both boolean
-    // states MUST retain required assurance, AAL1 and a 403 primary bootstrap.
-    // Never accept undefined/string/truthy values or infer WebAuthn verification.
     // A privileged AAL1 coach must not be allowed through the primary bootstrap.
     // The bootstrap becomes readable only after IBERFIT privileged assurance is established.
     const bootstrapResult=await rpcResult('iberfit_bootstrap_v26',session.token,{});
@@ -149,7 +159,7 @@ for(const session of sessions){
     roles.push({
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
       canaryActive:null,environmentName:environment.environment,privacy:null,
-      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:assurance.credentialEnrolled,webauthnRequired:true,emailOtpAvailable:true,
+      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
       primaryAuthRead:{
         ok:true,status:403,expectedBlocked:true,code:bootstrapCode,message:bootstrapMessage,
