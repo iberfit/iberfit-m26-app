@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   evaluateRequiredChecks,
   requiredChecksForFiles,
@@ -127,4 +128,53 @@ test('M43 stale cancelled/neutral checks wait for a new Ready attempt but cannot
     ]);
     assert.equal(result.state,'failure',conclusion);
   }
+});
+
+
+test('RC39 cambios de sesión activan el gate especializado y conservan los gates existentes',()=>{
+  const expected=['validate','targeted-preflight','audit-read-only','device-experience-gate-phase-a',
+    'offline','browser-live-workout','qa-readonly'];
+  for(const file of [
+    'src/m26/rc39/route-render.js',
+    'src/m26/rc39/session-policy.js',
+  ]){
+    assert.deepEqual(names([file]),expected,file);
+  }
+  assert.deepEqual(names(['tests/canary_session_preview_role_experience.test.mjs']),
+    ['validate','targeted-preflight','audit-read-only','offline','browser-live-workout','qa-readonly']);
+  assert.deepEqual(names(['.github/workflows/session-qa-isolated.yml']),
+    ['validate','targeted-preflight','offline','browser-live-workout','qa-readonly']);
+});
+
+test('los disparadores Session QA cubren las rutas exigidas y mantienen el mutex de QA',()=>{
+  const source=fs.readFileSync('.github/workflows/session-qa-isolated.yml','utf8');
+  for(const path of [
+    'src/m26/rc39/route-render.js',
+    'src/m26/rc39/session-policy.js',
+    'tests/canary_session_preview_role_experience.test.mjs',
+  ]){
+    assert.ok(source.includes("- '"+path+"'"),'missing Session QA trigger: '+path);
+  }
+  assert.match(source,/group: iberfit-qa-shared-auth-readonly\s+queue: max\s+cancel-in-progress: false/u);
+  assert.match(source,/environment: m26-canary-readonly/u);
+});
+
+test('la certificacion RC39 no queda verde con Session QA ausente, incompleta o roja',()=>{
+  const required=names(['src/m26/rc39/route-render.js']);
+  const base=required.filter(name=>!['offline','browser-live-workout','qa-readonly'].includes(name))
+    .map((name,index)=>({id:index+1,name,status:'completed',conclusion:'success'}));
+  const absent=evaluateRequiredChecks(required,base);
+  assert.equal(absent.state,'pending');
+  assert.deepEqual([...absent.pending],['offline','browser-live-workout','qa-readonly']);
+  const two=[{id:20,name:'offline',status:'completed',conclusion:'success'},
+    {id:21,name:'browser-live-workout',status:'completed',conclusion:'success'}];
+  const missing=evaluateRequiredChecks(required,[...base,...two]);
+  assert.equal(missing.state,'pending');
+  assert.deepEqual([...missing.pending],['qa-readonly']);
+  const failed=evaluateRequiredChecks(required,[...base,...two,
+    {id:22,name:'qa-readonly',status:'completed',conclusion:'failure'}]);
+  assert.equal(failed.state,'failure');
+  const green=evaluateRequiredChecks(required,[...base,...two,
+    {id:23,name:'qa-readonly',status:'completed',conclusion:'success'}]);
+  assert.equal(green.state,'success');
 });
