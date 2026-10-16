@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {navigationForRole} from '../src/m26/shell/navigation.js';
+import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 
 const coverage=JSON.parse(fs.readFileSync(new URL('../qa/visual/signature-360-coverage.json',import.meta.url),'utf8'));
 const roles=['client','coach','admin'];
@@ -68,4 +69,40 @@ test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',(
   assert.match(css,/\.m26-client-bottom-nav-item:focus-visible/,'keyboard focus must remain visible');
   assert.match(css,/box-shadow:inset 0 2px 0 #C5A059/,'existing M41 active-state signature is retained');
   assert.doesNotMatch(css,/gradient\(/,'Client dock should remain matte');
+});
+
+test('Signature360 Admin agenda displays people, ownership and localized dates, not raw UUIDs',()=>{
+  const vm={
+    admin:true,kind:'admin-agenda',
+    organization:{timezone:'America/Santiago',locale:'es-CL'},
+    appointments:[{
+      startAt:'2026-10-16T15:30:00Z',
+      clientId:'uuid-client-123',
+      clientName:'Ana Pérez',
+      coachName:'Coach Roberto',
+      modality:'presencial',
+      status:'scheduled',
+    }],
+  };
+  const html=renderAdminRoute(vm);
+  for(const text of ['Agenda global','Fecha y hora','Cliente','Coach','Modalidad','Estado','Ana Pérez','Coach Roberto','presencial']){
+    assert.ok(html.includes(text),text);
+  }
+  assert.doesNotMatch(html,/<td>uuid-client-123<\/td>/,'technical ID cannot be the primary attendee label');
+  assert.doesNotMatch(html,/2026-10-16T15:30:00Z/,'render should use organization-local date');
+  const missing=renderAdminRoute({...vm,appointments:[{
+    clientId:'missing-client',status:'scheduled',
+    clientName:'',coachName:'',startAt:null,
+  }]});
+  assert.ok(missing.includes('Cliente sin identificar'));
+  assert.ok(missing.includes('Sin Coach indicado'));
+  assert.ok(missing.includes('missing-client'),'missing identity keeps a traceable secondary reference');
+  assert.ok(missing.includes('Fecha por confirmar'));
+  const unsafe=renderAdminRoute({...vm,appointments:[{
+    clientName:'<img src=x onerror=alert(1)>',coachName:'<script>alert(1)</script>',
+    modality:'online',status:'scheduled',
+  }]});
+  assert.doesNotMatch(unsafe,/<img src=x onerror/);
+  assert.doesNotMatch(unsafe,/<script>alert\(1\)<\/script>/);
+  assert.match(unsafe,/&lt;img/);
 });
