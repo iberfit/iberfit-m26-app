@@ -160,3 +160,11 @@ test('M45: malformed revoke row count cannot authorize browser unsubscribe',asyn
   await assert.rejects(()=>pending,/M45_PUSH_OWNERSHIP_NOT_CONFIRMED/);
   assert.equal(h.recorded.filter(x=>x.action==='unsubscribe').length,0);
 });
+
+test('M45 explains foreign endpoint without offering a false push deactivation receipt',async()=>{
+  const {__communicationControllerInternals}=await import('../src/m26/communication/controller.js');
+  const copy=__communicationControllerInternals.pushErrorMessage(new Error('M45_PUSH_OWNERSHIP_NOT_CONFIRMED'));
+  assert.match(copy,/no corresponde a tu cuenta activa/);
+  assert.match(copy,/No se ha eliminado/);
+  assert.doesNotMatch(copy,/Avisos desactivados/);
+});
