@@ -20,8 +20,8 @@ Estas duraciones NO SON el RTO (tiempo desde el desastre hasta recuperar la oper
 
 ## Contrato ejecutable
 
-- scripts/ops/m44_offsite_timeline_contract.mjs: acepta un JSON mínimo creado previamente a partir de metadatos verificados de GitHub y Drive, comprueba integridad SHA-256 declarada, tamaños, estado, privacidad y cronología. Rechaza eventos invertidos, campos extra, información sensible, symlinks, archivos enormes y malformados. Solo emite duraciones, con RTO/RPO y plataforma explícitamente NO CERTIFICADOS.
-- tests/m44_offsite_timeline_contract.test.mjs: seis pruebas sintéticas basadas en tiempos reales, con casos negativos de tampering, privacidad, timestamps y no relajación del gate de producción. Comando: node --test tests/m44_offsite_timeline_contract.test.mjs.
+- scripts/ops/m44_offsite_timeline_contract.mjs: acepta un JSON mínimo creado previamente a partir de metadatos verificados de GitHub y Drive, comprueba integridad SHA-256 declarada, tamaños, estado, privacidad y cronología. Rechaza eventos invertidos, relojes futuros, campos extra, información sensible, symlinks, archivos enormes y malformados. Solo emite duraciones, con RTO/RPO y plataforma explícitamente NO CERTIFICADOS.
+- tests/m44_offsite_timeline_contract.test.mjs: siete pruebas sintéticas basadas en tiempos reales, con casos negativos de tampering, privacidad, timestamps y no relajación del gate de producción. Comando: node --test tests/m44_offsite_timeline_contract.test.mjs.
 - Este script no autentica APIs por sí mismo ni descifra bytes: es una comprobación de coherencia de observaciones. La custodia y la integridad real se certifican separadamente mediante proveedores y SHA-256 del artefacto.
 
 ## Hitos necesarios para certificar los objetivos
