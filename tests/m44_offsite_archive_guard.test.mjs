@@ -323,3 +323,128 @@ test('mounted empty recovery directory stages internally and avoids atomic root 
   assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
  });
 });
+
+
+test('ZIP ciphertext is published only after complete same-filesystem staging and validation',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'original.zip');
+  fixture('zip-valid',zip);
+  const out=path.join(dir,'final.ibf');
+  const expected=sha256(await readFile(zip));
+  const py=[
+   'import importlib.util,os,pathlib,stat,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'link=guard.os.link',
+   'def inspect(source,target):',
+   ' source=pathlib.Path(source);target=pathlib.Path(target)',
+   ' assert source.parent==target.parent and not target.exists()',
+   ' assert source.name.startswith(".m44-cipher-stage-")',
+   ' assert source.read_bytes()[:8]==b"IBFBAK01"',
+   ' assert source.stat().st_mode&0o777==0o600',
+   ' return link(source,target)',
+   'guard.os.link=inspect',
+   'guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])'
+  ].join('\n');
+  const r=run('-c',py,guard,zip,expected,out);
+  assert.equal(r.status,0,r.output);
+  assert.match(r.output,/CIPHERTEXT_VERIFIED/);
+  assert.equal((await readFile(out)).subarray(0,8).toString(),'IBFBAK01');
+  assert.deepEqual((await readdir(dir)).sort(),['final.ibf','original.zip']);
+ });
+});
+test('ZIP atomic publication rejects concurrent destination and preserves its bytes',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'original.zip');
+  fixture('zip-valid',zip);
+  const out=path.join(dir,'final.ibf');
+  const expected=sha256(await readFile(zip));
+  const py=[
+   'import importlib.util,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'link=guard.os.link',
+   'def concurrent_create(source,target):',
+   ' pathlib.Path(target).write_bytes(b"operator-data")',
+   ' return link(source,target)',
+   'guard.os.link=concurrent_create',
+   'try:guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])',
+   'except FileExistsError:sys.exit(0)',
+   'sys.exit(61)'
+  ].join('\n');
+  const r=run('-c',py,guard,zip,expected,out);
+  assert.equal(r.status,0,r.output);
+  assert.equal((await readFile(out)).toString(),'operator-data');
+  assert.deepEqual((await readdir(dir)).sort(),['final.ibf','original.zip'],
+   'an aborted publication must remove only its own staged ciphertext');
+  assert.doesNotMatch(r.output,/CIPHERTEXT_VERIFIED/);
+ });
+});
+test('ZIP failed atomic hardlink publication cannot expose incomplete ciphertext',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'original.zip');
+  fixture('zip-valid',zip);
+  const out=path.join(dir,'final.ibf');
+  const expected=sha256(await readFile(zip));
+  const py=[
+   'import importlib.util,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'def failed_link(source,target):raise OSError("synthetic-link-not-supported")',
+   'guard.os.link=failed_link',
+   'try:guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(62)'
+  ].join('\n');
+  const r=run('-c',py,guard,zip,expected,out);
+  assert.equal(r.status,0,r.output);
+  await assert.rejects(stat(out),{code:'ENOENT'});
+  assert.deepEqual((await readdir(dir)).sort(),['original.zip']);
+  assert.doesNotMatch(r.output,/CIPHERTEXT_VERIFIED/);
+ });
+});
+test('ZIP verification and extraction use the SAME opened source even if path is replaced',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const original=path.join(dir,'original.zip');
+  const different=path.join(dir,'different.zip');
+  const moved=path.join(dir,'old-original.zip');
+  const out=path.join(dir,'final.ibf');
+  fixture('zip-valid',original);
+  fixture('zip-badmagic',different);
+  const expected=sha256(await readFile(original));
+  const py=[
+   'import importlib.util,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'klass=guard.zipfile.ZipFile',
+   'def swapped(file,*args,**kwargs):',
+   ' assert hasattr(file,"fileno"),"ZIP must be read from verified open inode"',
+   ' pathlib.Path(sys.argv[2]).rename(sys.argv[5])',
+   ' pathlib.Path(sys.argv[6]).rename(sys.argv[2])',
+   ' return klass(file,*args,**kwargs)',
+   'guard.zipfile.ZipFile=swapped',
+   'guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])'
+  ].join('\n');
+  const r=run('-c',py,guard,original,expected,out,moved,different);
+  assert.equal(r.status,0,r.output);
+  assert.match(r.output,/CIPHERTEXT_VERIFIED/);
+  assert.equal((await readFile(out)).subarray(0,8).toString(),'IBFBAK01');
+  assert.deepEqual((await readdir(dir)).sort(),['final.ibf','old-original.zip','original.zip']);
+ });
+});
+test('ZIP source symlinks are rejected before hashing and no destination is created',async()=>{
+ await sandbox(async dir=>{
+  const real=path.join(dir,'original.zip'),alias=path.join(dir,'alias.zip');
+  fixture('zip-valid',real);
+  await symlink(real,alias);
+  const out=path.join(dir,'final.ibf');
+  const r=run(guard,'unwrap',alias,sha256(await readFile(real)),out);
+  assert.notEqual(r.status,0);
+  await assert.rejects(stat(out),{code:'ENOENT'});
+  assert.deepEqual((await readdir(dir)).sort(),['alias.zip','original.zip']);
+ });
+});
