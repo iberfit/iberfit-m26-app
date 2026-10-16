@@ -135,6 +135,81 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('.m26-route').first()).toBeVisible({timeout:10_000});
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-shell'}));
 
+        // SIGNATURE 360: certify Client Hoy in the live authenticated surface.
+        // Stay on the synthetic read-only QA account; do not start a workout or write data.
+        const todayNav=page.locator('[data-m26-area="hoy"]:visible').first();
+        await expect(todayNav).toBeVisible({timeout:5_000});
+        await todayNav.click();
+        await expect(page.locator('.m26-client-home-v1')).toBeVisible({timeout:10_000});
+        const primaryAction=page.locator('.m26-client-home-primary-zone .m26-today-action.is-primary');
+        await expect(primaryAction).toBeVisible({timeout:5_000});
+        const layout=await page.evaluate(()=>{
+          const root=document.documentElement;
+          return {scrollWidth:root.scrollWidth,viewportWidth:root.clientWidth};
+        });
+        expect(layout.scrollWidth,'Client Hoy cannot cause horizontal document scrolling').toBeLessThanOrEqual(layout.viewportWidth+1);
+        const transitionMs=await primaryAction.evaluate((button)=>getComputedStyle(button)
+          .transitionDuration.split(',').map((value)=>{
+            const duration=String(value||'').trim();
+            const numeric=Number.parseFloat(duration);
+            if(!Number.isFinite(numeric))return Number.NaN;
+            if(duration.endsWith('ms'))return numeric;
+            if(duration.endsWith('s'))return numeric*1000;
+            return Number.NaN;
+          }));
+        expect(transitionMs.length,'At least one computed transition duration must be reported').toBeGreaterThan(0);
+        for(const milliseconds of transitionMs){
+          expect(Number.isFinite(milliseconds),'Reduced-motion duration must be a finite CSS time').toBe(true);
+          expect(milliseconds,'Reduced-motion accessibility allows at most one millisecond').toBeLessThanOrEqual(1);
+        }
+        const visibleDockLabels=page.locator('.m26-client-bottom-nav-label:visible');
+        if(await visibleDockLabels.count()){
+          // Range.getClientRects() is empty in Chromium 320px for the visible
+          // compact text slot even when its element has a nonzero painted height.
+          // Verify a real visible box, nonwrapping CSS and no vertical clipping.
+          // Horizontal overflow remains contained by the dock's ellipsis styling.
+          const labelMetrics=await visibleDockLabels.evaluateAll((labels)=>labels.map((label)=>{
+            const style=getComputedStyle(label);
+            const rect=label.getBoundingClientRect();
+            return {
+              label:label.textContent?.trim(),
+              whiteSpace:style.whiteSpace,
+              overflowX:style.overflowX,
+              textOverflow:style.textOverflow,
+              renderedHeight:rect.height,
+              clientHeight:label.clientHeight,
+              scrollHeight:label.scrollHeight,
+              childElements:label.childElementCount,
+            };
+          }));
+          for(const label of labelMetrics){
+            expect(label.whiteSpace,`Dock caption must not wrap: ${label.label}`).toBe('nowrap');
+            expect(label.renderedHeight,`Dock label must be painted: ${label.label}`).toBeGreaterThan(0);
+            expect(label.clientHeight,`Dock label must reserve vertical space: ${label.label}`).toBeGreaterThan(0);
+            // A one-line glyph can produce a 1-2px scrollHeight excess on Chromium tablets.
+            // Preserve a strict text-only, nonwrapping label and reject true second-line
+            // overflow (~2x its painted height), without comparing pixel-rounded
+            // intrinsic glyph dimensions as if they were line counts.
+            expect(label.childElements,`Dock label must remain a single text-only caption: ${label.label}`).toBe(0);
+            expect(label.scrollHeight,`Dock label cannot hide a second line: ${label.label}`).toBeLessThanOrEqual(Math.ceil(label.clientHeight*1.25));
+            expect(label.overflowX,`Dock caption must not overflow its hit target: ${label.label}`).toBe('hidden');
+            expect(label.textOverflow,`Dock caption must have an accessible overflow fallback: ${label.label}`).toBe('ellipsis');
+          }
+          const planningNav=page.locator('button.m26-client-bottom-nav-item[data-m26-area="planificacion"]');
+          await expect(planningNav).toHaveAttribute('aria-label','Planificación');
+          if((projectUse.viewport?.width||0)<=690){
+            await expect(planningNav.locator('.m26-client-bottom-nav-label-compact')).toHaveText('Tu plan');
+          }
+        }
+        if((projectUse.viewport?.width||0)<=680){
+          const disclosure=page.locator('.m26-client-home-secondary-disclosure > summary');
+          const summaryDisplay=await disclosure.evaluate((node)=>getComputedStyle(node).display);
+          expect(summaryDisplay,'Mobile disclosure indicator needs a stable two-column layout').toBe('grid');
+        }
+
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
+
+
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
         await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();

@@ -81,7 +81,9 @@ test('Client Home opens sessions when training exists but no linked runnable app
 test('Client Home exposes only useful daily context and progressively discloses secondary destinations',()=>{
   const html=renderHoyRoute(vm());
   assert.match(html,/Próxima cita/u);
-  assert.match(html,/Por confirmar/u);
+  assert.match(html,/Sin cita programada/u);
+  assert.doesNotMatch(html,/Por confirmar/u,'an empty calendar must not imply a pending reservation');
+  assert.match(html,/data-m26-area="sesion" aria-label="Ver mis sesiones"/u);
   assert.match(html,/Tu plan/u);
   assert.match(html,/Fuerza Base/u);
   assert.doesNotMatch(html,/<span>Diagnóstico IRI<\/span>/u);
