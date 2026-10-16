@@ -83,7 +83,7 @@ function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
   const controls=confirmable
     ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="confirm-appointment" data-entity-id="${escapeHtml(item.id)}">Confirmar cita</button><small>Al confirmar será visible para el cliente.</small></div>`
     : startable
-      ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.sessionId)}">Iniciar entrenamiento</button><small>Abre la sesión publicada vinculada a esta cita.</small></div>`
+      ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.sessionId)}">Comenzar entrenamiento</button><small>Abre la sesión publicada vinculada a esta cita.</small></div>`
       : '';
   return `<article class="m26-list-card m26-appointment-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div><div class="m26-appointment-state">${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}${controls}</div></article>`;
 }
@@ -2987,7 +2987,7 @@ export function renderExpedienteRoute(vm) {
           class="${prep.reviewRequired?'m26-text-action':'m26-primary-action'}"
           data-workflow-action="start-published-session"
           data-entity-id="${escapeHtml(prep.session.id)}"
-        >Iniciar sesión preparada</button>`
+        >Comenzar entrenamiento preparado</button>`
       :prep?.session?.id
         ?`<button type="button" class="m26-text-action" data-m26-area="sesion">Revisar sesión</button>`
         :`<button type="button" class="m26-text-action" data-workflow-action="open-session-builder">Preparar sesión</button>`;
@@ -4285,7 +4285,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
       ${reviewAction}
       ${builderAction}
       ${prep.reviewRequired?'':'<button type="button" data-m26-area="expediente">Abrir expediente completo</button>'}
-      ${canStartSession&&canReusePrepared?`<button type="button" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(session.id)}">Iniciar sesión preparada</button>`:''}
+      ${canStartSession&&canReusePrepared?`<button type="button" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(session.id)}">Comenzar entrenamiento preparado</button>`:''}
     </div>
     <p class="m26-data-footnote">${escapeHtml(prep.safety.note)} La revisión del Coach es obligatoria antes de convertir este contexto en una decisión.</p>
   </section>`;
