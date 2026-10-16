@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createExecution} from '../src/m26/workflows/session-execution.js';
+import {createExecution,startExecution,pauseExecution} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution,sessionDurationConsistency} from '../src/m26/workflows/session-ui.js';
 import {sessionCommandFailureOutcome} from '../src/m26/workflows/session-sync-recovery-ui.js';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
@@ -89,4 +89,29 @@ test('M42: remote-ACK start is not turned into failure by local checkpoint failu
   assert.match(start,/context\.actionState\.message='Entrenamiento iniciado y confirmado/u);
   assert.match(start,/if\(context\?\.execution\?\.status==='active'\)/u);
   assert.match(start,/return true;/u);
+});
+
+test('M42: Cliente comienza entrenamiento y sale sin pantalla inglesa ni modal invasivo',()=>{
+  const execution=createExecution({session,clientId,executionId:'10000000-0000-4000-8000-000000000299'});
+  const ready=renderGuidedExecution({session,execution,catalog,role:'client'});
+  assert.match(ready,/data-session-action="start">Comenzar entrenamiento<\/button>/u);
+  assert.doesNotMatch(ready,/Leave workout|>Iniciar sesión<|Live Workout/iu);
+
+  startExecution(execution);
+  const active=renderGuidedExecution({session,execution,catalog,role:'client'});
+  assert.match(active,/data-session-live-state="active"/u);
+  assert.match(active,/data-session-live-quick-exit/u);
+  assert.match(active,/data-session-action="exit-session">Guardar y salir<\/button>/u);
+  assert.doesNotMatch(active,/Leave workout|Live Workout/iu);
+
+  pauseExecution(execution);
+  const paused=renderGuidedExecution({session,execution,catalog,role:'client'});
+  assert.match(paused,/data-session-live-state="paused"/u);
+  assert.match(paused,/data-session-action="exit-session">Guardar y salir<\/button>/u);
+  assert.doesNotMatch(paused,/Leave workout|Live Workout/iu);
+
+  const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  const exit=controller.slice(controller.indexOf("if(action==='exit-session')"),controller.indexOf("if(action==='exit-session')")+1150);
+  assert.ok(exit.indexOf('persistContext(context)')>=0);
+  assert.ok(exit.indexOf('persistContext(context)')<exit.indexOf('context.onExit'));
 });
