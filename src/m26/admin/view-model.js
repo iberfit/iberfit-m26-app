@@ -366,7 +366,23 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
     return Object.freeze({...common,kind:'admin-equipo',coaches,coachProfiles360,assignments,clients,canManage:adminCan(state.admin,ADMIN_CAPABILITIES.ASSIGNMENT_MANAGE)});
   }
   if(area==='admin-clientes')return Object.freeze({...common,kind:'admin-clientes',leads:Object.freeze(clone(adminCollection(state,'leads'))),clients:clientRows(state),coaches:Object.freeze(clone(adminCollection(state,'coachProfiles'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE)});
-  if(area==='admin-agenda')return Object.freeze({...common,kind:'admin-agenda',appointments:Object.freeze(clone(state.collections?.appointments||[])),coaches:Object.freeze(clone(adminCollection(state,'coachProfiles')))});
+  if(area==='admin-agenda'){
+    // Agenda already owns the organization-wide, authorized collections; resolve
+    // human labels here without adding network calls or exposing extra client fields.
+    const coaches=Object.freeze(clone(adminCollection(state,'coachProfiles')));
+    const clientsById=new Map((state.collections?.clients||[]).map((client)=>[
+      recordId(client?.id),String(client?.name||client?.nombre||'').trim(),
+    ]));
+    const coachesById=new Map(coaches.map((coach)=>[
+      recordId(coach?.userId||coach?.id),String(coach?.name||coach?.email||'').trim(),
+    ]));
+    const appointments=Object.freeze((state.collections?.appointments||[]).map((item)=>Object.freeze({
+      ...clone(item),
+      clientName:clientsById.get(appointmentClientId(item))||String(item?.clientName||item?.client_name||'').trim(),
+      coachName:coachesById.get(appointmentCoachId(item))||String(item?.coachName||item?.coach_name||'').trim(),
+    })));
+    return Object.freeze({...common,kind:'admin-agenda',appointments,coaches});
+  }
   if(area==='admin-operaciones')return Object.freeze({...common,kind:'admin-operaciones',tasks:Object.freeze(clone(adminCollection(state,'operationalTasks'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.OPERATION_MANAGE)});
   if(area==='admin-comunicacion')return Object.freeze({...common,kind:'admin-comunicacion',templates:Object.freeze(clone(adminCollection(state,'notificationTemplates'))),deliveries:Object.freeze(clone(adminCollection(state,'notificationDeliveries'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.MESSAGE_MANAGE_TEMPLATES)});
   if(area==='admin-automatizaciones')return Object.freeze({...common,kind:'admin-automatizaciones',rules:Object.freeze(clone(adminCollection(state,'automationRules'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.AUTOMATION_MANAGE)});
