@@ -20,3 +20,16 @@ El código de cifrado y sus pruebas están preparados. No existen todavía crede
 Para activar después de pruebas: credencial de acceso PROD exclusiva para copias como secret protegido; clave pública solamente en configuración de CI; programa programado desde la rama GitHub predeterminada (actualmente no coincide con canary/rc74-4); retención de máximo 3 días y máximo 24 MiB por archivo, con alerta/bloqueo si falla la cuota. El origen será siempre la referencia exacta de producción. Revisión de capacidad antes de automatizar.
 
 Nunca activar la programación a ciegas: en GitHub Free los artefactos y minutos tienen cuota, y el repositorio público no protege contra descargas de artefactos; la protección real depende del cifrado y custodia privada.
+
+
+## Organización privada en Google Drive · nombre de cada persona
+Ya existen, bajo `IBERFIT / 09 - Copias de seguridad`, dos directorios privados propiedad de IBERFIT:
+- `01 - Copia general cifrada IBERFIT` para el respaldo de la base completa y su manifiesto.
+- `02 - Copias cifradas por cliente` para respaldos **individuales comprobados**, cada uno dentro de una carpeta `Nombre Apellido · UUID del cliente`. El UUID evita fusionar por error dos personas con nombres idénticos.
+Cada paquete individual se denomina `Nombre Apellido · fecha-UTC · copia-cifrada.enc` y mantiene el cifrado de contenido.
+
+La identidad debe proceder de `public.clients.id` y `public.clients.name`, no de datos escritos a mano ni de una coincidencia por nombre. La clave privada está fuera de Google Drive. No se publican enlaces ni se comparte ninguna carpeta.
+
+**Aún no existen respaldos individuales en Drive.** Estas carpetas son exclusivamente una estructura ya creada. Un respaldo general no puede etiquetarse como si perteneciera a una sola persona: debe comprobarse `ONE_CLIENT`, su ID y el contenido segregado. Los informes IRI y de evolución conservarán sus carpetas funcionales, distintas de los archivos técnicos cifrados.
+
+No almacenar identificadores y nombres de clientes reales en el repositorio público o sus logs. Comprobar permisos e integridad antes de cualquier subida.
