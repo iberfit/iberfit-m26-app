@@ -48,3 +48,32 @@ test('classification errors do not disclose hashes or record payloads',()=>{
  catch(e){assert.match(e.message,/M44_PLATFORM_CATALOG_MISMATCH:policies/);
   assert.doesNotMatch(e.message,/0000000000000000|storage\.objects|@/);}
 });
+
+test('CLI validates distinct private catalog files without echoing paths or hashes',async()=>{
+ const {mkdtempSync,writeFileSync,rmSync}=await import('node:fs');
+ const os=await import('node:os'),path=await import('node:path');
+ const {spawnSync}=await import('node:child_process');
+ const dir=mkdtempSync(path.join(os.tmpdir(),'iberfit-m44-catalog-test-'));
+ try{
+  const a=path.join(dir,'source.json'),b=path.join(dir,'isolated.json');
+  const content=catalog();
+  writeFileSync(a,JSON.stringify(content),{mode:0o600});
+  writeFileSync(b,JSON.stringify(content),{mode:0o600});
+  const run=(...args)=>spawnSync(process.execPath,
+   ['scripts/ops/m44_platform_recovery_compare.mjs',...args],{encoding:'utf8',timeout:10000});
+  const ok=run(a,b);
+  assert.equal(ok.status,0,ok.stderr);
+  assert.match(ok.stdout,/IBERFIT_PLATFORM_CATALOG_PARITY_ONLY:true:hosted_auth_NOT_certified\n$/);
+  assert.equal(ok.stderr,'');
+  const denied=run(a,a);
+  assert.notEqual(denied.status,0);
+  assert.match(denied.stderr,/DISTINCT_FILES_REQUIRED/);
+  assert.doesNotMatch(denied.stderr,new RegExp(dir.replace(/[.*+?^$\{\}()|[\]\\]/g,'\\$&')));
+  const changed={...content,role_memberships:fakeHash(222)};
+  writeFileSync(b,JSON.stringify(changed),{mode:0o600});
+  const mismatch=run(a,b);
+  assert.notEqual(mismatch.status,0);
+  assert.match(mismatch.stderr,/M44_PLATFORM_CATALOG_MISMATCH:role_memberships/);
+  assert.doesNotMatch(mismatch.stderr,/0000000000000000/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
