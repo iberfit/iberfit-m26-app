@@ -33,6 +33,20 @@ Los datos de GitHub o Drive nunca deben aceptarse de una variable booleana, un o
 - Mantenga rollback de despliegue, tabla de migraciones y operaciones SQL trazables; no use un backup viejo como protección suficiente para escrituras posteriores.
 - En cada despliegue o prueba de recuperación, verifique explícitamente el proyecto de destino para **no escribir en PROD** durante el ensayo.
 
+## Evidencia de recuperación: dos niveles que no se deben confundir
+
+**Nivel 1: archivo externo.** La copia puede certificarse como `offsiteBytesVerified=true` cuando el run correcto, las pruebas de descifrado y el ZIP privado descargado coinciden en hash. Esta evidencia sigue siendo útil aunque el proyecto no pueda restaurarse enteramente.
+
+**Nivel 2: recuperación integral de la plataforma.** Solo podrá quedar en verde tras un ensayo adicional que demuestre roles/membresías, propietarios, privilegios/default ACL, políticas RLS, Auth y configuraciones operativas compatibles. Hasta entonces el código deja `platformRecoveryVerified=false` y **la ruta externa rechaza la autorización productiva con `M44_PROD_BACKUP_PLATFORM_RECOVERY_UNVERIFIED`**, aunque las verificaciones del Nivel 1 pasen. Ningún cambio de estado de un PR reemplaza un ensayo técnico.
+
+La ventana de prueba general del archivo es de hasta 48 horas, pero **el preflight de una migración productiva exige un backup externo de menos de 2 horas**. Además, hay que realizar y conservar una copia después de cualquier migración antes de considerar cerrada la ventana de reversión. Si la captura de Storage y PostgreSQL no ocurre en el mismo instante, documentar el punto de consistencia y los cambios concurrentes; no afirmar atomicidad distribuida.
+
+### Particularidades Supabase
+
+De acuerdo con [Supabase, Backup and Restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore), una migración de plataforma exige tratar **roles** de forma diferenciada, y la restauración de Vault hacia un nuevo proyecto debe considerar la clave raíz de cifrado. La [guía de backups](https://supabase.com/docs/guides/platform/backups) recuerda que los ficheros de Storage no forman parte del dump SQL y que las credenciales de roles personalizados deben restablecerse. No guardar claves raíz o contraseñas en texto plano ni en GitHub.
+
+**Criterio de aceptación operativo:** recuperar el respaldo desde Drive y la clave desde custodia independiente en un sandbox; ensayar Auth y sesiones representativas sin datos sensibles en logs; contrastar permisos y RLS con el inventario de origen; comprobar referencia de Storage sin errores; generar informe de certificación de RPO/RTO, versión y SHA. No crear nuevos proyectos Supabase de pago para la prueba.
+
 ## Promoción
 
 M44 tiene 12 migraciones presentes en QA y ausentes de PROD en este checkpoint. El workflow `production-promote.yml` no ejecuta esas migraciones: exige el esquema **ya aplicado** antes del frontend. No ejecutar una promoción parcial ni omitir esos gates.
