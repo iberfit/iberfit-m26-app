@@ -15,6 +15,8 @@ on:
       - 'tests/m44_storage_metadata_parity.test.mjs'
       - 'tests/m44_storage_full_recovery_workflow.test.mjs'
       - 'tests/m44_pgcustom_acl_archive_contract.test.mjs'
+      - 'scripts/ops/m44_acl_toc_selector.mjs'
+      - 'tests/m44_acl_toc_selector.test.mjs'
       - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
       - 'tests/m44_storage_backup_bytes_contract.test.mjs'
   push:
@@ -53,7 +55,8 @@ jobs:
             tests/m44_storage_metadata_parity.test.mjs \
             tests/m44_storage_full_recovery_workflow.test.mjs \
             tests/m44_role_globals_encrypted_backup.test.mjs \
-            tests/m44_pgcustom_acl_archive_contract.test.mjs
+            tests/m44_pgcustom_acl_archive_contract.test.mjs \
+            tests/m44_acl_toc_selector.test.mjs
 
   synthetic-restore:
     name: m44-synthetic-postgresql17-restore-proof
@@ -285,14 +288,13 @@ jobs:
           docker run --rm --network host \
             -v "$WORK/isolated:/work" postgres:17-alpine sh -c \
             'pg_restore --list /work/database.pgcustom > /work/acl-toc-private.list'
-          if ! grep -Eq '^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+ACL[[:space:]]' \
-               "$WORK/isolated/acl-toc-private.list" ||
-             ! grep -Eq '^[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+DEFAULT ACL[[:space:]]' \
-               "$WORK/isolated/acl-toc-private.list"; then
-            echo 'IBERFIT_PGCUSTOM_ROLE_ACL_OR_DEFAULT_PRIVILEGE_MISSING'
-            exit 52
-          fi
-          rm -f "$WORK/isolated/acl-toc-private.list"
+          # Construct a strictly allowlisted ACL-only TOC for a future
+          # isolated role reconciliation drill. Do NOT replay it in this
+          # first-stage data restore or against PROD/QA.
+          node scripts/ops/m44_acl_toc_selector.mjs \
+            "$WORK/isolated/acl-toc-private.list" \
+            "$WORK/isolated/acl-only-private.list"
+          rm -f "$WORK/isolated/acl-toc-private.list" "$WORK/isolated/acl-only-private.list"
           echo 'IBERFIT_PGCUSTOM_ACL_DEFAULTS_ARCHIVED_ENCRYPTED_ONLY'
           node scripts/ops/m44_storage_backup_bytes.mjs verify ignored "$WORK/isolated/storage"
           docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
