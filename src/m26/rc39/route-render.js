@@ -101,9 +101,6 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
       actions.push(`<button type="button" class="m26-rc39-button" data-rc39-action="open-change-request" data-appointment-id="${escape(item.appointmentId)}">Solicitar cambio</button>`);
     }
   }
-  if(role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)){
-    actions.push(`<button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento</button>`);
-  }
   if(role==='client'&&!experience.clientLiveWorkout&&['coach_led','live_online'].includes(item.ownership)){
     actions.push(`<span class="m26-session-supervised-state" aria-label="Sesión supervisada">${escape(experience.primaryLabel)}</span>`);
   }
@@ -196,8 +193,10 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     item.canClientExecute===true&&sessionIdOf(item.session)===String(item.id||'')&&
     actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment}));
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
+  const inPreviewStart=role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)
+    ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento</button></div>`:'';
   const content=detailAvailable
-    ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
+    ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}${inPreviewStart}</div></details>`
     : `<p class="m26-rc39-summary-copy">${supervised
        ?(item.ownership==='coach_led'?'Esta sesión la dirige tu Coach.':'La sesión se realiza en directo con tu Coach.')
        :'El detalle de esta sesión estará disponible cuando tu Coach lo habilite.'}</p>`;
@@ -506,15 +505,11 @@ function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
   const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
-  const executable=role==='client'&&vm.serviceActive!==false
-    ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout&&clientCanStartProjection(item))
-    :[];
-  const clientPrimary=executable.length===1
-    ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar entrenamiento · ${escape(executable[0].title)}">Comenzar entrenamiento · ${escape(executable[0].title)}</button>`
-    :'';
+  // Client follows one deliberate path: Ver sesión -> Comenzar entrenamiento.
+  // Do not duplicate or bypass the preview with a second header Start.
   const routePrimary=['coach','admin'].includes(role)
     ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
-    :clientPrimary;
+    :'';
   const empty=role==='client'
     ?'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
