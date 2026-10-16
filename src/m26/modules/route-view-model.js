@@ -47,6 +47,7 @@ import {
   publicationCounts,
 } from '../workflows/publication-workflow.js';
 import { clientContentView } from '../publication/client-content.js';
+import {clientSessionProjection} from '../rc39/session-policy.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -309,7 +310,7 @@ function publicationItems(records, entity, role) {
   // El servidor determina la publicación. Nunca renderizar una sesión retirada,
   // en borrador o con visibilidad revocada como entrenable para Cliente.
   const visibleRecords = role === 'client' && entity === 'session'
-    ? records.filter((record) => publicationSummary({entity, record, role}).visibleToClient)
+    ? records.filter((record) => publicationSummary({entity, record, role}).visibleToClient && clientSessionProjection(record).visible)
     : records;
   return visibleRecords.map((record) => {
     const clientContent = clientContentView(entity, record);
@@ -319,6 +320,7 @@ function publicationItems(records, entity, role) {
         clientId: text(record, 'clientId', 'client_id'),
         title: clientContent.title,
         clientContent,
+        ...(entity==='session'?{canClientExecute:clientSessionProjection(record).canClientExecute}:{}),
       });
     }
     return Object.freeze({
