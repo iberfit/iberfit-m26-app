@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sessionDraftSaveOutcome} from '../src/m26/workflows/session-controller.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 test('M42 fully persisted Coach draft confirms both durable destinations',()=>{
  const result=sessionDraftSaveOutcome({local:true,remote:true});
@@ -26,5 +27,17 @@ test('M42 missing or malformed persistence receipts fail closed',()=>{
   const result=sessionDraftSaveOutcome(persistence);
   assert.equal(result.status,'error');
   assert.match(result.message,/No se ha confirmado el guardado/);
+ }
+});
+
+test('M42 draft persistence notices are classified and translated into all four languages',()=>{
+ for(const persistence of [{local:true,remote:true},{local:true,remote:false},{local:false,remote:true},null]){
+  const {message}=sessionDraftSaveOutcome(persistence);
+  assert.equal(iberfitSurfaceTranslate(message,{language:'es'}),message);
+  for(const language of ['en','fr','pt']){
+   const translated=iberfitSurfaceTranslate(message,{language});
+   assert.equal(typeof translated,'string');
+   assert.notEqual(translated,message,`missing ${language} translation for ${message}`);
+  }
  }
 });
