@@ -656,11 +656,15 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
-      <button type="button" data-m26-area="sesion">
+      ${nextAppointment?`<button type="button" data-m26-area="sesion">
         <span>Próxima cita</span>
-        <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
-        <small>${escapeHtml(nextAppointment?.title||'Tu Coach la añadirá aquí')}</small>
-      </button>
+        <strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong>
+        <small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small>
+      </button>`:`<div class="m26-client-home-appointment" aria-label="Próxima cita">
+        <span>Próxima cita</span>
+        <strong>Sin cita programada</strong>
+        <small>Cuando tengas una cita, aparecerá aquí.</small>
+      </div>`}
       <button type="button" data-m26-area="planificacion"${planReady?` data-m26-client-guide="plan-entry"${planGuideEventKey?` data-m26-client-guide-event-key="${escapeHtml(planGuideEventKey)}"`:''}`:''}>
         <span>Tu plan</span>
         <strong>${escapeHtml(planName||'En preparación')}</strong>

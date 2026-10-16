@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {navigationForRole} from '../src/m26/shell/navigation.js';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
+import {renderRouteView} from '../src/m26/modules/route-render.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const coverage=JSON.parse(fs.readFileSync(new URL('../qa/visual/signature-360-coverage.json',import.meta.url),'utf8'));
@@ -109,6 +110,33 @@ test('Signature360 appointment states remain localized in ES/EN/FR/PT',()=>{
   for(const [es,en,fr,pt] of values){
     for(const [language,expected] of [['en',en],['fr',fr],['pt',pt]]){
       assert.equal(iberfitSurfaceTranslate(es,{language}),expected,`${language}: ${es}`);
+    }
+  }
+});
+
+test('Signature360 Client Hoy does not invent appointments when calendar is empty',()=>{
+  const vm={role:'client',kind:'hoy',serviceKind:'training',
+    clients:[{name:'Cliente de prueba'}],appointments:[],upcoming:[],
+    rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
+  const empty=renderRouteView(vm);
+  assert.match(empty,/m26-client-home-appointment/);
+  assert.match(empty,/Sin cita programada/);
+  assert.match(empty,/Cuando tengas una cita, aparecerá aquí\./);
+  assert.doesNotMatch(empty,/Tu Coach la añadirá aquí/,'do not fabricate a future Coach booking');
+  assert.doesNotMatch(empty,/<button type="button" data-m26-area="sesion">\s*<span>Próxima cita<\/span>/,'empty calendar cannot be an actionable appointment');
+  const withAppointment=renderRouteView({...vm,appointments:[{
+    id:'appointment-confirmed',dateLabel:'17 oct · 11:00',title:'Sesión presencial',statusRaw:'confirmada',
+  }]});
+  assert.match(withAppointment,/<button type="button" data-m26-area="sesion">\s*<span>Próxima cita<\/span>/);
+  assert.match(withAppointment,/17 oct · 11:00/);
+  assert.match(withAppointment,/Sesión presencial/);
+  assert.doesNotMatch(withAppointment,/Sin cita programada/);
+  for(const [spanish,en,fr,pt] of [
+    ['Sin cita programada','No appointment scheduled','Aucun rendez-vous prévu','Sem marcação agendada'],
+    ['Cuando tengas una cita, aparecerá aquí.','Your next appointment will appear here.','Votre prochain rendez-vous apparaîtra ici.','A sua próxima marcação aparecerá aqui.'],
+  ]){
+    for(const [locale,translation] of [['en',en],['fr',fr],['pt',pt]]){
+      assert.equal(iberfitSurfaceTranslate(spanish,{language:locale}),translation);
     }
   }
 });
