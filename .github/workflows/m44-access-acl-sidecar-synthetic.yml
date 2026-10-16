@@ -68,8 +68,12 @@ jobs:
           [[ "$ready" == true ]] || { echo 'M44_ACL_SIDECAR_PG17_START_FAILED'; exit 60; }
           sql postgres -c 'CREATE ROLE iberfit_m44_acl_sidecar_actor NOLOGIN' > /dev/null
           sql postgres -c 'CREATE DATABASE iberfit_m44_acl_sidecar_fixture' > /dev/null
+          sql postgres -c 'CREATE DATABASE iberfit_m44_acl_sidecar_restored' > /dev/null
           database=iberfit_m44_acl_sidecar_fixture
-          sql "$database" -c 'CREATE TABLE public.m44_acl_sidecar_fixture(id integer PRIMARY KEY, label text NOT NULL)' > /dev/null
+          restored=iberfit_m44_acl_sidecar_restored
+          for target in "$database" "$restored"; do
+            sql "$target" -c 'CREATE TABLE public.m44_acl_sidecar_fixture(id integer PRIMARY KEY, label text NOT NULL)' > /dev/null
+          done
           capture() {
             sql "$database" -f /acl.sql > "$1"
             chmod 600 "$1"
@@ -91,6 +95,22 @@ jobs:
           NODE
           }
           capture "$scratch/a.json"
+          # An isolated restore normally uses a DIFFERENT database name.
+          # Identical ACL and object structures must match irrespective of it.
+          sql "$restored" -f /acl.sql > "$scratch/renamed.json"
+          chmod 600 "$scratch/renamed.json"
+          node --input-type=module - "$scratch/a.json" "$scratch/renamed.json" <<'NODE'
+          import fs from 'node:fs';
+          import {compareAccessCatalog} from './scripts/ops/m44_platform_recovery_compare.mjs';
+          const original=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const renamed=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+          const result=compareAccessCatalog(original,renamed);
+          if(!result.aclSupplementParity || result.platformRecoveryVerified!==false){
+            process.stderr.write('M44_ACL_SIDECAR_DB_NAME_CHANGED_PARITY_FAILED\n');
+            process.exitCode=82;
+          }
+          NODE
+          echo 'IBERFIT_M44_ACL_SIDECAR_RENAMED_RESTORE_PARITY_VERIFIED'
           sql "$database" -c 'GRANT USAGE ON SCHEMA public TO iberfit_m44_acl_sidecar_actor' > /dev/null
           capture "$scratch/b.json"
           check_change "$scratch/a.json" "$scratch/b.json" schema_acl
