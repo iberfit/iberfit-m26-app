@@ -62,3 +62,12 @@ test('La pantalla real transporta catálogo y manifiesto desde el VM, sin mutar 
  assert.equal(vm.sessionPreviewAssets.catalog,exercises);
  assert.equal(vm.sessionPreviewAssets.mediaMap,null);
 });
+
+test('Una cita no resucita detalles de un entrenamiento retirado ni el botón de empezar',()=>{
+ const hidden={...item('guiada','guided_in_app','full'),visible:false,appointmentId:'apt-guided'};
+ const appointment={id:'apt-guided',title:'Entrenamiento con cita',startAt:'2026-10-21T15:00:00Z',status:'confirmada'};
+ const result=renderRc39Route({kind:'agenda',role:'client',serviceActive:true,selectedClient:{modality:'hibrido'},
+   rc39:{role:'client',appointments:[appointment],sessionProjections:[hidden]},sessionPreviewAssets:{catalog:exercises,mediaMap:null}});
+ assert.match(result,/Entrenamiento con cita/);
+ assert.doesNotMatch(result,/Press de pecho|data-rc39-session="guiada"|data-workflow-action="start-published-session"/);
+});
