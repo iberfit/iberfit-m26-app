@@ -1649,3 +1649,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-exercise-result-copy strong{color:var(--m26-cream-100,#f5f0e4)}
 .m26-exercise-result-copy small,.m26-exercise-result-copy em{color:var(--m26-cream-300,#c8c3b8)}
 @media(max-width:560px){.m26-builder-essentials{grid-template-columns:minmax(0,1fr)}}
+
+.m26-guided>header{flex-wrap:wrap}
+.m26-session-leave-action{min-height:44px;border:1px solid var(--m26-line,rgba(184,145,66,.28));border-radius:.7rem;padding:.55rem .85rem;background:transparent;color:var(--m26-cream-100,#f5f0e4)}
+.m26-session-leave-action:focus-visible{outline:2px solid var(--m26-gold-300,#dfbf7e);outline-offset:3px}
+@media(max-width:560px){.m26-guided>header>.m26-session-leave-action{width:100%}}
