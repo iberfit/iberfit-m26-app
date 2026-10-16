@@ -11,11 +11,12 @@ test('new Storage verifier is protected by pull-request tests and encrypted-only
  assert.match(workflow,/environment: m26-canary-readonly/);
 });
 test('two live PROD inventories enclose Storage byte download; fail before encrypting',()=>{
- const source=workflow.indexOf('> \/work/storage-inventory.json');
- const exportBytes=workflow.indexOf('m44_storage_backup_bytes.mjs export');
- const post=workflow.indexOf('> \/work/storage-post-inventory.json');
- const guard=workflow.indexOf('m44_storage_metadata_parity.mjs source');
- const encrypt=workflow.indexOf('m44_encrypted_backup_archive.mjs encrypt');
+ const production=workflow.slice(workflow.indexOf('name: m44-prod-db-storage-encrypted-backup-and-restore'));
+ const source=production.indexOf('> \/work/storage-inventory.json');
+ const exportBytes=production.indexOf('m44_storage_backup_bytes.mjs export');
+ const post=production.indexOf('> \/work/storage-post-inventory.json');
+ const guard=production.indexOf('m44_storage_metadata_parity.mjs source');
+ const encrypt=production.indexOf('m44_encrypted_backup_archive.mjs encrypt');
  assert.ok(source>0&&source<exportBytes&&exportBytes<post&&post<guard&&guard<encrypt);
  assert.match(workflow,/storage-inventory\.json[\s\S]*storage-post-inventory\.json platform-catalog-source\.json/);
 });
