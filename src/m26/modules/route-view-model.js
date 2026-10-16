@@ -306,7 +306,12 @@ function compactActivity(record) {
 }
 
 function publicationItems(records, entity, role) {
-  return records.map((record) => {
+  // El servidor determina la publicación. Nunca renderizar una sesión retirada,
+  // en borrador o con visibilidad revocada como entrenable para Cliente.
+  const visibleRecords = role === 'client' && entity === 'session'
+    ? records.filter((record) => publicationSummary({entity, record, role}).visibleToClient)
+    : records;
+  return visibleRecords.map((record) => {
     const clientContent = clientContentView(entity, record);
     if (role === 'client') {
       return Object.freeze({
