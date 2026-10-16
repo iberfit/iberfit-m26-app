@@ -1,7 +1,7 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
 **Inicio:** 16-10-2026. **Base exacta de trabajo:** Canary `656b9d2aaf6afaf43c0262f7979ba6e962a5a1f2`.
-**Estado inicial:** WIP aislado. **Destino único de aceptación:** `https://app.iberfit.cl` (PRODUCCIÓN), nunca solo un PR, commit, CI o Canary.
+**Estrategia aprobada:** ejecución integral con entregas independientes, pequeñas pero completas y certificadas hasta PROD. **Estado inicial:** WIP aislado. **Destino único de aceptación:** `https://app.iberfit.cl` (PRODUCCIÓN), nunca solo un PR, commit, CI o Canary.
 **Precedencia:** seguridad/autorización > integridad/no pérdida de datos > no bloqueos > funcionamiento > UX > rendimiento > belleza visual.
 **Fuente canónica existente:** `IBERFIT_NEXT_ULTRAPREMIUM_M41_M45_MASTER.md`, sistema M41, tokens de marca y QA del dispositivo. Este documento añade aceptación integral, no sustituye ni duplica esos contratos.
 
@@ -17,7 +17,7 @@ Paleta estrictamente acorde con `src/m26/design/tokens.css` / fuente de generaci
 
 Eliminar ruido **sin eliminar datos ni funcionalidades**: menos tarjetas anidadas, menos bordes redundantes, sin gradientes/neón/glow, sin hover/focus que mueva campos bajo el dedo. Definir y auditar jerarquía tipográfica, contraste, iconografía, estados y espacios; no introducir otra hoja "override final". Consolidar reglas existentes con evidencias de compatibilidad.
 
-### Cada pantalla y estado son parte de la entrega
+### Cada pantalla y estado son parte del programa
 El inventario machine-readable `qa/visual/signature-360-coverage.json` contiene **todas las rutas navegables por rol** del contrato actual. Un test Node obliga a actualizar el inventario si se modifica navegación. La presencia en inventario **NO equivale** a pantalla rediseñada ni certificada.
 
 Para **cada ruta** se exige matriz en móvil 320/390px, tablet 768/1024px y escritorio 1440px, además de dispositivo táctil real cuando corresponda. Capturar:
@@ -42,15 +42,15 @@ Frente de **solo experiencia y diseño**. No cambiar RLS, migraciones, backups, 
 
 Un cierre válido exige **las siete evidencias**:
 1. Integración de una macrounidad completa, sin funciones perdidas ni CSS duplicado; pruebas unitarias, integración, E2E, accesibilidad y visual.
-2. Auditoría de todos los roles y rutas del inventario, además de casos relevantes de diálogo/scroll/dispositivo, con evidencia independiente de aceptación. Inventario = cobertura, no aprobación.
+2. Auditoría de los tres roles y de las rutas **afectadas por el incremento**, incluyendo sus variantes de diálogo/scroll/dispositivo, con evidencia independiente de aceptación. Para declarar SIGNATURE 360 completo, todas las rutas inventariadas deben estar verificadas. Inventario = cobertura, no aprobación.
 3. PR final sobre `canary/rc74-4` rehecho contra SHA actual; branch protection y gates requeridos verdes, incluidos Device Experience y evidencia visual real autenticada.
 4. Merge exacto y **Canary realmente desplegado**, SHA certificado por `IBERFIT Canary Exact Deploy`, WebAuthn/QA real cuando sea aplicable; sin bloqueos conocidos.
 5. Promoción por la **pipeline existente** `.github/workflows/production-promote.yml`, basada en `release/prod-<SHA>` + `.iberfit/production-release.json`, con garantías de backup/rollback y autorización apropiada. NO desplegar manualmente al margen.
 6. Verificar por fuente confiable `https://app.iberfit.cl/m26/version.json` y artefactos de despliegue/rollback que PROD efectivamente sirve el SHA exacto esperado; smoke real de Cliente, Coach y Admin, PWA y navegación, sin mutar datos reales.
 7. Comparación postproducción de flujos críticos, métricas de error/rendimiento y confirmación de que la recuperación sigue operativa. Si algún gate falla, **no proclamar PROD listo** y aplicar la política de rollback.
 
-**La palabra "terminado" queda prohibida para estado Draft, PR, CI verde, merge o Canary.** Solo `PRODUCCIÓN VERIFICADA` tras evidencias de los pasos anteriores.
+**La palabra "terminado" queda prohibida para estado Draft, PR, CI verde, merge o Canary.** Cada entrega solo queda `INCREMENTO EN PRODUCCIÓN VERIFICADO` tras las siete evidencias; el programa entero solo queda `SIGNATURE 360 COMPLETO EN PRODUCCIÓN` cuando todas las 43 rutas y estados relevantes están verificadas.
 
 ## 5. Orden del macrobloque
 
-Comenzar con estabilidad de foco, inputs y estructura visual compartida; continuar por rutas Cliente, Coach y Admin manteniendo cada rol especializado; después accesibilidad, sesiones reales, estados raros, rendimiento, QA visual global y promoción a producción. No publicar el primer ajuste aislado como si fuera una entrega integral. El candidato permanece Draft hasta cierre real.
+Trabajar la excelencia de cada rincón bajo un programa único, publicando **incrementos coherentes y certificados**: primera entrega de gramática visual compartida y legibilidad operativa, después Cliente, Coach, Admin y certificación integral. Un incremento de formularios + navegación Cliente + agenda Admin no significa que 43 rutas estén rediseñadas. No publicar ajustes sueltos como si fueran una entrega integral ni esperar al cierre de 43 rutas para publicar lo ya certificado. Cada incremento permanece Draft hasta que su **propio** alcance está íntegro, verde en QA real y sincronizado con el SHA actual de Canary. Tras promoverlo a producción, registrar su SHA y pruebas antes de empezar el siguiente cierre.
