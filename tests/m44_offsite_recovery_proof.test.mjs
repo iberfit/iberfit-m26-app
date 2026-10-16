@@ -25,14 +25,17 @@ function fixture(overrides={}){
   status:'completed',conclusion:'success',steps:required.map(name=>({name,conclusion:'success'}))}]};
  const artifacts={total_count:1,artifacts:[{name:'iberfit-prod-ciphertext-'+runId,
   size_in_bytes:bytes.length,digest:'sha256:'+digest,workflow_run:{id:runId,head_sha:backupSha}}]};
- const folder={id:'private-folder-id',mimeType:'application/vnd.google-apps.folder',
+ const root={id:'private-root-id',mimeType:'application/vnd.google-apps.folder',
   shared:false,trashed:false,permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]};
+ const folder={id:'private-folder-id',mimeType:'application/vnd.google-apps.folder',
+  shared:false,trashed:false,parents:['private-root-id'],
+  permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]};
  const meta={id:'private-file-id',mimeType:'application/zip',size:String(bytes.length),
   shared:false,trashed:false,parents:['private-folder-id'],
   permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]};
  const input={sourceSha,runId,fileId:'private-file-id',driveFolderId:'private-folder-id',
   githubToken:'test-github-token',driveAccessToken:'test-drive-access-token',nowMs};
- const data={run,jobs,artifacts,meta,folder,compare:{status:'ahead',behind_by:0}};
+ const data={run,jobs,artifacts,meta,folder,root,compare:{status:'ahead',behind_by:0}};
  for(const [k,v] of Object.entries(overrides))if(k in data)data[k]=v;
  const fetchImpl=async url=>{
   let payload=url.includes('/compare/')?data.compare:
@@ -40,6 +43,7 @@ function fixture(overrides={}){
     url.includes('/artifacts?')?data.artifacts:
     url.includes('/actions/runs/')?data.run:
     url.includes('alt=media')?null:
+    url.includes('/drive/v3/files/root?')?data.root:
     url.includes('/drive/v3/files/private-folder-id?')?data.folder:data.meta;
   if(payload===null)return {ok:true,body:new ReadableStream({start(c){c.enqueue(bytes);c.close();}})};
   return {ok:true,json:async()=>payload};
@@ -129,4 +133,26 @@ test('reject truncated GitHub pages, absent total counts and ambiguous artifact 
  f.data.artifacts.artifacts.push({...duplicate});
  f.data.artifacts.total_count=2;
  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
+});
+
+
+test('reject private child folder under a shared or foreign-owned Drive root',async()=>{
+ for(const patch of [
+  {shared:true},{trashed:true},{driveId:'unexpected-shared-drive'},
+  {permissions:[{type:'anyone',role:'reader'}]},
+  {permissions:[{type:'user',role:'owner',emailAddress:'foreign@example.invalid'}]},
+  {permissions:[]},{mimeType:'text/plain'}
+ ]){
+  const f=fixture();Object.assign(f.data.root,patch);
+  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/DRIVE_ROOT_CUSTODY_INVALID/);
+ }
+});
+test('reject Drive folder ancestry that is missing, cyclic or multiply parented',async()=>{
+ for(const parents of [undefined,[],['private-folder-id'],['foreign-root'],['private-root-id','secondary']]){
+  const f=fixture();
+  if(parents===undefined)delete f.data.folder.parents;
+  else f.data.folder.parents=parents;
+  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),
+    /DRIVE_ANCESTRY_INVALID|DRIVE_ANCESTRY_CYCLE|DRIVE_FOLDER_CUSTODY_INVALID/);
+ }
 });
