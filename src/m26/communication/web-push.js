@@ -98,16 +98,28 @@ export function createWebPushCoordinator({
   }
 
   async function status(){
+    // A status read must not cross an authenticated account boundary while
+    // waiting on the browser, a refreshed JWT or the remote backend.
+    const expectedActor=actorScope();
     const resolvedKey=await resolveVapidPublicKey();
+    requireSameActor(expectedActor);
     const local=await inspect({vapidPublicKey:resolvedKey});
+    requireSameActor(expectedActor);
     const endpoint=local.subscribed===true?await currentEndpoint():null;
+    requireSameActor(expectedActor);
     let backend=Object.freeze({ok:false,active:false,subscriptionCount:0,updatedAt:null});
-    if(isOnline())backend=normalizedBackendState(await transport.webPushStatus(await token(),endpoint));
+    if(isOnline()){
+      const bearer=await token();
+      requireSameActor(expectedActor);
+      backend=normalizedBackendState(await transport.webPushStatus(bearer,endpoint));
+      requireSameActor(expectedActor);
+    }
     const active=Boolean(local.active&&endpoint&&backend.active);
     let reason=active?null:local.reason;
     if(local.active&&!backend.active)reason='server-registration-required';
     if(!local.active&&backend.active)reason=local.reason||'browser-subscription-required';
     if(!isOnline()&&local.active)reason='server-status-unavailable';
+    requireSameActor(expectedActor);
     return Object.freeze({
       supported:local.supported===true,
       secure:local.secure===true,
