@@ -135,3 +135,20 @@ test('Al escribir letras sucesivas no se desmonta el input de búsqueda del Coac
   assert.match(results.innerHTML,/Prensa de piernas/);
   ctrl.destroy();
 });
+
+test('El entrenamiento usa lenguaje inequívoco y nunca presenta Leave workout',()=>{
+  const draft=createSessionDraft({clientId:'client-1'});
+  addCatalogExercise(draft,'ex-0',catalog);
+  const execution=createExecution({session:draft,clientId:'client-1'});
+  const ready=renderGuidedExecution({execution,session:draft,catalog});
+  assert.match(ready,/Comenzar entrenamiento/);
+  assert.doesNotMatch(ready,/Leave workout|Iniciar sesión/i);
+  startExecution(execution);
+  const active=renderGuidedExecution({execution,session:draft,catalog});
+  assert.match(active,/Guardar y salir/);
+  assert.doesNotMatch(active,/Leave workout|Iniciar sesión/i);
+  pauseExecution(execution);
+  const paused=renderGuidedExecution({execution,session:draft,catalog});
+  assert.match(paused,/Guardar y salir/);
+  assert.doesNotMatch(paused,/Leave workout|Iniciar sesión/i);
+});
