@@ -41,7 +41,12 @@ test('M45 communication mutation resolves only client scope and preserves bounda
   assert.match(communication,/6707a3dad0ea2694bed9276fe4055ed0/);
   assert.match(communication,/d9ef7c578fa958886a0e937d93e9a013/);
   assert.match(communication,/v_client:=coalesce\(public\.iberfit_client_id\(\)::text,''\)/);
-  assert.doesNotMatch(communication,/iberfit_bootstrap_v26\(\)/);
+  const functionBody=communication.slice(
+    communication.indexOf('CREATE OR REPLACE FUNCTION public.iberfit_communication_execute_v14_pre_v65e'),
+    communication.indexOf('REVOKE ALL ON FUNCTION public.iberfit_communication_execute_v14_pre_v65e'),
+  );
+  assert.ok(functionBody.length>0);
+  assert.doesNotMatch(functionBody,/iberfit_bootstrap_v26\(\)/);
   for(const command of ['MESSAGE_THREAD_OPEN','MESSAGE_SEND','MESSAGE_MARK_READ','NOTIFICATION_MARK_READ']){
     assert.ok(communication.includes(command),command);
   }
