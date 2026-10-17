@@ -8,7 +8,7 @@ import {createAdminRouteViewModel} from '../admin/view-model.js';
 import {adminClientContextBaseArea} from '../admin/navigation.js';
 import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
-  clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
+  clientsOverview, clientHealthSummary, todayOverview, upcomingAppointments, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
 import {
   computeProgressSummary, progressSummaryHasEvolutionEvidence, buildPlanExecutionSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
 import {
@@ -871,6 +871,11 @@ if (area === 'clientes') {
       role,
       serviceKind:trainingActive?'training':'none',
       serviceActive:clientTrainingServiceActive(state,clientId),
+      // Client-only projection: confirmed and visible appointments for the owner.
+      // Never expose internal proposals, withdrawn appointments or other clients.
+      clientAppointments:Object.freeze(role==='client'&&clientId
+        ?upcomingAppointments(state,{clientId,now,limit:3,clientVisibleOnly:true,confirmedOnly:true}).map(compactAppointment)
+        :[]),
       canEdit,
       iriPlanningSeed,
       profile,

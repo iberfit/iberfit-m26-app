@@ -210,6 +210,27 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
 
 
+        // SIGNATURE 360 2/5: certify the *actual RC39 Client Plan* and its
+        // confirmed-appointment panel in each authenticated QA viewport.
+        const planNav=page.locator('[data-m26-area="planificacion"]:visible').first();
+        await expect(planNav).toBeVisible({timeout:5_000});
+        await planNav.click();
+        await expect(page.locator('.m26-rc39-planning')).toBeVisible({timeout:10_000});
+        const confirmedAppointments=page.locator('#m26-client-next-appointment');
+        await expect(confirmedAppointments).toBeVisible({timeout:5_000});
+        const appointmentCards=confirmedAppointments.locator('.m30-planning-appointment');
+        if(await appointmentCards.count()){
+          const allStatuses=await appointmentCards.locator('.m26-badge').allTextContents();
+          expect(allStatuses.every((label)=>/confirmad|confirmed/i.test(label)),'Client Plan cannot expose unconfirmed internal appointments').toBe(true);
+        }else{
+          await expect(confirmedAppointments).toContainText('Sin próximas citas confirmadas');
+        }
+        const planningOverflow=await page.evaluate(()=>({
+          scrollWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth,
+        }));
+        expect(planningOverflow.scrollWidth,'Client Plan must not overflow the document horizontally').toBeLessThanOrEqual(planningOverflow.viewportWidth+1);
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-plan',suffix:'plan'}));
+
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
         await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();

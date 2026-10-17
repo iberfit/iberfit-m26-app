@@ -154,7 +154,7 @@ test('Client Home keeps IRI visible only while the initial diagnosis is still pe
   }));
   assert.match(pending,/<span>Diagnóstico IRI<\/span>/u);
   assert.match(pending,/En preparación/u);
-  assert.match(pending,/Completa tu punto de partida/u);
+  assert.match(pending,/Consulta el estado de tu evaluación/u);
 
   const completed=renderHoyRoute(vm());
   assert.doesNotMatch(completed,/<span>Diagnóstico IRI<\/span>/u);

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import {navigationForRole} from '../src/m26/shell/navigation.js';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 import {renderRouteView} from '../src/m26/modules/route-render.js';
+import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
+import {experienceNextAction} from '../src/m26/experience/client-experience.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {iberfitTranslate} from '../src/m26/ui/i18n.js';
 import {createProductionState} from '../src/m26/production-state.js';
@@ -47,6 +49,19 @@ test('Signature360 always requires production evidence and broad responsive/stat
     assert.ok(coverage.releaseEvidence.includes(checkpoint),checkpoint);
   for(const topic of ['keyboard-and-focus','mobile-more','touch-and-safe-area','pwa-background-reconnect','no-data-loss','reduced-motion','visual-contrast-wcag-aa'])
     assert.ok(coverage.crossCutting.includes(topic),topic);
+});
+
+test('Signature360 records the completed production foundation without miscertifying 43 routes',()=>{
+  assert.equal(coverage.activeDelivery,'2/5-client');
+  assert.match(coverage.productionBaseline.sourceSha,/^[0-9a-f]{40}$/);
+  assert.equal(coverage.productionBaseline.sourceSha,'16fe623215d26bf7d42555fe23bc0d8ec78832b0');
+  assert.equal(coverage.productionBaseline.workflowRunId,39004291546);
+  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39004291546');
+  assert.ok(coverage.productionBaseline.delivered.includes('admin-users-mobile-accessibility'));
+  assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after only the foundational release');
+  const entries=roles.flatMap(role=>coverage.roles[role]);
+  assert.equal(entries.length,43);
+  assert.ok(entries.some(entry=>entry.evidenceStatus==='pending'));
 });
 
 test('Signature360 form focus remains visually stable across Cliente/Coach/Admin',()=>{
@@ -128,10 +143,11 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
   assert.match(empty,/Cuando tengas una cita, aparecerá aquí\./);
   assert.doesNotMatch(empty,/Tu Coach la añadirá aquí/,'do not fabricate a future Coach booking');
   assert.match(empty,/data-m26-area="sesion" aria-label="Ver mis sesiones"/,'existing Client session destination remains available without a fictitious booking');
-  const withAppointment=renderRouteView({...vm,appointments:[{
+  const upcomingAppointment={
     id:'appointment-confirmed',dateLabel:'17 oct · 11:00',title:'Sesión presencial',statusRaw:'confirmada',
-  }]});
-  assert.match(withAppointment,/<button type="button" data-m26-area="sesion">\s*<span>Próxima cita<\/span>/);
+  };
+  const withAppointment=renderRouteView({...vm,appointments:[upcomingAppointment],upcoming:[upcomingAppointment]});
+  assert.match(withAppointment,/<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">\s*<span>Próxima cita<\/span>/);
   assert.match(withAppointment,/17 oct · 11:00/);
   assert.match(withAppointment,/Sesión presencial/);
   assert.doesNotMatch(withAppointment,/Sin cita programada/);
@@ -143,6 +159,108 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
       assert.equal(iberfitSurfaceTranslate(spanish,{language:locale}),translation);
     }
   }
+});
+
+test('Signature360 Client Hoy never claims plan publication or IRI self-completion without evidence',()=>{
+  const base={role:'client',kind:'hoy',serviceKind:'training',
+    clients:[{name:'Cliente QA',serviceActive:true,iri:{confirmed:false,processLabel:'En proceso'}}],
+    appointments:[],upcoming:[],rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
+  const pending=renderRouteView(base);
+  assert.match(pending,/Tu Coach lo publicará cuando esté listo/);
+  assert.match(pending,/Consulta el estado de tu evaluación/);
+  assert.doesNotMatch(pending,/Completa tu punto de partida/,'Client should not receive a false IRI self-completion promise');
+  const published=renderRouteView({...base,rc39:{sessionProjections:[{id:'published-session',visible:true,canClientStart:false,session:{title:'Sesión confirmada',blocks:[]}}]}});
+  assert.match(published,/Sesiones disponibles/,'published sessions are not an unpublished plan');
+  assert.match(published,/Consulta las sesiones publicadas/);
+  assert.doesNotMatch(published,/Tu Coach lo publicará cuando esté listo/,'do not call published sessions still in preparation');
+});
+
+test('Signature360 Client appointment CTA names the actual authorized destination',()=>{
+  const next=experienceNextAction({serviceKind:'training',readiness:{nextAppointment:true}},{role:'client'});
+  assert.equal(next.area,'planificacion','Cliente has Tu plan, not a separate Agenda route');
+  assert.equal(next.label,'Ver próxima cita en tu plan');
+  assert.match(next.reason,/fecha y el estado/,'do not claim an appointment is confirmed without its status');
+  assert.doesNotMatch(next.reason,/cita confirmada/);
+
+  const vm={role:'client',kind:'hoy',serviceKind:'training',
+    clients:[{name:'Cliente QA',serviceActive:true,nextAction:next}],
+    appointments:[{id:'upcoming',dateLabel:'Próxima cita',statusRaw:'programada'}],
+    upcoming:[],rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
+  const html=renderRouteView(vm);
+  const contextual=html.match(/<button type="button" class="m26-client-home-context-action" data-m26-area="planificacion">([\s\S]*?)<\/button>/u)?.[1]||'';
+  assert.ok(contextual,'the next appointment action must navigate to Client Tu plan');
+  assert.match(contextual,/Ver próxima cita en tu plan/);
+  assert.doesNotMatch(contextual,/confirmada/,'a programmed appointment is not automatically confirmed');
+
+  // Old synchronized state may still hold the former Coach-only route.
+  // The renderer must remain safe and keep the label consistent after remapping.
+  const legacy=renderRouteView({...vm,clients:[{...vm.clients[0],nextAction:{...next,area:'agenda',label:'Ver próxima cita'}}]});
+  assert.match(legacy,/class="m26-client-home-context-action" data-m26-area="planificacion">[\s\S]*?<strong>Ver próxima cita en tu plan<\/strong>/);
+  assert.doesNotMatch(legacy,/data-m26-area="agenda"/);
+  const unauthorized=renderRouteView({...vm,rc39:{sessionProjections:[{id:'published-read-only',visible:true,canClientStart:false,session:{title:'Sesión para consultar'}}]},clients:[{...vm.clients[0],nextAction:{...next,area:'admin-usuarios',label:'Gestionar permisos'}}]});
+  assert.doesNotMatch(unauthorized,/class="m26-client-home-context-action"/,'inaccessible role action cannot become a Client CTA');
+});
+
+test('Signature360 Client action and status copy remains localized ES EN FR PT',()=>{
+  const values=[
+    ['Ver próxima cita en tu plan','View next appointment in your plan','Voir le prochain rendez-vous dans votre programme','Ver a próxima marcação no seu plano'],
+    ['Consulta el estado de tu evaluación','Check the status of your assessment','Consultez l’état de votre évaluation','Consulte o estado da sua avaliação'],
+    ['Sesiones disponibles','Sessions available','Séances disponibles','Sessões disponíveis'],
+    ['Plan disponible','Plan available','Programme disponible','Plano disponível'],
+    ['Consulta las sesiones publicadas','View published sessions','Consultez les séances publiées','Consulte as sessões publicadas'],
+  ];
+  for(const [es,en,fr,pt] of values)for(const [language,expected] of [['en',en],['fr',fr],['pt',pt]])
+    assert.equal(iberfitSurfaceTranslate(es,{language}),expected,`${language}:${es}`);
+});
+
+test('Signature360 Client Plan shows only confirmed upcoming appointments belonging to the authenticated Client',()=>{
+  const own='33333333-3333-4333-8333-333333333333';
+  const other='44444444-4444-4444-8444-444444444444';
+  const now=new Date('2026-10-17T12:00:00Z');
+  const state=createProductionState({
+    hydration:{status:'ready',confirmedAt:now.toISOString(),serverTime:now.toISOString()},
+    identity:{id:'qa-client-user',role:'client',clientId:own,name:'Cliente QA'},
+    selectedClientId:other,activeArea:'planificacion',
+    collections:{
+      clients:[{id:own,name:'Cliente QA',trainingServiceStatus:'active'},{id:other,name:'Persona ajena',trainingServiceStatus:'active'}],
+      appointments:[
+        {id:'confirmed-own',clientId:own,title:'Sesión presencial propia',startAt:'2026-10-18T16:00:00Z',status:'confirmada',modality:'presencial',location:'Sala IBERFIT'},
+        {id:'other-client',clientId:other,title:'Cita privada ajena',startAt:'2026-10-18T17:00:00Z',status:'confirmada'},
+        {id:'coach-proposal',clientId:own,title:'Propuesta interna Coach',startAt:'2026-10-18T18:00:00Z',status:'propuesta'},
+        {id:'hidden-confirmed',clientId:own,title:'Cita oculta',startAt:'2026-10-18T18:30:00Z',status:'confirmada',visibleToClient:false},
+        {id:'withdrawn',clientId:own,title:'Cita cancelada',startAt:'2026-10-18T19:00:00Z',status:'cancelada'},
+        {id:'past',clientId:own,title:'Sesión pasada',startAt:'2026-10-16T16:00:00Z',status:'confirmada'},
+      ]
+    }
+  });
+  const vm=createRouteViewModel(createShellViewModel(state),state,now);
+  assert.equal(vm.kind,'planificacion');
+  assert.equal(vm.role,'client');
+  assert.deepEqual(vm.clientAppointments.map(item=>item.id),['confirmed-own']);
+  const html=renderRouteView(vm);
+  assert.match(html,/id="m26-client-next-appointment"/);
+  assert.match(html,/Próximas citas/);
+  assert.match(html,/Sesión presencial propia/);
+  assert.match(html,/Sala IBERFIT/);
+  for(const forbidden of ['Cita privada ajena','Propuesta interna Coach','Cita oculta','Cita cancelada','Sesión pasada'])
+    assert.ok(!html.includes(forbidden),`Client Plan exposed or invented: ${forbidden}`);
+  const noAppointment=renderRouteView({...vm,clientAppointments:[]});
+  assert.match(noAppointment,/Sin próximas citas confirmadas/);
+  assert.doesNotMatch(noAppointment,/Sesión presencial propia/);
+});
+
+test('Signature360 Client Hoy uses upcoming appointments rather than historical today records',()=>{
+  const vm={role:'client',kind:'hoy',serviceKind:'training',
+    clients:[{name:'Cliente QA',serviceActive:true}],
+    appointments:[{id:'earlier',title:'Cita de esta mañana',dateLabel:'Hoy 08:00',statusRaw:'confirmada'}],
+    upcoming:[{id:'later',title:'Cita de mañana',dateLabel:'Mañana 10:00',statusRaw:'confirmada'}],
+    rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
+  const html=renderRouteView(vm);
+  assert.match(html,/<span>Próxima cita<\/span>\s*<strong>Mañana 10:00<\/strong>/);
+  assert.doesNotMatch(html,/<span>Próxima cita<\/span>\s*<strong>Hoy 08:00<\/strong>/);
+  const none=renderRouteView({...vm,upcoming:[]});
+  assert.match(none,/Sin cita programada/);
+  assert.doesNotMatch(none,/<span>Próxima cita<\/span>\s*<strong>Hoy 08:00<\/strong>/);
 });
 
 test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch controls',()=>{

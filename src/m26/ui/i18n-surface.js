@@ -5,6 +5,33 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE 360 2/5: truthful Client Hoy, appointment, plan and IRI states.
+  // SIGNATURE 360: close previously unclassified IRI, privacy and session-control surface copy.
+  ['en el expediente','in the record','dans le dossier','no processo'],
+  ["Sin puntuación global.","No overall score.","Pas de score global.","Sem pontuação global."],
+  ["El IRI se registra una sola vez como diagnóstico inicial. Las reevaluaciones y el seguimiento longitudinal se construyen fuera del IRI con sus propios registros y protocolos compatibles.","IRI is recorded once as the initial assessment. Reassessments and longitudinal follow-up are tracked separately with their own records and compatible protocols.","L'IRI est enregistré une seule fois comme évaluation initiale. Les réévaluations et le suivi longitudinal sont consignés séparément dans leurs propres dossiers et protocoles compatibles.","O IRI é registado uma única vez como avaliação inicial. As reavaliações e o acompanhamento longitudinal são registados separadamente, com registos e protocolos compatíveis."],
+  ["La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.","Information needed to interpret the assessment is recorded within IRI itself. Choosing the assessment alone does not create ongoing follow-up obligations.","Les informations nécessaires à l'interprétation sont enregistrées dans l'IRI. Choisir uniquement l'évaluation ne crée aucune obligation de suivi.","A informação necessária para interpretar a avaliação é registada no próprio IRI. Contratar apenas a avaliação não cria obrigações de acompanhamento."],
+  ["Emitir y archivar PDF para el Cliente","Issue and archive Client PDF","Émettre et archiver le PDF Client","Emitir e arquivar PDF para o Cliente"],
+  ["La persona ha aceptado realizar esta evaluación física IRI y comprende que no sustituye una valoración clínica.","The person has agreed to this IRI physical assessment and understands that it does not replace a clinical evaluation.","La personne a accepté cette évaluation physique IRI et comprend qu'elle ne remplace pas une évaluation clinique.","A pessoa aceitou realizar esta avaliação física IRI e compreende que não substitui uma avaliação clínica."],
+  ["Confirma primero la evaluación IRI","Confirm the IRI assessment first","Confirmez d'abord l'évaluation IRI","Confirme primeiro a avaliação IRI"],
+  ["Si posteriormente inicia entrenamiento, IBERFIT activa el servicio sobre la misma persona. El IRI inicial se conserva como punto de partida.","If training begins later, IBERFIT activates it for the same person. The initial IRI remains the starting point.","Si la personne commence l'entraînement plus tard, IBERFIT active le service dans le même profil. L'IRI initial reste le point de départ.","Se iniciar treino posteriormente, a IBERFIT ativa o serviço para a mesma pessoa. O IRI inicial mantém-se como ponto de partida."],
+  ["Selecciona primero un informe de entrenamiento con evidencia confirmada","First select a training report with confirmed evidence","Sélectionnez d'abord un rapport d'entraînement étayé par des données confirmées","Selecione primeiro um relatório de treino com dados confirmados"],
+  ["JPG, PNG, WebP o HEIC (si el dispositivo lo admite). La fotografía se adapta en tu dispositivo a un formato pequeño y se eliminan sus metadatos.","JPG, PNG, WebP or HEIC (if supported). The photo is resized on your device and its metadata removed.","JPG, PNG, WebP ou HEIC (si l'appareil le prend en charge). La photo est réduite sur votre appareil et ses métadonnées supprimées.","JPG, PNG, WebP ou HEIC (se o dispositivo suportar). A fotografia é reduzida no dispositivo e os seus metadados são removidos."],
+  ["Cerrar sesión en este dispositivo","Sign out on this device","Se déconnecter sur cet appareil","Terminar sessão neste dispositivo"],
+  ["Revocar sesiones en todos los dispositivos","Revoke sessions on all devices","Révoquer les sessions sur tous les appareils","Revogar sessões em todos os dispositivos"],
+  ["Más opciones","More options","Plus d'options","Mais opções"],
+  ['Tus próximas citas confirmadas','Your upcoming confirmed appointments','Vos prochains rendez-vous confirmés','As suas próximas marcações confirmadas'],
+  ['Agenda confirmada','Confirmed schedule','Agenda confirmée','Agenda confirmada'],
+  ['Próximas citas','Upcoming appointments','Prochains rendez-vous','Próximas marcações'],
+  ['Consulta fecha, modalidad y lugar de tus citas confirmadas.','Check the date, format and location of your confirmed appointments.','Consultez la date, la modalité et le lieu de vos rendez-vous confirmés.','Consulte a data, a modalidade e o local das suas marcações confirmadas.'],
+  ['Sin próximas citas confirmadas','No upcoming confirmed appointments','Aucun prochain rendez-vous confirmé','Sem próximas marcações confirmadas'],
+  ['Cuando tu Coach confirme una cita, aparecerá aquí.','Once your Coach confirms an appointment, it will appear here.','Lorsque votre Coach confirmera un rendez-vous, il apparaîtra ici.','Quando o seu Coach confirmar uma marcação, ela aparecerá aqui.'],
+  ['Ver próxima cita en tu plan','View next appointment in your plan','Voir le prochain rendez-vous dans votre programme','Ver a próxima marcação no seu plano'],
+  ['Consulta la fecha y el estado de tu próxima cita en Tu plan.','Check the date and status of your next appointment in Your plan.','Consultez la date et le statut de votre prochain rendez-vous dans Votre programme.','Consulte a data e o estado da sua próxima marcação no Seu plano.'],
+  ['Consulta el estado de tu evaluación','Check the status of your assessment','Consultez l’état de votre évaluation','Consulte o estado da sua avaliação'],
+  ['Sesiones disponibles','Sessions available','Séances disponibles','Sessões disponíveis'],
+  ['Plan disponible','Plan available','Programme disponible','Plano disponível'],
+  ['Consulta las sesiones publicadas','View published sessions','Consultez les séances publiées','Consulte as sessões publicadas'],
   // SIGNATURE360: Admin agenda human-first identity, format and empty-state copy.
   // SIGNATURE360: appointment statuses are user-facing states in all four languages.
   ['Cuando tengas una cita, aparecerá aquí.','Your next appointment will appear here.','Votre prochain rendez-vous apparaîtra ici.','A sua próxima marcação aparecerá aqui.'],
