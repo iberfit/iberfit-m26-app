@@ -10,7 +10,7 @@
 
 ## QA-only isolated candidate
 
-An independent `private.iberfit_bootstrap_v26_rc29_slim_qa()` candidate and its private chain were installed in **iberfit-qa only**. Their `anon`/`authenticated` EXECUTE access is revoked; the live public bootstrap was not replaced. No table data, RLS, role grants, WebAuthn, API keys or PWA deployment changed.
+An independent `private.iberfit_bootstrap_v26_rc29_slim_qa()` candidate and its private chain were installed in **iberfit-qa only**. Their `anon`/`authenticated` EXECUTE access is revoked. Subsequently the guarded migration was applied to the **public rc29 function in Supabase QA only**, at migration version `20261017220957`; PROD remains unchanged. No table data, RLS, role grants, WebAuthn, API keys or PWA deployment changed.
 
 Current public `rc29` definition MD5: `5c565986e5946e768cd84eb0398f76cb`.
 Optimized function **body** MD5: `722040e7807a52a70339277014026833`. Exact fail-closed guards appear in the migration and rollback.
@@ -54,10 +54,10 @@ An earlier candidate that computed one global authorized-client union was **reje
 
 ## Required certification before release
 
-1. Apply only the guarded migration to Supabase **QA** in a free CI window; validate the new public function hash and ACL.
+1. **Completed in QA:** guarded migration `20261017220957`; public rc29 body MD5 `722040e7807a52a70339277014026833`, owner postgres, `STABLE SECURITY DEFINER`, empty search path, unchanged `postgres/service_role` EXECUTE ACL. Full public API output again matched the private candidate for both Clients.
 2. Run repeated authenticated Client/Coach browser tasks on desktop, tablet portrait, tablet landscape and mobile, including CPU 6×, interactive shell <=10s, no HTTP 500 and no data leakage.
 3. Verify WebAuthn privileged rejection/acceptance through the authorized device flow, lifecycle/M45 task parity, stale-session transitions and retries.
 4. Run CI, Fast Lane, Production Data Safety and independent regression tests on the exact commit. Reconcile production backup and M44 offsite freshness without bypassing controls.
 5. Only then merge protected Canary, verify deployed SHA live, and consider a separate incremental production promotion with explicit rollback.
 
-**Status: QA-only candidate prepared and data parity demonstrated; end-to-end performance P0 not yet closed.**
+**Status: guarded correction applied and parity revalidated in Supabase QA only. Authenticated CPU 6× remote gate, sustained latency under concurrency and production backup controls remain outstanding. No Canary merge or production DDL.**
