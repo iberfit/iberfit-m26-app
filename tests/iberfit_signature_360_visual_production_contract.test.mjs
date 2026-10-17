@@ -50,6 +50,19 @@ test('Signature360 always requires production evidence and broad responsive/stat
     assert.ok(coverage.crossCutting.includes(topic),topic);
 });
 
+test('Signature360 records the completed production foundation without miscertifying 43 routes',()=>{
+  assert.equal(coverage.activeDelivery,'2/5-client');
+  assert.match(coverage.productionBaseline.sourceSha,/^[0-9a-f]{40}$/);
+  assert.equal(coverage.productionBaseline.sourceSha,'16fe623215d26bf7d42555fe23bc0d8ec78832b0');
+  assert.equal(coverage.productionBaseline.workflowRunId,39004291546);
+  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39004291546');
+  assert.ok(coverage.productionBaseline.delivered.includes('admin-users-mobile-accessibility'));
+  assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after only the foundational release');
+  const entries=roles.flatMap(role=>coverage.roles[role]);
+  assert.equal(entries.length,43);
+  assert.ok(entries.some(entry=>entry.evidenceStatus==='pending'));
+});
+
 test('Signature360 form focus remains visually stable across Cliente/Coach/Admin',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
   const formStart=css.indexOf('   FORM CONTROLS');
