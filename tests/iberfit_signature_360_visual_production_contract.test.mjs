@@ -569,5 +569,7 @@ test('SIGNATURE Client Sessions uses accessible matte surfaces and scoped contro
   assert.match(signature,/:focus-visible/u);
   assert.match(signature,/@media\(max-width:690px\)/u);
   assert.match(signature,/@media\(forced-colors:active\)/u);
-  assert.doesNotMatch(signature,/gradient\(|display:\s*none|pointer-events:\s*none/u);
+  assert.match(signature,/summary::-webkit-details-marker\{display:none\}/u,'only native disclosure glyph is replaced');
+  const withoutNativeGlyph=signature.replace(/summary::-webkit-details-marker\{display:none\}/gu,'');
+  assert.doesNotMatch(withoutNativeGlyph,/gradient\(|display:\s*none|pointer-events:\s*none/u,'no hidden business controls or decorative gradients');
 });
