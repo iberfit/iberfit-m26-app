@@ -11,6 +11,8 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['sesiones','sessions','séances','sessões'],
 ['bienestar','wellbeing','bien-être','bem-estar'],
 ['Registrar cómo te sientes','Record how you feel','Enregistrer votre ressenti','Registar como se sente'],
+['Actividad a tu ritmo','Activity on your terms','Une activité à votre rythme','Atividade ao seu ritmo'],
+['Puedes entrenar sin reloj. Si decides compartir datos compatibles, podrás verlos aquí.','You can train without a watch. If you choose to share compatible data, you can view it here.','Vous pouvez vous entraîner sans montre. Si vous choisissez de partager des données compatibles, vous pourrez les consulter ici.','Pode treinar sem relógio. Se optar por partilhar dados compatíveis, poderá consultá-los aqui.'],
 ['Cuatro registros de bienestar en 28 días ayudan a dar contexto al seguimiento.','Four wellbeing records in 28 days help provide context for follow-up.','Quatre enregistrements de bien-être en 28 jours aident à contextualiser le suivi.','Quatro registos de bem-estar em 28 dias ajudam a dar contexto ao acompanhamento.'],
 ['datos','data','données','dados'],
 ['Mantener tus datos conectados','Keep your data connected','Maintenir vos données connectées','Manter os seus dados ligados'],

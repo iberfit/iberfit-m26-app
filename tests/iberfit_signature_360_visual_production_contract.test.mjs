@@ -523,3 +523,14 @@ test('Signature360 Admin agenda displays people, ownership and localized dates, 
   assert.doesNotMatch(unsafe,/<script>alert\(1\)<\/script>/);
   assert.match(unsafe,/&lt;img/);
 });
+
+test('SIGNATURE warm optional-activity copy stays localized in four languages',()=>{
+  for(const [language,heading,copy] of [
+    ['en','Activity on your terms','You can train without a watch. If you choose to share compatible data, you can view it here.'],
+    ['fr','Une activité à votre rythme','Vous pouvez vous entraîner sans montre. Si vous choisissez de partager des données compatibles, vous pourrez les consulter ici.'],
+    ['pt','Atividade ao seu ritmo','Pode treinar sem relógio. Se optar por partilhar dados compatíveis, poderá consultá-los aqui.'],
+  ]){
+    assert.equal(iberfitSurfaceTranslate('Actividad a tu ritmo',{language}),heading);
+    assert.equal(iberfitSurfaceTranslate('Puedes entrenar sin reloj. Si decides compartir datos compatibles, podrás verlos aquí.',{language}),copy);
+  }
+});

@@ -303,3 +303,20 @@ test('SIGNATURE Client mobile navigation keeps full accessible destinations with
     assert.ok(item.includes('m26-client-bottom-nav-label-compact')&&item.includes('>'+shortLabel+'</span>'),shortLabel);
   }
 });
+
+test('SIGNATURE warm Client Today differentiates optional empty health from confirmed metrics',()=>{
+  const empty=renderHoyRoute(vm({wearables:{}}));
+  assert.match(empty,/<h2>Actividad a tu ritmo<\/h2>/u);
+  assert.match(empty,/Puedes entrenar sin reloj\. Si decides compartir datos compatibles/u);
+  assert.match(empty,/data-m26-area="actividad">Ver conexión y actividad<\/button>/u);
+  assert.doesNotMatch(empty,/class="m26-client-health-metric"/u);
+  const summary={summary:{daysWithData:2,metrics:{steps:4321,sleepMinutes:460,restingHeartRate:61}}};
+  const confirmed=renderHoyRoute(vm({wearables:summary}));
+  assert.match(confirmed,/<h2>Tu actividad, a la vista<\/h2>/u);
+  assert.match(confirmed,/class="m26-client-health-metric"/u);
+  assert.doesNotMatch(confirmed,/Actividad a tu ritmo/u);
+  const action=css.match(/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{([^}]+)\}/u)?.[1]||'';
+  assert.match(action,/border:1px solid var\(--iberfit-color-gold-500\)/u);
+  assert.match(action,/border-radius:1\.35rem/u);
+  assert.doesNotMatch(action,/gradient\(|translateY/u);
+});

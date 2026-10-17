@@ -688,8 +688,10 @@
    ------------------------------------------------------------ */
 
 /* SIGNATURE 360 · Cliente Hoy: editorial composition inside the existing canonical stylesheet.
-   The paper/forest contrast has semantic meaning: orientation versus the one live action. */
+   Warm forest defines orientation, and the one action has a controlled gold accent. */
 .m26-shell[data-m26-role="client"] .m26-client-home-v1{
+  --iberfit-signature-warm-ink:color-mix(in srgb,var(--iberfit-color-cream-100) 89%,var(--iberfit-color-gold-300));
+  --iberfit-signature-warm-muted:color-mix(in srgb,var(--iberfit-color-cream-300) 88%,var(--iberfit-color-gold-300));
   display:grid;
   gap:clamp(.85rem,1.5vw,1.15rem);
 }
@@ -700,7 +702,7 @@
   min-width:0;
   overflow:hidden;
   border:1px solid var(--iberfit-color-border);
-  border-radius:1.25rem;
+  border-radius:1.5rem;
   background:var(--iberfit-color-surface-base);
   box-shadow:var(--iberfit-shadow-subtle);
 }
@@ -736,7 +738,7 @@
 .m26-shell[data-m26-role="client"] .m26-client-home-greeting h2{
   margin:0;
   max-width:19ch;
-  color:var(--iberfit-color-cream-100);
+  color:var(--iberfit-signature-warm-ink);
   font-family:var(--iberfit-font-family-editorial);
   font-size:clamp(2.05rem,3.8vw,3.2rem);
   font-weight:560;
@@ -749,7 +751,7 @@
 .m26-shell[data-m26-role="client"] .m26-client-home-greeting > p:not(.m26-eyebrow){
   margin:0;
   max-width:50ch;
-  color:var(--iberfit-color-cream-300);
+  color:var(--iberfit-signature-warm-muted);
   font-size:clamp(.95rem,1.2vw,1.03rem);
   line-height:1.55;
   overflow-wrap:anywhere;
@@ -775,7 +777,7 @@
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-status strong{
-  color:var(--iberfit-color-cream-100);
+  color:var(--iberfit-signature-warm-ink);
   font-size:clamp(1.06rem,1.6vw,1.22rem);
   line-height:1.35;
   overflow-wrap:anywhere;
@@ -798,11 +800,11 @@
   gap:.65rem 1rem;
   align-items:center;
   padding:clamp(1.1rem,1.8vw,1.5rem);
-  border:1px solid var(--iberfit-color-border-strong);
-  border-radius:1.05rem;
-  color:var(--iberfit-color-cream-100);
+  border:1px solid var(--iberfit-color-gold-500);
+  border-radius:1.35rem;
+  color:var(--iberfit-signature-warm-ink);
   background:var(--iberfit-color-forest-700);
-  box-shadow:none;
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--iberfit-color-gold-300) 24%,transparent);
   text-align:left;
   transform:none;
   transition:background-color var(--iberfit-motion-fast) ease,border-color var(--iberfit-motion-fast) ease;
@@ -828,7 +830,7 @@
   min-width:48px;
   min-height:48px;
   border:1px solid var(--iberfit-color-border-strong);
-  border-radius:.8rem;
+  border-radius:1rem;
   background:var(--iberfit-color-forest-900);
   color:var(--iberfit-color-gold-300);
   font-size:1rem;
@@ -836,7 +838,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary strong{
   align-self:end;
-  color:var(--iberfit-color-cream-100);
+  color:var(--iberfit-signature-warm-ink);
   font-size:clamp(1.18rem,1.6vw,1.38rem);
   line-height:1.22;
   overflow-wrap:anywhere;
@@ -844,7 +846,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary small{
   align-self:start;
-  color:var(--iberfit-color-cream-300);
+  color:var(--iberfit-signature-warm-muted);
   font-size:.92rem;
   line-height:1.45;
   overflow-wrap:anywhere;
@@ -855,8 +857,10 @@
   grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));
   gap:0;
   min-width:0;
-  border-top:1px solid var(--iberfit-color-border);
-  border-bottom:1px solid var(--iberfit-color-border);
+  overflow:hidden;
+  border:1px solid var(--iberfit-color-border);
+  border-radius:1.2rem;
+  background:var(--iberfit-color-surface-base);
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-glance button{
@@ -889,6 +893,7 @@
   background:transparent;
 }
 
+.m26-shell[data-m26-role="client"] .m26-client-home-glance > :last-child{border-right:0;}
 .m26-shell[data-m26-role="client"] .m26-client-home-glance button:hover{
   background:var(--iberfit-color-forest-900);
 }
@@ -1140,7 +1145,7 @@
     gap:.7rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-feature{
-    border-radius:1.05rem;
+    border-radius:1.35rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-hero{
     gap:1.15rem;
@@ -1171,7 +1176,7 @@
   .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary{
     min-height:7.2rem;
     padding:1rem;
-    border-radius:1rem;
+    border-radius:1.2rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary strong{
     font-size:1.2rem;
@@ -2459,8 +2464,8 @@
   align-items:center;
   gap:.8rem 1.2rem;
   padding:.95rem 1.15rem;
-  border-radius:.8rem;
-  background:transparent;
+  border-radius:1.2rem;
+  background:color-mix(in srgb,var(--iberfit-color-forest-900) 96%,var(--iberfit-color-gold-500));
 }
 .m26-shell[data-m26-role="client"] .m26-client-health.is-empty .m26-client-health-status{display:none}
 .m26-shell[data-m26-role="client"] .m26-client-health.is-empty .m26-client-health-heading h2{font-size:1rem}
@@ -2487,7 +2492,7 @@
 .m26-shell[data-m26-role="client"] .m26-client-health-metric strong{font-size:1.05rem;color:var(--iberfit-color-text-primary);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .m26-shell[data-m26-role="client"] .m26-client-health-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.7rem}
 .m26-shell[data-m26-role="client"] .m26-client-health-footer small{font-size:.75rem;line-height:1.4;color:var(--iberfit-color-text-secondary);flex:1 1 14rem}
-.m26-shell[data-m26-role="client"] .m26-client-health-footer button{min-height:44px;padding:.55rem .85rem;border:1px solid rgba(216,192,138,.23);border-radius:.7rem;background:rgba(216,192,138,.08);color:var(--iberfit-color-text-primary);font-size:.84rem;font-weight:700;touch-action:manipulation}
+.m26-shell[data-m26-role="client"] .m26-client-health-footer button{min-height:48px;padding:.55rem .85rem;border:1px solid rgba(216,192,138,.23);border-radius:1rem;background:rgba(216,192,138,.08);color:var(--iberfit-color-text-primary);font-size:.84rem;font-weight:700;touch-action:manipulation}
 .m26-session-health-context{margin:.7rem 0;padding:.85rem;border:1px solid rgba(216,192,138,.16);border-radius:.8rem;background:rgba(17,35,27,.45)}
 .m26-session-health-context strong{display:block;font-size:.9rem}
 .m26-session-health-context p{margin:.35rem 0;color:var(--iberfit-color-text-secondary);font-size:.82rem;line-height:1.5}

@@ -17,7 +17,7 @@ export function renderClientTodayHealth(wearables){
   ].map(([k,v])=>'<div class="m26-client-health-metric"><span>'+e(k)+'</span><strong>'+e(v)+'</strong></div>').join('')+'</div>':'';
   return '<section class="m26-client-health'+(m?'':' is-empty')+'" data-m26-client-health aria-label="Tu actividad y salud">'
     +'<div class="m26-client-health-heading"><div><p class="m26-eyebrow">Actividad y salud</p>'
-    +'<h2>Tu actividad, a la vista</h2><p>'+(m?'Tus mediciones autorizadas ya forman parte de IBERFIT.':'Cuando compartas datos de salud, los verás aquí al abrir IBERFIT.')
+    +'<h2>'+(m?'Tu actividad, a la vista':'Actividad a tu ritmo')+'</h2><p>'+(m?'Tus mediciones autorizadas ya forman parte de IBERFIT.':'Puedes entrenar sin reloj. Si decides compartir datos compatibles, podrás verlos aquí.')
     +'</p></div><span class="m26-client-health-status">'+(m?'<strong>'+m.days+'</strong> Días con datos':'Sin datos todavía')+'</span></div>'+metrics
     +'<div class="m26-client-health-footer"><small>'+(m?'Medias de los últimos 7 días. Los datos no identifican por sí solos el reloj ni modifican el entrenamiento.':'La conexión es opcional. Tu entrenamiento también funciona sin reloj.')
     +'</small><button type="button" data-m26-area="actividad">'+(m?'Ver mi actividad':'Ver conexión y actividad')+'</button></div></section>';
