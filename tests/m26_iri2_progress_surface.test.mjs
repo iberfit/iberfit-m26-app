@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {computeProgressSummary,progressSummaryHasEvolutionEvidence} from '../src/m26/engagement/progress-engine.js';
+import {computeProgressSummary,progressSummaryHasEvolutionEvidence,buildProgressTimeline} from '../src/m26/engagement/progress-engine.js';
 import {normalizeFirstSessionDraft,buildIriCommandDraftFromFirstSession} from '../src/m26/workflows/iri-first-session.js';
 import {renderProgressRoute} from '../src/m26/modules/route-render.js';
 
@@ -67,6 +67,21 @@ test('baseline IRI reconoce clientId canónico anidado y nunca mezcla otro clien
   const summary=computeProgressSummary(state,'c1',{now:NOW,days:120});
   assert.equal(summary.iriAssessmentCount,1);
   assert.equal(summary.iriBaseline.baselineAssessmentId,'iri-baseline');
+});
+
+test('historial Cliente excluye IRI en borrador; Coach conserva trazabilidad del borrador',()=>{
+  const state=stateWithLegacyReevaluation();
+  const baseline=state.collections.iriAssessments[0];
+  const confirmed=buildProgressTimeline(state,'c1',{now:NOW,days:120,confirmedIriOnly:true});
+  assert.ok(confirmed.some(row=>row.kind==='iri'),'confirmed baseline should remain visible to Client');
+  const draft={...baseline,body:{...baseline.body}};
+  delete draft.body.firstSessionCompletedAt;
+  delete draft.body.first_session_completed_at;
+  state.collections.iriAssessments[0]=draft;
+  const client=buildProgressTimeline(state,'c1',{now:NOW,days:120,confirmedIriOnly:true});
+  assert.ok(!client.some(row=>row.kind==='iri'),'draft cannot appear as a confirmed Client evolution event');
+  const coach=buildProgressTimeline(state,'c1',{now:NOW,days:120});
+  assert.ok(coach.some(row=>row.kind==='iri'),'professional historical trace must not be erased');
 });
 
 test('dos filas IRI por sí solas no convierten Progreso en evidencia longitudinal',()=>{
