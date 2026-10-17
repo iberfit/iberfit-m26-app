@@ -10,7 +10,7 @@ test('M44 production release orders database gate before protected PDF deploy an
  const broker=workflow.indexOf('functions deploy iberfit-evolution-report-emission-v1');
  const frontend=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
  assert.ok(backup>0&&gate>backup&&broker>gate&&frontend>broker,'backup -> schema -> Edge -> frontend must be ordered');
- assert.equal((workflow.match(/m44_prod_backup_inventory_guard\\.mjs/g)||[]).length,1);
+ assert.equal((workflow.match(/m44_prod_backup_inventory_guard\.mjs/g)||[]).length,1);
  assert.equal((workflow.match(/verify_m44_prod_schema\.mjs/g)||[]).length,1);
  assert.equal((workflow.match(/functions deploy iberfit-evolution-report-emission-v1/g)||[]).length,1);
 });
