@@ -158,7 +158,7 @@ test('Signature360 Client appointment CTA names the actual authorized destinatio
     appointments:[{id:'upcoming',dateLabel:'Próxima cita',statusRaw:'programada'}],
     upcoming:[],rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
   const html=renderRouteView(vm);
-  const contextual=html.match(/<button type="button" class="m26-client-home-context-action" data-m26-area="planificacion">([\\s\\S]*?)<\\/button>/u)?.[1]||'';
+  const contextual=html.match(/<button type="button" class="m26-client-home-context-action" data-m26-area="planificacion">([\s\S]*?)<\/button>/u)?.[1]||'';
   assert.ok(contextual,'the next appointment action must navigate to Client Tu plan');
   assert.match(contextual,/Ver próxima cita en tu plan/);
   assert.doesNotMatch(contextual,/confirmada/,'a programmed appointment is not automatically confirmed');
@@ -166,7 +166,7 @@ test('Signature360 Client appointment CTA names the actual authorized destinatio
   // Old synchronized state may still hold the former Coach-only route.
   // The renderer must remain safe and keep the label consistent after remapping.
   const legacy=renderRouteView({...vm,clients:[{...vm.clients[0],nextAction:{...next,area:'agenda',label:'Ver próxima cita'}}]});
-  assert.match(legacy,/class="m26-client-home-context-action" data-m26-area="planificacion">[\\s\\S]*?<strong>Ver próxima cita en tu plan<\\/strong>/);
+  assert.match(legacy,/class="m26-client-home-context-action" data-m26-area="planificacion">[\s\S]*?<strong>Ver próxima cita en tu plan<\/strong>/);
   assert.doesNotMatch(legacy,/data-m26-area="agenda"/);
   const unauthorized=renderRouteView({...vm,clients:[{...vm.clients[0],nextAction:{...next,area:'admin-usuarios',label:'Gestionar permisos'}}]});
   assert.doesNotMatch(unauthorized,/class="m26-client-home-context-action"/,'inaccessible role action cannot become a Client CTA');
