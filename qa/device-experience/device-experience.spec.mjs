@@ -275,18 +275,22 @@ async function assertSettingsReachable(page,task,viewport){
     await trigger.scrollIntoViewIfNeeded();
     const target=await trigger.evaluate((element)=>{
       const box=element.getBoundingClientRect();
-      const x=Math.min(innerWidth-1,Math.max(0,box.left+box.width/2));
-      const y=Math.min(innerHeight-1,Math.max(0,box.top+box.height/2));
-      const hit=document.elementFromPoint(x,y);
+      const clientX=Math.min(innerWidth-1,Math.max(0,box.left+box.width/2));
+      const clientY=Math.min(innerHeight-1,Math.max(0,box.top+box.height/2));
+      const hit=document.elementFromPoint(clientX,clientY);
       return {
         owned:Boolean(hit&&(hit===element||element.contains(hit))),
-        x:Math.max(1,box.width/2),
-        y:Math.max(1,box.height/2),
+        clientX,
+        clientY,
       };
     });
     expect(target.owned,task.id+' Settings trigger must own its touch hit target').toBe(true);
-    await trigger.click({position:{x:target.x,y:target.y},timeout:10_000});
+    // Use the already verified viewport point directly. locator.click() performs
+    // another implicit scroll that can move a sticky rail between hit-testing
+    // and dispatch; a real pointer/touch at this visible point does not.
+    await page.mouse.click(target.clientX,target.clientY);
     const settingsDetails=page.locator('.m26-sidebar-footer .m26-settings-menu').first();
+    await expect(settingsDetails,task.id+' real pointer must open Settings').toHaveAttribute('open','');
     await expect(page.locator('.m26-sidebar-footer .m26-settings-popover').first()).toBeVisible();
     await expect(page.locator('.m26-sidebar-footer [data-m26-area="ajustes"], .m26-sidebar-footer [data-m26-area="admin-configuracion"]').first()).toBeVisible();
     await settingsDetails.evaluate((details)=>{details.open=false;});
