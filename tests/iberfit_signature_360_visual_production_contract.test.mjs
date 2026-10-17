@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {navigationForRole} from '../src/m26/shell/navigation.js';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 import {renderRouteView} from '../src/m26/modules/route-render.js';
+import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 import {experienceNextAction} from '../src/m26/experience/client-experience.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {iberfitTranslate} from '../src/m26/ui/i18n.js';
@@ -209,6 +210,56 @@ test('Signature360 Client action and status copy remains localized ES EN FR PT',
   ];
   for(const [es,en,fr,pt] of values)for(const [language,expected] of [['en',en],['fr',fr],['pt',pt]])
     assert.equal(iberfitSurfaceTranslate(es,{language}),expected,`${language}:${es}`);
+});
+
+test('Signature360 Client Plan shows only confirmed upcoming appointments belonging to the authenticated Client',()=>{
+  const own='33333333-3333-4333-8333-333333333333';
+  const other='44444444-4444-4444-8444-444444444444';
+  const now=new Date('2026-10-17T12:00:00Z');
+  const state=createProductionState({
+    hydration:{status:'ready',confirmedAt:now.toISOString(),serverTime:now.toISOString()},
+    identity:{id:'qa-client-user',role:'client',clientId:own,name:'Cliente QA'},
+    selectedClientId:other,activeArea:'planificacion',
+    collections:{
+      clients:[{id:own,name:'Cliente QA',trainingServiceStatus:'active'},{id:other,name:'Persona ajena',trainingServiceStatus:'active'}],
+      appointments:[
+        {id:'confirmed-own',clientId:own,title:'Sesión presencial propia',startAt:'2026-10-18T16:00:00Z',status:'confirmada',modality:'presencial',location:'Sala IBERFIT'},
+        {id:'other-client',clientId:other,title:'Cita privada ajena',startAt:'2026-10-18T17:00:00Z',status:'confirmada'},
+        {id:'coach-proposal',clientId:own,title:'Propuesta interna Coach',startAt:'2026-10-18T18:00:00Z',status:'propuesta'},
+        {id:'hidden-confirmed',clientId:own,title:'Cita oculta',startAt:'2026-10-18T18:30:00Z',status:'confirmada',visibleToClient:false},
+        {id:'withdrawn',clientId:own,title:'Cita cancelada',startAt:'2026-10-18T19:00:00Z',status:'cancelada'},
+        {id:'past',clientId:own,title:'Sesión pasada',startAt:'2026-10-16T16:00:00Z',status:'confirmada'},
+      ]
+    }
+  });
+  const vm=createRouteViewModel(createShellViewModel(state),state,now);
+  assert.equal(vm.kind,'planificacion');
+  assert.equal(vm.role,'client');
+  assert.deepEqual(vm.clientAppointments.map(item=>item.id),['confirmed-own']);
+  const html=renderRouteView(vm);
+  assert.match(html,/id="m26-client-next-appointment"/);
+  assert.match(html,/Próximas citas/);
+  assert.match(html,/Sesión presencial propia/);
+  assert.match(html,/Sala IBERFIT/);
+  for(const forbidden of ['Cita privada ajena','Propuesta interna Coach','Cita oculta','Cita cancelada','Sesión pasada'])
+    assert.ok(!html.includes(forbidden),`Client Plan exposed or invented: ${forbidden}`);
+  const noAppointment=renderRouteView({...vm,clientAppointments:[]});
+  assert.match(noAppointment,/Sin próximas citas confirmadas/);
+  assert.doesNotMatch(noAppointment,/Sesión presencial propia/);
+});
+
+test('Signature360 Client Hoy uses upcoming appointments rather than historical today records',()=>{
+  const vm={role:'client',kind:'hoy',serviceKind:'training',
+    clients:[{name:'Cliente QA',serviceActive:true}],
+    appointments:[{id:'earlier',title:'Cita de esta mañana',dateLabel:'Hoy 08:00',statusRaw:'confirmada'}],
+    upcoming:[{id:'later',title:'Cita de mañana',dateLabel:'Mañana 10:00',statusRaw:'confirmada'}],
+    rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
+  const html=renderRouteView(vm);
+  assert.match(html,/<span>Próxima cita<\/span>\s*<strong>Mañana 10:00<\/strong>/);
+  assert.doesNotMatch(html,/<span>Próxima cita<\/span>\s*<strong>Hoy 08:00<\/strong>/);
+  const none=renderRouteView({...vm,upcoming:[]});
+  assert.match(none,/Sin cita programada/);
+  assert.doesNotMatch(none,/<span>Próxima cita<\/span>\s*<strong>Hoy 08:00<\/strong>/);
 });
 
 test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch controls',()=>{
