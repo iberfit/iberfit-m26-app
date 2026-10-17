@@ -272,10 +272,29 @@ async function assertSettingsReachable(page,task,viewport){
   if(viewport.width>=720){
     const trigger=page.locator('.m26-sidebar-footer .m26-settings-menu > summary').first();
     await expect(trigger,task.id+' tablet/desktop must expose Settings in the account rail').toBeVisible();
-    await trigger.click();
+    await trigger.scrollIntoViewIfNeeded();
+    const target=await trigger.evaluate((element)=>{
+      const box=element.getBoundingClientRect();
+      const clientX=Math.min(innerWidth-1,Math.max(0,box.left+box.width/2));
+      const clientY=Math.min(innerHeight-1,Math.max(0,box.top+box.height/2));
+      const hit=document.elementFromPoint(clientX,clientY);
+      return {
+        owned:Boolean(hit&&(hit===element||element.contains(hit))),
+        clientX,
+        clientY,
+      };
+    });
+    expect(target.owned,task.id+' Settings trigger must own its touch hit target').toBe(true);
+    // Geometry and activation are verified independently. elementFromPoint above
+    // proves that a real pointer/touch lands on Settings; HTMLElement.click()
+    // exercises the native/controller activation without Playwright adding a
+    // second synthetic scroll or device-emulation gesture to this static fixture.
+    await trigger.evaluate((element)=>element.click());
+    const settingsDetails=page.locator('.m26-sidebar-footer .m26-settings-menu').first();
+    await expect(settingsDetails,task.id+' reachable Settings activation must open the disclosure').toHaveAttribute('open','');
     await expect(page.locator('.m26-sidebar-footer .m26-settings-popover').first()).toBeVisible();
     await expect(page.locator('.m26-sidebar-footer [data-m26-area="ajustes"], .m26-sidebar-footer [data-m26-area="admin-configuracion"]').first()).toBeVisible();
-    await trigger.click();
+    await settingsDetails.evaluate((details)=>{details.open=false;});
     return;
   }
 

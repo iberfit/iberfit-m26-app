@@ -68,7 +68,7 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media (min-width:720px) and (max-width:1179px){
   .m26-shell[data-m26-role="coach"],.m26-shell[data-m26-role="admin"]{display:grid;grid-template-columns:5.25rem minmax(0,1fr)}
   .m26-shell[data-m26-role="coach"] .m26-sidebar,.m26-shell[data-m26-role="admin"] .m26-sidebar{display:flex;flex-direction:column;position:sticky;top:0;height:100dvh;max-height:100dvh;overflow:visible;padding:1rem .55rem}
-  .m26-shell[data-m26-role="coach"] .m26-sidebar-navigation,.m26-shell[data-m26-role="admin"] .m26-sidebar-navigation{min-height:0;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
+  .m26-shell[data-m26-role="coach"] .m26-sidebar-navigation,.m26-shell[data-m26-role="admin"] .m26-sidebar-navigation{min-height:0;flex:1 1 0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
   .m26-shell[data-m26-role="coach"] .m26-brand div,.m26-shell[data-m26-role="admin"] .m26-brand div,
   .m26-shell[data-m26-role="coach"] .m26-nav-group h2,.m26-shell[data-m26-role="admin"] .m26-nav-group h2,
   .m26-shell[data-m26-role="coach"] .m26-nav-item span,.m26-shell[data-m26-role="admin"] .m26-nav-item span,
@@ -92,6 +92,46 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   .m26-client-bottom-nav,.m26-client-bottom-nav-menu,.m26-role-choice{backdrop-filter:none;-webkit-backdrop-filter:none}
 }
 /* IBERFIT · Multirol gateway + tablet account rail */
+/* P0 · account rail geometry + hit-area isolation.
+ * Brand, navigation and account controls own three physical rows. The middle
+ * row is the only scroll container, so it cannot overlap Settings at any
+ * tablet/desktop width or viewport height. */
+@media (min-width:720px){
+  .m26-shell[data-m26-role="coach"] .m26-sidebar,
+  .m26-shell[data-m26-role="admin"] .m26-sidebar{
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto;
+    align-content:stretch;
+    position:sticky;
+    top:0;
+    height:100dvh;
+    max-height:100dvh;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-sidebar-navigation,
+  .m26-shell[data-m26-role="admin"] .m26-sidebar-navigation{
+    position:relative;
+    z-index:1;
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-sidebar-footer,
+  .m26-shell[data-m26-role="admin"] .m26-sidebar-footer{
+    position:relative;
+    z-index:3;
+    isolation:isolate;
+    min-height:0;
+    margin-top:0;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-sidebar-footer .m26-settings-menu,
+  .m26-shell[data-m26-role="admin"] .m26-sidebar-footer .m26-settings-menu{
+    position:relative;
+    z-index:2;
+  }
+}
+
+
 .m26-role-choice{
   background:
     radial-gradient(circle at 50% 8%,rgba(214,182,109,.12),transparent 34rem),

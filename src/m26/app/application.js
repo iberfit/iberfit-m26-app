@@ -99,6 +99,8 @@ const PUBLISHED_SESSION_STATES=new Set(['disponible','published','publicado','ac
 function publishedSessionForClient(records=[],clientId){return records.map(normalizePublishedSession).filter((item)=>item.id&&item.clientId===clientId&&item.blocks.length&&PUBLISHED_SESSION_STATES.has(String(item.status||'').trim().toLowerCase())).sort((a,b)=>Number(b.revision||0)-Number(a.revision||0)||(safeTime(b.createdAt)||0)-(safeTime(a.createdAt)||0))[0]||null;}
 function friendlyError(error){
   const code=String(error?.message||error||'');
+  if(/M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION/.test(code))return 'Para descartar un borrador sincronizado necesitas conexión. No se ha eliminado ningún dato.';
+  if(/M26_SESSION_DRAFT_DELETE_FAILED|M26_SESSION_DRAFT_LOCAL_DELETE_FAILED/.test(code))return 'No se pudo eliminar el borrador de forma completa. Se mantiene abierto para que puedas reintentarlo sin perder información.';
   if(/M35_SESSION_CONFIRM_NOT_VISIBLE/.test(code))return 'El servidor aceptó la publicación, pero no pudimos confirmar que aparezca en el expediente. El borrador se conserva; no crees otra sesión.';
   if(/QA_ACCOUNT_REQUIRED/.test(code))return 'Esta cuenta no está autorizada para este acceso.';
   if(/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
@@ -1143,6 +1145,30 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
     return Object.freeze({ok:true,local,remote});
   }
+  async function discardCurrentSessionDraft(){
+    const selectedDraft=sessionUi?.draft||null;
+    const clientId=String(selectedDraft?.clientId||'').trim();
+    if(!selectedDraft||!clientId)throw new Error('M26_SESSION_DRAFT_REQUIRED');
+    if(!draftOnline())throw new Error('M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION');
+
+    // Fail closed: delete the synchronized copy first. If that fails, the local
+    // recovery copy remains intact and the Coach stays in the builder.
+    await refreshSessionIfNeeded();
+    await transport.deleteSessionDraft(currentToken(),clientId,SESSION_DRAFT_SCOPE);
+
+    try{
+      await draftRepository?.remove?.(clientId,SESSION_DRAFT_SCOPE);
+    }catch(error){
+      reportDiagnostic('session-draft-local-delete-after-remote',error);
+      throw Object.assign(new Error('M26_SESSION_DRAFT_LOCAL_DELETE_FAILED'),{cause:error});
+    }
+
+    // Do not navigate if another workspace replaced this draft while awaiting I/O.
+    if(sessionUi?.draft!==selectedDraft)throw new Error('M26_SESSION_DRAFT_CONTEXT_CHANGED');
+    sessionUi=null;
+    store.navigate('sesion');
+    return Object.freeze({ok:true,local:true,remote:true});
+  }
   async function restoreExecution(){
     await recoveryCoordinator?.purgeExpired?.();const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
     const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>{
@@ -1276,7 +1302,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
-    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:String(store.getState().identity?.role||'coach'),commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},templateUndo:sessionUi?.templateUndo||null,restoreTemplateLoad:restoreCurrentTemplateLoad,clearTemplateUndo:clearCurrentTemplateUndo,autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const draft=sessionUi?.draft;const clientId=String(draft?.clientId||'');const sessionId=String(draft?.id||'');const published=()=>Boolean(sessionId&&clientId&&(store.getState().collections.sessions||[]).some(item=>String(item?.id||'')===sessionId&&String(item?.clientId||item?.client_id||'')===clientId&&['publicada','published','publicado','disponible'].includes(String(item?.status||'').toLowerCase())));if(!published())await hydrate({reason:'session-published-verify'});if(!published())throw new Error('M35_SESSION_CONFIRM_NOT_VISIBLE');await clearSessionDraft(clientId).catch(error=>reportDiagnostic('session-draft-cleanup-after-publish',error));sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{reportSoftDiagnostic('session-action',error);if(sessionUi){const recovery=sessionCommandFailureOutcome(error,{role:store.getState().identity?.role,draft:sessionUi.draft,catalog});sessionUi.actionState.status=recovery?.status||'error';sessionUi.actionState.message=recovery?.message||friendlyError(error);}render();}});
+    sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:String(store.getState().identity?.role||'coach'),commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},templateUndo:sessionUi?.templateUndo||null,restoreTemplateLoad:restoreCurrentTemplateLoad,clearTemplateUndo:clearCurrentTemplateUndo,autosaveDraft:saveSessionDraft,discardDraft:discardCurrentSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const draft=sessionUi?.draft;const clientId=String(draft?.clientId||'');const sessionId=String(draft?.id||'');const published=()=>Boolean(sessionId&&clientId&&(store.getState().collections.sessions||[]).some(item=>String(item?.id||'')===sessionId&&String(item?.clientId||item?.client_id||'')===clientId&&['publicada','published','publicado','disponible'].includes(String(item?.status||'').toLowerCase())));if(!published())await hydrate({reason:'session-published-verify'});if(!published())throw new Error('M35_SESSION_CONFIRM_NOT_VISIBLE');await clearSessionDraft(clientId).catch(error=>reportDiagnostic('session-draft-cleanup-after-publish',error));sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{reportSoftDiagnostic('session-action',error);if(sessionUi){const recovery=sessionCommandFailureOutcome(error,{role:store.getState().identity?.role,draft:sessionUi.draft,catalog});sessionUi.actionState.status=recovery?.status||'error';sessionUi.actionState.message=recovery?.message||friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');

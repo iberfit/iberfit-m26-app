@@ -756,6 +756,13 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
       </div>
       <div class="m26-inline-actions">
         <button type="button" data-session-action="save-draft">Guardar borrador</button>
+        <details class="m26-draft-discard">
+          <summary class="m26-text-action">Descartar borrador</summary>
+          <div class="m26-notice">
+            <p>Elimina este borrador del dispositivo y de la sincronización. No modifica ninguna sesión publicada.</p>
+            <button type="button" data-session-action="discard-draft">Eliminar este borrador</button>
+          </div>
+        </details>
         <button type="button" data-session-action="exit-session">Salir</button>
         ${primary}
       </div>
