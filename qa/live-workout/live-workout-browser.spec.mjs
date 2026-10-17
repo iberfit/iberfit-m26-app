@@ -283,3 +283,118 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width+1);
 });
 
+
+test('SIGNATURE published mixed Client route separates real guided preview and Coach-led supervision',async({page},testInfo)=>{
+  const errors=[];
+  page.on('pageerror',err=>errors.push(err.message));
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+  const screen=page.locator('.m26-rc39-sessions');
+  await expect(screen).toHaveAttribute('data-client-session-state','ready');
+  await expect(screen.locator('[data-rc39-session]')).toHaveCount(2);
+  await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
+  await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SUPERVISED_NEVER_CLIENT');
+  const led=screen.locator('[data-rc39-session="qa-published-supervised"]');
+  const self=screen.locator('[data-rc39-session="qa-published-guided"]');
+  await expect(led).toContainText('Esta sesión la dirige tu Coach');
+  await expect(led.locator('.m26-session-preview-disclosure')).toHaveCount(0);
+  await expect(led.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  await expect(self).toContainText('Fuerza autónoma');
+  await expect(self.locator('[data-workflow-action="start-published-session"]')).toBeHidden();
+  await self.locator('details.m26-session-preview-disclosure > summary').click();
+  const start=self.locator('[data-workflow-action="start-published-session"]');
+  await expect(start).toBeVisible();
+  await expect(self).toContainText('Press de pecho');
+  await expect(self).toContainText('Remo TRX');
+  await expect(self).toContainText('3-1-1');
+  await expect(self).toContainText('RPE');
+  const metrics=await page.evaluate(()=>{
+    const button=document.querySelector('[data-rc39-session="qa-published-guided"] [data-workflow-action="start-published-session"]');
+    const rect=button?.getBoundingClientRect();
+    return {
+      buttonWidth:rect?.width||0,buttonHeight:rect?.height||0,
+      docOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,
+      buttonUsable:Boolean(button&&!button.disabled),
+    };
+  });
+  expect(metrics.buttonUsable).toBe(true);
+  expect(metrics.buttonHeight).toBeGreaterThanOrEqual(44);
+  expect(metrics.buttonWidth).toBeGreaterThanOrEqual(44);
+  expect(metrics.docOverflow).toBe(false);
+  if(testInfo.project.name.includes('mobile')||testInfo.project.name.includes('desktop')){
+    const {mkdir}=await import('node:fs/promises');
+    const out='recovery/signature-published-sessions';
+    await mkdir(out,{recursive:true});
+    await page.screenshot({path:out+'/'+testInfo.project.name+'-mixed-preview.png',fullPage:true,animations:'disabled'});
+  }
+  expect(errors).toEqual([]);
+});
+
+test('SIGNATURE published autonomous preview leads to actual Client execution without duplicate launch',async({page})=>{
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+  const guided=page.locator('[data-rc39-session="qa-published-guided"]');
+  await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await guided.locator('[data-workflow-action="start-published-session"]').click();
+  await expect(page.locator('#qa-workout [data-session-action="start"]')).toHaveText('Comenzar entrenamiento');
+  let state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+  expect(state.launchCount).toBe(1);
+  expect(state.attempts).toEqual([{id:'qa-published-guided',ok:true}]);
+  await page.locator('#qa-workout [data-session-action="start"]').click();
+  await expect(page.locator('#qa-workout [data-session-live-state="active"]')).toBeVisible();
+  await expect(page.locator('#qa-workout [data-session-coach-quick-controls]')).toHaveCount(0);
+  await page.locator('#qa-workout [data-set-field="reps"]').fill('9');
+  await page.locator('#qa-workout [data-set-field="load"]').fill('12 kg');
+  await page.locator('#qa-workout [data-session-action="complete-set"]').click();
+  await expect.poll(async()=>{
+    const v=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+    return Object.keys(v.results).length;
+  }).toBeGreaterThan(0);
+  state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+  expect(state.launchCount).toBe(1);
+  expect(state.errors).toEqual([]);
+  expect(state.events.length).toBeGreaterThan(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
+});
+
+test('SIGNATURE Client never launches revoked, summary-only or already-started published sessions',async({page})=>{
+  for(const scenario of ['summary','revoked','paused','empty']){
+    await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario='+scenario,{waitUntil:'domcontentloaded'});
+    await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+    const route=page.locator('.m26-rc39-sessions');
+    await expect(route.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
+    await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SUPERVISED_NEVER_CLIENT');
+    if(scenario==='revoked'||scenario==='empty'){
+      await expect(route.locator('[data-rc39-session="qa-published-guided"]')).toHaveCount(0);
+    }else{
+      await expect(route.locator('[data-rc39-session="qa-published-guided"]')).toHaveCount(1);
+    }
+    // Deliberately forge an action in the synthetic QA page. The bridge must
+    // validate against the real policy instead of trusting DOM attributes.
+    await page.evaluate(()=>{
+      const fake=document.createElement('button');
+      fake.type='button';fake.dataset.workflowAction='start-published-session';
+      fake.dataset.entityId='qa-published-guided';
+      document.querySelector('#qa-published-route').append(fake);
+      fake.click();fake.remove();
+    });
+    const status=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+    expect(status.attempts).toEqual([{id:'qa-published-guided',ok:false}]);
+    expect(status.launchCount).toBe(0);
+    expect(status.status).toBe('not_started');
+    await expect(page.locator('#qa-workout [data-session-action="start"]')).toHaveCount(0);
+  }
+});
+
+test('SIGNATURE Coach-led appointment never converts into a Client start through a role change',async({page})=>{
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed&role=coach',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+  const route=page.locator('.m26-rc39-sessions');
+  await expect(route).toHaveAttribute('data-client-session-state','professional');
+  await expect(route.locator('[data-rc39-session="qa-published-supervised"]')).toContainText('Revisar prescripción y vista del cliente');
+  await expect(route.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  await expect(route.locator('[data-workflow-action="open-session-builder"]')).toHaveCount(1);
+  const state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+  expect(state.launchCount).toBe(0);
+});

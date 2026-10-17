@@ -31,6 +31,14 @@ Sobre la base certificada `8e25ce8ae5bf8c2b776c3a6208a0396a37abca2f` (10/10 work
 
 El refinamiento visual se aplica exclusivamente a la ruta de Cliente en `src/m26/rc39/rc39.css`: superficies bosque mate, curvas cálidas, texto marfil, chips compactos, foco y controles táctiles de tamaño mínimo; Coach/Admin conservan su composición y operaciones. La evidencia añade navegación y captura de Sesiones al mismo flujo Playwright autenticado en 320/390/1024/1440, más tests negativos de sesiones supervisadas, visibilidad contradictoria y ausencia de ejecución. Esta iteración **no está certificada ni publicada hasta pasar sus propios gates y revisión visual**.
 
+### Sesiones publicadas · certificación visual y de permisos en navegador (entrega siguiente)
+
+Se añade una fixture QA **sintética, aislada y sin credenciales** que genera dos sesiones desde las proyecciones y políticas reales: (A) guiada en app, publicada, visible y autorizada, con prescripción y botón solo después de `Ver sesión`; (B) presencial dirigida por Coach, visible solo como resumen y nunca iniciable por Cliente. Se comprueba que no se filtran notas privadas, ni sesiones ocultas, ni se confunde visibilidad con capacidad de ejecución.
+
+El recorrido del Cliente enlaza esa vista previa al **controlador real de ejecución**, registra una serie y protege frente a doble inicio. Los casos adversos `summary_only`, borrador retirado, ya en curso y semana vacía prueban tanto ausencia del botón como rechazo de un intento de click DOM fabricado mediante la política real. QA multi-dispositivo (Chromium escritorio/tablet/móvil y WebKit móvil), pantallas 390 px, medidas táctiles, ausencia de scroll horizontal y capturas adjuntas al workflow de Session QA.
+
+**Límite explícito:** la transición vista previa → ejecución utiliza un adaptador sintético de QA alrededor de los módulos de producción; **no** demuestra un ACK remoto real de `SESION_INICIAR`, publicación en Supabase, recuperación entre dispositivos ni pruebas autenticadas con una sesión publicada en la cuenta QA. Esas comprobaciones requieren un escenario remoto de datos exclusivamente QA preparado y autorizado, con pruebas de integridad previas y limpieza segura; no se escribirán sesiones en PROD ni en cuentas reales de clientes. Mantener el gate de identidad, los checks remotos existentes y los tests de autorización canónicos.
+
 ## 1. Resultado esperado (tres productos, una marca)
 
 - **Cliente:** la primera capa comunica qué toca, por qué, cuándo y cómo avanzar. Editorial, humana, cálida, motivadora sin manipulación ni mensajes de culpa. Sesión disponible alcanzable en <=2 toques. Persona Solo IRI ve diagnóstico, no una falsa suscripción de entrenamiento. IRI inicial separado de evolución.

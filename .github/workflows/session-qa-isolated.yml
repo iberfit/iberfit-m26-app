@@ -88,6 +88,14 @@ jobs:
           NODE
       - name: Run Live Workout browser E2E matrix
         run: npx playwright test --config=playwright.live-workout.config.mjs
+      - name: Preserve SIGNATURE published-session screenshots (synthetic QA)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signature-published-sessions-${{ github.run_id }}
+          path: recovery/signature-published-sessions/
+          if-no-files-found: warn
+          retention-days: 21
       - name: Preserve Live Workout browser failures
         if: failure()
         uses: actions/upload-artifact@v4
