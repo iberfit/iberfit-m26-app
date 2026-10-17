@@ -125,3 +125,40 @@ test('IRI entry changes the real Admin wizard immediately, survives navigation a
     }
   }
 });
+
+test('P0 mobile WebKit wizard advances repeatedly after changing a native select and returning',async({page},testInfo)=>{
+  test.skip(testInfo.project.name!=='admin-mobile-webkit','Focused native-selector gesture regression.');
+  test.setTimeout(90_000);
+  await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
+  const form=page.locator('[data-admin-form="client-create"]');
+  await expect(form).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');
+  await form.locator('[name="name"]').fill('Cliente QA móvil');
+  await form.locator('[name="email"]').fill('mobile.qa@example.com');
+  const first=form.locator('[data-client-step="1"]');
+  const second=form.locator('[data-client-step="2"]');
+  const sex=form.locator('[name="sexForNorms"]');
+  for(let i=0;i<8;i++){
+    const option=i%2===0?'female':'male';
+    await sex.selectOption(option);
+    await expect(sex).toHaveValue(option);
+    await first.locator('[data-client-wizard-next]').click();
+    try{
+      await expect(second,`Native select / wizard step transition iteration ${i+1}`).toBeVisible({timeout:4_000});
+    }catch(error){
+      const snapshot=await form.evaluate(node=>({
+        currentStep:node.dataset.clientCurrentStep,
+        invalidNames:[...node.querySelectorAll('[data-client-step="1"] input,[data-client-step="1"] select,[data-client-step="1"] textarea')]
+          .filter(c=>!c.disabled&&!c.closest('[hidden]')&&!c.checkValidity()).map(c=>c.name),
+        rootScrollBehavior:getComputedStyle(document.scrollingElement).scrollBehavior,
+      }));
+      throw new Error('IBERFIT_ADMIN_WEBKIT_REPEATED_STEP_FAILURE:'+JSON.stringify({iteration:i+1,...snapshot}),{cause:error});
+    }
+    await expect(form).toHaveAttribute('data-client-current-step','2');
+    await second.locator('[data-client-wizard-prev]').click();
+    await expect(first).toBeVisible({timeout:4_000});
+  }
+  await expect(form.locator('[name="name"]')).toHaveValue('Cliente QA móvil');
+  await expect(form.locator('[name="email"]')).toHaveValue('mobile.qa@example.com');
+});
