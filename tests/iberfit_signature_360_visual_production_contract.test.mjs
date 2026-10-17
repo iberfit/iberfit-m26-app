@@ -5,6 +5,10 @@ import {navigationForRole} from '../src/m26/shell/navigation.js';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 import {renderRouteView} from '../src/m26/modules/route-render.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
+import {iberfitTranslate} from '../src/m26/ui/i18n.js';
+import {createProductionState} from '../src/m26/production-state.js';
+import {createShellViewModel} from '../src/m26/shell/shell-view-model.js';
+import {renderM26Shell} from '../src/m26/shell/shell-render.js';
 
 const coverage=JSON.parse(fs.readFileSync(new URL('../qa/visual/signature-360-coverage.json',import.meta.url),'utf8'));
 const roles=['client','coach','admin'];
@@ -201,6 +205,113 @@ test('Signature360 Client Hoy respects reduced motion and forced-colors contrast
   for(const color of ['Canvas','CanvasText','ButtonFace','ButtonText','Highlight'])
     assert.ok(contrast.includes(color),`System color token absent: ${color}`);
   assert.doesNotMatch(contrast,/forced-color-adjust:\s*none/,'Allow system forced color adjustments');
+});
+
+test('Signature360 Admin mobile dock uses localized short captions and preserves complete accessible destinations',()=>{
+  const identity={id:'qa-admin-dock',role:'admin',name:'Admin sintético'};
+  const state=createProductionState({
+    hydration:{status:'ready',confirmedAt:'2026-10-16T10:00:00Z',serverTime:'2026-10-16T10:00:00Z'},
+    identity,
+    environment:'PRODUCTION',
+    activeArea:'admin-usuarios',
+    collections:createProductionState().collections,
+  });
+  const vm=createShellViewModel(state);
+  const html=renderM26Shell(vm);
+  const dock=html.match(/<nav class="m26-mobile-nav"[^>]*>([\s\S]*?)<\/nav>/u)?.[1]||'';
+  const sidebar=html.match(/<aside class="m26-sidebar"[^>]*>([\s\S]*?)<\/aside>/u)?.[1]||'';
+  assert.ok(dock&&sidebar,'keep separate mobile and desktop navigation');
+  assert.match(dock,/data-m26-area="admin-usuarios" aria-current="page" aria-label="Usuarios y accesos"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Usuarios<\/span><span class="m26-nav-label-micro" aria-hidden="true">Pers\.<\/span>/);
+  assert.match(dock,/data-m26-area="admin-agenda" aria-label="Agenda y capacidad"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Agenda<\/span><span class="m26-nav-label-micro" aria-hidden="true">Citas<\/span>/);
+  assert.match(dock,/data-m26-area="admin-operaciones" aria-label="Operaciones"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Gestión<\/span><span class="m26-nav-label-micro" aria-hidden="true">Ops<\/span>/,'short visual caption retains full semantic destination');
+  assert.match(sidebar,/data-m26-area="admin-usuarios"[^>]*>[\s\S]*?<span>Usuarios y accesos<\/span>/,'desktop sidebar keeps its complete label');
+  for(const route of ['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones'])
+    assert.match(dock,new RegExp('data-m26-area="'+route+'"'),'preserve Admin quick destination '+route);
+  const translations={
+    es:{users:'Usuarios',agenda:'Agenda',ops:'Gestión'},
+    en:{users:'Users',agenda:'Schedule',ops:'Ops'},
+    fr:{users:'Comptes',agenda:'Agenda',ops:'Gestion'},
+    pt:{users:'Contas',agenda:'Agenda',ops:'Gestão'},
+  };
+  for(const [language,label] of Object.entries(translations)){
+    assert.equal(iberfitTranslate('area.admin-usuarios.mobile',{language}),label.users);
+    assert.equal(iberfitTranslate('area.admin-agenda.mobile',{language}),label.agenda);
+    assert.equal(iberfitTranslate('area.admin-operaciones.mobile',{language}),label.ops);
+    for(const area of ['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones']){
+      const caption=iberfitTranslate('area.'+area+'.mobile',{language}).trim();
+      assert.ok(caption,'missing compact mobile label');
+      assert.ok([...caption].length<=8,`${language}:${area} mobile caption exceeds narrow-dock copy budget`);
+    }
+  }
+  const css=fs.readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
+  assert.match(css,/\.m26-shell\[data-m26-role="admin"\] \.m26-mobile-nav > \.m26-nav-item > span/,'no cross-role restyling');
+  assert.match(css,/white-space:nowrap/);
+  assert.match(css,/text-overflow:ellipsis/);
+  assert.match(css,/min-height:3\.25rem/,'Admin dock retains its touch target');
+  assert.match(css,/@media\(max-width:420px\)\s*\{\s*\.m26-shell\[data-m26-role="admin"\] \.m26-mobile-nav\s*\{\s*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/,'Admin narrow dock must not inherit five 58px minimum tracks');
+  assert.match(css,/\.m26-mobile-nav > \.m26-nav-item:focus-visible\s*\{\s*outline:3px solid Highlight/);
+});
+
+test('Signature360 Admin compact navigation has 320px browser evidence for real touch targets and labels',()=>{
+  const config=fs.readFileSync(new URL('../playwright.daily-admin-visual.config.mjs',import.meta.url),'utf8');
+  const browserSpec=fs.readFileSync(new URL('../qa/admin-interaction/admin-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  const adminStyle=fs.readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
+  const translations=fs.readFileSync(new URL('../src/m26/ui/i18n.js',import.meta.url),'utf8');
+  assert.match(adminStyle,/m26-nav-label-micro/, 'Admin 320px micro captions need a visible responsive style');
+  for(const id of ['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones']){
+    assert.equal((translations.match(new RegExp('area\\.'+id+'\\.compact','g'))||[]).length,4,'Missing localized micro caption: '+id);
+  }
+  assert.match(config,/admin-visual-compact-mobile/);
+  assert.match(config,/width:320,height:720/);
+  assert.match(browserSpec,/if\(viewport\.width<=390\)/,'both 320px and 390px must check the Admin dock');
+  const shellRender=fs.readFileSync(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
+  const shellController=fs.readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
+  assert.match(shellRender,/m26-nav-label-standard/);
+  assert.match(shellRender,/m26-nav-label-micro/);
+  assert.match(browserSpec,/getComputedStyle\(candidate\)\.display/,'Browser QA must measure actually visible dock captions');
+  assert.match(shellRender, /<summary aria-expanded="false" aria-controls="m26-mobile-more-menu"/, 'Más disclosure must start collapsed');
+  const disclosure=fs.readFileSync(new URL('../src/m26/shell/mobile-more-disclosure.js',import.meta.url),'utf8');
+  const visualFixture=fs.readFileSync(new URL('../qa/admin-interaction/fixture.mjs',import.meta.url),'utf8');
+  assert.match(shellController, /import \{setMobileMoreOpen,syncMobileMoreBackground\}/, 'production shell must use shared disclosure control');
+  assert.match(disclosure, /setAttribute\?\.\('aria-expanded',next\?'true':'false'\)/, 'shared disclosure must synchronize its expanded state');
+  assert.match(visualFixture, /import \{setMobileMoreOpen\}/, 'real visual fixture must import production disclosure behavior');
+  assert.match(visualFixture, /setMobileMoreOpen\(details,!\(details\.open\|\|details\.hasAttribute\('open'\)\)\)/, 'real touch fixture must toggle the shared disclosure');
+  for(const state of ["'aria-expanded','false'","'aria-expanded','true'"])
+    assert.ok(browserSpec.includes(state), 'browser QA must check both expanded states: '+state);
+  for(const contract of ['navScrollWidth','navClientWidth','more.present','more.right','more.hit'])
+    assert.ok(browserSpec.includes(contract),`320px Admin Más gate missing: ${contract}`);
+  for(const contract of ['scrollWidth','clientWidth','elementFromPoint','aria-label','toBeGreaterThanOrEqual(44)'])
+    assert.ok(browserSpec.includes(contract),`Admin dock browser gate missing: ${contract}`);
+});
+
+test('Signature360 Admin Users 360 keeps security facts readable and update disclosure keyboard-accessible',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
+  const start=css.indexOf('/* ADMIN_USER_DIRECTORY_EDITORIAL_BEGIN */');
+  const end=css.indexOf('/* ADMIN_USER_DIRECTORY_EDITORIAL_END */',start);
+  assert.ok(start>=0&&end>start,'use the canonical Admin user-directory CSS section');
+  const directory=css.slice(start,end);
+  assert.match(directory,/\.m26-admin-user-management > summary:focus-visible\s*\{\s*outline:3px solid/);
+  assert.match(directory,/\.m26-admin-user-card-head :is\(h3,p\)\s*\{\s*overflow-wrap:anywhere/);
+  const mobile=directory.slice(directory.lastIndexOf('@media(max-width:680px)'));
+  assert.match(mobile,/\.m26-admin-user360-grid dt\s*\{\s*font-size:\.75rem/);
+  assert.match(mobile,/\.m26-admin-user360-grid small\s*\{\s*font-size:\.8125rem/);
+  assert.match(mobile,/\.m26-admin-user360-grid dd strong\s*\{[\s\S]*?overflow-wrap:anywhere/);
+  const contrast=directory.slice(directory.lastIndexOf('@media(forced-colors:active)'));
+  assert.match(contrast,/\.m26-admin-user-management > summary:focus-visible\s*\{\s*outline-color:Highlight/,'OS high-contrast focus must remain visible');
+  assert.match(contrast,/\.m26-admin-user360-card \.m26-admin-badge\s*\{\s*border:1px solid CanvasText/,'security status badges must be visible in high contrast');
+  assert.doesNotMatch(contrast,/forced-color-adjust:\s*none/,'do not disable system contrast');
+  const rendered=renderAdminRoute({
+    kind:'admin-usuarios',admin:true,currentUserId:'qa-admin',
+    canManageStatus:true,canManageRoles:false,
+    organization:{timezone:'America/Santiago',locale:'es-CL'},
+    users:[{id:'qa-user',userId:'qa-user',name:'Persona de prueba con un nombre largo',
+      authEmail:'qa.synthetic@example.test',roles:['client'],status:'active',revision:1}],
+  });
+  assert.match(rendered,/m26-admin-user360-card/);
+  assert.match(rendered,/<details class="m26-admin-user-management"><summary>Actualizar usuario<\/summary>/);
+  for(const field of ['Último acceso','Relación operativa','Acceso Cliente','Correo de contacto','Coach / cartera','Activación'])
+    assert.ok(rendered.includes(field),`Security-relevant fact must never be removed: ${field}`);
+  assert.match(rendered,/data-admin-user-search/,'search remains available on mobile');
 });
 
 test('Signature360 Admin agenda keeps accessible horizontal scroll and chronological order',()=>{
