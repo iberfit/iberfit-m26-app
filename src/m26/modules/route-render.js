@@ -4095,11 +4095,6 @@ export function renderPlanningRoute(vm){
     <div><span>Frecuencia</span><strong>${weeklyFrequency?`${escapeHtml(weeklyFrequency)} / semana`:'Por definir'}</strong></div>
     <div><span>Duración</span><strong>${sessionDuration?`${escapeHtml(sessionDuration)} min`:'Por definir'}</strong></div>
   </section>`:'';
-  const clientAppointments=isClient&&Array.isArray(vm.clientAppointments)?vm.clientAppointments:[];
-  const clientAppointmentPanel=isClient?`<section id="m26-client-next-appointment" class="m26-panel m26-planning-appointments" aria-label="Tus próximas citas confirmadas">
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda confirmada</p><h2>Próximas citas</h2><p>Consulta fecha, modalidad y lugar de tus citas confirmadas.</p></div>${clientAppointments.length?badge(countLabel(clientAppointments.length,'cita','citas'),'neutral'):''}</div>
-    ${clientAppointments.length?`<div class="m26-stack">${clientAppointments.map(item=>appointmentCard(item)).join('')}</div>`:emptyState('Sin próximas citas confirmadas','Cuando tu Coach confirme una cita, aparecerá aquí.')}
-  </section>`:'';
   const clientPlanGuideAttribute=isClient&&(hasCycle||vm.sessions.length)
     ?' data-m26-client-guide="plan-surface"'
     :'';
@@ -4111,7 +4106,6 @@ export function renderPlanningRoute(vm){
     </section>
     ${nextAction}
     ${cycleSummary}
-    ${clientAppointmentPanel}
     ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:isClient})}
     ${!isClient?iriPlanningContextPanel(seed):''}
     ${editor}
