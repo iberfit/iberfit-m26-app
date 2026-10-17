@@ -984,6 +984,7 @@ body {
 }
 
 .m26-session-live-v3 .m26-session-live-quick-actions[data-session-coach-quick-controls]{
+  box-sizing:border-box;
   width:100%;
   min-width:0;
   flex-wrap:wrap;
