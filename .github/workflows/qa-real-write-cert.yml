@@ -19,6 +19,8 @@ on:
       - 'src/m26/command-bus.js'
       - 'src/m26/supabase-transport.js'
       - 'src/m26/workflows/**'
+      - 'qa/m45-release-cert/**'
+      - 'playwright.m45-release-cert.config.mjs'
       - 'supabase/migrations/**'
       - 'supabase/functions/iberfit-admin-client-invite-v1/**'
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
@@ -40,6 +42,8 @@ on:
       - 'src/m26/command-bus.js'
       - 'src/m26/supabase-transport.js'
       - 'src/m26/workflows/**'
+      - 'qa/m45-release-cert/**'
+      - 'playwright.m45-release-cert.config.mjs'
       - 'supabase/migrations/**'
       - 'supabase/functions/iberfit-admin-client-invite-v1/**'
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
@@ -344,3 +348,93 @@ jobs:
             playwright-report/
           if-no-files-found: error
           retention-days: 30
+
+  m45-release-cert:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    name: M45 real Coach-Client release E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build frozen Canary authenticated QA surface
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Reset Coach QA WebAuthn fixture before M45 certification
+        shell: bash
+        env:
+          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
+          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" > recovery-m45-reset-before.json
+          jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-m45-reset-before.json >/dev/null
+      - name: Certify M45 messaging agenda preferences and push ownership
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: npx playwright test --config playwright.m45-release-cert.config.mjs
+      - name: Reset Coach QA WebAuthn fixture after M45 certification
+        if: always()
+        shell: bash
+        env:
+          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
+          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" > recovery-m45-reset-after.json
+          jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-m45-reset-after.json >/dev/null
+      - name: Preserve redacted M45 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m45-release-cert-${{ github.run_id }}
+          path: |
+            recovery/m45-release-cert/
+            recovery-m45-reset-before.json
+            recovery-m45-reset-after.json
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
