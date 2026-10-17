@@ -76,6 +76,7 @@ To test the *actual original PROD `pre_v65e` definition* with QA synthetic data,
 - Protected Coach/Admin final bootstrap cannot be simulated without valid privileged WebAuthn; the intermediate authenticated scope outputs match. No privileged checks were bypassed.
 - Three paired, synthetic Client A `pre_v65e` SQL execution timings: QA optimization **905/749/692 ms** vs PROD-shaped baseline **1063/1025/1024 ms**. Median **749 ms** vs **1025 ms**, approximately 27% faster in this small sample. This documents why #1006 is a separate latency improvement; it does not establish a necessary functional dependency or a production load guarantee.
 - All tests use synthetic QA fixtures, not customer data downloaded from PROD. No PROD write or prod source data export.
+- **Post-test QA hygiene completed:** the three private PROD-shaped compatibility clones were deleted in dependency order with exact body/hash and ACL guards, without `CASCADE`; a catalog query confirmed **zero residual `%prodshape_qa_20261017` functions**. The public QA hashes remain unchanged.
 
 **Release implication:** keep #1006 and #1017 as separately guarded DB changes, with independent approvals, exact hashes, parity, rollback and production backup evidence. Testing #1017 only with QA's already-optimized #1006 is not sufficient by itself; the above PROD-shaped tests cover their functional compatibility, not real PROD traffic or p99.
 
