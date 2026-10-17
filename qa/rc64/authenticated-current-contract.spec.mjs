@@ -61,7 +61,30 @@ async function dismissGuidance(page){
 
 async function verifyClientWorkspace(page,{projectName,browserName}){
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(shell).toBeVisible({timeout:10_000});
+  try{
+    await expect(shell).toBeVisible({timeout:10_000});
+  }catch(error){
+    // Keep the original 10s SLA and fail closed. Record only stage names,
+    // elapsed milliseconds, booleans and auth-mode—not any user data,
+    // credentials, tokens, request bodies or free-text server responses.
+    const diagnostic=await page.evaluate(()=>{
+      const card=document.querySelector('.m26-auth-card');
+      const stages=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__||{};
+      const root=document.querySelector('[data-m26-interactive]');
+      return {
+        shellMounted:Boolean(document.querySelector('.m26-shell[data-m26-role="client"]')),
+        loginVisible:Boolean(document.querySelector('[data-auth-form="login"]')),
+        loginBusy:card?.getAttribute('aria-busy')==='true',
+        authMode:String(card?.getAttribute('data-auth-mode')||'unknown').slice(0,32),
+        interactiveReady:root?.getAttribute('data-m26-interactive')==='ready',
+        stages:Array.isArray(stages.appStages)?stages.appStages.slice(-35):[],
+        stageTimes:Array.isArray(stages.appStageTimes)?stages.appStageTimes.slice(-35):[],
+        diagnostics:Array.isArray(stages.diagnostics)?stages.diagnostics.slice(-12):[],
+      };
+    }).catch(()=>({unavailable:true}));
+    console.error('RC64_CLIENT_SHELL_BOOTSTRAP_DIAGNOSTIC:'+JSON.stringify(diagnostic));
+    throw error;
+  }
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
   await expect(
     page.locator('[data-m26-action="logout"]'),
@@ -213,12 +236,14 @@ test('current authenticated contract separates privileged fail-closed identities
     // Observe initial bootstrap -> full-app transitions from document start.
     // Values, identifiers, passwords and tokens are intentionally not inspected.
     await page.addInitScript(()=>{
-      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false,appStages:[],diagnostics:[]};
+      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false,appStages:[],appStageTimes:[],diagnostics:[]};
       // Only fixed enumerated stage/code metadata; never capture inputs, tokens or identity.
       globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
         if(typeof stage==='string'&&/^rc64-[a-z0-9-]{1,64}$/u.test(stage)){
           events.appStages.push(stage);
           if(events.appStages.length>50)events.appStages.shift();
+          events.appStageTimes.push({stage,atMs:Math.round(performance.now())});
+          if(events.appStageTimes.length>50)events.appStageTimes.shift();
         }
       };
       globalThis.addEventListener('m26:diagnostic',(event)=>{
