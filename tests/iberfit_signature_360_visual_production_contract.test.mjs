@@ -116,8 +116,8 @@ test('Signature360 Client dock uses accessible compact labels without splitting 
   assert.match(hoy,/\.m26-client-home-secondary-disclosure > summary::after\{\s*grid-column:2;/,'Disclosure indicator stays in its own column');
   for(const [source,translations] of [
     ['Plan',{en:'Plan',fr:'Plan',pt:'Plano'}],
-    ['Sesión',{en:'Session',fr:'Séance',pt:'Sessão'}],
-    ['Avance',{en:'Progress',fr:'Progression',pt:'Progresso'}],
+    ['Sesión',{en:'Session',fr:'Session',pt:'Sessão'}],
+    ['Avance',{en:'Stats',fr:'Suivi',pt:'Avanço'}],
   ]){
     for(const [language,expected] of Object.entries(translations)){
       assert.equal(iberfitSurfaceTranslate(source,{language}),expected);

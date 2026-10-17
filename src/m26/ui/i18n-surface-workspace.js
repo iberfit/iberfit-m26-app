@@ -107,7 +107,7 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Tu plan','Your plan','Votre plan','O seu plano'],
 ['Plan','Plan','Plan','Plano'],
 ['Sesión','Session','Séance','Sessão'],
-['Avance','Progress','Progression','Progresso'],
+['Avance','Stats','Suivi','Avanço'],
 ['En preparación','In preparation','En préparation','Em preparação'],
 ['Plan confirmado','Confirmed plan','Plan confirmé','Plano confirmado'],
 ['Tu Coach lo publicará cuando esté listo','Your Coach will publish it when ready','Votre Coach le publiera lorsqu’il sera prêt','O seu Coach irá publicá-lo quando estiver pronto'],
