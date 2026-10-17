@@ -59,7 +59,7 @@ async function dismissGuidance(page){
   }
 }
 
-async function verifyClientWorkspace(page,{projectName,browserName}){
+async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]}){
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
   try{
     await expect(shell).toBeVisible({timeout:10_000});
@@ -89,7 +89,7 @@ async function verifyClientWorkspace(page,{projectName,browserName}){
         diagnostics:Array.isArray(stages.diagnostics)?stages.diagnostics.slice(-12):[],
       };
     }).catch(()=>({unavailable:true}));
-    console.error('RC64_CLIENT_SHELL_BOOTSTRAP_DIAGNOSTIC:'+JSON.stringify(diagnostic));
+    console.error('RC64_CLIENT_SHELL_BOOTSTRAP_DIAGNOSTIC:'+JSON.stringify({...diagnostic,networkRpcTimings:rpcTimings.slice(-24)}));
     throw error;
   }
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
@@ -113,6 +113,9 @@ async function verifyClientWorkspace(page,{projectName,browserName}){
     return steps.map((point)=>({phase:point.phase,elapsedMs:Math.max(0,point.atMs-start)}));
   });
   console.log('RC64_CLIENT_SHELL_STAGE_LATENCY:'+JSON.stringify({project:projectName,steps:timing}));
+  // Read-only, allowlisted request duration from the Playwright host clock.
+  // Cross-origin ResourceTiming can be zeroed by the browser without TAO.
+  console.log('RC64_CLIENT_RPC_LATENCY:'+JSON.stringify({project:projectName,entries:rpcTimings.slice(-24)}));
   await expect(
     page.locator('[data-m26-action="logout"]'),
     'Authenticated Client must retain a semantic logout action even when session controls live inside Settings',
@@ -255,6 +258,8 @@ test('current authenticated contract separates privileged fail-closed identities
     const pageErrors=[];
     // Read-only diagnostic phases; never record secrets or identifying data.
     const authPhases=[];
+    const rpcStarts=new WeakMap();
+    const rpcTimings=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
       onBlocked:(label)=>blocked.push(label),
@@ -311,12 +316,22 @@ test('current authenticated contract separates privileged fail-closed identities
       try{
         const url=new URL(request.url());
         if(url.origin!==SUPABASE_ORIGIN||request.method()!=='POST')return;
+        if(url.pathname.startsWith('/rest/v1/rpc/')){
+          const rpc=url.pathname.slice('/rest/v1/rpc/'.length);
+          if(READ_ONLY_RPCS.has(rpc))rpcStarts.set(request,{rpc,started:process.hrtime.bigint()});
+        }
         if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
           authPhases.push('first-factor-request');
         if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-request');
       }catch{}
     });
     page.on('response',(response)=>{
+      const started=rpcStarts.get(response.request());
+      if(started){
+        rpcStarts.delete(response.request());
+        rpcTimings.push({rpc:started.rpc,durationMs:Math.round(Number(process.hrtime.bigint()-started.started)/1e6),status:response.status()});
+        if(rpcTimings.length>60)rpcTimings.shift();
+      }
       if(isQaPrivateAvatarRead(response.request())&&response.status()>=400){
         avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
           if(ok)missingAvatar.push(true);
@@ -333,6 +348,7 @@ test('current authenticated contract separates privileged fail-closed identities
       }catch{}
     });
     page.on('requestfailed',(request)=>{
+      rpcStarts.delete(request);
       try{
         const url=new URL(request.url());
         if(url.origin===SUPABASE_ORIGIN){
@@ -408,7 +424,7 @@ test('current authenticated contract separates privileged fail-closed identities
         expect(assurance.privileged,'Client-only fixture must not be privileged').toBe(false);
         expect(assurance.mfaRequired,'Client-only fixture must not require privileged MFA').toBe(false);
         expect(assurance.webauthnRequired,'Client-only fixture must not require WebAuthn').toBe(false);
-        await verifyClientWorkspace(page,{projectName,browserName});
+        await verifyClientWorkspace(page,{projectName,browserName,rpcTimings});
       }
 
       await Promise.all(avatarChecks);
