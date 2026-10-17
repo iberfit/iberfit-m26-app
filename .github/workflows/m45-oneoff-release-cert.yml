@@ -1,0 +1,67 @@
+name: IBERFIT M45 One-Off Release Certification
+
+on:
+  push:
+    branches:
+      - 'qa/m45-release-cert-*'
+    paths:
+      - '.github/workflows/m45-oneoff-release-cert.yml'
+      - 'qa/m45-release-cert/**'
+      - 'playwright.m45-release-cert.config.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  m45-release-cert:
+    name: M45 real Coach-Client release E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact certification branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build frozen Canary authenticated QA surface
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Certify M45 messaging agenda preferences and push ownership
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+          M26_CERTIFIED_CANARY_SHA: 0105eef1581db8c3d57c7827a3006a624b7368b4
+        run: npx playwright test --config playwright.m45-release-cert.config.mjs
+      - name: Preserve redacted M45 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m45-oneoff-release-cert-${{ github.run_id }}
+          path: |
+            recovery/m45-release-cert/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
