@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: iberfit-m26-production-deploy
@@ -77,10 +78,90 @@ jobs:
       # Backup inventory must be confirmed BEFORE any M44 schema or Edge promotion.
       # This guard is read-only. A completed backup inventory entry still
       # requires independent restore verification prior to the first PROD DDL.
-      - name: Certify recent recoverable-snapshot inventory for M44 (fail closed)
+      - name: Certify recent recoverable recovery point for M44 (fail closed)
+        shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node scripts/ops/m44_prod_backup_inventory_guard.mjs
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          managed_log="$(mktemp)"
+          set +e
+          node scripts/ops/m44_prod_backup_inventory_guard.mjs >"$managed_log" 2>&1
+          managed_status=$?
+          set -e
+          if [[ "$managed_status" -eq 0 ]]; then
+            cat "$managed_log"
+            rm -f "$managed_log"
+            exit 0
+          fi
+          managed_error="$(tr -cd 'A-Z0-9_.:\n' <"$managed_log" | head -c 160)"
+          rm -f "$managed_log"
+          if [[ "$managed_error" != *"M44_PROD_BACKUP_NO_RECENT_COMPLETED_SNAPSHOT"* ]]; then
+            echo "M44_PROD_BACKUP_MANAGED_GATE_FAILED:$managed_error" >&2
+            exit 41
+          fi
+
+          test -n "${GH_ACTIONS_TOKEN:-}" || { echo 'M44_OFFSITE_GITHUB_TOKEN_MISSING' >&2; exit 42; }
+          test "$GITHUB_REPOSITORY" = 'iberfit/iberfit-m26-app' || { echo 'M44_OFFSITE_REPOSITORY_MISMATCH' >&2; exit 43; }
+          test -n "${SOURCE_SHA:-}" || { echo 'M44_OFFSITE_SOURCE_SHA_MISSING' >&2; exit 44; }
+
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          auth="Authorization: Bearer $GH_ACTIONS_TOKEN"
+          accept="Accept: application/vnd.github+json"
+          version="X-GitHub-Api-Version: 2022-11-28"
+
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            -H "$auth" -H "$accept" -H "$version" \
+            "$api/actions/workflows/m44-encrypted-disaster-recovery.yml/runs?branch=canary%2Frc74-4&status=completed&per_page=20" \
+            -o /tmp/m44-offsite-runs.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/m44-offsite-runs.json','utf8'));
+          const runs=(Array.isArray(body.workflow_runs)?body.workflow_runs:[])
+            .filter(r=>r?.name==='IBERFIT M44 Encrypted Offsite Disaster Recovery')
+            .filter(r=>r?.path==='.github/workflows/m44-encrypted-disaster-recovery.yml')
+            .filter(r=>r?.head_branch==='canary/rc74-4')
+            .filter(r=>r?.status==='completed'&&r?.conclusion==='success')
+            .filter(r=>['push','workflow_dispatch'].includes(r?.event))
+            .sort((a,b)=>Date.parse(b.updated_at||0)-Date.parse(a.updated_at||0));
+          if(!runs[0])throw new Error('M44_OFFSITE_SUCCESSFUL_RUN_MISSING');
+          fs.writeFileSync('/tmp/m44-offsite-run.json',JSON.stringify(runs[0]));
+          NODE
+
+          run_id="$(node -p "require('/tmp/m44-offsite-run.json').id")"
+          run_sha="$(node -p "require('/tmp/m44-offsite-run.json').head_sha")"
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            -H "$auth" -H "$accept" -H "$version" \
+            "$api/actions/runs/$run_id/jobs?per_page=100" -o /tmp/m44-offsite-jobs.json
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            -H "$auth" -H "$accept" -H "$version" \
+            "$api/actions/runs/$run_id/artifacts?per_page=100" -o /tmp/m44-offsite-artifacts.json
+
+          node scripts/data-safety/check_m44_offsite_recovery_readiness.mjs \
+            /tmp/m44-offsite-run.json /tmp/m44-offsite-jobs.json /tmp/m44-offsite-artifacts.json \
+            recovery/m44-offsite-release-readiness.json
+
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            -H "$auth" -H "$accept" -H "$version" \
+            "$api/compare/$run_sha...${SOURCE_SHA}" -o /tmp/m44-offsite-lineage.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/m44-offsite-lineage.json','utf8'));
+          if(!['ahead','identical'].includes(x.status)||Number(x.behind_by)!==0){
+            throw new Error('M44_OFFSITE_RELEASE_SOURCE_NOT_DESCENDANT');
+          }
+          const proof=JSON.parse(fs.readFileSync('recovery/m44-offsite-release-readiness.json','utf8'));
+          if(proof.ok!==true||proof.restoreTestVerified!==true||proof.productionMigrationApproved!==true){
+            throw new Error('M44_OFFSITE_RELEASE_PROOF_INVALID');
+          }
+          if(proof.platformRecoveryVerified!==false){
+            throw new Error('M44_OFFSITE_PLATFORM_RECOVERY_OVERCLAIM');
+          }
+          console.log('M44_PROD_RECOVERY_POINT_VERIFIED:independent-encrypted-db-storage-restore');
+          NODE
 
       - name: Certify Connected360 V47 production database (fail closed)
         env:
