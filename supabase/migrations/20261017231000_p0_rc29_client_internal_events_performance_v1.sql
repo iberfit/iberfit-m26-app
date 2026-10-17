@@ -1,8 +1,8 @@
 -- IBERFIT P0 — QA-first, fail-closed Client internal-event bootstrap optimization.
 -- Exact scope: rc29 only. Do not loosen MFA, RLS, privileges or the authenticated 10s SLA.
--- Final Client HTTP projection always drops domainEvents; Coach/Admin must retain them.
+-- Final Client HTTP projection drops domainEvents and filters unpublished entities; Coach/Admin remain unchanged.
 -- QA candidate parity: complete JSON identical for Client A/B; Coach/Admin rc29 unchanged.
--- Base definition MD5 5c565986e5946e768cd84eb0398f76cb; optimized body MD5 8419989105aacb40222a3e79fdf6ce93.
+-- Base definition MD5 5c565986e5946e768cd84eb0398f76cb; optimized body MD5 722040e7807a52a70339277014026833.
 SELECT 1/(CASE WHEN
  (SELECT md5(pg_get_functiondef(oid))='5c565986e5946e768cd84eb0398f76cb'
        AND pg_get_userbyid(proowner)='postgres'
@@ -127,6 +127,19 @@ begin
       ))
       from public.domain_entities_v26 e
       where exists (select 1 from visible v where v.client_id is not distinct from e.client_id)
+        -- The final Client HTTP projection already enforces these exact publication
+        -- and privacy filters; apply them before serializing large internal JSON.
+        and (v_role not in ('client','cliente') or (
+          e.entity_type not in ('private_note','intelligence','report')
+          and (e.entity_type not in ('planning','session')
+            or (
+              lower(coalesce(e.status,e.body->>'status','')) in
+                ('publicado','publicada','published','disponible','en_curso',
+                 'activo','active','habilitado','enabled','completado','completada','completed')
+              and lower(coalesce(e.body->>'visibleToClient','true')) not in ('false','0','no')
+            )
+          )
+        ))
     ),'[]'::jsonb),
     'metrics',jsonb_build_object('checkin',null,'progress',null,'iri',null)
   ) into v_data;
@@ -170,7 +183,7 @@ end
 $function$;
 
 SELECT 1/(CASE WHEN
- (SELECT md5(prosrc)='8419989105aacb40222a3e79fdf6ce93' AND pg_get_userbyid(proowner)='postgres'
+ (SELECT md5(prosrc)='722040e7807a52a70339277014026833' AND pg_get_userbyid(proowner)='postgres'
     AND prosecdef AND provolatile='s' AND proconfig @> ARRAY['search_path=""']::text[]
     AND NOT has_function_privilege('anon',oid,'EXECUTE')
     AND NOT has_function_privilege('authenticated',oid,'EXECUTE')
