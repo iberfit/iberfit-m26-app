@@ -574,6 +574,7 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   align-content:start;
   gap:.85rem;
   min-width:0;
+  text-align:left;
   padding:clamp(1.15rem,3vw,1.8rem);
   border:1px solid var(--iberfit-color-border-strong);
   border-radius:1.45rem;

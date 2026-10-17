@@ -85,7 +85,8 @@ test('SIGNATURE Client Sessions has one warm empty state with real navigation, n
   assert.match(html,/data-client-session-empty/u);
   assert.match(html,/Sesiones · IBERFIT/u,'unknown modality should not become a heading');
   assert.match(html,/A tu ritmo, con criterio/u);
-  assert.match(html,/Tu próxima sesión aparecerá aquí cuando esté publicada y autorizada/u);
+  assert.match(html,/Tu Coach todavía no ha publicado sesiones para ti/u);
+  assert.doesNotMatch(html,/Tu próxima sesión aparecerá aquí cuando esté publicada y autorizada/u,'empty instructions must not be repeated above the same card');
   assert.equal((html.match(/data-m26-area="planificacion"/gu)||[]).length,1);
   assert.equal((html.match(/data-m26-area="actividad"/gu)||[]).length,1);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"|Comenzar entrenamiento/u);
