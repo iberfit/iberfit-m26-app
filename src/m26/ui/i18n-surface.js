@@ -6,6 +6,12 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
   // SIGNATURE 360 2/5: truthful Client Hoy, appointment, plan and IRI states.
+  ['Tus próximas citas confirmadas','Your upcoming confirmed appointments','Vos prochains rendez-vous confirmés','As suas próximas marcações confirmadas'],
+  ['Agenda confirmada','Confirmed schedule','Agenda confirmée','Agenda confirmada'],
+  ['Próximas citas','Upcoming appointments','Prochains rendez-vous','Próximas marcações'],
+  ['Consulta fecha, modalidad y lugar de tus citas confirmadas.','Check the date, format and location of your confirmed appointments.','Consultez la date, la modalité et le lieu de vos rendez-vous confirmés.','Consulte a data, a modalidade e o local das suas marcações confirmadas.'],
+  ['Sin próximas citas confirmadas','No upcoming confirmed appointments','Aucun prochain rendez-vous confirmé','Sem próximas marcações confirmadas'],
+  ['Cuando tu Coach confirme una cita, aparecerá aquí.','Once your Coach confirms an appointment, it will appear here.','Lorsque votre Coach confirmera un rendez-vous, il apparaîtra ici.','Quando o seu Coach confirmar uma marcação, ela aparecerá aqui.'],
   ['Ver próxima cita en tu plan','View next appointment in your plan','Voir le prochain rendez-vous dans votre programme','Ver a próxima marcação no seu plano'],
   ['Consulta la fecha y el estado de tu próxima cita en Tu plan.','Check the date and status of your next appointment in Your plan.','Consultez la date et le statut de votre prochain rendez-vous dans Votre programme.','Consulte a data e o estado da sua próxima marcação no Seu plano.'],
   ['Consulta el estado de tu evaluación','Check the status of your assessment','Consultez l’état de votre évaluation','Consulte o estado da sua avaliação'],
