@@ -302,6 +302,16 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return restored;
   }
 
+  function setSettingsOpen(details,open){
+    if(!details)return false;
+    const next=Boolean(open);
+    details.open=next;
+    if(next)details.setAttribute?.('open','');
+    else details.removeAttribute?.('open');
+    details.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded',next?'true':'false');
+    return next;
+  }
+
   function continuitySurface(control){
     if(control?.closest?.('.m26-settings-route'))return 'settings-route';
     if(control?.closest?.('details.m26-settings-menu'))return 'settings-popover';
@@ -724,6 +734,19 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onClick(event) {
+    const settingsSummary=event.target.closest?.('.m26-settings-menu > summary');
+    if(settingsSummary){
+      const details=settingsSummary.closest?.('details.m26-settings-menu');
+      if(details){
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        releasePointerInteraction({deferRender:false});
+        setSettingsOpen(details,!(details.open||details.hasAttribute?.('open')));
+        queueMicrotask(flushDeferredRender);
+        return;
+      }
+    }
+
     const mobileMoreSummary=event.target.closest?.('.m26-mobile-more > summary');
     if(mobileMoreSummary){
       const details=mobileMoreSummary.closest?.('details.m26-mobile-more');
