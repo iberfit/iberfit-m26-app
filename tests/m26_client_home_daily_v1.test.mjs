@@ -134,7 +134,7 @@ test('Client Home never repeats the same next action below the primary action',(
 test('Client Home has explicit mobile-first responsive hierarchy',()=>{
   assert.match(css,/CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE/u);
   const actionStyle=css.match(/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{([^}]+)\}/u)?.[1]||'';
-  const touchHeight=Number(actionStyle.match(/min-height:([\\d.]+)rem/u)?.[1]||0);
+  const touchHeight=Number(actionStyle.match(/min-height:([0-9.]+)rem/u)?.[1]||0);
   assert.ok(touchHeight>=6.8,'primary mobile action may grow but never shrink below the established touch height');
   assert.match(css,/\.m26-client-home-glance\{[\s\S]*?repeat\(auto-fit,minmax\(13rem,1fr\)\)/u);
   assert.match(css,/\.m26-client-home-secondary-disclosure > summary\{[\s\S]*?min-height:44px/u);
