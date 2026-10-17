@@ -448,7 +448,7 @@ test('SIGNATURE published guided Client finishes both real recorded sets, feedba
   expect(Object.keys(result.results)).toHaveLength(2);
   expect(result.results[Object.keys(result.results)[0]].rpe).toBe(7);
   expect(result.results[Object.keys(result.results)[1]].rpe).toBe(8);
-  expect(result.events.filter(e=>e.type==='SET_RECORDED')).toHaveLength(2);
+  expect(result.events.filter(e=>e.type==='SET_COMPLETED')).toHaveLength(2);
   expect(result.saved,'final session should leave a recoverable synthetic checkpoint').toBeGreaterThan(0);
   expect(result.errors).toEqual([]);
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
