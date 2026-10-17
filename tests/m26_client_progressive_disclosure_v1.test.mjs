@@ -272,3 +272,13 @@ test('SIGNATURE Client never treats a confirmed single session or wellbeing entr
     assert.doesNotMatch(html,/m26-client-progress-empty-actions/u);
   }
 });
+
+test('SIGNATURE empty progress header avoids redundant oversized status badges',()=>{
+  const html=render('client',summary());
+  assert.match(html,/class="m26-route-intro is-empty"/u);
+  assert.match(html,/Tus avances confirmados irán apareciendo aquí, paso a paso/u);
+  assert.doesNotMatch(html,/>Construyendo historial<\/span>/u);
+  const withData=render('client',summary({completedSessions:2,plannedSessions:2,dataQuality:'media'}));
+  assert.doesNotMatch(withData,/class="m26-route-intro is-empty"/u);
+  assert.match(withData,/Primeras tendencias/u);
+});

@@ -3678,6 +3678,19 @@ m26-echart[data-density="compact"]{
 .m26-shell[data-m26-role="client"] .m26-client-progress-route{
   gap:clamp(.8rem,1.7vw,1.15rem);
 }
+.m26-shell[data-m26-role="client"] .m26-client-progress-route > .m26-route-intro.is-empty{
+  display:grid;
+  min-height:0;
+  padding:.25rem .15rem .35rem;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-route > .m26-route-intro.is-empty p:last-child{
+  max-width:55ch;
+  color:var(--iberfit-color-cream-300);
+}
 .m26-shell[data-m26-role="client"] .m26-client-progress-stage{
   position:relative;
   overflow:hidden;

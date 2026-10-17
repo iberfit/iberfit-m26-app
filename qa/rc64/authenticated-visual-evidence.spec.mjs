@@ -300,9 +300,11 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await planNav.click();
         await expect(page.locator('.m26-rc39-planning')).toBeVisible({timeout:10_000});
         await certifyNonOverlappingClientDock(page,projectUse,'Tu plan');
+        await expect(page.locator('.m26-rc39-planning .m26-route-intro h2')).not.toContainText('Sin modalidad');
         const pendingPlan=page.locator('.m30-planning-overview.is-pending');
         if(await pendingPlan.count()){
           await expect(pendingPlan).toContainText('Tu semana aún no está publicada');
+          await expect(page.locator('.m26-rc39-planning > .m26-route-intro .m26-badge')).toHaveCount(0);
           await expect(page.locator('.m30-planning-overview-metrics')).toHaveCount(0);
           await expect(pendingPlan.locator('button[data-m26-area="actividad"]')).toBeVisible();
           await expect(page.locator('.m26-rc39-week')).toHaveCount(0);
@@ -331,6 +333,8 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await certifyNonOverlappingClientDock(page,projectUse,'Tu evolución');
         const emptyProgress=page.locator('.m26-client-progress-stage.is-empty');
         if(await emptyProgress.count()){
+          await expect(page.locator('.m26-client-progress-route > .m26-route-intro.is-empty')).toBeVisible();
+          await expect(page.locator('.m26-client-progress-route > .m26-route-intro .m26-badge')).toHaveCount(0);
           await expect(emptyProgress).toContainText('Tu evolución empieza con el primer registro');
           await expect(emptyProgress.locator('button[data-m26-area="actividad"]')).toBeVisible();
           await expect(emptyProgress.locator('button[data-m26-area="planificacion"]')).toBeVisible();

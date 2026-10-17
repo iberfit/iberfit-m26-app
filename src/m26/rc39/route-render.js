@@ -296,7 +296,12 @@ function renderClientPlanning(vm){
     <div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda confirmada</p><h3>Próximas citas</h3>${clientAppointments.length?'<p>Consulta fecha, modalidad y lugar de tus citas confirmadas.</p>':''}</div></div>
     ${clientAppointments.length?`<div class="m26-stack">${clientAppointments.map((item)=>`<article class="m26-list-card m30-planning-appointment"><div><p class="m26-eyebrow">${escape(item.dateLabel||'Por confirmar')}</p><h4>${escape(item.title||'Sesión IBERFIT')}</h4><p>${escape([item.modality,item.location].filter(Boolean).join(' · ')||'Modalidad pendiente de definir')}</p></div>${statusBadge(item.status||'Confirmada','success')}</article>`).join('')}</div>`:`<div class="m30-planning-appointment-empty"><strong>Sin próximas citas confirmadas</strong><p>Cuando tu Coach confirme una cita, aparecerá aquí.</p></div>`}
   </section>`;
-  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>Planificación · ${escape(clientModalityLabel(contractModality))}</h2><p>${escape(modalityIntro('client',contractModality))}</p></div>${statusBadge(hasPublished?sessionCountShort:'Por publicar','neutral')}</section>${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
+  const modalityLabel=clientModalityLabel(contractModality);
+  const planningTitle=modalityLabel==='Sin modalidad'?'Tu planificación':`Planificación · ${modalityLabel}`;
+  const planningIntro=hasPublished
+    ?'Consulta tus sesiones publicadas, cuándo realizarlas y cuáles puedes iniciar desde la aplicación.'
+    :'Aquí tendrás tus sesiones y próximas citas cuando estén confirmadas.';
+  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section>${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
 }
 function renderCoachToday(vm){
   const items=vm.rc39?.sessionProjections||[];

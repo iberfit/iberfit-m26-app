@@ -3615,7 +3615,7 @@ export function renderProgressRoute(vm){
           <div class="m26-client-progress-detail-body">${secondaryContent}</div>
         </details>`;
     return `<div class="m26-route m26-client-progress-route">
-      <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
+      <section class="m26-route-intro${stage.noHistory?' is-empty':''}"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>${stage.noHistory?'Tus avances confirmados irán apareciendo aquí, paso a paso.':'Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.'}</p></div>${stage.noHistory?'':badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
       ${primaryEvidence}
       ${detailed}
