@@ -181,9 +181,21 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
               scrollHeight:label.scrollHeight,
               clientWidth:label.clientWidth,
               scrollWidth:label.scrollWidth,
+              itemWidth:Math.round(label.parentElement?.getBoundingClientRect()?.width||0),
+              itemPadding:getComputedStyle(label.parentElement).padding,
+              itemBoxSizing:getComputedStyle(label.parentElement).boxSizing,
+              itemFlexDirection:getComputedStyle(label.parentElement).flexDirection,
+              textComputedWidth:getComputedStyle(label).width,
               childElements:label.childElementCount,
             };
           }));
+          const clippedLabels=labelMetrics.filter((label)=>label.scrollWidth>label.clientWidth+1);
+          if(clippedLabels.length){
+            console.log('RC64_CLIENT_DOCK_LAYOUT_SAFE:'+JSON.stringify({
+              viewportWidth:projectUse.viewport?.width||0,
+              clipped:clippedLabels,
+            }));
+          }
           for(const label of labelMetrics){
             expect(label.whiteSpace,`Dock caption must not wrap: ${label.label}`).toBe('nowrap');
             expect(label.renderedHeight,`Dock label must be painted: ${label.label}`).toBeGreaterThan(0);
