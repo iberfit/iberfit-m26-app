@@ -213,9 +213,9 @@ export function experienceNextAction(
     if(current.readiness.nextAppointment){
       return action(
         'view_next_appointment',
-        'Ver próxima cita',
-        'agenda',
-        'Tienes una próxima cita confirmada.'
+        'Ver próxima cita en tu plan',
+        'planificacion',
+        'Consulta la fecha y el estado de tu próxima cita en Tu plan.'
       );
     }
 
