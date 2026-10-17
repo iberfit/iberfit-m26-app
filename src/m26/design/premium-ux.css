@@ -985,7 +985,28 @@ body {
 
 .m26-session-live-v3 .m26-session-live-quick-actions[data-session-coach-quick-controls]{
   width:100%;
+  min-width:0;
+  flex-wrap:wrap;
   gap:.55rem;
+  padding:.45rem;
+  border:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.2));
+  border-radius:.9rem;
+  background:var(--iberfit-color-surface-base,#0d2419);
+}
+.m26-session-live-v3 .m26-session-live-quick-actions[data-session-coach-quick-controls] button{
+  min-width:0;
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+@media(max-width:390px){
+  .m26-session-live-v3 .m26-session-live-quick-actions[data-session-coach-quick-controls] button{
+    flex:1 1 auto;
+  }
+  .m26-session-live-v3 .m26-session-live-quick-actions[data-session-coach-quick-controls] .m26-session-live-quick-pause{
+    flex:1 1 100%;
+    margin-left:0;
+  }
 }
 
 .m26-session-live-v3 .m26-session-live-quick-pause{
