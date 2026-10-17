@@ -96,6 +96,15 @@ test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',(
   assert.doesNotMatch(css,/gradient\(/,'Client dock should remain matte');
 });
 
+test('SIGNATURE dock padding remains owned by the dedicated navigation CSS, not generic premium button styles',()=>{
+  const premium=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
+  const nav=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const generic=premium.match(/\.m26-shell button:not\(\.m26-icon-button\):not\(\.m26-nav-item\)[^,]*,/u)?.[0]||'';
+  assert.match(generic,/:not\(\.m26-client-bottom-nav-item\)/u);
+  assert.match(nav,/\.m26-client-bottom-nav-item\s*\{[\s\S]*?box-sizing:\s*border-box/u);
+  assert.match(nav,/@media \(max-width:\s*690px\)[\s\S]*?padding:\s*7px 3px/u);
+});
+
 test('Signature360 Client dock uses accessible compact labels without splitting words',()=>{
   const render=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
