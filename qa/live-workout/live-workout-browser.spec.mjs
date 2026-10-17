@@ -103,9 +103,15 @@ test('SIGNATURE Coach controls stay within 320px after advancing to the next set
     const overlaps=buttons.some((a,i)=>buttons.slice(i+1).some(b=>
       Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&
       Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));
-    return {viewport,documentWidth:document.documentElement.scrollWidth,buttons,overlaps};
+    const overflowing=[...document.querySelectorAll('body *')].flatMap(node=>{
+      const rect=node.getBoundingClientRect();
+      return rect.right>viewport+1||rect.left< -1
+        ?[{tag:node.tagName,className:String(node.className?.baseVal??node.className??'').slice(0,96),left:Math.round(rect.left),right:Math.round(rect.right)}]
+        :[];
+    }).slice(0,12);
+    return {viewport,documentWidth:document.documentElement.scrollWidth,buttons,overlaps,overflowing};
   });
-  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport+1);
+  expect(geometry.documentWidth,'Overflowing elements: '+JSON.stringify(geometry.overflowing)).toBeLessThanOrEqual(geometry.viewport+1);
   expect(geometry.overlaps).toBe(false);
   for(const button of geometry.buttons){
     expect(button.width).toBeGreaterThanOrEqual(44);
