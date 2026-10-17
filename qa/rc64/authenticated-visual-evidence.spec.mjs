@@ -76,9 +76,16 @@ async function certifyNonOverlappingClientDock(page,project,route){
     const dockBox=layer.getBoundingClientRect();
     const navBox=nav.getBoundingClientRect();
     const scrollable=scroller.scrollHeight>scroller.clientHeight+2;
+    const feature=scroller.querySelector('.m26-client-home-feature');
+    const primary=feature?.querySelector('.m26-client-home-primary-zone');
+    const featureBox=feature?.getBoundingClientRect();
+    const primaryBox=primary?.getBoundingClientRect();
+    const featureOwnsPrimary=!feature||Boolean(primary&&primaryBox.width>10&&primaryBox.height>48
+      &&primaryBox.top>=featureBox.top-1&&primaryBox.bottom<=featureBox.bottom+2);
     scroller.scrollTop=scroller.scrollHeight;
     return {
       viewportHeight:innerHeight,
+      featureOwnsPrimary,
       contentBottom:contentBox.bottom,
       dockTop:dockBox.top,
       dockBottom:dockBox.bottom,
@@ -98,6 +105,8 @@ async function certifyNonOverlappingClientDock(page,project,route){
   expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
   expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
   expect(geometry.dockBottom,`${route}: dock must remain within the visual viewport`).toBeLessThanOrEqual(geometry.viewportHeight+1);
+  expect(geometry.dockBottom,`${route}: dock must not float above an unused strip`).toBeGreaterThanOrEqual(geometry.viewportHeight-14);
+  expect(geometry.featureOwnsPrimary,`${route}: primary action must not be cropped by the new scrollport`).toBe(true);
   expect(geometry.hitNav,`${route}: dock must receive touch input`).toBe(true);
   expect(geometry.widthOverflow,`${route}: dock must not cause sideways scrolling`).toBe(false);
   if(geometry.scrollable){
@@ -271,6 +280,17 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         }
 
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
+        if((projectUse.viewport?.width||0)<=690){
+          await page.evaluate(()=>{
+            const content=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+            if(content)content.scrollTop=content.scrollHeight;
+          });
+          captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy-end',suffix:'hoy-end'}));
+          await page.evaluate(()=>{
+            const content=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+            if(content)content.scrollTop=0;
+          });
+        }
 
 
         // SIGNATURE 360 2/5: certify the *actual RC39 Client Plan* and its

@@ -542,13 +542,16 @@ test('SIGNATURE mobile dock belongs to a separate viewport row, never the conten
   const end=css.indexOf('@media (max-width: 690px)',start);
   assert.ok(start>=0&&end>start,'responsive Client dock and route must be one CSS composition');
   const layout=css.slice(start,end);
-  assert.match(layout,/\.m26-shell\[data-m26-role="client"\] \.m26-main\s*\{[^}]*overflow:\s*hidden/u);
+  assert.match(layout,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-main\s*\{[^}]*overflow:\s*hidden[^}]*padding-bottom:\s*0/u);
   assert.match(layout,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u);
   assert.match(layout,/\.m26-client-bottom-nav-layer\s*\{[^}]*position:\s*relative/u);
   assert.match(layout,/padding-bottom:\s*0/u,'fixed-viewport padding must not compete with a separate dock row');
+  assert.match(layout,/grid-auto-rows:\s*max-content/u,'grid rows must preserve full natural height, never crop the next action');
   assert.match(layout,/safe-area-inset-bottom/u);
   assert.match(visual,/certifyNonOverlappingClientDock\(page,projectUse,'Cliente Hoy'\)/u);
   assert.match(visual,/contentBottom[\s\S]*?dockTop/u);
   assert.match(visual,/scrollTop[\s\S]*?maxScroll/u,'final route content remains scroll-reachable');
+  assert.match(visual,/featureOwnsPrimary/u,'real-browser test must prevent clipping the primary action');
+  assert.match(visual,/authenticated-client-hoy-end/u,'capture the genuinely scrolled final viewport');
   assert.doesNotMatch(layout,/display:\s*none/u,'fix must not hide navigation or interactive content');
 });
