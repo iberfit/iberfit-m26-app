@@ -11,12 +11,15 @@ function safeDate(value){
   return new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',
     timeZone:'America/Santiago'}).format(parsed);
 }
-export function renderCompletedSessionHistory(vm){
+export function renderCompletedSessionHistory(vm,{hideEmpty=false}={}){
   const entries=(Array.isArray(vm?.executions)?vm.executions:[])
     .filter(item=>completed.has(String(item?.statusRaw||item?.body?.status||'').toLowerCase()))
     .sort((a,b)=>String(b?.body?.completedAt||b?.date||'')
       .localeCompare(String(a?.body?.completedAt||a?.date||'')))
     .slice(0,12);
+  // When the current Client has neither published sessions nor any confirmed
+  // execution, the introductory empty state already explains what happens next.
+  if(hideEmpty&&entries.length===0)return '';
   const titles=new Map((vm?.rc39?.sessionProjections||[])
     .filter(item=>item?.id)
     .map(item=>[String(item.id),String(item.title||'').trim()]));

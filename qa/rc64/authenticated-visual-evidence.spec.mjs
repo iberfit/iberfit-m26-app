@@ -341,6 +341,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           await expect(sessionsRoute.locator('button[data-m26-area="planificacion"]')).toBeVisible();
           await expect(sessionsRoute.locator('button[data-m26-area="actividad"]')).toBeVisible();
           await expect(sessionsRoute.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+          await expect(sessionsRoute.locator('[data-m43-session-history]')).toHaveCount(0);
         }else{
           await expect(sessionsRoute.locator('.m26-rc39-session-card').first()).toBeVisible();
           const supervisedCards=sessionsRoute.locator('.m26-rc39-session-card.is-coach,.m26-rc39-session-card.is-online');

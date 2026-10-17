@@ -89,4 +89,5 @@ test('SIGNATURE Client Sessions has one warm empty state with real navigation, n
   assert.equal((html.match(/data-m26-area="planificacion"/gu)||[]).length,1);
   assert.equal((html.match(/data-m26-area="actividad"/gu)||[]).length,1);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"|Comenzar entrenamiento/u);
+  assert.doesNotMatch(html,/data-m43-session-history/u,'no second empty-history card');
 });
