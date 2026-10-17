@@ -13,6 +13,12 @@ Esta certificación **solo cubre las mejoras ya entregadas**, no la aceptación 
 
 **Siguiente entrega activa: 2/5 Cliente.** Primero corregir inconsistencias de acción/destino y preservar la navegación actual; después elevar Hoy, Tu plan, Sesión, Progreso, IRI/Informes, Actividad, Mensajes, Retos y Ajustes con pruebas reales de tarea, estados, dispositivos y datos. Le seguirán Coach, Admin y certificación integral. No introducir una capa genérica de CSS ni tocar seguridad, RLS, migraciones o lógica de sesión para compensar un defecto visual. Cada entrega pasa gates y se promueve por el pipeline oficial antes de considerarse completa.
 
+### Incremento Cliente Hoy · composición editorial (en desarrollo, NO certificado)
+
+A partir de Canary `069ba68298dd57181a62cc88ce6c31112ac92176`, SIGNATURE Cliente Hoy adopta una composición editorial integrada: orientación sobre crema y acción real sobre bosque, en vez de paneles con el mismo peso. La navegación y los estados Solo IRI, entreno pausado, sesión publicada y sin sesiones conservan las mismas decisiones autorizadas. La inserción del contexto de continuidad debe seguir a todo el bloque primario, no quedar desplazada por cambios DOM.
+
+**Estado:** implementación en rama SIGNATURE separada del P0 #1017 y de QA-only #1006. Tests de regresión y CI/QA auténtico pendientes de certificación, sin aceptación de ruta completa ni promoción implícita. Capturas antes/después autenticadas y 320/390/768/1024/1440 necesarias antes de merge; estado de 43 rutas sigue `pending`.
+
 ## 1. Resultado esperado (tres productos, una marca)
 
 - **Cliente:** la primera capa comunica qué toca, por qué, cuándo y cómo avanzar. Editorial, humana, cálida, motivadora sin manipulación ni mensajes de culpa. Sesión disponible alcanzable en <=2 toques. Persona Solo IRI ve diagnóstico, no una falsa suscripción de entrenamiento. IRI inicial separado de evolución.

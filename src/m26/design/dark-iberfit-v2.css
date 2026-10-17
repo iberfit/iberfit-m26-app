@@ -687,49 +687,71 @@
    CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE
    ------------------------------------------------------------ */
 
-.m26-shell[data-m26-role="client"] /* M41 · Cliente ultraprémium: minimum readable type in the existing canonical home surface. */
-.m26-client-home-v1{
+/* SIGNATURE 360 · Cliente Hoy: editorial composition inside the existing canonical stylesheet.
+   The paper/forest contrast has semantic meaning: orientation versus the one live action. */
+.m26-shell[data-m26-role="client"] .m26-client-home-v1{
   display:grid;
-  gap:.9rem;
+  gap:clamp(.85rem,1.5vw,1.15rem);
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-feature{
+  display:grid;
+  grid-template-columns:minmax(0,1.22fr) minmax(18rem,.78fr);
+  min-width:0;
+  overflow:hidden;
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1.4rem;
+  background:var(--iberfit-color-cream-100);
+  box-shadow:var(--iberfit-shadow-elevated);
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-hero{
   display:grid;
-  grid-template-columns:minmax(0,1.2fr) minmax(15rem,.8fr);
-  gap:1rem;
-  align-items:stretch;
-  padding:clamp(1.1rem,2vw,1.55rem);
-  border:1px solid rgba(216,192,138,.14);
-  border-radius:1.25rem;
-  background:var(--iberfit-color-surface-base);
-  box-shadow:0 10px 26px rgba(0,0,0,.12);
+  align-content:space-between;
+  gap:clamp(1.35rem,3vw,2.5rem);
+  min-width:0;
+  padding:clamp(1.35rem,3.1vw,2.6rem);
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-greeting{
   display:grid;
   align-content:start;
-  gap:.5rem;
+  gap:.75rem;
   min-width:0;
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-kicker{
+  margin:0;
+  color:var(--iberfit-color-forest-700);
+  font-size:.75rem;
+  font-weight:760;
+  letter-spacing:.14em;
+  text-transform:uppercase;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-greeting h2{
   margin:0;
-  max-width:23ch;
-  min-width:0;
-  color:var(--iberfit-color-text-primary);
-  font-size:clamp(1.8rem,3.6vw,2.6rem);
-  line-height:1.15;
-  letter-spacing:-.032em;
+  max-width:18ch;
+  color:var(--iberfit-color-forest-900);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(2.25rem,4.2vw,3.6rem);
+  font-weight:560;
+  line-height:1.03;
+  letter-spacing:-.045em;
   overflow-wrap:anywhere;
   text-wrap:balance;
 }
 
-.m26-shell[data-m26-role="client"] .m26-client-home-greeting > p:not(.m26-eyebrow){
+.m26-shell[data-m26-role="client"] .m26-client-home-greeting > p:not(.m26-eyebrow):not(.m26-client-home-kicker){
   margin:0;
-  color:var(--iberfit-color-text-secondary);
-  font-size:clamp(.95rem,1.15vw,1.025rem);
-  line-height:1.55;
-  max-width:65ch;
+  max-width:49ch;
+  color:var(--iberfit-color-forest-700);
+  font-size:clamp(.95rem,1.2vw,1.06rem);
+  line-height:1.6;
   overflow-wrap:anywhere;
 }
 
@@ -737,30 +759,44 @@
   display:grid;
   align-content:center;
   gap:.35rem;
-  padding:.25rem 0 .25rem 1.1rem;
+  padding:.1rem 0 .1rem 1.1rem;
   border:0;
-  border-left:1px solid rgba(216,192,138,.16);
+  border-left:1px solid var(--iberfit-color-gold-500);
   border-radius:0;
   background:transparent;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-status span{
-  color:var(--iberfit-color-accent-strong);
-  font-size:.8125rem;
+  color:var(--iberfit-color-forest-700);
+  font-size:.78rem;
   font-weight:760;
-  letter-spacing:.08em;
+  letter-spacing:.065em;
   text-transform:uppercase;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-status strong{
-  color:var(--iberfit-color-text-primary);
-  font-size:clamp(1.08rem,1.7vw,1.2rem);
-  line-height:1.38;
+  color:var(--iberfit-color-forest-900);
+  font-size:clamp(1.06rem,1.6vw,1.23rem);
+  line-height:1.35;
   overflow-wrap:anywhere;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone{
+  display:grid;
+  align-content:center;
+  gap:1rem;
   min-width:0;
+  padding:clamp(1.35rem,2.7vw,2.15rem);
+  background:var(--iberfit-color-forest-900);
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-action-kicker{
+  margin:0;
+  color:var(--iberfit-color-gold-300);
+  font-size:.76rem;
+  font-weight:760;
+  letter-spacing:.12em;
+  text-transform:uppercase;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary{
@@ -770,25 +806,25 @@
   grid-template-columns:auto minmax(0,1fr);
   gap:.85rem 1rem;
   align-items:center;
-  padding:1rem 1.1rem;
-  border:1px solid rgba(197,160,89,.30);
-  border-radius:1.15rem;
-  color:var(--iberfit-color-text-primary);
-  background:#204334;
-  box-shadow:0 8px 25px rgba(0,0,0,.13);
+  padding:clamp(1.05rem,1.6vw,1.35rem);
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1.05rem;
+  color:var(--iberfit-color-cream-100);
+  background:var(--iberfit-color-forest-700);
+  box-shadow:none;
   text-align:left;
   transform:none;
-  transition:background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease;
+  transition:background-color var(--iberfit-motion-fast) ease,border-color var(--iberfit-motion-fast) ease;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary:hover{
   transform:none;
-  border-color:var(--iberfit-color-border-strong);
-  background:#284b3c;
+  border-color:var(--iberfit-color-gold-300);
+  background:var(--iberfit-color-forest-800);
 }
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary:focus-visible{
   transform:none;
-  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline:3px solid var(--iberfit-color-focus);
   outline-offset:3px;
 }
 
@@ -796,28 +832,29 @@
   grid-row:1 / span 2;
   display:grid;
   place-items:center;
-  width:3rem;
-  height:3rem;
+  width:3.25rem;
+  height:3.25rem;
   min-width:48px;
   min-height:48px;
-  border:1px solid rgba(244,244,240,.16);
+  border:1px solid var(--iberfit-color-border-strong);
   border-radius:.8rem;
-  background:rgba(255,255,255,.06);
+  background:var(--iberfit-color-forest-900);
+  color:var(--iberfit-color-gold-300);
   font-size:1rem;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary strong{
   align-self:end;
-  color:#fffaf0;
-  font-size:clamp(1.15rem,1.7vw,1.28rem);
-  line-height:1.28;
+  color:var(--iberfit-color-cream-100);
+  font-size:clamp(1.18rem,1.6vw,1.38rem);
+  line-height:1.22;
   overflow-wrap:anywhere;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary small{
   align-self:start;
-  color:rgba(244,244,240,.72);
-  font-size:.9rem;
+  color:var(--iberfit-color-cream-300);
+  font-size:.92rem;
   line-height:1.45;
   overflow-wrap:anywhere;
 }
@@ -1088,6 +1125,9 @@
 }
 
 @media(max-width:900px){
+  .m26-shell[data-m26-role="client"] .m26-client-home-feature{
+    grid-template-columns:minmax(0,1fr);
+  }
   .m26-shell[data-m26-role="client"] .m26-client-home-hero{
     grid-template-columns:1fr;
   }
@@ -1103,13 +1143,21 @@
   .m26-shell[data-m26-role="client"] .m26-client-home-v1{
     gap:.7rem;
   }
+  .m26-shell[data-m26-role="client"] .m26-client-home-feature{
+    border-radius:1.05rem;
+  }
   .m26-shell[data-m26-role="client"] .m26-client-home-hero{
-    padding:1rem;
-    border-radius:1rem;
+    gap:1.15rem;
+    padding:1.25rem;
+    border-radius:0;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone{
+    gap:.7rem;
+    padding:1.1rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-greeting h2{
     max-width:none;
-    font-size:1.85rem;
+    font-size:clamp(2rem,9vw,2.65rem);
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-status{
     padding:.75rem 0 0;

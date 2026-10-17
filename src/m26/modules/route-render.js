@@ -644,8 +644,10 @@ function renderClientHoyRoute(vm) {
   return `<div class="m26-route m26-hoy-route m26-client-home-v1">
     ${operationBanner(vm.operations||{})}
 
-    <section class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
+    <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
+      <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
+        <p class="m26-client-home-kicker">Hoy · IBERFIT</p>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <p>${escapeHtml(primary.detail)}</p>
       </div>
@@ -653,10 +655,12 @@ function renderClientHoyRoute(vm) {
         <span>${escapeHtml(primary.eyebrow)}</span>
         <strong>${escapeHtml(primary.title)}</strong>
       </div>
-    </section>
+      </div>
 
-    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
-      ${primary.markup}
+      <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+        <p class="m26-client-home-action-kicker">Tu siguiente paso</p>
+        ${primary.markup}
+      </div>
     </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">

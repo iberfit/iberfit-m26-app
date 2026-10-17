@@ -245,3 +245,32 @@ test('M42 Client Hoy suppresses supplementary training CTAs during a paused serv
   assert.doesNotMatch(html,/m26-client-home-context-action/u);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
 });
+
+test('SIGNATURE Hoy groups orientation and primary action into one editorial region',()=>{
+  const html=renderHoyRoute(vm());
+  const start=html.indexOf('<section class="m26-client-home-feature"');
+  const action=html.indexOf('<div class="m26-client-home-primary-zone"');
+  const glance=html.indexOf('<section class="m26-client-home-glance"');
+  assert.ok(start>=0&&action>start&&glance>action,'feature must precede the daily context');
+  assert.match(html,/class="m26-client-home-kicker">Hoy · IBERFIT/u);
+  assert.match(html,/class="m26-client-home-action-kicker">Tu siguiente paso/u);
+  assert.equal((html.match(/class="m26-today-action is-primary"/gu)||[]).length,1);
+});
+
+test('SIGNATURE Hoy uses branded paper and forest without changing role authorization',()=>{
+  assert.match(css,/\.m26-client-home-feature\{[\s\S]*?grid-template-columns:minmax\(0,1\.22fr\) minmax\(18rem,\.78fr\)/u);
+  assert.match(css,/\.m26-client-home-feature\{[\s\S]*?background:var\(--iberfit-color-cream-100\)/u);
+  assert.match(css,/\.m26-client-home-primary-zone\{[\s\S]*?background:var\(--iberfit-color-forest-900\)/u);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*?\.m26-client-home-feature\{\s*grid-template-columns:minmax\(0,1fr\)/u);
+  const paused=renderHoyRoute(vm({serviceKind:'training',clients:[{
+    id:'c1',name:'Cliente de prueba',serviceActive:false,
+    trainingServiceStatus:'paused',iri:{confirmed:true},
+  }]}));
+  assert.match(paused,/class="m26-client-home-feature"/u);
+  assert.doesNotMatch(paused,/data-workflow-action="start-published-session"/u);
+  const iriOnly=renderHoyRoute(vm({serviceKind:'iri',clients:[{
+    id:'c1',name:'Cliente IRI',iri:{confirmed:false},
+  }]}));
+  assert.match(iriOnly,/Diagnóstico IRI/u);
+  assert.doesNotMatch(iriOnly,/data-workflow-action="start-published-session"/u);
+});
