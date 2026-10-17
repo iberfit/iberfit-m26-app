@@ -199,6 +199,18 @@ test('Signature360 Client appointment CTA names the actual authorized destinatio
   assert.doesNotMatch(unauthorized,/class="m26-client-home-context-action"/,'inaccessible role action cannot become a Client CTA');
 });
 
+test('Signature360 Client action and status copy remains localized ES EN FR PT',()=>{
+  const values=[
+    ['Ver próxima cita en tu plan','View next appointment in your plan','Voir le prochain rendez-vous dans votre programme','Ver a próxima marcação no seu plano'],
+    ['Consulta el estado de tu evaluación','Check the status of your assessment','Consultez l’état de votre évaluation','Consulte o estado da sua avaliação'],
+    ['Sesiones disponibles','Sessions available','Séances disponibles','Sessões disponíveis'],
+    ['Plan disponible','Plan available','Programme disponible','Plano disponível'],
+    ['Consulta las sesiones publicadas','View published sessions','Consultez les séances publiées','Consulte as sessões publicadas'],
+  ];
+  for(const [es,en,fr,pt] of values)for(const [language,expected] of [['en',en],['fr',fr],['pt',pt]])
+    assert.equal(iberfitSurfaceTranslate(es,{language}),expected,`${language}:${es}`);
+});
+
 test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch controls',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
   const start=css.indexOf('CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE');
