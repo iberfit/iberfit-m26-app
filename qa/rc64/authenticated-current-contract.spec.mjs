@@ -86,6 +86,26 @@ async function verifyClientWorkspace(page,{projectName,browserName}){
     throw error;
   }
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  // Always preserve coarse stage latency in CI, including passing runs.
+  // This detects slow-but-eventually-successful loading without weakening
+  // the 10-second shell assertion or exposing account/request details.
+  const timing=await page.evaluate(()=>{
+    const history=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.appStageTimes||[];
+    const phases=[
+      'rc64-login-token-ready','rc64-login-setup-start','rc64-hydrate-start',
+      'rc64-hydrate-primary-ready','rc64-hydrate-scope-ready',
+      'rc64-hydrate-secondary-ready','rc64-hydrate-store-ready',
+      'rc64-shell-frame-ready','rc64-shell-first-paint-ready',
+      'rc64-shell-interactive-ready',
+    ];
+    const steps=phases.map((phase)=>{
+      const point=history.find((entry)=>entry?.stage===phase);
+      return point?{phase,atMs:point.atMs}:null;
+    }).filter(Boolean);
+    const start=steps[0]?.atMs??0;
+    return steps.map((point)=>({phase:point.phase,elapsedMs:Math.max(0,point.atMs-start)}));
+  });
+  console.log('RC64_CLIENT_SHELL_STAGE_LATENCY:'+JSON.stringify({project:projectName,steps:timing}));
   await expect(
     page.locator('[data-m26-action="logout"]'),
     'Authenticated Client must retain a semantic logout action even when session controls live inside Settings',
