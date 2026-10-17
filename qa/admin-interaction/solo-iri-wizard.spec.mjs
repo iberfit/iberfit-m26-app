@@ -12,10 +12,52 @@ test('IRI entry changes the real Admin wizard immediately, survives navigation a
   await form.locator('[name="email"]').fill('iri.qa@example.invalid');
   await form.locator('[name="birthDate"]').fill('1990-04-10');
   await form.locator('[name="sexForNorms"]').selectOption('female');
+  // Observe the real DOM event path without accessing field values, so that
+  // WebKit lost-click vs validity block vs re-render can be distinguished.
+  await page.evaluate(()=>{
+    const journal=[];
+    Object.defineProperty(window,'__IBERFIT_WIZARD_CLICK_QA__',{value:journal,configurable:true});
+    for(const type of ['pointerdown','pointerup','click']){
+      document.addEventListener(type,(event)=>{
+        const target=event.target?.closest?.('[data-client-wizard-next]');
+        if(!target)return;
+        const owner=target.closest('form[data-client-create-wizard]');
+        journal.push({
+          type,phase:'capture',step:owner?.dataset.clientCurrentStep||'missing',
+          connected:target.isConnected,defaultPrevented:event.defaultPrevented,
+          pointerType:typeof event.pointerType==='string'?event.pointerType:'',
+        });
+        if(journal.length>16)journal.shift();
+      },true);
+      document.addEventListener(type,(event)=>{
+        const target=event.target?.closest?.('[data-client-wizard-next]');
+        if(!target)return;
+        const owner=target.closest('form[data-client-create-wizard]');
+        journal.push({
+          type,phase:'bubble',step:owner?.dataset.clientCurrentStep||'missing',
+          connected:target.isConnected,defaultPrevented:event.defaultPrevented,
+        });
+        if(journal.length>16)journal.shift();
+      });
+    }
+  });
   await form.locator('[data-client-wizard-next]').first().click();
 
   const serviceStep=form.locator('[data-client-step="2"]');
-  await expect(serviceStep).toBeVisible();
+  try{
+    await expect(serviceStep).toBeVisible({timeout:10_000});
+  }catch(error){
+    const diagnostic=await form.evaluate((node)=>({
+      step:node.dataset.clientCurrentStep||'missing',
+      ready:node.dataset.clientWizardReady||'missing',
+      journal:window.__IBERFIT_WIZARD_CLICK_QA__||[],
+      invalid:[...node.querySelectorAll('[data-client-step="1"] input,[data-client-step="1"] select,[data-client-step="1"] textarea')]
+        .filter((el)=>!el.disabled&&!el.closest('[hidden]')&&el.checkValidity()===false)
+        .map((el)=>({field:el.name,reason:el.validity.valueMissing?'missing':el.validity.badInput?'badInput':el.validity.typeMismatch?'typeMismatch':'other'})),
+      clickedTargetPresent:!!node.querySelector('[data-client-step="1"] [data-client-wizard-next]'),
+    }));
+    throw new Error('IBERFIT_WEBKIT_WIZARD_CLICK_PATH_SAFE:'+JSON.stringify(diagnostic),{cause:error});
+  }
   const intent=form.locator('[name="serviceIntent"]');
   const frequency=form.locator('[name="weeklyFrequency"]');
   const duration=form.locator('[name="sessionDurationMinutes"]');
