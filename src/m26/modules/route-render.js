@@ -659,7 +659,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
-      ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en Tu plan">
+      ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">
         <span>Próxima cita</span>
         <strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong>
         <small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small>
