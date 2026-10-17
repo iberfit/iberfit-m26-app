@@ -145,7 +145,7 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
   const withAppointment=renderRouteView({...vm,appointments:[{
     id:'appointment-confirmed',dateLabel:'17 oct · 11:00',title:'Sesión presencial',statusRaw:'confirmada',
   }]});
-  assert.match(withAppointment,/<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en Tu plan">\s*<span>Próxima cita<\/span>/);
+  assert.match(withAppointment,/<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">\s*<span>Próxima cita<\/span>/);
   assert.match(withAppointment,/17 oct · 11:00/);
   assert.match(withAppointment,/Sesión presencial/);
   assert.doesNotMatch(withAppointment,/Sin cita programada/);
