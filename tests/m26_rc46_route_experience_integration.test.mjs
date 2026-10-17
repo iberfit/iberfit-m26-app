@@ -259,8 +259,8 @@ test('Cliente recibe una acción propia y nunca una tarea interna del Coach', ()
 
   assert.equal(client.experience.stage, 'active');
   assert.equal(client.nextAction.key, 'view_next_appointment');
-  assert.equal(client.nextAction.label, 'Ver próxima cita');
-  assert.equal(client.nextAction.area, 'agenda');
+  assert.equal(client.nextAction.label, 'Ver próxima cita en tu plan');
+  assert.equal(client.nextAction.area, 'planificacion');
 
   assert.doesNotMatch(client.nextAction.label, /IRI/i);
   assertSpanishExperience(client);
