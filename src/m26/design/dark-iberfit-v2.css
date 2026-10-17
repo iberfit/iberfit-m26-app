@@ -768,7 +768,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-status span{
   color:var(--iberfit-color-gold-300);
-  font-size:.78rem;
+  font-size:.8125rem;
   font-weight:760;
   letter-spacing:.06em;
   text-transform:uppercase;
