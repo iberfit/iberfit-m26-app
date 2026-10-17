@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const migration=readFileSync(new URL('../supabase/migrations/20261017231000_p0_rc29_client_internal_events_performance_v1.sql',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20261017220957_p0_rc29_client_internal_events_performance_qa_v1.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/rollbacks/p0_rc29_client_internal_events_performance_v1.rollback.sql',import.meta.url),'utf8');
 const withoutComments=(sql)=>sql.replace(/^\s*--[^\n]*$/gmu,'');
 
