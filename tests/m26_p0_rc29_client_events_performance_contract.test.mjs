@@ -8,7 +8,7 @@ const withoutComments=(sql)=>sql.replace(/^\s*--[^\n]*$/gmu,'');
 
 test('P0 bootstrap optimization is exact-baseline guarded and touches only rc29',()=>{
   assert.match(migration,/5c565986e5946e768cd84eb0398f76cb/u);
-  assert.match(migration,/8419989105aacb40222a3e79fdf6ce93/u);
+  assert.match(migration,/722040e7807a52a70339277014026833/u);
   assert.equal((migration.match(/CREATE OR REPLACE FUNCTION public\.iberfit_bootstrap_v26_rc29\(\)/gu)||[]).length,1);
   assert.equal((migration.match(/CREATE OR REPLACE FUNCTION/gu)||[]).length,1);
   assert.match(migration,/STABLE SECURITY DEFINER/u);
@@ -21,6 +21,10 @@ test('only Client skips internal domainEvents that the final HTTP projection alr
   const branch="'domainEvents',case when v_role in ('client','cliente') then '[]'::jsonb else coalesce((";
   assert.ok(migration.includes(branch));
   assert.match(migration,/from public\.domain_events_v26/iu);
+  assert.match(migration,/e\.entity_type not in \('private_note','intelligence','report'\)/u);
+  assert.match(migration,/e\.entity_type not in \('planning','session'\)/u);
+  assert.match(migration,/e\.body->>'visibleToClient'/u);
+  assert.match(migration,/v_role not in \('client','cliente'\)/u);
   assert.match(migration,/public\.iberfit_can_access_client_v26\(client_id\)/u);
   assert.match(migration,/then '\[\]'::jsonb else coalesce\(\(/u);
   assert.match(migration,/end,\s*'coachAvailability'/u);
@@ -29,7 +33,7 @@ test('only Client skips internal domainEvents that the final HTTP projection alr
   }
 });
 test('rollback restores exact previous event projection only from known optimized body',()=>{
-  assert.match(rollback,/8419989105aacb40222a3e79fdf6ce93/u);
+  assert.match(rollback,/722040e7807a52a70339277014026833/u);
   assert.match(rollback,/74e56c70254ec7d42b0c17e223472cd0/u);
   assert.match(rollback,/5c565986e5946e768cd84eb0398f76cb/u);
   assert.match(rollback,/'domainEvents',coalesce\(\(/u);
