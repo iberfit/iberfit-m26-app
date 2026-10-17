@@ -3500,7 +3500,8 @@ function renderClientProgressStage(vm,stage){
   const milestones=[
     ['Sesiones confirmadas',Number(summary.completedSessions||0)],
     ['Registros de bienestar',Number(summary.checkins||0)],
-    ['Diagnóstico IRI',Number(summary.iriAssessmentCount||0)>0?'Registrado':'Pendiente'],
+    // A provisional IRI row is not a confirmed initial diagnostic baseline.
+    ['Punto de partida IRI',summary.iriBaseline?.baselineAssessmentId?'Confirmado':'Sin diagnóstico confirmado'],
   ];
   if(adherence!==null&&Number(summary.plannedSessions||0)>0){
     milestones.push(['Continuidad confirmada',adherence]);
@@ -3530,7 +3531,8 @@ export function renderProgressRoute(vm){
   const summary=vm.summary;
   if(!summary)return `<div class="m26-route">${clientContextBar}${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
-  const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>`:'';
+  const adherenceDays=Number.isInteger(summary.days)&&summary.days>0?summary.days:28;
+  const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en los últimos ${escapeHtml(adherenceDays)} días.</small></section>`:'';
   const wearable=summary.wearable||{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'};
   const unconfirmedCount=Number(summary.unconfirmedExecutions||0);
   const volumeTrend=Number.isFinite(summary.volumeDelta)
