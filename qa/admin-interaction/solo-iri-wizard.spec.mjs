@@ -7,6 +7,7 @@ test('IRI entry changes the real Admin wizard immediately, survives navigation a
 
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');
 
   await form.locator('[name="name"]').fill('Persona IRI QA');
   await form.locator('[name="email"]').fill('iri.qa@example.invalid');

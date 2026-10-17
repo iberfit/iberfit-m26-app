@@ -172,6 +172,7 @@ test('Admin client-create wizard preserves entered values while selects and step
 
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');
 
   const name=form.locator('input[name="name"]');
   const email=form.locator('input[name="email"]');
