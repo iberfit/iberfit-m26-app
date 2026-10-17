@@ -1,7 +1,7 @@
 -- IBERFIT P0 — guarded rollback of Client rc29 internal-event optimization.
 -- Preserve authorized full snapshots for Coach/Admin, fail closed on unknown function.
 SELECT 1/(CASE WHEN
- (SELECT md5(prosrc)='8419989105aacb40222a3e79fdf6ce93' AND prosecdef AND provolatile='s'
+ (SELECT md5(prosrc)='722040e7807a52a70339277014026833' AND prosecdef AND provolatile='s'
     AND pg_get_userbyid(proowner)='postgres'
     AND proconfig @> ARRAY['search_path=""']::text[]
  FROM pg_proc WHERE oid='public.iberfit_bootstrap_v26_rc29()'::regprocedure)
