@@ -729,7 +729,7 @@ if (area === 'clientes') {
       planExecution,
       longitudinal,
       periodization:clientId&&trainingActive?buildPeriodizationSnapshot(state,clientId,{cycle:selectCurrentTrainingCycle(recordsForClient(state,'trainingCycles',clientId),{clientId,now}),now}):null,
-      timeline: Object.freeze(!trainingActive?[]:buildProgressTimeline(state, clientId, { now })),
+      timeline: Object.freeze(!trainingActive?[]:buildProgressTimeline(state, clientId, { now,confirmedIriOnly:role==='client' })),
       alerts: Object.freeze(alerts),
       signal: Object.freeze(adherenceSignal(alerts)),
     });

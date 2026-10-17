@@ -6,6 +6,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
   // SIGNATURE 360 2/5: truthful Client Hoy, appointment, plan and IRI states.
+  ['Punto de partida IRI','Initial IRI baseline','Point de départ IRI','Ponto de partida IRI'],
+  ['Sin diagnóstico confirmado','No confirmed initial assessment','Aucun diagnostic initial confirmé','Sem diagnóstico inicial confirmado'],
   // SIGNATURE 360: close previously unclassified IRI, privacy and session-control surface copy.
   ['en el expediente','in the record','dans le dossier','no processo'],
   ["Sin puntuación global.","No overall score.","Pas de score global.","Sem pontuação global."],

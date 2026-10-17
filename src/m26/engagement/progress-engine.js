@@ -420,14 +420,16 @@ export function progressSummaryHasEvolutionEvidence(summary){
   );
 }
 
-export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,limit=24}={}){
+export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,limit=24,confirmedIriOnly=false}={}){
   if(!clientId)return [];
   const {start,end}=progressWindow({now,days});
   const safeLimit=safePositiveInteger(limit,{fallback:24,min:1,max:200});
   const rows=[];
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
-  const iriBaseline=iriBaselineRecord(state,clientId);
+  // Client progress is a confirmed history; Coach still retains access to
+  // provisional IRI events in their professional chronology.
+  const iriBaseline=iriBaselineRecord(state,clientId,{confirmedOnly:confirmedIriOnly});
   if(iriBaseline){
     const item=unwrap(iriBaseline);
     if(within(dateOf(item),start,end)){
