@@ -78,7 +78,14 @@ async function verifyClientWorkspace(page,{projectName,browserName}){
         authMode:String(card?.getAttribute('data-auth-mode')||'unknown').slice(0,32),
         interactiveReady:root?.getAttribute('data-m26-interactive')==='ready',
         stages:Array.isArray(stages.appStages)?stages.appStages.slice(-35):[],
-        stageTimes:Array.isArray(stages.appStageTimes)?stages.appStageTimes.slice(-35):[],
+        stageTimes:Array.isArray(stages.appStageTimes)?stages.appStageTimes.slice(-65):[],
+        rpcTimings:(performance.getEntriesByType('resource')||[]).flatMap((entry)=>{
+          try{
+            const uri=new URL(entry.name);
+            if(!uri.pathname.startsWith('/rest/v1/rpc/')&&!uri.pathname.startsWith('/auth/v1/'))return [];
+            return [{endpoint:uri.pathname,elapsedMs:Math.round(entry.startTime),durationMs:Math.round(entry.duration)}];
+          }catch{return []}
+        }).slice(-30),
         diagnostics:Array.isArray(stages.diagnostics)?stages.diagnostics.slice(-12):[],
       };
     }).catch(()=>({unavailable:true}));
@@ -263,7 +270,7 @@ test('current authenticated contract separates privileged fail-closed identities
           events.appStages.push(stage);
           if(events.appStages.length>50)events.appStages.shift();
           events.appStageTimes.push({stage,atMs:Math.round(performance.now())});
-          if(events.appStageTimes.length>50)events.appStageTimes.shift();
+          if(events.appStageTimes.length>80)events.appStageTimes.shift();
         }
       };
       globalThis.addEventListener('m26:diagnostic',(event)=>{
