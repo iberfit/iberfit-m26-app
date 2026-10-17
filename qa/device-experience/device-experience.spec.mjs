@@ -272,6 +272,16 @@ async function assertSettingsReachable(page,task,viewport){
   if(viewport.width>=720){
     const trigger=page.locator('.m26-sidebar-footer .m26-settings-menu > summary').first();
     await expect(trigger,task.id+' tablet/desktop must expose Settings in the account rail').toBeVisible();
+    await expect.poll(
+      ()=>trigger.evaluate((element)=>{
+        const box=element.getBoundingClientRect();
+        const x=Math.min(innerWidth-1,Math.max(0,box.left+box.width/2));
+        const y=Math.min(innerHeight-1,Math.max(0,box.top+box.height/2));
+        const hit=document.elementFromPoint(x,y);
+        return Boolean(hit&&(hit===element||element.contains(hit)));
+      }),
+      {timeout:3_000,message:task.id+' Settings trigger must own its touch hit target'},
+    ).toBe(true);
     await trigger.click();
     await expect(page.locator('.m26-sidebar-footer .m26-settings-popover').first()).toBeVisible();
     await expect(page.locator('.m26-sidebar-footer [data-m26-area="ajustes"], .m26-sidebar-footer [data-m26-area="admin-configuracion"]').first()).toBeVisible();
