@@ -624,14 +624,15 @@ function renderClientHoyRoute(vm) {
   // Remap the route and its copy together, then suppress optional actions
   // while a Client training service is paused.
   const requestedNextArea=String(nextAction?.area||'actividad');
+  const nextActionAuthorized=requestedNextArea==='agenda'||areaAllowedForRole(requestedNextArea,'client');
   const nextActionArea=requestedNextArea==='agenda'?'planificacion'
-    :areaAllowedForRole(requestedNextArea,'client')?requestedNextArea:'actividad';
+    :nextActionAuthorized?requestedNextArea:'actividad';
   const nextActionLabel=requestedNextArea==='agenda'
     ?'Ver próxima cita en tu plan'
     :nextActionArea!==requestedNextArea
       ?'Abrir mi seguimiento'
       :nextAction?.label||'Continuar';
-  const nextActionMarkup=serviceActive&&nextAction&&nextActionArea!==primary.area
+  const nextActionMarkup=serviceActive&&nextAction&&nextActionAuthorized&&nextActionArea!==primary.area
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
         <span>Siguiente paso</span>
         <strong>${escapeHtml(nextActionLabel)}</strong>
