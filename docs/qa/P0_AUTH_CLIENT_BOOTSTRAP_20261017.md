@@ -45,6 +45,19 @@ Medians: **1,966 ms** current vs **1,388 ms** candidate, approximately **29% low
 
 An earlier candidate that computed one global authorized-client union was **rejected** after proving slower in QA; it was never wired to the public function.
 
+
+
+## Verified post-install Device Experience Gate and bounded QA concurrency
+
+- [Device Experience Gate #39070288058, attempt 3](https://github.com/iberfit/iberfit-m26-app/actions/runs/39070288058): **SUCCESS**, six jobs successful. Note this was run against historical diagnostic commit `c3209aa...` **with the newly optimized public QA backend**; it is not the final HEAD PR code certification.
+- Authenticated Chromium/Coach/Client matrix: **4/4 passed** (desktop, tablet portrait, tablet landscape, mobile) under the configured tablet/mobile CPU 6×.
+- Client A authenticated bootstrap RPC durations: **2,177 / 2,273 / 3,175 / 4,601 ms**, all HTTP 200. Client A interactive shell: **3,133 / 4,195 / 5,216 / 6,777 ms** respectively, all below the existing 10,000 ms threshold. Client B also passed in all four profiles.
+- Guided welcome and authenticated visual capture: **4/4 passed each**. The unrelated [PR #1019 gate](https://github.com/iberfit/iberfit-m26-app/actions/runs/39074196274) independently passed authenticated Client/Coach with the same QA backend.
+- Extra **16/16 read-only authenticated-role SQL calls succeeded** across QA synthetic Clients A/B, including 8 calls under a stricter **8-second per-transaction statement timeout**. Worst measured execution **1,742 ms**. No global timeout or server policy was increased.
+- PostgreSQL/PostgREST QA logs queried after the guarded QA migration did not report `statement timeout`/`57014` within the observed interval. This is a bounded observation, not proof of permanent absence.
+
+The production recovery prerequisite remains unsatisfied: the gate reports `PROD_BACKUP_COMPLETED_BACKUP_MISSING` and `M44_OFFSITE_RUN_TOO_OLD`. A schema-only catalog snapshot is not an independent restorable database backup. **No PROD DDL, merges, WebAuthn relaxation, or expanded grants were performed.**
+
 ## Security and rollback
 
 - The SQL replaces **only** `public.iberfit_bootstrap_v26_rc29()`, guarded by its current exact definition MD5, security-definer owner, volatility, empty search path and existing EXECUTE restrictions.
@@ -55,9 +68,9 @@ An earlier candidate that computed one global authorized-client union was **reje
 ## Required certification before release
 
 1. **Completed in QA:** guarded migration `20261017220957`; public rc29 body MD5 `722040e7807a52a70339277014026833`, owner postgres, `STABLE SECURITY DEFINER`, empty search path, unchanged `postgres/service_role` EXECUTE ACL. Full public API output again matched the private candidate for both Clients.
-2. Run repeated authenticated Client/Coach browser tasks on desktop, tablet portrait, tablet landscape and mobile, including CPU 6×, interactive shell <=10s, no HTTP 500 and no data leakage.
+2. **Completed for observed QA matrix:** authenticated Client/Coach browsers passed 4/4; continue independent repeated-load p95/p99 certification and detect regressions after merging exact commit.
 3. Verify WebAuthn privileged rejection/acceptance through the authorized device flow, lifecycle/M45 task parity, stale-session transitions and retries.
 4. Run CI, Fast Lane, Production Data Safety and independent regression tests on the exact commit. Reconcile production backup and M44 offsite freshness without bypassing controls.
 5. Only then merge protected Canary, verify deployed SHA live, and consider a separate incremental production promotion with explicit rollback.
 
-**Status: guarded correction applied and parity revalidated in Supabase QA only. Authenticated CPU 6× remote gate, sustained latency under concurrency and production backup controls remain outstanding. No Canary merge or production DDL.**
+**Status: guarded QA-only fix validated in a complete 4/4 device matrix and limited 16/16 authenticated SQL runs; long-tail load acceptance, exact merge-commit certification and production backup/offsite freshness remain outstanding. No Canary merge or PROD DDL.**
