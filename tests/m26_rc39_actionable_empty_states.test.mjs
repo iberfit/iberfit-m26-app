@@ -41,3 +41,29 @@ test('Coach conserva su CTA operativo y no recibe acciones de continuidad del Cl
   assert.doesNotMatch(html,/Revisar mi planificación/);
   assert.doesNotMatch(html,/Registrar cómo estoy/);
 });
+
+test('SIGNATURE empty planning removes decorative zero metrics but keeps real next steps',()=>{
+  const html=renderRc39Route(emptyVm('planificacion'));
+  assert.match(html,/data-m30-planning-state="pending"/u);
+  assert.match(html,/class="m30-planning-overview is-pending"/u);
+  assert.match(html,/Tu semana aún no está publicada/u);
+  assert.match(html,/>Por publicar</u);
+  assert.doesNotMatch(html,/class="m30-planning-overview-metrics"/u);
+  assert.doesNotMatch(html,/<section class="m26-rc39-week">/u);
+  assert.equal((html.match(/data-m26-area="actividad"/gu)||[]).length,1);
+  assert.equal((html.match(/data-m26-area="progreso"/gu)||[]).length,1);
+  assert.match(html,/id="m26-client-next-appointment"/u,'confirmed-appointment destination cannot vanish');
+  assert.match(html,/Sin próximas citas confirmadas/u);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE planning keeps confirmed appointments separate from unpublished sessions',()=>{
+  const vm=emptyVm('planificacion');
+  vm.clientAppointments=[{id:'a1',title:'Revisión presencial',dateLabel:'18 de octubre',modality:'Presencial',location:'IBERFIT',status:'Confirmada'}];
+  const html=renderRc39Route(vm);
+  assert.match(html,/data-m30-planning-state="pending"/u);
+  assert.match(html,/Próximas citas/u);
+  assert.match(html,/Revisión presencial/u);
+  assert.doesNotMatch(html,/Sin próximas citas confirmadas/u);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+});

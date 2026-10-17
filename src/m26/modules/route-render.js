@@ -3452,6 +3452,15 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
   const completed=Math.max(0,Number(summary.completedSessions||0));
   const checkins=Math.max(0,Number(summary.checkins||0));
   const wearableDays=Math.max(0,Number(summary.wearable?.daysWithData||0));
+  if(completed===0&&checkins===0&&wearableDays===0&&timelineLength===0&&exerciseCount===0){
+    return Object.freeze({
+      stage:'starting',
+      noHistory:true,
+      title:'Tu evolución empieza con el primer registro',
+      copy:'Todavía no hay sesiones, bienestar o actividad confirmados para comparar. Tu Diagnóstico IRI inicial sigue siendo un punto de partida independiente.',
+      next:'Puedes registrar cómo te encuentras hoy. Las tendencias aparecerán cuando haya datos suficientes.',
+    });
+  }
   const quality=String(summary.dataQuality||'limitada').toLowerCase();
   const channels=[
     completed>=2,
@@ -3509,7 +3518,7 @@ function renderClientProgressStage(vm,stage){
   if(adherence!==null&&Number(summary.plannedSessions||0)>0){
     milestones.push(['Continuidad confirmada',adherence]);
   }
-  return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
+  return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}${stage.noHistory?' is-empty':''}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
     <div class="m26-client-progress-stage-copy">
       <p class="m26-eyebrow">Tu evolución</p>
       <h2 id="m26-client-progress-stage-title">${escapeHtml(stage.title)}</h2>
@@ -3519,6 +3528,7 @@ function renderClientProgressStage(vm,stage){
       ${milestones.map(([label,value])=>`<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
     </div>
     <p class="m26-client-progress-next"><span aria-hidden="true">→</span><span>${escapeHtml(stage.next)}</span></p>
+    ${stage.noHistory?'<div class="m26-client-progress-empty-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div>':''}
   </section>`;
 }
 

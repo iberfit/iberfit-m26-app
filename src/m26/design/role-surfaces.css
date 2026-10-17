@@ -3820,6 +3820,73 @@ m26-echart[data-density="compact"]{
 .m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-starting .m26-client-progress-milestones>div{
   border-top-color:color-mix(in srgb,var(--iberfit-color-text-secondary) 18%,transparent);
 }
+/* SIGNATURE: genuine no-history stage remains useful without three tall zero cards. */
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty{
+  gap:1rem;
+  padding:clamp(1.15rem,2.8vw,1.65rem);
+  border-radius:1.4rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:var(--iberfit-shadow-subtle);
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty::after{
+  content:none;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty .m26-client-progress-stage-copy h2{
+  font-size:clamp(1.65rem,4.7vw,2.15rem);
+  line-height:1.12;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty .m26-client-progress-milestones{
+  grid-template-columns:minmax(0,1fr);
+  gap:0;
+  border-top:1px solid var(--iberfit-color-border);
+  border-bottom:1px solid var(--iberfit-color-border);
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty .m26-client-progress-milestones>div{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:.15rem .85rem;
+  min-width:0;
+  padding:.65rem 0;
+  border-top:0;
+  background:transparent;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty .m26-client-progress-milestones>div+div{
+  border-top:1px solid var(--iberfit-color-border);
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-empty .m26-client-progress-milestones strong{
+  font-size:.92rem;
+  font-weight:700;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-empty-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.65rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-empty-actions button{
+  min-height:48px;
+  padding:.72rem 1rem;
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1rem;
+  color:var(--iberfit-color-cream-100);
+  background:var(--iberfit-color-forest-800);
+  font:inherit;
+  font-size:.875rem;
+  font-weight:700;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-empty-actions button:first-child{
+  border-color:var(--iberfit-color-gold-500);
+  background:var(--iberfit-color-forest-700);
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-empty-actions button:focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:2px;
+}
 .m26-shell[data-m26-role="client"] .m26-client-progress-stage.is-mature{
   border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 34%,transparent);
 }

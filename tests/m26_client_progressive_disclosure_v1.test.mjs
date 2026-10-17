@@ -247,3 +247,28 @@ test('Client uses one canonical Progress surface while Cliente 360 remains Coach
     /progreso: Object\.freeze\(\{ key: 'progreso', label: 'Progreso', title: 'Progreso y seguimiento'/u,
   );
 });
+
+test('SIGNATURE truly empty Client progress is welcoming and does not dress up zeros as trends',()=>{
+  const m=clientProgressPresentationStage(summary(),{timelineLength:0,exerciseCount:0});
+  assert.equal(m.stage,'starting');
+  assert.equal(m.noHistory,true);
+  assert.match(m.title,/primer registro/u);
+  const html=render('client',summary());
+  assert.match(html,/class="m26-client-progress-stage is-starting is-empty"/u);
+  assert.match(html,/Tu evolución empieza con el primer registro/u);
+  assert.match(html,/Tu Diagnóstico IRI inicial sigue siendo un punto de partida independiente/u);
+  assert.match(html,/data-m26-area="actividad">Registrar cómo estoy/u);
+  assert.match(html,/data-m26-area="planificacion">Revisar mi planificación/u);
+  assert.match(html,/Punto de partida IRI/u);
+  assert.doesNotMatch(html,/m26-progress-overview/u);
+  assert.doesNotMatch(html,/data-m26-area="sesion"[^>]*>Entrenar ahora/u);
+  assert.match(html,/data-client-progress-depth="starting"/u,'detailed records remain accessible');
+});
+
+test('SIGNATURE Client never treats a confirmed single session or wellbeing entry as empty',()=>{
+  for(const s of [summary({completedSessions:1}),summary({checkins:1}),summary({wearable:{daysWithData:1,metrics:{},providers:[]}})]){
+    const html=render('client',s);
+    assert.doesNotMatch(html,/class="m26-client-progress-stage is-starting is-empty"/u);
+    assert.doesNotMatch(html,/m26-client-progress-empty-actions/u);
+  }
+});

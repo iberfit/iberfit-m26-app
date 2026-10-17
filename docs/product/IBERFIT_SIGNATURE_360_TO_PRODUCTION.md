@@ -19,6 +19,12 @@ A partir de Canary `069ba68298dd57181a62cc88ce6c31112ac92176`, SIGNATURE Cliente
 
 **Estado:** implementación en PR #1019 separada del P0 #1017 y QA-only #1006. SHA de referencia `4009a4fd37ac0fcf28cab001333b0a26ec5cdb1c`: Fast Lane, CI, auditoría, Cliente autenticado, Admin Matrix, Device Experience, evidencia visual y Canary Policy Gate SUCCESS; [captura real QA #39049595003](https://github.com/iberfit/iberfit-m26-app/actions/runs/39049595003). La revisión posterior de calidez y copy voluntario requiere nuevos gates sobre su propio SHA. No implica aceptación completa, merge, Canary o PROD. Las 43 rutas continúan `pending`.
 
+### Incremento Cliente · Planificación y Progreso sin historial (WIP, no publicado)
+
+La evidencia real de QA del cierre móvil `fe066c8be6318aba83b5b553be9dbc88be82d32c` confirmó separación espacial de la barra inferior y contenido, con navegación y acción completa en móviles; 10/10 workflows SUCCESS. La pantalla de Planificación reveló tres KPI de cero sin utilidad y una segunda tarjeta redundante cuando el Coach aún no había publicado sesiones. La pantalla de Progreso mostraba demasiado peso visual para cero registros.
+
+La siguiente revisión agrupa el estado pendiente y dos acciones autorizadas en **una** superficie cálida; mantiene próxima cita confirmada si existe, aunque la semana aún no se haya publicado, y oculta exclusivamente los KPI sin muestras. En Progreso se expresa explícitamente que faltan registros confirmados, con una invitación voluntaria a registrar bienestar o revisar el plan; el Diagnóstico IRI inicial sigue separado del seguimiento. **Cuando sí hay sesiones, citas o registros reales, los KPIs y su detalle permanecen.** QA real verifica 320/390/tablet/desktop, el panel de navegación sin oclusión y los estados condicionales. Estas mejoras no se considerarán certificadas hasta superar CI, pruebas de flujo y captura QA en el SHA posterior exacto.
+
 ## 1. Resultado esperado (tres productos, una marca)
 
 - **Cliente:** la primera capa comunica qué toca, por qué, cuándo y cómo avanzar. Editorial, humana, cálida, motivadora sin manipulación ni mensajes de culpa. Sesión disponible alcanzable en <=2 toques. Persona Solo IRI ve diagnóstico, no una falsa suscripción de entrenamiento. IRI inicial separado de evolución.

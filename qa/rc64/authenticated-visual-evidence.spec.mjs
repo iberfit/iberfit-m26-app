@@ -300,6 +300,15 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await planNav.click();
         await expect(page.locator('.m26-rc39-planning')).toBeVisible({timeout:10_000});
         await certifyNonOverlappingClientDock(page,projectUse,'Tu plan');
+        const pendingPlan=page.locator('.m30-planning-overview.is-pending');
+        if(await pendingPlan.count()){
+          await expect(pendingPlan).toContainText('Tu semana aún no está publicada');
+          await expect(page.locator('.m30-planning-overview-metrics')).toHaveCount(0);
+          await expect(pendingPlan.locator('button[data-m26-area="actividad"]')).toBeVisible();
+          await expect(page.locator('.m26-rc39-week')).toHaveCount(0);
+        }else{
+          await expect(page.locator('.m30-planning-overview-metrics')).toBeVisible();
+        }
         const confirmedAppointments=page.locator('#m26-client-next-appointment');
         await expect(confirmedAppointments).toBeVisible({timeout:5_000});
         const appointmentCards=confirmedAppointments.locator('.m30-planning-appointment');
@@ -319,6 +328,14 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();
         await expect(page.locator('[data-client-progress-stage]')).toBeVisible({timeout:10_000});
+        await certifyNonOverlappingClientDock(page,projectUse,'Tu evolución');
+        const emptyProgress=page.locator('.m26-client-progress-stage.is-empty');
+        if(await emptyProgress.count()){
+          await expect(emptyProgress).toContainText('Tu evolución empieza con el primer registro');
+          await expect(emptyProgress.locator('button[data-m26-area="actividad"]')).toBeVisible();
+          await expect(emptyProgress.locator('button[data-m26-area="planificacion"]')).toBeVisible();
+          await expect(page.locator('.m26-progress-overview')).toHaveCount(0);
+        }
         await expect(page.locator('[data-m27-cliente-360]')).toHaveCount(0);
         await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
         const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();
