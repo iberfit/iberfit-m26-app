@@ -15,7 +15,7 @@ export function renderClientTodayHealth(wearables){
     ['Sueño medio',m.sleep==null?'Sin dato':formatSleepDuration(m.sleep)],
     ['FC en reposo media',m.rest==null?'Sin dato':Math.round(m.rest)+' lpm'],
   ].map(([k,v])=>'<div class="m26-client-health-metric"><span>'+e(k)+'</span><strong>'+e(v)+'</strong></div>').join('')+'</div>':'';
-  return '<section class="m26-client-health" data-m26-client-health aria-label="Tu actividad y salud">'
+  return '<section class="m26-client-health'+(m?'':' is-empty')+'" data-m26-client-health aria-label="Tu actividad y salud">'
     +'<div class="m26-client-health-heading"><div><p class="m26-eyebrow">Actividad y salud</p>'
     +'<h2>Tu actividad, a la vista</h2><p>'+(m?'Tus mediciones autorizadas ya forman parte de IBERFIT.':'Cuando compartas datos de salud, los verás aquí al abrir IBERFIT.')
     +'</p></div><span class="m26-client-health-status">'+(m?'<strong>'+m.days+'</strong> Días con datos':'Sin datos todavía')+'</span></div>'+metrics

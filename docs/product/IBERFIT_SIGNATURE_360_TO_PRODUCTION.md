@@ -15,7 +15,7 @@ Esta certificación **solo cubre las mejoras ya entregadas**, no la aceptación 
 
 ### Incremento Cliente Hoy · composición editorial (en desarrollo, NO certificado)
 
-A partir de Canary `069ba68298dd57181a62cc88ce6c31112ac92176`, SIGNATURE Cliente Hoy adopta una composición editorial integrada: orientación sobre crema y acción real sobre bosque, en vez de paneles con el mismo peso. La navegación y los estados Solo IRI, entreno pausado, sesión publicada y sin sesiones conservan las mismas decisiones autorizadas. La inserción del contexto de continuidad debe seguir a todo el bloque primario, no quedar desplazada por cambios DOM.
+A partir de Canary `069ba68298dd57181a62cc88ce6c31112ac92176`, SIGNATURE Cliente Hoy adopta una composición editorial oscura integrada, tras rechazar expresamente la gran superficie blanca observada en capturas reales de QA. Orientación sobre bosque profundo y acción real diferenciada, sin repetición de encabezados ni bloques claros dominantes. La información auxiliar de citas y plan comparte una banda editorial en lugar de tarjetas aisladas; el bloque de salud sin datos pasa a un estado compacto manteniendo la navegación autorizada. La navegación y los estados Solo IRI, entreno pausado, sesión publicada y sin sesiones conservan las mismas decisiones autorizadas. La inserción del contexto de continuidad debe seguir a todo el bloque primario, no quedar desplazada por cambios DOM.
 
 **Estado:** implementación en rama SIGNATURE separada del P0 #1017 y de QA-only #1006. Tests de regresión y CI/QA auténtico pendientes de certificación, sin aceptación de ruta completa ni promoción implícita. Capturas antes/después autenticadas y 320/390/768/1024/1440 necesarias antes de merge; estado de 43 rutas sigue `pending`.
 

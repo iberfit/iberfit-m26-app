@@ -256,13 +256,14 @@ test('SIGNATURE Hoy groups orientation and primary action into one editorial reg
   const glance=html.indexOf('<section class="m26-client-home-glance"');
   assert.ok(start>=0&&action>start&&glance>action,'feature must precede the daily context');
   assert.match(html,/class="m26-client-home-kicker">Hoy · IBERFIT/u);
-  assert.match(html,/class="m26-client-home-action-kicker">Tu siguiente paso/u);
+  assert.doesNotMatch(html,/class="m26-client-home-action-kicker"/u,'a duplicate CTA eyebrow dilutes hierarchy');
   assert.equal((html.match(/class="m26-today-action is-primary"/gu)||[]).length,1);
 });
 
-test('SIGNATURE Hoy uses branded paper and forest without changing role authorization',()=>{
+test('SIGNATURE Hoy uses matte forest surfaces without changing role authorization',()=>{
   assert.match(css,/\.m26-client-home-feature\{[\s\S]*?grid-template-columns:minmax\(0,1\.22fr\) minmax\(18rem,\.78fr\)/u);
-  assert.match(css,/\.m26-client-home-feature\{[\s\S]*?background:var\(--iberfit-color-cream-100\)/u);
+  assert.match(css,/\.m26-client-home-feature\{[\s\S]*?background:var\(--iberfit-color-surface-base\)/u);
+  assert.doesNotMatch(css.match(/\.m26-client-home-feature\{[^}]+\}/u)?.[0]||'',/cream-100/u);
   assert.match(css,/\.m26-client-home-primary-zone\{[\s\S]*?background:var\(--iberfit-color-forest-900\)/u);
   assert.match(css,/@media\(max-width:900px\)[\s\S]*?\.m26-client-home-feature\{\s*grid-template-columns:minmax\(0,1fr\)/u);
   const paused=renderHoyRoute(vm({serviceKind:'training',clients:[{
@@ -276,4 +277,14 @@ test('SIGNATURE Hoy uses branded paper and forest without changing role authoriz
   }]}));
   assert.match(iriOnly,/Diagnóstico IRI/u);
   assert.doesNotMatch(iriOnly,/data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE Hoy preserves visible Client actions and never promotes empty device metrics',()=>{
+  const html=renderHoyRoute(vm({wearables:{}}));
+  assert.match(html,/class="m26-client-health is-empty"/u);
+  assert.match(html,/data-m26-area="actividad">Ver conexión y actividad/u);
+  assert.match(html,/data-m26-area="planificacion"/u);
+  assert.match(html,/class="m26-client-home-secondary-disclosure"/u);
+  const feature=html.match(/<section class="m26-client-home-feature"[\s\S]*?<\/section>/u)?.[0]||'';
+  assert.equal((feature.match(/class="m26-today-action is-primary"/gu)||[]).length,1);
 });

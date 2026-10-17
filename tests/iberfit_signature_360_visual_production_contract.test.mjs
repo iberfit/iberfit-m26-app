@@ -277,6 +277,8 @@ test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch c
   const hero=rule('.m26-shell[data-m26-role="client"] .m26-client-home-hero');
   assert.doesNotMatch(hero,/gradient\(/,'Hero must be matte without gradients');
   assert.match(hero,/background:var\(--iberfit-color-surface-base\)/);
+  const feature=rule('.m26-shell[data-m26-role="client"] .m26-client-home-feature');
+  assert.doesNotMatch(feature,/cream-100|gradient\(/,'large light cards and decorative gradients are forbidden');
   const greeting=rule('.m26-shell[data-m26-role="client"] .m26-client-home-greeting h2');
   assert.match(greeting,/overflow-wrap:anywhere/,'long names must never overflow 320px');
   assert.match(greeting,/line-height:1\.15/,'editorial heading needs comfortable line spacing');

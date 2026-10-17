@@ -658,7 +658,6 @@ function renderClientHoyRoute(vm) {
       </div>
 
       <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
-        <p class="m26-client-home-action-kicker">Tu siguiente paso</p>
         ${primary.markup}
       </div>
     </section>
