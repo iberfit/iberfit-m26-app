@@ -1122,7 +1122,16 @@ body {
   box-shadow:0 0 0 2px color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 12%,transparent);
 }
 
+.m26-session-live-v3 .m26-session-coach-set-fields [data-session-field-priority]{
+  box-sizing:border-box;
+  max-width:100%;
+}
 .m26-session-live-v3 .m26-session-coach-set-fields input{
+  box-sizing:border-box;
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
   min-height:3.2rem;
   font-variant-numeric:tabular-nums;
 }
