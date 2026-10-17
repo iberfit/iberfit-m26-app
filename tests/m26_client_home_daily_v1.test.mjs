@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,renderRouteView} from '../src/m26/modules/route-render.js';
 
 const css=fs.readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
 const i18n=fs.readFileSync('src/m26/ui/i18n-surface-workspace.js','utf8');
@@ -292,7 +292,7 @@ test('SIGNATURE Hoy preserves visible Client actions and never promotes empty de
 });
 
 test('SIGNATURE Client mobile navigation keeps full accessible destinations with concise visible labels',()=>{
-  const html=renderHoyRoute(vm());
+  const html=renderRouteView({...vm(),kind:'hoy'});
   for(const [area,aria,shortLabel] of [
     ['planificacion','Planificación','Plan'],
     ['sesion','Sesiones','Sesión'],
