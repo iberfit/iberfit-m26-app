@@ -629,8 +629,8 @@ function renderClientHoyRoute(vm) {
     :nextActionAuthorized?requestedNextArea:'actividad';
   const nextActionLabel=requestedNextArea==='agenda'
     ?'Ver próxima cita en tu plan'
-    :nextActionArea!==requestedNextArea
-      ?'Abrir mi seguimiento'
+    :nextActionArea==='planificacion'&&nextAction?.key!=='view_next_appointment'
+      ?'Revisar mi planificación'
       :nextAction?.label||'Continuar';
   const nextActionMarkup=serviceActive&&nextAction&&nextActionAuthorized&&nextActionArea!==primary.area
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
