@@ -195,7 +195,7 @@ test('Signature360 Client appointment CTA names the actual authorized destinatio
   const legacy=renderRouteView({...vm,clients:[{...vm.clients[0],nextAction:{...next,area:'agenda',label:'Ver próxima cita'}}]});
   assert.match(legacy,/class="m26-client-home-context-action" data-m26-area="planificacion">[\s\S]*?<strong>Ver próxima cita en tu plan<\/strong>/);
   assert.doesNotMatch(legacy,/data-m26-area="agenda"/);
-  const unauthorized=renderRouteView({...vm,clients:[{...vm.clients[0],nextAction:{...next,area:'admin-usuarios',label:'Gestionar permisos'}}]});
+  const unauthorized=renderRouteView({...vm,rc39:{sessionProjections:[{id:'published-read-only',visible:true,canClientStart:false,session:{title:'Sesión para consultar'}}]},clients:[{...vm.clients[0],nextAction:{...next,area:'admin-usuarios',label:'Gestionar permisos'}}]});
   assert.doesNotMatch(unauthorized,/class="m26-client-home-context-action"/,'inaccessible role action cannot become a Client CTA');
 });
 
