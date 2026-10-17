@@ -317,5 +317,19 @@
     "production-exact-sha",
     "postprod-smoke",
     "rollback-ready"
-  ]
+  ],
+  "productionBaseline": {
+    "sourceSha": "16fe623215d26bf7d42555fe23bc0d8ec78832b0",
+    "verifiedAt": "2026-10-17",
+    "workflowRunId": 39004291546,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39004291546",
+    "delivered": [
+      "signature-base-forms-focus",
+      "client-mobile-dock",
+      "admin-agenda-clarity",
+      "admin-users-mobile-accessibility"
+    ],
+    "scope": "Visual foundations delivered; complete acceptance remains pending for all 43 role routes."
+  },
+  "activeDelivery": "2/5-client"
 }
