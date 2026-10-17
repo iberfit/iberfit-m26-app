@@ -96,11 +96,22 @@ test('Signature360 Client dock stays calm, touch-friendly and safe-area aware',(
   assert.doesNotMatch(css,/gradient\(/,'Client dock should remain matte');
 });
 
+test('SIGNATURE dock padding remains owned by the dedicated navigation CSS, not generic premium button styles',()=>{
+  const premium=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
+  const nav=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const generic=premium.match(/\.m26-shell button:not\(\.m26-icon-button\):not\(\.m26-nav-item\)[^,]*,/u)?.[0]||'';
+  assert.match(generic,/:not\(\.m26-client-bottom-nav-item\)/u);
+  assert.match(nav,/\.m26-client-bottom-nav-item\s*\{[\s\S]*?box-sizing:\s*border-box/u);
+  assert.match(nav,/@media \(max-width:\s*690px\)[\s\S]*?padding:\s*7px 3px/u);
+});
+
 test('Signature360 Client dock uses accessible compact labels without splitting words',()=>{
   const render=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
   const home=fs.readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
-  assert.match(render,/shortLabel:'Tu plan'/,'Client mobile short label must be explicit, not CSS pseudo-content');
+  for(const shortLabel of ["shortLabel:'Plan'","shortLabel:'Sesión'","shortLabel:'Avance'"]){
+    assert.ok(render.includes(shortLabel),'Client mobile labels must be explicit, concise and never pseudo-content: '+shortLabel);
+  }
   assert.match(render,/aria-label="\$\{escapeHtml\(item\.label\)\}"/,'full destination name remains accessible');
   assert.match(render,/m26-client-bottom-nav-label-compact/);
   assert.match(css,/white-space:nowrap/,'nav words must remain together at narrow widths');
@@ -112,8 +123,14 @@ test('Signature360 Client dock uses accessible compact labels without splitting 
   const hoy=home.slice(start,end);
   assert.match(hoy,/\.m26-client-home-secondary-disclosure > summary\{\s*display:grid;/,'Mobile disclosure summary is a stable two-column grid');
   assert.match(hoy,/\.m26-client-home-secondary-disclosure > summary::after\{\s*grid-column:2;/,'Disclosure indicator stays in its own column');
-  for(const [language,expected] of [['en','Your plan'],['fr','Votre plan'],['pt','O seu plano']]){
-    assert.equal(iberfitSurfaceTranslate('Tu plan',{language}),expected);
+  for(const [source,translations] of [
+    ['Plan',{en:'Plan',fr:'Plan',pt:'Plano'}],
+    ['Sesión',{en:'Session',fr:'Session',pt:'Sessão'}],
+    ['Avance',{en:'Stats',fr:'Suivi',pt:'Avanço'}],
+  ]){
+    for(const [language,expected] of Object.entries(translations)){
+      assert.equal(iberfitSurfaceTranslate(source,{language}),expected);
+    }
   }
 });
 
@@ -277,6 +294,8 @@ test('Signature360 Client Hoy has matte editorial hierarchy and immobile touch c
   const hero=rule('.m26-shell[data-m26-role="client"] .m26-client-home-hero');
   assert.doesNotMatch(hero,/gradient\(/,'Hero must be matte without gradients');
   assert.match(hero,/background:var\(--iberfit-color-surface-base\)/);
+  const feature=rule('.m26-shell[data-m26-role="client"] .m26-client-home-feature');
+  assert.doesNotMatch(feature,/cream-100|gradient\(/,'large light cards and decorative gradients are forbidden');
   const greeting=rule('.m26-shell[data-m26-role="client"] .m26-client-home-greeting h2');
   assert.match(greeting,/overflow-wrap:anywhere/,'long names must never overflow 320px');
   assert.match(greeting,/line-height:1\.15/,'editorial heading needs comfortable line spacing');
@@ -503,4 +522,54 @@ test('Signature360 Admin agenda displays people, ownership and localized dates, 
   assert.doesNotMatch(unsafe,/<img src=x onerror/);
   assert.doesNotMatch(unsafe,/<script>alert\(1\)<\/script>/);
   assert.match(unsafe,/&lt;img/);
+});
+
+test('SIGNATURE warm optional-activity copy stays localized in four languages',()=>{
+  for(const [language,heading,copy] of [
+    ['en','Activity on your terms','You can train without a watch. If you choose to share compatible data, you can view it here.'],
+    ['fr','Une activité à votre rythme','Vous pouvez vous entraîner sans montre. Si vous choisissez de partager des données compatibles, vous pourrez les consulter ici.'],
+    ['pt','Atividade ao seu ritmo','Pode treinar sem relógio. Se optar por partilhar dados compatíveis, poderá consultá-los aqui.'],
+  ]){
+    assert.equal(iberfitSurfaceTranslate('Actividad a tu ritmo',{language}),heading);
+    assert.equal(iberfitSurfaceTranslate('Puedes entrenar sin reloj. Si decides compartir datos compatibles, podrás verlos aquí.',{language}),copy);
+  }
+});
+
+test('SIGNATURE mobile dock belongs to a separate viewport row, never the content layer',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  const start=css.indexOf('SIGNATURE 360 · Non-overlapping Client mobile navigation');
+  const end=css.indexOf('@media (max-width: 690px)',start);
+  assert.ok(start>=0&&end>start,'responsive Client dock and route must be one CSS composition');
+  const layout=css.slice(start,end);
+  assert.match(layout,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-main\s*\{[^}]*overflow:\s*hidden[^}]*padding-bottom:\s*0/u);
+  assert.match(layout,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u);
+  assert.match(layout,/\.m26-client-bottom-nav-layer\s*\{[^}]*position:\s*relative/u);
+  assert.match(layout,/padding-bottom:\s*0/u,'fixed-viewport padding must not compete with a separate dock row');
+  assert.match(layout,/grid-auto-rows:\s*max-content/u,'grid rows must preserve full natural height, never crop the next action');
+  assert.match(layout,/safe-area-inset-bottom/u);
+  assert.match(visual,/certifyNonOverlappingClientDock\(page,projectUse,'Cliente Hoy'\)/u);
+  assert.match(visual,/contentBottom[\s\S]*?dockTop/u);
+  assert.match(visual,/scrollTop[\s\S]*?maxScroll/u,'final route content remains scroll-reachable');
+  assert.match(visual,/featureOwnsPrimary/u,'real-browser test must prevent clipping the primary action');
+  assert.match(visual,/authenticated-client-hoy-end/u,'capture the genuinely scrolled final viewport');
+  assert.doesNotMatch(layout,/display:\s*none/u,'fix must not hide navigation or interactive content');
+});
+
+test('SIGNATURE Client Sessions uses accessible matte surfaces and scoped controls',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+  const start=css.indexOf('SIGNATURE 360 · Client Sessions');
+  assert.ok(start>0);
+  const signature=css.slice(start);
+  assert.match(signature,/\.m26-shell\[data-m26-role="client"\] \.m26-rc39-sessions/u);
+  assert.match(signature,/\.m26-client-sessions-empty/u);
+  assert.match(signature,/\.m26-session-preview-actions \.m26-live-workout-action/u);
+  assert.match(signature,/min-height:48px/u);
+  assert.match(signature,/min-height:50px/u);
+  assert.match(signature,/:focus-visible/u);
+  assert.match(signature,/@media\(max-width:690px\)/u);
+  assert.match(signature,/@media\(forced-colors:active\)/u);
+  assert.match(signature,/summary::-webkit-details-marker\{display:none\}/u,'only native disclosure glyph is replaced');
+  const withoutNativeGlyph=signature.replace(/summary::-webkit-details-marker\{display:none\}/gu,'');
+  assert.doesNotMatch(withoutNativeGlyph,/gradient\(|display:\s*none|pointer-events:\s*none/u,'no hidden business controls or decorative gradients');
 });

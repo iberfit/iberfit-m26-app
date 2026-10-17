@@ -64,6 +64,60 @@ async function capture(page,{account,project,state,suffix=''}){
   return {role:account.role,account:account.name,state,project:safeSlug(project),file,syntheticQa:true};
 }
 
+async function certifyNonOverlappingClientDock(page,project,route){
+  if((project.viewport?.width||0)>900)return;
+  const geometry=await page.evaluate(()=>{
+    const shell=document.querySelector('.m26-client-route-shell');
+    const scroller=shell?.querySelector(':scope > :not(.m26-client-bottom-nav-layer)');
+    const layer=shell?.querySelector(':scope > .m26-client-bottom-nav-layer');
+    const nav=layer?.querySelector('.m26-client-bottom-nav');
+    if(!scroller||!layer||!nav)return null;
+    const contentBox=scroller.getBoundingClientRect();
+    const dockBox=layer.getBoundingClientRect();
+    const navBox=nav.getBoundingClientRect();
+    const scrollable=scroller.scrollHeight>scroller.clientHeight+2;
+    const feature=scroller.querySelector('.m26-client-home-feature');
+    const primary=feature?.querySelector('.m26-client-home-primary-zone');
+    const featureBox=feature?.getBoundingClientRect();
+    const primaryBox=primary?.getBoundingClientRect();
+    const featureOwnsPrimary=!feature||Boolean(primary&&primaryBox.width>10&&primaryBox.height>48
+      &&primaryBox.top>=featureBox.top-1&&primaryBox.bottom<=featureBox.bottom+2);
+    scroller.scrollTop=scroller.scrollHeight;
+    return {
+      viewportHeight:innerHeight,
+      featureOwnsPrimary,
+      contentBottom:contentBox.bottom,
+      dockTop:dockBox.top,
+      dockBottom:dockBox.bottom,
+      navTop:navBox.top,
+      navBottom:navBox.bottom,
+      dockPosition:getComputedStyle(layer).position,
+      scrollYStyle:getComputedStyle(scroller).overflowY,
+      scrollable,
+      maxScroll:Math.max(0,scroller.scrollHeight-scroller.clientHeight),
+      scrollTop:scroller.scrollTop,
+      widthOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)>innerWidth+1,
+      hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
+    };
+  });
+  expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
+  expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
+  expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
+  expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
+  expect(geometry.dockBottom,`${route}: dock must remain within the visual viewport`).toBeLessThanOrEqual(geometry.viewportHeight+1);
+  expect(geometry.dockBottom,`${route}: dock must not float above an unused strip`).toBeGreaterThanOrEqual(geometry.viewportHeight-14);
+  expect(geometry.featureOwnsPrimary,`${route}: primary action must not be cropped by the new scrollport`).toBe(true);
+  expect(geometry.hitNav,`${route}: dock must receive touch input`).toBe(true);
+  expect(geometry.widthOverflow,`${route}: dock must not cause sideways scrolling`).toBe(false);
+  if(geometry.scrollable){
+    expect(geometry.scrollTop,`${route}: footer content must remain scroll-reachable`).toBeGreaterThanOrEqual(geometry.maxScroll-2);
+  }
+  await page.evaluate(()=>{
+    const el=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+    if(el)el.scrollTop=0;
+  });
+}
+
 test('authenticated visual evidence uses Client-only QA plus privileged Coach gate and remains business read-only',async({browser},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
@@ -148,6 +202,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           return {scrollWidth:root.scrollWidth,viewportWidth:root.clientWidth};
         });
         expect(layout.scrollWidth,'Client Hoy cannot cause horizontal document scrolling').toBeLessThanOrEqual(layout.viewportWidth+1);
+        await certifyNonOverlappingClientDock(page,projectUse,'Cliente Hoy');
         const transitionMs=await primaryAction.evaluate((button)=>getComputedStyle(button)
           .transitionDuration.split(',').map((value)=>{
             const duration=String(value||'').trim();
@@ -179,9 +234,23 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
               renderedHeight:rect.height,
               clientHeight:label.clientHeight,
               scrollHeight:label.scrollHeight,
+              clientWidth:label.clientWidth,
+              scrollWidth:label.scrollWidth,
+              itemWidth:Math.round(label.parentElement?.getBoundingClientRect()?.width||0),
+              itemPadding:getComputedStyle(label.parentElement).padding,
+              itemBoxSizing:getComputedStyle(label.parentElement).boxSizing,
+              itemFlexDirection:getComputedStyle(label.parentElement).flexDirection,
+              textComputedWidth:getComputedStyle(label).width,
               childElements:label.childElementCount,
             };
           }));
+          const clippedLabels=labelMetrics.filter((label)=>label.scrollWidth>label.clientWidth+1);
+          if(clippedLabels.length){
+            console.log('RC64_CLIENT_DOCK_LAYOUT_SAFE:'+JSON.stringify({
+              viewportWidth:projectUse.viewport?.width||0,
+              clipped:clippedLabels,
+            }));
+          }
           for(const label of labelMetrics){
             expect(label.whiteSpace,`Dock caption must not wrap: ${label.label}`).toBe('nowrap');
             expect(label.renderedHeight,`Dock label must be painted: ${label.label}`).toBeGreaterThan(0);
@@ -192,13 +261,16 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             // intrinsic glyph dimensions as if they were line counts.
             expect(label.childElements,`Dock label must remain a single text-only caption: ${label.label}`).toBe(0);
             expect(label.scrollHeight,`Dock label cannot hide a second line: ${label.label}`).toBeLessThanOrEqual(Math.ceil(label.clientHeight*1.25));
+            expect(label.scrollWidth,`Compact dock caption must fit without visible ellipsis: ${label.label}`).toBeLessThanOrEqual(label.clientWidth+1);
             expect(label.overflowX,`Dock caption must not overflow its hit target: ${label.label}`).toBe('hidden');
             expect(label.textOverflow,`Dock caption must have an accessible overflow fallback: ${label.label}`).toBe('ellipsis');
           }
           const planningNav=page.locator('button.m26-client-bottom-nav-item[data-m26-area="planificacion"]');
           await expect(planningNav).toHaveAttribute('aria-label','Planificación');
           if((projectUse.viewport?.width||0)<=690){
-            await expect(planningNav.locator('.m26-client-bottom-nav-label-compact')).toHaveText('Tu plan');
+            await expect(planningNav.locator('.m26-client-bottom-nav-label-compact')).toHaveText('Plan');
+            await expect(page.locator('button.m26-client-bottom-nav-item[data-m26-area="sesion"] .m26-client-bottom-nav-label-compact')).toHaveText('Sesión');
+            await expect(page.locator('button.m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label-compact')).toHaveText('Avance');
           }
         }
         if((projectUse.viewport?.width||0)<=680){
@@ -208,6 +280,17 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         }
 
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
+        if((projectUse.viewport?.width||0)<=690){
+          await page.evaluate(()=>{
+            const content=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+            if(content)content.scrollTop=content.scrollHeight;
+          });
+          captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy-end',suffix:'hoy-end'}));
+          await page.evaluate(()=>{
+            const content=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+            if(content)content.scrollTop=0;
+          });
+        }
 
 
         // SIGNATURE 360 2/5: certify the *actual RC39 Client Plan* and its
@@ -216,6 +299,18 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(planNav).toBeVisible({timeout:5_000});
         await planNav.click();
         await expect(page.locator('.m26-rc39-planning')).toBeVisible({timeout:10_000});
+        await certifyNonOverlappingClientDock(page,projectUse,'Tu plan');
+        await expect(page.locator('.m26-rc39-planning .m26-route-intro h2')).not.toContainText('Sin modalidad');
+        const pendingPlan=page.locator('.m30-planning-overview.is-pending');
+        if(await pendingPlan.count()){
+          await expect(pendingPlan).toContainText('Tu semana aún no está publicada');
+          await expect(page.locator('.m26-rc39-planning > .m26-route-intro .m26-badge')).toHaveCount(0);
+          await expect(page.locator('.m30-planning-overview-metrics')).toHaveCount(0);
+          await expect(pendingPlan.locator('button[data-m26-area="actividad"]')).toBeVisible();
+          await expect(page.locator('.m26-rc39-week')).toHaveCount(0);
+        }else{
+          await expect(page.locator('.m30-planning-overview-metrics')).toBeVisible();
+        }
         const confirmedAppointments=page.locator('#m26-client-next-appointment');
         await expect(confirmedAppointments).toBeVisible({timeout:5_000});
         const appointmentCards=confirmedAppointments.locator('.m30-planning-appointment');
@@ -231,10 +326,49 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         expect(planningOverflow.scrollWidth,'Client Plan must not overflow the document horizontally').toBeLessThanOrEqual(planningOverflow.viewportWidth+1);
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-plan',suffix:'plan'}));
 
+        // SIGNATURE 360: Client Sessions must preserve Coach-led authorization,
+        // preview-first launch and bottom-dock separation, even on an empty account.
+        const sessionsNav=page.locator('[data-m26-area="sesion"]:visible').first();
+        await expect(sessionsNav).toBeVisible({timeout:5_000});
+        await sessionsNav.click();
+        const sessionsRoute=page.locator('.m26-rc39-sessions');
+        await expect(sessionsRoute).toBeVisible({timeout:10_000});
+        await certifyNonOverlappingClientDock(page,projectUse,'Tus sesiones');
+        const sessionsState=await sessionsRoute.getAttribute('data-client-session-state');
+        expect(['empty','published','ready'],'Client session state must be explicit').toContain(sessionsState);
+        if(sessionsState==='empty'){
+          await expect(sessionsRoute.locator('[data-client-session-empty]')).toBeVisible();
+          await expect(sessionsRoute.locator('button[data-m26-area="planificacion"]')).toBeVisible();
+          await expect(sessionsRoute.locator('button[data-m26-area="actividad"]')).toBeVisible();
+          await expect(sessionsRoute.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+          await expect(sessionsRoute.locator('[data-m43-session-history]')).toHaveCount(0);
+        }else{
+          await expect(sessionsRoute.locator('.m26-rc39-session-card').first()).toBeVisible();
+          const supervisedCards=sessionsRoute.locator('.m26-rc39-session-card.is-coach,.m26-rc39-session-card.is-online');
+          for(const card of await supervisedCards.all()){
+            await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+          }
+          if(sessionsState==='ready'){
+            const launch=sessionsRoute.locator('details.m26-session-preview-disclosure [data-workflow-action="start-published-session"]');
+            expect(await launch.count(),'ready Client sessions can start only from authorized preview').toBeGreaterThan(0);
+          }
+        }
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-sessions',suffix:'sessions'}));
+
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
         await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();
         await expect(page.locator('[data-client-progress-stage]')).toBeVisible({timeout:10_000});
+        await certifyNonOverlappingClientDock(page,projectUse,'Tu evolución');
+        const emptyProgress=page.locator('.m26-client-progress-stage.is-empty');
+        if(await emptyProgress.count()){
+          await expect(page.locator('.m26-client-progress-route > .m26-route-intro.is-empty')).toBeVisible();
+          await expect(page.locator('.m26-client-progress-route > .m26-route-intro .m26-badge')).toHaveCount(0);
+          await expect(emptyProgress).toContainText('Tu evolución empieza con el primer registro');
+          await expect(emptyProgress.locator('button[data-m26-area="actividad"]')).toBeVisible();
+          await expect(emptyProgress.locator('button[data-m26-area="planificacion"]')).toBeVisible();
+          await expect(page.locator('.m26-progress-overview')).toHaveCount(0);
+        }
         await expect(page.locator('[data-m27-cliente-360]')).toHaveCount(0);
         await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
         const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();

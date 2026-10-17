@@ -172,6 +172,7 @@ test('Admin client-create wizard preserves entered values while selects and step
 
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');
 
   const name=form.locator('input[name="name"]');
   const email=form.locator('input[name="email"]');
@@ -204,6 +205,32 @@ test('Admin client-create wizard preserves entered values while selects and step
       }))
   );
   expect(invalidStep1,'Step 1 has invalid fields before advancing').toEqual([]);
+  // Trace only field names/validation flags and click routing, never entered PII.
+  // WebKit occasionally reports a successful click but leaves this valid form at step 1.
+  await page.evaluate(()=>{
+    const journal=[];
+    Object.defineProperty(window,'__IBERFIT_ADMIN_WIZARD_CLICK_TRACE__',{value:journal,configurable:true});
+    const capture=(type,phase)=>(event)=>{
+      const button=event.target?.closest?.('[data-client-step="1"] [data-client-wizard-next]');
+      if(!button)return;
+      const form=button.closest('form[data-client-create-wizard]');
+      const step=form?.querySelector('[data-client-step="1"]');
+      const invalid=[...(step?.querySelectorAll('input,select,textarea')||[])]
+        .filter((c)=>!c.disabled&&!c.closest('[hidden]')&&!c.checkValidity())
+        .map((c)=>({name:c.name,required:c.required,badInput:c.validity.badInput,valueMissing:c.validity.valueMissing,typeMismatch:c.validity.typeMismatch}));
+      journal.push({
+        type,phase,currentStep:form?.dataset.clientCurrentStep||'missing',
+        ready:form?.dataset.clientWizardReady||'missing',
+        invalid,connected:button.isConnected,defaultPrevented:event.defaultPrevented,
+        insideRoot:event.composedPath?.().some(x=>x?.id==='qa-root')||false,
+      });
+      if(journal.length>24)journal.shift();
+    };
+    for(const type of ['pointerdown','pointerup','mousedown','mouseup','click']){
+      document.addEventListener(type,capture(type,'document-capture'),true);
+      document.addEventListener(type,capture(type,'document-bubble'));
+    }
+  });
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   try{
     await expect(form.locator('[data-client-step="2"]')).toBeVisible();
@@ -211,6 +238,7 @@ test('Admin client-create wizard preserves entered values while selects and step
     const diagnostic=await form.evaluate((node)=>({
       currentStep:node.dataset.clientCurrentStep||'unknown',
       nextButtonPresent:!!node.querySelector('[data-client-step="1"] [data-client-wizard-next]'),
+      trace:window.__IBERFIT_ADMIN_WIZARD_CLICK_TRACE__||[],
       invalidFields:[...node.querySelectorAll('[data-client-step="1"] input,[data-client-step="1"] select,[data-client-step="1"] textarea')]
         .filter((control)=>!control.disabled&&!control.closest('[hidden]')&&!control.checkValidity())
         .map((control)=>({name:control.name,valueMissing:control.validity.valueMissing,badInput:control.validity.badInput,typeMismatch:control.validity.typeMismatch})),

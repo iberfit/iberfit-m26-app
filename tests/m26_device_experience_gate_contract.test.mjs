@@ -187,3 +187,10 @@ test('Device IRI fixture uses current domain evidence and never revives the obso
   assert.match(visualCasesGenerator,/diagnosis:\{strengths:/u);
   assert.doesNotMatch(visualCasesGenerator,/score:72|score:67|Buen nivel funcional|Nivel funcional medio/u);
 });
+
+test('Large-light-surface gate includes DOM element in filtered metrics without weakening the violation criteria',()=>{
+  assert.match(deviceSpec,/\.filter\(\(\{element,style,box,color\}\)=>\{/u);
+  assert.match(deviceSpec,/element\.matches\('\.m26-shell\[data-m26-role="client"\] \.m26-client-home-clear'\)/u);
+  assert.match(deviceSpec,/color\.r>=230&&color\.g>=230&&color\.b>=225/u);
+  assert.match(deviceSpec,/lightSurfaces[\s\S]*?toEqual\(\[\]\)/u);
+});

@@ -644,8 +644,10 @@ function renderClientHoyRoute(vm) {
   return `<div class="m26-route m26-hoy-route m26-client-home-v1">
     ${operationBanner(vm.operations||{})}
 
-    <section class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
+    <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
+      <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
+        <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <p>${escapeHtml(primary.detail)}</p>
       </div>
@@ -653,10 +655,11 @@ function renderClientHoyRoute(vm) {
         <span>${escapeHtml(primary.eyebrow)}</span>
         <strong>${escapeHtml(primary.title)}</strong>
       </div>
-    </section>
+      </div>
 
-    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
-      ${primary.markup}
+      <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+        ${primary.markup}
+      </div>
     </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
@@ -3449,6 +3452,15 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
   const completed=Math.max(0,Number(summary.completedSessions||0));
   const checkins=Math.max(0,Number(summary.checkins||0));
   const wearableDays=Math.max(0,Number(summary.wearable?.daysWithData||0));
+  if(completed===0&&checkins===0&&wearableDays===0&&timelineLength===0&&exerciseCount===0){
+    return Object.freeze({
+      stage:'starting',
+      noHistory:true,
+      title:'Tu evolución empieza con el primer registro',
+      copy:'Todavía no hay sesiones, bienestar o actividad confirmados para comparar. Tu Diagnóstico IRI inicial sigue siendo un punto de partida independiente.',
+      next:'Puedes registrar cómo te encuentras hoy. Las tendencias aparecerán cuando haya datos suficientes.',
+    });
+  }
   const quality=String(summary.dataQuality||'limitada').toLowerCase();
   const channels=[
     completed>=2,
@@ -3506,7 +3518,7 @@ function renderClientProgressStage(vm,stage){
   if(adherence!==null&&Number(summary.plannedSessions||0)>0){
     milestones.push(['Continuidad confirmada',adherence]);
   }
-  return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
+  return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}${stage.noHistory?' is-empty':''}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
     <div class="m26-client-progress-stage-copy">
       <p class="m26-eyebrow">Tu evolución</p>
       <h2 id="m26-client-progress-stage-title">${escapeHtml(stage.title)}</h2>
@@ -3516,6 +3528,7 @@ function renderClientProgressStage(vm,stage){
       ${milestones.map(([label,value])=>`<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
     </div>
     <p class="m26-client-progress-next"><span aria-hidden="true">→</span><span>${escapeHtml(stage.next)}</span></p>
+    ${stage.noHistory?'<div class="m26-client-progress-empty-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div>':''}
   </section>`;
 }
 
@@ -3602,7 +3615,7 @@ export function renderProgressRoute(vm){
           <div class="m26-client-progress-detail-body">${secondaryContent}</div>
         </details>`;
     return `<div class="m26-route m26-client-progress-route">
-      <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
+      <section class="m26-route-intro${stage.noHistory?' is-empty':''}"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>${stage.noHistory?'Tus avances confirmados irán apareciendo aquí, paso a paso.':'Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.'}</p></div>${stage.noHistory?'':badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
       ${primaryEvidence}
       ${detailed}
@@ -4770,9 +4783,9 @@ function renderRouteContent(vm) {
 /* M26_CLIENT_BOTTOM_NAV_V2 */
 const CLIENT_BOTTOM_NAV_ITEMS = Object.freeze([
   {key:'hoy',label:'Hoy',area:'hoy',activeKinds:['hoy']},
-  {key:'planificacion',label:'Planificación',shortLabel:'Tu plan',area:'planificacion',activeKinds:['planificacion']},
-  {key:'sesiones',label:'Sesiones',area:'sesion',activeKinds:['sesion']},
-  {key:'progreso',label:'Progreso',area:'progreso',activeKinds:['progreso']},
+  {key:'planificacion',label:'Planificación',shortLabel:'Plan',area:'planificacion',activeKinds:['planificacion']},
+  {key:'sesiones',label:'Sesiones',shortLabel:'Sesión',area:'sesion',activeKinds:['sesion']},
+  {key:'progreso',label:'Progreso',shortLabel:'Avance',area:'progreso',activeKinds:['progreso']},
 ]);
 const CLIENT_BOTTOM_NAV_MORE_KINDS = Object.freeze(['informes','actividad','mensajes','retos','ajustes']);
 
