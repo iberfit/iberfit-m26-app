@@ -270,6 +270,8 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
 }
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
+  // Client-only appointments were scoped by ownership, publication and time in the view model.
+  const clientAppointments=Array.isArray(vm.clientAppointments)?vm.clientAppointments:[];
   const contractModality=contractModalityOf(vm);
   const appExecutable=items.filter((item)=>experienceFor(item,'client',contractModality).clientLiveWorkout).length;
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
@@ -288,7 +290,11 @@ function renderClientPlanning(vm){
       <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>entrenamiento guiado</small></div>
     </div>
   </section>`;
-  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>Planificación · ${escape(clientModalityLabel(contractModality))}</h2><p>${escape(modalityIntro('client',contractModality))}</p></div>${statusBadge(sessionCountShort,'neutral')}</section>${overview}<section class="m26-rc39-week">${cards}</section></div>`;
+  const nextAppointmentPanel=`<section id="m26-client-next-appointment" class="m26-panel m30-planning-appointments" aria-label="Tus próximas citas confirmadas">
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda confirmada</p><h3>Próximas citas</h3><p>Consulta fecha, modalidad y lugar de tus citas confirmadas.</p></div></div>
+    ${clientAppointments.length?`<div class="m26-stack">${clientAppointments.map((item)=>`<article class="m26-list-card m30-planning-appointment"><div><p class="m26-eyebrow">${escape(item.dateLabel||'Por confirmar')}</p><h4>${escape(item.title||'Sesión IBERFIT')}</h4><p>${escape([item.modality,item.location].filter(Boolean).join(' · ')||'Modalidad pendiente de definir')}</p></div>${statusBadge(item.status||'Confirmada','success')}</article>`).join('')}</div>`:`<section class="m26-empty"><h4>Sin próximas citas confirmadas</h4><p>Cuando tu Coach confirme una cita, aparecerá aquí.</p></section>`}
+  </section>`;
+  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>Planificación · ${escape(clientModalityLabel(contractModality))}</h2><p>${escape(modalityIntro('client',contractModality))}</p></div>${statusBadge(sessionCountShort,'neutral')}</section>${overview}${nextAppointmentPanel}<section class="m26-rc39-week">${cards}</section></div>`;
 }
 function renderCoachToday(vm){
   const items=vm.rc39?.sessionProjections||[];
