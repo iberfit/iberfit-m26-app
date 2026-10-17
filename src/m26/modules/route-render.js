@@ -620,15 +620,17 @@ function renderClientHoyRoute(vm) {
     :'';
 
   const nextAction=client?.nextAction||null;
-  const nextActionLabel=nextAction?.area==='planificacion'
-    ?'Revisar mi planificación'
-    :nextAction?.label||'Continuar';
-  // Coach-oriented next actions may point to Agenda/IRI or other areas the
-  // Client is not authorized to open. Keep a real Client destination and
-  // suppress optional actions while the training service is paused.
+  // A legacy/Coach-only destination must never retain a misleading CTA.
+  // Remap the route and its copy together, then suppress optional actions
+  // while a Client training service is paused.
   const requestedNextArea=String(nextAction?.area||'actividad');
   const nextActionArea=requestedNextArea==='agenda'?'planificacion'
     :areaAllowedForRole(requestedNextArea,'client')?requestedNextArea:'actividad';
+  const nextActionLabel=requestedNextArea==='agenda'
+    ?'Ver próxima cita en tu plan'
+    :nextActionArea!==requestedNextArea
+      ?'Abrir mi seguimiento'
+      :nextAction?.label||'Continuar';
   const nextActionMarkup=serviceActive&&nextAction&&nextActionArea!==primary.area
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
         <span>Siguiente paso</span>
