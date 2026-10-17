@@ -62,7 +62,14 @@ const view={kind:'sesion',role,serviceActive:true,selectedClient:{id:CLIENT,moda
   rc39:{role,sessionProjections:projected,appointments:[]},executions:[]};
 route.innerHTML=renderRc39Route(view);
 const errors=[],attempts=[],persisted=[];
-let controller=null,execution=null,launchCount=0;
+let controller=null,execution=null,launchCount=0,lastSetInput=null;
+// Privacy-safe synthetic measurement: record the visible fields at the exact
+// click that the production controller receives, before it may rerender.
+workout.addEventListener('click',(event)=>{
+  if(!event.target?.closest?.('[data-session-action="complete-set"]'))return;
+  lastSetInput=Object.fromEntries([...workout.querySelectorAll('[data-set-field]')]
+    .map(node=>[node.getAttribute('data-set-field'),String(node.value??'')]));
+},true);
 function allowed(item){
   return Boolean(role==='client'&&item&&item.visible===true&&item.visibility==='full'&&
     item.canClientExecute===true&&item.canClientStart===true&&
@@ -117,7 +124,7 @@ globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__=Object.freeze({
       projectedIds:projected.map(x=>x.id),launchCount,attempts,
       status:execution?.status||'not_started',
       results:execution?.results||{},events:execution?.events||[],
-      saved: persisted.length,errors,
+      saved: persisted.length,errors,lastSetInput,
     });
   },
 });

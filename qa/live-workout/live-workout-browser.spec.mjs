@@ -360,6 +360,12 @@ test('SIGNATURE published autonomous preview leads to actual Client execution wi
   await expect(page.locator('#qa-workout [data-session-coach-quick-controls]')).toHaveCount(0);
   await page.locator('#qa-workout [data-set-field="reps"]').fill('9');
   await page.locator('#qa-workout [data-set-field="load"]').fill('12 kg');
+  await page.locator('#qa-workout [data-set-field="rpe"]').fill('7');
+  await page.locator('#qa-workout [data-set-field="rir"]').fill('3');
+  await expect(page.locator('#qa-workout [data-set-field="reps"]')).toHaveValue('9');
+  await expect(page.locator('#qa-workout [data-set-field="load"]')).toHaveValue('12 kg');
+  await expect(page.locator('#qa-workout [data-set-field="rpe"]')).toHaveValue('7');
+  await expect(page.locator('#qa-workout [data-set-field="rir"]')).toHaveValue('3');
   await page.locator('#qa-workout [data-session-action="complete-set"]').click();
   try{
     await expect.poll(async()=>{
@@ -369,7 +375,8 @@ test('SIGNATURE published autonomous preview leads to actual Client execution wi
   }catch(error){
     const v=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
     throw new Error('SIGNATURE_PUBLISHED_SET_NOT_RECORDED:'+JSON.stringify({
-      status:v.status,errors:v.errors,events:v.events.map(e=>e.type).slice(-8),saved:v.saved,
+      status:v.status,errors:v.errors,lastSetInput:v.lastSetInput,
+      events:v.events.map(e=>e.type).slice(-8),saved:v.saved,
     }),{cause:error});
   }
   state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
@@ -415,7 +422,8 @@ test('SIGNATURE Coach-led appointment never converts into a Client start through
   const route=page.locator('.m26-rc39-sessions');
   await expect(route).toHaveAttribute('data-client-session-state','professional');
   await expect(route.locator('[data-rc39-session="qa-published-supervised"]')).toContainText('Revisar prescripción y vista del cliente');
-  await expect(route.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  await expect(route.locator('[data-rc39-session="qa-published-supervised"] [data-workflow-action="start-published-session"]')).toHaveCount(0);
+  await expect(route.locator('[data-rc39-session="qa-published-guided"] [data-workflow-action="start-published-session"]')).toHaveText('Comenzar con Coach');
   await expect(route.locator('[data-workflow-action="open-session-builder"]')).toHaveCount(1);
   const state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
   expect(state.launchCount).toBe(0);
