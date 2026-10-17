@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {
   clientProgressPresentationStage,
   renderProgressRoute,
@@ -53,6 +54,20 @@ function render(role,progressSummary,extra={}){
     ...extra,
   });
 }
+
+test('SIGNATURE Client progress baseline and variable adherence windows translate ES EN FR PT',()=>{
+  const translations=[
+    ['Punto de partida IRI','Initial IRI baseline','Point de départ IRI','Ponto de partida IRI'],
+    ['Sin diagnóstico confirmado','No confirmed initial assessment','Aucun diagnostic initial confirmé','Sem diagnóstico inicial confirmado'],
+    ['2 de 3 sesiones confirmadas en los últimos 7 días.','2 of 3 confirmed sessions in the last 7 days.','2 séances confirmées sur 3 au cours des 7 derniers jours.','2 de 3 sessões confirmadas nos últimos 7 dias.'],
+    ['1 de 2 sesiones confirmadas en los últimos 28 días.','1 of 2 confirmed sessions in the last 28 days.','1 séances confirmées sur 2 au cours des 28 derniers jours.','1 de 2 sessões confirmadas nos últimos 28 dias.'],
+  ];
+  for(const [es,en,fr,pt] of translations){
+    assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),en);
+    assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),fr);
+    assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),pt);
+  }
+});
 
 test('Client progress starts with meaning before empty analytics',()=>{
   const model=clientProgressPresentationStage(
