@@ -1,0 +1,63 @@
+# IBERFIT P0 · Authenticated Client bootstrap · QA evidence (2026-10-17)
+
+## Scope and trace
+
+- Canary baseline: `069ba68298dd57181a62cc88ce6c31112ac92176`.
+- PR owner: [#1017](https://github.com/iberfit/iberfit-m26-app/pull/1017), **Draft**.
+- Confirmed failure: [Device Experience Gate #39070288058](https://github.com/iberfit/iberfit-m26-app/actions/runs/39070288058): Chromium tablet landscape, CPU 6×, Client A, `iberfit_bootstrap_v26` **9298 ms / HTTP 500**. SQLSTATE `57014`, PostgreSQL statement timeout; other auth/role RPCs were 200.
+- SQL chain: `public.iberfit_bootstrap_v26_rc29()` → `pre_v65e()` → `pre_person_service_v1()` → `public.iberfit_bootstrap_v26()`. No evidence of a WebAuthn bypass or a permanent frontend render deadlock.
+- Production has **not** received this migration. The PR must not be merged based on sporadic green reruns.
+
+## QA-only isolated candidate
+
+An independent `private.iberfit_bootstrap_v26_rc29_slim_qa()` candidate and its private chain were installed in **iberfit-qa only**. Their `anon`/`authenticated` EXECUTE access is revoked; the live public bootstrap was not replaced. No table data, RLS, role grants, WebAuthn, API keys or PWA deployment changed.
+
+Current public `rc29` definition MD5: `5c565986e5946e768cd84eb0398f76cb`.
+Optimized function **body** MD5: `722040e7807a52a70339277014026833`. Exact fail-closed guards appear in the migration and rollback.
+
+The candidate moves two transformations earlier **for Client only**:
+1. Internal `domainEvents` that the final Client API projection invariably removes are not assembled.
+2. Entity rows ultimately suppressed by the existing M43/M44 privacy and publication rules are not serialized in the large intermediate snapshot.
+
+This is not a new visibility policy. It retains all published sessions, executions and supported Client/Coach/Admin data and keeps the original role-specific output unchanged at the API boundary.
+
+## Parity and measured size (QA synthetic fixtures)
+
+| Identity | Contract | Result |
+|---|---|---|
+| Client A, data-heavy | Complete final public bootstrap vs full private candidate | **JSONB exactly equal**; final 1,698,145 bytes in each |
+| Client B | Complete final public bootstrap vs full private candidate | **JSONB exactly equal**; final 4,243 bytes in each |
+| Coach | Original `rc29` vs candidate `rc29` | **JSONB exactly equal**, including internal data |
+| Admin | Original `rc29` vs candidate `rc29` | **JSONB exactly equal**, including internal data |
+| Coach/Admin final bootstrap without a valid WebAuthn assertion | Fail-closed behavior | Both protected by `IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED`; no bypass attempted |
+
+For Client A the core intermediate JSON shrank from **5,359,626** to **4,031,595 bytes**. Internal `domainEvents` went from **1,943** rows to **0**, and `m26Entities` from **1,368** rows to **1,251**; **the final Client JSON remained exactly equal**.
+
+### Three paired QA SQL timings
+
+| Iteration | Current full bootstrap | QA private candidate |
+|---|---:|---:|
+| 1 | 1,966 ms | 1,394 ms |
+| 2 | 1,599 ms | 1,388 ms |
+| 3 | 2,025 ms | 1,262 ms |
+
+Medians: **1,966 ms** current vs **1,388 ms** candidate, approximately **29% lower** in these samples. These are sequential synthetic QA timings, not representative p95/p99 load certification and not proof that the 10s browser SLA cannot fail under concurrency.
+
+An earlier candidate that computed one global authorized-client union was **rejected** after proving slower in QA; it was never wired to the public function.
+
+## Security and rollback
+
+- The SQL replaces **only** `public.iberfit_bootstrap_v26_rc29()`, guarded by its current exact definition MD5, security-definer owner, volatility, empty search path and existing EXECUTE restrictions.
+- The rollback accepts only the known optimized function body MD5, restores the exact previous implementation and verifies the baseline definition and ACL after restoring.
+- No increase to `statement_timeout`; no changes to WebAuthn or RLS. IRI initial diagnosis and longitudinal progress remain separate.
+- Production Data Safety Gate on this PR reported **`PROD_BACKUP_COMPLETED_BACKUP_MISSING`** and **`M44_OFFSITE_RUN_TOO_OLD`**. No production DDL may proceed until those independent backup/recovery requirements are satisfied.
+
+## Required certification before release
+
+1. Apply only the guarded migration to Supabase **QA** in a free CI window; validate the new public function hash and ACL.
+2. Run repeated authenticated Client/Coach browser tasks on desktop, tablet portrait, tablet landscape and mobile, including CPU 6×, interactive shell <=10s, no HTTP 500 and no data leakage.
+3. Verify WebAuthn privileged rejection/acceptance through the authorized device flow, lifecycle/M45 task parity, stale-session transitions and retries.
+4. Run CI, Fast Lane, Production Data Safety and independent regression tests on the exact commit. Reconcile production backup and M44 offsite freshness without bypassing controls.
+5. Only then merge protected Canary, verify deployed SHA live, and consider a separate incremental production promotion with explicit rollback.
+
+**Status: QA-only candidate prepared and data parity demonstrated; end-to-end performance P0 not yet closed.**
