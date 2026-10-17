@@ -259,7 +259,7 @@
     border-radius: 27px;
   }
 
-  .m26-client-bottom-nav-item {
+  .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-item {
     flex-direction: column;
     gap: 5px;
     min-height: 66px;
@@ -304,7 +304,7 @@
     gap: 2px;
   }
 
-  .m26-client-bottom-nav-item {
+  .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-item {
     padding-right: 1px;
     padding-left: 1px;
   }
