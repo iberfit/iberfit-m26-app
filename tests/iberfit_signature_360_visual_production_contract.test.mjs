@@ -145,7 +145,7 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
   const withAppointment=renderRouteView({...vm,appointments:[{
     id:'appointment-confirmed',dateLabel:'17 oct · 11:00',title:'Sesión presencial',statusRaw:'confirmada',
   }]});
-  assert.match(withAppointment,/<button type="button" data-m26-area="sesion">\s*<span>Próxima cita<\/span>/);
+  assert.match(withAppointment,/<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en Tu plan">\s*<span>Próxima cita<\/span>/);
   assert.match(withAppointment,/17 oct · 11:00/);
   assert.match(withAppointment,/Sesión presencial/);
   assert.doesNotMatch(withAppointment,/Sin cita programada/);
@@ -157,6 +157,20 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
       assert.equal(iberfitSurfaceTranslate(spanish,{language:locale}),translation);
     }
   }
+});
+
+test('Signature360 Client Hoy never claims plan publication or IRI self-completion without evidence',()=>{
+  const base={role:'client',kind:'hoy',serviceKind:'training',
+    clients:[{name:'Cliente QA',serviceActive:true,iri:{confirmed:false,processLabel:'En proceso'}}],
+    appointments:[],upcoming:[],rc39:{sessionProjections:[]},clientGuide:{communicationAvailable:false}};
+  const pending=renderRouteView(base);
+  assert.match(pending,/Tu Coach lo publicará cuando esté listo/);
+  assert.match(pending,/Consulta el estado de tu evaluación/);
+  assert.doesNotMatch(pending,/Completa tu punto de partida/,'Client should not receive a false IRI self-completion promise');
+  const published=renderRouteView({...base,rc39:{sessionProjections:[{id:'published-session',visible:true,canClientStart:false,session:{title:'Sesión confirmada',blocks:[]}}]}});
+  assert.match(published,/Sesiones disponibles/,'published sessions are not an unpublished plan');
+  assert.match(published,/Consulta las sesiones publicadas/);
+  assert.doesNotMatch(published,/Tu Coach lo publicará cuando esté listo/,'do not call published sessions still in preparation');
 });
 
 test('Signature360 Client appointment CTA names the actual authorized destination',()=>{
