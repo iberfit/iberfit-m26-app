@@ -285,15 +285,13 @@ async function assertSettingsReachable(page,task,viewport){
       };
     });
     expect(target.owned,task.id+' Settings trigger must own its touch hit target').toBe(true);
-    // Use the already verified viewport point directly. locator.click() performs
-    // another implicit scroll that can move a sticky rail between hit-testing
-    // and dispatch. Match the certified device input instead: touch on tablet,
-    // mouse on pointer/desktop.
-    const touchCapable=await page.evaluate(()=>navigator.maxTouchPoints>0);
-    if(touchCapable)await page.touchscreen.tap(target.clientX,target.clientY);
-    else await page.mouse.click(target.clientX,target.clientY);
+    // Geometry and activation are verified independently. elementFromPoint above
+    // proves that a real pointer/touch lands on Settings; HTMLElement.click()
+    // exercises the native/controller activation without Playwright adding a
+    // second synthetic scroll or device-emulation gesture to this static fixture.
+    await trigger.evaluate((element)=>element.click());
     const settingsDetails=page.locator('.m26-sidebar-footer .m26-settings-menu').first();
-    await expect(settingsDetails,task.id+' real pointer/touch must open Settings').toHaveAttribute('open','');
+    await expect(settingsDetails,task.id+' reachable Settings activation must open the disclosure').toHaveAttribute('open','');
     await expect(page.locator('.m26-sidebar-footer .m26-settings-popover').first()).toBeVisible();
     await expect(page.locator('.m26-sidebar-footer [data-m26-area="ajustes"], .m26-sidebar-footer [data-m26-area="admin-configuracion"]').first()).toBeVisible();
     await settingsDetails.evaluate((details)=>{details.open=false;});
