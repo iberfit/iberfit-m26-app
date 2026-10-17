@@ -536,3 +536,179 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   .m26-rc39-history-item{padding:.75rem;align-items:flex-start}
   .m26-rc39-history-item__metrics{width:100%}
 }
+
+/* SIGNATURE 360 · Client Sessions · warm, readable, useful (Client only).
+ * Keep Coach/Admin session workbenches and session authorization untouched. */
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions{
+  gap:clamp(.8rem,1.7vw,1.1rem);
+  min-width:0;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions > .m26-route-intro{
+  display:grid;
+  gap:.35rem;
+  min-width:0;
+  padding:.3rem .15rem .6rem;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions > .m26-route-intro h2{
+  max-width:26ch;
+  margin:.18rem 0 .4rem;
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.85rem,4vw,2.55rem);
+  line-height:1.1;
+  letter-spacing:-.035em;
+  text-wrap:balance;
+  color:var(--iberfit-color-cream-100);
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions > .m26-route-intro p:last-child{
+  max-width:59ch;
+  margin:0;
+  color:var(--iberfit-color-cream-300);
+  line-height:1.5;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-client-sessions-empty{
+  display:grid;
+  justify-items:start;
+  align-content:start;
+  gap:.85rem;
+  min-width:0;
+  padding:clamp(1.15rem,3vw,1.8rem);
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1.45rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:var(--iberfit-shadow-subtle);
+}
+.m26-shell[data-m26-role="client"] .m26-client-sessions-empty .m26-eyebrow{
+  margin:0;
+  color:var(--iberfit-color-gold-300);
+  letter-spacing:.12em;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sessions-empty h3{
+  margin:0;
+  color:var(--iberfit-color-cream-100);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.65rem,4.5vw,2.3rem);
+  font-weight:550;
+  line-height:1.15;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sessions-empty > p:not(.m26-eyebrow){
+  max-width:56ch;
+  margin:0;
+  color:var(--iberfit-color-cream-300);
+  font-size:.96rem;
+  line-height:1.55;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sessions-empty .m26-inline-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+  gap:.65rem;
+  margin-top:.45rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sessions-empty .m26-inline-actions button{
+  min-height:48px;
+  min-width:0;
+  padding:.75rem 1rem;
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1rem;
+  color:var(--iberfit-color-cream-100);
+  background:var(--iberfit-color-forest-800);
+  font-size:.88rem;
+  font-weight:700;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sessions-empty .m26-inline-actions button:first-child{
+  border-color:var(--iberfit-color-gold-500);
+  background:var(--iberfit-color-forest-700);
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions :is(.m26-client-sessions-empty button,.m26-rc39-session-content>summary):focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-card{
+  min-width:0;
+  padding:clamp(1rem,2.4vw,1.45rem);
+  border-radius:1.4rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:var(--iberfit-shadow-subtle);
+  transform:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-card:hover{
+  transform:none;
+  box-shadow:var(--iberfit-shadow-subtle);
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-card.is-autonomous{
+  border-color:color-mix(in srgb,var(--iberfit-color-gold-500) 38%,var(--iberfit-color-border));
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-card>header h3{
+  color:var(--iberfit-color-cream-100);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.25rem,2.6vw,1.65rem);
+  font-weight:560;
+  line-height:1.2;
+  text-wrap:balance;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-card>header .m26-badge{
+  width:max-content;
+  max-width:100%;
+  padding:.35rem .6rem;
+  border-radius:999px;
+  font-size:.72rem;
+  white-space:normal;
+  line-height:1.3;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-content>summary{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:.75rem;
+  min-height:50px;
+  padding:.65rem .85rem;
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1rem;
+  color:var(--iberfit-color-cream-100);
+  background:var(--iberfit-color-forest-800);
+  list-style:none;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-content>summary::-webkit-details-marker{display:none}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-content>summary::after{
+  content:'';
+  flex:0 0 auto;
+  width:.55rem;
+  height:.55rem;
+  border-right:2px solid var(--iberfit-color-gold-300);
+  border-bottom:2px solid var(--iberfit-color-gold-300);
+  transform:translateY(-.13rem) rotate(45deg);
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-content[open]>summary::after{
+  transform:translateY(.12rem) rotate(225deg);
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-session-preview-actions .m26-live-workout-action{
+  width:100%;
+  min-height:52px;
+  border-radius:1.05rem;
+}
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-client-sessions-empty .m26-inline-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-client-sessions-empty .m26-inline-actions button{
+    width:100%;
+    text-align:center;
+  }
+  .m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-rc39-session-card>header>div:last-child{
+    justify-content:flex-start;
+    gap:.4rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-rc39-sessions :is(.m26-client-sessions-empty,.m26-rc39-session-card){
+    border:1px solid CanvasText;
+  }
+}

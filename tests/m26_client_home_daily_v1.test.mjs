@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,renderRouteView} from '../src/m26/modules/route-render.js';
 
 const css=fs.readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
 const i18n=fs.readFileSync('src/m26/ui/i18n-surface-workspace.js','utf8');
@@ -133,7 +133,9 @@ test('Client Home never repeats the same next action below the primary action',(
 
 test('Client Home has explicit mobile-first responsive hierarchy',()=>{
   assert.match(css,/CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE/u);
-  assert.match(css,/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{[\s\S]*?min-height:6\.8rem/u);
+  const actionStyle=css.match(/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{([^}]+)\}/u)?.[1]||'';
+  const touchHeight=Number(actionStyle.match(/min-height:([0-9.]+)rem/u)?.[1]||0);
+  assert.ok(touchHeight>=6.8,'primary mobile action may grow but never shrink below the established touch height');
   assert.match(css,/\.m26-client-home-glance\{[\s\S]*?repeat\(auto-fit,minmax\(13rem,1fr\)\)/u);
   assert.match(css,/\.m26-client-home-secondary-disclosure > summary\{[\s\S]*?min-height:44px/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-glance\{[\s\S]*?grid-template-columns:1fr/u);
@@ -200,6 +202,9 @@ test('Client Home does not duplicate the primary runnable session in the agenda'
 test('stable Client Home copy is translated',()=>{
   for(const phrase of [
     'Tu sesión de hoy',
+    'Hoy · IBERFIT',
+    'Tu día en IBERFIT',
+    'Tu siguiente paso',
     'Entrenar ahora',
     'Abrir mis sesiones',
     'Próxima cita',
@@ -244,4 +249,74 @@ test('M42 Client Hoy suppresses supplementary training CTAs during a paused serv
   assert.match(html,/Tu entrenamiento está en pausa/u);
   assert.doesNotMatch(html,/m26-client-home-context-action/u);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE Hoy groups orientation and primary action into one editorial region',()=>{
+  const html=renderHoyRoute(vm());
+  const start=html.indexOf('<section class="m26-client-home-feature"');
+  const action=html.indexOf('<div class="m26-client-home-primary-zone"');
+  const glance=html.indexOf('<section class="m26-client-home-glance"');
+  assert.ok(start>=0&&action>start&&glance>action,'feature must precede the daily context');
+  assert.match(html,/<span class="m26-client-home-kicker">Hoy · IBERFIT<\/span>/u);
+  assert.doesNotMatch(html,/class="m26-client-home-action-kicker"/u,'a duplicate CTA eyebrow dilutes hierarchy');
+  assert.equal((html.match(/class="m26-today-action is-primary"/gu)||[]).length,1);
+});
+
+test('SIGNATURE Hoy uses matte forest surfaces without changing role authorization',()=>{
+  assert.match(css,/\.m26-client-home-feature\{[\s\S]*?grid-template-columns:minmax\(0,1\.22fr\) minmax\(18rem,\.78fr\)/u);
+  assert.match(css,/\.m26-client-home-feature\{[\s\S]*?background:var\(--iberfit-color-surface-base\)/u);
+  assert.doesNotMatch(css.match(/\.m26-client-home-feature\{[^}]+\}/u)?.[0]||'',/cream-100/u);
+  assert.match(css,/\.m26-client-home-primary-zone\{[\s\S]*?background:var\(--iberfit-color-forest-950\)/u);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*?\.m26-client-home-feature\{\s*grid-template-columns:minmax\(0,1fr\)/u);
+  const paused=renderHoyRoute(vm({serviceKind:'training',clients:[{
+    id:'c1',name:'Cliente de prueba',serviceActive:false,
+    trainingServiceStatus:'paused',iri:{confirmed:true},
+  }]}));
+  assert.match(paused,/class="m26-client-home-feature"/u);
+  assert.doesNotMatch(paused,/data-workflow-action="start-published-session"/u);
+  const iriOnly=renderHoyRoute(vm({serviceKind:'iri',clients:[{
+    id:'c1',name:'Cliente IRI',iri:{confirmed:false},
+  }]}));
+  assert.match(iriOnly,/Diagnóstico IRI/u);
+  assert.doesNotMatch(iriOnly,/data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE Hoy preserves visible Client actions and never promotes empty device metrics',()=>{
+  const html=renderHoyRoute(vm({wearables:{}}));
+  assert.match(html,/class="m26-client-health is-empty"/u);
+  assert.match(html,/data-m26-area="actividad">Ver conexión y actividad/u);
+  assert.match(html,/data-m26-area="planificacion"/u);
+  assert.match(html,/class="m26-client-home-secondary-disclosure"/u);
+  const feature=html.match(/<section class="m26-client-home-feature"[\s\S]*?<\/section>/u)?.[0]||'';
+  assert.equal((feature.match(/class="m26-today-action is-primary"/gu)||[]).length,1);
+});
+
+test('SIGNATURE Client mobile navigation keeps full accessible destinations with concise visible labels',()=>{
+  const html=renderRouteView({...vm(),kind:'hoy'});
+  for(const [area,aria,shortLabel] of [
+    ['planificacion','Planificación','Plan'],
+    ['sesion','Sesiones','Sesión'],
+    ['progreso','Progreso','Avance'],
+  ]){
+    const item=html.match(new RegExp('<button[^>]+data-m26-area="'+area+'"[^>]+aria-label="'+aria+'"[^>]*>[\\s\\S]*?<\\/button>','u'))?.[0]||'';
+    assert.ok(item,area+' retains full accessible navigation');
+    assert.ok(item.includes('m26-client-bottom-nav-label-compact')&&item.includes('>'+shortLabel+'</span>'),shortLabel);
+  }
+});
+
+test('SIGNATURE warm Client Today differentiates optional empty health from confirmed metrics',()=>{
+  const empty=renderHoyRoute(vm({wearables:{}}));
+  assert.match(empty,/<h2>Actividad a tu ritmo<\/h2>/u);
+  assert.match(empty,/Puedes entrenar sin reloj\. Si decides compartir datos compatibles/u);
+  assert.match(empty,/data-m26-area="actividad">Ver conexión y actividad<\/button>/u);
+  assert.doesNotMatch(empty,/class="m26-client-health-metric"/u);
+  const summary={summary:{daysWithData:2,metrics:{steps:4321,sleepMinutes:460,restingHeartRate:61}}};
+  const confirmed=renderHoyRoute(vm({wearables:summary}));
+  assert.match(confirmed,/<h2>Tu actividad, a la vista<\/h2>/u);
+  assert.match(confirmed,/class="m26-client-health-metric"/u);
+  assert.doesNotMatch(confirmed,/Actividad a tu ritmo/u);
+  const action=css.match(/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{([^}]+)\}/u)?.[1]||'';
+  assert.match(action,/border:1px solid var\(--iberfit-color-gold-500\)/u);
+  assert.match(action,/border-radius:1\.35rem/u);
+  assert.doesNotMatch(action,/gradient\(|translateY/u);
 });

@@ -138,3 +138,26 @@ test('La vista previa conserva exactamente el maximo de 120 bloques validos',()=
   assert.equal((value.match(/class="m26-session-preview-block"/g)||[]).length,120);
   assert.doesNotMatch(value,/Ejercicio 121/);
 });
+
+test('SIGNATURE Client distinguishes a Coach-led session from an authorized guided session',()=>{
+  const supervised=html('client',[item('presencial','coach_led','summary_only')]);
+  assert.match(supervised,/data-client-session-state="published"/u);
+  assert.match(supervised,/Esta sesión la dirige tu Coach/u);
+  assert.doesNotMatch(supervised,/data-workflow-action="start-published-session"|data-client-session-state="ready"/u);
+  const autonomous=html('client',[item('guiada','guided_in_app','full')]);
+  assert.match(autonomous,/data-client-session-state="ready"/u);
+  assert.match(autonomous,/Ver sesión/u);
+  assert.equal((autonomous.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
+  assert.match(autonomous,/data-entity-id="guiada"/u);
+  assert.doesNotMatch(autonomous,/NOTA PRIVADA NO MOSTRAR/u);
+  const coach=html('coach',[item('presencial','coach_led','summary_only')]);
+  assert.match(coach,/data-client-session-state="professional"/u);
+  assert.doesNotMatch(coach,/data-client-session-empty|A tu ritmo, con criterio/u);
+});
+test('SIGNATURE Client blocked exercise view keeps the session visible but never promises a start',()=>{
+  const projection=item('guiada','guided_in_app','summary_only');
+  const value=html('client',[projection]);
+  assert.match(value,/data-client-session-state="published"/u);
+  assert.match(value,/El detalle de esta sesión estará disponible/u);
+  assert.doesNotMatch(value,/data-workflow-action="start-published-session"|data-client-session-state="ready"/u);
+});

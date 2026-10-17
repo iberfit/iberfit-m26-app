@@ -26,6 +26,16 @@ Evitar:
 
 Usar siempre el logo/isotipo real de IBERFIT. No inventar variantes de marca.
 
+## SIGNATURE 360 · Calidez visual, redondez y excelencia
+
+- Las grandes superficies de Cliente, Coach y Admin deben usar bosque oscuro cálido, oliva y capas profundas; **no** blanco puro o gris azulado de aspecto clínico. Marfil y arena son colores de lectura, no fondos dominantes.
+- Reservar el dorado/champán para marca, acción o decisión importante; los estados de error, éxito o conflicto se comunican semánticamente y con texto. Nunca convertir todo en dorado.
+- Priorizar curvas coherentes y tacto premium: en Cliente, radios generosos y composiciones fluidas; en Coach, curvas que no consuman el espacio de una sesión; en Admin, jerarquía operativa y densidad controlada. No aplicar el mismo componente a todos los roles.
+- Reducir tarjetas anidadas y bordes repetidos. Una banda de datos relacionados es preferible a cinco cajas inconexas, siempre que lectura, navegación, contraste y foco permanezcan claros.
+- Mostrar primero la siguiente acción **real**, luego el contexto. En estados vacíos comunicar voluntariedad y recuperación, sin culpa, métricas inventadas, automatismos falsos o presión comercial.
+- Verificar cada cambio en capturas QA autenticadas del SHA exacto, escritorio/tablet/320/390 px, y con pruebas de tareas, foco, touch, safe areas, zoom, texto extenso, reduced motion y roles. Las composiciones imaginadas no certifican la aplicación.
+- Mantener el CSS integrado en la hoja canónica de cada componente. Los tokens generados no se editan manualmente, se cambia la fuente de generación si corresponde. No añadir cascadas de overrides o efectos visuales gratuitos.
+
 ## Fuente de verdad visual
 
 - tokens semánticos: fuente canónica existente del sistema de diseño;

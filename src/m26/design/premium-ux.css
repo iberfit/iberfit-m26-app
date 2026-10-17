@@ -603,7 +603,9 @@ body {
   font-size: clamp(1.15rem,2.6vw,1.65rem);
 }
 
-.m26-shell button:not(.m26-icon-button):not(.m26-nav-item),
+/* The Client dock has its own canonical touch-target treatment.
+ * Exclude it from the generic button rule rather than layering overrides. */
+.m26-shell button:not(.m26-icon-button):not(.m26-nav-item):not(.m26-client-bottom-nav-item),
 .m26-shell [role="button"] {
   min-height: 2.9rem;
   padding: .68rem 1rem;

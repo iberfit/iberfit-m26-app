@@ -458,9 +458,12 @@ function enhanceClientHome({root,viewModel,state,now}){
   if(!snapshot)return false;
   const section=buildClientHomeSection(root.ownerDocument,snapshot);
   if(!section)return false;
+  // The editorial Hoy feature contains its primary CTA. Insert useful context
+  // after the entire feature rather than detaching it from the reading order.
   const primary=host.querySelector?.('.m26-client-home-primary-zone');
-  if(primary?.nextSibling)host.insertBefore(section,primary.nextSibling);
-  else if(primary)host.append(section);
+  const anchor=host.querySelector?.('.m26-client-home-feature')||primary;
+  if(anchor?.nextSibling)host.insertBefore(section,anchor.nextSibling);
+  else if(anchor)host.append(section);
   else host.prepend(section);
   return true;
 }

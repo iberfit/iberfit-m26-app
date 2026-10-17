@@ -41,3 +41,52 @@ test('Coach conserva su CTA operativo y no recibe acciones de continuidad del Cl
   assert.doesNotMatch(html,/Revisar mi planificación/);
   assert.doesNotMatch(html,/Registrar cómo estoy/);
 });
+
+test('SIGNATURE empty planning removes decorative zero metrics but keeps real next steps',()=>{
+  const html=renderRc39Route(emptyVm('planificacion'));
+  assert.match(html,/data-m30-planning-state="pending"/u);
+  assert.match(html,/class="m30-planning-overview is-pending"/u);
+  assert.match(html,/Tu semana aún no está publicada/u);
+  assert.doesNotMatch(html,/>Por publicar</u,'pending overview already communicates status; avoid a giant redundant badge');
+  assert.doesNotMatch(html,/class="m30-planning-overview-metrics"/u);
+  assert.doesNotMatch(html,/<section class="m26-rc39-week">/u);
+  assert.equal((html.match(/data-m26-area="actividad"/gu)||[]).length,1);
+  assert.equal((html.match(/data-m26-area="progreso"/gu)||[]).length,1);
+  assert.match(html,/id="m26-client-next-appointment"/u,'confirmed-appointment destination cannot vanish');
+  assert.match(html,/Sin próximas citas confirmadas/u);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE planning keeps confirmed appointments separate from unpublished sessions',()=>{
+  const vm=emptyVm('planificacion');
+  vm.clientAppointments=[{id:'a1',title:'Revisión presencial',dateLabel:'18 de octubre',modality:'Presencial',location:'IBERFIT',status:'Confirmada'}];
+  const html=renderRc39Route(vm);
+  assert.match(html,/data-m30-planning-state="pending"/u);
+  assert.match(html,/Próximas citas/u);
+  assert.match(html,/Revisión presencial/u);
+  assert.doesNotMatch(html,/Sin próximas citas confirmadas/u);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE planning keeps human copy when contract modality is not defined',()=>{
+  const vm=emptyVm('planificacion');
+  vm.selectedClient={id:'client-1',name:'Cliente IBERFIT'};
+  const html=renderRc39Route(vm);
+  assert.match(html,/>Tu planificación<\/h2>/u);
+  assert.doesNotMatch(html,/Planificación · Sin modalidad/u);
+  assert.match(html,/Tu semana aún no está publicada/u);
+});
+
+test('SIGNATURE Client Sessions has one warm empty state with real navigation, never an inferred workout',()=>{
+  const vm=emptyVm('sesion');
+  vm.selectedClient={id:'client-1',name:'QA Client'};
+  const html=renderRc39Route(vm);
+  assert.match(html,/data-client-session-state="empty"/u);
+  assert.match(html,/data-client-session-empty/u);
+  assert.match(html,/Sesiones · IBERFIT/u,'unknown modality should not become a heading');
+  assert.match(html,/A tu ritmo, con criterio/u);
+  assert.match(html,/Tu próxima sesión aparecerá aquí cuando esté publicada y autorizada/u);
+  assert.equal((html.match(/data-m26-area="planificacion"/gu)||[]).length,1);
+  assert.equal((html.match(/data-m26-area="actividad"/gu)||[]).length,1);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"|Comenzar entrenamiento/u);
+});

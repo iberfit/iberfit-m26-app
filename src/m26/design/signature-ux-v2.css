@@ -754,10 +754,8 @@ body{
   align-items:center;
   padding:1rem 1.1rem;
   border:1px solid var(--iberfit-v2-line-strong);
-  border-radius:var(--iberfit-v2-card-radius);
-  background:
-    radial-gradient(circle at 90% -20%,rgba(216,185,111,.11),transparent 18rem),
-    var(--iberfit-v2-surface);
+  border-radius:1.4rem;
+  background:var(--iberfit-v2-surface);
   box-shadow:var(--iberfit-v2-shadow);
 }
 
@@ -775,12 +773,85 @@ body{
   letter-spacing:-.035em;
 }
 
-.m30-planning-overview-copy>p:last-child{
+.m30-planning-overview-copy>p:not(.m26-eyebrow){
   max-width:62ch;
   margin:0;
   color:var(--iberfit-color-text-secondary);
   font-size:.76rem;
   line-height:1.5;
+}
+
+/* A week without published sessions is an orientation state, not three zero KPIs. */
+.m30-planning-overview.is-pending{
+  grid-template-columns:minmax(0,1fr);
+  gap:.9rem;
+  padding:clamp(1.1rem,3vw,1.65rem);
+  border-radius:1.45rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:var(--iberfit-shadow-subtle);
+}
+.m30-planning-overview.is-pending .m30-planning-overview-copy{
+  gap:.65rem;
+}
+.m30-planning-overview.is-pending .m30-planning-overview-copy h3{
+  font-size:clamp(1.65rem,4vw,2.25rem);
+  line-height:1.15;
+  color:var(--iberfit-color-cream-100);
+}
+.m30-planning-overview.is-pending .m30-planning-overview-copy>p:not(.m26-eyebrow){
+  font-size:.91rem;
+  line-height:1.55;
+  color:var(--iberfit-color-cream-300);
+}
+.m30-planning-pending-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.65rem;
+  align-items:center;
+  padding-top:.45rem;
+}
+.m30-planning-pending-actions button{
+  min-height:48px;
+  padding:.75rem 1rem;
+  border:1px solid var(--iberfit-color-border-strong);
+  border-radius:1rem;
+  background:var(--iberfit-color-forest-800);
+  color:var(--iberfit-color-cream-100);
+  font:inherit;
+  font-size:.88rem;
+  font-weight:700;
+  touch-action:manipulation;
+}
+.m30-planning-pending-actions button:first-child{
+  border-color:var(--iberfit-color-gold-500);
+  background:var(--iberfit-color-forest-700);
+}
+.m30-planning-pending-actions button:focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:2px;
+}
+.m26-rc39-planning .m30-planning-appointments.is-empty{
+  display:grid;
+  gap:.5rem;
+  padding:clamp(.9rem,2vw,1.2rem);
+  border-radius:1.2rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:none;
+}
+.m26-rc39-planning .m30-planning-appointment-empty{
+  display:grid;
+  gap:.15rem;
+  min-width:0;
+  color:var(--iberfit-color-cream-300);
+  font-size:.875rem;
+  line-height:1.4;
+}
+.m26-rc39-planning .m30-planning-appointment-empty strong{
+  color:var(--iberfit-color-cream-100);
+  font-size:.9rem;
+}
+.m26-rc39-planning .m30-planning-appointment-empty p{
+  margin:0;
 }
 
 .m30-planning-overview-metrics{

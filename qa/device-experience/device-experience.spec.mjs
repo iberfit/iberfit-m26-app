@@ -154,7 +154,7 @@ async function lightSurfaceViolations(page){
         const color=parse(style.backgroundColor);
         return {element,style,box,color};
       })
-      .filter(({style,box,color})=>{
+      .filter(({element,style,box,color})=>{
         if(!color||color.a<.45)return false;
         if(style.display==='none'||style.visibility==='hidden'||box.width<=0||box.height<=0)return false;
         if(box.width*box.height<6000)return false;

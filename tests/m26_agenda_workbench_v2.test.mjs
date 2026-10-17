@@ -250,8 +250,9 @@ test('Agenda V2 adapta el workbench a escritorio tablet y móvil sin ocultar cap
     'utf8'
   );
   const start=css.indexOf('AGENDA_WORKBENCH_V2_BEGIN');
-  assert.ok(start>=0);
-  const added=css.slice(start);
+  const end=css.indexOf('AGENDA_WORKBENCH_V2_END',start);
+  assert.ok(start>=0&&end>start,'the Agenda workbench styles must have explicit section bounds');
+  const added=css.slice(start,end);
 
   for(const selector of [
     '.m30-agenda-workbench-v2',
