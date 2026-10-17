@@ -33,7 +33,7 @@ async function currentSource(relative){
 async function fulfillCurrentSource(route,url){
   let pathname=decodeURIComponent(url.pathname||'/');
   if(pathname==='/'||pathname==='')pathname='/index.html';
-  const relative=pathname.replace(/^\\/+/, '');
+  const relative=pathname.startsWith('/')?pathname.slice(1):pathname;
   const resolved=await currentSource(relative);
   if(resolved){
     const ext=path.extname(resolved.candidate).toLowerCase();
