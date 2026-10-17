@@ -9,10 +9,12 @@ on:
       - 'supabase/migrations/**'
       - 'scripts/data-safety/check_migration_safety.mjs'
       - 'scripts/data-safety/check_prod_backup_readiness.mjs'
+      - 'scripts/data-safety/check_m44_offsite_recovery_readiness.mjs'
       - 'scripts/data-safety/check_prod_schema_recovery_snapshot.mjs'
       - 'scripts/data-safety/prod_schema_recovery_snapshot.sql'
       - 'tests/m26_prod_data_safety_gate.test.mjs'
       - 'tests/m26_prod_backup_readiness.test.mjs'
+      - 'tests/m26_m44_offsite_recovery_readiness.test.mjs'
       - 'tests/m26_prod_schema_recovery_snapshot.test.mjs'
       - '.github/workflows/prod-data-safety-gate.yml'
   push:
@@ -22,15 +24,18 @@ on:
       - 'supabase/migrations/**'
       - 'scripts/data-safety/check_migration_safety.mjs'
       - 'scripts/data-safety/check_prod_backup_readiness.mjs'
+      - 'scripts/data-safety/check_m44_offsite_recovery_readiness.mjs'
       - 'scripts/data-safety/check_prod_schema_recovery_snapshot.mjs'
       - 'scripts/data-safety/prod_schema_recovery_snapshot.sql'
       - 'tests/m26_prod_data_safety_gate.test.mjs'
       - 'tests/m26_prod_backup_readiness.test.mjs'
+      - 'tests/m26_m44_offsite_recovery_readiness.test.mjs'
       - 'tests/m26_prod_schema_recovery_snapshot.test.mjs'
       - '.github/workflows/prod-data-safety-gate.yml'
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: iberfit-production-data-safety-${{ github.ref }}
@@ -91,10 +96,12 @@ jobs:
             '.github/workflows/prod-data-safety-gate.yml' \
             'scripts/data-safety/check_migration_safety.mjs' \
             'scripts/data-safety/check_prod_backup_readiness.mjs' \
+            'scripts/data-safety/check_m44_offsite_recovery_readiness.mjs' \
             'scripts/data-safety/check_prod_schema_recovery_snapshot.mjs' \
             'scripts/data-safety/prod_schema_recovery_snapshot.sql' \
             'tests/m26_prod_data_safety_gate.test.mjs' \
             'tests/m26_prod_backup_readiness.test.mjs' \
+            'tests/m26_m44_offsite_recovery_readiness.test.mjs' \
             'tests/m26_prod_schema_recovery_snapshot.test.mjs')"
 
           HAS_MIGRATION_CHANGES=false
@@ -125,6 +132,7 @@ jobs:
           node --test \
             tests/m26_prod_data_safety_gate.test.mjs \
             tests/m26_prod_backup_readiness.test.mjs \
+            tests/m26_m44_offsite_recovery_readiness.test.mjs \
             tests/m26_prod_schema_recovery_snapshot.test.mjs
 
       - name: Assess managed backups and schema-only evidence (no PROD DDL)
@@ -132,6 +140,8 @@ jobs:
         shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
@@ -174,6 +184,81 @@ jobs:
             exit "$BACKUP_STATUS"
           fi
 
+          # Free-plan projects may have no managed daily backup inventory. In that
+          # case accept only the dedicated IBERFIT M44 encrypted PROD export after
+          # the same run proves DB+Storage restoration and publishes a fresh
+          # ciphertext artifact. Raw Actions metadata stays runner-private.
+          test -n "${GH_ACTIONS_TOKEN:-}" || { echo 'M44_OFFSITE_GITHUB_TOKEN_MISSING'; exit 46; }
+          test -n "${GITHUB_REPOSITORY:-}" || { echo 'M44_OFFSITE_REPOSITORY_MISSING'; exit 46; }
+          ACTIONS_API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          AUTH_HEADER="Authorization: Bearer ${GH_ACTIONS_TOKEN}"
+          ACCEPT_HEADER="Accept: application/vnd.github+json"
+          API_VERSION_HEADER="X-GitHub-Api-Version: 2022-11-28"
+
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" -H "$API_VERSION_HEADER" \
+            "$ACTIONS_API/actions/workflows/m44-encrypted-disaster-recovery.yml/runs?branch=canary%2Frc74-4&status=completed&per_page=20" \
+            -o /tmp/m44-offsite-runs.json
+
+          M44_RUN_ID="$(node <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/m44-offsite-runs.json','utf8'));
+          const runs=Array.isArray(body.workflow_runs)?body.workflow_runs:[];
+          const valid=runs
+            .filter(r=>r?.name==='IBERFIT M44 Encrypted Offsite Disaster Recovery')
+            .filter(r=>r?.path==='.github/workflows/m44-encrypted-disaster-recovery.yml')
+            .filter(r=>r?.head_branch==='canary/rc74-4')
+            .filter(r=>r?.status==='completed'&&r?.conclusion==='success')
+            .filter(r=>['push','workflow_dispatch'].includes(r?.event))
+            .sort((a,b)=>Date.parse(b.updated_at||0)-Date.parse(a.updated_at||0));
+          process.stdout.write(valid[0]?.id?String(valid[0].id):'');
+          NODE
+          )"
+
+          OFFSITE_STATUS=1
+          if [[ "$M44_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+              -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" -H "$API_VERSION_HEADER" \
+              "$ACTIONS_API/actions/runs/$M44_RUN_ID" -o /tmp/m44-offsite-run.json
+            curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+              -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" -H "$API_VERSION_HEADER" \
+              "$ACTIONS_API/actions/runs/$M44_RUN_ID/jobs?per_page=100" -o /tmp/m44-offsite-jobs.json
+            curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+              -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" -H "$API_VERSION_HEADER" \
+              "$ACTIONS_API/actions/runs/$M44_RUN_ID/artifacts?per_page=100" -o /tmp/m44-offsite-artifacts.json
+            set +e
+            node scripts/data-safety/check_m44_offsite_recovery_readiness.mjs \
+              /tmp/m44-offsite-run.json \
+              /tmp/m44-offsite-jobs.json \
+              /tmp/m44-offsite-artifacts.json \
+              recovery/prod-m44-offsite-recovery-summary.json
+            OFFSITE_STATUS=$?
+            set -e
+          else
+            node -e "require('fs').writeFileSync('recovery/prod-m44-offsite-recovery-summary.json',JSON.stringify({ok:false,error:'M44_OFFSITE_SUCCESS_RUN_MISSING',restoreTestVerified:false,productionMigrationApproved:false,platformRecoveryVerified:false},null,2)+'\\n')"
+          fi
+
+          if [ "$OFFSITE_STATUS" -eq 0 ]; then
+            node <<'NODE'
+          const fs=require('fs');
+          const summary=JSON.parse(fs.readFileSync('recovery/prod-m44-offsite-recovery-summary.json','utf8'));
+          if(summary.ok!==true||summary.restoreTestVerified!==true||summary.productionMigrationApproved!==true){
+            throw new Error('M44_OFFSITE_RECOVERY_SUMMARY_NOT_APPROVED');
+          }
+          fs.writeFileSync('recovery/prod-recovery-readiness-summary.json',JSON.stringify({
+            ...summary,
+            projectRef:process.env.PROD_SUPABASE_REF,
+            managedBackupError:'PROD_BACKUP_COMPLETED_BACKUP_MISSING',
+            recoveryAuthority:'INDEPENDENT_ENCRYPTED_DB_STORAGE_RESTORE',
+            platformRecoveryVerified:false
+          },null,2)+'\n');
+          NODE
+            echo 'IBERFIT_PROD_M44_OFFSITE_DB_STORAGE_RESTORE_AUTHORITY_AVAILABLE'
+            echo '::notice::Fresh independent encrypted PROD DB+Storage restore proof accepted; Hosted Auth/Vault root/Edge secrets remain outside this certification.'
+            exit 0
+          fi
+
+          echo 'IBERFIT_PROD_M44_OFFSITE_RESTORE_AUTHORITY_NOT_AVAILABLE'
           curl --fail --silent --show-error --location \
             --retry 3 --retry-all-errors \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
@@ -259,6 +344,7 @@ jobs:
           # Upload attestations only; never publish raw snapshots to artifacts.
           path: |
             recovery/prod-backup-readiness-summary.json
+            recovery/prod-m44-offsite-recovery-summary.json
             recovery/prod-schema-recovery-summary.json
             recovery/prod-recovery-readiness-summary.json
           if-no-files-found: warn
