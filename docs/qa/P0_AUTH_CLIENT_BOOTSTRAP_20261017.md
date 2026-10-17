@@ -58,6 +58,27 @@ An earlier candidate that computed one global authorized-client union was **reje
 
 The production recovery prerequisite remains unsatisfied: the gate reports `PROD_BACKUP_COMPLETED_BACKUP_MISSING` and `M44_OFFSITE_RUN_TOO_OLD`. A schema-only catalog snapshot is not an independent restorable database backup. **No PROD DDL, merges, WebAuthn relaxation, or expanded grants were performed.**
 
+## PROD/QA chain compatibility certification — baseline SQL from live PROD catalog
+
+Supabase live catalog comparison identified **two different versions of `pre_v65e`**:
+
+| Function | QA definition MD5 | PROD definition MD5 |
+|---|---|---|
+| `iberfit_bootstrap_v26_rc29()` | `f96b4594e4fe49a1d82e04cbb0cbc65f` (optimized) | `5c565986e5946e768cd84eb0398f76cb` (original) |
+| `iberfit_bootstrap_v26_pre_v65e()` | `7416e0d52d6fa069cf467e95420d4034` (#1006) | `115246a2fb1aea298d023e44508c7dba` (original) |
+| `iberfit_bootstrap_v26_pre_person_service_v1()` | `f7f30204f8e84e1d5c9fe43331b7f0c8` | Same |
+| `iberfit_bootstrap_v26()` | `aedea9df3d4986496626e10318628c41` | Same |
+
+To test the *actual original PROD `pre_v65e` definition* with QA synthetic data, its function source was retrieved read-only from PROD catalog and copied into a **private, non-exposed QA schema**, with `anon`, `authenticated` and `service_role` EXECUTE denied. The other two complete bootstrap wrappers were cloned privately with exact-definition guards and only their single dependency replaced. This does not alter any public QA/PROD RPC or production records.
+
+- `pre_v65e` QA vs PROD-compatible private replica: **JSONB identical for Client A, Client B, Coach, Admin**.
+- Complete final public bootstrap QA vs PROD-compatible full private chain: **JSONB identical for Client A and Client B**, including lifecycle, training service and privacy projections.
+- Protected Coach/Admin final bootstrap cannot be simulated without valid privileged WebAuthn; the intermediate authenticated scope outputs match. No privileged checks were bypassed.
+- Three paired, synthetic Client A `pre_v65e` SQL execution timings: QA optimization **905/749/692 ms** vs PROD-shaped baseline **1063/1025/1024 ms**. Median **749 ms** vs **1025 ms**, approximately 27% faster in this small sample. This documents why #1006 is a separate latency improvement; it does not establish a necessary functional dependency or a production load guarantee.
+- All tests use synthetic QA fixtures, not customer data downloaded from PROD. No PROD write or prod source data export.
+
+**Release implication:** keep #1006 and #1017 as separately guarded DB changes, with independent approvals, exact hashes, parity, rollback and production backup evidence. Testing #1017 only with QA's already-optimized #1006 is not sufficient by itself; the above PROD-shaped tests cover their functional compatibility, not real PROD traffic or p99.
+
 ## Security and rollback
 
 - The SQL replaces **only** `public.iberfit_bootstrap_v26_rc29()`, guarded by its current exact definition MD5, security-definer owner, volatility, empty search path and existing EXECUTE restrictions.
