@@ -46,3 +46,16 @@ test('SIGNATURE current-source Playwright matrix covers published and withdrawn 
   assert.match(workflow,/npm ci/u);
   assert.doesNotMatch(browser,/test\.skip\(.*SIGNATURE/u);
 });
+
+test('SIGNATURE empty-media placeholder is legible on mobile and measured in real browser',()=>{
+  const css=read('src/m26/rc39/rc39.css');
+  const scoped=css.slice(css.indexOf('A missing exercise photo is honest information'));
+  assert.ok(scoped.length>150,'Client-specific legible placeholder must be explicit');
+  assert.match(scoped,/\.m26-rc39-sessions \.m26-session-preview-media \.m26-exercise-media-fallback\{/u);
+  assert.match(scoped,/background:#d6c390;/u);
+  assert.match(scoped,/color:#16271d;/u);
+  assert.match(scoped,/\.m26-exercise-media-fallback :is\(span,small\)/u);
+  assert.match(browser,/fallbackContrast\.title/u);
+  assert.match(browser,/fallbackContrast\.caption/u);
+  assert.match(browser,/toBeGreaterThanOrEqual\(4\.5\)/u);
+});

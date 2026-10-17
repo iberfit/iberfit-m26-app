@@ -308,6 +308,34 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(self).toContainText('Remo TRX');
   await expect(self).toContainText('3-1-1');
   await expect(self).toContainText('RPE');
+  // A missing exercise image must remain legible in the *computed* theme.
+  // This checks the actual painted CSS in Chromium and WebKit, not only a
+  // stylesheet substring; an absent image cannot justify unreadable text.
+  const fallbackContrast=await self.locator('.m26-session-preview-media .m26-exercise-media-fallback').first().evaluate(el=>{
+    const parse=(color)=>(String(color).match(/\d+(?:\.\d+)?/gu)||[]).slice(0,3).map(Number);
+    const luminance=(color)=>{
+      const rgb=parse(color).map(v=>{
+        const normalized=v/255;
+        return normalized<=0.04045?normalized/12.92:((normalized+0.055)/1.055)**2.4;
+      });
+      if(rgb.length!==3||rgb.some(v=>!Number.isFinite(v)))return null;
+      return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;
+    };
+    const contrast=(fg,bg)=>{
+      const a=luminance(fg),b=luminance(bg);
+      return a===null||b===null?0:(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    };
+    const bg=getComputedStyle(el).backgroundColor;
+    const title=el.querySelector('span'),caption=el.querySelector('small');
+    return {
+      background:bg,
+      title:contrast(getComputedStyle(title).color,bg),
+      caption:contrast(getComputedStyle(caption).color,bg),
+    };
+  });
+  expect(fallbackContrast.background,'missing-media fallback needs an opaque matte surface').toMatch(/^rgb\(/u);
+  expect(fallbackContrast.title,'fallback title must reach WCAG AA 4.5:1').toBeGreaterThanOrEqual(4.5);
+  expect(fallbackContrast.caption,'fallback instruction must reach WCAG AA 4.5:1').toBeGreaterThanOrEqual(4.5);
   const metrics=await page.evaluate(()=>{
     const button=document.querySelector('[data-rc39-session="qa-published-guided"] [data-workflow-action="start-published-session"]');
     const rect=button?.getBoundingClientRect();

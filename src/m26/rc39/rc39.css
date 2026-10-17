@@ -693,6 +693,32 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   min-height:52px;
   border-radius:1.05rem;
 }
+/* A missing exercise photo is honest information, not a gold-on-gold icon.
+ * Explicit accessible ink/background protects against inherited high-level
+ * Client surface variables, including on 320px and mobile WebKit. */
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-session-preview-media .m26-exercise-media-fallback{
+  background:#d6c390;
+  color:#16271d;
+  border:1px solid rgba(22,39,29,.34);
+  border-radius:.9rem;
+  box-shadow:none;
+  text-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-session-preview-media .m26-exercise-media-fallback :is(span,small){
+  color:#16271d;
+  opacity:1;
+  text-shadow:none;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-session-preview-media .m26-exercise-media-fallback span{
+  font-size:.8rem;
+  font-weight:800;
+  line-height:1.3;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-session-preview-media .m26-exercise-media-fallback small{
+  font-size:.7rem;
+  line-height:1.4;
+}
 @media(max-width:690px){
   .m26-shell[data-m26-role="client"] .m26-rc39-sessions .m26-client-sessions-empty .m26-inline-actions{
     width:100%;

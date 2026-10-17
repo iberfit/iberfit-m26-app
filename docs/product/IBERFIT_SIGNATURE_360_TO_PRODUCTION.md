@@ -5,6 +5,12 @@
 **Precedencia:** seguridad/autorización > integridad/no pérdida de datos > no bloqueos > funcionamiento > UX > rendimiento > belleza visual.
 **Fuente canónica existente:** `IBERFIT_NEXT_ULTRAPREMIUM_M41_M45_MASTER.md`, sistema M41, tokens de marca y QA del dispositivo. Este documento añade aceptación integral, no sustituye ni duplica esos contratos.
 
+### SIGNATURE · Sesiones publicadas y accesibilidad de referencia ausente (WIP)
+
+La cobertura funcional de sesiones publicadas **ya existe en el SHA `a81f63c9ea42136d08f37347e43e61ee0ce799fd`**: pruebas Playwright de sesiones guiadas autorizadas y supervisadas, vista previa con ejercicios, prescripción, RPE/RIR, ejecución Cliente, registro de series, revocación/solo resumen/pausa, forja de botón rechazada, Coach sin escalada, Chromium/WebKit móvil y capturas 320/390. [Session QA #39074777087](https://github.com/iberfit/iberfit-m26-app/actions/runs/39074777087), **SUCCESS** con datos sintéticos y módulos reales, sin escritura de negocio remota. No equiparar la cuenta sintética a la certificación de sesiones reales de un cliente en producción.
+
+La inspección manual de esas capturas mostró un **defecto reproducible de legibilidad** cuando faltaba una imagen de ejercicio: texto dorado pálido sobre fondo dorado. La siguiente iteración corrige únicamente ese aviso usando tinta bosque oscura sobre oro mate (contraste objetivo al menos 4.5:1), sin crear imágenes falsas ni tapar las instrucciones escritas. Se añade una prueba de contraste **computado en Chromium y WebKit**, además del contrato estático de CSS. Antes de aceptar el incremento exigir el resultado completo del SHA nuevo, capturas 320/390 y la ausencia de regresiones en Sesiones Cliente, Coach y Admin. No desplegar de forma anticipada.
+
 ## Checkpoint vigente — 17-10-2026 (no reabrir release anterior)
 
 La **entrega 1/5** ya se integró en la aplicación real: PR #966 y mejora Admin #993; la release incremental posterior preservó sesiones #998/#1014, M44 y M45. SHA certificado en `app.iberfit.cl`: `16fe623215d26bf7d42555fe23bc0d8ec78832b0`. Evidencia live y smoke desktop/tablet/mobile: [Production Promotion #39004291546](https://github.com/iberfit/iberfit-m26-app/actions/runs/39004291546), **SUCCESS**.
