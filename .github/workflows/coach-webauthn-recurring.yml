@@ -191,32 +191,9 @@ jobs:
           RELEASE_SHA='0105eef1581db8c3d57c7827a3006a624b7368b4'
           git cat-file -e "${RELEASE_SHA}^{commit}"
           mapfile -t changed < <(git diff --name-only "${RELEASE_SHA}...HEAD" | sort)
-          allowed='^(.github/workflows/coach-webauthn-recurring.yml|.github/workflows/m45-release-cert.yml|playwright.m45-release-cert.config.mjs|qa/m45-release-cert/m45-release-cert.spec.mjs)    name: coach-webauthn-recurring-gate
-    if: always()
-    needs: [contract,live-coach-webauthn]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require contract and trusted live evidence
-        shell: bash
-        env:
-          EVENT: ${{ github.event_name }}
-          CONTRACT: ${{ needs.contract.result }}
-          LIVE: ${{ needs.live-coach-webauthn.result }}
-        run: |
-          set -euo pipefail
-          test "$CONTRACT" = success
-          if [[ "$EVENT" = pull_request ]]; then
-            test "$LIVE" = skipped
-            echo 'COACH_POST_WEBAUTHN_RECURRING=CONTRACT_GREEN_LIVE_TRUSTED_CANARY_ONLY'
-          else
-            test "$LIVE" = success
-            echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=GREEN'
-            echo 'COACH_WEBAUTHN_REGISTRATION=GREEN'
-            echo 'COACH_WEBAUTHN_AUTHENTICATION=GREEN'
-          fi
-
+          allowed='^(.github/workflows/coach-webauthn-recurring.yml|playwright.m45-release-cert.config.mjs|qa/m45-release-cert/m45-release-cert.spec.mjs)$'
           for path in "${changed[@]}"; do [[ "${path}" =~ ${allowed} ]] || { echo "UNEXPECTED_PRODUCT_DIFF"; exit 61; }; done
-          test "${#changed[@]}" -eq 4
+          test "${#changed[@]}" -eq 3
           echo 'M45_RELEASE_PRODUCT_SOURCE_EXACT=0105eef1581db8c3d57c7827a3006a624b7368b4'
       - uses: actions/setup-node@v4
         with:
