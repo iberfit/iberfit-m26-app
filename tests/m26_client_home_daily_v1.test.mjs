@@ -290,3 +290,16 @@ test('SIGNATURE Hoy preserves visible Client actions and never promotes empty de
   const feature=html.match(/<section class="m26-client-home-feature"[\s\S]*?<\/section>/u)?.[0]||'';
   assert.equal((feature.match(/class="m26-today-action is-primary"/gu)||[]).length,1);
 });
+
+test('SIGNATURE Client mobile navigation keeps full accessible destinations with concise visible labels',()=>{
+  const html=renderHoyRoute(vm());
+  for(const [area,aria,shortLabel] of [
+    ['planificacion','Planificación','Plan'],
+    ['sesion','Sesiones','Sesión'],
+    ['progreso','Progreso','Avance'],
+  ]){
+    const item=html.match(new RegExp('<button[^>]+data-m26-area="'+area+'"[^>]+aria-label="'+aria+'"[^>]*>[\\s\\S]*?<\\/button>','u'))?.[0]||'';
+    assert.ok(item,area+' retains full accessible navigation');
+    assert.ok(item.includes('m26-client-bottom-nav-label-compact')&&item.includes('>'+shortLabel+'</span>'),shortLabel);
+  }
+});

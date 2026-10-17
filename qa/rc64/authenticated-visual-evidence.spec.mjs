@@ -179,6 +179,8 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
               renderedHeight:rect.height,
               clientHeight:label.clientHeight,
               scrollHeight:label.scrollHeight,
+              clientWidth:label.clientWidth,
+              scrollWidth:label.scrollWidth,
               childElements:label.childElementCount,
             };
           }));
@@ -192,13 +194,16 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             // intrinsic glyph dimensions as if they were line counts.
             expect(label.childElements,`Dock label must remain a single text-only caption: ${label.label}`).toBe(0);
             expect(label.scrollHeight,`Dock label cannot hide a second line: ${label.label}`).toBeLessThanOrEqual(Math.ceil(label.clientHeight*1.25));
+            expect(label.scrollWidth,`Compact dock caption must fit without visible ellipsis: ${label.label}`).toBeLessThanOrEqual(label.clientWidth+1);
             expect(label.overflowX,`Dock caption must not overflow its hit target: ${label.label}`).toBe('hidden');
             expect(label.textOverflow,`Dock caption must have an accessible overflow fallback: ${label.label}`).toBe('ellipsis');
           }
           const planningNav=page.locator('button.m26-client-bottom-nav-item[data-m26-area="planificacion"]');
           await expect(planningNav).toHaveAttribute('aria-label','Planificación');
           if((projectUse.viewport?.width||0)<=690){
-            await expect(planningNav.locator('.m26-client-bottom-nav-label-compact')).toHaveText('Tu plan');
+            await expect(planningNav.locator('.m26-client-bottom-nav-label-compact')).toHaveText('Plan');
+            await expect(page.locator('button.m26-client-bottom-nav-item[data-m26-area="sesion"] .m26-client-bottom-nav-label-compact')).toHaveText('Sesión');
+            await expect(page.locator('button.m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label-compact')).toHaveText('Avance');
           }
         }
         if((projectUse.viewport?.width||0)<=680){

@@ -4773,9 +4773,9 @@ function renderRouteContent(vm) {
 /* M26_CLIENT_BOTTOM_NAV_V2 */
 const CLIENT_BOTTOM_NAV_ITEMS = Object.freeze([
   {key:'hoy',label:'Hoy',area:'hoy',activeKinds:['hoy']},
-  {key:'planificacion',label:'Planificación',shortLabel:'Tu plan',area:'planificacion',activeKinds:['planificacion']},
-  {key:'sesiones',label:'Sesiones',area:'sesion',activeKinds:['sesion']},
-  {key:'progreso',label:'Progreso',area:'progreso',activeKinds:['progreso']},
+  {key:'planificacion',label:'Planificación',shortLabel:'Plan',area:'planificacion',activeKinds:['planificacion']},
+  {key:'sesiones',label:'Sesiones',shortLabel:'Sesión',area:'sesion',activeKinds:['sesion']},
+  {key:'progreso',label:'Progreso',shortLabel:'Avance',area:'progreso',activeKinds:['progreso']},
 ]);
 const CLIENT_BOTTOM_NAV_MORE_KINDS = Object.freeze(['informes','actividad','mensajes','retos','ajustes']);
 
