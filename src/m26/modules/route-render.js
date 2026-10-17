@@ -2985,7 +2985,7 @@ export function renderExpedienteRoute(vm) {
 
   const planningDetail=
     Number(data.counts?.sessions||0)>0
-      ?`${countLabel(Number(data.counts.sessions),'sesión','sesiones')} en el expediente`
+      ?countLabel(Number(data.counts.sessions),'sesión','sesiones')+' en el expediente'
       :'Todavía no hay sesiones preparadas en el ciclo actual';
 
   const nextSessionActionControl=
