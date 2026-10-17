@@ -326,6 +326,21 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
     const out='recovery/signature-published-sessions';
     await mkdir(out,{recursive:true});
     await page.screenshot({path:out+'/'+testInfo.project.name+'-mixed-preview.png',fullPage:true,animations:'disabled'});
+    if(testInfo.project.name==='live-workout-mobile-chromium'){
+      await page.setViewportSize({width:320,height:740});
+      const compact=await page.evaluate(()=>{
+        const target=document.querySelector('[data-rc39-session="qa-published-guided"] [data-workflow-action="start-published-session"]');
+        const rect=target?.getBoundingClientRect();
+        return {
+          horizontalOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,
+          startHeight:rect?.height||0,startWidth:rect?.width||0,
+        };
+      });
+      expect(compact.horizontalOverflow,'320 px must never hide a published-session action sideways').toBe(false);
+      expect(compact.startHeight).toBeGreaterThanOrEqual(44);
+      expect(compact.startWidth).toBeGreaterThanOrEqual(44);
+      await page.screenshot({path:out+'/live-workout-mobile-320-chromium-mixed-preview.png',fullPage:true,animations:'disabled'});
+    }
   }
   expect(errors).toEqual([]);
 });
@@ -346,10 +361,17 @@ test('SIGNATURE published autonomous preview leads to actual Client execution wi
   await page.locator('#qa-workout [data-set-field="reps"]').fill('9');
   await page.locator('#qa-workout [data-set-field="load"]').fill('12 kg');
   await page.locator('#qa-workout [data-session-action="complete-set"]').click();
-  await expect.poll(async()=>{
+  try{
+    await expect.poll(async()=>{
+      const v=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+      return Object.keys(v.results).length;
+    }).toBeGreaterThan(0);
+  }catch(error){
     const v=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
-    return Object.keys(v.results).length;
-  }).toBeGreaterThan(0);
+    throw new Error('SIGNATURE_PUBLISHED_SET_NOT_RECORDED:'+JSON.stringify({
+      status:v.status,errors:v.errors,events:v.events.map(e=>e.type).slice(-8),saved:v.saved,
+    }),{cause:error});
+  }
   state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
   expect(state.launchCount).toBe(1);
   expect(state.errors).toEqual([]);

@@ -64,14 +64,19 @@ route.innerHTML=renderRc39Route(view);
 const errors=[],attempts=[],persisted=[];
 let controller=null,execution=null,launchCount=0;
 function allowed(item){
-  return role==='client'&&item&&item.visible===true&&item.visibility==='full'&&
+  return Boolean(role==='client'&&item&&item.visible===true&&item.visibility==='full'&&
     item.canClientExecute===true&&item.canClientStart===true&&
     sessionIdOf(item.session)===String(item.id||'')&&
     actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment})&&
-    sessionReadyToStart(item.session)&&sessionHasExecutableBlocks(item.session);
+    sessionReadyToStart(item.session)&&sessionHasExecutableBlocks(item.session));
 }
 function launch(item){
   launchCount++;
+  // Production navigation replaces the preview route with the live workout;
+  // don't mount both tall screens, which causes overlapping sticky controls.
+  route.hidden=true;
+  route.style.display='none';
+  root.dataset.signatureQaPhase='live';
   execution=createExecution({session:item.session,clientId:CLIENT,
     executionId:'qa-published-integration-execution'});
   const context={
