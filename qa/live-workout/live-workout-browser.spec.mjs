@@ -433,8 +433,10 @@ test('SIGNATURE published guided Client finishes both real recorded sets, feedba
     await live.locator('[data-set-field="rpe"]').fill(index===0?'7':'8');
     await live.locator('[data-set-field="rir"]').fill(index===0?'3':'2');
     await live.locator('[data-session-action="complete-set"]').click();
-    await expect.poll(async()=>Object.keys((await page.evaluate(()=>
-      globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state())).results).length)).toBe(index+1);
+    await expect.poll(async()=>{
+      const snapshot=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+      return Object.keys(snapshot.results).length;
+    }).toBe(index+1);
     await page.locator('#qa-workout [data-session-action="next"]').click();
   }
   await expect(page.locator('#qa-workout [data-session-live-state="feedback"]')).toBeVisible();
