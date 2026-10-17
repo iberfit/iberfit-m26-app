@@ -647,7 +647,7 @@ function renderClientHoyRoute(vm) {
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
       <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
-        <p class="m26-client-home-kicker">Hoy · IBERFIT</p>
+        <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <p>${escapeHtml(primary.detail)}</p>
       </div>
