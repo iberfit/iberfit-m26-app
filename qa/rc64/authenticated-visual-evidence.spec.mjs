@@ -64,6 +64,51 @@ async function capture(page,{account,project,state,suffix=''}){
   return {role:account.role,account:account.name,state,project:safeSlug(project),file,syntheticQa:true};
 }
 
+async function certifyNonOverlappingClientDock(page,project,route){
+  if((project.viewport?.width||0)>900)return;
+  const geometry=await page.evaluate(()=>{
+    const shell=document.querySelector('.m26-client-route-shell');
+    const scroller=shell?.querySelector(':scope > :not(.m26-client-bottom-nav-layer)');
+    const layer=shell?.querySelector(':scope > .m26-client-bottom-nav-layer');
+    const nav=layer?.querySelector('.m26-client-bottom-nav');
+    if(!scroller||!layer||!nav)return null;
+    const contentBox=scroller.getBoundingClientRect();
+    const dockBox=layer.getBoundingClientRect();
+    const navBox=nav.getBoundingClientRect();
+    const scrollable=scroller.scrollHeight>scroller.clientHeight+2;
+    scroller.scrollTop=scroller.scrollHeight;
+    return {
+      viewportHeight:innerHeight,
+      contentBottom:contentBox.bottom,
+      dockTop:dockBox.top,
+      dockBottom:dockBox.bottom,
+      navTop:navBox.top,
+      navBottom:navBox.bottom,
+      dockPosition:getComputedStyle(layer).position,
+      scrollYStyle:getComputedStyle(scroller).overflowY,
+      scrollable,
+      maxScroll:Math.max(0,scroller.scrollHeight-scroller.clientHeight),
+      scrollTop:scroller.scrollTop,
+      widthOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)>innerWidth+1,
+      hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
+    };
+  });
+  expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
+  expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
+  expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
+  expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
+  expect(geometry.dockBottom,`${route}: dock must remain within the visual viewport`).toBeLessThanOrEqual(geometry.viewportHeight+1);
+  expect(geometry.hitNav,`${route}: dock must receive touch input`).toBe(true);
+  expect(geometry.widthOverflow,`${route}: dock must not cause sideways scrolling`).toBe(false);
+  if(geometry.scrollable){
+    expect(geometry.scrollTop,`${route}: footer content must remain scroll-reachable`).toBeGreaterThanOrEqual(geometry.maxScroll-2);
+  }
+  await page.evaluate(()=>{
+    const el=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+    if(el)el.scrollTop=0;
+  });
+}
+
 test('authenticated visual evidence uses Client-only QA plus privileged Coach gate and remains business read-only',async({browser},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
@@ -148,6 +193,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           return {scrollWidth:root.scrollWidth,viewportWidth:root.clientWidth};
         });
         expect(layout.scrollWidth,'Client Hoy cannot cause horizontal document scrolling').toBeLessThanOrEqual(layout.viewportWidth+1);
+        await certifyNonOverlappingClientDock(page,projectUse,'Cliente Hoy');
         const transitionMs=await primaryAction.evaluate((button)=>getComputedStyle(button)
           .transitionDuration.split(',').map((value)=>{
             const duration=String(value||'').trim();
@@ -233,6 +279,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(planNav).toBeVisible({timeout:5_000});
         await planNav.click();
         await expect(page.locator('.m26-rc39-planning')).toBeVisible({timeout:10_000});
+        await certifyNonOverlappingClientDock(page,projectUse,'Tu plan');
         const confirmedAppointments=page.locator('#m26-client-next-appointment');
         await expect(confirmedAppointments).toBeVisible({timeout:5_000});
         const appointmentCards=confirmedAppointments.locator('.m30-planning-appointment');

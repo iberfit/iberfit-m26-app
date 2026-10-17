@@ -241,6 +241,68 @@
   }
 }
 
+/* SIGNATURE 360 · Non-overlapping Client mobile navigation.
+ * Content scrolls in its own panel, dock occupies independent layout space. */
+@media (max-width: 900px) {
+  .m26-shell[data-m26-role="client"] .m26-workspace {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-client-route-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-client-route-shell > :not(.m26-client-bottom-nav-layer) {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-padding-block: 1.25rem;
+    padding-bottom: 1.25rem;
+    align-content: start;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-layer {
+    position: relative;
+    inset: auto;
+    z-index: 120;
+    flex: 0 0 auto;
+    width: 100%;
+    padding: .55rem 0 max(.35rem, env(safe-area-inset-bottom));
+    pointer-events: auto;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-client-bottom-nav {
+    width: 100%;
+    max-width: 940px;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-menu {
+    max-height: min(62dvh, 24rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 @media (max-width: 690px) {
   .m26-client-route-shell {
     padding-bottom: calc(100px + env(safe-area-inset-bottom));

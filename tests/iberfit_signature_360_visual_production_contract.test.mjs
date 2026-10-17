@@ -534,3 +534,21 @@ test('SIGNATURE warm optional-activity copy stays localized in four languages',(
     assert.equal(iberfitSurfaceTranslate('Puedes entrenar sin reloj. Si decides compartir datos compatibles, podrás verlos aquí.',{language}),copy);
   }
 });
+
+test('SIGNATURE mobile dock belongs to a separate viewport row, never the content layer',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  const start=css.indexOf('SIGNATURE 360 · Non-overlapping Client mobile navigation');
+  const end=css.indexOf('@media (max-width: 690px)',start);
+  assert.ok(start>=0&&end>start,'responsive Client dock and route must be one CSS composition');
+  const layout=css.slice(start,end);
+  assert.match(layout,/\.m26-shell\[data-m26-role="client"\] \.m26-main\s*\{[^}]*overflow:\s*hidden/u);
+  assert.match(layout,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u);
+  assert.match(layout,/\.m26-client-bottom-nav-layer\s*\{[^}]*position:\s*relative/u);
+  assert.match(layout,/padding-bottom:\s*0/u,'fixed-viewport padding must not compete with a separate dock row');
+  assert.match(layout,/safe-area-inset-bottom/u);
+  assert.match(visual,/certifyNonOverlappingClientDock\(page,projectUse,'Cliente Hoy'\)/u);
+  assert.match(visual,/contentBottom[\s\S]*?dockTop/u);
+  assert.match(visual,/scrollTop[\s\S]*?maxScroll/u,'final route content remains scroll-reachable');
+  assert.doesNotMatch(layout,/display:\s*none/u,'fix must not hide navigation or interactive content');
+});
