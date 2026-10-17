@@ -72,6 +72,7 @@ const clientCanStartProjection=(item)=>Boolean(item?.visible===true&&item?.visib
   item?.canClientExecute===true&&item?.canClientStart===true&&
   sessionIdOf(item?.session)===String(item?.id||'')&&
   actorCanExecuteSession({role:'client',session:item?.session,appointment:item?.appointment})&&
+  sessionReadyToStart(item?.session)&&
   sessionHasExecutableBlocks(item?.session));
 const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   const actions=[];

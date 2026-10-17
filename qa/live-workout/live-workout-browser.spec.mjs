@@ -414,6 +414,46 @@ test('SIGNATURE published autonomous preview leads to actual Client execution wi
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
 });
 
+
+test('SIGNATURE published guided Client finishes both real recorded sets, feedback and local checkpoint',async({page})=>{
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+  const guided=page.locator('[data-rc39-session="qa-published-guided"]');
+  await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await guided.locator('[data-workflow-action="start-published-session"]').click();
+  await expect(page.locator('#qa-workout [data-session-live-state="ready"]')).toBeVisible();
+  await page.locator('#qa-workout [data-session-action="start"]').click();
+
+  for(const [index,exercise,load] of [[0,'Press de pecho','12 kg'],[1,'Remo TRX','0 kg']]){
+    const live=page.locator('#qa-workout [data-session-live-state="active"]');
+    await expect(live).toBeVisible();
+    await expect(live).toContainText(exercise);
+    await live.locator('[data-set-field="reps"]').fill(index===0?'9':'10');
+    await live.locator('[data-set-field="load"]').fill(load);
+    await live.locator('[data-set-field="rpe"]').fill(index===0?'7':'8');
+    await live.locator('[data-set-field="rir"]').fill(index===0?'3':'2');
+    await live.locator('[data-session-action="complete-set"]').click();
+    await expect.poll(async()=>Object.keys((await page.evaluate(()=>
+      globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state())).results).length)).toBe(index+1);
+    await page.locator('#qa-workout [data-session-action="next"]').click();
+  }
+  await expect(page.locator('#qa-workout [data-session-live-state="feedback"]')).toBeVisible();
+  await page.locator('#qa-workout [data-session-feedback-rpe]').fill('8');
+  await page.locator('#qa-workout [data-session-feedback-comment]').fill('Buena tolerancia, ejecución completada');
+  await page.locator('#qa-workout [data-session-action="finish"]').click();
+  await expect(page.locator('#qa-workout [data-session-live-state="completed"]')).toBeVisible();
+  const result=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
+  expect(result.launchCount).toBe(1);
+  expect(result.status).toBe('completed');
+  expect(Object.keys(result.results)).toHaveLength(2);
+  expect(result.results[Object.keys(result.results)[0]].rpe).toBe(7);
+  expect(result.results[Object.keys(result.results)[1]].rpe).toBe(8);
+  expect(result.events.filter(e=>e.type==='SET_RECORDED')).toHaveLength(2);
+  expect(result.saved,'final session should leave a recoverable synthetic checkpoint').toBeGreaterThan(0);
+  expect(result.errors).toEqual([]);
+  await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
+});
+
 test('SIGNATURE Client never launches revoked, summary-only or already-started published sessions',async({page})=>{
   for(const scenario of ['summary','revoked','paused','empty']){
     await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario='+scenario,{waitUntil:'domcontentloaded'});

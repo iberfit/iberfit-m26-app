@@ -161,3 +161,17 @@ test('SIGNATURE Client blocked exercise view keeps the session visible but never
   assert.match(value,/El detalle de esta sesión estará disponible/u);
   assert.doesNotMatch(value,/data-workflow-action="start-published-session"|data-client-session-state="ready"/u);
 });
+
+test('SIGNATURE stale client projection cannot re-enable a workout that has already started',()=>{
+  // A cached projection may still say canClientStart=true, but the underlying
+  // canonical session status must win. Keep the full authorized preview.
+  const stale=item('guiada','guided_in_app','full');
+  stale.session={...stale.session,status:'en_curso',
+    deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+    clientVisibilityLevel:'full',visibleToClient:true};
+  const value=html('client',[stale]);
+  assert.match(value,/Fuerza autónoma/u);
+  assert.match(value,/Ver sesión/u);
+  assert.doesNotMatch(value,/data-workflow-action="start-published-session"|Comenzar entrenamiento/u);
+  assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/u);
+});
