@@ -200,6 +200,9 @@ test('Client Home does not duplicate the primary runnable session in the agenda'
 test('stable Client Home copy is translated',()=>{
   for(const phrase of [
     'Tu sesión de hoy',
+    'Hoy · IBERFIT',
+    'Tu día en IBERFIT',
+    'Tu siguiente paso',
     'Entrenar ahora',
     'Abrir mis sesiones',
     'Próxima cita',

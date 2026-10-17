@@ -94,6 +94,8 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Evaluaciones compartidas','Shared assessments','Évaluations partagées','Avaliações partilhadas'],
 ['Tu sesión de hoy','Your session today','Votre séance du jour','A sua sessão de hoje'],
 ['Tu entrenamiento','Your training','Votre entraînement','O seu treino'],
+['Hoy · IBERFIT','Today · IBERFIT','Aujourd’hui · IBERFIT','Hoje · IBERFIT'],
+['Tu día en IBERFIT','Your day at IBERFIT','Votre journée chez IBERFIT','O seu dia na IBERFIT'],
 ['Tu siguiente paso','Your next step','Votre prochaine étape','O seu próximo passo'],
 ['Actualiza cómo estás hoy','Update how you feel today','Mettez à jour votre état aujourd’hui','Atualize como se sente hoje'],
 ['Un registro breve mantiene tu seguimiento al día.','A quick check-in keeps your follow-up up to date.','Un bref suivi permet de maintenir votre accompagnement à jour.','Um registo rápido mantém o acompanhamento atualizado.'],
