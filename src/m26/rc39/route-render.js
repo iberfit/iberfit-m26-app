@@ -530,14 +530,26 @@ function renderSessions(vm){
   const contractModality=contractModalityOf(vm);
   const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
   // Client follows one deliberate path: Ver sesión -> Comenzar entrenamiento.
-  // Do not duplicate or bypass the preview with a second header Start.
+  // Never infer client permissions from badges, modality or a convenient CTA.
   const routePrimary=['coach','admin'].includes(role)
     ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
     :'';
-  const empty=role==='client'
-    ?'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
+  const client=role==='client';
+  const ready=client&&vm.serviceActive!==false&&items.some((item)=>
+    experienceFor(item,role,contractModality).clientLiveWorkout&&clientCanStartProjection(item));
+  const clientState=!items.length?'empty':ready?'ready':'published';
+  const empty=client
+    ?'<section class="m26-empty m26-client-sessions-empty" data-client-session-empty><p class="m26-eyebrow">A tu ritmo, con criterio</p><h3>Sin sesiones</h3><p>Tu Coach todavía no ha publicado sesiones para ti. Puedes consultar tu planificación o registrar cómo te encuentras, sin esperar a tener un entrenamiento disponible.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):empty}</section>${role==='client'?renderCompletedSessionHistory(vm):''}</div>`;
+  const clientIntro=!items.length
+    ?'Tu próxima sesión aparecerá aquí cuando esté publicada y autorizada.'
+    :ready
+      ?'Tienes entrenamiento disponible para revisar. Solo podrás comenzar las sesiones habilitadas para ti.'
+      :'Consulta tus sesiones y su modalidad. Las dirigidas por tu Coach se realizan con su supervisión.';
+  const introLabel=client&&normalizeClientModality(contractModality)===null
+    ?'Sesiones · IBERFIT'
+    :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):empty}</section>${client?renderCompletedSessionHistory(vm):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;

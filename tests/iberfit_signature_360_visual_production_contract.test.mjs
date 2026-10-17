@@ -555,3 +555,19 @@ test('SIGNATURE mobile dock belongs to a separate viewport row, never the conten
   assert.match(visual,/authenticated-client-hoy-end/u,'capture the genuinely scrolled final viewport');
   assert.doesNotMatch(layout,/display:\s*none/u,'fix must not hide navigation or interactive content');
 });
+
+test('SIGNATURE Client Sessions uses accessible matte surfaces and scoped controls',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+  const start=css.indexOf('SIGNATURE 360 · Client Sessions');
+  assert.ok(start>0);
+  const signature=css.slice(start);
+  assert.match(signature,/\.m26-shell\[data-m26-role="client"\] \.m26-rc39-sessions/u);
+  assert.match(signature,/\.m26-client-sessions-empty/u);
+  assert.match(signature,/\.m26-session-preview-actions \.m26-live-workout-action/u);
+  assert.match(signature,/min-height:48px/u);
+  assert.match(signature,/min-height:50px/u);
+  assert.match(signature,/:focus-visible/u);
+  assert.match(signature,/@media\(max-width:690px\)/u);
+  assert.match(signature,/@media\(forced-colors:active\)/u);
+  assert.doesNotMatch(signature,/gradient\(|display:\s*none|pointer-events:\s*none/u);
+});

@@ -76,3 +76,17 @@ test('SIGNATURE planning keeps human copy when contract modality is not defined'
   assert.doesNotMatch(html,/Planificación · Sin modalidad/u);
   assert.match(html,/Tu semana aún no está publicada/u);
 });
+
+test('SIGNATURE Client Sessions has one warm empty state with real navigation, never an inferred workout',()=>{
+  const vm=emptyVm('sesion');
+  vm.selectedClient={id:'client-1',name:'QA Client'};
+  const html=renderRc39Route(vm);
+  assert.match(html,/data-client-session-state="empty"/u);
+  assert.match(html,/data-client-session-empty/u);
+  assert.match(html,/Sesiones · IBERFIT/u,'unknown modality should not become a heading');
+  assert.match(html,/A tu ritmo, con criterio/u);
+  assert.match(html,/Tu próxima sesión aparecerá aquí cuando esté publicada y autorizada/u);
+  assert.equal((html.match(/data-m26-area="planificacion"/gu)||[]).length,1);
+  assert.equal((html.match(/data-m26-area="actividad"/gu)||[]).length,1);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"|Comenzar entrenamiento/u);
+});

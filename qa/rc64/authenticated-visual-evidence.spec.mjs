@@ -326,6 +326,34 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         expect(planningOverflow.scrollWidth,'Client Plan must not overflow the document horizontally').toBeLessThanOrEqual(planningOverflow.viewportWidth+1);
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-plan',suffix:'plan'}));
 
+        // SIGNATURE 360: Client Sessions must preserve Coach-led authorization,
+        // preview-first launch and bottom-dock separation, even on an empty account.
+        const sessionsNav=page.locator('[data-m26-area="sesion"]:visible').first();
+        await expect(sessionsNav).toBeVisible({timeout:5_000});
+        await sessionsNav.click();
+        const sessionsRoute=page.locator('.m26-rc39-sessions');
+        await expect(sessionsRoute).toBeVisible({timeout:10_000});
+        await certifyNonOverlappingClientDock(page,projectUse,'Tus sesiones');
+        const sessionsState=await sessionsRoute.getAttribute('data-client-session-state');
+        expect(['empty','published','ready'],'Client session state must be explicit').toContain(sessionsState);
+        if(sessionsState==='empty'){
+          await expect(sessionsRoute.locator('[data-client-session-empty]')).toBeVisible();
+          await expect(sessionsRoute.locator('button[data-m26-area="planificacion"]')).toBeVisible();
+          await expect(sessionsRoute.locator('button[data-m26-area="actividad"]')).toBeVisible();
+          await expect(sessionsRoute.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+        }else{
+          await expect(sessionsRoute.locator('.m26-rc39-session-card').first()).toBeVisible();
+          const supervisedCards=sessionsRoute.locator('.m26-rc39-session-card.is-coach,.m26-rc39-session-card.is-online');
+          for(const card of await supervisedCards.all()){
+            await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+          }
+          if(sessionsState==='ready'){
+            const launch=sessionsRoute.locator('details.m26-session-preview-disclosure [data-workflow-action="start-published-session"]');
+            expect(await launch.count(),'ready Client sessions can start only from authorized preview').toBeGreaterThan(0);
+          }
+        }
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-sessions',suffix:'sessions'}));
+
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
         await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();
