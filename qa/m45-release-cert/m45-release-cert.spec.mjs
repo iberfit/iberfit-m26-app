@@ -44,7 +44,7 @@ async function currentSource(relative){
 }
 async function fulfillCurrentSource(route,url){
   let pathname=decodeURIComponent(url.pathname||'/');if(pathname==='/'||pathname==='')pathname='/index.html';
-  const relative=pathname.replace(/^\\/+/, '');const resolved=await currentSource(relative);
+  const relative=pathname.startsWith('/')?pathname.slice(1):pathname;const resolved=await currentSource(relative);
   if(resolved){
     await route.fulfill({status:200,body:resolved.body,headers:{'content-type':mimeFor(resolved.candidate),'cache-control':'no-store','x-content-type-options':'nosniff'}});
     return;
