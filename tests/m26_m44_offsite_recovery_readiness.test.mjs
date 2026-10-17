@@ -20,7 +20,7 @@ const job=(name,extra={})=>({
   started_at:'2026-10-17T00:22:53Z',
   completed_at:'2026-10-17T00:24:47Z',
   name,
-  steps:extra.steps||[],
+  steps:(extra.steps||[]).map((step)=>({...step})),
 });
 const requiredSteps=[
   'Fail closed if protected production backup credentials are unavailable',
