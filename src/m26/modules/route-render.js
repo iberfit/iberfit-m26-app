@@ -615,7 +615,7 @@ function renderClientHoyRoute(vm) {
     ?`<button type="button" data-m26-area="informes">
         <span>Diagnóstico IRI</span>
         <strong>${escapeHtml(iriLabel)}</strong>
-        <small>Completa tu punto de partida</small>
+        <small>Consulta el estado de tu evaluación</small>
       </button>`
     :'';
 
@@ -658,7 +658,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
-      ${nextAppointment?`<button type="button" data-m26-area="sesion">
+      ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en Tu plan">
         <span>Próxima cita</span>
         <strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong>
         <small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small>
@@ -669,8 +669,8 @@ function renderClientHoyRoute(vm) {
       </button>`}
       <button type="button" data-m26-area="planificacion"${planReady?` data-m26-client-guide="plan-entry"${planGuideEventKey?` data-m26-client-guide-event-key="${escapeHtml(planGuideEventKey)}"`:''}`:''}>
         <span>Tu plan</span>
-        <strong>${escapeHtml(planName||'En preparación')}</strong>
-        <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
+        <strong>${escapeHtml(planName||(projections.length?'Sesiones disponibles':'En preparación'))}</strong>
+        <small>${planName?'Plan disponible':projections.length?'Consulta las sesiones publicadas':'Tu Coach lo publicará cuando esté listo'}</small>
       </button>
       ${iriGlanceMarkup}
     </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><div class="m26-client-home-appointment"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></div></section>`:''}
