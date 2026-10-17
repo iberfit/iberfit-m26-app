@@ -143,9 +143,10 @@ test('Signature360 Client Hoy does not invent appointments when calendar is empt
   assert.match(empty,/Cuando tengas una cita, aparecerá aquí\./);
   assert.doesNotMatch(empty,/Tu Coach la añadirá aquí/,'do not fabricate a future Coach booking');
   assert.match(empty,/data-m26-area="sesion" aria-label="Ver mis sesiones"/,'existing Client session destination remains available without a fictitious booking');
-  const withAppointment=renderRouteView({...vm,appointments:[{
+  const upcomingAppointment={
     id:'appointment-confirmed',dateLabel:'17 oct · 11:00',title:'Sesión presencial',statusRaw:'confirmada',
-  }]});
+  };
+  const withAppointment=renderRouteView({...vm,appointments:[upcomingAppointment],upcoming:[upcomingAppointment]});
   assert.match(withAppointment,/<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">\s*<span>Próxima cita<\/span>/);
   assert.match(withAppointment,/17 oct · 11:00/);
   assert.match(withAppointment,/Sesión presencial/);
