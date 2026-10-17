@@ -45,14 +45,23 @@ function areaText(item,kind='label'){
   return tx(`area.${item?.key}.${kind}`,item?.[kind]||item?.label||'IBERFIT');
 }
 
-function navItem(item, activeArea,{disabled=false}={}) {
+function navItem(item, activeArea,{disabled=false,compactAdminMobile=false}={}) {
   const active = item.key === activeArea;
   const icon = renderIberfitIcon(areaIconName(item.key),{className:'m26-nav-icon'});
   const label=areaText(item,'label');
+  // Only the four top-level Admin dock items use short copy. The sidebar and Más
+  // keep their complete translated labels and the exact same route permissions.
+  const visibleLabel=compactAdminMobile?areaText(item,'mobile'):label;
+  const accessibleName=compactAdminMobile?` aria-label="${escapeHtml(label)}"`:'';
+  // At 320px render a second, translated compact caption. Both caption nodes
+  // remain in the same clickable button; the full accessible name is unchanged.
+  const labelMarkup=compactAdminMobile
+    ?`<span class="m26-nav-label-standard">${escapeHtml(visibleLabel)}</span><span class="m26-nav-label-micro" aria-hidden="true">${escapeHtml(areaText(item,'compact'))}</span>`
+    :`<span>${escapeHtml(visibleLabel)}</span>`;
   if(disabled){
     return `<button class="m26-nav-item is-disabled" type="button" disabled aria-disabled="true" title="${escapeHtml(tx('common.clientRequired','Selecciona un cliente para abrir esta función'))}">${icon}<span>${escapeHtml(label)}</span></button>`;
   }
-  return `<button class="m26-nav-item${active ? ' is-active' : ''}" type="button" data-m26-area="${escapeHtml(item.key)}"${active?' aria-current="page"':''}>${icon}<span>${escapeHtml(label)}</span></button>`;
+  return `<button class="m26-nav-item${active ? ' is-active' : ''}" type="button" data-m26-area="${escapeHtml(item.key)}"${active?' aria-current="page"':''}${accessibleName}>${icon}${labelMarkup}</button>`;
 }
 
 function allNavigationItems(vm){
@@ -219,7 +228,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
         <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}</div>
       </header>
       <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${mainContent}</main>
-      <nav class="m26-mobile-nav" aria-label="IBERFIT">${quickMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileMore}</nav>
+      <nav class="m26-mobile-nav" aria-label="IBERFIT">${quickMobileItems.map((item) => navItem(item, vm.activeArea,{compactAdminMobile:vm.identity.role==='admin'})).join('')}${mobileMore}</nav>
     </section>
     ${productivity.palette}
   </div>`;

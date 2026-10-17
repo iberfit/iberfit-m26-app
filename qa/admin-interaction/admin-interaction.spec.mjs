@@ -189,8 +189,34 @@ test('Admin client-create wizard preserves entered values while selects and step
   await expect(form.locator('select[name="sexForNorms"]')).toHaveValue('female');
   await expect(form.locator('select[name="preferredContactChannel"]')).toHaveValue('email');
 
+  // Fail strictly, but identify the field/interaction causing mobile WebKit stalls.
+  // Never capture names, email addresses, phone numbers or entered values.
+  const invalidStep1=await form.locator('[data-client-step="1"]').evaluate((panel)=>
+    [...panel.querySelectorAll('input,select,textarea')]
+      .filter((control)=>!control.disabled&&!control.closest('[hidden]')&&!control.checkValidity())
+      .map((control)=>({
+        name:control.name,
+        required:control.required,
+        valueMissing:control.validity.valueMissing,
+        badInput:control.validity.badInput,
+        typeMismatch:control.validity.typeMismatch,
+        patternMismatch:control.validity.patternMismatch,
+      }))
+  );
+  expect(invalidStep1,'Step 1 has invalid fields before advancing').toEqual([]);
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
-  await expect(form.locator('[data-client-step="2"]')).toBeVisible();
+  try{
+    await expect(form.locator('[data-client-step="2"]')).toBeVisible();
+  }catch(error){
+    const diagnostic=await form.evaluate((node)=>({
+      currentStep:node.dataset.clientCurrentStep||'unknown',
+      nextButtonPresent:!!node.querySelector('[data-client-step="1"] [data-client-wizard-next]'),
+      invalidFields:[...node.querySelectorAll('[data-client-step="1"] input,[data-client-step="1"] select,[data-client-step="1"] textarea')]
+        .filter((control)=>!control.disabled&&!control.closest('[hidden]')&&!control.checkValidity())
+        .map((control)=>({name:control.name,valueMissing:control.validity.valueMissing,badInput:control.validity.badInput,typeMismatch:control.validity.typeMismatch})),
+    }));
+    throw new Error('IBERFIT_ADMIN_WIZARD_STEP2_NOT_VISIBLE:'+JSON.stringify(diagnostic),{cause:error});
+  }
 
   const intent=form.locator('select[name="serviceIntent"]');
   const modality=form.locator('select[name="modality"]');

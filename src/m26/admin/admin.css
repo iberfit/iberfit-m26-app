@@ -1650,7 +1650,97 @@
     display:grid;
   }
 }
+/* SIGNATURE 360 / Users & access: mobile readability without hiding security data. */
+.m26-admin-user360 .m26-admin-user-management > summary:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline-offset:2px;
+  border-radius:.4rem;
+}
+.m26-admin-user360-card .m26-admin-user-card-head :is(h3,p){
+  overflow-wrap:anywhere;
+}
+@media(max-width:680px){
+  .m26-admin-user360-card .m26-admin-user-card-head h3{
+    font-size:clamp(1.125rem,5vw,1.375rem);
+    line-height:1.26;
+  }
+  .m26-admin-user360-grid dt{
+    font-size:.75rem;
+    line-height:1.4;
+  }
+  .m26-admin-user360-grid dd strong{
+    font-size:clamp(.94rem,3.8vw,1rem);
+    line-height:1.4;
+    overflow-wrap:anywhere;
+  }
+  .m26-admin-user360-grid small{
+    font-size:.8125rem;
+    line-height:1.48;
+  }
+}
+
+@media(forced-colors:active){
+  .m26-admin-user360 .m26-admin-user-management > summary:focus-visible{
+    outline-color:Highlight;
+  }
+  .m26-admin-user360-card .m26-admin-badge{
+    border:1px solid CanvasText;
+  }
+}
 /* ADMIN_USER_DIRECTORY_EDITORIAL_END */
+
+/* SIGNATURE360: compact Admin dock labels, without changing destinations or hit areas. */
+@media(max-width:900px){
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > .m26-nav-item{
+    min-width:0;
+    min-height:3.25rem;
+    overflow:hidden;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > .m26-nav-item > span{
+    display:block;
+    max-width:100%;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    overflow-wrap:normal;
+    font-size:clamp(.69rem,2.6vw,.75rem);
+    line-height:1.25;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > .m26-nav-item > .m26-nav-label-micro{
+    display:none;
+  }
+}
+/* At 320px five 58px minimum tracks + gaps + safe padding exceed the viewport.
+   Keep all four Admin routes AND Más simultaneously visible, without side-scroll. */
+@media(max-width:420px){
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    overflow-x:visible;
+    overflow-y:visible;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > :is(.m26-nav-item,.m26-mobile-more){
+    min-width:0;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > .m26-nav-item > .m26-nav-label-standard{
+    display:none;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > .m26-nav-item > .m26-nav-label-micro{
+    display:block;
+    font-size:.73rem;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="admin"] .m26-mobile-nav > .m26-nav-item:focus-visible{
+    outline:3px solid Highlight;
+    outline-offset:2px;
+  }
+}
+
 
 
 /* M42: the Admin directory may view client-supplied private avatars, but

@@ -76,6 +76,76 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
   const routeRatio=viewport.width>900?0.45:0.80;
   expect(routeBox.width).toBeGreaterThan(viewport.width*routeRatio);
 
+  // Actual browser layout checks, not only source-level CSS contracts.
+  // These run on 390px and 320px with the real Admin shell and its routes.
+  if(viewport.width<=390){
+    const metrics=await shell.locator('.m26-mobile-nav').evaluate((nav)=>{
+      const expected=['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones'];
+      const links=[...nav.querySelectorAll(':scope > .m26-nav-item[data-m26-area]')];
+      const more=nav.querySelector(':scope > details.m26-mobile-more > summary');
+      const moreRect=more?.getBoundingClientRect();
+      const moreHit=moreRect?document.elementFromPoint(moreRect.left+moreRect.width/2,moreRect.top+moreRect.height/2):null;
+      return {
+        expected,
+        navScrollWidth:nav.scrollWidth,
+        navClientWidth:nav.clientWidth,
+        more:{present:!!more,width:moreRect?.width||0,height:moreRect?.height||0,left:moreRect?.left||0,right:moreRect?.right||0,
+          hit:!!(more&&(more===moreHit||more.contains(moreHit)))},
+        links:links.map((item)=>{
+        const caption=[...item.querySelectorAll(':scope > span')]
+          .find((candidate)=>getComputedStyle(candidate).display!=='none');
+        const style=caption?getComputedStyle(caption):null;
+        const rect=item.getBoundingClientRect();
+        const centerHit=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+        return {
+          area:item.getAttribute('data-m26-area'),
+          name:item.getAttribute('aria-label')||'',
+          caption:caption?.textContent?.trim()||'',
+          whitespace:style?.whiteSpace||'',
+          overflow:style?.overflowX||'',
+          ellipsis:style?.textOverflow||'',
+          textScrollWidth:caption?.scrollWidth||0,
+          textClientWidth:caption?.clientWidth||0,
+          width:rect.width,height:rect.height,left:rect.left,right:rect.right,
+          hit:!!(centerHit&&(item===centerHit||item.contains(centerHit))),
+        };
+      })};
+    });
+    expect(metrics.navScrollWidth,`Admin dock scrolls horizontally at ${viewport.width}px`).toBeLessThanOrEqual(metrics.navClientWidth+1);
+    expect(metrics.more.present,'Admin Más must remain in the dock').toBe(true);
+    expect(metrics.more.height,'Más touch target too short').toBeGreaterThanOrEqual(44);
+    expect(metrics.more.left,'Más escapes left viewport').toBeGreaterThanOrEqual(-1);
+    expect(metrics.more.right,'Más escapes right viewport').toBeLessThanOrEqual(viewport.width+1);
+    expect(metrics.more.hit,'Más blocked by overlay').toBe(true);
+    // Touch the actual fifth slot; it must open and close without trapping the UI.
+    const moreDetails=shell.locator('.m26-mobile-nav > details.m26-mobile-more');
+    const moreSummary=moreDetails.locator(':scope > summary');
+    await expect(moreSummary).toHaveAttribute('aria-expanded','false');
+    await moreSummary.tap();
+    await expect(moreDetails).toHaveAttribute('open','');
+    await expect(moreSummary).toHaveAttribute('aria-expanded','true');
+    await expect(moreDetails.locator('.m26-mobile-more-menu')).toBeVisible();
+    await moreSummary.tap();
+    await expect(moreDetails).not.toHaveAttribute('open','');
+    await expect(moreSummary).toHaveAttribute('aria-expanded','false');
+    await expect(shell.locator('#m26-main')).not.toHaveAttribute('inert','');
+    expect(metrics.links).toHaveLength(4);
+    expect(metrics.links.map((item)=>item.area)).toEqual(metrics.expected);
+    for(const item of metrics.links){
+      expect(item.name,`Full accessible name missing: ${item.area}`).toBeTruthy();
+      expect(item.caption,`Compact caption missing: ${item.area}`).toBeTruthy();
+      expect([...item.caption].length,`Dock caption too long: ${item.area}`).toBeLessThanOrEqual(8);
+      expect(item.whitespace,`Dock caption wraps: ${item.area}`).toBe('nowrap');
+      expect(item.overflow,`Dock caption spills: ${item.area}`).toBe('hidden');
+      expect(item.ellipsis,`Dock caption cannot fall back: ${item.area}`).toBe('ellipsis');
+      expect(item.textScrollWidth,`Dock caption is visibly truncated at ${viewport.width}px: ${item.area}`).toBeLessThanOrEqual(item.textClientWidth+1);
+      expect(item.height,`Admin touch target too short: ${item.area}`).toBeGreaterThanOrEqual(44);
+      expect(item.left,`Admin nav escapes left viewport: ${item.area}`).toBeGreaterThanOrEqual(-1);
+      expect(item.right,`Admin nav escapes right viewport: ${item.area}`).toBeLessThanOrEqual(viewport.width+1);
+      expect(item.hit,`Admin nav blocked by overlay: ${item.area}`).toBe(true);
+    }
+  }
+
   if(viewport.width<=719){
     const launcher=shell.locator('[data-coach-command-open]').first();
     if(await launcher.isVisible().catch(()=>false)){

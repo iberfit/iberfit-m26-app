@@ -2,6 +2,7 @@ import {renderAdminRoute} from '../../src/m26/admin/route-render.js';
 import {createAdminController} from '../../src/m26/admin/controller.js';
 import {renderM26Shell} from '../../src/m26/shell/shell-render.js';
 import {createShellViewModel} from '../../src/m26/shell/shell-view-model.js';
+import {setMobileMoreOpen} from '../../src/m26/shell/mobile-more-disclosure.js';
 
 const root=document.querySelector('#qa-root');
 if(!root)throw new Error('QA_ADMIN_ROOT_MISSING');
@@ -139,6 +140,18 @@ const controller=createAdminController({
   render,
 });
 controller.mount();
+
+// The visual fixture renders the production shell but deliberately does not
+// mount the full navigation/store controller. Exercise its exact disclosure
+// helper so native touch has production ARIA and inert-background semantics.
+root.addEventListener('click',(event)=>{
+  const summary=event.target?.closest?.('details.m26-mobile-more > summary');
+  if(!summary)return;
+  const details=summary.closest('details.m26-mobile-more');
+  if(!details)return;
+  event.preventDefault();
+  setMobileMoreOpen(details,!(details.open||details.hasAttribute('open')));
+});
 
 globalThis.__IBERFIT_ADMIN_INTERACTION_QA__=Object.freeze({
   route,
