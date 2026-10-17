@@ -287,10 +287,13 @@ async function assertSettingsReachable(page,task,viewport){
     expect(target.owned,task.id+' Settings trigger must own its touch hit target').toBe(true);
     // Use the already verified viewport point directly. locator.click() performs
     // another implicit scroll that can move a sticky rail between hit-testing
-    // and dispatch; a real pointer/touch at this visible point does not.
-    await page.mouse.click(target.clientX,target.clientY);
+    // and dispatch. Match the certified device input instead: touch on tablet,
+    // mouse on pointer/desktop.
+    const touchCapable=await page.evaluate(()=>navigator.maxTouchPoints>0);
+    if(touchCapable)await page.touchscreen.tap(target.clientX,target.clientY);
+    else await page.mouse.click(target.clientX,target.clientY);
     const settingsDetails=page.locator('.m26-sidebar-footer .m26-settings-menu').first();
-    await expect(settingsDetails,task.id+' real pointer must open Settings').toHaveAttribute('open','');
+    await expect(settingsDetails,task.id+' real pointer/touch must open Settings').toHaveAttribute('open','');
     await expect(page.locator('.m26-sidebar-footer .m26-settings-popover').first()).toBeVisible();
     await expect(page.locator('.m26-sidebar-footer [data-m26-area="ajustes"], .m26-sidebar-footer [data-m26-area="admin-configuracion"]').first()).toBeVisible();
     await settingsDetails.evaluate((details)=>{details.open=false;});
