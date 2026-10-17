@@ -1,9 +1,17 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
-**Inicio:** 16-10-2026. **Base exacta de trabajo:** Canary `656b9d2aaf6afaf43c0262f7979ba6e962a5a1f2`.
+**Inicio:** 16-10-2026. **Base histórica de creación del inventario (no HEAD actual):** Canary `656b9d2aaf6afaf43c0262f7979ba6e962a5a1f2`.
 **Estrategia aprobada:** ejecución integral con entregas independientes, pequeñas pero completas y certificadas hasta PROD. **Estado inicial:** WIP aislado. **Destino único de aceptación:** `https://app.iberfit.cl` (PRODUCCIÓN), nunca solo un PR, commit, CI o Canary.
 **Precedencia:** seguridad/autorización > integridad/no pérdida de datos > no bloqueos > funcionamiento > UX > rendimiento > belleza visual.
 **Fuente canónica existente:** `IBERFIT_NEXT_ULTRAPREMIUM_M41_M45_MASTER.md`, sistema M41, tokens de marca y QA del dispositivo. Este documento añade aceptación integral, no sustituye ni duplica esos contratos.
+
+## Checkpoint vigente — 17-10-2026 (no reabrir release anterior)
+
+La **entrega 1/5** ya se integró en la aplicación real: PR #966 y mejora Admin #993; la release incremental posterior preservó sesiones #998/#1014, M44 y M45. SHA certificado en `app.iberfit.cl`: `16fe623215d26bf7d42555fe23bc0d8ec78832b0`. Evidencia live y smoke desktop/tablet/mobile: [Production Promotion #39004291546](https://github.com/iberfit/iberfit-m26-app/actions/runs/39004291546), **SUCCESS**.
+
+Esta certificación **solo cubre las mejoras ya entregadas**, no la aceptación completa de las 43 rutas. El inventario `qa/visual/signature-360-coverage.json` mantiene `status=WIP_NOT_PRODUCTION` como estado **del programa integral**, y las rutas sin evidencia completa continúan `pending`. No cambiar a `PRODUCTION_VERIFIED` ni marcar rutas completas por el mero hecho de haber publicado la base.
+
+**Siguiente entrega activa: 2/5 Cliente.** Primero corregir inconsistencias de acción/destino y preservar la navegación actual; después elevar Hoy, Tu plan, Sesión, Progreso, IRI/Informes, Actividad, Mensajes, Retos y Ajustes con pruebas reales de tarea, estados, dispositivos y datos. Le seguirán Coach, Admin y certificación integral. No introducir una capa genérica de CSS ni tocar seguridad, RLS, migraciones o lógica de sesión para compensar un defecto visual. Cada entrega pasa gates y se promueve por el pipeline oficial antes de considerarse completa.
 
 ## 1. Resultado esperado (tres productos, una marca)
 
