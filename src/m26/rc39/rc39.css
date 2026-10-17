@@ -92,6 +92,28 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   .m26-client-bottom-nav,.m26-client-bottom-nav-menu,.m26-role-choice{backdrop-filter:none;-webkit-backdrop-filter:none}
 }
 /* IBERFIT · Multirol gateway + tablet account rail */
+/* P0 · account rail hit-area isolation.
+ * Navigation can own a scroll box taller than its visible paint at tablet
+ * breakpoints. Keep the account footer and Settings trigger in an explicit
+ * higher stacking context so touch/pointer input always reaches the control. */
+.m26-shell[data-m26-role="coach"] .m26-sidebar-navigation,
+.m26-shell[data-m26-role="admin"] .m26-sidebar-navigation{
+  position:relative;
+  z-index:1;
+}
+.m26-shell[data-m26-role="coach"] .m26-sidebar-footer,
+.m26-shell[data-m26-role="admin"] .m26-sidebar-footer{
+  position:relative;
+  z-index:3;
+  isolation:isolate;
+}
+.m26-shell[data-m26-role="coach"] .m26-sidebar-footer .m26-settings-menu,
+.m26-shell[data-m26-role="admin"] .m26-sidebar-footer .m26-settings-menu{
+  position:relative;
+  z-index:2;
+}
+
+
 .m26-role-choice{
   background:
     radial-gradient(circle at 50% 8%,rgba(214,182,109,.12),transparent 34rem),
