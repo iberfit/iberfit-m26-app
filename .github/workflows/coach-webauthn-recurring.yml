@@ -15,7 +15,7 @@ on:
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
       - '.github/workflows/coach-webauthn-recurring.yml'
   push:
-    branches: [canary/rc74-4]
+    branches: [canary/rc74-4, qa/m45-release-cert-0105eef-20261016]
   workflow_dispatch:
 
 permissions:
@@ -43,7 +43,7 @@ jobs:
 
   live-coach-webauthn:
     name: coach-webauthn-real-qa
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/canary/rc74-4'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: m26-canary-readonly
@@ -168,7 +168,7 @@ jobs:
 
   m45-release-cert:
     name: m45-release-cert-qa-only
-    if: github.event_name == 'pull_request' && github.head_ref == 'qa/m45-release-cert-0105eef-20261016'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa/m45-release-cert-0105eef-20261016'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: m26-canary-readonly
@@ -231,7 +231,7 @@ jobs:
           oidc="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
           test "${#oidc}" -gt 100
           echo "::add-mask::$oidc"
-          payload="$(jq -nc --arg sourceSha '0105eef1581db8c3d57c7827a3006a624b7368b4' --arg runId "${GITHUB_RUN_ID}" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
+          payload="$(jq -nc --arg sourceSha "${GITHUB_SHA}" --arg runId "${GITHUB_RUN_ID}" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
           curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${oidc}" -H 'Content-Type: application/json' "${BROKER_URL}" -d "${payload}" >/tmp/m45-reset-before.json
           jq -e '.ok == true and .action == "reset"' /tmp/m45-reset-before.json >/dev/null
       - name: Execute M45 synthetic authenticated E2E
@@ -259,7 +259,7 @@ jobs:
           oidc="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
           test "${#oidc}" -gt 100
           echo "::add-mask::$oidc"
-          payload="$(jq -nc --arg sourceSha '0105eef1581db8c3d57c7827a3006a624b7368b4' --arg runId "${GITHUB_RUN_ID}" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
+          payload="$(jq -nc --arg sourceSha "${GITHUB_SHA}" --arg runId "${GITHUB_RUN_ID}" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
           curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${oidc}" -H 'Content-Type: application/json' "${BROKER_URL}" -d "${payload}" >/tmp/m45-reset-after.json
           jq -e '.ok == true and .action == "reset"' /tmp/m45-reset-after.json >/dev/null
       - name: Preserve M45 release evidence
@@ -277,23 +277,31 @@ jobs:
   gate:
     name: coach-webauthn-recurring-gate
     if: always()
-    needs: [contract,live-coach-webauthn]
+    needs: [contract,live-coach-webauthn,m45-release-cert]
     runs-on: ubuntu-latest
     steps:
       - name: Require contract and trusted live evidence
         shell: bash
         env:
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
           CONTRACT: ${{ needs.contract.result }}
           LIVE: ${{ needs.live-coach-webauthn.result }}
+          M45: ${{ needs.m45-release-cert.result }}
         run: |
           set -euo pipefail
           test "$CONTRACT" = success
           if [[ "$EVENT" = pull_request ]]; then
             test "$LIVE" = skipped
+            test "$M45" = skipped
             echo 'COACH_POST_WEBAUTHN_RECURRING=CONTRACT_GREEN_LIVE_TRUSTED_CANARY_ONLY'
+          elif [[ "$REF" = refs/heads/qa/m45-release-cert-0105eef-20261016 ]]; then
+            test "$LIVE" = skipped
+            test "$M45" = success
+            echo 'M45_RELEASE_CERT=GREEN'
           else
             test "$LIVE" = success
+            test "$M45" = skipped
             echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=GREEN'
             echo 'COACH_WEBAUTHN_REGISTRATION=GREEN'
             echo 'COACH_WEBAUTHN_AUTHENTICATION=GREEN'
