@@ -379,22 +379,10 @@ jobs:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
         run: node qa/rc64/build-authenticated-surface.mjs
-      - name: Reset Coach QA WebAuthn fixture before M45 certification
-        shell: bash
-        env:
-          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
-          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
+      - name: Confirm external QA fixture reset boundary
         run: |
-          set -euo pipefail
-          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
-          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
-          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
-          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
-          test "${#token}" -gt 100
-          echo "::add-mask::$token"
-          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
-          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" > recovery-m45-reset-before.json
-          jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-m45-reset-before.json >/dev/null
+          echo 'IBERFIT_M45_QA_FIXTURE_RESET=external-supabase-controller'
+          echo 'Synthetic Coach reset is executed only after this job owns the shared QA mutex.'
       - name: Certify M45 messaging agenda preferences and push ownership
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -408,23 +396,6 @@ jobs:
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: npx playwright test --config playwright.m45-release-cert.config.mjs
-      - name: Reset Coach QA WebAuthn fixture after M45 certification
-        if: always()
-        shell: bash
-        env:
-          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
-          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
-        run: |
-          set -euo pipefail
-          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
-          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
-          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
-          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
-          test "${#token}" -gt 100
-          echo "::add-mask::$token"
-          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
-          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" > recovery-m45-reset-after.json
-          jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-m45-reset-after.json >/dev/null
       - name: Preserve redacted M45 release evidence
         if: always()
         uses: actions/upload-artifact@v4
