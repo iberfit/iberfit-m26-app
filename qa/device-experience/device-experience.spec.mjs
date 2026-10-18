@@ -395,3 +395,64 @@ test('Device Experience Gate validates representative tasks by role and device',
   };
   await writeFile(OUT+'/'+safeSlug(project)+'.json',JSON.stringify(report,null,2)+'\n','utf8');
 });
+
+
+test('SIGNATURE Coach prior-session context remains fully readable at every device width',async({page},testInfo)=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/qa/rc64/fixture.html',{waitUntil:'domcontentloaded'});
+  await page.addStyleTag({url:'/src/m26/design/runtime-static.css'});
+  const longContext='Molestia de rodilla derecha al descender, especialmente al superar la profundidad habitual. Reevaluar rango y carga antes de progresar.';
+  const result=await page.evaluate(async(text)=>{
+    document.body.innerHTML='<main id="coach-context-fixture"><section data-session-live-state="active"><div class="m26-session-live-hero"><h1>Sesión con Coach</h1></div></section></main>';
+    const {enhanceSessionReadiness}=await import('/src/m26/ui/session-readiness.js');
+    const root=document.querySelector('#coach-context-fixture');
+    const state={
+      selectedClientId:'coach-qa-1',
+      collections:{
+        sessionExecutions:[{
+          id:'prior-completed',clientId:'coach-qa-1',
+          status:'completed',syncStatus:'clean',
+          completedAt:'2026-10-17T17:00:00Z',
+          feedback:{pain:true,painNotes:text},
+        }],
+        m26Entities:[],
+      },
+    };
+    const viewModel={activeArea:'sesion',identity:{role:'coach'}};
+    const first=enhanceSessionReadiness({root,viewModel,state});
+    const again=enhanceSessionReadiness({root,viewModel,state});
+    return {first,again,count:root.querySelectorAll('[data-m27-coach-live-context]').length};
+  },longContext);
+  expect(result).toEqual({first:true,again:true,count:1});
+  const flag=page.locator('[data-m27-coach-live-context]');
+  const detail=flag.locator('.m27-session-live-context-copy > small');
+  await expect(detail).toHaveText(longContext);
+  const metrics=await detail.evaluate((node)=>{
+    const style=getComputedStyle(node),box=node.getBoundingClientRect();
+    return {
+      whiteSpace:style.whiteSpace,
+      overflow:style.overflow,
+      fontPx:Number.parseFloat(style.fontSize),
+      lineHeight:Number.parseFloat(style.lineHeight),
+      height:box.height,
+      width:box.width,
+      scrollWidth:node.scrollWidth,
+      clientWidth:node.clientWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      viewportWidth:document.documentElement.clientWidth,
+    };
+  });
+  expect(metrics.whiteSpace,'Coach safety context must be allowed to wrap').toBe('normal');
+  expect(metrics.overflow,'Coach safety context must never use ellipsis clipping').toBe('visible');
+  expect(metrics.fontPx).toBeGreaterThanOrEqual(13);
+  // On wide screens the complete note fits correctly on one line.
+  // A forced two-line layout would be an artificial regression.
+  expect(metrics.height,'Visible context needs its full line box').toBeGreaterThanOrEqual(metrics.lineHeight-1);
+  if((page.viewportSize()?.width||0)<=760){
+    expect(metrics.height,'Compact touch devices must wrap the full note').toBeGreaterThan(metrics.lineHeight*1.5);
+  }
+  expect(metrics.scrollWidth,'Context must not cause text overflow').toBeLessThanOrEqual(metrics.clientWidth+1);
+  expect(metrics.documentWidth,'No horizontal viewport overflow at '+testInfo.project.name).toBeLessThanOrEqual(metrics.viewportWidth+1);
+  expect(errors).toEqual([]);
+});
