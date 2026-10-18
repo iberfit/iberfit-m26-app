@@ -7,6 +7,15 @@ function json(value){const raw=String(value||'').trim();if(!raw)return {};const 
 function normalizeUserFilter(value){
   return String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase();
 }
+function personDirectoryMatchesFilter({personStatus='',serviceKind='',trainingServiceStatus=''}={},selected='all'){
+  const option=String(selected||'all').toLowerCase();
+  const lifecycle=String(personStatus||'').toLowerCase();
+  const kind=String(serviceKind||'').toLowerCase();
+  const service=String(trainingServiceStatus||'').toLowerCase();
+  return option==='all'||lifecycle===option||
+    (option==='training'&&kind==='training')||
+    (option==='no-training'&&service!=='active');
+}
 function adminOperationLockKey(kind,data){
   const value=(key,max=200)=>text(data,key,max);
   if(kind==='user-status'||kind==='role-change'||kind==='user-delete')return `user:${value('userId')||'unknown'}`;
@@ -445,7 +454,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       for(const row of root.querySelectorAll?.('[data-admin-person-status]')||[]){
         const personStatus=String(row.getAttribute('data-admin-person-status')||'');
         const serviceKind=String(row.getAttribute('data-service-kind')||'');
-        const matches=selected==='all'||personStatus===selected||(selected==='training'&&serviceKind==='training')||(selected==='no-training'&&serviceKind==='none');
+        const trainingServiceStatus=String(row.getAttribute('data-training-service-status')||'');
+        const matches=personDirectoryMatchesFilter({personStatus,serviceKind,trainingServiceStatus},selected);
         row.hidden=!matches;
         if(!row.hidden)visible+=1;
       }
@@ -529,6 +539,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
 
 export const __adminControllerInternals=Object.freeze({
   normalizeUserFilter,
+  personDirectoryMatchesFilter,
   adminOperationLockKey,
   userDirectoryFilterState,
   applyUserDirectoryFilters,
