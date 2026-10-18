@@ -109,6 +109,8 @@ async function certifyNonOverlappingClientDock(page,project,route){
       routeShellHeight:shell.getBoundingClientRect().height,
       routeShellFlexGrow:getComputedStyle(shell).flexGrow,
       mainHeight:document.querySelector('.m26-main')?.getBoundingClientRect()?.height,
+      mainScrollTop:document.querySelector('.m26-main')?.scrollTop,
+      mainOverflow:getComputedStyle(document.querySelector('.m26-main')).overflow,
       mainDisplay:getComputedStyle(document.querySelector('.m26-main')).display,
       workspaceHeight:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.height,
       workspaceDisplay:getComputedStyle(document.querySelector('.m26-workspace')).display,
@@ -120,6 +122,8 @@ async function certifyNonOverlappingClientDock(page,project,route){
   if(route==='Cliente ajustes')console.log('SIGNATURE_CLIENT_SETTINGS_GEOMETRY:'+JSON.stringify(geometry));
   expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
   expect(geometry.documentScrollY,`${route}: document must not scroll behind the Client dock`).toBeLessThanOrEqual(1);
+  expect(geometry.mainScrollTop,`${route}: hidden main must not scroll the whole dock with contextual help`).toBeLessThanOrEqual(1);
+  expect(geometry.mainOverflow,`${route}: only the nested route may scroll`).toBe('clip');
   expect(geometry.shellBottom,`${route}: Client shell stays viewport-bound`).toBeGreaterThanOrEqual(geometry.viewportHeight-2);
   expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
   expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
