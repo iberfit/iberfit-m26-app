@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "72bfe3fd71fa33a15ae00175164fd1cc267b9005",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "4bfd4e6fc5e37d2fec8259f8095e7a5d1108cd8c",
+  "notes": "SIGNATURE 360 U10 Admin Equipo PR #1034 + P0 Auth JWT-future-issued finite recovery PR #1035. Exact Canary SHA 72bfe3fd71fa, 13/13 postmerge app gates SUCCESS incl Device Experience #39169772053 attempt 2 after QA bootstrap fix, QA Real Write #39169772048 SUCCESS. Diff against certified U9 source 4bfd4e6f contains 7 frontend/i18n/tests files only, no SQL/RLS/Auth hosted/Edge/data writes. PROD backend P0 #1006 remains independently gated. Require fail-closed previous LIVE identity, M44 independent recoverable DB/Storage proof, full regression/Lighthouse/preview and LIVE browser verification with rollback."
+}
