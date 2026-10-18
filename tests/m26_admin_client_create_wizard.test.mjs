@@ -127,3 +127,9 @@ test('wizard stays premium/responsive and ships inside the installed PWA release
   assert.match(css,/@media\(max-width:700px\)/u);
   assert.match(sw,/\/src\/m26\/admin\/client-create-wizard\.js/u);
 });
+
+test('Admin client-create wizard disables root smooth scrolling while preserving all other route motion',()=>{
+  assert.match(css,/html:has\(\.m26-shell\[data-m26-role="admin"\] form\[data-client-create-wizard\]\)\{\s*scroll-behavior:auto;/u);
+  assert.match(css,/\.m26-shell\[data-m26-role="admin"\] \.m26-main:has\(form\[data-client-create-wizard\]\)\{\s*scroll-behavior:auto;/u);
+  assert.doesNotMatch(css,/\[data-client-create-wizard\][\s\S]*?pointer-events:none/u);
+});

@@ -1121,6 +1121,16 @@
 }
 /* ADMIN_LEAD_CAPTURE_CONTEXT_END */
 
+/* P0 mobile WebKit: the Admin intake wizard is an interactive form, not a
+ * smooth-scroll scene. Root-level smooth scrolling can leave a select's
+ * previous gesture active while the Continue button is auto-scrolled into
+ * view. Scope immediate scrolling to the privileged intake flow only. */
+html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
+  scroll-behavior:auto;
+}
+.m26-shell[data-m26-role="admin"] .m26-main:has(form[data-client-create-wizard]){
+  scroll-behavior:auto;
+}
 /* ADMIN_CLIENT_CREATE_WIZARD_V2_BEGIN */
 .m26-client-create-wizard-head{
   grid-column:1 / -1;
