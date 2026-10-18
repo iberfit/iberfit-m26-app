@@ -6,6 +6,7 @@ import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
+import {deriveAdminOperationsTriage} from './operation-triage.js';
 import {readIberfitExperiencePreferences} from '../ui/preferences.js';
 import {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';
 export {deriveCoachLaunchJourney} from '../onboarding/coach-launch-journey.js';
@@ -333,7 +334,16 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
     const clients=clientRows(state);
     const coaches=Object.freeze(clone(adminCollection(state,'coachProfiles')));
     const tasks=Object.freeze(clone(adminCollection(state,'operationalTasks')));
-    return Object.freeze({...common,kind:'admin-inicio',clients,coaches,tasks:Object.freeze(clone(tasks.slice(0,12))),audit:Object.freeze(clone(adminCollection(state,'auditEvents').slice(0,12))),commandCenter:deriveAdminCommandCenter({clients,coaches,tasks})});
+    const operations=deriveAdminOperationsTriage({
+      tasks,users:adminCollection(state,'organizationUsers'),
+      now:state?.admin?.serverTime||state?.hydration?.serverTime||new Date(),
+      timeZone:state?.admin?.organization?.timezone||'America/Santiago',
+    });
+    return Object.freeze({...common,kind:'admin-inicio',clients,coaches,
+      tasks:Object.freeze(operations.open.slice(0,12).map((item)=>item.task)),
+      operationTriage:operations,
+      audit:Object.freeze(clone(adminCollection(state,'auditEvents').slice(0,12))),
+      commandCenter:deriveAdminCommandCenter({clients,coaches,tasks})});
   }
   if(area==='admin-usuarios'){
     const users=Object.freeze(clone(adminCollection(state,'organizationUsers')));
@@ -383,7 +393,16 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
     })));
     return Object.freeze({...common,kind:'admin-agenda',appointments,coaches});
   }
-  if(area==='admin-operaciones')return Object.freeze({...common,kind:'admin-operaciones',tasks:Object.freeze(clone(adminCollection(state,'operationalTasks'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.OPERATION_MANAGE)});
+  if(area==='admin-operaciones'){
+    const tasks=Object.freeze(clone(adminCollection(state,'operationalTasks')));
+    const operationTriage=deriveAdminOperationsTriage({
+      tasks,users:adminCollection(state,'organizationUsers'),
+      now:state?.admin?.serverTime||state?.hydration?.serverTime||new Date(),
+      timeZone:state?.admin?.organization?.timezone||'America/Santiago',
+    });
+    return Object.freeze({...common,kind:'admin-operaciones',tasks,operationTriage,
+      canManage:adminCan(state.admin,ADMIN_CAPABILITIES.OPERATION_MANAGE)});
+  }
   if(area==='admin-comunicacion')return Object.freeze({...common,kind:'admin-comunicacion',templates:Object.freeze(clone(adminCollection(state,'notificationTemplates'))),deliveries:Object.freeze(clone(adminCollection(state,'notificationDeliveries'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.MESSAGE_MANAGE_TEMPLATES)});
   if(area==='admin-automatizaciones')return Object.freeze({...common,kind:'admin-automatizaciones',rules:Object.freeze(clone(adminCollection(state,'automationRules'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.AUTOMATION_MANAGE)});
   if(area==='admin-analitica')return Object.freeze({...common,kind:'admin-analitica',clients:clientRows(state),appointments:Object.freeze(clone(state.collections?.appointments||[]))});
