@@ -1,6 +1,6 @@
 -- Append-only corrective PROD migration: never mutate the QA-installed historical SQL file.
--- Prior historical v1 guard used literal escaped backslash-r (E'\\\\r') and is QA-only.
--- This replaces the two preflight checks with proper CR normalization (E'\\r').
+-- The historical QA guard escaped its CR normalization twice; preserve it unchanged.
+-- The new PROD guard uses the actual SQL carriage-return E-string.
 -- Expected exact PROD role/access baselines, M44 recovery prerequisite and post-definition fingerprints.
 -- Migration is designed for protected explicit PROD application, not unreviewed bulk db push.
 -- P0 bootstrap authorization evaluation cache.
