@@ -195,4 +195,12 @@ export const ADMIN_SURFACE_ROWS=Object.freeze([
 ["Cuenta sin nombre verificado","Account name not verified","Nom du compte non vérifié","Nome da conta não verificado"],
 ["Cliente sin nombre verificado","Client name not verified","Nom du client non vérifié","Nome do cliente não verificado"],
 ["Incidencia sin nombre verificado","Incident name not verified","Nom de l’incident non vérifié","Nome do incidente não verificado"],
+  // SIGNATURE 360 U9 · Accessible Admin client/lead management.
+["Estado del lead","Lead status","Statut du prospect","Estado do lead"],
+["Próxima acción","Next action","Prochaine action","Próxima ação"],
+["Estado del servicio","Service status","Statut du service","Estado do serviço"],
+["Motivo del cambio","Reason for change","Motif du changement","Motivo da alteração"],
+["Leads y seguimiento","Leads and follow-up","Prospects et suivi","Leads e acompanhamento"],
+["Personas con expediente y gestión","People with records and management actions","Personnes avec dossier et gestion","Pessoas com processo e gestão"],
+["Desplaza la tabla lateralmente para ver todas las columnas y acciones.","Scroll the table horizontally to see every column and action.","Faites défiler le tableau horizontalement pour voir toutes les colonnes et actions.","Deslize a tabela horizontalmente para ver todas as colunas e ações."],
 ]);
