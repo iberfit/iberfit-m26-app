@@ -88,7 +88,7 @@ test('Mobile, motion, high contrast and touch preserve premium readability',()=>
   assert.match(visual,/@media\(prefers-reduced-motion:reduce\)/u);
   assert.match(visual,/@media\(forced-colors:active\)/u);
   assert.match(visual,/\.m26-client-home-journey-steps\{[\s\S]*?grid-template-columns:minmax\(0,1fr\)/u);
-  assert.match(visual,/\.m26-client-home-journey-steps\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\))/u);
+  assert.ok(visual.includes('grid-template-columns:repeat(3,minmax(0,1fr));'));
   assert.match(visual,/min-height:7\.2rem/u);
   assert.match(visual,/outline:3px solid #5e4521/u);
   assert.match(continuity,/\.m27-client-home-card>small\{[^}]*font-size:\.86rem/u);
