@@ -347,7 +347,7 @@ function renderTeam(vm){
     <section class="m26-admin-panel m26-admin-team-directory"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo profesional</p><h3>Perfiles de Coach</h3><p>Abre cada perfil para revisar carga, clientes y agenda sin abandonar Admin.</p></div>${badge(`${profiles.length} perfiles`)}</div><div class="m26-admin-coach360-grid">${profiles.length?profiles.map(coach360Card).join(''):empty('Sin Coaches','No hay perfiles de Coach visibles.')}</div></section>
     ${vm.canManage?`<section class="m26-admin-panel m26-admin-assignment-create"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Asignación</p><h3>Vincular Coach y cliente</h3><p>La relación queda trazada y puede finalizarse sin borrar el histórico.</p></div></div>${assign}</section>`:''}
     <section class="m26-admin-panel m26-admin-team-active"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Relaciones vigentes</p><h3>Asignaciones Coach–Cliente activas</h3></div>${badge(`${triage.activeAssignmentCount} activas`)}</div>${triage.active.length?activeTable:empty('Sin asignaciones activas','No existen relaciones Coach–Cliente activas verificadas.')}</section>
-    ${triage.history.length?`<details class="m26-admin-team-history"><summary>Historial de asignaciones · ${triage.history.length}</summary>${historyTable}</details>`:''}
+    ${triage.history.length?`<details class="m26-admin-team-history"><summary>Historial de asignaciones <span aria-label="Cantidad">${triage.history.length}</span></summary>${historyTable}</details>`:''}
   </div>`;
 }
 function clientDelete(c){
