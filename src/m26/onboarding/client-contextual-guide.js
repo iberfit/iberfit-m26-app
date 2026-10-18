@@ -664,6 +664,14 @@ export function createClientContextualGuideController({
   function click(event){
     const ctx=context();
     if(!ctx)return;
+    // Explicit navigation wins over a non-modal contextual tip. In compact
+    // layouts the current tip can otherwise occlude the opened Más menu and
+    // trap a user's next touch on an unrelated route. Keep the tip eligible
+    // when its original area is revisited; do not silently mark it as read.
+    if(event.target?.closest?.('.m26-client-bottom-nav-more > summary')){
+      if(dialog)close({restoreFocus:false});
+      return;
+    }
     if(event.target?.closest?.('[data-m26-client-context-guide-open]')){
       event.preventDefault?.();
       const current=area(root)||'hoy';
