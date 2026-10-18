@@ -105,9 +105,19 @@ async function certifyNonOverlappingClientDock(page,project,route){
       shellBottom:document.querySelector('.m26-shell')?.getBoundingClientRect()?.bottom,
       workspaceBottom:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.bottom,
       mainBottom:document.querySelector('.m26-main')?.getBoundingClientRect()?.bottom,
+      routeShellBottom:shell.getBoundingClientRect().bottom,
+      routeShellHeight:shell.getBoundingClientRect().height,
+      routeShellFlexGrow:getComputedStyle(shell).flexGrow,
+      mainHeight:document.querySelector('.m26-main')?.getBoundingClientRect()?.height,
+      mainDisplay:getComputedStyle(document.querySelector('.m26-main')).display,
+      workspaceHeight:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.height,
+      workspaceDisplay:getComputedStyle(document.querySelector('.m26-workspace')).display,
+      workspaceDirection:getComputedStyle(document.querySelector('.m26-workspace')).flexDirection,
+      scrollerHeight:scroller.getBoundingClientRect().height,
       hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
     };
   });
+  if(route==='Cliente ajustes')console.log('SIGNATURE_CLIENT_SETTINGS_GEOMETRY:'+JSON.stringify(geometry));
   expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
   expect(geometry.documentScrollY,`${route}: document must not scroll behind the Client dock`).toBeLessThanOrEqual(1);
   expect(geometry.shellBottom,`${route}: Client shell stays viewport-bound`).toBeGreaterThanOrEqual(geometry.viewportHeight-2);
