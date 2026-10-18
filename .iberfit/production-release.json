@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f50e8e1f0b9e719139c5bfbb8a1b059f4821d042",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "7be42a823341a26c07b5d6c75287daf69304279a",
+  "notes": "SIGNATURE 360 Cliente Hoy editorial calido y recorrido real PR #1025, Canary 12/12 SHA exacto certificado, sin datos inventados ni privilegios ampliados; frontend-only fail-closed, M44 offsite restoration proof within 2h, Cloudflare rollback and production smoke verification."
+}
