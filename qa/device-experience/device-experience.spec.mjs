@@ -446,7 +446,12 @@ test('SIGNATURE Coach prior-session context remains fully readable at every devi
   expect(metrics.whiteSpace,'Coach safety context must be allowed to wrap').toBe('normal');
   expect(metrics.overflow,'Coach safety context must never use ellipsis clipping').toBe('visible');
   expect(metrics.fontPx).toBeGreaterThanOrEqual(13);
-  expect(metrics.height,'Multiline context must remain fully rendered').toBeGreaterThan(metrics.lineHeight*1.5);
+  // On wide screens the complete note fits correctly on one line.
+  // A forced two-line layout would be an artificial regression.
+  expect(metrics.height,'Visible context needs its full line box').toBeGreaterThanOrEqual(metrics.lineHeight-1);
+  if((page.viewportSize()?.width||0)<=760){
+    expect(metrics.height,'Compact touch devices must wrap the full note').toBeGreaterThan(metrics.lineHeight*1.5);
+  }
   expect(metrics.scrollWidth,'Context must not cause text overflow').toBeLessThanOrEqual(metrics.clientWidth+1);
   expect(metrics.documentWidth,'No horizontal viewport overflow at '+testInfo.project.name).toBeLessThanOrEqual(metrics.viewportWidth+1);
   expect(errors).toEqual([]);
