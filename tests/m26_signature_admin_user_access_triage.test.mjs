@@ -79,7 +79,7 @@ test('Primary-role-only Cliente retains an honest unlinked access state',()=>{
     user360Summary:{total:1,activeUsers:1,pendingInvitations:0,integrityIssueCount:0},
     canManageStatus:false,canManageRoles:false,
   });
-  assert.match(html,/data-user-roles="\\|client\\|"/u);
+  assert.match(html,/data-user-roles="\|client\|"/u);
   assert.match(html,/data-user-unlinked="true"/u);
   assert.match(html,/Sin vínculo de acceso/u);
   assert.doesNotMatch(html,/Esta identidad no usa la aplicación Cliente/u);
