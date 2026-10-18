@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "c17eb59c7b1dadc2f313ac2bb717efe04029a7c2",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "f2fc78d0ab2714a98942523590769b1665fbcb57",
+  "notes": "SIGNATURE 360 U8 Admin Auditoria P0: human-readable verified audit event identity/outcome, no invented successes, read-only traceability and state clarity. PR #1032 merged, premerge 8/8 and postmerge 12/12 SUCCESS; Canary Exact Deploy #39155528417 SUCCESS; remote #39155528433 SUCCESS. M44 encrypted DB/Storage independent restore #38888628869 attempt 14 SUCCESS. Seven frontend/PWA/i18n/test files, zero SQL/Auth/RLS/Edge/data writes. Strict fail-closed previous PROD LIVE identity, full regression, Lighthouse, Cloudflare deploy, browser smoke, post-audit and rollback evidence."
+}
