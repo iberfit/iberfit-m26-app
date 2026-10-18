@@ -219,7 +219,11 @@ function renderCoachHoyRoute(vm) {
   const fallbackClientAction=!cockpit
     ?clients.find((item)=>item?.nextAction?.label)||null
     :null;
-  const todayAppointment=appointments[0]||null;
+  // Today's agenda deliberately includes completed earlier appointments.
+  // Never promote one of those as the "next session". Only the confirmed,
+  // chronological future projection is eligible for that priority.
+  const todayAppointmentIds=new Set(appointments.map((item)=>String(item?.id||'').trim()).filter(Boolean));
+  const todayAppointment=upcoming.find((item)=>todayAppointmentIds.has(String(item?.id||'').trim()))||null;
   const upcomingAppointment=upcoming[0]||null;
 
   const appointmentClient=(appointment)=>{
