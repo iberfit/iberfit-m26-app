@@ -59,10 +59,63 @@ async function dismissGuidance(page){
   }
 }
 
-async function verifyClientWorkspace(page,{projectName,browserName}){
+async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]}){
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(shell).toBeVisible({timeout:10_000});
+  try{
+    await expect(shell).toBeVisible({timeout:10_000});
+  }catch(error){
+    // Keep the original 10s SLA and fail closed. Record only stage names,
+    // elapsed milliseconds, booleans and auth-mode—not any user data,
+    // credentials, tokens, request bodies or free-text server responses.
+    const diagnostic=await page.evaluate(()=>{
+      const card=document.querySelector('.m26-auth-card');
+      const stages=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__||{};
+      const root=document.querySelector('[data-m26-interactive]');
+      return {
+        shellMounted:Boolean(document.querySelector('.m26-shell[data-m26-role="client"]')),
+        loginVisible:Boolean(document.querySelector('[data-auth-form="login"]')),
+        loginBusy:card?.getAttribute('aria-busy')==='true',
+        authMode:String(card?.getAttribute('data-auth-mode')||'unknown').slice(0,32),
+        interactiveReady:root?.getAttribute('data-m26-interactive')==='ready',
+        stages:Array.isArray(stages.appStages)?stages.appStages.slice(-35):[],
+        stageTimes:Array.isArray(stages.appStageTimes)?stages.appStageTimes.slice(-65):[],
+        rpcTimings:(performance.getEntriesByType('resource')||[]).flatMap((entry)=>{
+          try{
+            const uri=new URL(entry.name);
+            if(!uri.pathname.startsWith('/rest/v1/rpc/')&&!uri.pathname.startsWith('/auth/v1/'))return [];
+            return [{endpoint:uri.pathname,elapsedMs:Math.round(entry.startTime),durationMs:Math.round(entry.duration)}];
+          }catch{return []}
+        }).slice(-30),
+        diagnostics:Array.isArray(stages.diagnostics)?stages.diagnostics.slice(-12):[],
+      };
+    }).catch(()=>({unavailable:true}));
+    console.error('RC64_CLIENT_SHELL_BOOTSTRAP_DIAGNOSTIC:'+JSON.stringify({...diagnostic,networkRpcTimings:rpcTimings.slice(-24)}));
+    throw error;
+  }
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  // Always preserve coarse stage latency in CI, including passing runs.
+  // This detects slow-but-eventually-successful loading without weakening
+  // the 10-second shell assertion or exposing account/request details.
+  const timing=await page.evaluate(()=>{
+    const history=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.appStageTimes||[];
+    const phases=[
+      'rc64-login-token-ready','rc64-login-setup-start','rc64-hydrate-start',
+      'rc64-hydrate-primary-ready','rc64-hydrate-scope-ready',
+      'rc64-hydrate-secondary-ready','rc64-hydrate-store-ready',
+      'rc64-shell-frame-ready','rc64-shell-first-paint-ready',
+      'rc64-shell-interactive-ready',
+    ];
+    const steps=phases.map((phase)=>{
+      const point=history.find((entry)=>entry?.stage===phase);
+      return point?{phase,atMs:point.atMs}:null;
+    }).filter(Boolean);
+    const start=steps[0]?.atMs??0;
+    return steps.map((point)=>({phase:point.phase,elapsedMs:Math.max(0,point.atMs-start)}));
+  });
+  console.log('RC64_CLIENT_SHELL_STAGE_LATENCY:'+JSON.stringify({project:projectName,steps:timing}));
+  // Read-only, allowlisted request duration from the Playwright host clock.
+  // Cross-origin ResourceTiming can be zeroed by the browser without TAO.
+  console.log('RC64_CLIENT_RPC_LATENCY:'+JSON.stringify({project:projectName,entries:rpcTimings.slice(-24)}));
   await expect(
     page.locator('[data-m26-action="logout"]'),
     'Authenticated Client must retain a semantic logout action even when session controls live inside Settings',
@@ -205,6 +258,8 @@ test('current authenticated contract separates privileged fail-closed identities
     const pageErrors=[];
     // Read-only diagnostic phases; never record secrets or identifying data.
     const authPhases=[];
+    const rpcStarts=new WeakMap();
+    const rpcTimings=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
       onBlocked:(label)=>blocked.push(label),
@@ -213,12 +268,14 @@ test('current authenticated contract separates privileged fail-closed identities
     // Observe initial bootstrap -> full-app transitions from document start.
     // Values, identifiers, passwords and tokens are intentionally not inspected.
     await page.addInitScript(()=>{
-      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false,appStages:[],diagnostics:[]};
+      const events={pointerDown:0,click:0,submit:0,formReplacements:0,fullAppAtClick:false,appStages:[],appStageTimes:[],diagnostics:[]};
       // Only fixed enumerated stage/code metadata; never capture inputs, tokens or identity.
       globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
         if(typeof stage==='string'&&/^rc64-[a-z0-9-]{1,64}$/u.test(stage)){
           events.appStages.push(stage);
           if(events.appStages.length>50)events.appStages.shift();
+          events.appStageTimes.push({stage,atMs:Math.round(performance.now())});
+          if(events.appStageTimes.length>80)events.appStageTimes.shift();
         }
       };
       globalThis.addEventListener('m26:diagnostic',(event)=>{
@@ -259,12 +316,22 @@ test('current authenticated contract separates privileged fail-closed identities
       try{
         const url=new URL(request.url());
         if(url.origin!==SUPABASE_ORIGIN||request.method()!=='POST')return;
+        if(url.pathname.startsWith('/rest/v1/rpc/')){
+          const rpc=url.pathname.slice('/rest/v1/rpc/'.length);
+          if(READ_ONLY_RPCS.has(rpc))rpcStarts.set(request,{rpc,started:process.hrtime.bigint()});
+        }
         if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
           authPhases.push('first-factor-request');
         if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-request');
       }catch{}
     });
     page.on('response',(response)=>{
+      const started=rpcStarts.get(response.request());
+      if(started){
+        rpcStarts.delete(response.request());
+        rpcTimings.push({rpc:started.rpc,durationMs:Math.round(Number(process.hrtime.bigint()-started.started)/1e6),status:response.status()});
+        if(rpcTimings.length>60)rpcTimings.shift();
+      }
       if(isQaPrivateAvatarRead(response.request())&&response.status()>=400){
         avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
           if(ok)missingAvatar.push(true);
@@ -281,6 +348,7 @@ test('current authenticated contract separates privileged fail-closed identities
       }catch{}
     });
     page.on('requestfailed',(request)=>{
+      rpcStarts.delete(request);
       try{
         const url=new URL(request.url());
         if(url.origin===SUPABASE_ORIGIN){
@@ -356,7 +424,7 @@ test('current authenticated contract separates privileged fail-closed identities
         expect(assurance.privileged,'Client-only fixture must not be privileged').toBe(false);
         expect(assurance.mfaRequired,'Client-only fixture must not require privileged MFA').toBe(false);
         expect(assurance.webauthnRequired,'Client-only fixture must not require WebAuthn').toBe(false);
-        await verifyClientWorkspace(page,{projectName,browserName});
+        await verifyClientWorkspace(page,{projectName,browserName,rpcTimings});
       }
 
       await Promise.all(avatarChecks);
