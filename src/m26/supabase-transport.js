@@ -5,6 +5,15 @@ export const M26_PRODUCTION_PROJECT_REF='pjhmrhejsoofmouedavw';
 export const M26_QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 export const M26_PRODUCTION_SUPABASE_ORIGIN=`https://${M26_PRODUCTION_PROJECT_REF}.supabase.co`;
 export const M26_QA_SUPABASE_ORIGIN=`https://${M26_QA_PROJECT_REF}.supabase.co`;
+// PostgREST can briefly see a just-issued, valid GoTrue JWT as issued in the
+// future when Auth and PostgREST clocks differ. This is not proof of revocation.
+// Never classify arbitrary 401s or other JWT signature/expiry failures as skew.
+export function isFutureIssuedJwtClockSkew(error){
+  return Number(error?.status||0)===401
+    &&String(error?.body?.code||'').trim().toUpperCase()==='PGRST303'
+    &&/JWT issued at future/i.test(String(error?.body?.message||error?.message||''));
+}
+
 // Backwards-compatible aliases: unqualified canonical continues to mean production.
 export const M26_CANONICAL_PROJECT_REF=M26_PRODUCTION_PROJECT_REF;
 export const M26_CANONICAL_SUPABASE_ORIGIN=M26_PRODUCTION_SUPABASE_ORIGIN;
@@ -539,11 +548,23 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function authAssuranceContext(token){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
-    const body=await request('/rest/v1/rpc/'+RC65C_AUTH_ASSURANCE_RPC,{
-      method:'POST',
-      token,
-      body:'{}',
-    });
+    // Retry only the verified PostgREST future-iat clock-skew response.
+    // Preserve the same token and the exact server-side assurance/MFA check.
+    // Never retry arbitrary 401s, forbidden, expired or invalid-signature JWTs.
+    let body;
+    for(let attempt=0;attempt<4;attempt+=1){
+      try{
+        body=await request('/rest/v1/rpc/'+RC65C_AUTH_ASSURANCE_RPC,{
+          method:'POST',
+          token,
+          body:'{}',
+        });
+        break;
+      }catch(error){
+        if(!isFutureIssuedJwtClockSkew(error)||attempt===3)throw error;
+        await authRetryDelay([350,800,1300][attempt]);
+      }
+    }
     if(
       !body||
       typeof body!=='object'||

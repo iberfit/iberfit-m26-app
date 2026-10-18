@@ -11,7 +11,7 @@ import {createRc39Controller} from '../rc39/controller.js';
 import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart} from '../rc39/session-policy.js';
 import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS} from './confirmed-session-appointment.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
-import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
+import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
 import {createCommandBus} from '../command-bus.js';
 import {validatedRuntimeRegistry,M26_COMMAND_REGISTRY} from '../command-catalog.js';
@@ -275,6 +275,7 @@ const TERMINAL_AUTH_SESSION_CODES=new Set([
 export function sessionFailureRequiresFreshLogin(error){
   const code=String(error?.message||error||'');
   const authCode=String(error?.body?.code||error?.body?.error_code||'').trim().toLowerCase();
+  if(isFutureIssuedJwtClockSkew(error))return false;
   if(Number(error?.status||0)===401)return true;
   if(TERMINAL_AUTH_SESSION_CODES.has(authCode))return true;
   return /M26_(?:SESSION_EXPIRED|AUTH_REQUIRED|REFRESH_IDENTITY_MISMATCH|MFA_IDENTITY_MISMATCH|AUTH_USER_INVALID_RESPONSE|QA_ACCOUNT_REQUIRED)/u.test(code);
