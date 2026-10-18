@@ -97,10 +97,17 @@ async function certifyNonOverlappingClientDock(page,project,route){
       maxScroll:Math.max(0,scroller.scrollHeight-scroller.clientHeight),
       scrollTop:scroller.scrollTop,
       widthOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)>innerWidth+1,
+      documentScrollY:scrollY,
+      documentScrollHeight:document.documentElement.scrollHeight,
+      shellBottom:document.querySelector('.m26-shell')?.getBoundingClientRect()?.bottom,
+      workspaceBottom:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.bottom,
+      mainBottom:document.querySelector('.m26-main')?.getBoundingClientRect()?.bottom,
       hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
     };
   });
   expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
+  expect(geometry.documentScrollY,`${route}: document must not scroll behind the Client dock`).toBeLessThanOrEqual(1);
+  expect(geometry.shellBottom,`${route}: Client shell stays viewport-bound`).toBeGreaterThanOrEqual(geometry.viewportHeight-2);
   expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
   expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
   expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
