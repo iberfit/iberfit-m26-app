@@ -331,10 +331,16 @@ function renderCoachHoyRoute(vm) {
       ?'Cambios por revisar'
       :null;
 
+  // A confirmed appointment may remain in today's history after its slot.
+  // Keep it readable in the agenda, but never offer a stale Start control.
+  const upcomingAppointmentIds=new Set(upcoming.map((item)=>String(item?.id||'').trim()).filter(Boolean));
   const agendaBody=appointments.length
     ?appointments.slice(0,4).map((item)=>{
         const linkedClient=appointmentClient(item);
-        return appointmentCard(item,{canStartSession:linkedClient?.serviceActive!==false});
+        return appointmentCard(item,{
+          canStartSession:linkedClient?.serviceActive!==false&&
+            upcomingAppointmentIds.has(String(item?.id||'').trim()),
+        });
       }).join('')
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">✓</span>
