@@ -564,7 +564,7 @@ test('SIGNATURE Client compact shell locks document scrolling without disabling 
   assert.match(css,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u,
     'Only Client route content scrolls, not the outer shell');
   assert.match(visual,/documentScrollY[^\n]*scrollY/u);
-  assert.match(css,/\\.m26-shell\\[data-m26-role="client"\\] \\.m26-workspace \\.m26-main\\s*\\{[\\s\\S]*?overflow:\\s*clip;/u,
+  assert.match(css,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-main\s*\{[\s\S]*?overflow:\s*clip;/u,
     'Outer main must not be programmatically scrollable by contextual-guide scrollIntoView');
   assert.match(visual,/mainScrollTop/u,'Browser gate measures accidental outer-main scroll');
   assert.match(visual,/hidden main must not scroll the whole dock/u);
