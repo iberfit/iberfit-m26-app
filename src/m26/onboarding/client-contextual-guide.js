@@ -684,6 +684,13 @@ export function createClientContextualGuideController({
     }
     if(event.target?.closest?.('[data-m26-client-context-guide-open]')){
       event.preventDefault?.();
+      // A contextual tip opened from the Client dock must not compete with
+      // the expanded Más popover for the same touch and focus targets.
+      const clientMore=event.target?.closest?.('details.m26-client-bottom-nav-more[open]');
+      if(clientMore){
+        clientMore.open=false;
+        clientMore.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
+      }
       const current=area(root)||'hoy';
       const tip=eligibleTip(ctx,current,{force:true});
       if(tip)show(ctx,tip,{force:true});
