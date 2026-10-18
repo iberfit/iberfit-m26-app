@@ -174,7 +174,7 @@
   height: 13px;
   border-right: 1px solid rgba(220, 196, 132, 0.24);
   border-bottom: 1px solid rgba(220, 196, 132, 0.24);
-  background: #05271f;
+  background:var(--iberfit-color-surface-base);
   content: "";
   transform: rotate(45deg);
 }
@@ -193,6 +193,12 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.m26-client-bottom-nav-menu button[aria-current="page"] {
+  background:rgba(197,160,89,.14);
+  color:var(--iberfit-color-cream-100);
+  box-shadow:inset 3px 0 0 var(--iberfit-color-accent-strong,#c5a059);
 }
 
 .m26-client-bottom-nav-menu button:hover,

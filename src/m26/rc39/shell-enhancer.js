@@ -5,7 +5,7 @@ const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
   .replaceAll('"','&quot;').replaceAll("'",'&#039;');
 
-const SHELL_DISCLOSURE_SELECTOR='.m26-mobile-more[open],.m26-settings-menu[open],.m26-role-switcher[open]';
+const SHELL_DISCLOSURE_SELECTOR='.m26-mobile-more[open],.m26-settings-menu[open],.m26-role-switcher[open],.m26-client-bottom-nav-more[open]';
 const SHELL_DISCLOSURE_BOUND_DOCUMENTS=new WeakSet();
 const COACH_COMMAND_BOUND_DOCUMENTS=new WeakSet();
 const COACH_COMMAND_CONTEXTS=new WeakMap();
@@ -64,10 +64,34 @@ export function dismissOpenShellDisclosure(documentLike,{restoreFocus=true}={}){
 
 export function bindShellDisclosureDismissSupport(documentLike=globalThis.document){
   if(!documentLike?.addEventListener||SHELL_DISCLOSURE_BOUND_DOCUMENTS.has(documentLike))return false;
+  // The Client bottom dock exposes an ARIA menu, unlike the regular shell
+  // disclosures. Support the expected keyboard reading order without changing
+  // the route controller, focus traps, authorizations or business state.
   documentLike.addEventListener('keydown',(event)=>{
+    const menu=documentLike.querySelector?.('details.m26-client-bottom-nav-more[open]');
+    if(menu?.contains?.(event?.target)&&['ArrowDown','ArrowUp','Home','End'].includes(event?.key)){
+      const items=[...(menu.querySelectorAll?.('.m26-client-bottom-nav-menu [role="menuitem"]:not([disabled])')||[])];
+      if(items.length){
+        const active=items.indexOf(documentLike.activeElement);
+        const next=event.key==='Home'?0
+          :event.key==='End'?items.length-1
+          :event.key==='ArrowDown'?(active+1)%items.length
+          :active<0?items.length-1:(active-1+items.length)%items.length;
+        event.preventDefault?.();
+        items[next]?.focus?.({preventScroll:true});
+      }
+      return;
+    }
     if(event?.key!=='Escape')return;
     if(dismissOpenShellDisclosure(documentLike))event.preventDefault?.();
   });
+  // toggle does not bubble. Capture keeps aria-expanded true in the actual
+  // open DOM and false after native close, Escape or outside pointer clicks.
+  documentLike.addEventListener('toggle',(event)=>{
+    const details=event?.target;
+    if(!details?.matches?.('details.m26-client-bottom-nav-more'))return;
+    details.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded',details.open?'true':'false');
+  },true);
   documentLike.addEventListener('click',(event)=>{
     const details=documentLike?.querySelector?.(SHELL_DISCLOSURE_SELECTOR);
     if(!details)return;

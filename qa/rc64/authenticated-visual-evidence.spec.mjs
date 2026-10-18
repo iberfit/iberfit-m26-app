@@ -407,6 +407,22 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           const more=page.locator('.m26-client-bottom-nav-more > summary').first();
           if(await more.isVisible().catch(()=>false)){
             await more.click();
+            // One real authenticated, read-only keyboard journey per device.
+            // Escape must restore focus, never leave an invisible menu overlay.
+            if(area==='informes'){
+              await expect(more).toHaveAttribute('aria-haspopup','menu');
+              await expect(more).toHaveAttribute('aria-expanded','true');
+              const moreItems=page.locator('.m26-client-bottom-nav-menu [role="menuitem"]');
+              await more.press('ArrowDown');
+              await expect(moreItems.first()).toBeFocused();
+              await page.keyboard.press('End');
+              await expect(moreItems.last()).toBeFocused();
+              await page.keyboard.press('Escape');
+              await expect(more).toHaveAttribute('aria-expanded','false');
+              await expect(more).toBeFocused();
+              await more.click();
+              await expect(more).toHaveAttribute('aria-expanded','true');
+            }
             await expect(page.locator('[data-m26-client-context-guide]'),
               `${area}: opening Más must release the non-modal context guide`).toHaveCount(0);
             const destination=page.locator(`.m26-client-bottom-nav-menu [role="menuitem"][data-m26-area="${area}"]`);
