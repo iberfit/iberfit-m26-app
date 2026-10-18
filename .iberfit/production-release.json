@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "7be42a823341a26c07b5d6c75287daf69304279a",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "9c5ef0bfea3b1e6e92ffd56e8d31609d9060dd0e",
+  "notes": "IBERFIT SIGNATURE 360 U1 Client navigation quality PR #1024, 12/12 Canary SHA-specific gates SUCCESS. Frontend only; no PROD SQL/Edge/Hosted Auth writes. Fail-closed live SHA, protected rollback and PROD smoke."
+}
