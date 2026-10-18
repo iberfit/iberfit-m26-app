@@ -62,7 +62,7 @@ test('tablet keeps Settings reachable for Coach and Admin while Client keeps it 
   assert.match(rc39,/\.m26-settings-popover[\s\S]*left:6rem/u);
   assert.match(route,/CLIENT_BOTTOM_NAV_MORE_KINDS = Object\.freeze\(\['informes','actividad','mensajes','retos','ajustes'\]\)/u);
   assert.match(route,/data-m26-area="ajustes"[^>]*><span>Ajustes<\/span><small>Preferencias y privacidad<\/small>/u);
-  assert.match(route,/data-m26-area="ajustes"\\$\\{currentKind==='ajustes'\\?' aria-current="page"':''\\}/u,'the current Settings destination is announced by the menu itself');
+  assert.match(route,/data-m26-area="ajustes"\$\{currentKind==='ajustes'\?' aria-current="page"':''\}/u,'the current Settings destination is announced by the menu itself');
 });
 
 
