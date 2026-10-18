@@ -117,7 +117,7 @@ test('Command Center preview displays only open operational tasks and retains it
     admin:{available:true},kind:'admin-inicio',summary:{},tasks:triage().open.map(x=>x.task),
     audit:[],commandCenter:deriveAdminCommandCenter({clients:[],coaches:[],tasks}),
   });
-  assert.match(home,/data-m26-area="admin-operaciones">Ver incidencias<\\/button>/u);
+  assert.match(home,/data-m26-area="admin-operaciones">Ver incidencias<\/button>/u);
   assert.doesNotMatch(home,/Incidencia resuelta|Incidencia cancelada/u);
   const view=readFileSync(new URL('../src/m26/admin/view-model.js',import.meta.url),'utf8');
   assert.match(view,/tasks:Object\.freeze\(operations\.open\.slice\(0,12\)\.map\(\(item\)=>item\.task\)\)/);
