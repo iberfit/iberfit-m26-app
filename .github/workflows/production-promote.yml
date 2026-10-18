@@ -66,6 +66,14 @@ jobs:
           if(parent!==manifest.sourceSha) fail(`RELEASE_PARENT_MISMATCH:${parent}`);
           const changed=cp.execFileSync('git',['diff','--name-only',manifest.sourceSha,'HEAD'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
           if(changed.length!==1 || changed[0]!=='.iberfit/production-release.json') fail(`RELEASE_DIFF_NOT_MARKER_ONLY:${changed.join(',')}`);
+          if(manifest.frontendOnly!==undefined&&manifest.frontendOnly!==true)fail('RELEASE_FRONTEND_ONLY_INVALID');
+          if(manifest.frontendOnly===true){
+            if(!/^[0-9a-f]{40}$/.test(manifest.expectedPreviousLiveSha||''))fail('RELEASE_FRONTEND_PREVIOUS_SHA_INVALID');
+            if(manifest.expectedPreviousLiveSha===manifest.sourceSha)fail('RELEASE_FRONTEND_NO_SHA_CHANGE');
+            fs.appendFileSync(process.env.GITHUB_ENV,'FRONTEND_ONLY_RELEASE=true\nEXPECTED_PREVIOUS_LIVE_SHA='+manifest.expectedPreviousLiveSha+'\n');
+          }else if(manifest.expectedPreviousLiveSha!==undefined){
+            fail('RELEASE_FRONTEND_PREVIOUS_SHA_UNEXPECTED');
+          }
           fs.appendFileSync(process.env.GITHUB_ENV,`SOURCE_SHA=${manifest.sourceSha}\nSOURCE_BRANCH=${manifest.sourceBranch}\nSHORT_SHA=${manifest.sourceSha.slice(0,12)}\n`);
           NODE
           SOURCE_SHA="$(node -p "require('./.iberfit/production-release.json').sourceSha")"
@@ -75,6 +83,11 @@ jobs:
           test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
           test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
 
+      # Opt-in lane: backends and Hosted Auth remain at their already served state.
+      # The exact previous production SHA and protected source paths are checked.
+      - name: Certify frontend-only scope against exact live PROD (fail closed)
+        if: ${{ env.FRONTEND_ONLY_RELEASE == 'true' }}
+        run: node scripts/release/verify_frontend_only_promotion.mjs
       # Backup inventory must be confirmed BEFORE any M44 schema or Edge promotion.
       # This guard is read-only. A completed backup inventory entry still
       # requires independent restore verification prior to the first PROD DDL.
@@ -306,6 +319,7 @@ jobs:
           find .tmp/rc64-current-surface -type f -print0 | sort -z | xargs -0 sha256sum > PRODUCTION_PROMOTION.sha256
 
       - name: Deploy exact IRI report broker to production
+        if: ${{ env.FRONTEND_ONLY_RELEASE != 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         shell: bash
@@ -319,6 +333,7 @@ jobs:
             | grep -F 'iberfit-iri-report-emission-v1'
 
       - name: Deploy and verify protected M44 evolution PDF broker to production
+        if: ${{ env.FRONTEND_ONLY_RELEASE != 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         shell: bash
@@ -351,6 +366,7 @@ jobs:
           rm -f "$response"
 
       - name: Deploy and verify guarded exercise media broker to production
+        if: ${{ env.FRONTEND_ONLY_RELEASE != 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         shell: bash
@@ -390,7 +406,7 @@ jobs:
           fi
 
       - name: Sync and verify IBERFIT Hosted Auth emails before cutover
-        if: ${{ steps.email-otp.outputs.enabled == 'true' }}
+        if: ${{ steps.email-otp.outputs.enabled == 'true' && env.FRONTEND_ONLY_RELEASE != 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ env.PROD_SUPABASE_REF }}
@@ -398,6 +414,7 @@ jobs:
         run: node scripts/auth/sync-hosted-auth-emails.mjs --sync
 
       - name: Assess or enable leaked-password protection in PROD
+        if: ${{ env.FRONTEND_ONLY_RELEASE != 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           IBERFIT_AUTH_SECURITY_TARGET: prod
@@ -480,6 +497,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
 
+      - name: Recheck frontend-only live PROD identity immediately before cutover
+        if: ${{ env.FRONTEND_ONLY_RELEASE == 'true' }}
+        run: node scripts/release/verify_frontend_only_promotion.mjs
       - name: Deploy exact certified surface to production with Wrangler
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -595,6 +615,7 @@ jobs:
           name: iberfit-production-promotion-${{ github.run_id }}
           path: |
             .iberfit/production-release.json
+            FRONTEND_ONLY_SCOPE_EVIDENCE.json
             PRODUCTION_PROMOTION.sha256
             PRODUCTION_DEPLOYMENT_EVIDENCE.json
             PRODUCTION_ROLLBACK_EVIDENCE.json

@@ -81,6 +81,35 @@ El workflow rechaza la promoción si:
 
 El preview puede tardar unos segundos en quedar disponible de forma coherente después de que Wrangler confirme el upload. El verificador reintenta únicamente lecturas del artefacto ya desplegado; no repite el deploy, no toca Supabase y conserva todas las comprobaciones fail-closed de SHA, rama, entorno, proyecto PROD, clave publishable, ausencia de QA, credenciales privilegiadas e identidad visual.
 
+## Modo opcional `frontendOnly` · SIGNATURE 360 sin mutaciones de backend
+
+El pipeline oficial sigue exigiendo `release/prod-<SHA>`, un único commit de manifiesto, un SHA exacto proveniente de Canary, backup/restauración M44 reciente, CI, regresiones, preview, identidad LIVE, auditoría de solo lectura y rollback. **Por defecto no cambia ningún paso**: una release ordinaria continúa desplegando los Edge brokers y aplicando las verificaciones de Hosted Auth cuando corresponda.
+
+Para una release estrictamente **frontend-only** (ningún archivo desplegable de Edge, servidor o Auth cambiado respecto a la versión PROD realmente servida), el manifiesto puede incluir:
+
+```json
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "<SHA_CANARY_CERTIFICADO_DE_40_CARACTERES>",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "<SHA_PROD_LEIDO_Y_VERIFICADO_DE_40_CARACTERES>",
+  "notes": "Entrega SIGNATURE 360 frontend-only, sin Edge/Hosted Auth/DDL"
+}
+```
+
+La guarda `scripts/release/verify_frontend_only_promotion.mjs`, ejecutada **antes de cualquier acción productiva** y repetida inmediatamente antes del corte, comprueba:
+
+- `app.iberfit.cl/m26/version.json` es PROD, `qaOnly=false`, `production=true`, referencia Supabase PROD exacta, y el SHA servido coincide con `expectedPreviousLiveSha`. Un despliegue paralelo obliga a rechazar la release, nunca a sobrescribirlo a ciegas.
+- El SHA de origen desciende del anterior, la diferencia real de Git no es vacía y **no contiene modificaciones en `supabase/functions/`, `supabase/config.toml`, `backend/`, `scripts/auth/` ni otras rutas Supabase no autorizadas**. Las migraciones/rollbacks que existan en Git quedan registrados como **NO aplicados a PROD** y requieren circuito SQL independiente; no confundir fichero con DDL ejecutado.
+- En esta modalidad **se omiten** los tres redeploys Edge (IRI, M44, media), la sincronización de correos Hosted Auth y la mutación HIBP. Se mantienen *todas* las pruebas frontend, comprobaciones de esquemas ya exigidas, backup M44, auditoría de seguridad, validación de origen, Pages preview/prod y rollback Cloudflare. En consecuencia, el rollback Pages cubre todos los recursos realmente modificados por este modo.
+- Un manifiesto mal formado, SHA anterior incorrecto, dependencia de backend cambiada, dato de identidad incompleto o indisponibilidad de PROD **bloquea** la publicación. No existe bypass por omitir el campo: el flujo normal es el predeterminado.
+
+Este modo es una reducción explícita del **alcance del despliegue**, **no de las pruebas**. No corrige por sí solo latencias SQL pendientes ni certifica recuperación completa de Hosted Auth/Vault/Edge. Registrar evidencia de navegación Cliente/Coach/Admin, velocidad, PWA y SHA real antes de declarar PROD LIVE.
+
 ## Flujo operativo recomendado
 
 `cambio -> PR -> CI/auditoría GREEN -> SHA candidato -> rama release/prod-<sha> + manifest -> preflight Pages -> Wrangler PROD -> validación app.iberfit.cl -> auditoría read-only -> evidencia/rollback`

@@ -62,7 +62,7 @@ test('email OTP rollout is enabled and production remains fail-closed on certifi
   const workflow=read('.github/workflows/production-promote.yml');
   assert.match(application,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
   assert.match(workflow,/Resolve privileged email OTP rollout gate/u);
-  assert.match(workflow,/if: \$\{\{ steps\.email-otp\.outputs\.enabled == 'true' \}\}/u);
+  assert.match(workflow,/if: \$\{\{ steps\.email-otp\.outputs\.enabled == 'true' && env\.FRONTEND_ONLY_RELEASE != 'true' \}\}/u);
   const sync=workflow.indexOf('Sync and verify IBERFIT Hosted Auth emails before cutover');
   const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
   assert.ok(sync>=0&&deploy>sync);
