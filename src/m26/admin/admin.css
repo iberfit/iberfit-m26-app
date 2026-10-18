@@ -1829,3 +1829,37 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 @media(forced-colors:active){
   .m26-admin-user360 .m26-admin-user-review-cta[aria-pressed="true"]{outline:2px solid Highlight}
 }
+
+
+/* SIGNATURE 360 U7 · Admin operations: verified priorities, real owners, no fake deadlines. */
+.m26-admin-operations{min-width:0}
+.m26-admin-operation-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;margin-bottom:1rem}
+.m26-admin-operation-overview .m26-admin-stat{min-width:0;border-color:var(--iberfit-color-border,rgba(197,160,89,.18));background:var(--m26-admin-surface-soft,rgba(240,226,199,.04))}
+.m26-admin-operation-list{display:grid;gap:.6rem;min-width:0}
+.m26-admin-operation-item{display:grid;gap:.65rem;min-width:0;padding:1rem 1.05rem;border:1px solid var(--iberfit-color-border,rgba(197,160,89,.2));border-radius:1rem;background:var(--m26-admin-surface-soft,rgba(240,226,199,.04));overflow-wrap:anywhere}
+.m26-admin-operation-item.is-overdue{border-inline-start:3px solid var(--iberfit-color-accent-strong,#c5a059)}
+.m26-admin-operation-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;min-width:0}
+.m26-admin-operation-title{min-width:0;display:grid;gap:.22rem}
+.m26-admin-operation-title h3{margin:0;line-height:1.32;font-size:clamp(1rem,1.6vw,1.125rem);overflow-wrap:anywhere;color:var(--iberfit-color-text-primary)}
+.m26-admin-operation-priority{flex:none;border:1px solid var(--iberfit-color-border,rgba(197,160,89,.2));border-radius:999px;padding:.32rem .65rem;font-size:.77rem;font-weight:690;line-height:1.3;color:var(--iberfit-color-text-secondary)}
+.m26-admin-operation-priority[data-priority="critical"]{border-color:var(--iberfit-color-danger,#b96d62);color:var(--iberfit-color-text-primary)}
+.m26-admin-operation-priority[data-priority="high"]{border-color:var(--iberfit-color-accent-strong,#c5a059);color:var(--iberfit-color-text-primary)}
+.m26-admin-operation-detail,.m26-admin-operation-outcome{margin:0;line-height:1.55;color:var(--iberfit-color-text-secondary);white-space:pre-wrap;overflow-wrap:anywhere}
+.m26-admin-operation-outcome{padding:.55rem .75rem;background:var(--m26-admin-surface-soft,rgba(240,226,199,.06));border-radius:.65rem}
+.m26-admin-operation-meta{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;color:var(--iberfit-color-text-secondary);font-size:.84rem;line-height:1.5}
+.m26-admin-operation-meta span{overflow-wrap:anywhere}
+.m26-admin-operation-meta [data-operation-overdue="true"]{color:var(--iberfit-color-text-primary);font-weight:690}
+.m26-admin-operation-item>.m26-admin-form{margin:0;padding:.8rem;border-color:var(--iberfit-color-border,rgba(197,160,89,.2));background:transparent}
+.m26-admin-operation-item>.m26-admin-form button{min-height:48px}
+.m26-admin-operation-history,.m26-admin-operation-create{margin-top:1rem;padding:0 1rem 1rem;border:1px solid var(--iberfit-color-border,rgba(197,160,89,.2));border-radius:1rem;background:var(--m26-admin-surface-soft,rgba(240,226,199,.04));min-width:0}
+.m26-admin-operation-history>summary,.m26-admin-operation-create>summary{min-height:48px;display:flex;align-items:center;gap:.6rem;cursor:pointer;font-weight:690;color:var(--iberfit-color-text-primary);padding:.75rem 0;list-style:none}
+.m26-admin-operation-history>summary::before,.m26-admin-operation-create>summary::before{content:'+';font-size:1.25rem;color:var(--iberfit-color-accent-strong,#c5a059);font-weight:400}
+.m26-admin-operation-history[open]>summary::before,.m26-admin-operation-create[open]>summary::before{content:'−'}
+.m26-admin-operation-history>summary::-webkit-details-marker,.m26-admin-operation-create>summary::-webkit-details-marker{display:none}
+.m26-admin-operation-history>summary:focus-visible,.m26-admin-operation-create>summary:focus-visible,.m26-admin-operations button:focus-visible{outline:3px solid var(--iberfit-color-focus);outline-offset:3px}
+.m26-admin-operation-create .m26-admin-form{margin-top:0;max-width:48rem}
+@media(max-width:760px){.m26-admin-operation-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.m26-admin-operation-overview{gap:.5rem}.m26-admin-operation-top{flex-wrap:wrap}.m26-admin-operation-item{padding:.8rem}.m26-admin-operation-meta{display:grid;gap:.2rem}.m26-admin-operation-item>.m26-admin-form button{width:100%}}
+@media(forced-colors:active){.m26-admin-operation-item.is-overdue,.m26-admin-operation-priority[data-priority="critical"]{border-color:Mark}.m26-admin-operation-history>summary:focus-visible,.m26-admin-operation-create>summary:focus-visible{outline-color:Highlight}}
+@media(prefers-reduced-motion:reduce){.m26-admin-operations *{scroll-behavior:auto}}
+/* SIGNATURE 360 U7 END */
