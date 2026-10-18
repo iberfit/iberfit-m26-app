@@ -87,6 +87,21 @@ To test the *actual original PROD `pre_v65e` definition* with QA synthetic data,
 - No increase to `statement_timeout`; no changes to WebAuthn or RLS. IRI initial diagnosis and longitudinal progress remain separate.
 - Production Data Safety Gate on this PR reported **`PROD_BACKUP_COMPLETED_BACKUP_MISSING`** and **`M44_OFFSITE_RUN_TOO_OLD`**. No production DDL may proceed until those independent backup/recovery requirements are satisfied.
 
+
+## Verified independent encrypted backup custody — 18 October 2026 UTC
+
+The canonical [M44 encrypted recovery run #38888628869, attempt 7](https://github.com/iberfit/iberfit-m26-app/actions/runs/38888628869) completed with SUCCESS: PG17 + Storage backup, authenticated ciphertext, isolated DB/Storage restore and ephemeral-runner cleanup.
+
+The independent retention and read-back requirement **is now completed** through the existing private, owner-only Google Drive folder `IBERFIT — Recuperación cifrada · PROD (privado)`:
+
+- Drive stored file: `IBERFIT_PROD_backup_cifrado_2026-10-17_run38888628869_attempt7.zip`; Drive file ID `1M_d2SjHoPQ3N8co-En2brAlR0QyJrQkj`.
+- Upload used the files-library Google Drive path (the direct GitHub-to-Drive connector handoff had incompatible file-reference schemas); no plaintext, recovery keys or temporary signed download URLs were published.
+- The Drive API verified **the expected private parent folder**, `shared=false`, and the sole effective file permission `user:owner`. The parent folder and its root were also checked private/owner-only.
+- The encrypted ZIP was **read back independently from Drive** into an isolated temporary workspace. Both original and re-read ZIPs: exactly **32,214,846 bytes**, SHA-256 `524cc8e7e417c11c824a67519a7af9e25157ec35608e976fe68ee353538a2400`. Their ZIP member list is exactly one ciphertext file, `iberfit-prod-recovery.ibf`, length 32,204,852 bytes.
+- The external copy no longer inherits GitHub Actions' 24-hour retention deadline. No credentials or ciphertext content are committed to GitHub.
+
+The [Production Data Safety Gate #39076650720 attempt 2](https://github.com/iberfit/iberfit-m26-app/actions/runs/39076650720) is **SUCCESS** for DB+Storage authority. **It still explicitly reports `platformRecoveryVerified=false`**, so Hosted Auth, Vault, Edge platform recovery and end-to-end recovery readiness are not certified by this evidence. Do not mark production DDL approved solely because backup custody and DB+Storage tests are now green.
+
 ## Required certification before release
 
 1. **Completed in QA:** guarded migration `20261017220957`; public rc29 body MD5 `722040e7807a52a70339277014026833`, owner postgres, `STABLE SECURITY DEFINER`, empty search path, unchanged `postgres/service_role` EXECUTE ACL. Full public API output again matched the private candidate for both Clients.
