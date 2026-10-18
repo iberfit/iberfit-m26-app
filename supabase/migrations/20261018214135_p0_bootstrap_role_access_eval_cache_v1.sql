@@ -5,13 +5,13 @@
 -- Do not alter RLS, grants, ownership, Auth/WebAuthn or statement_timeout.
 
 SELECT 1 / (CASE WHEN
-  md5(replace(pg_get_functiondef('public.iberfit_current_role_v26()'::regprocedure), E'\\r',''))
+  md5(replace(pg_get_functiondef('public.iberfit_current_role_v26()'::regprocedure), E'\r',''))
     = 'b4cdfd4d8ce6d71e87a512ec626426b6'
   THEN 1 ELSE 0 END)
 AS "P0_BOOTSTRAP_ROLE_BASELINE_CHANGED_REVIEW_REQUIRED";
 
 SELECT 1 / (CASE WHEN
-  md5(replace(pg_get_functiondef('public.iberfit_can_access_client_v26(uuid)'::regprocedure), E'\\r',''))
+  md5(replace(pg_get_functiondef('public.iberfit_can_access_client_v26(uuid)'::regprocedure), E'\r',''))
     = 'b2bec4b31c6edbc6bd21fe40253c752a'
   THEN 1 ELSE 0 END)
 AS "P0_BOOTSTRAP_ACCESS_BASELINE_CHANGED_REVIEW_REQUIRED";

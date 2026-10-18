@@ -30,3 +30,8 @@ test('bootstrap role/access rollback restores exact prior decision helpers from 
   assert.match(rollback,/b2bec4b31c6edbc6bd21fe40253c752a/);
   assert.doesNotMatch(executable(rollback),/\b(?:ALTER ROLE|GRANT|REVOKE|DROP|TRUNCATE|DELETE FROM|UPDATE .*SET|statement_timeout)\b/i);
 });
+
+test('PROD guards normalize real carriage returns, never a literal backslash-r string',()=>{
+  assert.equal(migration.split(String.raw`E'\\r'`).length-1,2);
+  assert.equal(migration.split(String.raw`E'\\\\r'`).length-1,0);
+});
