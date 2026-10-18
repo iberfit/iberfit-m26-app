@@ -1,7 +1,9 @@
-# P0 production migration hash guard — 2026-10-18
+# P0 PROD role-cache hash-guard correction — immutable migration path
 
-On the protected PROD promotion, stage 2 failed closed (SQLSTATE 22012 division by zero). No SQL changes or migration-ledger entry persisted. The PROD role and access definitions match their expected normalized hashes, and both security-attribute guards pass.
+Historical migration `20261018214135_p0_bootstrap_role_access_eval_cache_v1.sql` was already added as part of PR #1006 and is **immutable**. Production's attempted application failed closed with SQLSTATE 22012 and rolled back. The original historical file is preserved byte-for-byte; no migration ledger entry was written by that failed attempt.
 
-Root cause: the stage 2 migration source used `E'\\\\r'` (two literal backslashes), removing a literal backslash-r sequence rather than CR. Change exactly two source occurrences to `E'\\r'` (one SQL backslash, escaped carriage return). No function bodies, target hashes, role conditions, RLS, grants or timeouts change.
+The append-only corrective migration is `supabase/migrations/20261018234000_p0_bootstrap_role_access_eval_cache_prod_corrected_v2.sql` and is **explicitly PROD-targeted**. It changes only the two guard escape literals from SQL two-backslash E-strings (literal backslash-r) to SQL one-backslash E-strings (carriage return), retaining exact expected baseline hashes, security attributes, function definitions and post-install hashes. All other function logic is byte-for-byte identical to the historical migration.
 
-Dry-run of the complete corrected SQL in `BEGIN/ROLLBACK` on PROD succeeded, including both post-install hashes. The two affected preflight hashes and all security attributes were verified read-only before the dry-run. This PR adds a node:test regression invariant for the two SQL string literals. Apply stage 2 only after fresh M44 recoverable backup and once the corrected source commit is merged and certified. QA and PROD scopes remain separate.
+A full corrected SQL trial ran successfully inside `BEGIN/ROLLBACK` on the actual PROD database. No production function changes persisted during that test. New tests validate the immutable historical and corrected PROD guard literals.
+
+**Deployment caution:** Because the historical QA migration remains in the repository but not in the PROD migration ledger, do not run unattended bulk `supabase db push` until migration-ledger compatibility is explicitly reconciled by the protected database release process. Use the explicit reviewed corrective migration; never fake a successful application of the historical SQL. Keep rollback and restored hash evidence.
