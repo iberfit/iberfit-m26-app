@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4851c289b42bb37a97b1a3134354969ab5b20810",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "f50e8e1f0b9e719139c5bfbb8a1b059f4821d042",
+  "notes": "SIGNATURE 360 U2 Coach truthful upcoming appointments and no expired training start, PR #1026. Exact Canary 12/12 gated including rerun Device Experience SUCCESS #39101388051. M44 encrypted offsite fresh restore proof run #38888628869 attempt 10. No production SQL/Edge/Hosted Auth mutation. Production rollback and live identity fail closed."
+}
