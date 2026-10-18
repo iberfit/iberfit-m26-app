@@ -76,6 +76,14 @@ test('Mensajes stays current while showing its recoverable connection error',()=
   assert.match(nav,/overflow-y:auto/u,'short mobile viewports must scroll the popup');
 });
 
+test('opening guidance from Más first releases the popup without dismissing or persisting the tip',()=>{
+  const guide=fs.readFileSync('src/m26/onboarding/client-contextual-guide.js','utf8');
+  assert.match(guide,/closest\\?\\.\\('details\\.m26-client-bottom-nav-more\\[open\\]'\\)/u);
+  assert.match(guide,/clientMore\\.open=false/u);
+  assert.match(guide,/aria-expanded','false'/u);
+  assert.match(guide,/show\\(ctx,tip,\\{force:true\\}\\)/u);
+});
+
 test('Client Más keyboard supports Down, Up, Home and End with stable focus',()=>{
   const f=clientMoreFixture();
   assert.equal(bindShellDisclosureDismissSupport(f.documentLike),true);
