@@ -68,7 +68,38 @@ async function capture(page,{account,project,state,suffix=''}){
 }
 
 async function certifyNonOverlappingClientDock(page,project,route){
-  if((project.viewport?.width||0)>900)return;
+  if((project.viewport?.width||0)>900){
+    // Desktop pointer users intentionally have no Client dock. On tablet
+    // touch, where both the shell rail and the dock are visible, check the
+    // *actual hit regions*: a screenshot can conceal a clipped first icon.
+    const railDock=await page.evaluate(()=>{
+      const shell=document.querySelector('.m26-shell[data-m26-role="client"]');
+      const sidebar=shell?.querySelector('.m26-sidebar');
+      const dock=shell?.querySelector('.m26-client-bottom-nav');
+      if(!sidebar||!dock||getComputedStyle(sidebar).display==='none'||
+          getComputedStyle(dock.closest('.m26-client-bottom-nav-layer')).display==='none')return null;
+      const rail=sidebar.getBoundingClientRect();
+      const nav=dock.getBoundingClientRect();
+      const first=dock.querySelector('.m26-client-bottom-nav-item');
+      const firstRect=first?.getBoundingClientRect();
+      const point=firstRect?document.elementFromPoint(firstRect.left+firstRect.width/2,firstRect.top+firstRect.height/2):null;
+      return {
+        railRight:rail.right,
+        dockLeft:nav.left,
+        dockRight:nav.right,
+        viewportWidth:document.documentElement.clientWidth,
+        firstLeft:firstRect?.left??-1,
+        firstAccessible:Boolean(first&&point&&(first===point||first.contains(point))),
+      };
+    });
+    if(railDock){
+      expect(railDock.dockLeft,`${route}: tablet Cliente dock must start beyond the rail`).toBeGreaterThanOrEqual(railDock.railRight-1);
+      expect(railDock.firstLeft,`${route}: first nav button cannot be hidden behind sidebar`).toBeGreaterThanOrEqual(railDock.railRight-1);
+      expect(railDock.dockRight,`${route}: the dock must fit the remaining viewport width`).toBeLessThanOrEqual(railDock.viewportWidth+1);
+      expect(railDock.firstAccessible,`${route}: first dock button must receive a real pointer hit`).toBe(true);
+    }
+    return;
+  }
   const geometry=await page.evaluate(()=>{
     const shell=document.querySelector('.m26-client-route-shell');
     const scroller=shell?.querySelector(':scope > :not(.m26-client-bottom-nav-layer)');
