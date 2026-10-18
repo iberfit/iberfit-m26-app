@@ -68,7 +68,38 @@ async function capture(page,{account,project,state,suffix=''}){
 }
 
 async function certifyNonOverlappingClientDock(page,project,route){
-  if((project.viewport?.width||0)>900)return;
+  if((project.viewport?.width||0)>900){
+    // Desktop pointer users intentionally have no Client dock. On tablet
+    // touch, where both the shell rail and the dock are visible, check the
+    // *actual hit regions*: a screenshot can conceal a clipped first icon.
+    const railDock=await page.evaluate(()=>{
+      const shell=document.querySelector('.m26-shell[data-m26-role="client"]');
+      const sidebar=shell?.querySelector('.m26-sidebar');
+      const dock=shell?.querySelector('.m26-client-bottom-nav');
+      if(!sidebar||!dock||getComputedStyle(sidebar).display==='none'||
+          getComputedStyle(dock.closest('.m26-client-bottom-nav-layer')).display==='none')return null;
+      const rail=sidebar.getBoundingClientRect();
+      const nav=dock.getBoundingClientRect();
+      const first=dock.querySelector('.m26-client-bottom-nav-item');
+      const firstRect=first?.getBoundingClientRect();
+      const point=firstRect?document.elementFromPoint(firstRect.left+firstRect.width/2,firstRect.top+firstRect.height/2):null;
+      return {
+        railRight:rail.right,
+        dockLeft:nav.left,
+        dockRight:nav.right,
+        viewportWidth:document.documentElement.clientWidth,
+        firstLeft:firstRect?.left??-1,
+        firstAccessible:Boolean(first&&point&&(first===point||first.contains(point))),
+      };
+    });
+    if(railDock){
+      expect(railDock.dockLeft,`${route}: tablet Cliente dock must start beyond the rail`).toBeGreaterThanOrEqual(railDock.railRight-1);
+      expect(railDock.firstLeft,`${route}: first nav button cannot be hidden behind sidebar`).toBeGreaterThanOrEqual(railDock.railRight-1);
+      expect(railDock.dockRight,`${route}: the dock must fit the remaining viewport width`).toBeLessThanOrEqual(railDock.viewportWidth+1);
+      expect(railDock.firstAccessible,`${route}: first dock button must receive a real pointer hit`).toBe(true);
+    }
+    return;
+  }
   const geometry=await page.evaluate(()=>{
     const shell=document.querySelector('.m26-client-route-shell');
     const scroller=shell?.querySelector(':scope > :not(.m26-client-bottom-nav-layer)');
@@ -301,6 +332,38 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           const disclosure=page.locator('.m26-client-home-secondary-disclosure > summary');
           const summaryDisplay=await disclosure.evaluate((node)=>getComputedStyle(node).display);
           expect(summaryDisplay,'Mobile disclosure indicator needs a stable two-column layout').toBe('grid');
+        }
+
+        // SIGNATURE Client Editorial V3: certify actual computed warm surfaces,
+        // the canonical primary action and the data-derived train/IRI split.
+        const editorial=page.locator('.m26-client-home-editorial-v3');
+        await expect(editorial).toBeVisible({timeout:6_000});
+        const heroMaterials=await editorial.evaluate((root)=>{
+          const hero=root.querySelector('.m26-client-home-hero');
+          const action=root.querySelector('.m26-client-home-primary-zone');
+          const button=action?.querySelector('.m26-today-action.is-primary');
+          const rect=root.getBoundingClientRect();
+          const visualWidth=document.documentElement.clientWidth;
+          return {
+            heroBg:hero?getComputedStyle(hero).backgroundColor:null,
+            actionBg:action?getComputedStyle(action).backgroundColor:null,
+            buttonHeight:button?.getBoundingClientRect().height??0,
+            sectionWidth:rect.width,
+            viewportWidth:visualWidth,
+            stepCount:root.querySelectorAll('.m26-client-home-journey-steps > li').length,
+            trainingSection:root.querySelectorAll('[data-m26-client-training-journey]').length,
+          };
+        });
+        expect(heroMaterials.heroBg).toBeTruthy();
+        expect(heroMaterials.actionBg).toBeTruthy();
+        expect(heroMaterials.heroBg,'The warm decision panel must be visually distinct from the forest editorial hero').not.toBe(heroMaterials.actionBg);
+        expect(heroMaterials.buttonHeight,'The primary action must keep a comfortable touch target').toBeGreaterThanOrEqual(48);
+        expect(heroMaterials.sectionWidth,'Home must not exceed the visual viewport').toBeLessThanOrEqual(heroMaterials.viewportWidth+1);
+        if(heroMaterials.trainingSection){
+          expect(heroMaterials.stepCount,'Real Client training should expose exactly three descriptive stages').toBe(3);
+          await expect(editorial.locator('.m26-client-home-journey-steps')).toContainText('Seguimiento');
+        }else{
+          await expect(editorial.locator('.m26-client-home-journey-steps')).toHaveCount(0);
         }
 
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));

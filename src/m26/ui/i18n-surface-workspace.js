@@ -1,4 +1,15 @@
 export const WORKSPACE_SURFACE_ROWS=Object.freeze([
+  // SIGNATURE 360 U1 Client editorial journey: complete ES/EN/FR/PT copy.
+  ["El método IBERFIT","The IBERFIT method","La méthode IBERFIT","O método IBERFIT"],
+  ["Tu proceso de entrenamiento","Your training journey","Votre parcours d’entraînement","O seu percurso de treino"],
+  ["Planificar, entrenar y evaluar. Cada etapa con criterio.","Plan, train and assess. Every stage has a purpose.","Planifier, s’entraîner et évaluer. Chaque étape a son sens.","Planear, treinar e avaliar. Cada etapa tem um propósito."],
+  ["Plan o sesiones disponibles","Plan or sessions available","Programme ou séances disponibles","Plano ou sessões disponíveis"],
+  ["El equipo está preparando tu plan","Your team is preparing your plan","Votre équipe prépare votre programme","A equipa está a preparar o seu plano"],
+  ["Servicio en pausa · historial conservado","Service paused · history preserved","Service en pause · historique conservé","Serviço em pausa · histórico preservado"],
+  ["Hay una sesión lista para empezar","A session is ready to start","Une séance est prête à commencer","Há uma sessão pronta a começar"],
+  ["Tienes sesiones para consultar","Sessions available to review","Séances disponibles à consulter","Tem sessões disponíveis para consultar"],
+  ["Aparecerán aquí cuando estén publicadas","They will appear here once published","Elles apparaîtront ici après publication","Aparecerão aqui quando forem publicadas"],
+  ["Evolución basada en registros reales","Progress based on actual records","Évolution fondée sur des données réelles","Evolução baseada em registos reais"],
 ['Evaluación en preparación','Assessment in preparation','Évaluation en préparation','Avaliação em preparação'],
 ['Evaluación no iniciada','Assessment not started','Évaluation non démarrée','Avaliação não iniciada'],
 ['Cliente sin nombre','Unnamed client','Client sans nom','Cliente sem nome'],

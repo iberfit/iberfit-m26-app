@@ -550,3 +550,22 @@
     overflow-y: visible;
   }
 }
+
+
+/* SIGNATURE 360 U1 · tablet rail and Client dock cannot share pixels.
+   901px+ touch devices retain the desktop document scroller and fixed dock;
+   anchor it to the real shell rail, never the left side of the entire viewport.
+   Compact/mobile <=900px keeps the existing independent in-flow dock. */
+[data-m26-layout="medium-touch"] .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-layer{
+  left:5rem;
+  right:0;
+}
+[data-m26-layout="expanded-touch"] .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-layer{
+  left:5.4rem;
+  right:0;
+}
+[data-m26-layout="medium-touch"] .m26-shell[data-m26-role="client"] .m26-client-bottom-nav,
+[data-m26-layout="expanded-touch"] .m26-shell[data-m26-role="client"] .m26-client-bottom-nav{
+  width:100%;
+  max-width:940px;
+}
