@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f2fc78d0ab2714a98942523590769b1665fbcb57",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "80a0638e617e0fc91710f8b1847d17c93f9b0ba9",
+  "notes": "SIGNATURE 360 U7 Admin Operaciones P0: truthful urgency, deadline and ownership, open/closed separation, retained task create/resolve permissions and revision, premium responsive, PWA/i18n, no backend/SQL/Auth/RLS/Edge. PR #1031 8/8 premerge, 12/12 Canary postmerge; Exact Canary #39148487736 and remote #39148487739 SUCCESS. M44 encrypted DB/Storage isolated recovery run #38888628869 attempt 13 SUCCESS. Production fail-closed LIVE identity, smoke, full audit, rollback."
+}
