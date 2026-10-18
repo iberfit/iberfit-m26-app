@@ -442,7 +442,7 @@ function focusStateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
   const document=root.ownerDocument;
-  state={wakeLock:null,wakeRequest:null,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onVisibility:null};
+  state={wakeLock:null,wakeRequest:null,wakeDesired:false,wakeGeneration:0,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onVisibility:null};
   state.onClick=(event)=>{
     const proxy=event.target?.closest?.('[data-session-focus-proxy]');
     if(proxy&&root.contains?.(proxy)){
@@ -480,6 +480,8 @@ function wakeBadge(root,active){
 
 async function releaseWakeLock(root,state=ROOT_STATE.get(root)){
   if(!state)return;
+  state.wakeDesired=false;
+  state.wakeGeneration+=1;
   const sentinel=state.wakeLock;
   state.wakeLock=null;
   wakeBadge(root,false);
@@ -491,10 +493,11 @@ async function syncWakeLock(root,shouldKeepAwake){
   const state=focusStateFor(root);
   if(state.destroyed)return false;
   const document=root.ownerDocument;
-  if(!shouldKeepAwake||document?.visibilityState==='hidden'){
+  if(!shouldKeepAwake||document?.visibilityState==='hidden'||!state.enabled){
     await releaseWakeLock(root,state);
     return false;
   }
+  state.wakeDesired=true;
   if(state.wakeLock){
     wakeBadge(root,true);
     return true;
@@ -502,11 +505,12 @@ async function syncWakeLock(root,shouldKeepAwake){
   if(state.wakeRequest)return state.wakeRequest;
   const navigator=document?.defaultView?.navigator||globalThis.navigator;
   if(typeof navigator?.wakeLock?.request!=='function')return false;
+  const generation=state.wakeGeneration;
 
   state.wakeRequest=(async()=>{
     try{
-      const sentinel=await navigator.wakeLock.request('screen');
-      if(state.destroyed){
+      const sentinel=await Promise.resolve().then(()=>navigator.wakeLock.request('screen'));
+      if(state.destroyed||!state.enabled||!state.wakeDesired||document?.visibilityState==='hidden'||state.wakeGeneration!==generation||sentinel?.released===true){
         try{await sentinel?.release?.();}catch{}
         return false;
       }
@@ -522,6 +526,13 @@ async function syncWakeLock(root,shouldKeepAwake){
       return false;
     }finally{
       state.wakeRequest=null;
+      if(!state.destroyed&&state.enabled&&state.wakeDesired&&state.wakeGeneration!==generation&&document?.visibilityState!=='hidden'){
+        queueMicrotask(()=>{
+          if(!state.destroyed&&state.enabled&&state.wakeDesired&&document?.visibilityState!=='hidden'&&!state.wakeRequest&&!state.wakeLock){
+            void syncWakeLock(root,true);
+          }
+        });
+      }
     }
   })();
   return state.wakeRequest;
