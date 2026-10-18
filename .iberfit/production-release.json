@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "412699a5f9224fc5bf31f76ef52d90bbe1e3db09",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "4851c289b42bb37a97b1a3134354969ab5b20810",
+  "notes": "IBERFIT SIGNATURE 360 U3 Admin Usuarios 360 actionable access triage PR #1027 on exact Canary 412699a5. All 11/11 postmerge workflows SUCCESS; frontend-only changes versus verified live U2. Strict M44 fresh recovery gate, preview, rollback, live production identity, multi-device smoke. No SQL/Auth/RLS/Edge/hosted auth writes."
+}
