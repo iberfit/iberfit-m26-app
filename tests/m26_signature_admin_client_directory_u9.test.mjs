@@ -94,7 +94,7 @@ test('Client table mobile ergonomics preserve semantic table and keyboard scroll
   assert.match(block,/outline:3px solid var\(--iberfit-color-focus/);
   assert.match(block,/@media\(max-width:700px\)/);
   assert.match(block,/@media\(forced-colors:active\)/);
-  assert.doesNotMatch(block,/display:none\s*;\s*}\s*\/\*?[^\n]*client-row-actions/u);
+  assert.match(block,/\.m26-admin-client-table \.m26-admin-client-row-actions>button/u);
 });
 
 test('Client table navigation copy has ES EN FR PT registered translations',()=>{
