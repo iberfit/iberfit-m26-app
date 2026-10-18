@@ -557,6 +557,17 @@ test('SIGNATURE U1 visual QA visits all nine authenticated Client destinations w
   assert.match(spec,/expect\(blocked,'Visual evidence attempted a business mutation or foreign request'\)/u);
 });
 
+test('SIGNATURE Client compact shell locks document scrolling without disabling route scroll',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  assert.match(css,/@media \(max-width: 900px\)\s*\{[\s\S]*?\.m26-shell\[data-m26-role="client"\]\s*\{\s*height:\s*100dvh;\s*min-height:\s*0;\s*overflow:\s*clip;/u);
+  assert.match(css,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u,
+    'Only Client route content scrolls, not the outer shell');
+  assert.match(visual,/documentScrollY[^\n]*scrollY/u);
+  assert.match(visual,/document must not scroll behind the Client dock/u);
+  assert.match(visual,/shellBottom[^\n]*viewport-bound/u);
+});
+
 test('SIGNATURE mobile dock belongs to a separate viewport row, never the content layer',()=>{
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
   const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
