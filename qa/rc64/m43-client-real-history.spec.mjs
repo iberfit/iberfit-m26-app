@@ -108,8 +108,13 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   const planLink=page.locator('[data-m26-area="planificacion"]:visible').first();
   await expect(planLink).toBeVisible();
   await planLink.click();
-  await expect(page.locator('[data-m27-session-surface="planning"]')).toBeVisible();
-  await expect(page.getByRole('heading',{name:/^Planificación ·/})).toBeVisible();
+  const planning=page.locator('[data-m27-session-surface="planning"]');
+  await expect(planning).toBeVisible();
+  // SIGNATURE 360 labels the current live heading "Tu planificación"; a
+  // historic "Planificación ·..." locator failed despite valid Client content.
+  // Keep the check scoped to the real route, never a detached fixture or shell.
+  await expect(planning.getByRole('heading',{name:'Tu planificación',exact:true})).toBeVisible();
+  await expect(planning.locator('article').filter({hasText:LIVE_MARKER}).first()).toBeVisible();
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
   await page.screenshot({path:join(evidenceDirectory,`${testInfo.project.name}-planning.png`),fullPage:true});
   const geometry=await page.evaluate(()=>({
