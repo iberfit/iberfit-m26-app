@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "219912e627cfbf109c812c2619e025b6d18301e3",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "412699a5f9224fc5bf31f76ef52d90bbe1e3db09",
+  "notes": "SIGNATURE 360 U4+U5 Coach: PR #1028 full multiline confirmed professional notes and PR #1029 remove silent upstream pain/comment/decision truncation. Postmerge SHA 219912e6 certified 10/10; Canary Exact Deploy #39136106675 SUCCESS; M44 independent encrypted DB/Storage restore #38888628869 attempt 11 SUCCESS, fresh. Four frontend/test-only paths vs certified PROD 412699a5; no SQL/Auth/RLS/Edge/Hosted Auth writes. Fail-closed live prior identity, regression, smoke, rollback."
+}
