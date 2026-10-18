@@ -75,11 +75,24 @@ test('Confirmed Coach session keeps every character from long professional feedb
 
 test('Long overdue Coach decisions are preserved, and source contains no implicit text cap',()=>{
   const decision='Reevaluar prescripción del bloque y documentar decisión antes de progresar. '.repeat(10).trim();
-  const signal=buildCoachLiveContextSignal({
-    feedback:{pain:false},
-    decisions:{overdueCount:1,topSignal:decision},
-  });
+  const state={
+    collections:{
+      sessionExecutions:[],
+      m26Entities:[{
+        entityType:'action_outcome',
+        entityId:'decision-coach-long-1',
+        clientId:'client-context-1',
+        status:'abierto',
+        signalSummary:decision,
+        reviewAt:'2026-10-17',
+      }],
+    },
+  };
+  const context=buildCoachSessionReadinessContext(state,'client-context-1',{now:new Date('2026-10-18T12:00:00Z')});
+  const signal=buildCoachLiveContextSignal(context);
   assert.ok(decision.length>280);
+  assert.equal(context.decisions.overdueCount,1);
+  assert.equal(context.decisions.topSignal,decision);
   assert.equal(signal.kind,'decision-overdue');
   assert.equal(signal.detail,decision);
   assert.doesNotMatch(source,/function coachBriefText\(value,max=/u);
