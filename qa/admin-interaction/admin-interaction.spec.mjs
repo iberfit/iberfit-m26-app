@@ -89,6 +89,45 @@ function capturePageErrors(page){
   return errors;
 }
 
+test('Admin Access 360 triages real identity signals without losing cards or creating scroll overflow',async({page})=>{
+  const errors=capturePageErrors(page);
+  await page.goto('/qa/admin-interaction/fixture.html?route=users&triage=1',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
+  const search=page.locator('[data-admin-user-search]');
+  const attention=page.locator('[data-admin-user-filter="attention"]');
+  const result=page.locator('[data-admin-user-visible-count]');
+  const reset=page.locator('[data-admin-user-filter-reset]');
+  const review=page.locator('[data-admin-user-review-filter]');
+  await expect(result).toHaveText('4');
+  await attention.selectOption('invitation');
+  await expect(result).toHaveText('1');
+  await expect(page.locator('[data-admin-user-card][data-user-access-state="invitacion_pendiente"]')).toBeVisible();
+  await expect(reset).toBeVisible();
+  await attention.selectOption('unlinked');
+  await expect(result).toHaveText('1');
+  await expect(page.locator('[data-admin-user-card][data-user-unlinked="true"]')).toBeVisible();
+  await reset.click();
+  await expect(result).toHaveText('4');
+  await expect(attention).toHaveValue('');
+  await expect(reset).toBeHidden();
+  await search.fill('inexistente');
+  await expect(result).toHaveText('0');
+  await review.click();
+  await expect(search).toHaveValue('');
+  await expect(attention).toHaveValue('integrity');
+  await expect(attention).toBeFocused();
+  await expect(review).toHaveAttribute('aria-pressed','true');
+  await expect(result).toHaveText('1');
+  await expect(page.locator('[data-admin-user-card][data-user-integrity="true"]')).toBeVisible();
+  const dimensions=await page.evaluate(()=>({
+    scrollWidth:document.documentElement.scrollWidth,
+    clientWidth:document.documentElement.clientWidth,
+  }));
+  expect(dimensions.scrollWidth,'Admin filters must not create horizontal page overflow')
+    .toBeLessThanOrEqual(dimensions.clientWidth+1);
+  expect(errors).toEqual([]);
+});
+
 test('Admin user inputs, dropdowns and filters remain interactive through a real controller rerender',async({page,browserName})=>{
   const errors=capturePageErrors(page);
   await page.goto('/qa/admin-interaction/fixture.html?route=users',{waitUntil:'domcontentloaded'});

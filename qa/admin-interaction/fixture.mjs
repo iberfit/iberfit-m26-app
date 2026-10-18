@@ -13,6 +13,7 @@ const CLIENT='33333333-3333-4333-8333-333333333333';
 const CLIENT_ID='44444444-4444-4444-8444-444444444444';
 const ORG='00000000-0000-4000-8000-000000000140';
 const lifecycleQA=new URLSearchParams(location.search).has('lifecycle');
+const triageQA=new URLSearchParams(location.search).has('triage');
 const people=lifecycleQA?[
   {id:'iri-person',name:'Persona con IRI',status:'active',lifecycle:{status:'onboarding'},trainingServiceStatus:'none',serviceKind:'none',coachNames:['Coach Interacción']},
   {id:'active-person',name:'Cliente activo',status:'active',lifecycle:{status:'active'},trainingServiceStatus:'active',serviceKind:'training',coachNames:['Coach Interacción']},
@@ -70,15 +71,31 @@ const users=[
 ];
 
 function usersVm(){
+  const currentUsers=structuredClone(users);
+  if(triageQA){
+    // Local, non-network fixture only. No production identity or DB changes.
+    currentUsers[2].integrityIssues=[{code:'AUTH_CLIENT_LINK_REVIEW'}];
+    currentUsers[2].access={status:'invitacion_pendiente',authLinked:false};
+    currentUsers.push({
+      id:'55555555-5555-4555-8555-555555555555',
+      userId:'55555555-5555-4555-8555-555555555555',
+      name:'Cliente sin vínculo QA',
+      authEmail:'sin-vinculo@iberfit.test',
+      status:'active',roles:['client'],primaryRole:'client',
+      integrityIssues:[],access:null,
+    });
+  }
   return {
     admin:true,
     kind:'admin-usuarios',
     currentUserId:CURRENT_ADMIN,
-    users:structuredClone(users),
+    users:currentUsers,
     roles:[],
     canManageStatus:true,
     canManageRoles:true,
-    user360Summary:{total:3,activeUsers:2,pendingInvitations:0,integrityIssueCount:0},
+    user360Summary:triageQA
+      ?{total:4,activeUsers:3,pendingInvitations:1,integrityIssueCount:1}
+      :{total:3,activeUsers:2,pendingInvitations:0,integrityIssueCount:0},
   };
 }
 
