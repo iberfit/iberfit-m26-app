@@ -1,4 +1,5 @@
 import {appointmentModalityLabel,clientModalityLabel,normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
+import {deriveAdminOperationsTriage} from './operation-triage.js';
 const e=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const safeJson=(value)=>JSON.stringify(value??null).replaceAll('&','\\u0026').replaceAll('<','\\u003c').replaceAll('>','\\u003e').replaceAll('\\u2028','\\u2028').replaceAll('\\u2029','\\u2029');
 const badge=(v)=>`<span class="m26-admin-badge">${e(v||'Sin estado')}</span>`;
@@ -117,6 +118,49 @@ function coach360Card(coach={}){
       <footer class="m26-admin-coach360-actions"><button type="button" class="m26-primary-action" data-m26-area="admin-agenda">Abrir agenda global</button><button type="button" data-m26-area="admin-clientes">Gestionar clientes</button></footer>
     </div>
   </details>`;
+}
+function operationStatusLabel(status){
+  return ({open:'Abierta',pending:'Pendiente',in_progress:'En curso',resolved:'Resuelta',cancelled:'Cancelada',canceled:'Cancelada',closed:'Cerrada'})[String(status||'').toLowerCase()]||String(status||'Sin estado');
+}
+function operationItem(item,{canManage=false}={}){
+  const task=item.task||{};
+  const title=task.title||task.type||'Incidencia sin título';
+  const deadline=item.dueLabel?`${item.overdue?'Vencida':item.dueToday?'Vence hoy':'Límite'} · ${item.dueLabel}`:
+    (task.dueAt?'Fecha límite no verificable':'Sin plazo definido');
+  const outcome=!item.open&&task.resolutionNote
+    ?`<p class="m26-admin-operation-outcome"><strong>Resolución:</strong> ${e(task.resolutionNote)}</p>`:'';
+  const resolve=canManage&&item.open?form('task-resolve',
+    `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Resolver incidencia'):'';
+  return `<article class="m26-admin-operation-item${item.overdue?' is-overdue':''}" data-admin-operation-status="${item.open?'open':'closed'}" data-admin-operation-priority="${e(String(task.priority||'normal').toLowerCase())}">
+    <div class="m26-admin-operation-top"><div class="m26-admin-operation-title"><span class="m26-eyebrow">${e(operationStatusLabel(task.status))}</span><h3>${e(title)}</h3></div><strong class="m26-admin-operation-priority" data-priority="${item.priorityRank===0?'critical':item.priorityRank===1?'high':'normal'}">${e(item.priorityLabel)}</strong></div>
+    ${task.detail?`<p class="m26-admin-operation-detail">${e(task.detail)}</p>`:''}
+    <div class="m26-admin-operation-meta"><span>${e(item.ownerLabel)}</span><span${item.overdue?' data-operation-overdue="true"':''}>${e(deadline)}</span></div>
+    ${outcome}${resolve}
+  </article>`;
+}
+function renderOperations(vm){
+  const triage=vm.operationTriage||deriveAdminOperationsTriage({tasks:vm.tasks||[],timeZone:vm.organization?.timezone||'America/Santiago'});
+  const summary=triage.summary;
+  const create=vm.canManage?form('task-create',
+    `<label>Prioridad<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select></label><input type="hidden" name="taskType" value="manual_review"><label>Título<input name="title" maxlength="200" required placeholder="Qué requiere atención"></label><label>Detalle<textarea name="detail" maxlength="2000" placeholder="Contexto verificable para resolverla"></textarea></label>`,'Crear incidencia'):'';
+  const pending=triage.open.length
+    ?`<div class="m26-admin-operation-list">${triage.open.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}</div>`
+    :empty('Sin incidencias pendientes','No existen tareas operativas abiertas con los datos actuales.');
+  const history=triage.history.length
+    ?`<details class="m26-admin-operation-history"><summary>Historial de incidencias · ${summary.history}</summary><div class="m26-admin-operation-list">${triage.history.map((item)=>operationItem(item)).join('')}</div></details>`
+    :'';
+  return `<div class="m26-admin-route m26-admin-operations" data-admin-surface="operations">
+    ${intro('Operación verificada','Centro operativo','Incidencias reales ordenadas por gravedad y plazo. Los estados resueltos permanecen consultables, pero no se presentan como pendientes.')}
+    <section class="m26-admin-operation-overview" aria-label="Resumen operativo">
+      ${stat('Abiertas',summary.open)}
+      ${stat('Críticas',summary.critical)}
+      ${stat('Vencidas',summary.overdue)}
+      ${stat('Sin responsable',summary.unassigned)}
+    </section>
+    <section class="m26-admin-panel" aria-labelledby="m26-operations-open-title"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Acción prioritaria</p><h2 id="m26-operations-open-title">Pendientes · ${summary.open}</h2><p>Primero las críticas, después las próximas decisiones con plazo.</p></div></div>${pending}</section>
+    ${create?`<details class="m26-admin-operation-create"><summary>Nueva incidencia manual</summary>${create}</details>`:''}
+    ${history}
+  </div>`;
 }
 function renderHome(vm){
   const cc=vm.commandCenter||{summary:{},priorities:[],coachLoad:[],criticalTasks:[]};
@@ -530,7 +574,7 @@ function adminAgendaTimestamp(item){
 function renderSimple(vm){if(vm.kind==='admin-agenda'){
   const ordered=[...vm.appointments].sort((a,b)=>adminAgendaTimestamp(a)-adminAgendaTimestamp(b));
   return `<div class="m26-admin-route">${intro('Capacidad','Agenda global','Supervisa todas las citas y modalidades.')}<section class="m26-admin-panel">${ordered.length?rows(['Cliente','Fecha y hora','Coach','Modalidad','Estado'],ordered.map((x)=>`<tr><td><strong>${e(x.clientName||x.client_name||'Cliente sin identificar')}</strong><small>${e(!x.clientName&&!x.client_name?(x.clientId||x.client_id||''):'')}</small></td><td>${e(adminDateLabel(x.startAt||x.start_at||x.startsAt||x.starts_at||x.scheduledAt||x.scheduled_at||x.date||'',{timeZone:vm.organization?.timezone,locale:vm.organization?.locale})||'Fecha por confirmar')}</td><td>${e(x.coachName||x.coach_name||'Sin Coach indicado')}</td><td>${e(adminAgendaModalityLabel(x.modality||x.modalidad||x.mode))}</td><td>${badge(adminAgendaStatusLabel(x.status))}</td></tr>`),{className:'m26-admin-agenda-table',scrollLabel:'Agenda global'}):empty('Agenda vacía','No hay citas visibles.')}</section></div>`;}
-  if(vm.kind==='admin-operaciones'){const create=vm.canManage?form('task-create',`<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select><input name="taskType" value="manual_review"><input name="title" required placeholder="Título"><textarea name="detail" placeholder="Detalle"></textarea>`,'Crear tarea'):'';return `<div class="m26-admin-route">${intro('Control','Centro operativo','Centraliza incidencias y excepciones.')}${create}<section class="m26-admin-panel">${vm.tasks.length?vm.tasks.map((x)=>`<div class="m26-admin-list-item"><div><strong>${e(x.title||x.type)}</strong><p>${e(x.detail||'')}</p></div>${badge(x.status)}${vm.canManage&&!['resolved','cancelled'].includes(x.status)?form('task-resolve',`<input type="hidden" name="taskId" value="${e(x.id)}"><input type="hidden" name="baseRevision" value="${e(x.revision||0)}"><input name="reason" minlength="3" required placeholder="Resolución">`,'Resolver'):''}</div>`).join(''):empty('Sin tareas','No hay incidencias abiertas.')}</section></div>`;}
+  if(vm.kind==='admin-operaciones')return renderOperations(vm);
   if(vm.kind==='admin-comunicacion'){const create=vm.canManage?form('template-save',`<input name="key" pattern="[a-z0-9_.:-]{3,80}" required placeholder="Clave"><input name="name" required placeholder="Nombre"><select name="channel"><option value="in_app">In-app</option><option value="email">Email</option><option value="push">Push</option></select><input name="subject" placeholder="Asunto"><textarea name="body" required placeholder="Contenido"></textarea>`,'Guardar plantilla'):'';return `<div class="m26-admin-route">${intro('Relación','Comunicación','Gestiona plantillas y revisa entregas.')}${create}<section class="m26-admin-panel">${vm.templates.length?vm.templates.map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.name||x.key)}</strong>${badge(x.status)}</div>`).join(''):empty('Sin plantillas','Crea la primera plantilla.')}</section></div>`;}
   if(vm.kind==='admin-automatizaciones'){const create=vm.canManage?form('automation-save',`<input name="key" pattern="[a-z0-9_.:-]{3,80}" required placeholder="Clave"><input name="name" required placeholder="Nombre"><select name="triggerType"><option value="appointment_window_open">Cita</option><option value="client_inactive">Inactividad</option><option value="checkin_due">Check-in</option><option value="iri_review_due">Revisión IRI</option></select><select name="actionType"><option value="notification">Notificación</option><option value="operational_task">Tarea</option></select><select name="status"><option value="draft">Borrador</option><option value="active">Activa</option><option value="paused">Pausada</option></select><textarea name="configuration" placeholder='{"templateKey":"appointment.reminder"}'></textarea>`,'Guardar regla'):'';return `<div class="m26-admin-route">${intro('Eficiencia','Automatizaciones','Automatiza tareas, nunca decisiones profesionales.')}${create}<section class="m26-admin-panel">${vm.rules.length?vm.rules.map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.name||x.key)}</strong>${badge(x.status)}</div>`).join(''):empty('Sin reglas','No hay automatizaciones.')}</section></div>`;}
   if(vm.kind==='admin-analitica'){const evaluatedWithoutTraining=(vm.clients||[]).filter((client)=>String(client?.serviceKind||'none')!=='training'&&client?.experience?.readiness?.iriConfirmed===true).length;return `<div class="m26-admin-route">${intro('Decisiones','Analítica del servicio','Datos operativos sin mezclar personas evaluadas con clientes de entrenamiento.')}<section class="m26-admin-stats">${stat('Clientes activos',vm.analytics?.activeClients??'Sin datos')}${stat('Evaluadas sin entrenamiento',evaluatedWithoutTraining)}${stat('Adherencia',vm.analytics?.averageAdherence??'Sin datos')}${stat('Bajas 30 días',vm.analytics?.churn30d??'Sin datos')}${stat('Conversión',vm.analytics?.conversionRate??'Sin datos')}</section></div>`;}
