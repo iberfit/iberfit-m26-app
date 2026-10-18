@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "80a0638e617e0fc91710f8b1847d17c93f9b0ba9",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "219912e627cfbf109c812c2619e025b6d18301e3",
+  "notes": "SIGNATURE 360 U6 Coach and Client session wake-lock lifecycle race guard. PR #1030 merged, premerge 6/6 success, postmerge 10/10 success; Canary Exact Deploy #39143431616 success, remote #39143431662 success; M44 encrypted DB/Storage independent restore #38888628869 attempt 12 success. Two frontend/test paths only. No SQL, backend, Auth, Edge or data writes. Strict LIVE identity, smoke and rollback."
+}
