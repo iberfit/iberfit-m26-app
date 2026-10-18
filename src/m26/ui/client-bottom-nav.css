@@ -244,6 +244,15 @@
 /* SIGNATURE 360 · Non-overlapping Client mobile navigation.
  * Content scrolls in its own panel, dock occupies independent layout space. */
 @media (max-width: 900px) {
+  /* The client app is a bounded viewport workspace with its own route scroller.
+   * Long Settings forms and guide-driven navigation must not scroll the entire
+   * document, otherwise the in-flow dock floats above an unused screen strip. */
+  .m26-shell[data-m26-role="client"] {
+    height: 100dvh;
+    min-height: 0;
+    overflow: clip;
+  }
+
   .m26-shell[data-m26-role="client"] .m26-workspace {
     height: 100dvh;
     min-height: 0;
