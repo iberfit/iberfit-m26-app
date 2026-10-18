@@ -29,6 +29,9 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_catalog_public_v1',
   'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
+  // Verified on QA pg_proc: authenticated, self-scoped SELECT-only subscription
+  // count/status; never allow subscribe, unsubscribe or push dispatch here.
+  'iberfit_web_push_status_v1',
 ]);
 
 function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
