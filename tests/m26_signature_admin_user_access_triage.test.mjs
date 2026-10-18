@@ -71,6 +71,18 @@ test('Admin triage is scoped to visible real users and retains privileged manage
   assert.doesNotMatch(html,/vincular por correo autom[aá]ticamente/u);
 });
 
+test('Global orphaned access anomaly never invents an associated user or fake drilldown',()=>{
+  const html=renderAdminRoute({
+    admin:{available:true},kind:'admin-usuarios',
+    users:[{id:'u1',userId:'u1',name:'Cliente aislado',roles:['client'],status:'active',integrityIssues:[]}],
+    user360Summary:{total:1,activeUsers:1,pendingInvitations:0,integrityIssueCount:2},
+    canManageStatus:false,canManageRoles:false,
+  });
+  assert.match(html,/Hay vínculos sin una cuenta del directorio identificable/u);
+  assert.doesNotMatch(html,/data-admin-user-review-filter/u);
+  assert.match(html,/data-user-integrity="false"/u);
+});
+
 test('Triage searches real integrity issues, does not infer broken access from invitation',()=>{
   const f=directoryFixture();
   const {applyUserDirectoryFilters}=__adminControllerInternals;
