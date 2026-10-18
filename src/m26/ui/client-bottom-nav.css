@@ -265,7 +265,10 @@
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    /* overflow:hidden creates a programmatically scrollable ancestor:
+     * contextual help scrollIntoView can shift the ENTIRE dock up while
+     * document.scrollY remains zero. clip keeps only the route scrollport. */
+    overflow: clip;
     padding-bottom: 0;
     scrollbar-gutter: auto;
   }
