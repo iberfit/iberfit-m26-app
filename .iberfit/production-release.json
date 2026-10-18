@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "9c5ef0bfea3b1e6e92ffd56e8d31609d9060dd0e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "069ba68298dd57181a62cc88ce6c31112ac92176",
+  "notes": "IBERFIT SIGNATURE 360 Cliente U1 + P0 frontend-only, exact Canary live certified; production SQL/Edge/Hosted Auth unchanged. Run fail-closed, protected rollback."
+}
