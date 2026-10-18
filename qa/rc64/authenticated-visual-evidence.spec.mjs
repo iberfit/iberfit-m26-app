@@ -388,6 +388,15 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             const destination=page.locator(`.m26-client-bottom-nav-menu [role="menuitem"][data-m26-area="${area}"]`);
             await expect(destination,`${area}: Más must retain an accessible destination`).toBeVisible({timeout:5_000});
             await destination.click({timeout:7_000});
+          }else if(area==='ajustes'){
+            // Desktop intentionally places Settings in the account popover,
+            // not in the ordinary navigation groups. Verify its real path.
+            const settingsMenu=page.locator('.m26-sidebar details.m26-settings-menu > summary').first();
+            await expect(settingsMenu,'Desktop Client must expose Settings in the account footer').toBeVisible();
+            await settingsMenu.click();
+            const settingsPage=page.locator('.m26-sidebar .m26-settings-popover [data-m26-area="ajustes"]').first();
+            await expect(settingsPage,'Account menu must link to full Settings').toBeVisible();
+            await settingsPage.click();
           }else{
             const destination=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
             await expect(destination,`${area}: desktop sidebar must retain the destination`).toBeVisible({timeout:5_000});
