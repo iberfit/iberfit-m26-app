@@ -32,6 +32,6 @@ test('bootstrap role/access rollback restores exact prior decision helpers from 
 });
 
 test('PROD guards normalize real carriage returns, never a literal backslash-r string',()=>{
-  assert.equal(migration.split(String.raw`E'\\r'`).length-1,2);
-  assert.equal(migration.split(String.raw`E'\\\\r'`).length-1,0);
+  assert.equal(migration.split(String.raw`E'\r'`).length-1,2);
+  assert.equal(migration.split(String.raw`E'\\r'`).length-1,0);
 });
