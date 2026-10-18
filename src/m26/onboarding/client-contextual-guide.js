@@ -609,7 +609,17 @@ export function createClientContextualGuideController({
     }
     const settings=root.querySelector?.('[data-m26-client-context-guide-settings]');
     if(current!=='ajustes'){settings?.remove?.();return;}
-    if(!settings)root.querySelector?.('#m26-main')?.insertAdjacentHTML?.('beforeend',settingsHtml());
+    // Settings has its own nested route scroller. Mount contextual preferences
+    // INSIDE that scroller, not as a sibling of .m26-client-route-shell in main:
+    // a sibling consumes another flex row and pushes the in-flow mobile dock
+    // ~281px above the viewport, hiding the last screen behind an empty strip.
+    const host=root.querySelector?.(
+      '.m26-client-route-shell[data-client-bottom-nav-route="ajustes"] > .m26-settings-route'
+    );
+    if(!host)return;
+    if(settings){
+      if(settings.parentElement!==host)host.appendChild(settings);
+    }else host.insertAdjacentHTML?.('beforeend',settingsHtml());
   }
   function now(){
     scheduled=false;
