@@ -66,8 +66,9 @@ test('audit route prioritises actor, entity and time while keeping exact trace i
   assert.ok(html.indexOf('Cambio de acceso')<html.indexOf('Incidencia revisada'));
   assert.match(html,/<details class="m26-admin-audit-evidence">/);
   assert.match(html,/trace-1/);
-  const a=html.indexOf('Ver identificadores de trazabilidad');
-  assert.ok(a>html.indexOf('Incidencia revisada'));
+  const start=html.indexOf('Incidencia revisada');
+  const entry=html.slice(start,html.indexOf('</li>',start));
+  assert.ok(entry.indexOf('Ver identificadores de trazabilidad')>0,'technical disclosure follows the human event heading');
   assert.doesNotMatch(html,/data-admin-form=/);
 });
 
