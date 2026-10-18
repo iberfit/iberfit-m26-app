@@ -402,7 +402,8 @@ test('SIGNATURE Coach prior-session context remains fully readable at every devi
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/qa/rc64/fixture.html',{waitUntil:'domcontentloaded'});
   await page.addStyleTag({url:'/src/m26/design/runtime-static.css'});
-  const longContext='Molestia de rodilla derecha al descender, especialmente al superar la profundidad habitual. Reevaluar rango y carga antes de progresar.';
+  const longContext=('Molestia de rodilla derecha al descender, especialmente al superar la profundidad habitual. Reevaluar rango y carga antes de progresar. ').repeat(6).trim();
+  expect(longContext.length).toBeGreaterThan(220);
   const result=await page.evaluate(async(text)=>{
     document.body.innerHTML='<main id="coach-context-fixture"><section data-session-live-state="active"><div class="m26-session-live-hero"><h1>Sesión con Coach</h1></div></section></main>';
     const {enhanceSessionReadiness}=await import('/src/m26/ui/session-readiness.js');
