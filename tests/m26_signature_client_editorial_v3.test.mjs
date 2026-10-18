@@ -73,7 +73,7 @@ test('Paused training preserves history and does not promise a startable session
 
 test('IRI-only membership never creates a phantom training journey',()=>{
   const markup=renderHoyRoute(clientVm({
-    serviceKind:'iri',
+    serviceKind:'iri_only',
     clients:client({cycle:null}),
   }));
   assert.doesNotMatch(markup,/data-m26-client-training-journey/u);
