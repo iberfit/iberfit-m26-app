@@ -460,6 +460,22 @@ test('Client manual Guide access lives in sidebar utility and Más, never in the
   assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
 });
 
+test('Client Settings stays reachable on touch sidebar rails without a duplicate full desktop entry',()=>{
+  const shell=read('src/m26/shell/shell-render.js');
+  const css=read('src/m26/shell/shell.css');
+  const browser=read('qa/rc64/authenticated-visual-evidence.spec.mjs');
+  assert.match(shell,/const clientSettings=vm\.identity\.role==='client'/u);
+  assert.match(shell,/m26-client-settings-fallback/u);
+  assert.match(shell,/map\.delete\(settingsAreaForRole\(vm\.identity\.role\)\)/u,
+    'Settings must not be duplicated in ordinary primary navigation');
+  assert.match(css,/\.m26-client-settings-fallback\s*\{\s*display:\s*none;/u,
+    'Normal desktop must have only its account-menu Settings');
+  assert.match(css,/\[data-m26-layout="medium-touch"\][\s\S]*?m26-client-settings-fallback/u);
+  assert.match(css,/\[data-m26-layout="expanded-touch"\][\s\S]*?m26-client-settings-fallback/u);
+  assert.match(browser,/touchRailSettings/u,'Browser QA must navigate actual collapsed-rail Settings');
+  assert.match(browser,/tabletMore/u,'Browser QA must navigate actual tablet Más Settings');
+});
+
 test('Client Settings guidance stays within the scrollable route and cannot lift the bottom dock',()=>{
   const guide=read('src/m26/onboarding/client-contextual-guide.js');
   const settingsHost=guide.match(/const host=root\.querySelector\?\.\(\s*'\.m26-client-route-shell\[data-client-bottom-nav-route="ajustes"\] > \.m26-settings-route'\s*\)/u);
