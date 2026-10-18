@@ -52,7 +52,7 @@ test('Admin directory tables preserve native headings, region labels and keyboar
   assert.match(html,/data-training-service-status="paused"/);
   assert.match(html,/data-training-service-status="ended"/);
   assert.match(html,/data-training-service-status="none"/);
-  assert.match(html,/data-admin-person-filter-status" role="status" aria-live="polite"/);
+  assert.match(html,/data-admin-person-filter-status role="status" aria-live="polite"/);
   assert.match(html,/Desplaza la tabla lateralmente para ver todas las columnas y acciones/);
   assert.doesNotMatch(html,/data-admin-form="client-training-service"/);
   assert.doesNotMatch(html,/data-admin-client-edit-open=/);
@@ -72,7 +72,12 @@ test('Client and lead action forms keep every privileged command and gain input 
   assert.match(html,/name="baseRevision" value="7"/);
   assert.match(html,/data-admin-client-edit-dialog/);
   assert.match(html,/data-client-create-wizard/);
-  assert.match(html,/data-admin-form="client-invite-resend"|Sin acceso|Invitación/);
+  const retryVm=vm(true);
+  retryVm.clients=[{
+    ...clients[0],
+    lifecycle:{status:'active',access:{status:'invitacion_pendiente',invitationDeliveryStatus:'error'}},
+  }];
+  assert.match(renderAdminRoute(retryVm),/data-admin-form="client-invite-resend"/);
 });
 
 test('Client names remain escaped when inserted into table rows and attributes',()=>{
