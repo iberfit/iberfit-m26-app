@@ -1863,3 +1863,32 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 @media(forced-colors:active){.m26-admin-operation-item.is-overdue,.m26-admin-operation-priority[data-priority="critical"]{border-color:Mark}.m26-admin-operation-history>summary:focus-visible,.m26-admin-operation-create>summary:focus-visible{outline-color:Highlight}}
 @media(prefers-reduced-motion:reduce){.m26-admin-operations *{scroll-behavior:auto}}
 /* SIGNATURE 360 U7 END */
+
+
+/* SIGNATURE 360 U8: human-first Admin audit. Never imply results not present in the audit snapshot. */
+.m26-admin-audit-route{min-width:0}
+.m26-admin-audit-timeline{display:grid;list-style:none;margin:0;padding:0;gap:.65rem;min-width:0}
+.m26-admin-audit-entry{min-width:0;margin:0;padding:0}
+.m26-admin-audit-entry>article{display:grid;gap:.7rem;padding:1rem 1.1rem;border:1px solid var(--iberfit-color-border,rgba(197,160,89,.2));border-radius:1rem;background:var(--m26-admin-surface-soft,rgba(240,226,199,.035));overflow-wrap:anywhere}
+.m26-admin-audit-event-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;min-width:0}
+.m26-admin-audit-event-head>div{min-width:0}
+.m26-admin-audit-event-head h3{margin:.2rem 0 0;font-size:clamp(1rem,1.5vw,1.14rem);line-height:1.4;color:var(--iberfit-color-text-primary);overflow-wrap:anywhere}
+.m26-admin-audit-event-head time{flex:none;font-size:.825rem;line-height:1.4;color:var(--iberfit-color-text-secondary);text-align:end}
+.m26-admin-audit-event-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem 1rem;font-size:.85rem;line-height:1.5;color:var(--iberfit-color-text-secondary)}
+.m26-admin-audit-event-context span{min-width:0;overflow-wrap:anywhere}
+.m26-admin-audit-event-context strong{display:block;font-size:.75rem;letter-spacing:.02em;color:var(--iberfit-color-text-primary)}
+.m26-admin-audit-evidence{min-width:0;border-top:1px solid var(--iberfit-color-border,rgba(197,160,89,.14));padding-top:.4rem}
+.m26-admin-audit-evidence>summary{list-style:none;display:flex;align-items:center;gap:.6rem;min-height:48px;cursor:pointer;font-weight:640;font-size:.85rem;color:var(--iberfit-color-text-primary)}
+.m26-admin-audit-evidence>summary::before{content:'+';font-size:1.15rem;color:var(--iberfit-color-accent-strong,#c5a059)}
+.m26-admin-audit-evidence[open]>summary::before{content:'−'}
+.m26-admin-audit-evidence>summary::-webkit-details-marker{display:none}
+.m26-admin-audit-evidence>summary:focus-visible{outline:3px solid var(--iberfit-color-focus);outline-offset:3px}
+.m26-admin-audit-evidence dl{display:grid;gap:.45rem;margin:.35rem 0 0;min-width:0}
+.m26-admin-audit-evidence dl>div{display:grid;grid-template-columns:minmax(7rem,.35fr) minmax(0,1fr);gap:.6rem}
+.m26-admin-audit-evidence dt{font-size:.78rem;color:var(--iberfit-color-text-secondary)}
+.m26-admin-audit-evidence dd{min-width:0;margin:0;overflow-wrap:anywhere}
+.m26-admin-audit-evidence code{font-size:.78rem;color:var(--iberfit-color-text-primary);word-break:break-word}
+@media(max-width:760px){.m26-admin-audit-event-context{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.m26-admin-audit-event-head{display:grid;gap:.35rem}.m26-admin-audit-event-head time{text-align:start}.m26-admin-audit-event-context{grid-template-columns:minmax(0,1fr)}.m26-admin-audit-entry>article{padding:.8rem}.m26-admin-audit-evidence dl>div{grid-template-columns:minmax(0,1fr);gap:.1rem}}
+@media(forced-colors:active){.m26-admin-audit-evidence>summary:focus-visible{outline-color:Highlight}.m26-admin-audit-entry>article{border-color:CanvasText}}
+/* SIGNATURE 360 U8 END */
