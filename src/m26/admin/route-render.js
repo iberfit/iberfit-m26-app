@@ -308,24 +308,46 @@ function renderUsers(vm){
   const noResults=vm.users.length?`<section class="m26-admin-empty m26-admin-user-no-results" data-admin-user-no-results hidden><h3>Sin coincidencias</h3><p>Cambia la búsqueda o los filtros para volver a mostrar usuarios.</p></section>`:'';
   return `<div class="m26-admin-route m26-admin-user360" data-admin-user-directory>${intro('Identidad','Usuarios y accesos 360','Cuenta, roles, acceso Cliente, relación operativa y último acceso en una sola vista, sin confundir identidad de login con datos de contacto.')}${overview}${integritySummary}${controls}<section id="m26-admin-user-results" class="m26-admin-cards" data-admin-user-results>${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section>${noResults}</div>`;
 }
+// SIGNATURE 360 U10: status is an exact account fact, not a substring of a journey label.
+export function deriveAdminTeamAssignmentTriage({profiles=[],assignments=[]}={}){
+  const rows=Array.isArray(assignments)?assignments:[];
+  const people=Array.isArray(profiles)?profiles:[];
+  const isActiveCoach=(coach)=>['active','activo'].includes(String(coach?.accountStatus||'').trim().toLowerCase());
+  const isActiveAssignment=(assignment)=>String(assignment?.status||'').trim().toLowerCase()==='active';
+  const active=rows.filter(isActiveAssignment);
+  const history=rows.filter((item)=>!isActiveAssignment(item));
+  return Object.freeze({
+    activeCoaches:people.filter(isActiveCoach).length,
+    active:Object.freeze(active),
+    history:Object.freeze(history),
+    activeAssignmentCount:active.length,
+  });
+}
 function renderTeam(vm){
   const profiles=vm.coachProfiles360||[];
-  const activeCoaches=profiles.filter((coach)=>/active|activo/i.test(coach.status)).length;
+  const triage=deriveAdminTeamAssignmentTriage({profiles,assignments:vm.assignments});
   const assignedClients=new Set(profiles.flatMap((coach)=>coach.clients?.map((client)=>client.id)||[])).size;
   const upcoming=profiles.reduce((sum,coach)=>sum+Number(coach.upcomingCount||0),0);
-  const assign=vm.canManage?form('assignment-create',`<select name="coachUserId" required><option value="">Coach</option>${vm.coaches.map((x)=>`<option value="${e(x.userId||x.id)}">${e(x.name||x.email)}</option>`).join('')}</select><select name="clientId" required><option value="">Cliente</option>${vm.clients.map((x)=>`<option value="${e(x.id)}">${e(x.name)}</option>`).join('')}</select><input type="date" name="startsAt" required><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Crear asignación'):'';
-  const table=rows(['Coach','Cliente','Estado','Acción'],vm.assignments.map((a)=>`<tr><td>${e(a.coachName||'Coach')}</td><td>${e(a.clientName||'Cliente')}</td><td>${badge(a.status)}</td><td>${a.status==='active'&&vm.canManage?form('assignment-end',`<input type="hidden" name="assignmentId" value="${e(a.id)}"><input type="hidden" name="baseRevision" value="${e(a.revision||0)}"><input name="reason" minlength="3" required placeholder="Motivo">`,'Finalizar'):'—'}</td></tr>`));
+  const assign=vm.canManage?form('assignment-create',
+    `<label>Coach<select name="coachUserId" required><option value="">Seleccionar Coach</option>${vm.coaches.map((x)=>`<option value="${e(x.userId||x.id)}">${e(x.name||x.email)}</option>`).join('')}</select></label>
+     <label>Cliente<select name="clientId" required><option value="">Seleccionar cliente</option>${vm.clients.map((x)=>`<option value="${e(x.id)}">${e(x.name)}</option>`).join('')}</select></label>
+     <label>Fecha de inicio<input type="date" name="startsAt" required></label>
+     <label>Motivo<textarea name="reason" minlength="3" required maxlength="500" placeholder="Motivo"></textarea></label>`,'Crear asignación'):'';
+  const renderAssignment=(a,canEnd=false)=>`<tr data-admin-assignment-state="${canEnd?'active':'history'}"><td>${e(a.coachName||'Coach sin identificar')}</td><td>${e(a.clientName||'Cliente sin identificar')}</td><td>${badge(a.status)}</td><td>${canEnd&&vm.canManage?form('assignment-end',`<input type="hidden" name="assignmentId" value="${e(a.id)}"><input type="hidden" name="baseRevision" value="${e(a.revision||0)}"><label>Motivo de finalización<input name="reason" minlength="3" maxlength="500" required placeholder="Motivo"></label>`,'Finalizar'):'—'}</td></tr>`;
+  const activeTable=rows(['Coach','Cliente','Estado','Acción'],triage.active.map((a)=>renderAssignment(a,true)),{className:'m26-admin-team-table',scrollLabel:'Relaciones activas de Coach y cliente'});
+  const historyTable=rows(['Coach','Cliente','Estado','Acción'],triage.history.map((a)=>renderAssignment(a,false)),{className:'m26-admin-team-table',scrollLabel:'Historial de asignaciones Coach y cliente'});
   return `<div class="m26-admin-route m26-admin-team360">
     ${intro('Dirección de equipo','Coach 360','Consulta el perfil operativo de cada Coach, su cartera, carga y entrenamientos desde una sola vista.')}
     <section class="m26-admin-stats m26-admin-team-overview">
       ${stat('Coaches',profiles.length)}
-      ${stat('Activos',activeCoaches)}
+      ${stat('Activos',triage.activeCoaches)}
       ${stat('Clientes asignados',assignedClients)}
       ${stat('Próximas sesiones',upcoming)}
     </section>
     <section class="m26-admin-panel m26-admin-team-directory"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo profesional</p><h3>Perfiles de Coach</h3><p>Abre cada perfil para revisar carga, clientes y agenda sin abandonar Admin.</p></div>${badge(`${profiles.length} perfiles`)}</div><div class="m26-admin-coach360-grid">${profiles.length?profiles.map(coach360Card).join(''):empty('Sin Coaches','No hay perfiles de Coach visibles.')}</div></section>
     ${vm.canManage?`<section class="m26-admin-panel m26-admin-assignment-create"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Asignación</p><h3>Vincular Coach y cliente</h3><p>La relación queda trazada y puede finalizarse sin borrar el histórico.</p></div></div>${assign}</section>`:''}
-    <section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Relaciones activas</p><h3>Asignaciones Coach–Cliente</h3></div>${badge(`${vm.assignments.length} registros`)}</div>${vm.assignments.length?table:empty('Sin asignaciones','No hay relaciones Coach–Cliente registradas.')}</section>
+    <section class="m26-admin-panel m26-admin-team-active"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Relaciones vigentes</p><h3>Asignaciones Coach–Cliente activas</h3></div>${badge(`${triage.activeAssignmentCount} activas`)}</div>${triage.active.length?activeTable:empty('Sin asignaciones activas','No existen relaciones Coach–Cliente activas verificadas.')}</section>
+    ${triage.history.length?`<details class="m26-admin-team-history"><summary>Historial de asignaciones · ${triage.history.length}</summary>${historyTable}</details>`:''}
   </div>`;
 }
 function clientDelete(c){
