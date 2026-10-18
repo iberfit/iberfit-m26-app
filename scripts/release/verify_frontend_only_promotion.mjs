@@ -21,7 +21,7 @@ export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,c
   const blocked=[];
   const unappliedMigrations=[];
   for(const path of changedPaths){
-    if(typeof path!=='string'||!path||path.includes('\0')||/[\\r\\n]/u.test(path)||
+    if(typeof path!=='string'||!path||path.includes('\0')||/[\r\n]/u.test(path)||
        path.startsWith('/')||path.split('/').includes('..')){
       throw Error('FRONTEND_ONLY_DIFF_PATH_INVALID');
     }
