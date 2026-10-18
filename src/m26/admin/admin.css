@@ -1948,3 +1948,20 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
   }
 }
 /* SIGNATURE 360 U9 END */
+
+
+/* SIGNATURE 360 U10 · Coach team: distinguish live assignments from history. */
+.m26-admin-team360 .m26-admin-team-table{max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;scroll-padding-inline:1rem;-webkit-overflow-scrolling:touch}
+.m26-admin-team360 .m26-admin-team-table table{min-width:620px}
+.m26-admin-team360 .m26-admin-team-table :is(select,input,textarea,button){max-width:100%;box-sizing:border-box}
+.m26-admin-team360 .m26-admin-team-table button{min-height:44px}
+.m26-admin-team360 .m26-admin-team-table:focus-visible,.m26-admin-team360 .m26-admin-team-table :is(input,select,textarea,button):focus-visible,.m26-admin-team-history>summary:focus-visible{outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:3px}
+.m26-admin-team360 .m26-admin-team-table .m26-admin-form{min-width:13rem;margin-top:0}
+.m26-admin-team-history{min-width:0;margin-top:1rem;padding:0 1rem 1rem;border:1px solid var(--iberfit-color-border,rgba(197,160,89,.22));border-radius:1rem;background:var(--m26-admin-surface-soft,rgba(240,226,199,.04))}
+.m26-admin-team-history>summary{display:flex;align-items:center;min-height:48px;padding:.75rem 0;cursor:pointer;font-weight:690;color:var(--iberfit-color-text-primary)}
+.m26-admin-team-history>summary::before{content:'+';padding-inline-end:.65rem;color:var(--iberfit-color-accent-strong,#c5a059)}
+.m26-admin-team-history[open]>summary::before{content:'−'}
+.m26-admin-team-history>summary::-webkit-details-marker{display:none}
+@media(max-width:700px){.m26-admin-team360 .m26-admin-team-table{margin-inline:0}.m26-admin-team-history{padding-inline:.75rem}.m26-admin-team360 .m26-admin-team-table .m26-admin-form button{width:100%}}
+@media(forced-colors:active){.m26-admin-team-history{border-color:CanvasText}.m26-admin-team-history>summary:focus-visible{outline-color:Highlight}}
+/* SIGNATURE 360 U10 END */
