@@ -535,6 +535,28 @@ test('SIGNATURE warm optional-activity copy stays localized in four languages',(
   }
 });
 
+test('SIGNATURE U1 visual QA visits all nine authenticated Client destinations without business writes',()=>{
+  const spec=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  const roleRenderer=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  for(const route of ['informes','actividad','mensajes','retos','ajustes']){
+    assert.match(roleRenderer,new RegExp('data-m26-area="'+route+'"'),
+      'Client Más must preserve the real destination '+route);
+    assert.match(spec,new RegExp("'"+route+"'"),
+      'Authenticated Client visual QA must visit '+route);
+  }
+  assert.match(spec,/secondaryClientAreas=\['informes','actividad','mensajes','retos','ajustes'\]/u);
+  assert.match(spec,/certifyNonOverlappingClientDock\(page,projectUse,`Cliente \$\{area\}`\)/u,
+    'Every additional Client route must verify mobile content is separate from the dock');
+  assert.match(spec,/data-client-bottom-nav-route/u,'Route evidence must require the actual active Client destination');
+  assert.match(spec,/role="menuitem"/u,'Compact Más destinations must stay keyboard and touch reachable');
+  assert.match(spec,/\.m26-sidebar \[data-m26-area=/u,'Desktop Client keeps its own full navigation');
+  assert.match(spec,/routeContent\.locator\('\.m26-route-placeholder'\)/u,
+    'A placeholder must never be certified as a functional route');
+  assert.match(spec,/Client Progreso must retain its own authenticated screenshot/u);
+  assert.match(spec,/businessMutationsPerformed:false/u,'Read-only QA never certifies a write as safe');
+  assert.match(spec,/expect\(blocked,'Visual evidence attempted a business mutation or foreign request'\)/u);
+});
+
 test('SIGNATURE mobile dock belongs to a separate viewport row, never the content layer',()=>{
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
   const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
