@@ -303,6 +303,38 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           expect(summaryDisplay,'Mobile disclosure indicator needs a stable two-column layout').toBe('grid');
         }
 
+        // SIGNATURE Client Editorial V3: certify actual computed warm surfaces,
+        // the canonical primary action and the data-derived train/IRI split.
+        const editorial=page.locator('.m26-client-home-editorial-v3');
+        await expect(editorial).toBeVisible({timeout:6_000});
+        const heroMaterials=await editorial.evaluate((root)=>{
+          const hero=root.querySelector('.m26-client-home-hero');
+          const action=root.querySelector('.m26-client-home-primary-zone');
+          const button=action?.querySelector('.m26-today-action.is-primary');
+          const rect=root.getBoundingClientRect();
+          const visualWidth=document.documentElement.clientWidth;
+          return {
+            heroBg:hero?getComputedStyle(hero).backgroundColor:null,
+            actionBg:action?getComputedStyle(action).backgroundColor:null,
+            buttonHeight:button?.getBoundingClientRect().height??0,
+            sectionWidth:rect.width,
+            viewportWidth:visualWidth,
+            stepCount:root.querySelectorAll('.m26-client-home-journey-steps > li').length,
+            trainingSection:root.querySelectorAll('[data-m26-client-training-journey]').length,
+          };
+        });
+        expect(heroMaterials.heroBg).toBeTruthy();
+        expect(heroMaterials.actionBg).toBeTruthy();
+        expect(heroMaterials.heroBg,'The warm decision panel must be visually distinct from the forest editorial hero').not.toBe(heroMaterials.actionBg);
+        expect(heroMaterials.buttonHeight,'The primary action must keep a comfortable touch target').toBeGreaterThanOrEqual(48);
+        expect(heroMaterials.sectionWidth,'Home must not exceed the visual viewport').toBeLessThanOrEqual(heroMaterials.viewportWidth+1);
+        if(heroMaterials.trainingSection){
+          expect(heroMaterials.stepCount,'Real Client training should expose exactly three descriptive stages').toBe(3);
+          await expect(editorial.locator('.m26-client-home-journey-steps')).toContainText('Seguimiento');
+        }else{
+          await expect(editorial.locator('.m26-client-home-journey-steps')).toHaveCount(0);
+        }
+
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
         if((projectUse.viewport?.width||0)<=690){
           await page.evaluate(()=>{
