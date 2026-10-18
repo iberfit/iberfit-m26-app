@@ -423,12 +423,17 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
               await expect(settings,'Tablet compact account menu must expose Settings').toBeVisible();
               await settings.click();
             }else{
-              const settingsMenu=page.locator('.m26-sidebar details.m26-settings-menu > summary').first();
-              await expect(settingsMenu,'Desktop Client must expose Settings in the account footer').toBeVisible({timeout:6_000});
-              await settingsMenu.click();
-              const settingsPage=page.locator('.m26-sidebar .m26-settings-popover [data-m26-area="ajustes"]').first();
-              await expect(settingsPage,'Account menu must link to full Settings').toBeVisible();
-              await settingsPage.click();
+              const touchRailSettings=page.locator('.m26-sidebar .m26-client-settings-fallback [data-m26-area="ajustes"]:visible').first();
+              if(await touchRailSettings.isVisible().catch(()=>false)){
+                await touchRailSettings.click();
+              }else{
+                const settingsMenu=page.locator('.m26-sidebar details.m26-settings-menu > summary').first();
+                await expect(settingsMenu,'Desktop Client must expose Settings in the account footer').toBeVisible({timeout:6_000});
+                await settingsMenu.click();
+                const settingsPage=page.locator('.m26-sidebar .m26-settings-popover [data-m26-area="ajustes"]').first();
+                await expect(settingsPage,'Account menu must link to full Settings').toBeVisible();
+                await settingsPage.click();
+              }
             }
           }else{
             const destination=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
