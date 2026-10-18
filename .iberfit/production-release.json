@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4bfd4e6fc5e37d2fec8259f8095e7a5d1108cd8c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "c17eb59c7b1dadc2f313ac2bb717efe04029a7c2",
+  "notes": "SIGNATURE 360 U9 Admin Clientes/Leads: PR #1033 merge exact 4bfd4e6f, keyboard/touch accessible tables, correct paused/ended no-active-training filter, labelled forms, ES/EN/FR/PT. 8/8 premerge and 12/12 Canary postmerge SUCCESS incl Canary Exact Deploy #39163918023 and remote #39163917920. M44 encrypted independent DB/Storage restore #38888628869 attempt 15 success. Five frontend/i18n/test files only, no SQL/Auth/RLS/Edge/data writes. Fail-closed LIVE prior identity, full regression, Lighthouse, Cloudflare preview, browser smoke and rollback."
+}
