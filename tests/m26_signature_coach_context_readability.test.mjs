@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {buildCoachLiveContextSignal} from '../src/m26/ui/session-readiness.js';
+import {buildCoachLiveContextSignal,buildCoachSessionReadinessContext} from '../src/m26/ui/session-readiness.js';
 
 const runtime=readFileSync(new URL('../src/m26/design/runtime-static.css',import.meta.url),'utf8');
 const source=readFileSync(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8');
@@ -45,4 +45,57 @@ test('Client context remains gated by role and no business action is added',()=>
   assert.match(source,/if\(role!=='coach'\|\|!\['active','rest'\]\.includes\(liveState\)\)return false/u);
   assert.doesNotMatch(source,/document\.write\(|innerHTML\s*=/u);
   assert.match(source,/if\(!signal\)return false/u);
+});
+
+test('Confirmed Coach session keeps every character from long professional feedback',()=>{
+  const painNotes='Molestia confirmada en rodilla derecha, revisar técnica y rango antes de progresar. '.repeat(9).trim();
+  const comment='El cliente describe una modificación de intensidad y necesidad de revisar la próxima carga. '.repeat(7).trim();
+  assert.ok(painNotes.length>220);
+  assert.ok(comment.length>280);
+  const state={
+    collections:{
+      sessionExecutions:[{
+        id:'session-coach-completed',
+        clientId:'client-context-1',
+        status:'completed',
+        syncStatus:'clean',
+        completedAt:'2026-10-17T17:00:00Z',
+        feedback:{pain:true,painNotes,comment},
+      }],
+      m26Entities:[],
+    },
+  };
+  const context=buildCoachSessionReadinessContext(state,'client-context-1');
+  assert.equal(context.feedback.hasExecution,true);
+  assert.equal(context.feedback.pain,true);
+  assert.equal(context.feedback.painNotes,painNotes);
+  assert.equal(context.feedback.comment,comment);
+  assert.equal(buildCoachLiveContextSignal(context).detail,painNotes);
+});
+
+test('Long overdue Coach decisions are preserved, and source contains no implicit text cap',()=>{
+  const decision='Reevaluar prescripción del bloque y documentar decisión antes de progresar. '.repeat(10).trim();
+  const state={
+    collections:{
+      sessionExecutions:[],
+      m26Entities:[{
+        entityType:'action_outcome',
+        entityId:'decision-coach-long-1',
+        clientId:'client-context-1',
+        status:'abierto',
+        signalSummary:decision,
+        reviewAt:'2026-10-17',
+      }],
+    },
+  };
+  const context=buildCoachSessionReadinessContext(state,'client-context-1',{now:new Date('2026-10-18T12:00:00Z')});
+  const signal=buildCoachLiveContextSignal(context);
+  assert.ok(decision.length>280);
+  assert.equal(context.decisions.overdueCount,1);
+  assert.equal(context.decisions.topSignal,decision);
+  assert.equal(signal.kind,'decision-overdue');
+  assert.equal(signal.detail,decision);
+  assert.doesNotMatch(source,/function coachBriefText\(value,max=/u);
+  assert.doesNotMatch(source,/return String\(value\?\?''\)\.trim\(\)\.slice\(/u);
+  assert.doesNotMatch(source,/coachBriefText\([^\n]*,\s*\d+\)/u);
 });
