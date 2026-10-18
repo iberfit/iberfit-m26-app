@@ -403,11 +403,14 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             state:`authenticated-client-${area}`,suffix:area,
           }));
         }
-        expect(
-          new Set(captures.filter((item)=>item.role==='client'&&item.state.startsWith('authenticated-client-'))
-            .map((item)=>item.state.replace(/^authenticated-client-/u,''))),
-          'Client nine-route visual evidence must cover primary and secondary destinations',
-        ).toEqual(new Set(['hoy','hoy-end','plan','sessions','informes','actividad','mensajes','retos','ajustes']));
+        const inspectedClientRoutes=new Set(captures.filter((item)=>
+          item.role==='client'&&item.state.startsWith('authenticated-client-'))
+          .map((item)=>item.state.replace(/^authenticated-client-/u,'')));
+        for(const area of ['hoy','plan','sessions',...secondaryClientAreas]){
+          expect(inspectedClientRoutes.has(area),`Client route evidence missing: ${area}`).toBe(true);
+        }
+        expect(captures.some((item)=>item.role==='client'&&item.state==='authenticated-progress'),
+          'Client Progreso must retain its own authenticated screenshot').toBe(true);
       }
 
       await Promise.all(avatarChecks);
