@@ -383,17 +383,35 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           const more=page.locator('.m26-client-bottom-nav-more > summary').first();
           if(await more.isVisible().catch(()=>false)){
             await more.click();
+            await expect(page.locator('[data-m26-client-context-guide]'),
+              `${area}: opening Más must release the non-modal context guide`).toHaveCount(0);
             const destination=page.locator(`.m26-client-bottom-nav-menu [role="menuitem"][data-m26-area="${area}"]`);
             await expect(destination,`${area}: Más must retain an accessible destination`).toBeVisible({timeout:5_000});
-            await destination.click();
+            await destination.click({timeout:7_000});
           }else{
             const destination=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
             await expect(destination,`${area}: desktop sidebar must retain the destination`).toBeVisible({timeout:5_000});
             await destination.click();
           }
-          const routeShell=page.locator(`.m26-client-route-shell[data-client-bottom-nav-route="${area}"]`);
-          await expect(routeShell,`${area}: navigate to real authenticated Client route`).toBeVisible({timeout:10_000});
+          const routeShell=page.locator('.m26-client-route-shell').first();
+          // Messages legitimately projects to "communication", or to the
+          // recoverable "communication-unavailable" route on remote failure.
+          // Both must be visible; neither is an authorization bypass.
+          const expectedRoute=area==='mensajes'?/^(?:communication|communication-unavailable)$/u:area;
+          await expect(routeShell,`${area}: navigate to real authenticated Client route`)
+            .toHaveAttribute('data-client-bottom-nav-route',expectedRoute,{timeout:10_000});
+          await expect(routeShell).toBeVisible();
           const routeContent=routeShell.locator(':scope > :not(.m26-client-bottom-nav-layer)').first();
+          if(area==='mensajes'){
+            const renderedKind=await routeShell.getAttribute('data-client-bottom-nav-route');
+            if(renderedKind==='communication-unavailable'){
+              await expect(routeContent.locator('[data-m45-communication-retry]'),
+                'Messages unavailable state must permit a safe recovery action').toBeVisible();
+            }else{
+              await expect(routeContent.locator('.m26-communication-grid'),
+                'Messages ready state must contain the real conversation surface').toBeVisible();
+            }
+          }
           await expect(routeContent,`${area}: route must render content, not just its dock`).toBeVisible({timeout:10_000});
           await expect(routeContent.locator('h2,h3').first(),`${area}: identifiable route heading`).toBeVisible();
           await expect(routeContent.locator('.m26-route-placeholder'),`${area}: route must not fall back to unavailable`).toHaveCount(0);
