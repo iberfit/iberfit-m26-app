@@ -411,6 +411,12 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             // Escape must restore focus, never leave an invisible menu overlay.
             if(area==='informes'){
               await expect(more).toHaveAttribute('aria-haspopup','menu');
+              const overflow=await page.locator('.m26-client-bottom-nav-menu').evaluate(node=>({
+                overflowY:getComputedStyle(node).overflowY,
+                maxHeight:getComputedStyle(node).maxHeight,
+              }));
+              expect(overflow.overflowY,'Más must scroll on short mobile screens').toBe('auto');
+              expect(Number.parseFloat(overflow.maxHeight)).toBeGreaterThan(100);
               await expect(more).toHaveAttribute('aria-expanded','true');
               const moreItems=page.locator('.m26-client-bottom-nav-menu [role="menuitem"]');
               await more.press('ArrowDown');

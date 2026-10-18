@@ -78,7 +78,9 @@ export function bindShellDisclosureDismissSupport(documentLike=globalThis.docume
           :event.key==='ArrowDown'?(active+1)%items.length
           :active<0?items.length-1:(active-1+items.length)%items.length;
         event.preventDefault?.();
-        items[next]?.focus?.({preventScroll:true});
+        // Native focus keeps the active choice visible in the scrollable
+        // popup on short viewports; preventScroll would conceal it.
+        items[next]?.focus?.();
       }
       return;
     }

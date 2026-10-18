@@ -64,6 +64,18 @@ test('Client Más announces the current destination and menu relations without i
   assert.match(nav,/\.m26-client-bottom-nav-menu button\[aria-current="page"\]/u);
 });
 
+test('Mensajes stays current while showing its recoverable connection error',()=>{
+  const rendered=renderRouteView({
+    kind:'communication-unavailable',role:'client',communication:{},title:'Mensajes',
+  });
+  assert.match(rendered,/data-client-bottom-nav-route="communication-unavailable"/u);
+  assert.match(rendered,/m26-client-bottom-nav-more is-active/u);
+  assert.match(rendered,/data-m26-area="mensajes" aria-current="page"/u);
+  assert.match(rendered,/data-m45-communication-retry/u);
+  assert.match(nav,/max-height:max\\(10rem,calc\\(100dvh - 140px - env\\(safe-area-inset-bottom\\)\\)\\)/u);
+  assert.match(nav,/overflow-y:auto/u,'short mobile viewports must scroll the popup');
+});
+
 test('Client Más keyboard supports Down, Up, Home and End with stable focus',()=>{
   const f=clientMoreFixture();
   assert.equal(bindShellDisclosureDismissSupport(f.documentLike),true);

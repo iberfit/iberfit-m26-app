@@ -155,6 +155,11 @@
   right: 0;
   bottom: calc(100% + 14px);
   width: min(310px, calc(100vw - 32px));
+  max-height:max(10rem,calc(100dvh - 140px - env(safe-area-inset-bottom)));
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
   padding: 9px;
   border: 1px solid var(--iberfit-color-border-strong);
   border-radius: 22px;

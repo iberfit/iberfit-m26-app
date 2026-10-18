@@ -4820,7 +4820,11 @@ function clientBottomNavMore(currentKind){
 
 
 function renderClientBottomNav(vm){
-  const currentKind=String(vm?.kind||'hoy');
+  // Communication can legitimately render a recoverable unavailable state.
+  // Keep the true route kind for retry, but reflect its current section.
+  const routeKind=String(vm?.kind||'hoy');
+  const currentKind=['communication','communication-unavailable'].includes(routeKind)
+    ?'mensajes':routeKind;
   const guidance={
     adherenceReview:
       currentKind==='hoy'&&
