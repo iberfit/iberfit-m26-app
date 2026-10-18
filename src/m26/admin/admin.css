@@ -1892,3 +1892,59 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 @media(max-width:390px){.m26-admin-audit-event-head{display:grid;gap:.35rem}.m26-admin-audit-event-head time{text-align:start}.m26-admin-audit-event-context{grid-template-columns:minmax(0,1fr)}.m26-admin-audit-entry>article{padding:.8rem}.m26-admin-audit-evidence dl>div{grid-template-columns:minmax(0,1fr);gap:.1rem}}
 @media(forced-colors:active){.m26-admin-audit-evidence>summary:focus-visible{outline-color:Highlight}.m26-admin-audit-entry>article{border-color:CanvasText}}
 /* SIGNATURE 360 U8 END */
+
+
+/* SIGNATURE 360 U9 · Client/lead directory: preserve table semantics and all management actions. */
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table){
+  max-width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:thin;
+  scroll-padding-inline:1rem;
+  -webkit-overflow-scrolling:touch;
+}
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table):focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-client-table table{min-width:850px}
+.m26-shell[data-m26-role="admin"] .m26-admin-lead-table table{min-width:670px}
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table) td:last-child{min-width:15rem}
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table) td:last-child :is(input,select,textarea,button){
+  max-width:100%;
+  box-sizing:border-box;
+}
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table) td:last-child :is(button,select){
+  min-height:44px;
+}
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table) td:last-child :is(button,input,select,textarea,summary):focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline-offset:2px;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-client-table tr[hidden]{display:none!important}
+.m26-admin-table-scroll-hint{display:none}
+@media(max-width:700px){
+  .m26-shell[data-m26-role="admin"] .m26-admin-table-scroll-hint{
+    display:block;
+    margin:.35rem 0 .6rem;
+    font-size:.83rem;
+    line-height:1.45;
+    color:var(--iberfit-color-text-secondary);
+  }
+  .m26-shell[data-m26-role="admin"] .m26-admin-client-table .m26-admin-client-row-actions{
+    min-width:0;
+    width:100%;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-admin-client-table .m26-admin-client-row-actions>button{
+    justify-self:stretch;
+    width:100%;
+    min-height:44px;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="admin"] :is(.m26-admin-client-table,.m26-admin-lead-table):focus-visible{
+    outline-color:Highlight;
+  }
+}
+/* SIGNATURE 360 U9 END */
