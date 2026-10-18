@@ -142,7 +142,7 @@ function renderOperations(vm){
   const triage=vm.operationTriage||deriveAdminOperationsTriage({tasks:vm.tasks||[],timeZone:vm.organization?.timezone||'America/Santiago'});
   const summary=triage.summary;
   const create=vm.canManage?form('task-create',
-    `<label>Prioridad<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select></label><input type="hidden" name="taskType" value="manual_review"><label>Título<input name="title" maxlength="200" required placeholder="Qué requiere atención"></label><label>Detalle<textarea name="detail" maxlength="2000" placeholder="Contexto verificable para resolverla"></textarea></label>`,'Crear incidencia'):'';
+    `<label>Prioridad<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select></label><label>Tipo<input name="taskType" value="manual_review" maxlength="80" required></label><label>Título<input name="title" maxlength="200" required placeholder="Qué requiere atención"></label><label>Detalle<textarea name="detail" maxlength="2000" placeholder="Contexto verificable para resolverla"></textarea></label>`,'Crear incidencia'):'';
   const pending=triage.open.length
     ?`<div class="m26-admin-operation-list">${triage.open.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}</div>`
     :empty('Sin incidencias pendientes','No existen tareas operativas abiertas con los datos actuales.');
