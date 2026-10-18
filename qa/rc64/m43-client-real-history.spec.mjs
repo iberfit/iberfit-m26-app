@@ -109,7 +109,12 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   await expect(planLink).toBeVisible();
   await planLink.click();
   await expect(page.locator('[data-m27-session-surface="planning"]')).toBeVisible();
-  await expect(page.getByRole('heading',{name:/^Planificación ·/})).toBeVisible();
+  // A Client without a confirmed service modality sees "Tu planificación"; a
+  // confirmed modality adds "Planificación · <modalidad>". Both are intentional
+  // RC39 states and must keep the real planning surface and privacy assertions.
+  const planningHeading=page.locator('[data-m27-session-surface="planning"] h2').first();
+  await expect(planningHeading).toBeVisible();
+  await expect(planningHeading).toHaveText(/^(?:Tu planificación|Planificación · (?!Sin modalidad)[^\\n]+)$/u);
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
   await page.screenshot({path:join(evidenceDirectory,`${testInfo.project.name}-planning.png`),fullPage:true});
   const geometry=await page.evaluate(()=>({
