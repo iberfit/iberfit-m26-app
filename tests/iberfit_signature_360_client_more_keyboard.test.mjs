@@ -78,10 +78,10 @@ test('Mensajes stays current while showing its recoverable connection error',()=
 
 test('opening guidance from Más first releases the popup without dismissing or persisting the tip',()=>{
   const guide=fs.readFileSync('src/m26/onboarding/client-contextual-guide.js','utf8');
-  assert.match(guide,/closest\\?\\.\\('details\\.m26-client-bottom-nav-more\\[open\\]'\\)/u);
-  assert.match(guide,/clientMore\\.open=false/u);
+  assert.ok(guide.includes("closest?.('details.m26-client-bottom-nav-more[open]')"));
+  assert.ok(guide.includes('clientMore.open=false'));
   assert.match(guide,/aria-expanded','false'/u);
-  assert.match(guide,/show\\(ctx,tip,\\{force:true\\}\\)/u);
+  assert.ok(guide.includes('show(ctx,tip,{force:true})'));
 });
 
 test('Client Más keyboard supports Down, Up, Home and End with stable focus',()=>{
