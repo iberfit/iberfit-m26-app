@@ -430,6 +430,37 @@ function renderCoachHoyRoute(vm) {
   </div>`;
 }
 
+// The IRI assessment is an initial diagnosis, not a longitudinal KPI.
+ // Training states below use only publication and execution evidence already
+ // authorized for this Client. This strip is orientation, never a permission gate.
+function renderClientTrainingJourney({planReady=false,projections=[],serviceActive=false,runnable=null,standaloneGuided=null}={}){
+  const published=Array.isArray(projections)&&projections.length>0;
+  const executable=serviceActive&&Boolean(runnable||standaloneGuided);
+  const planState=planReady?'available':'pending';
+  const planDetail=planReady?'Plan o sesiones disponibles':'El equipo está preparando tu plan';
+  const sessionState=!serviceActive?'paused':executable?'available':published?'published':'pending';
+  const sessionDetail=!serviceActive?'Servicio en pausa · historial conservado'
+    :executable?'Hay una sesión lista para empezar'
+    :published?'Tienes sesiones para consultar'
+    :'Aparecerán aquí cuando estén publicadas';
+  const steps=[
+    {title:'Planificación',detail:planDetail,state:planState},
+    {title:'Sesiones',detail:sessionDetail,state:sessionState},
+    {title:'Seguimiento',detail:'Evolución basada en registros reales',state:'reference'},
+  ];
+  return `<section class="m26-client-home-journey" data-m26-client-training-journey aria-labelledby="m26-client-journey-title">
+    <div class="m26-client-home-journey-heading">
+      <div><span class="m26-client-home-journey-kicker">El método IBERFIT</span>
+      <h3 id="m26-client-journey-title">Tu proceso de entrenamiento</h3></div>
+      <p>Planificar, entrenar y evaluar. Cada etapa con criterio.</p>
+    </div>
+    <ol class="m26-client-home-journey-steps">${steps.map((step,index)=>`<li data-journey-state="${step.state}">
+      <span class="m26-client-home-journey-number" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
+      <div><strong>${escapeHtml(step.title)}</strong><small>${escapeHtml(step.detail)}</small></div>
+    </li>`).join('')}</ol>
+  </section>`;
+}
+
 function renderClientHoyRoute(vm) {
   const client=vm.clients?.[0]||null;
   const trainingSurface=hasTrainingSurface(vm.serviceKind);
@@ -641,7 +672,7 @@ function renderClientHoyRoute(vm) {
       </button>`
     :'';
 
-  return `<div class="m26-route m26-hoy-route m26-client-home-v1">
+  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3">
     ${operationBanner(vm.operations||{})}
 
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
@@ -680,6 +711,7 @@ function renderClientHoyRoute(vm) {
       ${iriGlanceMarkup}
     </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><div class="m26-client-home-appointment"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></div></section>`:''}
 
+    ${trainingSurface?renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided}):''}
     ${renderClientTodayHealth(vm.wearables)}
 
     <details class="m26-client-home-secondary-disclosure">
