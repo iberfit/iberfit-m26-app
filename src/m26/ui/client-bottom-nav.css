@@ -505,3 +505,37 @@
   }
 
 }
+
+/* Immersive Client workout is not a dock-owned scrolling route. Its secondary
+ * "Historial, datos y ajustes" controls must stay scroll-reachable on touch
+ * devices. Restore native page scrolling only while that surface is mounted.
+ * Normal Client routes keep their viewport-bound dock and nested scrollport. */
+@media (max-width: 900px) {
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) .m26-workspace {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) .m26-workspace .m26-main {
+    flex: 1 0 auto;
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) .m26-client-route-shell {
+    flex: 1 0 auto;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context)
+  .m26-client-route-shell > :not(.m26-client-bottom-nav-layer) {
+    flex: 1 0 auto;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+}
