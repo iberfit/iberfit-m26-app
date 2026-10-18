@@ -460,6 +460,20 @@ test('Client manual Guide access lives in sidebar utility and Más, never in the
   assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
 });
 
+test('Client context guide releases Más touch targets without silently dismissing advice',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  const navigation=guide.match(/if\(event\.target\?\.closest\?\.\('\.m26-client-bottom-nav-more > summary'\)\)\{([\s\S]*?)\n    \}/u);
+  assert.ok(navigation,'Opening Más must dismiss the currently displayed non-modal guide');
+  assert.match(navigation[1],/if\(dialog\)close\(\{restoreFocus:false\}\)/u);
+  assert.doesNotMatch(navigation[1],/markSeen|markDismissed|preventDefault|stopPropagation/u,
+    'Navigation must not silently mark hints seen/dismissed or swallow touch input');
+  const visual=read('qa/rc64/authenticated-visual-evidence.spec.mjs');
+  assert.match(visual,/opening Más must release the non-modal context guide/u,
+    'Authenticated browser matrix must verify guide and dock do not overlap');
+  assert.match(visual,/communication-unavailable/u,'Messages unavailable is a supported recoverable state');
+  assert.match(visual,/data-m45-communication-retry/u,'Unavailable Messages must retain recovery');
+});
+
 test('Client bottom navigation remains five primary destinations and Retos stays reachable through Más',()=>{
   const source=read('src/m26/modules/route-render.js');
   const html=renderRouteView({kind:'placeholder',role:'client',title:'Prueba'});
