@@ -82,6 +82,48 @@ test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre
   expect(finalState.feedback?.sessionRpe).toBe(8);
 });
 
+
+test('SIGNATURE Coach controls stay within 320px after advancing to the next set',async({page})=>{
+  await open(page,'coach');
+  await page.locator('[data-session-action="start"]').click();
+  await fillCurrentSet(page,{reps:'8',load:'20 kg',rpe:'7',rir:'3'});
+  await page.locator('[data-session-action="complete-set"]').click();
+  await page.locator('[data-session-action="next"]').click();
+  await page.setViewportSize({width:320,height:740});
+  const quick=page.locator('[data-session-coach-quick-controls]');
+  await expect(quick).toBeVisible();
+  await expect(quick.locator('button')).toHaveCount(3);
+  await quick.scrollIntoViewIfNeeded();
+  const geometry=await quick.evaluate(el=>{
+    const viewport=document.documentElement.clientWidth;
+    const buttons=[...el.querySelectorAll('button')].map(button=>{
+      const rect=button.getBoundingClientRect();
+      return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,height:rect.height};
+    });
+    const overlaps=buttons.some((a,i)=>buttons.slice(i+1).some(b=>
+      Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&
+      Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));
+    const overflowing=[...document.querySelectorAll('body *')].flatMap(node=>{
+      const rect=node.getBoundingClientRect();
+      return rect.right>viewport+1||rect.left< -1
+        ?[{tag:node.tagName,className:String(node.className?.baseVal??node.className??'').slice(0,96),left:Math.round(rect.left),right:Math.round(rect.right)}]
+        :[];
+    }).slice(0,12);
+    return {viewport,documentWidth:document.documentElement.scrollWidth,buttons,overlaps,overflowing};
+  });
+  expect(geometry.documentWidth,'Overflowing elements: '+JSON.stringify(geometry.overflowing)).toBeLessThanOrEqual(geometry.viewport+1);
+  expect(geometry.overlaps).toBe(false);
+  for(const button of geometry.buttons){
+    expect(button.width).toBeGreaterThanOrEqual(44);
+    expect(button.height).toBeGreaterThanOrEqual(44);
+    expect(button.left).toBeGreaterThanOrEqual(-1);
+    expect(button.right).toBeLessThanOrEqual(geometry.viewport+1);
+  }
+  await quick.locator('[data-session-action="pause"]').click();
+  await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible();
+  expect((await state(page)).errors).toEqual([]);
+});
+
 test('Cliente conserva flujo limpio, puede sustituir antes de progresar y omitir una serie con motivo',async({page})=>{
   await open(page,'client');
   await page.locator('[data-session-action="start"]').click();

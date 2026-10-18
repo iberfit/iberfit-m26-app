@@ -1,5 +1,14 @@
 # IBERFIT · Production State
 
+## Checkpoint operativo vigente · SIGNATURE 360 · 17-10-2026
+
+- **Canary desplegado y certificado:** PR #1019 MERGED; source/merge `a497383896043b86548f7fa5781263e2cc71e3d3`. Los 12/12 workflows postmerge finalizaron SUCCESS, incluido [Canary Exact Deploy #39078154724](https://github.com/iberfit/iberfit-m26-app/actions/runs/39078154724).
+- **Identidad real Canary confirmada por el workflow:** `m26-canary.iberfit.cl` sirve el SHA anterior con runtime QA-only `gjztkdwfmunnzhtvxrsu`, pruebas autenticadas desktop/móvil de solo lectura y Cloudflare deployment `bd38c4e3-080c-43f9-a38f-0ad3f9eab8b9`. Rollback conservado a `5826bbd6-0ec4-42ed-9385-9b9aeac0068a` (SHA `069ba68298dd57181a62cc88ce6c31112ac92176`).
+- **Producción:** no fue modificada por este bloque. No atribuirle el SHA de Canary; una prueba de bundle PROD no es un despliegue. La aceptación integral de 43 rutas SIGNATURE 360 permanece pendiente.
+- **Bloqueos externos:** PR #1017 Auth P0 y PR #1006 SQL QA están Draft. El Production Data Safety Gate verde no acredita recuperación de toda la plataforma ni custodia offsite completa (`platformRecoveryVerified=false`). No promover SQL/PROD desde el carril de UX.
+- **Siguiente incremento SIGNATURE:** controles rápidos Coach en entrenamiento táctil de 320 px. Los checkpoints siguientes, anteriores en fecha, son históricos.
+
+
 ## WIP vigente · cierre M39 bloqueado por validación recursiva · 2026-10-13
 
 - LIVE leído en `https://app.iberfit.cl/m26/version.json`: M38 `096c9244089f00f990ca3fba82f3829af8e76c9c`, entorno PRODUCTION, proyecto PROD, `qaOnly=false`. M39 NO está promovido.

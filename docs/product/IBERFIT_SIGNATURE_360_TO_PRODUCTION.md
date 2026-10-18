@@ -1,5 +1,14 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
+## Estado comprobado posterior · 17-10-2026 · Canary certificado, no PROD
+
+La secuencia histórica de WIP que sigue fue escrita antes del merge. **Prevalece este checkpoint:** PR #1019 MERGED, Canary fuente y merge `a497383896043b86548f7fa5781263e2cc71e3d3`; 12/12 workflows postmerge SUCCESS y [Canary Exact Deploy #39078154724](https://github.com/iberfit/iberfit-m26-app/actions/runs/39078154724) con identidad QA-only del SHA servido, escritorio/móvil autenticado read-only y rollback identificado. Cloudflare deployment `bd38c4e3-080c-43f9-a38f-0ad3f9eab8b9`.
+
+El incremento Cliente cubre Hoy, Sesiones, vista previa y ejecución sintética publicada con permisos efectivos, feedback, estados negativos y referencia visual ausente legible; no representa validación de escritura de negocio remota ni publicación en PROD. El inventario mantiene `WIP_NOT_PRODUCTION` y sus 43 rutas pendientes de aceptación integral, con IRI inicial separado del seguimiento.
+
+**Siguiente bloque de SIGNATURE:** Coach, velocidad durante sesiones y controles rápidos realmente utilizables en móvil de 320 px sin solapamientos, bajo CSS canónico, regresión de navegador y evidencia Device Experience del SHA final. No modificar Auth P0 #1017, SQL QA #1006, seguridad ni esquema. La promoción PROD requiere gates independientes y recuperación/custodia verificadas.
+
+
 **Inicio:** 16-10-2026. **Base histórica de creación del inventario (no HEAD actual):** Canary `656b9d2aaf6afaf43c0262f7979ba6e962a5a1f2`.
 **Estrategia aprobada:** ejecución integral con entregas independientes, pequeñas pero completas y certificadas hasta PROD. **Estado inicial:** WIP aislado. **Destino único de aceptación:** `https://app.iberfit.cl` (PRODUCCIÓN), nunca solo un PR, commit, CI o Canary.
 **Precedencia:** seguridad/autorización > integridad/no pérdida de datos > no bloqueos > funcionamiento > UX > rendimiento > belleza visual.
