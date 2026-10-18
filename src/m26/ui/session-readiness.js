@@ -141,8 +141,8 @@ export function buildSessionReadinessSnapshot(state,clientId,{now=new Date()}={}
   });
 }
 
-function coachBriefText(value,max=240){
-  return String(value??'').trim().slice(0,max);
+function coachBriefText(value){
+  return String(value??'').trim();
 }
 
 function coachReadinessRecord(record){
@@ -162,9 +162,9 @@ function coachReadinessFeedback(execution){
     :null;
   return Object.freeze({
     sessionRpe,
-    comment:coachBriefText(feedback.comment??feedback.comments??feedback.note??feedback.notes,280)||null,
+    comment:coachBriefText(feedback.comment??feedback.comments??feedback.note??feedback.notes)||null,
     pain:feedback.pain===true||feedback.pain==='true',
-    painNotes:coachBriefText(feedback.painNotes??feedback.pain_notes,220)||null,
+    painNotes:coachBriefText(feedback.painNotes??feedback.pain_notes)||null,
   });
 }
 
@@ -210,7 +210,7 @@ export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()
       openCount:Number(decisions.openCount||0),
       overdueCount:Number(decisions.overdueCount||0),
       dueTodayCount:Number(decisions.dueTodayCount||0),
-      topSignal:coachBriefText(top?.signalSummary,280)||null,
+      topSignal:coachBriefText(top?.signalSummary)||null,
     }),
   });
 }
