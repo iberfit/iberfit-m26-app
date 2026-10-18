@@ -29,6 +29,9 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_catalog_public_v1',
   'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
+  // Verified on QA pg_proc: authenticated, self-scoped SELECT-only subscription
+  // count/status; never allow subscribe, unsubscribe or push dispatch here.
+  'iberfit_web_push_status_v1',
 ]);
 
 function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
@@ -97,10 +100,31 @@ async function certifyNonOverlappingClientDock(page,project,route){
       maxScroll:Math.max(0,scroller.scrollHeight-scroller.clientHeight),
       scrollTop:scroller.scrollTop,
       widthOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)>innerWidth+1,
+      documentScrollY:scrollY,
+      documentScrollHeight:document.documentElement.scrollHeight,
+      shellBottom:document.querySelector('.m26-shell')?.getBoundingClientRect()?.bottom,
+      workspaceBottom:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.bottom,
+      mainBottom:document.querySelector('.m26-main')?.getBoundingClientRect()?.bottom,
+      routeShellBottom:shell.getBoundingClientRect().bottom,
+      routeShellHeight:shell.getBoundingClientRect().height,
+      routeShellFlexGrow:getComputedStyle(shell).flexGrow,
+      mainHeight:document.querySelector('.m26-main')?.getBoundingClientRect()?.height,
+      mainScrollTop:document.querySelector('.m26-main')?.scrollTop,
+      mainOverflow:getComputedStyle(document.querySelector('.m26-main')).overflow,
+      mainDisplay:getComputedStyle(document.querySelector('.m26-main')).display,
+      workspaceHeight:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.height,
+      workspaceDisplay:getComputedStyle(document.querySelector('.m26-workspace')).display,
+      workspaceDirection:getComputedStyle(document.querySelector('.m26-workspace')).flexDirection,
+      scrollerHeight:scroller.getBoundingClientRect().height,
       hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
     };
   });
+  if(route==='Cliente ajustes')console.log('SIGNATURE_CLIENT_SETTINGS_GEOMETRY:'+JSON.stringify(geometry));
   expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
+  expect(geometry.documentScrollY,`${route}: document must not scroll behind the Client dock`).toBeLessThanOrEqual(1);
+  expect(geometry.mainScrollTop,`${route}: hidden main must not scroll the whole dock with contextual help`).toBeLessThanOrEqual(1);
+  expect(geometry.mainOverflow,`${route}: only the nested route may scroll`).toBe('clip');
+  expect(geometry.shellBottom,`${route}: Client shell stays viewport-bound`).toBeGreaterThanOrEqual(geometry.viewportHeight-2);
   expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
   expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
   expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
@@ -373,6 +397,85 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
         const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();
         captures.push({...(await capture(page,{account,project:testInfo.project.name,state:'authenticated-progress',suffix:'progress'})),exerciseAnalyticsCount});
+
+        // SIGNATURE 360 U1: finish the *real* nine-route Client navigation.
+        // Four primary routes are certified above; all five remaining routes
+        // must be reachable via Más (compact/touch) or the desktop sidebar.
+        // Screenshots are synthetic QA evidence, not acceptance of all route states.
+        const secondaryClientAreas=['informes','actividad','mensajes','retos','ajustes'];
+        for(const area of secondaryClientAreas){
+          const more=page.locator('.m26-client-bottom-nav-more > summary').first();
+          if(await more.isVisible().catch(()=>false)){
+            await more.click();
+            await expect(page.locator('[data-m26-client-context-guide]'),
+              `${area}: opening Más must release the non-modal context guide`).toHaveCount(0);
+            const destination=page.locator(`.m26-client-bottom-nav-menu [role="menuitem"][data-m26-area="${area}"]`);
+            await expect(destination,`${area}: Más must retain an accessible destination`).toBeVisible({timeout:5_000});
+            await destination.click({timeout:7_000});
+          }else if(area==='ajustes'){
+            // Desktop Settings lives in the sidebar account popover. Tablets
+            // can retain the compact shell "Más" even above 900px, so discover
+            // the actually visible affordance without forcing hidden elements.
+            const tabletMore=page.locator('.m26-mobile-more > summary').first();
+            if(await tabletMore.isVisible().catch(()=>false)){
+              await tabletMore.click();
+              const settings=page.locator('.m26-mobile-more-menu [data-m26-area="ajustes"]:visible').first();
+              await expect(settings,'Tablet compact account menu must expose Settings').toBeVisible();
+              await settings.click();
+            }else{
+              const touchRailSettings=page.locator('.m26-sidebar .m26-client-settings-fallback [data-m26-area="ajustes"]:visible').first();
+              if(await touchRailSettings.isVisible().catch(()=>false)){
+                await touchRailSettings.click();
+              }else{
+                const settingsMenu=page.locator('.m26-sidebar details.m26-settings-menu > summary').first();
+                await expect(settingsMenu,'Desktop Client must expose Settings in the account footer').toBeVisible({timeout:6_000});
+                await settingsMenu.click();
+                const settingsPage=page.locator('.m26-sidebar .m26-settings-popover [data-m26-area="ajustes"]').first();
+                await expect(settingsPage,'Account menu must link to full Settings').toBeVisible();
+                await settingsPage.click();
+              }
+            }
+          }else{
+            const destination=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
+            await expect(destination,`${area}: desktop sidebar must retain the destination`).toBeVisible({timeout:5_000});
+            await destination.click();
+          }
+          const routeShell=page.locator('.m26-client-route-shell').first();
+          // Messages legitimately projects to "communication", or to the
+          // recoverable "communication-unavailable" route on remote failure.
+          // Both must be visible; neither is an authorization bypass.
+          const expectedRoute=area==='mensajes'?/^(?:communication|communication-unavailable)$/u:area;
+          await expect(routeShell,`${area}: navigate to real authenticated Client route`)
+            .toHaveAttribute('data-client-bottom-nav-route',expectedRoute,{timeout:10_000});
+          await expect(routeShell).toBeVisible();
+          const routeContent=routeShell.locator(':scope > :not(.m26-client-bottom-nav-layer)').first();
+          if(area==='mensajes'){
+            const renderedKind=await routeShell.getAttribute('data-client-bottom-nav-route');
+            if(renderedKind==='communication-unavailable'){
+              await expect(routeContent.locator('[data-m45-communication-retry]'),
+                'Messages unavailable state must permit a safe recovery action').toBeVisible();
+            }else{
+              await expect(routeContent.locator('.m26-communication-grid'),
+                'Messages ready state must contain the real conversation surface').toBeVisible();
+            }
+          }
+          await expect(routeContent,`${area}: route must render content, not just its dock`).toBeVisible({timeout:10_000});
+          await expect(routeContent.locator('h2,h3').first(),`${area}: identifiable route heading`).toBeVisible();
+          await expect(routeContent.locator('.m26-route-placeholder'),`${area}: route must not fall back to unavailable`).toHaveCount(0);
+          await certifyNonOverlappingClientDock(page,projectUse,`Cliente ${area}`);
+          captures.push(await capture(page,{
+            account,project:testInfo.project.name,
+            state:`authenticated-client-${area}`,suffix:area,
+          }));
+        }
+        const inspectedClientRoutes=new Set(captures.filter((item)=>
+          item.role==='client'&&item.state.startsWith('authenticated-client-'))
+          .map((item)=>item.state.replace(/^authenticated-client-/u,'')));
+        for(const area of ['hoy','plan','sessions',...secondaryClientAreas]){
+          expect(inspectedClientRoutes.has(area),`Client route evidence missing: ${area}`).toBe(true);
+        }
+        expect(captures.some((item)=>item.role==='client'&&item.state==='authenticated-progress'),
+          'Client Progreso must retain its own authenticated screenshot').toBe(true);
       }
 
       await Promise.all(avatarChecks);

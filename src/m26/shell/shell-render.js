@@ -82,6 +82,9 @@ function settingsAreaForRole(role){
 
 function groupedNavigation(vm){
   const map=allNavigationItems(vm);
+  const clientSettings=vm.identity.role==='client'
+    ?map.get(settingsAreaForRole(vm.identity.role))
+    :null;
   map.delete(settingsAreaForRole(vm.identity.role));
   const groups=ROLE_NAV_GROUPS[vm.identity.role]||[];
   const used=new Set();
@@ -95,7 +98,14 @@ function groupedNavigation(vm){
     }).join('')}</div></section>`;
   }).join('');
   const remaining=[...map.values()].filter((item)=>!used.has(item.key));
-  return markup+(remaining.length?`<section class="m26-nav-group"><h2>${escapeHtml(tx('common.allTools','Todas las herramientas'))}</h2><div>${remaining.map((item)=>navItem(item,vm.activeArea)).join('')}</div></section>`:'');
+  // On medium/expanded touch sidebar rails the account footer is intentionally
+  // hidden to save width. Preserve Settings as a genuine navigation destination
+  // instead of silently removing the only available access for Client.
+  // This fallback is hidden whenever the normal account footer is visible.
+  const clientSettingsFallback=clientSettings
+    ?`<section class="m26-nav-group m26-client-settings-fallback" aria-label="${escapeHtml(tx('nav.client.account','Cuenta'))}"><div>${navItem(clientSettings,vm.activeArea)}</div></section>`
+    :'';
+  return markup+(remaining.length?`<section class="m26-nav-group"><h2>${escapeHtml(tx('common.allTools','Todas las herramientas'))}</h2><div>${remaining.map((item)=>navItem(item,vm.activeArea)).join('')}</div></section>`:'')+clientSettingsFallback;
 }
 
 function clientSelector(vm) {

@@ -244,6 +244,15 @@
 /* SIGNATURE 360 · Non-overlapping Client mobile navigation.
  * Content scrolls in its own panel, dock occupies independent layout space. */
 @media (max-width: 900px) {
+  /* The client app is a bounded viewport workspace with its own route scroller.
+   * Long Settings forms and guide-driven navigation must not scroll the entire
+   * document, otherwise the in-flow dock floats above an unused screen strip. */
+  .m26-shell[data-m26-role="client"] {
+    height: 100dvh;
+    min-height: 0;
+    overflow: clip;
+  }
+
   .m26-shell[data-m26-role="client"] .m26-workspace {
     height: 100dvh;
     min-height: 0;
@@ -256,7 +265,10 @@
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    /* overflow:hidden creates a programmatically scrollable ancestor:
+     * contextual help scrollIntoView can shift the ENTIRE dock up while
+     * document.scrollY remains zero. clip keeps only the route scrollport. */
+    overflow: clip;
     padding-bottom: 0;
     scrollbar-gutter: auto;
   }
@@ -492,4 +504,38 @@
     grid-template-columns: 1fr;
   }
 
+}
+
+/* Immersive Client workout is not a dock-owned scrolling route. Its secondary
+ * "Historial, datos y ajustes" controls must stay scroll-reachable on touch
+ * devices. Restore native page scrolling only while that surface is mounted.
+ * Normal Client routes keep their viewport-bound dock and nested scrollport. */
+@media (max-width: 900px) {
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) .m26-workspace {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) .m26-workspace .m26-main {
+    flex: 1 0 auto;
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context) .m26-client-route-shell {
+    flex: 1 0 auto;
+  }
+
+  .m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context)
+  .m26-client-route-shell > :not(.m26-client-bottom-nav-layer) {
+    flex: 1 0 auto;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
 }

@@ -535,6 +535,59 @@ test('SIGNATURE warm optional-activity copy stays localized in four languages',(
   }
 });
 
+test('SIGNATURE U1 visual QA visits all nine authenticated Client destinations without business writes',()=>{
+  const spec=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  const roleRenderer=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  for(const route of ['informes','actividad','mensajes','retos','ajustes']){
+    assert.match(roleRenderer,new RegExp('data-m26-area="'+route+'"'),
+      'Client Más must preserve the real destination '+route);
+    assert.match(spec,new RegExp("'"+route+"'"),
+      'Authenticated Client visual QA must visit '+route);
+  }
+  assert.match(spec,/secondaryClientAreas=\['informes','actividad','mensajes','retos','ajustes'\]/u);
+  assert.match(spec,/certifyNonOverlappingClientDock\(page,projectUse,`Cliente \$\{area\}`\)/u,
+    'Every additional Client route must verify mobile content is separate from the dock');
+  assert.match(spec,/data-client-bottom-nav-route/u,'Route evidence must require the actual active Client destination');
+  assert.match(spec,/role="menuitem"/u,'Compact Más destinations must stay keyboard and touch reachable');
+  assert.match(spec,/\.m26-sidebar \[data-m26-area=/u,'Desktop Client keeps its own full navigation');
+  assert.match(spec,/routeContent\.locator\('\.m26-route-placeholder'\)/u,
+    'A placeholder must never be certified as a functional route');
+  assert.match(spec,/Client Progreso must retain its own authenticated screenshot/u);
+  assert.match(spec,/businessMutationsPerformed:false/u,'Read-only QA never certifies a write as safe');
+  assert.match(spec,/expect\(blocked,'Visual evidence attempted a business mutation or foreign request'\)/u);
+});
+
+test('SIGNATURE immersive Client workout keeps history and recovery reachable by native scrolling',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const source=fs.readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+  const gate=fs.readFileSync(new URL('../qa/device-experience/device-experience.spec.mjs',import.meta.url),'utf8');
+  const scope='.m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context)';
+  assert.ok(css.includes(scope),'Immersive exception must be limited to the active Client session');
+  const exception=css.slice(css.indexOf('Immersive Client workout is not'));
+  assert.ok(exception.includes('height: auto;')&&exception.includes('overflow: visible;'),
+    'Immersive session must restore reachable native scrolling');
+  assert.ok(exception.includes('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)'),
+    'The route content must not remain clipped outside the interactive viewport');
+  assert.match(source,/class="m26-session-live-secondary-context"/u);
+  assert.match(gate,/secondaryContext\.click\(\)/u,
+    'Real device regression must exercise History, data and settings without forced clicks');
+});
+
+test('SIGNATURE Client compact shell locks document scrolling without disabling route scroll',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  assert.match(css,/@media \(max-width: 900px\)\s*\{[\s\S]*?\.m26-shell\[data-m26-role="client"\]\s*\{\s*height:\s*100dvh;\s*min-height:\s*0;\s*overflow:\s*clip;/u);
+  assert.match(css,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u,
+    'Only Client route content scrolls, not the outer shell');
+  assert.match(visual,/documentScrollY[^\n]*scrollY/u);
+  assert.match(css,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-main\s*\{[\s\S]*?overflow:\s*clip;/u,
+    'Outer main must not be programmatically scrollable by contextual-guide scrollIntoView');
+  assert.match(visual,/mainScrollTop/u,'Browser gate measures accidental outer-main scroll');
+  assert.match(visual,/hidden main must not scroll the whole dock/u);
+  assert.match(visual,/document must not scroll behind the Client dock/u);
+  assert.match(visual,/shellBottom[^\n]*viewport-bound/u);
+});
+
 test('SIGNATURE mobile dock belongs to a separate viewport row, never the content layer',()=>{
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
   const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
@@ -542,7 +595,8 @@ test('SIGNATURE mobile dock belongs to a separate viewport row, never the conten
   const end=css.indexOf('@media (max-width: 690px)',start);
   assert.ok(start>=0&&end>start,'responsive Client dock and route must be one CSS composition');
   const layout=css.slice(start,end);
-  assert.match(layout,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-main\s*\{[^}]*overflow:\s*hidden[^}]*padding-bottom:\s*0/u);
+  assert.match(layout,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-main\s*\{[^}]*overflow:\s*clip[^}]*padding-bottom:\s*0/u,
+    'Non-scrollable outer main protects the dock when guidance scrolls to a setting');
   assert.match(layout,/\.m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)\s*\{[^}]*overflow-y:\s*auto/u);
   assert.match(layout,/\.m26-client-bottom-nav-layer\s*\{[^}]*position:\s*relative/u);
   assert.match(layout,/padding-bottom:\s*0/u,'fixed-viewport padding must not compete with a separate dock row');

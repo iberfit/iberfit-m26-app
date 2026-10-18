@@ -56,6 +56,14 @@
 .m26-context-nav { padding-top: 1rem; border-top: 1px solid var(--m26-line); }
 .m26-context-nav h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: .02em; }
 .m26-sidebar-footer { margin-top: 2rem; padding: 1rem .55rem .25rem; border-top: 1px solid var(--m26-line); }
+/* When touch sidebar rails hide their account footer, keep a single accessible
+ * Settings destination inside the rail. Normal desktop retains footer Settings;
+ * the fallback stays visually and keyboard-hidden there (no duplicate control). */
+.m26-client-settings-fallback { display: none; }
+[data-m26-layout="medium-touch"] .m26-shell[data-m26-role="client"] .m26-client-settings-fallback,
+[data-m26-layout="expanded-touch"] .m26-shell[data-m26-role="client"] .m26-client-settings-fallback {
+  display: block;
+}
 .m26-sidebar-footer span, .m26-sidebar-footer strong { display: block; }
 .m26-sidebar-footer span { color: var(--m26-gold-300); font-size: .72rem; }
 .m26-sidebar-footer strong { margin-top: .25rem; font-size: .86rem; }

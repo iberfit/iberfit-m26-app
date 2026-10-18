@@ -460,6 +460,47 @@ test('Client manual Guide access lives in sidebar utility and Más, never in the
   assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
 });
 
+test('Client Settings stays reachable on touch sidebar rails without a duplicate full desktop entry',()=>{
+  const shell=read('src/m26/shell/shell-render.js');
+  const css=read('src/m26/shell/shell.css');
+  const browser=read('qa/rc64/authenticated-visual-evidence.spec.mjs');
+  assert.match(shell,/const clientSettings=vm\.identity\.role==='client'/u);
+  assert.match(shell,/m26-client-settings-fallback/u);
+  assert.match(shell,/map\.delete\(settingsAreaForRole\(vm\.identity\.role\)\)/u,
+    'Settings must not be duplicated in ordinary primary navigation');
+  assert.match(css,/\.m26-client-settings-fallback\s*\{\s*display:\s*none;/u,
+    'Normal desktop must have only its account-menu Settings');
+  assert.match(css,/\[data-m26-layout="medium-touch"\][\s\S]*?m26-client-settings-fallback/u);
+  assert.match(css,/\[data-m26-layout="expanded-touch"\][\s\S]*?m26-client-settings-fallback/u);
+  assert.match(browser,/touchRailSettings/u,'Browser QA must navigate actual collapsed-rail Settings');
+  assert.match(browser,/tabletMore/u,'Browser QA must navigate actual tablet Más Settings');
+});
+
+test('Client Settings guidance stays within the scrollable route and cannot lift the bottom dock',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  const settingsHost=guide.match(/const host=root\.querySelector\?\.\(\s*'\.m26-client-route-shell\[data-client-bottom-nav-route="ajustes"\] > \.m26-settings-route'\s*\)/u);
+  assert.ok(settingsHost,'Settings guidance must belong to the Client route scrollport');
+  assert.match(guide,/if\(settings\)\{[\s\S]*?settings\.parentElement!==host[\s\S]*?host\.appendChild\(settings\)/u,
+    'Existing guidance is moved into the scrollport without destroying or duplicating it');
+  assert.match(guide,/else host\.insertAdjacentHTML\?\.\('beforeend',settingsHtml\(\)\)/u);
+  assert.doesNotMatch(guide,/querySelector\?\.\('#m26-main'\)\?\.insertAdjacentHTML/u,
+    'Mounting guidance as an extra flex sibling would displace the mobile dock');
+});
+
+test('Client context guide releases Más touch targets without silently dismissing advice',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  const navigation=guide.match(/if\(event\.target\?\.closest\?\.\('\.m26-client-bottom-nav-more > summary'\)\)\{([\s\S]*?)\n    \}/u);
+  assert.ok(navigation,'Opening Más must dismiss the currently displayed non-modal guide');
+  assert.match(navigation[1],/if\(dialog\)close\(\{restoreFocus:false\}\)/u);
+  assert.doesNotMatch(navigation[1],/markSeen|markDismissed|preventDefault|stopPropagation/u,
+    'Navigation must not silently mark hints seen/dismissed or swallow touch input');
+  const visual=read('qa/rc64/authenticated-visual-evidence.spec.mjs');
+  assert.match(visual,/opening Más must release the non-modal context guide/u,
+    'Authenticated browser matrix must verify guide and dock do not overlap');
+  assert.match(visual,/communication-unavailable/u,'Messages unavailable is a supported recoverable state');
+  assert.match(visual,/data-m45-communication-retry/u,'Unavailable Messages must retain recovery');
+});
+
 test('Client bottom navigation remains five primary destinations and Retos stays reachable through Más',()=>{
   const source=read('src/m26/modules/route-render.js');
   const html=renderRouteView({kind:'placeholder',role:'client',title:'Prueba'});
