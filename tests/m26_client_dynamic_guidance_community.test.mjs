@@ -460,6 +460,17 @@ test('Client manual Guide access lives in sidebar utility and Más, never in the
   assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
 });
 
+test('Client Settings guidance stays within the scrollable route and cannot lift the bottom dock',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  const settingsHost=guide.match(/const host=root\.querySelector\?\.\(\s*'\.m26-client-route-shell\[data-client-bottom-nav-route="ajustes"\] > \.m26-settings-route'\s*\)/u);
+  assert.ok(settingsHost,'Settings guidance must belong to the Client route scrollport');
+  assert.match(guide,/if\(settings\)\{[\s\S]*?settings\.parentElement!==host[\s\S]*?host\.appendChild\(settings\)/u,
+    'Existing guidance is moved into the scrollport without destroying or duplicating it');
+  assert.match(guide,/else host\.insertAdjacentHTML\?\.\('beforeend',settingsHtml\(\)\)/u);
+  assert.doesNotMatch(guide,/querySelector\?\.\('#m26-main'\)\?\.insertAdjacentHTML/u,
+    'Mounting guidance as an extra flex sibling would displace the mobile dock');
+});
+
 test('Client context guide releases Más touch targets without silently dismissing advice',()=>{
   const guide=read('src/m26/onboarding/client-contextual-guide.js');
   const navigation=guide.match(/if\(event\.target\?\.closest\?\.\('\.m26-client-bottom-nav-more > summary'\)\)\{([\s\S]*?)\n    \}/u);
