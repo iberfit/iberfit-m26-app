@@ -45,6 +45,16 @@ test('Coach agenda still retains earlier confirmed appointments as historical co
   assert.match(command(coach({appointments:[past]})),/Tu cartera está al día/u);
 });
 
+test('Coach agenda preserves earlier appointments but never offers a stale Start control',()=>{
+  const past={...appointment('past','Pasada y confirmada','a'),sessionId:'session-past'};
+  const next={...appointment('next','Futura y confirmada','b'),sessionId:'session-next'};
+  const html=renderHoyRoute(coach({appointments:[past,next],upcoming:[next]}));
+  assert.match(html,/Pasada y confirmada/u);
+  assert.match(html,/Futura y confirmada/u);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session" data-entity-id="session-past"/u);
+  assert.match(html,/data-workflow-action="start-published-session" data-entity-id="session-next"/u);
+});
+
 test('Coach prioritizes operational conflict over a future appointment',()=>{
   const next=appointment('future','Sesión confirmada','a');
   const html=command(coach({
@@ -64,5 +74,6 @@ test('Coach and Client Today stay separate; Cliente never inherits Coach priorit
     operations:{pending:0,conflicts:0,rejected:0},
   });
   assert.doesNotMatch(clientHtml,/m26-coach-home-command/u);
-  assert.match(clientHtml,/Diagnóstico IRI/u);
+  assert.match(clientHtml,/m26-client-home-feature/u);
+  assert.match(clientHtml,/Hola, Cliente A/u);
 });
