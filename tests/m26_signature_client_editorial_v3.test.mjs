@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const css=readFileSync(new URL('../src/m26/design/dark-iberfit-v2.css',import.meta.url),'utf8');
 const continuity=readFileSync(new URL('../src/m26/ui/progress-continuity.js',import.meta.url),'utf8');
@@ -93,6 +94,27 @@ test('Mobile, motion, high contrast and touch preserve premium readability',()=>
   assert.match(visual,/outline:3px solid #5e4521/u);
   assert.match(continuity,/\.m27-client-home-card>small\{[^}]*font-size:\.86rem/u);
   assert.doesNotMatch(visual,/\b(?:position:fixed|overflow:hidden|!important)\b/u);
+});
+
+test('New editorial journey remains intelligible in English, French and Portuguese',()=>{
+  const originals=[
+    'El método IBERFIT','Tu proceso de entrenamiento',
+    'Planificar, entrenar y evaluar. Cada etapa con criterio.',
+    'Plan o sesiones disponibles','El equipo está preparando tu plan',
+    'Servicio en pausa · historial conservado',
+    'Hay una sesión lista para empezar','Tienes sesiones para consultar',
+    'Aparecerán aquí cuando estén publicadas','Evolución basada en registros reales',
+  ];
+  for(const language of ['en','fr','pt']){
+    for(const source of originals){
+      const translated=iberfitSurfaceTranslate(source,{language});
+      assert.ok(translated&&translated!==source,language+': untranslated Client journey copy: '+source);
+    }
+  }
+  assert.equal(
+    iberfitSurfaceTranslate('Tu proceso de entrenamiento',{language:'en'}),
+    'Your training journey',
+  );
 });
 
 function rgb(hex){
