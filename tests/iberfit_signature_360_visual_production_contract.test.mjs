@@ -557,6 +557,22 @@ test('SIGNATURE U1 visual QA visits all nine authenticated Client destinations w
   assert.match(spec,/expect\(blocked,'Visual evidence attempted a business mutation or foreign request'\)/u);
 });
 
+test('SIGNATURE immersive Client workout keeps history and recovery reachable by native scrolling',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const source=fs.readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+  const gate=fs.readFileSync(new URL('../qa/device-experience/device-experience.spec.mjs',import.meta.url),'utf8');
+  const scope='.m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context)';
+  assert.ok(css.includes(scope),'Immersive exception must be limited to the active Client session');
+  const exception=css.slice(css.indexOf('Immersive Client workout is not'));
+  assert.ok(exception.includes('height: auto;')&&exception.includes('overflow: visible;'),
+    'Immersive session must restore reachable native scrolling');
+  assert.ok(exception.includes('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)'),
+    'The route content must not remain clipped outside the interactive viewport');
+  assert.match(source,/class="m26-session-live-secondary-context"/u);
+  assert.match(gate,/secondaryContext\.click\(\)/u,
+    'Real device regression must exercise History, data and settings without forced clicks');
+});
+
 test('SIGNATURE Client compact shell locks document scrolling without disabling route scroll',()=>{
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
   const visual=fs.readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
