@@ -23,7 +23,7 @@ function clientMoreFixture(){
   const details={
     open:true,
     matches(selector){return selector==='details.m26-client-bottom-nav-more';},
-    querySelector(selector){return selector===':scope > summary'?summary:null;},
+    querySelector(selector){return [':scope > summary','summary'].includes(selector)?summary:null;},
     querySelectorAll(selector){
       return selector==='.m26-client-bottom-nav-menu [role="menuitem"]:not([disabled])'?items:[];
     },
