@@ -399,14 +399,23 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             await expect(destination,`${area}: Más must retain an accessible destination`).toBeVisible({timeout:5_000});
             await destination.click({timeout:7_000});
           }else if(area==='ajustes'){
-            // Desktop intentionally places Settings in the account popover,
-            // not in the ordinary navigation groups. Verify its real path.
-            const settingsMenu=page.locator('.m26-sidebar details.m26-settings-menu > summary').first();
-            await expect(settingsMenu,'Desktop Client must expose Settings in the account footer').toBeVisible();
-            await settingsMenu.click();
-            const settingsPage=page.locator('.m26-sidebar .m26-settings-popover [data-m26-area="ajustes"]').first();
-            await expect(settingsPage,'Account menu must link to full Settings').toBeVisible();
-            await settingsPage.click();
+            // Desktop Settings lives in the sidebar account popover. Tablets
+            // can retain the compact shell "Más" even above 900px, so discover
+            // the actually visible affordance without forcing hidden elements.
+            const tabletMore=page.locator('.m26-mobile-more > summary').first();
+            if(await tabletMore.isVisible().catch(()=>false)){
+              await tabletMore.click();
+              const settings=page.locator('.m26-mobile-more-menu [data-m26-area="ajustes"]:visible').first();
+              await expect(settings,'Tablet compact account menu must expose Settings').toBeVisible();
+              await settings.click();
+            }else{
+              const settingsMenu=page.locator('.m26-sidebar details.m26-settings-menu > summary').first();
+              await expect(settingsMenu,'Desktop Client must expose Settings in the account footer').toBeVisible({timeout:6_000});
+              await settingsMenu.click();
+              const settingsPage=page.locator('.m26-sidebar .m26-settings-popover [data-m26-area="ajustes"]').first();
+              await expect(settingsPage,'Account menu must link to full Settings').toBeVisible();
+              await settingsPage.click();
+            }
           }else{
             const destination=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
             await expect(destination,`${area}: desktop sidebar must retain the destination`).toBeVisible({timeout:5_000});
