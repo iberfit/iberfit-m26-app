@@ -71,6 +71,20 @@ test('Admin triage is scoped to visible real users and retains privileged manage
   assert.doesNotMatch(html,/vincular por correo autom[aá]ticamente/u);
 });
 
+test('Primary-role-only Cliente retains an honest unlinked access state',()=>{
+  const html=renderAdminRoute({
+    admin:{available:true},kind:'admin-usuarios',
+    users:[{id:'u-cl',userId:'u-cl',name:'Cliente sin rol expandido',
+      primaryRole:'client',roles:[],status:'active',access:null,integrityIssues:[]}],
+    user360Summary:{total:1,activeUsers:1,pendingInvitations:0,integrityIssueCount:0},
+    canManageStatus:false,canManageRoles:false,
+  });
+  assert.match(html,/data-user-roles="\\|client\\|"/u);
+  assert.match(html,/data-user-unlinked="true"/u);
+  assert.match(html,/Sin vínculo de acceso/u);
+  assert.doesNotMatch(html,/Esta identidad no usa la aplicación Cliente/u);
+});
+
 test('Global orphaned access anomaly never invents an associated user or fake drilldown',()=>{
   const html=renderAdminRoute({
     admin:{available:true},kind:'admin-usuarios',
