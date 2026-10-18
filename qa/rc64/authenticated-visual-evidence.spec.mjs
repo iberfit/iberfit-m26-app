@@ -373,6 +373,41 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
         const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();
         captures.push({...(await capture(page,{account,project:testInfo.project.name,state:'authenticated-progress',suffix:'progress'})),exerciseAnalyticsCount});
+
+        // SIGNATURE 360 U1: finish the *real* nine-route Client navigation.
+        // Four primary routes are certified above; all five remaining routes
+        // must be reachable via Más (compact/touch) or the desktop sidebar.
+        // Screenshots are synthetic QA evidence, not acceptance of all route states.
+        const secondaryClientAreas=['informes','actividad','mensajes','retos','ajustes'];
+        for(const area of secondaryClientAreas){
+          const more=page.locator('.m26-client-bottom-nav-more > summary').first();
+          if(await more.isVisible().catch(()=>false)){
+            await more.click();
+            const destination=page.locator(`.m26-client-bottom-nav-menu [role="menuitem"][data-m26-area="${area}"]`);
+            await expect(destination,`${area}: Más must retain an accessible destination`).toBeVisible({timeout:5_000});
+            await destination.click();
+          }else{
+            const destination=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
+            await expect(destination,`${area}: desktop sidebar must retain the destination`).toBeVisible({timeout:5_000});
+            await destination.click();
+          }
+          const routeShell=page.locator(`.m26-client-route-shell[data-client-bottom-nav-route="${area}"]`);
+          await expect(routeShell,`${area}: navigate to real authenticated Client route`).toBeVisible({timeout:10_000});
+          const routeContent=routeShell.locator(':scope > :not(.m26-client-bottom-nav-layer)').first();
+          await expect(routeContent,`${area}: route must render content, not just its dock`).toBeVisible({timeout:10_000});
+          await expect(routeContent.locator('h2,h3').first(),`${area}: identifiable route heading`).toBeVisible();
+          await expect(routeContent.locator('.m26-route-placeholder'),`${area}: route must not fall back to unavailable`).toHaveCount(0);
+          await certifyNonOverlappingClientDock(page,projectUse,`Cliente ${area}`);
+          captures.push(await capture(page,{
+            account,project:testInfo.project.name,
+            state:`authenticated-client-${area}`,suffix:area,
+          }));
+        }
+        expect(
+          new Set(captures.filter((item)=>item.role==='client'&&item.state.startsWith('authenticated-client-'))
+            .map((item)=>item.state.replace(/^authenticated-client-/u,''))),
+          'Client nine-route visual evidence must cover primary and secondary destinations',
+        ).toEqual(new Set(['hoy','hoy-end','plan','sessions','informes','actividad','mensajes','retos','ajustes']));
       }
 
       await Promise.all(avatarChecks);
