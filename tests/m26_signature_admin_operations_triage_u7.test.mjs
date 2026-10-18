@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deriveAdminOperationsTriage,isOperationalTaskOpen} from '../src/m26/admin/operation-triage.js';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
+import {deriveAdminCommandCenter} from '../src/m26/admin/command-center.js';
 
 const now=new Date('2026-10-18T12:00:00.000Z');
 const users=[{id:'admin-1',name:'María García'},{id:'admin-2',email:'responsable@iberfit.cl'}];
@@ -106,6 +107,18 @@ test('task detail, owner and resolution are escaped, and urgency never trusts pr
 });
 
 test('Command Center preview displays only open operational tasks and retains its route link',()=>{
+  const cmd=deriveAdminCommandCenter({
+    clients:[],coaches:[],
+    tasks:[{id:'closed',status:'cerrado',priority:'critical'},{id:'open',status:'open',priority:'high'}],
+  });
+  assert.equal(cmd.summary.openTasks,1);
+  assert.equal(cmd.summary.criticalTasks,1);
+  const home=renderAdminRoute({
+    admin:{available:true},kind:'admin-inicio',summary:{},tasks:triage().open.map(x=>x.task),
+    audit:[],commandCenter:deriveAdminCommandCenter({clients:[],coaches:[],tasks}),
+  });
+  assert.match(home,/data-m26-area="admin-operaciones">Ver incidencias<\\/button>/u);
+  assert.doesNotMatch(home,/Incidencia resuelta|Incidencia cancelada/u);
   const view=readFileSync(new URL('../src/m26/admin/view-model.js',import.meta.url),'utf8');
   assert.match(view,/tasks:Object\.freeze\(operations\.open\.slice\(0,12\)\.map\(\(item\)=>item\.task\)\)/);
   assert.match(view,/deriveAdminOperationsTriage/u);
