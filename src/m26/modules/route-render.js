@@ -219,7 +219,11 @@ function renderCoachHoyRoute(vm) {
   const fallbackClientAction=!cockpit
     ?clients.find((item)=>item?.nextAction?.label)||null
     :null;
-  const todayAppointment=appointments[0]||null;
+  // Today's agenda deliberately includes completed earlier appointments.
+  // Never promote one of those as the "next session". Only the confirmed,
+  // chronological future projection is eligible for that priority.
+  const todayAppointmentIds=new Set(appointments.map((item)=>String(item?.id||'').trim()).filter(Boolean));
+  const todayAppointment=upcoming.find((item)=>todayAppointmentIds.has(String(item?.id||'').trim()))||null;
   const upcomingAppointment=upcoming[0]||null;
 
   const appointmentClient=(appointment)=>{
@@ -327,10 +331,16 @@ function renderCoachHoyRoute(vm) {
       ?'Cambios por revisar'
       :null;
 
+  // A confirmed appointment may remain in today's history after its slot.
+  // Keep it readable in the agenda, but never offer a stale Start control.
+  const upcomingAppointmentIds=new Set(upcoming.map((item)=>String(item?.id||'').trim()).filter(Boolean));
   const agendaBody=appointments.length
     ?appointments.slice(0,4).map((item)=>{
         const linkedClient=appointmentClient(item);
-        return appointmentCard(item,{canStartSession:linkedClient?.serviceActive!==false});
+        return appointmentCard(item,{
+          canStartSession:linkedClient?.serviceActive!==false&&
+            upcomingAppointmentIds.has(String(item?.id||'').trim()),
+        });
       }).join('')
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">✓</span>

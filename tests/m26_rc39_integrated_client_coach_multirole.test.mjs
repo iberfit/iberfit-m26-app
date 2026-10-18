@@ -212,7 +212,7 @@ test('RC74.1.2 Hoy Coach expone inicio directo de la cita confirmada',()=>{
   const html=renderHoyRoute({
     role:'coach',clients:[],
     appointments:[{id:'a-live',sessionId:'s-live',dateLabel:'10:00',title:'Cliente · Fuerza Live',modality:'Presencial',location:'Las Condes',status:'Confirmada',statusRaw:'confirmada'}],
-    proposals:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0},coachCockpit:null,
+    proposals:[],upcoming:[{id:'a-live',sessionId:'s-live',dateLabel:'10:00',statusRaw:'confirmada'}],operations:{pending:0,conflicts:0,rejected:0},coachCockpit:null,
   });
   assert.match(html,/data-workflow-action="start-published-session"/u);
   assert.match(html,/Comenzar entrenamiento/u);

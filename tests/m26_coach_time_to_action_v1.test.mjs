@@ -268,7 +268,7 @@ test('Preparar sesión desde una cita de Hoy abre Sesiones y no Agenda cuando el
       status:'confirmed',
     }],
     proposals:[],
-    upcoming:[],
+    upcoming:[{id:'appointment-today-1',clientId,dateLabel:'Hoy · 18:00',status:'confirmed'}],
     clients:[{
       id:clientId,
       name:'Ana Demo',
@@ -298,7 +298,7 @@ test('cita con clientId no visible degrada a Agenda sin intentar selección no a
       status:'confirmed',
     }],
     proposals:[],
-    upcoming:[],
+    upcoming:[{id:'appointment-hidden-client',clientId:'99999999-9999-4999-8999-999999999999',dateLabel:'Hoy · 19:00',status:'confirmed'}],
     clients:[],
     coachCockpit:{items:[],attentionCount:0,totalClients:0,riskFocus:null},
     operations:{pending:0,conflicts:0,rejected:0},

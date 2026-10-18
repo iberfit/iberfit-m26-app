@@ -306,7 +306,7 @@ test(
         location:'Las Condes',
       }],
       proposals:[],
-      upcoming:[],
+      upcoming:[{id:'A1',clientId:'C1',sessionId:'S1',dateLabel:'18:00',statusRaw:'confirmada'}],
       operations:{pending:0,conflicts:0,rejected:0},
       coachCockpit:deriveCoachCockpit([{client:sourceClient,alerts:[]}]),
     });
