@@ -72,7 +72,7 @@ test('Mensajes stays current while showing its recoverable connection error',()=
   assert.match(rendered,/m26-client-bottom-nav-more is-active/u);
   assert.match(rendered,/data-m26-area="mensajes" aria-current="page"/u);
   assert.match(rendered,/data-m45-communication-retry/u);
-  assert.match(nav,/max-height:max\\(10rem,calc\\(100dvh - 140px - env\\(safe-area-inset-bottom\\)\\)\\)/u);
+  assert.match(nav,/max-height:max\(10rem,calc\(100dvh - 140px - env\(safe-area-inset-bottom\)\)\)/u);
   assert.match(nav,/overflow-y:auto/u,'short mobile viewports must scroll the popup');
 });
 
