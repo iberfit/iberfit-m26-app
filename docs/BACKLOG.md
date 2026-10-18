@@ -1,5 +1,15 @@
 # IBERFIT · Backlog Vivo
 
+## SIGNATURE 360 · checkpoint de Canary · 17-10-2026
+
+- [x] PR #1019 fusionado y certificado: merge SHA `a497383896043b86548f7fa5781263e2cc71e3d3`, 12/12 workflows postmerge SUCCESS, [Canary Exact Deploy #39078154724](https://github.com/iberfit/iberfit-m26-app/actions/runs/39078154724), Cloudflare `bd38c4e3-080c-43f9-a38f-0ad3f9eab8b9`, rollback anterior identificado.
+- [ ] SIGNATURE 360 de 43 rutas aún WIP. QA de sesiones Cliente sintética y read-only, no prueba de escritura remota sobre sesiones reales ni aceptación integral PROD.
+- [ ] **WIP=1 del rediseño:** ergonomía Coach en sesión táctil: navegación de series, pausa y ajuste sin desbordamiento a 320 px, con Playwright y gates de dispositivo sobre SHA final.
+- [ ] Promoción PROD independiente bloqueada hasta cerrar Auth P0 #1017, estabilidad bajo concurrencia y garantías de recuperación y custodia offsite. No modificar PR #1006 QA-only desde este bloque.
+
+Las entradas con fechas previas se mantienen como historial; no representan el WIP actual de SIGNATURE 360.
+
+
 ## Checkpoint operativo vigente · 11 de octubre de 2026
 
 - [x] PR #869 fusionado, SHA `053fc83df22062c636149a92a9f6386200928fea`, **12/12 postmerge SUCCESS**, Canary Exact Deploy 38152029358 aprobado, deployment `12ed932d-e2c1-4b0d-b43d-474b6fe240c6` y rollback `060289ae-649b-456c-8712-def4a4c96fa4`. Protege hidratación A→B, login misma persona y rotación JWT. No atribuirle solución comprobada al histórico timeout #821, aún abierto.
