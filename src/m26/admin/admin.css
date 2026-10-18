@@ -1760,3 +1760,72 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 .m26-admin-client-identity .m26-admin-client-name{display:grid;min-width:0;gap:.18rem}
 .m26-admin-client-identity .m26-admin-client-name strong,.m26-admin-client-identity .m26-admin-client-name small{overflow-wrap:anywhere}
 .m26-admin-client-identity .m26-admin-client-avatar img[data-iberfit-avatar-image]{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* SIGNATURE 360 · Admin access triage. Filtering is read-only presentation.
+   The server's permissions, audit evidence and Auth-client relationships remain authoritative. */
+.m26-admin-user360 .m26-admin-user-directory-tools{
+  grid-template-columns:minmax(14rem,1.5fr) repeat(3,minmax(8rem,.68fr)) minmax(5.5rem,auto) auto;
+  align-items:end;
+}
+.m26-admin-user360 .m26-admin-user-filter-reset{
+  min-height:48px;
+  max-width:100%;
+  padding:.55rem .72rem;
+  border:1px solid var(--m26-admin-border);
+  border-radius:.75rem;
+  background:var(--m26-admin-surface-soft);
+  color:var(--iberfit-color-text-primary);
+  font:inherit;
+  font-size:.875rem;
+  cursor:pointer;
+}
+.m26-admin-user360 .m26-admin-user-filter-reset[hidden]{display:none!important}
+.m26-admin-user360 .m26-admin-user-filter-reset:focus-visible,
+.m26-admin-user360 .m26-admin-user-review-cta:focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:3px;
+}
+.m26-admin-user360-integrity .m26-admin-section-heading{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.7rem 1.2rem;
+}
+.m26-admin-user-review-cta{
+  flex:none;
+  min-height:48px;
+  padding:.62rem .9rem;
+  border:1px solid var(--m26-admin-border);
+  border-radius:.8rem;
+  background:var(--m26-admin-surface-soft);
+  color:var(--iberfit-color-text-primary);
+  font:inherit;
+  font-weight:690;
+  cursor:pointer;
+}
+.m26-admin-user-review-cta:hover,
+.m26-admin-user-review-cta[aria-pressed="true"]{
+  border-color:var(--iberfit-color-accent-strong);
+  background:var(--m26-admin-surface);
+}
+@media(max-width:1190px){
+  .m26-admin-user360 .m26-admin-user-directory-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .m26-admin-user360 .m26-admin-user-search{grid-column:span 2}
+  .m26-admin-user360 .m26-admin-user-result-count{grid-column:auto}
+}
+@media(max-width:680px){
+  .m26-admin-user360 .m26-admin-user-directory-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m26-admin-user360 .m26-admin-user-search{grid-column:1/-1}
+  .m26-admin-user360 .m26-admin-user-result-count{grid-column:1}
+  .m26-admin-user360 .m26-admin-user-filter-reset{grid-column:2}
+  .m26-admin-user360 .m26-admin-user-review-cta{width:100%}
+}
+@media(max-width:390px){
+  .m26-admin-user360 .m26-admin-user-directory-tools{grid-template-columns:minmax(0,1fr)}
+  .m26-admin-user360 .m26-admin-user-search,
+  .m26-admin-user360 .m26-admin-user-result-count,
+  .m26-admin-user360 .m26-admin-user-filter-reset{grid-column:1}
+}
+@media(forced-colors:active){
+  .m26-admin-user360 .m26-admin-user-review-cta[aria-pressed="true"]{outline:2px solid Highlight}
+}

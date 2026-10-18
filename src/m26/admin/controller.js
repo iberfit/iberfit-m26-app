@@ -25,6 +25,7 @@ function userDirectoryFilterState(root){
     query:String(directory?.querySelector?.('[data-admin-user-search]')?.value||''),
     status:String(directory?.querySelector?.('[data-admin-user-filter="status"]')?.value||''),
     role:String(directory?.querySelector?.('[data-admin-user-filter="role"]')?.value||''),
+    attention:String(directory?.querySelector?.('[data-admin-user-filter="attention"]')?.value||''),
   });
 }
 function applyUserDirectoryFilters(root,state=null){
@@ -34,20 +35,27 @@ function applyUserDirectoryFilters(root,state=null){
     const search=directory.querySelector?.('[data-admin-user-search]');
     const statusSelect=directory.querySelector?.('[data-admin-user-filter="status"]');
     const roleSelect=directory.querySelector?.('[data-admin-user-filter="role"]');
+    const attentionSelect=directory.querySelector?.('[data-admin-user-filter="attention"]');
     if(search)search.value=String(state.query||'');
     if(statusSelect)statusSelect.value=String(state.status||'');
     if(roleSelect)roleSelect.value=String(state.role||'');
+    if(attentionSelect)attentionSelect.value=String(state.attention||'');
   }
   const query=normalizeUserFilter(directory.querySelector?.('[data-admin-user-search]')?.value||'');
   const status=normalizeUserFilter(directory.querySelector?.('[data-admin-user-filter="status"]')?.value||'');
   const role=normalizeUserFilter(directory.querySelector?.('[data-admin-user-filter="role"]')?.value||'');
+  const attention=normalizeUserFilter(directory.querySelector?.('[data-admin-user-filter="attention"]')?.value||'');
   const cards=[...(directory.querySelectorAll?.('[data-admin-user-card]')||[])];
   let visible=0;
   for(const card of cards){
     const haystack=normalizeUserFilter(card.getAttribute?.('data-user-search')||'');
     const cardStatus=normalizeUserFilter(card.getAttribute?.('data-user-status')||'');
     const cardRoles=String(card.getAttribute?.('data-user-roles')||'').toLowerCase();
-    const matches=(!query||haystack.includes(query))&&(!status||cardStatus===status)&&(!role||cardRoles.includes(`|${role}|`));
+    const matchesAttention=!attention
+      ||(attention==='integrity'&&card.getAttribute?.('data-user-integrity')==='true')
+      ||(attention==='invitation'&&card.getAttribute?.('data-user-access-state')==='invitacion_pendiente')
+      ||(attention==='unlinked'&&card.getAttribute?.('data-user-unlinked')==='true');
+    const matches=(!query||haystack.includes(query))&&(!status||cardStatus===status)&&(!role||cardRoles.includes(`|${role}|`))&&matchesAttention;
     card.hidden=!matches;
     if(matches)visible+=1;
   }
@@ -55,6 +63,10 @@ function applyUserDirectoryFilters(root,state=null){
   if(count)count.textContent=String(visible);
   const emptyState=directory.querySelector?.('[data-admin-user-no-results]');
   if(emptyState)emptyState.hidden=visible!==0;
+  const reset=directory.querySelector?.('[data-admin-user-filter-reset]');
+  if(reset)reset.hidden=!(query||status||role||attention);
+  const review=root.querySelector?.('[data-admin-user-review-filter]');
+  if(review)review.setAttribute?.('aria-pressed',attention==='integrity'?'true':'false');
   return visible;
 }
 
@@ -445,6 +457,31 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     applyUserDirectoryFilters(root);
   }
   function onClientEditClick(event){
+    const review=event.target?.closest?.('[data-admin-user-review-filter]');
+    if(review){
+      event.preventDefault?.();
+      const select=root.querySelector?.('[data-admin-user-filter="attention"]');
+      if(select){
+        select.value='integrity';
+        // A critical-access shortcut should not be obscured by old searches.
+        const search=root.querySelector?.('[data-admin-user-search]');
+        const status=root.querySelector?.('[data-admin-user-filter="status"]');
+        const role=root.querySelector?.('[data-admin-user-filter="role"]');
+        if(search)search.value='';
+        if(status)status.value='';
+        if(role)role.value='';
+        applyUserDirectoryFilters(root);
+        select.focus?.({preventScroll:true});
+      }
+      return;
+    }
+    const reset=event.target?.closest?.('[data-admin-user-filter-reset]');
+    if(reset){
+      event.preventDefault?.();
+      applyUserDirectoryFilters(root,{query:'',status:'',role:'',attention:''});
+      root.querySelector?.('[data-admin-user-search]')?.focus?.({preventScroll:true});
+      return;
+    }
     const open=event.target?.closest?.('[data-admin-client-edit-open]');
     if(open){
       event.preventDefault();
