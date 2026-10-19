@@ -72,7 +72,7 @@ import {createIriPhotogrammetryController} from '../workflows/iri-photogrammetry
 import {createEvolutionReportGovernanceService} from '../workflows/evolution-report-governance.js';
 
 export const EMAIL_OTP_DEPLOYMENT_READY=true;
-const MFA_BACKEND_TIMEOUT_MS=10_000;
+export const MFA_BACKEND_TIMEOUT_MS=18_000;
 const POST_MFA_SETUP_TIMEOUT_MS=16_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
 const AUTH_CATALOG_TIMEOUT_MS=6_000;
@@ -362,6 +362,18 @@ export function privilegedMfaDecision(assurance={}){
     return Object.freeze({kind:'challenge',factorId:'65000000-0000-4000-8000-000000000002'});
   }
   return Object.freeze({kind:'enroll-required'});
+}
+
+// Distinguish a recoverable slow server from an actual native-device failure.
+// Never weaken privileged assurance or recommend passkey re-enrolment for latency.
+export function webAuthnFailureRecovery({code='',initialKind=''}={}){
+  const normalized=String(code||'');
+  const backendTimeout=/M26_(?:WEBAUTHN_BACKEND_TIMEOUT|TIMEOUT)/u.test(normalized);
+  return Object.freeze({
+    backendTimeout,
+    deviceRecoveryRecommended:initialKind==='challenge'&&!backendTimeout&&
+      /M26_WEBAUTHN_(?:TIMEOUT|NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(normalized),
+  });
 }
 
 export async function ensurePrivilegedActionAssurance({
@@ -2078,17 +2090,14 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       }
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
       const code=String(error?.message||error||'');
-      const backendTimeout=/M26_(?:WEBAUTHN_BACKEND_TIMEOUT|TIMEOUT)/u.test(code);
-      const deviceRecoveryRecommended=initialKind==='challenge'&&(
-        backendTimeout||
-        /M26_WEBAUTHN_(?:TIMEOUT|NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
-      );
-      if(deviceRecoveryRecommended&&mfaState){
-        mfaState=Object.freeze({...mfaState,deviceRecoveryRecommended:true});
+      const {backendTimeout,deviceRecoveryRecommended}=webAuthnFailureRecovery({code,initialKind});
+      if(mfaState){
+        // A slow server is not evidence that the local passkey is damaged.
+        mfaState=Object.freeze({...mfaState,deviceRecoveryRecommended});
       }
       const emailFallback=mfaState?.emailOtpAvailable===true;
       const message=backendTimeout
-        ?'La verificación segura no recibió respuesta a tiempo. IBERFIT ha liberado el acceso para evitar un bloqueo. Vuelve a vincular este dispositivo (recomendado) o reintenta la verificación.'
+        ?'La verificación segura tardó más de lo esperado. Tu cuenta sigue protegida. Inténtalo de nuevo; no necesitas volver a vincular este dispositivo.'
         :/M26_WEBAUTHN_TIMEOUT/u.test(code)
         ?emailFallback
           ?'La seguridad del dispositivo no respondió a tiempo. Tu sesión sigue protegida: usa “Código por correo” para entrar ahora o vuelve a intentar la verificación del dispositivo.'
