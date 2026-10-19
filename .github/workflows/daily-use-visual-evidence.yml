@@ -20,6 +20,8 @@ on:
       - 'src/m26/ui/progress-continuity.js'
       - 'qa/coach-progress/**'
       - 'playwright.coach-progress-visual.config.mjs'
+      - 'qa/coach-builder/**'
+      - 'playwright.coach-builder-visual.config.mjs'
       - 'qa/rc64/authenticated-visual-evidence.spec.mjs'
       - 'qa/rc64/secure-current-source-auth.mjs'
       - 'playwright.authenticated-visual.config.mjs'
@@ -42,6 +44,8 @@ on:
       - 'src/m26/ui/progress-continuity.js'
       - 'qa/coach-progress/**'
       - 'playwright.coach-progress-visual.config.mjs'
+      - 'qa/coach-builder/**'
+      - 'playwright.coach-builder-visual.config.mjs'
       - 'qa/rc64/authenticated-visual-evidence.spec.mjs'
       - 'qa/rc64/secure-current-source-auth.mjs'
       - 'playwright.authenticated-visual.config.mjs'
@@ -111,6 +115,8 @@ jobs:
         run: npx playwright test --config playwright.coach-today-visual.config.mjs
       - name: Capture Coach Progreso decision-scan visual evidence
         run: npx playwright test --config playwright.coach-progress-visual.config.mjs
+      - name: Capture SIGNATURE Coach Builder states 320 390 tablet desktop
+        run: npx playwright test --config playwright.coach-builder-visual.config.mjs
       - name: Upload current visual evidence
         uses: actions/upload-artifact@v4
         with:
