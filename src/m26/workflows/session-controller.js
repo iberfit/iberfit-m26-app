@@ -815,7 +815,13 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let narrow=false;
   try{narrow=typeof view?.matchMedia==='function'&&view.matchMedia('(max-width: 840px)').matches;}catch{narrow=false;}
   if(scrollOnNarrow&&narrow){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}
-  const focusTarget=action?target.querySelector?.(`[data-session-action="${action}"]`)||target:target;
+  const requested=action?target.querySelector?.(`[data-session-action="${action}"]`):null;
+  const inverse=action==='move-up'?'move-down':action==='move-down'?'move-up':null;
+  const alternate=inverse?target.querySelector?.(`[data-session-action="${inverse}"]`):null;
+  const focusable=(node)=>Boolean(node&&!node.disabled&&node.getAttribute?.('aria-disabled')!=='true');
+  // Reordering to a boundary disables the original arrow. Do not lose
+  // keyboard focus in the detached button or attempt to focus a disabled one.
+  const focusTarget=focusable(requested)?requested:focusable(alternate)?alternate:target;
   try{focusTarget.focus?.({preventScroll:true});}catch{focusTarget.focus?.();}
   return true;
 }
