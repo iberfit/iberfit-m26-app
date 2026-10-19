@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {renderHeartRateSparkline} from '../src/m26/workflows/session-ui.js';
 
 test('SIGNATURE U15: FC no confunde ausencias, ceros o lecturas inválidas con muestras reales',()=>{
@@ -31,4 +32,11 @@ test('SIGNATURE U15: conserva medidas genuinas y dibuja progresos estables',()=>
   assert.match(html,/de 90 a 120 lpm/u);
   assert.match(renderHeartRateSparkline([{bpm:110},{bpm:110}]),/points="0,34 100,34"/u);
   assert.match(renderHeartRateSparkline([{bpm:'95'},{bpm:'105'}]),/de 95 a 105 lpm/u);
+});
+
+test('SIGNATURE U15: native session summary remains a touch-activated list-item, not a flex container',()=>{
+  const css=fs.readFileSync('src/m26/design/premium-ux.css','utf8');
+  assert.match(css,/\.m26-session-preview-disclosure>summary\{display:list-item;position:relative;/u);
+  assert.match(css,/\.m26-session-preview-disclosure>summary:after\{[^}]*pointer-events:none/u);
+  assert.doesNotMatch(css,/\.m26-session-preview-disclosure>summary\{display:flex;/u);
 });
