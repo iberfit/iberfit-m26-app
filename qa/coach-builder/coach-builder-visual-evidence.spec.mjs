@@ -15,6 +15,21 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   await expect(shell).toBeVisible();
   await expect(finish).toHaveCount(1);
   await expect(buttons).toHaveCount(3);
+  // U15: disable impossible reorders at each boundary in the actual Coach
+  // renderer on 320/390/tablet/desktop, without hiding valid controls.
+  const editors=page.locator('.m26-builder-editor');
+  await expect(editors).toHaveCount(2);
+  await expect(editors.first().locator('[data-session-action="move-up"]')).toBeDisabled();
+  await expect(editors.first().locator('[data-session-action="move-down"]')).toBeEnabled();
+  await expect(editors.last().locator('[data-session-action="move-up"]')).toBeEnabled();
+  await expect(editors.last().locator('[data-session-action="move-down"]')).toBeDisabled();
+  for(const editor of [editors.first(),editors.last()]){
+    for(const action of ['move-up','move-down']){
+      const element=editor.locator(`[data-session-action="${action}"]`);
+      const attr=await element.getAttribute('aria-disabled');
+      expect(attr,'Native and ARIA disabled must agree').toBe(await element.isDisabled()?'true':null);
+    }
+  }
   await expect(finish.locator('[data-session-action="preview"]')).toBeVisible();
   await expect(finish.locator('[data-session-action="save-draft"]')).toBeVisible();
   await expect(finish.locator('[data-session-jump="library"]')).toBeVisible();
