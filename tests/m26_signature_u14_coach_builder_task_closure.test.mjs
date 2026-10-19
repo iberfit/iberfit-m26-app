@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {renderSessionBuilder} from '../src/m26/workflows/session-ui.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const exercise={id:'signature-u14-squat',name_es:'Sentadilla con mancuernas',pattern:'sentadilla',equipment:'mancuernas'};
 const catalog={get:id=>id===exercise.id?exercise:null,search:()=>[exercise],facets:{patterns:['sentadilla'],equipment:['mancuernas'],difficulty:[],intent:[]}};
@@ -46,4 +47,21 @@ test('U14: mobile touch footer stays in natural flow above the dock',()=>{
   assert.doesNotMatch(section,/position:\s*(fixed|sticky)/u);
   assert.match(controller,/const jump=event\.target\.closest\?\.\('\[data-session-jump\]'\)/u);
   assert.match(controller,/target\.focus\?\.\(\{preventScroll:true\}\)/u);
+});
+
+test('U14: new Coach workbench actions and guidance have full EN/FR/PT translations',()=>{
+  const copy=[
+    'Empieza por el primer ejercicio',
+    'Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.',
+    'Buscar ejercicios',
+    'Revisa la sesión completa',
+    'Confirma modalidad y prescripción. Guardar borrador no publica el entrenamiento.',
+    'Añadir otro ejercicio',
+    'Siguiente paso del constructor',
+  ];
+  for(const line of copy)for(const language of ['en','fr','pt']){
+    const translated=iberfitSurfaceTranslate(line,{language});
+    assert.ok(translated.length>5,language+' translation missing');
+    assert.notEqual(translated,line,language+': '+line);
+  }
 });
