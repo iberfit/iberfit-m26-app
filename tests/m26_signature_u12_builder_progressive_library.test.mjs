@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {renderSessionLibraryResults} from '../src/m26/workflows/session-ui.js';
+import {M26_ACTION_REGISTRY,assertActionAllowed} from '../src/m26/ui/interactive-audit.js';
 const read=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const source=read('src/m26/workflows/session-controller.js');
 const app=read('src/m26/app/application.js');
@@ -58,6 +59,12 @@ test('U12: el controlador conserva scroll/foco y restablece páginas al buscar o
  assert.match(source,/context.setLibraryVisibleLimit\?\.\(24\)/gu);
  assert.match(app,/libraryVisibleLimit:sessionUi\.libraryVisibleLimit\|\|24/u);
  assert.match(app,/setLibraryVisibleLimit:\(n\)=>/u);
+});
+test('U12: acción registrada solo para Coach y Admin, jamás Cliente',()=>{
+ assert.equal(M26_ACTION_REGISTRY['load-more-library']?.domain,'session');
+ assert.equal(assertActionAllowed('load-more-library','coach'),true);
+ assert.equal(assertActionAllowed('load-more-library','admin'),true);
+ assert.equal(assertActionAllowed('load-more-library','client'),false);
 });
 test('U12: acción táctil accesible en Coach sin capa nueva ni ocultar destinos',()=>{
  assert.match(css,/\.m26-builder-library-more\{/u);

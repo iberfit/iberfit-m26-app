@@ -10,6 +10,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'remove-block':{roles:['admin','coach'],domain:'session'},
   'restore-block':{roles:['admin','coach'],domain:'session'},
   'clear-library-filters':{roles:['admin','coach'],domain:'session'},
+  'load-more-library':{roles:['admin','coach'],domain:'session'},
   'duplicate-block':{roles:['admin','coach'],domain:'session'},
   'add-group':{roles:['admin','coach'],domain:'session'},
   'save-draft':{roles:['admin','coach'],domain:'session'},
