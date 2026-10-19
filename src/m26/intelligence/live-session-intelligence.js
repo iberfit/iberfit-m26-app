@@ -45,14 +45,15 @@ function roundedHeartRate(value){
 function eventHeartRate(event){
   return validHeartRate(event?.raw?.heartRateBpm);
 }
-function isCanonicalHeartRateEvent(event){
+function isRawHeartRateEvent(event){
   return Boolean(
-    event&&
-    event.schemaVersion===CANONICAL_SCHEMA&&
+    event&&event.schemaVersion===CANONICAL_SCHEMA&&
     event.eventType==='heart_rate_sample'&&
-    eventHeartRate(event)!==null&&
     safeTime(event.recordedAt||event.receivedAt)!==null
   );
+}
+function isCanonicalHeartRateEvent(event){
+  return isRawHeartRateEvent(event)&&eventHeartRate(event)!==null;
 }
 function isInterpretableEvent(event){
   if(!isCanonicalHeartRateEvent(event))return false;
@@ -64,7 +65,7 @@ function sortedEvents(execution){
     ?execution.liveTelemetry.timeline.events
     :[];
   return [...events]
-    .filter(isCanonicalHeartRateEvent)
+    .filter(isRawHeartRateEvent)
     .sort((a,b)=>
       safeTime(a.recordedAt||a.receivedAt)-
       safeTime(b.recordedAt||b.receivedAt)
@@ -319,7 +320,7 @@ export function deriveLiveSessionIntelligence(
 
   return deepFreeze({
     schemaVersion:LIVE_SESSION_INTELLIGENCE_SCHEMA_VERSION,
-    available:Boolean(rawEvents.length||validHeartRate(live.heartRateBpm)!==null||validHeartRate(live.averageHeartRateBpm)!==null),
+    available:Boolean(interpretable.length||validHeartRate(live.heartRateBpm)!==null||validHeartRate(live.averageHeartRateBpm)!==null),
     rawEventCount:rawEvents.length,
     interpretableEventCount:interpretable.length,
     currentHeartRateBpm:
