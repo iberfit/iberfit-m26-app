@@ -80,23 +80,27 @@ function qualityText(intelligence,live){
     ?`Calidad ${grade} · ${excluded} muestra${excluded===1?'':'s'} excluida${excluded===1?'':'s'} de métricas`
     :`Calidad ${grade}`;
 }
-function telemetrySparkline(points=[]){
-  if(points.length<2){
+// A rejected/missing reading must never become a plotted zero or a NaN
+// coordinate. Keep the original telemetry untouched; sanitize only the chart.
+export function renderHeartRateSparkline(points=[]){
+  const readings=(Array.isArray(points)?points:[])
+    .map((point)=>point?.bpm)
+    .filter((value)=>value!==null&&value!==undefined&&
+      (typeof value==='number'||(typeof value==='string'&&value.trim().length>0)))
+    .map(Number)
+    .filter((value)=>Number.isFinite(value)&&value>0);
+  if(readings.length<2){
     return '<p class="m26-empty-copy">El timeline aparecerá cuando exista cobertura suficiente.</p>';
   }
-  const values=points
-    .map((point)=>Number(point.bpm))
-    .filter(Number.isFinite);
-  if(values.length<2)return '';
-  const min=Math.min(...values);
-  const max=Math.max(...values);
+  const min=Math.min(...readings);
+  const max=Math.max(...readings);
   const span=Math.max(1,max-min);
-  const coordinates=points.map((point,index)=>{
-    const x=points.length===1?0:(index/(points.length-1))*100;
-    const y=34-((Number(point.bpm)-min)/span)*30;
+  const coordinates=readings.map((bpm,index)=>{
+    const x=(index/(readings.length-1))*100;
+    const y=34-((bpm-min)/span)*30;
     return `${Math.round(x*10)/10},${Math.round(y*10)/10}`;
   }).join(' ');
-  return `<div class="m26-live-hr-chart"><svg viewBox="0 0 100 36" preserveAspectRatio="none" role="img" aria-label="Evolución de frecuencia cardiaca durante la sesión"><polyline points="${e(coordinates)}"></polyline></svg><div class="m26-live-hr-chart-scale"><span>${e(min)} lpm</span><span>${e(max)} lpm</span></div></div>`;
+  return `<div class="m26-live-hr-chart"><svg viewBox="0 0 100 36" preserveAspectRatio="none" role="img" aria-label="Evolución de frecuencia cardiaca durante la sesión; de ${e(min)} a ${e(max)} lpm"><polyline points="${e(coordinates)}"></polyline></svg><div class="m26-live-hr-chart-scale"><span>${e(min)} lpm</span><span>${e(max)} lpm</span></div></div>`;
 }
 function liveTelemetryStrip(execution,catalog){
   const live=execution?.liveTelemetry;
@@ -145,7 +149,7 @@ function liveTelemetryStrip(execution,catalog){
     ?`<article class="m26-live-context-card"><span>FC + esfuerzo percibido</span><strong>${e(correlationName)} · serie ${e(correlation.setNumber)}</strong><p>RPE ${e(correlation.rpe??'—')} · RIR ${e(correlation.rir??'—')} · FC media ${e(bpmText(correlation.heartRate.averageBpm))} · FC máxima ${e(bpmText(correlation.heartRate.maxBpm))}</p></article>`
     :'<article class="m26-live-context-card"><span>FC + esfuerzo percibido</span><strong>Sin serie registrada todavía</strong><p>La correlación aparece después de registrar RPE/RIR.</p></article>';
 
-  return `<section class="m26-panel m26-panel-soft m26-live-telemetry m26-live-intelligence" aria-live="polite"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Inteligencia de sesión en vivo</p><h3>FC actual · ${e(bpmText(intelligence.currentHeartRateBpm))}</h3><p>${e(source)} · ${e(state)} · ${e(qualityText(intelligence,live))}</p></div></div><div class="m26-live-intelligence-grid"><div class="m26-live-intelligence-metric"><span>FC actual</span><strong>${e(bpmText(intelligence.currentHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC media</span><strong>${e(bpmText(intelligence.averageHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC máxima</span><strong>${e(bpmText(intelligence.maxHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>Cobertura</span><strong>${e(intelligence.interpretableEventCount)} / ${e(intelligence.rawEventCount)}</strong><small>interpretables / raw</small></div></div>${telemetrySparkline(intelligence.timeline.points)}<div class="m26-live-context-grid">${responseMarkup}${recoveryMarkup}${correlationMarkup}</div><details class="m26-live-method"><summary>Cómo se calcula</summary><p>FC media/mínima/máxima: ${e(intelligence.methodology.heartRate)}.</p><p>Calidad: ${e(intelligence.methodology.qualityFilter)}.</p><p>Recuperación: ${e(intelligence.methodology.recovery)}.</p><p>RPE/RIR: ${e(intelligence.methodology.rpeRirCorrelation)}.</p></details><p class="m26-notice">Dato → contexto → entrenador decide. Esta información no modifica automáticamente la prescripción, las cargas, las series ni los ejercicios.</p></section>`;
+  return `<section class="m26-panel m26-panel-soft m26-live-telemetry m26-live-intelligence" aria-live="polite"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Inteligencia de sesión en vivo</p><h3>FC actual · ${e(bpmText(intelligence.currentHeartRateBpm))}</h3><p>${e(source)} · ${e(state)} · ${e(qualityText(intelligence,live))}</p></div></div><div class="m26-live-intelligence-grid"><div class="m26-live-intelligence-metric"><span>FC actual</span><strong>${e(bpmText(intelligence.currentHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC media</span><strong>${e(bpmText(intelligence.averageHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC máxima</span><strong>${e(bpmText(intelligence.maxHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>Cobertura</span><strong>${e(intelligence.interpretableEventCount)} / ${e(intelligence.rawEventCount)}</strong><small>interpretables / raw</small></div></div>${renderHeartRateSparkline(intelligence.timeline.points)}<div class="m26-live-context-grid">${responseMarkup}${recoveryMarkup}${correlationMarkup}</div><details class="m26-live-method"><summary>Cómo se calcula</summary><p>FC media/mínima/máxima: ${e(intelligence.methodology.heartRate)}.</p><p>Calidad: ${e(intelligence.methodology.qualityFilter)}.</p><p>Recuperación: ${e(intelligence.methodology.recovery)}.</p><p>RPE/RIR: ${e(intelligence.methodology.rpeRirCorrelation)}.</p></details><p class="m26-notice">Dato → contexto → entrenador decide. Esta información no modifica automáticamente la prescripción, las cargas, las series ni los ejercicios.</p></section>`;
 }function alternativeLabel(item={}){const meta=[item.equipment,item.difficulty].map((value)=>String(value||'').trim()).filter(Boolean).join(' · ');return `${exerciseDisplayName(item)}${meta?` · ${meta}`:''}`;}
 const SESSION_REASON_PRESETS=Object.freeze(['Equipo no disponible','Molestia','Fatiga','Ajuste técnico']);
 function coachReasonPresets(target,isCoach){
