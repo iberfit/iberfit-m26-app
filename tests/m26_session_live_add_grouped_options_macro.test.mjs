@@ -38,7 +38,7 @@ test('opciones muestran material y dificultad para decidir sin abrir otra vista'
 
 test('la búsqueda en vivo prioriza el catálogo completo antes de limitar 60 opciones',()=>{
   const source=fs.readFileSync('src/m26/workflows/session-ui.js','utf8');
-  assert.match(source,/const candidates=catalog\\.search\\(''\\)\\.filter/u);
-  assert.match(source,/const visibleIds=new Set\\(\\[\\.\\.\\.sameEquipment,\\.\\.\\.samePatternOther,\\.\\.\\.others\\]\\.slice\\(0,60\\)/u);
-  assert.doesNotMatch(source,/visible=catalog\\.search\\(''\\)\\.filter\\([^\\n]*\\.slice\\(0,60\\)/u);
+  assert.ok(source.includes("const candidates=catalog.search('').filter("));
+  assert.ok(source.includes('const visibleIds=new Set([...sameEquipment,...samePatternOther,...others].slice(0,60)'));
+  assert.ok(!source.includes("const visible=catalog.search('').filter("));
 });
