@@ -42,7 +42,7 @@ function currentSetResultSummary(result){
     result?.avgSpeedKmh!=null?`${result.avgSpeedKmh} km/h`:null,
     result?.paceMinPerKm?`${result.paceMinPerKm} min/km`:null,
     result?.pacePer100M?`${result.pacePer100M} min/100 m (medido)`:null,
-    result?.avgHeartRateBpm!=null?`FC media ${result.avgHeartRateBpm} lpm`:null,
+    result?.avgHeartRateBpm!=null&&Number.isFinite(Number(result.avgHeartRateBpm))&&Number(result.avgHeartRateBpm)>0?`FC media ${result.avgHeartRateBpm} lpm`:null,
     result?.powerWatts!=null?`${result.powerWatts} W`:null,
     result?.load||null,
     result?.rpe!=null&&Number.isFinite(Number(result.rpe))?`RPE ${result.rpe}`:null,
@@ -69,8 +69,13 @@ export function renderSessionSyncBanner(execution,{role=''}={}){
 }
 function timerStrip(execution){const elapsed=formatDuration(executionElapsedMs(execution));const rest=restRemainingSeconds(execution);return `<div class="m26-session-timers" aria-live="polite"><span><small>Tiempo activo</small><strong data-session-elapsed>${e(elapsed)}</strong></span><span><small>Descanso</small><strong data-session-rest>${rest?`${rest} s`:'—'}</strong></span></div>`;}
 function bpmText(value){
+  if(value===null||value===undefined||typeof value==='boolean'||(typeof value==='string'&&!value.trim()))return '—';
   const number=Number(value);
-  return Number.isFinite(number)?`${Math.round(number)} lpm`:'—';
+  return Number.isFinite(number)&&number>0?`${Math.round(number)} lpm`:'—';
+}
+function bpmDeltaText(value){
+  const number=Number(value);
+  return value!==null&&value!==undefined&&Number.isFinite(number)&&number>=0?`${Math.round(number)} lpm`:'—';
 }
 function qualityText(intelligence,live){
   const grade=intelligence?.quality?.latestGrade||live?.quality||null;
@@ -135,9 +140,9 @@ function liveTelemetryStrip(execution,catalog){
   let recoveryMarkup='<article class="m26-live-context-card"><span>Recuperación en descanso</span><strong>Pendiente de cobertura</strong><p>Necesita al menos dos lecturas durante el mismo descanso.</p></article>';
   if(recovery?.available){
     const change=Number(recovery.dropBpm);
-    const headline=change>=0
-      ?`Descenso observado · ${bpmText(change)}`
-      :`Cambio observado · +${bpmText(Math.abs(change))}`;
+    const headline=change>0
+      ?`Descenso observado · ${bpmDeltaText(change)}`
+      :`Cambio observado · ${change<0?'+':''}${bpmDeltaText(Math.abs(change))}`;
     recoveryMarkup=`<article class="m26-live-context-card"><span>Recuperación en descanso</span><strong>${e(headline)}</strong><p>${e(recoveryName)} · ${e(recovery.elapsedSeconds)} s observados · sin clasificación clínica</p></article>`;
   }
 
@@ -160,16 +165,20 @@ function liveAddExerciseOptions(catalog,currentExercise={}){
   const currentId=String(currentExercise?.id||'').trim();
   const pattern=String(currentExercise?.pattern||'').trim();
   const equipment=String(currentExercise?.equipment||'').trim();
-  const visible=catalog.search('').filter((item)=>item.id!==currentId).slice(0,60);
-  const samePattern=pattern?visible.filter((item)=>String(item.pattern||'').trim()===pattern):[];
+  const candidates=catalog.search('').filter((item)=>item.id!==currentId);
+  const samePattern=pattern?candidates.filter((item)=>String(item.pattern||'').trim()===pattern):[];
   const sameEquipment=equipment?samePattern.filter((item)=>String(item.equipment||'').trim()===equipment):[];
   const sameEquipmentIds=new Set(sameEquipment.map((item)=>item.id));
   const samePatternOther=samePattern.filter((item)=>!sameEquipmentIds.has(item.id));
   const relatedIds=new Set([...sameEquipment,...samePatternOther].map((item)=>item.id));
-  const others=visible.filter((item)=>!relatedIds.has(item.id));
+  const others=candidates.filter((item)=>!relatedIds.has(item.id));
+  // Rank across the entire catalogue before applying the 60-option mobile cap.
+  // Otherwise a matching exercise outside the first page is silently lost.
+  const visibleIds=new Set([...sameEquipment,...samePatternOther,...others].slice(0,60).map((item)=>item.id));
+  const visible=(items)=>items.filter((item)=>visibleIds.has(item.id));
   const option=(item)=>`<option value="${e(item.id)}">${e(alternativeLabel(item))}</option>`;
   const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
-  return `${group('Mismo patrón y material',sameEquipment)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',samePatternOther)}${group('Otros ejercicios',others)}`;
+  return `${group('Mismo patrón y material',visible(sameEquipment))}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',visible(samePatternOther))}${group('Otros ejercicios',visible(others))}`;
 }
 function alternativeOptions(catalog,currentExercise={},selectedId=null){
   const currentId=String(currentExercise?.id||currentExercise||'').trim();
