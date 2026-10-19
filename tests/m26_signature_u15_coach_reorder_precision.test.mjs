@@ -25,8 +25,8 @@ function actionControl(markup,blockId,action){
 }
 function isDisabled(markup,blockId,action){
   const button=actionControl(markup,blockId,action);
-  assert.equal(/\\sdisabled\\b/u.test(button),/aria-disabled="true"/u.test(button),'native and ARIA disabled must agree');
-  return /\\sdisabled\\b/u.test(button);
+  assert.equal(/\sdisabled\b/u.test(button),/aria-disabled="true"/u.test(button),'native and ARIA disabled must agree');
+  return /\sdisabled\b/u.test(button);
 }
 
 test('U15: an only exercise has no impossible reorder actions, but remains editable',()=>{
@@ -61,8 +61,8 @@ test('U15: reorder remains handled by the existing controller and preserves keyb
   const source=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   assert.match(source,/case 'move-up': moveSessionBlock/u);
   assert.match(source,/case 'move-down': moveSessionBlock/u);
-  assert.match(source,/button\\.disabled\\|\\|button\\.getAttribute\\('aria-disabled'\\)==='true'/u);
-  assert.match(source,/builderFocusBlockId=payload\\.blockId;builderFocusAction=action/u);
+  assert.match(source,/button\.disabled\|\|button\.getAttribute\('aria-disabled'\)==='true'/u);
+  assert.match(source,/builderFocusBlockId=payload\.blockId;builderFocusAction=action/u);
 });
 test('U15: preview acceptance still controls publication without false shortcut',()=>{
   const draft=render([single('only')],{previewAccepted:true});
