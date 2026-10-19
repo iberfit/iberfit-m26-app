@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "798bc7a7030e82cf971e364daf1d7d91bd327de5",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "6de0c77b7c1185441511aa488e9d85b780de5a9c",
+  "notes": "SIGNATURE 360 Coach Builder U14: PR #1042 code + PR #1043 M44 backup freshness trigger, all changes scoped to frontend/design/i18n/tests + workflow comments. Source exact Canary 798bc7a7030e. Old production 6de0c77b7c11. Canary Exact Deploy and independent M44 encrypted PostgreSQL17+Storage isolated restore must both pass on this SHA. Fail closed on current PROD identity, M44 artifact <=2h, full tests/Lighthouse/mobile/desktop/live and rollback."
+}
