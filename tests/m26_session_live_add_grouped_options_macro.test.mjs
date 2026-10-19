@@ -36,7 +36,9 @@ test('opciones muestran material y dificultad para decidir sin abrir otra vista'
   assert.match(select,/Relacionado 2 · TRX · intermedio/u);
 });
 
-test('implementación conserva explícitamente el límite histórico de 60',()=>{
+test('la búsqueda en vivo prioriza el catálogo completo antes de limitar 60 opciones',()=>{
   const source=fs.readFileSync('src/m26/workflows/session-ui.js','utf8');
-  assert.match(source,/visible=catalog\.search\(''\)\.filter\(\(item\)=>item\.id!==currentId\)\.slice\(0,60\)/u);
+  assert.match(source,/const candidates=catalog\\.search\\(''\\)\\.filter/u);
+  assert.match(source,/const visibleIds=new Set\\(\\[\\.\\.\\.sameEquipment,\\.\\.\\.samePatternOther,\\.\\.\\.others\\]\\.slice\\(0,60\\)/u);
+  assert.doesNotMatch(source,/visible=catalog\\.search\\(''\\)\\.filter\\([^\\n]*\\.slice\\(0,60\\)/u);
 });
