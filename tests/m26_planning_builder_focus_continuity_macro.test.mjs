@@ -16,11 +16,14 @@ test('crear grupo y duplicar identifican el bloque recién creado',()=>{
   assert.match(source,/find\(\(item\)=>item\?\.id&&!builderInsertContext\.blockIds\.has\(item\.id\)\)/u);
 });
 
-test('mover mantiene foco en el mismo control para movimientos sucesivos',()=>{
+test('mover mantiene foco en la flecha disponible y recupera el extremo sin foco perdido',()=>{
   const source=controller();
   assert.match(source,/\['move-up','move-down'\]\.includes\(action\)&&payload\.blockId/u);
-  assert.match(source,/const focusTarget=action\?target\.querySelector\?\./u);
+  assert.match(source,/const requested=action\?target\.querySelector\?\./u);
   assert.ok(source.includes('[data-session-action="${action}"]'));
+  assert.ok(source.includes("const inverse=action==='move-up'?'move-down':action==='move-down'?'move-up':null;"));
+  assert.ok(source.includes("const focusTarget=focusable(requested)?requested:focusable(alternate)?alternate:target;"));
+  assert.match(source,/node\.getAttribute\?\.\('aria-disabled'\)!=='true'/u,'aria-disabled must also exclude focus');
 });
 
 test('scroll automático solo se fuerza en inserciones/restauración y ancho estrecho',()=>{
