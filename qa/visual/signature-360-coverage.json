@@ -319,17 +319,22 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "16fe623215d26bf7d42555fe23bc0d8ec78832b0",
-    "verifiedAt": "2026-10-17",
-    "workflowRunId": 39004291546,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39004291546",
+    "sourceSha": "798bc7a7030e82cf971e364daf1d7d91bd327de5",
+    "verifiedAt": "2026-10-19",
+    "workflowRunId": 39312618799,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39312618799",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
       "admin-agenda-clarity",
-      "admin-users-mobile-accessibility"
+      "admin-users-mobile-accessibility",
+      "signature-client-home-editorial",
+      "signature-client-session-permission-clarity",
+      "signature-coach-library-incremental-search-u12",
+      "signature-coach-session-set-metric-u13",
+      "signature-coach-builder-task-closure-u14"
     ],
-    "scope": "Visual foundations delivered; complete acceptance remains pending for all 43 role routes."
+    "scope": "Incremental Client/Coach/Admin deliveries through U14 deployed with live SHA and rollback evidence. Complete multi-state acceptance of all 43 routes remains pending."
   },
-  "activeDelivery": "2/5-client"
+  "activeDelivery": "3/5-coach-incremental"
 }
