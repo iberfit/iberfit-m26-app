@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "5d5f00208b900674ee82d3e039f17250e2611903",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "80ec9767dfa680c3062f3bb2e6ea669d867c8b39",
+  "notes": "SIGNATURE 360 P0 Auth U14 · PR #1040 WebAuthn slow-backend recoverability. Exact SHA 5d5f00208b90, all 12 postmerge Canary workflows SUCCESS: Admin + Coach real WebAuthn, Hosted Auth Security QA, Device Experience, M26 CI, protected Client Interaction, Admin Interaction, remote readonly, frontend bundle and Canary Exact Deploy. Only application.js, i18n-surface.js and test changes vs production U13; MFA backend deadline 10s -> 18s, preserves strict verification and finite timeout, avoids mistaken device-reset advice. No SQL/RLS/Auth service/Edge/backend/migrations. Fail closed on exact previous production live U13 SHA, recent encrypted restorable M44 point, DB schema and telemetry, full regression, Lighthouse, Cloudflare identity smoke and rollback."
+}
