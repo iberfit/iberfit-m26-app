@@ -44,7 +44,7 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   expect(metrics.footerVisible).toBe(true);
   expect(metrics.footerPosition,'No overlay or sticky control over mobile navigation').not.toMatch(/fixed|sticky/);
   for(const button of metrics.buttons){
-    expect(button.height,`Touch controls must be at least 48px tall: ${JSON.stringify(button)}`).toBeGreaterThanOrEqual(47);
+    expect(button.height,`Touch controls must be at least 48px tall: ${JSON.stringify(button)}`).toBeGreaterThanOrEqual(47.95);
     expect(button.width).toBeGreaterThan(40);
   }
   const lastButton=buttons.last();
@@ -62,7 +62,10 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
 
   await page.evaluate(()=>globalThis.__IBERFIT_COACH_BUILDER_VISUAL__.setMode('empty'));
   await expect(page.locator('[data-session-builder-empty]')).toBeVisible();
-  await expect(page.locator('[data-session-builder-empty] [data-session-jump="library"]')).toBeVisible();
+  const emptyCTA=page.locator('[data-session-builder-empty] [data-session-jump="library"]');
+  await expect(emptyCTA).toBeVisible();
+  const emptyHeight=await emptyCTA.evaluate(node=>node.getBoundingClientRect().height);
+  expect(emptyHeight,'Empty-state library action must remain 48px tappable').toBeGreaterThanOrEqual(47.95);
   await expect(page.locator('[data-session-builder-finish]')).toHaveCount(0);
   await page.screenshot({path:`${OUT}/coach-builder-empty-${name}.png`,fullPage:true,animations:'disabled',caret:'hide'});
 
