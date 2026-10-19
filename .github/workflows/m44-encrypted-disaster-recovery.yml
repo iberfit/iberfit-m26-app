@@ -34,6 +34,9 @@ on:
 permissions:
   contents: read
 
+# Ops checkpoint 2026-10-19: refresh the protected encrypted PROD+Storage
+# recovery proof after M44_OFFSITE_RUN_TOO_OLD blocked an otherwise certified
+# frontend-only release. No job, secret, timeout or restore policy is changed.
 concurrency:
   group: iberfit-m44-prod-backup-${{ github.ref }}
   cancel-in-progress: false
