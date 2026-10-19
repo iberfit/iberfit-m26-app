@@ -31,8 +31,19 @@ function deepFreeze(value){
   for(const child of Object.values(value))deepFreeze(child);
   return Object.freeze(value);
 }
+function validHeartRate(value){
+  // Null, blanks and zero are not heart-rate measurements. Preserve raw events;
+  // only valid positive readings can contribute to derived observations.
+  if(value===null||value===undefined||typeof value==='boolean'||(typeof value==='string'&&!value.trim()))return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>0?number:null;
+}
+function roundedHeartRate(value){
+  const number=validHeartRate(value);
+  return number===null?null:Math.round(number*10)/10;
+}
 function eventHeartRate(event){
-  return finite(event?.raw?.heartRateBpm);
+  return validHeartRate(event?.raw?.heartRateBpm);
 }
 function isCanonicalHeartRateEvent(event){
   return Boolean(
@@ -308,21 +319,21 @@ export function deriveLiveSessionIntelligence(
 
   return deepFreeze({
     schemaVersion:LIVE_SESSION_INTELLIGENCE_SCHEMA_VERSION,
-    available:Boolean(rawEvents.length||live.heartRateBpm!==null),
+    available:Boolean(rawEvents.length||validHeartRate(live.heartRateBpm)!==null||validHeartRate(live.averageHeartRateBpm)!==null),
     rawEventCount:rawEvents.length,
     interpretableEventCount:interpretable.length,
     currentHeartRateBpm:
       overall.latestBpm??
-      round1(live.heartRateBpm),
+      roundedHeartRate(live.heartRateBpm),
     averageHeartRateBpm:
       overall.averageBpm??
-      round1(live.averageHeartRateBpm),
+      roundedHeartRate(live.averageHeartRateBpm),
     maxHeartRateBpm:
       overall.maxBpm??
-      round1(live.maxHeartRateBpm),
+      roundedHeartRate(live.maxHeartRateBpm),
     minHeartRateBpm:
       overall.minBpm??
-      round1(live.minHeartRateBpm),
+      roundedHeartRate(live.minHeartRateBpm),
     latestAt:
       overall.latestAt||
       live.latestAt||
