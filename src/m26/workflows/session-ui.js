@@ -1469,14 +1469,21 @@ const setEntryRule=executionProfile.sport==='swimming'
       :executionProfile.kind==='carry'
         ?'Registra distancia o tiempo realizados y RPE real. La carga es opcional.'
         :'Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.';
+const isTimedStrength=executionProfile.kind==='isometric';
+// Make the measured action the first field while retaining both observation
+// keys (reps and seconds), so no historical recording capability is removed.
+const repetitionObservationField=`<label data-session-field-priority="${isTimedStrength?'secondary':'primary'}" data-session-observed-metric="reps">Repeticiones${isTimedStrength?' <small>Opcional</small>':''}<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>`;
+const durationObservationField=`<label data-session-field-priority="${isTimedStrength?'primary':'secondary'}" data-session-observed-metric="seconds">Tiempo (s)${isTimedStrength?'':' <small>Opcional</small>'}<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>`;
+const strengthObservationFields=isTimedStrength
+  ?`${durationObservationField}${repetitionObservationField}`
+  :`${repetitionObservationField}${durationObservationField}`;
 const setEntryFields=executionProfile.cardio
   ?cardioSetEntryFields(executionProfile,planned,isCoach)
   :executionProfile.kind==='carry'?carrySetEntryFields(planned,isCoach)
   :isCoach
   ?`<div class="m26-session-coach-set-fields" data-session-coach-set-fields>
       <div class="m26-session-coach-work-fields" data-session-entry-group="work">
-        <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
-        <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
+        ${strengthObservationFields}
       </div>
       <label class="m26-session-coach-load-field" data-session-field-priority="primary" data-session-entry-group="load">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
       <div class="m26-session-coach-effort-fields" data-session-entry-group="effort">
@@ -1489,8 +1496,7 @@ const setEntryFields=executionProfile.cardio
       <small class="m26-session-guided-entry-note">IBERFIT completa automáticamente lo seguro. Revisa los datos y registra el RPE real.</small>
     </div>`
   :`<div class="m26-field-grid m26-session-set-fields">
-      <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
-      <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
+      ${strengthObservationFields}
       <label data-session-field-priority="primary">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
       <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="${e(explicitRpe===null?'RPE real':`Objetivo ${explicitRpe}`)}"></label>
       <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="${e(explicitRir===null?'RIR real':`Objetivo ${explicitRir}`)}"></label>
