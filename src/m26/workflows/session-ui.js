@@ -553,7 +553,7 @@ function renderExerciseMemorySession(memory){
     </small>
   </section>`;
 }
-function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
+function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks){
   const exercise=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId,pattern:''};
   const visual=renderExerciseMedia({manifest:mediaMap,exercise,role,compact:true,fallback:true});
   const memory=exerciseMemoryFor?.(block.exerciseId)||null;
@@ -564,8 +564,8 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
       <span>${index+1}</span>
       <div><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
       <div class="m26-inline-actions">
-        <button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia arriba">↑</button>
-        <button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia abajo">↓</button>
+        <button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia arriba"${index===0?' disabled aria-disabled="true"':''}>↑</button>
+        <button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia abajo"${index===totalBlocks-1?' disabled aria-disabled="true"':''}>↓</button>
         <button type="button" data-session-action="duplicate-block" data-block-id="${e(block.id)}">Duplicar</button>
         <button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button>
       </div>
@@ -607,15 +607,15 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
     </details>
   </section>`;
 }
-function groupEditor(group,catalog,index,mediaMap,role,exerciseMemoryFor){
+function groupEditor(group,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks){
   const exercises=(group.exerciseIds||[]).map((id)=>groupExerciseEditor(group,id,catalog,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Selecciona ejercicios desde la biblioteca.</p>';
   return `<article class="m26-builder-block m26-builder-editor" data-block-id="${e(group.id)}" tabindex="-1">
     <header>
       <span>${index+1}</span>
       <div><strong>${e(groupName(group.type))}</strong><small>${e((group.exerciseIds||[]).length)} ejercicios</small></div>
       <div class="m26-inline-actions">
-        <button type="button" data-session-action="move-up" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia arriba">↑</button>
-        <button type="button" data-session-action="move-down" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia abajo">↓</button>
+        <button type="button" data-session-action="move-up" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia arriba"${index===0?' disabled aria-disabled="true"':''}>↑</button>
+        <button type="button" data-session-action="move-down" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia abajo"${index===totalBlocks-1?' disabled aria-disabled="true"':''}>↓</button>
         <button type="button" data-session-action="duplicate-block" data-block-id="${e(group.id)}">Duplicar</button>
         <button type="button" data-session-action="remove-block" data-block-id="${e(group.id)}">Eliminar</button>
       </div>
@@ -712,7 +712,8 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
 
   const activeGroupLimit=activeGroup?.type==='biserie'?2:activeGroup?.type==='triserie'?3:activeGroup?12:0;
   const activeGroupTargetMarkup=activeGroup?`<div class="m26-builder-group-target" data-session-active-group-target role="status" aria-live="polite"><span><small>Añadiendo al grupo activo</small><strong>${e(groupName(activeGroup.type))} · ${e(activeGroup.exerciseIds.length)}/${e(activeGroupLimit)} ejercicios</strong></span><button type="button" data-session-action="close-group">Cerrar grupo</button></div>`:'';
-  const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||`<div class="m26-builder-program-empty" data-session-builder-empty><strong>Empieza por el primer ejercicio</strong><p>Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.</p><button type="button" data-session-jump="library">Buscar ejercicios</button></div>`;
+  const totalBlocks=(draft.blocks||[]).length;
+  const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks)).join('')||`<div class="m26-builder-program-empty" data-session-builder-empty><strong>Empieza por el primer ejercicio</strong><p>Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.</p><button type="button" data-session-jump="library">Buscar ejercicios</button></div>`;
   const metrics=draftMetrics(draft);
   const templateHistory=templateAdaptation?.templateName?templateHistoryCoverage(draft,exerciseMemoryFor):null;
   const undoRemovalMarkup=undoRemoval?.block?.id?`<div class="m26-notice m26-builder-undo" data-session-builder-undo role="status"><span>Bloque eliminado del borrador.</span><button type="button" data-session-action="restore-block">Deshacer</button></div>`:'';
