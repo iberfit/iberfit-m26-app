@@ -63,6 +63,8 @@ test('U15: reorder remains handled by the existing controller and preserves keyb
   assert.match(source,/case 'move-down': moveSessionBlock/u);
   assert.match(source,/button\.disabled\|\|button\.getAttribute\('aria-disabled'\)==='true'/u);
   assert.match(source,/builderFocusBlockId=payload\.blockId;builderFocusAction=action/u);
+  assert.ok(source.includes("const inverse=action==='move-up'?'move-down':action==='move-down'?'move-up':null;"),'Boundary focus must have inverse-arrow recovery');
+  assert.ok(source.includes('const focusTarget=focusable(requested)?requested:focusable(alternate)?alternate:target;'),'Never focus an arrow just disabled after reordering');
 });
 test('U15: preview acceptance still controls publication without false shortcut',()=>{
   const draft=render([single('only')],{previewAccepted:true});
