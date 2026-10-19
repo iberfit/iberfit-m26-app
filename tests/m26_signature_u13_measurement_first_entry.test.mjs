@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExecution,startExecution,recordSet} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
+import {exerciseMeasurementProfile} from '../src/m26/exercises/measurement-profiles.js';
 
 function surface(name,role='coach',profile=null){
   const ex={id:'measurement-first-exercise',name_es:name,pattern:'fuerza',...(profile?{measurementProfile:profile}:{})};
   const catalog={get:(id)=>id===ex.id?ex:null,search:()=>[]};
-  const session={id:'u13-session',clientId:'u13-client',title:'Entrenamiento',blocks:[{id:'u13-block',type:'exercise',exerciseId:ex.id,sets:2,reps:name.includes('Plancha')?'30 s':'10',restSeconds:60,targetRpe:7}]};
+  const session={id:'u13-session',clientId:'u13-client',title:'Entrenamiento',blocks:[{id:'u13-block',type:'exercise',exerciseId:ex.id,sets:2,reps:name.includes('Plancha')?'30 s':'10',restSeconds:60,targetRpe:7,measurementProfile:profile||exerciseMeasurementProfile(ex).kind}]};
   const execution=createExecution({session,clientId:session.clientId,executionId:'u13-execution'});
   startExecution(execution,{actor:{role:'coach',userId:'u13-coach'}});
   return {markup:renderGuidedExecution({execution,session,catalog,role}),execution,session};
@@ -22,7 +23,7 @@ test('U13: plank and timed strength lead with observed seconds, never drop repet
     assert.match(markup,/data-session-field-priority="secondary" data-session-observed-metric="reps"/u);
     assert.match(markup,/data-set-field="seconds"/u);
     assert.match(markup,/data-set-field="reps"/u);
-    assert.match(markup,/data-set-field="rpe" required/u);
+    assert.match(markup,/data-set-field="rpe"[^>]*required/u);
   }
 });
 
