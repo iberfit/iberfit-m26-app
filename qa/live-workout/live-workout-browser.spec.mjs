@@ -315,6 +315,8 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   await expect(direct.locator('details.m26-session-preview-disclosure')).toHaveCount(0);
   await expect(guided.locator('details.m26-session-preview-disclosure')).toHaveCount(1);
   await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await expect(guided.locator('details.m26-session-preview-disclosure'),
+    'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await expect(guided.locator('.m26-session-preview-exercise h5')).toHaveText('Press de pecho');
   await expect(guided).toContainText('8-10');
   await expect(guided).toContainText('Sin referencia visual');
@@ -344,6 +346,8 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(self).toContainText('Fuerza autónoma');
   await expect(self.locator('[data-workflow-action="start-published-session"]')).toBeHidden();
   await self.locator('details.m26-session-preview-disclosure > summary').click();
+  await expect(self.locator('details.m26-session-preview-disclosure'),
+    'Client preview must open by a real tap, including mobile WebKit').toHaveAttribute('open','');
   const start=self.locator('[data-workflow-action="start-published-session"]');
   await expect(start).toBeVisible();
   await expect(self).toContainText('Press de pecho');
@@ -420,6 +424,8 @@ test('SIGNATURE published autonomous preview leads to actual Client execution wi
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const guided=page.locator('[data-rc39-session="qa-published-guided"]');
   await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await expect(guided.locator('details.m26-session-preview-disclosure'),
+    'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await guided.locator('[data-workflow-action="start-published-session"]').click();
   await expect(page.locator('#qa-workout [data-session-action="start"]')).toHaveText('Comenzar entrenamiento');
   let state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
@@ -462,6 +468,8 @@ test('SIGNATURE published guided Client finishes both real recorded sets, feedba
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const guided=page.locator('[data-rc39-session="qa-published-guided"]');
   await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await expect(guided.locator('details.m26-session-preview-disclosure'),
+    'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await guided.locator('[data-workflow-action="start-published-session"]').click();
   await expect(page.locator('#qa-workout [data-session-live-state="ready"]')).toBeVisible();
   await page.locator('#qa-workout [data-session-action="start"]').click();
