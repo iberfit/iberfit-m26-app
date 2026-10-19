@@ -677,23 +677,32 @@ function builderFacetOptions(values=[],selected='',allLabel='Todos'){
 function builderActiveFilterCount(filters={}){
   return ['pattern','equipment','difficulty','intent'].reduce((count,key)=>count+(String(filters?.[key]||'').trim()?1:0),0);
 }
-export function renderSessionLibraryResults({draft,catalog,query='',filters={},mediaMap,role='coach'}={}){
+export function renderSessionLibraryResults({draft,catalog,query='',filters={},mediaMap,role='coach',visibleLimit=24}={}){
   const matchingExercises=catalog.search(query,filters);
-  const results=matchingExercises.slice(0,24);
-  const remainingResults=matchingExercises.slice(24);
+  // Render only the visible page. Previously hundreds of hidden cards (with
+  // media) were rebuilt on every prefix keystroke, slowing Coach sessions.
+  // Every match remains reachable through progressive pages, without truncation.
+  const requested=Number(visibleLimit);
+  const safeLimit=Number.isFinite(requested)?Math.min(matchingExercises.length,Math.max(24,Math.ceil(requested/24)*24)):24;
+  const visible=matchingExercises.slice(0,safeLimit);
+  const results=visible.slice(0,24);
+  const expanded=visible.slice(24);
+  const remainingCount=matchingExercises.length-visible.length;
   const activeGroup=draft?.activeGroupId?(draft.blocks||[]).find(block=>block.id===draft.activeGroupId):null;
   const activeGroupExerciseIds=new Set(activeGroup?.exerciseIds||[]);
   const cards=results.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}>${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class="m26-exercise-result-add" aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
-  const remainingCards=remainingResults.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-list-card" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}><span><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small></span><span aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('');
-  const remainingResultsMarkup=remainingResults.length?`<details class="m26-exercise-results-more"><summary>Ver ${e(remainingResults.length)} ejercicios más</summary><div class="m26-exercise-results">${remainingCards}</div></details>`:'';
+  const remainingCards=expanded.map((item)=>{const alreadyGrouped=activeGroupExerciseIds.has(item.id);return `<button type="button" class="m26-list-card" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"${alreadyGrouped?' disabled aria-disabled="true" title="Ya incluido en el grupo activo"':''}><span><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small></span><span aria-hidden="true">${alreadyGrouped?'✓':'＋'}</span></button>`;}).join('');
+  const more=remainingCount>0
+    ?`<button type="button" class="m26-builder-library-more" data-session-action="load-more-library" aria-label="Mostrar ${e(Math.min(24,remainingCount))} ejercicios más; quedan ${e(remainingCount)} por mostrar">Mostrar otros ${e(Math.min(24,remainingCount))} ejercicios <span>${e(visible.length)} de ${e(matchingExercises.length)}</span></button>`
+    :'';
 
   const activeFilterCount=builderActiveFilterCount(filters);
   const reset=(String(query||'').trim()||activeFilterCount)?'<button type="button" class="m26-builder-library-reset" data-session-action="clear-library-filters">Limpiar búsqueda y filtros</button>':'';
-  return Object.freeze({count:matchingExercises.length,
-    markup:`${reset}<div class="m26-exercise-results">${cards}</div>${remainingResultsMarkup}`});
+  return Object.freeze({count:matchingExercises.length,shown:visible.length,
+    markup:`${reset}<div class="m26-exercise-results">${cards}${remainingCards}</div>${more}`});
 }
-export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
-  const searchResults=renderSessionLibraryResults({draft,catalog,query,filters,mediaMap,role});
+export function renderSessionBuilder({draft,catalog,query='',filters={},libraryVisibleLimit=24,templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
+  const searchResults=renderSessionLibraryResults({draft,catalog,query,filters,mediaMap,role,visibleLimit:libraryVisibleLimit});
   const matchingExercises={length:searchResults.count};
   const activeGroup=draft.activeGroupId?(draft.blocks||[]).find((block)=>block.id===draft.activeGroupId):null;
 

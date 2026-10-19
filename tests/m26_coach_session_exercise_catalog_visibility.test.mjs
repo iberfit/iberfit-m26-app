@@ -30,14 +30,18 @@ function draft(){
   };
 }
 
-test('coach session builder keeps every matching exercise selectable without rendering every result as a heavy visual card',()=>{
-  const html=renderSessionBuilder({draft:draft(),catalog:catalogWith(30),role:'coach'});
-
-  assert.match(html,/>30 resultados</);
-  assert.match(html,/Ver 6 ejercicios más/);
-  assert.match(html,/data-exercise-id="exercise-30"/);
-  assert.equal((html.match(/class="m26-exercise-result"/g)||[]).length,24);
-  assert.equal((html.match(/data-session-action="add-exercise"/g)||[]).length,30);
+test('coach session builder keeps all 30 matches selectable through progressive pages, without heavy hidden cards',()=>{
+  const first=renderSessionBuilder({draft:draft(),catalog:catalogWith(30),role:'coach'});
+  assert.match(first,/>30 resultados</);
+  assert.match(first,/Mostrar otros 6 ejercicios/);
+  assert.match(first,/data-session-action="load-more-library"/);
+  assert.equal((first.match(/class="m26-exercise-result"/g)||[]).length,24);
+  assert.equal((first.match(/data-session-action="add-exercise"/g)||[]).length,24);
+  assert.doesNotMatch(first,/data-exercise-id="exercise-30"/);
+  const expanded=renderSessionBuilder({draft:draft(),catalog:catalogWith(30),role:'coach',libraryVisibleLimit:48});
+  assert.match(expanded,/data-exercise-id="exercise-30"/);
+  assert.equal((expanded.match(/data-session-action="add-exercise"/g)||[]).length,30);
+  assert.doesNotMatch(expanded,/data-session-action="load-more-library"/);
 });
 
 test('coach session builder does not add overflow disclosure when all matches fit in the visual result window',()=>{

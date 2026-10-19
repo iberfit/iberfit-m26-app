@@ -873,7 +873,26 @@ async function click(event){
     }
     return;
   }
-  const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='clear-library-filters'){context.setQuery?.('');for(const key of ['pattern','equipment','difficulty','intent'])context.setFilter?.(key,'');renderSession();const search=root.querySelector?.('[data-session-search]');try{search?.focus?.({preventScroll:true});}catch{search?.focus?.();}return;}if(action==='next'){
+  const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='load-more-library'){
+    if(!context?.draft||!context?.catalog)return;
+    const current=Math.max(24,Number(context.libraryVisibleLimit)||24);
+    const result=renderSessionLibraryResults({
+      draft:context.draft,catalog:context.catalog,query:context.query||'',
+      filters:context.filters||{},mediaMap:context.mediaMap||null,
+      role:context.role||'coach',visibleLimit:current+24,
+    });
+    const holder=root.querySelector?.('[data-session-search-results]');
+    if(!holder)return;
+    context.setLibraryVisibleLimit?.(current+24);
+    holder.innerHTML=result.markup;
+    // Move focus to an actual newly visible result; never replace the search
+    // field or strand keyboard users on a removed "load more" button.
+    const all=[...(holder.querySelectorAll?.('[data-session-action="add-exercise"]')||[])];
+    const newlyAvailable=all.slice(current).find(button=>!button.disabled);
+    const fallback=holder.querySelector?.('[data-session-action="load-more-library"]')||root.querySelector?.('[data-session-search]');
+    (newlyAvailable||fallback)?.focus?.({preventScroll:false});
+    return;
+  }if(action==='clear-library-filters'){context.setQuery?.('');context.setLibraryVisibleLimit?.(24);for(const key of ['pattern','equipment','difficulty','intent'])context.setFilter?.(key,'');renderSession();const search=root.querySelector?.('[data-session-search]');try{search?.focus?.({preventScroll:true});}catch{search?.focus?.();}return;}if(action==='next'){
     if(coachRestAdvancePending)return;
     cancelCoachRestAutoAdvance({suppress:true});
   }else if(action==='rest-minus'||action==='rest-plus'){
@@ -1068,13 +1087,14 @@ async function click(event){
     }}finally{sessionActionPending=false;if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
+      context.setLibraryVisibleLimit?.(24);
       const holder=root.querySelector?.('[data-session-search-results]');
       if(holder&&context.draft&&context.catalog){
         // Only update matches; never replace Coach's focused input or set editors.
         const result=renderSessionLibraryResults({
           draft:context.draft,catalog:context.catalog,query:search.value,
           filters:context.filters||{},mediaMap:context.mediaMap||null,
-          role:context.role||'coach',
+          role:context.role||'coach',visibleLimit:24,
         });
         holder.innerHTML=result.markup;
         const count=root.querySelector?.('[data-session-library-result-count]');
@@ -1118,6 +1138,7 @@ async function click(event){
       const key=String(filter.getAttribute('data-session-filter')||'').trim();
       const wasFocused=root.ownerDocument?.activeElement===filter;
       context.setFilter?.(key,filter.value);
+      context.setLibraryVisibleLimit?.(24);
       renderSession();
       if(wasFocused&&key){
         const replacement=root.querySelector?.(`[data-session-filter="${key}"]`);
