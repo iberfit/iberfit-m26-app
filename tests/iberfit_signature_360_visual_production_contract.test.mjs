@@ -51,14 +51,17 @@ test('Signature360 always requires production evidence and broad responsive/stat
     assert.ok(coverage.crossCutting.includes(topic),topic);
 });
 
-test('Signature360 records exact U14 production without miscertifying 43 routes',()=>{
+test('Signature360 records exact U16 production without miscertifying 43 routes',()=>{
   assert.equal(coverage.activeDelivery,'3/5-coach-incremental');
   assert.match(coverage.productionBaseline.sourceSha,/^[0-9a-f]{40}$/);
-  assert.equal(coverage.productionBaseline.sourceSha,'798bc7a7030e82cf971e364daf1d7d91bd327de5');
-  assert.equal(coverage.productionBaseline.workflowRunId,39312618799);
-  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39312618799');
+  assert.equal(coverage.productionBaseline.sourceSha,'4a103eb98dda24f2b16fcdeeda09ac41dbcc784c');
+  assert.equal(coverage.productionBaseline.workflowRunId,39340240024);
+  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39340240024');
   assert.ok(coverage.productionBaseline.delivered.includes('admin-users-mobile-accessibility'));
   assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-builder-task-closure-u14'));
+  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-heart-rate-truth-u15'));
+  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-mobile-session-summary-u15'));
+  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-builder-reorder-focus-u16'));
   assert.match(coverage.productionBaseline.scope,/43 routes remains pending|43 rutas siguen pendientes|43 routes remain pending/u);
   assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after only the foundational release');
   const entries=roles.flatMap(role=>coverage.roles[role]);
