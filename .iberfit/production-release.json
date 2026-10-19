@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4a103eb98dda24f2b16fcdeeda09ac41dbcc784c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "798bc7a7030e82cf971e364daf1d7d91bd327de5",
+  "notes": "SIGNATURE 360 incremental U15+U16: PR #1044 live observed HR timeline and native WebKit mobile session preview, PR #1046 Coach builder reorder focus/touch precision. Prior PROD 798bc7a7030e (U14) independently certified by Promotion #39312618799. Canary source 4a103eb98dda. Only frontend/controller/UI/CSS, tests, documentary inventory and M44 workflow comment; no SQL, Auth/RLS/Edge, secrets or data writes. Require fresh independent encrypted DB/Storage M44 PostgreSQL17 isolated restore <=2h, exact Canary LIVE, authenticated QA gates, pre-release production SHA, Lighthouse budgets, production live browser, rollback evidence, no U15+U16 PROD claim unless final promotion succeeds."
+}
