@@ -228,9 +228,29 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
       expect(navigation?.ok()).toBeTruthy();
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
       await page.locator('#m26-login-password').fill(account.password);
+      // Visual evidence must start its MFA UI clock only after the backend
+      // assurance decision arrives. Password and token material stay out of logs.
+      // Keep a bounded response wait and the original 5s post-decision UI SLA.
+      const assuranceOutcome=account.role==='coach'
+        ?page.waitForResponse((response)=>{
+          try{
+            const url=new URL(response.url());
+            return url.origin===SUPABASE_ORIGIN&&
+              url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
+          }catch{return false;}
+        },{timeout:30_000}).then(response=>({response}),error=>({error}))
+        :null;
       await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
       if(account.role==='coach'){
+        const outcome=await assuranceOutcome;
+        if(outcome.error)throw new Error('RC64_VISUAL_PRIVILEGED_ASSURANCE_TIMEOUT',{cause:outcome.error});
+        expect(outcome.response.status(),'Privileged assurance RPC must answer successfully').toBe(200);
+        const assurance=await outcome.response.json();
+        expect(assurance?.privileged,'Coach must be privileged').toBe(true);
+        expect(assurance?.mfaRequired,'Coach must require MFA').toBe(true);
+        expect(assurance?.webauthnRequired,'Coach must require WebAuthn').toBe(true);
+        expect(assurance?.iberfitAssurance,'Coach remains fail-closed until device proof').not.toBe('verified');
         await expect(page.locator('.m26-shell[data-m26-role="coach"]')).toHaveCount(0,{timeout:10_000});
         await expect(page.locator('#m26-auth-title')).toBeVisible({timeout:10_000});
         await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
