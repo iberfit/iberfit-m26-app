@@ -683,7 +683,7 @@ export function renderSessionLibraryResults({draft,catalog,query='',filters={},m
   // media) were rebuilt on every prefix keystroke, slowing Coach sessions.
   // Every match remains reachable through progressive pages, without truncation.
   const requested=Number(visibleLimit);
-  const safeLimit=Number.isFinite(requested)?Math.min(500,Math.max(24,Math.ceil(requested/24)*24)):24;
+  const safeLimit=Number.isFinite(requested)?Math.min(matchingExercises.length,Math.max(24,Math.ceil(requested/24)*24)):24;
   const visible=matchingExercises.slice(0,safeLimit);
   const results=visible.slice(0,24);
   const expanded=visible.slice(24);

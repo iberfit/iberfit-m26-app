@@ -37,6 +37,14 @@ test('U12: paginación progresiva mantiene 120/120 accesibles y sin duplicados',
   else assert.doesNotMatch(result.markup,/data-session-action="load-more-library"/u);
  }
 });
+test('U12: el catálogo dinámico mayor de 500 ejercicios conserva todos los destinos',()=>{
+ const large=Array.from({length:620},(_,i)=>({id:'large-'+String(i+1),name_es:'Fuerza '+(i+1),pattern:'fuerza',equipment:'mancuernas',primary_muscles:[]}));
+ const wide=renderSessionLibraryResults({...options,catalog:{search:()=>large},visibleLimit:720});
+ assert.equal(wide.count,620);
+ assert.equal(wide.shown,620);
+ assert.equal(hits(wide.markup),620);
+ assert.doesNotMatch(wide.markup,/data-session-action="load-more-library"/u);
+});
 test('U12: peticiones malformadas nunca generan una lista interminable',()=>{
  const huge=renderSessionLibraryResults({...options,visibleLimit:100000});
  assert.equal(huge.shown,120);
