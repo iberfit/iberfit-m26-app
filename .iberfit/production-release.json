@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b6cfe4888bf8ccd4ddf331695fa4d3bbeb383bf8",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Protected final full release: SIGNATURE 360 U10/Auth already LIVE on source 72bfe3fd71fa; P0 bootstrap backend #1006 and append-only PROD guard #1036 now applied to production (Stage1 JSONB overlay, Stage2 role/access corrected PROD migration, Stage3 Client checkin dedupe, Stage4 early Client-safe projection). Live PROD MD5: role aa12f60d12892506c8e08b0717aa8ee2, access c6e7dc2917170e35f7ec23dc31d8f964, rc29 6ca1d901bb26ceedccfb7dc15945451d. Security attributes/ACL retained. PROD Client bootstrap dual-account 180ms/14ms with no internal entities; direct cross-client access denied. Canary exact b6cfe4888bf8 certified 10/10 postmerge workflows. M44 independent encrypted DB+Storage restore attempt 17 SUCCESS. Do not reapply historical QA migration or run bulk db push; SQL changes already applied and verified with append-only history. Full non-frontend-only release to align LIVE source SHA and brokers with certified backend. Require full rollback-protected preview, tests, LIVE identity and proof; keep previous LIVE release 72bfe3fd71fa as rollback."
+}
