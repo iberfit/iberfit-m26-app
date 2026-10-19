@@ -35,7 +35,7 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
       documentWidth:document.documentElement.scrollWidth,bodyWidth:document.body.scrollWidth,
       rootWidth:root.scrollWidth,footerLeft:box.left,footerRight:box.right,
       footerPosition:style.position,footerVisible:box.width>0&&box.height>0,
-      buttons:[...finish.querySelectorAll('button')].map(node=>({height:node.getBoundingClientRect().height,width:node.getBoundingClientRect().width})),
+      buttons:[...finish.querySelectorAll('button')].map(node=>{const rect=node.getBoundingClientRect(),style=getComputedStyle(node),parent=getComputedStyle(node.parentElement);return {action:node.dataset.sessionAction||node.dataset.sessionJump,height:rect.height,width:rect.width,computedMinHeight:style.minHeight,computedHeight:style.height,transform:style.transform,display:style.display,parentDisplay:parent.display,parentTransform:parent.transform};}),
     };
   });
   expect(Math.max(metrics.documentWidth,metrics.bodyWidth,metrics.rootWidth),'No horizontal overflow').toBeLessThanOrEqual(metrics.width+2);
@@ -44,7 +44,7 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   expect(metrics.footerVisible).toBe(true);
   expect(metrics.footerPosition,'No overlay or sticky control over mobile navigation').not.toMatch(/fixed|sticky/);
   for(const button of metrics.buttons){
-    expect(button.height,'Touch controls must be at least 48px tall').toBeGreaterThanOrEqual(47);
+    expect(button.height,`Touch controls must be at least 48px tall: ${JSON.stringify(button)}`).toBeGreaterThanOrEqual(47);
     expect(button.width).toBeGreaterThan(40);
   }
   const lastButton=buttons.last();
