@@ -34,6 +34,9 @@ on:
 permissions:
   contents: read
 
+# Ops checkpoint 2026-10-19 U14 proof refresh trigger: re-run protected PROD+Storage
+# backup, encrypted archive, isolated PostgreSQL 17 restore and byte parity.
+# This comment-only change does not alter any guard, secret or job behavior.
 # Ops checkpoint 2026-10-19: refresh the protected encrypted PROD+Storage
 # recovery proof after M44_OFFSITE_RUN_TOO_OLD blocked an otherwise certified
 # frontend-only release. No job, secret, timeout or restore policy is changed.
