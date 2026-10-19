@@ -928,9 +928,12 @@ body {
 /* Sesiones Coach → Cliente · prescripción profunda sin saturar el resumen. */
 .m26-rc39-session-card .m26-session-supervised-duration{margin:.45rem 0 0;color:var(--iberfit-color-text-secondary,#d7cbb2);font-size:.86rem}
 .m26-session-preview-disclosure{margin-top:.85rem;border:1px solid var(--iberfit-color-border-subtle,rgba(209,183,127,.26));border-radius:.8rem;overflow:hidden;background:rgba(3,20,13,.17)}
-.m26-session-preview-disclosure>summary{display:flex;align-items:center;min-height:48px;padding:.9rem 1rem;cursor:pointer;font-size:.92rem;font-weight:650;list-style:none;color:var(--iberfit-color-text-primary,#f4edda)}
+/* Keep the native list-item summary activation on touch/WebKit. Flex
+ * breaks the native disclosure hit target intermittently near the viewport
+ * edge; place the visual indicator without replacing the summary display. */
+.m26-session-preview-disclosure>summary{display:list-item;position:relative;min-height:48px;box-sizing:border-box;padding:.9rem 2.5rem .9rem 1rem;cursor:pointer;font-size:.92rem;font-weight:650;list-style:none;color:var(--iberfit-color-text-primary,#f4edda)}
 .m26-session-preview-disclosure>summary::-webkit-details-marker{display:none}
-.m26-session-preview-disclosure>summary:after{content:'+';margin-inline-start:auto;font-size:1.2rem;line-height:1;color:var(--iberfit-color-accent,#dabf7e)}
+.m26-session-preview-disclosure>summary:after{content:'+';position:absolute;inset-inline-end:1rem;top:50%;transform:translateY(-50%);font-size:1.2rem;line-height:1;color:var(--iberfit-color-accent,#dabf7e);pointer-events:none}
 .m26-session-preview-disclosure[open]>summary:after{content:'−'}
 .m26-session-preview-disclosure>summary:focus-visible,.m26-session-preview-technique>summary:focus-visible{outline:2px solid var(--iberfit-color-accent,#dabf7e);outline-offset:-3px}
 .m26-session-preview-body{padding:.25rem .9rem .9rem}

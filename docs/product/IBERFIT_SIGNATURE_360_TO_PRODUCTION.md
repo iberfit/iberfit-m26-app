@@ -1,12 +1,16 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
-## Checkpoint real · 19-10-2026 · Incrementos SIGNATURE PROD; aceptación integral pendiente
+## Checkpoint real · 19-10-2026 · SIGNATURE U14 en PRODUCCIÓN; programa integral pendiente
 
-**Producción y Canary exactos:** `6de0c77b7c1185441511aa488e9d85b780de5a9c`. [Production Promotion #39270221763](https://github.com/iberfit/iberfit-m26-app/actions/runs/39270221763) SUCCESS, identidad LIVE, navegador interactivo, prueba M44 offsite cifrada-restaurable y rollback. [Canary Exact Deploy #39267428071](https://github.com/iberfit/iberfit-m26-app/actions/runs/39267428071) SUCCESS. El PR #1040 mejoró WebAuthn ante respuestas lentas sin rebajar assurance ni exigir revinculación. El PR #1041 renovó la certificación M44. U11–U13 están en esta base: navegación Cliente, búsqueda de biblioteca Coach y registro de series según medida principal.
+**PROD y Canary certificados:** `798bc7a7030e82cf971e364daf1d7d91bd327de5`. [Production Promotion #39312618799](https://github.com/iberfit/iberfit-m26-app/actions/runs/39312618799) SUCCESS: identidad de fuente LIVE, regresión integral, Lighthouse, smoke real de entrada desktop/tablet/mobile y evidencia de despliegue/rollback. [Canary Exact Deploy #39311598819](https://github.com/iberfit/iberfit-m26-app/actions/runs/39311598819) SUCCESS sobre el mismo SHA. Diferenciar certificación del pipeline de la comprobación manual independiente no realizada en este checkpoint.
 
-**Límite de alcance:** `qa/visual/signature-360-coverage.json` conserva 43 rutas con `evidenceStatus=pending` (9 Cliente, 17 Coach, 17 Admin), por no existir aceptación exhaustiva de cada estado y dispositivo. Los avances de producción NO implican completar el programa. La etiqueta histórica `activeDelivery:2/5-client` no equivale a aceptación total Cliente ni niega que ya existan incrementos Coach. Secuencia contractual: sistema común, Cliente, Coach, Admin, certificación global de 43 rutas.
+**Incrementos SIGNATURE preservados:** U11–U13 y **U14** (PR #1042, cierre operativo del constructor Coach: estado vacío para iniciar biblioteca, añadir otro ejercicio, guardar borrador y revisar en flujo natural, objetivos táctiles de 48 px sin overlay inferior). U14 superó 11/11 controles de PR, 13/13 postmerge en `0d59d18167341df725072344ddd091211416caec` y llegó a PROD junto con la renovación M44 #1043. No se omitió MFA: la repetición Coach WebAuthn finalizó correctamente.
 
-**Incremento siguiente:** cierre operativo del constructor Coach: estado vacío accionable, añadir siguiente, guardar y revisar al final de la prescripción, sin fixed overlays ni saltarse la revisión obligatoria. Sin publicación hasta certificar su propio SHA.
+**Seguridad y restauración:** [M44 Offsite #39311598698](https://github.com/iberfit/iberfit-m26-app/actions/runs/39311598698) SUCCESS con archivo cifrado de DB+Storage y restauración aislada PostgreSQL17. El primer intento de promoción #39310641269 falló de forma segura por `M44_OFFSITE_RUN_TOO_OLD`; la renovación de evidencia y el nuevo release #39312618799 pasaron sin relajar antigüedad ni mutar backend. La restauración integral de servicios alojados/Auth de Supabase no está certificada por ese respaldo: `platformRecoveryVerified=false`.
+
+**Límite de alcance:** `qa/visual/signature-360-coverage.json` conserva 43 rutas con `evidenceStatus=pending` (9 Cliente, 17 Coach y 17 Admin). Las pruebas por incrementos NO equivalen a aceptación exhaustiva de todas las rutas, estados y dispositivos. El programa **SIGNATURE 360 permanece abierto**, aunque U14 ya se sirve en producción. Mantener IRI inicial separado de evolución y preservar la experiencia diferencial Cliente, Coach y Admin.
+
+**Trabajo siguiente U15 (WIP; aún no certificado ni publicado):** robustecer la presentación de FC de sesión real para no convertir datos ausentes en ceros o coordenadas inválidas, añadir regresiones; después continuar la certificación de estados y dispositivos y la eficiencia operativa Coach. Ningún cambio U15 llega a Canary/PROD sin CI y despliegue exacto independientes.
 
 ---
 
