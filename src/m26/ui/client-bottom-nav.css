@@ -143,22 +143,16 @@
   display: none;
 }
 
-.m26-client-bottom-nav-spark {
-  margin-left: -3px;
-  font-size: 0.78rem;
-  opacity: 0.46;
-  transform: translateY(-5px);
-}
-
 .m26-client-bottom-nav-menu {
   position: absolute;
   right: 0;
   bottom: calc(100% + 14px);
   width: min(310px, calc(100vw - 32px));
-  max-height:max(10rem,calc(100dvh - 140px - env(safe-area-inset-bottom)));
+  max-height: min(24rem, 62dvh, calc(100dvh - 9rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
   overflow-x:hidden;
   overflow-y:auto;
   overscroll-behavior:contain;
+  scroll-padding-block: .5rem;
   -webkit-overflow-scrolling:touch;
   padding: 9px;
   border: 1px solid var(--iberfit-color-border-strong);
@@ -322,7 +316,7 @@
   }
 
   .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-menu {
-    max-height: min(62dvh, 24rem);
+    max-height: min(62dvh, 24rem, calc(100dvh - 9rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -374,10 +368,6 @@
 
   button.m26-client-bottom-nav-item .m26-client-bottom-nav-label-compact {
     display:block;
-  }
-
-  .m26-client-bottom-nav-spark {
-    display: none;
   }
 
   .m26-client-bottom-nav-menu {
