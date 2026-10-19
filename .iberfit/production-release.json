@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "6d22aefa28d832dbab79433b998397b1f395d9fd",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "b6cfe4888bf8ccd4ddf331695fa4d3bbeb383bf8",
+  "notes": "SIGNATURE 360 U11 Client navigation More focus/keyboard and responsive. Protected merge 6d22aefa, 13/13 postmerge gates success; five front-end/test files only since PROD b6cfe488. No migrations, SQL, RLS, Auth, broker, backend or storage edits. Require fail-closed LIVE baseline match, M44 recovery evidence, canonical QA/full regression/lighthouse, release identity, smoke and rollback."
+}
