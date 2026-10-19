@@ -94,6 +94,14 @@ export function bindShellDisclosureDismissSupport(documentLike=globalThis.docume
     if(!details?.matches?.('details.m26-client-bottom-nav-more'))return;
     details.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded',details.open?'true':'false');
   },true);
+  // Tab/Shift+Tab must leave the Client menu cleanly. Do not steal focus
+  // back to the launcher when the user intentionally moves elsewhere.
+  documentLike.addEventListener('focusin',(event)=>{
+    const details=documentLike?.querySelector?.('details.m26-client-bottom-nav-more[open]');
+    if(details&&!details.contains?.(event?.target)){
+      closeDetailsDisclosure(details,{restoreFocus:false});
+    }
+  });
   documentLike.addEventListener('click',(event)=>{
     const details=documentLike?.querySelector?.(SHELL_DISCLOSURE_SELECTOR);
     if(!details)return;

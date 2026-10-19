@@ -1,73 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {bindShellDisclosureDismissSupport} from '../src/m26/rc39/shell-enhancer.js';
 import {renderRouteView} from '../src/m26/modules/route-render.js';
-import {setClientBottomMoreOpen,syncClientBottomMoreToggle,handleClientBottomMoreKeydown,dismissClientBottomMoreOnClick,dismissClientBottomMoreOnFocus} from '../src/m26/ui/client-bottom-nav-disclosure.js';
-const shell=fs.readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
-const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
-function fixture(){
- const attrs=new Map(),summary={focused:0,setAttribute(k,v){attrs.set(k,v)},focus(){this.focused++}};
- const items=Array.from({length:3},()=>({disabled:false,focused:0,focus(){this.focused++}}));
- const details={open:false,matches:s=>s==='details.m26-client-bottom-nav-more',setAttribute(k,v){attrs.set(k,v)},removeAttribute(k){attrs.delete(k)},querySelector:s=>s===':scope > summary'?summary:null,querySelectorAll:s=>s==='.m26-client-bottom-nav-menu [role="menuitem"]'?items:[],contains:x=>x===summary||items.includes(x)};
- summary.closest=s=>s==='details.m26-client-bottom-nav-more'?details:null;
- for(const item of items)item.closest=s=>s==='.m26-client-bottom-nav-menu [role="menuitem"]'?item:s==='details.m26-client-bottom-nav-more'?details:null;
- const root={querySelector:()=>details.open?details:null};
- const event=(target,key)=>({target,key,prevented:false,preventDefault(){this.prevented=true}});
- return {attrs,summary,items,details,root,event};
-}
-test('Más conserva menú accesible y 6 destinos sin adorno',()=>{
+
+const nav=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('../src/m26/rc39/shell-enhancer.js',import.meta.url),'utf8');
+test('SIGNATURE U11 reuses the existing disclosure rather than binding a second controller',()=>{
+ assert.match(source,/SHELL_DISCLOSURE_BOUND_DOCUMENTS=new WeakSet\(\)/);
+ assert.match(source,/documentLike.addEventListener\('focusin'/);
+ assert.match(source,/closeDetailsDisclosure\(details,\{restoreFocus:false\}\)/);
  const html=renderRouteView({kind:'placeholder',role:'client',title:'Prueba'});
- assert.match(html,/m26-client-bottom-nav-more/);
- assert.match(html,/aria-controls="m26-client-bottom-nav-menu" aria-expanded="false"/);
- assert.match(html,/id="m26-client-bottom-nav-menu" class="m26-client-bottom-nav-menu" role="menu"/);
- assert.equal((html.match(/role="menuitem"/g)||[]).length,6);
  assert.doesNotMatch(html,/m26-client-bottom-nav-spark|✦/);
+ assert.match(html,/m26-client-bottom-nav-icon" aria-hidden="true"/);
+ assert.match(html,/aria-haspopup="menu" aria-controls="m26-client-bottom-nav-menu"/);
 });
-test('estado ARIA sincronizado al abrir, cerrar y togglear',()=>{
- const f=fixture();
- assert.equal(setClientBottomMoreOpen(f.details,true),true);
- assert.equal(f.attrs.get('aria-expanded'),'true');
- assert.equal(syncClientBottomMoreToggle({target:f.details}),true);
- setClientBottomMoreOpen(f.details,false);
- assert.equal(f.attrs.get('aria-expanded'),'false');
+test('Tab fuera del menú lo cierra sin devolver el foco a su lanzador',()=>{
+ const events=new Map(),attrs=new Map();
+ let summaryFocusCount=0;
+ const summary={setAttribute(name,value){attrs.set(name,value)},focus(){summaryFocusCount++}};
+ const internal={};
+ const details={open:true,matches:selector=>selector==='details.m26-client-bottom-nav-more',contains:target=>target===internal||target===summary,querySelector:selector=>selector==='summary'?summary:null,removeAttribute(name){if(name==='open')this.open=false}};
+ const doc={
+  addEventListener(name,fn){events.set(name,[...(events.get(name)||[]),fn])},
+  querySelector(sel){return sel.includes('m26-client-bottom-nav-more[open]')&&details.open?details:null}
+ };
+ assert.equal(bindShellDisclosureDismissSupport(doc),true);
+ assert.equal(bindShellDisclosureDismissSupport(doc),false);
+ for(const fn of events.get('focusin')||[])fn({target:internal});
+ assert.equal(details.open,true);
+ for(const fn of events.get('focusin')||[])fn({target:{}});
+ assert.equal(details.open,false);
+ assert.equal(attrs.get('aria-expanded'),'false');
+ assert.equal(summaryFocusCount,0);
 });
-test('flechas Home End Escape permiten navegación operativa sin rutas falsas',()=>{
- const f=fixture();
- const open=f.event(f.summary,'ArrowDown');
- assert.equal(handleClientBottomMoreKeydown(open),true);
- assert.equal(open.prevented,true);
- assert.equal(f.items[0].focused,1);
- handleClientBottomMoreKeydown(f.event(f.items[0],'ArrowDown'));
- assert.equal(f.items[1].focused,1);
- handleClientBottomMoreKeydown(f.event(f.items[1],'End'));
- assert.equal(f.items[2].focused,1);
- handleClientBottomMoreKeydown(f.event(f.items[2],'ArrowDown'));
- assert.equal(f.items[0].focused,2);
- const esc=f.event(f.items[0],'Escape');
- assert.equal(handleClientBottomMoreKeydown(esc),true);
- assert.equal(f.summary.focused,1);
- assert.equal(f.details.open,false);
- assert.equal(f.attrs.get('aria-expanded'),'false');
-});
-test('clic y foco externo cierran sin alterar una selección interna',()=>{
- const f=fixture(),outside={closest:()=>null};
- setClientBottomMoreOpen(f.details,true);
- assert.equal(dismissClientBottomMoreOnFocus(f.root,f.items[0]),false);
- assert.equal(dismissClientBottomMoreOnClick(f.root,outside),true);
- setClientBottomMoreOpen(f.details,true);
- assert.equal(dismissClientBottomMoreOnClick(f.root,f.items[0]),true);
- setClientBottomMoreOpen(f.details,true);
- assert.equal(dismissClientBottomMoreOnFocus(f.root,outside),true);
-});
-test('shell registra y retira listeners de teclado y toggle',()=>{
- assert.match(shell,/root.addEventListener\('keydown',onClientBottomMoreKeydown\)/);
- assert.match(shell,/root.removeEventListener\('keydown',onClientBottomMoreKeydown\)/);
- assert.match(shell,/root.addEventListener\('toggle',syncClientBottomMoreToggle,true\)/);
- assert.match(shell,/root.removeEventListener\('toggle',syncClientBottomMoreToggle,true\)/);
-});
-test('menú respeta safe areas, altura disponible y movimiento reducido',()=>{
- assert.match(css,/max-height: min\(24rem, 62dvh, calc\(100dvh - 9rem - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\)\)/);
- assert.match(css,/scroll-padding-block: \.5rem/);
- assert.match(css,/min-height: 66px/);
- assert.match(css,/prefers-reduced-motion: reduce/);
+test('menú acotado a 320 px, pantalla baja y safe areas, sin interferir con el dock',()=>{
+ assert.match(nav,/max-height:\s*min\(24rem,\s*62dvh,\s*calc\(100dvh - 9rem - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\)\)/u);
+ assert.match(nav,/scroll-padding-block:\s*\.5rem/u);
+ assert.match(nav,/min-height:\s*66px/u);
+ assert.match(nav,/prefers-reduced-motion:\s*reduce/u);
+ assert.match(nav,/@media \(max-width:\s*370px\)/u);
+ assert.doesNotMatch(nav,/\.m26-client-bottom-nav-spark/u);
 });

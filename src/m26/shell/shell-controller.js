@@ -1,7 +1,6 @@
 import { guardClientSelection, resolveM26Route } from './route-guard.js';
 import { createShellViewModel } from './shell-view-model.js';
 import {setMobileMoreOpen,syncMobileMoreBackground} from './mobile-more-disclosure.js';
-import {setClientBottomMoreOpen,syncClientBottomMoreToggle,handleClientBottomMoreKeydown,dismissClientBottomMoreOnClick,dismissClientBottomMoreOnFocus} from '../ui/client-bottom-nav-disclosure.js';
 import { renderM26Shell } from './shell-render.js';
 import {setIberfitLanguage} from '../ui/i18n.js';
 import {iberfitDomainTranslate} from '../ui/i18n-domain.js';
@@ -523,7 +522,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     releasePointerInteraction();
   }
   function onFocusIn(event){
-    dismissClientBottomMoreOnFocus(root,event.target);
     if(formInteractionTarget&&!formInteractionTarget.contains?.(event.target))releaseFormInteraction({deferRender:false});
     const control=interactiveControl(event.target);
     if(!control)return;
@@ -736,18 +734,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onClick(event) {
-    dismissClientBottomMoreOnClick(root,event.target);
-    const clientMoreSummary=event.target.closest?.('details.m26-client-bottom-nav-more > summary');
-    if(clientMoreSummary){
-      const details=clientMoreSummary.closest?.('details.m26-client-bottom-nav-more');
-      if(details){
-        event.preventDefault?.();
-        releasePointerInteraction({deferRender:false});
-        setClientBottomMoreOpen(details,!details.open);
-        queueMicrotask(flushDeferredRender);
-        return;
-      }
-    }
     const settingsSummary=event.target.closest?.('.m26-settings-menu > summary');
     if(settingsSummary){
       const details=settingsSummary.closest?.('details.m26-settings-menu');
@@ -826,7 +812,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       const mobileMore=areaButton.closest?.('details.m26-mobile-more');
       if(mobileMore)setMobileMoreOpen(mobileMore,false);
       const clientBottomMore=areaButton.closest?.('details.m26-client-bottom-nav-more');
-      if(clientBottomMore)setClientBottomMoreOpen(clientBottomMore,false);
+      if(clientBottomMore){
+        clientBottomMore.open=false;
+        clientBottomMore.removeAttribute?.('open');
+        clientBottomMore.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
+      }
       const rawNextArea = areaButton.getAttribute('data-m26-area');
       const current=store.getState();
       const nextArea=roleScopedArea(current,rawNextArea);
@@ -922,17 +912,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     switchClient(selector.value,{openExpediente:false,source:selector,preserveSourceFocus:true});
   }
 
-  function onClientBottomMoreKeydown(event){
-    handleClientBottomMoreKeydown(event);
-  }
   function mount({progressive=false}={}) {
     if (unsubscribe) return;
     generation+=1;
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
     root.addEventListener('click', onRoleChoiceClick, true);
     root.addEventListener('click', onClick);
-    root.addEventListener('keydown',onClientBottomMoreKeydown);
-    root.addEventListener('toggle',syncClientBottomMoreToggle,true);
     root.addEventListener('change', onChange);
     root.addEventListener('input',onInputActivity);
     root.addEventListener('submit',onFormSubmit);
@@ -958,8 +943,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function destroy() {
     const openMobileMore=root.querySelector?.('details.m26-mobile-more[open]');
     if(openMobileMore)setMobileMoreOpen(openMobileMore,false);
-    const openClientMore=root.querySelector?.('details.m26-client-bottom-nav-more[open]');
-    if(openClientMore)setClientBottomMoreOpen(openClientMore,false);
     generation+=1;
     renderQueued=false;
     queuedState=null;
@@ -971,8 +954,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     markTextEntryActive(null);
     root.removeEventListener('click', onRoleChoiceClick, true);
     root.removeEventListener('click', onClick);
-    root.removeEventListener('keydown',onClientBottomMoreKeydown);
-    root.removeEventListener('toggle',syncClientBottomMoreToggle,true);
     root.removeEventListener('change', onChange);
     root.removeEventListener('input',onInputActivity);
     root.removeEventListener('submit',onFormSubmit);
