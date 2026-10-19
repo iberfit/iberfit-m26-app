@@ -708,7 +708,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
 
   const activeGroupLimit=activeGroup?.type==='biserie'?2:activeGroup?.type==='triserie'?3:activeGroup?12:0;
   const activeGroupTargetMarkup=activeGroup?`<div class="m26-builder-group-target" data-session-active-group-target role="status" aria-live="polite"><span><small>Añadiendo al grupo activo</small><strong>${e(groupName(activeGroup.type))} · ${e(activeGroup.exerciseIds.length)}/${e(activeGroupLimit)} ejercicios</strong></span><button type="button" data-session-action="close-group">Cerrar grupo</button></div>`:'';
-  const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Añade ejercicios desde la biblioteca.</p>';
+  const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||`<div class="m26-builder-program-empty" data-session-builder-empty><strong>Empieza por el primer ejercicio</strong><p>Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.</p><button type="button" data-session-jump="library">Buscar ejercicios</button></div>`;
   const metrics=draftMetrics(draft);
   const templateHistory=templateAdaptation?.templateName?templateHistoryCoverage(draft,exerciseMemoryFor):null;
   const undoRemovalMarkup=undoRemoval?.block?.id?`<div class="m26-notice m26-builder-undo" data-session-builder-undo role="status"><span>Bloque eliminado del borrador.</span><button type="button" data-session-action="restore-block">Deshacer</button></div>`:'';
@@ -820,6 +820,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
         </div>
         ${draft.activeGroupId?'<p class="m26-notice" role="status">Añade ejercicios o cierra el grupo actual antes de crear otro. Si cierras un grupo incompleto, los ejercicios ya añadidos pasarán a ser individuales conservando sus prescripciones.</p>':''}
         <div class="m26-builder-blocks">${blocks}</div>
+        ${metrics.blocks?`<footer class="m26-builder-finish" data-session-builder-finish aria-label="Siguiente paso del constructor"><div class="m26-builder-finish-copy"><span>Antes de publicar</span><strong>Revisa la sesión completa</strong><p>Confirma modalidad y prescripción. Guardar borrador no publica el entrenamiento.</p></div><div class="m26-inline-actions m26-builder-finish-actions"><button type="button" data-session-jump="library">Añadir otro ejercicio</button><button type="button" data-session-action="save-draft">Guardar borrador</button><button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button></div></footer>`:''}
       </main>
     </div>`}
   </section>`;

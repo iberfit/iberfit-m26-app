@@ -1,5 +1,15 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
+## Checkpoint real · 19-10-2026 · Incrementos SIGNATURE PROD; aceptación integral pendiente
+
+**Producción y Canary exactos:** `6de0c77b7c1185441511aa488e9d85b780de5a9c`. [Production Promotion #39270221763](https://github.com/iberfit/iberfit-m26-app/actions/runs/39270221763) SUCCESS, identidad LIVE, navegador interactivo, prueba M44 offsite cifrada-restaurable y rollback. [Canary Exact Deploy #39267428071](https://github.com/iberfit/iberfit-m26-app/actions/runs/39267428071) SUCCESS. El PR #1040 mejoró WebAuthn ante respuestas lentas sin rebajar assurance ni exigir revinculación. El PR #1041 renovó la certificación M44. U11–U13 están en esta base: navegación Cliente, búsqueda de biblioteca Coach y registro de series según medida principal.
+
+**Límite de alcance:** `qa/visual/signature-360-coverage.json` conserva 43 rutas con `evidenceStatus=pending` (9 Cliente, 17 Coach, 17 Admin), por no existir aceptación exhaustiva de cada estado y dispositivo. Los avances de producción NO implican completar el programa. La etiqueta histórica `activeDelivery:2/5-client` no equivale a aceptación total Cliente ni niega que ya existan incrementos Coach. Secuencia contractual: sistema común, Cliente, Coach, Admin, certificación global de 43 rutas.
+
+**Incremento siguiente:** cierre operativo del constructor Coach: estado vacío accionable, añadir siguiente, guardar y revisar al final de la prescripción, sin fixed overlays ni saltarse la revisión obligatoria. Sin publicación hasta certificar su propio SHA.
+
+---
+
 ## Estado comprobado posterior · 17-10-2026 · Canary certificado, no PROD
 
 La secuencia histórica de WIP que sigue fue escrita antes del merge. **Prevalece este checkpoint:** PR #1019 MERGED, Canary fuente y merge `a497383896043b86548f7fa5781263e2cc71e3d3`; 12/12 workflows postmerge SUCCESS y [Canary Exact Deploy #39078154724](https://github.com/iberfit/iberfit-m26-app/actions/runs/39078154724) con identidad QA-only del SHA servido, escritorio/móvil autenticado read-only y rollback identificado. Cloudflare deployment `bd38c4e3-080c-43f9-a38f-0ad3f9eab8b9`.
