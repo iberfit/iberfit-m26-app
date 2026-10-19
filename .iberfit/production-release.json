@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "80ec9767dfa680c3062f3bb2e6ea669d867c8b39",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "b06567cfb5f5728298e5177b2f2c026f9a747150",
+  "notes": "SIGNATURE 360 U13: time-first observed set fields for isometric exercises, repeats-first for dynamic strength, preserving all recording and Client workflows. PR #1039 merged exactly as 80ec9767dfa6; 10/10 postmerge workflows success (Admin WebAuthn on controlled retry after slow QA backend challenge); Canary exact live identity confirmed. Only src/m26/workflows/session-ui.js and one unit test changed vs live U12; no migration/SQL/Auth/RLS/Edge/backend writes. Frontend-only promotion must fail closed on exact prior PROD b06567cf, valid M44 offsite restore and recovery evidence, connected V47 and M44 schema checks, full regression, Lighthouse, CDN identity, smoke, rollback."
+}
