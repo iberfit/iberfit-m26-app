@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "6de0c77b7c1185441511aa488e9d85b780de5a9c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "80ec9767dfa680c3062f3bb2e6ea669d867c8b39",
+  "notes": "P0 WebAuthn slow-backend fail-closed recovery PR #1040 + M44 backup proof refresh PR #1041. Exact Canary 6de0c77b7c11. Canary Exact Deploy #39267428071, M26 CI #39267427822, Admin WebAuthn #39267427992 and Coach WebAuthn #39267427811 SUCCESS. Backup encrypted DB/Storage isolated restore proof #39267427810 SUCCESS with evidence artifact 12193313655. Compare vs U13 PROD 80ec9767: frontend auth/UI+translations+tests and GitHub workflow metadata only. No SQL, RLS, Auth, secrets, backend or storage mutations in promotion. Must fail-closed on exact prior prod SHA, recovery proof freshness/lineage, responsive and live browser smoke, rollback evidence."
+}
