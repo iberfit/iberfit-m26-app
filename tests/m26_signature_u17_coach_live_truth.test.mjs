@@ -39,6 +39,8 @@ test('U17: no FC ficticia para telemetría vacía y fallback nulo, blanco, cero 
     const before=structuredClone(events.filter((item)=>Number.isFinite(item.raw.heartRateBpm)));
     const result=deriveLiveSessionIntelligence(execution);
     assert.equal(result.available,false,String(reading));
+    assert.equal(result.rawEventCount,1,'la muestra inválida debe contabilizarse como recibida');
+    assert.equal(result.quality.excludedFromDerived,1,'el usuario debe conocer la exclusión');
     assert.equal(result.interpretableEventCount,0,String(reading));
     for(const field of ['currentHeartRateBpm','averageHeartRateBpm','maxHeartRateBpm','minHeartRateBpm'])
       assert.equal(result[field],null,field+': '+String(reading));
@@ -54,6 +56,8 @@ test('U17: las métricas no incorporan ceros canónicos defectuosos ni pierden e
     status:'connected',heartRateBpm:null,averageHeartRateBpm:null,
     maxHeartRateBpm:null,minHeartRateBpm:null,timeline:{events},
   }});
+  assert.equal(result.rawEventCount,5);
+  assert.equal(result.quality.excludedFromDerived,3);
   assert.equal(result.interpretableEventCount,2);
   assert.equal(result.currentHeartRateBpm,125);
   assert.equal(result.averageHeartRateBpm,122.5);
