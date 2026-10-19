@@ -1,6 +1,20 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
-## Checkpoint real · 19-10-2026 · SIGNATURE U14 en PRODUCCIÓN; programa integral pendiente
+## Checkpoint vigente · 19-10-2026 · SIGNATURE U16 promovido; programa integral pendiente
+
+**Canary certificado:** SHA fuente `4a103eb98dda24f2b16fcdeeda09ac41dbcc784c` en `canary/rc74-4`. [Canary Exact Deploy #39337454417](https://github.com/iberfit/iberfit-m26-app/actions/runs/39337454417) SUCCESS. PR [U15 #1044](https://github.com/iberfit/iberfit-m26-app/pull/1044) y [U16 #1046](https://github.com/iberfit/iberfit-m26-app/pull/1046) MERGED; U14 #1042 ya pertenecía a la línea certificada.
+
+**Producción oficial U16:** [Production Promotion #39340240024](https://github.com/iberfit/iberfit-m26-app/actions/runs/39340240024), SUCCESS en 19-10-2026, manifiesto hijo `f7479b69b5d60128fd3a8f194bd7952bff91f6fa`, fuente exacta `4a103eb98dda24f2b16fcdeeda09ac41dbcc784c`. El job confirmó identidad de `app.iberfit.cl`, navegador Chromium, regresión, comprobación de base de datos y evidencia de rollback. La consulta manual independiente de `/m26/version.json` desde el entorno de continuidad no estuvo disponible; no equipararla con una segunda certificación.
+
+**Entregas nuevas respecto a U14:** U15 protege la representación de FC en timeline frente a ausencias y corrige apertura táctil de detalles; U16 permite reordenar bloques y grupos con botones correctamente deshabilitados y foco estable. M44 #39337454429 SUCCESS, con recuperación DB+Storage aislada cifrada. Mantiene `platformRecoveryVerified=false`: no demuestra recuperación completa de los servicios alojados de Supabase. La evidencia M44 está sujeta al gate de frescura de dos horas para futuras publicaciones.
+
+**Estado integral inalterado:** `qa/visual/signature-360-coverage.json` continúa con 43 rutas (9 Cliente, 17 Coach, 17 Admin), `evidenceStatus=pending` y `status=WIP_NOT_PRODUCTION`. Es el estado de aceptación integral, no el de los incrementos ya publicados. Sin pruebas de todos los estados, permisos y dispositivos de cada ruta, no declarar SIGNATURE 360 completo.
+
+**Incremento U17 en rama de desarrollo (NO publicado):** validación defensiva de FC ausente y cambios planos en inteligencia de sesión Coach, priorización de alternativas relacionadas en alta en vivo antes de limitar el selector a 60, pruebas de regresión y conciliación de la documentación. Exigir PR, gates, Canary exacto y pipeline PROD con recuperación fresca antes de cambiar su estado.
+
+---
+
+## Checkpoint histórico · 19-10-2026 · U14 en PRODUCCIÓN antes de U15/U16
 
 **PROD y Canary certificados:** `798bc7a7030e82cf971e364daf1d7d91bd327de5`. [Production Promotion #39312618799](https://github.com/iberfit/iberfit-m26-app/actions/runs/39312618799) SUCCESS: identidad de fuente LIVE, regresión integral, Lighthouse, smoke real de entrada desktop/tablet/mobile y evidencia de despliegue/rollback. [Canary Exact Deploy #39311598819](https://github.com/iberfit/iberfit-m26-app/actions/runs/39311598819) SUCCESS sobre el mismo SHA. Diferenciar certificación del pipeline de la comprobación manual independiente no realizada en este checkpoint.
 
