@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "0d59d18167341df725072344ddd091211416caec",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "6de0c77b7c1185441511aa488e9d85b780de5a9c",
+  "notes": "SIGNATURE 360 U14 Coach Builder closure PR #1042. Original PR head e160c5aa2efa; 11/11 PR workflows SUCCESS incl Device Experience, visual multi-device, QA real write and Canary policy. Merge SHA 0d59d1816734; Canary Exact Deploy #39306593891 SUCCESS with LIVE SHA and QA-only identity. Frontend-only UI/CSS/i18n + tests; no SQL, RLS, Auth/Edge server, secrets, storage or data changes. Production promotion remains gated on M44 recovery readiness, exact previous PROD SHA, global tests, Lighthouse, live browser identity, and rollback."
+}
