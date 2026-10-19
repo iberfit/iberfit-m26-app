@@ -42,7 +42,8 @@ test('U14: mobile touch footer stays in natural flow above the dock',()=>{
   const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   const section=css.split('/* SIGNATURE_COACH_U14_TASK_CLOSE_BEGIN */')[1]?.split('/* SIGNATURE_COACH_U14_TASK_CLOSE_END */')[0]||'';
   assert.match(section,/\.m26-builder-finish\{/u);
-  assert.match(section,/min-height:48px/u);
+  assert.match(section,/\.m26-shell\[data-m26-role="coach"\] \.m26-workspace :is\(\.m26-builder-program-empty,\.m26-builder-finish-actions\)>button/u);
+  assert.match(section,/min-height:var\(--iberfit-size-touch-target-comfortable,48px\)/u);
   assert.match(section,/@media\(max-width:680px\)/u);
   assert.doesNotMatch(section,/position:\s*(fixed|sticky)/u);
   assert.match(controller,/const jump=event\.target\.closest\?\.\('\[data-session-jump\]'\)/u);
