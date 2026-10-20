@@ -39,7 +39,7 @@ export function isQaIriSignedPhotoRead(request,{qaOrigin}={}){
 }
 
 
-// Preparation only: the live QA interceptor does not import this function.
+// Applied only to the isolated Coach WebAuthn QA interceptor, never production traffic.
 // Minimise private photograph request evidence, including DENIED requests.
 // Never serialise client, assessment or capture IDs or signed URL tokens.
 export function qaIriPrivatePhotoEvidenceLabel(request,{qaOrigin}={}){
