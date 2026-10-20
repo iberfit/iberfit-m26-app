@@ -35,11 +35,11 @@ test('U23 Client physical dock uses the actual production renderer and Escape re
   const module=read('src/m26/modules/route-render.js');
   const fixture=read('qa/visual/signature-route-shell.fixture.mjs');
   const controller=read('src/m26/shell/shell-controller.js');
-  assert.match(module,/export function renderClientBottomNav\\(vm\\)/u);
-  assert.match(fixture,/renderClientBottomNav\\(\\{kind:vm.activeArea\\}\\)/u);
-  assert.match(controller,/details\\.m26-client-bottom-nav-more\\[open\\]/u);
-  assert.match(controller,/clientMoreSummary\\.setAttribute\\?\\.\\('aria-expanded'/u);
-  assert.match(controller,/if\\(disclosure\\.matches\\?\\.\\('details\\.m26-mobile-more'\\)\\)/u);
+  assert.ok(module.includes('export function renderClientBottomNav(vm){'));
+  assert.ok(fixture.includes('renderClientBottomNav({kind:vm.activeArea})'));
+  assert.ok(controller.includes('details.m26-client-bottom-nav-more[open]'));
+  assert.ok(controller.includes("clientMoreSummary.setAttribute?.('aria-expanded'"));
+  assert.ok(controller.includes("if(disclosure.matches?.('details.m26-mobile-more'))"));
 });
 
 test('U23 compact dock does not rely on horizontal scrolling or clipping the Más overlay',()=>{
