@@ -53,3 +53,20 @@
   min-width:0;
   max-width:100%;
 }
+
+/* SIGNATURE U25 · intrinsic grid containment at narrow mobile widths.
+ * Grid auto tracks carry min-content constraints even when their children
+ * have max-width:100%; use zero-minimum tracks instead of masking overflow. */
+@media(max-width:420px){
+  .m26-media-review-route,
+  .m26-media-review-route :is(.m26-media-control-section,.m26-media-review-list,.m26-media-inventory-list,.m26-media-review-candidate,.m26-media-review-phase),
+  .m26-media-review-route .m26-media-control-tools{
+    grid-template-columns:minmax(0,1fr);
+    min-width:0;
+    max-width:100%;
+  }
+  .m26-media-review-route :is(.m26-media-control-tools,.m26-admin-panel,.m26-media-control-section-head){
+    min-width:0;
+    max-width:100%;
+  }
+}
