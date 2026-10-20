@@ -112,3 +112,26 @@ test('salir desde feedback persiste el borrador local antes de abandonar',async(
   assert.equal(h.exit.getAttribute('aria-busy'),null);
   h.controller.destroy();
 });
+
+test('U20: exit with failed recovery checkpoint stays open, enables retry and explains the actual risk',async()=>{
+  let exits=0,persists=0;
+  const recoveryCoordinator={
+    async persist(){persists++;throw new Error('RECOVERY_STORAGE_UNAVAILABLE');},
+    async settle(){},
+  };
+  const h=harness({recoveryCoordinator,onExit:()=>{exits++;}});
+  const originalStatus=h.execution.status;
+  await h.fire('click',h.exit);
+  assert.equal(exits,0,'never navigate after a failed local recovery checkpoint');
+  assert.equal(persists,1);
+  assert.equal(h.execution.status,originalStatus);
+  assert.equal(h.context.actionState.status,'retry');
+  assert.match(h.context.actionState.message,/No se pudo confirmar el guardado/u);
+  assert.match(h.context.actionState.message,/La sesión sigue abierta/u);
+  assert.match(h.context.actionState.message,/vuelve a intentar Guardar y salir/u);
+  assert.equal(h.exit.disabled,false);
+  assert.equal(h.exit.getAttribute('aria-busy'),null);
+  assert.ok(h.renders>=1);
+  assert.equal(h.errors.length,1);
+  h.controller.destroy();
+});

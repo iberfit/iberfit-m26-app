@@ -15,6 +15,8 @@ import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
 import {renderSessionLibraryResults} from './session-ui.js';
+import {liveHeartRatePresentation} from './session-ui.js';
+import {deriveLiveSessionIntelligence,LIVE_SESSION_CURRENT_READING_MAX_AGE_MS} from '../intelligence/live-session-intelligence.js';
 import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
@@ -374,13 +376,44 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     clockTarget?.clearInterval?.(sessionClockTimer);
     sessionClockTimer=null;
   }
+  function syncLiveReading(context){
+    const heading=root.querySelector?.('[data-session-live-current-heading]');
+    const value=root.querySelector?.('[data-session-live-current-value]');
+    const note=root.querySelector?.('[data-session-live-reading-note]');
+    if((!heading&&!value&&!note)||!context?.execution?.liveTelemetry)return false;
+    // A normal one-second timer tick must not reprocess a whole workout and
+    // redraw UI. Read the last certified timestamp; derive only at expiry or
+    // if a legacy DOM surface has no state. The sensor adapter itself re-renders
+    // on a new sample and provides a new timestamp.
+    const displayed=note?.getAttribute?.('data-session-live-reading-state')||'';
+    const lastAt=Date.parse(note?.getAttribute?.('data-session-live-last-at')||'');
+    const expired=!Number.isFinite(lastAt)||Date.now()-lastAt>LIVE_SESSION_CURRENT_READING_MAX_AGE_MS;
+    const connected=String(context.execution.liveTelemetry.status||'').toLowerCase()==='connected';
+    if(displayed&&displayed!=='current'||
+       displayed==='current'&&connected&&!expired)return true;
+    const intelligence=deriveLiveSessionIntelligence(context.execution);
+    const view=liveHeartRatePresentation(intelligence);
+    if(heading){
+      const next=`FC actual · ${view.bpm}`;
+      if(heading.textContent!==next)heading.textContent=next;
+    }
+    if(value&&value.textContent!==view.bpm)value.textContent=view.bpm;
+    if(note&&note.getAttribute?.('data-session-live-reading-state')!==view.state){
+      note.textContent=view.note;
+      note.hidden=!view.note;
+      note.setAttribute?.('data-session-live-reading-state',view.state);
+      note.setAttribute?.('data-session-live-last-at',intelligence.liveReading.lastAt||'');
+    }
+    return true;
+  }
   function syncSessionClock(context=getContext()){
     const execution=context?.execution;
     if(!execution)return false;
     const elapsedNode=root.querySelector?.('[data-session-elapsed]');
     const restNode=root.querySelector?.('[data-session-rest]');
     const restCountdownNode=root.querySelector?.('[data-session-rest-countdown-value]');
-    if(!elapsedNode&&!restNode&&!restCountdownNode)return false;
+    const hasLive=syncLiveReading(context);
+    if(!elapsedNode&&!restNode&&!restCountdownNode)return hasLive;
     const rest=restRemainingSeconds(execution);
     if(elapsedNode)elapsedNode.textContent=formatDuration(executionElapsedMs(execution));
     if(restNode)restNode.textContent=rest>0?`${rest} s`:'—';
@@ -786,7 +819,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     catch{clearPendingSessionEntry(root);}
   }
   async function onShellRendered(){
-    bindSessionStickyTop();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());
+    bindSessionStickyTop();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());
     const pending=consumePendingSessionEntry(root);
     if(!pending)return;
     const context=getContext();
@@ -976,7 +1009,14 @@ async function click(event){
         await context.onExit?.();
         if(target==='verificacion')queueMicrotask(()=>openSessionRecoveryReview(root));
       }catch(error){
-        onError(error);renderSession();
+        onError(error);
+        // Do not navigate after a failed or uncertain recovery checkpoint.
+        // Retain the form and clearly explain how to retry a safe exit.
+        if(context?.actionState){
+          context.actionState.status='retry';
+          context.actionState.message='No se pudo confirmar el guardado antes de salir. La sesión sigue abierta con tus datos actuales; comprueba la conexión o el almacenamiento y vuelve a intentar Guardar y salir.';
+        }
+        renderSession();
       }finally{
         exitPending=false;sessionActionPending=false;
         button.disabled=wasDisabled;button.removeAttribute('aria-busy');
@@ -1155,5 +1195,5 @@ async function click(event){
     if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());
     if(event.target.closest?.('[data-session-feedback-pain]'))syncFeedbackPainControl();
   }
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;mountSessionStickyTop();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;mountSessionStickyTop();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }

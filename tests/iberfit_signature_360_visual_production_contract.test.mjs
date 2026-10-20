@@ -51,12 +51,12 @@ test('Signature360 always requires production evidence and broad responsive/stat
     assert.ok(coverage.crossCutting.includes(topic),topic);
 });
 
-test('Signature360 records exact U18 production without miscertifying 43 routes',()=>{
+test('Signature360 records exact U19 production without miscertifying 43 routes',()=>{
   assert.equal(coverage.activeDelivery,'3/5-coach-incremental');
   assert.match(coverage.productionBaseline.sourceSha,/^[0-9a-f]{40}$/);
-  assert.equal(coverage.productionBaseline.sourceSha,'f46c979cb44aa705a46ef8c389e51aaf9af9e9a7');
-  assert.equal(coverage.productionBaseline.workflowRunId,39353820032);
-  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39353820032');
+  assert.equal(coverage.productionBaseline.sourceSha,'4399be6098b37dd6477f18539838aec324ce7f25');
+  assert.equal(coverage.productionBaseline.workflowRunId,39360160111);
+  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39360160111');
   assert.ok(coverage.productionBaseline.delivered.includes('admin-users-mobile-accessibility'));
   assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-builder-task-closure-u14'));
   assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-heart-rate-truth-u15'));
@@ -67,6 +67,8 @@ test('Signature360 records exact U18 production without miscertifying 43 routes'
   assert.ok(coverage.productionBaseline.delivered.includes('signature-mobile-native-preview-auth-recovery-qa-u17'));
   assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-set-block-attribution-u18'));
   assert.ok(coverage.productionBaseline.delivered.includes('signature-hr-rpe-rir-legacy-ambiguity-safety-u18'));
+  for(const increment of ['signature-live-heart-rate-stale-disconnected-invalid-u19','signature-timeline-true-time-dropout-gaps-u19','signature-coach-repeated-exercise-context-u19','signature-session-telemetry-index-performance-u19'])
+    assert.ok(coverage.productionBaseline.delivered.includes(increment),increment);
   assert.match(coverage.productionBaseline.scope,/43 routes remains pending|43 rutas siguen pendientes|43 routes remain pending/u);
   assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after only the foundational release');
   const entries=roles.flatMap(role=>coverage.roles[role]);

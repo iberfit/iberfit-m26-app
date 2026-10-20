@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "f46c979cb44aa705a46ef8c389e51aaf9af9e9a7",
+    "sourceSha": "4399be6098b37dd6477f18539838aec324ce7f25",
     "verifiedAt": "2026-10-19",
-    "workflowRunId": 39353820032,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39353820032",
+    "workflowRunId": 39360160111,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39360160111",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -340,9 +340,13 @@
       "signature-coach-live-alternative-relevance-u17",
       "signature-mobile-native-preview-auth-recovery-qa-u17",
       "signature-coach-live-set-block-attribution-u18",
-      "signature-hr-rpe-rir-legacy-ambiguity-safety-u18"
+      "signature-hr-rpe-rir-legacy-ambiguity-safety-u18",
+      "signature-live-heart-rate-stale-disconnected-invalid-u19",
+      "signature-timeline-true-time-dropout-gaps-u19",
+      "signature-coach-repeated-exercise-context-u19",
+      "signature-session-telemetry-index-performance-u19"
     ],
-    "scope": "Incremental releases through U18 verified on production exact source, Lighthouse, read-only Chromium audit and rollback by #39353820032. All 43 routes remain pending for Cliente/Coach/Admin route-state-device acceptance, not claimed certified by a release smoke."
+    "scope": "Incremental releases through U19 verified on production exact source, Lighthouse, read-only Chromium audit and rollback by #39360160111. All 43 routes remain pending for Cliente/Coach/Admin route-state-device acceptance, not claimed certified by a release smoke."
   },
   "activeDelivery": "3/5-coach-incremental"
 }
