@@ -329,7 +329,7 @@ function renderClientPlanning(vm){
       ${hasPublished?'':`<div class="m30-planning-pending-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div>`}
     </div>
     ${hasPublished?`<div class="m30-planning-overview-metrics" aria-label="Sesiones publicadas por modalidad">
-      <div><span>Total</span><strong>${escape(items.length)}</strong><small>sesiones</small></div>
+      <div><span>Sesiones</span><strong>${escape(distinctSessionCount)}</strong><small>prescripciones distintas</small></div>
       <div><span>Con Coach</span><strong>${escape(supervised)}</strong><small>supervisadas</small></div>
       <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>entrenamiento guiado</small></div>
     </div>`:''}
