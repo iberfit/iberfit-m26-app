@@ -10,6 +10,15 @@ async function state(page){
   return page.evaluate(()=>globalThis.__IBERFIT_LIVE_WORKOUT_QA__.state());
 }
 
+async function activatePublishedPreview(card,testInfo){
+  const summary=card.locator('details.m26-session-preview-disclosure > summary');
+  await expect(summary).toBeVisible();
+  // Touch viewport: a real touch gesture. Desktop: a real mouse pointer.
+  // Preserve native <summary> behavior, never set <details open> through JS.
+  if(testInfo.project.use?.hasTouch)await summary.tap();
+  else await summary.click();
+}
+
 async function fillCurrentSet(page,{reps='9',load='20 kg',rpe='7',rir='3'}={}){
   await page.locator('[data-set-field="reps"]').fill(reps);
   await page.locator('[data-set-field="load"]').fill(load);
@@ -284,7 +293,7 @@ test('M43: Cliente ejecuta running y natación con metas proyectadas, datos real
   expect(bounds.scroll).toBeLessThanOrEqual(bounds.viewport+1);
 });
 
-test('Canary sesión programada y guiada: previa completa sin fuga privada ni overflow móvil',async({page})=>{
+test('Canary sesión programada y guiada: previa completa sin fuga privada ni overflow móvil',async({page},testInfo)=>{
   await open(page,'client');
   await page.evaluate(async()=>{
     const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
@@ -314,7 +323,7 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   await expect(direct).not.toContainText('Press de pecho');
   await expect(direct.locator('details.m26-session-preview-disclosure')).toHaveCount(0);
   await expect(guided.locator('details.m26-session-preview-disclosure')).toHaveCount(1);
-  await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await activatePublishedPreview(guided,testInfo);
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await expect(guided.locator('.m26-session-preview-exercise h5')).toHaveText('Press de pecho');
@@ -345,7 +354,7 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(led.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
   await expect(self).toContainText('Fuerza autónoma');
   await expect(self.locator('[data-workflow-action="start-published-session"]')).toBeHidden();
-  await self.locator('details.m26-session-preview-disclosure > summary').click();
+  await activatePublishedPreview(self,testInfo);
   await expect(self.locator('details.m26-session-preview-disclosure'),
     'Client preview must open by a real tap, including mobile WebKit').toHaveAttribute('open','');
   const start=self.locator('[data-workflow-action="start-published-session"]');
@@ -419,11 +428,11 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   expect(errors).toEqual([]);
 });
 
-test('SIGNATURE published autonomous preview leads to actual Client execution without duplicate launch',async({page})=>{
+test('SIGNATURE published autonomous preview leads to actual Client execution without duplicate launch',async({page},testInfo)=>{
   await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const guided=page.locator('[data-rc39-session="qa-published-guided"]');
-  await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await activatePublishedPreview(guided,testInfo);
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await guided.locator('[data-workflow-action="start-published-session"]').click();
@@ -463,11 +472,11 @@ test('SIGNATURE published autonomous preview leads to actual Client execution wi
 });
 
 
-test('SIGNATURE published guided Client finishes both real recorded sets, feedback and local checkpoint',async({page})=>{
+test('SIGNATURE published guided Client finishes both real recorded sets, feedback and local checkpoint',async({page},testInfo)=>{
   await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const guided=page.locator('[data-rc39-session="qa-published-guided"]');
-  await guided.locator('details.m26-session-preview-disclosure > summary').click();
+  await activatePublishedPreview(guided,testInfo);
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await guided.locator('[data-workflow-action="start-published-session"]').click();

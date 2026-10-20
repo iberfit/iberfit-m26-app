@@ -37,17 +37,39 @@ test('M43 Coach first-factor enforces genuine device assurance; verify workspace
   });
   page.on('pageerror',error=>errors.push(String(error.message||'PAGE_ERROR').slice(0,180)));
   await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
-  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_COACH_EMAIL);
-  await page.locator('#m26-login-password').fill(process.env.M26_QA_COACH_PASSWORD);
-  await page.getByRole('button',{name:'Entrar',exact:true}).click();
+  const login=async()=>{
+    await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_COACH_EMAIL);
+    await page.locator('#m26-login-password').fill(process.env.M26_QA_COACH_PASSWORD);
+    await page.getByRole('button',{name:'Entrar',exact:true}).click();
+  };
   const shell=page.locator('.m26-shell[data-m26-role="coach"]');
   const mfaGate=page.getByRole('region',{name:'Protege tu acceso'});
-  await expect.poll(async()=>{
-    if(await shell.isVisible().catch(()=>false))return 'verified-coach';
-    if(await mfaGate.isVisible().catch(()=>false))return 'mfa-required';
-    return 'pending';
-  },{timeout:35_000,message:'Password-first Coach login must reach verified workspace or protected WebAuthn gate'})
-    .not.toBe('pending');
+  const networkAlert=page.getByRole('alert').filter({hasText:'No fue posible conectar'});
+  // A real QA connection failure must be recognized explicitly, never confused
+  // with a hung privileged assurance decision. One visible form retry exercises
+  // the user's recovery path; two failures still fail the gate closed.
+  const decision=async()=>{
+    const state=async()=>{
+      if(await shell.isVisible().catch(()=>false))return 'verified-coach';
+      if(await mfaGate.isVisible().catch(()=>false))return 'mfa-required';
+      if(await networkAlert.isVisible().catch(()=>false))return 'recoverable-network-error';
+      return 'pending';
+    };
+    await expect.poll(state,{timeout:35_000,
+      message:'Coach login must reach workspace, WebAuthn gate or explicit connection recovery'})
+      .not.toBe('pending');
+    return state();
+  };
+  await login();
+  let loginState=await decision();
+  if(loginState==='recoverable-network-error'){
+    console.log('M43_COACH_AUTH_NETWORK_RECOVERY_ONCE');
+    await login();
+    loginState=await decision();
+  }
+  expect(['verified-coach','mfa-required'],
+    'One recoverable network retry must end at the genuine workspace or protected WebAuthn gate')
+    .toContain(loginState);
   const directory=join('recovery','m43-qa','browser');
   await mkdir(directory,{recursive:true});
   // Synthetic QA Coach is privileged: password alone intentionally cannot
