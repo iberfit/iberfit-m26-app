@@ -3563,6 +3563,18 @@ m26-echart[data-density="compact"]{
   line-height:1.55;
   overflow-wrap:anywhere;
 }
+/* U20: signal-loss states are visible, warm and distinct without adding
+   an overlay or shifting Coach/Client touch controls. */
+.m26-live-telemetry [data-session-live-reading-note]:not([hidden]){
+  border-inline-start:2px solid var(--iberfit-color-accent);
+  padding-inline-start:.65rem;
+}
+.m26-live-telemetry [data-session-live-reading-state="signal-invalid"]:not([hidden]){
+  border-inline-start-color:var(--iberfit-color-warning,var(--iberfit-color-accent));
+}
+.m26-live-telemetry [data-session-live-reading-note][hidden]{
+  display:none;
+}
 .m26-live-telemetry .m26-live-context-card{
   min-inline-size:0;
   overflow-wrap:anywhere;
