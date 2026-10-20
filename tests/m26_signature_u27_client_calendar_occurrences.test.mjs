@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {buildClientPlanningItems} from '../src/m26/rc39/session-policy.js';
+import {buildClientPlanningItems,appointmentForSession} from '../src/m26/rc39/session-policy.js';
+import {augmentRc39ViewModel} from '../src/m26/rc39/view-model.js';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
 import {buildAppointmentCommand} from '../src/m26/workflows/agenda-workflow.js';
 
@@ -170,4 +171,33 @@ test('U27 Coach auto-fills selected session duration, modality and prevents cros
   assert.equal(endField.value,'2026-10-27T11:00');
   assert.equal(own.disabled,true);
   assert.equal(foreign.disabled,false);
+});
+
+
+test('U27 appointment selection prioritizes the next confirmed date, never cancelled or internal',()=>{
+  const oldConfirmed=appointment('old-confirmed','2026-10-06T15:00:00Z');
+  const internal=appointment('private-proposal','2026-10-19T15:00:00Z',{status:'propuesta',visibleToClient:false});
+  const cancelled=appointment('cancelled','2026-10-20T15:00:00Z',{status:'cancelada'});
+  const nextConfirmed=appointment('next-confirmed','2026-10-27T15:00:00Z');
+  const chosen=appointmentForSession([internal,oldConfirmed,cancelled,nextConfirmed],session,new Date('2026-10-19T10:00:00Z'));
+  assert.equal(chosen.id,'next-confirmed');
+  assert.equal(appointmentForSession([cancelled],session,new Date('2026-10-19T10:00:00Z')),null);
+});
+
+test('P0 Client session projections never leak Coach-only appointments before confirmation',()=>{
+  const privateProposal=appointment('private-session-proposal','2026-10-20T14:00:00Z',{status:'propuesta',visibleToClient:false});
+  const cancelled=appointment('cancelled-session','2026-10-21T14:00:00Z',{status:'cancelada'});
+  const confirmed=appointment('visible-confirmed','2026-10-27T14:00:00Z');
+  const shellVm={identity:{role:'client',clientId:CLIENT}};
+  const state={identity:{role:'client',clientId:CLIENT},selectedClientId:null,
+    collections:{sessions:[session],appointments:[privateProposal,cancelled,confirmed]}};
+  const view=augmentRc39ViewModel({kind:'sesion',role:'client'},shellVm,state,new Date('2026-10-19T10:00:00Z'));
+  assert.deepEqual(view.rc39.appointments.map(x=>x.id),['visible-confirmed']);
+  assert.deepEqual(view.rc39.sessionProjections.map(x=>x.appointmentId),['visible-confirmed']);
+  assert.deepEqual(view.rc39.planningItems.map(x=>x.appointmentId),['visible-confirmed']);
+  const hidden=augmentRc39ViewModel({kind:'sesion',role:'client'},shellVm,{
+    ...state,collections:{...state.collections,appointments:[privateProposal,cancelled]},
+  },new Date('2026-10-19T10:00:00Z'));
+  assert.equal(hidden.rc39.sessionProjections[0].appointmentId,null);
+  assert.equal(hidden.rc39.appointments.length,0);
 });
