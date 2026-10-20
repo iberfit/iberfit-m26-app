@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f46c979cb44aa705a46ef8c389e51aaf9af9e9a7",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "122581a14dfea5318ca855625a8b1e85e983a1f8",
+  "notes": "SIGNATURE 360 incremental U18: PR #1049 merged, safe block-scoped (blockId+exerciseId+setNumber) attribution for live HR versus RPE/RIR, ambiguity fail-closed, legacy single-source compatibility and observed effort null hygiene. Six targeted tests plus RC59.1 regression, U17 production evidence aligned without falsely certifying 43 remaining route/device/state combinations. Exact U18 Canary live source f46c979cb44a proven by Canary Exact Deploy #39353067967; PR Fast Lane, Continuous Audit, CI, Device Experience and Policy Gate passed, postmerge CI, audit and Device Experience passed. Frontend-only 6 files (UI intelligence, tests, docs); no SQL, migration, Auth, RLS, Edge, backend writes. Expected previous LIVE production U17 122581a14dfe certified by Production Promotion #39350695966. M44 protected offsite DB+Storage encrypted isolated PG17 restore #39348382912 must be <=2h, platformRecoveryVerified=false. Promotion fail-closed on live source, M44 recency, schema, Lighthouse, full regression, runtime interactive browser and rollback evidence. Other independent postmerge Coach WebAuthn and remote read-only workflows were still pending when manifest was issued and are not claimed as completed."
+}
