@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildClientPlanningItems} from '../src/m26/rc39/session-policy.js';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {buildAppointmentCommand} from '../src/m26/workflows/agenda-workflow.js';
 
 const CLIENT='10000000-0000-4000-8000-000000000101';
 const OTHER='10000000-0000-4000-8000-000000000102';
@@ -89,4 +90,18 @@ test('U27 Coach agenda can select a published, same-client session for a propose
   assert.match(html,/Vincular sesión publicada/u);
   assert.ok(html.includes('value="'+SESSION+'"'));
   assert.match(html,/data-workflow-action="create-appointment"/u);
+});
+
+
+test('U27 appointment command preserves same-client session ID and starts private',()=>{
+  const command=buildAppointmentCommand({
+    clientId:CLIENT,sessionId:SESSION,title:'Fuerza martes',
+    startAt:a1.startAt,endAt:a1.endAt,modality:'guiada_en_app',location:'',
+  });
+  assert.equal(command.type,'CITA_CREAR');
+  assert.equal(command.entityType,'appointment');
+  assert.equal(command.clientId,CLIENT);
+  assert.equal(command.payload.appointment.sessionId,SESSION);
+  assert.equal(command.payload.appointment.status,'propuesta');
+  assert.equal(command.payload.appointment.visibleToClient,false);
 });
