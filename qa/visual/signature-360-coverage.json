@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "122581a14dfea5318ca855625a8b1e85e983a1f8",
+    "sourceSha": "f46c979cb44aa705a46ef8c389e51aaf9af9e9a7",
     "verifiedAt": "2026-10-19",
-    "workflowRunId": 39350695966,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39350695966",
+    "workflowRunId": 39353820032,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39353820032",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -338,9 +338,11 @@
       "signature-coach-builder-reorder-focus-u16",
       "signature-coach-live-heart-rate-validity-u17",
       "signature-coach-live-alternative-relevance-u17",
-      "signature-mobile-native-preview-auth-recovery-qa-u17"
+      "signature-mobile-native-preview-auth-recovery-qa-u17",
+      "signature-coach-live-set-block-attribution-u18",
+      "signature-hr-rpe-rir-legacy-ambiguity-safety-u18"
     ],
-    "scope": "Incremental Client/Coach/Admin releases through U17 certified by production-promotion pipeline exact identity, live Chromium and rollback; 43 routes remain pending for complete route-state-device acceptance. Independent manual live fetch outside workflow not verified."
+    "scope": "Incremental releases through U18 verified on production exact source, Lighthouse, read-only Chromium audit and rollback by #39353820032. All 43 Cliente/Coach/Admin route-state-device acceptance entries remain pending, not claimed certified by a release smoke."
   },
   "activeDelivery": "3/5-coach-incremental"
 }
