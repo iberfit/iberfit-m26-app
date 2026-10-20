@@ -1439,6 +1439,10 @@ export async function createM26Application({root=document.querySelector('#app'),
     return workspaceEntryGate.run('builder:'+clientId+':'+sourceId,async({isCurrent})=>{
       if(!isCurrent())return false;
       const state=store.getState(),visible=new Set((state.collections.clients||[]).map(item=>item.id));
+      // The Coach authoring workspace is never a Client capability, even if
+      // a forged local UI event names the Client's own account.
+      if(['client','cliente'].includes(String(state.identity?.role||'').trim().toLowerCase()))
+        throw new Error('M26_SESSION_BUILDER_ROLE_FORBIDDEN');
       if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
         throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
       if(sessionUi?.execution||sessionUi?.draft)throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
