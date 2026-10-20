@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isQaIriSignedPhotoRead} from '../qa/coach-webauthn-recurring/qa-iri-signed-photo-read.mjs';
+import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from '../qa/coach-webauthn-recurring/qa-iri-signed-photo-read.mjs';
 
 const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 const CLIENT='11111111-1111-4111-8111-111111111111';
@@ -85,4 +85,44 @@ test('U26 QA rejects nonfinite and noninteger expiration times',()=>{
   for(const expiresIn of [-1,0,59,60.1,599.9,601,1e12,NaN,Infinity,null,undefined]){
     assert.equal(allowed(mock('POST',photo(),{body:{expiresIn}})),false,String(expiresIn));
   }
+});
+
+
+test('U26 private photo evidence labels never persist IDs or signed tokens',()=>{
+  const token='SENSITIVE-SIGNED-URL-TOKEN-'+('z'.repeat(64));
+  const urls=[
+    photo('front')+'?token='+token,
+    photo('back').replace('/object/sign/','/object/upload/'),
+    photo('left').replace('/front/','/left/')+'?token='+token,
+    photo('right').replace(QA,'https://foreign.example'),
+    photo('front').replace(CLIENT,'malformed-client')+'?token='+token,
+    photo('back').replace('iberfit-iri-photogrammetry','iberfit-iri-photogrammetry%2Fencoded'),
+  ];
+  for(const url of urls){
+    const request=mock(url.includes('upload')?'PUT':'POST',url);
+    const label=qaIriPrivatePhotoEvidenceLabel(request,{qaOrigin:QA});
+    assert.equal(typeof label,'string');
+    for(const sensitive of [CLIENT,ASSESSMENT,CAPTURE,token,'malformed-client','foreign.example']){
+      assert.equal(label.includes(sensitive),false,sensitive+' leaked');
+    }
+    assert.match(label,/private-iri-photo/u);
+    assert.ok(label.length<120);
+  }
+  assert.equal(qaIriPrivatePhotoEvidenceLabel(mock('GET',QA+'/rest/v1/iri_consents_v1'),{qaOrigin:QA}),null);
+});
+
+test('U26 private photo evidence labels retain only bounded diagnostic categories',()=>{
+  assert.equal(
+    qaIriPrivatePhotoEvidenceLabel(mock('POST',photo('front')),{qaOrigin:QA}),
+    'POST qa-supabase private-iri-photo operation:sign view:front'
+  );
+  assert.equal(
+    qaIriPrivatePhotoEvidenceLabel(mock('PUT',photo('back').replace('/object/sign/','/object/upload/')),{qaOrigin:QA}),
+    'PUT qa-supabase private-iri-photo operation:other view:back'
+  );
+  assert.equal(
+    qaIriPrivatePhotoEvidenceLabel(mock('GET',photo('right').replace(QA,'https://other.example')),{qaOrigin:QA}),
+    'GET other-origin private-iri-photo operation:sign view:right'
+  );
+  assert.equal(qaIriPrivatePhotoEvidenceLabel({url:()=>'%not-a-url',method:()=>'GET'},{qaOrigin:QA}),null);
 });
