@@ -1627,7 +1627,24 @@ export function createWorkflowController({
     if(localDraftOk&&result.refreshOk!==false)onRender();
     return settled;
   }
-  async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
+  async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};
+    const sessionId=String(raw.sessionId||'').trim();
+    if(sessionId){
+      // A displayed session option is not an authorization: verify scope and
+      // published state again against the hydrated authenticated collection.
+      const currentSessions=context().state.collections.sessions||[];
+      const linked=currentSessions.find((item)=>{
+        const body=recordBody(item)||{};
+        return String(item?.id||body.id||'')===sessionId&&
+          String(item?.clientId||item?.client_id||body.clientId||body.client_id||'')===clientId;
+      });
+      const state=String(linked?.status||recordBody(linked)?.status||'').trim().toLowerCase();
+      if(!linked||!PUBLISHED_SESSION_STATES.has(state)||['en_curso','completed','completada','retirado'].includes(state))
+        throw new Error('M26_APPOINTMENT_LINKED_SESSION_NOT_AVAILABLE');
+      draft.sessionId=sessionId;
+      draft.title=String(recordBody(linked)?.title||linked.title||'Sesión IBERFIT').trim().slice(0,160);
+    }
+    status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
     const feedback=mutationFeedback(result,{success:'Propuesta de cita creada. Aún no es visible para el cliente.',subject:'La cita'});
     if(!feedback.confirmed){status(root,'appointment',feedback.message,feedback.kind);return result;}
     let refreshed=result.refreshOk!==false;
