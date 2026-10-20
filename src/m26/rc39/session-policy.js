@@ -136,17 +136,30 @@ export function appointmentSessionId(record){
 export function appointmentStartAt(record){
   return field(record,'startAt','start_at','scheduledAt','scheduled_at','date','fecha');
 }
-export function appointmentForSession(appointments=[],session={}){
+export function appointmentForSession(appointments=[],session={},now=new Date()){
   const sessionId=sessionIdOf(session);
   const clientId=clientIdOf(session);
-  const direct=(appointments||[]).filter((item)=>
-    appointmentSessionId(item)===sessionId &&
-    (!clientId||clientIdOf(item)===clientId)
+  if(!sessionId)return null;
+  const at=dateMs(now)??Date.now();
+  const eligible=(appointments||[]).filter((item)=>
+    appointmentSessionId(item)===sessionId&&
+    (!clientId||clientIdOf(item)===clientId)&&
+    !TERMINAL_APPOINTMENT_STATES.has(fold(field(item,'status','estado')))&&
+    dateMs(appointmentStartAt(item))!==null
   );
-  if(direct.length){
-    return direct.sort((a,b)=>(dateMs(appointmentStartAt(a))??Number.MAX_SAFE_INTEGER)-(dateMs(appointmentStartAt(b))??Number.MAX_SAFE_INTEGER))[0];
-  }
-  return null;
+  // A confirmed future date wins over an older or merely proposed booking.
+  // For historical sessions, the latest confirmed past date is preferred.
+  const confirmed=(item)=>['confirmada','confirmado','confirmed'].includes(fold(field(item,'status','estado')));
+  const group=(item)=>{
+    const future=dateMs(appointmentStartAt(item))>=at;
+    return (confirmed(item)?0:2)+(future?0:1);
+  };
+  return eligible.sort((a,b)=>{
+    const priority=group(a)-group(b);
+    if(priority)return priority;
+    const first=dateMs(appointmentStartAt(a)),second=dateMs(appointmentStartAt(b));
+    return group(a)%2===0?first-second:second-first;
+  })[0]||null;
 }
 export function appointmentConfirmationState(appointment={},now=new Date(),{
   openHours=48,
