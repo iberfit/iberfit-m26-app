@@ -62,6 +62,11 @@ test('SIGNATURE U22 permanently gates all roles on device matrix and native disc
   assert.ok(spec.includes("page.keyboard.press('Escape')"));
   assert.doesNotMatch(shell,/class="m26-mobile-more-menu" role="menu"/u);
   assert.doesNotMatch(shell,/aria-controls="m26-mobile-more-menu" aria-haspopup="menu"/u);
-  assert.match(controller,/includeMobileMore/u);
+  const fixture=readFileSync(new URL('../qa/visual/signature-route-shell.fixture.mjs',import.meta.url),'utf8');
+  assert.ok(fixture.includes('admin_media_review_enabled:true'),'fixture needs explicit QA Media Factory flag');
+  assert.ok(fixture.includes("role==='admin'"),'Media Factory QA flag must be role-scoped');
+  const guard=readFileSync(new URL('../src/m26/shell/route-guard.js',import.meta.url),'utf8');
+  assert.ok(guard.includes('M26_ADMIN_MEDIA_REVIEW_DISABLED'),'preserve fail-closed route gate');
+    assert.match(controller,/includeMobileMore/u);
   assert.ok(controller.includes('function onKeyDown(event)'));
 });
