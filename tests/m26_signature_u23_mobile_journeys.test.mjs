@@ -42,6 +42,16 @@ test('U23 Client physical dock uses the actual production renderer and Escape re
   assert.ok(controller.includes("if(disclosure.matches?.('details.m26-mobile-more'))"));
 });
 
+test('U23 tablet Client dock remains inside the workspace without double rail offset',()=>{
+  const css=read('src/m26/ui/client-bottom-nav.css');
+  const tablet=css.slice(css.lastIndexOf('SIGNATURE U23 · medium touch in-flow dock'));
+  assert.match(tablet,/@media \\(max-width:900px\\)/u);
+  assert.ok(tablet.includes('left:auto;'));
+  assert.ok(tablet.includes('right:auto;'));
+  assert.ok(tablet.includes('max-width:100%;'));
+  assert.ok(css.includes('left:5rem;'),'retain fixed-dock rail clearance at 901px+');
+});
+
 test('U23 compact dock does not rely on horizontal scrolling or clipping the Más overlay',()=>{
   const styles=read('src/m26/design/iberfit-premium-v3.css');
   const block=styles.slice(styles.lastIndexOf('SIGNATURE U23 · compact navigation'));

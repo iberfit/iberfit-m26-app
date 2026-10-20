@@ -559,3 +559,15 @@
   width:100%;
   max-width:940px;
 }
+
+/* SIGNATURE U23 · medium touch in-flow dock: the Client main panel already
+ * begins after the 5rem tablet rail. Reapplying left:5rem to the in-flow dock
+ * pushes its five touch targets outside a 768px screen. At 901px+ this dock
+ * is fixed, so the rail compensation above remains necessary. */
+@media (max-width:900px){
+  [data-m26-layout="medium-touch"] .m26-shell[data-m26-role="client"] .m26-client-bottom-nav-layer{
+    left:auto;
+    right:auto;
+    max-width:100%;
+  }
+}
