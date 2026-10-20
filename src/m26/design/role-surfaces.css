@@ -4533,3 +4533,14 @@ m26-echart[data-density="compact"]{
     transition:none;
   }
 }
+
+/* U21 · A 320 px, los inputs no deben imponer min-content sobre el grid.
+ * Soluciona overflow del registro observado en Chromium y WebKit sin recortar datos. */
+.m26-session-live-v3 .m26-session-live-entry{
+  grid-template-columns:minmax(0,1fr);
+}
+.m26-session-live-v3 .m26-session-live-entry :is(input,button,select,textarea){
+  min-width:0;
+  max-inline-size:100%;
+  box-sizing:border-box;
+}
