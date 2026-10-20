@@ -33,7 +33,7 @@ test('P0: nonzero canonical revision must be used for start, not the implicit ze
   assert.equal(command.clientId,clientId);
   assert.equal(command.baseRevision,3);
   assert.equal(command.payload.executionId,execution.id);
-  assert.equal(command.payload.appointmentId,null);
+  assert.equal(Object.hasOwn(command.payload,'appointmentId'),false,'unscheduled autonomous workout must not invent appointmentId');
 });
 
 test('P0: preservation keeps Coach publication/authorization barriers, no eager local start',()=>{
