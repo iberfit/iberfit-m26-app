@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d045c6e569d1dd02e454bea200271b9a49b1d822",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "d8e77ddd35b844617196f98eb5cefd13a1139a07",
+  "notes": "SIGNATURE 360 U21 incremental release. PR #1052 MERGED; exact Canary source d045c6e569d1dd02e454bea200271b9a49b1d822; all 13 mandatory postmerge Canary push workflows SUCCESS, including CI, exact Canary deploy, real QA writes, auth Client and recurring Coach/Admin WebAuthn, Device Experience Gate, daily visual evidence, remote read-only QA and continuous audit. Six changed files vs U20: live workout Client direct pause/resume across active/rest through existing authoritative commands and recovery, Coach-Client role-distinct touch-first controls, 320px overflow and set field corrections, accessible RPE/keyboard/forced-colors, truthful missing RPE, updated Playwright and Node regressions/documentation. No backend/DB/Auth/RLS writes or migrations. Previous exact live production U20 source d8e77ddd35b844617196f98eb5cefd13a1139a07 certified Production Promotion #39365028769 SUCCESS. Enforce M44 independent encrypted DB+Storage restore proof freshness <=2h and all fail-closed production guards; do not overclaim full managed Supabase recovery. SIGNATURE 360 integral acceptance 43 routes remains pending; promoting U21 does not mark it complete."
+}
