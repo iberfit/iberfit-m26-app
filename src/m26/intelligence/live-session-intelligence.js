@@ -1,3 +1,5 @@
+import {executionResultForStep} from '../workflows/session-execution.js';
+
 export const LIVE_SESSION_INTELLIGENCE_SCHEMA_VERSION=
   'iberfit.live-session-intelligence.v1';
 
@@ -249,28 +251,62 @@ function recoverySummaries(events,recoveryWindowMs){
       (safeTime(a.latestAt)||0)-(safeTime(b.latestAt)||0)
     );
 }
+function observedEffort(value,min,max){
+  // Historical/imported results can lack an observed RPE/RIR. An empty value
+  // must not silently become a fictitious zero in the Coach's live summary.
+  if(value===null||value===undefined||typeof value==='boolean'||
+     (typeof value==='string'&&!value.trim()))return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=min&&number<=max?number:null;
+}
 function setCorrelations(execution,events){
-  const results=Object.values(execution?.results||{})
-    .filter((item)=>item&&item.exerciseId&&item.setNumber)
-    .sort((a,b)=>
-      (safeTime(a.completedAt)||0)-(safeTime(b.completedAt)||0)
+  const queue=Array.isArray(execution?.queue)?execution.queue:[];
+  const stored=execution?.results&&typeof execution.results==='object'&&!Array.isArray(execution.results)
+    ?Object.values(execution.results)
+    :[];
+  const rows=stored.flatMap((result)=>{
+    const setNumber=Number(result?.setNumber);
+    if(!result?.exerciseId||!Number.isInteger(setNumber)||setNumber<1||setNumber>100)return [];
+    // Resolve legacy and scoped entries using the execution engine's own
+    // lookup rules: two blocks can prescribe the same exercise and set number.
+    const compatible=queue.filter((item)=>
+      item?.exerciseId===result.exerciseId&&Number(item.sets)>=setNumber
     );
-  return results.map((result)=>{
-    const matching=events.filter((event)=>
+    const linked=compatible.filter((item)=>
+      executionResultForStep(execution,{...item,setNumber},setNumber)===result
+    );
+    if(queue.length&&linked.length!==1)return []; // unassigned/ambiguous rows
+    const blockId=linked[0]?.blockId||result.blockId||null;
+    return [{result,setNumber,blockId,occurrences:compatible.length}];
+  }).sort((a,b)=>
+    (safeTime(a.result.completedAt)||0)-(safeTime(b.result.completedAt)||0)
+  );
+  return rows.map(({result,setNumber,blockId,occurrences})=>{
+    const candidates=events.filter((event)=>
       event?.context?.phase==='work'&&
       event?.context?.exerciseId===result.exerciseId&&
-      Number(event?.context?.setNumber)===Number(result.setNumber)
+      Number(event?.context?.setNumber)===setNumber
     );
+    const observedBlocks=new Set(candidates.map((event)=>event?.context?.blockId||null));
+    // A missing legacy block is safe only when all candidate events refer to
+    // a single block and the execution does not repeat that exercise/series.
+    const matching=blockId
+      ?candidates.filter((event)=>
+        event?.context?.blockId===blockId||
+        (!event?.context?.blockId&&occurrences===1&&observedBlocks.size===1)
+      )
+      :occurrences>1||observedBlocks.size>1
+        ?[]
+        :candidates;
     return deepFreeze({
+      blockId,
       exerciseId:result.exerciseId,
-      setNumber:Number(result.setNumber),
+      setNumber,
       completedAt:result.completedAt||null,
-      rpe:finite(result.rpe),
-      rir:result.rir===null||result.rir===undefined
-        ?null
-        :finite(result.rir),
+      rpe:observedEffort(result.rpe,1,10),
+      rir:observedEffort(result.rir,0,10),
       heartRate:stats(matching),
-      joinMethod:'exerciseId+setNumber',
+      joinMethod:blockId?'blockId+exerciseId+setNumber':'exerciseId+setNumber',
     });
   });
 }
@@ -368,7 +404,7 @@ export function deriveLiveSessionIntelligence(
       recovery:
         'primer valor del descanso menos el último valor disponible dentro de los primeros 60 segundos; sin clasificación clínica',
       rpeRirCorrelation:
-        'unión por exerciseId y setNumber con resultados registrados por la persona',
+        'unión por bloque, ejercicio y serie; no se atribuyen muestras cuando el origen es ambiguo',
     }),
     decisionPolicy:deepFreeze({
       automaticPrescriptionChanges:false,
