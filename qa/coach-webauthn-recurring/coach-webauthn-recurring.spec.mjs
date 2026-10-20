@@ -1,6 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
@@ -22,6 +23,27 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
   'iberfit_exercise_measurement_profiles_public_v1',
 ]);
+// U26: exact QA-only IRI data projections observed in authenticated Coach routes.
+// Verified 20-Oct-2026 on QA: RLS enabled + authenticated SELECT for each table.
+const U26_IRI_READONLY_TABLES=new Set([
+  'iri_consents_v1','iri_photogrammetry_captures_v1',
+  'iri_photogrammetry_analyses_v1','iri_photogrammetry_analyses_v2',
+  'iri_photo_report_permissions_v1','iri_external_reports_v26',
+]);
+const U26_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+function authenticatedQaRequest(request){
+  const headers=request.headers?.()||{};
+  return /^Bearer [A-Za-z0-9_.~-]+$/u.test(String(headers.authorization||headers.Authorization||''));
+}
+function approvedIriDraftRead(request){
+  try{
+    const body=request.postDataJSON();
+    if(!body||typeof body!=='object'||Array.isArray(body))return false;
+    const keys=Object.keys(body);
+    return keys.length>0&&keys.every(key=>['p_client_id','p_assessment_id'].includes(key))&&
+      keys.every(key=>body[key]===null||U26_UUID.test(String(body[key])));
+  }catch{return false;}
+}
 const MIME=Object.freeze({
   '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg',
@@ -41,6 +63,13 @@ function allowedQaRequest(request){
   let url;try{url=new URL(request.url());}catch{return false;}
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
+  if(isQaPrivateAvatarRead(request))return true;
+  if(method==='GET'&&authenticatedQaRequest(request)&&
+    /^\/rest\/v1\/[a-z][a-z0-9_]*$/u.test(url.pathname)&&
+    U26_IRI_READONLY_TABLES.has(url.pathname.slice('/rest/v1/'.length)))return true;
+  // Confirmed QA pg_proc: public.m26_iri_draft_get_v1 is STABLE, SECURITY INVOKER.
+  if(method==='POST'&&url.pathname==='/rest/v1/rpc/m26_iri_draft_get_v1'&&
+    authenticatedQaRequest(request)&&approvedIriDraftRead(request))return true;
   if(method==='POST'&&url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')return true;
   if(method==='POST'&&url.pathname==='/auth/v1/logout')return true;
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
