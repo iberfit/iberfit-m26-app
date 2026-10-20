@@ -5,6 +5,10 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE U19: sensor freshness, disconnection and signal-gap recovery.
+  ['Señal interrumpida: el gráfico no une periodos sin mediciones.','Signal interrupted: the chart does not connect periods without measurements.','Signal interrompu : le graphique ne relie pas les périodes sans mesure.','Sinal interrompido: o gráfico não liga períodos sem medições.'],
+  ['Sin señal en directo. Revisa la conexión del dispositivo.','No live signal. Check your device connection.','Aucun signal en direct. Vérifiez la connexion de votre appareil.','Sem sinal em direto. Verifique a ligação do dispositivo.'],
+  ['Sin lectura actual confirmada. Esperando una medición reciente.','No confirmed current reading. Waiting for a recent measurement.','Aucune mesure actuelle confirmée. En attente d’une mesure récente.','Sem leitura atual confirmada. A aguardar uma medição recente.'],
   // SIGNATURE 360 2/5: truthful Client Hoy, appointment, plan and IRI states.
   ['Punto de partida IRI','Initial IRI baseline','Point de départ IRI','Ponto de partida IRI'],
   ['Sin diagnóstico confirmado','No confirmed initial assessment','Aucun diagnostic initial confirmé','Sem diagnóstico inicial confirmado'],
