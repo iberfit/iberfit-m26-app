@@ -440,9 +440,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const previousRole=String(root.querySelector?.('.m26-shell')?.getAttribute?.('data-m26-role')||'');
     const previousArea=String(root.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area')||'');
     const includeMobileMore=previousRole===String(viewModel.identity?.role||'')&&previousArea===String(viewModel.activeArea||'');
-    const disclosureSnapshot=captureDisclosureContinuity().filter((item)=>
-      includeMobileMore||!String(item.key||'').includes('m26-mobile-more')
-    );
+    if(!includeMobileMore){
+      const oldMobileMore=root.querySelector?.('details.m26-mobile-more[open]');
+      if(oldMobileMore)setMobileMoreOpen(oldMobileMore,false);
+    }
+    const disclosureSnapshot=captureDisclosureContinuity();
     root.innerHTML = markup;
     lastMarkup=markup;
     restoreDisclosureContinuity(disclosureSnapshot);
