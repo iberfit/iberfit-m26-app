@@ -1,5 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {CLIENT_SIGNATURE_U24_AREAS,certifyClientSignatureRoute} from './signature-u24-client-route-audit.mjs';
 import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
@@ -187,6 +188,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
     {name:'coach',role:'coach',expectedEmail:'qa.rc74.coach@iberfit.cl',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
   ];
   const captures=[];
+  const clientRouteAudits=[];
   const projectUse=testInfo.project.use||{};
 
   for(const account of accounts){
@@ -386,6 +388,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           await expect(editorial.locator('.m26-client-home-journey-steps')).toHaveCount(0);
         }
 
+        clientRouteAudits.push(await certifyClientSignatureRoute(page,'hoy'));
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-hoy',suffix:'hoy'}));
         if((projectUse.viewport?.width||0)<=690){
           await page.evaluate(()=>{
@@ -431,6 +434,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           scrollWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth,
         }));
         expect(planningOverflow.scrollWidth,'Client Plan must not overflow the document horizontally').toBeLessThanOrEqual(planningOverflow.viewportWidth+1);
+        clientRouteAudits.push(await certifyClientSignatureRoute(page,'planificacion'));
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-plan',suffix:'plan'}));
 
         // SIGNATURE 360: Client Sessions must preserve Coach-led authorization,
@@ -460,6 +464,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             expect(await launch.count(),'ready Client sessions can start only from authorized preview').toBeGreaterThan(0);
           }
         }
+        clientRouteAudits.push(await certifyClientSignatureRoute(page,'sesion'));
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-client-sessions',suffix:'sessions'}));
 
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
@@ -479,6 +484,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('[data-m27-cliente-360]')).toHaveCount(0);
         await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
         const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();
+        clientRouteAudits.push(await certifyClientSignatureRoute(page,'progreso'));
         captures.push({...(await capture(page,{account,project:testInfo.project.name,state:'authenticated-progress',suffix:'progress'})),exerciseAnalyticsCount});
 
         // SIGNATURE 360 U1: finish the *real* nine-route Client navigation.
@@ -568,6 +574,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           await expect(routeContent.locator('h2,h3').first(),`${area}: identifiable route heading`).toBeVisible();
           await expect(routeContent.locator('.m26-route-placeholder'),`${area}: route must not fall back to unavailable`).toHaveCount(0);
           await certifyNonOverlappingClientDock(page,projectUse,`Cliente ${area}`);
+          clientRouteAudits.push(await certifyClientSignatureRoute(page,area));
           captures.push(await capture(page,{
             account,project:testInfo.project.name,
             state:`authenticated-client-${area}`,suffix:area,
@@ -581,6 +588,9 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         }
         expect(captures.some((item)=>item.role==='client'&&item.state==='authenticated-progress'),
           'Client Progreso must retain its own authenticated screenshot').toBe(true);
+        expect(clientRouteAudits.map(item=>item.area),
+          'U24 requires exactly nine real read-only authenticated route-body assertions')
+          .toEqual(CLIENT_SIGNATURE_U24_AREAS);
       }
 
       await Promise.all(avatarChecks);
@@ -605,6 +615,16 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
     credentialsPersisted:false,
     screenshotsContainSyntheticQaSurface:true,
     captures,
+    signatureU24:{
+      schema:'iberfit.signature.client-authenticated-route-smoke.v1',
+      completed:clientRouteAudits.length===CLIENT_SIGNATURE_U24_AREAS.length,
+      routeAudits:clientRouteAudits,
+      excludedFromAcceptance:[
+        'write-success','write-error','offline','session-expired',
+        'multi-device-conflict','populated-vs-empty-data-contrast',
+      ],
+      fullFunctionalAcceptance:false,
+    },
     admin:{captured:false,reason:'privileged-multiapp-auth-covered-by-fail-closed-contract-gate'},
   };
   await writeFile(`${OUT_DIR}/${safeSlug(testInfo.project.name)}.json`,`${JSON.stringify(evidence,null,2)}\n`,'utf8');

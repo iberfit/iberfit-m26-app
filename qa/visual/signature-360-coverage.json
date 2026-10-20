@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "86a60536595ba8a1cb773c1453b0c6a9988c1ef1",
+    "sourceSha": "65c17b662bd9a70b09261169b6ca8feaf23a469c",
     "verifiedAt": "2026-10-20",
-    "workflowRunId": 39421889744,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39421889744",
+    "workflowRunId": 39438915893,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39438915893",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -348,9 +348,33 @@
       "signature-live-heart-rate-staleness-and-recovery-u20",
       "signature-client-live-pause-resume-and-mobile-rpe-u21",
       "signature-mobile-more-native-navigation-and-43-route-shell-inventory-u22",
-      "signature-coach-bootstrap-one-read-only-retry-for-exact-sql-timeout-u22"
+      "signature-coach-bootstrap-one-read-only-retry-for-exact-sql-timeout-u22",
+      "signature-client-native-more-escape-focus-recovery-u23",
+      "signature-client-tablet-in-flow-dock-no-double-rail-offset-u23",
+      "signature-three-role-interactive-route-navigation-u23"
     ],
-    "scope": "Incremental U11–U22 source is verified in PROD by Production Promotion #39421889744, including exact source SHA, CI, QA and isolated M44. This does NOT certify the 43 actual route bodies, every screen state or every device."
+    "scope": "Incremental U11–U23 source certified in PROD by Production Promotion #39438915893, exact SHA, M44, Canary QA and Chromium live identity. U24 adds deeper real-route authenticated read-only QA checks; it does NOT certify write/offline/retry/conflict/session-expired behavior for all 43 routes."
   },
-  "activeDelivery": "SIGNATURE-U23-interactive-route-certification-WIP"
+  "activeDelivery": "SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP",
+  "qaEvidence": {
+    "clientRouteReadOnlySmoke": {
+      "scope": "Existing authenticated Client QA surface and nine real production route bodies, protected by read-only Supabase allowlist.",
+      "routeCount": 9,
+      "roles": [
+        "client"
+      ],
+      "project": "qa-identity-no-production-data",
+      "artifact": "recovery/rc64-authenticated-visual/*.json (workflow artifact; includes U24 per-route outcomes)",
+      "status": "IN_PROGRESS_UNTIL_WORKFLOW_SUCCESS",
+      "notVerifiedStates": [
+        "write-success",
+        "write-error",
+        "offline",
+        "session-expired",
+        "multi-device-conflict",
+        "populated-vs-empty-data-contrast"
+      ],
+      "neverPromoteToFullAcceptanceAutomatically": true
+    }
+  }
 }

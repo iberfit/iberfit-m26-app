@@ -51,34 +51,25 @@ test('Signature360 always requires production evidence and broad responsive/stat
     assert.ok(coverage.crossCutting.includes(topic),topic);
 });
 
-test('Signature360 records exact latest U22 production without miscertifying 43 routes',()=>{
-  assert.equal(coverage.activeDelivery,'SIGNATURE-U23-interactive-route-certification-WIP');
-  assert.match(coverage.productionBaseline.sourceSha,/^[0-9a-f]{40}$/);
-  assert.equal(coverage.productionBaseline.sourceSha,'86a60536595ba8a1cb773c1453b0c6a9988c1ef1');
-  assert.equal(coverage.productionBaseline.workflowRunId,39421889744);
-  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39421889744');
-  assert.ok(coverage.productionBaseline.delivered.includes('admin-users-mobile-accessibility'));
+test('Signature360 records exact U23 production without miscertifying 43 routes',()=>{
+  assert.equal(coverage.activeDelivery,'SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP');
+  assert.equal(coverage.productionBaseline.sourceSha,'65c17b662bd9a70b09261169b6ca8feaf23a469c');
+  assert.equal(coverage.productionBaseline.workflowRunId,39438915893);
+  assert.equal(coverage.productionBaseline.productionProofUrl,
+    'https://github.com/iberfit/iberfit-m26-app/actions/runs/39438915893');
   for(const increment of [
-    'signature-coach-builder-task-closure-u14',
-    'signature-coach-live-heart-rate-truth-u15',
-    'signature-coach-builder-reorder-focus-u16',
-    'signature-coach-live-heart-rate-validity-u17',
-    'signature-coach-live-alternative-relevance-u17',
-    'signature-coach-live-set-block-attribution-u18',
-    'signature-live-heart-rate-stale-disconnected-invalid-u19',
-    'signature-timeline-true-time-dropout-gaps-u19',
-    'signature-coach-repeated-exercise-context-u19',
-    'signature-session-telemetry-index-performance-u19',
-    'signature-live-heart-rate-staleness-and-recovery-u20',
-    'signature-client-live-pause-resume-and-mobile-rpe-u21',
+    'signature-client-native-more-escape-focus-recovery-u23',
+    'signature-client-tablet-in-flow-dock-no-double-rail-offset-u23',
+    'signature-three-role-interactive-route-navigation-u23',
     'signature-mobile-more-native-navigation-and-43-route-shell-inventory-u22',
     'signature-coach-bootstrap-one-read-only-retry-for-exact-sql-timeout-u22',
   ])assert.ok(coverage.productionBaseline.delivered.includes(increment),increment);
-  assert.match(coverage.productionBaseline.scope,/43 actual route bodies/u);
-  assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after incremental releases');
+  assert.equal(coverage.status,'WIP_NOT_PRODUCTION');
+  assert.equal(coverage.qaEvidence.clientRouteReadOnlySmoke.routeCount,9);
+  assert.equal(coverage.qaEvidence.clientRouteReadOnlySmoke.neverPromoteToFullAcceptanceAutomatically,true);
   const entries=roles.flatMap(role=>coverage.roles[role]);
   assert.equal(entries.length,43);
-  assert.ok(entries.some(entry=>entry.evidenceStatus==='pending'));
+  assert.ok(entries.every(entry=>entry.evidenceStatus==='pending'));
 });
 
 test('Signature360 form focus remains visually stable across Cliente/Coach/Admin',()=>{
