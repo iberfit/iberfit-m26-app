@@ -50,8 +50,9 @@ test('Live Workout V3 pone navegación serie y registro antes del contexto secun
 
   assert.match(html,/m26-session-live-v3/);
   assert.match(html,/data-session-live-v3/);
-  assert.doesNotMatch(html,/m26-session-live-quick-actions/);
-  assert.doesNotMatch(html,/aria-label="Acciones de navegación"/);
+  assert.match(html,/data-session-client-quick-controls/);
+  assert.match(html,/aria-label="Acciones rápidas del entrenamiento"/);
+  assert.match(html,/data-session-action="pause"/);
   assert.doesNotMatch(html,/data-session-action="previous"/);
   assert.match(html,/m26-session-live-entry-v3/);
   assert.match(html,/Registra repeticiones o tiempo/);
@@ -64,6 +65,8 @@ test('Live Workout V3 pone navegación serie y registro antes del contexto secun
   const prescription=html.indexOf('data-session-live-prescription');
   const secondary=html.indexOf('m26-session-live-secondary-context');
 
+  const quick=html.indexOf('data-session-client-quick-controls');
+  assert.ok(quick>=0&&quick<focus);
   assert.ok(focus>=0);
   assert.ok(entry>focus);
   assert.ok(prescription>entry);
@@ -78,7 +81,7 @@ test('Live Workout V3 pone navegación serie y registro antes del contexto secun
     role:'client',
   });
   assert.match(laterHtml,/m26-session-live-quick-actions/);
-  assert.match(laterHtml,/aria-label="Acciones de navegación"/);
+  assert.match(laterHtml,/aria-label="Acciones rápidas del entrenamiento"/);
   assert.match(laterHtml,/data-session-action="previous"/);
 });
 
@@ -150,7 +153,7 @@ test('Coach pausa la sesión desde el mando rápido usando la acción real y sin
   assert.ok(pause<workbench);
   assert.ok(secondary>workbench);
   assert.equal((html.match(/data-session-action="pause"/g)||[]).length,1);
-  assert.match(html,/aria-label="Controles rápidos de sesión"/);
+  assert.match(html,/aria-label="Acciones rápidas del Coach"/);
   assert.match(html,/m26-session-live-quick-pause/);
 
   const result=dispatchSessionAction({

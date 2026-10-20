@@ -4453,7 +4453,6 @@ m26-echart[data-density="compact"]{
 .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-pause{
   grid-column:1/-1;
 }
-.m26-session-live-v3 .m26-session-quick-actions button:focus-visible,
 .m26-session-live-v3 .m26-session-live-quick-actions button:focus-visible,
 .m26-session-live-v3 [data-session-set-entry="current"] button:focus-visible{
   outline:3px solid var(--iberfit-color-accent);

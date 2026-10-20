@@ -1768,11 +1768,11 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
       ${goal}
     </header>
 
-    <nav class="m26-session-live-quick-actions" data-session-quick-controls ${isCoach?'data-session-coach-quick-controls':'data-session-client-quick-controls'} aria-label="${isCoach?'Acciones rápidas del Coach':'Acciones rápidas del entrenamiento'}">
+    <div role="group" class="m26-session-live-quick-actions" data-session-quick-controls ${isCoach?'data-session-coach-quick-controls':'data-session-client-quick-controls'} aria-label="${isCoach?'Acciones rápidas del Coach':'Acciones rápidas del entrenamiento'}">
       <button type="button" class="m26-session-live-quick-pause" data-session-action="pause" aria-label="Pausar el entrenamiento">${isCoach?'Pausar sesión':'Pausar entrenamiento'}</button>
       ${(Number(execution.index)>0||Number(execution.setIndex)>0)?'<button type="button" data-session-action="previous">Anterior</button>':''}
       ${isCoach?'<button type="button" data-session-open-substitution>Ajustar ejercicio</button>':''}
-    </nav>
+    </div>
 
     ${touchFocus}
 
