@@ -25,3 +25,16 @@ test('U25 has all 43 routes wired to Device Gate and no false acceptance',()=>{
  assert.equal(inventory.productionBaseline.workflowRunId,39451349112);
  assert.ok(Object.values(inventory.roles).flat().every(x=>x.evidenceStatus==='pending'));
 });
+
+test('U25 Media Review filter fields respect content-box containment on 320px screens',()=>{
+ const css=read('src/m26/admin/media-review.css');
+ const scope=css.slice(css.lastIndexOf('SIGNATURE U25 · media inventory form containment'));
+ assert.match(scope,/\.m26-media-review-route \.m26-media-control-tools :is\(input,select\)/u);
+ assert.match(scope,/box-sizing:border-box/u);
+ assert.match(scope,/min-width:0/u);
+ assert.match(scope,/max-width:100%/u);
+ const spec=read('qa/device-experience/signature-u25-real-route-bodies.spec.mjs');
+ assert.ok(spec.includes("area==='admin-media-review'"));
+ assert.ok(spec.includes("sheet?.sheet"));
+ assert.ok(spec.includes("no document overflow"));
+});
