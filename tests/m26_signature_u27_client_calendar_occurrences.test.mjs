@@ -69,3 +69,24 @@ test('U27 responsive warm calendar maintains inline scrolling and native focus',
   assert.match(css,/\.m26-rc39-date-links>a:focus-visible/u);
   assert.match(css,/scroll-margin-bottom:calc\(6\.5rem \+ env\(safe-area-inset-bottom\)\)/u);
 });
+
+
+test('U27 Coach agenda can select a published, same-client session for a proposed date',()=>{
+  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const create=source.slice(source.indexOf('async function createAppointment()'),source.indexOf('async function confirmAppointment('));
+  assert.match(create,/const sessionId=String\(raw\.sessionId\|\|''\)\.trim\(\)/u);
+  assert.match(create,/String\(item\?\.clientId\|\|item\?\.client_id\|\|body\.clientId\|\|body\.client_id\|\|''\)===clientId/u);
+  assert.match(create,/draft\.sessionId=sessionId/u);
+  assert.match(create,/PUBLISHED_SESSION_STATES\.has\(state\)/u);
+  assert.match(create,/buildAppointmentCommand\(draft,0\)/u);
+  const coachVm={kind:'agenda',role:'coach',selectedClientId:CLIENT,
+    clients:[{id:CLIENT,name:'Cliente QA'}],
+    rc39:{sessionProjections:[{
+      id:SESSION,clientId:CLIENT,title:'Fuerza martes',visible:true,session,
+      }],appointments:[],confirmationOpen:0,changeRequests:0}};
+  const html=renderRc39Route(coachVm);
+  assert.match(html,/<select name="sessionId"/u);
+  assert.match(html,/Vincular sesión publicada/u);
+  assert.ok(html.includes('value="'+SESSION+'"'));
+  assert.match(html,/data-workflow-action="create-appointment"/u);
+});
