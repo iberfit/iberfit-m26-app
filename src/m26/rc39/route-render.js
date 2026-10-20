@@ -307,10 +307,14 @@ function renderClientPlanning(vm){
   // Client-only appointments were scoped by ownership, publication and time in the view model.
   const clientAppointments=Array.isArray(vm.clientAppointments)?vm.clientAppointments:[];
   const contractModality=contractModalityOf(vm);
-  const appExecutable=items.filter((item)=>experienceFor(item,'client',contractModality).clientLiveWorkout).length;
-  const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
-  const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
-  const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
+  // Published prescriptions and dated occurrences are different concepts.
+  // A recurring calendar never inflates how many unique workouts were published.
+  const distinctSessionCount=new Set(items.map((item)=>String(item.id||''))).size;
+  const scheduledDates=items.filter((item)=>item.appointmentId).length;
+  const appExecutable=new Set(items.filter((item)=>experienceFor(item,'client',contractModality).clientLiveWorkout).map((item)=>item.id)).size;
+  const supervised=new Set(items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).map((item)=>item.id)).size;
+  const sessionCountLabel=distinctSessionCount===1?'1 sesión publicada':`${distinctSessionCount} sesiones publicadas`;
+  const sessionCountShort=scheduledDates?`${scheduledDates} fechas programadas`:(distinctSessionCount===1?'1 sesión':`${distinctSessionCount} sesiones`);
   const hasPublished=items.length>0;
   const cards=hasPublished?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{}}):'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
