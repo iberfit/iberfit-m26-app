@@ -21,7 +21,7 @@ for(const role of ['client','coach','admin']){
       await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.area()),{message:role+' '+area}).toBe(area);
       const actual=await page.evaluate(()=>{
         const root=document.querySelector('.m26-shell'),main=document.querySelector('.m26-main');
-        const body=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions,[data-admin-media-review-route]');
+        const body=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-admin-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions,[data-admin-media-review-route]');
         const title=body?.querySelector('h1,h2,h3')||main?.querySelector('h1,h2,h3');
         const rect=body?.getBoundingClientRect();
         return {role:root?.getAttribute('data-m26-role'),body:Boolean(body),visible:Boolean(rect&&rect.width>10&&rect.height>10),heading:Boolean(title&&title.textContent?.trim()),chars:String(body?.textContent||'').trim().length,placeholder:main?.querySelectorAll('.m26-route-placeholder')?.length||0,inert:main?.hasAttribute('inert')||false,width:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth),viewport:document.documentElement.clientWidth};
