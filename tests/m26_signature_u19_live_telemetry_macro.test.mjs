@@ -95,7 +95,7 @@ test('U19: repeated exercise card identifies its actual block occurrence without
   }};
   execution.liveTelemetry={status:'connected',timeline:{events}};
   const html=renderGuidedExecution({execution,session,catalog:items,role:'coach'});
-  assert.match(html,/Press guiado · aparición 2 de 2 · serie 1/u);
+  assert.match(html,/<strong>[^<]+ · aparición 2 de 2 · serie 1<\/strong>/u);
   assert.match(html,/RPE 8 · RIR 2 · FC media 155 lpm/u);
   assert.doesNotMatch(html,new RegExp(second.blockId+' · serie 1','u'));
 });
