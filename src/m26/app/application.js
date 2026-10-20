@@ -1191,7 +1191,8 @@ export async function createM26Application({root=document.querySelector('#app'),
         state,snapshot:item,clientId:item.execution.clientId,role:String(state.identity?.role||'client'),
       }));}catch{return false;}
     });if(!snapshot?.execution||!snapshot?.session)return false;
-    sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
+    sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,
+      sessionRevision:snapshot.sessionRevision??snapshot.session.revision??0,appointmentId:snapshot.appointmentId||null};
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
   async function restoreExecutionAfterAuthentication(){
@@ -1500,7 +1501,8 @@ export async function createM26Application({root=document.querySelector('#app'),
         });
         sessionUi={draft:null,query:'',actionState:{
           ...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},
-          session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};
+          session:recovered.session,execution:recovered.execution,
+          sessionRevision:recovered.sessionRevision??recovered.session.revision??0,appointmentId:recovered.appointmentId||null};
         store.navigate('sesion');render();return true;
       }
       const current=resolveCurrentSessionForEntry({state:store.getState(),requested,clientId});
