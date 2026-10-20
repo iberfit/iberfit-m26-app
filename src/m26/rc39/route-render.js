@@ -377,6 +377,13 @@ function agendaClientOptions(vm={}){
 function renderAgendaProposalForm(vm,role){
   if(!['coach','admin'].includes(role))return '';
   const options=agendaClientOptions(vm);
+  // A dated appointment references the canonical published session. It is
+  // not a copy of its prescription or an authorization to execute it twice.
+  const selectedClient=String(vm.selectedClientId||'');
+  const linkedSessions=(vm.rc39?.sessionProjections||[])
+    .filter((item)=>item?.id&&item?.clientId&&item.visible&&isPublishedSession(item.session))
+    .filter((item)=>!selectedClient||item.clientId===selectedClient);
+  const sessionOptions=linkedSessions.map((item)=>`<option value="${escape(item.id)}" data-client-id="${escape(item.clientId)}">${escape(item.title)}</option>`).join('');
   return `<form
     id="m26-agenda-proposal-form"
     class="m26-panel m26-panel-soft m30-agenda-proposal"
@@ -396,6 +403,13 @@ function renderAgendaProposalForm(vm,role){
         <select name="clientId" required>
           ${options||'<option value="">Sin clientes disponibles</option>'}
         </select>
+      </label>
+      <label>Vincular sesión publicada
+        <select name="sessionId" aria-describedby="m26-appointment-session-guidance">
+          <option value="">Cita general sin sesión vinculada</option>
+          ${sessionOptions}
+        </select>
+        <small id="m26-appointment-session-guidance">Vincula una sesión a cada fecha. La prescripción no se duplica y cada cita se confirma por separado.</small>
       </label>
       <label>Modalidad de esta cita
         <select name="modality" required>
