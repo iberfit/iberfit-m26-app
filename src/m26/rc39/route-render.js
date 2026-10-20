@@ -590,7 +590,7 @@ function renderAgenda(vm){
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
-  const items=(role==='client'?vm.rc39?.planningItems:vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
+  const items=((role==='client'?vm.rc39?.planningItems:vm.rc39?.sessionProjections)||[]).filter((item)=>role!=='client'||item.visible);
   // Client follows one deliberate path: Ver sesión -> Comenzar entrenamiento.
   // Never infer client permissions from badges, modality or a convenient CTA.
   const routePrimary=['coach','admin'].includes(role)
