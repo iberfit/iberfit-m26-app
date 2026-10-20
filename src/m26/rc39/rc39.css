@@ -751,14 +751,20 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 .m26-rc39-date-links>a:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px}
 .m26-rc39-date-groups{display:grid;gap:1.5rem;min-width:0}
 .m26-rc39-day-group{display:grid;gap:.8rem;scroll-margin-top:1.25rem;scroll-margin-bottom:calc(6.5rem + env(safe-area-inset-bottom));min-width:0}
-.m26-rc39-day-group>header{display:flex;align-items:baseline;justify-content:space-between;gap:.65rem;border-bottom:1px solid rgba(228,205,152,.22);padding-bottom:.65rem}
-.m26-rc39-day-group>header h3{margin:0;font-size:clamp(1.04rem,1.8vw,1.32rem);font-family:Georgia,serif;font-weight:500;color:var(--m26-cream-100);text-transform:capitalize}
-.m26-rc39-day-group>header span{white-space:nowrap;color:var(--m26-muted);font-size:.8rem}
+.m26-rc39-day-heading{display:flex;align-items:baseline;cursor:pointer;list-style:none;min-height:48px;padding-top:.55rem;justify-content:space-between;gap:.65rem;border-bottom:1px solid rgba(228,205,152,.22);padding-bottom:.65rem}
+.m26-rc39-day-heading h3{margin:0;font-size:clamp(1.04rem,1.8vw,1.32rem);font-family:Georgia,serif;font-weight:500;color:var(--m26-cream-100);text-transform:capitalize}
+.m26-rc39-day-heading span{white-space:nowrap;color:var(--m26-muted);font-size:.8rem}
 .m26-rc39-day-group[data-training-date="unscheduled"]{opacity:.88}
 .m26-rc39-day-group[data-training-date="unscheduled"]>header{border-bottom-style:dashed}
 @media (max-width:480px){
  .m26-rc39-date-navigation{margin:.8rem 0 1rem}
- .m26-rc39-day-group>header{align-items:flex-start}
+ .m26-rc39-day-heading{align-items:flex-start}
  .m26-rc39-date-links>a{min-width:5.7rem}
 }
 @media (prefers-reduced-motion:reduce){.m26-rc39-date-links{scroll-behavior:auto}}
+.m26-rc39-day-heading::-webkit-details-marker{display:none}
+.m26-rc39-day-heading::after{content:'+';color:var(--m26-gold-300);font-size:1.22rem;line-height:1;align-self:center}
+.m26-rc39-day-group[open]>.m26-rc39-day-heading::after{content:'−'}
+.m26-rc39-day-heading:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px;border-radius:.5rem}
+.m26-rc39-day-group:not([open]){gap:0}
+.m26-rc39-day-group[open]>.m26-rc39-week{padding-top:.45rem}
