@@ -49,7 +49,18 @@ for(const role of ['client','coach','admin']){
           .filter(({rect})=>rect.width>0&&rect.right>innerWidth+2)
           .sort((a,b)=>b.rect.right-a.rect.right).slice(0,12)
           .map(({el,rect})=>({tag:el.tagName.toLowerCase(),className:String(el.className?.baseVal??el.className??'').slice(0,130),left:Math.round(rect.left),right:Math.round(rect.right),width:Math.round(rect.width)})));
-        console.log('SIGNATURE_U25_OVERFLOW_GEOMETRY:'+JSON.stringify({role,area,viewport:actual.viewport,documentWidth:actual.width,offenders}));
+        const roots=await page.evaluate(()=>{
+          const keys=['html','body','.m26-shell','.m26-workspace','.m26-main','.m26-media-review-route','.m26-media-control-tools','.m26-media-control-summary','.m26-media-review-hero'];
+          return keys.map((selector)=>{
+            const el=document.querySelector(selector);
+            if(!el)return {selector,present:false};
+            const rect=el.getBoundingClientRect();
+            return {selector,present:true,left:Math.round(rect.left),right:Math.round(rect.right),
+              width:Math.round(rect.width),clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,
+              boxSizing:getComputedStyle(el).boxSizing};
+          });
+        });
+        console.log('SIGNATURE_U25_OVERFLOW_GEOMETRY:'+JSON.stringify({role,area,viewport:actual.viewport,documentWidth:actual.width,offenders,roots}));
       }
       expect(actual.width,role+' '+area+' no document overflow').toBeLessThanOrEqual(actual.viewport+2);
     }
