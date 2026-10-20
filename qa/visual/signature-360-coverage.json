@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "65c17b662bd9a70b09261169b6ca8feaf23a469c",
+    "sourceSha": "32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3",
     "verifiedAt": "2026-10-20",
-    "workflowRunId": 39438915893,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39438915893",
+    "workflowRunId": 39451349112,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39451349112",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -351,11 +351,12 @@
       "signature-coach-bootstrap-one-read-only-retry-for-exact-sql-timeout-u22",
       "signature-client-native-more-escape-focus-recovery-u23",
       "signature-client-tablet-in-flow-dock-no-double-rail-offset-u23",
-      "signature-three-role-interactive-route-navigation-u23"
+      "signature-three-role-interactive-route-navigation-u23",
+      "signature-u24-nine-real-authenticated-client-route-readonly-smoke"
     ],
-    "scope": "Incremental U11–U23 source certified in PROD by Production Promotion #39438915893, exact SHA, M44, Canary QA and Chromium live identity. U24 adds deeper real-route authenticated read-only QA checks; it does NOT certify write/offline/retry/conflict/session-expired behavior for all 43 routes."
+    "scope": "U11–U24 delivered in production, source 32e02bb0a2bd, Promotion #39451349112 SUCCESS. U24 nine Client routes read-only authenticated QA does not certify all 43 screens/states."
   },
-  "activeDelivery": "SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP",
+  "activeDelivery": "SIGNATURE-U25-real-43-route-body-synthetic-matrix-WIP",
   "qaEvidence": {
     "clientRouteReadOnlySmoke": {
       "scope": "Existing authenticated Client QA surface and nine real production route bodies, protected by read-only Supabase allowlist.",
@@ -375,6 +376,34 @@
         "populated-vs-empty-data-contrast"
       ],
       "neverPromoteToFullAcceptanceAutomatically": true
+    },
+    "syntheticRealBodyMatrix": {
+      "status": "IN_PROGRESS_UNTIL_WORKFLOW_SUCCESS",
+      "roles": {
+        "client": 9,
+        "coach": 17,
+        "admin": 17
+      },
+      "canonicalWidths": [
+        320,
+        390,
+        768,
+        1024,
+        1440
+      ],
+      "source": "qa/device-experience/signature-u25-real-route-bodies.spec.mjs",
+      "scope": "Real production route view model and renderer on synthetic identity + empty collections. No real professional login or business writes.",
+      "notVerifiedStates": [
+        "populated",
+        "error",
+        "retry",
+        "offline",
+        "conflict",
+        "session-expired",
+        "write-success",
+        "write-error"
+      ],
+      "fullFunctionalAcceptance": false
     }
   }
 }

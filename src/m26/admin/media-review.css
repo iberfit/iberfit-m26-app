@@ -38,3 +38,75 @@
 @media(max-width:900px){.m26-media-control-tools{grid-template-columns:1fr 1fr}.m26-media-control-tools>small{grid-column:1/-1;text-align:left}.m26-media-control-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.m26-media-control-summary,.m26-media-control-tools{grid-template-columns:1fr}.m26-media-control-tools>small{grid-column:auto}.m26-media-control-section-head{align-items:flex-start;flex-direction:column}.m26-media-inventory-list{grid-template-columns:1fr}.m26-media-inventory-item{grid-template-columns:6.25rem minmax(0,1fr)}}
 @media(max-width:420px){.m26-media-inventory-item{grid-template-columns:1fr}.m26-media-inventory-thumb,.m26-media-inventory-placeholder{width:min(10rem,48vw)}}
+
+/* SIGNATURE U25 · media inventory form containment.
+ * Browser default box-sizing can add input padding/border to width:100%,
+ * expanding the Admin Media Review document past 320px. Keep full-size
+ * touch fields while letting the grid shrink instead of clipping content. */
+.m26-media-review-route,
+.m26-media-review-route :is(.m26-media-control-tools,.m26-media-control-tools label){
+  min-width:0;
+  max-width:100%;
+}
+.m26-media-review-route .m26-media-control-tools :is(input,select){
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+}
+
+/* SIGNATURE U25 · intrinsic grid containment at narrow mobile widths.
+ * Grid auto tracks carry min-content constraints even when their children
+ * have max-width:100%; use zero-minimum tracks instead of masking overflow. */
+@media(max-width:420px){
+  .m26-media-review-route,
+  .m26-media-review-route :is(.m26-media-control-section,.m26-media-review-list,.m26-media-inventory-list,.m26-media-review-candidate,.m26-media-review-phase),
+  .m26-media-review-route .m26-media-control-tools{
+    grid-template-columns:minmax(0,1fr);
+    min-width:0;
+    max-width:100%;
+  }
+  .m26-media-review-route :is(.m26-media-control-tools,.m26-admin-panel,.m26-media-control-section-head){
+    min-width:0;
+    max-width:100%;
+  }
+}
+
+/* SIGNATURE U25 · avoid nested controls adding border/padding to 100% width.
+ * Scoped entirely to Media Factory Admin, without forcing hidden overflow. */
+@media(max-width:420px){
+  .m26-media-review-route,
+  .m26-media-review-route *,
+  .m26-media-review-route *::before,
+  .m26-media-review-route *::after{box-sizing:border-box}
+  .m26-media-review-route :is(.m26-media-control-summary,.m26-media-review-hero,.m26-media-control-section-head){
+    min-width:0;
+    max-width:100%;
+  }
+  .m26-media-review-route .m26-media-control-summary{grid-template-columns:minmax(0,1fr)}
+}
+
+/* SIGNATURE U25 · hero intrinsic-size correction at the narrowest phone width.
+ * The Admin Media Review heading could paint 20px beyond its padded hero
+ * despite border-box form controls. Wrap text within the flex item; preserve
+ * both the full heading and 44px action without clipping horizontal overflow. */
+@media(max-width:420px){
+  .m26-media-review-route > .m26-media-review-hero > div{
+    flex:0 1 auto;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+  }
+  .m26-media-review-route > .m26-media-review-hero :is(.m26-eyebrow,h2,p){
+    min-width:0;
+    max-width:100%;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .m26-media-review-route > .m26-media-review-hero > button{
+    display:block;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+}

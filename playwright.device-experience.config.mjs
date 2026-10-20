@@ -11,6 +11,7 @@ export default defineConfig({
     'm41-premium-visual.spec.mjs',
     'signature-route-shell.spec.mjs',
     'signature-u23-interactive-routes.spec.mjs',
+    'signature-u25-real-route-bodies.spec.mjs',
   ],
   fullyParallel:false,
   forbidOnly:true,
