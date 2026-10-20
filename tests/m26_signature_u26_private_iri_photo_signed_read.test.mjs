@@ -141,3 +141,33 @@ test('U26 QA refuses normalized path traversal and credentialed URL authorities'
     assert.equal(allowed(mock('GET',url+'?token='+('x'.repeat(64)))),false,'GET canonical violation');
   }
 });
+
+
+test('U26 QA only accepts canonical raw token query syntax for signed reads',()=>{
+  const token='a'.repeat(64);
+  assert.equal(allowed(mock('GET',photo()+'?token='+token)),true);
+  for(const query of [
+    '?to%6ben='+token, '?token=%61'+token.slice(1),
+    '?token='+token.slice(0,15)+'%2e'+token.slice(15),
+    '?TOKEN='+token, '?token='+token+'&download=1',
+    '?token='+token+'%26download=1', '?token='+token+'%20',
+    '?token='+token+'+',
+  ]) assert.equal(allowed(mock('GET',photo()+query)),false,query.slice(0,25));
+});
+
+test('U26 QA private evidence hides identities even when bucket is multiply encoded',()=>{
+  const identity='11111111-1111-4111-8111-111111111111';
+  for(const bucket of [
+    'iberfit-iri-photogrammetry',
+    '%69berfit-iri-photogrammetry',
+    '%2569berfit-iri-photogrammetry',
+    '%252569berfit-iri-photogrammetry',
+  ]){
+    const pathname='/storage/v1/object/sign/'+bucket+'/'+identity+'/'+ASSESSMENT+'/front/'+CAPTURE+'/original.png';
+    const label=qaIriPrivatePhotoEvidenceLabel(mock('POST',QA+pathname+'?token='+('x'.repeat(64))),{qaOrigin:QA});
+    assert.match(label,/private-iri-photo/u);
+    for(const secret of [identity,ASSESSMENT,CAPTURE,'x'.repeat(64)]){
+      assert.equal(label.includes(secret),false,'private identifier leaked');
+    }
+  }
+});
