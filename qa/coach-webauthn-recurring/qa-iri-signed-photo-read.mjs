@@ -12,8 +12,12 @@ const SIGNED_TOKEN=/^[A-Za-z0-9_.~-]{30,4096}$/u;
 
 export function isQaIriSignedPhotoRead(request,{qaOrigin}={}){
   if(!request||!qaOrigin)return false;
-  let url;
-  try{url=new URL(request.url());}catch{return false;}
+  let url,raw;
+  try{raw=request.url();url=new URL(raw);}catch{return false;}
+  // URL.origin ignores embedded username/password; never accept userinfo.
+  // Verify the raw path is already canonical: URL() collapses ../ and encoded dot segments.
+  const rawPath=/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*(\/[^?#]*)?/iu.exec(raw)?.[1]||'/';
+  if(url.username||url.password||rawPath!==url.pathname)return false;
   if(url.origin!==qaOrigin||url.hash||!SIGNED_IRI_PHOTO.test(url.pathname))return false;
   const method=String(request.method()).toUpperCase();
   if(method==='POST'){
