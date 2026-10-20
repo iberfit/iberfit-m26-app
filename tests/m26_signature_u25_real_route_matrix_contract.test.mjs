@@ -37,6 +37,10 @@ test('U25 Media Review filter fields respect content-box containment on 320px sc
  assert.match(grid,/grid-template-columns:minmax\(0,1fr\)/u);
  assert.ok(grid.includes('.m26-media-review-route'));
  assert.doesNotMatch(grid,/overflow-(?:x|y|inline|block)\s*:\s*(?:hidden|clip)/u);
+ const sizing=css.slice(css.lastIndexOf('SIGNATURE U25 · avoid nested controls adding border/padding'));
+ assert.ok(sizing.includes('box-sizing:border-box'));
+ assert.ok(sizing.includes('.m26-media-control-summary'));
+ assert.doesNotMatch(sizing,/overflow-(?:x|y)\s*:\s*(?:hidden|clip)/u);
  const spec=read('qa/device-experience/signature-u25-real-route-bodies.spec.mjs');
  assert.ok(spec.includes("area==='admin-media-review'"));
  assert.ok(spec.includes("sheet?.sheet"));
