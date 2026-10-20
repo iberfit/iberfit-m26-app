@@ -56,12 +56,12 @@ test('SIGNATURE U22 permanently gates all roles on device matrix and native disc
   const spec=readFileSync(new URL('../qa/device-experience/signature-route-shell.spec.mjs',import.meta.url),'utf8');
   const shell=readFileSync(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
   const controller=readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
-  assert.match(config,/signature-route-shell\\.spec\\.mjs/u);
+  assert.ok(config.includes("'signature-route-shell.spec.mjs'"));
   for(const role of roles)assert.ok(spec.includes("'"+role+"'"),role);
   assert.match(spec,/horizontal overflow/u);
-  assert.match(spec,/keyboard\\.press\\('Escape'\\)/u);
+  assert.ok(spec.includes("page.keyboard.press('Escape')"));
   assert.doesNotMatch(shell,/class="m26-mobile-more-menu" role="menu"/u);
   assert.doesNotMatch(shell,/aria-controls="m26-mobile-more-menu" aria-haspopup="menu"/u);
   assert.match(controller,/includeMobileMore/u);
-  assert.match(controller,/function onKeyDown\\(event\\)/u);
+  assert.ok(controller.includes('function onKeyDown(event)'));
 });
