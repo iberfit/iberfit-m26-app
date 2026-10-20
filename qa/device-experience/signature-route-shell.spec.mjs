@@ -14,7 +14,12 @@ for(const role of roles){
     expect(entries.length).toBeGreaterThan(0);
     for(const {area} of entries){
       await page.evaluate((target)=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(target),area);
-      await expect.poll(()=>page.locator('[data-qa-current-area]').getAttribute('data-qa-current-area'),{message:role+' '+area}).toBe(area);
+      await expect.poll(()=>page.evaluate(()=>{
+        // Enabled Admin Media Factory renders its own canonical route instead
+        // of the fixture's placeholder; do not confuse that with a redirect.
+        if(document.querySelector('[data-admin-media-review-route]'))return 'admin-media-review';
+        return document.querySelector('[data-qa-current-area]')?.getAttribute('data-qa-current-area');
+      }),{message:role+' '+area}).toBe(area);
       const state=await page.evaluate(()=>{
         const root=document.documentElement,body=document.body;
         const active=document.querySelector('.m26-shell [data-m26-area][aria-current="page"]');
@@ -23,11 +28,17 @@ for(const role of roles){
           width:Math.max(root.scrollWidth,body.scrollWidth),
           viewport:window.innerWidth,
           active:active?.getAttribute('data-m26-area'),
-          current:selected?.getAttribute('data-qa-current-area'),
+          current:document.querySelector('[data-admin-media-review-route]')?'admin-media-review':selected?.getAttribute('data-qa-current-area'),
           role:document.querySelector('.m26-shell')?.getAttribute('data-m26-role'),
         };
       });
       expect(state.current).toBe(area);
+      if(area==='admin-media-review'){
+        await expect(page.locator('[data-media-review-live]')).toContainText('Preparando conexión segura');
+        // No infinite MutationObserver -> microtask -> textContent loop:
+        // this browser-side probe must resolve even without a Media service.
+        expect(await page.evaluate(()=>document.querySelectorAll('link[data-m26-media-review-style]').length)).toBe(1);
+      }
       expect(state.active).toBe(area);
       expect(state.role).toBe(role);
       expect(state.width,role+' '+area+' horizontal overflow').toBeLessThanOrEqual(state.viewport+2);

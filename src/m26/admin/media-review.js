@@ -264,7 +264,15 @@ export function createAdminMediaReviewDomBridge({globalLike=globalThis,documentL
   }
   function sync(){
     ensureMediaReviewStyle(documentLike);syncHistory();const host=route();if(!host){generation++;return false;}
-    if(!service?.listMediaReview){const live=host.querySelector?.('[data-media-review-live]');if(live)live.textContent='Preparando conexión segura…';return false;}
+    if(!service?.listMediaReview){
+      const live=host.querySelector?.('[data-media-review-live]');
+      // Observed DOM mutations re-enter sync(). Writing the same text again
+      // generates another childList mutation and can starve the browser event
+      // loop indefinitely before the Admin service becomes available.
+      const pending='Preparando conexión segura…';
+      if(live&&live.textContent!==pending)live.textContent=pending;
+      return false;
+    }
     const settled=host.querySelector?.('[data-media-review-job],.m26-media-review-empty,.m26-media-review-error,.m26-media-review-loading');if(!settled&&!loading)void load({force:true});return true;
   }
   function onService(event){const candidate=event?.detail?.service;if(!candidate?.listMediaReview||!candidate?.execute)return;service=candidate;sync();}
