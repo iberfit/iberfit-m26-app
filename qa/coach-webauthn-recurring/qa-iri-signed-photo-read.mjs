@@ -5,7 +5,7 @@
 const UUID='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const SIGNED_IRI_PHOTO=new RegExp(
   '^/storage/v1/object/sign/iberfit-iri-photogrammetry/'+UUID+'/'+UUID+
-  '/(?:front|back|left|right)/'+UUID+'/original\\.(?:png|jpg)
+  '/(?:front|back|left|right)/'+UUID+'/original\\.(?:png|jpg)$','u'
 );
 const BEARER=/^Bearer [A-Za-z0-9_.~-]+$/u;
 const SIGNED_TOKEN=/^[A-Za-z0-9_.~-]{30,4096}$/u;
