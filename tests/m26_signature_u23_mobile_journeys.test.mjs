@@ -45,7 +45,7 @@ test('U23 Client physical dock uses the actual production renderer and Escape re
 test('U23 tablet Client dock remains inside the workspace without double rail offset',()=>{
   const css=read('src/m26/ui/client-bottom-nav.css');
   const tablet=css.slice(css.lastIndexOf('SIGNATURE U23 · medium touch in-flow dock'));
-  assert.match(tablet,/@media \\(max-width:900px\\)/u);
+  assert.ok(tablet.includes('@media (max-width:900px)'));
   assert.ok(tablet.includes('left:auto;'));
   assert.ok(tablet.includes('right:auto;'));
   assert.ok(tablet.includes('max-width:100%;'));
