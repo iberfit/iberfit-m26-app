@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from '../qa/coach-webauthn-recurring/qa-iri-signed-photo-read.mjs';
 
 const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co';
@@ -170,4 +171,16 @@ test('U26 QA private evidence hides identities even when bucket is multiply enco
       assert.equal(label.includes(secret),false,'private identifier leaked');
     }
   }
+});
+
+
+test('U26 live Coach QA interceptor imports and enforces private read permission without mutating the global allowlist',()=>{
+  const spec=readFileSync(new URL('../qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs',import.meta.url),'utf8');
+  assert.match(spec,/import \{isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel\} from '\.\/qa-iri-signed-photo-read\.mjs'/u);
+  assert.match(spec,/if\(url.origin!==SUPABASE_ORIGIN\)return false;\s*if\(isQaPrivateAvatarRead\(request\)\)return true;\s*\/\/ QA-only:[^\n]*\n\s*if\(isQaIriSignedPhotoRead\(request,\{qaOrigin:SUPABASE_ORIGIN\}\)\)return true;/u);
+  assert.match(spec,/const privateLabel=qaIriPrivatePhotoEvidenceLabel\(request,\{qaOrigin:SUPABASE_ORIGIN\}\);\s*if\(privateLabel\)return privateLabel;/u);
+  assert.match(spec,/evidence\.qaRequests\.push\(label\);/u);
+  assert.match(spec,/evidence\.blocked\.push\(requestLabel\(request\)\);await route\.abort\('blockedbyclient'\)/u);
+  assert.match(spec,/expect\(evidence\.blocked,'No business mutation or foreign request may be attempted'\)\.toEqual\(\[\]\)/u);
+  assert.doesNotMatch(spec,/evidence\.blocked\s*=\s*\[\]|evidence\.blocked\.length\s*=\s*0/u);
 });
