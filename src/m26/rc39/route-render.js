@@ -422,6 +422,7 @@ function renderAgendaProposalForm(vm,role){
       </label>
       <label>Modalidad de esta cita
         <select name="modality" required>
+          <option value="">Selecciona modalidad</option>
           <option value="presencial">Presencial</option>
           <option value="guiada_en_app">Guiada en la aplicación</option>
           <option value="online">En línea</option>
