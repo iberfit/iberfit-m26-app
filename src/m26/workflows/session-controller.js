@@ -1008,7 +1008,14 @@ async function click(event){
         await context.onExit?.();
         if(target==='verificacion')queueMicrotask(()=>openSessionRecoveryReview(root));
       }catch(error){
-        onError(error);renderSession();
+        onError(error);
+        // Do not navigate after a failed or uncertain recovery checkpoint.
+        // Retain the form and clearly explain how to retry a safe exit.
+        if(context?.actionState){
+          context.actionState.status='retry';
+          context.actionState.message='No se pudo confirmar el guardado antes de salir. La sesión sigue abierta con tus datos actuales; comprueba la conexión o el almacenamiento y vuelve a intentar Guardar y salir.';
+        }
+        renderSession();
       }finally{
         exitPending=false;sessionActionPending=false;
         button.disabled=wasDisabled;button.removeAttribute('aria-busy');
