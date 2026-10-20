@@ -126,3 +126,18 @@ test('U26 private photo evidence labels retain only bounded diagnostic categorie
   );
   assert.equal(qaIriPrivatePhotoEvidenceLabel({url:()=>'%not-a-url',method:()=>'GET'},{qaOrigin:QA}),null);
 });
+
+
+test('U26 QA refuses normalized path traversal and credentialed URL authorities',()=>{
+  const forged=[
+    photo().replace('/front/','/front/aux/../'),
+    photo().replace('/front/','/front/%2e%2e/front/'),
+    photo().replace('/front/','/front/.%2e/front/'),
+    photo().replace('https://','https://qa-user:qa-pass@'),
+    photo().replace('https://','https://qa-user@'),
+  ];
+  for(const url of forged){
+    assert.equal(allowed(mock('POST',url)),false,'POST canonical violation');
+    assert.equal(allowed(mock('GET',url+'?token='+('x'.repeat(64)))),false,'GET canonical violation');
+  }
+});
