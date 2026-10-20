@@ -15,7 +15,7 @@ import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
 import {renderSessionLibraryResults,liveHeartRatePresentation} from './session-ui.js';
-import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
+import {deriveLiveSessionIntelligence,LIVE_SESSION_CURRENT_READING_MAX_AGE_MS} from '../intelligence/live-session-intelligence.js';
 import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
@@ -380,9 +380,18 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const value=root.querySelector?.('[data-session-live-current-value]');
     const note=root.querySelector?.('[data-session-live-reading-note]');
     if((!heading&&!value&&!note)||!context?.execution?.liveTelemetry)return false;
-    // The clock can invalidate "current" without a new sensor event. Preserve
-    // the entire active input form, keyboard focus and recovery draft.
-    const view=liveHeartRatePresentation(deriveLiveSessionIntelligence(context.execution));
+    // A normal one-second timer tick must not reprocess a whole workout and
+    // redraw UI. Read the last certified timestamp; derive only at expiry or
+    // if a legacy DOM surface has no state. The sensor adapter itself re-renders
+    // on a new sample and provides a new timestamp.
+    const displayed=note?.getAttribute?.('data-session-live-reading-state')||'';
+    const lastAt=Date.parse(note?.getAttribute?.('data-session-live-last-at')||'');
+    const expired=!Number.isFinite(lastAt)||Date.now()-lastAt>LIVE_SESSION_CURRENT_READING_MAX_AGE_MS;
+    const connected=String(context.execution.liveTelemetry.status||'').toLowerCase()==='connected';
+    if(displayed&&displayed!=='current'||
+       displayed==='current'&&connected&&!expired)return true;
+    const intelligence=deriveLiveSessionIntelligence(context.execution);
+    const view=liveHeartRatePresentation(intelligence);
     if(heading){
       const next=`FC actual · ${view.bpm}`;
       if(heading.textContent!==next)heading.textContent=next;
@@ -392,6 +401,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       note.textContent=view.note;
       note.hidden=!view.note;
       note.setAttribute?.('data-session-live-reading-state',view.state);
+      note.setAttribute?.('data-session-live-last-at',intelligence.liveReading.lastAt||'');
     }
     return true;
   }
