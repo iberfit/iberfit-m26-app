@@ -75,6 +75,8 @@ test('U26 QA rejects encoded photo paths, secondary Storage APIs and tokens outs
     photo().replace('/original.png','/original.png/extra'),
     photo().replace('/object/sign/','/object/upload/sign/'),
     photo().replace('/object/sign/','/object/list/'),
+    photo().replace('/front/','/FRONT/'),
+    photo().replace('/original.png','/original.PNG'),
   ])assert.equal(allowed(mock('POST',path)),false,path);
   const invalid=['x'.repeat(29),'x'.repeat(4097),'x'.repeat(64)+'%20'];
   for(const token of invalid)assert.equal(allowed(mock('GET',photo()+'?token='+token)),false,token.length);
