@@ -14,7 +14,8 @@ import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
-import {renderSessionLibraryResults,liveHeartRatePresentation} from './session-ui.js';
+import {renderSessionLibraryResults} from './session-ui.js';
+import {liveHeartRatePresentation} from './session-ui.js';
 import {deriveLiveSessionIntelligence,LIVE_SESSION_CURRENT_READING_MAX_AGE_MS} from '../intelligence/live-session-intelligence.js';
 import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirmedAppointment,actorCanExecuteSession,sessionReadyToStart} from '../rc39/session-policy.js';
 
