@@ -383,7 +383,12 @@ function renderAgendaProposalForm(vm,role){
   const linkedSessions=(vm.rc39?.sessionProjections||[])
     .filter((item)=>item?.id&&item?.clientId&&item.visible&&isPublishedSession(item.session))
     .filter((item)=>!selectedClient||item.clientId===selectedClient);
-  const sessionOptions=linkedSessions.map((item)=>`<option value="${escape(item.id)}" data-client-id="${escape(item.clientId)}">${escape(item.title)}</option>`).join('');
+  const sessionOptions=linkedSessions.map((item)=>{
+    const body=item.session?.body&&typeof item.session.body==='object'?item.session.body:item.session||{};
+    const duration=Number(body.durationMinutes??body.duration_minutes??0);
+    const suggestedDuration=Number.isFinite(duration)&&duration>=20&&duration<=240?String(duration):'';
+    return `<option value="${escape(item.id)}" data-client-id="${escape(item.clientId)}" data-modality="${escape(item.modality||'')}" data-session-duration="${escape(suggestedDuration)}">${escape(item.title)}</option>`;
+  }).join('');
   return `<form
     id="m26-agenda-proposal-form"
     class="m26-panel m26-panel-soft m30-agenda-proposal"
