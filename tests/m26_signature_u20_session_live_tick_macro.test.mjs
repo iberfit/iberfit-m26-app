@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createSessionController} from '../src/m26/workflows/session-controller.js';
 import {renderGuidedExecution,liveHeartRatePresentation} from '../src/m26/workflows/session-ui.js';
 import {deriveLiveSessionIntelligence} from '../src/m26/intelligence/live-session-intelligence.js';
-import {createExecution,startExecution,recordSet,advanceExecution} from '../src/m26/workflows/session-execution.js';
+import {createExecution,startExecution,recordSet,advanceExecution,beginRest} from '../src/m26/workflows/session-execution.js';
 
 const telemetryStub={start:async()=>{},pause:async()=>{},resume:async()=>{},stop:async()=>{}};
 const sample=(bpm,at)=>({
@@ -140,6 +140,7 @@ test('U20: live and rest timers stay visually accurate without screen-reader ann
   assert.match(html,/m26-session-timers" aria-live="off"/u);
   assert.match(html,/role="timer" aria-live="off" data-session-elapsed/u);
   recordSet(execution,session,{reps:10,rpe:7,rir:0});
+  beginRest(execution,60);
   html=renderGuidedExecution({execution,session,catalog,role:'coach'});
   assert.match(html,/m26-session-rest-countdown" aria-live="off"/u);
   assert.match(html,/role="timer" aria-live="off" data-session-rest-countdown-value/u);
