@@ -1,5 +1,15 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
+## Checkpoint vigente · 20-10-2026 · U22 certificado en PRODUCCIÓN; U23 en ejecución
+
+**U22 PROD comprobado:** fuente exacta `86a60536595ba8a1cb773c1453b0c6a9988c1ef1`, PR [#1053](https://github.com/iberfit/iberfit-m26-app/pull/1053) y [#1054](https://github.com/iberfit/iberfit-m26-app/pull/1054) MERGED. [Production Promotion #39421889744](https://github.com/iberfit/iberfit-m26-app/actions/runs/39421889744) SUCCESS: manifiesto de fuente exacta, recuperación M44, CI, Lighthouse, browser y comprobación de identidad en vivo de `app.iberfit.cl`. [Android Production Release #39421889748](https://github.com/iberfit/iberfit-m26-app/actions/runs/39421889748) SUCCESS no acredita publicación en Google Play. Canary HEAD coincide con la fuente certificada.
+
+**Correcciones consolidadas:** navegación «Más» accesible y recuperable para tres roles, contratos sintéticos para las 43 rutas y un solo reintento de lectura de bootstrap Coach únicamente frente a HTTP 500/SQLSTATE 57014 exacto, sin reintentar escrituras ni debilitar Auth o RLS. La suite sintética no acredita funcionamiento autenticado de 43 pantallas. No reabrir el P0 U22 por el texto histórico que sigue.
+
+**U23, primera entrega en rama aislada — NO PROMOVIDA:** interacción real de navegación de la shell por controles, foco y Escape, estado `inert`, no recorte de destinos de barra móvil a 320 px, cobertura en anchos 320/390/768/1024/1440 mediante fuente CSS y controlador reales con identidad sintética. Actualizar el baseline documental del inventario sin falsificar aceptaciones: las **43 rutas permanecen `pending`**. Las validaciones autenticadas Cliente/Coach/Admin, rutas y estados de error continúan siendo gates independientes antes de declarar SIGNATURE integral completo. El resultado de U23 solo será entregado tras SHA postmerge, certificación y promoción oficial.
+
+---
+
 ## Checkpoint 20-10-2026 · U22 Canary, recuperación P0 de bootstrap Coach
 
 El PR #1053 está integrado en Canary `13a2201b4ae537cc1c3b112e931ee8ae3e3cf7c8`: CI, dispositivo, Cliente, Admin, M44 protegidos SUCCESS; **NO publicado aún en PROD**. Coach WebAuthn real validó la ceremonia de MFA, pero la segunda llamada de arranque `iberfit_bootstrap_v26` falló en QA por HTTP 500 SQLSTATE 57014 (statement timeout autenticado de 8 s). Se repitió en otro intento. La aplicación expuso su recuperación protegida, sin perder credenciales.

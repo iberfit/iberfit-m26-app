@@ -904,3 +904,16 @@
 @media(max-width:360px){.m26-shell[data-m26-role="client"] .m26-session-live-summary{grid-template-columns:1fr}
 .m26-shell[data-m26-role="client"] .m26-session-live-summary>div:nth-child(3){grid-column:auto}
 }
+
+/* SIGNATURE U23 · compact navigation: five discoverable destinations without
+ * horizontal scrolling or clipped targets at 320 px. The overlay stays visible
+ * when «Más» is open; never put overflow:hidden on its containing dock. */
+@media (max-width:420px){
+  .m26-shell .m26-workspace .m26-mobile-nav{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    overflow-x:visible;
+  }
+  .m26-shell .m26-workspace .m26-mobile-nav > :is(.m26-nav-item,.m26-mobile-more){
+    min-width:0;
+  }
+}

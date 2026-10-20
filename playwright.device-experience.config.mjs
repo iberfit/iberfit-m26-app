@@ -10,6 +10,7 @@ export default defineConfig({
     'login-autofill.spec.mjs',
     'm41-premium-visual.spec.mjs',
     'signature-route-shell.spec.mjs',
+    'signature-u23-interactive-routes.spec.mjs',
   ],
   fullyParallel:false,
   forbidOnly:true,
