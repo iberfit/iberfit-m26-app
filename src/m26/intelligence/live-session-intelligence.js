@@ -45,25 +45,33 @@ function roundedHeartRate(value){
   const number=validHeartRate(value);
   return number===null?null:Math.round(number*10)/10;
 }
-function recentLiveReading(live,overall,nowMs){
-  // Historical timeline data must remain available after a sensor disconnect,
-  // but only a connected and timestamped recent observation is a live reading.
-  const lastEventAt=safeTime(overall.latestAt);
-  const lastDirectAt=safeTime(live?.latestAt);
+function recentLiveReading(live,overall,rawEvents,nowMs){
+  // Keep historical aggregates intact, but never revive a prior valid sample
+  // after the sensor supplied a newer rejected/disconnected observation.
+  const latestRaw=rawEvents.at(-1)||null;
+  const rawAt=safeTime(latestRaw?.recordedAt||latestRaw?.receivedAt);
+  const validAt=safeTime(overall.latestAt);
+  const directAt=safeTime(live?.latestAt);
   const directBpm=roundedHeartRate(live?.heartRateBpm);
-  const useDirect=lastDirectAt!==null&&(lastEventAt===null||lastDirectAt>lastEventAt);
-  const lastBpm=useDirect?directBpm:(overall.latestBpm??directBpm);
-  const sourceAt=useDirect?lastDirectAt:(lastEventAt??lastDirectAt);
+  const directNewest=directAt!==null&&(validAt===null||directAt>validAt)&&
+    (rawAt===null||directAt>rawAt);
+  const lastBpm=directNewest?directBpm:(overall.latestBpm??directBpm);
+  const sourceAt=directNewest?directAt:(validAt??directAt);
+  const latestRawInvalid=rawAt!==null&&
+    (validAt===null||rawAt>validAt)&&
+    (directAt===null||rawAt>=directAt)&&
+    !isInterpretableEvent(latestRaw);
   const ageMs=sourceAt===null?null:nowMs-sourceAt;
   const connected=String(live?.status||'').trim().toLowerCase()==='connected';
-  const fresh=connected&&lastBpm!==null&&ageMs!==null&&
+  const fresh=connected&&!latestRawInvalid&&lastBpm!==null&&ageMs!==null&&
     ageMs>=-5000&&ageMs<=LIVE_SESSION_CURRENT_READING_MAX_AGE_MS;
   return deepFreeze({
     currentBpm:fresh?lastBpm:null,
     lastBpm,
     lastAt:sourceAt===null?null:new Date(sourceAt).toISOString(),
     ageSeconds:ageMs!==null&&ageMs>=0?Math.floor(ageMs/1000):null,
-    state:fresh?'current':!connected?'not-connected':lastBpm===null?'no-reading':ageMs===null?'undated':'stale',
+    state:fresh?'current':!connected?'not-connected':latestRawInvalid?'signal-invalid':
+      lastBpm===null?'no-reading':ageMs===null?'undated':'stale',
   });
 }
 function eventHeartRate(event){
@@ -377,7 +385,7 @@ export function deriveLiveSessionIntelligence(
   const latest=interpretable.at(-1)||null;
   const live=execution?.liveTelemetry||{};
   const clock=Number.isFinite(Number(nowMs))?Number(nowMs):Date.now();
-  const liveReading=recentLiveReading(live,overall,clock);
+  const liveReading=recentLiveReading(live,overall,rawEvents,clock);
 
   return deepFreeze({
     schemaVersion:LIVE_SESSION_INTELLIGENCE_SCHEMA_VERSION,
