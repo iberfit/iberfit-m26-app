@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4c58d70e5f7a984e8bd2663633f7cf9abd68b4e6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3",
+  "notes": "SIGNATURE U25, merged PR #1057. Exact Canary SHA 4c58d70e5f7a984e8bd2663633f7cf9abd68b4e6; all 11 postmerge workflows SUCCESS including CI #39476716201, authenticated QA visual #39476716238, Coach/Admin WebAuthn #39476716081/#39476716371, Device Experience #39476716544, Admin matrix #39476716266, remote read-only #39476716507 and Canary exact deployment / live identity #39476716519. Frontend-only change: 43 real production route bodies exercised with synthetic identity across canonical device widths, Admin Media Review narrow-mobile CSS overflow corrected without clipping. Includes only CSS, QA, tests, coverage metadata and docs. No SQL, Auth, RLS, Edge, backend, or business-data mutation. M44 encrypted DB+Storage recovery #39418044881 attempt 4 SUCCESS at 2026-10-20T17:57:53Z, isolated PostgreSQL17 restoration; mandatory <=2h fail-closed freshness guard unchanged. Previous production source U24 32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3, Production Promotion #39451349112 SUCCESS. U25 synthetic bodies do not constitute functional acceptance of all 43 routes: full authenticated mutations, populated/loading/error/offline/conflict/session-expiry and recovery remain pending. Enforce exact SHA, live previous identity, M44 recovery, Lighthouse, production Chromium, postprod audit and rollback evidence."
+}
