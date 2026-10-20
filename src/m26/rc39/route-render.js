@@ -590,7 +590,7 @@ function renderAgenda(vm){
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
-  const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
+  const items=(role==='client'?vm.rc39?.planningItems:vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
   // Client follows one deliberate path: Ver sesión -> Comenzar entrenamiento.
   // Never infer client permissions from badges, modality or a convenient CTA.
   const routePrimary=['coach','admin'].includes(role)
@@ -609,7 +609,9 @@ function renderSessions(vm){
   const introLabel=client&&normalizeClientModality(contractModality)===null
     ?'Sesiones · IBERFIT'
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section><section class="m26-rc39-session-timeline">${items.length?(client
+    ?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{}})
+    :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
