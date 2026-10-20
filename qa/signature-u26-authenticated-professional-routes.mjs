@@ -25,7 +25,7 @@ async function activeArea(page){
 }
 
 async function closeMore(page){
-  const open=page.locator('details.m26-mobile-more[open], details.m26-mobile-more[open]').first();
+  const open=page.locator('details.m26-mobile-more[open]').first();
   if(await open.count()){
     const summary=open.locator(':scope > summary').first();
     if(await summary.isVisible())await summary.click();
@@ -37,9 +37,9 @@ async function navigateViaActualControl(page,role,area){
   if(await activeArea(page)===area)return true;
   const options=shell.locator('[data-m26-area="'+area+'"]:visible:not([disabled])');
   if(!await options.count()){
-    const more=shell.locator('details.m26-mobile-more:visible, details.m26-mobile-more:visible').first();
+    const more=shell.locator('details.m26-mobile-more:visible').first();
     if(await more.count()){
-      if(!await more.getAttribute('open'))await more.locator(':scope > summary').click();
+      if((await more.getAttribute('open'))===null)await more.locator(':scope > summary').click();
     }
   }
   const choice=shell.locator('[data-m26-area="'+area+'"]:visible:not([disabled])').first();
