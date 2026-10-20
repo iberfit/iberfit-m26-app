@@ -1,3 +1,13 @@
+## Checkpoint vigente · 20-10-2026 · U25 PROD certificado, U26 en rama sin promoción
+
+**Producción vigente U25:** fuente exacta `4c58d70e5f7a984e8bd2663633f7cf9abd68b4e6`, PR #1057 MERGED, Canary Exact Deploy [#39476716519](https://github.com/iberfit/iberfit-m26-app/actions/runs/39476716519) SUCCESS y Production Promotion [#39479637032](https://github.com/iberfit/iberfit-m26-app/actions/runs/39479637032) SUCCESS (M44 fresco, Lighthouse, Chromium, QA y auditoría postdeploy). El scroll horizontal en Admin Centro de Media a 320 px se corrigió y pasó Device Gate antes y después de merge. El bloque U25 usa renderer de producción pero identidad sintética; **no** acredita aceptación funcional de 43 rutas.
+
+**U26 en rama aislada, NO fusionada ni publicada:** ampliar las sesiones reales WebAuthn ya existentes de Coach y Admin con una auditoría de navegación real de rutas profesionales en escritorio 1440 px y móvil 390 px. No hay nueva vía MFA: se usa el broker OIDC y la limpieza existente, las pruebas remotas continúan solo en push confiable de Canary, nunca en PR externo. El auditor comprueba shell del rol correcto, salida de inert, ruta seleccionada, contenido real no placeholder, heading, no overflow y ausencia de peticiones ajenas/mutantes mediante el perímetro preexistente; rutas ocultas o no expuestas permanecen explícitamente sin certificar. Evidencias: áreas técnicas, booleanos y lista de rutas; jamás datos de clientes, tokens ni contraseñas. Estados con datos alternativos, escrituras autorizadas, fallo de red, conflicto y expiración siguen excluidos. **Todas las 43 aceptaciones integrales permanecen pending.**
+
+**Límites:** U26 no cambia Auth, SQL, RLS, Edge, backend ni datos de negocio. Cualquier promoción a producción exige controles premerge y postmerge, SHA exacto Canary en vivo y M44 válido; no se considera completa antes de certificar los flujos reales.
+
+---
+
 ## U25 checkpoint · 20-10-2026 · 43 rutas con renderer real y estado sintético
 
 U24 publicado en PROD: SHA exacto `32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3`, Canary #39444520756 SUCCESS, Production Promotion #39451349112 SUCCESS, M44 restauración aislada certificada.
