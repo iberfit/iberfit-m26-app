@@ -77,7 +77,13 @@ test('U17: el Coach ve ausencia de FC real, y una recuperación plana conserva u
   const empty=renderGuidedExecution({execution,session,catalog,role:'coach'});
   assert.match(empty,/FC actual · —/u);
   assert.doesNotMatch(empty,/FC actual · 0 lpm|FC media<\/span><strong>0 lpm|FC máxima<\/span><strong>0 lpm|NaN|Infinity/u);
-  execution.liveTelemetry.timeline.events=[event(120,0),event(120,20)];
+  // Current HR is only valid for a fresh, connected sensor. Keep this
+  // historical flat-recovery regression genuinely recent.
+  const freshStart=event(120,0);
+  const freshEnd=event(120,20);
+  freshStart.recordedAt=new Date(Date.now()-10_000).toISOString();
+  freshEnd.recordedAt=new Date(Date.now()-1_000).toISOString();
+  execution.liveTelemetry.timeline.events=[freshStart,freshEnd];
   const flat=renderGuidedExecution({execution,session,catalog,role:'coach'});
   assert.match(flat,/Cambio observado · 0 lpm/u);
   assert.match(flat,/FC actual · 120 lpm/u);
