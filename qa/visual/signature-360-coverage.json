@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "4a103eb98dda24f2b16fcdeeda09ac41dbcc784c",
+    "sourceSha": "122581a14dfea5318ca855625a8b1e85e983a1f8",
     "verifiedAt": "2026-10-19",
-    "workflowRunId": 39340240024,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39340240024",
+    "workflowRunId": 39350695966,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39350695966",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -335,9 +335,12 @@
       "signature-coach-builder-task-closure-u14",
       "signature-coach-live-heart-rate-truth-u15",
       "signature-coach-mobile-session-summary-u15",
-      "signature-coach-builder-reorder-focus-u16"
+      "signature-coach-builder-reorder-focus-u16",
+      "signature-coach-live-heart-rate-validity-u17",
+      "signature-coach-live-alternative-relevance-u17",
+      "signature-mobile-native-preview-auth-recovery-qa-u17"
     ],
-    "scope": "Incremental Client/Coach/Admin releases through U16 certified by production-promotion pipeline exact identity, live Chromium and rollback; 43 routes remain pending for complete route-state-device acceptance. Independent manual live fetch outside workflow not verified."
+    "scope": "Incremental Client/Coach/Admin releases through U17 certified by production-promotion pipeline exact identity, live Chromium and rollback; 43 routes remain pending for complete route-state-device acceptance. Independent manual live fetch outside workflow not verified."
   },
   "activeDelivery": "3/5-coach-incremental"
 }
