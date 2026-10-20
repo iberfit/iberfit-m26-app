@@ -4544,3 +4544,29 @@ m26-echart[data-density="compact"]{
   max-inline-size:100%;
   box-sizing:border-box;
 }
+
+/* U21 · Formulario real, controles legibles y CTA sin superposición móvil.
+ * El grid no debe depender de wrappers concretos del shell o del fixture. */
+.m26-session-live-v3 .m26-session-set-fields{
+  display:grid;
+}
+.m26-session-live-v3 .m26-session-set-fields label{
+  display:grid;
+  align-content:start;
+  gap:.4rem;
+  min-width:0;
+}
+.m26-session-live-v3[data-session-role="client"] .m26-session-set-fields input{
+  color:var(--iberfit-color-text-primary);
+  background:color-mix(in srgb,var(--iberfit-color-surface-raised) 94%,transparent);
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 19%,var(--iberfit-color-border));
+  border-radius:.7rem;
+}
+@media(max-width:760px){
+  .m26-session-live-v3[data-session-role="client"] .m26-session-live-entry [data-session-action="complete-set"]{
+    position:static;
+    bottom:auto;
+    margin-top:.65rem;
+    box-shadow:none;
+  }
+}

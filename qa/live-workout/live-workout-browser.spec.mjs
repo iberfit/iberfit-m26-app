@@ -52,7 +52,17 @@ test('SIGNATURE U21: Cliente pausa, reanuda y mantiene el borrador en 320 px',as
   await expect(page.locator('[data-set-field="reps"]')).toHaveValue('10');
   await expect(page.locator('[data-set-field="load"]')).toHaveValue('18 kg');
   await expect(page.locator('[data-set-field="rpe"]')).toHaveValue('8');
-  await page.locator('[data-session-action="complete-set"]').click();
+  const completeAction=page.locator('[data-session-action="complete-set"]');
+  await expect(completeAction).toBeVisible();
+  const formLayout=await page.evaluate(()=>{
+    const fields=document.querySelector('.m26-session-set-fields');
+    const action=document.querySelector('[data-session-action="complete-set"]');
+    return {grid:getComputedStyle(fields).display,ctaPosition:getComputedStyle(action).position,scroll:document.documentElement.scrollWidth,width:document.documentElement.clientWidth};
+  });
+  expect(formLayout.grid).toBe('grid');
+  expect(formLayout.ctaPosition).toBe('static');
+  expect(formLayout.scroll).toBeLessThanOrEqual(formLayout.width+1);
+  await completeAction.click();
   await expect(page.locator('[data-session-live-state="rest"]')).toBeVisible();
   await expect(page.locator('[data-session-client-quick-controls] [data-session-action="pause"]')).toBeVisible();
   await page.locator('[data-session-client-quick-controls] [data-session-action="pause"]').click();
