@@ -36,8 +36,8 @@ test('U24 nine Client route audit contracts are explicit and per-role, without c
 });
 
 test('U24 never upgrades 43 routes or unsupported error/offline/write states by inference',()=>{
-  assert.equal(coverage.productionBaseline.sourceSha,'65c17b662bd9a70b09261169b6ca8feaf23a469c');
-  assert.equal(coverage.productionBaseline.workflowRunId,39438915893);
+  assert.equal(coverage.productionBaseline.sourceSha,'32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3');
+  assert.equal(coverage.productionBaseline.workflowRunId,39451349112);
   assert.equal(coverage.status,'WIP_NOT_PRODUCTION');
   assert.equal(coverage.activeDelivery,'SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP');
   assert.equal(coverage.roles.client.length,9);

@@ -1,3 +1,11 @@
+## U25 checkpoint · 20-10-2026 · 43 rutas con renderer real y estado sintético
+
+U24 publicado en PROD: SHA exacto `32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3`, Canary #39444520756 SUCCESS, Production Promotion #39451349112 SUCCESS, M44 restauración aislada certificada.
+
+U25 WIP: fixture opt-in `body=real` que utiliza `createRouteViewModel` + `renderRouteView` productivos para las 43 rutas (Cliente 9, Coach 17, Admin 17), con identidad y colecciones sintéticas y matriz Device Gate a 320/390/768/1024/1440. Verifica composición, contenido, heading, aislamiento de rol, ausencia de bloqueo, overflow y peticiones mutantes. Las pruebas U24 autenticadas y los gates WebAuthn profesionales quedan independientes. No implica aceptación autenticada por pantalla de Coach/Admin, estados poblados, offline, expiración, conflictos, retries, ni escrituras; **43 aceptaciones siguen pending**.
+
+---
+
 ## Checkpoint vigente · 20-10-2026 · U23 publicado y certificado en PROD; U24 en revisión de 9 rutas Cliente
 **PROD U23:** SHA exacto `65c17b662bd9a70b09261169b6ca8feaf23a469c`, PR [#1055](https://github.com/iberfit/iberfit-m26-app/pull/1055) MERGED. [Canary Exact Deploy #39435366832](https://github.com/iberfit/iberfit-m26-app/actions/runs/39435366832), [Production Promotion #39438915893](https://github.com/iberfit/iberfit-m26-app/actions/runs/39438915893) SUCCESS. M44 encrypted DB+Storage + restore PG17 aislado SUCCESS [#39418044881](https://github.com/iberfit/iberfit-m26-app/actions/runs/39418044881) segundo intento; controles QA, CI, WebAuthn, Device Gate, auditoría, Lighthouse, identidad y Chromium en producción superados.
 

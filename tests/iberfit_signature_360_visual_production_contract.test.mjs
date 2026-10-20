@@ -53,10 +53,10 @@ test('Signature360 always requires production evidence and broad responsive/stat
 
 test('Signature360 records exact U23 production without miscertifying 43 routes',()=>{
   assert.equal(coverage.activeDelivery,'SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP');
-  assert.equal(coverage.productionBaseline.sourceSha,'65c17b662bd9a70b09261169b6ca8feaf23a469c');
-  assert.equal(coverage.productionBaseline.workflowRunId,39438915893);
+  assert.equal(coverage.productionBaseline.sourceSha,'32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3');
+  assert.equal(coverage.productionBaseline.workflowRunId,39451349112);
   assert.equal(coverage.productionBaseline.productionProofUrl,
-    'https://github.com/iberfit/iberfit-m26-app/actions/runs/39438915893');
+    'https://github.com/iberfit/iberfit-m26-app/actions/runs/39451349112');
   for(const increment of [
     'signature-client-native-more-escape-focus-recovery-u23',
     'signature-client-tablet-in-flow-dock-no-double-rail-offset-u23',

@@ -5,8 +5,12 @@ import {createCanonicalStore} from '../../src/m26/canonical-store.js';
 import {createProductionState} from '../../src/m26/production-state.js';
 import {createShellController} from '../../src/m26/shell/shell-controller.js';
 import {renderClientBottomNav} from '../../src/m26/modules/route-render.js';
+import {createRouteViewModel} from '../../src/m26/modules/route-view-model.js';
+import {renderRouteView} from '../../src/m26/modules/route-render.js';
 
-const role=new URLSearchParams(location.search).get('role');
+const params=new URLSearchParams(location.search);
+const role=params.get('role');
+const realBodies=params.get('body')==='real';
 if(!['client','coach','admin'].includes(role))throw new Error('SIGNATURE_QA_ROLE_INVALID');
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const root=document.querySelector('#qa-root');
@@ -38,7 +42,9 @@ const initial=createProductionState({
 const store=createCanonicalStore(initial);
 const controller=createShellController({
   root,store,
-  renderRoute:(vm)=>{
+  renderRoute:(vm,state)=>{
+    // Opt-in isolated QA only: real production view model and renderer, synthetic role and empty data.
+    if(realBodies)return renderRouteView(createRouteViewModel(vm,state,new Date('2026-10-20T12:00:00-03:00')));
     const content='<section class="m26-route-placeholder" data-qa-current-area="'+vm.activeArea+'"><h2>'+vm.page.title+'</h2><p>Contenido simulado: no representa aceptación funcional.</p></section>';
     // Client production deliberately suppresses the shell mobile navigation.
     // Render the actual production Client bottom nav helper around fake body,
@@ -50,7 +56,7 @@ const controller=createShellController({
 });
 controller.mount();
 globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__=Object.freeze({
-  role,area:()=>store.getState().activeArea,
+  role,bodyMode:realBodies?'real-synthetic':'placeholder',area:()=>store.getState().activeArea,
   navigate:(area)=>store.navigate(area),
   rerender:()=>controller.render(),
 });

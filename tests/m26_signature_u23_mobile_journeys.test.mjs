@@ -6,8 +6,8 @@ const read=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const inventory=JSON.parse(read('qa/visual/signature-360-coverage.json'));
 
 test('U23 traceability: exact U23 PROD is delivered but 43 screen acceptances remain pending',()=>{
-  assert.equal(inventory.productionBaseline.sourceSha,'65c17b662bd9a70b09261169b6ca8feaf23a469c');
-  assert.equal(inventory.productionBaseline.workflowRunId,39438915893);
+  assert.equal(inventory.productionBaseline.sourceSha,'32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3');
+  assert.equal(inventory.productionBaseline.workflowRunId,39451349112);
   assert.equal(inventory.status,'WIP_NOT_PRODUCTION');
   assert.equal(inventory.roles.client.length,9);
   assert.equal(inventory.roles.coach.length,17);
