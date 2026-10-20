@@ -44,7 +44,7 @@ for(const role of ['client','coach','admin']){
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
       if(actual.width>actual.viewport+2){
-        const offenders=await page.evaluate(()=>[...document.querySelectorAll('.m26-main *')]
+        const offenders=await page.evaluate(()=>[...document.querySelectorAll('.m26-shell,.m26-workspace,.m26-main,.m26-main *')]
           .map(el=>({el,rect:el.getBoundingClientRect()}))
           .filter(({rect})=>rect.width>0&&rect.right>innerWidth+2)
           .sort((a,b)=>b.rect.right-a.rect.right).slice(0,12)
