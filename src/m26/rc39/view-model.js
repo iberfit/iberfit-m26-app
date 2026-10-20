@@ -4,6 +4,7 @@ import {
   clientSessionProjection,
   appointmentForSession,
 } from './session-policy.js';
+import {isClientVisibleAppointment} from '../domain/appointment.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
 import {deriveCoachSelfLaunchJourney} from '../onboarding/coach-launch-journey.js';
 export {deriveCoachSelfLaunchJourney};
@@ -200,11 +201,16 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const routeClientId=role==='client'?state.identity?.clientId:state.selectedClientId;
   const relevantSessions=sessions.filter((item)=>!routeClientId||clientId(item)===String(routeClientId));
   const relevantAppointments=appointments.filter((item)=>!routeClientId||clientId(item)===String(routeClientId));
+  // Never expose the Coach's private proposals or withdrawn bookings to
+  // Cliente through a session card, calendar projection or operational list.
+  const scopedAppointments=role==='client'
+    ?relevantAppointments.filter(isClientVisibleAppointment)
+    :relevantAppointments;
   const changeRequestAvailable=state?.environment?.rc39?.appointmentChangeRequests===true;
-  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:relevantAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable})));
-  const operationalAppointments=(role==='client'?relevantAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
+  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable})));
+  const operationalAppointments=(role==='client'?scopedAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
   const sessionProjections=relevantSessions.map((session)=>Object.freeze({
-    ...clientSessionProjection(session,appointmentForSession(relevantAppointments,session),now),
+    ...clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now),
     changeRequestAvailable,
   }));
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
