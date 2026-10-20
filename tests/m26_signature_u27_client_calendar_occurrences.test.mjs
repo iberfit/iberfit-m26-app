@@ -218,3 +218,15 @@ test('U27 Sessions surface shows dated occurrences instead of accumulated sessio
   assert.equal((markup.match(/data-rc39-session="/gu)||[]).length,2);
   assert.equal((markup.match(/data-rc39-primary-day="true"/gu)||[]).length,1);
 });
+
+
+
+test('U27 legacy Client session view must not look empty if dated projections are not hydrated yet',()=>{
+  const projected=buildClientPlanningItems({sessions:[session],appointments:[]})[0];
+  const vm={kind:'sesion',role:'client',serviceActive:true,
+    rc39:{sessionProjections:[projected]},sessionPreviewAssets:{catalog:[]}};
+  const html=renderRc39Route(vm);
+  assert.match(html,/Fuerza martes/u);
+  assert.match(html,/data-rc39-session="/u);
+  assert.doesNotMatch(html,/data-client-session-state="empty"/u);
+});
