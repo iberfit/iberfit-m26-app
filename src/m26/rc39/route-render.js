@@ -1,3 +1,4 @@
+import {civilDateInTimeZone} from '../domain/civil-date.js';
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {renderCompletedSessionHistory} from './completed-session-history.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
@@ -269,6 +270,38 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
+// Calendario editorial de Cliente: una sesión publicada puede aparecer en
+// muchas fechas confirmadas sin duplicar su prescripción ni inventar ejecuciones.
+function renderClientDatedPlanning(items,options){
+  const dates=new Map();
+  for(const item of items){
+    const day=item.startAt?civilDateInTimeZone(item.startAt):null;
+    const key=day||'unscheduled';
+    if(!dates.has(key))dates.set(key,[]);
+    dates.get(key).push(item);
+  }
+  const today=civilDateInTimeZone(new Date());
+  const calendarDays=[...dates.keys()].filter((key)=>key!=='unscheduled');
+  const calendarNav=calendarDays.length?`<nav class="m26-rc39-date-navigation" aria-label="Fechas de entrenamiento programadas">
+    <p class="m26-eyebrow">Calendario de entrenamientos</p>
+    <div class="m26-rc39-date-links">${calendarDays.map((key)=>{
+      const dayItems=dates.get(key)||[];
+      const label=key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(key+'T12:00:00Z'));
+      return `<a href="#m26-plan-day-${escape(key)}" ${key===today?'aria-current="date"':''}><strong>${escape(label)}</strong><small>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</small></a>`;
+    }).join('')}</div>
+  </nav>`:'';
+  const groups=[...dates.entries()].map(([key,dayItems])=>{
+    const dated=key!=='unscheduled';
+    const label=dated
+      ?key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(key+'T12:00:00Z'))
+      :'Sesiones sin fecha asignada';
+    return `<section class="m26-rc39-day-group" id="m26-plan-day-${escape(key)}" data-training-date="${escape(key)}" aria-label="${escape(label)}">
+      <header><h3>${escape(label)}</h3><span>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</span></header>
+      <div class="m26-rc39-week">${dayItems.map((item)=>sessionCard(item,'client',options.contractModality,{serviceActive:options.serviceActive,...options.assets})).join('')}</div>
+    </section>`;
+  }).join('');
+  return calendarNav+'<div class="m26-rc39-date-groups">'+groups+'</div>';
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   // Client-only appointments were scoped by ownership, publication and time in the view model.
@@ -279,7 +312,7 @@ function renderClientPlanning(vm){
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
   const hasPublished=items.length>0;
-  const cards=hasPublished?items.map((item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):'';
+  const cards=hasPublished?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{}}):'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
