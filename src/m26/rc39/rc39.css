@@ -768,3 +768,23 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 .m26-rc39-day-heading:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px;border-radius:.5rem}
 .m26-rc39-day-group:not([open]){gap:0}
 .m26-rc39-day-group[open]>.m26-rc39-week{padding-top:.45rem}
+
+/* Shared warm, matte treatment for Client Planning and Sessions, not Coach. */
+.m26-shell[data-m26-role="client"] .m26-rc39-planning .m26-rc39-session-card{
+  min-width:0;
+  border-radius:1.4rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:var(--iberfit-shadow-subtle);
+  transform:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-planning .m26-rc39-session-card:hover{
+  box-shadow:var(--iberfit-shadow-subtle);
+  transform:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-planning .m26-rc39-session-card.is-autonomous{
+  border-color:color-mix(in srgb,var(--iberfit-color-gold-500) 38%,var(--iberfit-color-border));
+}
+.m26-shell[data-m26-role="client"] :is(.m26-rc39-planning,.m26-rc39-sessions) .m26-rc39-day-group>summary{
+  color:var(--iberfit-color-cream-100);
+  touch-action:manipulation;
+}
