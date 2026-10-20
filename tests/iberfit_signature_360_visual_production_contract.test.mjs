@@ -52,7 +52,7 @@ test('Signature360 always requires production evidence and broad responsive/stat
 });
 
 test('Signature360 records exact U23 production without miscertifying 43 routes',()=>{
-  assert.equal(coverage.activeDelivery,'SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP');
+  assert.equal(coverage.activeDelivery,'SIGNATURE-U25-real-43-route-body-synthetic-matrix-WIP');
   assert.equal(coverage.productionBaseline.sourceSha,'32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3');
   assert.equal(coverage.productionBaseline.workflowRunId,39451349112);
   assert.equal(coverage.productionBaseline.productionProofUrl,

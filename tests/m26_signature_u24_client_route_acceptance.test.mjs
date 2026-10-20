@@ -39,7 +39,7 @@ test('U24 never upgrades 43 routes or unsupported error/offline/write states by 
   assert.equal(coverage.productionBaseline.sourceSha,'32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3');
   assert.equal(coverage.productionBaseline.workflowRunId,39451349112);
   assert.equal(coverage.status,'WIP_NOT_PRODUCTION');
-  assert.equal(coverage.activeDelivery,'SIGNATURE-U24-client-nine-route-authenticated-acceptance-WIP');
+  assert.equal(coverage.activeDelivery,'SIGNATURE-U25-real-43-route-body-synthetic-matrix-WIP');
   assert.equal(coverage.roles.client.length,9);
   assert.equal(coverage.roles.coach.length,17);
   assert.equal(coverage.roles.admin.length,17);
