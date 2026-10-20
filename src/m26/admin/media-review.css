@@ -84,3 +84,29 @@
   }
   .m26-media-review-route .m26-media-control-summary{grid-template-columns:minmax(0,1fr)}
 }
+
+/* SIGNATURE U25 · hero intrinsic-size correction at the narrowest phone width.
+ * The Admin Media Review heading could paint 20px beyond its padded hero
+ * despite border-box form controls. Wrap text within the flex item; preserve
+ * both the full heading and 44px action without clipping horizontal overflow. */
+@media(max-width:420px){
+  .m26-media-review-route > .m26-media-review-hero > div{
+    flex:0 1 auto;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+  }
+  .m26-media-review-route > .m26-media-review-hero :is(.m26-eyebrow,h2,p){
+    min-width:0;
+    max-width:100%;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .m26-media-review-route > .m26-media-review-hero > button{
+    display:block;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+}
