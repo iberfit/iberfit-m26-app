@@ -105,3 +105,69 @@ test('U27 appointment command preserves same-client session ID and starts privat
   assert.equal(command.payload.appointment.status,'propuesta');
   assert.equal(command.payload.appointment.visibleToClient,false);
 });
+
+
+test('U27 only one day is initially expanded; the remaining dates stay findable',()=>{
+  const items=buildClientPlanningItems({sessions:[session],appointments:[a2,a1]});
+  const markup=renderRc39Route({kind:'planificacion',role:'client',rc39:{planningItems:items},clientAppointments:[],serviceActive:true,sessionPreviewAssets:{catalog:[]}});
+  assert.equal((markup.match(/class="m26-rc39-day-group"/gu)||[]).length,2);
+  assert.equal((markup.match(/data-rc39-primary-day="true"/gu)||[]).length,1);
+  assert.match(markup,/<summary class="m26-rc39-day-heading">/u);
+  assert.match(markup,/data-rc39-date-target="2026-10-20"/u);
+  assert.match(markup,/data-rc39-date-target="2026-10-27"/u);
+});
+
+test('U27 clicking a calendar date expands its disclosure and restores keyboard focus',async()=>{
+  const {createRc39Controller}=await import('../src/m26/rc39/controller.js');
+  let focused=0,scrolled=0,prevented=0;
+  const summary={focus:()=>{focused++}};
+  const day={open:false,querySelector:()=>summary,scrollIntoView:()=>{scrolled++}};
+  const handlers=new Map();
+  const root={
+    addEventListener:(name,handler)=>handlers.set(name,[...(handlers.get(name)||[]),handler]),
+    removeEventListener:()=>{},
+    querySelector:(selector)=>selector==='#m26-plan-day-2026-10-27'?day:null,
+  };
+  const store={getState:()=>({identity:{role:'client'},collections:{appointments:[]}})};
+  const controller=createRc39Controller({root,store});
+  controller.mount();
+  const anchor={getAttribute:()=> '2026-10-27'};
+  const target={closest:(selector)=>selector==='[data-rc39-date-target]'?anchor:null};
+  const event={target,preventDefault:()=>{prevented++}};
+  for(const handler of handlers.get('click')||[])await handler(event);
+  assert.equal(day.open,true);
+  assert.equal(focused,1);
+  assert.equal(scrolled,1);
+  assert.equal(prevented,1);
+  controller.destroy();
+});
+
+test('U27 Coach auto-fills selected session duration, modality and prevents cross-client linkage',async()=>{
+  const {syncAppointmentFormState}=await import('../src/m26/app/workflow-controller.js');
+  const selectedClient={dataset:{clientModality:'presencial',sessionDuration:'60',trainingAddress:'Dirección habitual'}};
+  const clientField={value:CLIENT,selectedOptions:[selectedClient]};
+  const own={value:SESSION,disabled:false,dataset:{clientId:CLIENT,modality:'guiada_en_app',sessionDuration:'50'}};
+  const foreign={value:'foreign-session',disabled:false,dataset:{clientId:OTHER,modality:'presencial',sessionDuration:'45'}};
+  const blank={value:'',disabled:false,dataset:{}};
+  const sessionField={value:SESSION,options:[blank,own,foreign],get selectedOptions(){return [this.options.find(x=>x.value===this.value)||blank]}};
+  const modalityField={value:'',dataset:{}};
+  const startField={value:'2026-10-27T10:00'};
+  const endField={value:'',dataset:{}};
+  const locationField={value:'',dataset:{},setAttribute(){},removeAttribute(){}};
+  const inputs={clientId:clientField,sessionId:sessionField,modality:modalityField,startAt:startField,endAt:endField,location:locationField};
+  const form={elements:{namedItem:(name)=>inputs[name]||null},querySelector:()=>null};
+  const root={querySelector:()=>null};
+  const first=syncAppointmentFormState(form,root);
+  assert.equal(first.modality,'guiada_en_app');
+  assert.equal(first.sessionDurationMinutes,50);
+  assert.equal(endField.value,'2026-10-27T10:50');
+  assert.equal(foreign.disabled,true);
+  assert.equal(own.disabled,false);
+  clientField.value=OTHER;
+  const second=syncAppointmentFormState(form,root);
+  assert.equal(sessionField.value,'','changing client drops previously selected prescription');
+  assert.equal(second.modality,'presencial');
+  assert.equal(endField.value,'2026-10-27T11:00');
+  assert.equal(own.disabled,true);
+  assert.equal(foreign.disabled,false);
+});
