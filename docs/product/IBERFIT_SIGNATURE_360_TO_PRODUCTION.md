@@ -1,6 +1,16 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
-## Checkpoint vigente · 20-10-2026 · SIGNATURE U20 certificado en PRODUCCIÓN; U21 en desarrollo
+## Checkpoint vigente · 20-10-2026 · U21 certificado en PRODUCCIÓN, U22 en validación
+
+**U21 PROD:** fuente exacta `d045c6e569d1dd02e454bea200271b9a49b1d822`, PR [#1052](https://github.com/iberfit/iberfit-m26-app/pull/1052), [Production Promotion #39372054403](https://github.com/iberfit/iberfit-m26-app/actions/runs/39372054403) SUCCESS con identidad viva de `app.iberfit.cl`, M44 vigente, CI, Lighthouse, navegador y auditoría read-only. El cierre de Android #39372054429 no confirma publicación en Google Play.
+
+**U22 — trabajo propuesto, NO publicado en este checkpoint:** cerrar bloque de robustez de navegación móvil entre los tres roles; sustituir la semántica incorrecta de menú de aplicación por botones de navegación nativos y restaurar el foco al cerrar «Más» con Escape. En cambios de ruta o rol externos, no mantener abierto el disclosure anterior ni dejar el contenido principal `inert`. Añadir prueba de navegación por las 43 rutas × cinco anchos con entorno sintético y fuente real de la shell, junto a contratos del inventario. El navegador sintético NO acredita autenticación real, contenido funcional de cada área ni estados negativos; todas las rutas siguen pendientes de aceptación integral.
+
+**Invariantes U22:** preservar U21 y anteriores; no cambiar Auth, RLS, esquema, secretos ni escritura backend. CI, Device Experience, Canary Exact Deploy, WebAuthn, Android cuando aplique y promoción exacta con recuperación vigente son condiciones para considerar una release integrada en producción.
+
+---
+
+## Checkpoint histórico · 20-10-2026 · SIGNATURE U20 certificado en PRODUCCIÓN; U21 en desarrollo
 
 **U20 PRODUCCIÓN certificada:** fuente exacta `d8e77ddd35b844617196f98eb5cefd13a1139a07`, merge PR [#1051](https://github.com/iberfit/iberfit-m26-app/pull/1051), [Canary Exact Deploy #39362689347](https://github.com/iberfit/iberfit-m26-app/actions/runs/39362689347) SUCCESS y [Production Promotion #39365028769](https://github.com/iberfit/iberfit-m26-app/actions/runs/39365028769) SUCCESS. La promoción verificó SHA vivo en `app.iberfit.cl`, regresión, Lighthouse, navegador Chromium, auditoría `IBERFIT_CONTINUOUS_AUDIT=PASS` y rollback. Frontend-only: 8 archivos, `unappliedMigrations=0`, `backendWrites=false`, `hostedAuthWrites=false`. También 13 workflows postmerge SUCCESS. El éxito de Android #39365028786 no equivale a publicación comprobada en Google Play.
 
