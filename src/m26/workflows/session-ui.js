@@ -89,28 +89,72 @@ function qualityText(intelligence,live){
 // coordinate. Keep the original telemetry untouched; sanitize only the chart.
 export function renderHeartRateSparkline(points=[]){
   const readings=(Array.isArray(points)?points:[])
-    .map((point)=>point?.bpm)
-    .filter((value)=>value!==null&&value!==undefined&&
-      (typeof value==='number'||(typeof value==='string'&&value.trim().length>0)))
-    .map(Number)
-    .filter((value)=>Number.isFinite(value)&&value>0);
+    .filter((point)=>point&&point.bpm!==null&&point.bpm!==undefined&&
+      (typeof point.bpm==='number'||(typeof point.bpm==='string'&&point.bpm.trim())))
+    .map((point)=>({bpm:Number(point.bpm),at:point.at?Date.parse(point.at):NaN}))
+    .filter((point)=>Number.isFinite(point.bpm)&&point.bpm>0);
   if(readings.length<2){
     return '<p class="m26-empty-copy">El timeline aparecerá cuando exista cobertura suficiente.</p>';
   }
-  const min=Math.min(...readings);
-  const max=Math.max(...readings);
+  const min=Math.min(...readings.map((point)=>point.bpm));
+  const max=Math.max(...readings.map((point)=>point.bpm));
   const span=Math.max(1,max-min);
-  const coordinates=readings.map((bpm,index)=>{
-    const x=(index/(readings.length-1))*100;
-    const y=34-((bpm-min)/span)*30;
-    return `${Math.round(x*10)/10},${Math.round(y*10)/10}`;
-  }).join(' ');
-  return `<div class="m26-live-hr-chart"><svg viewBox="0 0 100 36" preserveAspectRatio="none" role="img" aria-label="Evolución de frecuencia cardiaca durante la sesión; de ${e(min)} a ${e(max)} lpm"><polyline points="${e(coordinates)}"></polyline></svg><div class="m26-live-hr-chart-scale"><span>${e(min)} lpm</span><span>${e(max)} lpm</span></div></div>`;
+  const timestamped=readings.every((point)=>Number.isFinite(point.at))&&
+    readings.every((point,index)=>index===0||point.at>=readings[index-1].at);
+  const firstAt=readings[0].at;
+  const lastAt=readings.at(-1).at;
+  const duration=timestamped?Math.max(1,lastAt-firstAt):1;
+  const coords=readings.map(({bpm,at},index)=>({
+    x:Math.round((timestamped?(at-firstAt)/duration:index/(readings.length-1))*1000)/10,
+    y:Math.round((34-((bpm-min)/span)*30)*10)/10,
+  }));
+  // A gap over 30 seconds is not a continuous cardiovascular trace.
+  // Preserve original sample timestamps and avoid fabricating intervening data.
+  const segments=[];
+  let segment=[];
+  let gaps=0;
+  for(let index=0;index<coords.length;index+=1){
+    if(index>0&&timestamped&&readings[index].at-readings[index-1].at>30000){
+      segments.push(segment);
+      segment=[];
+      gaps++;
+    }
+    segment.push(coords[index]);
+  }
+  segments.push(segment);
+  const markup=segments.map((part)=>part.length>=2
+    ?`<polyline points="${e(part.map((point)=>`${point.x},${point.y}`).join(' '))}"></polyline>`
+    :`<circle cx="${e(part[0].x)}" cy="${e(part[0].y)}" r="1.3" fill="currentColor"></circle>`
+  ).join('');
+  const gapNote=gaps
+    ?'<p class="m26-live-reading-note">Señal interrumpida: el gráfico no une periodos sin mediciones.</p>'
+    :'';
+  return `<div class="m26-live-hr-chart"><svg viewBox="0 0 100 36" preserveAspectRatio="none" role="img" aria-label="Evolución de frecuencia cardiaca durante la sesión; de ${e(min)} a ${e(max)} lpm${gaps?'; con interrupciones de señal':''}">${markup}</svg><div class="m26-live-hr-chart-scale"><span>${e(min)} lpm</span><span>${e(max)} lpm</span></div>${gapNote}</div>`;
+}
+function repeatedExerciseContext(execution,blockId,exerciseId){
+  if(!blockId||!exerciseId)return '';
+  const occurrences=[...new Set((execution?.queue||[])
+    .filter((item)=>item?.exerciseId===exerciseId)
+    .map((item)=>item?.blockId).filter(Boolean))];
+  if(occurrences.length<2)return '';
+  const index=occurrences.indexOf(blockId);
+  return index<0?' · bloque sin identificar':` · aparición ${index+1} de ${occurrences.length}`;
 }
 function liveTelemetryStrip(execution,catalog){
   const live=execution?.liveTelemetry;
   if(!live)return '';
   const intelligence=deriveLiveSessionIntelligence(execution);
+  const current=intelligence.liveReading;
+  const currentHeartRate=bpmText(current.currentBpm);
+  const age=current.ageSeconds;
+  const ageLabel=age===null?'':age>=3600?`${Math.floor(age/3600)} h`:age>=60?`${Math.floor(age/60)} min`:`${age} s`;
+  const lastNote=current.state==='current'
+    ?''
+    :current.lastBpm!==null
+      ?`Última FC registrada: ${bpmText(current.lastBpm)}${ageLabel?` · hace ${ageLabel}`:''}. ${current.state==='not-connected'?'Sin señal en directo; revisa la conexión del dispositivo.':current.state==='signal-invalid'?'Lectura reciente descartada por calidad; comprueba el contacto y la señal.':'Esperando una lectura reciente del dispositivo.'}`
+      :current.state==='not-connected'
+        ?'Sin señal en directo. Revisa la conexión del dispositivo.'
+        :'Sin lectura actual confirmada. Esperando una medición reciente.';
   const source=
     intelligence.source.providerLabel||
     live.providerLabel||
@@ -129,32 +173,35 @@ function liveTelemetryStrip(execution,catalog){
   const responseName=response?.exerciseId
     ?exerciseDisplayName(catalog?.get?.(response.exerciseId)||{})||'Ejercicio actual'
     :'Sin ejercicio correlacionado';
+  const responseContext=response?repeatedExerciseContext(execution,response.blockId,response.exerciseId):'';
   const responseMarkup=response
-    ?`<article class="m26-live-context-card"><span>Respuesta por ejercicio</span><strong>${e(responseName)}</strong><p>Media ${e(bpmText(response.averageBpm))} · Máxima ${e(bpmText(response.maxBpm))} · ${e(response.sampleCount)} muestras</p></article>`
+    ?`<article class="m26-live-context-card"><span>Respuesta por ejercicio</span><strong>${e(responseName)}${e(responseContext)}</strong><p>Media ${e(bpmText(response.averageBpm))} · Máxima ${e(bpmText(response.maxBpm))} · ${e(response.sampleCount)} muestras</p></article>`
     :'<article class="m26-live-context-card"><span>Respuesta por ejercicio</span><strong>Pendiente de cobertura</strong><p>Se mostrará cuando existan muestras de trabajo correlacionadas.</p></article>';
 
   const recovery=intelligence.latestRecovery;
   const recoveryName=recovery?.exerciseId
     ?exerciseDisplayName(catalog?.get?.(recovery.exerciseId)||{})||'Ejercicio'
     :'Descanso';
+  const recoveryContext=recovery?repeatedExerciseContext(execution,recovery.blockId,recovery.exerciseId):'';
   let recoveryMarkup='<article class="m26-live-context-card"><span>Recuperación en descanso</span><strong>Pendiente de cobertura</strong><p>Necesita al menos dos lecturas durante el mismo descanso.</p></article>';
   if(recovery?.available){
     const change=Number(recovery.dropBpm);
     const headline=change>0
       ?`Descenso observado · ${bpmDeltaText(change)}`
       :`Cambio observado · ${change<0?'+':''}${bpmDeltaText(Math.abs(change))}`;
-    recoveryMarkup=`<article class="m26-live-context-card"><span>Recuperación en descanso</span><strong>${e(headline)}</strong><p>${e(recoveryName)} · ${e(recovery.elapsedSeconds)} s observados · sin clasificación clínica</p></article>`;
+    recoveryMarkup=`<article class="m26-live-context-card"><span>Recuperación en descanso</span><strong>${e(headline)}</strong><p>${e(recoveryName)}${e(recoveryContext)} · ${e(recovery.elapsedSeconds)} s observados · sin clasificación clínica</p></article>`;
   }
 
   const correlation=intelligence.latestSetCorrelation;
   const correlationName=correlation?.exerciseId
     ?exerciseDisplayName(catalog?.get?.(correlation.exerciseId)||{})||'Serie registrada'
     :'Serie registrada';
+  const correlationContext=correlation?repeatedExerciseContext(execution,correlation.blockId,correlation.exerciseId):'';
   const correlationMarkup=correlation
-    ?`<article class="m26-live-context-card"><span>FC + esfuerzo percibido</span><strong>${e(correlationName)} · serie ${e(correlation.setNumber)}</strong><p>RPE ${e(correlation.rpe??'—')} · RIR ${e(correlation.rir??'—')} · FC media ${e(bpmText(correlation.heartRate.averageBpm))} · FC máxima ${e(bpmText(correlation.heartRate.maxBpm))}</p></article>`
+    ?`<article class="m26-live-context-card"><span>FC + esfuerzo percibido</span><strong>${e(correlationName)}${e(correlationContext)} · serie ${e(correlation.setNumber)}</strong><p>RPE ${e(correlation.rpe??'—')} · RIR ${e(correlation.rir??'—')} · FC media ${e(bpmText(correlation.heartRate.averageBpm))} · FC máxima ${e(bpmText(correlation.heartRate.maxBpm))}</p></article>`
     :'<article class="m26-live-context-card"><span>FC + esfuerzo percibido</span><strong>Sin serie registrada todavía</strong><p>La correlación aparece después de registrar RPE/RIR.</p></article>';
 
-  return `<section class="m26-panel m26-panel-soft m26-live-telemetry m26-live-intelligence" aria-live="polite"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Inteligencia de sesión en vivo</p><h3>FC actual · ${e(bpmText(intelligence.currentHeartRateBpm))}</h3><p>${e(source)} · ${e(state)} · ${e(qualityText(intelligence,live))}</p></div></div><div class="m26-live-intelligence-grid"><div class="m26-live-intelligence-metric"><span>FC actual</span><strong>${e(bpmText(intelligence.currentHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC media</span><strong>${e(bpmText(intelligence.averageHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC máxima</span><strong>${e(bpmText(intelligence.maxHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>Cobertura</span><strong>${e(intelligence.interpretableEventCount)} / ${e(intelligence.rawEventCount)}</strong><small>interpretables / raw</small></div></div>${renderHeartRateSparkline(intelligence.timeline.points)}<div class="m26-live-context-grid">${responseMarkup}${recoveryMarkup}${correlationMarkup}</div><details class="m26-live-method"><summary>Cómo se calcula</summary><p>FC media/mínima/máxima: ${e(intelligence.methodology.heartRate)}.</p><p>Calidad: ${e(intelligence.methodology.qualityFilter)}.</p><p>Recuperación: ${e(intelligence.methodology.recovery)}.</p><p>RPE/RIR: ${e(intelligence.methodology.rpeRirCorrelation)}.</p></details><p class="m26-notice">Dato → contexto → entrenador decide. Esta información no modifica automáticamente la prescripción, las cargas, las series ni los ejercicios.</p></section>`;
+  return `<section class="m26-panel m26-panel-soft m26-live-telemetry m26-live-intelligence" aria-live="polite"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Inteligencia de sesión en vivo</p><h3>FC actual · ${e(currentHeartRate)}</h3><p>${e(source)} · ${e(state)} · ${e(qualityText(intelligence,live))}</p>${lastNote?`<p class="m26-live-reading-note" role="status">${e(lastNote)}</p>`:''}</div></div><div class="m26-live-intelligence-grid"><div class="m26-live-intelligence-metric"><span>FC actual</span><strong>${e(currentHeartRate)}</strong></div><div class="m26-live-intelligence-metric"><span>FC media</span><strong>${e(bpmText(intelligence.averageHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC máxima</span><strong>${e(bpmText(intelligence.maxHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>Cobertura</span><strong>${e(intelligence.interpretableEventCount)} / ${e(intelligence.rawEventCount)}</strong><small>interpretables / raw</small></div></div>${renderHeartRateSparkline(intelligence.timeline.points)}<div class="m26-live-context-grid">${responseMarkup}${recoveryMarkup}${correlationMarkup}</div><details class="m26-live-method"><summary>Cómo se calcula</summary><p>FC media/mínima/máxima: ${e(intelligence.methodology.heartRate)}.</p><p>Calidad: ${e(intelligence.methodology.qualityFilter)}.</p><p>Recuperación: ${e(intelligence.methodology.recovery)}.</p><p>RPE/RIR: ${e(intelligence.methodology.rpeRirCorrelation)}.</p></details><p class="m26-notice">Dato → contexto → entrenador decide. Esta información no modifica automáticamente la prescripción, las cargas, las series ni los ejercicios.</p></section>`;
 }function alternativeLabel(item={}){const meta=[item.equipment,item.difficulty].map((value)=>String(value||'').trim()).filter(Boolean).join(' · ');return `${exerciseDisplayName(item)}${meta?` · ${meta}`:''}`;}
 const SESSION_REASON_PRESETS=Object.freeze(['Equipo no disponible','Molestia','Fatiga','Ajuste técnico']);
 function coachReasonPresets(target,isCoach){

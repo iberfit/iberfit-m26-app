@@ -5,6 +5,7 @@ export const LIVE_SESSION_INTELLIGENCE_SCHEMA_VERSION=
 
 export const LIVE_SESSION_RECOVERY_WINDOW_MS=60*1000;
 export const LIVE_SESSION_TIMELINE_MAX_POINTS=72;
+export const LIVE_SESSION_CURRENT_READING_MAX_AGE_MS=30*1000;
 
 const CANONICAL_SCHEMA='iberfit.telemetry.v1';
 const NON_INTERPRETABLE_CODES=new Set([
@@ -43,6 +44,35 @@ function validHeartRate(value){
 function roundedHeartRate(value){
   const number=validHeartRate(value);
   return number===null?null:Math.round(number*10)/10;
+}
+function recentLiveReading(live,overall,rawEvents,nowMs){
+  // Keep historical aggregates intact, but never revive a prior valid sample
+  // after the sensor supplied a newer rejected/disconnected observation.
+  const latestRaw=rawEvents.at(-1)||null;
+  const rawAt=safeTime(latestRaw?.recordedAt||latestRaw?.receivedAt);
+  const validAt=safeTime(overall.latestAt);
+  const directAt=safeTime(live?.latestAt);
+  const directBpm=roundedHeartRate(live?.heartRateBpm);
+  const directNewest=directAt!==null&&(validAt===null||directAt>validAt)&&
+    (rawAt===null||directAt>rawAt);
+  const lastBpm=directNewest?directBpm:(overall.latestBpm??directBpm);
+  const sourceAt=directNewest?directAt:(validAt??directAt);
+  const latestRawInvalid=rawAt!==null&&
+    (validAt===null||rawAt>validAt)&&
+    (directAt===null||rawAt>=directAt)&&
+    !isInterpretableEvent(latestRaw);
+  const ageMs=sourceAt===null?null:nowMs-sourceAt;
+  const connected=String(live?.status||'').trim().toLowerCase()==='connected';
+  const fresh=connected&&!latestRawInvalid&&lastBpm!==null&&ageMs!==null&&
+    ageMs>=-5000&&ageMs<=LIVE_SESSION_CURRENT_READING_MAX_AGE_MS;
+  return deepFreeze({
+    currentBpm:fresh?lastBpm:null,
+    lastBpm,
+    lastAt:sourceAt===null?null:new Date(sourceAt).toISOString(),
+    ageSeconds:ageMs!==null&&ageMs>=0?Math.floor(ageMs/1000):null,
+    state:fresh?'current':!connected?'not-connected':latestRawInvalid?'signal-invalid':
+      lastBpm===null?'no-reading':ageMs===null?'undated':'stale',
+  });
 }
 function eventHeartRate(event){
   return validHeartRate(event?.raw?.heartRateBpm);
@@ -260,6 +290,17 @@ function observedEffort(value,min,max){
   return Number.isFinite(number)&&number>=min&&number<=max?number:null;
 }
 function setCorrelations(execution,events){
+  // Index once: a long guided session may contain many recorded sets.
+  // Avoid rescanning the entire heart-rate timeline for every result.
+  const eventGroups=new Map();
+  for(const event of events){
+    if(event?.context?.phase!=='work'||!event?.context?.exerciseId)continue;
+    const setNumber=Number(event?.context?.setNumber);
+    if(!Number.isInteger(setNumber)||setNumber<1)continue;
+    const key=JSON.stringify([event.context.exerciseId,setNumber]);
+    if(!eventGroups.has(key))eventGroups.set(key,[]);
+    eventGroups.get(key).push(event);
+  }
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
   const stored=execution?.results&&typeof execution.results==='object'&&!Array.isArray(execution.results)
     ?Object.values(execution.results)
@@ -282,11 +323,7 @@ function setCorrelations(execution,events){
     (safeTime(a.result.completedAt)||0)-(safeTime(b.result.completedAt)||0)
   );
   return rows.map(({result,setNumber,blockId,occurrences})=>{
-    const candidates=events.filter((event)=>
-      event?.context?.phase==='work'&&
-      event?.context?.exerciseId===result.exerciseId&&
-      Number(event?.context?.setNumber)===setNumber
-    );
+    const candidates=eventGroups.get(JSON.stringify([result.exerciseId,setNumber]))||[];
     const observedBlocks=new Set(candidates.map((event)=>event?.context?.blockId||null));
     // A missing legacy block is safe only when all candidate events refer to
     // a single block and the execution does not repeat that exercise/series.
@@ -334,6 +371,7 @@ export function deriveLiveSessionIntelligence(
   {
     maxTimelinePoints=LIVE_SESSION_TIMELINE_MAX_POINTS,
     recoveryWindowMs=LIVE_SESSION_RECOVERY_WINDOW_MS,
+    nowMs=Date.now(),
   }={}
 ){
   const rawEvents=sortedEvents(execution);
@@ -353,9 +391,12 @@ export function deriveLiveSessionIntelligence(
   const correlations=setCorrelations(execution,interpretable);
   const latest=interpretable.at(-1)||null;
   const live=execution?.liveTelemetry||{};
+  const clock=Number.isFinite(Number(nowMs))?Number(nowMs):Date.now();
+  const liveReading=recentLiveReading(live,overall,rawEvents,clock);
 
   return deepFreeze({
     schemaVersion:LIVE_SESSION_INTELLIGENCE_SCHEMA_VERSION,
+    liveReading,
     available:Boolean(interpretable.length||validHeartRate(live.heartRateBpm)!==null||validHeartRate(live.averageHeartRateBpm)!==null),
     rawEventCount:rawEvents.length,
     interpretableEventCount:interpretable.length,

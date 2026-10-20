@@ -34,6 +34,10 @@ on:
 permissions:
   contents: read
 
+# Ops checkpoint 2026-10-19 U19 macro exact-release freshness:
+# On certified Canary merge, refresh the protected encrypted production DB/Storage
+# backup, isolated PostgreSQL 17 restore and Storage bytes/parity evidence.
+# Comment-only trigger: no change to jobs, secrets, permissions or fail-closed gates.
 # Ops checkpoint 2026-10-19 U17 verified exact-release proof refresh:
 # Re-run the existing protected encrypted DB+Storage archive and isolated
 # PostgreSQL 17 restore on a certified Canary merge for current <=2h proof.
