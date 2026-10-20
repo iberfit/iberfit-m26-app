@@ -201,3 +201,20 @@ test('P0 Client session projections never leak Coach-only appointments before co
   assert.equal(hidden.rc39.sessionProjections[0].appointmentId,null);
   assert.equal(hidden.rc39.appointments.length,0);
 });
+
+
+
+test('U27 Sessions surface shows dated occurrences instead of accumulated session cards',()=>{
+  const items=buildClientPlanningItems({sessions:[session],appointments:[a1,a2]});
+  const vm={kind:'sesion',role:'client',serviceActive:true,rc39:{
+    planningItems:items,
+    sessionProjections:[items[0]],
+  },sessionPreviewAssets:{catalog:[]}};
+  const markup=renderRc39Route(vm);
+  assert.match(markup,/data-m27-session-surface="sessions"/u);
+  assert.match(markup,/aria-label="Fechas de entrenamiento programadas"/u);
+  assert.match(markup,/data-training-date="2026-10-20"/u);
+  assert.match(markup,/data-training-date="2026-10-27"/u);
+  assert.equal((markup.match(/data-rc39-session="/gu)||[]).length,2);
+  assert.equal((markup.match(/data-rc39-primary-day="true"/gu)||[]).length,1);
+});
