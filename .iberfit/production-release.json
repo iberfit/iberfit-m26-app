@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d8e77ddd35b844617196f98eb5cefd13a1139a07",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "4399be6098b37dd6477f18539838aec324ce7f25",
+  "notes": "SIGNATURE 360 U20 macro release. PR #1051 MERGED, exact Canary source d8e77ddd35b844617196f98eb5cefd13a1139a07 verified by Canary Exact Deploy #39362689347 SUCCESS and all 13 postmerge workflows SUCCESS, including CI, daily visual evidence, real QA writes, authenticated Client, Coach and Admin recurring WebAuthn, device UX, read-only gates and continuous audit. Improve session Coach/Client: auto expire live HR on real-time tick after 30s and on foreground return without rerender/input focus loss, distinguish stale/invalid/disconnected signals with actionable recovery copy and immutable recorded timestamp, timer semantics avoid screen-reader announcement every second, prevent exit on failed persistence checkpoint with explicit retry, truthfully preserve prior zero repetitions, mount manual sync state and responsive UI. Exactly 8 changed files source vs U19, frontend+tests+documentation only. No unapplied migrations; no backend writes or hosted Auth/RLS changes. Previous exact live PROD U19 source 4399be6098b37dd6477f18539838aec324ce7f25 certified Production Promotion #39360160111. Protected independent encrypted DB+Storage M44 restore #39357656908 SUCCESS; require fresh recovery evidence <= 2 hours and never claim full Supabase managed platform recovery. Signature 360 integral route-state-device acceptance remains pending for 43 routes, not misrepresented as completed. Fail-closed promotion must independently reverify current source SHA, schema, auth assets, Lighthouse, live interactive browser, read-only audit and rollback."
+}
