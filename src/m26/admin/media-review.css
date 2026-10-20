@@ -70,3 +70,17 @@
     max-width:100%;
   }
 }
+
+/* SIGNATURE U25 · avoid nested controls adding border/padding to 100% width.
+ * Scoped entirely to Media Factory Admin, without forcing hidden overflow. */
+@media(max-width:420px){
+  .m26-media-review-route,
+  .m26-media-review-route *,
+  .m26-media-review-route *::before,
+  .m26-media-review-route *::after{box-sizing:border-box}
+  .m26-media-review-route :is(.m26-media-control-summary,.m26-media-review-hero,.m26-media-control-section-head){
+    min-width:0;
+    max-width:100%;
+  }
+  .m26-media-review-route .m26-media-control-summary{grid-template-columns:minmax(0,1fr)}
+}
