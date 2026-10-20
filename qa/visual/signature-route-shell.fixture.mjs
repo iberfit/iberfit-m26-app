@@ -4,6 +4,7 @@
 import {createCanonicalStore} from '../../src/m26/canonical-store.js';
 import {createProductionState} from '../../src/m26/production-state.js';
 import {createShellController} from '../../src/m26/shell/shell-controller.js';
+import {renderClientBottomNav} from '../../src/m26/modules/route-render.js';
 
 const role=new URLSearchParams(location.search).get('role');
 if(!['client','coach','admin'].includes(role))throw new Error('SIGNATURE_QA_ROLE_INVALID');
@@ -37,7 +38,15 @@ const initial=createProductionState({
 const store=createCanonicalStore(initial);
 const controller=createShellController({
   root,store,
-  renderRoute:(vm)=>'<section class="m26-route-placeholder" data-qa-current-area="'+vm.activeArea+'"><h2>'+vm.page.title+'</h2><p>Contenido simulado: no representa aceptación funcional.</p></section>',
+  renderRoute:(vm)=>{
+    const content='<section class="m26-route-placeholder" data-qa-current-area="'+vm.activeArea+'"><h2>'+vm.page.title+'</h2><p>Contenido simulado: no representa aceptación funcional.</p></section>';
+    // Client production deliberately suppresses the shell mobile navigation.
+    // Render the actual production Client bottom nav helper around fake body,
+    // not a handcrafted duplicate, so physical taps exercise the real dock.
+    return role==='client'
+      ?'<div class="m26-client-route-shell" data-client-bottom-nav-route="'+vm.activeArea+'">'+content+renderClientBottomNav({kind:vm.activeArea})+'</div>'
+      :content;
+  },
 });
 controller.mount();
 globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__=Object.freeze({

@@ -31,6 +31,17 @@ test('U23 interactive browser matrix is attached to the real device gate',()=>{
   assert.doesNotMatch(spec,/authenticated acceptance certified/u);
 });
 
+test('U23 Client physical dock uses the actual production renderer and Escape recovery',()=>{
+  const module=read('src/m26/modules/route-render.js');
+  const fixture=read('qa/visual/signature-route-shell.fixture.mjs');
+  const controller=read('src/m26/shell/shell-controller.js');
+  assert.match(module,/export function renderClientBottomNav\\(vm\\)/u);
+  assert.match(fixture,/renderClientBottomNav\\(\\{kind:vm.activeArea\\}\\)/u);
+  assert.match(controller,/details\\.m26-client-bottom-nav-more\\[open\\]/u);
+  assert.match(controller,/clientMoreSummary\\.setAttribute\\?\\.\\('aria-expanded'/u);
+  assert.match(controller,/if\\(disclosure\\.matches\\?\\.\\('details\\.m26-mobile-more'\\)\\)/u);
+});
+
 test('U23 compact dock does not rely on horizontal scrolling or clipping the Más overlay',()=>{
   const styles=read('src/m26/design/iberfit-premium-v3.css');
   const block=styles.slice(styles.lastIndexOf('SIGNATURE U23 · compact navigation'));

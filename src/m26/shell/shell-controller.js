@@ -443,6 +443,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if(!includeMobileMore){
       const oldMobileMore=root.querySelector?.('details.m26-mobile-more[open]');
       if(oldMobileMore)setMobileMoreOpen(oldMobileMore,false);
+      // Cliente uses a separate production bottom dock, never the shell drawer.
+      // An external route/role transition must not resurrect its old disclosure.
+      const oldClientMore=root.querySelector?.('details.m26-client-bottom-nav-more[open]');
+      if(oldClientMore){
+        oldClientMore.open=false;
+        oldClientMore.removeAttribute?.('open');
+        oldClientMore.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
+      }
     }
     const disclosureSnapshot=captureDisclosureContinuity();
     root.innerHTML = markup;
@@ -757,6 +765,20 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       }
     }
 
+    const clientMoreSummary=event.target.closest?.('details.m26-client-bottom-nav-more > summary');
+    if(clientMoreSummary){
+      const details=clientMoreSummary.closest?.('details.m26-client-bottom-nav-more');
+      if(details){
+        event.preventDefault?.();
+        const next=!(details.open||details.hasAttribute?.('open'));
+        details.open=next;
+        if(next)details.setAttribute?.('open','');
+        else details.removeAttribute?.('open');
+        clientMoreSummary.setAttribute?.('aria-expanded',next?'true':'false');
+        return;
+      }
+    }
+
     const mobileMoreSummary=event.target.closest?.('.m26-mobile-more > summary');
     if(mobileMoreSummary){
       const details=mobileMoreSummary.closest?.('details.m26-mobile-more');
@@ -872,11 +894,16 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
   function onKeyDown(event){
     if(event?.key!=='Escape')return;
-    const disclosure=root.querySelector?.('details.m26-mobile-more[open]');
+    const disclosure=root.querySelector?.('details.m26-mobile-more[open],details.m26-client-bottom-nav-more[open]');
     if(!disclosure)return;
     event.preventDefault?.();
     event.stopPropagation?.();
-    setMobileMoreOpen(disclosure,false);
+    if(disclosure.matches?.('details.m26-mobile-more'))setMobileMoreOpen(disclosure,false);
+    else{
+      disclosure.open=false;
+      disclosure.removeAttribute?.('open');
+      disclosure.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
+    }
     disclosure.querySelector?.(':scope > summary')?.focus?.({preventScroll:true});
     releasePointerInteraction({deferRender:false});
     queueMicrotask(flushDeferredRender);
