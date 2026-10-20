@@ -434,6 +434,16 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
     const markup=renderM26Shell(viewModel, routeMarkup);
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
+    // An external route/role transition can arrive while "Más" is expanded.
+    // Never resurrect that old drawer (and its inert workspace) on the new route.
+    // Same-route state refreshes still preserve the reader's disclosure state.
+    const previousRole=String(root.querySelector?.('.m26-shell')?.getAttribute?.('data-m26-role')||'');
+    const previousArea=String(root.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area')||'');
+    const includeMobileMore=previousRole===String(viewModel.identity?.role||'')&&previousArea===String(viewModel.activeArea||'');
+    if(!includeMobileMore){
+      const oldMobileMore=root.querySelector?.('details.m26-mobile-more[open]');
+      if(oldMobileMore)setMobileMoreOpen(oldMobileMore,false);
+    }
     const disclosureSnapshot=captureDisclosureContinuity();
     root.innerHTML = markup;
     lastMarkup=markup;
@@ -860,6 +870,18 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
+  function onKeyDown(event){
+    if(event?.key!=='Escape')return;
+    const disclosure=root.querySelector?.('details.m26-mobile-more[open]');
+    if(!disclosure)return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    setMobileMoreOpen(disclosure,false);
+    disclosure.querySelector?.(':scope > summary')?.focus?.({preventScroll:true});
+    releasePointerInteraction({deferRender:false});
+    queueMicrotask(flushDeferredRender);
+  }
+
   function onChange(event) {
     const committedControl=interactiveControl(event.target);
     if(committedControl&&interactionPointerTarget===committedControl){
@@ -918,6 +940,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
     root.addEventListener('click', onRoleChoiceClick, true);
     root.addEventListener('click', onClick);
+    root.addEventListener('keydown',onKeyDown);
     root.addEventListener('change', onChange);
     root.addEventListener('input',onInputActivity);
     root.addEventListener('submit',onFormSubmit);
@@ -954,6 +977,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     markTextEntryActive(null);
     root.removeEventListener('click', onRoleChoiceClick, true);
     root.removeEventListener('click', onClick);
+    root.removeEventListener('keydown',onKeyDown);
     root.removeEventListener('change', onChange);
     root.removeEventListener('input',onInputActivity);
     root.removeEventListener('submit',onFormSubmit);

@@ -34,6 +34,11 @@ on:
 permissions:
   contents: read
 
+# Ops checkpoint 2026-10-20 SIGNATURE U22 release proof refresh:
+# Comment-only trigger: after a certified Canary merge, create a new protected
+# encrypted production DB+Storage recovery point with isolated PostgreSQL 17
+# restore and object-integrity evidence. No guard, secret, input, job or
+# production write policy is changed; production promotion remains fail closed.
 # Ops checkpoint 2026-10-19 U19 macro exact-release freshness:
 # On certified Canary merge, refresh the protected encrypted production DB/Storage
 # backup, isolated PostgreSQL 17 restore and Storage bytes/parity evidence.
