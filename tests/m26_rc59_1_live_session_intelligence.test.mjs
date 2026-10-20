@@ -231,7 +231,8 @@ test('RC59.1 correlaciona FC de la serie con RPE y RIR registrados',()=>{
   assert.equal(correlation.heartRate.sampleCount,2);
   assert.equal(correlation.heartRate.averageBpm,130);
   assert.equal(correlation.heartRate.maxBpm,140);
-  assert.equal(correlation.joinMethod,'exerciseId+setNumber');
+  assert.equal(correlation.joinMethod,'blockId+exerciseId+setNumber');
+  assert.equal(correlation.blockId,'BLOCK-A');
 });
 
 test('RC59.1 UI muestra metricas timeline recuperacion y RPE RIR con metodo explicito',()=>{
