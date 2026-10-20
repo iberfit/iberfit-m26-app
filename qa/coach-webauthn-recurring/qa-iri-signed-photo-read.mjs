@@ -33,3 +33,22 @@ export function isQaIriSignedPhotoRead(request,{qaOrigin}={}){
   }
   return false; // No PUT, PATCH, DELETE, upload, list, signMany or public object.
 }
+
+
+// Preparation only: the live QA interceptor does not import this function.
+// Minimise private photograph request evidence, including DENIED requests.
+// Never serialise client, assessment or capture IDs or signed URL tokens.
+export function qaIriPrivatePhotoEvidenceLabel(request,{qaOrigin}={}){
+  if(!request)return null;
+  let url;
+  try{url=new URL(request.url());}catch{return null;}
+  let pathname=url.pathname;
+  try{pathname=decodeURIComponent(pathname);}catch{}
+  if(!pathname.toLowerCase().includes('iberfit-iri-photogrammetry'))return null;
+  const method=String(request.method()).toUpperCase();
+  const safeMethod=/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/u.test(method)?method:'OTHER';
+  const scope=qaOrigin&&url.origin===qaOrigin?'qa-supabase':'other-origin';
+  const operation=/^\/storage\/v1\/object\/sign\//iu.test(pathname)?'sign':'other';
+  const view=pathname.match(/\/(front|back|left|right)(?:\/|$)/iu)?.[1]?.toLowerCase()||'unknown';
+  return safeMethod+' '+scope+' private-iri-photo operation:'+operation+' view:'+view;
+}
