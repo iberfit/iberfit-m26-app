@@ -51,7 +51,10 @@ export async function certifyClientSignatureRoute(page,requested){
     let observation='visible';
     if(area==='hoy')observation='daily-home';
     if(area==='planificacion')observation=has('.m30-planning-overview.is-pending')?'unpublished-plan':'plan-present';
-    if(area==='sesion')observation=body?.querySelector('.m26-rc39-sessions')?.getAttribute('data-client-session-state')||'missing';
+    if(area==='sesion'){
+      const sessionRoot=body?.matches?.('.m26-rc39-sessions')?body:body?.querySelector('.m26-rc39-sessions');
+      observation=sessionRoot?.getAttribute('data-client-session-state')||'missing';
+    }
     if(area==='progreso')observation=body?.querySelector('[data-client-progress-stage]')?.getAttribute('data-client-progress-stage')||'missing';
     if(area==='informes')observation=has('[data-iri-diagnosis]')?'iri-confirmed':'iri-pending';
     if(area==='actividad')observation=has('[data-engagement-form="checkin"]')?'checkin-available':'training-unavailable';
