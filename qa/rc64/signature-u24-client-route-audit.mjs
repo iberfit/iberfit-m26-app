@@ -39,7 +39,8 @@ export async function certifyClientSignatureRoute(page,requested){
   await expect(shell,requested+': actual Client renderer').toHaveAttribute('data-client-bottom-nav-route',expected);
   const body=shell.locator(':scope > :not(.m26-client-bottom-nav-layer)').first();
   await expect(body,requested+': nonempty screen body').toBeVisible();
-  await expect(body.locator(CONTRACT[requested].selector).first(),requested+': actual route component').toBeVisible();
+  // Route component may be the body root itself; search from its wrapper.
+  await expect(shell.locator(CONTRACT[requested].selector).first(),requested+': actual route component').toBeVisible();
   await expect(body.locator('h2,h3').first(),requested+': meaningful screen heading').toBeVisible();
   await expect(body.locator('.m26-route-placeholder'),requested+': never silently show placeholder').toHaveCount(0);
 
