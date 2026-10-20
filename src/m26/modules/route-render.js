@@ -4861,7 +4861,7 @@ function clientBottomNavMore(currentKind){
 
 
 
-function renderClientBottomNav(vm){
+export function renderClientBottomNav(vm){
   // Communication can legitimately render a recoverable unavailable state.
   // Keep the true route kind for retry, but reflect its current section.
   const routeKind=String(vm?.kind||'hoy');

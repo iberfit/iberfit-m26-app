@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "4399be6098b37dd6477f18539838aec324ce7f25",
-    "verifiedAt": "2026-10-19",
-    "workflowRunId": 39360160111,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39360160111",
+    "sourceSha": "86a60536595ba8a1cb773c1453b0c6a9988c1ef1",
+    "verifiedAt": "2026-10-20",
+    "workflowRunId": 39421889744,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39421889744",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -344,9 +344,13 @@
       "signature-live-heart-rate-stale-disconnected-invalid-u19",
       "signature-timeline-true-time-dropout-gaps-u19",
       "signature-coach-repeated-exercise-context-u19",
-      "signature-session-telemetry-index-performance-u19"
+      "signature-session-telemetry-index-performance-u19",
+      "signature-live-heart-rate-staleness-and-recovery-u20",
+      "signature-client-live-pause-resume-and-mobile-rpe-u21",
+      "signature-mobile-more-native-navigation-and-43-route-shell-inventory-u22",
+      "signature-coach-bootstrap-one-read-only-retry-for-exact-sql-timeout-u22"
     ],
-    "scope": "Incremental releases through U19 verified on production exact source, Lighthouse, read-only Chromium audit and rollback by #39360160111. All 43 routes remain pending for Cliente/Coach/Admin route-state-device acceptance, not claimed certified by a release smoke."
+    "scope": "Incremental U11–U22 source is verified in PROD by Production Promotion #39421889744, including exact source SHA, CI, QA and isolated M44. This does NOT certify the 43 actual route bodies, every screen state or every device."
   },
-  "activeDelivery": "3/5-coach-incremental"
+  "activeDelivery": "SIGNATURE-U23-interactive-route-certification-WIP"
 }

@@ -51,26 +51,31 @@ test('Signature360 always requires production evidence and broad responsive/stat
     assert.ok(coverage.crossCutting.includes(topic),topic);
 });
 
-test('Signature360 records exact U19 production without miscertifying 43 routes',()=>{
-  assert.equal(coverage.activeDelivery,'3/5-coach-incremental');
+test('Signature360 records exact latest U22 production without miscertifying 43 routes',()=>{
+  assert.equal(coverage.activeDelivery,'SIGNATURE-U23-interactive-route-certification-WIP');
   assert.match(coverage.productionBaseline.sourceSha,/^[0-9a-f]{40}$/);
-  assert.equal(coverage.productionBaseline.sourceSha,'4399be6098b37dd6477f18539838aec324ce7f25');
-  assert.equal(coverage.productionBaseline.workflowRunId,39360160111);
-  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39360160111');
+  assert.equal(coverage.productionBaseline.sourceSha,'86a60536595ba8a1cb773c1453b0c6a9988c1ef1');
+  assert.equal(coverage.productionBaseline.workflowRunId,39421889744);
+  assert.equal(coverage.productionBaseline.productionProofUrl,'https://github.com/iberfit/iberfit-m26-app/actions/runs/39421889744');
   assert.ok(coverage.productionBaseline.delivered.includes('admin-users-mobile-accessibility'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-builder-task-closure-u14'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-heart-rate-truth-u15'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-mobile-session-summary-u15'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-builder-reorder-focus-u16'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-heart-rate-validity-u17'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-alternative-relevance-u17'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-mobile-native-preview-auth-recovery-qa-u17'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-coach-live-set-block-attribution-u18'));
-  assert.ok(coverage.productionBaseline.delivered.includes('signature-hr-rpe-rir-legacy-ambiguity-safety-u18'));
-  for(const increment of ['signature-live-heart-rate-stale-disconnected-invalid-u19','signature-timeline-true-time-dropout-gaps-u19','signature-coach-repeated-exercise-context-u19','signature-session-telemetry-index-performance-u19'])
-    assert.ok(coverage.productionBaseline.delivered.includes(increment),increment);
-  assert.match(coverage.productionBaseline.scope,/43 routes remains pending|43 rutas siguen pendientes|43 routes remain pending/u);
-  assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after only the foundational release');
+  for(const increment of [
+    'signature-coach-builder-task-closure-u14',
+    'signature-coach-live-heart-rate-truth-u15',
+    'signature-coach-builder-reorder-focus-u16',
+    'signature-coach-live-heart-rate-validity-u17',
+    'signature-coach-live-alternative-relevance-u17',
+    'signature-coach-live-set-block-attribution-u18',
+    'signature-live-heart-rate-stale-disconnected-invalid-u19',
+    'signature-timeline-true-time-dropout-gaps-u19',
+    'signature-coach-repeated-exercise-context-u19',
+    'signature-session-telemetry-index-performance-u19',
+    'signature-live-heart-rate-staleness-and-recovery-u20',
+    'signature-client-live-pause-resume-and-mobile-rpe-u21',
+    'signature-mobile-more-native-navigation-and-43-route-shell-inventory-u22',
+    'signature-coach-bootstrap-one-read-only-retry-for-exact-sql-timeout-u22',
+  ])assert.ok(coverage.productionBaseline.delivered.includes(increment),increment);
+  assert.match(coverage.productionBaseline.scope,/43 actual route bodies/u);
+  assert.equal(coverage.status,'WIP_NOT_PRODUCTION','do not call all routes certified after incremental releases');
   const entries=roles.flatMap(role=>coverage.roles[role]);
   assert.equal(entries.length,43);
   assert.ok(entries.some(entry=>entry.evidenceStatus==='pending'));
