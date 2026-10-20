@@ -290,6 +290,17 @@ function observedEffort(value,min,max){
   return Number.isFinite(number)&&number>=min&&number<=max?number:null;
 }
 function setCorrelations(execution,events){
+  // Index once: a long guided session may contain many recorded sets.
+  // Avoid rescanning the entire heart-rate timeline for every result.
+  const eventGroups=new Map();
+  for(const event of events){
+    if(event?.context?.phase!=='work'||!event?.context?.exerciseId)continue;
+    const setNumber=Number(event?.context?.setNumber);
+    if(!Number.isInteger(setNumber)||setNumber<1)continue;
+    const key=JSON.stringify([event.context.exerciseId,setNumber]);
+    if(!eventGroups.has(key))eventGroups.set(key,[]);
+    eventGroups.get(key).push(event);
+  }
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
   const stored=execution?.results&&typeof execution.results==='object'&&!Array.isArray(execution.results)
     ?Object.values(execution.results)
@@ -312,11 +323,7 @@ function setCorrelations(execution,events){
     (safeTime(a.result.completedAt)||0)-(safeTime(b.result.completedAt)||0)
   );
   return rows.map(({result,setNumber,blockId,occurrences})=>{
-    const candidates=events.filter((event)=>
-      event?.context?.phase==='work'&&
-      event?.context?.exerciseId===result.exerciseId&&
-      Number(event?.context?.setNumber)===setNumber
-    );
+    const candidates=eventGroups.get(JSON.stringify([result.exerciseId,setNumber]))||[];
     const observedBlocks=new Set(candidates.map((event)=>event?.context?.blockId||null));
     // A missing legacy block is safe only when all candidate events refer to
     // a single block and the execution does not repeat that exercise/series.
