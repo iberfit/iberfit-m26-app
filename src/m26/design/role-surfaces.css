@@ -3551,6 +3551,27 @@ m26-echart[data-density="compact"]{
   margin-top:var(--iberfit-space-2);
 }
 
+/* U19: readable signal recovery and dropout descriptions on mobile/touch.
+   No fixed overlays; retain the existing session scroll and dock geometry. */
+.m26-session-live-data .m26-live-reading-note,
+.m26-live-telemetry .m26-live-reading-note{
+  max-inline-size:68ch;
+  min-inline-size:0;
+  margin:.55rem 0 .25rem;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.875rem;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.m26-live-telemetry .m26-live-context-card{
+  min-inline-size:0;
+  overflow-wrap:anywhere;
+}
+.m26-live-telemetry .m26-live-hr-chart{
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+
 @media(max-width:1024px){
   .m26-session-set-focus{
     grid-template-columns:minmax(6.5rem,.55fr) repeat(3,minmax(0,1fr));
