@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "122581a14dfea5318ca855625a8b1e85e983a1f8",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "4a103eb98dda24f2b16fcdeeda09ac41dbcc784c",
+  "notes": "SIGNATURE 360 incremental U17: PR #1047 Coach Live valid heart-rate truth and UI, high-relevance exercise options ahead of 60-option cap, mobile native-preview/authenticated Coach QA reliability, regression tests and release documentation. PR #1048 comments-only workflow trigger for renewed M44 protected encrypted production DB+Storage backup; successful isolated PostgreSQL17 restore and 126 Storage object byte/metadata parity verified by #39348382912, platformRecoveryVerified=false. U17 Canary exact source and live identity/browser QA certified by #39348382850; Coach/Admin WebAuthn and CI passed. Previous production U16 exact source 4a103eb98dda certified by #39340240024. Frontend-only; no production SQL/RLS/Auth/Edge backend deployment or data writes. Promotion must fail closed on prior live SHA, fresh M44 proof, security/schema checks, regression, Lighthouse, production browser and rollback evidence."
+}
