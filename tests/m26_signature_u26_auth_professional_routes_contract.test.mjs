@@ -35,6 +35,11 @@ test('U26 audits actual navigation after real privileged WebAuthn in trusted pus
   assert.match(helper,/toBeGreaterThanOrEqual\(viewport===/u);
   assert.match(helper,/fullFunctionalAcceptance:false/u);
   assert.match(helper,/notExposed/u);
+  assert.match(coach,/test\.setTimeout\(420_000\)/u);
+  assert.match(helper,/SIGNATURE_U26_ROUTE_START/u);
+  assert.match(helper,/SIGNATURE_U26_ROUTE_PASS/u);
+  assert.match(helper,/timeout:12000/u);
+
   assert.doesNotMatch(helper,/\.navigate\(|\.setState\(|\.dispatch\(|\.fill\(|\.submit\(/u);
   const coachFlow=read('.github/workflows/coach-webauthn-recurring.yml');
   const adminFlow=read('.github/workflows/admin-webauthn-recurring.yml');
