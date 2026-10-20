@@ -1,6 +1,14 @@
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
-## Checkpoint vigente · 20-10-2026 · U21 certificado en PRODUCCIÓN, U22 en validación
+## Checkpoint 20-10-2026 · U22 Canary, recuperación P0 de bootstrap Coach
+
+El PR #1053 está integrado en Canary `13a2201b4ae537cc1c3b112e931ee8ae3e3cf7c8`: CI, dispositivo, Cliente, Admin, M44 protegidos SUCCESS; **NO publicado aún en PROD**. Coach WebAuthn real validó la ceremonia de MFA, pero la segunda llamada de arranque `iberfit_bootstrap_v26` falló en QA por HTTP 500 SQLSTATE 57014 (statement timeout autenticado de 8 s). Se repitió en otro intento. La aplicación expuso su recuperación protegida, sin perder credenciales.
+
+El P0 introduce **un único reintento de lectura con el mismo JWT** solo ante el 500/57014 exacto. No reintenta escrituras, errores de autorización ni otros fallos, y conserva el estado recuperable si persiste. Probar con Node y navegador WebAuthn real sobre el nuevo SHA, CI completo, M44 reciente y promoción oficial fail-closed. Las 43 rutas SIGNATURE siguen pendientes de aceptación integral.
+
+---
+
+## Checkpoint histórico · 20-10-2026 · U21 certificado en PRODUCCIÓN, U22 en validación
 
 **U21 PROD:** fuente exacta `d045c6e569d1dd02e454bea200271b9a49b1d822`, PR [#1052](https://github.com/iberfit/iberfit-m26-app/pull/1052), [Production Promotion #39372054403](https://github.com/iberfit/iberfit-m26-app/actions/runs/39372054403) SUCCESS con identidad viva de `app.iberfit.cl`, M44 vigente, CI, Lighthouse, navegador y auditoría read-only. El cierre de Android #39372054429 no confirma publicación en Google Play.
 

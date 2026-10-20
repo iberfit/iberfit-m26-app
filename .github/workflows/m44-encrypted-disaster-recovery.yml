@@ -34,6 +34,8 @@ on:
 permissions:
   contents: read
 
+# Ops 2026-10-20 U22 bootstrap P0: comment-only trigger after certified
+# Canary merge to renew unchanged encrypted PROD DB+Storage PG17 restore proof.
 # Ops checkpoint 2026-10-20 SIGNATURE U22 release proof refresh:
 # Comment-only trigger: after a certified Canary merge, create a new protected
 # encrypted production DB+Storage recovery point with isolated PostgreSQL 17
