@@ -275,19 +275,22 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
 function renderClientDatedPlanning(items,options){
   const dates=new Map();
   for(const item of items){
-    const day=item.startAt?civilDateInTimeZone(item.startAt):null;
-    const key=day||'unscheduled';
-    if(!dates.has(key))dates.set(key,[]);
-    dates.get(key).push(item);
+    const key=item.startAt?civilDateInTimeZone(item.startAt):null;
+    const day=key||'unscheduled';
+    if(!dates.has(day))dates.set(day,[]);
+    dates.get(day).push(item);
   }
   const today=civilDateInTimeZone(new Date());
   const calendarDays=[...dates.keys()].filter((key)=>key!=='unscheduled');
+  const primaryDay=dates.has(today)?today
+    :calendarDays.find((key)=>key>=today)
+      ||calendarDays[calendarDays.length-1]||'unscheduled';
   const calendarNav=calendarDays.length?`<nav class="m26-rc39-date-navigation" aria-label="Fechas de entrenamiento programadas">
     <p class="m26-eyebrow">Calendario de entrenamientos</p>
     <div class="m26-rc39-date-links">${calendarDays.map((key)=>{
       const dayItems=dates.get(key)||[];
       const label=key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(key+'T12:00:00Z'));
-      return `<a href="#m26-plan-day-${escape(key)}" ${key===today?'aria-current="date"':''}><strong>${escape(label)}</strong><small>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</small></a>`;
+      return `<a href="#m26-plan-day-${escape(key)}" data-rc39-date-target="${escape(key)}" ${key===today?'aria-current="date"':''}><strong>${escape(label)}</strong><small>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</small></a>`;
     }).join('')}</div>
   </nav>`:'';
   const groups=[...dates.entries()].map(([key,dayItems])=>{
@@ -295,10 +298,11 @@ function renderClientDatedPlanning(items,options){
     const label=dated
       ?key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(key+'T12:00:00Z'))
       :'Sesiones sin fecha asignada';
-    return `<section class="m26-rc39-day-group" id="m26-plan-day-${escape(key)}" data-training-date="${escape(key)}" aria-label="${escape(label)}">
-      <header><h3>${escape(label)}</h3><span>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</span></header>
+    const isPrimary=key===primaryDay;
+    return `<details class="m26-rc39-day-group" id="m26-plan-day-${escape(key)}" data-training-date="${escape(key)}" ${isPrimary?'open data-rc39-primary-day="true"':''}>
+      <summary class="m26-rc39-day-heading"><h3>${escape(label)}</h3><span>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</span></summary>
       <div class="m26-rc39-week">${dayItems.map((item)=>sessionCard(item,'client',options.contractModality,{serviceActive:options.serviceActive,...options.assets})).join('')}</div>
-    </section>`;
+    </details>`;
   }).join('');
   return calendarNav+'<div class="m26-rc39-date-groups">'+groups+'</div>';
 }
