@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "86a60536595ba8a1cb773c1453b0c6a9988c1ef1",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "d045c6e569d1dd02e454bea200271b9a49b1d822",
+  "notes": "SIGNATURE 360 U22 exact incremental release: merged PR #1053 plus bounded Coach SQLSTATE 57014 read-only bootstrap recovery PR #1054. Current Canary source 86a60536595ba8a1cb773c1453b0c6a9988c1ef1 certified with successful CI, Canary Exact Deploy, Device Experience Gate, QA Real Writes, Coach/Admin WebAuthn, Client authenticated interactions, M44 encrypted DB+Storage isolated PG17 restore and storage parity, continuous audit, admin browser matrix, daily visual evidence. Read-only remote gate #39418044889 successful attempt 3 after transient auth QA timeout then tablet landscape 10s interactive readiness timeout; all jobs green final. No backend SQL/Edge/Auth/RLS writes or migrations. Previous exact production U21 live SHA d045c6e569d1dd02e454bea200271b9a49b1d822. SIGNATURE 43-route inventory remains WIP/pending integral acceptance; U22 synthetic shell matrix is not a functional acceptance claim. Production pipeline must fail closed on exact previous live identity, M44 <=2h evidence, V47 schema, authenticated browser, Lighthouse, rollback."
+}
