@@ -1,3 +1,4 @@
+import {isClientVisibleAppointment} from '../domain/appointment.js';
 const fold=(value)=>String(value??'')
   .trim()
   .toLowerCase()
@@ -236,11 +237,40 @@ export function clientSessionProjection(session={},appointment=null,now=new Date
     appointment,
   });
 }
+// Each confirmed appointment is a distinct scheduled occurrence of the same
+// immutable Coach prescription. Unscheduled sessions remain discoverable, but
+// pending/cancelled/internal appointments must never appear in Cliente planning.
 export function buildClientPlanningItems({sessions=[],appointments=[],now=new Date()}={}){
-  return Object.freeze((sessions||[])
-    .map((session)=>clientSessionProjection(session,appointmentForSession(appointments,session),now))
-    .filter((item)=>item.visible)
-    .sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER)));
+  const output=[];
+  // Index confirmed, visible occurrences once rather than rescanning an entire
+  // client's appointment history for every prescribed session.
+  const bySession=new Map();
+  for(const appointment of appointments||[]){
+    const sessionId=appointmentSessionId(appointment),clientId=clientIdOf(appointment);
+    const appointmentId=String(field(appointment,'id','entityId','entity_id')||'');
+    if(!sessionId||!clientId||!appointmentId||
+      !isClientVisibleAppointment(appointment)||
+      dateMs(appointmentStartAt(appointment))===null)continue;
+    const key=clientId+'|'+sessionId;
+    if(!bySession.has(key))bySession.set(key,[]);
+    bySession.get(key).push(appointment);
+  }
+  for(const session of sessions||[]){
+    const base=clientSessionProjection(session,null,now);
+    if(!base.visible)continue;
+    const matches=bySession.get(String(base.clientId)+'|'+String(base.id))||[];
+    const seen=new Set();
+    for(const appointment of matches){
+      const id=String(field(appointment,'id','entityId','entity_id')||'');
+      if(seen.has(id))continue;
+      seen.add(id);
+      output.push(clientSessionProjection(session,appointment,now));
+    }
+    if(!seen.size)output.push(base);
+  }
+  output.sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER)||
+    String(a.id).localeCompare(String(b.id))||String(a.appointmentId||'').localeCompare(String(b.appointmentId||'')));
+  return Object.freeze(output);
 }
 export function clientTaskIsOverdue(item,now=new Date()){
   if(!item?.canClientExecute)return false;
