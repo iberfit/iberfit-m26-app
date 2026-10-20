@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createExecution,buildStartExecutionCommand} from '../src/m26/workflows/session-execution.js';
 import {createExecutionSnapshot,validateExecutionSnapshot} from '../src/m26/workflows/session-recovery.js';
+import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 
 const clientId='10000000-0000-4000-8000-000000000100';
 const sessionId='10000000-0000-4000-8000-000000000101';
@@ -45,4 +46,33 @@ test('P0 Cliente cannot enter Coach builder through a forged local event',()=>{
   assert.ok(builder.includes('!visible.has(clientId)'), 'Coach client scope remains mandatory');
   assert.ok(builder.includes('createReusableSessionDraft(sourceSession,{clientId,catalog})'),
     'Coach reuse of the prescription remains available');
+});
+
+test('P0 resumed Client workout sends snapshot revision and waits for real ACK',async()=>{
+  const execution=createExecution({session,clientId});
+  const snapshot=createExecutionSnapshot({ownerId:'client-owner',session,execution,sessionRevision:8});
+  let sent=null;
+  const commandBus={execute:async command=>{
+    sent=command;
+    assert.equal(execution.status,'ready','do not start locally before server ACK');
+    return {ok:true,kind:'applied',response:{executionRevision:1,remoteRevision:9}};
+  }};
+  const result=dispatchSessionAction({action:'start',execution:snapshot.execution,
+    session:snapshot.session,sessionRevision:snapshot.sessionRevision,
+    commandBus,actor:{role:'client',clientId},online:true});
+  assert.equal(result.kind,'command');
+  await result.value;
+  assert.equal(sent.type,'SESION_INICIAR');
+  assert.equal(sent.baseRevision,8);
+  assert.equal(snapshot.execution.status,'active');
+  assert.equal(snapshot.execution.revision,1);
+});
+
+test('P0 a rejected recovered start never fabricates an active local workout',async()=>{
+  const execution=createExecution({session,clientId});
+  const commandBus={execute:async()=>({ok:false,kind:'conflict',response:{reason:'REVISION_MISMATCH'}})};
+  const result=dispatchSessionAction({action:'start',execution,session,
+    sessionRevision:8,commandBus,actor:{role:'client',clientId}});
+  await assert.rejects(result.value,/M26_COMMAND_CONFLICT/u);
+  assert.equal(execution.status,'ready');
 });
