@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "65c17b662bd9a70b09261169b6ca8feaf23a469c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "86a60536595ba8a1cb773c1453b0c6a9988c1ef1",
+  "notes": "SIGNATURE U23 exact frontend-only production promotion. Merged PR #1055, Canary source 65c17b662bd9a70b09261169b6ca8feaf23a469c, Canary Exact Deploy #39435366832 SUCCESS, 12/12 postmerge workflow success: CI, client authenticated QA, Admin/Coach WebAuthn, device/role browser matrix, continuous audit, read-only remote gate, visual authenticated capture, frontend bundle and direct live Canary identity. Native client bottom dock Escape/aria-expanded recovery, physical role navigation and tablet 768px double-rail offset fixed. M44 encrypted PROD DB+Storage isolated PG17 restore artifact refreshed successfully #39418044881 attempt 2 at 2026-10-20T14:06:12Z; strict <=2h gate remains mandatory. Previous live production U22 source 86a60536595ba8a1cb773c1453b0c6a9988c1ef1. No SQL, Edge, Hosted Auth, RLS, migrations or production backend changes. SIGNATURE full 43-route acceptance remains WIP/pending; synthetic route interactions are not authenticated per-route certification. Fail closed on exact previous-live SHA, M44 backup/restore, production schema, auth, Lighthouse, postprod smoke, rollback. No Android Play Store publication claimed."
+}
