@@ -33,6 +33,10 @@ test('U25 Media Review filter fields respect content-box containment on 320px sc
  assert.match(scope,/box-sizing:border-box/u);
  assert.match(scope,/min-width:0/u);
  assert.match(scope,/max-width:100%/u);
+ const grid=css.slice(css.lastIndexOf('SIGNATURE U25 · intrinsic grid containment'));
+ assert.match(grid,/grid-template-columns:minmax\\(0,1fr\\)/u);
+ assert.ok(grid.includes('.m26-media-review-route'));
+ assert.doesNotMatch(grid,/overflow-(?:x|y|inline|block)\\s*:\\s*(?:hidden|clip)/u);
  const spec=read('qa/device-experience/signature-u25-real-route-bodies.spec.mjs');
  assert.ok(spec.includes("area==='admin-media-review'"));
  assert.ok(spec.includes("sheet?.sheet"));
