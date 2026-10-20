@@ -61,3 +61,26 @@ test('U26 QA signed reads reject extra query parameters, untrusted origins and m
   ];
   for(const url of cases)assert.equal(allowed(mock('GET',url)),false,url);
 });
+
+test('U26 QA signed reads never target production or alternate Supabase tenants',()=>{
+  const signed=photo()+'?token='+('x'.repeat(64));
+  for(const origin of ['https://app.iberfit.cl','https://other.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co.evil.test']){
+    assert.equal(allowed(mock('GET',signed.replace(QA,origin))),false,origin);
+    assert.equal(allowed(mock('POST',photo().replace(QA,origin))),false,origin);
+  }
+});
+test('U26 QA rejects encoded photo paths, secondary Storage APIs and tokens outside bounds',()=>{
+  for(const path of [
+    photo().replace('/front/','/%66ront/'),
+    photo().replace('/original.png','/original.png/extra'),
+    photo().replace('/object/sign/','/object/upload/sign/'),
+    photo().replace('/object/sign/','/object/list/'),
+  ])assert.equal(allowed(mock('POST',path)),false,path);
+  const invalid=['x'.repeat(29),'x'.repeat(4097),'x'.repeat(64)+'%20'];
+  for(const token of invalid)assert.equal(allowed(mock('GET',photo()+'?token='+token)),false,token.length);
+});
+test('U26 QA rejects nonfinite and noninteger expiration times',()=>{
+  for(const expiresIn of [-1,0,59,60.1,599.9,601,1e12,NaN,Infinity,null,undefined]){
+    assert.equal(allowed(mock('POST',photo(),{body:{expiresIn}})),false,String(expiresIn));
+  }
+});
