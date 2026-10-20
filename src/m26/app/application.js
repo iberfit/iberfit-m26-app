@@ -1522,8 +1522,11 @@ export async function createM26Application({root=document.querySelector('#app'),
         return false;
       }
       if(!isCurrent())return false;
+      // Preserve the authoritative hydrated session revision in the start command.
+      // Omitting this value silently sent baseRevision=0 and caused remote REVISION_MISMATCH.
       sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,
-        execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null};
+        execution:createExecution({session:normalized,clientId:normalized.clientId}),
+        sessionRevision:normalized.revision,appointmentId:appointment?.id||null};
       store.navigate('sesion');render();return true;
     });
   }
