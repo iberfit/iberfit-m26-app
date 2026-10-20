@@ -1,6 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -143,7 +144,7 @@ async function openCertifiedCoachArea(page,area){
   expect(String(process.env.M26_QA_COACH_EMAIL||'').toLowerCase()).toBe('qa.rc74.coach@iberfit.cl');
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
 
-  const evidence={schema:'iberfit.qa-coach-webauthn-recurring.v1',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'coach',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[]};
+  const evidence={signatureU26Audits:[],schema:'iberfit.qa-coach-webauthn-recurring.v1',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'coach',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[]};
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   await installPolicy(context,evidence);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
@@ -202,7 +203,12 @@ async function openCertifiedCoachArea(page,area){
       await verifyViewport(page,device.name+'-m43-planning');
       await page.screenshot({path:path.join(OUT_DIR,`m43-${device.name}-coach-planning.png`),fullPage:true});
       evidence.devices.push({...device,passed:true,m43CoachWorkspace:true});
+      if(device.name==='desktop'||device.name==='mobile'){
+        const scope=device.name==='desktop'?'desktop':'mobile';
+        evidence.signatureU26Audits.push(await auditAuthenticatedProfessionalRoutes(page,{role:'coach',viewport:scope}));
+      }
     }
+    expect(evidence.signatureU26Audits.map(x=>x.viewport)).toEqual(['desktop','mobile']);
     evidence.m43CoachWorkspaceCertified=evidence.devices.length===5;
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);

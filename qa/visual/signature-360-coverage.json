@@ -319,10 +319,10 @@
     "rollback-ready"
   ],
   "productionBaseline": {
-    "sourceSha": "32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3",
+    "sourceSha": "4c58d70e5f7a984e8bd2663633f7cf9abd68b4e6",
     "verifiedAt": "2026-10-20",
-    "workflowRunId": 39451349112,
-    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39451349112",
+    "workflowRunId": 39479637032,
+    "productionProofUrl": "https://github.com/iberfit/iberfit-m26-app/actions/runs/39479637032",
     "delivered": [
       "signature-base-forms-focus",
       "client-mobile-dock",
@@ -352,11 +352,13 @@
       "signature-client-native-more-escape-focus-recovery-u23",
       "signature-client-tablet-in-flow-dock-no-double-rail-offset-u23",
       "signature-three-role-interactive-route-navigation-u23",
-      "signature-u24-nine-real-authenticated-client-route-readonly-smoke"
+      "signature-u24-nine-real-authenticated-client-route-readonly-smoke",
+      "signature-u25-real-43-route-body-synthetic-matrix",
+      "signature-u25-admin-media-review-320px-overflow-fix"
     ],
-    "scope": "U11–U24 delivered in production, source 32e02bb0a2bd, Promotion #39451349112 SUCCESS. U24 nine Client routes read-only authenticated QA does not certify all 43 screens/states."
+    "scope": "U11–U25 certificadas en producción, fuente exacta 4c58d70e5f7a, Promotion #39479637032 SUCCESS. U25 prueba 43 cuerpos productivos con identidad sintética; las 43 aceptaciones funcionales integrales siguen pendientes."
   },
-  "activeDelivery": "SIGNATURE-U25-real-43-route-body-synthetic-matrix-WIP",
+  "activeDelivery": "SIGNATURE-U26-authenticated-professional-route-smoke-WIP",
   "qaEvidence": {
     "clientRouteReadOnlySmoke": {
       "scope": "Existing authenticated Client QA surface and nine real production route bodies, protected by read-only Supabase allowlist.",
@@ -366,7 +368,7 @@
       ],
       "project": "qa-identity-no-production-data",
       "artifact": "recovery/rc64-authenticated-visual/*.json (workflow artifact; includes U24 per-route outcomes)",
-      "status": "IN_PROGRESS_UNTIL_WORKFLOW_SUCCESS",
+      "status": "CERTIFIED_QA_READONLY_SMOKE_U24",
       "notVerifiedStates": [
         "write-success",
         "write-error",
@@ -378,7 +380,7 @@
       "neverPromoteToFullAcceptanceAutomatically": true
     },
     "syntheticRealBodyMatrix": {
-      "status": "IN_PROGRESS_UNTIL_WORKFLOW_SUCCESS",
+      "status": "CERTIFIED_SYNTHETIC_REAL_BODY_MATRIX_U25",
       "roles": {
         "client": 9,
         "coach": 17,
@@ -404,6 +406,31 @@
         "write-error"
       ],
       "fullFunctionalAcceptance": false
+    },
+    "professionalAuthenticatedRouteSmoke": {
+      "status": "WIP_PREMERGE_TRUSTED_CANARY_REQUIRED",
+      "scope": "Opt-in post-WebAuthn navigation using existing Coach and Admin QA identities, actual route bodies and read-only request perimeter.",
+      "roles": [
+        "coach",
+        "admin"
+      ],
+      "sampledViewportWidths": [
+        1440,
+        390
+      ],
+      "source": "qa/signature-u26-authenticated-professional-routes.mjs",
+      "authentication": "Real WebAuthn registration and login in protected recurring Canary push jobs; no privileged bypass, no new secrets.",
+      "unexposedRoutes": "Remain pending; no synthetic verification.",
+      "fullFunctionalAcceptance": false,
+      "notVerifiedStates": [
+        "write-success",
+        "write-error",
+        "populated-data-contrast",
+        "offline",
+        "conflict",
+        "session-expired",
+        "recovery-under-network-failure"
+      ]
     }
   }
 }

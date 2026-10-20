@@ -1,6 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -273,7 +274,7 @@ test('Admin completes real WebAuthn registration and authentication before expli
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
   await mkdir(OUT_DIR,{recursive:true});
 
-  const evidence={schema:'iberfit.qa-admin-webauthn-recurring.v2',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,fixture:'qa.rc74.client-a@iberfit.cl',authorizedRoles:['client','admin'],selectedRole:'admin',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,applicationChoiceVerified:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[],safeNavigationArea:null};
+  const evidence={signatureU26Audits:[],schema:'iberfit.qa-admin-webauthn-recurring.v2',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,fixture:'qa.rc74.client-a@iberfit.cl',authorizedRoles:['client','admin'],selectedRole:'admin',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,applicationChoiceVerified:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[],safeNavigationArea:null};
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   await installPolicy(context,evidence);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
@@ -312,8 +313,12 @@ test('Admin completes real WebAuthn registration and authentication before expli
       {name:'mobile',width:390,height:844,mobile:true,touch:true},
     ]){
       evidence.devices.push(await certifyDevice(page,cdp,device));
+      if(device.name==='desktop'||device.name==='mobile'){
+        evidence.signatureU26Audits.push(await auditAuthenticatedProfessionalRoutes(page,{role:'admin',viewport:device.name}));
+      }
     }
 
+    expect(evidence.signatureU26Audits.map(x=>x.viewport)).toEqual(['desktop','mobile']);
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
     expect(consoleErrors,'Authenticated Admin console must remain clean').toEqual([]);
     expect(pageErrors,'Authenticated Admin page must remain clean').toEqual([]);

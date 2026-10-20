@@ -21,8 +21,8 @@ test('U25 has all 43 routes wired to Device Gate and no false acceptance',()=>{
  assert.ok(spec.includes('writes'));
  assert.equal(inventory.status,'WIP_NOT_PRODUCTION');
  assert.equal(inventory.qaEvidence.syntheticRealBodyMatrix.fullFunctionalAcceptance,false);
- assert.equal(inventory.productionBaseline.sourceSha,'32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3');
- assert.equal(inventory.productionBaseline.workflowRunId,39451349112);
+ assert.equal(inventory.productionBaseline.sourceSha,'4c58d70e5f7a984e8bd2663633f7cf9abd68b4e6');
+ assert.equal(inventory.productionBaseline.workflowRunId,39479637032);
  assert.ok(Object.values(inventory.roles).flat().every(x=>x.evidenceStatus==='pending'));
 });
 
