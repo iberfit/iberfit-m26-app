@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4399be6098b37dd6477f18539838aec324ce7f25",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "f46c979cb44aa705a46ef8c389e51aaf9af9e9a7",
+  "notes": "SIGNATURE 360 U19 premium live training macro: PR #1050 merged, Coach/Client heartbeat freshness and disconnect recovery, reject stale/low-quality readings as current while preserving historical observations, gap-aware timestamp-accurate HR traces, repeated block context, indexed set telemetry for long sessions, responsive accessible recovery copy, i18n, tests and signed U18 production traceability. Exact Canary commit 4399be6098b37dd6477f18539838aec324ce7f25 certified by Canary Exact Deploy #39357656953. Postmerge 14 runs passed including full M26 CI, Device Experience authenticated roles, Coach/Admin WebAuthn, QA real write certification, real read-only gates, PWA, audit. Protected M44 encrypted production DB/Storage complete byte restore in isolated PG17 #39357656908 SUCCESS and current; managed Supabase platform/hosted Auth recovery not claimed. 11 changed files total including comment-only M44 workflow trigger, docs, tests, CSS and frontend. No SQL migrations, Auth/RLS, Edge or production backend writes; frontendOnly=true. Previous exact production U18 sha f46c979cb44aa705a46ef8c389e51aaf9e9a7 certified #39353820032. Promotion must fail closed on current live source, fresh M44 backup, schema drift, full regression, Lighthouse, authenticated browser, live identity and rollback. Signature 360 43 route-state-device exhaustive acceptance still WIP, not marked completed."
+}
