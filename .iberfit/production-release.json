@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "32e02bb0a2bd00cab5b4cd7e18c80ff3058a04b3",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "65c17b662bd9a70b09261169b6ca8feaf23a469c",
+  "notes": "SIGNATURE U24 QA-only/frontend-only exact release after PR #1056 MERGED into Canary. Canary Exact Deploy #39444520756 SUCCESS, 10 postmerge workflows SUCCESS including Admin+Coach WebAuthn, authenticated nine Client route render / read-only audit, CI, devices/PWA, continuous audit, remote read-only gate, visual screenshot evidence. M44 encrypted production DB+Storage recovery #39418044881 attempt 3 SUCCESS with isolated PostgreSQL 17 restore and fresh ciphertext artifact 12275429445 (2026-10-20T15:06Z); strict <=2h guard retained. Previous production U23 source 65c17b662bd9a70b09261169b6ca8feaf23a469c, prior Production Promotion #39438915893 SUCCESS. U24 changes are exclusively QA, tests, docs and coverage inventory; no business data, RLS, SQL, Edge, Auth, or backend changes. 43 SIGNATURE full route acceptances remain pending/WIP_NOT_PRODUCTION; the U24 authenticated QA read-only screen smoke does not certify offline/conflict/session-expired/write or data-populated states. Fail closed on source SHA, previous live identity, M44 recovery freshness, live promotion, Chromium, Lighthouse, rollback."
+}
