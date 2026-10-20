@@ -26,6 +26,61 @@ async function fillCurrentSet(page,{reps='9',load='20 kg',rpe='7',rir='3'}={}){
   await page.locator('[data-set-field="rir"]').fill(rir);
 }
 
+test('SIGNATURE U21: Cliente pausa, reanuda y mantiene el borrador en 320 px',async({page})=>{
+  await page.setViewportSize({width:320,height:740});
+  await open(page,'client');
+  await page.locator('[data-session-action="start"]').click();
+  const quick=page.locator('[data-session-client-quick-controls]');
+  await expect(quick).toBeVisible();
+  await expect(page.locator('[data-session-coach-quick-controls]')).toHaveCount(0);
+  const pause=quick.locator('[data-session-action="pause"]');
+  await expect(pause).toBeVisible();
+  const geometry=await pause.evaluate((element)=>{
+    const box=element.getBoundingClientRect();
+    return {left:box.left,right:box.right,width:box.width,height:box.height,viewport:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth};
+  });
+  expect(geometry.width).toBeGreaterThanOrEqual(44);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.left).toBeGreaterThanOrEqual(0);
+  expect(geometry.right).toBeLessThanOrEqual(geometry.viewport+1);
+  expect(geometry.scroll).toBeLessThanOrEqual(geometry.viewport+1);
+  await fillCurrentSet(page,{reps:'10',load:'18 kg',rpe:'8',rir:'2'});
+  await pause.click();
+  await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible();
+  await page.locator('[data-session-action="resume"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+  await expect(page.locator('[data-set-field="reps"]')).toHaveValue('10');
+  await expect(page.locator('[data-set-field="load"]')).toHaveValue('18 kg');
+  await expect(page.locator('[data-set-field="rpe"]')).toHaveValue('8');
+  await page.locator('[data-session-action="complete-set"]').click();
+  await expect(page.locator('[data-session-live-state="rest"]')).toBeVisible();
+  await expect(page.locator('[data-session-client-quick-controls] [data-session-action="pause"]')).toBeVisible();
+  await page.locator('[data-session-client-quick-controls] [data-session-action="pause"]').click();
+  await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible();
+  await page.locator('[data-session-action="resume"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+  await expect(page.locator('[data-session-rest-focus]')).toBeVisible();
+  expect((await state(page)).errors).toEqual([]);
+});
+
+test('SIGNATURE U21: Coach conserva controles rápidos operativos con teclado',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await open(page,'coach');
+  await page.locator('[data-session-action="start"]').click();
+  const actions=page.locator('[data-session-coach-quick-controls]');
+  await expect(actions).toBeVisible();
+  await expect(actions.locator('[data-session-open-substitution]')).toHaveCount(1);
+  await expect(actions.locator('[data-session-action="pause"]')).toHaveCount(1);
+  await actions.locator('[data-session-action="pause"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible();
+  await page.locator('[data-session-action="resume"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+  const geometry=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
+  expect(geometry.scroll).toBeLessThanOrEqual(geometry.width+1);
+  expect((await state(page)).errors).toEqual([]);
+});
+
 test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre por el controller real',async({page})=>{
   await open(page,'coach');
   await page.locator('[data-session-action="start"]').click();
