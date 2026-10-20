@@ -34,3 +34,15 @@ test('P0 cold-login and in-app recovered entry retain snapshot revision with leg
   assert.match(warm,/sessionRevision:normalized\.revision/u);
   assert.match(cold,/if\(!snapshot\?\.execution\|\|!snapshot\?\.session\)return false/u);
 });
+
+
+test('P0 Cliente cannot access Coach session builder through a forged UI entry event',()=>{
+  const source=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  const builder=source.slice(source.indexOf('async function onOpenBuilder(event){'),source.indexOf('async function onStartSession(event){'));
+  assert.match(builder,/\\['client','cliente'\\]\\.includes\\(String\\(state\\.identity\\?\\.role\\|\\|''\\)\\.trim\\(\\)\\.toLowerCase\\(\\)\\)/u);
+  assert.match(builder,/throw new Error\\('M26_SESSION_BUILDER_ROLE_FORBIDDEN'\\)/u);
+  assert.ok(builder.indexOf('M26_SESSION_BUILDER_ROLE_FORBIDDEN')<builder.indexOf('loadSessionDraft(clientId)'));
+  assert.match(builder,/if\\(!visible\\.has\\(clientId\\)/u,'Coach client scope remains mandatory');
+  assert.match(builder,/createReusableSessionDraft\\(sourceSession,\\{clientId,catalog\\}\\)/u,
+    'Coach reuse of versioned prescription must remain available');
+});
