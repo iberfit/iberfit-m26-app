@@ -8,6 +8,15 @@ export const M26_QA_SUPABASE_ORIGIN=`https://${M26_QA_PROJECT_REF}.supabase.co`;
 // PostgREST can briefly see a just-issued, valid GoTrue JWT as issued in the
 // future when Auth and PostgREST clocks differ. This is not proof of revocation.
 // Never classify arbitrary 401s or other JWT signature/expiry failures as skew.
+// Canonical bootstrap is read-only. Only SQLSTATE 57014 from the authenticated
+// statement timeout is eligible for one bounded retry; never expand this to
+// mutations, authentication errors, or arbitrary network/server failures.
+export function isBootstrapStatementTimeout(error){
+  return Number(error?.status||0)===500
+    &&String(error?.body?.code||'').trim()==='57014'
+    &&/canceling statement due to statement timeout/iu.test(String(error?.body?.message||''));
+}
+
 export function isFutureIssuedJwtClockSkew(error){
   return Number(error?.status||0)===401
     &&String(error?.body?.code||'').trim().toUpperCase()==='PGRST303'
@@ -736,6 +745,18 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(!['global','local','others'].includes(normalizedScope))throw new Error('M26_LOGOUT_SCOPE_INVALID');
     await request(`/auth/v1/logout?scope=${encodeURIComponent(normalizedScope)}`, { method: 'POST', token });
     return { ok: true, scope:normalizedScope };
+  }
+
+  async function bootstrapWithBoundedStatementTimeoutRecovery(token){
+    try{
+      return await rpc(runtime.rpc.bootstrap,token,{});
+    }catch(error){
+      if(!isBootstrapStatementTimeout(error))throw error;
+      // Same session JWT, same read-only function; one retry at most.
+      // The hydration coordinator rejects stale owners before store commit.
+      await authRetryDelay(220);
+      return rpc(runtime.rpc.bootstrap,token,{});
+    }
   }
 
   async function rpc(name, token, params = {}) {
@@ -1703,7 +1724,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     enrollWebAuthn,
     challengeWebAuthn,
     verifyWebAuthn,
-    bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
+    bootstrap: bootstrapWithBoundedStatementTimeoutRecovery,
     backendHealth,
     backendBootstrap,
     draftBackendHealth,
