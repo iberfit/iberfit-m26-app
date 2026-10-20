@@ -270,12 +270,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
 
-  function captureDisclosureContinuity({includeMobileMore=true}={}){
+  function captureDisclosureContinuity(){
     const details=[...(root.querySelectorAll?.('details')||[])];
     const seen=new Map();
     const open=[];
     for(const node of details){
-      if(!includeMobileMore&&node.matches?.('details.m26-mobile-more'))continue;
       const key=disclosureBaseKey(node);
       const ordinal=seen.get(key)||0;
       seen.set(key,ordinal+1);
@@ -441,7 +440,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const previousRole=String(root.querySelector?.('.m26-shell')?.getAttribute?.('data-m26-role')||'');
     const previousArea=String(root.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area')||'');
     const includeMobileMore=previousRole===String(viewModel.identity?.role||'')&&previousArea===String(viewModel.activeArea||'');
-    const disclosureSnapshot=captureDisclosureContinuity({includeMobileMore});
+    const disclosureSnapshot=captureDisclosureContinuity().filter((item)=>
+      includeMobileMore||!String(item.key||'').includes('m26-mobile-more')
+    );
     root.innerHTML = markup;
     lastMarkup=markup;
     restoreDisclosureContinuity(disclosureSnapshot);
