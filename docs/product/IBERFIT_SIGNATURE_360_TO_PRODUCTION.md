@@ -1,3 +1,10 @@
+## Checkpoint vigente · 20-10-2026 · U23 publicado y certificado en PROD; U24 en revisión de 9 rutas Cliente
+**PROD U23:** SHA exacto `65c17b662bd9a70b09261169b6ca8feaf23a469c`, PR [#1055](https://github.com/iberfit/iberfit-m26-app/pull/1055) MERGED. [Canary Exact Deploy #39435366832](https://github.com/iberfit/iberfit-m26-app/actions/runs/39435366832), [Production Promotion #39438915893](https://github.com/iberfit/iberfit-m26-app/actions/runs/39438915893) SUCCESS. M44 encrypted DB+Storage + restore PG17 aislado SUCCESS [#39418044881](https://github.com/iberfit/iberfit-m26-app/actions/runs/39418044881) segundo intento; controles QA, CI, WebAuthn, Device Gate, auditoría, Lighthouse, identidad y Chromium en producción superados.
+
+**U24 (rama, NO fusionado ni promovido):** añadir contratos de cuerpo real y estado observado para las nueve rutas de Cliente a la prueba visual autenticada existente (320/390/1024/1366/1440), bajo la red QA de solo lectura: Hoy, Planificación, Sesiones, Progreso, Informes, Actividad, Mensajes, Retos y Ajustes. Asegurar estado de sesión, ruta sin placeholder, navegación y no overflow, separación IRI/evolución, ausencia de emisión documental no autorizada, sin inicio indebido de sesión, privacidad comunitaria, estados de comunicación y controles de preferencias. Evidencias solo con nombres de área, estados técnicos y booleanos; nunca datos personales ni credenciales. **No se marcan rutas `verified`:** aún faltan comprobaciones completas de estados loading/error/retry/offline/conflict/session-expired, escrituras autorizadas, datos alternativos y aceptación integral por dispositivo/rol.
+
+---
+
 # IBERFIT SIGNATURE 360 · Rediseño visual y funcional integral hasta PRODUCCIÓN
 
 ## Checkpoint vigente · 20-10-2026 · U22 certificado en PRODUCCIÓN; U23 en ejecución
