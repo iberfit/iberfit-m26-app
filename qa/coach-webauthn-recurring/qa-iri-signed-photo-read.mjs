@@ -32,8 +32,8 @@ export function isQaIriSignedPhotoRead(request,{qaOrigin}={}){
     }catch{return false;}
   }
   if(method==='GET'){
-    return url.searchParams.size===1&&url.searchParams.has('token')&&
-      SIGNED_TOKEN.test(String(url.searchParams.get('token')||''));
+    // Exact raw query only: URLSearchParams would canonicalize encoded keys/values.
+    return url.search.startsWith('?token=')&&SIGNED_TOKEN.test(url.search.slice(7));
   }
   return false; // No PUT, PATCH, DELETE, upload, list, signMany or public object.
 }
@@ -47,8 +47,17 @@ export function qaIriPrivatePhotoEvidenceLabel(request,{qaOrigin}={}){
   let url;
   try{url=new URL(request.url());}catch{return null;}
   let pathname=url.pathname;
-  try{pathname=decodeURIComponent(pathname);}catch{}
-  if(!pathname.toLowerCase().includes('iberfit-iri-photogrammetry'))return null;
+  // Privacy recognition only: unwrap bounded encoding layers without resolving or
+  // trusting the path. A doubly encoded bucket must not fall back to raw logging.
+  let privatePath=false;
+  for(let depth=0;depth<4;depth++){
+    if(pathname.toLowerCase().includes('iberfit-iri-photogrammetry')){privatePath=true;break;}
+    let decoded;
+    try{decoded=decodeURIComponent(pathname);}catch{break;}
+    if(decoded===pathname)break;
+    pathname=decoded;
+  }
+  if(!privatePath)return null;
   const method=String(request.method()).toUpperCase();
   const safeMethod=/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/u.test(method)?method:'OTHER';
   const scope=qaOrigin&&url.origin===qaOrigin?'qa-supabase':'other-origin';
