@@ -176,7 +176,7 @@ test('Coach pausa la sesión desde el mando rápido usando la acción real y sin
   });
   assert.match(pausedHtml,/data-session-live-state="paused"/);
   assert.match(pausedHtml,/data-session-action="resume"/);
-  assert.match(pausedHtml,/Tu progreso está conservado/);
+  assert.match(pausedHtml,/El registro del cliente sigue protegido/);
 });
 
 test('Coach puede completar la serie desde Enter en RPE sin exponer el atajo al Cliente',()=>{
