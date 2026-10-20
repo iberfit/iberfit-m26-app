@@ -1444,7 +1444,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <div>
             <p class="m26-eyebrow">Sesión en pausa</p>
             <h2>${e(session.title||'Sesión IBERFIT')}</h2>
-            <p>Tu progreso está conservado. El tiempo activo permanece detenido hasta reanudar.</p>
+            <p>${isCoach?'El registro del cliente sigue protegido. El tiempo activo se detiene hasta reanudar.':'Tu registro sigue protegido. El tiempo activo se detiene y podrás continuar donde lo dejaste.'}</p>
           </div>
           <span class="m26-session-live-status">Pausada</span>
         </div>
@@ -1669,7 +1669,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         recorded.reps!=null?`${recorded.reps} rep${Number(recorded.reps)===1?'':'s'}`:null,
         recorded.seconds!=null?`${recorded.seconds} s`:null,
         recorded.load||null,
-        Number.isFinite(Number(recorded.rpe))?`RPE ${recorded.rpe}`:null,
+        recorded.rpe!=null&&String(recorded.rpe).trim()!==''&&Number.isFinite(Number(recorded.rpe))&&Number(recorded.rpe)>0?`RPE ${recorded.rpe}`:null,
         recorded.rir!=null&&Number.isFinite(Number(recorded.rir))?`RIR ${recorded.rir}`:null,
       ].filter(Boolean).join(' · ')
     :'';
@@ -1747,7 +1747,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
   const cues=(ex.cues||[]).join(' · ');
 
-  return `<section class="m26-guided m26-session-live m26-session-live-v2 m26-session-live-v3" data-session-live-state="${restActive?'rest':'active'}" data-session-live-v3>
+  return `<section class="m26-guided m26-session-live m26-session-live-v2 m26-session-live-v3" data-session-live-state="${restActive?'rest':'active'}" data-session-live-v3 data-session-role="${isCoach?'coach':'client'}">
     ${professionalClientContext}
     ${sync}
     <header class="m26-session-live-hero">
@@ -1768,12 +1768,13 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
       ${goal}
     </header>
 
-    ${touchFocus}
-
-    ${((Number(execution.index)>0||Number(execution.setIndex)>0)||isCoach)?`<div class="m26-session-live-quick-actions"${isCoach?' data-session-coach-quick-controls':''} aria-label="${isCoach?'Controles rápidos de sesión':'Acciones de navegación'}">
+    <div role="group" class="m26-session-live-quick-actions" data-session-quick-controls ${isCoach?'data-session-coach-quick-controls':'data-session-client-quick-controls'} aria-label="${isCoach?'Acciones rápidas del Coach':'Acciones rápidas del entrenamiento'}">
+      <button type="button" class="m26-session-live-quick-pause" data-session-action="pause" aria-label="Pausar el entrenamiento">${isCoach?'Pausar sesión':'Pausar entrenamiento'}</button>
       ${(Number(execution.index)>0||Number(execution.setIndex)>0)?'<button type="button" data-session-action="previous">Anterior</button>':''}
-      ${isCoach?'<button type="button" data-session-open-substitution>Ajustar ejercicio</button><button type="button" class="m26-session-live-quick-pause" data-session-action="pause">Pausar sesión</button>':''}
-    </div>`:''}
+      ${isCoach?'<button type="button" data-session-open-substitution>Ajustar ejercicio</button>':''}
+    </div>
+
+    ${touchFocus}
 
     <div class="m26-session-live-workbench is-${restActive?'rest':'active'}">
       <main class="m26-session-live-primary" aria-label="Registro de la serie actual">
