@@ -19,6 +19,15 @@ for(const role of ['client','coach','admin']){
       const errorsBefore=pageErrors.length;
       await page.evaluate(area=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(area),area);
       await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.area()),{message:role+' '+area}).toBe(area);
+      if(area==='admin-media-review'){
+        // Production loads the Media Factory stylesheet dynamically on first entry.
+        // The route is not paint-ready until the genuine stylesheet is available;
+        // never assess document overflow against an intentionally unstyled frame.
+        await expect.poll(()=>page.evaluate(()=>{
+          const sheet=document.querySelector('link[data-m26-media-review-style]');
+          return Boolean(sheet?.sheet);
+        }),{message:'Admin Media Review production stylesheet must actually load'}).toBe(true);
+      }
       const actual=await page.evaluate(()=>{
         const root=document.querySelector('.m26-shell'),main=document.querySelector('.m26-main');
         const body=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-admin-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions,[data-admin-media-review-route]');
@@ -34,6 +43,14 @@ for(const role of ['client','coach','admin']){
       expect(actual.chars,role+' '+area+' substantive content').toBeGreaterThan(35);
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
+      if(actual.width>actual.viewport+2){
+        const offenders=await page.evaluate(()=>[...document.querySelectorAll('.m26-main *')]
+          .map(el=>({el,rect:el.getBoundingClientRect()}))
+          .filter(({rect})=>rect.width>0&&rect.right>innerWidth+2)
+          .sort((a,b)=>b.rect.right-a.rect.right).slice(0,12)
+          .map(({el,rect})=>({tag:el.tagName.toLowerCase(),className:String(el.className?.baseVal??el.className??'').slice(0,130),left:Math.round(rect.left),right:Math.round(rect.right),width:Math.round(rect.width)})));
+        console.log('SIGNATURE_U25_OVERFLOW_GEOMETRY:'+JSON.stringify({role,area,viewport:actual.viewport,documentWidth:actual.width,offenders}));
+      }
       expect(actual.width,role+' '+area+' no document overflow').toBeLessThanOrEqual(actual.viewport+2);
     }
     expect(writes,'Static QA may not mutate external services').toEqual([]);
