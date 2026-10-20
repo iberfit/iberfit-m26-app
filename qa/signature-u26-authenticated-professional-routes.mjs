@@ -64,8 +64,12 @@ export async function auditAuthenticatedProfessionalRoutes(page,{role,viewport})
   await expect(page.locator('.m26-role-choice[role="dialog"]')).toHaveCount(0);
   const observed=[],notExposed=[];
   for(const area of config[viewport]){
+    // Technical route labels only: no identity, free text, credentials or health data.
+    const started=Date.now();
+    console.log('SIGNATURE_U26_ROUTE_START '+role+'/'+viewport+'/'+area);
     if(!await navigateViaActualControl(page,role,area)){
       notExposed.push(area);
+      console.log('SIGNATURE_U26_ROUTE_NOT_EXPOSED '+role+'/'+viewport+'/'+area);
       continue;
     }
     await expect(shell,'U26 must not cross role boundary').toBeVisible();
@@ -91,6 +95,7 @@ export async function auditAuthenticatedProfessionalRoutes(page,{role,viewport})
     expect(state.overflowing,area+': horizontal document overflow').toBe(false);
     expect(state.appInert,area+': shell must not stay frozen').toBe(false);
     observed.push(area);
+    console.log('SIGNATURE_U26_ROUTE_PASS '+role+'/'+viewport+'/'+area+' '+(Date.now()-started)+'ms');
   }
   for(const required of config.required){
     expect(observed,role+' '+viewport+': required protected route not verified').toContain(required);
