@@ -14,7 +14,8 @@ test('U26 Coach IRI network perimeter permits only verified QA read-only probes'
   const block=src.slice(src.indexOf('const U26_IRI_READONLY_TABLES='),src.indexOf('const U26_UUID='));
   assert.ok(block.length>100);
   for(const name of tables)assert.ok(block.includes("'"+name+"'"),name);
-  assert.equal((block.match(/'iri_[a-z0-9_]+='/gu)||[]).length,0);
+  const actual=[...block.matchAll(/'iri_[a-z0-9_]+'/gu)].map(match=>match[0].slice(1,-1));
+  assert.deepEqual(actual.sort(),[...tables].sort());
   assert.match(src,/method==='GET'&&authenticatedQaRequest\(request\)/u);
   assert.match(src,/U26_IRI_READONLY_TABLES\.has\(url\.pathname\.slice/u);
   assert.match(src,/url\.pathname==='\/rest\/v1\/rpc\/m26_iri_draft_get_v1'/u);
