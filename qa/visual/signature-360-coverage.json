@@ -342,7 +342,7 @@
       "signature-coach-live-set-block-attribution-u18",
       "signature-hr-rpe-rir-legacy-ambiguity-safety-u18"
     ],
-    "scope": "Incremental releases through U18 verified on production exact source, Lighthouse, read-only Chromium audit and rollback by #39353820032. All 43 Cliente/Coach/Admin route-state-device acceptance entries remain pending, not claimed certified by a release smoke."
+    "scope": "Incremental releases through U18 verified on production exact source, Lighthouse, read-only Chromium audit and rollback by #39353820032. All 43 routes remain pending for Cliente/Coach/Admin route-state-device acceptance, not claimed certified by a release smoke."
   },
   "activeDelivery": "3/5-coach-incremental"
 }
