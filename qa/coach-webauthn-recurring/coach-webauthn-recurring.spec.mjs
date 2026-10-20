@@ -2,6 +2,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
+import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
@@ -52,6 +53,8 @@ const MIME=Object.freeze({
 
 function mimeFor(file){return MIME[path.extname(file).toLowerCase()]||'application/octet-stream';}
 function requestLabel(request){
+  const privateLabel=qaIriPrivatePhotoEvidenceLabel(request,{qaOrigin:SUPABASE_ORIGIN});
+  if(privateLabel)return privateLabel;
   try{const url=new URL(request.url());return `${request.method().toUpperCase()} ${url.origin===SUPABASE_ORIGIN?'qa-supabase':url.origin} ${url.pathname}`;}
   catch{return 'INVALID_REQUEST';}
 }
@@ -64,6 +67,8 @@ function allowedQaRequest(request){
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
   if(isQaPrivateAvatarRead(request))return true;
+  // QA-only: exact JWT-authenticated, time-bounded private photo signing/read.
+  if(isQaIriSignedPhotoRead(request,{qaOrigin:SUPABASE_ORIGIN}))return true;
   if(method==='GET'&&authenticatedQaRequest(request)&&
     /^\/rest\/v1\/[a-z][a-z0-9_]*$/u.test(url.pathname)&&
     U26_IRI_READONLY_TABLES.has(url.pathname.slice('/rest/v1/'.length)))return true;
