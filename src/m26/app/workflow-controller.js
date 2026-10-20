@@ -224,6 +224,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
   clearStatus(root,'appointment');
   const modalityField=form.elements?.namedItem?.('modality')||form.querySelector?.('[name="modality"]');
   const clientField=form.elements?.namedItem?.('clientId')||form.querySelector?.('[name="clientId"]');
+  const sessionField=form.elements?.namedItem?.('sessionId')||form.querySelector?.('[name="sessionId"]');
   const startField=form.elements?.namedItem?.('startAt')||form.querySelector?.('[name="startAt"]');
   const endField=form.elements?.namedItem?.('endAt')||form.querySelector?.('[name="endAt"]');
   const locationField=form.elements?.namedItem?.('location')||form.querySelector?.('[name="location"]');
@@ -232,11 +233,23 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
   const selectedOption=clientField?.selectedOptions?.[0]||clientField?.options?.[clientField?.selectedIndex]||null;
   const trainingAddress=String(selectedOption?.dataset?.trainingAddress||'').trim();
   const clientModality=String(selectedOption?.dataset?.clientModality||'').trim();
-  const suggestedModality=appointmentModalitySuggestion(clientModality);
-  const sessionDurationMinutes=Number(selectedOption?.dataset?.sessionDuration);
+  const chosenClientId=String(clientField?.value||'').trim();
+  // When switching the client, a session from the previous client must not
+  // remain an apparently valid selection. Scope is checked again on submit.
+  for(const option of sessionField?.options||[]){
+    if(!option.value)continue;
+    option.disabled=Boolean(chosenClientId&&String(option.dataset?.clientId||'')!==chosenClientId);
+  }
+  const selectedSessionOption=sessionField?.selectedOptions?.[0]||null;
+  if(selectedSessionOption?.value&&selectedSessionOption.disabled)sessionField.value='';
+  const activeSessionOption=sessionField?.selectedOptions?.[0]||null;
+  const sessionModality=normalizeAppointmentModality(activeSessionOption?.dataset?.modality);
+  const suggestedModality=sessionModality||appointmentModalitySuggestion(clientModality);
+  const activeSessionDuration=Number(activeSessionOption?.dataset?.sessionDuration);
+  const clientDuration=Number(selectedOption?.dataset?.sessionDuration);
+  const sessionDurationMinutes=activeSessionOption?.value?activeSessionDuration:clientDuration;
   const validDuration=Number.isFinite(sessionDurationMinutes)&&sessionDurationMinutes>=20&&sessionDurationMinutes<=240
-    ?sessionDurationMinutes
-    :null;
+    ?sessionDurationMinutes:null;
 
   if(modalityField){
     let previousAutofill=String(modalityField.dataset?.m26AutofilledValue||'');
@@ -288,8 +301,8 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
   }
   if(guidance){
     const suggestions=[
-      suggestedModality?'modalidad del expediente':null,
-      validDuration?'duración habitual':null,
+      suggestedModality?(sessionModality?'modalidad de la sesión':'modalidad del expediente'):null,
+      validDuration?(activeSessionOption?.value?'duración prescrita':'duración habitual'):null,
     ].filter(Boolean);
     guidance.textContent=suggestions.length
       ?`IBERFIT ha propuesto ${suggestions.join(' y ')}. Revísalas: cualquier cambio manual prevalece.`
