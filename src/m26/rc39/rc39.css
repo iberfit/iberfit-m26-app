@@ -762,7 +762,7 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
  .m26-rc39-date-links>a{min-width:5.7rem}
 }
 @media (prefers-reduced-motion:reduce){.m26-rc39-date-links{scroll-behavior:auto}}
-.m26-rc39-day-heading::-webkit-details-marker{display:none}
+.m26-rc39-day-group summary::-webkit-details-marker{display:none}
 .m26-rc39-day-heading::after{content:'+';color:var(--m26-gold-300);font-size:1.22rem;line-height:1;align-self:center}
 .m26-rc39-day-group[open]>.m26-rc39-day-heading::after{content:'−'}
 .m26-rc39-day-heading:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px;border-radius:.5rem}
