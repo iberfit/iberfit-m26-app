@@ -65,7 +65,7 @@ function allowedQaRequest(request){
   if(url.origin!==SUPABASE_ORIGIN)return false;
   if(isQaPrivateAvatarRead(request))return true;
   if(method==='GET'&&authenticatedQaRequest(request)&&
-    /^\\/rest\\/v1\\/[a-z][a-z0-9_]*$/u.test(url.pathname)&&
+    /^\/rest\/v1\/[a-z][a-z0-9_]*$/u.test(url.pathname)&&
     U26_IRI_READONLY_TABLES.has(url.pathname.slice('/rest/v1/'.length)))return true;
   // Confirmed QA pg_proc: public.m26_iri_draft_get_v1 is STABLE, SECURITY INVOKER.
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/m26_iri_draft_get_v1'&&
