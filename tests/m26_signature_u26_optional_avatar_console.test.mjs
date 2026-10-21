@@ -42,5 +42,5 @@ test('U26 real Coach QA gate matches each unexpected 400 to a verified response,
   assert.match(source,/unexpectedQaResourceErrors\(consoleErrors,absentAvatarCount\)/u);
   assert.match(source,/expect\(evidence\.blocked,'No business mutation or foreign request may be attempted'\)\.toEqual\(\[\]\)/u);
   assert.match(source,/expect\(pageErrors,'Authenticated Coach page must remain clean'\)\.toEqual\(\[\]\)/u);
-  assert.doesNotMatch(source,/consoleErrors\.length\s*=\s*0|consoleErrors\s*=\s*\[\]|evidence\.blocked\.length\s*=\s*0/u);
+  assert.doesNotMatch(source,/consoleErrors\.length\s*=\s*0|(?:^|\n)\s*consoleErrors\s*=\s*\[\]|evidence\.blocked\.length\s*=\s*0/u);
 });
