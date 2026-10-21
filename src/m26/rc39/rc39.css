@@ -537,6 +537,26 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   .m26-rc39-history-item__metrics{width:100%}
 }
 
+/* SIGNATURE Coach · progressive access to long prescription histories */
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more{grid-column:1/-1;min-width:0;margin-top:.55rem;padding:0;border:1px solid rgba(207,179,113,.26);border-radius:1rem;background:rgba(207,179,113,.045)}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle{min-height:62px;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;cursor:pointer;list-style:none}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle::-webkit-details-marker{display:none}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle span:first-child{display:grid;gap:.2rem;min-width:0}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle strong{color:var(--m26-cream-100);font-size:.99rem;font-weight:650}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle small{font-size:.81rem;color:var(--m26-muted);line-height:1.5}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-indicator{font-size:1.4rem;color:var(--m26-gold-300);flex:none}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more[open] .m26-rc39-coach-more-indicator{transform:rotate(45deg)}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px;border-radius:.85rem}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-grid{padding:.6rem 1rem 1rem;min-width:0}
+@media(max-width:690px){
+ .m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle{min-height:64px;padding:.9rem}
+ .m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-grid{padding:.45rem .5rem 1rem}
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="coach"] .m26-rc39-coach-more{border:1px solid CanvasText}
+ .m26-shell[data-m26-role="coach"] .m26-rc39-coach-more-toggle:focus-visible{outline:3px solid Highlight}
+}
+
 /* SIGNATURE 360 · Client Sessions · warm, readable, useful (Client only).
  * Keep Coach/Admin session workbenches and session authorization untouched. */
 .m26-shell[data-m26-role="client"] .m26-rc39-sessions{
@@ -739,3 +759,4 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
     border:1px solid CanvasText;
   }
 }
+
