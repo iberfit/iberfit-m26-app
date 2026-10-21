@@ -266,7 +266,7 @@ async function openCertifiedCoachArea(page,area){
     const expectedUrls=new Map();
     for(const item of confirmedMissing)expectedUrls.set(item.url,(expectedUrls.get(item.url)||0)+1);
     const unexpectedConsole=consoleErrors.filter(({text,url})=>{
-      if(!/^Failed to load resource: the server responded with a status of (?:400|404)\\b/iu.test(text)||!(expectedUrls.get(url)>0))return true;
+      if(!/^Failed to load resource: the server responded with a status of (?:400|404)\b/iu.test(text)||!(expectedUrls.get(url)>0))return true;
       expectedUrls.set(url,expectedUrls.get(url)-1);
       return false;
     });
