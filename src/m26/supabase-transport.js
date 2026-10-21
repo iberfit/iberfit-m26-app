@@ -17,6 +17,17 @@ export function isBootstrapStatementTimeout(error){
     &&/canceling statement due to statement timeout/iu.test(String(error?.body?.message||''));
 }
 
+// Read-only assurance can be retried once after an actual network outage.
+// Authorization denial, malformed responses, JWT failures and SQL errors are
+// never treated as transport glitches.
+export function isTransientReadOnlyAssuranceTransportFailure(error){
+  const status=Number(error?.status||0);
+  if(status!==0)return [502,503,504].includes(status);
+  const message=String(error?.message||'');
+  return message==='M26_TIMEOUT'
+    || (error?.name==='TypeError'&&/Failed to fetch|Load failed|NetworkError|network request failed/iu.test(message));
+}
+
 export function isFutureIssuedJwtClockSkew(error){
   return Number(error?.status||0)===401
     &&String(error?.body?.code||'').trim().toUpperCase()==='PGRST303'
@@ -557,11 +568,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function authAssuranceContext(token){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
-    // Retry only the verified PostgREST future-iat clock-skew response.
-    // Preserve the same token and the exact server-side assurance/MFA check.
-    // Never retry arbitrary 401s, forbidden, expired or invalid-signature JWTs.
-    let body;
-    for(let attempt=0;attempt<4;attempt+=1){
+    // This is a read-only, server-enforced assurance RPC. A transient outage
+    // may retry ONCE using exactly the same JWT; no privileged state is
+    // inferred locally. Verified future-iat skew retains its separate bound.
+    // Never retry arbitrary 401/403, invalid tokens, 500 or malformed JSON.
+    let body,skewRetries=0,networkRetries=0;
+    for(;;){
       try{
         body=await request('/rest/v1/rpc/'+RC65C_AUTH_ASSURANCE_RPC,{
           method:'POST',
@@ -570,8 +582,16 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         });
         break;
       }catch(error){
-        if(!isFutureIssuedJwtClockSkew(error)||attempt===3)throw error;
-        await authRetryDelay([350,800,1300][attempt]);
+        if(isFutureIssuedJwtClockSkew(error)&&skewRetries<3){
+          await authRetryDelay([350,800,1300][skewRetries++]);
+          continue;
+        }
+        if(isTransientReadOnlyAssuranceTransportFailure(error)&&networkRetries<1){
+          networkRetries+=1;
+          await authRetryDelay(220);
+          continue;
+        }
+        throw error;
       }
     }
     if(

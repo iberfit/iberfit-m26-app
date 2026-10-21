@@ -258,6 +258,7 @@ test('current authenticated contract separates privileged fail-closed identities
     const pageErrors=[];
     // Read-only diagnostic phases; never record secrets or identifying data.
     const authPhases=[];
+    const authNetworkFailureCodes=[];
     const rpcStarts=new WeakMap();
     const rpcTimings=[];
     await installCurrentSourceQaNetworkPolicy(context,{
@@ -354,7 +355,14 @@ test('current authenticated contract separates privileged fail-closed identities
         if(url.origin===SUPABASE_ORIGIN){
           if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
             authPhases.push('first-factor-requestfailed');
-          if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-requestfailed');
+          if(url.pathname===ASSURANCE_PATH){
+            authPhases.push('assurance-requestfailed');
+            // Record only a bounded Chromium network failure code. Never
+            // capture request URL, JWT, request headers or response payload.
+            const errorText=String(request.failure()?.errorText||'');
+            const code=errorText.match(/net::ERR_[A-Z_]{2,45}/u)?.[0]||'NETWORK_FAILURE_UNCLASSIFIED';
+            authNetworkFailureCodes.push(code);
+          }
         }
       }catch{}
       const label=qaRequestLabel(request);
@@ -413,7 +421,7 @@ test('current authenticated contract separates privileged fail-closed identities
           };
         }).catch(()=>({unavailable:true}));
         console.error('M26_QA_AUTH_PHASE_DIAGNOSTIC:'+JSON.stringify({
-          attemptStage,stages:[...authPhases],state,
+          attemptStage,stages:[...authPhases],authNetworkFailureCodes:authNetworkFailureCodes.slice(0,8),state,
         }));
         throw error;
       }
