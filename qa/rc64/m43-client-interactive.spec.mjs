@@ -121,6 +121,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await page.locator('[data-session-action="pause"]').first().click();
   await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible({timeout:20_000});
   await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
+  await expect(page.locator('[data-session-paused-early-controls]')).toBeVisible();
+  await expect(page.locator('[data-session-action="resume"]'),'Resume must be inside a real mobile touch viewport').toBeInViewport({ratio:0.75});
   await page.locator('[data-session-action="resume"]').click();
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
   await page.locator('[data-set-field="reps"]').first().fill('8');

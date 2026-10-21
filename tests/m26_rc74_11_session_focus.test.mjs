@@ -121,3 +121,18 @@ test('pausa y feedback mantienen controles primarios ANTES del panel de telemetr
   assert.equal((paused.match(/\$\{liveTelemetryStrip\(execution,catalog\)\}/g)||[]).length,1);
   assert.equal((feedback.match(/\$\{liveTelemetryStrip\(execution,catalog\)\}/g)||[]).length,1);
 });
+
+test('paused workout keeps actual Resume and Exit above potentially long title and metrics',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+  const section=source.split("if(execution.status==='paused'){")[1]?.split("if(execution.status==='cancelled'){")[0];
+  assert.ok(section);
+  const eyebrow=section.indexOf('Sesión en pausa');
+  const controls=section.indexOf('data-session-paused-early-controls');
+  const resume=section.indexOf('data-session-action="resume"');
+  const heading=section.indexOf('<h2>');
+  const metrics=section.indexOf('$'+'{sessionLiveSummary(execution,session)}');
+  const telemetry=section.indexOf('$'+'{liveTelemetryStrip(execution,catalog)}');
+  assert.ok(eyebrow>=0&&controls>eyebrow&&resume>controls);
+  assert.ok(heading>resume&&metrics>heading&&telemetry>metrics);
+  assert.equal((section.match(/data-session-action="resume"/g)||[]).length,1);
+});

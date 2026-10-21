@@ -1439,19 +1439,19 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ${sync}
       ${timerStrip(execution)}
       <div class="m26-panel m26-session-live-hero">
+        <p class="m26-eyebrow">Sesión en pausa</p>
+        <div class="m26-session-live-actions" data-session-paused-early-controls>
+          <button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button>
+          <button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button>
+        </div>
         <div class="m26-session-live-heading">
           <div>
-            <p class="m26-eyebrow">Sesión en pausa</p>
             <h2>${e(session.title||'Sesión IBERFIT')}</h2>
             <p>${isCoach?'El registro del cliente sigue protegido. El tiempo activo se detiene hasta reanudar.':'Tu registro sigue protegido. El tiempo activo se detiene y podrás continuar donde lo dejaste.'}</p>
           </div>
           <span class="m26-session-live-status">Pausada</span>
         </div>
         ${sessionLiveSummary(execution,session)}
-        <div class="m26-session-live-actions">
-          <button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button>
-          <button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button>
-        </div>
         <details class="m26-session-options">
           <summary>Cancelar esta sesión</summary>
           <label>Motivo para cancelar<input data-session-cancel-reason maxlength="500"></label>
