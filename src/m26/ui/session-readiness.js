@@ -75,6 +75,11 @@ const STYLES=`
   .m27-session-focus-dock.is-coach .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
   .m27-session-focus-meta>strong{font-size:.76rem}
 }
+/* Contextual phases keep the genuine quick action in document flow:
+   the fixed live dock must never cover Start, Resume or feedback inputs. */
+.m27-session-focus-dock.is-inline{position:static;z-index:auto;inset:auto;display:flex;align-items:center;flex-wrap:wrap;max-width:100%;margin-top:.72rem;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.m27-session-focus-active.m27-session-focus-inline{padding-bottom:0}
+@media (max-width:560px){.m27-session-focus-dock.is-inline{align-items:stretch;flex-direction:column}.m27-session-focus-dock.is-inline .m27-session-focus-actions{width:100%;max-width:none}.m27-session-focus-dock.is-inline .m27-session-focus-primary{flex:1 1 auto;min-width:0}}
 @media (forced-colors:active){.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
 @media (prefers-reduced-motion:reduce){.m27-session-focus-primary,.m27-session-focus-secondary{scroll-behavior:auto}}
 `;
@@ -555,6 +560,7 @@ function removeFocusDock(root){
   for(const live of root.querySelectorAll?.('[data-session-live-state]')||[]){
     live.classList?.remove?.('m27-session-focus-active');
     live.classList?.remove?.('m27-session-focus-coach');
+    live.classList?.remove?.('m27-session-focus-inline');
   }
   root.querySelector?.('[data-session-focus-dock]')?.remove?.();
 }
@@ -586,6 +592,7 @@ function buildFocusDock(document,live,plan,role='client'){
   const context=focusContext(live,plan.state);
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const dock=create(document,'aside',`m27-session-focus-dock${isCoach?' is-coach':''}`);
+  if(['ready','feedback','paused'].includes(plan.state))dock.classList.add('is-inline');
   dock.setAttribute('data-session-focus-dock','true');
   dock.setAttribute('data-session-focus-role',isCoach?'coach':'client');
   dock.setAttribute('aria-label','Control rápido de la sesión');
@@ -650,6 +657,7 @@ function refreshSessionFocus(root){
   const dock=buildFocusDock(root.ownerDocument,live,plan,state.role);
   if(!dock)return false;
   live.classList.add('m27-session-focus-active');
+  if(dock.classList.contains('is-inline'))live.classList.add('m27-session-focus-inline');
   if(state.role==='coach')live.classList.add('m27-session-focus-coach');
   live.append(dock);
   wakeBadge(root,Boolean(state.wakeLock));

@@ -112,6 +112,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   const live=page.locator('[data-session-live-state]');
   await expect(live,'Clicking the real Client CTA opens an executable session').toBeVisible({timeout:20_000});
   if(await page.locator('[data-session-live-state="ready"]').count()){
+    await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
     await page.locator('[data-session-action="start"]').click();
   }
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
@@ -119,17 +120,24 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   // The server must have confirmed start before any set can be accepted.
   await page.locator('[data-session-action="pause"]').first().click();
   await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible({timeout:20_000});
+  await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
   await page.locator('[data-session-action="resume"]').click();
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
   await page.locator('[data-set-field="reps"]').first().fill('8');
   await page.locator('[data-set-field="load"]').first().fill('20 kg');
   await page.locator('[data-set-field="rpe"]').first().fill('7');
-  await page.locator('[data-session-action="complete-set"]').click();
+  await expect(page.locator('[data-session-action="complete-set"]')).toHaveCount(1);
+  const dockPrimary=page.locator('[data-session-focus-dock]:not(.is-inline) .m27-session-focus-primary');
+  await expect(dockPrimary,'Mobile live-set dock is a real, touchable UI button').toBeVisible();
+  await dockPrimary.click();
   await expect(page.locator('[data-session-rest-focus]')).toBeVisible({timeout:20_000});
-  await page.locator('[data-session-action="next"]').click();
+  await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
+  await expect(dockPrimary,'Live rest dock stays touchable').toBeVisible();
+  await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:20_000});
   await page.locator('[data-session-feedback-rpe]').fill('7');
   await page.locator('[data-session-feedback-comment]').fill('IBERFIT QA M43 · feedback sintético UI');
+  await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
   await page.locator('[data-session-action="finish"]').click();
   await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
   await expect(page.locator('[data-session-live-state="completed"]')).toContainText('Confirmada');

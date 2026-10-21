@@ -92,3 +92,19 @@ test('mantiene la pantalla activa solo durante trabajo o descanso y libera recur
   assert.match(shell,/enhanceSessionReadiness\(\{root,viewModel,state\}\);\s*enhanceSessionFocus\(\{root,viewModel\}\);/);
   assert.match(shell,/teardownSessionFocus\(\{root\}\)/);
 });
+
+test('session focus dock preserves mobile touch access without overlaying readiness, pause or feedback',async()=>{
+  const [ui,staticStyles]=await Promise.all([
+    readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8'),
+    readFile(new URL('../src/m26/design/runtime-static.css',import.meta.url),'utf8'),
+  ]);
+  assert.match(ui,/\['ready','feedback','paused'\]\.includes\(plan\.state\)/u);
+  assert.match(ui,/dock\.classList\.contains\('is-inline'\)/u);
+  assert.match(ui,/live\.classList\?\.remove\?\.\('m27-session-focus-inline'\)/u);
+  for(const source of [ui,staticStyles]){
+    assert.match(source,/\.m27-session-focus-dock\.is-inline\{position:static/u);
+    assert.match(source,/\.m27-session-focus-active\.m27-session-focus-inline\{padding-bottom:0\}/u);
+    assert.match(source,/\.m27-session-focus-dock\.is-inline \.m27-session-focus-actions\{width:100%;max-width:none\}/u);
+    assert.match(source,/\.m27-session-focus-dock\{position:fixed/u);
+  }
+});
