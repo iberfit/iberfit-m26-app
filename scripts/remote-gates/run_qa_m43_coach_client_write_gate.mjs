@@ -84,6 +84,9 @@ async function main(){
   const budget=assessM43SyntheticFixtureBudget(a);
   evidence.fixtureBudget={count:budget.count,limit:budget.limit,exhausted:budget.exhausted};
   check(!budget.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED');
+  // This run creates TWO synthetic sessions: one RPC-certified and one
+  // browser-driven. Never exhaust the isolated fixture budget mid-run.
+  check(budget.count<=budget.limit-2,'INTERACTIVE_FIXTURE_BUDGET_RESERVED');
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
   check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_SYNTHETIC_CLIENTS');
   check(String(coachRole).toLowerCase()==='coach','COACH_ROLE');
@@ -206,6 +209,32 @@ async function main(){
   check((finalA?.data?.sessionExecutions||[]).every(e=>
     !['events','incidents','queue','progressSnapshot'].some(k=>Object.hasOwn(e,k))),
     'CLIENT_HTTP_LEGACY_EXECUTION_INTERNAL_FIELDS_OMITTED');
+  // A second run-unique published session remains READY for the genuine
+  // Client browser to start, pause, record and finish by clicking the product.
+  // This is QA-only; no real customer, old session or production data touched.
+  const uiDraft=createSessionDraft({
+    clientId:idA,title:RUN_MARKERS.interactiveSessionTitle,
+    durationMinutes:20,deliveryModality:'guiada_en_app',
+  });
+  uiDraft.cycleId=planId;
+  addCatalogExercise(uiDraft,'qa-m43-strength',catalog,{
+    sets:1,reps:'8',plannedLoad:'20 kg',restSeconds:0,targetRpe:7,targetRir:2,
+  });
+  acceptSessionPreview(uiDraft,catalog);
+  const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
+    'INTERACTIVE_SESSION_PUBLISH');
+  const [uiClient,uiOther]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const uiCanonical=uiClient?.data?.m26Entities?.find(item=>
+    item.entityType==='session'&&String(item.entityId)===String(uiDraft.id));
+  check(verifyM43AtomicGuidedEnablement({
+    canonical:uiCanonical,publishedResult:uiPublished.result,
+    sessionId:uiDraft.id,clientId:idA,
+  }).ok,'INTERACTIVE_SESSION_ATOMIC_ENABLEMENT');
+  check(!contains(uiOther,uiDraft.id,'session')&&!baseContains(uiOther,uiDraft.id,'sessions'),
+    'INTERACTIVE_SESSION_FOREIGN_PRIVATE');
+  // Browser completion MUST occur in the downstream authenticated test,
+  // not in this Node writer. Otherwise a fake read-only test can pass.
+  check(uiCanonical?.status==='disponible','INTERACTIVE_SESSION_READY_FOR_BROWSER');
   evidence.phase='complete';
   evidence.passed=true;
 }
