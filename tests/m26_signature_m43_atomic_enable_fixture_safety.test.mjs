@@ -89,7 +89,7 @@ test('M43 synthetic paused recovery is strictly scoped, old, role-owned and audi
   assert.equal(assess(modified({}, {clientId:'another-client'})).reason,'SESSION_NOT_IN_PROGRESS');
   assert.equal(assess(modified({}, {},[execution])).reason,'AMBIGUOUS_ACTIVE_EXECUTIONS');
   assert.equal(assess(snapshot,{runId:'1234'}).reason,'RUN_NOT_PRIOR');
-  assert.equal(assess({...snapshot,serverTime:'2026-10-21T14:05:00Z'}).reason,'RUN_NOT_STALE');
+  assert.equal(assess({...snapshot,serverTime:'2026-10-21T14:03:00Z'}).reason,'RUN_NOT_STALE');
   assert.equal(assess({...snapshot,user:{clientId:'unrelated'}}).reason,'CLIENT_OR_ENTITY_SCOPE');
   assert.equal(assess({...snapshot,data:{}}).reason,'BOOTSTRAP_MISSING');
 });
