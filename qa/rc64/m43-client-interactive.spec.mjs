@@ -170,7 +170,21 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await page.locator('[data-session-feedback-rpe]').fill('7');
   await page.locator('[data-session-feedback-comment]').fill('IBERFIT QA M43 · feedback sintético UI');
   await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
-  await page.locator('[data-session-action="finish"]').click();
+  // The final action must be genuinely reachable in the immersive touch
+  // scrollport, not dispatched artificially or force-clicked.
+  const finish=page.locator('[data-session-action="finish"]');
+  await expect(finish).toBeEnabled({timeout:20_000});
+  await finish.scrollIntoViewIfNeeded({timeout:10_000});
+  await expect(finish,'Client can reach final feedback action').toBeInViewport({ratio:0.75});
+  const scroll=await page.evaluate(()=>{
+    const main=document.querySelector('.m26-shell[data-m26-role="client"] .m26-main');
+    return {overflow:getComputedStyle(main).overflowY,top:main.scrollTop,
+      available:main.scrollHeight-main.clientHeight};
+  });
+  expect(scroll.overflow).toBe('auto');
+  expect(scroll.available).toBeGreaterThan(0);
+  expect(scroll.top).toBeGreaterThan(0);
+  await finish.click();
   await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
   await expect(page.locator('[data-session-live-state="completed"]')).toContainText('Confirmada');
   await expect.poll(()=>allowed.some(x=>x.type==='EJECUCION_COMPLETAR'),{timeout:10_000}).toBe(true);
