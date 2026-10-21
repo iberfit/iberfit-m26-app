@@ -677,7 +677,16 @@ function refreshSessionFocus(root){
   live.classList.add('m27-session-focus-active');
   if(dock.classList.contains('is-inline'))live.classList.add('m27-session-focus-inline');
   if(state.role==='coach')live.classList.add('m27-session-focus-coach');
-  live.append(dock);
+  // Inline controls belong beside the action phase. Never append an
+  // accessible completion action below long telemetry (or cover inputs with
+  // a fixed overlay); the primary real button remains the source of truth.
+  const inlineAnchor=dock.classList.contains('is-inline')
+    ?live.querySelector?.(plan.state==='feedback'
+      ?'[data-session-live-feedback]'
+      :'.m26-session-live-hero')
+    :null;
+  if(inlineAnchor?.insertAdjacentElement)inlineAnchor.insertAdjacentElement('afterend',dock);
+  else live.append(dock);
   wakeBadge(root,Boolean(state.wakeLock));
   return true;
 }
