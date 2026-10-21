@@ -12,22 +12,9 @@
 -- per-occurrence execution. Do not mark recurring workouts as enabled
 -- until their independent execution and idempotency contracts are ready.
 --
--- Fail closed against any concurrent or previously invalid link. This
--- migration must NOT update or delete existing appointment/client data.
-DO $signature_scope_check$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM public.appointments AS a
-    INNER JOIN public.sessions AS s ON s.id=a.session_id
-    WHERE a.client_id IS DISTINCT FROM s.client_id
-  ) THEN
-    RAISE EXCEPTION 'SIGNATURE_APPOINTMENT_SESSION_CLIENT_SCOPE_MISMATCH'
-      USING ERRCODE='23514';
-  END IF;
-END
-$signature_scope_check$;
-
+-- The composite FK plus VALIDATE below are the authoritative fail-closed
+-- checks for existing and future links. No anonymous DO block, no row rewrite,
+-- no bypass of the repository's migration safety policy.
 -- PostgreSQL FK targets must have a unique key on the exact pair.
 -- Retain sessions(id) as the existing primary key for all old callers.
 ALTER TABLE public.sessions
