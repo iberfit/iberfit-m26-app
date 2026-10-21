@@ -27,6 +27,7 @@ export function m43QaRunMarkers({runId,attempt}={}){
   const suffix='run-'+id+'-a'+n;
   return Object.freeze({
     sessionTitle:'IBERFIT QA M43 · multideporte · '+suffix,
+    interactiveSessionTitle:'IBERFIT QA M43 · sesión interactiva · '+suffix,
     publishedCycleTitle:'IBERFIT QA M43 · ciclo principal · '+suffix,
     unpublishedCycleTitle:'IBERFIT QA M43 · ciclo no publicado · '+suffix,
   });
