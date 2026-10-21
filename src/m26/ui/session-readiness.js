@@ -455,8 +455,11 @@ function focusStateFor(root){
       const selector=String(proxy.dataset?.sessionFocusTarget||'').trim();
       const live=proxy.closest?.('[data-session-live-state]');
       const target=selector&&live?.querySelector?.(selector);
-      const waitingForAck=selector==='[data-session-action="next"]'
-        &&root.dataset?.m26SessionActionPending==='true';
+      // A focus proxy is a second activation surface for a real session command.
+      // While any session mutation owns the controller lock, every proxy must
+      // fail closed; otherwise an optimistic render can expose the next action
+      // and silently lose a fast Client tap.
+      const waitingForAck=root.dataset?.m26SessionActionPending==='true';
       if(target&&!target.disabled&&!waitingForAck&&!proxy.disabled){
         target.focus?.({preventScroll:true});
         target.click?.();
@@ -583,8 +586,7 @@ function focusProxyButton(document,live,selector,{primary=false}={}){
   const title=target.getAttribute?.('title');
   if(ariaLabel)proxy.setAttribute('aria-label',ariaLabel);
   if(title)proxy.setAttribute('title',title);
-  const waitingForAck=selector==='[data-session-action="next"]'
-    &&Boolean(live.closest?.('[data-m26-session-action-pending="true"]'));
+  const waitingForAck=Boolean(live.closest?.('[data-m26-session-action-pending="true"]'));
   proxy.disabled=Boolean(target.disabled)||waitingForAck;
   if(waitingForAck){
     proxy.dataset.m26WaitForAck='true';
