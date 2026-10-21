@@ -37,7 +37,7 @@ test('SIGNATURE latest failed result defeats an older successful check',()=>{
 test('SIGNATURE deploy flow must check real gates before artifact deployment',()=>{
  const src=readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
  const check=src.indexOf('node scripts/release/verify_source_qa_gates.mjs');
- const wrangler=src.indexOf('wrangler pages deploy');
+ const wrangler=src.indexOf('pages deploy .tmp/rc64-current-surface');
  assert.ok(check>=0&&wrangler>check,'production deploy requires exact source gate first');
  assert.match(src,/GH_ACTIONS_TOKEN: \$\{\{ github\.token \}\}/u);
 });
