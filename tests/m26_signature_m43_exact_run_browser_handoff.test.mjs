@@ -52,19 +52,19 @@ test('M43 real backend writer and Client browser share exact CI run and attempt'
 });
 
 test('U34 interactive QA requires exact synthetic run fixture, scoped server commands and real buttons',()=>{
-  assert.match(writer,/title:RUN_MARKERS\\.interactiveSessionTitle/u);
-  assert.match(writer,/check\\(budget\\.count<=budget\\.limit-2/u);
+  assert.match(writer,/title:RUN_MARKERS\.interactiveSessionTitle/u);
+  assert.match(writer,/check\(budget\.count<=budget\.limit-2/u);
   assert.match(writer,/INTERACTIVE_SESSION_ATOMIC_ENABLEMENT/u);
   assert.match(writer,/INTERACTIVE_SESSION_FOREIGN_PRIVATE/u);
-  assert.match(interactive,/m43QaRunMarkers\\(\\{runId:process\\.env\\.GITHUB_RUN_ID,attempt:process\\.env\\.GITHUB_RUN_ATTEMPT\\}\\)/u);
-  assert.match(interactive,/\\.interactiveSessionTitle/u);
+  assert.match(interactive,/m43QaRunMarkers\(\{runId:process\.env\.GITHUB_RUN_ID,attempt:process\.env\.GITHUB_RUN_ATTEMPT\}\)/u);
+  assert.match(interactive,/\.interactiveSessionTitle/u);
   assert.match(interactive,/allowQaSyntheticWrite:allowExactSyntheticWrite/u);
   assert.match(interactive,/data-workflow-action="start-published-session"/u);
   for(const action of ['start','pause','resume','complete-set','next','finish','exit-session'])
     assert.ok(interactive.includes('data-session-action="'+action+'"'),action+' real button required');
   assert.match(interactive,/Completed workout must reach real Client history exactly once/u);
   assert.match(interactive,/EJECUCION_COMPLETAR/u);
-  assert.match(policy,/allowQaSyntheticWrite=\\(\\)=>false/u);
-  assert.match(policy,/\\['iberfit_command_preflight_v26','iberfit_execute_command_v26'\\]/u);
-  assert.match(workflow,/npx playwright test --config playwright\\.m43-interactive-client\\.config\\.mjs/u);
+  assert.match(policy,/allowQaSyntheticWrite=\(\)=>false/u);
+  assert.match(policy,/\['iberfit_command_preflight_v26','iberfit_execute_command_v26'\]/u);
+  assert.match(workflow,/npx playwright test --config playwright\.m43-interactive-client\.config\.mjs/u);
 });
