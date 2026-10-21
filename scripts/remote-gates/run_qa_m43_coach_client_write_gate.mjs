@@ -10,7 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
-import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget} from './m43-qa-fixture-safety.mjs';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -20,6 +20,7 @@ for(const name of required)if(!process.env[name])throw Error('M43_QA_ENV_MISSING
 if(process.env.M26_PROJECT_REF!==REF||process.env.M26_QA_ONLY!=='true'
   ||new URL(process.env.M26_SUPABASE_URL).origin!==BASE)
   throw Error('M43_QA_PRODUCTION_ORIGIN_DENIED');
+const RUN_MARKERS=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT});
 const KEY=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
 if(/service[_-]?role|supabase_secret/iu.test(KEY))throw Error('M43_QA_SECRET_KEY_DENIED');
 const evidence={schema:'iberfit.m43.authenticated-real-qa.v1',project:'QA',
@@ -96,14 +97,14 @@ async function main(){
     startDate:now.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10),
     modality:'hibrido',weeklyFrequency:3,sessionDurationMinutes:75});
   const planId=randomUUID(),savedId=randomUUID();
-  const command=buildCycleCommand(cycle(planId,'IBERFIT QA M43 · ciclo principal'));
+  const command=buildCycleCommand(cycle(planId,RUN_MARKERS.publishedCycleTitle));
   await denied(clientA,command,'CLIENT_CANNOT_VALIDATE_PLAN');
   await denied(clientB,command,'FOREIGN_CLIENT_CANNOT_VALIDATE_PLAN');
   const validated=await send(coach,command,'PLAN_VALIDATE');
   const replay=await rpc('iberfit_execute_command_v26',coach,{p_command:validated.command});
   check(replay?.kind==='ack'&&replay.duplicate===true
     &&Number(replay.remoteRevision)===Number(validated.result.remoteRevision),'SERVER_IDEMPOTENCY');
-  await send(coach,buildCycleCommand(cycle(savedId,'IBERFIT QA M43 · ciclo no publicado')),
+  await send(coach,buildCycleCommand(cycle(savedId,RUN_MARKERS.unpublishedCycleTitle)),
     'SECOND_CYCLE_PRESERVED');
   evidence.phase='two-plans-validated';
   const before=await bootstrap(clientA);
@@ -121,7 +122,7 @@ async function main(){
     {id:'qa-m43-strength',name_es:'Sentadilla con mancuernas',measurement_profile:'strength'},
     {id:'qa-m43-run',name_es:'Carrera continua',measurement_profile:'endurance'},
     {id:'qa-m43-swim',name_es:'Natación crol en piscina',measurement_profile:'endurance'}]);
-  const draft=createSessionDraft({clientId:idA,title:'IBERFIT QA M43 · multideporte',
+  const draft=createSessionDraft({clientId:idA,title:RUN_MARKERS.sessionTitle,
     durationMinutes:75,deliveryModality:'guiada_en_app'});
   draft.cycleId=planId;
   addCatalogExercise(draft,'qa-m43-strength',catalog,{sets:1,reps:'8',plannedLoad:'22 kg',

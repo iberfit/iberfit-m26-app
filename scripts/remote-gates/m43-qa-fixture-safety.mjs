@@ -16,6 +16,22 @@ export function assessM43SyntheticFixtureBudget(snapshot,{limit=M43_SYNTHETIC_SE
   return Object.freeze({count,limit,exhausted:count>=limit,reason:count>=limit?'M43_SYNTHETIC_HISTORY_CAP':'OK'});
 }
 
+/**
+ * Exact-run QA handoff between the authenticated writer and browser reader.
+ * A historical fixture must never satisfy a new workflow attempt.
+ */
+export function m43QaRunMarkers({runId,attempt}={}){
+  const id=String(runId??''),n=String(attempt??'');
+  if(!/^[1-9][0-9]{0,19}$/u.test(id)||!/^[1-9][0-9]{0,3}$/u.test(n))
+    throw Error('M43_QA_RUN_PROVENANCE_MISSING_OR_INVALID');
+  const suffix='run-'+id+'-a'+n;
+  return Object.freeze({
+    sessionTitle:'IBERFIT QA M43 · multideporte · '+suffix,
+    publishedCycleTitle:'IBERFIT QA M43 · ciclo principal · '+suffix,
+    unpublishedCycleTitle:'IBERFIT QA M43 · ciclo no publicado · '+suffix,
+  });
+}
+
 /** A single real SESION_PUBLICAR ACK must result in available state (M37). */
 export function verifyM43AtomicGuidedEnablement({canonical,publishedResult,sessionId,clientId}={}){
   const fail=reason=>Object.freeze({ok:false,reason,revision:null});
