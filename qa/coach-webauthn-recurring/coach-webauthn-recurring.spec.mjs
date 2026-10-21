@@ -5,6 +5,7 @@ import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
 import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
+import {isQaBootstrapRequest,sanitizeQaBootstrapResponse,summarizeQaBootstrapSamples} from './qa-bootstrap-response-metrics.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -189,6 +190,25 @@ async function openCertifiedCoachArea(page,area){
   // Distinguish a genuinely absent, JWT-authenticated optional QA avatar
   // from an unexpected HTTP error. Never ignore an unverified 400/404.
   const errorResponseChecks=[];
+  const bootstrapChecks=[];
+  page.on('requestfinished',(request)=>{
+    if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN))return;
+    bootstrapChecks.push(Promise.resolve(request.response()).then((response)=>
+      sanitizeQaBootstrapResponse({
+        status:response?.status()||0,
+        timing:request.timing(),
+        contentLength:response?.headers()?.['content-length']??null,
+      }),()=>sanitizeQaBootstrapResponse({status:0})));
+  });
+  page.on('requestfailed',(request)=>{
+    if(isQaBootstrapRequest(request,SUPABASE_ORIGIN))
+      bootstrapChecks.push(Promise.resolve(sanitizeQaBootstrapResponse({status:0,timing:request.timing()})));
+  });
+  async function snapshotBootstrap(){
+    const results=await Promise.allSettled(bootstrapChecks);
+    return summarizeQaBootstrapSamples(results.map(item=>
+      item.status==='fulfilled'?item.value:sanitizeQaBootstrapResponse({status:0})));
+  }
   page.on('response',(response)=>{
     if(![400,404].includes(response.status()))return;
     errorResponseChecks.push(Promise.resolve(isQaMissingPrivateAvatarResponse(response))
@@ -267,10 +287,20 @@ async function openCertifiedCoachArea(page,area){
     expect(unexpectedQaResourceErrors(consoleErrors,absentAvatarCount),
       'Authenticated Coach console must have no unexpected errors').toEqual([]);
     expect(pageErrors,'Authenticated Coach page must remain clean').toEqual([]);
-    await mkdir(OUT_DIR,{recursive:true});await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+    const bootstrap=await snapshotBootstrap();
+    expect(bootstrap.requestCount,'Real authenticated Coach bootstrap requests must be observed').toBeGreaterThan(0);
+    expect(bootstrap.failureCount,'Every real Coach bootstrap RPC must finish without HTTP or network error').toBe(0);
   }finally{
-    await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
-    await cdp.send('WebAuthn.disable').catch(()=>{});
-    await context.close().catch(()=>{});
+    // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
+    // Do not redact an HTTP 500 into success or swallow an unexpected page error.
+    try{
+      evidence.bootstrap=await snapshotBootstrap();
+      await mkdir(OUT_DIR,{recursive:true});
+      await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+    }finally{
+      await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
+      await cdp.send('WebAuthn.disable').catch(()=>{});
+      await context.close().catch(()=>{});
+    }
   }
 });
