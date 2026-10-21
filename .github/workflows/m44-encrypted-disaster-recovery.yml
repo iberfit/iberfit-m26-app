@@ -34,6 +34,10 @@ on:
 permissions:
   contents: read
 
+# SIGNATURE 2026-10-21: release-preflight trigger only, after frontend gates.
+# Protected PROD DB+Storage encrypted snapshot + isolated PostgreSQL 17 restore.
+# No change to schedule, security, code, policies, secrets or job logic.
+# Do not treat this comment as a recovery certificate; the live M44 job must pass.
 # Ops 2026-10-20 U22 bootstrap P0: comment-only trigger after certified
 # Canary merge to renew unchanged encrypted PROD DB+Storage PG17 restore proof.
 # Ops checkpoint 2026-10-20 SIGNATURE U22 release proof refresh:
