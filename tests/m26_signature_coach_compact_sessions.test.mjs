@@ -20,7 +20,7 @@ test('SIGNATURE Coach keeps all functions available while showing only six cards
   assert.match(html,/Ver otras 11 sesiones/u);
   assert.ok(html.indexOf('Sesión Coach 6')<html.indexOf('data-coach-sessions-more'));
   assert.ok(html.indexOf('Sesión Coach 7')>html.indexOf('data-coach-sessions-more'));
-  assert.match(html,/Revisar prescripción y vista del cliente/u);
+  assert.match(html,/Esta sesión la dirige tu Coach/u,'empty prescriptions retain their honest supervised summary');
   assert.match(html,/data-rc39-session="session-17"/u,'last session remains accessible');
 });
 
