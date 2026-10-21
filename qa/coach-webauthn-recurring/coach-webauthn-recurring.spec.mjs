@@ -1,7 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
-import {isQaPrivateAvatarRead,isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
+import {isQaPrivateAvatarRead,isQaMissingPrivateAvatarResponse} from '../rc64/secure-current-source-auth.mjs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 
@@ -191,9 +191,9 @@ async function openCertifiedCoachArea(page,area){
   // all other HTTP errors and JavaScript errors remain fatal.
   page.on('response',(response)=>{
     if(isQaPrivateAvatarRead(response.request())&&[400,404].includes(response.status()))
-      missingAvatarChecks.push(isQaMissingPrivateAvatarResponse(response));
+      missingAvatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(valid=>({url:response.url(),valid})));
   });
-  page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
+  page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push({text:String(message.text()||'').slice(0,500),url:String(message.location()?.url||'')});});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
   const {cdp,authenticatorId}=await addVirtualAuthenticator(page);
   try{
@@ -258,10 +258,19 @@ async function openCertifiedCoachArea(page,area){
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
     const confirmedMissing=await Promise.all(missingAvatarChecks);
-    expect(confirmedMissing.every(Boolean),'Avatar failures must be authenticated NoSuchKey, not authorization or infrastructure errors').toBe(true);
+    expect(confirmedMissing.every(item=>item.valid),'Avatar failures must be authenticated NoSuchKey, not authorization or infrastructure errors').toBe(true);
     evidence.optionalPrivateAvatarsAbsent=confirmedMissing.length;
-    expect(unexpectedQaResourceErrors(consoleErrors,confirmedMissing.length),
-      'Authenticated Coach console must remain free of errors except verified missing optional private avatars').toEqual([]);
+    // Chromium reports expected Storage 400/NoSuchKey on console. Permit only
+    // the precise console location URL whose authenticated response body was
+    // verified. Generic 400s, wrong URL, duplicate errors and JS exceptions fail.
+    const expectedUrls=new Map();
+    for(const item of confirmedMissing)expectedUrls.set(item.url,(expectedUrls.get(item.url)||0)+1);
+    const unexpectedConsole=consoleErrors.filter(({text,url})=>{
+      if(!/^Failed to load resource: the server responded with a status of (?:400|404)\\b/iu.test(text)||!(expectedUrls.get(url)>0))return true;
+      expectedUrls.set(url,expectedUrls.get(url)-1);
+      return false;
+    });
+    expect(unexpectedConsole,'Authenticated Coach console must remain clean except exact verified missing private avatar URLs').toEqual([]);
     expect(pageErrors,'Authenticated Coach page must remain clean').toEqual([]);
     await mkdir(OUT_DIR,{recursive:true});await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
   }finally{
