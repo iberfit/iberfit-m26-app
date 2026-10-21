@@ -22,6 +22,7 @@ async function loadValidation(){
   return runInNewContext(`${body}\nvalidateTarget`,{
     Map,
     ORG_ID:'00000000-0000-4000-8000-000000000140',
+    setTimeout:(resolve)=>resolve(), // deterministic: never sleep during mocked QA tests
     fail(code,status=400){const error=new Error(code);error.status=status;throw error;},
   });
 }
@@ -35,19 +36,25 @@ function fakeDb(target,changes={}){
     user_application_roles:{data:[{role:'client',active:true},{role:'admin',active:false}],error:null},
     ...changes,
   };
+  const readCounts={};
   const from=(table)=>{
     if(!Object.hasOwn(responses,table))throw new Error('Unexpected fixture table '+table);
+    const attempt=readCounts[table]||0;
+    readCounts[table]=attempt+1;
+    const response=Array.isArray(responses[table])
+      ? responses[table][attempt] : responses[table];
+    if(!response)throw new Error('Unexpected extra QA read of '+table);
     const chain={
       select(){return this;},eq(){return this;},
-      in(){return Promise.resolve(responses[table]);},
-      maybeSingle(){return Promise.resolve(responses[table]);},
-      then(resolve,reject){return Promise.resolve(responses[table]).then(resolve,reject);},
+      in(){return Promise.resolve(response);},
+      maybeSingle(){return Promise.resolve(response);},
+      then(resolve,reject){return Promise.resolve(response).then(resolve,reject);},
       update(){throw new Error('No fixture mutation is allowed');},
       delete(){throw new Error('No fixture mutation is allowed');},
     };
     return chain;
   };
-  return {auth:{admin:{getUserById:async()=>responses.auth}},from};
+  return {auth:{admin:{getUserById:async()=>responses.auth}},from,readCounts};
 }
 
 test('valid Coach and Admin synthetic fixture reads remain accepted',async()=>{
@@ -91,4 +98,51 @@ test('the QA broker never confuses reads with role changes or expands trust',asy
   assert.doesNotMatch(source,/if\(profileError\|\|/u);
   assert.doesNotMatch(source,/if\(membershipError\|\|/u);
   assert.doesNotMatch(source,/if\(assignmentError\|\|/u);
+});
+
+test('QA broker recovers one transient 401 on verified read-only profile, no changed role',async()=>{
+  const validate=await loadValidation();
+  const db=fakeDb(coach,{user_profiles:[
+    {data:null,error:{code:'PGRST301'},status:401},
+    {data:{role:'coach'},error:null,status:200},
+  ]});
+  await assert.doesNotReject(validate(db,coach));
+  assert.equal(db.readCounts.user_profiles,2);
+  assert.equal(db.readCounts.iberfit_organization_memberships,1);
+});
+
+test('QA broker refuses repeated 401 and still fails closed at profile check',async()=>{
+  const validate=await loadValidation();
+  const db=fakeDb(coach,{user_profiles:[
+    {data:null,error:{code:'PGRST301'},status:401},
+    {data:null,error:{code:'PGRST301'},status:401},
+  ]});
+  await assert.rejects(validate(db,coach),/IBERFIT_QA_CERT_TARGET_PROFILE_READ_FAILED/u);
+  assert.equal(db.readCounts.user_profiles,2);
+});
+
+test('QA broker never retries 403, 500 or role-mismatch responses',async()=>{
+  const validate=await loadValidation();
+  for(const status of [403,500]){
+    const db=fakeDb(coach,{user_profiles:[
+      {data:null,error:{code:'PGRST303'},status},
+      {data:{role:'coach'},error:null,status:200},
+    ]});
+    await assert.rejects(validate(db,coach),/IBERFIT_QA_CERT_TARGET_PROFILE_READ_FAILED/u);
+    assert.equal(db.readCounts.user_profiles,1);
+  }
+  const invalid=fakeDb(coach,{user_profiles:[
+    {data:null,error:{code:'PGRST301'},status:401},
+    {data:{role:'client'},error:null,status:200},
+  ]});
+  await assert.rejects(validate(invalid,coach),/IBERFIT_QA_CERT_TARGET_ROLE_INVALID/u);
+  assert.equal(invalid.readCounts.user_profiles,2);
+});
+
+test('QA broker keeps strict pre-retry OIDC and synthetic identity checks',async()=>{
+  const source=await readFile(brokerFile,'utf8');
+  assert.match(source,/await authenticate\(req,body\);[\s\S]*await validateTarget\(db,body\.target\)/u);
+  assert.match(source,/initialProfile\.status===401/u);
+  assert.doesNotMatch(source,/serviceRole\s*=\s*[^;]*(?:anon|publishable)/iu);
+  assert.match(source,/if\(profileError\)fail\("IBERFIT_QA_CERT_TARGET_PROFILE_READ_FAILED",502\)/u);
 });
