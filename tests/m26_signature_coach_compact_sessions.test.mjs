@@ -7,7 +7,7 @@ function item(index){
   const id='session-'+index;
   return {id,title:'Sesión Coach '+index,visible:true,canClientExecute:false,
     modality:'presencial',ownership:'coach_led',visibility:'summary_only',
-    session:{id,status:'published',durationMinutes:50,blocks:[]}};
+    session:{id,status:'published',durationMinutes:50,blocks:[{id:'ex-1',type:'exercise',exerciseId:'press',name:'Press',sets:3,reps:'10'}]}};
 }
 const assets={catalog:[],mediaMap:null,serviceActive:true};
 
