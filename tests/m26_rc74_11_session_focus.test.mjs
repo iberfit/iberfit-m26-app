@@ -162,5 +162,8 @@ test('session focus proxies cannot resurrect any next primary command during an 
   assert.match(focus,/const waitingForAck=Boolean\(live[.]closest\?\.\('\[data-m26-session-action-pending="true"\]'\)\)/u);
   assert.match(focus,/target&&!target[.]disabled&&!waitingForAck&&!proxy[.]disabled/u);
   assert.match(focus,/proxy[.]dataset[.]m26WaitForAck='true'/u);
+  assert.match(focus,/state[.]onInput=\(event\)=>\{[\s\S]*?scheduleFocusRefresh\(root,state\)/u);
+  assert.match(focus,/root[.]addEventListener\?\.\('input',state[.]onInput\)/u);
+  assert.match(focus,/root[.]removeEventListener\?\.\('input',state[.]onInput\)/u);
   assert.doesNotMatch(focus,/selector==='\[data-session-action="next"\]'\s*&&/u);
 });
