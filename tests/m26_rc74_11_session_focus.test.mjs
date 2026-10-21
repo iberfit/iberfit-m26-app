@@ -137,22 +137,30 @@ test('paused workout keeps actual Resume and Exit above potentially long title a
   assert.equal((section.match(/data-session-action="resume"/g)||[]).length,1);
 });
 
-test('Next touch controls are disabled for an in-flight set ACK and re-enabled after completion',async()=>{
+test('primary touch controls remain locked across an in-flight session ACK and restore from real validity',async()=>{
   const source=await readFile(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   assert.match(source,/function syncPendingNextControls\(\)/u);
-  assert.match(source,/button[.]setAttribute\('data-m26-wait-for-ack','true'\)/u);
-  assert.match(source,/button\.setAttribute\('aria-busy','true'\)/u);
+  assert.match(source,/querySelectorAll\?\.\('\[data-session-focus-proxy\]'\)/u);
+  assert.match(source,/data-session-focus-target/u);
+  assert.match(source,/if\(target\)targets[.]add\(target\)/u);
+  assert.match(source,/data-m26-wait-for-ack/u);
+  assert.match(source,/button[.]disabled=true/u);
+  assert.match(source,/data-m28-set-validation/u);
+  assert.match(source,/data-valid/u);
+  assert.match(source,/if\(sessionActionPending\)queueMicrotask\(syncPendingNextControls\)/u);
   assert.match(source,/sessionActionPending=false;if\(root[.]dataset\)delete root[.]dataset[.]m26SessionActionPending;syncPendingNextControls\(\)/u);
   assert.match(source,/ensureSessionClockTicker\(getContext\(\)\);syncPendingNextControls\(\)/u);
 });
 
-test('session Next proxy cannot resurrect during an outstanding remote action after asynchronous dock refresh',async()=>{
+test('session focus proxies cannot resurrect any next primary command during an outstanding remote action',async()=>{
   const controller=await readFile(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   const focus=await readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8');
   assert.match(controller,/root[.]dataset[.]m26SessionActionPending='true'/u);
   assert.match(controller,/delete root[.]dataset[.]m26SessionActionPending/u);
   assert.match(focus,/data-m26-session-action-pending="true"/u);
-  assert.match(focus,/waitingForAck/u);
+  assert.match(focus,/const waitingForAck=root[.]dataset\?[.]m26SessionActionPending==='true'/u);
+  assert.match(focus,/const waitingForAck=Boolean\(live[.]closest\?\.\('\[data-m26-session-action-pending="true"\]'\)\)/u);
   assert.match(focus,/target&&!target[.]disabled&&!waitingForAck&&!proxy[.]disabled/u);
   assert.match(focus,/proxy[.]dataset[.]m26WaitForAck='true'/u);
+  assert.doesNotMatch(focus,/selector==='\[data-session-action="next"\]'\s*&&/u);
 });
