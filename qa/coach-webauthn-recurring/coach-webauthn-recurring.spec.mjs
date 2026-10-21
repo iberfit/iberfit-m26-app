@@ -1,7 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
-import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
+import {isQaPrivateAvatarRead,isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 
@@ -185,6 +185,14 @@ async function openCertifiedCoachArea(page,area){
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   await installPolicy(context,evidence);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
+  const missingAvatarChecks=[];
+  // An optional absent private avatar produces a Storage NoSuchKey response.
+  // Classify only exact authenticated avatar reads and inspect the response body;
+  // all other HTTP errors and JavaScript errors remain fatal.
+  page.on('response',(response)=>{
+    if(isQaPrivateAvatarRead(response.request())&&[400,404].includes(response.status()))
+      missingAvatarChecks.push(isQaMissingPrivateAvatarResponse(response));
+  });
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
   const {cdp,authenticatorId}=await addVirtualAuthenticator(page);
@@ -249,7 +257,11 @@ async function openCertifiedCoachArea(page,area){
     evidence.m43CoachWorkspaceCertified=evidence.devices.length===5;
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
-    expect(consoleErrors,'Authenticated Coach console must remain clean').toEqual([]);
+    const confirmedMissing=await Promise.all(missingAvatarChecks);
+    expect(confirmedMissing.every(Boolean),'Avatar failures must be authenticated NoSuchKey, not authorization or infrastructure errors').toBe(true);
+    evidence.optionalPrivateAvatarsAbsent=confirmedMissing.length;
+    expect(unexpectedQaResourceErrors(consoleErrors,confirmedMissing.length),
+      'Authenticated Coach console must remain free of errors except verified missing optional private avatars').toEqual([]);
     expect(pageErrors,'Authenticated Coach page must remain clean').toEqual([]);
     await mkdir(OUT_DIR,{recursive:true});await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
   }finally{
