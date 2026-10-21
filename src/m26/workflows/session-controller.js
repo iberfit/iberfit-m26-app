@@ -1046,6 +1046,9 @@ async function click(event){
     // must never send another SESION_INICIAR for an already-active execution.
     if(action==='start'&&context?.execution?.status!=='ready')return;
     sessionActionPending=true;
+    // Dock rerenders cannot overrule the actual controller's write lock.
+    root.dataset.m26SessionActionPending='true';
+    syncPendingNextControls();
     if(action==='start')startPending=true;
     const liveAddOperationId=action==='add-live-exercise'?createM26Id():null;
     const finishOperationId=action==='finish'?String(context?.execution?.id||''):null;
@@ -1148,7 +1151,7 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    }}finally{sessionActionPending=false;delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
       context.setLibraryVisibleLimit?.(24);

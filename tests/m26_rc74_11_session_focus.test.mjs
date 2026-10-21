@@ -145,3 +145,14 @@ test('Next touch controls are disabled for an in-flight set ACK and re-enabled a
   assert.match(source,/sessionActionPending=false;syncPendingNextControls\(\)/u);
   assert.match(source,/ensureSessionClockTicker\(getContext\(\)\);syncPendingNextControls\(\)/u);
 });
+
+test('session Next proxy cannot resurrect during an outstanding remote action after asynchronous dock refresh',async()=>{
+  const controller=await readFile(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  const focus=await readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8');
+  assert.match(controller,/root[.]dataset[.]m26SessionActionPending='true'/u);
+  assert.match(controller,/delete root[.]dataset[.]m26SessionActionPending/u);
+  assert.match(focus,/data-m26-session-action-pending="true"/u);
+  assert.match(focus,/waitingForAck/u);
+  assert.match(focus,/target&&!target[.]disabled&&!waitingForAck&&!proxy[.]disabled/u);
+  assert.match(focus,/proxy[.]dataset[.]m26WaitForAck='true'/u);
+});

@@ -147,6 +147,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   // The Client must not lose a tap while the previous set's remote mutation
   // is still pending. Wait for real server acknowledgement, then tap.
   await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
+  await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
   await expect(dockPrimary).toBeEnabled({timeout:20_000});
   await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
@@ -160,6 +162,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await dockPrimary.click();
   await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
   await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(2);
+  await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
+  await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
   await expect(dockPrimary).toBeEnabled({timeout:20_000});
   await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:20_000});

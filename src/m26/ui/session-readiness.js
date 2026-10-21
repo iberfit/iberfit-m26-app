@@ -455,7 +455,9 @@ function focusStateFor(root){
       const selector=String(proxy.dataset?.sessionFocusTarget||'').trim();
       const live=proxy.closest?.('[data-session-live-state]');
       const target=selector&&live?.querySelector?.(selector);
-      if(target&&!target.disabled){
+      const waitingForAck=selector==='[data-session-action="next"]'
+        &&root.dataset?.m26SessionActionPending==='true';
+      if(target&&!target.disabled&&!waitingForAck&&!proxy.disabled){
         target.focus?.({preventScroll:true});
         target.click?.();
       }
@@ -581,7 +583,14 @@ function focusProxyButton(document,live,selector,{primary=false}={}){
   const title=target.getAttribute?.('title');
   if(ariaLabel)proxy.setAttribute('aria-label',ariaLabel);
   if(title)proxy.setAttribute('title',title);
-  proxy.disabled=Boolean(target.disabled);
+  const waitingForAck=selector==='[data-session-action="next"]'
+    &&Boolean(live.closest?.('[data-m26-session-action-pending="true"]'));
+  proxy.disabled=Boolean(target.disabled)||waitingForAck;
+  if(waitingForAck){
+    proxy.dataset.m26WaitForAck='true';
+    proxy.setAttribute('aria-busy','true');
+    proxy.title='Guardando serie, espera la confirmación';
+  }
   proxy.setAttribute('aria-disabled',proxy.disabled?'true':'false');
   return proxy;
 }
