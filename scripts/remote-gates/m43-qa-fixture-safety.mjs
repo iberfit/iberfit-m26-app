@@ -54,7 +54,11 @@ export function verifyM43AtomicGuidedEnablement({canonical,publishedResult,sessi
  * No direct SQL, no real account, no unmarked workout, no recent run and no
  * ambiguous active state can be repaired automatically.
  */
-export function assessM43StalePausedRecovery(snapshot,{runId,minAgeMinutes=20}={}){
+// The exact QA Real Write workflow serializes all runs and the browser test
+// has a 180s hard timeout; allow a 60s recovery margin before cleanup.
+// Every recovery still requires a prior run's exact synthetic marker, Client
+// scope, a paused execution, a matching session and canonical CAS revision.
+export function assessM43StalePausedRecovery(snapshot,{runId,minAgeMinutes=4}={}){
   const refuse=reason=>Object.freeze({kind:'blocked',reason});
   const data=snapshot?.data?.m26Entities;
   if(!Array.isArray(data))return refuse('BOOTSTRAP_MISSING');
