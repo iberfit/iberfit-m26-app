@@ -193,7 +193,10 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   const completed=page.locator('[data-m43-session-history] [data-m43-completed-session]').filter({hasText:LIVE});
   await expect(completed,'Completed workout must reach real Client history exactly once').toHaveCount(1,{timeout:25_000});
   await expect(completed).toContainText('Completada');
-  await expect(completed).toContainText('1 registro');
+  // The page shows recorded sets, not the number of completed sessions.
+  // This synthetic workout has two independently ACKed, persisted set results.
+  // One matching history card above protects against duplicate completions.
+  await expect(completed).toContainText('2 registros');
   await expect(page.locator('[data-rc39-session]').filter({hasText:LIVE})).toHaveCount(0);
   const source=await page.evaluate(()=>({
     width:document.documentElement.clientWidth,
