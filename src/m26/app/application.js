@@ -75,7 +75,10 @@ export const EMAIL_OTP_DEPLOYMENT_READY=true;
 export const MFA_BACKEND_TIMEOUT_MS=18_000;
 const POST_MFA_SETUP_TIMEOUT_MS=16_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
-const AUTH_CATALOG_TIMEOUT_MS=6_000;
+// The remote exercise catalog may legally use up to 5s per network page; a
+// 6s outer auth deadline races that internal fallback and falsely logs out an
+// already-authenticated Client. Preserve the 16s overall setup hard-stop.
+const AUTH_CATALOG_TIMEOUT_MS=12_000;
 const SESSION_DRAFT_SCOPE='session-builder';
 const SESSION_TEMPLATE_SYNC_TIMEOUT_MS=4_500;
 const SESSION_TEMPLATE_ROLES=new Set(['coach','admin']);
