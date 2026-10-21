@@ -375,12 +375,10 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
         button.dataset.m26WaitForAck='true';
         button.disabled=true;
         button.setAttribute('aria-busy','true');
-        button.title='Guardando serie, espera la confirmación';
       }else if(!sessionActionPending&&button.dataset?.m26WaitForAck==='true'){
         button.disabled=false;
         button.removeAttribute('aria-busy');
         button.removeAttribute('data-m26-wait-for-ack');
-        button.removeAttribute('title');
       }
     }
   }
@@ -1047,7 +1045,7 @@ async function click(event){
     if(action==='start'&&context?.execution?.status!=='ready')return;
     sessionActionPending=true;
     // Dock rerenders cannot overrule the actual controller's write lock.
-    root.dataset.m26SessionActionPending='true';
+    if(root.dataset)root.dataset.m26SessionActionPending='true';
     syncPendingNextControls();
     if(action==='start')startPending=true;
     const liveAddOperationId=action==='add-live-exercise'?createM26Id():null;
@@ -1151,7 +1149,7 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
       context.setLibraryVisibleLimit?.(24);

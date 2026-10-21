@@ -589,7 +589,6 @@ function focusProxyButton(document,live,selector,{primary=false}={}){
   if(waitingForAck){
     proxy.dataset.m26WaitForAck='true';
     proxy.setAttribute('aria-busy','true');
-    proxy.title='Guardando serie, espera la confirmación';
   }
   proxy.setAttribute('aria-disabled',proxy.disabled?'true':'false');
   return proxy;
