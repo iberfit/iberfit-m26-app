@@ -107,14 +107,16 @@ async function main(){
       && String(e.entityId)===recovery.executionId && e.status==='cancelada'),
       'STALE_SYNTHETIC_EXECUTION_CLOSED');
     // Cancelled sessions are intentionally hidden in the Client projection.
-    // The Coach's authorized bootstrap must see the canonical cancelled state.
-    const coachObserved=await bootstrap(coach);
-    check(coachObserved?.data?.m26Entities?.some(e=>e.entityType==='session'
-      && String(e.entityId)===recovery.sessionId && e.status==='cancelada'),
-      'STALE_SYNTHETIC_SESSION_CLOSED');
+    // Coach bootstrap requires a *separate* privileged WebAuthn assurance;
+    // this Client-only repair must never bypass or borrow that privilege.
+    // The execution cancellation ACK is atomic: it closes its parent session
+    // and releases the server lock in the same transaction. The next Client
+    // start below verifies lock release via the real command path.
     check(!observed?.data?.m26Entities?.some(e=>e.entityType==='session'
       && String(e.entityId)===recovery.sessionId),
       'STALE_SYNTHETIC_CANCELLED_SESSION_HIDDEN_FROM_CLIENT');
+    check(closed.result?.kind==='ack'&&Number(closed.result.remoteRevision)>recovery.revision,
+      'STALE_SYNTHETIC_ATOMIC_CLOSE_ACK');
     evidence.fixtureRecovery={kind:'recovered',reason:'AUTHENTICATED_CANCEL_ACK'};
   }
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
