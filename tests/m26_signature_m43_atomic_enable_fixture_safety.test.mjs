@@ -62,3 +62,34 @@ test('M43 existing fixture growth has a bounded fail-closed QA ceiling, no delet
   const gate=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
   assert.match(gate,/check\(!budget\.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED'\)/u);
 });
+
+test('M43 synthetic paused recovery is strictly scoped, old, role-owned and audit-preserving',async()=>{
+  const {assessM43StalePausedRecovery}=await import('../scripts/remote-gates/m43-qa-fixture-safety.mjs');
+  const idA='11111111-1111-4111-8111-111111111111';
+  const idS='22222222-2222-4222-8222-222222222222';
+  const idE='33333333-3333-4333-8333-333333333333';
+  const session={entityType:'session',entityId:idS,clientId:idA,status:'en_curso',
+    body:{title:'IBERFIT QA M43 · sesión interactiva · run-1234-a1'}};
+  const execution={entityType:'session_execution',entityId:idE,clientId:idA,
+    status:'pausada',revision:2,updatedAt:'2026-10-21T14:00:00Z',
+    body:{id:idE,sessionId:idS,clientId:idA,revision:2}};
+  const snapshot={user:{clientId:idA},serverTime:'2026-10-21T14:35:00Z',
+    data:{m26Entities:[session,execution]}};
+  const assess=(data,opts={})=>assessM43StalePausedRecovery(data,{runId:'1235',...opts});
+  assert.deepEqual(assess(snapshot),{kind:'recover',reason:'STALE_SYNTHETIC_PAUSED',
+    executionId:idE,sessionId:idS,clientId:idA,revision:2});
+  assert.equal(assess({...snapshot,data:{m26Entities:[]}}).kind,'none');
+  const modified=(s={},e={},extra=[])=>({
+    ...snapshot,data:{m26Entities:[{...session,...s},{...execution,...e},...extra]},
+  });
+  assert.equal(assess(modified({body:{title:'Entrenamiento real'}})).reason,'UNMARKED_SESSION');
+  assert.equal(assess(modified({status:'completada'})).reason,'SESSION_NOT_IN_PROGRESS');
+  assert.equal(assess(modified({}, {status:'en_curso'})).reason,'EXECUTION_NOT_PAUSED');
+  assert.equal(assess(modified({}, {revision:3})).reason,'REVISION_INVALID');
+  assert.equal(assess(modified({}, {clientId:'another-client'})).reason,'SESSION_NOT_IN_PROGRESS');
+  assert.equal(assess(modified({}, {},[execution])).reason,'AMBIGUOUS_ACTIVE_EXECUTIONS');
+  assert.equal(assess(snapshot,{runId:'1234'}).reason,'RUN_NOT_PRIOR');
+  assert.equal(assess({...snapshot,serverTime:'2026-10-21T14:05:00Z'}).reason,'RUN_NOT_STALE');
+  assert.equal(assess({...snapshot,user:{clientId:'unrelated'}}).reason,'CLIENT_OR_ENTITY_SCOPE');
+  assert.equal(assess({...snapshot,data:{}}).reason,'BOOTSTRAP_MISSING');
+});

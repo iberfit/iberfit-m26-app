@@ -48,3 +48,43 @@ export function verifyM43AtomicGuidedEnablement({canonical,publishedResult,sessi
     return fail('PUBLISH_ACK_MISSING');
   return Object.freeze({ok:true,reason:'OK',revision});
 }
+
+/**
+ * Recover ONLY a stale, run-marked M43 synthetic Client execution.
+ * No direct SQL, no real account, no unmarked workout, no recent run and no
+ * ambiguous active state can be repaired automatically.
+ */
+export function assessM43StalePausedRecovery(snapshot,{runId,minAgeMinutes=20}={}){
+  const refuse=reason=>Object.freeze({kind:'blocked',reason});
+  const data=snapshot?.data?.m26Entities;
+  if(!Array.isArray(data))return refuse('BOOTSTRAP_MISSING');
+  const active=data.filter(e=>e?.entityType==='session_execution'
+    && ['en_curso','pausada'].includes(String(e.status||'')));
+  if(active.length===0)return Object.freeze({kind:'none',reason:'NO_ACTIVE_EXECUTIONS'});
+  if(active.length!==1)return refuse('AMBIGUOUS_ACTIVE_EXECUTIONS');
+  const execution=active[0],body=execution.body||{};
+  if(execution.status!=='pausada')return refuse('EXECUTION_NOT_PAUSED');
+  const session=data.find(e=>e?.entityType==='session'
+    && String(e.entityId)===String(body.sessionId)
+    && String(e.clientId)===String(execution.clientId));
+  if(!session||session.status!=='en_curso')return refuse('SESSION_NOT_IN_PROGRESS');
+  const title=String(session.body?.title||'');
+  const match=/^IBERFIT QA M43 · sesión interactiva · run-([1-9][0-9]{0,19})-a([1-9][0-9]{0,3})$/u.exec(title);
+  if(!match)return refuse('UNMARKED_SESSION');
+  if(!/^[1-9][0-9]{0,19}$/u.test(String(runId||'')))return refuse('RUN_PROVENANCE_INVALID');
+  if(BigInt(match[1])>=BigInt(runId))return refuse('RUN_NOT_PRIOR');
+  if(String(body.id)!==String(execution.entityId)
+    || String(body.clientId)!==String(execution.clientId)
+    || String(session.clientId)!==String(snapshot?.user?.clientId))
+    return refuse('CLIENT_OR_ENTITY_SCOPE');
+  const revision=Number(execution.revision);
+  if(!Number.isSafeInteger(revision)||revision<1
+    ||Number(body.revision)!==revision)return refuse('REVISION_INVALID');
+  const now=Date.parse(String(snapshot?.serverTime||''));
+  const updated=Date.parse(String(execution.updatedAt||''));
+  if(!Number.isFinite(now)||!Number.isFinite(updated)||updated>now
+    ||now-updated<minAgeMinutes*60000)return refuse('RUN_NOT_STALE');
+  return Object.freeze({kind:'recover',reason:'STALE_SYNTHETIC_PAUSED',
+    executionId:String(execution.entityId),sessionId:String(session.entityId),
+    clientId:String(execution.clientId),revision});
+}

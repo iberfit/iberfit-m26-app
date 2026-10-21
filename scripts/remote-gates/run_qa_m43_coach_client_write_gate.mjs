@@ -10,7 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
-import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -87,6 +87,30 @@ async function main(){
   // This run creates TWO synthetic sessions: one RPC-certified and one
   // browser-driven. Never exhaust the isolated fixture budget mid-run.
   check(budget.count<=budget.limit-2,'INTERACTIVE_FIXTURE_BUDGET_RESERVED');
+  // The prior browser job can time out after an ACKed PAUSE. Leaving its
+  // active-execution lock behind blocks every later synthetic Client run.
+  // Keep the server lock; close only an old M43-marked, isolated QA execution
+  // through the actual authenticated command bus, preserving audit history.
+  const recovery=assessM43StalePausedRecovery(a,{runId:process.env.GITHUB_RUN_ID});
+  evidence.fixtureRecovery={kind:recovery.kind,reason:recovery.reason};
+  check(recovery.kind!=='blocked','FIXTURE_RECOVERY_'+recovery.reason);
+  if(recovery.kind==='recover'){
+    const reason='IBERFIT QA M43 · cierre controlado de prueba interrumpida';
+    const closed=await send(clientA,{
+      type:'EJECUCION_CANCELAR',entityType:'session_execution',
+      entityId:recovery.executionId,clientId:recovery.clientId,
+      baseRevision:recovery.revision,payload:{reason,patch:{}},
+    },'STALE_SYNTHETIC_CANCEL');
+    check(closed.result?.kind==='ack','STALE_SYNTHETIC_CANCEL_ACK');
+    const observed=await bootstrap(clientA);
+    check(observed?.data?.m26Entities?.some(e=>e.entityType==='session_execution'
+      && String(e.entityId)===recovery.executionId && e.status==='cancelada'),
+      'STALE_SYNTHETIC_EXECUTION_CLOSED');
+    check(observed?.data?.m26Entities?.some(e=>e.entityType==='session'
+      && String(e.entityId)===recovery.sessionId && e.status==='cancelada'),
+      'STALE_SYNTHETIC_SESSION_CLOSED');
+    evidence.fixtureRecovery={kind:'recovered',reason:'AUTHENTICATED_CANCEL_ACK'};
+  }
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
   check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_SYNTHETIC_CLIENTS');
   check(String(coachRole).toLowerCase()==='coach','COACH_ROLE');
