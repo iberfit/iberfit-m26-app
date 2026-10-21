@@ -28,6 +28,6 @@ test('SIGNATURE U28: no session-less appointment or existing schema capability i
   assert.ok(has('begin;'));
   assert.ok(has('commit;'));
   assert.ok(has("set local lock_timeout = '5s'"));
-  assert.ok(has('u28_legacy_delete_semantics_changed'));
+  assert.ok(has('as u28_legacy_delete_semantics_guard'));
   assert.ok(!/\b(drop\s+table|truncate|update\s+public\.\w+|delete\s+from|disable\s+row\s+level\s+security)\b/iu.test(sql.replace(/^--.*$/gmu,'')));
 });
