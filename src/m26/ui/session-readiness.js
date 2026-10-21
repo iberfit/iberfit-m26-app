@@ -447,7 +447,7 @@ function focusStateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
   const document=root.ownerDocument;
-  state={wakeLock:null,wakeRequest:null,wakeDesired:false,wakeGeneration:0,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onVisibility:null};
+  state={wakeLock:null,wakeRequest:null,wakeDesired:false,wakeGeneration:0,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onInput:null,onVisibility:null};
   state.onClick=(event)=>{
     const proxy=event.target?.closest?.('[data-session-focus-proxy]');
     if(proxy&&root.contains?.(proxy)){
@@ -470,12 +470,20 @@ function focusStateFor(root){
     const sessionAction=event.target?.closest?.('[data-session-action]');
     if(sessionAction&&root.contains?.(sessionAction))scheduleFocusRefresh(root,state);
   };
+  // Validation can enable the canonical set button without a shell render.
+  // Refresh after the input event stack so the mobile focus proxy mirrors the
+  // canonical control while still respecting any outstanding ACK lock.
+  state.onInput=(event)=>{
+    const live=event.target?.closest?.('[data-session-live-state]');
+    if(live&&root.contains?.(live))scheduleFocusRefresh(root,state);
+  };
   state.onVisibility=()=>{
     const live=root.querySelector?.('[data-session-live-state]');
     const liveState=String(live?.getAttribute?.('data-session-live-state')||'').trim().toLowerCase();
     void syncWakeLock(root,state.enabled&&ACTIVE_WAKE_STATES.has(liveState));
   };
   root.addEventListener?.('click',state.onClick);
+  root.addEventListener?.('input',state.onInput);
   document?.addEventListener?.('visibilitychange',state.onVisibility);
   ROOT_STATE.set(root,state);
   return state;
@@ -704,6 +712,7 @@ export function teardownSessionFocus({root}={}){
   if(state.refreshTimer)view.clearTimeout?.(state.refreshTimer);
   state.refreshTimer=null;
   root.removeEventListener?.('click',state.onClick);
+  root.removeEventListener?.('input',state.onInput);
   root.ownerDocument?.removeEventListener?.('visibilitychange',state.onVisibility);
   void releaseWakeLock(root,state);
   removeFocusDock(root);
