@@ -41,7 +41,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   expect(process.env.M26_SUPABASE_PUBLISHABLE_KEY).not.toMatch(/service[_-]?role|supabase_secret/iu);
 
   let clientId=null,sessionId=null,executionId=null;
-  const allowed=[],blocked=[],pageErrors=[],unexpectedHttp=[];
+  const allowed=[],confirmedProgress=[],blocked=[],pageErrors=[],unexpectedHttp=[];
   // No business write is allowed until this Client has obtained its own ID
   // from the real server and selected the exact run-marked synthetic card.
   function allowExactSyntheticWrite(request){
@@ -73,6 +73,15 @@ test('Client executes exact synthetic guided workout through real UI and confirm
       const url=new URL(response.url());
       if(url.origin!==SUPABASE_ORIGIN)return;
       if(response.status()>=500)unexpectedHttp.push(String(response.status())+' '+url.pathname);
+      if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'&&response.status()===200){
+        const submitted=response.request().postDataJSON()?.p_command;
+        if(submitted?.type==='EJECUCION_GUARDAR_PROGRESO'
+          &&String(submitted.entityId)===executionId){
+          const ack=await response.json();
+          if(ack?.kind==='ack'&&String(ack?.operationId)===String(submitted.operationId))
+            confirmedProgress.push(String(submitted.operationId));
+        }
+      }
       if(url.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'&&response.status()===200){
         const body=await response.json();
         const value=String(body?.user?.clientId||'');
@@ -135,6 +144,10 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await expect(page.locator('[data-session-rest-focus]')).toBeVisible({timeout:20_000});
   await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
   await expect(dockPrimary,'Live rest dock stays touchable').toBeVisible();
+  // The Client must not lose a tap while the previous set's remote mutation
+  // is still pending. Wait for real server acknowledgement, then tap.
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(1);
+  await expect(dockPrimary).toBeEnabled({timeout:20_000});
   await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
   // Completing one set must not advance straight to feedback. Confirm that
@@ -146,6 +159,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await expect(dockPrimary,'Second set is reachable without scroll interception').toBeVisible();
   await dockPrimary.click();
   await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(2);
+  await expect(dockPrimary).toBeEnabled({timeout:20_000});
   await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:20_000});
   await page.locator('[data-session-feedback-rpe]').fill('7');

@@ -54,6 +54,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 concurrency:
@@ -267,6 +268,7 @@ jobs:
           node-version: '22'
       - name: Execute M43 Coach-Client authenticated QA lifecycle
         env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co

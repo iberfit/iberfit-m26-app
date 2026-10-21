@@ -10,7 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
-import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -95,6 +95,8 @@ async function main(){
   evidence.fixtureRecovery={kind:recovery.kind,reason:recovery.reason};
   check(recovery.kind!=='blocked','FIXTURE_RECOVERY_'+recovery.reason);
   if(recovery.kind==='recover'){
+    check(await attestCompletedM43Run(recovery.priorRunId),
+      'PRIOR_SYNTHETIC_WORKFLOW_NOT_COMPLETED');
     const reason='IBERFIT QA M43 · cierre controlado de prueba interrumpida';
     const closed=await send(clientA,{
       type:'EJECUCION_CANCELAR',entityType:'session_execution',

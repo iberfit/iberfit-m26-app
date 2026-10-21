@@ -77,14 +77,15 @@ test('M43 synthetic paused recovery is strictly scoped, old, role-owned and audi
     data:{m26Entities:[session,execution]}};
   const assess=(data,opts={})=>assessM43StalePausedRecovery(data,{runId:'1235',...opts});
   assert.deepEqual(assess(snapshot),{kind:'recover',reason:'STALE_SYNTHETIC_PAUSED',
-    executionId:idE,sessionId:idS,clientId:idA,revision:2});
+    executionId:idE,sessionId:idS,clientId:idA,revision:2,priorRunId:'1234'});
   assert.equal(assess({...snapshot,data:{m26Entities:[]}}).kind,'none');
   const modified=(s={},e={},extra=[])=>({
     ...snapshot,data:{m26Entities:[{...session,...s},{...execution,...e},...extra]},
   });
   assert.equal(assess(modified({body:{title:'Entrenamiento real'}})).reason,'UNMARKED_SESSION');
   assert.equal(assess(modified({status:'completada'})).reason,'SESSION_NOT_IN_PROGRESS');
-  assert.equal(assess(modified({}, {status:'en_curso'})).reason,'EXECUTION_NOT_PAUSED');
+  assert.equal(assess(modified({}, {status:'en_curso'})).reason,'STALE_SYNTHETIC_IN_PROGRESS');
+  assert.equal(assess(modified({}, {status:'en_curso',updatedAt:'2026-10-21T14:31:00Z'})).reason,'RUN_NOT_STALE');
   assert.equal(assess(modified({}, {revision:3})).reason,'REVISION_INVALID');
   assert.equal(assess(modified({}, {clientId:'another-client'})).reason,'SESSION_NOT_IN_PROGRESS');
   assert.equal(assess(modified({}, {},[execution])).reason,'AMBIGUOUS_ACTIVE_EXECUTIONS');
@@ -92,4 +93,27 @@ test('M43 synthetic paused recovery is strictly scoped, old, role-owned and audi
   assert.equal(assess({...snapshot,serverTime:'2026-10-21T14:03:00Z'}).reason,'RUN_NOT_STALE');
   assert.equal(assess({...snapshot,user:{clientId:'unrelated'}}).reason,'CLIENT_OR_ENTITY_SCOPE');
   assert.equal(assess({...snapshot,data:{}}).reason,'BOOTSTRAP_MISSING');
+});
+
+test('only a truly completed exact prior GitHub M43 workflow authorizes synthetic recovery',async()=>{
+  const {attestCompletedM43Run}=await import('../scripts/remote-gates/m43-qa-fixture-safety.mjs');
+  const base={repo:'iberfit/iberfit-m26-app',token:'unit-test-placeholder'};
+  const response=(body,ok=true)=>({ok,json:async()=>body});
+  const record={id:1234,name:'IBERFIT QA Real Write Certification',
+    status:'completed',conclusion:'failure',
+    repository:{full_name:'iberfit/iberfit-m26-app'}};
+  const valid=()=>attestCompletedM43Run('1234',{...base,fetchImpl:async()=>response(record)});
+  assert.equal(await valid(),true);
+  for(const mutated of [
+    {...record,status:'in_progress'},
+    {...record,status:'queued'},
+    {...record,id:1235},
+    {...record,name:'Other'},
+    {...record,repository:{full_name:'other/repo'}},
+    {...record,conclusion:null},
+  ])assert.equal(await attestCompletedM43Run('1234',{...base,fetchImpl:async()=>response(mutated)}),false);
+  assert.equal(await attestCompletedM43Run('1234',{...base,fetchImpl:async()=>response(record,false)}),false);
+  assert.equal(await attestCompletedM43Run('1234',{...base,fetchImpl:async()=>{throw Error('offline');}}),false);
+  assert.equal(await attestCompletedM43Run('1234',{...base,token:''}),false);
+  assert.equal(await attestCompletedM43Run('1234',{...base,repo:'other/repo'}),false);
 });

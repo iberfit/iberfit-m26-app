@@ -366,6 +366,24 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let finishPending=false,finishBlockedOperationId=null;
   let manualSyncPending=false;
   let sessionActionPending=false;
+  function syncPendingNextControls(){
+    for(const button of root.querySelectorAll?.('[data-session-action="next"],[data-session-focus-proxy]')||[]){
+      const next=button.getAttribute?.('data-session-action')==='next'
+        ||button.getAttribute?.('data-session-focus-target')==='[data-session-action="next"]';
+      if(!next)continue;
+      if(sessionActionPending&&!button.disabled){
+        button.dataset.m26WaitForAck='true';
+        button.disabled=true;
+        button.setAttribute('aria-busy','true');
+        button.title='Guardando serie, espera la confirmación';
+      }else if(!sessionActionPending&&button.dataset?.m26WaitForAck==='true'){
+        button.disabled=false;
+        button.removeAttribute('aria-busy');
+        button.removeAttribute('data-m26-wait-for-ack');
+        button.removeAttribute('title');
+      }
+    }
+  }
   // Serialize shell auto-start and the explicit start action across renders.
   let startPending=false;
   let exitPending=false;
@@ -645,7 +663,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return suggestion;
   }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -1130,7 +1148,7 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    }}finally{sessionActionPending=false;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
       context.setLibraryVisibleLimit?.(24);

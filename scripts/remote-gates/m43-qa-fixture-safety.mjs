@@ -67,7 +67,8 @@ export function assessM43StalePausedRecovery(snapshot,{runId,minAgeMinutes=4}={}
   if(active.length===0)return Object.freeze({kind:'none',reason:'NO_ACTIVE_EXECUTIONS'});
   if(active.length!==1)return refuse('AMBIGUOUS_ACTIVE_EXECUTIONS');
   const execution=active[0],body=execution.body||{};
-  if(execution.status!=='pausada')return refuse('EXECUTION_NOT_PAUSED');
+  if(!['pausada','en_curso'].includes(execution.status))
+    return refuse('EXECUTION_NOT_RECOVERABLE');
   const session=data.find(e=>e?.entityType==='session'
     && String(e.entityId)===String(body.sessionId)
     && String(e.clientId)===String(execution.clientId));
@@ -86,9 +87,45 @@ export function assessM43StalePausedRecovery(snapshot,{runId,minAgeMinutes=4}={}
     ||Number(body.revision)!==revision)return refuse('REVISION_INVALID');
   const now=Date.parse(String(snapshot?.serverTime||''));
   const updated=Date.parse(String(execution.updatedAt||''));
+  // In-progress recordings need a larger margin. The second mandatory guard
+  // is GitHub's completed-run attestation before the authenticated cancel.
+  const safeAgeMinutes=execution.status==='en_curso'
+    ?Math.max(minAgeMinutes,8):minAgeMinutes;
   if(!Number.isFinite(now)||!Number.isFinite(updated)||updated>now
-    ||now-updated<minAgeMinutes*60000)return refuse('RUN_NOT_STALE');
-  return Object.freeze({kind:'recover',reason:'STALE_SYNTHETIC_PAUSED',
+    ||now-updated<safeAgeMinutes*60000)return refuse('RUN_NOT_STALE');
+  return Object.freeze({kind:'recover',reason:execution.status==='pausada'
+      ?'STALE_SYNTHETIC_PAUSED':'STALE_SYNTHETIC_IN_PROGRESS',
     executionId:String(execution.entityId),sessionId:String(session.entityId),
-    clientId:String(execution.clientId),revision});
+    clientId:String(execution.clientId),revision,priorRunId:match[1]});
+}
+
+/**
+ * A prior synthetic workout may be interrupted while "en_curso" or "pausada".
+ * Never close it until GitHub certifies the exact prior writer+browser run is
+ * fully COMPLETED, not just older than the current job.
+ */
+export async function attestCompletedM43Run(previousRunId,{
+  repo=process.env.GITHUB_REPOSITORY,
+  token=process.env.GH_ACTIONS_TOKEN,
+  fetchImpl=globalThis.fetch,
+}={}){
+  if(repo!=='iberfit/iberfit-m26-app'||!/^[1-9][0-9]{0,19}$/u.test(String(previousRunId||''))||
+    typeof fetchImpl!=='function'||!String(token||'').trim())return false;
+  try{
+    const response=await fetchImpl(
+      'https://api.github.com/repos/'+repo+'/actions/runs/'+previousRunId,{
+        redirect:'error',
+        signal:AbortSignal.timeout(6_000),
+        headers:{'accept':'application/vnd.github+json',
+          'x-github-api-version':'2022-11-28',
+          'authorization':'Bearer '+token},
+      });
+    if(!response?.ok)return false;
+    const record=await response.json();
+    return String(record?.id)===String(previousRunId)
+      &&record?.name==='IBERFIT QA Real Write Certification'
+      &&record?.repository?.full_name===repo
+      &&record?.status==='completed'
+      &&['success','failure','cancelled'].includes(String(record?.conclusion||''));
+  }catch{return false;}
 }

@@ -136,3 +136,12 @@ test('paused workout keeps actual Resume and Exit above potentially long title a
   assert.ok(heading>resume&&metrics>heading&&telemetry>metrics);
   assert.equal((section.match(/data-session-action="resume"/g)||[]).length,1);
 });
+
+test('Next touch controls are disabled for an in-flight set ACK and re-enabled after completion',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  assert.match(source,/function syncPendingNextControls\(\)/u);
+  assert.match(source,/button\.dataset\.m26WaitForAck='true'/u);
+  assert.match(source,/button\.setAttribute\('aria-busy','true'\)/u);
+  assert.match(source,/sessionActionPending=false;syncPendingNextControls\(\)/u);
+  assert.match(source,/ensureSessionClockTicker\(getContext\(\)\);syncPendingNextControls\(\)/u);
+});
