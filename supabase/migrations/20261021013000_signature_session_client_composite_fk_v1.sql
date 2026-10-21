@@ -13,55 +13,50 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 
-DO $u28_guard$
-BEGIN
-  IF current_setting('server_version_num')::integer < 150000 THEN
-    RAISE EXCEPTION 'U28_POSTGRES_VERSION_UNSUPPORTED';
-  END IF;
-  IF to_regclass('public.sessions') IS NULL
-     OR to_regclass('public.appointments') IS NULL
-     OR to_regclass('public.session_executions') IS NULL THEN
-    RAISE EXCEPTION 'U28_REQUIRED_TABLE_MISSING';
-  END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid='public.appointments'::regclass
-      AND conname='appointments_session_id_fkey'
-      AND contype='f'
-      AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL%'
-  ) OR NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid='public.session_executions'::regclass
-      AND conname='session_executions_session_id_fkey'
-      AND contype='f'
-      AND pg_get_constraintdef(oid) LIKE '%ON DELETE CASCADE%'
-  ) THEN
-    RAISE EXCEPTION 'U28_LEGACY_DELETE_SEMANTICS_CHANGED';
-  END IF;
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE connamespace='public'::regnamespace
-      AND conname IN (
-        'sessions_id_client_integrity_u28_key',
-        'appointments_session_client_integrity_u28_fkey',
-        'session_executions_session_client_integrity_u28_fkey'
-      )
-  ) THEN
-    RAISE EXCEPTION 'U28_COMPOSITE_INTEGRITY_ALREADY_PRESENT';
-  END IF;
-  IF EXISTS (
-    SELECT 1 FROM public.appointments a
-    JOIN public.sessions s ON s.id=a.session_id
-    WHERE a.client_id IS DISTINCT FROM s.client_id
-  ) OR EXISTS (
-    SELECT 1 FROM public.session_executions e
-    JOIN public.sessions s ON s.id=e.session_id
-    WHERE e.client_id IS DISTINCT FROM s.client_id
-  ) THEN
-    RAISE EXCEPTION 'U28_CROSS_CLIENT_DATA_REQUIRES_MANUAL_REVIEW';
-  END IF;
-END;
-$u28_guard$;
+-- Plain SELECT guards are mandatory: the production data-safety gate correctly
+-- rejects anonymous DO blocks even when they only contain RAISE EXCEPTION.
+SELECT 1 / (CASE WHEN current_setting('server_version_num')::integer >= 150000
+  THEN 1 ELSE 0 END) AS u28_postgres_version_guard;
+
+SELECT 1 / (CASE WHEN to_regclass('public.sessions') IS NOT NULL
+  AND to_regclass('public.appointments') IS NOT NULL
+  AND to_regclass('public.session_executions') IS NOT NULL
+  THEN 1 ELSE 0 END) AS u28_required_tables_guard;
+
+SELECT 1 / (CASE WHEN EXISTS (
+  SELECT 1 FROM pg_constraint
+  WHERE conrelid='public.appointments'::regclass
+    AND conname='appointments_session_id_fkey'
+    AND contype='f'
+    AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL%'
+) AND EXISTS (
+  SELECT 1 FROM pg_constraint
+  WHERE conrelid='public.session_executions'::regclass
+    AND conname='session_executions_session_id_fkey'
+    AND contype='f'
+    AND pg_get_constraintdef(oid) LIKE '%ON DELETE CASCADE%'
+) THEN 1 ELSE 0 END) AS u28_legacy_delete_semantics_guard;
+
+SELECT 1 / (CASE WHEN NOT EXISTS (
+  SELECT 1 FROM pg_constraint
+  WHERE connamespace='public'::regnamespace
+    AND conname IN (
+      'sessions_id_client_integrity_u28_key',
+      'appointments_session_client_integrity_u28_fkey',
+      'session_executions_session_client_integrity_u28_fkey'
+    )
+) THEN 1 ELSE 0 END) AS u28_existing_constraints_guard;
+
+SELECT 1 / (CASE WHEN NOT EXISTS (
+  SELECT 1 FROM public.appointments a
+  JOIN public.sessions s ON s.id=a.session_id
+  WHERE a.client_id IS DISTINCT FROM s.client_id
+) AND NOT EXISTS (
+  SELECT 1 FROM public.session_executions e
+  JOIN public.sessions s ON s.id=e.session_id
+  WHERE e.client_id IS DISTINCT FROM s.client_id
+) THEN 1 ELSE 0 END) AS u28_cross_client_data_guard;
+
 
 -- PostgreSQL requires the referenced pair to be unique, even though id alone
 -- already is a primary key. Keep PKs and all existing FKs untouched.
