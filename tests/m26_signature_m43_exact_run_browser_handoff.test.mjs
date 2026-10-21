@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {m43QaRunMarkers} from '../scripts/remote-gates/m43-qa-fixture-safety.mjs';
+
+const writer=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
+const browser=readFileSync(new URL('../qa/rc64/m43-client-real-history.spec.mjs',import.meta.url),'utf8');
+
+test('M43 identity is unique for both run and attempt and labels all related fixtures',()=>{
+  const current=m43QaRunMarkers({runId:'39545369987',attempt:'1'});
+  const otherRun=m43QaRunMarkers({runId:'39545369988',attempt:'1'});
+  const nextAttempt=m43QaRunMarkers({runId:'39545369987',attempt:'2'});
+  assert.equal(current.sessionTitle,'IBERFIT QA M43 · multideporte · run-39545369987-a1');
+  for(const key of ['sessionTitle','publishedCycleTitle','unpublishedCycleTitle']){
+    assert.match(current[key],/run-39545369987-a1$/u);
+    assert.notEqual(current[key],otherRun[key]);
+    assert.notEqual(current[key],nextAttempt[key]);
+  }
+  assert.equal(Object.isFrozen(current),true);
+});
+
+test('M43 identity fails closed without trusted CI run provenance',()=>{
+  for(const values of [
+    {},{runId:'1'},{runId:'1',attempt:''},{runId:'',attempt:'1'},
+    {runId:'0',attempt:'1'},{runId:'1',attempt:'0'},
+    {runId:'abc',attempt:'1'},{runId:'1;drop',attempt:'1'},
+    {runId:'1',attempt:'2abc'},{runId:'1',attempt:'10000'},
+  ])assert.throws(()=>m43QaRunMarkers(values),/M43_QA_RUN_PROVENANCE_MISSING_OR_INVALID/u);
+});
+
+test('M43 real backend writer and Client browser share exact CI run and attempt',()=>{
+  for(const source of [writer,browser]){
+    assert.match(source,/runId:process\.env\.GITHUB_RUN_ID/u);
+    assert.match(source,/attempt:process\.env\.GITHUB_RUN_ATTEMPT/u);
+    assert.match(source,/m43QaRunMarkers\(/u);
+  }
+  assert.match(writer,/title:RUN_MARKERS\.sessionTitle/u);
+  assert.match(writer,/RUN_MARKERS\.publishedCycleTitle/u);
+  assert.match(writer,/RUN_MARKERS\.unpublishedCycleTitle/u);
+  assert.match(browser,/const LIVE_MARKER=m43QaRunMarkers\(/u);
+  assert.match(browser,/publishedCards\.filter\(\{hasText:LIVE_MARKER\}\)/u);
+  assert.match(browser,/history\)\.toContainText\(LIVE_MARKER\)/u);
+  assert.match(browser,/planning\.locator\('article'\)\.filter\(\{hasText:LIVE_MARKER\}\)/u);
+  assert.doesNotMatch(browser,/getByText\('IBERFIT QA M43 · multideporte'/u);
+});
