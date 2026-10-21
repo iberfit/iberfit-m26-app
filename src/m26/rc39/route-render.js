@@ -530,10 +530,26 @@ function renderAgenda(vm){
 // Keep all cards and their actions in the document; native disclosure prevents
 // a many-thousand-pixel page from overwhelming mobile session navigation.
 export const COACH_SESSIONS_FIRST_PAGE=6;
-export function renderCoachSessionsProgressive(items=[],contractModality,options={}){
+export // Visual priority only. Sessions retain IDs, permissions, source objects and
+// original relative order when no reliable date is available.
+export function prioritizeCoachSessions(items=[],now=new Date()){
+  const clock=now instanceof Date?now.getTime():new Date(now).getTime();
+  const present=Number.isFinite(clock)?clock:Date.now();
+  const mapped=(items||[]).map((item,index)=>{
+    const at=item?.startAt?new Date(item.startAt).getTime():NaN;
+    const dated=Number.isFinite(at);
+    const section=!dated?1:at>=present?0:2;
+    const time=section===0?at:section===2?-at:0;
+    return {item,index,section,time};
+  });
+  mapped.sort((a,b)=>a.section-b.section||a.time-b.time||a.index-b.index);
+  return mapped.map(({item})=>item);
+}
+function renderCoachSessionsProgressive(items=[],contractModality,options={}){
+  const ordered=prioritizeCoachSessions(items);
   const renderCard=(item)=>sessionCard(item,'coach',contractModality,options);
-  const first=items.slice(0,COACH_SESSIONS_FIRST_PAGE).map(renderCard).join('');
-  const remaining=items.slice(COACH_SESSIONS_FIRST_PAGE);
+  const first=ordered.slice(0,COACH_SESSIONS_FIRST_PAGE).map(renderCard).join('');
+  const remaining=ordered.slice(COACH_SESSIONS_FIRST_PAGE);
   if(!remaining.length)return first;
   const more=remaining.map(renderCard).join('');
   return `${first}<details class="m26-rc39-coach-more" data-coach-sessions-more>
