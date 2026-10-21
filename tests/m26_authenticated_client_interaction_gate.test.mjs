@@ -25,7 +25,13 @@ test('authenticated interaction network policy remains fail-closed for mutations
   assert.ok(spec.includes('READ_ONLY_RPCS'),'read-only RPC allow-list missing');
   assert.ok(networkPolicy.includes("route.abort('blockedbyclient')"),'unexpected network requests must be blocked');
   assert.ok(networkPolicy.includes('url.origin!==SUPABASE_ORIGIN'),'foreign origins must fail closed');
-  assert.ok(networkPolicy.includes("method==='POST'&&url.pathname.startsWith(prefix)&&readOnlyRpcs.has"),'RPC access must require the explicit read-only allow-list');
+  // Read-only browser coverage must still deny mutations without an explicit
+  // synthetic E2E opt-in, even when another QA suite needs guarded writes.
+  assert.ok(networkPolicy.includes('allowQaSyntheticWrite=()=>false'),'default network policy must reject all synthetic writes');
+  assert.ok(networkPolicy.includes("if(method!=='POST'||!url.pathname.startsWith(prefix))return false"),'RPCs must be POST-only');
+  assert.ok(networkPolicy.includes('if(readOnlyRpcs.has(rpc))return true'),'read-only RPCs must require the explicit allow-list');
+  assert.ok(networkPolicy.includes("['iberfit_command_preflight_v26','iberfit_execute_command_v26']"),'only the two bounded command RPCs may opt into synthetic QA writes');
+  assert.ok(networkPolicy.includes('allowQaSyntheticWrite(request)===true'),'a denied or missing callback must not permit mutation');
   assert.ok(!networkPolicy.includes('WEBAUTHN_PATH'),'shared read-only policy must not authorize privileged WebAuthn mutations');
   assert.ok(spec.includes('Authenticated interaction attempted a business mutation or foreign request'));
   assert.ok(!spec.includes('data-engagement-action="submit-checkin"'),'test must not target submit action');
