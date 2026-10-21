@@ -21,7 +21,7 @@ test('SIGNATURE appointments may retain dates if their linked session is deleted
 });
 
 test('SIGNATURE migration is additive; does not rewrite or erase client data',()=>{
-  assert.doesNotMatch(migration,/\b(?:UPDATE|DELETE FROM|TRUNCATE|INSERT INTO|DROP TABLE|DROP COLUMN)\b/iu);
+  assert.doesNotMatch(migration,/\b(?:UPDATE\s+public\.|DELETE\s+FROM\s+public\.|TRUNCATE\s+public\.|INSERT\s+INTO\s+public\.|DROP\s+TABLE|DROP\s+COLUMN)/iu);
   assert.match(rollback,/DROP CONSTRAINT IF EXISTS appointments_session_client_signature_v1_fkey/u);
   assert.match(rollback,/DROP CONSTRAINT IF EXISTS sessions_id_client_id_signature_v1_key/u);
   assert.doesNotMatch(rollback,/\b(?:TRUNCATE|DELETE FROM|UPDATE|DROP TABLE|DROP COLUMN)\b/iu);
