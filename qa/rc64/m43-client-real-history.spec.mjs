@@ -78,18 +78,25 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible();
   await expect(page.getByRole('heading',{name:'Tu entrenamiento',exact:true})).toBeVisible();
   const publishedCards=page.locator('[data-rc39-session]');
-  await expect(publishedCards.filter({hasText:LIVE_MARKER}).first()).toBeVisible({timeout:12_000});
+  // The preceding writer actually COMPLETES this session. It must leave the
+  // startable/available cards and appear exactly once in confirmed history.
+  // The former generic marker falsely matched another still-available fixture.
+  await expect(publishedCards.filter({hasText:LIVE_MARKER}),
+    'Completed current-run session must not remain startable').toHaveCount(0);
   const history=page.locator('[data-m43-session-history]');
   await expect(history).toBeVisible();
   await expect(history.getByRole('heading',{name:'Sesiones realizadas'})).toBeVisible();
-  await expect(history.locator('[data-m43-completed-session]').first()).toBeVisible();
-  await expect(history).toContainText(LIVE_MARKER);
+  const completed=history.locator('[data-m43-completed-session]').filter({hasText:LIVE_MARKER});
+  await expect(completed,'Exact current-run completion must render only once').toHaveCount(1);
+  await expect(completed).toBeVisible();
+  await expect(completed).toContainText('Completada');
+  await expect(completed).toContainText('3 registros');
   // Keep synthetic QA browser evidence even on PASS. testInfo.attach alone
   // is not persisted by the line reporter used in GitHub Actions.
   const evidenceDirectory=join('recovery','m43-qa','browser');
   await mkdir(evidenceDirectory,{recursive:true});
   await page.screenshot({path:join(evidenceDirectory,`${testInfo.project.name}-sessions.png`),fullPage:true});
-  const tagRects=await publishedCards.filter({hasText:LIVE_MARKER}).first()
+  const tagRects=await publishedCards.first()
     .locator('.m26-session-experience__capability')
     .evaluateAll(nodes=>nodes.map(node=>{
       const rect=node.getBoundingClientRect();
@@ -102,9 +109,8 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
     expect(dx<=1||dy<=1,'Capability pills must not overlap').toBe(true);
   }
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
-  // The real QA acceptance already completed this same published session.
-  // Its confirmed history must also render after a new browser login.
-  await expect(page.getByText(LIVE_MARKER,{exact:false}).first()).toBeVisible();
+  // A fresh browser login must retain the exact persisted completion.
+  await expect(completed.getByRole('heading',{name:LIVE_MARKER,exact:true})).toBeVisible();
   await expect(page.locator('.m26-route').first()).toBeVisible();
 
   const planLink=page.locator('[data-m26-area="planificacion"]:visible').first();
