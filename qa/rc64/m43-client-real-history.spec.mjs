@@ -122,7 +122,12 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   // historic "Planificación ·..." locator failed despite valid Client content.
   // Keep the check scoped to the real route, never a detached fixture or shell.
   await expect(planning.getByRole('heading',{name:'Tu planificación',exact:true})).toBeVisible();
-  await expect(planning.locator('article').filter({hasText:LIVE_MARKER}).first()).toBeVisible();
+  // Planning is the upcoming/published-session surface, not completion
+  // history. Once confirmed in History, the current-run session must no
+  // longer appear as an actionable planned session.
+  await expect(planning.locator('article').filter({hasText:LIVE_MARKER}),
+    'The completed exact-run session must not remain in upcoming planning').toHaveCount(0);
+  await expect(planning).toContainText('sesiones publicadas');
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
   await page.screenshot({path:join(evidenceDirectory,`${testInfo.project.name}-planning.png`),fullPage:true});
   const geometry=await page.evaluate(()=>({
