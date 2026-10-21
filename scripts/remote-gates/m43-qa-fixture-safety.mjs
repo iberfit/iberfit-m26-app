@@ -1,19 +1,53 @@
+import {createHash} from 'node:crypto';
+import retainedHistory from './m43-qa-retained-history-v1.json' with {type:'json'};
 /**
  * M43 QA-only acceptance controls. Never relax Coach/Client server authorization.
  * Observe the existing synthetic fixture, do not mutate or delete prior history.
  */
 export const M43_SYNTHETIC_SESSION_LIMIT=150;
 const MARKER='IBERFIT QA M43';
+const RETAINED_HISTORY_DIGESTS=new Set(retainedHistory.sha256EntityScopeRevisionAndTitle);
+if(retainedHistory.qaOnly!==true||retainedHistory.sourceProject!=='gjztkdwfmunnzhtvxrsu'
+  ||retainedHistory.mode!=='logical_retention_only_no_database_mutation'
+  ||RETAINED_HISTORY_DIGESTS.size!==retainedHistory.sha256EntityScopeRevisionAndTitle.length
+  ||[...RETAINED_HISTORY_DIGESTS].some(d=>!/^[a-f0-9]{64}$/u.test(d)))
+  throw Error('M43_RETENTION_CHECKPOINT_INVALID');
+
+/**
+ * A literal fingerprint of an old, completed QA run is not a deletion.
+ * Status, server revision, client scope, ID and exact run marker must STILL
+ * match the frozen SQL observation or that record again consumes live budget.
+ * No user records, active executions, or unknown/malformed rows can qualify.
+ */
+export function retainedM43HistoricalFingerprint(item,digests=RETAINED_HISTORY_DIGESTS){
+  if(item?.entityType!=='session'||item.status!=='completada')return false;
+  const title=String(item.body?.title||''),id=String(item.entityId||''),
+    clientId=String(item.clientId||''),revision=Number(item.revision);
+  if(!/^IBERFIT QA M43 · multideporte · run-[1-9][0-9]{0,19}-a[1-9][0-9]{0,3}$/u.test(title)
+    ||!/^[a-f0-9-]{36}$/iu.test(id)||!/^[a-f0-9-]{36}$/iu.test(clientId)
+    ||!Number.isSafeInteger(revision)||revision<2
+    ||String(item.body?.clientId||'')!==clientId
+    ||Number(item.body?.revision)!==revision)return false;
+  const fingerprint=createHash('sha256').update(
+    clientId+':'+id+':'+item.status+':'+revision+':'+title,'utf8').digest('hex');
+  return digests.has(fingerprint);
+}
 
 export function assessM43SyntheticFixtureBudget(snapshot,{limit=M43_SYNTHETIC_SESSION_LIMIT}={}){
   const entities=snapshot?.data?.m26Entities;
   // Missing or malformed bootstrap cannot be treated as an empty healthy QA.
-  if(!Array.isArray(entities))return Object.freeze({count:null,limit,exhausted:true,reason:'BOOTSTRAP_MISSING'});
-  const count=entities.filter(item=>
+  if(!Array.isArray(entities))return Object.freeze({count:null,total:null,retained:null,limit,exhausted:true,reason:'BOOTSTRAP_MISSING'});
+  const synthetic=entities.filter(item=>
     item?.entityType==='session' &&
     String(item?.body?.title||'').startsWith(MARKER)
-  ).length;
-  return Object.freeze({count,limit,exhausted:count>=limit,reason:count>=limit?'M43_SYNTHETIC_HISTORY_CAP':'OK'});
+  );
+  // Preserve original canonical entities AND all execution/event/receipt rows.
+  // Only explicitly frozen historical terminal records are excluded from
+  // the 150 CURRENT fixture budget; keep an independent total for audits.
+  const retained=synthetic.filter(item=>retainedM43HistoricalFingerprint(item)).length;
+  const count=synthetic.length-retained;
+  return Object.freeze({count,total:synthetic.length,retained,limit,
+    exhausted:count>=limit,reason:count>=limit?'M43_SYNTHETIC_HISTORY_CAP':'OK'});
 }
 
 /**

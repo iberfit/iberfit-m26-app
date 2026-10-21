@@ -82,7 +82,7 @@ async function main(){
   // certifications. Keep a hard ceiling until a separately authorized, audited
   // ephemeral-fixture cleanup lane exists; never delete history to hide a gate.
   const budget=assessM43SyntheticFixtureBudget(a);
-  evidence.fixtureBudget={count:budget.count,limit:budget.limit,exhausted:budget.exhausted};
+  evidence.fixtureBudget={count:budget.count,total:budget.total,retained:budget.retained,limit:budget.limit,exhausted:budget.exhausted};
   check(!budget.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED');
   // This run creates TWO synthetic sessions: one RPC-certified and one
   // browser-driven. Never exhaust the isolated fixture budget mid-run.

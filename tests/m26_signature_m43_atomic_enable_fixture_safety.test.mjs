@@ -49,7 +49,7 @@ test('M43 existing fixture growth has a bounded fail-closed QA ceiling, no delet
     entityType:'session',body:{title:'IBERFIT QA M43 · '+index},
   }));
   assert.deepEqual(assessM43SyntheticFixtureBudget({data:{m26Entities:[]}}),
-    {count:0,limit:M43_SYNTHETIC_SESSION_LIMIT,exhausted:false,reason:'OK'});
+    {count:0,total:0,retained:0,limit:M43_SYNTHETIC_SESSION_LIMIT,exhausted:false,reason:'OK'});
   const below=assessM43SyntheticFixtureBudget({data:{m26Entities:[
     ...rows(M43_SYNTHETIC_SESSION_LIMIT-1),
     {entityType:'session',body:{title:'Real customer session'}},
@@ -57,6 +57,8 @@ test('M43 existing fixture growth has a bounded fail-closed QA ceiling, no delet
   ]}});
   assert.equal(below.exhausted,false);
   assert.equal(below.count,M43_SYNTHETIC_SESSION_LIMIT-1);
+  assert.equal(below.retained,0);
+  assert.equal(below.total,M43_SYNTHETIC_SESSION_LIMIT-1);
   assert.equal(assessM43SyntheticFixtureBudget({data:{m26Entities:rows(M43_SYNTHETIC_SESSION_LIMIT)}}).exhausted,true);
   assert.equal(assessM43SyntheticFixtureBudget({data:{}}).exhausted,true);
   const gate=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
@@ -116,4 +118,30 @@ test('only a truly completed exact prior GitHub M43 workflow authorizes syntheti
   assert.equal(await attestCompletedM43Run('1234',{...base,fetchImpl:async()=>{throw Error('offline');}}),false);
   assert.equal(await attestCompletedM43Run('1234',{...base,token:''}),false);
   assert.equal(await attestCompletedM43Run('1234',{...base,repo:'other/repo'}),false);
+});
+
+test('QA historical retention fingerprint preserves rows, rejects stale CAS and blocks unmarked live records',async()=>{
+  const {createHash}=await import('node:crypto');
+  const {retainedM43HistoricalFingerprint}=await import('../scripts/remote-gates/m43-qa-fixture-safety.mjs');
+  const entity={entityType:'session',entityId:'20000000-0000-4000-8000-000000000111',
+    clientId:'30000000-0000-4000-8000-000000000222',
+    status:'completada',revision:5,
+    body:{title:'IBERFIT QA M43 · multideporte · run-39591090576-a1',
+      clientId:'30000000-0000-4000-8000-000000000222',revision:5}};
+  const key=[entity.clientId,entity.entityId,entity.status,entity.revision,entity.body.title].join(':');
+  const digest=createHash('sha256').update(key,'utf8').digest('hex');
+  const retained=new Set([digest]);
+  assert.equal(retainedM43HistoricalFingerprint(entity,retained),true);
+  for(const change of [
+    {...entity,status:'en_curso'}, {...entity,revision:6},
+    {...entity,clientId:'33333333-3333-4333-8333-333333333333'},
+    {...entity,body:{...entity.body,revision:6}},
+    {...entity,body:{...entity.body,title:'Real business session'}},
+    {...entity,entityType:'session_execution'},
+  ])assert.equal(retainedM43HistoricalFingerprint(change,retained),false);
+  assert.equal(retainedM43HistoricalFingerprint(entity,new Set()),false);
+  const writer=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
+  assert.match(writer,/fixtureBudget=\{count:budget.count,total:budget.total,retained:budget.retained/u);
+  assert.match(writer,/budget.count<=budget.limit-2/u);
+  assert.doesNotMatch(writer,/delete\s+from\s+.*domain_entities_v26/iu);
 });
