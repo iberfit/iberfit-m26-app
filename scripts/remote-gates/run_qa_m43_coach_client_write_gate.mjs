@@ -106,9 +106,15 @@ async function main(){
     check(observed?.data?.m26Entities?.some(e=>e.entityType==='session_execution'
       && String(e.entityId)===recovery.executionId && e.status==='cancelada'),
       'STALE_SYNTHETIC_EXECUTION_CLOSED');
-    check(observed?.data?.m26Entities?.some(e=>e.entityType==='session'
+    // Cancelled sessions are intentionally hidden in the Client projection.
+    // The Coach's authorized bootstrap must see the canonical cancelled state.
+    const coachObserved=await bootstrap(coach);
+    check(coachObserved?.data?.m26Entities?.some(e=>e.entityType==='session'
       && String(e.entityId)===recovery.sessionId && e.status==='cancelada'),
       'STALE_SYNTHETIC_SESSION_CLOSED');
+    check(!observed?.data?.m26Entities?.some(e=>e.entityType==='session'
+      && String(e.entityId)===recovery.sessionId),
+      'STALE_SYNTHETIC_CANCELLED_SESSION_HIDDEN_FROM_CLIENT');
     evidence.fixtureRecovery={kind:'recovered',reason:'AUTHENTICATED_CANCEL_ACK'};
   }
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
