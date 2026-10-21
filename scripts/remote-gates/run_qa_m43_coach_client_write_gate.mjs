@@ -10,6 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -76,6 +77,12 @@ async function main(){
     &&environment.productionBlocked===true,'QA_ISOLATION');
   const [a,b,coachRole]=await Promise.all([
     bootstrap(clientA),bootstrap(clientB),rpc('iberfit_current_role_v26',coach)]);
+  // Long-running QA may hold hundreds of genuine synthetic histories from prior
+  // certifications. Keep a hard ceiling until a separately authorized, audited
+  // ephemeral-fixture cleanup lane exists; never delete history to hide a gate.
+  const budget=assessM43SyntheticFixtureBudget(a);
+  evidence.fixtureBudget={count:budget.count,limit:budget.limit,exhausted:budget.exhausted};
+  check(!budget.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED');
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
   check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_SYNTHETIC_CLIENTS');
   check(String(coachRole).toLowerCase()==='coach','COACH_ROLE');
@@ -139,20 +146,17 @@ async function main(){
   // Do not send a redundant SESION_HABILITAR after a confirmed state change.
   // Legacy supervised or non-atomic flows still require explicit enablement.
   let [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
-  let canonical=clientVisible?.data?.m26Entities?.find(item=>
+  const canonical=clientVisible?.data?.m26Entities?.find(item=>
     item.entityType==='session'&&String(item.entityId)===String(draft.id));
-  let readyRevision=Number(canonical?.revision??published.result.remoteRevision);
-  if(canonical?.status!=='disponible'){
-    const enabled=await send(coach,{type:'SESION_HABILITAR',entityType:'session',
-      entityId:draft.id,clientId:idA,baseRevision:readyRevision,
-      payload:{patch:{status:'disponible'}}},'SESSION_ENABLE');
-    readyRevision=Number(enabled.result.remoteRevision);
-    [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
-    canonical=clientVisible?.data?.m26Entities?.find(item=>
-      item.entityType==='session'&&String(item.entityId)===String(draft.id));
-  }
-  check(canonical?.status==='disponible','GUIDED_SESSION_READY_AFTER_PUBLICATION');
-  check(readyRevision===Number(canonical?.revision),'CANONICAL_SESSION_REVISION');
+  // M37 requires the publish ACK itself to include atomic enablement. A
+  // second command here masked regressions that would strand real Clients on
+  // a visible but unstartable session. Fail before any start mutation.
+  const enablement=verifyM43AtomicGuidedEnablement({
+    canonical,publishedResult:published.result,sessionId:draft.id,clientId:idA,
+  });
+  check(enablement.ok,'GUIDED_ATOMIC_ENABLEMENT_'+enablement.reason);
+  const readyRevision=enablement.revision;
+  check(readyRevision===Number(canonical.revision),'CANONICAL_SESSION_REVISION');
   check(contains(clientVisible,draft.id,'session')||baseContains(clientVisible,draft.id,'sessions'),
     'CLIENT_SEES_PUBLISHED_SESSION');
   check(!contains(otherVisible,draft.id,'session')&&!baseContains(otherVisible,draft.id,'sessions'),
