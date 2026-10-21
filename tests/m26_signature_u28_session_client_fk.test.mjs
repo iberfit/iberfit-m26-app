@@ -9,8 +9,8 @@ const has=(fragment)=>normalized.includes(fragment.toLowerCase());
 test('SIGNATURE U28: ownership baseline refuses pre-existing cross-client links',()=>{
   assert.ok(has('a.client_id is distinct from s.client_id'));
   assert.ok(has('e.client_id is distinct from s.client_id'));
-  assert.ok(has("raise exception 'u28_cross_client_data_requires_manual_review'"));
-  assert.ok(sql.indexOf('U28_CROSS_CLIENT_DATA_REQUIRES_MANUAL_REVIEW')<sql.indexOf('ALTER TABLE public.sessions'));
+  assert.ok(has('as u28_cross_client_data_guard'));
+  assert.ok(sql.indexOf('u28_cross_client_data_guard')<sql.indexOf('ALTER TABLE public.sessions\n  ADD CONSTRAINT'));
 });
 
 test('SIGNATURE U28: both materialized relationships enforce composite ownership',()=>{
