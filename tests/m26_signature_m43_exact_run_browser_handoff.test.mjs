@@ -44,5 +44,6 @@ test('M43 real backend writer and Client browser share exact CI run and attempt'
   assert.match(browser,/await expect\(completed\)\.toContainText\('3 registros'\)/u);
   assert.match(browser,/Completed current-run session must not remain startable/u);
   assert.match(browser,/planning\.locator\('article'\)\.filter\(\{hasText:LIVE_MARKER\}\)/u);
+  assert.match(browser,/The completed exact-run session must not remain in upcoming planning/u);
   assert.doesNotMatch(browser,/getByText\('IBERFIT QA M43 · multideporte'/u);
 });
