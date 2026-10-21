@@ -167,3 +167,19 @@ test('session focus proxies cannot resurrect any next primary command during an 
   assert.match(focus,/root[.]removeEventListener\?\.\('input',state[.]onInput\)/u);
   assert.doesNotMatch(focus,/selector==='\[data-session-action="next"\]'\s*&&/u);
 });
+
+test('feedback closure is the first actionable mobile panel and inline dock stays beside its phase',async()=>{
+  const [ui,focus]=await Promise.all([
+    readFile(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8'),
+    readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8'),
+  ]);
+  const feedback=ui.split("if(execution.status==='awaiting_feedback'){")[1]?.split("if(execution.status==='paused'){")[0];
+  assert.ok(feedback);
+  assert.ok(feedback.indexOf('data-session-live-feedback')<feedback.indexOf('m26-session-live-hero'));
+  assert.ok(feedback.indexOf('data-session-action="finish"')<feedback.indexOf('m26-session-live-hero'));
+  assert.equal((feedback.match(/data-session-action="finish"/g)||[]).length,1);
+  assert.ok(feedback.indexOf('data-session-feedback-pain-detail')<feedback.indexOf('data-session-action="finish"'));
+  assert.match(focus,/plan[.]state==='feedback'/u);
+  assert.match(focus,/inlineAnchor[.]insertAdjacentElement\('afterend',dock\)/u);
+  assert.match(focus,/else live[.]append\(dock\)/u);
+});
