@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {
@@ -6,6 +7,7 @@ import {
   installCurrentSourceQaNetworkPolicy,
 } from './secure-current-source-auth.mjs';
 
+// Fail closed without the same workflow run+attempt marker as the writer.
 // This checks the current-source client UI over the SAME real QA records
 // created by the preceding authenticated Coach->Client RPC acceptance job.
 // This is read-only; it cannot create, start or modify training.
@@ -22,7 +24,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
-const LIVE_MARKER='IBERFIT QA M43 · multideporte';
+const LIVE_MARKER=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT}).sessionTitle;
 const SECRET_MARKER='IBERFIT QA M43 · ciclo no publicado';
 
 test('M43 authenticated Cliente sees published multideporte and completed history, never unpublished cycles',async({page,context},testInfo)=>{
@@ -102,7 +104,7 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   await expect(page.getByText(SECRET_MARKER,{exact:false})).toHaveCount(0);
   // The real QA acceptance already completed this same published session.
   // Its confirmed history must also render after a new browser login.
-  await expect(page.getByText('IBERFIT QA M43 · multideporte',{exact:false}).first()).toBeVisible();
+  await expect(page.getByText(LIVE_MARKER,{exact:false}).first()).toBeVisible();
   await expect(page.locator('.m26-route').first()).toBeVisible();
 
   const planLink=page.locator('[data-m26-area="planificacion"]:visible').first();
