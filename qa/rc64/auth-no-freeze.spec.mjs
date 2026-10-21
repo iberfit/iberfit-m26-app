@@ -268,8 +268,9 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     if(url.origin===SUPABASE_ORIGIN&&req.method()==='POST'&&
        url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'){
       assurancePosts+=1;
-      if(assurancePosts===1){
-        // Do not abort externally: allow the application's real request timeout.
+      if(assurancePosts<=2){
+        // Both automatic assurance reads are hung; test the bounded retry and
+        // the unchanged watchdog recovery without bypassing privileged MFA.
         heldAssurance.push(route);
         return;
       }
@@ -319,8 +320,9 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     await form.locator('button[type="submit"]').click();
     await expect.poll(()=>tokenPosts,{timeout:8_000}).toBe(1);
     await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(1);
+    await expect.poll(()=>assurancePosts,{timeout:20_000}).toBe(2);
 
-    // Token has been accepted, but there is no second-factor assurance response.
+    // Token has been accepted, but both bounded assurance reads stalled.
     // Never expose a privileged shell while this request is pending.
     await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
     await expect(page.locator('.m26-auth-page[data-auth-mode="recoverable-session"]')).toBeVisible({timeout:25_000});
@@ -333,7 +335,7 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     // Reuse the synthetic saved first-factor session without asking for or
     // resending a password; permission checking must still require WebAuthn.
     await retry.click();
-    await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(2);
+    await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(3);
     await expect.poll(()=>userReads,{timeout:8_000}).toBe(1);
     await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:8_000});
     await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
