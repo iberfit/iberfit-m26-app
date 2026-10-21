@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {COACH_SESSIONS_FIRST_PAGE,renderCoachSessionsProgressive,renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {COACH_SESSIONS_FIRST_PAGE,prioritizeCoachSessions,renderCoachSessionsProgressive,renderRc39Route} from '../src/m26/rc39/route-render.js';
 
 function item(index){
   const id='session-'+index;
@@ -50,4 +50,21 @@ test('SIGNATURE disclosure is keyboard/touch accessible with visible focus and n
   const ui=readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
   assert.match(ui,/<summary class="m26-rc39-coach-more-toggle">/u);
   assert.doesNotMatch(ui,/COACH_SESSIONS_FIRST_PAGE[^\n]*\.filter\(/u);
+});
+
+
+test('SIGNATURE Coach prioritizes the nearest future dated session, keeps undated and historic accessible',()=>{
+  const input=[
+    {...item(1),startAt:'2026-10-12T15:00:00Z'},
+    {...item(2),startAt:null},
+    {...item(3),startAt:'2026-10-27T15:00:00Z'},
+    {...item(4),startAt:'2026-10-21T15:00:00Z'},
+    {...item(5),startAt:'2026-10-03T15:00:00Z'},
+    {...item(6),startAt:'invalid date'},
+  ];
+  const before=input.slice();
+  const sorted=prioritizeCoachSessions(input,new Date('2026-10-20T15:00:00Z'));
+  assert.deepEqual(sorted.map(x=>x.id),['session-4','session-3','session-2','session-6','session-1','session-5']);
+  assert.deepEqual(input,before,'date prioritization must be a pure display projection');
+  assert.strictEqual(sorted[0],input[3],'canonical session object identity is untouched');
 });
