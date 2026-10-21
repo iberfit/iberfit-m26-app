@@ -350,6 +350,66 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
 });
 
 
+test('one transient assurance network failure recovers automatically without privileged bypass',async({browser})=>{
+  const email='qa.rc64.auth-readonly-retry@iberfit.cl';
+  const userId='11111111-1111-4111-8111-111111111112';
+  const context=await browser.newContext({baseURL:LOCAL_ORIGIN,locale:'es-CL',
+    timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:390,height:844},hasTouch:true});
+  let tokenPosts=0,assurancePosts=0,userReads=0;
+  const unexpected=[];
+  await context.route('**/*',async(route)=>{
+    const request=route.request();let url;
+    try{url=new URL(request.url());}catch{unexpected.push('INVALID_URL');await route.abort('blockedbyclient');return;}
+    if(url.origin===LOCAL_ORIGIN){await route.continue();return;}
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='POST'&&
+       url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
+      tokenPosts+=1;
+      await route.fulfill({status:200,contentType:'application/json',
+        body:JSON.stringify({access_token:'synthetic-network-retry-access',
+          refresh_token:'synthetic-network-retry-refresh',expires_at:2_000_000_000,
+          user:{id:userId,email}})});
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='POST'&&
+       url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'){
+      assurancePosts+=1;
+      if(assurancePosts===1){await route.abort('failed');return;}
+      await route.fulfill({status:200,contentType:'application/json',
+        body:JSON.stringify({ok:true,privileged:true,privilegedRole:'coach',
+          mfaRequired:true,webauthnRequired:true,credentialEnrolled:false,
+          iberfitAssurance:'required',supabaseAal:'aal1',emailOtpAvailable:false})});
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='GET'&&url.pathname==='/auth/v1/user'){
+      userReads+=1;
+      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:userId,email,factors:[]})});
+      return;
+    }
+    unexpected.push(request.method()+' '+url.pathname);
+    await route.abort('blockedbyclient');
+  });
+  const page=await context.newPage();const pageErrors=[];
+  page.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
+  try{
+    const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+    expect(navigation?.ok()).toBeTruthy();
+    const form=page.locator('form[data-auth-form="login"]');
+    await expect(form).toBeVisible();
+    await form.locator('input[name="email"]').fill(email);
+    await form.locator('input[name="password"]').fill('synthetic-browser-only-pass');
+    await form.locator('button[type="submit"]').click();
+    await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'))
+      .toBeVisible({timeout:16_000});
+    await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
+    await expect.poll(()=>assurancePosts,{timeout:3_000}).toBe(2);
+    expect(tokenPosts).toBe(1);
+    expect(userReads).toBe(1);
+    expect(unexpected).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  }finally{await context.close().catch(()=>{});}
+});
+
+
 for(const device of [
   {name:'phone-touch-cpu6',width:390,height:844,touch:true,cpu:6},
   {name:'tablet-landscape-touch-cpu6',width:1180,height:820,touch:true,cpu:6},
