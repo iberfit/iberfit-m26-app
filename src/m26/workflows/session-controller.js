@@ -366,21 +366,62 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let finishPending=false,finishBlockedOperationId=null;
   let manualSyncPending=false;
   let sessionActionPending=false;
+  // Compatibility name retained for the existing contract tests. This now
+  // guards every primary focus action, not only Next: optimistic execution
+  // state may render the following control before the previous remote mutation
+  // has fully settled, and a fast tap must wait rather than disappear.
   function syncPendingNextControls(){
-    for(const button of root.querySelectorAll?.('[data-session-action="next"],[data-session-focus-proxy]')||[]){
-      const next=button.getAttribute?.('data-session-action')==='next'
-        ||button.getAttribute?.('data-session-focus-target')==='[data-session-action="next"]';
-      if(!next)continue;
-      if(sessionActionPending&&!button.disabled){
-        button.setAttribute('data-m26-wait-for-ack','true');
-        button.disabled=true;
-        button.setAttribute('aria-disabled','true');
-        button.setAttribute('aria-busy','true');
-      }else if(!sessionActionPending&&button.getAttribute?.('data-m26-wait-for-ack')==='true'){
-        button.disabled=false;
-        button.setAttribute('aria-disabled','false');
-        button.removeAttribute('aria-busy');
-        button.removeAttribute('data-m26-wait-for-ack');
+    const proxies=[...(root.querySelectorAll?.('[data-session-focus-proxy]')||[])];
+    const targets=new Set(root.querySelectorAll?.('[data-session-action="next"]')||[]);
+    const pairs=[];
+    for(const proxy of proxies){
+      const selector=String(proxy.getAttribute?.('data-session-focus-target')||'').trim();
+      const live=proxy.closest?.('[data-session-live-state]');
+      const target=selector&&live?.querySelector?.(selector);
+      if(target)targets.add(target);
+      pairs.push({proxy,target});
+    }
+    const restoreTarget=(button)=>{
+      const action=button.getAttribute?.('data-session-action');
+      let disabled=false;
+      if(action==='complete-set'){
+        const validation=root.querySelector?.('[data-m28-set-validation]');
+        if(validation)disabled=validation.getAttribute?.('data-valid')!=='true';
+      }else if(action==='finish'){
+        const latest=getContext();
+        const pendingIds=new Set(latest?.execution?.pendingOperationIds||[]);
+        if(finishBlockedOperationId&&!pendingIds.has(finishBlockedOperationId))finishBlockedOperationId=null;
+        disabled=finishPending||Boolean(finishBlockedOperationId)||latest?.execution?.status!=='awaiting_feedback';
+      }
+      button.disabled=disabled;
+      button.setAttribute?.('aria-disabled',disabled?'true':'false');
+      button.removeAttribute?.('aria-busy');
+      button.removeAttribute?.('data-m26-wait-for-ack');
+    };
+    for(const button of targets){
+      if(sessionActionPending){
+        if(!button.disabled)button.setAttribute?.('data-m26-wait-for-ack','true');
+        if(button.getAttribute?.('data-m26-wait-for-ack')==='true'){
+          button.disabled=true;
+          button.setAttribute?.('aria-disabled','true');
+          button.setAttribute?.('aria-busy','true');
+        }
+      }else if(button.getAttribute?.('data-m26-wait-for-ack')==='true'){
+        restoreTarget(button);
+      }
+    }
+    for(const {proxy,target} of pairs){
+      if(sessionActionPending){
+        proxy.setAttribute?.('data-m26-wait-for-ack','true');
+        proxy.disabled=true;
+        proxy.setAttribute?.('aria-disabled','true');
+        proxy.setAttribute?.('aria-busy','true');
+      }else if(proxy.getAttribute?.('data-m26-wait-for-ack')==='true'){
+        const disabled=Boolean(target?.disabled);
+        proxy.disabled=disabled;
+        proxy.setAttribute?.('aria-disabled',disabled?'true':'false');
+        proxy.removeAttribute?.('aria-busy');
+        proxy.removeAttribute?.('data-m26-wait-for-ack');
       }
     }
   }
@@ -1177,7 +1218,9 @@ async function click(event){
     const setField=event.target.closest?.('[data-set-field]');if(setField&&context.execution&&context.session){try{const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(setField?.getAttribute?.('data-set-field')==='rpe')syncQuickRpeControl();
     const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}if(feedbackField.matches?.('[data-session-feedback-pain]'))syncFeedbackPainControl();if(feedbackField.matches?.('[data-session-feedback-rpe]'))syncFeedbackRpeControl();}
-    if(draftField||blockField)queueAutosave(context);}
+    if(draftField||blockField)queueAutosave(context);
+    if(sessionActionPending)queueMicrotask(syncPendingNextControls);
+  }
   function keydown(event){
     const context=getContext();
     if(
