@@ -10,6 +10,9 @@ on:
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
       - 'qa/rc64/m43-client-real-history.spec.mjs'
+      - 'qa/rc64/m43-client-interactive.spec.mjs'
+      - 'qa/rc64/secure-current-source-auth.mjs'
+      - 'playwright.m43-interactive-client.config.mjs'
       - 'playwright.m43-authenticated-browser.config.mjs'
       - 'supabase/qa-migrations/**'
       - 'supabase/qa-rollbacks/**'
@@ -31,6 +34,9 @@ on:
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
       - 'qa/rc64/m43-client-real-history.spec.mjs'
+      - 'qa/rc64/m43-client-interactive.spec.mjs'
+      - 'qa/rc64/secure-current-source-auth.mjs'
+      - 'playwright.m43-interactive-client.config.mjs'
       - 'playwright.m43-authenticated-browser.config.mjs'
       - 'supabase/qa-migrations/**'
       - 'supabase/qa-rollbacks/**'
@@ -333,6 +339,15 @@ jobs:
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
         run: npx playwright test --config playwright.m43-authenticated-browser.config.mjs
+      - name: Certify real Client UI start pause resume set finish and persisted history
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: npx playwright test --config playwright.m43-interactive-client.config.mjs
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -340,6 +355,7 @@ jobs:
           name: iberfit-m43-auth-client-browser-${{ github.run_id }}
           path: |
             recovery/m43-qa/browser/
+            recovery/m43-qa/browser-interactive/
             test-results/
             playwright-report/
           if-no-files-found: error
