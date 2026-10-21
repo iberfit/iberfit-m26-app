@@ -134,6 +134,17 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
   await expect(dockPrimary,'Live rest dock stays touchable').toBeVisible();
   await dockPrimary.click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
+  // Completing one set must not advance straight to feedback. Confirm that
+  // the rest leads to a genuine second set with independently entered results.
+  await page.locator('[data-set-field="reps"]').first().fill('8');
+  await page.locator('[data-set-field="load"]').first().fill('20 kg');
+  await page.locator('[data-set-field="rpe"]').first().fill('8');
+  await expect(page.locator('[data-session-action="complete-set"]')).toHaveCount(1);
+  await expect(dockPrimary,'Second set is reachable without scroll interception').toBeVisible();
+  await dockPrimary.click();
+  await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
+  await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:20_000});
   await page.locator('[data-session-feedback-rpe]').fill('7');
   await page.locator('[data-session-feedback-comment]').fill('IBERFIT QA M43 · feedback sintético UI');

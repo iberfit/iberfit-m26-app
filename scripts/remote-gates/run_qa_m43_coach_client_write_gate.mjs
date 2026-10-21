@@ -247,8 +247,11 @@ async function main(){
     durationMinutes:20,deliveryModality:'guiada_en_app',
   });
   uiDraft.cycleId=planId;
+  // A real rest and a second confirmed set are required. With only one set
+  // the engine intentionally skips the rest phase; an E2E claiming to test rest
+  // must never rely on such an impossible fixture.
   addCatalogExercise(uiDraft,'qa-m43-strength',catalog,{
-    sets:1,reps:'8',plannedLoad:'20 kg',restSeconds:0,targetRpe:7,targetRir:2,
+    sets:2,reps:'8',plannedLoad:'20 kg',restSeconds:45,targetRpe:7,targetRir:2,
   });
   acceptSessionPreview(uiDraft,catalog);
   const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
