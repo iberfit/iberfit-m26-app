@@ -78,7 +78,7 @@ export function unexpectedQaResourceErrors(errors,missingAvatarCount=0){
   return unexpected;
 }
 
-function allowedQaRequest(request,readOnlyRpcs){
+function allowedQaRequest(request,readOnlyRpcs,allowQaSyntheticWrite){
   let url;
   try{url=new URL(request.url());}catch{return false;}
   const method=request.method().toUpperCase();
@@ -91,7 +91,13 @@ function allowedQaRequest(request,readOnlyRpcs){
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   if(isReadOnlyPushConfigRequest(request,url,method))return true;
   const prefix='/rest/v1/rpc/';
-  return method==='POST'&&url.pathname.startsWith(prefix)&&readOnlyRpcs.has(url.pathname.slice(prefix.length));
+  if(method!=='POST'||!url.pathname.startsWith(prefix))return false;
+  const rpc=url.pathname.slice(prefix.length);
+  if(readOnlyRpcs.has(rpc))return true;
+  // Opt-in synthetic E2E only. Normal authenticated browser tests keep the
+  // callback defaulting to false and still block every mutation.
+  if(!['iberfit_command_preflight_v26','iberfit_execute_command_v26'].includes(rpc))return false;
+  try{return allowQaSyntheticWrite(request)===true;}catch{return false;}
 }
 
 function buildCandidate(base,relative){
@@ -150,7 +156,7 @@ async function fulfillCurrentSource(route,url){
   await route.fulfill({status:404,body:'Not found'});
 }
 
-export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{}}){
+export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{},allowQaSyntheticWrite=()=>false}){
   const safeReadOnlyRpcs=readOnlyRpcs instanceof Set?readOnlyRpcs:new Set(readOnlyRpcs||[]);
   await context.route('**/*',async(route)=>{
     const request=route.request();
@@ -164,7 +170,7 @@ export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,
       await fulfillCurrentSource(route,url);
       return;
     }
-    if(allowedQaRequest(request,safeReadOnlyRpcs)){
+    if(allowedQaRequest(request,safeReadOnlyRpcs,allowQaSyntheticWrite)){
       onQaRequest(qaRequestLabel(request));
       await route.continue();
       return;

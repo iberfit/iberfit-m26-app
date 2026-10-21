@@ -366,6 +366,65 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let finishPending=false,finishBlockedOperationId=null;
   let manualSyncPending=false;
   let sessionActionPending=false;
+  // Compatibility name retained for the existing contract tests. This now
+  // guards every primary focus action, not only Next: optimistic execution
+  // state may render the following control before the previous remote mutation
+  // has fully settled, and a fast tap must wait rather than disappear.
+  function syncPendingNextControls(){
+    const proxies=[...(root.querySelectorAll?.('[data-session-focus-proxy]')||[])];
+    const targets=new Set(root.querySelectorAll?.('[data-session-action="next"]')||[]);
+    const pairs=[];
+    for(const proxy of proxies){
+      const selector=String(proxy.getAttribute?.('data-session-focus-target')||'').trim();
+      const live=proxy.closest?.('[data-session-live-state]');
+      const target=selector&&live?.querySelector?.(selector);
+      if(target)targets.add(target);
+      pairs.push({proxy,target});
+    }
+    const restoreTarget=(button)=>{
+      const action=button.getAttribute?.('data-session-action');
+      let disabled=false;
+      if(action==='complete-set'){
+        const validation=root.querySelector?.('[data-m28-set-validation]');
+        if(validation)disabled=validation.getAttribute?.('data-valid')!=='true';
+      }else if(action==='finish'){
+        const latest=getContext();
+        const pendingIds=new Set(latest?.execution?.pendingOperationIds||[]);
+        if(finishBlockedOperationId&&!pendingIds.has(finishBlockedOperationId))finishBlockedOperationId=null;
+        disabled=finishPending||Boolean(finishBlockedOperationId)||latest?.execution?.status!=='awaiting_feedback';
+      }
+      button.disabled=disabled;
+      button.setAttribute?.('aria-disabled',disabled?'true':'false');
+      button.removeAttribute?.('aria-busy');
+      button.removeAttribute?.('data-m26-wait-for-ack');
+    };
+    for(const button of targets){
+      if(sessionActionPending){
+        if(!button.disabled)button.setAttribute?.('data-m26-wait-for-ack','true');
+        if(button.getAttribute?.('data-m26-wait-for-ack')==='true'){
+          button.disabled=true;
+          button.setAttribute?.('aria-disabled','true');
+          button.setAttribute?.('aria-busy','true');
+        }
+      }else if(button.getAttribute?.('data-m26-wait-for-ack')==='true'){
+        restoreTarget(button);
+      }
+    }
+    for(const {proxy,target} of pairs){
+      if(sessionActionPending){
+        proxy.setAttribute?.('data-m26-wait-for-ack','true');
+        proxy.disabled=true;
+        proxy.setAttribute?.('aria-disabled','true');
+        proxy.setAttribute?.('aria-busy','true');
+      }else if(proxy.getAttribute?.('data-m26-wait-for-ack')==='true'){
+        const disabled=Boolean(target?.disabled);
+        proxy.disabled=disabled;
+        proxy.setAttribute?.('aria-disabled',disabled?'true':'false');
+        proxy.removeAttribute?.('aria-busy');
+        proxy.removeAttribute?.('data-m26-wait-for-ack');
+      }
+    }
+  }
   // Serialize shell auto-start and the explicit start action across renders.
   let startPending=false;
   let exitPending=false;
@@ -645,7 +704,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return suggestion;
   }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -1028,6 +1087,9 @@ async function click(event){
     // must never send another SESION_INICIAR for an already-active execution.
     if(action==='start'&&context?.execution?.status!=='ready')return;
     sessionActionPending=true;
+    // Dock rerenders cannot overrule the actual controller's write lock.
+    if(root.dataset)root.dataset.m26SessionActionPending='true';
+    syncPendingNextControls();
     if(action==='start')startPending=true;
     const liveAddOperationId=action==='add-live-exercise'?createM26Id():null;
     const finishOperationId=action==='finish'?String(context?.execution?.id||''):null;
@@ -1130,7 +1192,7 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
       context.setLibraryVisibleLimit?.(24);
@@ -1156,7 +1218,9 @@ async function click(event){
     const setField=event.target.closest?.('[data-set-field]');if(setField&&context.execution&&context.session){try{const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(setField?.getAttribute?.('data-set-field')==='rpe')syncQuickRpeControl();
     const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}if(feedbackField.matches?.('[data-session-feedback-pain]'))syncFeedbackPainControl();if(feedbackField.matches?.('[data-session-feedback-rpe]'))syncFeedbackRpeControl();}
-    if(draftField||blockField)queueAutosave(context);}
+    if(draftField||blockField)queueAutosave(context);
+    if(sessionActionPending)queueMicrotask(syncPendingNextControls);
+  }
   function keydown(event){
     const context=getContext();
     if(

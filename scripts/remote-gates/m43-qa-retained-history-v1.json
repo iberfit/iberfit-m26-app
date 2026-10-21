@@ -1,0 +1,22 @@
+{
+  "schema": "iberfit.qa.m43.retained-historical-v1",
+  "qaOnly": true,
+  "sourceProject": "gjztkdwfmunnzhtvxrsu",
+  "frozenBeforeUtc": "2026-10-21T16:00:00Z",
+  "selection": "exact completed run-marked multideporte; 1 completed execution; 0 appointments; 0 active locks",
+  "mode": "logical_retention_only_no_database_mutation",
+  "sha256EntityScopeRevisionAndTitle": [
+    "022f75375d346a85170ee4bda143f77808fe4f8ebd238c2690c86db9d5a92f80",
+    "09c7d49f20926c5b10a333020c89161b2ea10d6f91ca33ea30f96f86bb08e149",
+    "0b5fc1e15060f40311e02e314beaefe24558aecf3db5fd39fc82af31cf1da288",
+    "1c4390dbdf7e86b4d14ef4aab737af553a66243ae9c733ca0be861432419b09f",
+    "6673b50374a89d562a8e51b590a4f612535840c4eac4ebbde16f056b6d812bb1",
+    "88e8583d1b140654a4e94d66c4afbdf2caaf0a95f6b62d1f0f4a96bccd910d8e",
+    "8efad8274594da89b9bc16cdcef8c2fb8ccd5637ef80bb9308a5a24ab174593c",
+    "b6192cfb86cacbb8a4bffc092dc52e155740b8915d181a32ab98554a7c8c7fb6",
+    "bb96f735e01a0ede086db1770ff89f2c50678f17dbc1808dee2b7d5f0e213b03",
+    "c0c626161827efff98b9855ca2809d4d7f969a34a56f89d152a09089aa0009eb",
+    "f990545d5a8dd40fef069794e2a159e89bbff01cd6dd8dad932a37491a927de5",
+    "fe1ee3ec17f3cd9fc6b02fe76a3ecac673c2b20079de3dfd9b7fedd92148572c"
+  ]
+}

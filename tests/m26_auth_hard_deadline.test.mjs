@@ -48,7 +48,7 @@ test('WebAuthn authentication bounds backend stages and avoids a redundant post-
   assert.match(source,/M26_WEBAUTHN_BACKEND_TIMEOUT/u);
   assert.match(source,/M26_POST_MFA_SETUP_TIMEOUT/u);
   assert.match(source,/OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000/u);
-  assert.match(source,/AUTH_CATALOG_TIMEOUT_MS=6_000/u);
+  assert.match(source,/AUTH_CATALOG_TIMEOUT_MS=12_000/u);
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>rc39Transport\.extensions/u);
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>adminTransport\.applicationContextOptional/u);
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>transport\.wearableBootstrap/u);
@@ -155,3 +155,15 @@ test('mobile native editable controls keep an interaction hold and preserve focu
   assert.match(source,/switchClient\(selector\.value,\{openExpediente:false,source:selector,preserveSourceFocus:true\}\)/u);
 });
 
+
+test('catalog auth budget permits bounded dynamic catalog fallback before forcing session recovery',()=>{
+  const app=fs.readFileSync('src/m26/app/application.js','utf8');
+  const catalog=fs.readFileSync('src/m26/exercises/catalog.js','utf8');
+  const outer=Number(app.match(/const AUTH_CATALOG_TIMEOUT_MS=([0-9_]+);/u)?.[1].replaceAll('_',''));
+  const request=Number(catalog.match(/const CATALOG_FETCH_TIMEOUT_MS=([0-9_]+);/u)?.[1].replaceAll('_',''));
+  assert.equal(outer,12_000);
+  assert.equal(request,5_000);
+  assert.ok(outer>=request+5_000,'the auth budget must not preempt a healthy bounded remote catalog page and fallback');
+  assert.match(app,/const catalogSetup=await catalogSetupPromise/u);
+  assert.match(app,/if\(!catalogSetup\.ok\)throw catalogSetup\.error/u);
+});

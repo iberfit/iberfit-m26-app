@@ -1,0 +1,221 @@
+import {test,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+import {join} from 'node:path';
+import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
+import {
+  CANARY_ORIGIN,QA_PROJECT_REF,SUPABASE_ORIGIN,installCurrentSourceQaNetworkPolicy,
+} from './secure-current-source-auth.mjs';
+
+// Isolated synthetic run: Coach publishes in the upstream real QA writer;
+// Client must actually tap START, PAUSE, RESUME, COMPLETE SET, NEXT and FINISH.
+// This is NOT the completed read-only M43 historical session.
+const LIVE=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT})
+  .interactiveSessionTitle;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+const READ_ONLY_RPCS=new Set([
+  'iberfit_bootstrap_v26',
+  'iberfit_authorized_application_roles_v13',
+  'iberfit_appointment_change_requests_v13',
+  'iberfit_application_context_v14',
+  'iberfit_privileged_assurance_context_v65d',
+  'iberfit_communication_bootstrap_v14',
+  'm26_backend_bootstrap_v43','m26_wearable_bootstrap_v44',
+  'iberfit_exercise_catalog_public_v1',
+  'iberfit_exercise_measurement_profiles_public_v1',
+  'iberfit_exercise_media_manifest_v1',
+]);
+const WRITES=new Set([
+  'SESION_INICIAR','EJECUCION_PAUSAR','EJECUCION_REANUDAR',
+  'EJECUCION_GUARDAR_PROGRESO','EJECUCION_COMPLETAR',
+]);
+
+test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context},testInfo)=>{
+  for(const name of ['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
+    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD']){
+    expect(process.env[name],name+' required').toBeTruthy();
+  }
+  expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
+  expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
+  expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
+  expect(process.env.M26_QA_CLIENT_A_EMAIL).toBe('qa.rc74.client-a@iberfit.cl');
+  expect(process.env.M26_SUPABASE_PUBLISHABLE_KEY).not.toMatch(/service[_-]?role|supabase_secret/iu);
+
+  let clientId=null,sessionId=null,executionId=null;
+  const allowed=[],confirmedProgress=[],blocked=[],pageErrors=[],unexpectedHttp=[];
+  // No business write is allowed until this Client has obtained its own ID
+  // from the real server and selected the exact run-marked synthetic card.
+  function allowExactSyntheticWrite(request){
+    if(!UUID.test(clientId||'')||!UUID.test(sessionId||''))return false;
+    if(request.method()!=='POST')return false;
+    const raw=request.postDataJSON();
+    const cmd=raw?.p_command;
+    if(!cmd||!WRITES.has(cmd.type)||String(cmd.clientId||'')!==clientId||
+      !UUID.test(String(cmd.operationId||'')))return false;
+    if(cmd.type==='SESION_INICIAR'){
+      if(cmd.entityType!=='session'||String(cmd.entityId)!==sessionId||
+        !UUID.test(String(cmd.payload?.executionId||'')))return false;
+      const nextId=String(cmd.payload.executionId);
+      if(executionId!==null&&executionId!==nextId)return false;
+      executionId=nextId;
+    }else if(!executionId||cmd.entityType!=='session_execution'||
+      String(cmd.entityId)!==executionId)return false;
+    allowed.push({type:cmd.type,rpc:new URL(request.url()).pathname.split('/').at(-1)});
+    return true;
+  }
+  await installCurrentSourceQaNetworkPolicy(context,{
+    readOnlyRpcs:READ_ONLY_RPCS,
+    allowQaSyntheticWrite:allowExactSyntheticWrite,
+    onBlocked:label=>blocked.push(label),
+  });
+  page.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
+  page.on('response',async response=>{
+    try{
+      const url=new URL(response.url());
+      if(url.origin!==SUPABASE_ORIGIN)return;
+      if(response.status()>=500)unexpectedHttp.push(String(response.status())+' '+url.pathname);
+      if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'&&response.status()===200){
+        const submitted=response.request().postDataJSON()?.p_command;
+        if(submitted?.type==='EJECUCION_GUARDAR_PROGRESO'
+          &&String(submitted.entityId)===executionId){
+          const ack=await response.json();
+          if(ack?.kind==='ack'&&String(ack?.operationId)===String(submitted.operationId))
+            confirmedProgress.push(String(submitted.operationId));
+        }
+      }
+      if(url.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'&&response.status()===200){
+        const body=await response.json();
+        const value=String(body?.user?.clientId||'');
+        if(['client','cliente'].includes(String(body?.user?.role||''))&&UUID.test(value))
+          clientId=value;
+      }
+    }catch{}
+  });
+  await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
+  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
+  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+  await page.getByRole('button',{name:'Entrar',exact:true}).click();
+  await expect(page.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:40_000});
+  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
+  await expect.poll(()=>clientId,{timeout:12_000}).toMatch(UUID);
+  const welcome=page.locator('[data-m26-client-guided-welcome]');
+  if(await welcome.isVisible().catch(()=>false)){
+    const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count())await pause.click();
+  }
+  const tourClose=page.locator('[data-m26-guided-tour-close]:visible').first();
+  if(await tourClose.count())await tourClose.click();
+  const contextClose=page.locator('[data-m26-client-context-guide-close]:visible').first();
+  if(await contextClose.count())await contextClose.click();
+  await page.locator('[data-m26-area="sesion"]:visible').first().click();
+  await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
+  const card=page.locator('[data-rc39-session]').filter({hasText:LIVE});
+  await expect(card,'Only this GitHub run synthetic Client session is startable').toHaveCount(1,{timeout:20_000});
+  sessionId=await card.getAttribute('data-rc39-session');
+  expect(sessionId).toMatch(UUID);
+  const disclosure=card.locator('details.m26-session-preview-disclosure');
+  await expect(disclosure).toBeVisible();
+  await disclosure.locator('summary').click();
+  const entry=card.locator('[data-workflow-action="start-published-session"]');
+  await expect(entry).toBeVisible();
+  await entry.click();
+  const live=page.locator('[data-session-live-state]');
+  await expect(live,'Clicking the real Client CTA opens an executable session').toBeVisible({timeout:20_000});
+  if(await page.locator('[data-session-live-state="ready"]').count()){
+    await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
+    await page.locator('[data-session-action="start"]').click();
+  }
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
+  await expect.poll(()=>allowed.some(x=>x.type==='SESION_INICIAR'),{timeout:12_000}).toBe(true);
+  // The server must have confirmed start before any set can be accepted.
+  await page.locator('[data-session-action="pause"]').first().click();
+  await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible({timeout:20_000});
+  await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
+  await expect(page.locator('[data-session-paused-early-controls]')).toBeVisible();
+  await expect(page.locator('[data-session-action="resume"]'),'Resume must be inside a real mobile touch viewport').toBeInViewport({ratio:0.75});
+  await page.locator('[data-session-action="resume"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
+  await page.locator('[data-set-field="reps"]').first().fill('8');
+  await page.locator('[data-set-field="load"]').first().fill('20 kg');
+  await page.locator('[data-set-field="rpe"]').first().fill('7');
+  await expect(page.locator('[data-session-action="complete-set"]')).toHaveCount(1);
+  const dockPrimary=page.locator('[data-session-focus-dock]:not(.is-inline) .m27-session-focus-primary');
+  await expect(dockPrimary,'Mobile live-set dock is a real, touchable UI button').toBeVisible();
+  await dockPrimary.click();
+  await expect(page.locator('[data-session-rest-focus]')).toBeVisible({timeout:20_000});
+  await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
+  await expect(dockPrimary,'Live rest dock stays touchable').toBeVisible();
+  // The Client must not lose a tap while the previous set's remote mutation
+  // is still pending. Wait for real server acknowledgement, then tap.
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
+  await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
+  await expect(dockPrimary).toBeEnabled({timeout:20_000});
+  await dockPrimary.click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
+  // Completing one set must not advance straight to feedback. Confirm that
+  // the rest leads to a genuine second set with independently entered results.
+  await page.locator('[data-set-field="reps"]').first().fill('8');
+  await page.locator('[data-set-field="load"]').first().fill('20 kg');
+  await page.locator('[data-set-field="rpe"]').first().fill('8');
+  await expect(page.locator('[data-session-action="complete-set"]')).toHaveCount(1);
+  await expect(dockPrimary,'Second set is reachable without scroll interception').toBeVisible();
+  await dockPrimary.click();
+  await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(2);
+  await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
+  await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
+  await expect(dockPrimary).toBeEnabled({timeout:20_000});
+  await dockPrimary.click();
+  await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:20_000});
+  await page.locator('[data-session-feedback-rpe]').fill('7');
+  await page.locator('[data-session-feedback-comment]').fill('IBERFIT QA M43 · feedback sintético UI');
+  await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
+  // The final action must be genuinely reachable in the immersive touch
+  // scrollport, not dispatched artificially or force-clicked.
+  const finish=page.locator('[data-session-action="finish"]');
+  await expect(finish).toBeEnabled({timeout:20_000});
+  await finish.scrollIntoViewIfNeeded({timeout:10_000});
+  await expect(finish,'Client can reach final feedback action').toBeInViewport({ratio:0.75});
+  const scroll=await page.evaluate(()=>{
+    const main=document.querySelector('.m26-shell[data-m26-role="client"] .m26-main');
+    return {overflow:getComputedStyle(main).overflowY,top:main.scrollTop,
+      available:main.scrollHeight-main.clientHeight};
+  });
+  expect(scroll.overflow).toBe('auto');
+  expect(scroll.available).toBeGreaterThan(0);
+  expect(scroll.top).toBeGreaterThan(0);
+  await finish.click();
+  await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
+  await expect(page.locator('[data-session-live-state="completed"]')).toContainText('Confirmada');
+  await expect.poll(()=>allowed.some(x=>x.type==='EJECUCION_COMPLETAR'),{timeout:10_000}).toBe(true);
+  await page.locator('[data-session-action="exit-session"]').first().click();
+  await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible({timeout:25_000});
+  const completed=page.locator('[data-m43-session-history] [data-m43-completed-session]').filter({hasText:LIVE});
+  await expect(completed,'Completed workout must reach real Client history exactly once').toHaveCount(1,{timeout:25_000});
+  await expect(completed).toContainText('Completada');
+  // The page shows recorded sets, not the number of completed sessions.
+  // This synthetic workout has two independently ACKed, persisted set results.
+  // One matching history card above protects against duplicate completions.
+  await expect(completed).toContainText('2 registros');
+  await expect(page.locator('[data-rc39-session]').filter({hasText:LIVE})).toHaveCount(0);
+  const source=await page.evaluate(()=>({
+    width:document.documentElement.clientWidth,
+    scroll:document.documentElement.scrollWidth,
+  }));
+  expect(source.scroll,'No horizontal overflow during a real mobile workout').toBeLessThanOrEqual(source.width+2);
+  expect(allowed.filter(x=>x.type==='SESION_INICIAR'&&x.rpc==='iberfit_execute_command_v26')).toHaveLength(1);
+  expect(allowed.filter(x=>x.type==='EJECUCION_COMPLETAR'&&x.rpc==='iberfit_execute_command_v26')).toHaveLength(1);
+  expect(blocked.filter(x=>/iberfit_execute_command_v26|iberfit_command_preflight_v26/.test(x))).toEqual([]);
+  expect(unexpectedHttp).toEqual([]);
+  expect(pageErrors).toEqual([]);
+  const dir=join('recovery','m43-qa','browser-interactive');
+  await mkdir(dir,{recursive:true});
+  await page.screenshot({path:join(dir,'m43-client-mobile-completed.png'),fullPage:true});
+  await testInfo.attach('m43-interactive-client-evidence',{
+    body:Buffer.from(JSON.stringify({schema:'iberfit.m43.interactive-ui.v1',
+      runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,
+      allowedActions:[...new Set(allowed.map(x=>x.type))],
+      networkErrors:unexpectedHttp.length,blockedWrites:0,completed:true},null,2)),
+    contentType:'application/json',
+  });
+});

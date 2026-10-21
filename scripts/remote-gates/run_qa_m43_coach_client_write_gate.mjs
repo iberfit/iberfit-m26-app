@@ -10,7 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
-import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -82,8 +82,45 @@ async function main(){
   // certifications. Keep a hard ceiling until a separately authorized, audited
   // ephemeral-fixture cleanup lane exists; never delete history to hide a gate.
   const budget=assessM43SyntheticFixtureBudget(a);
-  evidence.fixtureBudget={count:budget.count,limit:budget.limit,exhausted:budget.exhausted};
+  evidence.fixtureBudget={count:budget.count,total:budget.total,retained:budget.retained,limit:budget.limit,exhausted:budget.exhausted};
   check(!budget.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED');
+  // This run creates TWO synthetic sessions: one RPC-certified and one
+  // browser-driven. Never exhaust the isolated fixture budget mid-run.
+  check(budget.count<=budget.limit-2,'INTERACTIVE_FIXTURE_BUDGET_RESERVED');
+  // The prior browser job can time out after an ACKed PAUSE. Leaving its
+  // active-execution lock behind blocks every later synthetic Client run.
+  // Keep the server lock; close only an old M43-marked, isolated QA execution
+  // through the actual authenticated command bus, preserving audit history.
+  const recovery=assessM43StalePausedRecovery(a,{runId:process.env.GITHUB_RUN_ID});
+  evidence.fixtureRecovery={kind:recovery.kind,reason:recovery.reason};
+  check(recovery.kind!=='blocked','FIXTURE_RECOVERY_'+recovery.reason);
+  if(recovery.kind==='recover'){
+    check(await attestCompletedM43Run(recovery.priorRunId),
+      'PRIOR_SYNTHETIC_WORKFLOW_NOT_COMPLETED');
+    const reason='IBERFIT QA M43 · cierre controlado de prueba interrumpida';
+    const closed=await send(clientA,{
+      type:'EJECUCION_CANCELAR',entityType:'session_execution',
+      entityId:recovery.executionId,clientId:recovery.clientId,
+      baseRevision:recovery.revision,payload:{reason,patch:{}},
+    },'STALE_SYNTHETIC_CANCEL');
+    check(closed.result?.kind==='ack','STALE_SYNTHETIC_CANCEL_ACK');
+    const observed=await bootstrap(clientA);
+    check(observed?.data?.m26Entities?.some(e=>e.entityType==='session_execution'
+      && String(e.entityId)===recovery.executionId && e.status==='cancelada'),
+      'STALE_SYNTHETIC_EXECUTION_CLOSED');
+    // Cancelled sessions are intentionally hidden in the Client projection.
+    // Coach bootstrap requires a *separate* privileged WebAuthn assurance;
+    // this Client-only repair must never bypass or borrow that privilege.
+    // The execution cancellation ACK is atomic: it closes its parent session
+    // and releases the server lock in the same transaction. The next Client
+    // start below verifies lock release via the real command path.
+    check(!observed?.data?.m26Entities?.some(e=>e.entityType==='session'
+      && String(e.entityId)===recovery.sessionId),
+      'STALE_SYNTHETIC_CANCELLED_SESSION_HIDDEN_FROM_CLIENT');
+    check(closed.result?.kind==='ack'&&Number(closed.result.remoteRevision)>recovery.revision,
+      'STALE_SYNTHETIC_ATOMIC_CLOSE_ACK');
+    evidence.fixtureRecovery={kind:'recovered',reason:'AUTHENTICATED_CANCEL_ACK'};
+  }
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
   check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_SYNTHETIC_CLIENTS');
   check(String(coachRole).toLowerCase()==='coach','COACH_ROLE');
@@ -206,6 +243,35 @@ async function main(){
   check((finalA?.data?.sessionExecutions||[]).every(e=>
     !['events','incidents','queue','progressSnapshot'].some(k=>Object.hasOwn(e,k))),
     'CLIENT_HTTP_LEGACY_EXECUTION_INTERNAL_FIELDS_OMITTED');
+  // A second run-unique published session remains READY for the genuine
+  // Client browser to start, pause, record and finish by clicking the product.
+  // This is QA-only; no real customer, old session or production data touched.
+  const uiDraft=createSessionDraft({
+    clientId:idA,title:RUN_MARKERS.interactiveSessionTitle,
+    durationMinutes:20,deliveryModality:'guiada_en_app',
+  });
+  uiDraft.cycleId=planId;
+  // A real rest and a second confirmed set are required. With only one set
+  // the engine intentionally skips the rest phase; an E2E claiming to test rest
+  // must never rely on such an impossible fixture.
+  addCatalogExercise(uiDraft,'qa-m43-strength',catalog,{
+    sets:2,reps:'8',plannedLoad:'20 kg',restSeconds:45,targetRpe:7,targetRir:2,
+  });
+  acceptSessionPreview(uiDraft,catalog);
+  const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
+    'INTERACTIVE_SESSION_PUBLISH');
+  const [uiClient,uiOther]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const uiCanonical=uiClient?.data?.m26Entities?.find(item=>
+    item.entityType==='session'&&String(item.entityId)===String(uiDraft.id));
+  check(verifyM43AtomicGuidedEnablement({
+    canonical:uiCanonical,publishedResult:uiPublished.result,
+    sessionId:uiDraft.id,clientId:idA,
+  }).ok,'INTERACTIVE_SESSION_ATOMIC_ENABLEMENT');
+  check(!contains(uiOther,uiDraft.id,'session')&&!baseContains(uiOther,uiDraft.id,'sessions'),
+    'INTERACTIVE_SESSION_FOREIGN_PRIVATE');
+  // Browser completion MUST occur in the downstream authenticated test,
+  // not in this Node writer. Otherwise a fake read-only test can pass.
+  check(uiCanonical?.status==='disponible','INTERACTIVE_SESSION_READY_FOR_BROWSER');
   evidence.phase='complete';
   evidence.passed=true;
 }

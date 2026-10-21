@@ -278,6 +278,27 @@
     scrollbar-gutter: auto;
   }
 
+  /* Direct immersive workout omits the route wrapper. Give its main panel
+   * the same real scroll capability as a normal Client route on touch screens. */
+  .m26-shell[data-m26-role="client"] .m26-workspace:has(> .m26-main > .m26-session-live) {
+    display: flex;
+    flex-direction: column;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace:has(> .m26-main > .m26-session-live) > .m26-topbar {
+    flex: 0 0 auto;
+  }
+  .m26-shell[data-m26-role="client"] .m26-main:has(> .m26-session-live) {
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-padding-block: 1.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .m26-shell[data-m26-role="client"] .m26-main > .m26-session-live {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
   .m26-shell[data-m26-role="client"] .m26-client-route-shell {
     display: flex;
     flex-direction: column;

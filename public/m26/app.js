@@ -956,7 +956,15 @@ async function installSessionValueLoop({root,getState}={}){
     }
   }
 
-  function onShellRendered(){refresh();}
+  function onShellRendered(){
+    refresh();
+    // The workflow controller restores the active set draft immediately AFTER
+    // shell rendering. Validate again in the next microtask, once the real
+    // observed reps/RPE have been hydrated, or a valid completed set can stay
+    // disabled with stale "reps or time required" feedback.
+    // No event loop, timer, server command or optimistic success is involved.
+    queueMicrotask(syncLiveSetRequirements);
+  }
   function onChange(event){
     if(event.target?.matches?.('[data-session-feedback-pain]'))syncFeedbackRequirements();
   }
