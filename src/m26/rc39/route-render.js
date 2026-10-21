@@ -526,6 +526,25 @@ function renderAgenda(vm){
     ${renderAgendaProposalForm(vm,role)}
   </div>`;
 }
+// Coach needs an actionable first screen even with years of prescribed workouts.
+// Keep all cards and their actions in the document; native disclosure prevents
+// a many-thousand-pixel page from overwhelming mobile session navigation.
+export const COACH_SESSIONS_FIRST_PAGE=6;
+export function renderCoachSessionsProgressive(items=[],contractModality,options={}){
+  const renderCard=(item)=>sessionCard(item,'coach',contractModality,options);
+  const first=items.slice(0,COACH_SESSIONS_FIRST_PAGE).map(renderCard).join('');
+  const remaining=items.slice(COACH_SESSIONS_FIRST_PAGE);
+  if(!remaining.length)return first;
+  const more=remaining.map(renderCard).join('');
+  return `${first}<details class="m26-rc39-coach-more" data-coach-sessions-more>
+    <summary class="m26-rc39-coach-more-toggle">
+      <span><strong>Ver otras ${escape(String(remaining.length))} sesiones</strong>
+      <small>Consulta, reutiliza o prepara entrenamientos anteriores sin perder ninguna sesión.</small></span>
+      <span class="m26-rc39-coach-more-indicator" aria-hidden="true">+</span>
+    </summary>
+    <div class="m26-rc39-week m26-rc39-coach-more-grid">${more}</div>
+  </details>`;
+}
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
@@ -548,7 +567,9 @@ function renderSessions(vm){
   const introLabel=client&&normalizeClientModality(contractModality)===null
     ?'Sesiones · IBERFIT'
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section><section class="m26-rc39-week">${items.length?(role==='coach'
+    ?renderCoachSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
+    :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
