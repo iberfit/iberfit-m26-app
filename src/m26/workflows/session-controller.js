@@ -372,11 +372,13 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
         ||button.getAttribute?.('data-session-focus-target')==='[data-session-action="next"]';
       if(!next)continue;
       if(sessionActionPending&&!button.disabled){
-        button.dataset.m26WaitForAck='true';
+        button.setAttribute('data-m26-wait-for-ack','true');
         button.disabled=true;
+        button.setAttribute('aria-disabled','true');
         button.setAttribute('aria-busy','true');
-      }else if(!sessionActionPending&&button.dataset?.m26WaitForAck==='true'){
+      }else if(!sessionActionPending&&button.getAttribute?.('data-m26-wait-for-ack')==='true'){
         button.disabled=false;
+        button.setAttribute('aria-disabled','false');
         button.removeAttribute('aria-busy');
         button.removeAttribute('data-m26-wait-for-ack');
       }

@@ -140,9 +140,9 @@ test('paused workout keeps actual Resume and Exit above potentially long title a
 test('Next touch controls are disabled for an in-flight set ACK and re-enabled after completion',async()=>{
   const source=await readFile(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   assert.match(source,/function syncPendingNextControls\(\)/u);
-  assert.match(source,/button\.dataset\.m26WaitForAck='true'/u);
+  assert.match(source,/button[.]setAttribute\('data-m26-wait-for-ack','true'\)/u);
   assert.match(source,/button\.setAttribute\('aria-busy','true'\)/u);
-  assert.match(source,/sessionActionPending=false;delete root[.]dataset[.]m26SessionActionPending;syncPendingNextControls\(\)/u);
+  assert.match(source,/sessionActionPending=false;if\(root[.]dataset\)delete root[.]dataset[.]m26SessionActionPending;syncPendingNextControls\(\)/u);
   assert.match(source,/ensureSessionClockTicker\(getContext\(\)\);syncPendingNextControls\(\)/u);
 });
 
