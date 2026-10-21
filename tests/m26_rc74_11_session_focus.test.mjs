@@ -142,7 +142,7 @@ test('Next touch controls are disabled for an in-flight set ACK and re-enabled a
   assert.match(source,/function syncPendingNextControls\(\)/u);
   assert.match(source,/button\.dataset\.m26WaitForAck='true'/u);
   assert.match(source,/button\.setAttribute\('aria-busy','true'\)/u);
-  assert.match(source,/sessionActionPending=false;syncPendingNextControls\(\)/u);
+  assert.match(source,/sessionActionPending=false;delete root[.]dataset[.]m26SessionActionPending;syncPendingNextControls\(\)/u);
   assert.match(source,/ensureSessionClockTicker\(getContext\(\)\);syncPendingNextControls\(\)/u);
 });
 
