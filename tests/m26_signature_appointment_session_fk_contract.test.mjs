@@ -6,8 +6,7 @@ const migration=readFileSync(new URL('../supabase/migrations/20261021013000_sign
 const rollback=readFileSync(new URL('../supabase/rollbacks/20261021013000_signature_appointment_session_same_client_v1.rollback.sql',import.meta.url),'utf8');
 
 test('SIGNATURE appointment ↔ session enforces same Client at the database boundary',()=>{
-  assert.match(migration,/EXISTS\s*\(\s*SELECT 1\s+FROM public\.appointments AS a[\s\S]*a\.client_id IS DISTINCT FROM s\.client_id/u);
-  assert.match(migration,/RAISE EXCEPTION 'SIGNATURE_APPOINTMENT_SESSION_CLIENT_SCOPE_MISMATCH'/u);
+  assert.doesNotMatch(migration,/DO \$|RAISE EXCEPTION/u,'No anonymous SQL block can bypass deployment safety policy');
   assert.match(migration,/UNIQUE \(id, client_id\)/u);
   assert.match(migration,/FOREIGN KEY \(session_id, client_id\)\s+REFERENCES public\.sessions \(id, client_id\)/u);
   assert.match(migration,/NOT VALID\s*;[\s\S]*VALIDATE CONSTRAINT appointments_session_client_signature_v1_fkey/u);
