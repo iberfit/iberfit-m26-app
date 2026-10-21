@@ -108,3 +108,16 @@ test('session focus dock preserves mobile touch access without overlaying readin
     assert.match(source,/\.m27-session-focus-dock\{position:fixed/u);
   }
 });
+
+test('pausa y feedback mantienen controles primarios ANTES del panel de telemetría en móvil',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+  const paused=source.split("if(execution.status==='paused'){")[1]?.split("if(execution.status==='cancelled'){")[0];
+  const feedback=source.split("if(execution.status==='awaiting_feedback'){")[1]?.split("if(execution.status==='paused'){")[0];
+  assert.ok(paused&&feedback);
+  assert.ok(paused.indexOf('data-session-action="resume"')<paused.indexOf('${liveTelemetryStrip(execution,catalog)}'));
+  assert.ok(feedback.indexOf('data-session-action="finish"')<feedback.indexOf('${liveTelemetryStrip(execution,catalog)}'));
+  assert.ok(paused.includes('data-session-action="exit-session"'));
+  assert.ok(feedback.includes('data-session-feedback-rpe'));
+  assert.equal((paused.match(/\$\{liveTelemetryStrip\(execution,catalog\)\}/g)||[]).length,1);
+  assert.equal((feedback.match(/\$\{liveTelemetryStrip\(execution,catalog\)\}/g)||[]).length,1);
+});

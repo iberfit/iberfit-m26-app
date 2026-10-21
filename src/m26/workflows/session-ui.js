@@ -1398,7 +1398,6 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ${professionalClientContext}${state}
       ${sync}
       ${timerStrip(execution)}
-      ${liveTelemetryStrip(execution,catalog)}
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
           <div>
@@ -1430,6 +1429,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
         </div>
       </div>
+      ${liveTelemetryStrip(execution,catalog)}
     </section>`;
   }
 
@@ -1438,7 +1438,6 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ${professionalClientContext}${state}
       ${sync}
       ${timerStrip(execution)}
-      ${liveTelemetryStrip(execution,catalog)}
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
           <div>
@@ -1459,6 +1458,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <button type="button" data-session-action="cancel">Cancelar sesión</button>
         </details>
       </div>
+      ${liveTelemetryStrip(execution,catalog)}
     </section>`;
   }
 
