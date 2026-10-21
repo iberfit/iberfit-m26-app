@@ -39,7 +39,10 @@ test('M43 real backend writer and Client browser share exact CI run and attempt'
   assert.match(writer,/RUN_MARKERS\.unpublishedCycleTitle/u);
   assert.match(browser,/const LIVE_MARKER=m43QaRunMarkers\(/u);
   assert.match(browser,/publishedCards\.filter\(\{hasText:LIVE_MARKER\}\)/u);
-  assert.match(browser,/history\)\.toContainText\(LIVE_MARKER\)/u);
+  assert.match(browser,/history\\.locator\\('\\[data-m43-completed-session\\]'\\)\\.filter\\(\\{hasText:LIVE_MARKER\\}\\)/u);
+  assert.match(browser,/await expect\\(completed,'Exact current-run completion must render only once'\\)\\.toHaveCount\\(1\\)/u);
+  assert.match(browser,/await expect\\(completed\\)\\.toContainText\\('3 registros'\\)/u);
+  assert.match(browser,/Completed current-run session must not remain startable/u);
   assert.match(browser,/planning\.locator\('article'\)\.filter\(\{hasText:LIVE_MARKER\}\)/u);
   assert.doesNotMatch(browser,/getByText\('IBERFIT QA M43 · multideporte'/u);
 });
