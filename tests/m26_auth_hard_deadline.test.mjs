@@ -159,8 +159,8 @@ test('mobile native editable controls keep an interaction hold and preserve focu
 test('catalog auth budget permits bounded dynamic catalog fallback before forcing session recovery',()=>{
   const app=fs.readFileSync('src/m26/app/application.js','utf8');
   const catalog=fs.readFileSync('src/m26/exercises/catalog.js','utf8');
-  const outer=Number(app.match(/const AUTH_CATALOG_TIMEOUT_MS=([\\d_]+);/u)?.[1].replaceAll('_',''));
-  const request=Number(catalog.match(/const CATALOG_FETCH_TIMEOUT_MS=([\\d_]+);/u)?.[1].replaceAll('_',''));
+  const outer=Number(app.match(/const AUTH_CATALOG_TIMEOUT_MS=([0-9_]+);/u)?.[1].replaceAll('_',''));
+  const request=Number(catalog.match(/const CATALOG_FETCH_TIMEOUT_MS=([0-9_]+);/u)?.[1].replaceAll('_',''));
   assert.equal(outer,12_000);
   assert.equal(request,5_000);
   assert.ok(outer>=request+5_000,'the auth budget must not preempt a healthy bounded remote catalog page and fallback');
