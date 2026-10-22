@@ -247,7 +247,26 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
+  try{
+    await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
+  }catch(error){
+    // Only safe stage labels and operation categories. Never log typed
+    // credentials, request/response bodies, headers, tokens, user IDs or URLs.
+    const current=await page.evaluate(()=>({
+      stages:(Array.isArray(globalThis.__IBERFIT_AUTH_QA_STAGES__)
+        ?globalThis.__IBERFIT_AUTH_QA_STAGES__:[]).slice(-20).map(item=>item.stage),
+      shellMounted:Boolean(document.querySelector('.m26-shell[data-m26-role="client"]')),
+      loginVisible:Boolean(document.querySelector('[data-auth-form="login"]')),
+    })).catch(()=>({stages:[],shellMounted:false,loginVisible:false}));
+    console.error('IBERFIT_CLIENT_AUTH_SHELL_FAILURE:'+JSON.stringify({
+      ...current,
+      authRequests:authRequestRecords.map(({operation,status,result})=>({operation,status,result})),
+      requestFailures:unexpectedFailures.length,
+      blockedRequests:blocked.length,
+      serverErrors:failedAllowedResponses.length,
+    }));
+    throw error;
+  }
   const credentialSubmitToShellMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
   // The interactive shell is a progressive milestone, not proof that the

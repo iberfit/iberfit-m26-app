@@ -229,9 +229,16 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function request(path, options = {}) {
     if(typeof path!=='string'||!path.startsWith('/')||path.startsWith('//')||/[\u0000-\u001f\u007f]/.test(path))throw new Error('M26_REQUEST_PATH_INVALID');
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), runtime.timeoutMs);
+    // Only the password exchange may use a shorter attempt budget. One
+    // retriable transport stall should not consume the entire login watchdog.
+    // Read/write RPCs keep their existing runtime timeout and CAS semantics.
+    const {requestTimeoutMs,token:providedToken,headers:providedHeaders={},body,...fetchOptions}=options;
+    const configuredTimeout=Number(runtime.timeoutMs)||DEFAULT_TIMEOUT_MS;
+    const requestedTimeout=Number(requestTimeoutMs);
+    const timeoutMs=Number.isFinite(requestedTimeout)&&requestedTimeout>=1_000
+      ?Math.min(configuredTimeout,requestedTimeout):configuredTimeout;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const {token:providedToken,headers:providedHeaders={},body,...fetchOptions}=options;
       const token = providedToken || runtime.publishableKey;
       if(!token||String(token).length>MAX_TOKEN_CHARS)throw new Error('M26_AUTH_TOKEN_INVALID');
       const response = await fetchImpl(`${runtime.url}${path}`, {
@@ -280,8 +287,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   function transientPasswordLoginError(error){
     const status=Number(error?.status||0);
     if([502,503,504].includes(status))return true;
+    if(status!==0)return false;
     const code=String(error?.message||error||'');
-    return error?.name==='TypeError'||/Failed to fetch|NetworkError|network request failed/i.test(code);
+    return code==='M26_TIMEOUT'||error?.name==='TypeError'
+      ||/Failed to fetch|NetworkError|network request failed/i.test(code);
   }
 
   async function passwordLoginRequest(payload){
@@ -291,6 +300,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         return await request('/auth/v1/token?grant_type=password',{
           method:'POST',
           body:JSON.stringify(payload),
+          requestTimeoutMs:8_000,
         });
       }catch(error){
         if(attempt>0||!transientPasswordLoginError(error))throw error;

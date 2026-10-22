@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
 import {createExecution,startExecution,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
-import {dispatchSessionAction,settlePriorExecutionWrites,sameLiveExecutionOwner} from '../src/m26/workflows/session-controller.js';
+import {dispatchSessionAction,settlePriorExecutionWrites,sameLiveExecutionOwner,sessionExitAfterFinishConfirmed} from '../src/m26/workflows/session-controller.js';
 
 function deferred(){
  let resolve,reject;
@@ -25,13 +26,13 @@ function progressAction(execution,bus){
    action:'complete-set',payload:{reps:'8',load:'20 kg',rpe:8,rir:2,restSeconds:45},
    commandBus:bus,online:true});
 }
-function busWithResponse(reply,{rehydrate=async()=>{}}={}){
+function busWithResponse(reply,{rehydrate=async()=>{},onPostAckRefreshError=()=>{}}={}){
  const calls=[],repository=createMemoryOperationRepository();
  const bus=createCommandBus({
    repository,
    getToken:async()=> 'test-only-token',
    getRole:()=> 'client',
-   rehydrate,
+   rehydrate,onPostAckRefreshError,
    transport:{preflight:async()=>({kind:'ack'}),
      execute:async(_token,command)=>{calls.push(command);return reply(command);}},
  });
@@ -171,4 +172,164 @@ test('U42 delayed finalization is lease-bound and rejects identity/workspace rep
    {...original,execution:null},
    null,
  ])assert.equal(sameLiveExecutionOwner(original,modified),false);
+});
+
+test('U43 actual two-set CAS 3→4→5 survives a lost UI observer and slow rehydration before finish',async()=>{
+  const refreshing=deferred(),release=deferred();
+  let refreshes=0;
+  const f=busWithResponse((command)=>{
+    const next=command.type==='EJECUCION_COMPLETAR'?6:Number(command.baseRevision)+1;
+    return {kind:'ack',remoteRevision:next};
+  },{rehydrate:async()=>{
+    if(++refreshes===2){refreshing.resolve();await release.promise;}
+  }});
+  const execution=executionFixture();
+  const first=buildProgressExecutionCommand(execution,3);
+  first.operationId='u43-first-set';
+  assert.equal((await f.bus.execute(first)).kind,'ack');
+  assert.equal(f.bus.confirmedExecutionRevision(execution),4);
+  // After a first ACK the session UI has revision 4, but on the second
+  // command its observer is detached while heavy bootstrap is pending.
+  execution.revision=4;
+  const second=buildProgressExecutionCommand(execution,4);
+  second.operationId='u43-second-set';
+  const secondWrite=f.bus.execute(second,{onAck:()=>{throw Error('OBSOLETE_UI_OBSERVER');}});
+  await refreshing.promise;
+  assert.equal(execution.revision,4,'stale view has not received second ACK');
+  assert.equal(f.bus.confirmedExecutionRevision(execution),5,
+    'the authenticated bus retained the real ACK 5 before rehydration');
+  const stale=structuredClone(execution);
+  stale.status='awaiting_feedback';
+  const finish=dispatchSessionAction({session,execution:stale,actor,
+    action:'finish',payload:{sessionRpe:7,comment:'QA finalizado',pain:false},
+    commandBus:f.bus,online:true});
+  release.resolve();
+  assert.equal((await secondWrite).kind,'ack');
+  assert.equal((await finish.value).kind,'ack');
+  assert.equal(f.calls.at(-1).type,'EJECUCION_COMPLETAR');
+  assert.equal(f.calls.at(-1).baseRevision,5,
+    'finish must never reuse second-set stale base 4 after ACK 5');
+  assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
+});
+
+
+test('U47 NEXT uses the exact same-execution ACK after a stale Client hydration, not obsolete CAS',async()=>{
+  const calls=[];
+  const f=busWithResponse((cmd)=>{
+    calls.push({type:cmd.type,baseRevision:cmd.baseRevision});
+    return {kind:'ack',remoteRevision:Number(cmd.baseRevision)+1};
+  });
+  const execution=executionFixture();
+  assert.equal((await progressAction(execution,f.bus).value).kind,'ack');
+  assert.equal(execution.revision,4);
+  // A delayed hydration can reset the visible model to CAS 3 even though
+  // the authenticated command bus has already confirmed the first set at 4.
+  execution.revision=3;
+  const next=dispatchSessionAction({session,execution,actor,action:'next',
+    payload:{},commandBus:f.bus,online:true});
+  assert.equal(next.kind,'command');
+  assert.equal((await next.value).kind,'ack');
+  assert.equal(calls.at(-1).baseRevision,4);
+  assert.equal(execution.revision,5);
+
+  assert.equal((await progressAction(execution,f.bus).value).kind,'ack');
+  assert.equal(execution.revision,6);
+  execution.revision=5;
+  const finalNext=dispatchSessionAction({session,execution,actor,action:'next',
+    payload:{},commandBus:f.bus,online:true});
+  assert.equal(finalNext.kind,'command');
+  assert.equal((await finalNext.value).kind,'ack');
+  assert.equal(calls.at(-1).baseRevision,6,
+    'last NEXT must not conflict after the second confirmed set');
+  assert.equal(execution.revision,7);
+  assert.equal(execution.status,'awaiting_feedback');
+});
+
+test('U43 authenticated ACK ledger rejects false revisions, conflicts and foreign scope',async()=>{
+  const respond=(cmd)=>{
+    if(cmd.operationId==='u43-confirmed')return {kind:'ack',remoteRevision:5};
+    if(cmd.operationId==='u43-conflict')return {kind:'conflict',remoteRevision:999,reason:'REVISION_MISMATCH'};
+    if(cmd.operationId==='u43-rejected')return {kind:'rejected',remoteRevision:999,reason:'FORBIDDEN'};
+    if(cmd.operationId==='u43-invalid')return {kind:'ack',remoteRevision:4};
+    return {kind:'ack',remoteRevision:6};
+  };
+  const f=busWithResponse(respond);
+  const execution=executionFixture();execution.revision=4;
+  const command=buildProgressExecutionCommand(execution,4);
+  command.operationId='u43-confirmed';
+  assert.equal((await f.bus.execute(command)).kind,'ack');
+  assert.equal(f.bus.confirmedExecutionRevision(execution),5);
+  assert.equal(f.bus.confirmedExecutionRevision({...execution,id:'different-execution'}),0);
+  assert.equal(f.bus.confirmedExecutionRevision({...execution,clientId:'different-client'}),0);
+  assert.equal(busWithResponse(respond).bus.confirmedExecutionRevision(execution),0);
+  for(const [op,kind] of [['u43-conflict','conflict'],['u43-rejected','rejected'],['u43-invalid','ack']]){
+    const next={...buildProgressExecutionCommand(execution,4),operationId:op};
+    const response=await f.bus.execute(next);
+    assert.equal(response.kind,kind);
+    assert.equal(f.bus.confirmedExecutionRevision(execution),5,
+      'remote conflict, rejection and nonmonotone ACK cannot change trusted CAS');
+  }
+});
+
+test('U44 explicit exit while finish settles is allowed only after same-owner confirmed clean completion',()=>{
+ const bus={};
+ const execution={id:'synthetic-execution',clientId:'synthetic-client',status:'completed',syncStatus:'clean',pendingOperationIds:[]};
+ const first={commandBus:bus,execution,actor:{userId:'synthetic-account'}};
+ const latest={...first};
+ assert.equal(sessionExitAfterFinishConfirmed(first,latest),true);
+ for(const e of [
+  {...execution,status:'awaiting_feedback'},
+  {...execution,syncStatus:'pending'},
+  {...execution,syncStatus:'conflict'},
+  {...execution,pendingOperationIds:['unconfirmed-remote-write']},
+ ]){
+  assert.equal(sessionExitAfterFinishConfirmed(first,{...latest,execution:e}),false,
+    'a replaced or unconfirmed execution cannot silently exit');
+ }
+ execution.syncStatus='pending';
+ assert.equal(sessionExitAfterFinishConfirmed(first,latest),false,'same in-memory object must still have clean synchronization');
+ execution.syncStatus='clean';
+ assert.equal(sessionExitAfterFinishConfirmed(first,{...latest,actor:{userId:'another-account'}}),false);
+ assert.equal(sessionExitAfterFinishConfirmed(first,{...latest,commandBus:{}}),false);
+});
+
+test('U44 session exit tap is deferred until finishing action settles instead of silently being discarded',()=>{
+ const source=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+ assert.match(source,/queuedExitAfterFinish=\{context,target:sessionExitTarget\(button\)\}/u);
+ assert.match(source,/if\(intent&&sessionExitAfterFinishConfirmed\(intent.context,getContext\(\)\)\)/u);
+ assert.match(source,/next\?\.click\?\.\(\)/u);
+});
+
+
+test('U45 a durable real completion ACK is shown immediately, with optional bootstrap still observable',async()=>{
+ const hydrateEntered=deferred(),releaseHydrate=deferred(),reported=deferred();
+ const f=busWithResponse(command=>({kind:'ack',remoteRevision:Number(command.baseRevision)+1}),{
+   rehydrate:async()=>{hydrateEntered.resolve();await releaseHydrate.promise;throw new Error('U45_SYNTHETIC_POST_ACK_BOOTSTRAP_FAILED');},
+   onPostAckRefreshError:(error,scope)=>reported.resolve({message:error.message,scope}),
+ });
+ const execution=executionFixture();
+ execution.revision=6;
+ execution.status='awaiting_feedback';
+ const result=dispatchSessionAction({session,execution,actor,action:'finish',
+   payload:{sessionRpe:7,comment:'Cierre real QA U45',pain:false},
+   commandBus:f.bus,online:true});
+ const resolution=Promise.resolve(result.value).then(ack=>({winner:'ack',ack}));
+ const first=await Promise.race([resolution,hydrateEntered.promise.then(()=>({winner:'bootstrap'}))]);
+ assert.equal(first.winner,'ack','optional bootstrap may not hold the confirmed FINISH ACK');
+ assert.equal(first.ack.kind,'ack');
+ assert.equal(first.ack.response.remoteRevision,7);
+ assert.equal(first.ack.refreshDeferred,true,'refresh is pending, not silently claimed successful');
+ assert.equal(first.ack.refreshOk,null);
+ assert.equal(execution.status,'completed');
+ assert.equal(execution.syncStatus,'clean');
+ assert.equal(execution.revision,7);
+ assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
+ assert.equal(f.calls.at(-1).baseRevision,6);
+ await hydrateEntered.promise;
+ releaseHydrate.resolve();
+ const diagnostic=await reported.promise;
+ assert.equal(diagnostic.message,'U45_SYNTHETIC_POST_ACK_BOOTSTRAP_FAILED');
+ assert.equal(diagnostic.scope.commandType,'EJECUCION_COMPLETAR');
+ assert.equal(diagnostic.scope.operationId,f.calls.at(-1).operationId);
+ assert.equal(execution.syncStatus,'clean','an optional read failure must not erase confirmed server ACK');
 });
