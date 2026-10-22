@@ -26,8 +26,6 @@ const required=[
 ];
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
-  'iberfit_bootstrap_v26_core_u37_qa',
-  'iberfit_privileged_history_page_u38_qa',
   'iberfit_authorized_application_roles_v13',
   'iberfit_appointment_change_requests_v13',
   'iberfit_application_context_v14',
