@@ -32,12 +32,12 @@ begin
   end if;
   v_role := public.iberfit_current_role_v26();
   if v_role not in ('coach','admin') or
-     not public.iberfit_can_access_client_v26(p_client_id) or
-     not public.iberfit_canary_enabled_v26(p_client_id) or
+     public.iberfit_can_access_client_v26(p_client_id) is not true or
+     public.iberfit_canary_enabled_v26(p_client_id) is not true or
      not exists (select 1 from public.clients c where c.id=p_client_id) then
     raise exception 'U35_HISTORY_FORBIDDEN' using errcode='42501';
   end if;
-  if p_section not in ('m26Entities','domainEvents','sessionExecutions')
+  if p_section is null or p_section not in ('m26Entities','domainEvents','sessionExecutions')
      or p_limit is null or p_limit<1 or p_limit>32 then
     raise exception 'U35_HISTORY_ARGUMENT_INVALID' using errcode='22023';
   end if;
