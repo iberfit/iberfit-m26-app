@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
 import {createExecution,startExecution,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
-import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
+import {dispatchSessionAction,settlePriorExecutionWrites} from '../src/m26/workflows/session-controller.js';
 
 function deferred(){
  let resolve,reject;
@@ -86,4 +86,75 @@ test('U41 ACK hook cannot convert confirmed server success into a queued retry',
  assert.equal(r.ok,true);
  assert.equal(calls,1);
  assert.equal((await f.repository.list()).length,0);
+});
+
+test('U41/U42 finalization uses the last exact server ACK even when UI hydration regresses local CAS',async()=>{
+  const f=busWithResponse((command)=>({kind:'ack',remoteRevision:command.type==='EJECUCION_COMPLETAR'?7:6}));
+  const execution=executionFixture();
+  execution.revision=5;
+  const active=progressAction(execution,f.bus);
+  assert.equal((await active.value).ok,true);
+  assert.equal(execution.revision,6);
+  // Mimic an outdated recovered/rehydrated object for this same execution.
+  const recovered=structuredClone(execution);
+  recovered.revision=5;
+  recovered.status='awaiting_feedback';
+  const done=dispatchSessionAction({session,execution:recovered,actor,
+    action:'finish',payload:{sessionRpe:7,comment:'QA checked feedback',pain:false},
+    commandBus:f.bus,online:true});
+  assert.equal((await done.value).ok,true);
+  assert.equal(f.calls.at(-1).type,'EJECUCION_COMPLETAR');
+  assert.equal(f.calls.at(-1).baseRevision,6,'never close with an obsolete CAS 5');
+  assert.equal(recovered.revision,7);
+  assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
+});
+test('U41/U42 ACK CAS is never shared with another Client, execution, command bus or rejected write',async()=>{
+  const f=busWithResponse((command)=>command.type==='EJECUCION_COMPLETAR'
+    ?{kind:'ack',remoteRevision:7}:{kind:'ack',remoteRevision:6});
+  const active=executionFixture();active.revision=5;
+  assert.equal((await progressAction(active,f.bus).value).ok,true);
+  for(const context of [
+    {...active,id:'other-execution',revision:5},
+    {...active,clientId:'other-client',revision:5},
+  ]){
+    context.status='awaiting_feedback';
+    const attempt=dispatchSessionAction({session,execution:context,actor,action:'finish',
+      payload:{sessionRpe:7,comment:'Scope test'},commandBus:f.bus,online:true});
+    await attempt.value;
+    assert.equal(f.calls.at(-1).baseRevision,5,'foreign scope must not borrow the original ACK');
+  }
+  const secondBus=busWithResponse(()=>({kind:'ack',remoteRevision:6}));
+  const detached={...active,revision:5,status:'awaiting_feedback'};
+  await dispatchSessionAction({session,execution:detached,actor,action:'finish',
+    payload:{sessionRpe:7,comment:'Different bus'},commandBus:secondBus.bus,online:true}).value;
+  assert.equal(secondBus.calls.at(-1).baseRevision,5);
+  const rejected=busWithResponse(()=>({kind:'conflict',remoteRevision:99,reason:'REVISION_MISMATCH'}));
+  const conflicted=executionFixture();conflicted.revision=5;
+  await assert.rejects(progressAction(conflicted,rejected.bus).value,/M26_COMMAND_CONFLICT/);
+  assert.equal(conflicted.revision,5,'remote conflict revision is never an authoritative local ACK');
+});
+test('U41/U42 pending progress write completes before a subsequent finalization may use its revision',async()=>{
+  const wait=deferred(),entered=deferred();
+  const f=busWithResponse(async(command)=>{
+    if(command.type==='EJECUCION_GUARDAR_PROGRESO'){
+      entered.resolve();await wait.promise;return {kind:'ack',remoteRevision:6};
+    }
+    return {kind:'ack',remoteRevision:7};
+  });
+  const execution=executionFixture();execution.revision=5;
+  const active=progressAction(execution,f.bus);
+  await entered.promise;
+  const same=structuredClone(execution);same.revision=5;same.status='awaiting_feedback';
+  const finishing=(async()=>{
+    // This is the same pre-dispatch barrier used by the real finish button.
+    await settlePriorExecutionWrites(f.bus,same);
+    return dispatchSessionAction({session,execution:same,actor,action:'finish',
+      payload:{sessionRpe:7,comment:'Two acknowledged sets'},commandBus:f.bus,online:true}).value;
+  })();
+  await Promise.resolve();
+  assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,0);
+  wait.resolve();
+  assert.equal((await active.value).ok,true);
+  assert.equal((await finishing).ok,true);
+  assert.equal(f.calls.at(-1).baseRevision,6);
 });
