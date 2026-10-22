@@ -4,7 +4,7 @@ import {createPrivilegedHistoryAssembler} from '../src/m26/domain/privileged-his
 const a='10000000-0000-4000-8000-000000000001',b='10000000-0000-4000-8000-000000000002';
 const e1='20000000-0000-4000-8000-000000000001',e2='20000000-0000-4000-8000-000000000002';
 const core=()=>({
- user:{id:'coach-1',role:'coach'},remoteRevisions:{'session:'+e1:2,'session_execution:'+e2:3},
+ user:{id:'coach-1',role:'coach'},remoteRevisions:{['session:'+e1]:2,['session_execution:'+e2]:3},
  data:{clients:[{id:a},{id:b}],m26Entities:[],domainEvents:[],sessionExecutions:[],
   checkins:[{id:'keep'}],reports:[{id:'still-here'}]},
  canary:{active:true},environment:'QA',
