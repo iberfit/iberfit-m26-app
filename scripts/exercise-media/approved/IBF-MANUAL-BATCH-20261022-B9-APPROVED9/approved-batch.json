@@ -1,0 +1,420 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-EXTENSION-DE-RODILLA-UNILATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-51892bade298.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-13",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=9c06e5f23116e0b6e6328101cdaf13edd3cd89b135239b60e71603eba8d12ffe. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-EXTENSION-DE-RODILLA-UNILATERAL/movement-51892bade298.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "51892bade298f93edf8c06f79a4e9524b5be35add6170dfeff05e2f9600ae526"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps"
+          ],
+          "secondary": [],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-SACO-FRONTAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-fafc8e8b7623.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-13",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=e8b7a72b45574979a2b5422f9a03f61c0dc0cad95010d8cab0578a7afd50758b. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-SACO-FRONTAL/movement-fafc8e8b7623.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fafc8e8b762310aed845291d81b366db54f824b988cc286aea89246e636b631e"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-SALTO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-bd8ae647ef93.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-13",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=6cbdf687b737ad584468beb59ef7cf5edd1dc5550344695417c04a376da910d0. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-SALTO/movement-bd8ae647ef93.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "bd8ae647ef938f56e57dffc90347fc8679e4d3e62f2d7779586523d2892b1bf9"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-TALONES-ELEVADOS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-8982ad85d2e3.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-13",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=07dacbbe182a0b7ca73df9e94a0070b27c6866243b971af88e1c310676f7d4a2. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-TALONES-ELEVADOS/movement-8982ad85d2e3.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "8982ad85d2e371866622c3e246ed0b7ea99e9622ec22723898973bb4d842e035"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-COSSACK",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-48574d2d299a.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-13",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=c42b5618bb8d6ebd1d631d058e73de598121291e466f1aa40165319f4cf1f600. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-COSSACK/movement-48574d2d299a.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "48574d2d299a531966725a51c5f6b5d6179838f44d83b2f29e25dff57e3a38e1"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos",
+            "aductores"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-BANDA-FRONTAL",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-a172713d27cb.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-13",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=90de1f37d2a20ca96997be2b723d5cbea423dfa532846c99185e903e7e47f8e6. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-BANDA-FRONTAL/movement-a172713d27cb.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "a172713d27cb6c4903e83379d30079354f8fe801701d6d0dd486e6b333734aab"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-COSSACK-ASISTIDA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-963437dabc25.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-22",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=57853879e086a3426760c6659a264187953fb6b2294cd8da8d00348d7d98f241. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-COSSACK-ASISTIDA/movement-963437dabc25.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "963437dabc253742abba53cae0ce21a888bf7693fd2ce36bf14ab4fda7223f50"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos",
+            "aductores"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-FRONTAL-CON-BARRA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-4f04b6fa1c58.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-22",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=a984d059bf3c47dc8c0fc5aac50561fcb0d14660072f6ca4a605c93d2086e24b. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-FRONTAL-CON-BARRA/movement-4f04b6fa1c58.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4f04b6fa1c58b8e5b4cb104746bf061efd1a617402a505ed98ccb097d17660da"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-TRX-Y-PAUSA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261022-B9-APPROVED9/movement-7fdfbe80b50c.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-10-22",
+        "note": "Imagen original aprobada por el propietario; PNG SHA256=33c3a9120423d4e35df769d19a368a9361392c3b48cea6775036879b9ba69343. WebP 640x800 derivado mediante escalado y recorte marginal (<1% del ancho), sin modificar iluminación ni color."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-TRX-Y-PAUSA/movement-7fdfbe80b50c.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "7fdfbe80b50ccdc12cab508cb6e409ae300d2e7ce7736175aca42353914f079b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
