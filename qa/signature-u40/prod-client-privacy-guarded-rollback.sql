@@ -4,7 +4,7 @@
 -- NEVER run when the current definition changed since U40.
 BEGIN;
 SELECT 1/(CASE WHEN
- (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PROD'
+ (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PRODUCTION'
  AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))
  ='47083e3e74073558d78d7f9c8fb06de9'
  THEN 1 ELSE 0 END) AS u40_exact_rollback_signature_required;
