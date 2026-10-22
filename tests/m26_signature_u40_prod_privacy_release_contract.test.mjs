@@ -11,7 +11,7 @@ test('U40 exact PROD baseline and result require prior matching postgres-control
  assert.match(release,/pg_get_userbyid\(proowner\)='postgres'/u);
  assert.match(release,/prosecdef AND provolatile='s'/u);
  assert.match(release,/SET search_path TO ''/u);
- assert.match(release,/WHERE key='environment'\)='PROD'/u);
+ assert.match(release,/WHERE key='environment'\)='PRODUCTION'/u);
  assert.match(release,/BEGIN;[\s\S]*COMMIT;/u);
  assert.equal((release.match(/CREATE OR REPLACE FUNCTION public\.iberfit_bootstrap_v26_rc29\(\)/gu)||[]).length,1);
 });
@@ -33,7 +33,7 @@ test('U40 only narrows client private/event scope, while retaining all existing 
 test('U40 reverse direction is baseline-pinned and restores prior PROD source exactly',()=>{
  assert.match(rollback,/='47083e3e74073558d78d7f9c8fb06de9'/u);
  assert.match(rollback,/='6ca1d901bb26ceedccfb7dc15945451d'/u);
- assert.match(rollback,/WHERE key='environment'\)='PROD'/u);
+ assert.match(rollback,/WHERE key='environment'\)='PRODUCTION'/u);
  assert.match(rollback,/CREATE OR REPLACE FUNCTION public\.iberfit_bootstrap_v26_rc29\(\)/u);
  assert.doesNotMatch(rollback,/'domainEvents',case when v_role in \('client','cliente'\)/u);
  assert.doesNotMatch(rollback,/e\.entity_type not in \('private_note','intelligence','report'\)/u);
