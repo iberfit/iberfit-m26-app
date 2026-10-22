@@ -151,6 +151,14 @@ function enqueueAndApply(commandBus,command,apply,execution){
 function isOnline(value){return value!==false;}
 function progressMutation(execution,commandBus,online,operationId=null){
   if(!commandBus)return {kind:'execution',value:execution};
+  // An ACK of the prior set or rest transition can reach the authenticated
+  // command bus before a slow UI hydration restores an older execution copy.
+  // All progress actions (including NEXT) must use the confirmed, same-owner
+  // CAS ledger, not only FINISH. Do not infer revisions from conflicts.
+  const busRevision=Number(commandBus?.confirmedExecutionRevision?.(execution)??0);
+  const verified=Math.max(confirmedExecutionCas(commandBus,execution),
+    Number.isSafeInteger(busRevision)&&busRevision>0?busRevision:0);
+  if(verified>Number(execution?.revision||0))execution.revision=verified;
   const safeOperationId=String(operationId||createM26Id()).trim();
   const command={...buildProgressExecutionCommand(execution,execution.revision||0),operationId:safeOperationId};
   const pendingIds=new Set(execution?.pendingOperationIds||[]);
