@@ -105,6 +105,9 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          # Only the exact SIGNATURE U37 Canary merge tests versioned QA RPCs.
+          # The OIDC reset broker intentionally refuses pull_request events.
+          M26_QA_U37_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && startsWith(github.event.head_commit.message, 'SIGNATURE U37:') }}
         run: npx playwright test --config playwright.coach-webauthn-recurring.config.mjs
       - name: Reset Coach QA WebAuthn fixture before privileged IRI certification
         shell: bash
