@@ -110,7 +110,7 @@ export function sanitizeOperation(operation) {
   };
 }
 
-export function createCommandBus({ transport, repository, getToken, rehydrate, registry=M26_COMMAND_REGISTRY, getRole=()=>null, now=()=>Date.now() }) {
+export function createCommandBus({ transport, repository, getToken, rehydrate, onPostAckRefreshError=()=>{}, registry=M26_COMMAND_REGISTRY, getRole=()=>null, now=()=>Date.now() }) {
   if (!transport?.preflight || !transport?.execute) throw new Error('M26_TRANSPORT_REQUIRED');
   if (!repository?.put || !repository?.remove || !repository?.list) throw new Error('M26_OPERATION_REPOSITORY_REQUIRED');
   if (typeof getToken !== 'function') throw new Error('M26_TOKEN_PROVIDER_REQUIRED');
@@ -267,12 +267,27 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
         let lineageOk=true,refreshOk=true;
         try { await rebaseNextQueuedLineage({...queued,...command},response); }
         catch { lineageOk=false; }
-        if(typeof rehydrate==='function'){
+        // A server-confirmed workout completion is already durable. The optional
+        // full bootstrap is not a part of its CAS or persistence boundary:
+        // holding the ACK behind it can make the Client show "pending" after
+        // the server actually closed the workout. Start that read on the next
+        // event-loop turn, AFTER the caller can apply its authoritative ACK.
+        // Other commands retain the existing awaited refresh contract.
+        const deferredCompletionRefresh=typeof rehydrate==='function'&&isExecutionCompletionCommand(command);
+        if(deferredCompletionRefresh){
+          setTimeout(()=>{
+            void Promise.resolve().then(()=>rehydrate({reason:kind,response})).catch(error=>{
+              try{onPostAckRefreshError(error,{commandType:command.type,operationId:command.operationId});}catch{}
+            });
+          },0);
+        }else if(typeof rehydrate==='function'){
           try { await rehydrate({reason:kind,response}); }
           catch { refreshOk=false; }
         }
         const ackResult={ ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
-          response,refreshOk,lineageOk,localReceiptOk,refreshPending:!refreshOk||!localReceiptOk };
+          response,refreshOk:deferredCompletionRefresh?null:refreshOk,
+          refreshDeferred:deferredCompletionRefresh,lineageOk,localReceiptOk,
+          refreshPending:deferredCompletionRefresh||!refreshOk||!localReceiptOk };
         if(!localReceiptOk)confirmedRemoteOperations.set(command.operationId,{fingerprint:commandFingerprint(command),result:ackResult});
         else confirmedRemoteOperations.delete(command.operationId);
         return ackResult;
