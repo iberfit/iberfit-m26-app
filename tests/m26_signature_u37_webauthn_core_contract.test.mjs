@@ -22,6 +22,8 @@ test('U37 both privileged RPCs re-enforce server role and actual WebAuthn verifi
   // One assertion is inherited from the original pre_person_service chain,
   // plus explicit enforcement at both exposed RPC entrypoints.
   assert.equal((sql.match(/v_role NOT IN \('coach','admin'\)/gu)||[]).length,2);
+  assert.equal((sql.match(/v_assurance->>'iberfitAssurance' IS DISTINCT FROM 'verified'/gu)||[]).length,2);
+  assert.equal((sql.match(/v_assurance->>'privileged'/gu)||[]).length,2);
   assert.equal((sql.match(/IF auth\.uid\(\) IS NULL THEN/gu)||[]).length>=2,true);
   assert.match(sql,/CREATE OR REPLACE FUNCTION public\.iberfit_bootstrap_v26_core_u37_qa\(\)/u);
   assert.match(sql,/CREATE OR REPLACE FUNCTION public\.iberfit_privileged_history_page_u37_qa\(/u);
