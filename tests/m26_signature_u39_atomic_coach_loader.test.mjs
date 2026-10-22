@@ -136,3 +136,55 @@ test('U39 cannot start in production or receive a Client core as privileged',asy
  await assert.rejects(bad.transport.bootstrapQaCoachWithHistory(TOKEN),/U39_COACH_CORE_CONTEXT_INVALID/);
  assert.equal(bad.calls.length,1);
 });
+
+
+test('U39 multi-client and multi-page recovery produces one complete snapshot under interleaved workers',async()=>{
+ const second='10000000-0000-4000-8000-000000000002';
+ const r1='20000000-0000-4000-8000-000000000010';
+ const r2='20000000-0000-4000-8000-000000000011';
+ const expectedClients=[CLIENT,second];
+ const extended={
+   ...core(),remoteRevisions:{
+     ['session:'+ENTITY]:1,['session:'+r1]:1,
+     ['session:'+EXEC]:1,['session:'+r2]:1,
+   },
+   data:{...core().data,clients:expectedClients.map(id=>({id}))},
+ };
+ const calls=[];
+ const fixture=makeTransport((path,params)=>{
+   if(path.endsWith('/iberfit_bootstrap_v26_core_u37_qa'))return response(extended);
+   const {p_client_id:clientId,p_section:section,p_cursor:cursor,
+     p_snapshot_at:snapshot,p_expected_count:expected}=params;
+   assert.ok(expectedClients.includes(clientId));
+   const first=cursor===null;
+   assert.equal(first,snapshot===null&&expected===null);
+   const clientIndex=clientId===CLIENT?0:1;
+   const id=clientIndex===0?[ENTITY,EXEC]:[r1,r2];
+   const position=first?0:1;
+   const record=section==='m26Entities'
+     ?{entityType:'session',entityId:id[position],clientId,status:'published',
+       revision:1,body:{},updatedAt:DATE}
+     :section==='domainEvents'
+       ?{client_id:clientId,id:2-position,created_at:DATE}
+       :{client_id:clientId,id:id[position],updated_at:DATE};
+   const nextCursor=section==='m26Entities'
+     ?{at:DATE,type:'session',id:id[position]}
+     :{at:DATE,id:section==='domainEvents'?String(2-position):id[position]};
+   const remoteRevisions=section==='m26Entities'?{['session:'+id[position]]:1}:{};
+   calls.push({clientIndex,section,first,limit:params.p_limit});
+   return response({
+     schema:PAGE_SCHEMA,section,snapshotAt:'2026-10-21T13:00:00.000Z',
+     totalCount:2,hasMore:first,nextCursor:first?nextCursor:null,
+     records:[record],remoteRevisions,
+   });
+ });
+ const full=await fixture.transport.bootstrapQaCoachWithHistory(TOKEN);
+ assert.equal(full.data.m26Entities.length,4);
+ assert.equal(full.data.domainEvents.length,4);
+ assert.equal(full.data.sessionExecutions.length,4);
+ assert.deepEqual(new Set(full.data.m26Entities.map(e=>e.clientId)),new Set(expectedClients));
+ assert.equal(calls.length,12);
+ assert.equal(calls.filter(x=>x.first).length,6);
+ assert.equal(calls.filter(x=>!x.first).length,6);
+ assert.equal(full.data.checkins.length,1);
+});
