@@ -60,7 +60,7 @@ test('browser contract proves both registration and assertion on current source'
   assert.match(spec,/mobile/u);
   assert.match(config,/workers:1/u);
   assert.match(config,/browserName:'chromium'/u);
-  assert.match(config,/trace:'retain-on-failure'/u);
+  assert.match(config,/trace:'off'/u);
 });
 
 test('M43 Coach WebAuthn certification navigates real sessions and planning at 320px through desktop',async()=>{
