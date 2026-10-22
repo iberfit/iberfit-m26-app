@@ -52,6 +52,7 @@ test('U46 two aborted password transports stop without unbounded attempts or fal
 });
 test('U46 privileged QA browser artifacts never retain plaintext password form traces',()=>{
  for(const path of [
+  'playwright.admin-webauthn-recurring.config.mjs',
   'playwright.authenticated-interaction.config.mjs',
   'playwright.m43-interactive-client.config.mjs',
   'playwright.m43-authenticated-browser.config.mjs',
