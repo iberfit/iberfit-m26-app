@@ -5,7 +5,7 @@ import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
 import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
-import {isQaBootstrapRequest,sanitizeQaBootstrapResponse,summarizeQaBootstrapSamples} from './qa-bootstrap-response-metrics.mjs';
+import {isQaBootstrapRequest,sanitizeQaBootstrapResponse,summarizeQaBootstrapSamples,summarizeQaBootstrapPayload} from './qa-bootstrap-response-metrics.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -191,14 +191,22 @@ async function openCertifiedCoachArea(page,area){
   // from an unexpected HTTP error. Never ignore an unverified 400/404.
   const errorResponseChecks=[];
   const bootstrapChecks=[];
+  let bootstrapPayloadSample=null;
   page.on('requestfinished',(request)=>{
     if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN))return;
-    bootstrapChecks.push(Promise.resolve(request.response()).then((response)=>
-      sanitizeQaBootstrapResponse({
+    bootstrapChecks.push(Promise.resolve(request.response()).then((response)=>{
+      if(response?.status()===200&&!bootstrapPayloadSample){
+        // Inspect at most the first successful QA-only RPC response.
+        // Only the aggregate summary can reach an artifact or CI log.
+        bootstrapPayloadSample=Promise.resolve(response.text())
+          .then(summarizeQaBootstrapPayload).catch(()=>null);
+      }
+      return sanitizeQaBootstrapResponse({
         status:response?.status()||0,
         timing:request.timing(),
         contentLength:response?.headers()?.['content-length']??null,
-      }),()=>sanitizeQaBootstrapResponse({status:0})));
+      });
+    },()=>sanitizeQaBootstrapResponse({status:0})));
   });
   page.on('requestfailed',(request)=>{
     if(isQaBootstrapRequest(request,SUPABASE_ORIGIN))
@@ -295,6 +303,7 @@ async function openCertifiedCoachArea(page,area){
     // Do not redact an HTTP 500 into success or swallow an unexpected page error.
     try{
       evidence.bootstrap=await snapshotBootstrap();
+      evidence.bootstrapPayload=bootstrapPayloadSample?await bootstrapPayloadSample:null;
       await mkdir(OUT_DIR,{recursive:true});
       await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
     }finally{
