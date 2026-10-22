@@ -8,7 +8,7 @@
 -- No Auth, RLS, table data, grants, timeouts, or WebAuthn changes.
 BEGIN;
 SELECT 1/(CASE WHEN
- (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PROD'
+ (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PRODUCTION'
  AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))
     ='6ca1d901bb26ceedccfb7dc15945451d'
  AND EXISTS (
