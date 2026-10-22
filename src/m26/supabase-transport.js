@@ -1,3 +1,4 @@
+import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
 const DEFAULT_TIMEOUT_MS = 12_000;
 const EXACT_REMOTE_HOSTS = new Set(['app.iberfit.cl', 'coach.iberfit.cl', 'm26-canary.iberfit.cl']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -765,6 +766,96 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(!['global','local','others'].includes(normalizedScope))throw new Error('M26_LOGOUT_SCOPE_INVALID');
     await request(`/auth/v1/logout?scope=${encodeURIComponent(normalizedScope)}`, { method: 'POST', token });
     return { ok: true, scope:normalizedScope };
+  }
+
+  // SIGNATURE U39: opt-in QA Coach full-snapshot replacement.
+  // Never expose or persist a partially hydrated snapshot. This is only
+  // selected by the QA Coach test identity; PostgreSQL independently verifies
+  // auth.uid(), role, scope and the genuine WebAuthn assurance on every RPC.
+  async function bootstrapQaCoachWithHistory(token,{assertOwner=()=>{}}={}){
+    if(!runtime.qaOnly)throw new Error('U39_QA_ONLY');
+    if(!token||typeof assertOwner!=='function')throw new Error('U39_AUTH_OR_OWNER_INVALID');
+    assertOwner();
+    const core=await request('/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa',{
+      method:'POST',token,body:'{}',
+    });
+    assertOwner();
+    if(core?.environment!=='QA'||core?.user?.role!=='coach'
+      ||!Array.isArray(core?.data?.clients))
+      throw new Error('U39_COACH_CORE_CONTEXT_INVALID');
+    const owner={};
+    const assembler=createPrivilegedHistoryAssembler(core,{owner,profile:'u38-qa-adaptive'});
+    const limits=__u36HistoryInternals.U38_QA_PAGE_LIMITS;
+    const sections=__u36HistoryInternals.SECTIONS;
+    const jobs=core.data.clients.flatMap(client=>sections.map(section=>({
+      clientId:client.id,section,
+    })));
+    let cursor=0;
+    let cancelled=false;
+    const nextJob=()=>jobs[cursor++]||null;
+    const check=()=>{
+      if(cancelled)throw new Error('U39_HISTORY_CANCELLED');
+      assertOwner();
+    };
+    async function readSection({clientId,section}){
+      let next={snapshotAt:null,cursor:null,expectedCount:null};
+      let limit=limits[section];
+      let pages=0;
+      do{
+        check();
+        if(++pages>128)throw new Error('U39_HISTORY_PAGE_LOOP');
+        let page;
+        for(;;){
+          check();
+          try{
+            page=await request('/rest/v1/rpc/iberfit_privileged_history_page_u38_qa',{
+              method:'POST',token,
+              body:JSON.stringify({
+                p_client_id:clientId,p_section:section,
+                p_snapshot_at:next.snapshotAt,
+                p_cursor:next.cursor,
+                p_expected_count:next.expectedCount,
+                p_limit:limit,
+              }),
+            });
+            break;
+          }catch(error){
+            // Only SQLSTATE 54000 with the exact U38 size-budget reason
+            // permits a smaller *read-only* page. Never retry MFA, 401/403,
+            // server timeouts, unrelated 500s or identity errors.
+            if(String(error?.body?.code||'')!=='54000'
+               ||String(error?.body?.message||'')!=='U38_PAGE_BODY_BUDGET_EXCEEDED'
+               ||limit===1)throw error;
+            limit=Math.max(1,Math.floor(limit/2));
+          }
+        }
+        check();
+        const result=assembler.accept({
+          owner,clientId,section,request:next,page,
+        });
+        if(result.done)return;
+        next=result.nextRequest;
+      }while(true);
+    }
+    async function worker(){
+      for(;;){
+        check();
+        const job=nextJob();
+        if(!job)return;
+        await readSection(job);
+      }
+    }
+    const workers=Array.from({length:Math.min(3,jobs.length)},()=>worker());
+    try{
+      await Promise.all(workers);
+    }catch(error){
+      cancelled=true;
+      await Promise.allSettled(workers);
+      throw error;
+    }
+    check();
+    if(assembler.status().ready!==true)throw new Error('U39_HISTORY_NOT_COMPLETE');
+    return assembler.finish({owner});
   }
 
   async function bootstrapWithBoundedStatementTimeoutRecovery(token){
@@ -1745,6 +1836,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     challengeWebAuthn,
     verifyWebAuthn,
     bootstrap: bootstrapWithBoundedStatementTimeoutRecovery,
+    bootstrapQaCoachWithHistory,
     backendHealth,
     backendBootstrap,
     draftBackendHealth,
