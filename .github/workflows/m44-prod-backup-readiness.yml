@@ -1,5 +1,9 @@
 name: IBERFIT M44 PROD Backup Inventory Readiness
 
+# U49 2026-10-22 privacy release preflight: comment-only refresh of
+# read-only PROD backup inventory evidence on a certified Canary push.
+
+
 on:
   pull_request:
     branches: [canary/rc74-4]
