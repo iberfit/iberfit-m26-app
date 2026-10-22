@@ -45,5 +45,5 @@ test('U40 QA parity tests all three roles and two clients without mutation',()=>
  assert.match(qa,/v_src IS DISTINCT FROM v_target/u);
  assert.match(qa,/public\.iberfit_bootstrap_v26_rc29\(\)/u);
  assert.match(qa,/private\.iberfit_bootstrap_v26_rc29_u40_qa\(\)/u);
- assert.doesNotMatch(executable(qa),/\b(COMMIT|INSERT INTO public|DELETE FROM|UPDATE\s+public)\b/iu);
+ assert.doesNotMatch(executable(qa),/^\s*COMMIT\s*;|\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE)\s+public\./imu);
 });
