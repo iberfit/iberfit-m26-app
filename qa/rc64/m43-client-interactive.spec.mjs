@@ -198,6 +198,38 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   // One matching history card above protects against duplicate completions.
   await expect(completed).toContainText('2 registros');
   await expect(page.locator('[data-rc39-session]').filter({hasText:LIVE})).toHaveCount(0);
+
+  // U53: a local completion card is not enough. Prove the exact server-backed
+  // history survives a full app restart with the same real QA Client account.
+  // No new write (including a duplicate finish) may be issued on refresh.
+  const writesBeforeReload=allowed.length;
+  await page.reload({waitUntil:'domcontentloaded',timeout:25_000});
+  await expect(page.locator('.m26-shell[data-m26-role="client"]'),
+    'Client must restore its authenticated shell after a real page reload').toBeVisible({timeout:40_000});
+  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
+  const reloadWelcome=page.locator('[data-m26-client-guided-welcome]');
+  if(await reloadWelcome.isVisible().catch(()=>false)){
+    const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count())await pause.click();
+  }
+  const reloadTourClose=page.locator('[data-m26-guided-tour-close]:visible').first();
+  if(await reloadTourClose.count())await reloadTourClose.click();
+  const reloadContextClose=page.locator('[data-m26-client-context-guide-close]:visible').first();
+  if(await reloadContextClose.count())await reloadContextClose.click();
+  await page.locator('[data-m26-area="sesion"]:visible').first().click();
+  await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
+  await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible({timeout:25_000});
+  const recovered=page.locator('[data-m43-session-history] [data-m43-completed-session]')
+    .filter({hasText:LIVE});
+  await expect(recovered,'Completed session must survive real reload exactly once').toHaveCount(1,{timeout:25_000});
+  await expect(recovered).toContainText('Completada');
+  await expect(recovered,'Both server-ACKed sets must survive a new bootstrap')
+    .toContainText('2 registros');
+  await expect(page.locator('[data-rc39-session]').filter({hasText:LIVE}),
+    'Completed session must never return to startable cards after refresh').toHaveCount(0);
+  expect(allowed,'Reloading confirmed history must not replay or duplicate writes')
+    .toHaveLength(writesBeforeReload);
+
   const source=await page.evaluate(()=>({
     width:document.documentElement.clientWidth,
     scroll:document.documentElement.scrollWidth,
@@ -215,7 +247,9 @@ test('Client executes exact synthetic guided workout through real UI and confirm
     body:Buffer.from(JSON.stringify({schema:'iberfit.m43.interactive-ui.v1',
       runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,
       allowedActions:[...new Set(allowed.map(x=>x.type))],
-      networkErrors:unexpectedHttp.length,blockedWrites:0,completed:true},null,2)),
+      networkErrors:unexpectedHttp.length,blockedWrites:0,completed:true,
+      restoredAfterReload:true,confirmedSetCount:2,historyEntriesAfterReload:1,
+      writesAfterReload:allowed.length-writesBeforeReload},null,2)),
     contentType:'application/json',
   });
 });

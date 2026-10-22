@@ -131,18 +131,42 @@ function publishDraftFingerprint(draft){
     blocks:draft?.blocks});
 }
 function executeAndApply(commandBus,command,apply,execution){
-  // U41: a successful remote ACK must advance the active execution CAS even
-  // while commandBus rehydrates optional collections. Never infer a revision
-  // on a network error, non-ACK response, different client or execution.
+  // U41/U54: authenticated ACK advances CAS before local IndexedDB receipt
+  // bookkeeping, queued-lineage reconciliation or a heavyweight bootstrap.
+  // Only a terminal completion with exact operation identity may release its
+  // UI confirmation early. Conflicts, 401 and network uncertainty never do.
+  const terminal=command?.type==='EJECUCION_COMPLETAR'
+    &&command?.entityType==='session_execution'&&Boolean(execution);
+  let resolveTerminalAck=null,appliedTerminalAck=false;
+  const terminalAck=terminal?new Promise(resolve=>{resolveTerminalAck=resolve;}):null;
   const onAck=execution&&command?.entityType==='session_execution'
     ?(response)=>{
       if(String(command?.entityId)!==String(execution?.id)
         ||String(command?.clientId)!==String(execution?.clientId))return;
       const revision=trackConfirmedExecutionCas(commandBus,command,response);
       if(revision!==null&&revision>Number(execution?.revision||0))execution.revision=revision;
+      if(!terminal||revision===null||appliedTerminalAck
+        ||String(response?.operationId||'')!==String(command?.operationId||''))return;
+      // The full terminal snapshot was accepted remotely. Old local "pending"
+      // marks for its already-settled sets cannot supersede this final ACK.
+      const result={ok:true,kind:String(response.kind).toLowerCase(),response,
+        command:{operationId:command.operationId},refreshPending:true};
+      apply?.(result);
+      markExecutionSync(execution,'clean');
+      appliedTerminalAck=true;
+      resolveTerminalAck(result);
     }:null;
-  const operation=Promise.resolve(commandBus.execute(command,{onAck})).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
-  return trackInFlightExecutionWrite(commandBus,command,operation);
+  const operation=Promise.resolve(commandBus.execute(command,{onAck})).then(requireAck).then((result)=>{
+    if(!appliedTerminalAck)apply?.(result);
+    if(execution)markExecutionSync(execution,'clean',appliedTerminalAck
+      ?{}:{operationId:result?.command?.operationId});
+    return result;
+  }).catch((error)=>{
+    if(!appliedTerminalAck)markFailure(execution,error);
+    throw error;
+  });
+  trackInFlightExecutionWrite(commandBus,command,operation);
+  return terminal?Promise.race([operation,terminalAck]):operation;
 }
 function enqueueAndApply(commandBus,command,apply,execution){
   if(!commandBus?.enqueue)throw new Error('M26_OFFLINE_QUEUE_UNAVAILABLE');
