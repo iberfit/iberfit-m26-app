@@ -18,7 +18,7 @@ test('U37 SQL is QA-only, baseline-pinned, append-only and migration-independent
 });
 
 test('U37 both privileged RPCs re-enforce server role and actual WebAuthn verification',()=>{
-  assert.equal((sql.match(/PERFORM public\.iberfit_require_privileged_assurance_v65d\(\)/gu)||[]).length,3);
+  assert.equal((sql.match(/PERFORM public\.iberfit_require_privileged_assurance_v65d\(\)/giu)||[]).length,3);
   // One assertion is inherited from the original pre_person_service chain,
   // plus explicit enforcement at both exposed RPC entrypoints.
   assert.equal((sql.match(/v_role NOT IN \('coach','admin'\)/gu)||[]).length,2);
