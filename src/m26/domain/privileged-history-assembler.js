@@ -6,6 +6,8 @@
 const SECTIONS=Object.freeze(['m26Entities','domainEvents','sessionExecutions']);
 const PAGE_SCHEMA='iberfit.u35.privileged-history-page.qa.v1';
 const PAGE_LIMIT=32;
+const U38_QA_PAGE_LIMITS=Object.freeze({m26Entities:256,domainEvents:512,sessionExecutions:64});
+const U38_QA_BYTE_LIMIT=1_800_000;
 const MAX_ITEMS_PER_SECTION=100_000;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const own=(value,key)=>Object.prototype.hasOwnProperty.call(value,key);
@@ -61,12 +63,17 @@ function readRevisionMap(value){
   if(value===null||typeof value!=='object'||Array.isArray(value))failure('REVISION_MAP_REQUIRED');
   return value;
 }
-export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT}={}){
+export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT,profile='standard'}={}){
   if(!owner||typeof owner!=='object')failure('OWNER_REQUIRED');
   if(!core||typeof core!=='object'||Array.isArray(core))failure('CORE_REQUIRED');
   if(!['coach','admin'].includes(String(core.user?.role||'').toLowerCase()))failure('PRIVILEGED_ROLE_REQUIRED');
   if(!core.data||typeof core.data!=='object'||Array.isArray(core.data))failure('DATA_REQUIRED');
   if(!Number.isInteger(limit)||limit<1||limit>PAGE_LIMIT)failure('PAGE_LIMIT_INVALID');
+  if(!['standard','u38-qa-adaptive'].includes(profile))failure('PROFILE_NOT_ALLOWED');
+  if(profile==='u38-qa-adaptive'&&core.environment!=='QA')
+    failure('QA_PROFILE_OUTSIDE_QA');
+  const pageLimits=profile==='u38-qa-adaptive'?U38_QA_PAGE_LIMITS
+    :Object.freeze(Object.fromEntries(SECTIONS.map(section=>[section,limit])));
   for(const section of SECTIONS){
     if(!Array.isArray(core.data[section])||core.data[section].length!==0)
       failure('CORE_MUST_BE_LIGHT');
@@ -97,7 +104,10 @@ export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT}={
     if(!page||typeof page!=='object'||Array.isArray(page)||page.schema!==PAGE_SCHEMA
       ||page.section!==section||!positiveDate(page.snapshotAt))failure('PAGE_INVALID');
     if(!request||typeof request!=='object'||Array.isArray(request))failure('REQUEST_REQUIRED');
-    if(!Array.isArray(page.records)||page.records.length>limit)failure('PAGE_LIMIT_EXCEEDED');
+    if(!Array.isArray(page.records)||page.records.length>pageLimits[section])
+      failure('PAGE_LIMIT_EXCEEDED');
+    if(profile==='u38-qa-adaptive'&&new TextEncoder().encode(JSON.stringify(page.records)).length>U38_QA_BYTE_LIMIT)
+      failure('PAGE_BYTES_EXCEEDED');
     if(!Number.isSafeInteger(page.totalCount)||page.totalCount<0
       ||page.totalCount>MAX_ITEMS_PER_SECTION)failure('TOTAL_COUNT_INVALID');
     if(typeof page.hasMore!=='boolean')failure('HAS_MORE_INVALID');
@@ -176,4 +186,4 @@ export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT}={
 
   return Object.freeze({accept,status,finish});
 }
-export const __u36HistoryInternals=Object.freeze({SECTIONS,PAGE_SCHEMA,PAGE_LIMIT});
+export const __u36HistoryInternals=Object.freeze({SECTIONS,PAGE_SCHEMA,PAGE_LIMIT,U38_QA_PAGE_LIMITS});
