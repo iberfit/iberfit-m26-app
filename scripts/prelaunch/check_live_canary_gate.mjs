@@ -81,7 +81,7 @@ async function inspectViewport(browser,{name,width,height}){
 
   page.on('console',(message)=>{
     if(message.type()==='warning'&&String(message.text()||'').startsWith('[IBERFIT:bootstrap]')){
-      const match=String(message.text()||'').match(/\\bM26_[A-Z0-9_]+\\b/u);
+      const match=String(message.text()||'').match(/\bM26_[A-Z0-9_]+\b/u);
       bootstrapWarningCodes.push(match?.[0]||'M26_BOOTSTRAP_UNCLASSIFIED');
     }
     if(message.type()==='error'){
