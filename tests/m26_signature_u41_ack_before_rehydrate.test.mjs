@@ -1,0 +1,174 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
+import {createExecution,startExecution,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
+import {dispatchSessionAction,settlePriorExecutionWrites,sameLiveExecutionOwner} from '../src/m26/workflows/session-controller.js';
+
+function deferred(){
+ let resolve,reject;
+ const promise=new Promise((res,rej)=>{resolve=res;reject=rej;});
+ return {promise,resolve,reject};
+}
+const actor={role:'client',id:'qa-synthetic-client',clientId:'client-ack-race'};
+const session={id:'session-ack-race',clientId:actor.clientId,blocks:[{
+ id:'block-ack',type:'exercise',exerciseId:'exercise-ack',sets:2,reps:'8',restSeconds:45,
+ targetRpe:7,targetRir:2,
+}]};
+function executionFixture(){
+ const execution=createExecution({session,clientId:actor.clientId,executionId:'execution-ack-race'});
+ startExecution(execution,{actor});
+ execution.revision=3;
+ return execution;
+}
+function progressAction(execution,bus){
+ return dispatchSessionAction({session,execution,actor,
+   action:'complete-set',payload:{reps:'8',load:'20 kg',rpe:8,rir:2,restSeconds:45},
+   commandBus:bus,online:true});
+}
+function busWithResponse(reply,{rehydrate=async()=>{}}={}){
+ const calls=[],repository=createMemoryOperationRepository();
+ const bus=createCommandBus({
+   repository,
+   getToken:async()=> 'test-only-token',
+   getRole:()=> 'client',
+   rehydrate,
+   transport:{preflight:async()=>({kind:'ack'}),
+     execute:async(_token,command)=>{calls.push(command);return reply(command);}},
+ });
+ return {bus,calls,repository};
+}
+test('U41 server ACK 4 updates active execution from 3 before full bootstrap refresh completes',async()=>{
+ const refreshEntered=deferred(),releaseRefresh=deferred();
+ const f=busWithResponse(()=>({kind:'ack',remoteRevision:4}),{
+   rehydrate:async()=>{refreshEntered.resolve();await releaseRefresh.promise;},
+ });
+ const execution=executionFixture();
+ const result=progressAction(execution,f.bus);
+ assert.equal(result.kind,'command');
+ await refreshEntered.promise;
+ assert.equal(execution.revision,4,'remote confirmation must be reflected before heavy rehydrate');
+ assert.equal(buildProgressExecutionCommand(execution).baseRevision,4,
+   'second set must never reuse stale revision 3');
+ assert.equal(f.calls[0].baseRevision,3);
+ releaseRefresh.resolve();
+ const ack=await result.value;
+ assert.equal(ack.ok,true);
+ assert.equal(ack.response.remoteRevision,4);
+ assert.equal(execution.revision,4);
+});
+test('U41 conflict HTTP 200 does not advance revision or retry the mutation',async()=>{
+ const f=busWithResponse(()=>({kind:'conflict',reason:'REVISION_MISMATCH',remoteRevision:4}));
+ const execution=executionFixture();
+ const action=progressAction(execution,f.bus);
+ await assert.rejects(action.value,/M26_COMMAND_CONFLICT/);
+ assert.equal(execution.revision,3);
+ assert.equal(f.calls.length,1);
+ assert.equal((await f.repository.list())[0]?.status,'conflict');
+});
+test('U41 cannot advance a different Client/execution or malformed acknowledgement',async()=>{
+ for(const bad of [null,'invalid',-1,3]){
+  const f=busWithResponse(()=>({kind:'ack',remoteRevision:bad}));
+  const execution=executionFixture();
+  const action=progressAction(execution,f.bus);
+  const r=await action.value;
+  assert.equal(r.ok,true);
+  assert.equal(execution.revision,3,'no invented or nonmonotonic revision');
+ }
+});
+test('U41 ACK hook cannot convert confirmed server success into a queued retry',async()=>{
+ let calls=0;
+ const f=busWithResponse(()=>{calls++;return {kind:'ack',remoteRevision:4};});
+ const execution=executionFixture();
+ const command=buildProgressExecutionCommand(execution,3);
+ command.operationId='synthetic-early-ack';
+ const r=await f.bus.execute(command,{onAck:()=>{throw new Error('LOCAL_HOOK_FAILED');}});
+ assert.equal(r.kind,'ack');
+ assert.equal(r.ok,true);
+ assert.equal(calls,1);
+ assert.equal((await f.repository.list()).length,0);
+});
+
+test('U41/U42 finalization uses the last exact server ACK even when UI hydration regresses local CAS',async()=>{
+  const f=busWithResponse((command)=>({kind:'ack',remoteRevision:command.type==='EJECUCION_COMPLETAR'?7:6}));
+  const execution=executionFixture();
+  execution.revision=5;
+  const active=progressAction(execution,f.bus);
+  assert.equal((await active.value).ok,true);
+  assert.equal(execution.revision,6);
+  // Mimic an outdated recovered/rehydrated object for this same execution.
+  const recovered=structuredClone(execution);
+  recovered.revision=5;
+  recovered.status='awaiting_feedback';
+  const done=dispatchSessionAction({session,execution:recovered,actor,
+    action:'finish',payload:{sessionRpe:7,comment:'QA checked feedback',pain:false},
+    commandBus:f.bus,online:true});
+  assert.equal((await done.value).ok,true);
+  assert.equal(f.calls.at(-1).type,'EJECUCION_COMPLETAR');
+  assert.equal(f.calls.at(-1).baseRevision,6,'never close with an obsolete CAS 5');
+  assert.equal(recovered.revision,7);
+  assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
+});
+test('U41/U42 ACK CAS is never shared with another Client, execution, command bus or rejected write',async()=>{
+  const f=busWithResponse((command)=>command.type==='EJECUCION_COMPLETAR'
+    ?{kind:'ack',remoteRevision:7}:{kind:'ack',remoteRevision:6});
+  const active=executionFixture();active.revision=5;
+  assert.equal((await progressAction(active,f.bus).value).ok,true);
+  for(const context of [
+    {...active,id:'other-execution',revision:5},
+    {...active,clientId:'other-client',revision:5},
+  ]){
+    context.status='awaiting_feedback';
+    const attempt=dispatchSessionAction({session,execution:context,actor,action:'finish',
+      payload:{sessionRpe:7,comment:'Scope test'},commandBus:f.bus,online:true});
+    await attempt.value;
+    assert.equal(f.calls.at(-1).baseRevision,5,'foreign scope must not borrow the original ACK');
+  }
+  const secondBus=busWithResponse(()=>({kind:'ack',remoteRevision:6}));
+  const detached={...active,revision:5,status:'awaiting_feedback'};
+  await dispatchSessionAction({session,execution:detached,actor,action:'finish',
+    payload:{sessionRpe:7,comment:'Different bus'},commandBus:secondBus.bus,online:true}).value;
+  assert.equal(secondBus.calls.at(-1).baseRevision,5);
+  const rejected=busWithResponse(()=>({kind:'conflict',remoteRevision:99,reason:'REVISION_MISMATCH'}));
+  const conflicted=executionFixture();conflicted.revision=5;
+  await assert.rejects(progressAction(conflicted,rejected.bus).value,/M26_COMMAND_CONFLICT/);
+  assert.equal(conflicted.revision,5,'remote conflict revision is never an authoritative local ACK');
+});
+test('U41/U42 pending progress write completes before a subsequent finalization may use its revision',async()=>{
+  const wait=deferred(),entered=deferred();
+  const f=busWithResponse(async(command)=>{
+    if(command.type==='EJECUCION_GUARDAR_PROGRESO'){
+      entered.resolve();await wait.promise;return {kind:'ack',remoteRevision:6};
+    }
+    return {kind:'ack',remoteRevision:7};
+  });
+  const execution=executionFixture();execution.revision=5;
+  const active=progressAction(execution,f.bus);
+  await entered.promise;
+  const same=structuredClone(execution);same.revision=5;same.status='awaiting_feedback';
+  const finishing=(async()=>{
+    // This is the same pre-dispatch barrier used by the real finish button.
+    await settlePriorExecutionWrites(f.bus,same);
+    return dispatchSessionAction({session,execution:same,actor,action:'finish',
+      payload:{sessionRpe:7,comment:'Two acknowledged sets'},commandBus:f.bus,online:true}).value;
+  })();
+  await Promise.resolve();
+  assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,0);
+  wait.resolve();
+  assert.equal((await active.value).ok,true);
+  assert.equal((await finishing).ok,true);
+  assert.equal(f.calls.at(-1).baseRevision,6);
+});
+
+test('U42 delayed finalization is lease-bound and rejects identity/workspace replacement',()=>{
+ const bus={};
+ const execution={id:'qa-execution',clientId:'qa-client'};
+ const original={commandBus:bus,execution,actor:{userId:'qa-user'}};
+ assert.equal(sameLiveExecutionOwner(original,{...original,actor:{userId:'qa-user'}}),true);
+ for(const modified of [
+   {...original,actor:{userId:'different-user'}},
+   {...original,execution:{...execution}},
+   {...original,commandBus:{}},
+   {...original,execution:null},
+   null,
+ ])assert.equal(sameLiveExecutionOwner(original,modified),false);
+});

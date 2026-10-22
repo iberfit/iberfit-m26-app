@@ -140,6 +140,16 @@ test('QA historical retention fingerprint preserves rows, rejects stale CAS and 
     {...entity,entityType:'session_execution'},
   ])assert.equal(retainedM43HistoricalFingerprint(change,retained),false);
   assert.equal(retainedM43HistoricalFingerprint(entity,new Set()),false);
+  // Old static-title M43 QA sessions are retained ONLY by exact, frozen
+  // canonical fingerprint after SQL verified complete execution/no appointment.
+  const legacy={...entity,body:{...entity.body,title:'IBERFIT QA M43 · multideporte'}};
+  const legacyKey=[legacy.clientId,legacy.entityId,legacy.status,legacy.revision,legacy.body.title].join(':');
+  const legacyDigest=createHash('sha256').update(legacyKey,'utf8').digest('hex');
+  assert.equal(retainedM43HistoricalFingerprint(legacy,new Set([legacyDigest])),true);
+  assert.equal(retainedM43HistoricalFingerprint(legacy,new Set()),false);
+  assert.equal(retainedM43HistoricalFingerprint({...legacy,revision:6},new Set([legacyDigest])),false);
+  assert.equal(retainedM43HistoricalFingerprint({...legacy,status:'disponible'},new Set([legacyDigest])),false);
+  assert.equal(retainedM43HistoricalFingerprint({...legacy,body:{...legacy.body,clientId:'foreign'}},new Set([legacyDigest])),false);
   const writer=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
   assert.match(writer,/fixtureBudget=\{count:budget.count,total:budget.total,retained:budget.retained/u);
   assert.match(writer,/budget.count<=budget.limit-2/u);
