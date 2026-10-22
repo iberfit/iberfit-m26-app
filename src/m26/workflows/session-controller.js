@@ -99,7 +99,7 @@ function trackInFlightExecutionWrite(bus,command,promise){
   void promise.then(cleanup,cleanup);
   return promise;
 }
-export // A delayed finish must not cross logout, a different account or replacement
+// A delayed finish must not cross logout, a different account or replacement
 // workspace. A validated ACK is not authorization to use a new JWT/owner.
 export function sameLiveExecutionOwner(expected,latest){
   return Boolean(expected?.execution&&latest?.execution
@@ -108,7 +108,7 @@ export function sameLiveExecutionOwner(expected,latest){
     &&String(expected.actor?.userId||'')===String(latest.actor?.userId||'')
     &&String(expected.execution.clientId||'')===String(latest.execution.clientId||''));
 }
-async function settlePriorExecutionWrites(bus,execution){
+export async function settlePriorExecutionWrites(bus,execution){
   const key=executionScopeKey(execution);
   const pending=key?executingExecutionWritesByBus.get(bus)?.get(key):null;
   if(pending?.size)await Promise.all([...pending]);
