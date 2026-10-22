@@ -333,3 +333,74 @@ test('U45 a durable real completion ACK is shown immediately, with optional boot
  assert.equal(diagnostic.scope.operationId,f.calls.at(-1).operationId);
  assert.equal(execution.syncStatus,'clean','an optional read failure must not erase confirmed server ACK');
 });
+
+
+test('U54 exact terminal ACK releases Client UI before the durable local receipt unblocks',async()=>{
+  const release=deferred(),ackStorageEntered=deferred();
+  const repository=createMemoryOperationRepository();
+  const put=repository.put.bind(repository);
+  repository.put=async(record)=>{
+    if(record.type==='EJECUCION_COMPLETAR'&&record.status==='ack'){
+      ackStorageEntered.resolve();
+      await release.promise;
+    }
+    return put(record);
+  };
+  const calls=[];
+  const bus=createCommandBus({
+    repository,getToken:async()=> 'test-only-token',getRole:()=> 'client',
+    transport:{preflight:async()=>({kind:'ack'}),
+      execute:async(_token,command)=>{
+        calls.push(command);
+        return {kind:'ack',operationId:command.operationId,
+          remoteRevision:Number(command.baseRevision)+1};
+      }},
+  });
+  const execution=executionFixture();execution.revision=5;
+  execution.status='awaiting_feedback';
+  execution.syncStatus='pending';
+  execution.pendingOperationIds=['old-set-ack-in-ui'];
+  const action=dispatchSessionAction({session,execution,actor,action:'finish',
+    payload:{sessionRpe:7,comment:'U54 authenticated remote ACK',pain:false},
+    commandBus:bus,online:true});
+  try{
+    await ackStorageEntered.promise;
+    const observed=await Promise.race([
+      action.value,
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('U54_ACK_UI_HELD_BEHIND_LOCAL_RECEIPT')),250)),
+    ]);
+    assert.equal(observed.ok,true);
+    assert.equal(observed.response.operationId,execution.id);
+    assert.equal(execution.status,'completed');
+    assert.equal(execution.revision,6);
+    assert.equal(execution.syncStatus,'clean');
+    assert.deepEqual(execution.pendingOperationIds,[]);
+    assert.equal(calls.length,1,'must not resend a committed finish');
+  }finally{release.resolve();}
+});
+
+test('U54 refuses early completion confirmation for wrong operation ID, conflict or nonmonotonic ACK',async()=>{
+  for(const kind of ['wrong-id','conflict','nonmonotonic']){
+    const execute=async(_token,command)=>kind==='wrong-id'
+      ?{kind:'ack',operationId:'another-operation',remoteRevision:6}
+      :kind==='conflict'
+        ?{kind:'conflict',operationId:command.operationId,reason:'REVISION_MISMATCH',remoteRevision:6}
+        :{kind:'ack',operationId:command.operationId,remoteRevision:5};
+    const repository=createMemoryOperationRepository();
+    const bus=createCommandBus({repository,getToken:async()=> 'test-only-token',
+      getRole:()=> 'client',transport:{preflight:async()=>({kind:'ack'}),execute}});
+    const execution=executionFixture();execution.revision=5;
+    execution.status='awaiting_feedback';
+    const action=dispatchSessionAction({session,execution,actor,action:'finish',
+      payload:{sessionRpe:7,comment:'U54 negative',pain:false},commandBus:bus,online:true});
+    if(kind==='conflict'){
+      await assert.rejects(action.value,/M26_COMMAND_CONFLICT/);
+      assert.equal(execution.status,'awaiting_feedback');
+      assert.notEqual(execution.syncStatus,'clean');
+    }else{
+      const reply=await action.value;
+      assert.equal(reply.ok,true);
+      assert.equal(execution.status,'completed','full command path still applies confirmed result');
+    }
+  }
+});
