@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
 import {createExecution,startExecution,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
-import {dispatchSessionAction,settlePriorExecutionWrites} from '../src/m26/workflows/session-controller.js';
+import {dispatchSessionAction,settlePriorExecutionWrites,sameLiveExecutionOwner} from '../src/m26/workflows/session-controller.js';
 
 function deferred(){
  let resolve,reject;
@@ -157,4 +157,18 @@ test('U41/U42 pending progress write completes before a subsequent finalization 
   assert.equal((await active.value).ok,true);
   assert.equal((await finishing).ok,true);
   assert.equal(f.calls.at(-1).baseRevision,6);
+});
+
+test('U42 delayed finalization is lease-bound and rejects identity/workspace replacement',()=>{
+ const bus={};
+ const execution={id:'qa-execution',clientId:'qa-client'};
+ const original={commandBus:bus,execution,actor:{userId:'qa-user'}};
+ assert.equal(sameLiveExecutionOwner(original,{...original,actor:{userId:'qa-user'}}),true);
+ for(const modified of [
+   {...original,actor:{userId:'different-user'}},
+   {...original,execution:{...execution}},
+   {...original,commandBus:{}},
+   {...original,execution:null},
+   null,
+ ])assert.equal(sameLiveExecutionOwner(original,modified),false);
 });
