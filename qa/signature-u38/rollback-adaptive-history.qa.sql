@@ -1,4 +1,4 @@
--- U38 explicit QA-only rollback. No Cascade, no user data mutation.
+-- U38 explicit QA-only rollback. RESTRICT-only; no user data mutation.
 BEGIN;
 SELECT 1/(CASE WHEN (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='QA'
  THEN 1 ELSE 0 END) AS u38_qa_only;
