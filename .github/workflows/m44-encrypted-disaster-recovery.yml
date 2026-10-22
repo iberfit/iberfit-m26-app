@@ -1,5 +1,10 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# U49 2026-10-22 privacy release preflight: this comment-only workflow change
+# requests a fresh encrypted PROD DB+Storage backup and isolated PostgreSQL 17
+# restore on the next certified Canary push. No backup or secret policy changes.
+
+
 on:
   pull_request:
     branches: ['canary/rc74-4']
