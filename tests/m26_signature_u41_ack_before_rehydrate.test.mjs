@@ -172,3 +172,67 @@ test('U42 delayed finalization is lease-bound and rejects identity/workspace rep
    null,
  ])assert.equal(sameLiveExecutionOwner(original,modified),false);
 });
+
+test('U43 actual two-set CAS 3→4→5 survives a lost UI observer and slow rehydration before finish',async()=>{
+  const refreshing=deferred(),release=deferred();
+  let refreshes=0;
+  const f=busWithResponse((command)=>{
+    const next=command.type==='EJECUCION_COMPLETAR'?6:Number(command.baseRevision)+1;
+    return {kind:'ack',remoteRevision:next};
+  },{rehydrate:async()=>{
+    if(++refreshes===2){refreshing.resolve();await release.promise;}
+  }});
+  const execution=executionFixture();
+  const first=buildProgressExecutionCommand(execution,3);
+  first.operationId='u43-first-set';
+  assert.equal((await f.bus.execute(first)).kind,'ack');
+  assert.equal(f.bus.confirmedExecutionRevision(execution),4);
+  // After a first ACK the session UI has revision 4, but on the second
+  // command its observer is detached while heavy bootstrap is pending.
+  execution.revision=4;
+  const second=buildProgressExecutionCommand(execution,4);
+  second.operationId='u43-second-set';
+  const secondWrite=f.bus.execute(second,{onAck:()=>{throw Error('OBSOLETE_UI_OBSERVER');}});
+  await refreshing.promise;
+  assert.equal(execution.revision,4,'stale view has not received second ACK');
+  assert.equal(f.bus.confirmedExecutionRevision(execution),5,
+    'the authenticated bus retained the real ACK 5 before rehydration');
+  const stale=structuredClone(execution);
+  stale.status='awaiting_feedback';
+  const finish=dispatchSessionAction({session,execution:stale,actor,
+    action:'finish',payload:{sessionRpe:7,comment:'QA finalizado',pain:false},
+    commandBus:f.bus,online:true});
+  release.resolve();
+  assert.equal((await secondWrite).kind,'ack');
+  assert.equal((await finish.value).kind,'ack');
+  assert.equal(f.calls.at(-1).type,'EJECUCION_COMPLETAR');
+  assert.equal(f.calls.at(-1).baseRevision,5,
+    'finish must never reuse second-set stale base 4 after ACK 5');
+  assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
+});
+
+test('U43 authenticated ACK ledger rejects false revisions, conflicts and foreign scope',async()=>{
+  const respond=(cmd)=>{
+    if(cmd.operationId==='u43-confirmed')return {kind:'ack',remoteRevision:5};
+    if(cmd.operationId==='u43-conflict')return {kind:'conflict',remoteRevision:999,reason:'REVISION_MISMATCH'};
+    if(cmd.operationId==='u43-rejected')return {kind:'rejected',remoteRevision:999,reason:'FORBIDDEN'};
+    if(cmd.operationId==='u43-invalid')return {kind:'ack',remoteRevision:4};
+    return {kind:'ack',remoteRevision:6};
+  };
+  const f=busWithResponse(respond);
+  const execution=executionFixture();execution.revision=4;
+  const command=buildProgressExecutionCommand(execution,4);
+  command.operationId='u43-confirmed';
+  assert.equal((await f.bus.execute(command)).kind,'ack');
+  assert.equal(f.bus.confirmedExecutionRevision(execution),5);
+  assert.equal(f.bus.confirmedExecutionRevision({...execution,id:'different-execution'}),0);
+  assert.equal(f.bus.confirmedExecutionRevision({...execution,clientId:'different-client'}),0);
+  assert.equal(busWithResponse(respond).bus.confirmedExecutionRevision(execution),0);
+  for(const [op,kind] of [['u43-conflict','conflict'],['u43-rejected','rejected'],['u43-invalid','ack']]){
+    const next={...buildProgressExecutionCommand(execution,4),operationId:op};
+    const response=await f.bus.execute(next);
+    assert.equal(response.kind,kind);
+    assert.equal(f.bus.confirmedExecutionRevision(execution),5,
+      'remote conflict, rejection and nonmonotone ACK cannot change trusted CAS');
+  }
+});

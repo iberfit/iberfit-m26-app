@@ -359,7 +359,13 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       // A late hydration or local recovery copy may still hold revision N
       // after this exact Coach/Client execution received ACK N+1. Only an
       // authenticated, same-bus, same-client, same-execution ACK can raise CAS.
-      const verified=commandBus?confirmedExecutionCas(commandBus,execution):0;
+      // Two independent, strictly ACK-derived witnesses: the controller's
+      // active snapshot and the authenticated bus's own server ledger.
+      // A stale UI onAck observer must never make a confirmed second set
+      // disappear from the CAS used to finish this exact execution.
+      const busRevision=Number(commandBus?.confirmedExecutionRevision?.(execution)??0);
+      const verified=Math.max(commandBus?confirmedExecutionCas(commandBus,execution):0,
+        Number.isSafeInteger(busRevision)&&busRevision>0?busRevision:0);
       if(Number.isSafeInteger(verified)&&verified>Number(execution?.revision||0))
         execution.revision=verified;
       const completed=structuredClone(execution);finishExecution(completed,payload,{actor});

@@ -119,6 +119,33 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   // A remote ACK whose local cleanup failed must never be replayed by the
   // same live command bus. Durable server operation IDs protect across reloads.
   const confirmedRemoteOperations=new Map();
+  // Independently retain only exact server ACK revisions for this authenticated
+  // command-bus instance. UI onAck observers may belong to a stale/replaced
+  // execution object after a slow hydrate; never infer a CAS from local state.
+  const confirmedExecutionRevisions=new Map();
+  function recordConfirmedExecutionRevision(command,response){
+    if(command?.entityType!=='session_execution')return;
+    const scope=executionLineage(command);
+    const revision=Number(response?.remoteRevision);
+    const base=Number(command?.baseRevision);
+    if(!scope||!Number.isSafeInteger(revision)||!Number.isSafeInteger(base)
+      ||base<0||revision<=base)return;
+    const previous=confirmedExecutionRevisions.get(scope)||0;
+    confirmedExecutionRevisions.delete(scope);
+    confirmedExecutionRevisions.set(scope,Math.max(previous,revision));
+    // Bounded per-session memory; no persistent data, cross-session sharing
+    // or claim that the latest local edit was remotely accepted.
+    if(confirmedExecutionRevisions.size>256)
+      confirmedExecutionRevisions.delete(confirmedExecutionRevisions.keys().next().value);
+  }
+  function confirmedExecutionRevision(execution){
+    const scope=executionLineage({
+      entityType:'session_execution',
+      entityId:execution?.entityId??execution?.id,
+      clientId:execution?.clientId,
+    });
+    return scope?(confirmedExecutionRevisions.get(scope)||0):0;
+  }
   let flushInFlight=null;
   let localQueueOrder=0;
   const nowMs=()=>{const value=Number(now());if(!Number.isFinite(value))throw new Error('M26_CLOCK_INVALID');return value;};
@@ -211,6 +238,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
       if (kind === 'ack' || kind === 'duplicate') {
+        recordConfirmedExecutionRevision(command,response);
         // The remote revision is known at ACK arrival. Give the active
         // execution its server-confirmed CAS value BEFORE the optional full
         // bootstrap refresh. A slow refresh must never leave the next set
@@ -359,7 +387,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return flushInFlight;
   }
 
-  return Object.freeze({ preflight, execute, enqueue, pending, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
+  return Object.freeze({ preflight, execute, enqueue, pending, confirmedExecutionRevision, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
 }
 
 export function createMemoryOperationRepository() {
