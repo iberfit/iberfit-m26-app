@@ -88,6 +88,13 @@ begin
  exception when invalid_parameter_value then v_rejected:=true;
  end;
  if not v_rejected then raise exception 'U35_UNBOUNDED_PAGE_ALLOWED';end if;
+ v_rejected:=false;
+ begin
+   perform private.iberfit_privileged_history_page_u35_qa(
+     v_assigned,null,null,null,null,8);
+ exception when invalid_parameter_value then v_rejected:=true;
+ end;
+ if not v_rejected then raise exception 'U35_NULL_SECTION_ALLOWED';end if;
  if v_foreign is not null then
    v_denied:=false;
    begin
