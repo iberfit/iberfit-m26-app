@@ -118,7 +118,7 @@ test('auth recovers from a hung password request without reload or mixed-languag
 });
 
 
-test('failed full-app import offers usable bootstrap login and dispatches a single password request',async({browser})=>{
+test('failed full-app import preserves one user submit while a stalled password transport retries at most once',async({browser})=>{
   // Hermetic regression for the real fallback path; no requests reach Supabase.
   // The minimal form is intentionally hidden until full-app boot fails.
   const email='bootstrap.probe@iberfit.invalid';
@@ -195,9 +195,9 @@ test('failed full-app import offers usable bootstrap login and dispatches a sing
     await expect(card).toHaveAttribute('aria-busy','true');
     await expect(submit).toBeDisabled();
 
-    // Let the transport's own 12s timeout abort this held request.
-    // Aborting the route externally creates a different browser network error,
-    // which may correctly trigger the transport's bounded transient retry.
+    // The login transport applies an 8s per-attempt bound and a single
+    // automatic retry for its own timeout. This remains ONE explicit submit,
+    // with no navigation loop, escalation or unbounded requests.
     await expect(card).toHaveAttribute('aria-busy','false',{timeout:20_000});
     await expect(submit).toBeEnabled();
     await expect(page.locator('[data-minimal-auth-notice]')).toContainText(
@@ -206,7 +206,7 @@ test('failed full-app import offers usable bootstrap login and dispatches a sing
     await expect(form.locator('input[name="email"]')).toHaveValue(email);
     expect(await page.evaluate(()=>performance.getEntriesByType('navigation').length)).toBe(navigationCount);
     expect(failedImports).toBe(1);
-    expect(passwordRequests).toBe(1);
+    expect(passwordRequests).toBe(2);
     expect(unexpectedExternal).toEqual([]);
     expect(errors).toEqual([]);
   }finally{
