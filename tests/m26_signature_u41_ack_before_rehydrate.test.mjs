@@ -26,13 +26,13 @@ function progressAction(execution,bus){
    action:'complete-set',payload:{reps:'8',load:'20 kg',rpe:8,rir:2,restSeconds:45},
    commandBus:bus,online:true});
 }
-function busWithResponse(reply,{rehydrate=async()=>{}}={}){
+function busWithResponse(reply,{rehydrate=async()=>{},onPostAckRefreshError=()=>{}}={}){
  const calls=[],repository=createMemoryOperationRepository();
  const bus=createCommandBus({
    repository,
    getToken:async()=> 'test-only-token',
    getRole:()=> 'client',
-   rehydrate,
+   rehydrate,onPostAckRefreshError,
    transport:{preflight:async()=>({kind:'ack'}),
      execute:async(_token,command)=>{calls.push(command);return reply(command);}},
  });
@@ -265,4 +265,38 @@ test('U44 session exit tap is deferred until finishing action settles instead of
  assert.match(source,/queuedExitAfterFinish=\{context,target:sessionExitTarget\(button\)\}/u);
  assert.match(source,/if\(intent&&sessionExitAfterFinishConfirmed\(intent.context,getContext\(\)\)\)/u);
  assert.match(source,/next\?\.click\?\.\(\)/u);
+});
+
+
+test('U45 a durable real completion ACK is shown immediately, with optional bootstrap still observable',async()=>{
+ const hydrateEntered=deferred(),releaseHydrate=deferred(),reported=deferred();
+ const f=busWithResponse(command=>({kind:'ack',remoteRevision:Number(command.baseRevision)+1}),{
+   rehydrate:async()=>{hydrateEntered.resolve();await releaseHydrate.promise;throw new Error('U45_SYNTHETIC_POST_ACK_BOOTSTRAP_FAILED');},
+   onPostAckRefreshError:(error,scope)=>reported.resolve({message:error.message,scope}),
+ });
+ const execution=executionFixture();
+ execution.revision=6;
+ execution.status='awaiting_feedback';
+ const result=dispatchSessionAction({session,execution,actor,action:'finish',
+   payload:{sessionRpe:7,comment:'Cierre real QA U45',pain:false},
+   commandBus:f.bus,online:true});
+ const resolution=Promise.resolve(result.value).then(ack=>({winner:'ack',ack}));
+ const first=await Promise.race([resolution,hydrateEntered.promise.then(()=>({winner:'bootstrap'}))]);
+ assert.equal(first.winner,'ack','optional bootstrap may not hold the confirmed FINISH ACK');
+ assert.equal(first.ack.kind,'ack');
+ assert.equal(first.ack.response.remoteRevision,7);
+ assert.equal(first.ack.refreshDeferred,true,'refresh is pending, not silently claimed successful');
+ assert.equal(first.ack.refreshOk,null);
+ assert.equal(execution.status,'completed');
+ assert.equal(execution.syncStatus,'clean');
+ assert.equal(execution.revision,7);
+ assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
+ assert.equal(f.calls.at(-1).baseRevision,6);
+ await hydrateEntered.promise;
+ releaseHydrate.resolve();
+ const diagnostic=await reported.promise;
+ assert.equal(diagnostic.message,'U45_SYNTHETIC_POST_ACK_BOOTSTRAP_FAILED');
+ assert.equal(diagnostic.scope.commandType,'EJECUCION_COMPLETAR');
+ assert.equal(diagnostic.scope.operationId,f.calls.at(-1).operationId);
+ assert.equal(execution.syncStatus,'clean','an optional read failure must not erase confirmed server ACK');
 });
