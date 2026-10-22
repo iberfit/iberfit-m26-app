@@ -39,3 +39,61 @@ export function summarizeQaBootstrapSamples(samples=[]){
     samplesTruncated:cleaned.length>64,
   });
 }
+
+
+// U35 non-sensitive payload composition sample for QA diagnostics. Never retain
+// an HTTP body, JWT, entity ID, name, email, notes or arbitrary JSON field.
+// This is NOT a client-side performance optimization or a data-access shortcut.
+export function summarizeQaBootstrapPayload(raw){
+  if(typeof raw!=='string')return null;
+  const responseBytes=Buffer.byteLength(raw,'utf8');
+  const schema='iberfit.qa.bootstrap-payload-composition.v1';
+  if(responseBytes>16_000_000)return Object.freeze({
+    schema,responseBytes,overInspectionBudget:true,
+  });
+  let payload;
+  try{payload=JSON.parse(raw);}
+  catch{return Object.freeze({schema,responseBytes,invalidJson:true});}
+  if(!payload||typeof payload!=='object'||Array.isArray(payload)||
+     !payload.data||typeof payload.data!=='object'||Array.isArray(payload.data)){
+    return Object.freeze({schema,responseBytes,invalidShape:true});
+  }
+  const data=payload.data;
+  const permittedSections=[
+    'm26Entities','sessionExecutions','domainEvents','checkins',
+    'reports','sessions','trainingCycles','clients','userProfiles',
+    'clientProfiles','planning','iriAssessments',
+  ];
+  const sections={};
+  for(const key of permittedSections){
+    const array=data[key];
+    if(Array.isArray(array))sections[key]=Object.freeze({
+      count:array.length,serializedBytes:Buffer.byteLength(JSON.stringify(array),'utf8'),
+    });
+  }
+  // Count overlap only: never serialize or expose either canonical or legacy IDs.
+  const canonical=Array.isArray(data.m26Entities)?data.m26Entities:[];
+  const legacy=Array.isArray(data.sessionExecutions)?data.sessionExecutions:[];
+  const legacyIds=new Set(legacy.map(e=>String(e?.id||'')).filter(Boolean));
+  const types=Object.freeze({
+    session:canonical.filter(e=>e?.entityType==='session').length,
+    sessionExecution:canonical.filter(e=>e?.entityType==='session_execution').length,
+    planning:canonical.filter(e=>e?.entityType==='planning').length,
+    checkin:canonical.filter(e=>e?.entityType==='checkin').length,
+    report:canonical.filter(e=>e?.entityType==='report').length,
+  });
+  const canonicalExecutionIds=canonical
+    .filter(e=>e?.entityType==='session_execution')
+    .map(e=>String(e?.entityId||'')).filter(Boolean);
+  const revisions=payload.remoteRevisions;
+  return Object.freeze({
+    schema,responseBytes,overInspectionBudget:false,
+    sections:Object.freeze(sections),canonicalEntityTypes:types,
+    canonicalExecutionCount:canonicalExecutionIds.length,
+    canonicalLegacyExecutionIdOverlap:canonicalExecutionIds.filter(id=>legacyIds.has(id)).length,
+    remoteRevisionEntries:revisions&&typeof revisions==='object'&&!Array.isArray(revisions)
+      ?Object.keys(revisions).length:0,
+    remoteRevisionBytes:revisions&&typeof revisions==='object'&&!Array.isArray(revisions)
+      ?Buffer.byteLength(JSON.stringify(revisions),'utf8'):0,
+  });
+}
