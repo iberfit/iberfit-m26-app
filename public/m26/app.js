@@ -994,14 +994,25 @@ async function loadFullApplication(){
     bootstrapPhase='styles';
     ensureAdaptiveLayoutStyle();
     ensureSignatureUxV2Style();
+    // U48: download and evaluate the authenticated application module while
+    // the many full-theme stylesheets are activating. The app is NOT mounted
+    // before CSS settles, so its visual/authorization contract is unchanged.
+    // Attach rejection handling immediately to avoid unhandled import errors
+    // while the independent style phase is still pending.
+    const preloadedModule=import('/src/m26/app/application.js').then(
+      module=>({module,error:null}),
+      error=>({module:null,error}),
+    );
     await activateFullStyles();
 
     bootstrapPhase='module';
-    const {createM26Application}=await bootstrapDeadline(
-      import('/src/m26/app/application.js'),
+    const loadedModule=await bootstrapDeadline(
+      preloadedModule,
       BOOTSTRAP_PHASE_TIMEOUTS.module,
       'M26_BOOTSTRAP_MODULE_TIMEOUT',
     );
+    if(loadedModule.error)throw loadedModule.error;
+    const {createM26Application}=loadedModule.module;
 
     bootstrapPhase='create';
     const app=await bootstrapDeadline(

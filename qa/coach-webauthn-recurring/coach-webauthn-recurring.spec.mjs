@@ -283,6 +283,26 @@ async function openCertifiedCoachArea(page,area){
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   await installPolicy(context,evidence);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
+  // U48: on failure retain only whitelisted stage/error categories. No form
+  // values, JWTs, URLs, identities, fetch payloads or WebAuthn responses.
+  await page.addInitScript(()=>{
+    const stages=[],diagnostics=[];
+    globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
+      const value=String(stage||'');
+      if(/^rc64-[a-z0-9-]{1,64}$/u.test(value))stages.push(value);
+      if(stages.length>32)stages.shift();
+    };
+    globalThis.addEventListener('m26:diagnostic',(event)=>{
+      const detail=event?.detail||{};
+      const stage=String(detail.stage||'');
+      const code=String(detail.code||'');
+      if(!/^[a-z0-9-]{1,60}$/u.test(stage)
+        ||!/^M26_[A-Z0-9_]{2,120}$/u.test(code))return;
+      diagnostics.push({stage,code});
+      if(diagnostics.length>16)diagnostics.shift();
+    });
+    globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__={stages,diagnostics};
+  });
   // Distinguish a genuinely absent, JWT-authenticated optional QA avatar
   // from an unexpected HTTP error. Never ignore an unverified 400/404.
   const errorResponseChecks=[];
@@ -413,6 +433,10 @@ async function openCertifiedCoachArea(page,area){
     try{
       evidence.bootstrap=await snapshotBootstrap();
       evidence.bootstrapPayload=bootstrapPayloadSample?await bootstrapPayloadSample:null;
+      evidence.safeAuthStages=await page.evaluate(()=>{
+        const trace=globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__;
+        return {stages:[...(trace?.stages||[])],diagnostics:[...(trace?.diagnostics||[])]};
+      }).catch(()=>({stages:[],diagnostics:[]}));
       await mkdir(OUT_DIR,{recursive:true});
       await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
     }finally{
