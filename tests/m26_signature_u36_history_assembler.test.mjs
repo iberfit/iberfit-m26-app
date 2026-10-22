@@ -11,7 +11,7 @@ const core=()=>({
 });
 const entry=(section,cid,i)=>section==='m26Entities'
  ?{clientId:cid,entityType:i===2?'session_execution':'session',entityId:i===2?e2:e1,
-   revision:i===2?3:2,body:{value:i}}
+   revision:i===2?3:2,body:{value:i},updatedAt:'2026-10-21T12:00:00.000Z'}
  :section==='domainEvents'
  ?{client_id:cid,id:i,created_at:'2026-10-21T12:00:00.000Z'}
  :{client_id:cid,id:i===2?e2:e1,updated_at:'2026-10-21T12:00:00.000Z'};
@@ -94,4 +94,25 @@ test('U36 does not embed credentials or private values in errors',()=>{
  try{enter(assembler,owner,'private-identifying-id','m26Entities',[]);}
  catch(e){error=e;}
  assert.equal(error?.message,'U36_HISTORY_CLIENT_NOT_IN_BOOTSTRAP');
+});
+
+
+test('U36 rejects bad page ordering and forged next cursor',()=>{
+ const owner={},assembler=createPrivilegedHistoryAssembler(core(),{owner});
+ const newer=entry('domainEvents',a,2);
+ const older={...entry('domainEvents',a,1),created_at:'2026-10-21T11:00:00Z'};
+ assert.throws(()=>enter(assembler,owner,a,'domainEvents',[older,newer]),/PAGE_OUT_OF_ORDER/);
+ assert.equal(assembler.status().records,0);
+ assert.throws(()=>assembler.accept({owner,clientId:a,section:'domainEvents',request:firstRequest,
+   page:page('domainEvents',a,[newer],{
+     more:true,total:2,cursor:{at:'2026-10-21T12:00:00Z',id:'1'},
+   })}),/CURSOR_NOT_LAST_RECORD/);
+ assert.equal(assembler.status().records,0);
+});
+
+test('U36 rejects numeric event IDs above JS safe integer precision',()=>{
+ const owner={},assembler=createPrivilegedHistoryAssembler(core(),{owner});
+ assert.throws(()=>enter(assembler,owner,a,'domainEvents',[
+   {...entry('domainEvents',a,1),id:9_007_199_254_740_995},
+ ]),/INVALID_EVENT_ID/);
 });
