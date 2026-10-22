@@ -640,7 +640,7 @@ CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_core_u37_qa()
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO ''
 AS $u37$
-DECLARE v_role text;
+DECLARE v_role text; v_assurance jsonb;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'U37_AUTH_REQUIRED' USING errcode='42501';
@@ -656,6 +656,13 @@ BEGIN
     RAISE EXCEPTION 'U37_QA_ONLY' USING errcode='42501';
   END IF;
   PERFORM public.iberfit_require_privileged_assurance_v65d();
+  -- Require an explicitly privileged and verified real session. Never infer
+  -- assurance from a claimed role or from a passed QA fixture account.
+  v_assurance:=public.iberfit_privileged_assurance_context_v65d();
+  IF coalesce((v_assurance->>'privileged')::boolean,false) IS NOT TRUE
+     OR v_assurance->>'iberfitAssurance' IS DISTINCT FROM 'verified' THEN
+    RAISE EXCEPTION 'U37_PRIVILEGED_ASSURANCE_REQUIRED' USING errcode='42501';
+  END IF;
   RETURN private.iberfit_bootstrap_v26_full_core_internal_u37_qa();
 END
 $u37$;
@@ -670,7 +677,7 @@ CREATE OR REPLACE FUNCTION public.iberfit_privileged_history_page_u37_qa(
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO ''
 AS $u37$
-DECLARE v_role text;
+DECLARE v_role text; v_assurance jsonb;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'U37_AUTH_REQUIRED' USING errcode='42501';
@@ -686,6 +693,13 @@ BEGIN
     RAISE EXCEPTION 'U37_QA_ONLY' USING errcode='42501';
   END IF;
   PERFORM public.iberfit_require_privileged_assurance_v65d();
+  -- Require an explicitly privileged and verified real session. Never infer
+  -- assurance from a claimed role or from a passed QA fixture account.
+  v_assurance:=public.iberfit_privileged_assurance_context_v65d();
+  IF coalesce((v_assurance->>'privileged')::boolean,false) IS NOT TRUE
+     OR v_assurance->>'iberfitAssurance' IS DISTINCT FROM 'verified' THEN
+    RAISE EXCEPTION 'U37_PRIVILEGED_ASSURANCE_REQUIRED' USING errcode='42501';
+  END IF;
   RETURN private.iberfit_history_page_internal_u37_qa(
     p_client_id,p_section,p_snapshot_at,p_cursor,p_expected_count,p_limit);
 END
