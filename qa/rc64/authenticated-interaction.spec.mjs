@@ -257,6 +257,19 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     'All progressive controllers must be mounted before exercising preference writes'
   ).toHaveCount(1,{timeout:20_000});
   const credentialSubmitToInteractiveMs=performance.now()-credentialSubmitStartMs;
+  // The shell/controller ready milestone is independent of Playwright's
+  // requestfinished event. On slower mobile devices the last authorized read
+  // may still be pending at that instant. Observe its actual terminal result;
+  // never treat a pending request as a successful request or weaken the 200
+  // assertion. Keep tracing until each mandatory read is confirmed.
+  for(const required of ['main-snapshot','command-registry','appointment-changes']){
+    await expect.poll(()=>authRequestRecords.some((record)=>
+      record.operation===required&&record.status===200&&record.result==='finished'),{
+      message:`Authenticated primary request ${required} must finish successfully`,
+      timeout:10_000,
+      intervals:[100,250,500],
+    }).toBe(true);
+  }
   traceAuthNetwork=false;
   const authNetworkWaterfall=authRequestRecords
     .filter((record)=>record.result!=='pending')
@@ -267,12 +280,6 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
       status:record.status,
       result:record.result,
     }));
-  // Without this check the optional RC39 extension can silently discard a
-  // permissions error and make an unavailable agenda appear empty.
-  for(const required of ['main-snapshot','command-registry','appointment-changes']){
-    expect(authNetworkWaterfall.some((sample)=>sample.operation===required&&sample.status===200&&sample.result==='finished'),
-      `Authenticated primary request ${required} must finish successfully`).toBe(true);
-  }
   const authStageTimeline=await page.evaluate(()=>{
     const submit=globalThis.__IBERFIT_AUTH_QA_SUBMIT_MS__;
     const marks=globalThis.__IBERFIT_AUTH_QA_STAGES__;
