@@ -21,12 +21,25 @@ function keyFor(section,item){
   }
   const id=String(item?.id??'');
   if(section==='domainEvents'){
-    if(!/^[0-9]{1,19}$/u.test(id))failure('INVALID_EVENT_ID');
+    if((typeof item.id==='number'&&!Number.isSafeInteger(item.id))
+      ||!/^[0-9]{1,19}$/u.test(id))failure('INVALID_EVENT_ID');
   }else if(!UUID.test(id))failure('INVALID_EXECUTION_ID');
   return id;
 }
 function clientFor(section,item){
   return String(section==='m26Entities'?item?.clientId:item?.client_id??'');
+}
+function rowTimestamp(section,record){
+  const raw=section==='m26Entities'?record.updatedAt
+    :section==='domainEvents'?record.created_at:record.updated_at;
+  if(!positiveDate(raw))failure('INVALID_RECORD_DATE');
+  return Date.parse(raw);
+}
+function cursorMatchesLastRow(section,cursor,record){
+  if(rowTimestamp(section,record)!==Date.parse(cursor.at))return false;
+  const actualId=String(section==='m26Entities'?record.entityId:record.id);
+  return cursor.id===actualId
+    &&(section!=='m26Entities'||cursor.type===record.entityType);
 }
 function compareEvents(a,b){
   const at=Date.parse(String(a?.created_at||''))||0,bt=Date.parse(String(b?.created_at||''))||0;
@@ -107,6 +120,9 @@ export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT}={
       if(!raw||typeof raw!=='object'||Array.isArray(raw))failure('RECORD_INVALID');
       if(clientFor(section,raw)!==clientId)failure('CROSS_CLIENT_RECORD');
       const key=keyFor(section,raw);
+      const timestamp=rowTimestamp(section,raw);
+      if(records.length&&timestamp>rowTimestamp(section,records[records.length-1]))
+        failure('PAGE_OUT_OF_ORDER');
       if(seen.has(key)||keys.includes(key))failure('DUPLICATE_RECORD');
       if(section==='m26Entities'){
         const revision=coreRevisions[key];
@@ -115,6 +131,8 @@ export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT}={
       }
       keys.push(key);records.push(deepCopy(raw));
     }
+    if(page.hasMore&&!cursorMatchesLastRow(section,page.nextCursor,records[records.length-1]))
+      failure('CURSOR_NOT_LAST_RECORD');
     if(totalReceived+records.length>MAX_ITEMS_PER_SECTION*SECTIONS.length)failure('TOTAL_LIMIT_EXCEEDED');
     if((current?.received||0)+records.length>page.totalCount)failure('TOTAL_OVERFLOW');
     if(!page.hasMore&&(current?.received||0)+records.length!==page.totalCount)
