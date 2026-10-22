@@ -23,7 +23,8 @@ export function retainedM43HistoricalFingerprint(item,digests=RETAINED_HISTORY_D
   if(item?.entityType!=='session'||item.status!=='completada')return false;
   const title=String(item.body?.title||''),id=String(item.entityId||''),
     clientId=String(item.clientId||''),revision=Number(item.revision);
-  if(!/^IBERFIT QA M43 · multideporte · run-[1-9][0-9]{0,19}-a[1-9][0-9]{0,3}$/u.test(title)
+  if(!(/^IBERFIT QA M43 · multideporte · run-[1-9][0-9]{0,19}-a[1-9][0-9]{0,3}$/u.test(title)
+       ||title==='IBERFIT QA M43 · multideporte')
     ||!/^[a-f0-9-]{36}$/iu.test(id)||!/^[a-f0-9-]{36}$/iu.test(clientId)
     ||!Number.isSafeInteger(revision)||revision<2
     ||String(item.body?.clientId||'')!==clientId
