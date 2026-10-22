@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import {
   iriPhotoAnalysisMatchesCapture,
   iriPhotoMutationRequiresReload,
+  iriPhotoLoadStillCurrent,
   landmarksForLatestCaptures,
 } from '../src/m26/workflows/iri-photogrammetry-controller.js';
 
@@ -43,7 +44,7 @@ test('photogrammetry load is single-flight per dossier context',()=>{
   const source=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
   assert.match(source,/loadInFlight&&loadInFlightKey===key/u);
   assert.match(source,/return loadInFlight/u);
-  assert.match(source,/if\(loadInFlight===run\)\{loadInFlight=null;loadInFlightKey='';\}/u);
+  assert.match(source,/if\(loadInFlight===run\)\{loadInFlight=null;loadInFlightKey='';loadInFlightHost=null;\}/u);
 });
 
 test('IRI route exposes optional four-view workspace and explicit physical consent',()=>{
@@ -104,4 +105,18 @@ test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP afford
   assert.match(css,/\.m26-photo-view\.is-active/u);
   assert.match(controller,/stagePoint\(canvas,event\)/u);
   assert.match(css,/\.m26-photo-canvas\{position:relative/u);
+});
+
+test('stale optional IRI loads never masquerade as live Coach errors, but active timeouts remain observable',()=>{
+  const hostA={},hostB={};
+  const ctx={role:'coach',clientId:'client-A',assessmentId:'iri-A',canManage:true};
+  const input={mounted:true,originalHost:hostA,currentHost:hostA,originalKey:'coach:client-A:iri-A',currentKey:'coach:client-A:iri-A',currentContext:ctx};
+  assert.equal(iriPhotoLoadStillCurrent(input),true,'active panel must retain genuine HTTP timeout reporting');
+  assert.equal(iriPhotoLoadStillCurrent({...input,currentHost:null}),false,'navigated-away route');
+  assert.equal(iriPhotoLoadStillCurrent({...input,currentHost:hostB}),false,'remounted panel with same ids');
+  assert.equal(iriPhotoLoadStillCurrent({...input,currentContext:{...ctx,assessmentId:'iri-B'}}),false,'switched IRI assessment');
+  assert.equal(iriPhotoLoadStillCurrent({...input,currentContext:{...ctx,clientId:'client-B'}}),false,'switched client');
+  assert.equal(iriPhotoLoadStillCurrent({...input,currentContext:{...ctx,canManage:false}}),false,'privilege lost');
+  assert.equal(iriPhotoLoadStillCurrent({...input,currentKey:'coach:client-A:iri-B'}),false,'a newer async load owns the panel');
+  assert.equal(iriPhotoLoadStillCurrent({...input,mounted:false}),false,'destroyed controller/logout');
 });
