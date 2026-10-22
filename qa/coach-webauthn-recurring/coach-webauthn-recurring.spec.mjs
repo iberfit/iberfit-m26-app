@@ -25,6 +25,10 @@ const READ_ONLY_RPCS=new Set([
   'm26_backend_bootstrap_v43','m26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
   'iberfit_exercise_measurement_profiles_public_v1',
+  // U39 QA Coach only. Both endpoints recheck verified WebAuthn and client
+  // authorization server-side; all other origins and RPCs stay blocked.
+  'iberfit_bootstrap_v26_core_u37_qa',
+  'iberfit_privileged_history_page_u38_qa',
   ...(process.env.M26_QA_U37_VERIFY==='true'
     ? ['iberfit_bootstrap_v26_core_u37_qa','iberfit_privileged_history_page_u37_qa']
     : []),
@@ -37,6 +41,22 @@ const U26_IRI_READONLY_TABLES=new Set([
   'iri_photo_report_permissions_v1','iri_external_reports_v26',
 ]);
 const U26_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+function isU39QaBootstrapOrHistory(request){
+  try{
+    const u=new URL(request.url());
+    return u.origin===SUPABASE_ORIGIN && request.method().toUpperCase()==='POST'
+      &&['/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa',
+        '/rest/v1/rpc/iberfit_privileged_history_page_u38_qa'].includes(u.pathname);
+  }catch{return false;}
+}
+function isU39CoreBootstrap(request){
+  try{
+    const u=new URL(request.url());
+    return u.origin===SUPABASE_ORIGIN && request.method().toUpperCase()==='POST'
+      &&u.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa';
+  }catch{return false;}
+}
+
 function authenticatedQaRequest(request){
   const headers=request.headers?.()||{};
   return /^Bearer [A-Za-z0-9_.~-]+$/u.test(String(headers.authorization||headers.Authorization||''));
@@ -269,9 +289,11 @@ async function openCertifiedCoachArea(page,area){
   const bootstrapChecks=[];
   let bootstrapPayloadSample=null;
   page.on('requestfinished',(request)=>{
-    if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN))return;
+    if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN)
+      &&!isU39QaBootstrapOrHistory(request))return;
     bootstrapChecks.push(Promise.resolve(request.response()).then((response)=>{
-      if(response?.status()===200&&!bootstrapPayloadSample){
+      if(response?.status()===200&&!bootstrapPayloadSample
+        &&(isQaBootstrapRequest(request,SUPABASE_ORIGIN)||isU39CoreBootstrap(request))){
         // Inspect at most the first successful QA-only RPC response.
         // Only the aggregate summary can reach an artifact or CI log.
         bootstrapPayloadSample=Promise.resolve(response.text())
@@ -285,7 +307,7 @@ async function openCertifiedCoachArea(page,area){
     },()=>sanitizeQaBootstrapResponse({status:0})));
   });
   page.on('requestfailed',(request)=>{
-    if(isQaBootstrapRequest(request,SUPABASE_ORIGIN))
+    if(isQaBootstrapRequest(request,SUPABASE_ORIGIN)||isU39QaBootstrapOrHistory(request))
       bootstrapChecks.push(Promise.resolve(sanitizeQaBootstrapResponse({status:0,timing:request.timing()})));
   });
   async function snapshotBootstrap(){
