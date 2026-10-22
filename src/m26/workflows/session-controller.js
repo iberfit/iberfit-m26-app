@@ -108,6 +108,16 @@ export function sameLiveExecutionOwner(expected,latest){
     &&String(expected.actor?.userId||'')===String(latest.actor?.userId||'')
     &&String(expected.execution.clientId||'')===String(latest.execution.clientId||''));
 }
+// A tap to return from a just-finished workout may land after the server
+// has acknowledged completion but before local persistence and UI refresh
+// have settled. Never navigate until ownership and the durable local state
+// both match; a rejected/queued completion remains on the recovery screen.
+export function sessionExitAfterFinishConfirmed(expected,latest){
+  return sameLiveExecutionOwner(expected,latest)
+    &&latest.execution?.status==='completed'
+    &&latest.execution?.syncStatus==='clean'
+    &&!(latest.execution?.pendingOperationIds?.length);
+}
 export async function settlePriorExecutionWrites(bus,execution){
   const key=executionScopeKey(execution);
   const pending=key?executingExecutionWritesByBus.get(bus)?.get(key):null;
@@ -455,6 +465,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   }
   let liveAddPending=false,liveAddBlockedOperationId=null;
   let finishPending=false,finishBlockedOperationId=null;
+  let queuedExitAfterFinish=null;
   let manualSyncPending=false;
   let sessionActionPending=false;
   // Compatibility name retained for the existing contract tests. This now
@@ -1149,7 +1160,17 @@ async function click(event){
   return;
  }if(action==='exit-session'){
       // Exit is a persistence boundary: never navigate twice or race a mutation.
-      if(exitPending||sessionActionPending||startPending)return;
+      if(exitPending||startPending)return;
+      if(sessionActionPending){
+        // Only the real user's explicit exit tap is deferred, and only when
+        // the just-finished execution has already reached its local terminal
+        // screen. Other overlapping actions remain fail-closed.
+        if(finishPending&&context?.execution?.status==='completed'){
+          queuedExitAfterFinish={context,target:sessionExitTarget(button)};
+          button.setAttribute?.('aria-busy','true');
+        }
+        return;
+      }
       exitPending=true;sessionActionPending=true;
       const target=sessionExitTarget(button);
       const wasDisabled=button.disabled;
@@ -1283,7 +1304,21 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){
+        finishPending=false;syncFinishControl(getContext());
+        const intent=queuedExitAfterFinish;queuedExitAfterFinish=null;
+        if(intent&&sessionExitAfterFinishConfirmed(intent.context,getContext())){
+          queueMicrotask(()=>{
+            if(!mounted||exitPending||sessionActionPending||startPending)return;
+            if(!sessionExitAfterFinishConfirmed(intent.context,getContext()))return;
+            const next=[...(root.querySelectorAll?.('[data-session-action="exit-session"]')||[])]
+              .find(node=>!node.disabled&&sessionExitTarget(node)===intent.target);
+            // Reuse the original guarded persistence boundary rather than
+            // bypassing the exit controller or navigating from stale state.
+            next?.click?.();
+          });
+        }
+      }}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
       context.setLibraryVisibleLimit?.(24);

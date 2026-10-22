@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
 import {createExecution,startExecution,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
-import {dispatchSessionAction,settlePriorExecutionWrites,sameLiveExecutionOwner} from '../src/m26/workflows/session-controller.js';
+import {dispatchSessionAction,settlePriorExecutionWrites,sameLiveExecutionOwner,sessionExitAfterFinishConfirmed} from '../src/m26/workflows/session-controller.js';
 
 function deferred(){
  let resolve,reject;
@@ -235,4 +236,33 @@ test('U43 authenticated ACK ledger rejects false revisions, conflicts and foreig
     assert.equal(f.bus.confirmedExecutionRevision(execution),5,
       'remote conflict, rejection and nonmonotone ACK cannot change trusted CAS');
   }
+});
+
+test('U44 explicit exit while finish settles is allowed only after same-owner confirmed clean completion',()=>{
+ const bus={};
+ const execution={id:'synthetic-execution',clientId:'synthetic-client',status:'completed',syncStatus:'clean',pendingOperationIds:[]};
+ const first={commandBus:bus,execution,actor:{userId:'synthetic-account'}};
+ const latest={...first};
+ assert.equal(sessionExitAfterFinishConfirmed(first,latest),true);
+ for(const e of [
+  {...execution,status:'awaiting_feedback'},
+  {...execution,syncStatus:'pending'},
+  {...execution,syncStatus:'conflict'},
+  {...execution,pendingOperationIds:['unconfirmed-remote-write']},
+ ]){
+  assert.equal(sessionExitAfterFinishConfirmed(first,{...latest,execution:e}),false,
+    'a replaced or unconfirmed execution cannot silently exit');
+ }
+ execution.syncStatus='pending';
+ assert.equal(sessionExitAfterFinishConfirmed(first,latest),false,'same in-memory object must still have clean synchronization');
+ execution.syncStatus='clean';
+ assert.equal(sessionExitAfterFinishConfirmed(first,{...latest,actor:{userId:'another-account'}}),false);
+ assert.equal(sessionExitAfterFinishConfirmed(first,{...latest,commandBus:{}}),false);
+});
+
+test('U44 session exit tap is deferred until finishing action settles instead of silently being discarded',()=>{
+ const source=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+ assert.match(source,/queuedExitAfterFinish=\{context,target:sessionExitTarget\(button\)\}/u);
+ assert.match(source,/if\(intent&&sessionExitAfterFinishConfirmed\(intent.context,getContext\(\)\)\)/u);
+ assert.match(source,/next\?\.click\?\.\(\)/u);
 });
