@@ -2,7 +2,7 @@
 -- NOT a migration: do not auto-run on push. Apply only through a production
 -- release transaction after U39/U40 authenticated QA, Canary and CAS gates.
 -- Original production function checksum, privileges and ownership pinned.
--- Source parity locked to QA rc29 checksum ce0cbff2a99e28bff593132a350de595
+-- Source parity locked to QA rc29 checksum 7fb270cb0f55f0f1f9918ac9b5d69178
 -- (including canonical check-in deduplication comments).
 -- Client: no raw domainEvents, private notes, intelligence or report bodies.
 -- Client: planning=validado and session=cancelada are NOT published.
@@ -68,6 +68,7 @@ begin
       select jsonb_agg(to_jsonb(r))
       from public.reports r
       where public.iberfit_can_access_client_v26(r.client_id)
+        and (v_role not in ('client','cliente') or (r.status::text='publicado' and r.published_at is not null))
     ),'[]'::jsonb),
     'trainingCycles',coalesce((
       select jsonb_agg(to_jsonb(t))
@@ -78,6 +79,7 @@ begin
       select jsonb_agg(case when v_role='cliente' then public.iberfit_m43_client_safe_session_v2(to_jsonb(s)) else to_jsonb(s) end)
       from public.sessions s
       where public.iberfit_can_access_client_v26(s.client_id)
+        and (v_role not in ('client','cliente') or (s.status::text='publicado' and s.published_at is not null))
     ),'[]'::jsonb),
     'appointments',coalesce((
       select jsonb_agg(to_jsonb(a))
@@ -195,5 +197,5 @@ $function$
 -- Must verify exact target checksum after parsing using pg_get_functiondef.
 -- Verify role-filtering contract and real session before COMMIT in release flow.
 SELECT 1/(CASE WHEN md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))
- ='ce0cbff2a99e28bff593132a350de595' THEN 1 ELSE 0 END) AS u40_exact_result_checksum_required;
+ ='7fb270cb0f55f0f1f9918ac9b5d69178' THEN 1 ELSE 0 END) AS u40_exact_result_checksum_required;
 COMMIT;
