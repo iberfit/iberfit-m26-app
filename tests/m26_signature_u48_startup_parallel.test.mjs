@@ -31,3 +31,21 @@ test('U48 retains explicit bounded import and fail-closed errors, without unhand
   assert.match(entry,/M26_BOOTSTRAP_MODULE_TIMEOUT/u);
   assert.doesNotMatch(block,/setTimeout\([^)]*reload/u);
 });
+
+test('U48 Canary live warning keeps the fail-closed gate and stores only error categories',()=>{
+  const gate=readFileSync(new URL('../scripts/prelaunch/check_live_canary_gate.mjs',import.meta.url),'utf8');
+  assert.match(gate,/const bootstrapWarningCodes=\[\]/u);
+  assert.match(gate,/startsWith\('\[IBERFIT:bootstrap\]'\)/u);
+  assert.match(gate,/M26_BOOTSTRAP_UNCLASSIFIED/u);
+  assert.match(gate,/bootstrapWarningCodes,/u);
+  assert.match(gate,/invariant\(visibleWarnings\.length===0,'PRELAUNCH_LIVE_WARNING_VISIBLE'\)/u);
+});
+
+test('U48 Coach QA records only allowlisted auth stage/code, not credentials or network data',()=>{
+  const spec=readFileSync(new URL('../qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs',import.meta.url),'utf8');
+  assert.match(spec,/__IBERFIT_M26_QA_SAFE_AUTH_STAGES__/u);
+  assert.match(spec,/\^rc64-\[a-z0-9-\]\{1,64\}\$/u);
+  assert.match(spec,/\^M26_\[A-Z0-9_\]\{2,120\}\$/u);
+  assert.match(spec,/evidence\.safeAuthStages=await page\.evaluate/u);
+  assert.doesNotMatch(spec,/evidence\.safeAuthStages\s*=\s*.*(?:token|password|headers|request\.url)/u);
+});
