@@ -200,7 +200,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return { ok: false, queued: true, kind: 'queued', command: sanitizeOperation(queued), response: null };
   }
 
-  async function executeOnce(command, {createdAt,attempts=0,queuedOffline=false,queueOrder=null}={}) {
+  async function executeOnce(command, {createdAt,attempts=0,queuedOffline=false,queueOrder=null,onAck=null}={}) {
     const token = await getToken();
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     const previousAttempts=safeAttempts(attempts);
@@ -211,6 +211,14 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
       if (kind === 'ack' || kind === 'duplicate') {
+        // The remote revision is known at ACK arrival. Give the active
+        // execution its server-confirmed CAS value BEFORE the optional full
+        // bootstrap refresh. A slow refresh must never leave the next set
+        // using the previous baseRevision. This hook is advisory and cannot
+        // turn an authoritative ACK into another mutation or failed result.
+        if(typeof onAck==='function'){
+          try{onAck(response,command);}catch{}
+        }
         let acknowledged=null,localReceiptOk=true;
         // The server ACK is authoritative even when local receipt persistence
         // or cleanup fails. A durable ACK tombstone is preferred if removal
@@ -271,13 +279,14 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     }
   }
 
-  function execute(commandInput) {
+  function execute(commandInput,{onAck=null}={}) {
+    if(onAck!==null&&typeof onAck!=='function')throw new Error('M26_ACK_OBSERVER_INVALID');
     const command = createCommand(commandInput,{registry,role:getRole?.()}),fingerprint=commandFingerprint(command);
     const existing=inFlight.get(command.operationId);
     if(existing){if(existing.fingerprint!==fingerprint)return Promise.reject(new Error('M26_OPERATION_ID_COLLISION'));return existing.promise;}
     const confirmed=confirmedRemoteOperations.get(command.operationId);
     if(confirmed){if(confirmed.fingerprint!==fingerprint)return Promise.reject(new Error('M26_OPERATION_ID_COLLISION'));return Promise.resolve(confirmed.result);}
-    const promise=executeOnce(command,{createdAt:commandInput?.createdAt||undefined,attempts:commandInput?.attempts||0,queuedOffline:commandInput?.queuedOffline===true,queueOrder:commandInput?.queueOrder}).finally(()=>{
+    const promise=executeOnce(command,{createdAt:commandInput?.createdAt||undefined,attempts:commandInput?.attempts||0,queuedOffline:commandInput?.queuedOffline===true,queueOrder:commandInput?.queueOrder,onAck}).finally(()=>{
       if(inFlight.get(command.operationId)?.promise===promise)inFlight.delete(command.operationId);
     });
     inFlight.set(command.operationId,{promise,fingerprint});
