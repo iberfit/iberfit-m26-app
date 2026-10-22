@@ -21,8 +21,23 @@ import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirme
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
-function remoteRevision(result,fallback){return Number(result?.response?.remoteRevision??result?.response?.revision??result?.response?.executionRevision??fallback??0);}
-function executionRevision(result,fallback){return Number(result?.response?.executionRevision??result?.response?.remoteRevision??result?.response?.revision??fallback??0);}
+function authoritativeRevisionOrFallback(raw,fallback){
+  const baseline=Number(fallback);
+  const safeFallback=Number.isSafeInteger(baseline)&&baseline>=0?baseline:0;
+  const candidate=Number(raw);
+  return Number.isSafeInteger(candidate)&&candidate>=0
+    ?Math.max(safeFallback,candidate):safeFallback;
+}
+function remoteRevision(result,fallback){
+  return authoritativeRevisionOrFallback(
+    result?.response?.remoteRevision??result?.response?.revision
+      ??result?.response?.executionRevision??fallback,fallback);
+}
+function executionRevision(result,fallback){
+  return authoritativeRevisionOrFallback(
+    result?.response?.executionRevision??result?.response?.remoteRevision
+      ??result?.response?.revision??fallback,fallback);
+}
 function requireAck(result){if(!result?.ok)throw Object.assign(new Error(`M26_COMMAND_${String(result?.kind||'REJECTED').toUpperCase()}`),{result,status:result?.kind==='conflict'?409:422});return result;}
 function markFailure(execution,error){
   if(!execution)return;
