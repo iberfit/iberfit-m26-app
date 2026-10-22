@@ -13,7 +13,7 @@ test('U37 positive QA probe is enabled only by the intended Canary merge commit'
 });
 test('U37 authenticated read-only endpoints remain opt-in and never widen normal QA requests',()=>{
   assert.match(browser,/process\.env\.M26_QA_U37_VERIFY==='true'/u);
-  assert.match(browser,/iban|ibor|iberfit_bootstrap_v26_core_u37_qa/u);
+  assert.match(browser,/iberfit_bootstrap_v26_core_u37_qa/u);
   assert.match(browser,/iberfit_privileged_history_page_u37_qa/u);
   assert.match(browser,/READ_ONLY_RPCS\.has\(url\.pathname\.slice\(prefix\.length\)\)/u);
   assert.match(browser,/M26_QA_COACH_EMAIL/u);
