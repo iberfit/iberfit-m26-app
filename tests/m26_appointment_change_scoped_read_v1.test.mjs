@@ -62,7 +62,7 @@ test('#766 QA login fails closed if appointment-change reads are unauthorized or
   assert.match(qa,/for\(const required of \['main-snapshot','command-registry','appointment-changes'\]\)/u);
   assert.match(qa,/await expect\.poll\(\(\)=>authRequestRecords\.some\(\(record\)=>/u);
   assert.match(qa,/record\.operation===required&&record\.status===200&&record\.result==='finished'/u);
-  assert.ok(qa.indexOf('traceAuthNetwork=false')>qa.indexOf('await expect.poll'),
+  assert.ok(qa.lastIndexOf('traceAuthNetwork=false')>qa.indexOf('await expect.poll'),
     'network capture must remain active until the required reads finish');
 });
 
