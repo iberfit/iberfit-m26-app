@@ -10,7 +10,7 @@ export default defineConfig({
   use:{
     baseURL:'http://127.0.0.1:4198',locale:'es-ES',
     timezoneId:'America/Santiago',serviceWorkers:'block',
-    screenshot:'only-on-failure',trace:'retain-on-failure',reducedMotion:'reduce',
+    screenshot:'only-on-failure',trace:'off',reducedMotion:'reduce',
   },
   webServer:{
     command:'node qa/rc64/real-shell-server.mjs 4198 127.0.0.1',
