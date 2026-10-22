@@ -1,13 +1,13 @@
 -- SIGNATURE U40 · guarded PROD rollback restoring prior rc29 SQL only.
 -- No tables, grants, sessions, RLS, or user data affected.
 -- Supply the certified U40 result checksum before attempting rollback.
--- QA canonical parity checksum ce0cbff2a99e28bff593132a350de595.
+-- QA canonical parity checksum 7fb270cb0f55f0f1f9918ac9b5d69178.
 -- NEVER run when the current definition changed since U40.
 BEGIN;
 SELECT 1/(CASE WHEN
  (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PRODUCTION'
  AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))
- ='ce0cbff2a99e28bff593132a350de595'
+ ='7fb270cb0f55f0f1f9918ac9b5d69178'
  THEN 1 ELSE 0 END) AS u40_exact_rollback_signature_required;
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_rc29()
  RETURNS jsonb
