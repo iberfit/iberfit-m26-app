@@ -25,6 +25,9 @@ const READ_ONLY_RPCS=new Set([
   'm26_backend_bootstrap_v43','m26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
   'iberfit_exercise_measurement_profiles_public_v1',
+  ...(process.env.M26_QA_U37_VERIFY==='true'
+    ? ['iberfit_bootstrap_v26_core_u37_qa','iberfit_privileged_history_page_u37_qa']
+    : []),
 ]);
 // U26: exact QA-only IRI data projections observed in authenticated Coach routes.
 // Verified 20-Oct-2026 on QA: RLS enabled + authenticated SELECT for each table.
@@ -119,6 +122,79 @@ async function installPolicy(context,evidence){
     evidence.blocked.push(requestLabel(request));await route.abort('blockedbyclient');
   });
 }
+// U37 authorized QA probe: capture only the same JWT headers already used by
+// the real application inside the browser, never return / serialize credentials
+// to Playwright, CI logs, screenshots, traces, or artifacts.
+async function installU37BrowserProbe(page){
+  await page.addInitScript(({qaOrigin})=>{
+    const original=globalThis.fetch.bind(globalThis);
+    let auth=null;
+    globalThis.fetch=(input,init)=>{
+      try{
+        const url=new URL(typeof input==='string'?input:input?.url||'',location.origin);
+        if(url.origin===qaOrigin&&url.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'){
+          const headers=new Headers(init?.headers||input?.headers||{});
+          const authorization=headers.get('authorization');
+          const apikey=headers.get('apikey');
+          if(authorization?.startsWith('Bearer ')&&apikey)
+            auth={authorization,apikey};
+        }
+      }catch{}
+      return original(input,init);
+    };
+    globalThis.__IBERFIT_QA_U37_PROBE__=async()=>{
+      if(!auth)return {ok:false,reason:'NO_AUTH_REQUEST_OBSERVED'};
+      const request=async(name,body)=>{
+        const started=performance.now();
+        const response=await original(qaOrigin+'/rest/v1/rpc/'+name,{
+          method:'POST',
+          headers:{authorization:auth.authorization,apikey:auth.apikey,
+            'Content-Type':'application/json'},
+          body:JSON.stringify(body),
+          cache:'no-store',
+          credentials:'omit',
+        });
+        const raw=await response.text();
+        let payload;
+        try{payload=JSON.parse(raw);}catch{payload=null;}
+        return {status:response.status,elapsedMs:Math.round(performance.now()-started),
+          bytes:new TextEncoder().encode(raw).length,
+          data:response.ok?payload:null};
+      };
+      const core=await request('iberfit_bootstrap_v26_core_u37_qa',{});
+      if(core.status!==200||!core.data||core.data.user?.role!=='coach'
+        ||!Array.isArray(core.data.data?.clients)){
+        return {ok:false,reason:'CORE_REJECTED',coreStatus:core.status};
+      }
+      const clients=core.data.data.clients;
+      const empty= ['m26Entities','domainEvents','sessionExecutions'].every(
+        key=>Array.isArray(core.data.data[key])&&core.data.data[key].length===0);
+      const clientId=clients[0]?.id;
+      if(!clientId)return {ok:false,reason:'COACH_WITHOUT_AUTHORIZED_CLIENT'};
+      const sample=await request('iberfit_privileged_history_page_u37_qa',{
+        p_client_id:clientId,p_section:'m26Entities',p_limit:8,
+      });
+      const records=sample.data?.records;
+      const revisions=core.data.remoteRevisions||{};
+      const safeRevisions=records?.every(row=>{
+        const key=row.entityType+':'+row.entityId;
+        return Object.prototype.hasOwnProperty.call(revisions,key)&&
+          revisions[key]===row.revision;
+      })===true;
+      return {
+        ok:core.status===200&&sample.status===200&&empty&&safeRevisions,
+        coreStatus:core.status,coreBytes:core.bytes,coreElapsedMs:core.elapsedMs,
+        emptyHistory:empty,authorizedClientCount:clients.length,
+        sampleStatus:sample.status,sampleBytes:sample.bytes,
+        sampleElapsedMs:sample.elapsedMs,
+        sampleSchemaIsExpected:sample.data?.schema==='iberfit.u35.privileged-history-page.qa.v1',
+        sampleCount:Array.isArray(records)?records.length:-1,
+        coreRevisionParity:safeRevisions,
+      };
+    };
+  },{qaOrigin:SUPABASE_ORIGIN});
+}
+
 async function addVirtualAuthenticator(page){
   const cdp=await page.context().newCDPSession(page);await cdp.send('WebAuthn.enable');
   const {authenticatorId}=await cdp.send('WebAuthn.addVirtualAuthenticator',{options:{protocol:'ctap2',transport:'internal',hasResidentKey:true,hasUserVerification:true,isUserVerified:true,automaticPresenceSimulation:true}});
@@ -226,12 +302,23 @@ async function openCertifiedCoachArea(page,area){
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
   const {cdp,authenticatorId}=await addVirtualAuthenticator(page);
+  if(process.env.M26_QA_U37_VERIFY==='true')
+    await installU37BrowserProbe(page);
   try{
     await setDevice(page,cdp,{name:'desktop',width:1440,height:1000,mobile:false,touch:false});
     const response=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});expect(response?.status()).toBe(200);
     await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
     expect(evidence.webauthnActions).toContain('registration-options');expect(evidence.webauthnActions).toContain('registration-verify');
     evidence.registrationVerified=true;
+    if(process.env.M26_QA_U37_VERIFY==='true'){
+      const u37=await page.evaluate(()=>globalThis.__IBERFIT_QA_U37_PROBE__?.());
+      evidence.u37=u37;
+      expect(u37?.ok,'U37 real WebAuthn Coach must access both private scoped QA RPCs').toBe(true);
+      expect(u37?.coreStatus).toBe(200);
+      expect(u37?.coreBytes,'U37 light core should be bounded and independent of history').toBeLessThan(2_000_000);
+      expect(u37?.sampleSchemaIsExpected).toBe(true);
+      expect(u37?.coreRevisionParity).toBe(true);
+    }
 
     const logout=page.locator('[data-m26-action="logout"]').first();
     await expect(logout,'Coach shell must expose semantic logout').toHaveCount(1,{timeout:10_000});
