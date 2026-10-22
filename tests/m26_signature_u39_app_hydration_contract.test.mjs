@@ -36,9 +36,12 @@ test('U39 uses exactly two versioned read-only APIs and does not relax auth or r
  assert.doesNotMatch(transport,/U39_.*(service_role|secretKey|localStorage\.setItem)/u);
 });
 test('U39 QA protected browsers allow only the specific versioned read RPC names',()=>{
- for(const src of [qa,...other]){
-  assert.ok(src.includes("'iberfit_bootstrap_v26_core_u37_qa'"));
-  assert.ok(src.includes("'iberfit_privileged_history_page_u38_qa'"));
+ assert.ok(qa.includes("'iberfit_bootstrap_v26_core_u37_qa'"));
+ assert.ok(qa.includes("'iberfit_privileged_history_page_u38_qa'"));
+ for(const src of other){
+  assert.ok(!src.includes("'iberfit_bootstrap_v26_core_u37_qa'"),
+    'Client and pre-WebAuthn QA networks remain strictly allowlisted');
+  assert.ok(!src.includes("'iberfit_privileged_history_page_u38_qa'"));
  }
  assert.match(qa,/if\(!isQaBootstrapRequest\(request,SUPABASE_ORIGIN\)[\s\S]*!isU39QaBootstrapOrHistory\(request\)\)return/u);
  assert.match(qa,/snapshotBootstrap\(\)/u);
