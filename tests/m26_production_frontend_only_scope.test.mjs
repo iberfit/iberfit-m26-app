@@ -17,6 +17,8 @@ const accepted=[
   '.github/workflows/production-promote.yml',
   'supabase/migrations/20261017220957_p0_rc29_client_internal_events_performance_qa_v1.sql',
   'supabase/rollbacks/p0_rc29_client_internal_events_performance_v1.rollback.sql',
+  'supabase/qa-migrations/20261022_u50_client_direct_publication_scope.sql',
+  'supabase/qa-rollbacks/20261022_u50_client_direct_publication_scope.sql',
 ];
 
 test('frontend-only candidate leaves backend untouched and explicitly tracks unapplied migrations',()=>{
@@ -27,7 +29,7 @@ test('frontend-only candidate leaves backend untouched and explicitly tracks una
   assert.equal(proof.backendServicesDeployed,false);
   assert.equal(proof.hostedAuthMutated,false);
   assert.equal(proof.productionSqlApplied,false);
-  assert.equal(proof.unappliedMigrationFileCount,2);
+  assert.equal(proof.unappliedMigrationFileCount,4);
   assert.equal(proof.changedFileCount,accepted.length);
 });
 
@@ -39,6 +41,9 @@ test('backend/auth changes and unknown Supabase paths always block frontend-only
     'backend/production/edge-functions/iberfit-webauthn-v1/index.ts',
     'scripts/auth/sync-hosted-auth-security.mjs',
     'supabase/templates/iberfit-recovery.html',
+    'supabase/qa-migrations/fake-runtime.ts',
+    'supabase/qa-rollbacks/embedded-script.js',
+    'supabase/qa-migrations/subfolder/unreviewed.sql',
   ]){
     assert.throws(()=>evaluateFrontendOnlyChanges({
       sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[...accepted,path],
@@ -101,4 +106,19 @@ test('full backend promotion remains default; optional isolated frontend never m
   assert.match(source,/diff','--name-only/);
   assert.match(source,/\/m26\/version\.json/);
   assert.match(source,/FRONTEND_ONLY_PROD_SCOPE_CERTIFIED/);
+});
+
+test('U52 release scope accepts exactly inert QA SQL source and never marks it applied in PROD',()=>{
+  const qaSql=[
+    'supabase/qa-migrations/20261022_u50_client_direct_publication_scope.sql',
+    'supabase/qa-rollbacks/20261022_u50_client_direct_publication_scope.sql',
+  ];
+  const result=evaluateFrontendOnlyChanges({
+    sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:qaSql,
+  });
+  assert.equal(result.ok,true);
+  assert.equal(result.productionSqlApplied,false);
+  assert.equal(result.backendServicesDeployed,false);
+  assert.equal(result.hostedAuthMutated,false);
+  assert.equal(result.unappliedMigrationFileCount,qaSql.length);
 });
