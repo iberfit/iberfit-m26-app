@@ -17,6 +17,9 @@ test('U35 database authorization denies Client/anon/foreign Coach and caps page 
     'not exists (select 1 from public.clients c where c.id=p_client_id)',
     'p_limit<1 or p_limit>32',
   ])assert.ok(sql.includes(fragment),fragment);
+  assert.ok(sql.includes("p_section is null or p_section not in"),"null section denied");
+  assert.ok(sql.includes("public.iberfit_can_access_client_v26(p_client_id) is not true"),"NULL-safe access guard");
+  assert.ok(sql.includes("public.iberfit_canary_enabled_v26(p_client_id) is not true"),"NULL-safe canary guard");
   assert.match(sql,/stable security definer[\s\S]+set search_path = ''/iu);
 });
 test('U35 cursor is deterministic, reversible and detects concurrently changed history',()=>{
