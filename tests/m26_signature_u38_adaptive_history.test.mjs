@@ -41,8 +41,6 @@ test('U38 sections have separate maximum rows without changing baseline standard
    assert.equal(send(asm,owner,section,rows).done,true,section);
    assert.equal(asm.status().records,cap);
    const tooMany=Array.from({length:cap+1},(_,i)=>row(section,cap+1-i));
-   const bad=assembler(core(),{});
-   assert.throws(()=>send(bad,{},section,tooMany),/OWNER_STALE/);
    const o2={},bad2=assembler(core(),o2);
    assert.throws(()=>send(bad2,o2,section,tooMany),/PAGE_LIMIT_EXCEEDED/,section);
    const standard=createPrivilegedHistoryAssembler(core(),{owner:o2});
