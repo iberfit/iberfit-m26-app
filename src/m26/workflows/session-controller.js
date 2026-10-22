@@ -55,7 +55,19 @@ function publishDraftFingerprint(draft){
     blocks:draft?.blocks});
 }
 function executeAndApply(commandBus,command,apply,execution){
-  return Promise.resolve(commandBus.execute(command)).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
+  // U41: a successful remote ACK must advance the active execution CAS even
+  // while commandBus rehydrates optional collections. Never infer a revision
+  // on a network error, non-ACK response, different client or execution.
+  const onAck=execution&&command?.entityType==='session_execution'
+    ?(response)=>{
+      const revision=Number(response?.remoteRevision);
+      if(String(command?.entityId)!==String(execution?.id)
+        ||String(command?.clientId)!==String(execution?.clientId)
+        ||!Number.isSafeInteger(revision)
+        ||revision<=Number(execution?.revision||0))return;
+      execution.revision=revision;
+    }:null;
+  return Promise.resolve(commandBus.execute(command,{onAck})).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
 }
 function enqueueAndApply(commandBus,command,apply,execution){
   if(!commandBus?.enqueue)throw new Error('M26_OFFLINE_QUEUE_UNAVAILABLE');
