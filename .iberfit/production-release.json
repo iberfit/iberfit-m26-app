@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "27bfff0219fe344eeacefb356b39db239bff9fa6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "a3f003c2db42307185088fc60bc3345b5333df75",
+  "notes": "IBERFIT SIGNATURE U52: exact-green Coach/Admin, encrypted M44 proof, SQL U50 separately verified"
+}
