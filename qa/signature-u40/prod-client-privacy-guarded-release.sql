@@ -2,6 +2,8 @@
 -- NOT a migration: do not auto-run on push. Apply only through a production
 -- release transaction after U39/U40 authenticated QA, Canary and CAS gates.
 -- Original production function checksum, privileges and ownership pinned.
+-- Source parity locked to QA rc29 checksum ce0cbff2a99e28bff593132a350de595
+-- (including canonical check-in deduplication comments).
 -- Client: no raw domainEvents, private notes, intelligence or report bodies.
 -- Client: planning=validado and session=cancelada are NOT published.
 -- Coach/Admin return the identical domain collections as before.
@@ -134,6 +136,8 @@ begin
       ))
       from public.domain_entities_v26 e
       where exists (select 1 from visible v where v.client_id is not distinct from e.client_id)
+        -- Dedicated data.checkins is the canonical Client check-in collection.
+        -- Avoid serializing the same check-in a second time in m26Entities.
         and (v_role not in ('client','cliente') or (
           e.entity_type <> 'checkin'
           and e.entity_type not in ('private_note','intelligence','report')
@@ -191,5 +195,5 @@ $function$
 -- Must verify exact target checksum after parsing using pg_get_functiondef.
 -- Verify role-filtering contract and real session before COMMIT in release flow.
 SELECT 1/(CASE WHEN md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))
- ='47083e3e74073558d78d7f9c8fb06de9' THEN 1 ELSE 0 END) AS u40_exact_result_checksum_required;
+ ='ce0cbff2a99e28bff593132a350de595' THEN 1 ELSE 0 END) AS u40_exact_result_checksum_required;
 COMMIT;
