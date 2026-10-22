@@ -212,6 +212,39 @@ test('U43 actual two-set CAS 3→4→5 survives a lost UI observer and slow rehy
   assert.equal(f.calls.filter(x=>x.type==='EJECUCION_COMPLETAR').length,1);
 });
 
+
+test('U47 NEXT uses the exact same-execution ACK after a stale Client hydration, not obsolete CAS',async()=>{
+  const calls=[];
+  const f=busWithResponse((cmd)=>{
+    calls.push({type:cmd.type,baseRevision:cmd.baseRevision});
+    return {kind:'ack',remoteRevision:Number(cmd.baseRevision)+1};
+  });
+  const execution=executionFixture();
+  assert.equal((await progressAction(execution,f.bus).value).kind,'ack');
+  assert.equal(execution.revision,4);
+  // A delayed hydration can reset the visible model to CAS 3 even though
+  // the authenticated command bus has already confirmed the first set at 4.
+  execution.revision=3;
+  const next=dispatchSessionAction({session,execution,actor,action:'next',
+    payload:{},commandBus:f.bus,online:true});
+  assert.equal(next.kind,'command');
+  assert.equal((await next.value).kind,'ack');
+  assert.equal(calls.at(-1).baseRevision,4);
+  assert.equal(execution.revision,5);
+
+  assert.equal((await progressAction(execution,f.bus).value).kind,'ack');
+  assert.equal(execution.revision,6);
+  execution.revision=5;
+  const finalNext=dispatchSessionAction({session,execution,actor,action:'next',
+    payload:{},commandBus:f.bus,online:true});
+  assert.equal(finalNext.kind,'command');
+  assert.equal((await finalNext.value).kind,'ack');
+  assert.equal(calls.at(-1).baseRevision,6,
+    'last NEXT must not conflict after the second confirmed set');
+  assert.equal(execution.revision,7);
+  assert.equal(execution.status,'awaiting_feedback');
+});
+
 test('U43 authenticated ACK ledger rejects false revisions, conflicts and foreign scope',async()=>{
   const respond=(cmd)=>{
     if(cmd.operationId==='u43-confirmed')return {kind:'ack',remoteRevision:5};
