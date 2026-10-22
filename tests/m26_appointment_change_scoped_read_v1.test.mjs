@@ -60,7 +60,10 @@ test('#766 rollback restores exactly the previous snapshot-backed behavior',()=>
 test('#766 QA login fails closed if appointment-change reads are unauthorized or unavailable',()=>{
   const qa=readFileSync('qa/rc64/authenticated-interaction.spec.mjs','utf8');
   assert.match(qa,/for\(const required of \['main-snapshot','command-registry','appointment-changes'\]\)/u);
-  assert.match(qa,/sample\.operation===required&&sample\.status===200&&sample\.result==='finished'/u);
+  assert.match(qa,/await expect\.poll\(\(\)=>authRequestRecords\.some\(\(record\)=>/u);
+  assert.match(qa,/record\.operation===required&&record\.status===200&&record\.result==='finished'/u);
+  assert.ok(qa.lastIndexOf('traceAuthNetwork=false')>qa.indexOf('await expect.poll'),
+    'network capture must remain active until the required reads finish');
 });
 
 test('#766 authenticated membership and privileged assurance execute before any request-row read',()=>{

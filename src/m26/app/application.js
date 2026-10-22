@@ -733,8 +733,17 @@ export async function createM26Application({root=document.querySelector('#app'),
     };
     store.setHydration('loading');
     try{
+      // QA-only Coach rollout. Never infer authorization from this account
+      // selector: both versioned RPCs independently enforce real WebAuthn,
+      // server-side role and per-client ownership. PROD and QA Client/Admin
+      // preserve their existing bootstrap until independently certified.
+      const qaAtomicCoach=runtime.qaOnly===true
+        &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.coach@iberfit.cl';
+      const primarySnapshot=qaAtomicCoach
+        ?transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner})
+        :transport.bootstrap(currentToken());
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
-        transport.bootstrap(currentToken()),
+        primarySnapshot,
         transport.commandRegistry(currentToken()),
         rc39Transport?optionalAuthBootstrap(
           ()=>rc39Transport.extensions(currentToken()),

@@ -21,8 +21,23 @@ import {sessionDeliveryModality,sessionDeliveryOwnership,sessionRequiresConfirme
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
-function remoteRevision(result,fallback){return Number(result?.response?.remoteRevision??result?.response?.revision??result?.response?.executionRevision??fallback??0);}
-function executionRevision(result,fallback){return Number(result?.response?.executionRevision??result?.response?.remoteRevision??result?.response?.revision??fallback??0);}
+function authoritativeRevisionOrFallback(raw,fallback){
+  const baseline=Number(fallback);
+  const safeFallback=Number.isSafeInteger(baseline)&&baseline>=0?baseline:0;
+  const candidate=Number(raw);
+  return Number.isSafeInteger(candidate)&&candidate>=0
+    ?Math.max(safeFallback,candidate):safeFallback;
+}
+function remoteRevision(result,fallback){
+  return authoritativeRevisionOrFallback(
+    result?.response?.remoteRevision??result?.response?.revision
+      ??result?.response?.executionRevision??fallback,fallback);
+}
+function executionRevision(result,fallback){
+  return authoritativeRevisionOrFallback(
+    result?.response?.executionRevision??result?.response?.remoteRevision
+      ??result?.response?.revision??fallback,fallback);
+}
 function requireAck(result){if(!result?.ok)throw Object.assign(new Error(`M26_COMMAND_${String(result?.kind||'REJECTED').toUpperCase()}`),{result,status:result?.kind==='conflict'?409:422});return result;}
 function markFailure(execution,error){
   if(!execution)return;
@@ -47,6 +62,57 @@ export async function publicationAckRefreshOutcome(result,refresh){
 // Prevent a second network command while an acknowledged publication is
 // awaiting shell refresh. A changed, re-reviewed prescription gets a new
 // fingerprint; a re-render of the unchanged draft reuses the original receipt.
+// Keep confirmed server CAS across detached/stale UI snapshots during a slow
+// post-ACK hydration. The bus instance is bound to the authenticated owner;
+// no revision from another account, Client or execution may be reused.
+const confirmedExecutionCasByBus=new WeakMap();
+const executingExecutionWritesByBus=new WeakMap();
+function executionScopeKey(value){
+  const id=String(value?.entityId??value?.id??'');
+  const clientId=String(value?.clientId??'');
+  return id&&clientId?clientId+'::'+id:null;
+}
+function confirmedExecutionCas(bus,execution){
+  const key=executionScopeKey(execution);
+  return key?(confirmedExecutionCasByBus.get(bus)?.get(key)??0):0;
+}
+function trackConfirmedExecutionCas(bus,command,ack){
+  if(!['ack','duplicate'].includes(String(ack?.kind||'').toLowerCase()))return null;
+  const key=executionScopeKey(command);
+  const revision=Number(ack?.remoteRevision);
+  if(!key||!Number.isSafeInteger(revision)||revision<=Number(command?.baseRevision??-1))return null;
+  let revisions=confirmedExecutionCasByBus.get(bus);
+  if(!revisions){revisions=new Map();confirmedExecutionCasByBus.set(bus,revisions);}
+  revisions.set(key,Math.max(revisions.get(key)||0,revision));
+  return revision;
+}
+function trackInFlightExecutionWrite(bus,command,promise){
+  if(command?.entityType!=='session_execution')return promise;
+  const key=executionScopeKey(command);
+  if(!key)return promise;
+  let scoped=executingExecutionWritesByBus.get(bus);
+  if(!scoped){scoped=new Map();executingExecutionWritesByBus.set(bus,scoped);}
+  let pending=scoped.get(key);
+  if(!pending){pending=new Set();scoped.set(key,pending);}
+  pending.add(promise);
+  const cleanup=()=>{pending.delete(promise);if(!pending.size)scoped.delete(key);};
+  void promise.then(cleanup,cleanup);
+  return promise;
+}
+// A delayed finish must not cross logout, a different account or replacement
+// workspace. A validated ACK is not authorization to use a new JWT/owner.
+export function sameLiveExecutionOwner(expected,latest){
+  return Boolean(expected?.execution&&latest?.execution
+    &&expected.execution===latest.execution
+    &&expected.commandBus===latest.commandBus
+    &&String(expected.actor?.userId||'')===String(latest.actor?.userId||'')
+    &&String(expected.execution.clientId||'')===String(latest.execution.clientId||''));
+}
+export async function settlePriorExecutionWrites(bus,execution){
+  const key=executionScopeKey(execution);
+  const pending=key?executingExecutionWritesByBus.get(bus)?.get(key):null;
+  if(pending?.size)await Promise.all([...pending]);
+}
 const publishedDraftReceipts=new WeakMap();
 const inFlightDraftPublications=new WeakMap();
 function publishDraftFingerprint(draft){
@@ -55,7 +121,18 @@ function publishDraftFingerprint(draft){
     blocks:draft?.blocks});
 }
 function executeAndApply(commandBus,command,apply,execution){
-  return Promise.resolve(commandBus.execute(command)).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
+  // U41: a successful remote ACK must advance the active execution CAS even
+  // while commandBus rehydrates optional collections. Never infer a revision
+  // on a network error, non-ACK response, different client or execution.
+  const onAck=execution&&command?.entityType==='session_execution'
+    ?(response)=>{
+      if(String(command?.entityId)!==String(execution?.id)
+        ||String(command?.clientId)!==String(execution?.clientId))return;
+      const revision=trackConfirmedExecutionCas(commandBus,command,response);
+      if(revision!==null&&revision>Number(execution?.revision||0))execution.revision=revision;
+    }:null;
+  const operation=Promise.resolve(commandBus.execute(command,{onAck})).then(requireAck).then((result)=>{apply?.(result);if(execution)markExecutionSync(execution,'clean',{operationId:result?.command?.operationId});return result;}).catch((error)=>{markFailure(execution,error);throw error;});
+  return trackInFlightExecutionWrite(commandBus,command,operation);
 }
 function enqueueAndApply(commandBus,command,apply,execution){
   if(!commandBus?.enqueue)throw new Error('M26_OFFLINE_QUEUE_UNAVAILABLE');
@@ -279,7 +356,15 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{Object.assign(execution,target,{revision:remoteRevision(result,target.revision)});},execution)};
     }
     case 'finish': {
-      const completed=structuredClone(execution);finishExecution(completed,payload,{actor});const command=buildExecutionCommand(completed,payload.baseRevision??execution.revision??0);
+      // A late hydration or local recovery copy may still hold revision N
+      // after this exact Coach/Client execution received ACK N+1. Only an
+      // authenticated, same-bus, same-client, same-execution ACK can raise CAS.
+      const verified=commandBus?confirmedExecutionCas(commandBus,execution):0;
+      if(Number.isSafeInteger(verified)&&verified>Number(execution?.revision||0))
+        execution.revision=verified;
+      const completed=structuredClone(execution);finishExecution(completed,payload,{actor});
+      const baseRevision=Math.max(Number(payload.baseRevision??execution.revision??0),verified);
+      const command=buildExecutionCommand(completed,baseRevision);
       if(!commandBus){Object.assign(execution,completed);return {kind:'command',value:command};}
       if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>Object.assign(execution,completed),execution)};
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{Object.assign(execution,completed,{revision:remoteRevision(result,completed.revision)});},execution)};
@@ -1099,7 +1184,7 @@ async function click(event){
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
     const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
-    const task=async()=>{if(action==='publish'){try{await flushAutosave(context);}catch{/* El servidor puede confirmar aunque falle el guardado auxiliar; no crear un segundo envío. */}}else if(action==='start'){try{await flushAutosave(context);}catch{startRecoveryStorageWarning=true;}}else if(!['preview','edit-preview'].includes(action))await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='start'){try{await flushExecutionDraft(context);}catch{startRecoveryStorageWarning=true;}}else await flushExecutionDraft(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='discard-draft'){if(!context.discardDraft)throw new Error('M26_SESSION_DRAFT_DISCARD_UNAVAILABLE');return await context.discardDraft();}if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}if(action==='restore-template-load'){if(!context.restoreTemplateLoad)throw new Error('M26_SESSION_TEMPLATE_UNDO_UNAVAILABLE');return await context.restoreTemplateLoad();}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,durationMinutes:button.getAttribute('data-duration-minutes')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
+    const task=async()=>{if(action==='publish'){try{await flushAutosave(context);}catch{/* El servidor puede confirmar aunque falle el guardado auxiliar; no crear un segundo envío. */}}else if(action==='start'){try{await flushAutosave(context);}catch{startRecoveryStorageWarning=true;}}else if(!['preview','edit-preview'].includes(action))await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='start'){try{await flushExecutionDraft(context);}catch{startRecoveryStorageWarning=true;}}else await flushExecutionDraft(context);if(action==='finish'&&context?.commandBus&&context?.execution){await settlePriorExecutionWrites(context.commandBus,context.execution);if(!sameLiveExecutionOwner(context,getContext()))throw new Error('M26_SESSION_ACTION_OWNER_CHANGED');}if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='discard-draft'){if(!context.discardDraft)throw new Error('M26_SESSION_DRAFT_DISCARD_UNAVAILABLE');return await context.discardDraft();}if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}if(action==='restore-template-load'){if(!context.restoreTemplateLoad)throw new Error('M26_SESSION_TEMPLATE_UNDO_UNAVAILABLE');return await context.restoreTemplateLoad();}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,durationMinutes:button.getAttribute('data-duration-minutes')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='repeat-previous-set'){
       // One tap is truthful only if Coach explicitly confirms the displayed prior RPE.
       const enteredRpe=String(root.querySelector?.('[data-set-field="rpe"]')?.value??'').trim();
