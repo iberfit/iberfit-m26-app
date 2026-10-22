@@ -7,7 +7,7 @@ const qa=readFileSync(new URL('../qa/signature-u40/verify-prod-patch-parity.qa.s
 const executable=s=>s.split('\n').filter(l=>!l.trim().startsWith('--')).join('\n');
 test('U40 exact PROD baseline and result require prior matching postgres-controlled SECURITY DEFINER',()=>{
  assert.match(release,/md5\(pg_get_functiondef\('public\.iberfit_bootstrap_v26_rc29\(\)'::regprocedure\)\)\s*='6ca1d901bb26ceedccfb7dc15945451d'/u);
- assert.match(release,/='ce0cbff2a99e28bff593132a350de595'/u);
+ assert.match(release,/='7fb270cb0f55f0f1f9918ac9b5d69178'/u);
  assert.match(release,/pg_get_userbyid\(proowner\)='postgres'/u);
  assert.match(release,/prosecdef AND provolatile='s'/u);
  assert.match(release,/SET search_path TO ''/u);
@@ -33,7 +33,7 @@ test('U40 only narrows client private/event scope, while retaining all existing 
  }
 });
 test('U40 reverse direction is baseline-pinned and restores prior PROD source exactly',()=>{
- assert.match(rollback,/='ce0cbff2a99e28bff593132a350de595'/u);
+ assert.match(rollback,/='7fb270cb0f55f0f1f9918ac9b5d69178'/u);
  assert.match(rollback,/='6ca1d901bb26ceedccfb7dc15945451d'/u);
  assert.match(rollback,/WHERE key='environment'\)='PRODUCTION'/u);
  assert.match(rollback,/CREATE OR REPLACE FUNCTION public\.iberfit_bootstrap_v26_rc29\(\)/u);
