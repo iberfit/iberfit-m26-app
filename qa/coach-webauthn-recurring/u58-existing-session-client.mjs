@@ -122,12 +122,13 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
       await dock.click();
       await expect.poll(()=>acks.filter(x=>x.type==='EJECUCION_GUARDAR_PROGRESO').length,
         {timeout:25_000}).toBeGreaterThanOrEqual(n);
-      if(n===4)break;
       await expect(page.locator('[data-session-rest-focus]'),
-        'Each actual progression must preserve the rest step').toBeVisible({timeout:20_000});
+        'Each confirmed set must reach the genuine rest / advance state').toBeVisible({timeout:20_000});
+      await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
       await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
       await expect(dock).toBeEnabled({timeout:20_000});
       await dock.click();
+      if(n===4)break; // The last NEXT, not COMPLETE SET, opens final feedback.
       await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
     }
     await expect(page.locator('[data-session-live-state="feedback"]'),
