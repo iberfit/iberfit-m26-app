@@ -1,5 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish,certifyU57ExistingClientReadback} from './u56-qa-publish.mjs';
+import {permittedU58ExecutionWrite} from './u58-execution-policy.mjs';
+import {certifyU58ExistingClientExecution} from './u58-existing-session-client.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -109,6 +111,7 @@ function allowedQaRequest(request,scope=null){
   if(method==='POST'&&url.pathname===WEBAUTHN_PATH)return true;
   if(isReadOnlyPushConfig(request,url,method))return true;
   if(allowedU56SyntheticWrite(request,scope))return true;
+  if(permittedU58ExecutionWrite(request,scope))return true;
   const prefix='/rest/v1/rpc/';
   return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));
 }
@@ -521,6 +524,11 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         'U57 prior-session readback must never activate the old publication gate')
         .not.toBe('true');
       await certifyU57ExistingClientReadback({browser,installPolicy,evidence});
+    }
+    if(process.env.M26_QA_U58_EXECUTE==='true'){
+      expect(process.env.M26_QA_U56_PUBLISH).not.toBe('true');
+      expect(process.env.M26_QA_U57_VERIFY).not.toBe('true');
+      await certifyU58ExistingClientExecution({browser,installPolicy,evidence});
     }
   }finally{
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
