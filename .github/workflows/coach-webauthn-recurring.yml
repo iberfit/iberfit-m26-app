@@ -120,7 +120,7 @@ jobs:
           M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U58:') }}
           # U57 readback targets the already-published U56 QA fixture. No new
           # session publication, training start, write permission or bypass.
-          M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U57:') }}
+          M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U57:') || startsWith(github.event.head_commit.message, 'SIGNATURE U57R:')) }}
           M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
           # Only the exact SIGNATURE U37 Canary merge tests versioned QA RPCs.
