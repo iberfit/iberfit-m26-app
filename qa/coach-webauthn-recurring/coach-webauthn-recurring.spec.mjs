@@ -269,6 +269,74 @@ async function openCertifiedCoachArea(page,area){
     'Genio first-use tour must not interrupt an actively selected workspace').toHaveCount(0,{timeout:12_000});
 }
 
+
+/**
+ * SIGNATURE U55 · actual Coach authoring UI, deliberately confined to a
+ * disconnected browser after successful real WebAuthn. This does NOT prove
+ * remote publication; that requires a separate QA write fixture (#1078).
+ * Never widen the recurring WebAuthn gate's read-only allowlist.
+ */
+async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors){
+  await setDevice(page,cdp,{name:'coach-authoring',width:1440,height:1000,mobile:false,touch:false});
+  await openCertifiedCoachArea(page,'sesion');
+  const open=page.locator('[data-workflow-action="open-session-builder"]:visible').first();
+  await expect(open,'Verified Coach must have a real authoring entry').toBeVisible({timeout:15_000});
+
+  // Explicit browser-network isolation BEFORE creating a draft: no mutation
+  // is dispatched to QA, even if an asynchronous autosave would be scheduled.
+  const priorQaRequests=evidence.qaRequests.length;
+  await context.setOffline(true);
+  await open.click();
+  const builder=page.locator('[data-session-builder-workbench-v2]');
+  await expect(builder,'Actual Coach builder must open without backend access').toBeVisible({timeout:15_000});
+  await expect(builder.locator('[data-session-action="publish"]').first(),
+    'Publishing requires an explicit reviewed preview').toBeDisabled();
+
+  const title='QA U55 · Autoría local sin publicación';
+  await builder.locator('[data-session-draft-field="title"]').fill(title);
+  await builder.locator('[data-session-draft-field="deliveryModality"]').selectOption('guiada_en_app');
+  const candidates=await builder.locator('[data-session-search-results] [data-session-action="add-exercise"]')
+    .evaluateAll(nodes=>[...new Set(nodes.map(node=>node.getAttribute('data-exercise-id')).filter(Boolean))]);
+  expect(candidates.length,'QA Coach should see at least two distinct exercises').toBeGreaterThanOrEqual(2);
+  for(const id of candidates.slice(0,2)){
+    await builder.locator('[data-session-search-results] [data-session-action="add-exercise"][data-exercise-id="'+id+'"]').first().click();
+  }
+  const editors=builder.locator('.m26-builder-block.m26-builder-editor');
+  await expect(editors,'Two exercises must be added through real UI actions').toHaveCount(2,{timeout:15_000});
+
+  // Prescribe both exercise types safely; cardio/mobility and strength have
+  // different field sets. Every field edit uses a real input/change event.
+  for(let index=0;index<2;index++){
+    const block=editors.nth(index);
+    const blockId=await block.getAttribute('data-block-id');
+    expect(blockId,'Each added exercise must have a stable draft-block identity').toBeTruthy();
+    const field=(key)=>builder.locator('[data-session-block-field="'+key+'"][data-block-id="'+blockId+'"]').first();
+    if(await field('sets').count())await field('sets').fill('2');
+    if(await field('reps').count())await field('reps').fill('8');
+    if(await field('plannedDurationMinutes').count())await field('plannedDurationMinutes').fill('15');
+    if(await field('restSeconds').count())await field('restSeconds').fill('60');
+    if(await field('plannedLoad').count())await field('plannedLoad').fill('10 kg');
+  }
+  await builder.locator('[data-session-action="save-draft"]').first().click();
+  await expect(builder.locator('.m26-builder-editor')).toHaveCount(2);
+  await expect(builder.locator('[data-session-draft-field="title"]')).toHaveValue(title);
+  await builder.locator('[data-session-action="preview"]').first().click();
+  await expect(builder.locator('[data-session-action="publish"]').first(),
+    'A validated preview should enable, but must not invoke, publication').toBeEnabled({timeout:15_000});
+  await expect(builder.getByText(title,{exact:true}).first()).toBeVisible();
+
+  await setDevice(page,cdp,{name:'coach-authoring-mobile',width:320,height:700,mobile:true,touch:true});
+  await verifyViewport(page,'coach-authoring-mobile-preview');
+  await page.screenshot({path:path.join(OUT_DIR,'u55-offline-coach-reviewed-preview-320.png'),fullPage:true});
+  expect(pageErrors,'Offline Coach editing must not throw a page exception').toEqual([]);
+  expect(evidence.blocked,'No forbidden write or foreign request even during offline authoring').toEqual([]);
+  expect(evidence.qaRequests.slice(priorQaRequests).some(label=>
+    /iberfit_execute_command_v26|iberfit_command_preflight_v26/u.test(label)),
+    'No server-side publication or command preflight may be attempted').toBe(false);
+  evidence.u55OfflineAuthoring={verified:true,localOnly:true,backendMutationCertified:false,
+    exercises:2,reviewed:true,mobile320NoOverflow:true,remotePublicationAttempted:false};
+}
+
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
   // SIGNATURE U26 adds authenticated professional route coverage on five devices.
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
@@ -427,6 +495,7 @@ async function openCertifiedCoachArea(page,area){
     const bootstrap=await snapshotBootstrap();
     expect(bootstrap.requestCount,'Real authenticated Coach bootstrap requests must be observed').toBeGreaterThan(0);
     expect(bootstrap.failureCount,'Every real Coach bootstrap RPC must finish without HTTP or network error').toBe(0);
+    await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
   }finally{
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
     // Do not redact an HTTP 500 into success or swallow an unexpected page error.
