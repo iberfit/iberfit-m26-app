@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
-import {canonicalHardMovementPlanPhases,hasHardMovementPlanGuard,movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
+import {canonicalHardMovementPlanPhases,canonicalHardMovementCamera,hasHardMovementPlanGuard,movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
 import {hipHingeDowelCanonicalCamera,hipHingeDowelCanonicalPhases,hipHingeDowelPlanIssue,hipHingeDowelVisualGuard,isHipHingeDowelExercise} from './auto-factory-dowel-hinge-guard.mjs';
 import {bodySawPlanIssue,bodySawVisualGuard,isBodySawExercise} from './auto-factory-body-saw-guard.mjs';
 
@@ -68,6 +68,7 @@ async function main(){
         ...plan,
         start:canonicalHardPhases.start,
         final:canonicalHardPhases.final,
+        camera:canonicalHardMovementCamera(exercise)||plan.camera,
         notes:[...(Array.isArray(plan.notes)?plan.notes:[]),'IBERFIT canonical hard-movement phase geometry applied deterministically.'],
       };
     }
