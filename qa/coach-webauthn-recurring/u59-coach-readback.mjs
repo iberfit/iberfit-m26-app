@@ -11,7 +11,7 @@ import {openU56ClientReadOnly} from './u56-qa-publish.mjs';
 const TARGET='QA U56 · Coach UI 39887295351-1';
 
 export async function certifyU59CoachConfirmedReadback({
-  browser,page,cdp,installPolicy,openCertifiedCoachArea,setDevice,evidence,
+  browser,page,cdp,installPolicy,setDevice,evidence,
 }){
   const {expect}=await import('@playwright/test');
   if(process.env.M26_QA_U59_READBACK!=='true')throw new Error('U59_NOT_AUTHORIZED');
@@ -74,7 +74,22 @@ export async function certifyU59CoachConfirmedReadback({
     'Coach must be authorized for the exact same synthetic Client A')
     .toHaveCount(1,{timeout:15_000});
   await select.selectOption(clientId);
-  await openCertifiedCoachArea(page,'progreso');
+  // U59R routes are NOT covered by the older Sessions/Planning-only
+  // openCertifiedCoachArea helper. Use real, role-scoped Coach navigation.
+  // The page remains online here because this readback runs before U55.
+  const openReadbackArea=async(area,visibleWorkspace)=>{
+    await expect(page.locator('.m26-shell[data-m26-role="coach"]'),
+      'U59 must retain independently verified Coach MFA context')
+      .toBeVisible({timeout:15_000});
+    const target=page.locator(`.m26-shell[data-m26-role="coach"] [data-m26-area="${area}"]:visible`).first();
+    await expect(target,'U59 navigation '+area+' must be reachable').toBeVisible({timeout:12_000});
+    await target.click();
+    await expect(page.locator(`.m26-shell[data-m26-role="coach"] [data-m26-area="${area}"][aria-current="page"]`).first(),
+      'U59 selected Coach area must retain aria-current').toHaveCount(1,{timeout:12_000});
+    await expect(visibleWorkspace,'U59 '+area+' live workspace must be visible')
+      .toBeVisible({timeout:20_000});
+  };
+  await openReadbackArea('progreso',page.locator('[data-evolution-plan-execution]'));
   const plan=page.locator('[data-evolution-plan-execution]');
   await expect(plan,'Coach progress must compare published plan with server-confirmed execution')
     .toBeVisible({timeout:25_000});
@@ -83,7 +98,8 @@ export async function certifyU59CoachConfirmedReadback({
   await expect(plan).toContainText('Series registradas');
   await expect(plan).toContainText('Series previstas');
 
-  await openCertifiedCoachArea(page,'expediente');
+  await openReadbackArea('expediente',
+    page.locator('[data-coach-client-workspace][data-client-id="'+clientId+'"]'));
   const workspace=page.locator('[data-coach-client-workspace][data-client-id="'+clientId+'"]');
   await expect(workspace,'Coach expediente must retain assigned Client context')
     .toBeVisible({timeout:25_000});

@@ -122,7 +122,7 @@ jobs:
           M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U58:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58R:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58S:')) }}
           # U59: one-shot read-only Coach+Client check of already ACKed U58S.
           # Pull requests, reruns and a second execution NEVER get this flag.
-          M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U59:') }}
+          M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U59:') || startsWith(github.event.head_commit.message, 'SIGNATURE U59R:')) }}
 
           # U57 readback targets the already-published U56 QA fixture. No new
           # session publication, training start, write permission or bypass.
