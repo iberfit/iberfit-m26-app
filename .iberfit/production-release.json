@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "fa1ec4dbc3f42f7e5ab01098a7da80dd5e15d757",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "0e8778e587bc0a969ff1b0a869a35d611cde4602",
+  "notes": "SIGNATURE acumulativa U55-U59R y B3/B3R/B3T; RC64 strict auth QA; siete source gates CI+Exact+Coach+Admin+Device+Remote+Audit verificados sobre fa1ec4db. U54 previous LIVE esperado, fail-closed si cambia. Preservar todas las funciones e historial, sin writes SQL/Hosted Auth."
+}
