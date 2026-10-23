@@ -123,6 +123,10 @@ export async function certifyU56OnlineCoachPublish({
   await page.locator('[data-session-action="publish"]').first().click();
   await expect.poll(()=>ack,{timeout:40_000,message:'UI publish requires genuine server ACK'})
     .toBe(true);
+  // The server ACK is irreversible evidence even if later Client read-back fails.
+  evidence.businessMutationsPerformed=true;
+  evidence.u56OnlineCoachPublish={verified:false,serverAck:true,clientVisible:false,
+    backendMutationCertified:true,clientReadOnly:true,executionStarted:false,qaOnly:true};
   expect(scope.preflights).toBeGreaterThan(0);
   expect(scope.executions,'One publication, no duplicated command').toBe(1);
   await client.page.reload({waitUntil:'domcontentloaded',timeout:25_000});
