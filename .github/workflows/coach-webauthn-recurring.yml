@@ -117,7 +117,7 @@ jobs:
           M26_QA_U56_PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U56:') }}
           # U58 executes the exact pre-existing QA U56 session only once.
           # No published session is created. A rerun stays read-only.
-          M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U58:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58R:')) }}
+          M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U58:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58R:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58S:')) }}
           # U57 readback targets the already-published U56 QA fixture. No new
           # session publication, training start, write permission or bypass.
           M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U57:') || startsWith(github.event.head_commit.message, 'SIGNATURE U57R:')) }}

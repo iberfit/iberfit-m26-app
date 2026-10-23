@@ -92,3 +92,78 @@ export function permittedU58ExecutionWrite(request,scope){
 }
 
 export const U58_EXISTING_QA_SESSION_TITLE=TITLE;
+
+/**
+ * U58S: A Client bootstrap can expose each execution twice: a canonical
+ * m26Entity (with authoritative status and sessionId) and a privacy-filtered
+ * legacy sessionExecutions read (often without status/sessionId).
+ * A missing property is UNKNOWN, never an active lock or proof of completion.
+ * Fail closed unless every legacy row maps to exactly one terminal canonical
+ * row. The backend still independently enforces the per-client active lock.
+ */
+const TERMINAL_CANONICAL=new Set([
+  'completada','completado','completed','complete','cerrada_confirmada',
+  'cancelada','cancelado','cancelled','finalizada','finished',
+]);
+const idOf=x=>String(x?.entityId||x?.entity_id||x?.executionId||x?.execution_id||
+  x?.id||x?.body?.id||'');
+const normalized=x=>String(x||'').trim().toLowerCase();
+
+export function inspectU58CanonicalHistory({
+  canonicalEntities,historicalExecutions,clientId,sessionId,
+}={}){
+  const stats={ok:false,reason:'U58_HISTORY_UNVERIFIED',canonicalCount:0,
+    reconciledHistory:0,cancelledCount:0};
+  const fail=reason=>({...stats,reason});
+  if(!UUID.test(String(clientId||''))||!UUID.test(String(sessionId||''))||
+    !Array.isArray(canonicalEntities)||!Array.isArray(historicalExecutions))
+    return fail('U58_BOOTSTRAP_COLLECTION_INVALID');
+  const canon=canonicalEntities.filter(x=>
+    String(x?.entityType||x?.entity_type||'')==='session_execution');
+  stats.canonicalCount=canon.length;
+  const byId=new Map();
+  for(const row of canon){
+    const id=idOf(row);
+    const record=row?.body&&typeof row.body==='object'?row.body:{};
+    const target=String(record.sessionId||record.session_id||
+      row?.sessionId||row?.session_id||'');
+    const status=normalized(row?.status||record.status||record.executionStatus||
+      record.execution_status);
+    const bodyStatus=normalized(record.status);
+    if(!UUID.test(id)||!UUID.test(target)||
+      (row?.clientId&&String(row.clientId)!==clientId)||
+      (row?.client_id&&String(row.client_id)!==clientId))
+      return fail('U58_CANONICAL_IDENTITY_INVALID');
+    if(byId.has(id))return fail('U58_DUPLICATE_CANONICAL_EXECUTION');
+    if(target===sessionId)return fail('U58_TARGET_SESSION_ALREADY_EXECUTED');
+    if(!TERMINAL_CANONICAL.has(status)||
+      (bodyStatus&&!TERMINAL_CANONICAL.has(bodyStatus)))
+      return fail('U58_NONTERMINAL_CANONICAL_EXECUTION');
+    if(bodyStatus&&status!==bodyStatus)return fail('U58_CANONICAL_STATUS_CONFLICT');
+    if(['cancelada','cancelado','cancelled'].includes(status))stats.cancelledCount++;
+    byId.set(id,status);
+  }
+  const legacyIds=new Set();
+  for(const row of historicalExecutions){
+    const id=idOf(row),status=normalized(
+      row?.status||row?.executionStatus||row?.execution_status);
+    if(!UUID.test(id)||legacyIds.has(id))
+      return fail('U58_HISTORY_ID_INVALID_OR_DUPLICATE');
+    legacyIds.add(id);
+    const canonicalStatus=byId.get(id);
+    if(!canonicalStatus)return fail('U58_HISTORY_WITHOUT_CANONICAL_TERMINAL');
+    // Where the privacy projection includes a legacy status, accept only a
+    // documented terminal correspondence; never treat close rejection as
+    // equivalent to completion unless canonical truth says cancelled.
+    if(status&&!(
+      (['cerrada_confirmada','completed','completada','completado'].includes(status)&&
+        !['cancelada','cancelado','cancelled'].includes(canonicalStatus))||
+      (status==='cierre_rechazado'&&
+        ['cancelada','cancelado','cancelled'].includes(canonicalStatus))||
+      (TERMINAL_CANONICAL.has(status)&&status===canonicalStatus)
+    ))return fail('U58_HISTORY_STATUS_CONFLICT');
+    stats.reconciledHistory++;
+  }
+  if(legacyIds.size!==byId.size)return fail('U58_CANONICAL_LEGACY_COUNT_MISMATCH');
+  return {...stats,ok:true,reason:'U58_HISTORY_TERMINAL_RECONCILED'};
+}

@@ -4,7 +4,7 @@
  * On unexpected failure, preserve server state for forensic recovery instead
  * of resetting Client A or silently overwriting active execution.
  */
-import {createU58ExecutionScope,U58_EXISTING_QA_SESSION_TITLE} from './u58-execution-policy.mjs';
+import {createU58ExecutionScope,inspectU58CanonicalHistory,U58_EXISTING_QA_SESSION_TITLE} from './u58-execution-policy.mjs';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const QA_ORIGIN='https://gjztkdwfmunnzhtvxrsu.supabase.co';
@@ -33,7 +33,7 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
   await installPolicy(context,clientEvidence,scope);
   const page=await context.newPage();
   const errors=[],acks=[],httpErrors=[];
-  let clientId=null,bootstrapEntities=null;
+  let clientId=null,bootstrapEntities=null,bootstrapHistory=null;
   page.on('pageerror',err=>errors.push(String(err?.message||'PAGE_ERROR').slice(0,160)));
   page.on('requestfailed',request=>{
     try{
@@ -62,11 +62,8 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
           // Do not arm a one-shot write if either collection is absent.
           const entities=Array.isArray(data?.m26Entities)?data.m26Entities:null;
           const histories=Array.isArray(data?.sessionExecutions)?data.sessionExecutions:null;
-          bootstrapEntities=entities&&histories
-            ?[...entities,...histories.map(item=>({
-                ...item,entityType:'session_execution',body:item?.body??item,
-              }))]
-            :null;
+          bootstrapEntities=entities&&histories?entities:null;
+          bootstrapHistory=entities&&histories?histories:null;
         }
       }
       if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'){
@@ -131,22 +128,20 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
     await expect(card,'Only the real pre-existing U56 session can be executed').toHaveCount(1,{timeout:25_000});
     const sessionId=await card.getAttribute('data-rc39-session');
     expect(sessionId).toMatch(UUID);
-    expect(Array.isArray(bootstrapEntities),
-      'An authenticated canonical execution collection is required before any QA start')
-      .toBe(true);
-    const already=bootstrapEntities.filter(entity=>
-      entity?.entityType==='session_execution'&&
-      String(entity?.body?.sessionId||'')===sessionId);
-    expect(already,'No previous execution may be overwritten or replayed').toHaveLength(0);
-    // A different synthetic QA workout can still hold the Client's single
-    // active lock. Never attempt U58 if that lock may be occupied.
-    const terminal=new Set(['completada','completado','completed','cancelada',
-      'cancelado','cancelled','finalizada','finished']);
-    const liveLocks=(bootstrapEntities||[]).filter(entity=>
-      entity?.entityType==='session_execution'&&!terminal.has(
-        String(entity?.status||entity?.body?.status||'').toLowerCase()));
-    expect(liveLocks,'No other active or unresolved QA Client workout lock')
-      .toHaveLength(0);
+    const preflight=inspectU58CanonicalHistory({
+      canonicalEntities:bootstrapEntities,historicalExecutions:bootstrapHistory,
+      clientId,sessionId,
+    });
+    evidence.u58HistoryPreflight={
+      ok:preflight.ok,reason:preflight.reason,
+      canonicalCount:preflight.canonicalCount,
+      reconciledHistory:preflight.reconciledHistory,
+      cancelledCount:preflight.cancelledCount,
+    };
+    expect(preflight.ok,'Canonical U58 history must reconcile with legacy history: '+
+      preflight.reason).toBe(true);
+    // No browser-side guess can waive the server's independent execution lock.
+    // Only after both authoritative collections reconcile do we arm QA writes.
     Object.assign(scope,createU58ExecutionScope({
       clientId,sessionId,sessionTitle:U58_EXISTING_QA_SESSION_TITLE,
       confirmedNoPriorExecution:true,
