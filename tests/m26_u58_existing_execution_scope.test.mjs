@@ -96,3 +96,21 @@ test('U58 blocks foreign clients, production origin, wrong execution and arbitra
     ),s),false);
   });
 });
+
+
+test('U58 selectors must correspond to actual V3 live Client and confirmed-history markup',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const ui=await readFile(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+  const history=await readFile(new URL('../src/m26/rc39/completed-session-history.js',import.meta.url),'utf8');
+  const qa=await readFile(new URL('../qa/coach-webauthn-recurring/u58-existing-session-client.mjs',import.meta.url),'utf8');
+  assert.match(ui,/data-session-action="complete-set"/u);
+  assert.match(ui,/data-session-action="next"/u);
+  assert.match(ui,/data-session-rest-focus/u);
+  assert.match(ui,/data-session-live-state=/u);
+  assert.match(history,/data-m43-session-history/u);
+  assert.match(history,/data-m43-completed-session/u);
+  assert.match(qa,/\[data-session-action="complete-set"\]/u);
+  assert.match(qa,/\[data-session-action="next"\]/u);
+  assert.doesNotMatch(qa,/data-session-focus-dock|m27-session-focus-primary/u,
+    'Removed focus-dock selectors must never be reintroduced into the Client V3 QA path');
+});
