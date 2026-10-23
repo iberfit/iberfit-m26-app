@@ -1,10 +1,13 @@
 // SIGNATURE release authority: do not publish a Canary commit whose current
-// authenticated Coach/Admin tests or exact deploy have not passed.
+// authenticated Coach/Admin, device, remote-readonly, audit and exact deploy have not passed.
 const REQUIRED=[
   'IBERFIT M26 CI',
   'IBERFIT Canary Exact Deploy',
   'IBERFIT Coach WebAuthn Recurring',
   'IBERFIT Admin WebAuthn Recurring',
+  'IBERFIT Device Experience Gate',
+  'IBERFIT M26 Gates remotos de solo lectura',
+  'IBERFIT M26 Continuous App Audit',
 ];
 const SHA=/^[a-f0-9]{40}$/u;
 const BRANCH='canary/rc74-4';
