@@ -69,6 +69,8 @@ test('U58 accepts one start, idempotent replay and four separately observed resu
     state.reviewedFourSets=true;
     assert.equal(permittedU58ExecutionWrite(req(finish),state),true);
     assert.equal(state.finished,true);
+    assert.equal(permittedU58ExecutionWrite(req(finish),state),true);
+    assert.equal(permittedU58ExecutionWrite(req(finish),state),false);
     assert.equal(permittedU58ExecutionWrite(req(
       command('EJECUCION_GUARDAR_PROGRESO','77777777-7777-4777-8777-777777777777'),
     ),state),false);
