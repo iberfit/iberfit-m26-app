@@ -57,7 +57,7 @@ test('B3.1: operational conflicts keep all global destinations without routing t
 
 test('B3.1: visual contract stays Coach-scoped and keyboard/touch-friendly',()=>{
   const css=readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
-  const block=css.split('/* SIGNATURE B3.1')[1]?.split('/* Client:')[0]||'';
+  const block=css.split('/* SIGNATURE B3.1')[1]?.split('.m26-shell[data-m26-role="coach"] :is(.m26-client-card')[0]||'';
   assert.ok(block,'Coach Hoy command strip has a dedicated styling contract');
   assert.match(block,/data-m26-role="coach"/u);
   assert.match(block,/min-height:44px/u);
