@@ -18,8 +18,8 @@ test('U59 readback is independent and requires actual Client completion + reload
   assert.match(helper,/data-m43-completed-session/u);
   assert.match(helper,/toContainText\('4 registros'\)/u);
   assert.match(helper,/data-m26-interactive="ready"/u);
-  assert.match(helper,/openCertifiedCoachArea\(page,'progreso'\)/u);
-  assert.match(helper,/openCertifiedCoachArea\(page,'expediente'\)/u);
+  assert.match(helper,/openReadbackArea\('progreso'/u);
+  assert.match(helper,/openReadbackArea\('expediente'/u);
   assert.match(helper,/independentCoachMfa:true/u);
   assert.match(helper,/backendMutationCertified:false/u);
   assert.doesNotMatch(helper,/supabase\.from\(.+\)\.insert|iberfit_execute_command_v26|service_role/u);
