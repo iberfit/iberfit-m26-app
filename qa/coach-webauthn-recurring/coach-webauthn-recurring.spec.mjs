@@ -1,5 +1,6 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish,certifyU57ExistingClientReadback} from './u56-qa-publish.mjs';
+import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -509,6 +510,14 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         'Real Coach must be assigned to this exact QA Client A').toBe(1);
       await clientSelector.selectOption(u56Client.clientId);
       u56Scope.clientId=u56Client.clientId;
+    }
+    if(process.env.M26_QA_U59_READBACK==='true'){
+      // Must run BEFORE U55 deliberately disconnects Coach for offline draft
+      // certification. Reuse the already verified real Coach WebAuthn shell.
+      expect(process.env.M26_QA_U58_EXECUTE).not.toBe('true');
+      await certifyU59CoachConfirmedReadback({
+        browser,page,cdp,installPolicy,openCertifiedCoachArea,setDevice,evidence,
+      });
     }
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
     if(u56Client){
