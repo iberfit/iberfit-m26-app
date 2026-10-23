@@ -50,8 +50,9 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
         const ackId=String(ack?.operationId||ack?.operation_id||'');
         const revision=Number(ack?.remoteRevision??ack?.remote_revision);
         if(['ack','duplicate'].includes(String(ack?.kind||'').toLowerCase())&&
-          ackId===cmd.operationId&&Number.isInteger(revision)&&revision>=0)
-          acks.push({type:String(cmd.type),revision});
+          ackId===cmd.operationId&&Number.isInteger(revision)&&revision>=0&&
+          !acks.some(item=>item.operationId===ackId))
+          acks.push({type:String(cmd.type),revision,operationId:ackId});
       }
     }catch{}
   });
