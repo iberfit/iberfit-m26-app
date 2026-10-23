@@ -1,4 +1,5 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish} from './u56-qa-publish.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -87,7 +88,7 @@ function isReadOnlyPushConfig(request,url,method){
   if(method!=='POST'||url.pathname!=='/functions/v1/iberfit-web-push-sender-v1')return false;
   try{const body=request.postDataJSON();return body&&typeof body==='object'&&!Array.isArray(body)&&body.action==='config'&&Object.keys(body).length===1;}catch{return false;}
 }
-function allowedQaRequest(request){
+function allowedQaRequest(request,scope=null){
   let url;try{url=new URL(request.url());}catch{return false;}
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
@@ -107,6 +108,7 @@ function allowedQaRequest(request){
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   if(method==='POST'&&url.pathname===WEBAUTHN_PATH)return true;
   if(isReadOnlyPushConfig(request,url,method))return true;
+  if(allowedU56SyntheticWrite(request,scope))return true;
   const prefix='/rest/v1/rpc/';
   return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));
 }
@@ -127,12 +129,12 @@ async function fulfillCurrentSource(route,url){
   }
   await route.fulfill({status:404,body:'Not found'});
 }
-async function installPolicy(context,evidence){
+async function installPolicy(context,evidence,scope=null){
   await context.route('**/*',async(route)=>{
     const request=route.request();let url;
     try{url=new URL(request.url());}catch{evidence.blocked.push('INVALID_URL');await route.abort('blockedbyclient');return;}
     if(url.origin===CANARY_ORIGIN){await fulfillCurrentSource(route,url);return;}
-    if(allowedQaRequest(request)){
+    if(allowedQaRequest(request,scope)){
       const label=requestLabel(request);evidence.qaRequests.push(label);
       if(request.method().toUpperCase()==='POST'&&url.pathname===WEBAUTHN_PATH){
         try{const body=request.postDataJSON();evidence.webauthnActions.push(String(body?.action||'unknown'));}catch{evidence.webauthnActions.push('unparsed');}
@@ -292,7 +294,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   await expect(builder.locator('[data-session-action="publish"]').first(),
     'Publishing requires an explicit reviewed preview').toBeDisabled();
 
-  const title='QA U55 · Autoría local sin publicación';
+  const title=process.env.M26_QA_U56_PUBLISH==='true'
+    ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
+    :'QA U55 · Autoría local sin publicación';
   await builder.locator('[data-session-draft-field="title"]').fill(title);
   await builder.locator('[data-session-draft-field="deliveryModality"]').selectOption('guiada_en_app');
   const candidates=await builder.locator('[data-session-search-results] [data-session-action="add-exercise"]')
@@ -335,6 +339,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     'No server-side publication or command preflight may be attempted').toBe(false);
   evidence.u55OfflineAuthoring={verified:true,localOnly:true,backendMutationCertified:false,
     exercises:2,reviewed:true,mobile320NoOverflow:true,remotePublicationAttempted:false};
+  return title;
 }
 
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
@@ -349,7 +354,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
 
   const evidence={signatureU26Audits:[],schema:'iberfit.qa-coach-webauthn-recurring.v1',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'coach',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[]};
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
-  await installPolicy(context,evidence);
+  const u56Scope={enabled:false,clientId:null,title:null,sessionId:null,operationId:null};
+  let u56Client=null;
+  await installPolicy(context,evidence,u56Scope);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
   // U48: on failure retain only whitelisted stage/error categories. No form
   // values, JWTs, URLs, identities, fetch payloads or WebAuthn responses.
@@ -495,7 +502,20 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     const bootstrap=await snapshotBootstrap();
     expect(bootstrap.requestCount,'Real authenticated Coach bootstrap requests must be observed').toBeGreaterThan(0);
     expect(bootstrap.failureCount,'Every real Coach bootstrap RPC must finish without HTTP or network error').toBe(0);
-    await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
+    if(process.env.M26_QA_U56_PUBLISH==='true'){
+      u56Client=await openU56ClientReadOnly(browser,installPolicy);
+      await setDevice(page,cdp,{name:'u56-client-context',width:1440,height:1000,mobile:false,touch:false});
+      expect(await clientSelector.locator('option[value="'+u56Client.clientId+'"]').count(),
+        'Real Coach must be assigned to this exact QA Client A').toBe(1);
+      await clientSelector.selectOption(u56Client.clientId);
+      u56Scope.clientId=u56Client.clientId;
+    }
+    u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
+    if(u56Client){
+      await certifyU56OnlineCoachPublish({
+        page,context,cdp,client:u56Client,scope:u56Scope,evidence,setDevice,
+      });
+    }
   }finally{
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
     // Do not redact an HTTP 500 into success or swallow an unexpected page error.
@@ -511,6 +531,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     }finally{
       await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
       await cdp.send('WebAuthn.disable').catch(()=>{});
+      await u56Client?.context.close().catch(()=>{});
       await context.close().catch(()=>{});
     }
   }
