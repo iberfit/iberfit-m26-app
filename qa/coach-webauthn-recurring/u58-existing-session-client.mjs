@@ -81,6 +81,15 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
       entity?.entityType==='session_execution'&&
       String(entity?.body?.sessionId||'')===sessionId);
     expect(already,'No previous execution may be overwritten or replayed').toHaveLength(0);
+    // A different synthetic QA workout can still hold the Client's single
+    // active lock. Never attempt U58 if that lock may be occupied.
+    const terminal=new Set(['completada','completado','completed','cancelada',
+      'cancelado','cancelled','finalizada','finished']);
+    const liveLocks=(bootstrapEntities||[]).filter(entity=>
+      entity?.entityType==='session_execution'&&!terminal.has(
+        String(entity?.status||entity?.body?.status||'').toLowerCase()));
+    expect(liveLocks,'No other active or unresolved QA Client workout lock')
+      .toHaveLength(0);
     Object.assign(scope,createU58ExecutionScope({
       clientId,sessionId,sessionTitle:U58_EXISTING_QA_SESSION_TITLE,
       confirmedNoPriorExecution:true,
