@@ -10,6 +10,14 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const QA_ORIGIN='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 
+// A visible, explicit connectivity error permits a bounded first-factor retry.
+// No other error (credentials, role or unknown state) is retryable by this gate.
+export function classifyU58LoginState({clientShellVisible,connectionErrorVisible}){
+  if(clientShellVisible)return 'ready';
+  if(connectionErrorVisible)return 'retryable-network-error';
+  return 'pending';
+}
+
 export async function certifyU58ExistingClientExecution({browser,installPolicy,evidence}){
   const {expect}=await import('@playwright/test');
   if(process.env.M26_QA_U58_EXECUTE!=='true')throw Error('U58_NOT_AUTHORIZED');
@@ -21,12 +29,19 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
   });
   const clientEvidence={blocked:[],qaRequests:[],webauthnActions:[]};
   const scope={enabled:false};
-  let started=false,finished=false;
+  let started=false,finished=false,loginAttempts=0,clientNetworkFailures=0;
   await installPolicy(context,clientEvidence,scope);
   const page=await context.newPage();
   const errors=[],acks=[],httpErrors=[];
   let clientId=null,bootstrapEntities=null;
   page.on('pageerror',err=>errors.push(String(err?.message||'PAGE_ERROR').slice(0,160)));
+  page.on('requestfailed',request=>{
+    try{
+      const url=new URL(request.url());
+      if(url.origin===QA_ORIGIN&&url.pathname==='/auth/v1/token')
+        clientNetworkFailures++;
+    }catch{}
+  });
   page.on('response',async response=>{
     try{
       const url=new URL(response.url());
@@ -71,10 +86,32 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
   });
   try{
     await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
-    await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
-    await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
-    await page.getByRole('button',{name:'Entrar',exact:true}).click();
-    await expect(page.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:40_000});
+    const clientShell=page.locator('.m26-shell[data-m26-role="client"]');
+    const connectionFailure=page.getByRole('alert')
+      .filter({hasText:'No fue posible conectar'});
+    // Retry only a conclusively failed first-factor network attempt, before
+    // any business write is armed. Unknown auth states fail closed.
+    for(let attempt=1;attempt<=2;attempt++){
+      loginAttempts=attempt;
+      await page.getByRole('textbox',{name:'Correo',exact:true})
+        .fill(process.env.M26_QA_CLIENT_A_EMAIL);
+      await page.locator('#m26-login-password')
+        .fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+      await page.getByRole('button',{name:'Entrar',exact:true}).click();
+      const state=await expect.poll(async()=>classifyU58LoginState({
+        clientShellVisible:await clientShell.isVisible().catch(()=>false),
+        connectionErrorVisible:await connectionFailure.isVisible().catch(()=>false),
+      }),{timeout:40_000,intervals:[250,500,1000]}).not.toBe('pending')
+        .then(async()=>classifyU58LoginState({
+          clientShellVisible:await clientShell.isVisible().catch(()=>false),
+          connectionErrorVisible:await connectionFailure.isVisible().catch(()=>false),
+        }));
+      if(state==='ready')break;
+      if(state!=='retryable-network-error'||attempt===2)
+        throw Error('U58_CLIENT_LOGIN_NETWORK_UNAVAILABLE');
+      await page.waitForTimeout(800);
+    }
+    await expect(clientShell).toBeVisible({timeout:10_000});
     await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
     await expect.poll(()=>clientId,{timeout:15_000}).toMatch(UUID);
     for(const [selector,action] of [
@@ -194,7 +231,7 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
       priorExecutions:0,reloadedHistory:true,qaOnly:true,
     };
   }finally{
-    evidence.u58ExecutionAttempt={started,finished,
+    evidence.u58ExecutionAttempt={started,finished,loginAttempts,clientNetworkFailures,
       distinctOperationCount:scope.uniqueByOperation?.size||0,
       blockedRequests:clientEvidence.blocked.length,
       serverErrors:httpErrors.length,clientPageErrors:errors.length};
