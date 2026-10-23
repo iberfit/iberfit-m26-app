@@ -124,7 +124,9 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
     started=true;
     // Use actual Client V3 buttons. The former dock selector is absent.
     const completeSet=page.locator('[data-session-live-state="active"] [data-session-action="complete-set"]');
-    const advanceRest=page.locator('[data-session-live-state="rest"] [data-session-action="next"]');
+    // The final recorded set has a review/advance card but no active rest
+    // countdown; "next" must work for BOTH rest and last-set review.
+    const advanceRest=page.locator('[data-session-rest-focus] [data-session-action="next"]');
     await page.locator('[data-session-action="pause"]').first().click();
     await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible({timeout:20_000});
     await page.locator('[data-session-action="resume"]').click();
