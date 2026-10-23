@@ -18,7 +18,8 @@ export function allowedU56SyntheticWrite(request,scope){
     url=new URL(request.url());
     body=request.postDataJSON();
     const headers=request.headers();
-    if(!/^Bearer [A-Za-z0-9_.~-]+$/u.test(String(headers.authorization||headers.Authorization||'')))return false;
+    const bearer=String(headers.authorization||headers.Authorization||'');
+    if(!/^Bearer [A-Za-z0-9_.~-]+$/u.test(bearer)||/service[_-]?role|supabase_secret/iu.test(bearer))return false;
   }catch{return false;}
   if(url.origin!==QA_ORIGIN)return false;
   const prefix='/rest/v1/rpc/';
