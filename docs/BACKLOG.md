@@ -1,5 +1,12 @@
 # IBERFIT · Backlog Vivo
 
+## SIGNATURE B3.1 · Coach macrobloque · 2026-10-23
+- **LIVE y Canary:** SHA `fa1ec4dbc3f42f7e5ab01098a7da80dd5e15d757`, release #40036591107 SUCCESS, mejoras U53 y anteriores integradas conservadas.
+- **WIP único:** PR #1121 ampliado con prioridad Coach Hoy, archivo nativo de agenda y cartera prioritaria, Agenda completa agrupada y recuperación contextual de sesión bloqueada.
+- **Pendiente:** tests del SHA final, CI, Device, QA autenticada, Canary Exact Deploy y luego promoción PROD segura con M44.
+- **Límites:** frontend Coach; ninguna mutación de Auth, RLS, IRI, backend ni datos.
+
+
 ## SIGNATURE 360 · checkpoint de Canary · 17-10-2026
 
 - [x] PR #1019 fusionado y certificado: merge SHA `a497383896043b86548f7fa5781263e2cc71e3d3`, 12/12 workflows postmerge SUCCESS, [Canary Exact Deploy #39078154724](https://github.com/iberfit/iberfit-m26-app/actions/runs/39078154724), Cloudflare `bd38c4e3-080c-43f9-a38f-0ad3f9eab8b9`, rollback anterior identificado.

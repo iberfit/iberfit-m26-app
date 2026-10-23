@@ -25,7 +25,7 @@ test('B3.1: empty Coach portfolio prioritizes Clients once and preserves other q
   const nav=quickNav(html);
   assert.match(html,/class="m26-primary-action" data-m26-area="clientes"/u);
   assert.deepEqual(destinations(nav),['planificacion','agenda']);
-  assert.match(nav,/aria-label="Accesos complementarios"/u);
+  assert.match(nav,/aria-label="Acciones rápidas"/u);
   assert.match(html,/Sin clientes asignados/u);
 });
 
