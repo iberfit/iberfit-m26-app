@@ -4,8 +4,6 @@
  * exact U56 merge-title opt-in is the sole authorizer for this positive test.
  * No JWT, full command body, client identifier or password is serialized.
  */
-import {expect} from '@playwright/test';
-
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const QA_ORIGIN='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
@@ -64,6 +62,7 @@ export function allowedU56SyntheticWrite(request,scope){
 }
 
 export async function openU56ClientReadOnly(browser,installPolicy){
+  const {expect}=await import('@playwright/test');
   for(const key of ['M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT'])
     expect(process.env[key],'U56 requires real synthetic QA credentials and run ID').toBeTruthy();
   expect(process.env.M26_QA_CLIENT_A_EMAIL).toBe('qa.rc74.client-a@iberfit.cl');
@@ -103,6 +102,7 @@ export async function openU56ClientReadOnly(browser,installPolicy){
 export async function certifyU56OnlineCoachPublish({
   page,context,cdp,client,scope,evidence,setDevice,
 }){
+  const {expect}=await import('@playwright/test');
   expect(scope.clientId).toBe(client.clientId);
   expect(scope.title).toMatch(/^QA U56 · Coach UI [0-9]{1,20}-[0-9]{1,5}$/u);
   await setDevice(page,cdp,{name:'u56-publish',width:1440,height:1000,mobile:false,touch:false});
