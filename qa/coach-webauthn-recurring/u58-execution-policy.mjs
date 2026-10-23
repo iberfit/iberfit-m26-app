@@ -63,7 +63,8 @@ export function permittedU58ExecutionWrite(request,scope){
     executionId=requested;
   }else{
     if(!safeUuid(executionId)||cmd.entityType!=='session_execution'||
-      cmd.entityId!==executionId||scope.finished)return false;
+      cmd.entityId!==executionId||
+      (scope.finished&&!scope.uniqueByOperation.has(cmd.operationId)))return false;
     if(type==='EJECUCION_COMPLETAR'&&scope.reviewedFourSets!==true)return false;
   }
   const isExecute=url.pathname.endsWith('/iberfit_execute_command_v26');
