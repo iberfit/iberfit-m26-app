@@ -30,7 +30,7 @@ test('Short lists remain direct and fully functional',()=>{
 test('Coach only: Client and Admin planning remain unchanged, IRI unaffected',()=>{
   const source=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(source,/coachPlanning:vm.role==='coach'/u);
-  assert.match(source,/if\(coachPlanning&&entity==='session'&&!clientView\)/u);
+  assert.match(source,/if\(coachPlanning&&!clientView&&\['session','planning'\]\.includes\(entity\)\)/u);
   assert.match(source,/renderPeriodizationBoard\(vm.periodization/u);
   assert.match(source,/iriPlanningContextPanel\(seed\)/u);
 });
@@ -56,4 +56,28 @@ test('Skip to content is visually hidden until focused, with a keyboard escape p
   assert.match(css,/\.m26-skip-link:focus\{[^}]*outline:3px/u);
   const shell=readFileSync(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
   assert.match(shell,/class="m26-skip-link" href="#m26-main"/u);
+});
+
+test('Coach cycles also receive progressive archival disclosure without losing plans or actions',()=>{
+  const cycles=Array.from({length:231},(_,i)=>({
+    ...session(i+1),id:'cycle-'+(i+1),title:'Ciclo '+(i+1),
+  }));
+  const html=renderCoachPlanningSessionsProgressive(cycles,'planning');
+  assert.match(html,/data-coach-planning-entity="planning"/u);
+  assert.match(html,/Consultar otros 225 ciclos/u);
+  assert.match(html,/Ciclos 7–24/u);
+  assert.match(html,/Ciclo 231/u);
+  assert.equal((html.match(/data-publication-card(?:>| )/gu)||[]).length,231);
+  assert.equal((html.match(/data-workflow-action="manage-publication"/gu)||[]).length,231);
+  assert.equal((html.match(/data-coach-planning-batch/g)||[]).length,13);
+  const source=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(source,/publicationList\(vm\.cycles,'planning',[^\n]*coachPlanning:vm\.role==='coach'/u);
+  assert.throws(()=>renderCoachPlanningSessionsProgressive(cycles,'unknown'),/COACH_PLANNING_ENTITY_INVALID/u);
+});
+test('Five-device authenticated QA must check both Coach histories and bound real scroll height',()=>{
+ const src=readFileSync(new URL('../qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs',import.meta.url),'utf8');
+ assert.match(src,/\.toEqual\(\['planning','session'\]\)/u);
+ assert.match(src,/document\.scrollingElement\?\.scrollHeight/u);
+ assert.match(src,/toBeLessThan\(24_000\)/u);
+ assert.match(src,/coachPlanningPageHeight/u);
 });

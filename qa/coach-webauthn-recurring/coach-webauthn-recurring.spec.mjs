@@ -485,34 +485,46 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         device.name+': Coach real planning route').toBeVisible({timeout:12_000});
       await verifyViewport(page,device.name+'-m43-planning');
       const progressivePlanning=page.locator('[data-coach-planning-progressive]');
-      if(await progressivePlanning.count()){
-        const archive=progressivePlanning.locator('[data-coach-planning-archive]');
-        await expect(archive,'Large Coach planning lists expose the full native archive').toHaveCount(1);
-        await expect(archive,'Coach planning archive starts collapsed').not.toHaveAttribute('open','');
+      const surfaceCount=await progressivePlanning.count();
+      const archivalSurfaces=[];
+      for(let surfaceIndex=0;surfaceIndex<surfaceCount;surfaceIndex++){
+        const surface=progressivePlanning.nth(surfaceIndex);
+        const entity=await surface.getAttribute('data-coach-planning-entity');
+        expect(['planning','session'],device.name+': progressive Coach entity must be scoped')
+          .toContain(entity);
+        expect(archivalSurfaces,device.name+': duplicate planning entity').not.toContain(entity);
+        archivalSurfaces.push(entity);
+        const archive=surface.locator('[data-coach-planning-archive]');
+        await expect(archive,device.name+': '+entity+' exposes complete native archive').toHaveCount(1);
+        await expect(archive,device.name+': archive starts collapsed').not.toHaveAttribute('open','');
         const archiveGroups=archive.locator('.m26-coach-planning-archive-groups');
-        await expect(archiveGroups,'Closed archive MUST hide session cards visually').toBeHidden();
+        await expect(archiveGroups,'Closed '+entity+' archive MUST hide cards visually').toBeHidden();
         await archive.locator(':scope > summary').click();
-        await expect(archiveGroups,'Coach archive is discoverable on activation').toBeVisible();
+        await expect(archiveGroups,entity+' archive is discoverable by touch').toBeVisible();
         const firstBatch=archive.locator('[data-coach-planning-batch]').first();
         await expect(firstBatch.locator(':scope > .m26-stack'),
-          'Closed nested batch MUST hide its cards').toBeHidden();
+          'Closed '+entity+' batch MUST hide its cards').toBeHidden();
         await firstBatch.locator(':scope > summary').click();
         await expect(firstBatch.locator(':scope > .m26-stack'),
-          'Nested batch can open while retaining all actions').toBeVisible();
+          'Nested '+entity+' batch opens with all controls').toBeVisible();
         await firstBatch.locator(':scope > summary').click();
         await archive.locator(':scope > summary').click();
         await expect(archiveGroups).toBeHidden();
-        const allCards=await progressivePlanning.locator('[data-publication-card]').count();
-        expect(allCards,'No Coach session was removed by visual progressive disclosure')
-          .toBeGreaterThan(6);
-        const scrollHeight=await page.evaluate(()=>
-          document.scrollingElement?.scrollHeight||document.documentElement.scrollHeight);
-        expect(scrollHeight,device.name+': Coach planning cannot create extreme scroll')
-          .toBeLessThan(24_000);
+        const allCards=await surface.locator('[data-publication-card]').count();
+        expect(allCards,entity+': no historical Coach publication removed').toBeGreaterThan(6);
         (evidence.coachPlanningProgressive??=[]).push({
-          viewport:device.name,allCards,scrollHeight,archiveCollapsed:true,
+          viewport:device.name,entity,allCards,archiveCollapsed:true,
         });
       }
+      // Both histories must be collapsed: hiding only Sessions previously
+      // left hundreds of Cycle cards expanding the same 117,764px document.
+      expect(archivalSurfaces,device.name+': both Coach histories need archival grouping')
+        .toEqual(['planning','session']);
+      const scrollHeight=await page.evaluate(()=>
+        document.scrollingElement?.scrollHeight||document.documentElement.scrollHeight);
+      expect(scrollHeight,device.name+': Coach planning cannot create extreme scroll')
+        .toBeLessThan(24_000);
+      (evidence.coachPlanningPageHeight??=[]).push({viewport:device.name,scrollHeight});
       await page.screenshot({path:path.join(OUT_DIR,`m43-${device.name}-coach-planning.png`),fullPage:true});
       evidence.devices.push({...device,passed:true,m43CoachWorkspace:true});
       if(device.name==='desktop'||device.name==='mobile'){

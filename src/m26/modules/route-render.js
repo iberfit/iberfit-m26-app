@@ -3856,25 +3856,28 @@ function publicationCard(item,entity){
  * Never reorder sessions, modify publication state or hide Client/Admin. */
 export const COACH_PLANNING_VISIBLE_SESSIONS=6;
 export const COACH_PLANNING_ARCHIVE_GROUP=18;
-export function renderCoachPlanningSessionsProgressive(items=[]){
+export function renderCoachPlanningSessionsProgressive(items=[],entity='session'){
+  if(!['planning','session'].includes(entity))throw new Error('COACH_PLANNING_ENTITY_INVALID');
   const visible=items.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
-    .map(item=>publicationCard(item,'session')).join('');
+    .map(item=>publicationCard(item,entity)).join('');
   const remaining=items.slice(COACH_PLANNING_VISIBLE_SESSIONS);
   if(!remaining.length)return `<div class="m26-stack">${visible}</div>`;
   const groups=[];
+  const noun=entity==='planning'?'ciclos':'sesiones';
+  const groupNoun=entity==='planning'?'Ciclos':'Sesiones';
   for(let offset=0;offset<remaining.length;offset+=COACH_PLANNING_ARCHIVE_GROUP){
     const slice=remaining.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
     const from=COACH_PLANNING_VISIBLE_SESSIONS+offset+1;
     const to=from+slice.length-1;
     groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch>
-      <summary>Sesiones ${from}–${to}<span aria-hidden="true">+</span></summary>
-      <div class="m26-stack">${slice.map(item=>publicationCard(item,'session')).join('')}</div>
+      <summary>${groupNoun} ${from}–${to}<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack">${slice.map(item=>publicationCard(item,entity)).join('')}</div>
     </details>`);
   }
-  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive>
+  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}">
     ${visible}
     <details class="m26-coach-planning-archive" data-coach-planning-archive>
-      <summary><span><strong>Consultar otras ${remaining.length} sesiones</strong>
+      <summary><span><strong>Consultar ${entity==='planning'?'otros':'otras'} ${remaining.length} ${noun}</strong>
         <small>Historial completo, dividido en grupos. Todas las acciones siguen disponibles.</small></span>
         <span aria-hidden="true">+</span></summary>
       <div class="m26-coach-planning-archive-groups">${groups.join('')}</div>
@@ -3885,8 +3888,8 @@ function publicationList(items,entity,emptyTitle,{clientView=false,canStartSessi
   if(!items?.length)return emptyState(emptyTitle,clientView
     ?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.'
     :'No hay contenido dentro del alcance seleccionado.');
-  if(coachPlanning&&entity==='session'&&!clientView)
-    return renderCoachPlanningSessionsProgressive(items);
+  if(coachPlanning&&!clientView&&['session','planning'].includes(entity))
+    return renderCoachPlanningSessionsProgressive(items,entity);
   return `<div class="m26-stack">${items.map(item=>clientView
     ?clientContentCard(item,entity,{canStartSession})
     :publicationCard(item,entity)).join('')}</div>`;
@@ -4210,7 +4213,7 @@ export function renderPlanningRoute(vm){
     <section id="m26-planning-publications" class="m26-content-grid m26-planning-publication-grid" tabindex="-1">
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Versiones y publicación'}</h2></div>${!isClient?badge(`${approvedCycles} aprobados`,'neutral'):''}</div>
-        ${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient})}
+        ${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient,coachPlanning:vm.role==='coach'})}
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
