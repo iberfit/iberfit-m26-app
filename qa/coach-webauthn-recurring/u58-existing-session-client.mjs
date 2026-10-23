@@ -47,8 +47,11 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
         if(cmd.entityId!==scope.executionId&&
           !(cmd.type==='SESION_INICIAR'&&cmd.entityId===scope.sessionId))return;
         const ack=await response.json();
-        if(ack?.kind==='ack'&&ack?.operationId===cmd.operationId)
-          acks.push({type:String(cmd.type),revision:Number(ack.remoteRevision)||0});
+        const ackId=String(ack?.operationId||ack?.operation_id||'');
+        const revision=Number(ack?.remoteRevision??ack?.remote_revision);
+        if(['ack','duplicate'].includes(String(ack?.kind||'').toLowerCase())&&
+          ackId===cmd.operationId&&Number.isInteger(revision)&&revision>=0)
+          acks.push({type:String(cmd.type),revision});
       }
     }catch{}
   });
@@ -108,7 +111,9 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
     await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
     await expect.poll(()=>acks.some(x=>x.type==='SESION_INICIAR'),{timeout:20_000}).toBe(true);
     started=true;
-    const dock=page.locator('[data-session-focus-dock]:not(.is-inline) .m27-session-focus-primary');
+    // Use actual Client V3 buttons. The former dock selector is absent.
+    const completeSet=page.locator('[data-session-live-state="active"] [data-session-action="complete-set"]');
+    const advanceRest=page.locator('[data-session-live-state="rest"] [data-session-action="next"]');
     await page.locator('[data-session-action="pause"]').first().click();
     await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible({timeout:20_000});
     await page.locator('[data-session-action="resume"]').click();
@@ -118,16 +123,18 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
       await page.locator('[data-set-field="reps"]').first().fill('8');
       await page.locator('[data-set-field="load"]').first().fill('10 kg');
       await page.locator('[data-set-field="rpe"]').first().fill(n%2===0?'8':'7');
-      await expect(dock,'Touchable action on the active Client screen').toBeVisible();
-      await dock.click();
+      await expect(completeSet,'Actual Client V3 Completar serie must be actionable')
+        .toBeVisible({timeout:20_000});
+      await expect(completeSet).toBeEnabled({timeout:20_000});
+      await completeSet.click();
       await expect.poll(()=>acks.filter(x=>x.type==='EJECUCION_GUARDAR_PROGRESO').length,
         {timeout:25_000}).toBeGreaterThanOrEqual(n);
       await expect(page.locator('[data-session-rest-focus]'),
         'Each confirmed set must reach the genuine rest / advance state').toBeVisible({timeout:20_000});
       await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
-      await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
-      await expect(dock).toBeEnabled({timeout:20_000});
-      await dock.click();
+      await expect(advanceRest,'Actual Client V3 Continuar ahora must be enabled')
+        .toBeEnabled({timeout:20_000});
+      await advanceRest.click();
       if(n===4)break; // The last NEXT, not COMPLETE SET, opens final feedback.
       await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
     }
