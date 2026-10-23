@@ -114,7 +114,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   expect(sessionId).toMatch(UUID);
   const disclosure=card.locator('details.m26-session-preview-disclosure');
   await expect(disclosure).toBeVisible();
-  await disclosure.locator('summary').click();
+  await disclosure.locator(':scope > summary').click();
   const entry=card.locator('[data-workflow-action="start-published-session"]');
   await expect(entry).toBeVisible();
   await entry.click();
