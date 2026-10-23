@@ -321,6 +321,15 @@ function renderCoachHoyRoute(vm) {
     ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${escapeHtml(primary.clientId)}" data-m26-target-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`
     :`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`;
 
+  // The hero is the only primary action in Coach Hoy. Keep every destination
+  // discoverable, but do not render its identical global destination twice.
+  // Client-scoped hero actions are different from global quick destinations.
+  const quickActions=[
+    {area:'clientes',label:'Clientes',glyph:'＋'},
+    {area:'planificacion',label:'Programar entrenamiento',glyph:'◇'},
+    {area:'agenda',label:'Agenda',glyph:'□'},
+  ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
+
   const attentionCount=Number(cockpit?.attentionCount||0);
   const attentionStatus=attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
@@ -387,10 +396,8 @@ function renderCoachHoyRoute(vm) {
     </section>
     <!-- m26-coach-launch-self-slot -->
 
-    <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
-      <button type="button" data-m26-area="clientes"><span aria-hidden="true">＋</span><strong>Cliente</strong></button>
-      <button type="button" data-m26-area="planificacion"><span aria-hidden="true">◇</span><strong>Programar entrenamiento</strong></button>
-      <button type="button" data-m26-area="agenda"><span aria-hidden="true">□</span><strong>Agenda</strong></button>
+    <nav class="m26-coach-home-quick" aria-label="Accesos complementarios">
+      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}"><span aria-hidden="true">${glyph}</span><strong>${label}</strong></button>`).join('')}
     </nav>
 
     <div class="m26-coach-home-grid">
