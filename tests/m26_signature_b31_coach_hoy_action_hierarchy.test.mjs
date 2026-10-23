@@ -12,7 +12,7 @@ function coachVm(overrides={}){
   };
 }
 function quickNav(html){
-  const nav=html.match(/<nav class="m26-coach-home-quick"[\\s\\S]*?<\\/nav>/u)?.[0];
+  const nav=html.match(/<nav class="m26-coach-home-quick"[\s\S]*?<\/nav>/u)?.[0];
   assert.ok(nav,'Coach Hoy keeps its visible quick destinations');
   return nav;
 }
