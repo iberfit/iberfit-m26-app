@@ -269,9 +269,9 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
       if (kind === 'ack' || kind === 'duplicate') {
         recordConfirmedExecutionRevision(command,response);
         if(isExecutionCompletionCommand(command)){
-          // The terminal write is on the server. Prevent stale progress from
-          // being replayed even if local receipt cleanup later fails.
-          await sealConfirmedExecutionCompletion(command);
+          // Close the live browser race immediately. No storage failure may
+          // downgrade the already-committed server ACK to a retryable write.
+          terminalExecutionLineages.add(executionLineage(command));
         }
         // The remote revision is known at ACK arrival. Give the active
         // execution its server-confirmed CAS value BEFORE the optional full
@@ -294,13 +294,19 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
             catch{acknowledged=await persist(command,'ack',ackMeta);}
           }
         }catch{localReceiptOk=false;}
+        if(isExecutionCompletionCommand(command)){
+          try{await sealConfirmedExecutionCompletion(command);}
+          catch{localReceiptOk=false;}
+        }
         // The server ACK is authoritative. Post-ACK local reconciliation can
         // fail because of a refresh, another tab or offline storage. Never turn
         // a successful publication into a new pending/rejected mutation:
         // retrying a different operation ID could otherwise create duplicates.
         let lineageOk=true,refreshOk=true;
-        try { await rebaseNextQueuedLineage({...queued,...command},response); }
-        catch { lineageOk=false; }
+        if(!isExecutionCompletionCommand(command)){
+          try { await rebaseNextQueuedLineage({...queued,...command},response); }
+          catch { lineageOk=false; }
+        }
         // A server-confirmed workout completion is already durable. The optional
         // full bootstrap is not a part of its CAS or persistence boundary:
         // holding the ACK behind it can make the Client show "pending" after
