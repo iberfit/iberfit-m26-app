@@ -142,7 +142,7 @@ export async function certifyU56OnlineCoachPublish({
   expect(await card.getAttribute('data-rc39-session')).toBe(scope.sessionId);
   const preview=card.locator('details.m26-session-preview-disclosure');
   await expect(preview).toBeVisible();
-  await preview.locator('summary').click();
+  await preview.locator(':scope > summary').click();
   await expect(card.locator('[data-workflow-action="start-published-session"]'),
     'Guided publication must provide Client start CTA').toHaveCount(1);
   expect(client.evidence.blocked,'No forbidden Client requests').toEqual([]);
@@ -192,7 +192,7 @@ export async function certifyU57ExistingClientReadback({browser,installPolicy,ev
     expect(sessionId).toMatch(UUID);
     const disclosure=card.locator('details.m26-session-preview-disclosure');
     await expect(disclosure).toBeVisible();
-    await disclosure.locator('summary').click();
+    await disclosure.locator(':scope > summary').click();
     const action=card.locator('[data-workflow-action="start-published-session"]');
     await expect(action,'Confirmed guided session can be started by its real Client')
       .toBeVisible({timeout:10_000});
