@@ -111,7 +111,10 @@ jobs:
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
           # U56: one-shot QA mutation only on an explicitly titled trusted
           # Canary squash PUSH, never on PR, dispatch, or routine later merges.
-          M26_QA_U56_PUBLISH: ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'SIGNATURE U56:') }}
+          M26_QA_U56_PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U56:') }}
+          # U57 readback targets the already-published U56 QA fixture. No new
+          # session publication, training start, write permission or bypass.
+          M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U57:') }}
           M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
           # Only the exact SIGNATURE U37 Canary merge tests versioned QA RPCs.

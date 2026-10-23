@@ -1,5 +1,5 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
-import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish} from './u56-qa-publish.mjs';
+import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish,certifyU57ExistingClientReadback} from './u56-qa-publish.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -515,6 +515,12 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       await certifyU56OnlineCoachPublish({
         page,context,cdp,client:u56Client,scope:u56Scope,evidence,setDevice,
       });
+    }
+    if(process.env.M26_QA_U57_VERIFY==='true'){
+      expect(process.env.M26_QA_U56_PUBLISH,
+        'U57 prior-session readback must never activate the old publication gate')
+        .not.toBe('true');
+      await certifyU57ExistingClientReadback({browser,installPolicy,evidence});
     }
   }finally{
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
