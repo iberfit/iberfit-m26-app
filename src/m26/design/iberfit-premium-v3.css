@@ -382,6 +382,45 @@
   background:#14241D!important;
 }
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button:hover{background:#192D24!important}
+/* SIGNATURE B3.1 · Coach Hoy has one dominant decision; secondary routes
+ * form a quiet, keyboard/touch-accessible command strip rather than more cards. */
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));
+  gap:.6rem;
+  align-items:stretch;
+  margin-block:clamp(.7rem,1.35vw,1rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.65rem;
+  min-width:0;
+  min-height:44px;
+  padding:.65rem .85rem;
+  border-radius:12px;
+  text-align:start;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button>span{
+  flex:none;
+  color:var(--iberfit-v3-gold);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button>strong{
+  min-width:0;
+  overflow-wrap:anywhere;
+  font-size:.875rem;
+  font-weight:600;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button:focus-visible{
+  outline:2px solid var(--iberfit-v3-gold);
+  outline-offset:3px;
+}
+@media(max-width:520px){
+  .m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
 .m26-shell[data-m26-role="coach"] :is(.m26-client-card.is-active,.m26-client-card[aria-current="true"],[data-selected-client="true"]){
   border-color:rgba(197,160,89,.42)!important;
   background:#213B2D!important;
