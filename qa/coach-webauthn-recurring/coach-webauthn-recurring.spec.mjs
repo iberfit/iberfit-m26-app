@@ -489,6 +489,19 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         const archive=progressivePlanning.locator('[data-coach-planning-archive]');
         await expect(archive,'Large Coach planning lists expose the full native archive').toHaveCount(1);
         await expect(archive,'Coach planning archive starts collapsed').not.toHaveAttribute('open','');
+        const archiveGroups=archive.locator('.m26-coach-planning-archive-groups');
+        await expect(archiveGroups,'Closed archive MUST hide session cards visually').toBeHidden();
+        await archive.locator(':scope > summary').click();
+        await expect(archiveGroups,'Coach archive is discoverable on activation').toBeVisible();
+        const firstBatch=archive.locator('[data-coach-planning-batch]').first();
+        await expect(firstBatch.locator(':scope > .m26-stack'),
+          'Closed nested batch MUST hide its cards').toBeHidden();
+        await firstBatch.locator(':scope > summary').click();
+        await expect(firstBatch.locator(':scope > .m26-stack'),
+          'Nested batch can open while retaining all actions').toBeVisible();
+        await firstBatch.locator(':scope > summary').click();
+        await archive.locator(':scope > summary').click();
+        await expect(archiveGroups).toBeHidden();
         const allCards=await progressivePlanning.locator('[data-publication-card]').count();
         expect(allCards,'No Coach session was removed by visual progressive disclosure')
           .toBeGreaterThan(6);

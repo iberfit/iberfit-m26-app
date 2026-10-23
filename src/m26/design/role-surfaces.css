@@ -4608,6 +4608,13 @@ m26-echart[data-density="compact"]{
 .m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>.m26-stack{
   padding:.5rem;min-width:0;
 }
+/* Author display:grid on archive groups / .m26-stack beats Chromium's UA
+ * details:not([open]) display:none. Explicitly keep CLOSED disclosures
+ * hidden: otherwise all 231 cards stretch the page despite no open attr. */
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive:not([open])>.m26-coach-planning-archive-groups,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch:not([open])>.m26-stack{
+  display:none;
+}
 .m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary:focus-visible,
 .m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>summary:focus-visible{
   outline:3px solid var(--iberfit-color-accent);outline-offset:3px;
