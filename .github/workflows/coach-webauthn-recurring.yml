@@ -37,6 +37,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: node --check qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs
       - run: node --test tests/m26_coach_webauthn_recurring_contract.test.mjs
 
   live-coach-webauthn:
