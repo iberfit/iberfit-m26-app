@@ -24,6 +24,21 @@ export async function certifyU59CoachConfirmedReadback({
   const client=await openU56ClientReadOnly(browser,installPolicy);
   const clientId=client.clientId;
   try{
+    const dismissClientGuidance=async()=>{
+      const welcome=client.page.locator('[data-m26-client-guided-welcome]');
+      if(await welcome.isVisible().catch(()=>false)){
+        const pause=client.page.locator('[data-m26-client-guided-welcome-pause]').first();
+        if(await pause.isVisible().catch(()=>false))await pause.click();
+      }
+      for(const selector of [
+        '[data-m26-guided-tour-close]:visible',
+        '[data-m26-client-context-guide-close]:visible',
+      ]){
+        const button=client.page.locator(selector).first();
+        if(await button.isVisible().catch(()=>false))await button.click();
+      }
+    };
+    await dismissClientGuidance();
     await client.page.locator('[data-m26-area="sesion"]:visible').first().click();
     const history=client.page.locator(
       '[data-m43-session-history] [data-m43-completed-session]',
@@ -37,11 +52,7 @@ export async function certifyU59CoachConfirmedReadback({
     await client.page.reload({waitUntil:'domcontentloaded',timeout:25_000});
     await expect(client.page.locator('[data-m26-interactive="ready"]'))
       .toHaveCount(1,{timeout:30_000});
-    const welcome=client.page.locator('[data-m26-client-guided-welcome]');
-    if(await welcome.isVisible().catch(()=>false)){
-      const dismiss=client.page.locator('[data-m26-client-guided-welcome-pause]').first();
-      if(await dismiss.count())await dismiss.click();
-    }
+    await dismissClientGuidance();
     await client.page.locator('[data-m26-area="sesion"]:visible').first().click();
     await expect(client.page.locator(
       '[data-m43-session-history] [data-m43-completed-session]',
