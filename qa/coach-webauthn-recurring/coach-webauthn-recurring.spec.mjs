@@ -484,6 +484,22 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       await expect(page.locator('.m26-route').first(),
         device.name+': Coach real planning route').toBeVisible({timeout:12_000});
       await verifyViewport(page,device.name+'-m43-planning');
+      const progressivePlanning=page.locator('[data-coach-planning-progressive]');
+      if(await progressivePlanning.count()){
+        const archive=progressivePlanning.locator('[data-coach-planning-archive]');
+        await expect(archive,'Large Coach planning lists expose the full native archive').toHaveCount(1);
+        await expect(archive,'Coach planning archive starts collapsed').not.toHaveAttribute('open','');
+        const allCards=await progressivePlanning.locator('[data-publication-card]').count();
+        expect(allCards,'No Coach session was removed by visual progressive disclosure')
+          .toBeGreaterThan(6);
+        const scrollHeight=await page.evaluate(()=>
+          document.scrollingElement?.scrollHeight||document.documentElement.scrollHeight);
+        expect(scrollHeight,device.name+': Coach planning cannot create extreme scroll')
+          .toBeLessThan(24_000);
+        (evidence.coachPlanningProgressive??=[]).push({
+          viewport:device.name,allCards,scrollHeight,archiveCollapsed:true,
+        });
+      }
       await page.screenshot({path:path.join(OUT_DIR,`m43-${device.name}-coach-planning.png`),fullPage:true});
       evidence.devices.push({...device,passed:true,m43CoachWorkspace:true});
       if(device.name==='desktop'||device.name==='mobile'){

@@ -3850,7 +3850,47 @@ function publicationCard(item,entity){
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
   return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}</article>`;
 }
-function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true}={}){if(!items?.length)return emptyState(emptyTitle,clientView?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.':'No hay contenido dentro del alcance seleccionado.');return `<div class="m26-stack">${items.map((item)=>clientView?clientContentCard(item,entity,{canStartSession}):publicationCard(item,entity)).join('')}</div>`;}
+
+/* SIGNATURE Coach · A visible working set, then all previous sessions grouped
+ * into native disclosures. The full data and its actions remain in the DOM.
+ * Never reorder sessions, modify publication state or hide Client/Admin. */
+export const COACH_PLANNING_VISIBLE_SESSIONS=6;
+export const COACH_PLANNING_ARCHIVE_GROUP=18;
+export function renderCoachPlanningSessionsProgressive(items=[]){
+  const visible=items.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
+    .map(item=>publicationCard(item,'session')).join('');
+  const remaining=items.slice(COACH_PLANNING_VISIBLE_SESSIONS);
+  if(!remaining.length)return `<div class="m26-stack">${visible}</div>`;
+  const groups=[];
+  for(let offset=0;offset<remaining.length;offset+=COACH_PLANNING_ARCHIVE_GROUP){
+    const slice=remaining.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
+    const from=COACH_PLANNING_VISIBLE_SESSIONS+offset+1;
+    const to=from+slice.length-1;
+    groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch>
+      <summary>Sesiones ${from}–${to}<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack">${slice.map(item=>publicationCard(item,'session')).join('')}</div>
+    </details>`);
+  }
+  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive>
+    ${visible}
+    <details class="m26-coach-planning-archive" data-coach-planning-archive>
+      <summary><span><strong>Consultar otras ${remaining.length} sesiones</strong>
+        <small>Historial completo, dividido en grupos. Todas las acciones siguen disponibles.</small></span>
+        <span aria-hidden="true">+</span></summary>
+      <div class="m26-coach-planning-archive-groups">${groups.join('')}</div>
+    </details>
+  </div>`;
+}
+function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true,coachPlanning=false}={}){
+  if(!items?.length)return emptyState(emptyTitle,clientView
+    ?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.'
+    :'No hay contenido dentro del alcance seleccionado.');
+  if(coachPlanning&&entity==='session'&&!clientView)
+    return renderCoachPlanningSessionsProgressive(items);
+  return `<div class="m26-stack">${items.map(item=>clientView
+    ?clientContentCard(item,entity,{canStartSession})
+    :publicationCard(item,entity)).join('')}</div>`;
+}
 function selectedOption(value, expected) {
   return value === expected ? ' selected' : '';
 }
@@ -4174,7 +4214,7 @@ export function renderPlanningRoute(vm){
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
-        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false})}
+        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false,coachPlanning:vm.role==='coach'})}
       </section>
     </section>
   </div>`;
