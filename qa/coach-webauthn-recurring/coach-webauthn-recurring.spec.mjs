@@ -2,6 +2,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish,certifyU57ExistingClientReadback} from './u56-qa-publish.mjs';
 import {permittedU58ExecutionWrite} from './u58-execution-policy.mjs';
 import {certifyU58ExistingClientExecution} from './u58-existing-session-client.mjs';
+import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -529,6 +530,13 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       expect(process.env.M26_QA_U56_PUBLISH).not.toBe('true');
       expect(process.env.M26_QA_U57_VERIFY).not.toBe('true');
       await certifyU58ExistingClientExecution({browser,installPolicy,evidence});
+    }
+    if(process.env.M26_QA_U59_READBACK==='true'){
+      for(const flag of ['M26_QA_U56_PUBLISH','M26_QA_U58_EXECUTE'])
+        expect(process.env[flag], 'U59 never authorizes QA mutation').not.toBe('true');
+      await certifyU59CoachConfirmedReadback({
+        browser,page,cdp,installPolicy,openCertifiedCoachArea,setDevice,evidence,
+      });
     }
   }finally{
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.

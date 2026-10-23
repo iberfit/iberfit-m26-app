@@ -42,6 +42,8 @@ jobs:
       - run: node --check qa/coach-webauthn-recurring/u56-qa-publish.mjs
       - run: node --check qa/coach-webauthn-recurring/u58-execution-policy.mjs
       - run: node --check qa/coach-webauthn-recurring/u58-existing-session-client.mjs
+      - run: node --check qa/coach-webauthn-recurring/u59-coach-readback.mjs
+      - run: node --test tests/m26_u59_readback_contract.test.mjs
       - run: node --test tests/m26_u58_existing_execution_scope.test.mjs
       - run: node --test tests/m26_u56_coach_publish_scope.test.mjs
       - run: node --test tests/m26_coach_webauthn_recurring_contract.test.mjs
@@ -118,6 +120,10 @@ jobs:
           # U58 executes the exact pre-existing QA U56 session only once.
           # No published session is created. A rerun stays read-only.
           M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U58:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58R:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58S:')) }}
+          # U59: one-shot read-only Coach+Client check of already ACKed U58S.
+          # Pull requests, reruns and a second execution NEVER get this flag.
+          M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U59:') }}
+
           # U57 readback targets the already-published U56 QA fixture. No new
           # session publication, training start, write permission or bypass.
           M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U57:') || startsWith(github.event.head_commit.message, 'SIGNATURE U57R:')) }}
