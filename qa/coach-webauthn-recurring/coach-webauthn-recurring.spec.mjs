@@ -514,6 +514,16 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       await clientSelector.selectOption(u56Client.clientId);
       u56Scope.clientId=u56Client.clientId;
     }
+    // U59R must run against the authentically MFA-hydrated online Coach
+    // workspace BEFORE U55 intentionally disconnects this context and leaves
+    // a local builder open. Never restore network around unsynced QA drafts.
+    if(process.env.M26_QA_U59_READBACK==='true'){
+      for(const flag of ['M26_QA_U56_PUBLISH','M26_QA_U58_EXECUTE'])
+        expect(process.env[flag], 'U59 never authorizes QA mutation').not.toBe('true');
+      await certifyU59CoachConfirmedReadback({
+        browser,page,cdp,installPolicy,setDevice,evidence,
+      });
+    }
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
     if(u56Client){
       await certifyU56OnlineCoachPublish({
@@ -531,13 +541,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       expect(process.env.M26_QA_U57_VERIFY).not.toBe('true');
       await certifyU58ExistingClientExecution({browser,installPolicy,evidence});
     }
-    if(process.env.M26_QA_U59_READBACK==='true'){
-      for(const flag of ['M26_QA_U56_PUBLISH','M26_QA_U58_EXECUTE'])
-        expect(process.env[flag], 'U59 never authorizes QA mutation').not.toBe('true');
-      await certifyU59CoachConfirmedReadback({
-        browser,page,cdp,installPolicy,openCertifiedCoachArea,setDevice,evidence,
-      });
-    }
+
   }finally{
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
     // Do not redact an HTTP 500 into success or swallow an unexpected page error.
