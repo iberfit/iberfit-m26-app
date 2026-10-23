@@ -40,6 +40,9 @@ jobs:
       - run: npm ci
       - run: node --check qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs
       - run: node --check qa/coach-webauthn-recurring/u56-qa-publish.mjs
+      - run: node --check qa/coach-webauthn-recurring/u58-execution-policy.mjs
+      - run: node --check qa/coach-webauthn-recurring/u58-existing-session-client.mjs
+      - run: node --test tests/m26_u58_existing_execution_scope.test.mjs
       - run: node --test tests/m26_u56_coach_publish_scope.test.mjs
       - run: node --test tests/m26_coach_webauthn_recurring_contract.test.mjs
 
@@ -112,6 +115,9 @@ jobs:
           # U56: one-shot QA mutation only on an explicitly titled trusted
           # Canary squash PUSH, never on PR, dispatch, or routine later merges.
           M26_QA_U56_PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U56:') }}
+          # U58 executes the exact pre-existing QA U56 session only once.
+          # No published session is created. A rerun stays read-only.
+          M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U58:') }}
           # U57 readback targets the already-published U56 QA fixture. No new
           # session publication, training start, write permission or bypass.
           M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U57:') || startsWith(github.event.head_commit.message, 'SIGNATURE U57R:')) }}
