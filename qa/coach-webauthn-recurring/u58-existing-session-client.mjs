@@ -1,0 +1,167 @@
+/**
+ * SIGNATURE U58 · one existing U56 session, one real Client QA workout.
+ * This file is inert unless explicitly called from a trusted canary push.
+ * On unexpected failure, preserve server state for forensic recovery instead
+ * of resetting Client A or silently overwriting active execution.
+ */
+import {createU58ExecutionScope,U58_EXISTING_QA_SESSION_TITLE} from './u58-execution-policy.mjs';
+
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+const QA_ORIGIN='https://gjztkdwfmunnzhtvxrsu.supabase.co';
+const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
+
+export async function certifyU58ExistingClientExecution({browser,installPolicy,evidence}){
+  const {expect}=await import('@playwright/test');
+  if(process.env.M26_QA_U58_EXECUTE!=='true')throw Error('U58_NOT_AUTHORIZED');
+  if(process.env.M26_QA_CLIENT_A_EMAIL!=='qa.rc74.client-a@iberfit.cl'||
+    !process.env.M26_QA_CLIENT_A_PASSWORD)throw Error('U58_QA_IDENTITY_MISSING');
+  const context=await browser.newContext({
+    locale:'es-ES',timezoneId:'America/Santiago',
+    serviceWorkers:'block',viewport:{width:390,height:844},hasTouch:true,
+  });
+  const clientEvidence={blocked:[],qaRequests:[],webauthnActions:[]};
+  const scope={enabled:false};
+  let started=false,finished=false;
+  await installPolicy(context,clientEvidence,scope);
+  const page=await context.newPage();
+  const errors=[],acks=[],httpErrors=[];
+  let clientId=null,bootstrapEntities=null;
+  page.on('pageerror',err=>errors.push(String(err?.message||'PAGE_ERROR').slice(0,160)));
+  page.on('response',async response=>{
+    try{
+      const url=new URL(response.url());
+      if(url.origin!==QA_ORIGIN)return;
+      if(response.status()>=500)httpErrors.push(String(response.status())+' '+url.pathname);
+      if(response.status()!==200)return;
+      if(url.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'){
+        const payload=await response.json();
+        const next=String(payload?.user?.clientId||'');
+        if(['client','cliente'].includes(String(payload?.user?.role||'').toLowerCase())&&UUID.test(next)){
+          clientId=next;
+          bootstrapEntities=Array.isArray(payload?.data?.m26Entities)?payload.data.m26Entities:[];
+        }
+      }
+      if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'){
+        const cmd=response.request().postDataJSON()?.p_command;
+        if(!cmd||!scope.executionId)return;
+        if(cmd.entityId!==scope.executionId&&
+          !(cmd.type==='SESION_INICIAR'&&cmd.entityId===scope.sessionId))return;
+        const ack=await response.json();
+        if(ack?.kind==='ack'&&ack?.operationId===cmd.operationId)
+          acks.push({type:String(cmd.type),revision:Number(ack.remoteRevision)||0});
+      }
+    }catch{}
+  });
+  try{
+    await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
+    await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
+    await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+    await page.getByRole('button',{name:'Entrar',exact:true}).click();
+    await expect(page.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:40_000});
+    await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
+    await expect.poll(()=>clientId,{timeout:15_000}).toMatch(UUID);
+    for(const [selector,action] of [
+      ['[data-m26-client-guided-welcome]','[data-m26-client-guided-welcome-pause]'],
+      ['[data-m26-guided-tour-close]:visible',null],
+      ['[data-m26-client-context-guide-close]:visible',null],
+    ]){
+      const node=page.locator(selector).first();
+      if(await node.isVisible().catch(()=>false)){
+        const button=action?page.locator(action).first():node;
+        if(await button.count())await button.click();
+      }
+    }
+    await page.locator('[data-m26-area="sesion"]:visible').first().click();
+    await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
+    const card=page.locator('[data-rc39-session]').filter({hasText:U58_EXISTING_QA_SESSION_TITLE});
+    await expect(card,'Only the real pre-existing U56 session can be executed').toHaveCount(1,{timeout:25_000});
+    const sessionId=await card.getAttribute('data-rc39-session');
+    expect(sessionId).toMatch(UUID);
+    const already=(bootstrapEntities||[]).filter(entity=>
+      entity?.entityType==='session_execution'&&
+      String(entity?.body?.sessionId||'')===sessionId);
+    expect(already,'No previous execution may be overwritten or replayed').toHaveLength(0);
+    Object.assign(scope,createU58ExecutionScope({
+      clientId,sessionId,sessionTitle:U58_EXISTING_QA_SESSION_TITLE,
+      confirmedNoPriorExecution:true,
+    }));
+    const summary=card.locator('details.m26-session-preview-disclosure > summary');
+    await expect(summary).toBeVisible();
+    await summary.click();
+    const startCTA=card.locator('[data-workflow-action="start-published-session"]');
+    await expect(startCTA).toBeVisible();
+    scope.enabled=true;
+    await startCTA.click();
+    const live=page.locator('[data-session-live-state]');
+    await expect(live).toBeVisible({timeout:20_000});
+    if(await page.locator('[data-session-live-state="ready"]').count())
+      await page.locator('[data-session-action="start"]').click();
+    await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
+    await expect.poll(()=>acks.some(x=>x.type==='SESION_INICIAR'),{timeout:20_000}).toBe(true);
+    started=true;
+    const dock=page.locator('[data-session-focus-dock]:not(.is-inline) .m27-session-focus-primary');
+    await page.locator('[data-session-action="pause"]').first().click();
+    await expect(page.locator('[data-session-live-state="paused"]')).toBeVisible({timeout:20_000});
+    await page.locator('[data-session-action="resume"]').click();
+    await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
+
+    for(let n=1;n<=4;n++){
+      await page.locator('[data-set-field="reps"]').first().fill('8');
+      await page.locator('[data-set-field="load"]').first().fill('10 kg');
+      await page.locator('[data-set-field="rpe"]').first().fill(n%2===0?'8':'7');
+      await expect(dock,'Touchable action on the active Client screen').toBeVisible();
+      await dock.click();
+      await expect.poll(()=>acks.filter(x=>x.type==='EJECUCION_GUARDAR_PROGRESO').length,
+        {timeout:25_000}).toBeGreaterThanOrEqual(n);
+      if(n===4)break;
+      await expect(page.locator('[data-session-rest-focus]'),
+        'Each actual progression must preserve the rest step').toBeVisible({timeout:20_000});
+      await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
+      await expect(dock).toBeEnabled({timeout:20_000});
+      await dock.click();
+      await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
+    }
+    await expect(page.locator('[data-session-live-state="feedback"]'),
+      'Four sets must reach final feedback, not an early completion').toBeVisible({timeout:25_000});
+    scope.reviewedFourSets=true;
+    await page.locator('[data-session-feedback-rpe]').fill('7');
+    await page.locator('[data-session-feedback-comment]')
+      .fill('IBERFIT QA U58 · cierre sintético de la sesión U56');
+    const finish=page.locator('[data-session-action="finish"]');
+    await expect(finish).toBeEnabled({timeout:20_000});
+    await finish.scrollIntoViewIfNeeded();
+    await finish.click();
+    await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
+    await expect.poll(()=>acks.some(x=>x.type==='EJECUCION_COMPLETAR'),
+      {timeout:20_000}).toBe(true);
+    finished=true;
+    await page.locator('[data-session-action="exit-session"]').first().click();
+    await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible({timeout:25_000});
+    const history=page.locator('[data-m43-session-history] [data-m43-completed-session]')
+      .filter({hasText:U58_EXISTING_QA_SESSION_TITLE});
+    await expect(history).toHaveCount(1,{timeout:25_000});
+    await expect(history).toContainText('4 registros');
+    const writesBeforeReload=scope.uniqueByOperation.size;
+    await page.reload({waitUntil:'domcontentloaded',timeout:25_000});
+    await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:35_000});
+    await page.locator('[data-m26-area="sesion"]:visible').first().click();
+    await expect(page.locator('[data-m43-session-history] [data-m43-completed-session]')
+      .filter({hasText:U58_EXISTING_QA_SESSION_TITLE})).toHaveCount(1,{timeout:25_000});
+    expect(scope.uniqueByOperation.size,'Reload must never repeat server mutations')
+      .toBe(writesBeforeReload);
+    expect(clientEvidence.blocked).toEqual([]);
+    expect(errors).toEqual([]);
+    expect(httpErrors).toEqual([]);
+    evidence.u58ExistingClientExecution={
+      verified:true,started:true,finished:true,
+      confirmedSetAcks:acks.filter(x=>x.type==='EJECUCION_GUARDAR_PROGRESO').length,
+      priorExecutions:0,reloadedHistory:true,qaOnly:true,
+    };
+  }finally{
+    evidence.u58ExecutionAttempt={started,finished,
+      distinctOperationCount:scope.uniqueByOperation?.size||0,
+      blockedRequests:clientEvidence.blocked.length,
+      serverErrors:httpErrors.length,clientPageErrors:errors.length};
+    await context.close().catch(()=>{});
+  }
+}
