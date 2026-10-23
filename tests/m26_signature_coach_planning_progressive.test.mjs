@@ -37,6 +37,10 @@ test('Coach only: Client and Admin planning remain unchanged, IRI unaffected',()
 test('Native disclosure retains focus and mobile/reduced-motion accessibility',()=>{
   const css=readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
   assert.match(css,/\.m26-coach-planning-archive>summary:focus-visible/u);
+  // Regression: author-level display:grid overrode the user-agent details
+  // closed-visibility rule and created a 117,764px Coach planning page.
+  assert.match(css,/\.m26-coach-planning-archive:not\(\[open\]\)>\.m26-coach-planning-archive-groups,[\s\S]*?display:none/u);
+  assert.match(css,/\.m26-coach-planning-batch:not\(\[open\]\)>\.m26-stack\{\s*display:none/u);
   assert.match(css,/@media\(max-width:690px\)/u);
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)/u);
   assert.match(css,/@media\(forced-colors:active\)/u);
