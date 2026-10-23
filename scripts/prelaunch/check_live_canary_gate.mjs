@@ -2,6 +2,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from '@playwright/test';
 import {MAX_CANARY_EDGE_ATTEMPTS,isRetryableCanaryStaticFailure} from './m43-canary-edge-policy.mjs';
+import {waitForExactCanarySha} from './canary-exact-sha-convergence.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
@@ -267,8 +268,19 @@ async function certifyViewport(browser,viewport){
 
 await mkdir(EVIDENCE_DIR,{recursive:true});
 
-const versionRaw=await fetchJson(`${CANARY_ORIGIN}/version.json?prelaunch=${Date.now()}`);
-const version=sanitizeVersion(versionRaw);
+const readLiveVersion=()=>fetchJson(`${CANARY_ORIGIN}/version.json?prelaunch=${Date.now()}`);
+const convergence=expectedSha
+  ?await waitForExactCanarySha({
+    readVersion:readLiveVersion,
+    expectedSha,
+    qaProjectRef:QA_REF,
+    branch:BASE_BRANCH,
+    onRetry:({attempt,reason,observedSha})=>{
+      console.warn(`PRELAUNCH_CANARY_CONVERGENCE_WAIT=${attempt}:${reason}:${observedSha||'edge-5xx'}`);
+    },
+  })
+  :{version:sanitizeVersion(await readLiveVersion()),edgeAttempts:1};
+const version=convergence.version;
 invariant(version.sourceSha,'PRELAUNCH_LIVE_VERSION_SHA_INVALID');
 invariant(version.sourceBranch===BASE_BRANCH,'PRELAUNCH_LIVE_VERSION_BRANCH_MISMATCH');
 invariant(version.qaOnly===true,'PRELAUNCH_LIVE_VERSION_NOT_QA');
@@ -277,6 +289,7 @@ if(expectedSha){
   invariant(canonicalSha(expectedSha)===expectedSha,'PRELAUNCH_EXPECTED_SHA_INVALID');
   invariant(version.sourceSha===expectedSha,'PRELAUNCH_LIVE_DEPLOY_SHA_MISMATCH');
 }
+console.log(`PRELAUNCH_CANARY_EXACT_SHA_CONFIRMED=${version.sourceSha}:edgeAttempts=${convergence.edgeAttempts}`);
 
 const browser=await chromium.launch({headless:true});
 let viewports;
