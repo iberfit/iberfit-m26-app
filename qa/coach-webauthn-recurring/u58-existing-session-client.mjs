@@ -38,7 +38,14 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
         const next=String(payload?.user?.clientId||'');
         if(['client','cliente'].includes(String(payload?.user?.role||'').toLowerCase())&&UUID.test(next)){
           clientId=next;
-          bootstrapEntities=Array.isArray(payload?.data?.m26Entities)?payload.data.m26Entities:[];
+          // Do not infer "no prior execution" from a missing/malformed
+          // bootstrap collection. Absence of evidence is NOT permission.
+          const data=payload?.data;
+          bootstrapEntities=Array.isArray(data?.m26Entities)
+            ?data.m26Entities
+            :Array.isArray(data?.sessionExecutions)
+              ?data.sessionExecutions.map(item=>({...item,entityType:'session_execution'}))
+              :null;
         }
       }
       if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'){
@@ -81,7 +88,10 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
     await expect(card,'Only the real pre-existing U56 session can be executed').toHaveCount(1,{timeout:25_000});
     const sessionId=await card.getAttribute('data-rc39-session');
     expect(sessionId).toMatch(UUID);
-    const already=(bootstrapEntities||[]).filter(entity=>
+    expect(Array.isArray(bootstrapEntities),
+      'An authenticated canonical execution collection is required before any QA start')
+      .toBe(true);
+    const already=bootstrapEntities.filter(entity=>
       entity?.entityType==='session_execution'&&
       String(entity?.body?.sessionId||'')===sessionId);
     expect(already,'No previous execution may be overwritten or replayed').toHaveLength(0);
