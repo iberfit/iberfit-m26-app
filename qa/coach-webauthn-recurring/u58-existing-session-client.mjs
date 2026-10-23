@@ -41,11 +41,17 @@ export async function certifyU58ExistingClientExecution({browser,installPolicy,e
           // Do not infer "no prior execution" from a missing/malformed
           // bootstrap collection. Absence of evidence is NOT permission.
           const data=payload?.data;
-          bootstrapEntities=Array.isArray(data?.m26Entities)
-            ?data.m26Entities
-            :Array.isArray(data?.sessionExecutions)
-              ?data.sessionExecutions.map(item=>({...item,entityType:'session_execution'}))
-              :null;
+          // The canonical bootstrap exposes BOTH entity and execution
+          // collections. Inspecting only the first array could miss an
+          // active execution or the previous run of this exact session.
+          // Do not arm a one-shot write if either collection is absent.
+          const entities=Array.isArray(data?.m26Entities)?data.m26Entities:null;
+          const histories=Array.isArray(data?.sessionExecutions)?data.sessionExecutions:null;
+          bootstrapEntities=entities&&histories
+            ?[...entities,...histories.map(item=>({
+                ...item,entityType:'session_execution',body:item?.body??item,
+              }))]
+            :null;
         }
       }
       if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'){
