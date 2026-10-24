@@ -123,9 +123,9 @@ Every candidate must pass all of the following before publication:
 5. approved athlete/outfit identity;
 6. exact official isotipo integrity on permitted placements only;
 7. absence of standalone top/corner branding, wordmark, equipment/shoe branding or invented marks;
-8. anatomy inset present, upper-left, analytical and consistently scaled unless a QA-documented exception applies;
+8. anatomy inset present, upper-right, analytical and consistently scaled unless a QA-documented exception applies;
 9. background and color-system compliance;
-10. absence of baked names, labels, instructions or UI text;
+10. only the deterministic labels `Inicio` and `Final` baked into pixels; no exercise names, additional labels, instructions or UI text;
 11. compact-size readability;
 12. visual comparison with approved IBERFIT references;
 13. human approval plus existing automated QA.

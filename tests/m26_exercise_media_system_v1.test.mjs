@@ -8,6 +8,8 @@ const spec=await readFile(new URL('../scripts/exercise-media/EXERCISE_MEDIA_SYST
 const approvedMasterMetadata=JSON.parse(await readFile(new URL('../public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.metadata.json',import.meta.url),'utf8'));
 const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
 const composer=await readFile(new URL('../scripts/exercise-media/compose-system-v1-auto.py',import.meta.url),'utf8');
+const autoQa=await readFile(new URL('../scripts/exercise-media/auto-factory-qa.mjs',import.meta.url),'utf8');
+const standaloneQa=await readFile(new URL('../scripts/exercise-media/qa-system-v1.mjs',import.meta.url),'utf8');
 
 const visual=contract.media_contract.visual_system;
 
@@ -150,4 +152,23 @@ test('human approval remains mandatory after automatic QA',()=>{
   assert.equal(visual.human_review_required,true);
   assert.equal(contract.media_contract.publication_requirements.human_approved,true);
   assert.match(composer,/'human_approval_required':True/);
+});
+
+
+test('both image QA pathways enforce compositor labels and upper-right anatomy without relaxing human approval',()=>{
+  assert.equal(visual.phase_labels_in_pixels,true);
+  assert.equal(visual.anatomy_inset.preferred_corner,'upper-right');
+  assert.deepEqual(visual.allowed_embedded_text,['Inicio','Final']);
+  for(const qa of [autoQa,standaloneQa]){
+    assert.match(qa,/only_approved_phase_labels/);
+    assert.match(qa,/anatomy_upper_right/);
+    assert.match(qa,/Inicio/);
+    assert.match(qa,/Final/);
+    assert.match(qa,/upper-right/);
+    assert.doesNotMatch(qa,/no_baked_text|anatomy_upper_left/);
+  }
+  assert.match(autoQa,/muscle_target_match/);
+  assert.match(standaloneQa,/muscle_target_match/);
+  assert.match(autoQa,/minConfidence=inferred\?0\.985:0\.97/);
+  assert.match(standaloneQa,/human_approval_required:true,publishable:false/);
 });
