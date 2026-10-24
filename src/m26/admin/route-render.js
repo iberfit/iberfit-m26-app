@@ -287,7 +287,7 @@ function renderUsers(vm){
     ):'';
     const selfGuard=vm.canManageStatus&&isCurrentUser?'<div class="m26-admin-notice"><strong>Cuenta Admin actual protegida</strong><p>No puedes eliminar la cuenta con la que estás administrando IBERFIT.</p></div>':'';
     const management=(statusForm||roleForm||deleteForm||selfGuard)
-      ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
+      ?`<details class="m26-admin-user-management"><summary>Gestionar acceso y estado <small>Acciones registradas y sujetas a permisos</small></summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
       :'';
     const dateContext={timeZone:vm.organization?.timezone||'America/Santiago',locale:vm.organization?.locale||'es-CL'};
     const lastAccess=u.lastAccessAt?e(adminDateLabel(u.lastAccessAt,dateContext)):'Sin acceso registrado';
@@ -312,7 +312,29 @@ function renderUsers(vm){
     const integrity=(u.integrityIssues||[]).length
       ?`<div class="m26-admin-user360-warning" role="status"><strong>Revisión de integridad requerida</strong><small>${e((u.integrityIssues||[]).map((issue)=>issue.code).join(' · '))}</small></div>`
       :'';
-    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
+    const contextHint=u.client?'Ficha Cliente vinculada':u.coach?'Ficha Coach vinculada':'Sin ficha operativa vinculada';
+    // B5: operational decisions above the fold; preserve *all* secondary facts
+    // and privileged forms behind native, keyboard-accessible disclosure.
+    // Identity, Auth access and integrity must never be inferred from email.
+    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}">
+      <div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Identidad y acceso</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div>
+      <div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div>
+      <dl class="m26-admin-user360-grid m26-admin-user360-essentials">
+        <div><dt>Acceso Cliente</dt><dd>${access}</dd></div>
+        <div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div>
+        <div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div>
+      </dl>
+      ${integrity}
+      <details class="m26-admin-user360-context">
+        <summary>Ver datos de la cuenta <small>${e(contextHint)}</small></summary>
+        <dl class="m26-admin-user360-grid m26-admin-user360-context-grid">
+          <div><dt>Relación operativa</dt><dd>${relation}</dd></div>
+          <div><dt>Correo de contacto</dt><dd>${contact}</dd></div>
+          <div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div>
+        </dl>
+      </details>
+      ${management}
+    </article>`;
   }).join('');
   const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
     <label class="m26-admin-user-search"><span>Buscar</span><input type="search" data-admin-user-search autocomplete="off" placeholder="Nombre, correo, cliente o Coach" aria-label="Buscar usuario por nombre, correo, cliente o Coach"></label>

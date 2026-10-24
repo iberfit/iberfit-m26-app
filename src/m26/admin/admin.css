@@ -2033,3 +2033,100 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
   .m30-admin-command-route button:focus-visible{outline-color:Highlight}
 }
 /* SIGNATURE 360 B4 END */
+
+/* SIGNATURE 360 B5 BEGIN · Users 360: decision-first, no data loss, native disclosure */
+.m26-admin-user360 .m26-admin-user360-card{
+  min-width:0;gap:.48rem;
+  padding:clamp(.78rem,1.15vw,1rem) clamp(.85rem,1.35vw,1.1rem);
+  border-inline-start:2px solid var(--m26-admin-border);
+}
+.m26-admin-user360 .m26-admin-user360-card[data-user-integrity="true"]{
+  border-inline-start-color:var(--iberfit-color-accent-strong,#c5a059);
+}
+.m26-admin-user360 .m26-admin-user360-card .m26-admin-user-card-head{
+  gap:.35rem .8rem;
+}
+.m26-admin-user360 .m26-admin-user360-card .m26-admin-user-card-head h3{
+  font-size:clamp(1.04rem,1.4vw,1.25rem);
+  line-height:1.32;overflow-wrap:anywhere;
+}
+.m26-admin-user360 .m26-admin-user360-roles{margin:-.1rem 0 .12rem}
+.m26-admin-user360 .m26-admin-user360-essentials{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  border-top:1px solid var(--m26-admin-border);
+}
+.m26-admin-user360 .m26-admin-user360-essentials>div{
+  min-width:0;padding:.62rem .66rem .52rem 0;
+}
+.m26-admin-user360 .m26-admin-user360-essentials dd{
+  min-width:0;overflow-wrap:anywhere;
+}
+.m26-admin-user360 .m26-admin-user360-essentials dd strong{font-size:.92rem}
+.m26-admin-user360 .m26-admin-user360-essentials dd small{
+  font-size:.77rem;line-height:1.48;
+}
+.m26-admin-user360 .m26-admin-user360-context{
+  min-width:0;border-top:1px solid var(--m26-admin-border);margin-top:.1rem;
+}
+.m26-admin-user360 .m26-admin-user360-context>summary,
+.m26-admin-user360 .m26-admin-user-management>summary{
+  display:flex;align-items:center;flex-wrap:wrap;gap:.24rem .7rem;
+  min-height:44px;list-style:none;cursor:pointer;
+  font-weight:650;font-size:.84rem;line-height:1.4;
+}
+.m26-admin-user360 .m26-admin-user360-context>summary{
+  color:var(--iberfit-color-text-primary);
+}
+.m26-admin-user360 .m26-admin-user360-context>summary::before,
+.m26-admin-user360 .m26-admin-user-management>summary::before{
+  content:'+';display:inline-grid;place-items:center;
+  width:1.25rem;height:1.25rem;border:1px solid var(--m26-admin-border);
+  border-radius:50%;font-size:.9rem;line-height:1;flex:none;
+  color:var(--iberfit-color-accent-strong,#c5a059);
+}
+.m26-admin-user360 .m26-admin-user360-context[open]>summary::before,
+.m26-admin-user360 .m26-admin-user-management[open]>summary::before{content:'−'}
+.m26-admin-user360 .m26-admin-user360-context>summary::-webkit-details-marker,
+.m26-admin-user360 .m26-admin-user-management>summary::-webkit-details-marker{display:none}
+.m26-admin-user360 .m26-admin-user360-context>summary small,
+.m26-admin-user360 .m26-admin-user-management>summary small{
+  color:var(--iberfit-color-text-secondary);font-size:.76rem;font-weight:450;
+}
+.m26-admin-user360 .m26-admin-user360-context-grid{margin:.05rem 0 .45rem}
+.m26-admin-user360 .m26-admin-user360-context-grid>div{padding-block:.53rem}
+.m26-admin-user360 .m26-admin-user360-context>summary:focus-visible,
+.m26-admin-user360 .m26-admin-user-management>summary:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:2px;
+}
+.m26-admin-user360 .m26-admin-user360-card :is(input,textarea,select,button):focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:2px;
+}
+.m26-admin-user360 .m26-admin-user360-card :is(button,select){min-height:44px}
+@media(max-width:900px){
+  .m26-admin-user360 .m26-admin-user360-essentials{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:680px){
+  .m26-admin-user360 .m26-admin-user360-essentials{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-admin-user360 .m26-admin-user360-essentials>div{
+    padding:.54rem 0;border-top:1px solid var(--m26-admin-border);
+  }
+  .m26-admin-user360 .m26-admin-user360-essentials>div:first-child{border-top:0}
+  .m26-admin-user360 .m26-admin-user360-context>summary,
+  .m26-admin-user360 .m26-admin-user-management>summary{align-items:center}
+  .m26-admin-user360 .m26-admin-user360-context>summary small,
+  .m26-admin-user360 .m26-admin-user-management>summary small{
+    flex-basis:100%;padding-inline-start:2rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-admin-user360 .m26-admin-user360-card[data-user-integrity="true"]{border-inline-start-color:Highlight}
+  .m26-admin-user360 .m26-admin-user360-context>summary:focus-visible,
+  .m26-admin-user360 .m26-admin-user-management>summary:focus-visible{
+    outline-color:Highlight;
+  }
+}
+/* SIGNATURE 360 B5 END */
