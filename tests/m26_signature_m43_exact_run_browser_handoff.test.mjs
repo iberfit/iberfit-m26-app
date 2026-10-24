@@ -32,11 +32,15 @@ test('M43 identity fails closed without trusted CI run provenance',()=>{
 });
 
 test('M43 real backend writer and Client browser share exact CI run and attempt',()=>{
-  for(const source of [writer,browser]){
+  assert.match(writer,/runId:process\.env\.GITHUB_RUN_ID/u);
+  assert.match(writer,/attempt:process\.env\.GITHUB_RUN_ATTEMPT/u);
+  for(const source of [browser,interactive]){
     assert.match(source,/runId:process\.env\.GITHUB_RUN_ID/u);
-    assert.match(source,/attempt:process\.env\.GITHUB_RUN_ATTEMPT/u);
+    assert.match(source,/attempt:WRITER_ATTEMPT\|\|process\.env\.GITHUB_RUN_ATTEMPT/u);
+    assert.match(source,/M43_QA_WRITER_ATTESTATION_REQUIRED/u);
     assert.match(source,/m43QaRunMarkers\(/u);
   }
+  assert.match(workflow,/m43-writer-handoff\.mjs verify/u);
   assert.match(writer,/title:RUN_MARKERS\.sessionTitle/u);
   assert.match(writer,/RUN_MARKERS\.publishedCycleTitle/u);
   assert.match(writer,/RUN_MARKERS\.unpublishedCycleTitle/u);
@@ -56,7 +60,7 @@ test('U34 interactive QA requires exact synthetic run fixture, scoped server com
   assert.match(writer,/check\(budget\.count<=budget\.limit-2/u);
   assert.match(writer,/INTERACTIVE_SESSION_ATOMIC_ENABLEMENT/u);
   assert.match(writer,/INTERACTIVE_SESSION_FOREIGN_PRIVATE/u);
-  assert.match(interactive,/m43QaRunMarkers\(\{runId:process\.env\.GITHUB_RUN_ID,attempt:process\.env\.GITHUB_RUN_ATTEMPT\}\)/u);
+  assert.match(interactive,/m43QaRunMarkers\(\{runId:process\.env\.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT\|\|process\.env\.GITHUB_RUN_ATTEMPT\}\)/u);
   assert.match(interactive,/\.interactiveSessionTitle/u);
   assert.match(interactive,/allowQaSyntheticWrite:allowExactSyntheticWrite/u);
   assert.match(interactive,/data-workflow-action="start-published-session"/u);
