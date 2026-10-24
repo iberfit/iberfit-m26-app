@@ -37,6 +37,26 @@ function userDirectoryFilterState(root){
     attention:String(directory?.querySelector?.('[data-admin-user-filter="attention"]')?.value||''),
   });
 }
+function userDirectoryDisclosureState(root){
+  const directory=root.querySelector?.('[data-admin-user-directory]');
+  const cards=[...(directory?.querySelectorAll?.('[data-admin-user-card]')||[])];
+  return cards.map((card)=>({
+    userId:String(card.getAttribute?.('data-user-id')||''),
+    open:Boolean(card.querySelector?.('[data-admin-user-disclosure]')?.open),
+  })).filter((item)=>item.userId);
+}
+function restoreUserDirectoryDisclosures(root,state=[]){
+  const directory=root.querySelector?.('[data-admin-user-directory]');
+  if(!directory)return 0;
+  const previous=new Map((Array.isArray(state)?state:[]).filter((item)=>item?.userId).map((item)=>[String(item.userId),Boolean(item.open)]));
+  let restored=0;
+  for(const card of directory.querySelectorAll?.('[data-admin-user-card]')||[]){
+    const id=String(card.getAttribute?.('data-user-id')||'');
+    const disclosure=card.querySelector?.('[data-admin-user-disclosure]');
+    if(disclosure&&previous.has(id)){disclosure.open=previous.get(id);restored++;}
+  }
+  return restored;
+}
 function applyUserDirectoryFilters(root,state=null){
   const directory=root.querySelector?.('[data-admin-user-directory]');
   if(!directory)return 0;
@@ -235,6 +255,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     setFormPending(form,true);
     syncPendingUserForms();
     const filters=userDirectoryFilterState(root);
+    const disclosures=userDirectoryDisclosureState(root);
     try{
       const result=await service.execute(input);
       try{onSuccess?.(result);}catch{}
@@ -249,6 +270,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         void result.whenRefreshed.then((outcome)=>{
           if(outcome?.ok===true){
             render();
+            restoreUserDirectoryDisclosures(root,disclosures);
             applyUserDirectoryFilters(root,filters);
             syncPendingUserForms();
             clientWizard.sync();
@@ -259,6 +281,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         });
       }else{
         render();
+        restoreUserDirectoryDisclosures(root,disclosures);
         applyUserDirectoryFilters(root,filters);
         syncPendingUserForms();
         clientWizard.sync();
@@ -542,6 +565,8 @@ export const __adminControllerInternals=Object.freeze({
   personDirectoryMatchesFilter,
   adminOperationLockKey,
   userDirectoryFilterState,
+  userDirectoryDisclosureState,
+  restoreUserDirectoryDisclosures,
   applyUserDirectoryFilters,
   createdClientId,
 });
