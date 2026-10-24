@@ -123,6 +123,10 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
   // snapshot supersedes older queued execution mutations. A background flush
   // or an old browser callback must never send progress after this boundary.
   const terminalExecutionLineages=new Set();
+  // Restore only authenticated, durable terminal ACKs before a new browser
+  // context can dispatch an old execution mutation. Coalesce the initial
+  // storage read to avoid redundant bootstrap work across concurrent sends.
+  let terminalRecoveryInFlight=null;
   // Independently retain only exact server ACK revisions for this authenticated
   // command-bus instance. UI onAck observers may belong to a stale/replaced
   // execution object after a slow hydrate; never infer a CAS from local state.
@@ -205,6 +209,28 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
       });
     }
   }
+
+  async function restoreTerminalCompletionFence(){
+    if(terminalRecoveryInFlight)return terminalRecoveryInFlight;
+    terminalRecoveryInFlight=(async()=>{
+      const archived=await repository.list();
+      for(const record of archived){
+        if(record?.status==='ack'&&durableCompletionPatch(record,record.entityId))
+          await sealConfirmedExecutionCompletion(record);
+      }
+    })().catch(error=>{
+      // A storage read failure is fail-closed for this dispatch; allow a
+      // subsequent attempt to recover when the local store is accessible.
+      terminalRecoveryInFlight=null;
+      throw error;
+    });
+    return terminalRecoveryInFlight;
+  }
+  async function assertNotTerminalExecutionMutation(command){
+    if(command?.entityType!=='session_execution'||isExecutionCompletionCommand(command))return;
+    await restoreTerminalCompletionFence();
+    if(terminalProgressForbidden(command))throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+  }
   async function alignStoredContract(record){
     const definition=getCommandDefinition(record?.type,registry);
     if(!definition||record?.conflictSensitive===definition.conflictSensitive)return record;
@@ -250,19 +276,51 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
 
   async function enqueue(commandInput) {
     const command = createCommand(commandInput,{registry,role:getRole?.()});
-    if(terminalProgressForbidden(command))throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+    await assertNotTerminalExecutionMutation(command);
     const createdAt=safeCreatedAt(commandInput?.createdAt);
     const queued = await persist(command, 'pending', { createdAt, retryable: true, queuedOffline: true,attempts:safeAttempts(commandInput?.attempts),nextRetryAt:null,queueOrder:await nextQueueOrder() });
+    // Offline enqueue also crosses async storage boundaries. A completion
+    // ACK may land while its queue order or persistence was being written.
+    if(terminalProgressForbidden(command)){
+      try{
+        await repository.put({
+          ...structuredClone(queued),status:'rejected',retryable:false,
+          nextRetryAt:null,errorCode:'M26_EXECUTION_SUPERSEDED_BY_COMPLETION',
+          updatedAt:new Date(nowMs()).toISOString(),
+        });
+      }catch{}
+      throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+    }
     return { ok: false, queued: true, kind: 'queued', command: sanitizeOperation(queued), response: null };
   }
 
   async function executeOnce(command, {createdAt,attempts=0,queuedOffline=false,queueOrder=null,onAck=null}={}) {
     const token = await getToken();
     if (!token) throw new Error('M26_AUTH_REQUIRED');
+    // An execution may have completed while a stale callback awaited token
+    // refresh. On a fresh page this also restores exact persisted terminal ACKs
+    // even if the ordinary background flush has not started yet.
+    await assertNotTerminalExecutionMutation(command);
     const previousAttempts=safeAttempts(attempts);
     const queueMeta={createdAt,attempts:previousAttempts,nextRetryAt:null,retryable:true,queuedOffline:queuedOffline===true};
     if(safeQueueOrder(queueOrder)!==null)queueMeta.queueOrder=safeQueueOrder(queueOrder);
     const queued = await persist(command, 'pending', queueMeta);
+    // The completion ACK may land *during* IndexedDB persistence. Recheck at
+    // the last synchronous dispatch boundary, before any transport request.
+    // Preserve the local operation as rejected, never as a retryable write.
+    if(terminalProgressForbidden(command)){
+      try{
+        await repository.put({
+          ...structuredClone(queued),status:'rejected',retryable:false,
+          nextRetryAt:null,errorCode:'M26_EXECUTION_SUPERSEDED_BY_COMPLETION',
+          updatedAt:new Date(nowMs()).toISOString(),
+        });
+      }catch{
+        // The in-memory terminal fence still forbids network dispatch; the
+        // durable completion ACK is recovered again on the next boot.
+      }
+      throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+    }
     try {
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
