@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "ee275ee7fe1308fb0536828f94bdad5bad10f305",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "95aa5cf62ff02ccce6827c89848967be8df32168",
+  "notes": "SIGNATURE B4 Admin Command Center merged PR #1124. Exact Canary deploy 40054044503 and all 11 postmerge QA gates success. Frontend-only three-file delta from PROD 95aa5cf62ff02ccce6827c89848967be8df32168. Preserve SIGNATURE B2/B3.1 and previous U improvements. Protected exact-source and rollback gates."
+}
