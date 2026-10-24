@@ -48,7 +48,7 @@ test('B5 preserves authorization, integrity, full directory search and safe esca
   assert.match(html,/data-admin-user-review-filter/u);
   assert.match(html,/data-user-integrity="true"/u);
   assert.match(html,/QA_INTEGRITY/u);
-  assert.match(html,/data-user-roles="\\|client\\|"/u);
+  assert.ok(html.includes('data-user-roles="|client|"'));
   assert.match(html,/Cliente &lt;script&gt;bad&lt;\/script&gt;/u);
   assert.doesNotMatch(html,/<script>bad<\/script>/u);
   assert.match(html,/name="confirmPhrase"/u);
