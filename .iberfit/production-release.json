@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "08d8634d0ad0c7be33f064cfb808dd7f93c5f95e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "ee275ee7fe1308fb0536828f94bdad5bad10f305",
+  "notes": "SIGNATURE B5 Admin 360 Users, Operations and Audit premium PR #1126 merged. Exact source QA successful: CI 40061786413, Canary Exact 40061786439, Device 40061786427, Coach WebAuthn 40061786486, Admin WebAuthn 40061786405, Remote readonly 40061786426, Admin Matrix 40061786452, Continuous Audit 40061786443, visual/bundle/front-end 40061786457/40061786451/40061786418. Source frontend-only diff 3 files, no SQL, Edge or Hosted Auth mutations. Preserve previous U and SIGNATURE releases, exact previous production SHA, recovery and rollback."
+}
