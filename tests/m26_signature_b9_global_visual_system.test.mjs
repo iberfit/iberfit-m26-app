@@ -41,7 +41,11 @@ test('B9 Coach decisions, Admin density, Client clarity and live states keep rol
   assert.match(css,/@media\(prefers-contrast:more\)/u);
   assert.match(css,/@media\(forced-colors:active\)/u);
   assert.match(css,/touch-action:manipulation/u);
-  assert.match(css,/background:#DBC4A0;/u);
+  assert.match(css,/background:#DDC091;/u);
+  assert.ok(contrast('#173629','#DDC091')>=7,'warm caramel heading AAA');
+  assert.ok(contrast('#304736','#DDC091')>=5.5,'warm caramel secondary copy');
+  assert.ok(contrast('#5D4316','#DDC091')>=5,'warm caramel status');
+  assert.match(css,/box-shadow:inset 0 1px 0 rgba\(245,245,240,\.025\)!important;/u);
   assert.match(css,/\.m26-nav-item\.is-active\{[\s\S]*?background:rgba\(197,160,89,\.095\)!important;/u);
   assert.match(css,/\.m26-admin-route :is\([\s\S]*?\[data-admin-form="user-delete"\]/u);
   assert.doesNotMatch(css,/glow|glassmorphism/u);

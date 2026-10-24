@@ -45,17 +45,17 @@ test('B6 no extra overlay, UI permission or blocking motion is introduced',()=>{
 });
 
 test('B6 warm paper keeps journey titles, descriptions, progress numbers WCAG AA',()=>{
-  const paper='#DBC4A0';
+  const paper='#DDC091';
   for(const [foreground,minimum,description] of [
     ['#173629',7,'heading'],['#304736',5.5,'explanatory copy'],
     ['#304736',5.5,'step number'],['#6B4B1E',4.5,'section kicker'],
-    ['#604817',5,'available/published status number'],
+    ['#5D4316',5,'available/published status number'],
   ]){
     assert.ok(b6.includes(foreground),'missing styled '+description);
     assert.ok(contrast(foreground,paper)>=minimum,description+' contrast below '+minimum);
   }
   assert.match(b6,/color-scheme:light/u);
-  assert.match(b6,/background:#DBC4A0/u);
+  assert.match(b6,/background:#DDC091/u);
   assert.ok(contrast('#173629',paper)>=7,'journey headline meets AAA normal text');
   assert.ok(contrast('#304736',paper)>=5.5,'smaller body copy stays comfortably above AA');
 });
