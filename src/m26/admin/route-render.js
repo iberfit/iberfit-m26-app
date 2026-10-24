@@ -131,7 +131,7 @@ function operationItem(item,{canManage=false}={}){
   const outcome=!item.open&&task.resolutionNote
     ?`<p class="m26-admin-operation-outcome"><strong>Resolución:</strong> ${e(task.resolutionNote)}</p>`:'';
   const resolve=canManage&&item.open?'<details class="m26-admin-operation-resolve"><summary>Resolver incidencia</summary>'+form('task-resolve',
-    `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Confirmar resolución')+'</details>':'';
+    `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Resolver incidencia')+'</details>':'';
   return `<article class="m26-admin-operation-item${item.overdue?' is-overdue':''}" data-admin-operation-status="${item.open?'open':'closed'}" data-admin-operation-priority="${e(String(task.priority||'normal').toLowerCase())}">
     <div class="m26-admin-operation-top"><div class="m26-admin-operation-title"><span class="m26-eyebrow">${e(operationStatusLabel(task.status))}</span><h3>${e(title)}</h3></div><strong class="m26-admin-operation-priority" data-priority="${item.priorityRank===0?'critical':item.priorityRank===1?'high':'normal'}">${e(item.priorityLabel)}</strong></div>
     ${task.detail?`<p class="m26-admin-operation-detail">${e(task.detail)}</p>`:''}

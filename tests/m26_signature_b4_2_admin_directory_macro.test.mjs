@@ -47,5 +47,5 @@ test('Author CSS hides closed details and retains focus and compact touch on mob
   assert.match(css,/@media\(max-width:390px\)/u);
   const route=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
   assert.match(route,/m26-admin-operation-resolve/u);
-  assert.match(route,/Confirmar resolución/u);
+  assert.match(route,/Resolver incidencia/u);
 });

@@ -1967,6 +1967,61 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 /* SIGNATURE 360 U10 END */
 
 
+/* SIGNATURE B4.2 · Admin identities and operations: disclosure in canonical CSS */
+.m26-shell[data-m26-role="admin"] .m26-admin-user360 [data-admin-user-results]{gap:.55rem}
+.m26-admin-user360-card{padding:0;overflow:visible}
+.m26-admin-user360-disclosure{display:block;min-width:0}
+.m26-admin-user360-disclosure>summary{
+  list-style:none;display:grid;
+  grid-template-columns:minmax(10rem,2fr) minmax(8rem,1.2fr) minmax(9rem,1fr) minmax(7rem,.85fr) auto;
+  gap:.55rem 1rem;align-items:center;min-width:0;min-height:76px;padding:.78rem 1rem;cursor:pointer
+}
+.m26-admin-user360-disclosure>summary::-webkit-details-marker{display:none}
+.m26-admin-user360-disclosure>summary:focus-visible,.m26-admin-operation-resolve>summary:focus-visible{outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:3px;border-radius:.65rem}
+.m26-admin-user360-summary-identity,.m26-admin-user360-summary-access,.m26-admin-user360-summary-state{display:grid;gap:.14rem;min-width:0}
+.m26-admin-user360-summary-identity strong{font-size:clamp(.98rem,1.4vw,1.12rem);letter-spacing:-.014em;color:var(--iberfit-color-text-primary);overflow-wrap:anywhere}
+.m26-admin-user360-summary-identity small,.m26-admin-user360-summary-access small{font-size:.79rem;color:var(--iberfit-color-text-secondary);overflow-wrap:anywhere}
+.m26-admin-user360-summary-access strong{font-weight:620;font-size:.86rem;font-variant-numeric:tabular-nums;color:var(--iberfit-color-text-primary);overflow-wrap:anywhere}
+.m26-admin-user360-summary-roles{display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;min-width:0}
+.m26-admin-user360-summary-state{justify-items:start}
+.m26-admin-user360-attention{font-size:.77rem;font-weight:700;color:var(--iberfit-color-accent-strong,#c5a059)}
+.m26-admin-user360-summary-toggle{overflow-wrap:anywhere;font-size:.83rem;font-weight:650;color:var(--iberfit-color-accent-strong,#c5a059)}
+.m26-admin-user360-summary-toggle::after{content:' +'}
+.m26-admin-user360-disclosure[open] .m26-admin-user360-summary-toggle::after{content:' −'}
+.m26-admin-user360-disclosure:not([open])>.m26-admin-user360-details{display:none}
+.m26-admin-user360-details{display:grid;gap:.6rem;min-width:0;padding:0 1rem .95rem;border-top:1px solid var(--m26-admin-border,rgba(199,164,105,.2))}
+.m26-admin-user360-details>.m26-admin-user-card-head{display:none}
+.m26-admin-user360-details .m26-admin-user360-grid{border-top:0}
+.m26-admin-user360-disclosure[open]>summary{background:color-mix(in srgb,var(--m26-admin-accent,#c5a059) 5%,transparent)}
+.m26-admin-operation-resolve{margin-top:.45rem;border-top:1px solid var(--m26-admin-border,rgba(199,164,105,.2))}
+.m26-admin-operation-resolve>summary{display:flex;align-items:center;min-height:48px;color:var(--iberfit-color-text-primary);font-weight:660;cursor:pointer}
+.m26-admin-operation-resolve>summary::after{content:' +';color:var(--iberfit-color-accent-strong,#c5a059)}
+.m26-admin-operation-resolve[open]>summary::after{content:' −'}
+.m26-admin-operation-resolve:not([open])>.m26-admin-form{display:none}
+@media(max-width:1050px){
+ .m26-admin-user360-disclosure>summary{grid-template-columns:minmax(0,1.8fr) minmax(0,1fr) minmax(0,1fr) auto}
+ .m26-admin-user360-summary-access{display:none}
+}
+@media(max-width:680px){
+ .m26-admin-user360-disclosure>summary{grid-template-columns:minmax(0,1fr) auto;gap:.42rem .6rem;min-height:76px;padding:.8rem}
+ .m26-admin-user360-summary-identity{grid-column:1;grid-row:1}
+ .m26-admin-user360-summary-state{grid-column:2;grid-row:1;justify-items:end}
+ .m26-admin-user360-summary-roles{grid-column:1;grid-row:2}
+ .m26-admin-user360-summary-toggle{grid-column:2;grid-row:2;justify-self:end}
+ .m26-admin-user360-details{padding:0 .8rem .85rem}
+}
+@media(max-width:390px){
+ .m26-admin-user360-disclosure>summary{gap:.3rem .45rem}
+ .m26-admin-user360-summary-identity strong{font-size:.98rem}
+ .m26-admin-user360-summary-state .m26-admin-badge{font-size:.7rem}
+ .m26-admin-user360-summary-toggle{font-size:.78rem}
+}
+@media(forced-colors:active){
+ .m26-admin-user360-disclosure>summary:focus-visible,.m26-admin-operation-resolve>summary:focus-visible{outline-color:Highlight}
+ .m26-admin-user360-disclosure[open]>summary{border-bottom:1px solid CanvasText}
+}
+/* SIGNATURE B4.2 END */
+
 /* SIGNATURE 360 B4 · Admin Command Center · canonical Admin CSS */
 .m30-admin-command-route .m26-admin-command-urgent{
   display:grid;gap:.7rem;margin:0 0 1rem;padding:.9rem 1rem;
@@ -2033,58 +2088,3 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
   .m30-admin-command-route button:focus-visible{outline-color:Highlight}
 }
 /* SIGNATURE 360 B4 END */
-
-/* SIGNATURE B4.2 · Admin identities and operations: disclosure in canonical CSS */
-.m26-shell[data-m26-role="admin"] .m26-admin-user360 [data-admin-user-results]{gap:.55rem}
-.m26-admin-user360-card{padding:0;overflow:visible}
-.m26-admin-user360-disclosure{display:block;min-width:0}
-.m26-admin-user360-disclosure>summary{
-  list-style:none;display:grid;
-  grid-template-columns:minmax(10rem,2fr) minmax(8rem,1.2fr) minmax(9rem,1fr) minmax(7rem,.85fr) auto;
-  gap:.55rem 1rem;align-items:center;min-width:0;min-height:76px;padding:.78rem 1rem;cursor:pointer
-}
-.m26-admin-user360-disclosure>summary::-webkit-details-marker{display:none}
-.m26-admin-user360-disclosure>summary:focus-visible,.m26-admin-operation-resolve>summary:focus-visible{outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:3px;border-radius:.65rem}
-.m26-admin-user360-summary-identity,.m26-admin-user360-summary-access,.m26-admin-user360-summary-state{display:grid;gap:.14rem;min-width:0}
-.m26-admin-user360-summary-identity strong{font-size:clamp(.98rem,1.4vw,1.12rem);letter-spacing:-.014em;color:var(--iberfit-color-text-primary);overflow-wrap:anywhere}
-.m26-admin-user360-summary-identity small,.m26-admin-user360-summary-access small{font-size:.79rem;color:var(--iberfit-color-text-secondary);overflow-wrap:anywhere}
-.m26-admin-user360-summary-access strong{font-weight:620;font-size:.86rem;font-variant-numeric:tabular-nums;color:var(--iberfit-color-text-primary);overflow-wrap:anywhere}
-.m26-admin-user360-summary-roles{display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;min-width:0}
-.m26-admin-user360-summary-state{justify-items:start}
-.m26-admin-user360-attention{font-size:.77rem;font-weight:700;color:var(--iberfit-color-accent-strong,#c5a059)}
-.m26-admin-user360-summary-toggle{white-space:nowrap;font-size:.83rem;font-weight:650;color:var(--iberfit-color-accent-strong,#c5a059)}
-.m26-admin-user360-summary-toggle::after{content:' +'}
-.m26-admin-user360-disclosure[open] .m26-admin-user360-summary-toggle::after{content:' −'}
-.m26-admin-user360-disclosure:not([open])>.m26-admin-user360-details{display:none}
-.m26-admin-user360-details{display:grid;gap:.6rem;min-width:0;padding:0 1rem .95rem;border-top:1px solid var(--m26-admin-border,rgba(199,164,105,.2))}
-.m26-admin-user360-details>.m26-admin-user-card-head{display:none}
-.m26-admin-user360-details .m26-admin-user360-grid{border-top:0}
-.m26-admin-user360-disclosure[open]>summary{background:color-mix(in srgb,var(--m26-admin-accent,#c5a059) 5%,transparent)}
-.m26-admin-operation-resolve{margin-top:.45rem;border-top:1px solid var(--m26-admin-border,rgba(199,164,105,.2))}
-.m26-admin-operation-resolve>summary{display:flex;align-items:center;min-height:48px;color:var(--iberfit-color-text-primary);font-weight:660;cursor:pointer}
-.m26-admin-operation-resolve>summary::after{content:' +';color:var(--iberfit-color-accent-strong,#c5a059)}
-.m26-admin-operation-resolve[open]>summary::after{content:' −'}
-.m26-admin-operation-resolve:not([open])>.m26-admin-form{display:none}
-@media(max-width:1050px){
- .m26-admin-user360-disclosure>summary{grid-template-columns:minmax(0,1.8fr) minmax(0,1fr) minmax(0,1fr) auto}
- .m26-admin-user360-summary-access{display:none}
-}
-@media(max-width:680px){
- .m26-admin-user360-disclosure>summary{grid-template-columns:minmax(0,1fr) auto;gap:.42rem .6rem;min-height:76px;padding:.8rem}
- .m26-admin-user360-summary-identity{grid-column:1;grid-row:1}
- .m26-admin-user360-summary-state{grid-column:2;grid-row:1;justify-items:end}
- .m26-admin-user360-summary-roles{grid-column:1;grid-row:2}
- .m26-admin-user360-summary-toggle{grid-column:2;grid-row:2;justify-self:end}
- .m26-admin-user360-details{padding:0 .8rem .85rem}
-}
-@media(max-width:390px){
- .m26-admin-user360-disclosure>summary{gap:.3rem .45rem}
- .m26-admin-user360-summary-identity strong{font-size:.98rem}
- .m26-admin-user360-summary-state .m26-admin-badge{font-size:.7rem}
- .m26-admin-user360-summary-toggle{font-size:.78rem}
-}
-@media(forced-colors:active){
- .m26-admin-user360-disclosure>summary:focus-visible,.m26-admin-operation-resolve>summary:focus-visible{outline-color:Highlight}
- .m26-admin-user360-disclosure[open]>summary{border-bottom:1px solid CanvasText}
-}
-/* SIGNATURE B4.2 END */
