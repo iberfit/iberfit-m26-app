@@ -140,7 +140,7 @@ test('Wrapped published sessions show separate guided and presencial experiences
  assert.equal((html.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
  assert.match(html,/Esta sesión la dirige tu Coach/u);
  assert.match(html,/Comenzar entrenamiento/u);
- const today=renderHoyRoute({role:'client',clients:[{id:'c1',name:'Cliente',serviceActive:true}],appointments:[{id:'a1',sessionId:guided.id,statusRaw:'confirmada',status:'Confirmada',title:'Fuerza IBERFIT'}],proposals:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0},rc39:{sessionProjections:[presencial,guided]}});
+ const today=renderHoyRoute({role:'client',clients:[{id:'c1',name:'Cliente',serviceActive:true}],appointments:[{id:'a1',sessionId:guided.id,statusRaw:'confirmada',status:'Confirmada',title:'Fuerza IBERFIT'}],proposals:[],upcoming:[{id:'a1',sessionId:guided.id,statusRaw:'confirmada',status:'Confirmada',title:'Fuerza IBERFIT'}],operations:{pending:0,conflicts:0,rejected:0},rc39:{sessionProjections:[presencial,guided]}});
  assert.match(today,/Entrenar ahora/u);
  assert.match(today,/data-entity-id="wrapped-guiada_en_app"/u);
 });
