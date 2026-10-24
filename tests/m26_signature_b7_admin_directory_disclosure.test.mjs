@@ -57,7 +57,7 @@ test('B7 disclosure snapshot round-trips context, protected controls and outer i
     const outer={open:Boolean(values.outer)},context={open:Boolean(values.context)},
       management={open:Boolean(values.management)};
     return {outer,context,management,
-      getAttribute:key=>key==='data-user-id'?id:'',
+      getAttribute:key=>key==='data-user-id'?id:key==='data-user-integrity'?(values.integrity?'true':'false'):'',
       querySelector:key=>({
         '[data-admin-user-disclosure]':outer,
         '.m26-admin-user360-context':context,
@@ -66,7 +66,7 @@ test('B7 disclosure snapshot round-trips context, protected controls and outer i
   }
   const source=[makeCard('u1',{outer:true,context:true,management:true}),
     makeCard('u2',{outer:false,context:false,management:false})];
-  const target=[makeCard('u1'),makeCard('u2',{outer:true}),makeCard('new',{outer:true})];
+  const target=[makeCard('u1'),makeCard('u2',{outer:true,integrity:true}),makeCard('new',{outer:true})];
   const dom=cards=>({
     querySelector:key=>key==='[data-admin-user-directory]'
       ?{querySelectorAll:sel=>sel==='[data-admin-user-card]'?cards:[]}
@@ -78,7 +78,7 @@ test('B7 disclosure snapshot round-trips context, protected controls and outer i
   assert.equal(target[0].outer.open,true);
   assert.equal(target[0].context.open,true);
   assert.equal(target[0].management.open,true);
-  assert.equal(target[1].outer.open,false);
+  assert.equal(target[1].outer.open,true,'A new integrity flag must reopen its previous identity');
   assert.equal(target[2].outer.open,true,'New integrity state must not be overwritten');
   assert.equal(__adminControllerInternals.restoreUserDirectoryDisclosures(dom([]),saved),0);
 });
