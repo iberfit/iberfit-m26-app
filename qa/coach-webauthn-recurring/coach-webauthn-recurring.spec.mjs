@@ -295,8 +295,10 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   await open.click();
   const builder=page.locator('[data-session-builder-workbench-v2]');
   await expect(builder,'Actual Coach builder must open without backend access').toBeVisible({timeout:15_000});
-  await expect(builder.locator('[data-session-action="publish"]').first(),
-    'Publishing requires an explicit reviewed preview').toBeDisabled();
+  await expect(builder.locator('[data-session-action="publish"]'),
+    'Publishing is absent until the Coach has explicitly reviewed the preview').toHaveCount(0);
+  await expect(builder.locator('[data-session-action="preview"]').first(),
+    'Review is the actual available pre-publication action').toBeVisible();
 
   const title=process.env.M26_QA_U56_PUBLISH==='true'
     ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
