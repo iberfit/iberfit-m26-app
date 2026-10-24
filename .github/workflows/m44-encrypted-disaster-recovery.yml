@@ -1,0 +1,30 @@
+name: IBERFIT M44 Encrypted Offsite Disaster Recovery
+
+# Registration-only workflow on the repository's legacy default branch.
+# GitHub requires workflow_dispatch to be present on the default branch
+# before it shows the Run workflow control. The protected, real M44
+# backup/recovery implementation lives ONLY on canary/rc74-4.
+# Never execute production backup from this legacy default branch.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Export production DB and Storage; encrypted output; isolated restore'
+        required: true
+        type: choice
+        options:
+          - BACKUP_ENCRYPT_AND_VERIFY_PROD
+
+permissions:
+  contents: read
+
+jobs:
+  default-branch-fail-closed:
+    name: Select canary/rc74-4 for the actual protected recovery
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse backup on legacy default branch
+        run: |
+          echo "::error::This file only registers the manual workflow in GitHub Actions."
+          echo "::error::For real M44 DB + Storage recovery select the canary/rc74-4 branch."
+          exit 1
