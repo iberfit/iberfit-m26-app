@@ -9,7 +9,7 @@
   --iberfit-v3-surface-raised:#1A2E26;
   --iberfit-v3-surface-deep:#0E1A15;
   --iberfit-v3-text:#F5F5F0;
-  --iberfit-v3-text-secondary:#9AA8A1;
+  --iberfit-v3-text-secondary:#BAC8C0;
   --iberfit-v3-gold:#C5A059;
   --iberfit-v3-gold-soft:rgba(197,160,89,.15);
   --iberfit-v3-line:rgba(197,160,89,.15);
@@ -234,7 +234,7 @@
   color:#CDB071!important;
 }
 .m26-shell .m26-nav-item{
-  color:#AAB5AF!important;
+  color:#BECCC2!important;
   border-radius:var(--iberfit-v3-radius-btn)!important;
 }
 .m26-shell .m26-nav-item:hover{
@@ -263,7 +263,7 @@
   border-color:var(--iberfit-v3-line)!important;
   border-radius:var(--iberfit-v3-radius-card)!important;
   background:var(--iberfit-v3-panel)!important;
-  box-shadow:inset 0 1px 0 rgba(245,245,240,.025)!important;
+  box-shadow:0 3px 12px rgba(0,0,0,.14),inset 0 1px 0 rgba(245,245,240,.035)!important;
 }
 .m26-shell .m26-workspace :is(
   .m26-stat,.m26-admin-stat,.iberfit-metric
@@ -299,10 +299,10 @@
   .m26-inline-actions button,.m26-action-grid button
 ){
   color:var(--iberfit-v3-text)!important;
-  border-color:rgba(197,160,89,.14)!important;
+  border-color:rgba(197,160,89,.30)!important;
   border-radius:var(--iberfit-v3-radius-btn)!important;
-  background:#172720!important;
-  box-shadow:none!important;
+  background:#1B3529!important;
+  box-shadow:0 3px 12px rgba(0,0,0,.13)!important;
 }
 .m26-shell .m26-workspace :is(.m26-primary-action,.iberfit-button[data-variant="primary"]){
   color:#17150F!important;
@@ -1206,7 +1206,7 @@
   color-scheme:light;
   color:#173629;
   border-color:rgba(23,54,41,.16);
-  background:#F3ECDD;
+  background:#DBC4A0;
   box-shadow:0 10px 28px rgba(4,22,15,.09);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-kicker{
@@ -1218,10 +1218,10 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-heading p,
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps small{
-  color:#3F594A;
+  color:#304736;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-number{
-  color:#4E6254;
+  color:#304736;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li{
   border-left-color:rgba(23,54,41,.16);
@@ -1255,6 +1255,33 @@
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-actions button{
   min-height:48px;
   touch-action:manipulation;
+}
+/* SIGNATURE contrast: navigation remains forest-dark; actual Hoy quick links
+ * have stronger actionable edges, without implying that pending data exists. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+  border-color:rgba(217,183,117,.34);
+  box-shadow:0 3px 12px rgba(0,0,0,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
+  color:#F7EAD2;
+  font-size:clamp(1.05rem,1.35vw,1.2rem);
+  font-weight:740;
+  line-height:1.25;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button small{
+  color:#D2D5C7;
+  font-size:.9rem;
+  line-height:1.5;
+}
+@media(hover:hover) and (pointer:fine){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:hover{
+    border-color:#C6AA72;
+    background:#234436;
+  }
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:focus-visible{
+  outline:3px solid #E9CB8F;
+  outline-offset:3px;
 }
 @media(max-width:680px){
   .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
