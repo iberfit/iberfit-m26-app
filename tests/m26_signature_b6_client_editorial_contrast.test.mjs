@@ -81,7 +81,8 @@ test('B9 shared dark surfaces lift readable text and control edges without recol
   assert.match(shared,/--iberfit-v3-text-secondary:#BAC8C0;/u);
   assert.match(shared,/background:#1B3529!important;/u);
   assert.match(shared,/border-color:rgba\(197,160,89,\.30\)!important;/u);
-  assert.match(shared,/box-shadow:0 3px 12px rgba\(0,0,0,\.14\)/u);
+  assert.match(shared,/box-shadow:inset 0 1px 0 rgba\(245,245,240,\.025\)!important;/u);
+  assert.match(shared,/box-shadow:0 3px 12px rgba\(0,0,0,\.13\)!important;/u);
   assert.match(shared,/\.m26-nav-item\.is-active\{[\s\S]*?background:rgba\(197,160,89,\.095\)!important;/u);
   assert.doesNotMatch(b6,/\.m26-nav-item\.is-active/u);
   assert.ok(contrast('#BAC8C0','#1C3026')>=7,'shared secondary copy on raised Admin surface');
