@@ -1071,12 +1071,24 @@
   border-inline-start:3px solid transparent;
   box-shadow:none;
 }
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="ready"]{
-  border-inline-start-color:#C7A469;
-  background-color:#1C3829;
+/* The inherited v3 panel has an important background/border contract.
+   Use an in-card three-pixel marker rather than another cascade override. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card{
+  position:relative;
 }
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="supervised"]{
-  border-inline-start-color:#81998A;
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="ready"]::before,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="supervised"]::before{
+  content:"";
+  position:absolute;
+  inset-block:14px;
+  inset-inline-start:0;
+  width:3px;
+  border-radius:0 3px 3px 0;
+  background:var(--iberfit-b2-sessions-gold);
+  pointer-events:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="supervised"]::before{
+  background:#81998A;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card>header{
   min-width:0;
