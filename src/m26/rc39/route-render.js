@@ -274,7 +274,9 @@ function renderClientPlanning(vm){
   // Client-only appointments were scoped by ownership, publication and time in the view model.
   const clientAppointments=Array.isArray(vm.clientAppointments)?vm.clientAppointments:[];
   const contractModality=contractModalityOf(vm);
-  const appExecutable=items.filter((item)=>experienceFor(item,'client',contractModality).clientLiveWorkout).length;
+  // Availability is a permission and session-readiness decision, not a modality badge.
+  const appExecutable=vm.serviceActive!==false?items.filter((item)=>
+    experienceFor(item,'client',contractModality).clientLiveWorkout&&clientCanStartProjection(item)).length:0;
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
@@ -581,10 +583,10 @@ function renderSessions(vm){
   }[clientState]:null;
   const clientBriefMarkup=clientBrief?`<aside class="m26-client-sessions-brief" data-client-sessions-brief="${clientState}" aria-label="Estado de tus sesiones"><span class="m26-eyebrow">Tu entrenamiento</span><strong>${clientBrief[0]}</strong><p>${clientBrief[1]}</p></aside>`:'';
   const empty=client
-    ?'<section class="m26-empty m26-client-sessions-empty" data-client-session-empty><p class="m26-eyebrow">A tu ritmo, con criterio</p><h3>Sin sesiones</h3><p>Tu Coach todavía no ha publicado sesiones para ti. Puedes consultar tu planificación o registrar cómo te encuentras, sin esperar a tener un entrenamiento disponible.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="planificacion">Revisar mi planificación</button><button type="button" data-m26-area="actividad">Registrar cómo estoy</button></div></section>'
+    ?'<section class="m26-empty m26-client-sessions-empty" data-client-session-empty><p class="m26-eyebrow">A tu ritmo, con criterio</p><h3>Sin sesiones</h3><p>Tu Coach todavía no ha publicado sesiones para ti. Puedes consultar tu planificación o registrar cómo te encuentras, sin esperar a tener un entrenamiento disponible.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
   const clientIntro=ready
-    ?'Tienes entrenamiento disponible para revisar. Solo podrás comenzar las sesiones habilitadas para ti.'
+    ?'Abre una sesión para revisar los ejercicios. Solo podrás comenzar aquellas que estén habilitadas para ti.'
     :'Consulta tus sesiones y su modalidad. Las dirigidas por tu Coach se realizan con su supervisión.';
   const introLabel=client&&normalizeClientModality(contractModality)===null
     ?'Sesiones · IBERFIT'

@@ -516,7 +516,11 @@ function renderClientHoyRoute(vm) {
       .filter(Boolean)
   );
 
+  const upcomingAppointmentIds=new Set(upcoming.map(item=>String(item?.id||'').trim()).filter(Boolean));
+  const linkedAppointmentSessionIds=new Set([...appointments,...upcoming].map(item=>String(item?.sessionId||'').trim()).filter(Boolean));
+  // Historical confirmed appointments never become an immediate workout.
   const runnable=appointments.find((item)=>{
+    if(!upcomingAppointmentIds.has(String(item?.id||'').trim()))return false;
     const status=String(item?.statusRaw||'').trim().toLowerCase();
     const sessionId=String(item?.sessionId||'').trim();
     return Boolean(sessionId)&&
@@ -524,7 +528,10 @@ function renderClientHoyRoute(vm) {
       executableIds.has(sessionId);
   })||null;
 
-  const standaloneGuided=serviceActive?projections.find((item)=>executableIds.has(String(item?.id||''))&&!item.appointmentId):null;
+  const standaloneGuided=serviceActive?projections.find((item)=>{
+    const id=String(item?.id||'').trim();
+    return executableIds.has(id)&&!item.appointmentId&&!linkedAppointmentSessionIds.has(id);
+  }):null;
   const firstProjection=projections[0]||null;
   // A past appointment from today's historical list is not an upcoming booking.
   const nextAppointment=upcoming[0]||null;
@@ -676,7 +683,7 @@ function renderClientHoyRoute(vm) {
     .filter((item)=>!runnable||String(item?.id||'').trim()!==String(runnable?.id||'').trim())
     .slice(0,2);
   const appointmentMarkup=agendaItems.map((item)=>appointmentCard(item,{
-    canStartSession:serviceActive&&executableIds.has(String(item?.sessionId||'').trim()),
+    canStartSession:serviceActive&&upcomingAppointmentIds.has(String(item?.id||'').trim())&&executableIds.has(String(item?.sessionId||'').trim()),
   })).join('');
   const iriCompleted=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
   const iriPending=Boolean(client?.iri&&!iriCompleted);
@@ -709,7 +716,7 @@ function renderClientHoyRoute(vm) {
       </button>`
     :'';
 
-  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3">
+  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
     ${operationBanner(vm.operations||{})}
 
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
@@ -3597,6 +3604,7 @@ function renderClientProgressStage(vm,stage){
       ${milestones.map(([label,value])=>`<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
     </div>
     <p class="m26-client-progress-next"><span aria-hidden="true">→</span><span>${escapeHtml(stage.next)}</span></p>
+    ${!stage.noHistory?'<div class="m26-client-progress-continuity"><span>Tu proceso continúa</span><button type="button" data-m26-area="sesion">Ver mis sesiones</button></div>':''}
     ${stage.noHistory?'<div class="m26-client-progress-empty-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div>':''}
   </section>`;
 }
@@ -4225,11 +4233,15 @@ export function renderPlanningRoute(vm){
   const clientPlanGuideAttribute=isClient&&(hasCycle||vm.sessions.length)
     ?' data-m26-client-guide="plan-surface"'
     :'';
+  const clientPlanAction=isClient
+    ?`<button type="button" class="m26-client-plan-next" data-client-plan-next data-m26-area="${vm.serviceActive===false?'sesion':totalSessions?'sesion':'actividad'}">${vm.serviceActive===false?'Ver mis sesiones':totalSessions?'Ver mis sesiones':'Registrar cómo estoy'}</button>`
+    :'';
   return `<div class="m26-route m26-planning-workbench-v2" data-planning-workbench-v2>
     ${clientContextBar}
     <section class="m26-route-intro m26-planning-intro"${clientPlanGuideAttribute}>
       <div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>
       ${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}
+      ${clientPlanAction}
     </section>
     ${nextAction}
     ${cycleSummary}
