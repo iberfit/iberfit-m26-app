@@ -26,7 +26,7 @@ test('B6 editorial material is deliberately scoped to Client Today and no other 
   assert.ok(b6.length>3500);
   assert.match(b6,/m26-client-home-editorial-v3 .m26-client-home-journey/u);
   for(const line of b6.split('\n').filter(line=>line.trim().startsWith('.m26-shell'))){
-    assert.match(line,/^\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-client-home-editorial-v3/u);
+    assert.match(line.trim(),/^\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-client-home-editorial-v3/u);
   }
   for(const role of ['coach','admin']){
     assert.doesNotMatch(renderHoyRoute({...clientVm(),role}),/m26-client-home-editorial-v3/u);
