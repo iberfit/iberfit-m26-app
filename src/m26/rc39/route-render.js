@@ -274,7 +274,9 @@ function renderClientPlanning(vm){
   // Client-only appointments were scoped by ownership, publication and time in the view model.
   const clientAppointments=Array.isArray(vm.clientAppointments)?vm.clientAppointments:[];
   const contractModality=contractModalityOf(vm);
-  const appExecutable=items.filter((item)=>experienceFor(item,'client',contractModality).clientLiveWorkout).length;
+  // Availability is a permission and session-readiness decision, not a modality badge.
+  const appExecutable=vm.serviceActive!==false?items.filter((item)=>
+    experienceFor(item,'client',contractModality).clientLiveWorkout&&clientCanStartProjection(item)).length:0;
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;

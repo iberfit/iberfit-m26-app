@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {renderHoyRoute,renderPlanningRoute,renderProgressRoute} from '../src/m26/modules/route-render.js';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {clientSessionProjection} from '../src/m26/rc39/session-policy.js';
 const client=(other={})=>({id:'c1',name:'Cliente QA',serviceActive:true,cycle:{name:'Plan activo'},iri:{confirmed:true},...other});
 const appt=(id,sessionId)=>({id,sessionId,statusRaw:'confirmada',status:'Confirmada',title:'Entrenamiento',dateLabel:'18:00',modality:'Presencial'});
 const proj=(id,other={})=>({id,visible:true,canClientStart:true,session:{title:'Fuerza guiada'},...other});
@@ -78,4 +79,16 @@ test('B2 scope and accessibility: Client only, 44px touch, reduced motion, force
  assert.match(part,/min-height:44px/u);assert.match(part,/@media\(max-width:520px\)/u);
  assert.match(part,/@media\(prefers-reduced-motion:reduce\)/u);assert.match(part,/@media\(forced-colors:active\)/u);
  assert.doesNotMatch(part,/!important|position:fixed|pointer-events:none/u);
+});
+
+test('B2 canonical Client Plan counts genuinely startable guided sessions, never visibility alone',()=>{
+ const session={id:'guided',clientId:'c1',title:'Fuerza',status:'publicado',visibleToClient:true,deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',clientVisibilityLevel:'full',blocks:[{id:'b1',type:'exercise',exerciseId:'ex1',sets:3,reps:'10'}]};
+ const projection=clientSessionProjection(session);
+ const unready={...projection,canClientStart:false};
+ const model={kind:'planificacion',role:'client',selectedClient:{modality:'hibrido'},serviceActive:true,rc39:{planningItems:[unready]}};
+ const view=renderRc39Route(model);
+ assert.match(view,/data-m30-planning-state="published"/u);
+ assert.match(view,/<span>En app<\/span><strong>0<\/strong>/u);
+ const paused=renderRc39Route({...model,serviceActive:false,rc39:{planningItems:[projection]}});
+ assert.match(paused,/<span>En app<\/span><strong>0<\/strong>/u);
 });
