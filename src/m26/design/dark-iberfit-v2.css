@@ -2925,3 +2925,34 @@
     outline-color:Highlight;
   }
 }
+
+/* SIGNATURE_COACH_B9_MEDIA_CONTRAST_BEGIN */
+/* Missing visual evidence must be legible and clearly distinct from a
+   validated exercise photo on Coach Builder, without changing actual media. */
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-exercise-media-fallback{
+  background-color:#19352a;
+  border:1px dashed #b89a61;
+  color:#f6eddb;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-exercise-media-fallback span{
+  color:#f6eddb;
+  opacity:1;
+  text-shadow:none;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-exercise-media-fallback small{
+  color:#e7dbc3;
+  opacity:1;
+  text-shadow:none;
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-exercise-media-fallback{
+    background-color:Canvas;
+    border-color:CanvasText;
+    color:CanvasText;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-exercise-media-fallback :is(span,small){
+    color:CanvasText;
+  }
+}
+/* SIGNATURE_COACH_B9_MEDIA_CONTRAST_END */
