@@ -130,8 +130,10 @@ function operationItem(item,{canManage=false}={}){
     (task.dueAt?'Fecha límite no verificable':'Sin plazo definido');
   const outcome=!item.open&&task.resolutionNote
     ?`<p class="m26-admin-operation-outcome"><strong>Resolución:</strong> ${e(task.resolutionNote)}</p>`:'';
-  const resolve=canManage&&item.open?form('task-resolve',
-    `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Resolver incidencia'):'';
+  const resolve=canManage&&item.open
+    ?`<details class="m26-admin-operation-resolve"><summary>Resolver incidencia <small>Requiere motivo y revisión vigente</small></summary>${form('task-resolve',
+      `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Resolver incidencia')}</details>`
+    :'';
   return `<article class="m26-admin-operation-item${item.overdue?' is-overdue':''}" data-admin-operation-status="${item.open?'open':'closed'}" data-admin-operation-priority="${e(String(task.priority||'normal').toLowerCase())}">
     <div class="m26-admin-operation-top"><div class="m26-admin-operation-title"><span class="m26-eyebrow">${e(operationStatusLabel(task.status))}</span><h3>${e(title)}</h3></div><strong class="m26-admin-operation-priority" data-priority="${item.priorityRank===0?'critical':item.priorityRank===1?'high':'normal'}">${e(item.priorityLabel)}</strong></div>
     ${task.detail?`<p class="m26-admin-operation-detail">${e(task.detail)}</p>`:''}
@@ -183,8 +185,16 @@ function renderAudit(vm){
     events:vm.events||[],timeZone:vm.organization?.timezone,locale:vm.organization?.locale,
   });
   const count=timeline.summary.total;
-  const content=count?`<ol class="m26-admin-audit-timeline">${timeline.events.map(renderAuditEvent).join('')}</ol>`:
-    empty('Sin eventos','No hay auditoría visible en los registros autorizados.');
+  // Preserve the complete canonical audit timeline, but do not place every
+  // old event in the first visual scan. Native details keeps it keyboard/AT
+  // accessible, with no filtering or invented event state.
+  const recent=timeline.events.slice(0,12);
+  const older=timeline.events.slice(12);
+  const content=count
+    ?`<ol class="m26-admin-audit-timeline">${recent.map(renderAuditEvent).join('')}</ol>${older.length
+      ?`<details class="m26-admin-audit-archive"><summary>Consultar ${older.length} eventos adicionales</summary><ol class="m26-admin-audit-timeline" start="13">${older.map(renderAuditEvent).join('')}</ol></details>`
+      :''}`
+    :empty('Sin eventos','No hay auditoría visible en los registros autorizados.');
   return `<div class="m26-admin-route m26-admin-audit-route" data-admin-surface="audit">
     ${intro('Seguridad y responsabilidad','Auditoría','Quién intervino, sobre qué entidad y cuándo. El resultado no se presupone cuando el registro no lo contiene.')}
     <section class="m26-admin-panel" aria-labelledby="m26-admin-audit-title">
@@ -312,7 +322,28 @@ function renderUsers(vm){
     const integrity=(u.integrityIssues||[]).length
       ?`<div class="m26-admin-user360-warning" role="status"><strong>Revisión de integridad requerida</strong><small>${e((u.integrityIssues||[]).map((issue)=>issue.code).join(' · '))}</small></div>`
       :'';
-    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
+    // B5: operational decisions above the fold; preserve *all* secondary facts
+    // and privileged forms behind native, keyboard-accessible disclosure.
+    // Identity, Auth access and integrity must never be inferred from email.
+    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}">
+      <div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360 · identidad y acceso</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div>
+      <div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div>
+      <dl class="m26-admin-user360-grid m26-admin-user360-essentials">
+        <div><dt>Acceso Cliente</dt><dd>${access}</dd></div>
+        <div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div>
+        <div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div>
+      </dl>
+      ${integrity}
+      <details class="m26-admin-user360-context">
+        <summary>Ver datos de la cuenta</summary>
+        <dl class="m26-admin-user360-grid m26-admin-user360-context-grid">
+          <div><dt>Relación operativa</dt><dd>${relation}</dd></div>
+          <div><dt>Correo de contacto</dt><dd>${contact}</dd></div>
+          <div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div>
+        </dl>
+      </details>
+      ${management}
+    </article>`;
   }).join('');
   const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
     <label class="m26-admin-user-search"><span>Buscar</span><input type="search" data-admin-user-search autocomplete="off" placeholder="Nombre, correo, cliente o Coach" aria-label="Buscar usuario por nombre, correo, cliente o Coach"></label>
