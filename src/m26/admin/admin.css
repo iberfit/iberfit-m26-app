@@ -2094,7 +2094,7 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 .m26-admin-user360 .m26-admin-user360-context[open]>summary::before,
 .m26-admin-user360 .m26-admin-user-management[open]>summary::before{content:'−'}
 .m26-admin-user360 .m26-admin-user360-context>summary::-webkit-details-marker,
-.m26-admin-user360 .m26-admin-user-management>summary::-webkit-details-marker{width:0;height:0;overflow:hidden}
+.m26-admin-user360 .m26-admin-user-management>summary::-webkit-details-marker{width:0;height:0;opacity:0}
 .m26-admin-user360 .m26-admin-user360-context>summary small,
 .m26-admin-user360 .m26-admin-user-management>summary small{
   color:var(--iberfit-color-text-secondary);font-size:.76rem;font-weight:450;
@@ -2158,7 +2158,7 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 .m26-admin-operations .m26-admin-operation-resolve[open]>summary::before,
 .m26-admin-audit-route .m26-admin-audit-archive[open]>summary::before{content:'−'}
 .m26-admin-operations .m26-admin-operation-resolve>summary::-webkit-details-marker,
-.m26-admin-audit-route .m26-admin-audit-archive>summary::-webkit-details-marker{width:0;height:0;overflow:hidden}
+.m26-admin-audit-route .m26-admin-audit-archive>summary::-webkit-details-marker{width:0;height:0;opacity:0}
 .m26-admin-operations .m26-admin-operation-resolve>summary small{
   font-size:.77rem;font-weight:450;color:var(--iberfit-color-text-secondary);
 }
