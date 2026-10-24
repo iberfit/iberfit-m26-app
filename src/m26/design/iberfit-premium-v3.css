@@ -130,7 +130,7 @@
   background:#0E1A15!important;
   caret-color:var(--iberfit-v3-gold)!important;
 }
-.m26-auth-card input::placeholder{color:#718078!important}
+.m26-auth-card input::placeholder{color:#ACBCB2!important}
 .m26-password-toggle{
   color:#D9C28B!important;
   background:rgba(197,160,89,.08)!important;
@@ -288,7 +288,7 @@
   background:#0E1B16!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.018)!important;
 }
-.m26-shell .m26-workspace :is(input,textarea)::placeholder{color:#748179!important}
+.m26-shell .m26-workspace :is(input,textarea)::placeholder{color:#B1BDB5!important}
 .m26-shell .m26-workspace :is(input,select,textarea):focus-visible{
   border-color:var(--iberfit-v3-focus)!important;
   outline:3px solid var(--iberfit-v3-focus)!important;
@@ -347,7 +347,7 @@
   border-bottom-color:rgba(197,160,89,.10)!important;
 }
 .m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) td{
-  color:#C5CEC8!important;
+  color:#E0E7E1!important;
   border-bottom-color:rgba(245,245,240,.055)!important;
 }
 .m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) tbody tr:hover{background:rgba(197,160,89,.035)!important}
@@ -378,10 +378,13 @@
 }
 .m26-shell[data-m26-role="coach"] .m26-coach-home-glance,
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button{
-  border-color:rgba(197,160,89,.11)!important;
-  background:#14241D!important;
+  border-color:rgba(197,160,89,.28)!important;
+  background:#1A3026!important;
 }
-.m26-shell[data-m26-role="coach"] .m26-coach-home-quick button:hover{background:#192D24!important}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-quick button:hover{
+  border-color:#BCA16C!important;
+  background:#244435!important;
+}
 /* SIGNATURE B3.1 · Coach Hoy has one dominant decision; secondary routes
  * form a quiet, keyboard/touch-accessible command strip rather than more cards. */
 .m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{
@@ -466,7 +469,7 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace :is(
   .m26-profile-hero,.m26-profile-hero-premium,.m26-hero-panel,.m26-today-hero,.m26-session-live-hero
-) :is(p,small,span:not(.m26-badge)){color:#A8B3AD!important}
+) :is(p,small,span:not(.m26-badge)){color:#CBD7CD!important}
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-primary-action{min-height:52px}
 .m26-shell[data-m26-role="client"] .m26-workspace :is(button,input,select){touch-action:manipulation}
 
@@ -484,7 +487,7 @@
   background:rgba(11,19,16,.99)!important;
   box-shadow:0 -4px 18px rgba(0,0,0,.13)!important;
 }
-.m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item{color:#88968F!important}
+.m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item{color:#BBC8BF!important}
 .m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item.is-active{
   color:var(--iberfit-v3-text)!important;
   border-color:rgba(197,160,89,.14)!important;
@@ -714,6 +717,55 @@
   color:var(--iberfit-v3-text-secondary)!important;
 }
 
+
+/* SIGNATURE B9 · one accessible visual grammar for Cliente, Coach and Admin.
+ * Intentionally preserves differences in workflows, data density and permissions.
+ * No light-surface blanket override, fake status, animation or decoration. */
+.m26-shell:is([data-m26-role="client"],[data-m26-role="coach"],[data-m26-role="admin"]) .m26-workspace{
+  --iberfit-color-text-secondary:#BAC8C0;
+  --m26-muted:#BAC8C0;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-greeting h2{
+  font-weight:610;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-command-copy h2{
+  font-weight:650;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-hero h2{
+  font-weight:720;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button:focus-visible,
+.m26-shell[data-m26-role="admin"] .m26-admin-route :is(button,summary,a[href]):focus-visible{
+  outline:3px solid #E9CB8F;
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button{
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role] .m26-workspace :is(
+  .m26-admin-empty,.m26-client-sessions-empty,.iberfit-empty-state,.m26-route-placeholder
+) :is(p,small){
+  color:#D3DDD4;
+  line-height:1.55;
+}
+@media(prefers-contrast:more){
+  .m26-shell[data-m26-role] .m26-workspace :is(
+    .m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"],
+    .m26-inline-actions button,.m26-action-grid button
+  ){
+    border-color:#D7BA7C!important;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role] .m26-workspace :is(
+    .m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"],
+    .m26-inline-actions button,.m26-action-grid button
+  ){
+    border-color:ButtonText!important;
+    color:ButtonText!important;
+    box-shadow:none!important;
+  }
+}
 
 /* ---------- Admin / topbar light-button closure ---------- */
 .m26-shell .m26-workspace .m26-topbar :is(
