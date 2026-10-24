@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "cb7e72ab1dd106de1fc2c5518f800eeb53111dae",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "08d8634d0ad0c7be33f064cfb808dd7f93c5f95e",
+  "notes": "SIGNATURE B6+B7+B8 exact Canary release, merged source SHA cb7e72ab1dd106de1fc2c5518f800eeb53111dae. Required exact source SUCCESS gates: CI #40137587224; Canary Exact Deploy #40137587208 (live identity plus desktop/mobile); Coach WebAuthn #40137587280; Admin WebAuthn #40137587194; Device Experience #40137587206; authenticated remote readonly #40137587191; Continuous App Audit #40137587231. Additional Client Interaction #40137587215, Admin Matrix #40137587274, Daily Visual #40137587244 and final bundle/frontend successful. Fresh encrypted PROD DB+Storage M44 isolated PG17 restore #40141108848 success 2026-10-24T23:05:55Z, three jobs successful with ciphertext artifact #12578318366. Frontend-only diff 26 files; no production SQL, Edge Functions or Hosted Auth changes. Require fail-closed previous LIVE PROD SHA, rollback metadata, deployment identity and authenticated smoke. Separate post-release media QA issue #749 remains quarantined and excluded."
+}
