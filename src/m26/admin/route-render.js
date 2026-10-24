@@ -209,7 +209,7 @@ function renderHome(vm){
     ?`<section class="m26-admin-command-urgent" aria-labelledby="m26-admin-urgent-title"><header><div><p class="m26-eyebrow">Incidencias verificadas</p><h4 id="m26-admin-urgent-title">Operación que requiere atención</h4></div>${badge(urgent.length===1?'1 incidencia prioritaria':String(urgent.length)+' incidencias prioritarias')}</header><ol>${urgentRows}</ol>${urgent.length>3?'<p class="m26-admin-command-more">Se muestran 3 de '+urgent.length+'. Consulta el centro operativo para revisar todas.</p>':''}</section>`
     :'';
   const clientCount=cc.priorities?.length||0;
-  const priorities=clientCount?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Recorridos sin alertas','No hay recorridos de clientes que requieran una decisión administrativa.');
+  const priorities=clientCount?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Recorridos sin alertas','No hay recorridos de cliente que requieran una decisión administrativa.');
   const loads=cc.coachLoad?.length?cc.coachLoad.map(coachLoadCard).join(''):empty('Sin carga registrada','La capacidad del equipo aparecerá aquí cuando exista información.');
   const tasks=triage.open.slice(0,12).map((item)=>{
     const task=item.task||{};
