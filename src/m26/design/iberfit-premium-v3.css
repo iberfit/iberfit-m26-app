@@ -986,7 +986,7 @@
 }
 
 /* SIGNATURE B2 / Atelier Cliente · source-specific compositional refinement.
-   Keep this in the existing last-loaded v3 component sheet, with zero !important.
+   Keep this in the existing last-loaded v3 component sheet, without specificity-forcing declarations.
    Data selectors are read-only reflections of RC39 and session runtime states. */
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3{
   --iberfit-b2-paper:#F5F0E6;

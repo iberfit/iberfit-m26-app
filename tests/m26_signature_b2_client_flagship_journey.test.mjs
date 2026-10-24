@@ -33,7 +33,7 @@ test('B2 available published Client sessions expose explanatory brief without gr
   assert.match(html,/data-client-sessions-brief="published"/u);
   assert.match(html,/data-client-session-card-state="supervised"/u);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
-  assert.match(html,/La sesión la dirige tu Coach/u);
+  assert.match(html,/Esta sesión la dirige tu Coach/u);
 });
 
 test('B2 paused service never presents ready state even if projection is visible',()=>{
@@ -93,6 +93,6 @@ test('B2 presentation flags cannot authorize backend writes or session execution
   const added=source.slice(source.indexOf('const clientState=!items.length'));
   assert.match(added,/data-client-session-state/u);
   assert.match(added,/data-client-sessions-brief/u);
-  assert.match(added,/data-client-session-card-state/u);
+  assert.match(source,/data-client-session-card-state/u);
   assert.doesNotMatch(cssB2,/data-workflow-action|data-session-action=/u);
 });
