@@ -187,7 +187,11 @@ test('Admin users and client-create surfaces produce current visual evidence',as
   evidence.captures.push(await shot(page,project+'-admin-users'));
 
   const coach=page.locator('[data-admin-user-card][data-user-id="22222222-2222-4222-8222-222222222222"]');
-  const details=coach.locator('details.m26-admin-user-management');
+  const identity=coach.locator('details[data-admin-user-disclosure]');
+  await expect(identity).not.toHaveAttribute('open','');
+  await identity.locator(':scope > summary').click();
+  await expect(identity).toHaveAttribute('open','');
+  const details=identity.locator('details.m26-admin-user-management');
   await details.locator('summary').click();
   await expect(details).toHaveAttribute('open','');
   await expect(details.locator('[data-admin-form="user-delete"]')).toBeVisible();
