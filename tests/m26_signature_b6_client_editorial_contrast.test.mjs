@@ -49,7 +49,7 @@ test('B6 warm paper keeps journey titles, descriptions, progress numbers WCAG AA
   for(const [foreground,minimum,description] of [
     ['#173629',7,'heading'],['#304736',5.5,'explanatory copy'],
     ['#304736',5.5,'step number'],['#6B4B1E',4.5,'section kicker'],
-    ['#795817',4.5,'available/published status number'],
+    ['#604817',5,'available/published status number'],
   ]){
     assert.ok(b6.includes(foreground),'missing styled '+description);
     assert.ok(contrast(foreground,paper)>=minimum,description+' contrast below '+minimum);

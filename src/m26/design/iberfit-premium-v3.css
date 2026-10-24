@@ -1236,7 +1236,7 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="available"] .m26-client-home-journey-number,
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="published"] .m26-client-home-journey-number{
-  color:#795817;
+  color:#604817;
 }
 /* Secondary discovery remains secondary, but must be tactile and discoverable. */
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary{
