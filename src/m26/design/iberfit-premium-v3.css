@@ -470,6 +470,25 @@
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-primary-action{min-height:52px}
 .m26-shell[data-m26-role="client"] .m26-workspace :is(button,input,select){touch-action:manipulation}
 
+/* SIGNATURE B2: Client session, planning and progress continuity without new overlays. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3[data-client-home-training-state="start-ready"] .m26-client-home-primary-zone{border-color:rgba(199,164,105,.35)}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-planning-intro .m26-client-plan-next{display:inline-flex;align-items:center;justify-content:center;min-height:48px;max-width:100%;padding:.7rem 1rem;flex:0 0 auto;border:1px solid rgba(199,164,105,.4);border-radius:12px;background:#19352a;color:#f6eddb;font-weight:650;text-align:center;line-height:1.4;cursor:pointer}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-planning-intro .m26-client-plan-next:hover{background:#234537;border-color:#c7a469}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-empty{max-width:40rem;margin-inline:auto;padding:clamp(1.1rem,3.6vw,2rem);border:1px solid rgba(199,164,105,.23);border-radius:20px;background:#132920}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-empty .m26-inline-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-block-start:1.4rem}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-empty .m26-inline-actions button{min-height:48px;flex:1 1 12rem;white-space:normal}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-progress-continuity{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem 1rem;margin-top:1rem;padding-top:.9rem;border-top:1px solid rgba(199,164,105,.2)}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-progress-continuity span{font-size:.82rem;letter-spacing:.015em;color:#c6bfaf}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-progress-continuity button{min-height:44px;padding:.55rem .85rem;border-radius:10px;border:1px solid rgba(199,164,105,.32);background:#19352a;color:#f6eddb;font-size:.9rem;font-weight:650;cursor:pointer}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-progress-continuity button:hover{background:#234537}
+@media(max-width:520px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-planning-intro .m26-client-plan-next{width:100%}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-empty .m26-inline-actions{flex-direction:column}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-empty .m26-inline-actions button{flex-basis:auto;width:100%}
+}
+@media(prefers-reduced-motion:reduce){.m26-shell[data-m26-role="client"] .m26-workspace :is(.m26-client-plan-next,.m26-client-progress-continuity button){transition:none}}
+@media(forced-colors:active){.m26-shell[data-m26-role="client"] .m26-workspace :is(.m26-client-plan-next,.m26-client-progress-continuity button){border:1px solid ButtonText}}
+
 /* Settings and bottom navigation keep continuity with the shell. */
 .m26-shell .m26-workspace .m26-settings-popover,
 .m26-shell .m26-workspace .m26-mobile-more-menu{

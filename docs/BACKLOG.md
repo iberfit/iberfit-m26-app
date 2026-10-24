@@ -1,5 +1,11 @@
 # IBERFIT · Backlog Vivo
 
+## SIGNATURE B2 · Macrobloque Cliente en certificación — 2026-10-24
+- **Base confirmada LIVE/Canary:** `e1df8837a43100452bffa397a63cb7b6aafb3488`, release #40045429724 SUCCESS, PROD deployment `80294470-7a18-4d49-a746-bf9278fa3666`, rollback previo `e0139c59-b4c7-4b59-b644-bd46aa60eeed`. U53 y B3.1 Coach conservados.
+- **WIP=1, un PR:** continuidad visual y accionable Cliente Hoy→Planificación→Sesiones→Progreso, corrección de cita histórica que no puede mostrar inicio de entrenamiento, defensa ante proyecciones legacy sin enlace de cita, CTAs útiles de bienestar/plan, contexto de regreso a sesiones y estilos touch 320/390/tablet/desktop.
+- **Integridad:** IRI inicial separado del progreso confirmado, sin activar sesión supervisada ni en pausa; cero cambios SQL/Edge/Auth/RLS, no borrar ninguna funcionalidad. CI de SHA exacto, QA por rol, 7 gates, Canary exacto, promoción frontend-only con copia M44 y rollback antes de PROD.
+
+
 ## SIGNATURE B3.1 · Coach macrobloque · 2026-10-23
 - **LIVE y Canary:** SHA `fa1ec4dbc3f42f7e5ab01098a7da80dd5e15d757`, release #40036591107 SUCCESS, mejoras U53 y anteriores integradas conservadas.
 - **WIP único:** PR #1121 ampliado con prioridad Coach Hoy, archivo nativo de agenda y cartera prioritaria, Agenda completa agrupada y recuperación contextual de sesión bloqueada.
