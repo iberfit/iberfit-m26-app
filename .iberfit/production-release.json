@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "95aa5cf62ff02ccce6827c89848967be8df32168",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "e1df8837a43100452bffa397a63cb7b6aafb3488",
+  "notes": "SIGNATURE B2 Macro Cliente flagship Hoy→Plan→Sesiones→Ejecución→Evolución PR #1122 merged. CI 40050322040 Exact 40050321609 Coach 40050321587 Admin 40050321598 Device 40050321562 Remote 40050321613 Audit 40050321646 all SUCCESS same source. M44 encrypted recovery 40050321544 SUCCESS. Preserve previous B3.1 and all U improvements. frontend-only, no SQL/Edge/Auth mutation, strict live SHA + rollback."
+}
