@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "e1df8837a43100452bffa397a63cb7b6aafb3488",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "fa1ec4dbc3f42f7e5ab01098a7da80dd5e15d757",
+  "notes": "SIGNATURE B3.1 Coach Hoy→Agenda→Sesiones macro PR #1121 (frontend-only). CI 40043000569 Exact 40043000451 Coach 40043000771 Admin 40043000591 Device 40043001073 Remote 40043000547 Audit 40043000464 seven SUCCESS same SHA. Retain all previous U53-U60 and data, no SQL/Edge/Auth writes; fail-closed live compare and M44 recovery."
+}
