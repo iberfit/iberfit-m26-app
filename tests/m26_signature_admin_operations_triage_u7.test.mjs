@@ -123,7 +123,10 @@ test('Command Center preview displays only open operational tasks and retains it
   assert.match(view,/tasks:Object\.freeze\(operations\.open\.slice\(0,12\)\.map\(\(item\)=>item\.task\)\)/);
   assert.match(view,/deriveAdminOperationsTriage/u);
   const css=readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
-  const block=css.slice(css.indexOf('SIGNATURE 360 U7 · Admin operations'));
+  const start=css.indexOf('SIGNATURE 360 U7 · Admin operations');
+  const end=css.indexOf('/* SIGNATURE 360 U7 END */',start);
+  assert.ok(start>=0&&end>start,'U7 section markers remain intact');
+  const block=css.slice(start,end);
   assert.ok(block.length>0);
   assert.match(block,/@media\(max-width:760px\)/);
   assert.match(block,/@media\(max-width:390px\)/);
