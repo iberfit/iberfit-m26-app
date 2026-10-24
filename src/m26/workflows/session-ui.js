@@ -791,7 +791,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
     <label>Objetivo<select data-session-filter="intent">${builderFacetOptions(facets.intent,filters.intent,'Todos los objetivos')}</select></label>
   </div>`;
 
-  const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button><button type="button" data-session-action="publish" disabled aria-disabled="true" title="Revisa la sesión antes de publicarla">Publicar sesión</button>`;
+  const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
   const adaptationSource=templateAdaptation?.source==='cycle'?'ciclo':templateAdaptation?.source==='profile'?'perfil':null;
   const adaptationDuration=Number(templateAdaptation?.clientDurationMinutes);
@@ -832,16 +832,21 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
         <h2>${e(draft.title)}</h2>
         <p>Construye rápido; la revisión final sigue siendo obligatoria antes de publicar.</p>
       </div>
-      <div class="m26-inline-actions">
+      <div class="m26-inline-actions m26-builder-command-actions">
         <button type="button" data-session-action="save-draft">Guardar borrador</button>
-        <details class="m26-draft-discard">
-          <summary class="m26-text-action">Descartar borrador</summary>
-          <div class="m26-notice">
-            <p>Elimina este borrador del dispositivo y de la sincronización. No modifica ninguna sesión publicada.</p>
-            <button type="button" data-session-action="discard-draft">Eliminar este borrador</button>
+        <details class="m26-builder-secondary-actions" data-session-builder-secondary-actions>
+          <summary class="m26-text-action">Más opciones</summary>
+          <div class="m26-builder-secondary-panel">
+            <button type="button" data-session-action="exit-session">Salir</button>
+            <details class="m26-draft-discard">
+              <summary class="m26-text-action">Descartar borrador</summary>
+              <div class="m26-notice">
+                <p>Elimina este borrador del dispositivo y de la sincronización. No modifica ninguna sesión publicada.</p>
+                <button type="button" data-session-action="discard-draft">Eliminar este borrador</button>
+              </div>
+            </details>
           </div>
         </details>
-        <button type="button" data-session-action="exit-session">Salir</button>
         ${primary}
       </div>
     </header>
