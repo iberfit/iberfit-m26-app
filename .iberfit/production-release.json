@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "1799d3d434284fa186c3d5f93bfee152ad879747",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "08d8634d0ad0c7be33f064cfb808dd7f93c5f95e",
+  "notes": "M43 P0 fix PR #1127: authenticated terminal ACK pre-dispatch fence prevents phantom progress after workout completion; QA writer and authenticated Client tested on PR HEAD #40099645850. Postmerge Canary exact source gates: IBERFIT M26 CI #40106159912; IBERFIT Canary Exact Deploy #40106159872; IBERFIT Coach WebAuthn Recurring #40106159857; IBERFIT Admin WebAuthn Recurring #40106159811; IBERFIT Device Experience Gate #40106159817; IBERFIT M26 Gates remotos de solo lectura #40106159797; IBERFIT M26 Continuous App Audit #40106159833. Changes limited to command bus and QA harness, no Supabase schema/Edge/Hosted Auth writes. PR #1128 supplementary no-post-terminal browser network regression remains pending; do not bypass production safety gates."
+}
