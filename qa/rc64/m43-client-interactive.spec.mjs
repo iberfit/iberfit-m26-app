@@ -9,7 +9,13 @@ import {
 // Isolated synthetic run: Coach publishes in the upstream real QA writer;
 // Client must actually tap START, PAUSE, RESUME, COMPLETE SET, NEXT and FINISH.
 // This is NOT the completed read-only M43 historical session.
-const LIVE=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT})
+// The browser must read the exact same synthetic QA writer attempt even
+// when GitHub reruns a failed browser job without recreating the fixture.
+// A GitHub Actions job without verified writer provenance must fail closed.
+const WRITER_ATTEMPT=process.env.M26_M43_WRITER_ATTEMPT;
+if(process.env.GITHUB_ACTIONS==='true'&&!WRITER_ATTEMPT)
+  throw Error('M43_QA_WRITER_ATTESTATION_REQUIRED');
+const LIVE=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT})
   .interactiveSessionTitle;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const READ_ONLY_RPCS=new Set([

@@ -25,7 +25,10 @@ const KEY=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
 if(/service[_-]?role|supabase_secret/iu.test(KEY))throw Error('M43_QA_SECRET_KEY_DENIED');
 const evidence={schema:'iberfit.m43.authenticated-real-qa.v1',project:'QA',
   synthetic:true,productionTouched:false,serviceRoleUsed:false,mockBackend:false,
-  checks:[],warnings:[],phase:'environment',passed:false};
+  checks:[],warnings:[],phase:'environment',passed:false,
+  provenance:{runId:String(process.env.GITHUB_RUN_ID||''),
+    runAttempt:String(process.env.GITHUB_RUN_ATTEMPT||''),
+    sourceSha:String(process.env.GITHUB_SHA||'')}};
 function check(value,code){if(!value)throw Error('M43_QA_'+code);evidence.checks.push(code);}
 async function request(path,{token=null,payload,auth=false}={}){
   const target=new URL(path,BASE);
