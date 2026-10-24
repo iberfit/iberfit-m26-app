@@ -297,7 +297,7 @@ function renderUsers(vm){
     ):'';
     const selfGuard=vm.canManageStatus&&isCurrentUser?'<div class="m26-admin-notice"><strong>Cuenta Admin actual protegida</strong><p>No puedes eliminar la cuenta con la que estás administrando IBERFIT.</p></div>':'';
     const management=(statusForm||roleForm||deleteForm||selfGuard)
-      ?`<details class="m26-admin-user-management"><summary>Gestionar acceso y estado <small>Acciones registradas y sujetas a permisos</small></summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
+      ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
       :'';
     const dateContext={timeZone:vm.organization?.timezone||'America/Santiago',locale:vm.organization?.locale||'es-CL'};
     const lastAccess=u.lastAccessAt?e(adminDateLabel(u.lastAccessAt,dateContext)):'Sin acceso registrado';
@@ -322,7 +322,6 @@ function renderUsers(vm){
     const integrity=(u.integrityIssues||[]).length
       ?`<div class="m26-admin-user360-warning" role="status"><strong>Revisión de integridad requerida</strong><small>${e((u.integrityIssues||[]).map((issue)=>issue.code).join(' · '))}</small></div>`
       :'';
-    const contextHint=u.client?'Ficha Cliente vinculada':u.coach?'Ficha Coach vinculada':'Sin ficha operativa vinculada';
     // B5: operational decisions above the fold; preserve *all* secondary facts
     // and privileged forms behind native, keyboard-accessible disclosure.
     // Identity, Auth access and integrity must never be inferred from email.
@@ -336,7 +335,7 @@ function renderUsers(vm){
       </dl>
       ${integrity}
       <details class="m26-admin-user360-context">
-        <summary>Ver datos de la cuenta <small>${e(contextHint)}</small></summary>
+        <summary>Ver datos de la cuenta</summary>
         <dl class="m26-admin-user360-grid m26-admin-user360-context-grid">
           <div><dt>Relación operativa</dt><dd>${relation}</dd></div>
           <div><dt>Correo de contacto</dt><dd>${contact}</dd></div>

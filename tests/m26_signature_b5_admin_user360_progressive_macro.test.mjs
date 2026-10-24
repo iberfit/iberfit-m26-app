@@ -29,7 +29,7 @@ test('B5 admin directory prioritizes actionable Auth state, coach and last acces
   const disclosure=card.indexOf('<details class="m26-admin-user360-context">');
   assert.ok(disclosure>card.indexOf('m26-admin-user360-essentials'));
   assert.ok(disclosure>card.indexOf('<dt>Último acceso</dt>'));
-  assert.match(card,/<summary>Ver datos de la cuenta <small>Ficha Cliente vinculada<\/small><\/summary>/u);
+  assert.match(card,/<summary>Ver datos de la cuenta<\/summary>/u);
   for(const label of ['Relación operativa','Correo de contacto','Activación']){
     assert.ok(card.includes('<dt>'+label+'</dt>'),label+' must be preserved');
   }
@@ -38,7 +38,7 @@ test('B5 admin directory prioritizes actionable Auth state, coach and last acces
   assert.match(card,/data-admin-form="role-change"/u);
   assert.match(card,/data-admin-form="user-delete"/u);
   assert.match(card,/name="baseRevision" value="7"/u);
-  assert.match(card,/Gestionar acceso y estado/u);
+  assert.match(card,/<details class="m26-admin-user-management"><summary>Actualizar usuario<\/summary>/u);
 });
 
 test('B5 preserves authorization, integrity, full directory search and safe escaping',()=>{
