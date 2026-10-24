@@ -2190,3 +2190,119 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
   }
 }
 /* SIGNATURE 360 B5-OPS END */
+
+/* SIGNATURE B7 · Admin User360 / scannable, accessible identity directory.
+ * Port only the useful outer disclosure from superseded B4.2, retaining all
+ * B5 essential metrics, account context, management, integrity and audit.
+ */
+.m26-admin-user360 [data-admin-user-results]{gap:.55rem}
+.m26-admin-user360 .m26-admin-user360-card{
+  min-width:0;
+  padding:0;
+  overflow:visible;
+}
+.m26-admin-user360 .m26-admin-user360-disclosure{display:block;min-width:0}
+.m26-admin-user360 .m26-admin-user360-disclosure>summary{
+  display:grid;
+  grid-template-columns:minmax(12rem,2fr) minmax(6rem,.8fr) minmax(9rem,1.1fr) minmax(6rem,.85fr) auto;
+  gap:.55rem .95rem;
+  align-items:center;
+  min-width:0;
+  min-height:76px;
+  padding:.85rem clamp(.85rem,1.35vw,1.1rem);
+  list-style:none;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.m26-admin-user360 .m26-admin-user360-disclosure>summary::-webkit-details-marker{display:none}
+.m26-admin-user360 .m26-admin-user360-disclosure>summary:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#D7BA7C);
+  outline-offset:2px;
+  border-radius:.65rem;
+}
+.m26-admin-user360 .m26-admin-user360-summary-identity,
+.m26-admin-user360 .m26-admin-user360-summary-access,
+.m26-admin-user360 .m26-admin-user360-summary-state{
+  display:grid;
+  gap:.16rem;
+  min-width:0;
+}
+.m26-admin-user360 .m26-admin-user360-summary-identity strong{
+  color:var(--iberfit-color-text-primary);
+  font-size:clamp(.98rem,1.15vw,1.13rem);
+  font-weight:700;
+  overflow-wrap:anywhere;
+}
+.m26-admin-user360 .m26-admin-user360-summary-identity small,
+.m26-admin-user360 .m26-admin-user360-summary-access small{
+  font-size:.75rem;
+  color:var(--iberfit-color-text-secondary);
+  overflow-wrap:anywhere;
+}
+.m26-admin-user360 .m26-admin-user360-summary-access strong{
+  font-size:.82rem;
+  font-variant-numeric:tabular-nums;
+  font-weight:620;
+  overflow-wrap:anywhere;
+}
+.m26-admin-user360 .m26-admin-user360-summary-roles{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.25rem;
+  min-width:0;
+}
+.m26-admin-user360 .m26-admin-user360-summary-state{justify-items:start}
+.m26-admin-user360 .m26-admin-user360-attention{
+  font-size:.73rem;
+  color:var(--iberfit-color-accent-strong,#D7BA7C);
+  font-weight:700;
+}
+.m26-admin-user360 .m26-admin-user360-summary-toggle{
+  font-size:.81rem;
+  font-weight:700;
+  white-space:nowrap;
+  color:var(--iberfit-color-accent-strong,#D7BA7C);
+}
+.m26-admin-user360 .m26-admin-user360-summary-toggle::after{content:' +'}
+.m26-admin-user360 .m26-admin-user360-disclosure[open] .m26-admin-user360-summary-toggle::after{content:' −'}
+.m26-admin-user360 .m26-admin-user360-disclosure[open]>summary{
+  background:color-mix(in srgb,var(--m26-admin-accent,#C5A059) 6%,transparent);
+  border-bottom:1px solid var(--m26-admin-border);
+}
+.m26-admin-user360 .m26-admin-user360-details{
+  display:grid;
+  gap:.55rem;
+  min-width:0;
+  padding:.7rem clamp(.85rem,1.35vw,1.1rem) 1.05rem;
+}
+.m26-admin-user360 .m26-admin-user360-details>.m26-admin-user-card-head{display:none}
+.m26-admin-user360 .m26-admin-user360-details>.m26-admin-user360-roles{display:none}
+.m26-admin-user360 .m26-admin-user360-details .m26-admin-user360-essentials{border-top:0}
+@media(max-width:1040px){
+  .m26-admin-user360 .m26-admin-user360-disclosure>summary{
+    grid-template-columns:minmax(0,1.8fr) minmax(0,1fr) minmax(0,1fr) auto;
+  }
+  .m26-admin-user360 .m26-admin-user360-summary-access{display:none}
+}
+@media(max-width:680px){
+  .m26-admin-user360 .m26-admin-user360-disclosure>summary{
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:.42rem .6rem;
+    padding:.9rem .85rem;
+  }
+  .m26-admin-user360 .m26-admin-user360-summary-identity{grid-column:1;grid-row:1}
+  .m26-admin-user360 .m26-admin-user360-summary-state{
+    grid-column:2;grid-row:1;justify-items:end;text-align:end;
+  }
+  .m26-admin-user360 .m26-admin-user360-summary-roles{grid-column:1;grid-row:2}
+  .m26-admin-user360 .m26-admin-user360-summary-toggle{grid-column:2;grid-row:2;justify-self:end}
+}
+@media(max-width:390px){
+  .m26-admin-user360 .m26-admin-user360-summary-identity strong{font-size:.98rem}
+  .m26-admin-user360 .m26-admin-user360-summary-toggle{font-size:.78rem}
+}
+@media(forced-colors:active){
+  .m26-admin-user360 .m26-admin-user360-disclosure[open]>summary{border-color:CanvasText}
+  .m26-admin-user360 .m26-admin-user360-disclosure>summary:focus-visible{outline-color:Highlight}
+}
