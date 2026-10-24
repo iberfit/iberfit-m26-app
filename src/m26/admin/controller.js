@@ -64,7 +64,8 @@ function restoreUserDirectoryDisclosures(root,state=[]){
     const old=previous.get(userId);
     if(!old)continue;
     const outer=card.querySelector?.('[data-admin-user-disclosure]');
-    if(outer)outer.open=Boolean(old.open);
+    // Fresh integrity issues outrank stale UI disclosure preferences.
+    if(outer)outer.open=card.getAttribute?.('data-user-integrity')==='true'||Boolean(old.open);
     const context=card.querySelector?.('.m26-admin-user360-context');
     if(context)context.open=Boolean(old.contextOpen);
     const management=card.querySelector?.('.m26-admin-user-management');
