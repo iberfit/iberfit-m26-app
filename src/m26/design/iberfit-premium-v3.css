@@ -382,10 +382,77 @@
   background:#14241D!important;
 }
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button:hover{background:#192D24!important}
+/* SIGNATURE B3.1 · Coach Hoy has one dominant decision; secondary routes
+ * form a quiet, keyboard/touch-accessible command strip rather than more cards. */
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));
+  gap:.6rem;
+  align-items:stretch;
+  margin-block:clamp(.7rem,1.35vw,1rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.65rem;
+  min-width:0;
+  min-height:44px;
+  padding:.65rem .85rem;
+  border-radius:12px;
+  text-align:start;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button>span{
+  flex:none;
+  color:var(--iberfit-v3-gold);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button>strong{
+  min-width:0;
+  overflow-wrap:anywhere;
+  font-size:.875rem;
+  font-weight:600;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick button:focus-visible{
+  outline:2px solid var(--iberfit-v3-gold);
+  outline-offset:3px;
+}
+@media(max-width:520px){
+  .m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
 .m26-shell[data-m26-role="coach"] :is(.m26-client-card.is-active,.m26-client-card[aria-current="true"],[data-selected-client="true"]){
   border-color:rgba(197,160,89,.42)!important;
   background:#213B2D!important;
   box-shadow:inset 3px 0 0 var(--iberfit-v3-gold),var(--iberfit-v3-shadow)!important;
+}
+
+/* SIGNATURE B3.1 · Coach progressive disclosure and truthful session readiness. */
+.m26-shell[data-m26-role="coach"] :is(.m26-coach-records-archive,.m26-coach-records-batch){
+  min-width:0;border-top:1px solid rgba(197,160,89,.18);margin-block:.65rem;
+}
+.m26-shell[data-m26-role="coach"] :is(.m26-coach-records-archive,.m26-coach-records-batch)>summary{
+  display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  min-height:44px;padding:.75rem .85rem;cursor:pointer;font-weight:650;
+  font-size:.875rem;color:var(--iberfit-v3-text);overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="coach"] :is(.m26-coach-records-archive,.m26-coach-records-batch)>summary:focus-visible,
+.m26-shell[data-m26-role="coach"] .m26-coach-start-readiness button:focus-visible{
+  outline:2px solid var(--iberfit-v3-gold);outline-offset:3px;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-records-batches{padding-inline:clamp(0px,1.5vw,.55rem)}
+.m26-shell[data-m26-role="coach"] .m26-coach-start-readiness{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:.75rem 1.25rem;min-width:0;margin-block:1rem;
+  border-inline-start:3px solid var(--iberfit-v3-gold);padding:.75rem 1rem;
+  background:#192D24;border-radius:0 12px 12px 0;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-start-readiness>div{flex:1 1 20rem;min-width:0}
+.m26-shell[data-m26-role="coach"] .m26-coach-start-readiness strong{display:block}
+.m26-shell[data-m26-role="coach"] .m26-coach-start-readiness p{margin:.25rem 0 0;line-height:1.5}
+.m26-shell[data-m26-role="coach"] .m26-coach-start-readiness button{min-height:44px}
+@media(max-width:520px){
+  .m26-shell[data-m26-role="coach"] .m26-coach-start-readiness button{width:100%;justify-content:center}
 }
 
 /* Client: tactile execution, not dashboard density */
