@@ -151,7 +151,11 @@ test('Admin user inputs, dropdowns and filters remain interactive through a real
   const coachCard=page.locator('[data-admin-user-card][data-user-id="22222222-2222-4222-8222-222222222222"]');
   await expect(coachCard).toBeVisible();
 
-  const details=coachCard.locator('details.m26-admin-user-management');
+  const identity=coachCard.locator('details[data-admin-user-disclosure]');
+  await expect(identity,'Ordinary accounts are compact initially').not.toHaveAttribute('open','');
+  await identity.locator(':scope > summary').click();
+  await expect(identity).toHaveAttribute('open','');
+  const details=identity.locator('details.m26-admin-user-management');
   await details.locator('summary').click();
   await expect(details).toHaveAttribute('open','');
 
@@ -189,6 +193,8 @@ test('Admin user inputs, dropdowns and filters remain interactive through a real
   await statusFilter.selectOption('suspended');
   await expect(page.locator('[data-admin-user-visible-count]')).toHaveText('1');
   await expect(coachCard).toBeVisible();
+  await expect(coachCard.locator('details[data-admin-user-disclosure]'),'Expanded identity survives the acknowledged update').toHaveAttribute('open','');
+  await expect(coachCard.locator('details.m26-admin-user-management'),'Expanded protected controls survive refresh').toHaveAttribute('open','');
 
   if(test.info().project.name.includes('mobile')||test.info().project.name.includes('tablet')){
     await expect(statusFilter).toBeVisible();

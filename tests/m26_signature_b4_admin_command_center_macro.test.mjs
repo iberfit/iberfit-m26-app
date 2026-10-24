@@ -55,7 +55,10 @@ test('B4 protects HTML from input injection and does not invent audit results',(
 
 test('B4 uses canonical Admin CSS, focus, compact mobile and forced-colors without overrides',()=>{
   const css=readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
-  const b4=css.slice(css.indexOf('/* SIGNATURE 360 B4 ·'));
+  const start=css.indexOf('/* SIGNATURE 360 B4 ·');
+  const end=css.indexOf('/* SIGNATURE 360 B4 END */',start);
+  assert.ok(start>=0&&end>start,'B4 section markers remain intact');
+  const b4=css.slice(start,end);
   assert.ok(b4.startsWith('/* SIGNATURE 360 B4 ·'));
   for(const term of ['.m30-admin-command-route .m30-admin-kpis','@media(max-width:1180px)',
     '@media(max-width:620px)','@media(max-width:390px)',':focus-visible','@media(forced-colors:active)']){
