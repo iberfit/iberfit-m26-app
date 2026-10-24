@@ -284,7 +284,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: iberfit-m43-real-qa-${{ github.run_id }}
+          name: iberfit-m43-real-qa-${{ github.run_id }}-a${{ github.run_attempt }}
           path: recovery/m43-qa/coach-client-real-write.json
           if-no-files-found: warn
           retention-days: 30
@@ -330,6 +330,22 @@ jobs:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
         run: node qa/rc64/build-authenticated-surface.mjs
+      # The writer may be from an earlier successful attempt when GitHub only
+      # reruns failed jobs. Never invent fixtures under the browser attempt.
+      - name: Resolve authenticated writer provenance from this exact run
+        id: m43-writer
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+        run: node scripts/remote-gates/m43-writer-handoff.mjs discover
+      - name: Download exact successful M43 writer evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.m43-writer.outputs.name }}
+          path: .tmp/m43-writer-evidence
+      - name: Certify matching writer provenance fail-closed
+        env:
+          M26_M43_SELECTED_WRITER_ATTEMPT: ${{ steps.m43-writer.outputs.writer_attempt }}
+        run: node scripts/remote-gates/m43-writer-handoff.mjs verify
       - name: Certify Client session and history in mobile tablet desktop
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu

@@ -24,7 +24,13 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
-const LIVE_MARKER=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT}).sessionTitle;
+// The browser must read the exact same synthetic QA writer attempt even
+// when GitHub reruns a failed browser job without recreating the fixture.
+// A GitHub Actions job without verified writer provenance must fail closed.
+const WRITER_ATTEMPT=process.env.M26_M43_WRITER_ATTEMPT;
+if(process.env.GITHUB_ACTIONS==='true'&&!WRITER_ATTEMPT)
+  throw Error('M43_QA_WRITER_ATTESTATION_REQUIRED');
+const LIVE_MARKER=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT}).sessionTitle;
 const SECRET_MARKER='IBERFIT QA M43 · ciclo no publicado';
 
 test('M43 authenticated Cliente sees published multideporte and completed history, never unpublished cycles',async({page,context},testInfo)=>{
