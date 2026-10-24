@@ -45,17 +45,19 @@ test('B6 no extra overlay, UI permission or blocking motion is introduced',()=>{
 });
 
 test('B6 warm paper keeps journey titles, descriptions, progress numbers WCAG AA',()=>{
-  const paper='#F3ECDD';
+  const paper='#DDC091';
   for(const [foreground,minimum,description] of [
-    ['#173629',7,'heading'],['#3F594A',4.5,'explanatory copy'],
-    ['#4E6254',4.5,'step number'],['#6B4B1E',4.5,'section kicker'],
-    ['#795817',4.5,'available/published status number'],
+    ['#173629',7,'heading'],['#304736',5.5,'explanatory copy'],
+    ['#304736',5.5,'step number'],['#6B4B1E',4.5,'section kicker'],
+    ['#5D4316',5,'available/published status number'],
   ]){
     assert.ok(b6.includes(foreground),'missing styled '+description);
     assert.ok(contrast(foreground,paper)>=minimum,description+' contrast below '+minimum);
   }
   assert.match(b6,/color-scheme:light/u);
-  assert.match(b6,/background:#F3ECDD/u);
+  assert.match(b6,/background:#DDC091/u);
+  assert.ok(contrast('#173629',paper)>=7,'journey headline meets AAA normal text');
+  assert.ok(contrast('#304736',paper)>=5.5,'smaller body copy stays comfortably above AA');
 });
 
 test('B6 styling cannot turn a published supervised session into an executable action',()=>{
@@ -71,4 +73,29 @@ test('B6 styling cannot turn a published supervised session into an executable a
   assert.match(b6,/data-journey-state="published"/u);
   assert.match(b6,/data-journey-state="available"/u);
   assert.doesNotMatch(b6,/<(?:button|a)\b/u);
+});
+
+
+test('B9 shared dark surfaces lift readable text and control edges without recoloring selected Hoy',()=>{
+  const shared=css.slice(0,css.indexOf(marker));
+  assert.match(shared,/--iberfit-v3-text-secondary:#BAC8C0;/u);
+  assert.match(shared,/background:#1B3529!important;/u);
+  assert.match(shared,/border-color:rgba\(197,160,89,\.30\)!important;/u);
+  assert.match(shared,/box-shadow:inset 0 1px 0 rgba\(245,245,240,\.025\)!important;/u);
+  assert.match(shared,/box-shadow:0 3px 12px rgba\(0,0,0,\.13\)!important;/u);
+  assert.match(shared,/\.m26-nav-item\.is-active\{[\s\S]*?background:rgba\(197,160,89,\.095\)!important;/u);
+  assert.doesNotMatch(b6,/\.m26-nav-item\.is-active/u);
+  assert.ok(contrast('#BAC8C0','#1C3026')>=7,'shared secondary copy on raised Admin surface');
+});
+
+test('B9 Hoy context links are perceivably clickable, keyboard visible and do not invent data',()=>{
+  const html=renderHoyRoute(clientVm());
+  assert.match(html,/<section class="m26-client-home-glance"/u);
+  assert.match(html,/Sin cita programada/u);
+  assert.match(html,/En preparación/u);
+  assert.match(html,/data-m26-area="sesion"/u);
+  assert.match(b6,/\.m26-client-home-glance>button:focus-visible/u);
+  assert.match(b6,/@media\(hover:hover\) and \(pointer:fine\)/u);
+  assert.match(b6,/min-height:48px/u);
+  assert.doesNotMatch(b6,/!important|position\s*:\s*(?:fixed|sticky)|backdrop-filter|animation\s*:\s*infinite/u);
 });

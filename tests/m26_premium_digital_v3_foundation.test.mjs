@@ -20,7 +20,7 @@ test('Premium Digital V3 uses the real IBERFIT mark without decorative forest im
   assert.match(css,/--iberfit-v3-surface:#13221C/u);
   assert.match(css,/--iberfit-v3-surface-raised:#1A2E26/u);
   assert.match(css,/--iberfit-v3-text:#F5F5F0/u);
-  assert.match(css,/--iberfit-v3-text-secondary:#9AA8A1/u);
+  assert.match(css,/--iberfit-v3-text-secondary:#BAC8C0/u);
   assert.match(css,/--iberfit-v3-gold:#C5A059/u);
   assert.match(css,/url\('\/public\/isotipo-iberfit\.png'\)/u);
   assert.match(css,/opacity:\.0(?:22|35)/u);
