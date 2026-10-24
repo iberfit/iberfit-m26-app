@@ -80,7 +80,10 @@ test('B2 scope and accessibility: Client only, 44px touch, reduced motion, force
  assert.match(part,/min-height:44px/u);assert.match(part,/@media\(max-width:520px\)/u);
  assert.match(part,/@media\(prefers-reduced-motion:reduce\)/u);assert.match(part,/@media\(forced-colors:active\)/u);
  assert.doesNotMatch(part,/!important|position:fixed|pointer-events:none/u);
- assert.doesNotMatch(flagship,/!important|position:fixed|pointer-events:none/u);
+ assert.doesNotMatch(flagship,/!important|position:fixed/u);
+ // Decorative 3px status stripes may be click-through; no interactive component may suppress events.
+ const withoutDecorativeStripes=flagship.replace(/::before\{[^}]*pointer-events:none;[^}]*\}/gu,'');
+ assert.doesNotMatch(withoutDecorativeStripes,/pointer-events:none/u);
 });
 
 test('B2 canonical Client Plan counts genuinely startable guided sessions, never visibility alone',()=>{
