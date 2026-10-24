@@ -1965,3 +1965,71 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
 @media(max-width:700px){.m26-admin-team360 .m26-admin-team-table{margin-inline:0}.m26-admin-team-history{padding-inline:.75rem}.m26-admin-team360 .m26-admin-team-table .m26-admin-form button{width:100%}}
 @media(forced-colors:active){.m26-admin-team-history{border-color:CanvasText}.m26-admin-team-history>summary:focus-visible{outline-color:Highlight}}
 /* SIGNATURE 360 U10 END */
+
+
+/* SIGNATURE 360 B4 · Admin Command Center · canonical Admin CSS */
+.m30-admin-command-route .m26-admin-command-urgent{
+  display:grid;gap:.7rem;margin:0 0 1rem;padding:.9rem 1rem;
+  border:1px solid var(--iberfit-color-border,rgba(199,164,105,.24));
+  border-inline-start:3px solid var(--iberfit-color-accent-strong,#c7a469);
+  border-radius:.85rem;background:var(--m26-admin-surface-soft,rgba(255,255,255,.04));
+}
+.m30-admin-command-route .m26-admin-command-urgent header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.55rem 1rem;
+}
+.m30-admin-command-route .m26-admin-command-urgent h4,
+.m30-admin-command-route .m26-admin-command-client-heading h4{
+  margin:.1rem 0;font-size:1rem;line-height:1.4;color:var(--iberfit-color-text-primary);
+}
+.m30-admin-command-route .m26-admin-command-urgent ol{list-style:none;display:grid;gap:0;margin:0;padding:0}
+.m30-admin-command-route .m26-admin-command-urgent-row{
+  display:flex;align-items:center;justify-content:space-between;gap:.7rem;
+  padding:.7rem 0;border-top:1px solid var(--iberfit-color-border,rgba(199,164,105,.15));
+}
+.m30-admin-command-route .m26-admin-command-urgent-row>div{min-width:0;display:grid;gap:.2rem}
+.m30-admin-command-route .m26-admin-command-urgent-row strong{overflow-wrap:anywhere;color:var(--iberfit-color-text-primary)}
+.m30-admin-command-route .m26-admin-command-urgent-row small,
+.m30-admin-command-route .m26-admin-command-more,
+.m30-admin-command-route .m26-admin-command-client-heading span{
+  color:var(--iberfit-color-text-secondary);font-size:.83rem;line-height:1.45;
+}
+.m30-admin-command-route .m26-admin-command-urgent-row button{min-height:44px;flex:none}
+.m30-admin-command-route .m26-admin-command-more{margin:.45rem 0 .2rem}
+.m30-admin-command-route .m26-admin-command-client-heading{
+  display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.4rem;
+  margin:.2rem 0 .6rem;
+}
+.m30-admin-command-route .m30-admin-kpis{
+  grid-template-columns:repeat(6,minmax(0,1fr));gap:0;min-width:0;overflow:hidden;
+  border:1px solid var(--iberfit-color-border,rgba(199,164,105,.2));
+  border-radius:.95rem;background:var(--m26-admin-surface-soft,rgba(255,255,255,.035));
+}
+.m30-admin-command-route .m30-admin-kpis .m26-admin-stat{
+  min-width:0;border:0;border-inline-start:1px solid var(--iberfit-color-border,rgba(199,164,105,.17));
+  border-radius:0;background:transparent;padding:.85rem .9rem;
+}
+.m30-admin-command-route .m30-admin-kpis .m26-admin-stat:first-child{border-inline-start:0}
+.m30-admin-command-route .m30-admin-audit time{font-size:.82rem;color:var(--iberfit-color-text-secondary);overflow-wrap:anywhere}
+.m30-admin-command-route button:focus-visible{outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:3px}
+@media(max-width:1180px){
+  .m30-admin-command-route .m30-admin-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .m30-admin-command-route .m30-admin-kpis .m26-admin-stat:nth-child(3n + 1){border-inline-start:0}
+  .m30-admin-command-route .m30-admin-kpis .m26-admin-stat:nth-child(n + 4){border-top:1px solid var(--iberfit-color-border,rgba(199,164,105,.17))}
+}
+@media(max-width:620px){
+  .m30-admin-command-route .m30-admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m30-admin-command-route .m30-admin-kpis .m26-admin-stat:nth-child(3n + 1){border-inline-start:1px solid var(--iberfit-color-border,rgba(199,164,105,.17))}
+  .m30-admin-command-route .m30-admin-kpis .m26-admin-stat:nth-child(2n + 1){border-inline-start:0}
+  .m30-admin-command-route .m30-admin-kpis .m26-admin-stat:nth-child(n + 3){border-top:1px solid var(--iberfit-color-border,rgba(199,164,105,.17))}
+}
+@media(max-width:390px){
+  .m30-admin-command-route .m30-admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m30-admin-command-route .m26-admin-command-urgent{padding:.7rem}
+  .m30-admin-command-route .m26-admin-command-urgent-row{align-items:stretch;flex-direction:column}
+  .m30-admin-command-route .m26-admin-command-urgent-row button{width:100%}
+}
+@media(forced-colors:active){
+  .m30-admin-command-route .m26-admin-command-urgent{border-color:CanvasText}
+  .m30-admin-command-route button:focus-visible{outline-color:Highlight}
+}
+/* SIGNATURE 360 B4 END */
