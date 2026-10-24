@@ -70,3 +70,30 @@ test('B5 CSS is focused, responsive, forced-color aware and keyboard-accessible'
   assert.match(layer,/@media\(forced-colors:active\)/u);
   assert.doesNotMatch(layer,/!important/u);
 });
+
+test('B5 Admin operations keep real server revision and require a reason behind disclosure',()=>{
+  const html=renderAdminRoute({
+    admin:true,kind:'admin-operaciones',canManage:true,
+    organization:{timezone:'America/Santiago'},
+    tasks:[{id:'T_QA',title:'Revisar prioridad QA',priority:'high',status:'open',revision:5}],
+  });
+  assert.match(html,/m26-admin-operation-resolve/u);
+  assert.match(html,/Resolver incidencia <small>Requiere motivo y revisión vigente/u);
+  assert.match(html,/data-admin-form="task-resolve"/u);
+  assert.match(html,/name="baseRevision" value="5"/u);
+  assert.match(html,/name="reason" minlength="3" required/u);
+  assert.match(html,/data-admin-form="task-create"/u);
+});
+test('B5 audit retains every event after the 12 most recent in accessible native disclosure',()=>{
+  const source=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
+  assert.match(source,/const recent=timeline.events.slice\(0,12\)/u);
+  assert.match(source,/const older=timeline.events.slice\(12\)/u);
+  assert.match(source,/m26-admin-audit-archive/u);
+  assert.match(source,/older.map\(renderAuditEvent\)/u);
+  assert.match(source,/start="13"/u);
+  assert.match(source,/m26-admin-audit-evidence/u);
+  const css=readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
+  assert.match(css,/SIGNATURE 360 B5-OPS BEGIN/u);
+  assert.match(css,/m26-admin-operation-resolve>summary:focus-visible/u);
+  assert.match(css,/m26-admin-audit-archive>summary:focus-visible/u);
+});

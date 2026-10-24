@@ -2137,3 +2137,56 @@ html:has(.m26-shell[data-m26-role="admin"] form[data-client-create-wizard]){
   }
 }
 /* SIGNATURE 360 B5 END */
+
+/* SIGNATURE 360 B5-OPS BEGIN · compact operational resolution and full audit */
+.m26-admin-operations .m26-admin-operation-resolve{
+  margin-top:.6rem;border-top:1px solid var(--m26-admin-border);
+}
+.m26-admin-operations .m26-admin-operation-resolve>summary,
+.m26-admin-audit-route .m26-admin-audit-archive>summary{
+  min-height:44px;display:flex;align-items:center;flex-wrap:wrap;
+  gap:.28rem .65rem;cursor:pointer;list-style:none;
+  color:var(--iberfit-color-text-primary);font-weight:670;
+  font-size:.85rem;line-height:1.45;padding:.65rem 0;
+}
+.m26-admin-operations .m26-admin-operation-resolve>summary::before,
+.m26-admin-audit-route .m26-admin-audit-archive>summary::before{
+  content:'+';display:inline-grid;place-items:center;flex:none;
+  width:1.3rem;height:1.3rem;border:1px solid var(--m26-admin-border);
+  border-radius:50%;color:var(--iberfit-color-accent-strong,#c5a059);
+}
+.m26-admin-operations .m26-admin-operation-resolve[open]>summary::before,
+.m26-admin-audit-route .m26-admin-audit-archive[open]>summary::before{content:'−'}
+.m26-admin-operations .m26-admin-operation-resolve>summary::-webkit-details-marker,
+.m26-admin-audit-route .m26-admin-audit-archive>summary::-webkit-details-marker{display:none}
+.m26-admin-operations .m26-admin-operation-resolve>summary small{
+  font-size:.77rem;font-weight:450;color:var(--iberfit-color-text-secondary);
+}
+.m26-admin-operations .m26-admin-operation-resolve .m26-admin-form{
+  margin:0 0 .45rem;min-width:0;max-width:100%;
+}
+.m26-admin-audit-route .m26-admin-audit-archive{
+  margin-top:.65rem;border-top:1px solid var(--m26-admin-border);min-width:0;
+}
+.m26-admin-audit-route .m26-admin-audit-archive .m26-admin-audit-timeline{
+  margin-top:.25rem;
+}
+.m26-admin-operations .m26-admin-operation-resolve>summary:focus-visible,
+.m26-admin-audit-route .m26-admin-audit-archive>summary:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);outline-offset:2px;
+}
+@media(max-width:620px){
+  .m26-admin-operations .m26-admin-operation-resolve>summary small{
+    flex-basis:100%;padding-inline-start:1.95rem;
+  }
+  .m26-admin-audit-route .m26-admin-audit-archive .m26-admin-audit-timeline{
+    padding-inline-start:0;
+  }
+}
+@media(forced-colors:active){
+  .m26-admin-operations .m26-admin-operation-resolve>summary:focus-visible,
+  .m26-admin-audit-route .m26-admin-audit-archive>summary:focus-visible{
+    outline-color:Highlight;
+  }
+}
+/* SIGNATURE 360 B5-OPS END */
