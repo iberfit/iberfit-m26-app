@@ -1,5 +1,10 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# SIGNATURE B2 Client 2026-10-24: comment-only certified Canary merge trigger.
+# Renew unchanged encrypted PROD DB+Storage backup, isolated PostgreSQL 17 restore
+# and integrity proof before the single frontend-only B2 production promotion.
+# No changes to jobs, permissions, secrets, encryption or data-write policy.
+
 # U49 2026-10-22 privacy release preflight: this comment-only workflow change
 # requests a fresh encrypted PROD DB+Storage backup and isolated PostgreSQL 17
 # restore on the next certified Canary push. No backup or secret policy changes.
