@@ -34,6 +34,38 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   await expect(finish.locator('[data-session-action="save-draft"]')).toBeVisible();
   await expect(finish.locator('[data-session-jump="library"]')).toBeVisible();
   await expect(finish.locator('[data-session-action="publish"]')).toHaveCount(0);
+  // B8: the whole command bar must be actionable at 320/390/tablet/desktop,
+  // keep publication behind preview, and never cover the editing surface.
+  const commandbar=page.locator('.m26-session-builder-v2 .m26-builder-commandbar');
+  const secondary=commandbar.locator('[data-session-builder-secondary-actions]');
+  await expect(commandbar).toBeVisible();
+  await expect(commandbar.locator('[data-session-action="save-draft"]')).toBeVisible();
+  await expect(commandbar.locator('[data-session-action="preview"]')).toBeVisible();
+  await expect(commandbar.locator('[data-session-action="publish"]')).toHaveCount(0);
+  await expect(secondary).toHaveCount(1);
+  await expect(secondary).not.toHaveAttribute('open');
+  await expect(secondary.locator('[data-session-action="exit-session"]')).toBeHidden();
+  const position=await commandbar.evaluate(node=>getComputedStyle(node).position);
+  expect(position,'Coach editing command bar must not obscure working fields').not.toMatch(/fixed|sticky/);
+  const secondarySummary=secondary.locator(':scope > summary');
+  await secondarySummary.focus();
+  await expect(secondarySummary).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(secondary).toHaveAttribute('open','');
+  const exit=secondary.locator('[data-session-action="exit-session"]');
+  await expect(exit).toBeVisible();
+  const discard=secondary.locator('.m26-draft-discard');
+  await discard.locator('summary').click();
+  await expect(discard).toHaveAttribute('open','');
+  const dangerousAction=discard.locator('[data-session-action="discard-draft"]');
+  await expect(dangerousAction).toBeVisible();
+  const touchTargets=[commandbar.locator('[data-session-action="save-draft"]'),secondarySummary,exit,discard.locator('summary'),dangerousAction,commandbar.locator('[data-session-action="preview"]')];
+  for(const target of touchTargets){
+    const height=await target.evaluate(node=>node.getBoundingClientRect().height);
+    expect(height,'B8 Coach command control must be finger-sized').toBeGreaterThanOrEqual(47.95);
+  }
+  await secondarySummary.click();
+  await expect(secondary).not.toHaveAttribute('open');
   const markupOrder=await page.evaluate(()=>{
     const blocks=document.querySelector('.m26-builder-blocks');
     const finish=document.querySelector('[data-session-builder-finish]');

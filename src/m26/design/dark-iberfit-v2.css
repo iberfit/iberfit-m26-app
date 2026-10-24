@@ -2811,3 +2811,117 @@
     background:Canvas;
   }
 }
+
+/* SIGNATURE B8 · Coach Builder / decision-first command bar.
+ * Keep safety critical save, preview, explicit exit and discard; place dangerous
+ * actions in native progressive disclosure and stop obscuring work on desktop.
+ * Zero overlays, new panels or artificial publication paths.
+ */
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-commandbar{
+  position:relative;
+  top:auto;
+  z-index:auto;
+  align-items:center;
+  background:var(--iberfit-color-surface-raised);
+  backdrop-filter:none;
+  box-shadow:0 7px 22px rgba(0,0,0,.10);
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions{
+  align-items:center;
+  gap:.55rem;
+  flex-wrap:wrap;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions>button{
+  min-height:48px;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-actions{
+  min-width:0;
+  max-width:100%;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-actions>summary{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.45rem;
+  min-height:48px;
+  padding:.6rem .75rem;
+  border:1px solid var(--iberfit-color-border);
+  border-radius:.6rem;
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 80%,transparent);
+  color:var(--iberfit-color-text-primary);
+  font-size:.86rem;
+  font-weight:680;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-actions>summary::after{
+  content:"⌄";
+  color:var(--iberfit-color-accent-strong);
+  font-size:1rem;
+  line-height:1;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-actions[open]>summary::after{
+  content:"⌃";
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-panel{
+  display:grid;
+  gap:.55rem;
+  padding:.65rem 0 .2rem;
+  min-width:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-panel>button,
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-panel>.m26-draft-discard>summary{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  min-height:48px;
+  padding:.65rem .75rem;
+  border:1px solid var(--iberfit-color-border);
+  border-radius:.6rem;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-panel .m26-notice{
+  max-width:44ch;
+  margin-top:.5rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-panel .m26-notice button{
+  min-height:48px;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions :is(button,summary):focus-visible{
+  outline:3px solid var(--iberfit-color-accent-strong);
+  outline-offset:2px;
+}
+@media(max-width:840px){
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-commandbar{
+    align-items:stretch;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions{
+    width:100%;
+  }
+}
+@media(max-width:520px){
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:.5rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-actions>summary{
+    width:100%;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions>.m26-primary-action{
+    grid-column:1 / -1;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-actions>summary,
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-secondary-panel>button{
+    border-color:CanvasText;
+    color:CanvasText;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-command-actions :is(button,summary):focus-visible{
+    outline-color:Highlight;
+  }
+}
