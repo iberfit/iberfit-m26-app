@@ -154,6 +154,32 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
     });
     return scope?(confirmedExecutionRevisions.get(scope)||0):0;
   }
+  // Real QA: a post-rest progress write can ACK while FINISH is being
+  // prepared, even if the immediate UI callback has already settled.
+  // Await *all* same-client/execution bus operations, including background
+  // flushes, before the controller constructs its immutable completion CAS.
+  // No backend read or guessed revision is used: only this bus's exact ACKs.
+  async function awaitExecutionWriteBarrier(execution){
+    const scope=executionLineage({entityType:'session_execution',
+      entityId:execution?.entityId??execution?.id,clientId:execution?.clientId});
+    if(!scope)throw new Error('M26_EXECUTION_WRITE_BARRIER_SCOPE_REQUIRED');
+    for(let round=0;round<16;round++){
+      const active=[...inFlight.values()].filter(entry=>
+        executionLineage(entry.command)===scope
+        &&!isExecutionCompletionCommand(entry.command));
+      if(!active.length)break;
+      await Promise.all(active.map(entry=>entry.promise));
+      if(round===15)throw new Error('M26_EXECUTION_WRITE_BARRIER_UNSETTLED');
+    }
+    // A write queued offline must not be silently discarded or leapfrogged by
+    // a final completion. Keep the draft recoverable, fail closed for finish.
+    const records=await repository.list();
+    if(records.some(record=>executionLineage(record)===scope
+        &&record.status==='pending'&&record.retryable!==false
+        &&!isExecutionCompletionCommand(record)))
+      throw new Error('M26_EXECUTION_WRITE_BARRIER_PENDING');
+    return confirmedExecutionRevision(execution);
+  }
   let flushInFlight=null;
   let localQueueOrder=0;
   const nowMs=()=>{const value=Number(now());if(!Number.isFinite(value))throw new Error('M26_CLOCK_INVALID');return value;};
@@ -431,7 +457,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
     const promise=executeOnce(command,{createdAt:commandInput?.createdAt||undefined,attempts:commandInput?.attempts||0,queuedOffline:commandInput?.queuedOffline===true,queueOrder:commandInput?.queueOrder,onAck}).finally(()=>{
       if(inFlight.get(command.operationId)?.promise===promise)inFlight.delete(command.operationId);
     });
-    inFlight.set(command.operationId,{promise,fingerprint});
+    inFlight.set(command.operationId,{promise,fingerprint,command});
     return promise;
   }
 
@@ -510,7 +536,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
     return flushInFlight;
   }
 
-  return Object.freeze({ preflight, execute, enqueue, pending, confirmedExecutionRevision, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
+  return Object.freeze({ preflight, execute, enqueue, pending, confirmedExecutionRevision, awaitExecutionWriteBarrier, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
 }
 
 export function createMemoryOperationRepository() {
