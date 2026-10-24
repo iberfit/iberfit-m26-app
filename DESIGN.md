@@ -202,3 +202,15 @@ Una pantalla no está terminada hasta validar:
 - funcionamiento real en el entorno objetivo.
 
 Ver `docs/DEFINITION_OF_DONE.md`.
+
+## SIGNATURE B2 · Cliente, viaje de principio a fin
+Al refinar Hoy, Sesiones, ejecución y evolución, los nuevos recursos deben estar
+apoyados en datos existentes (no scores sintéticos), una acción primaria por región,
+progresión por estado verdadero y comunicación de recuperación cuando el inicio no
+está habilitado. Separar el tono inmersivo de ejercicio, el editorial de bienvenida,
+la banda de estado de sesiones y la lectura longitudinal del seguimiento.
+No aplicar un fondo universal nuevo al resto de los roles; no crear hojas CSS
+premium-v4, ni añadir `!important` como estrategia de convergencia.
+Los estados `ready/published/paused` de sesiones son de presentación y nunca
+autorizan por sí mismos `start-published-session`.
+

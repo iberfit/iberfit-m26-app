@@ -1,5 +1,12 @@
 # IBERFIT · Backlog Vivo
 
+## SIGNATURE B2 · Macrobloque Cliente insignia · 2026-10-23
+- **Base LIVE/Canary** `e1df8837a43100452bffa397a63cb7b6aafb3488` de SIGNATURE B3.1, promotion #40045429724 SUCCESS.
+- **WIP=1** `feat/signature-b2-client-flagship-journey`: composición premium Cliente Hoy, sesiones RC39 con estado explícito ready/published/paused, tarjetas según experiencia autorizada, tactilidad de ejecución/descanso/feedback y legibilidad de evolución sin añadir métricas.
+- **Límites** frontend Cliente; no modifica permisos de inicio, RPC, Auth, RLS, DB, finalización CAS ni diagnóstico IRI; los estilos se añaden dentro de la hoja premium v3 existente sin nuevos `!important` ni crear premium-v4.
+- **Cierre** tests exactos, validación de contraste/responsive/teclado/SPA, QA autenticada + 7 gates Canary y promoción única PROD con M44/rollback. Hasta entonces NO está publicado.
+
+
 ## SIGNATURE B3.1 · Coach macrobloque · 2026-10-23
 - **LIVE y Canary:** SHA `fa1ec4dbc3f42f7e5ab01098a7da80dd5e15d757`, release #40036591107 SUCCESS, mejoras U53 y anteriores integradas conservadas.
 - **WIP único:** PR #1121 ampliado con prioridad Coach Hoy, archivo nativo de agenda y cartera prioritaria, Agenda completa agrupada y recuperación contextual de sesión bloqueada.

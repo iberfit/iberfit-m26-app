@@ -984,3 +984,182 @@
     min-width:0;
   }
 }
+
+/* SIGNATURE B2 / Atelier Cliente · source-specific compositional refinement.
+   Keep this in the existing last-loaded v3 component sheet, with zero !important.
+   Data selectors are read-only reflections of RC39 and session runtime states. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3{
+  --iberfit-b2-paper:#F5F0E6;
+  --iberfit-b2-paper-ink:#1B2A22;
+  --iberfit-b2-satin:#C7A469;
+  --iberfit-b2-focus:#E9CB8F;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+  text-wrap:balance;
+  max-width:22ch;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-status strong{
+  text-wrap:pretty;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance{
+  gap:clamp(.6rem,1.8vw,1rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+  min-width:0;
+  overflow-wrap:anywhere;
+  transition:border-color 140ms ease,background-color 140ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-primary-zone .m26-today-action.is-primary{
+  transition:background-color 140ms ease,border-color 140ms ease,box-shadow 140ms ease;
+}
+@media (hover:hover) and (pointer:fine){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-primary-zone .m26-today-action.is-primary:hover{
+    box-shadow:0 16px 32px rgba(5,26,17,.17);
+  }
+}
+/* Sessions: a single clear status, then sessions grouped by actionability.
+   The explanatory band is noninteractive: it never grants start permissions. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions{
+  --iberfit-b2-sessions-gold:#C7A469;
+  --iberfit-b2-sessions-ink:#F5F0E6;
+  display:grid;
+  gap:clamp(.85rem,1.7vw,1.3rem);
+  min-width:0;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-content:start;
+  gap:.35rem;
+  min-width:0;
+  padding:clamp(1rem,2.4vw,1.55rem);
+  border-inline-start:3px solid var(--iberfit-b2-sessions-gold);
+  border-radius:0 16px 16px 0;
+  background:color-mix(in srgb,#203D2E 70%,#13221C);
+  color:var(--iberfit-b2-sessions-ink);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief[data-client-sessions-brief="paused"]{
+  border-inline-start-color:#DFC38C;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief>strong{
+  margin-top:.15rem;
+  font-size:clamp(1.12rem,1.7vw,1.35rem);
+  font-weight:680;
+  line-height:1.2;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief>p{
+  margin:0;
+  max-width:64ch;
+  color:#D8E0D6;
+  font-size:.925rem;
+  line-height:1.6;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-week{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));
+  align-items:start;
+  gap:clamp(.8rem,2vw,1.25rem);
+  min-width:0;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-session-card{
+  display:grid;
+  align-content:start;
+  min-width:0;
+  gap:clamp(.6rem,1.3vw,.85rem);
+  padding:clamp(1rem,2vw,1.4rem);
+  border-inline-start:3px solid transparent;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="ready"]{
+  border-inline-start-color:#C7A469;
+  background-color:#1C3829;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card[data-client-session-card-state="supervised"]{
+  border-inline-start-color:#81998A;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card>header{
+  min-width:0;
+  align-items:flex-start;
+  gap:.6rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card>header h3{
+  max-width:32ch;
+  margin:.3rem 0;
+  font-size:clamp(1.17rem,1.65vw,1.45rem);
+  font-weight:670;
+  line-height:1.24;
+  text-wrap:pretty;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-preview-disclosure>summary,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card button{
+  min-height:44px;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-preview-disclosure>summary:focus-visible,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card button:focus-visible{
+  outline:3px solid #E9CB8F;
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card .m26-session-preview-body{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+/* Exercise is immersive without floating controls above the keyboard/dock.
+   Rest is a distinct state, ACK and errors remain the original runtime truth. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live{
+  --iberfit-b2-live-accent:#C7A469;
+  min-width:0;
+  gap:clamp(.8rem,1.9vw,1.3rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="active"] .m26-session-live-heading h2,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="rest"] .m26-session-live-heading h2{
+  font-size:clamp(1.35rem,3.2vw,2.2rem);
+  font-weight:670;
+  line-height:1.13;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="rest"] .m26-session-rest-countdown strong{
+  font-variant-numeric:tabular-nums;
+  font-size:clamp(2rem,6vw,3.8rem);
+  line-height:1.05;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="active"] .m26-session-live-summary,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="rest"] .m26-session-live-summary{
+  gap:clamp(.45rem,1.4vw,.85rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live :is(.m26-session-live-actions,[data-session-live-feedback]) button,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live .m26-session-feedback-rpe-quick button{
+  min-height:44px;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="feedback"] [data-session-live-feedback]{
+  display:grid;
+  gap:clamp(.85rem,2vw,1.35rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live[data-session-live-state="completed"] .m26-session-live-heading h2{
+  font-size:clamp(1.6rem,3.3vw,2.45rem);
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-progress-stage-copy h2{
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-progress-stage :is(strong,small,p){
+  overflow-wrap:anywhere;
+}
+@media(max-width:390px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-week{grid-template-columns:minmax(0,1fr)}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief{padding:1rem}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live-heading{flex-wrap:wrap}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-session-live-actions>*{max-width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-primary-zone .m26-today-action.is-primary,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{transition:none}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-session-card{border-inline-start-color:CanvasText}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-session-preview-disclosure>summary:focus-visible{outline-color:Highlight}
+}
