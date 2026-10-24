@@ -193,6 +193,20 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await finish.click();
   await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
   await expect(page.locator('[data-session-live-state="completed"]')).toContainText('Confirmada');
+  // A completed workout with two ACKed sets must never send a third
+  // progress write, nor any additional execution command after FINISH.
+  // Inspect the actual request log, not only persisted history or UI state.
+  function assertNoPostTerminalRequests(stage){
+    const terminalIndex=allowed.findIndex(row=>row.type==='EJECUCION_COMPLETAR'
+      &&row.rpc==='iberfit_execute_command_v26');
+    expect(terminalIndex,stage+': completion transport must have been sent').toBeGreaterThanOrEqual(0);
+    expect(allowed.filter(row=>row.type==='EJECUCION_GUARDAR_PROGRESO'
+      &&row.rpc==='iberfit_execute_command_v26'),
+    stage+': exactly two set progress writes, never a third').toHaveLength(2);
+    expect(allowed.slice(terminalIndex+1),
+      stage+': no further command request may follow completion').toEqual([]);
+  }
+  assertNoPostTerminalRequests('after confirmed completion');
   await expect.poll(()=>allowed.some(x=>x.type==='EJECUCION_COMPLETAR'),{timeout:10_000}).toBe(true);
   await page.locator('[data-session-action="exit-session"]').first().click();
   await expect(page.locator('[data-m27-session-surface="sessions"]')).toBeVisible({timeout:25_000});
@@ -235,6 +249,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
     'Completed session must never return to startable cards after refresh').toHaveCount(0);
   expect(allowed,'Reloading confirmed history must not replay or duplicate writes')
     .toHaveLength(writesBeforeReload);
+  assertNoPostTerminalRequests('after full authenticated reload');
 
   const source=await page.evaluate(()=>({
     width:document.documentElement.clientWidth,
