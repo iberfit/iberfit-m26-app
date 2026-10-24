@@ -37,6 +37,42 @@ function userDirectoryFilterState(root){
     attention:String(directory?.querySelector?.('[data-admin-user-filter="attention"]')?.value||''),
   });
 }
+/* Preserve Admin 360 interaction state only across a confirmed refresh;
+ * never store personal identifiers or privileged form contents persistently.
+ */
+function userDirectoryDisclosureState(root){
+  const directory=root?.querySelector?.('[data-admin-user-directory]');
+  return [...(directory?.querySelectorAll?.('[data-admin-user-card]')||[])].map(card=>{
+    const userId=String(card.getAttribute?.('data-user-id')||'');
+    const expanded=card.querySelector?.('[data-admin-user-disclosure]');
+    return {
+      userId,
+      open:Boolean(expanded?.open),
+      contextOpen:Boolean(card.querySelector?.('.m26-admin-user360-context')?.open),
+      managementOpen:Boolean(card.querySelector?.('.m26-admin-user-management')?.open),
+    };
+  }).filter(item=>item.userId);
+}
+function restoreUserDirectoryDisclosures(root,state=[]){
+  const directory=root?.querySelector?.('[data-admin-user-directory]');
+  if(!directory)return 0;
+  const previous=new Map((Array.isArray(state)?state:[])
+    .filter(item=>item?.userId).map(item=>[String(item.userId),item]));
+  let count=0;
+  for(const card of directory.querySelectorAll?.('[data-admin-user-card]')||[]){
+    const userId=String(card.getAttribute?.('data-user-id')||'');
+    const old=previous.get(userId);
+    if(!old)continue;
+    const outer=card.querySelector?.('[data-admin-user-disclosure]');
+    if(outer)outer.open=Boolean(old.open);
+    const context=card.querySelector?.('.m26-admin-user360-context');
+    if(context)context.open=Boolean(old.contextOpen);
+    const management=card.querySelector?.('.m26-admin-user-management');
+    if(management)management.open=Boolean(old.managementOpen);
+    count++;
+  }
+  return count;
+}
 function applyUserDirectoryFilters(root,state=null){
   const directory=root.querySelector?.('[data-admin-user-directory]');
   if(!directory)return 0;
@@ -235,6 +271,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     setFormPending(form,true);
     syncPendingUserForms();
     const filters=userDirectoryFilterState(root);
+    const disclosures=userDirectoryDisclosureState(root);
     try{
       const result=await service.execute(input);
       try{onSuccess?.(result);}catch{}
@@ -249,6 +286,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         void result.whenRefreshed.then((outcome)=>{
           if(outcome?.ok===true){
             render();
+            restoreUserDirectoryDisclosures(root,disclosures);
             applyUserDirectoryFilters(root,filters);
             syncPendingUserForms();
             clientWizard.sync();
@@ -259,6 +297,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         });
       }else{
         render();
+        restoreUserDirectoryDisclosures(root,disclosures);
         applyUserDirectoryFilters(root,filters);
         syncPendingUserForms();
         clientWizard.sync();
@@ -542,6 +581,8 @@ export const __adminControllerInternals=Object.freeze({
   personDirectoryMatchesFilter,
   adminOperationLockKey,
   userDirectoryFilterState,
+  userDirectoryDisclosureState,
+  restoreUserDirectoryDisclosures,
   applyUserDirectoryFilters,
   createdClientId,
 });
