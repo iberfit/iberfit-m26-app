@@ -1,9 +1,16 @@
 # IBERFIT · Backlog Vivo
 
+## SIGNATURE B2 · Cliente insignia + continuidad y bloqueo de citas históricas · 2026-10-24
+- **LIVE base certificado:** `e1df8837a43100452bffa397a63cb7b6aafb3488` (release [#40045429724](https://github.com/iberfit/iberfit-m26-app/actions/runs/40045429724), Cloudflare `80294470-7a18-4d49-a746-bf9278fa3666`); conserva U53-U59R y B3.1 Coach.
+- **UN SOLO WIP / PR #1122** consolida PR #1123 sin perder sus commits: interfaz Cliente Hoy→Planificación→Sesiones→ejercicio/descanso/feedback→Progreso; catálogo de sesiones con estados RC39 reales, CTAs contextuales sin duplicidad, jerarquía premium y foco/touch móvil sin overlays ni CSS adicional.
+- **Integridad P0:** citas confirmadas históricas no inician entrenamientos desde Hoy ni tarjetas de agenda; proyecciones legacy asociadas a citas no se presentan como sesiones autónomas. Se respeta comprobación real de autorización, estado de servicio y permiso de ejecución; Cliente Plan no confunde modalidad con sesión iniciable. Se conserva Diagnóstico IRI inicial independiente del progreso longitudinal.
+- **Regresión:** 8 tests visuales/privacidad B2 + 13 tests funcionales B2 y fixtures históricas actualizadas. Comprobar toda la suite, QA autenticada, Device, WebAuthn, CI, auditoría, Canary Exact (7 gates postmerge) y una sola promoción PROD de frontend con M44 fresco y rollback; **aún NO publicado**.
+- **Alcance:** frontend, tests, documentación y comentario de trigger de respaldo M44; ninguna migración, función Edge, Auth, RLS o modificación de datos PROD.
+
 ## SIGNATURE B3.1 · Coach macrobloque · 2026-10-23
-- **LIVE y Canary:** SHA `fa1ec4dbc3f42f7e5ab01098a7da80dd5e15d757`, release #40036591107 SUCCESS, mejoras U53 y anteriores integradas conservadas.
+- **LIVE y Canary:** SHA `e1df8837a43100452bffa397a63cb7b6aafb3488`, release #40045429724 SUCCESS; incluye B3.1, U53 y mejoras anteriores.
 - **WIP único:** PR #1121 ampliado con prioridad Coach Hoy, archivo nativo de agenda y cartera prioritaria, Agenda completa agrupada y recuperación contextual de sesión bloqueada.
-- **Pendiente:** tests del SHA final, CI, Device, QA autenticada, Canary Exact Deploy y luego promoción PROD segura con M44.
+- **Completado:** 7 gates, Canary Exact Deploy y Production Promotion #40045429724 con M44 y rollback conservados.
 - **Límites:** frontend Coach; ninguna mutación de Auth, RLS, IRI, backend ni datos.
 
 

@@ -47,6 +47,7 @@ test('Client Home promotes an executable confirmed session without ambiguity',()
       dateLabel:'18:00',
       modality:'Presencial',
     }],
+    upcoming:[{id:'a1',sessionId:'s1',statusRaw:'confirmada',title:'Fuerza y potencia',dateLabel:'18:00',modality:'Presencial'}],
     rc39:{sessionProjections:[{
       id:'s1',
       visible:true,
@@ -187,6 +188,7 @@ test('Client Home does not duplicate the primary runnable session in the agenda'
       dateLabel:'18:00',
       modality:'Presencial',
     }],
+    upcoming:[{id:'a1',sessionId:'s1',statusRaw:'confirmada',title:'Fuerza y potencia',dateLabel:'18:00',modality:'Presencial'}],
     rc39:{sessionProjections:[{
       id:'s1',
       visible:true,
