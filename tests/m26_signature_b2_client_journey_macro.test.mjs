@@ -73,12 +73,14 @@ test('B2 confirmed progress offers Sessions continuity without mixing IRI diagno
 });
 test('B2 scope and accessibility: Client only, 44px touch, reduced motion, forced colors',()=>{
  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
- const start=css.indexOf('SIGNATURE B2: Client session');const end=css.indexOf('/* Settings and bottom navigation',start);
- const part=css.slice(start,end);assert.ok(start>=0&&end>start);
+ const start=css.indexOf('SIGNATURE B2: Client session');const end=css.indexOf('/* SIGNATURE B2 / Atelier Cliente',start);
+ assert.ok(start>=0&&end>start,'ambos bloques B2 coexisten y conservan su delimitación');
+ const part=css.slice(start,end);const flagship=css.slice(end);
  for(const name of ['m26-client-plan-next','m26-client-sessions-empty','m26-client-progress-continuity'])assert.ok(part.includes(name),name);
  assert.match(part,/min-height:44px/u);assert.match(part,/@media\(max-width:520px\)/u);
  assert.match(part,/@media\(prefers-reduced-motion:reduce\)/u);assert.match(part,/@media\(forced-colors:active\)/u);
  assert.doesNotMatch(part,/!important|position:fixed|pointer-events:none/u);
+ assert.doesNotMatch(flagship,/!important|position:fixed|pointer-events:none/u);
 });
 
 test('B2 canonical Client Plan counts genuinely startable guided sessions, never visibility alone',()=>{
