@@ -208,8 +208,16 @@ async function exerciseAdminTask(page,task){
   ).toBe(true);
 
   if(task.id==='admin-users'){
-    const details=page.locator('[data-admin-user-card][data-user-id="22222222-2222-4222-8222-222222222222"]').locator('details.m26-admin-user-management');
-    await expect(details).toBeVisible();
+    const card=page.locator('[data-admin-user-card][data-user-id="22222222-2222-4222-8222-222222222222"]');
+    const identity=card.locator('details[data-admin-user-disclosure]');
+    await expect(identity,'Admin must expose a compact accessible identity').toBeVisible();
+    await expect(identity,'Healthy accounts start collapsed').not.toHaveAttribute('open','');
+    const identityToggle=identity.locator(':scope > summary');
+    await expect(identityToggle).toBeVisible();
+    await identityToggle.click();
+    await expect(identity).toHaveAttribute('open','');
+    const details=identity.locator('details.m26-admin-user-management');
+    await expect(details,'Account controls become reachable through the expanded identity').toBeVisible();
     await details.locator('summary').click();
     await expect(details).toHaveAttribute('open','');
     await expect(details.locator('[data-admin-form="user-delete"]')).toBeVisible();

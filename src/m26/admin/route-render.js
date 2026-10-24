@@ -326,6 +326,15 @@ function renderUsers(vm){
     // and privileged forms behind native, keyboard-accessible disclosure.
     // Identity, Auth access and integrity must never be inferred from email.
     return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}">
+      <details class="m26-admin-user360-disclosure" data-admin-user-disclosure${(u.integrityIssues||[]).length?' open':''}>
+        <summary class="m26-admin-user360-summary">
+          <span class="m26-admin-user360-summary-identity"><small>Cuenta 360</small><strong>${e(u.name||u.authEmail||u.email||'Usuario')}</strong><small>${e(u.authEmail||u.email||'Sin correo de acceso')}</small></span>
+          <span class="m26-admin-user360-summary-roles">${roles.length?roles.map(role=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</span>
+          <span class="m26-admin-user360-summary-access"><small>Último acceso</small><strong>${lastAccess}</strong></span>
+          <span class="m26-admin-user360-summary-state">${badge(adminStatusLabel(u.status))}${(u.integrityIssues||[]).length?'<small class="m26-admin-user360-attention">Revisión requerida</small>':''}</span>
+          <span class="m26-admin-user360-summary-toggle" aria-hidden="true">Ficha</span>
+        </summary>
+        <div class="m26-admin-user360-details">
       <div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360 · identidad y acceso</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div>
       <div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div>
       <dl class="m26-admin-user360-grid m26-admin-user360-essentials">
@@ -343,6 +352,8 @@ function renderUsers(vm){
         </dl>
       </details>
       ${management}
+        </div>
+      </details>
     </article>`;
   }).join('');
   const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
