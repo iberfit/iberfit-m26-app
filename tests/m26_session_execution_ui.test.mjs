@@ -7,7 +7,19 @@ import {validateCommandCatalog,M26_REQUIRED_COMMANDS} from '../src/m26/command-c
 import fs from 'node:fs';
 const data=JSON.parse(fs.readFileSync(new URL('../baseline_m25_2/exercise-catalog-m25.json',import.meta.url)));const catalog=createExerciseCatalog(data);
 function session(){const d=createSessionDraft({clientId:'c1'});addCatalogExercise(d,catalog.list()[0].id,catalog,{sets:2,reps:'10'});return d;}
-test('builder renders real controls and catalog results',()=>{const d=session();const html=renderSessionBuilder({draft:d,catalog});assert.match(html,/data-session-action="publish"/);assert.match(html,/data-session-action="add-exercise"/);assert.doesNotMatch(html,/onclick=/);});
+test('builder renders catalog and review-first controls; publish only after accepted preview',()=>{
+  const draft=session();
+  const editing=renderSessionBuilder({draft,catalog});
+  assert.match(editing,/data-session-action="preview"/);
+  assert.match(editing,/data-session-action="add-exercise"/);
+  assert.match(editing,/data-session-action="save-draft"/);
+  assert.doesNotMatch(editing,/data-session-action="publish"/);
+  assert.doesNotMatch(editing,/onclick=/);
+  const accepted=renderSessionBuilder({draft:{...draft,previewAccepted:true},catalog});
+  assert.match(accepted,/data-session-action="publish"/);
+  assert.doesNotMatch(accepted,/data-session-action="preview"/);
+  assert.doesNotMatch(accepted,/onclick=/);
+});
 test('execution supports start record advance and rewind',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);recordSet(x,s,{reps:10,rpe:7});advanceExecution(x);assert.equal(x.setIndex,1);retreatExecution(x);assert.equal(x.setIndex,0);});
 test('execution requires feedback before command',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);recordSet(x,s,{reps:10,rpe:7});advanceExecution(x);recordSet(x,s,{reps:9,rpe:8});advanceExecution(x);assert.equal(x.status,'awaiting_feedback');assert.throws(()=>buildExecutionCommand(x),/NOT_COMPLETED/);finishExecution(x,{sessionRpe:8,comment:'Sesión completada'});assert.equal(buildExecutionCommand(x).type,'EJECUCION_COMPLETAR');});
 test('cierre de sesión distingue feedback del Cliente y registro profesional del Coach sin cambiar campos',()=>{
