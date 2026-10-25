@@ -10,6 +10,7 @@ const fence=readFileSync(new URL('../supabase/migrations/20261025210500_signatur
 const fenceRollback=readFileSync(new URL('../supabase/rollbacks/20261025210500_signature_u32_legacy_appointment_writer_fence_v1.rollback.sql',import.meta.url),'utf8');
 const fenceQa=readFileSync(new URL('../qa/sql/signature_u32_legacy_appointment_race_rollback_probe.sql',import.meta.url),'utf8');
 const endToEndQa=readFileSync(new URL('../qa/sql/signature_u32_u31_real_published_three_dates_rollback_probe.sql',import.meta.url),'utf8');
+const multiblockQa=readFileSync(new URL('../qa/sql/signature_u32_u31_real_multiblock_rollback_probe.sql',import.meta.url),'utf8');
 
 test('U32: Coach can only schedule from authorized, published, server-owned source and cycle',()=>{
   assert.match(migration,/CREATE FUNCTION private\.iberfit_u32_create_occurrences_batch_v1\(p_command jsonb\)/u);
@@ -119,4 +120,13 @@ test('U32/U31 integration: actual published Coach prescription survives first co
   assert.match(endToEndQa,/U32_U31_FUTURE_OCCURRENCES_NOT_PRESERVED/u);
   assert.match(endToEndQa,/U32_U31_FIRST_EXECUTION_LOCK_REMAINS/u);
   assert.match(endToEndQa,/U32_U31_REAL_PUBLISHED_3_DATE_LIFECYCLE_AND_FUTURE_GUARD_PASS/u);
+});
+
+test('U32/U31 integration: real multi-block prescription cannot complete with missing exercise',()=>{
+  assert.match(multiblockQa,/jsonb_array_length\(e\.body->'blocks'\)=3/u);
+  assert.match(multiblockQa,/U32_MULTI_PUBLISHED_SOURCE_DIFFERS/u);
+  assert.match(multiblockQa,/U32_MULTI_RESULT_SCOPE_COLLISION/u);
+  assert.match(multiblockQa,/U32_MULTI_INCOMPLETE_EXERCISE_ACCEPTED/u);
+  assert.match(multiblockQa,/U32_MULTI_THREE_BLOCK_CLOSE_FAILED/u);
+  assert.match(multiblockQa,/U32_MULTI_SOURCE_OR_UPCOMING_CHANGED/u);
 });
