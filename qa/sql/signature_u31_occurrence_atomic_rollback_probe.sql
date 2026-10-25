@@ -5,6 +5,7 @@ DO $qa$
 DECLARE
   r record; g jsonb; source public.domain_entities_v26%rowtype;
   source_status text; source_revision bigint;
+  qa_admin uuid;
   a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid();c uuid:=gen_random_uuid();
   x uuid:=gen_random_uuid(); y uuid:=gen_random_uuid();
   cmd jsonb; ack jsonb; replay jsonb; snapshot jsonb;
@@ -77,6 +78,23 @@ BEGIN
     RAISE EXCEPTION 'U31_QA_MISSING_TYPE_ACCEPTED';
   EXCEPTION WHEN invalid_parameter_value THEN NULL;
   END;
+
+  SELECT user_id INTO qa_admin FROM public.user_profiles
+    WHERE role::text='admin' LIMIT 1;
+  IF qa_admin IS NULL THEN
+    RAISE EXCEPTION 'U31_QA_ADMIN_FIXTURE_REQUIRED';
+  END IF;
+  PERFORM set_config('request.jwt.claim.sub',qa_admin::text,true);
+  BEGIN
+    PERFORM private.iberfit_u31_occurrence_transition_v1(
+      jsonb_build_object('type','OCURRENCIA_INICIAR',
+        'operationId',gen_random_uuid(),'clientId',r.client_id,
+        'entityId',a,'baseRevision',1,
+        'payload',jsonb_build_object('executionId',gen_random_uuid())));
+    RAISE EXCEPTION 'U31_QA_ADMIN_EXECUTION_FORBIDDEN';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  PERFORM set_config('request.jwt.claim.sub',r.actor::text,true);
 
   replay_operation:=gen_random_uuid();
   cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR','operationId',replay_operation,
