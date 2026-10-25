@@ -29,6 +29,9 @@ DECLARE
   v_occ public.training_session_occurrences_v1%rowtype;
   v_source public.domain_entities_v26%rowtype;
   v_appointment public.appointments%rowtype;
+  v_appointment_body jsonb;
+  v_appointment_domain_revision bigint;
+  v_appointment_completion_state text;
   v_execution_body jsonb;
   v_execution_state public.domain_entities_v26%rowtype;
   v_queue jsonb;
@@ -328,6 +331,7 @@ BEGIN
     v_status:='en_curso';
 
   ELSE -- OCURRENCIA_COMPLETAR: validate the EXACT existing completion contract.
+    v_appointment_completion_state:='no_appointment';
     IF v_occ.status<>'en_curso' OR v_occ.execution_id IS NULL THEN
       RETURN jsonb_build_object('kind','rejected','reason','TRANSITION_FORBIDDEN',
         'operationId',v_operation,'serverAt',v_now);
@@ -384,6 +388,50 @@ BEGIN
     END IF;
     v_execution_body:=jsonb_set(
       v_execution_body,'{feedback}',v_validation->'feedback',true);
+    IF v_occ.appointment_id IS NOT NULL THEN
+      -- A cancelled appointment must NEVER be resurrected simply because
+      -- the workout finishes later. An active confirmed appointment should
+      -- be completed atomically with the dated execution, not left open.
+      SELECT * INTO v_appointment FROM public.appointments
+        WHERE id=v_occ.appointment_id AND client_id=v_client
+          AND session_id=v_occ.session_id FOR UPDATE;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'U31_APPOINTMENT_OWNERSHIP_DRIFT'
+          USING errcode='23503';
+      END IF;
+      v_appointment_completion_state:='preserved_'||v_appointment.status;
+      IF v_appointment.status='confirmada' THEN
+        SELECT body,revision INTO v_appointment_body,v_appointment_domain_revision
+          FROM public.domain_entities_v26
+          WHERE entity_type='appointment'
+            AND entity_id=v_occ.appointment_id AND client_id=v_client FOR UPDATE;
+        IF v_appointment_body IS NULL THEN
+          v_appointment_body:=public.iberfit_base_entity_v26(
+            'appointment',v_occ.appointment_id,v_client);
+          v_appointment_domain_revision:=v_appointment.revision;
+        END IF;
+        IF v_appointment_domain_revision IS DISTINCT FROM v_appointment.revision
+          OR v_appointment_body IS NULL THEN
+          -- Never overwrite an appointment whose canonical and typed
+          -- revisions disagree; return a recoverable conflict without
+          -- recording an incorrect completion.
+          RETURN jsonb_build_object('kind','conflict',
+            'reason','U31_APPOINTMENT_REVISION_DRIFT',
+            'operationId',v_operation,'remoteRevision',v_occ.revision,
+            'appointmentRevision',v_appointment.revision,'serverAt',v_now);
+        END IF;
+        v_appointment_body:=v_appointment_body||jsonb_build_object(
+          'status','completada',
+          'revision',v_appointment_domain_revision+1,
+          'completedAt',v_now,'completedBy',v_actor,'updatedAt',v_now);
+        PERFORM public.iberfit_persist_entity_v26(
+          'appointment',v_occ.appointment_id,v_client,'completada',
+          v_appointment_domain_revision+1,v_appointment_body);
+        v_appointment_completion_state:='completed';
+      END IF;
+      v_execution_body:=v_execution_body||jsonb_build_object(
+        'appointmentCompletionState',v_appointment_completion_state);
+    END IF;
     UPDATE public.domain_entities_v26 SET
       status='completada',revision=v_execution_base+1,
       body=v_execution_body,updated_at=v_now
@@ -415,6 +463,7 @@ BEGIN
     'entityId',v_occ.id,'entityType','training_occurrence',
     'remoteRevision',v_next,'status',v_status,'executionId',v_execution,
     'executionRevision',v_execution_ack_revision,
+    'appointmentCompletionState',v_appointment_completion_state,
     'serverAt',v_now,'duplicate',false);
   INSERT INTO public.command_receipts_v26(
     operation_id,command_type,entity_type,entity_id,client_id,
