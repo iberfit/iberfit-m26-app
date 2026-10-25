@@ -3,7 +3,7 @@
 DO $qa$
 DECLARE r record;v_client uuid;v_session uuid;v_actor uuid;
  slot timestamptz;duration_minutes int;d date;ack jsonb;
- o_id uuid;a_id uuid;v_base bigint;
+ o_id uuid;a_id uuid;legacy_id uuid;v_base bigint;
 BEGIN
  FOR r IN
   SELECT e.entity_id sid,e.client_id cid,e.revision rev,
@@ -50,6 +50,26 @@ BEGIN
     slot+interval '10 min',slot+interval '40 min','propuesta');
   RAISE EXCEPTION 'U32_CROSS_WRITER_UNRELATED_APPOINTMENT_ACCEPTED';
  EXCEPTION WHEN exclusion_violation THEN NULL;END;
+
+ -- Verify the real canonical legacy writer (not only a direct typed
+ -- INSERT) rolls back both the domain entity and typed appointment on clash.
+ legacy_id:=gen_random_uuid();
+ BEGIN
+   PERFORM public.iberfit_persist_entity_v26(
+     'appointment',legacy_id,v_client,'propuesta',0,
+     jsonb_build_object('id',legacy_id,'clientId',v_client,
+       'sessionId',null,'status','propuesta','revision',0,
+       'startAt',slot+interval '10 minutes',
+       'endAt',slot+interval '40 minutes',
+       'timeZone','America/Santiago',
+       'title','QA legacy command conflict'));
+   RAISE EXCEPTION 'U32_CANONICAL_APPOINTMENT_CONFLICT_ACCEPTED';
+ EXCEPTION WHEN exclusion_violation THEN NULL; END;
+ IF EXISTS (SELECT 1 FROM public.domain_entities_v26
+   WHERE entity_type='appointment' AND entity_id=legacy_id)
+   OR EXISTS (SELECT 1 FROM public.appointments WHERE id=legacy_id) THEN
+   RAISE EXCEPTION 'U32_CANONICAL_APPOINTMENT_PARTIAL_WRITE';
+ END IF;
 
  -- A legitimate EXACT appointment for this source/time may be created and
  -- attached. Another identical appointment may NOT silently claim that slot.
