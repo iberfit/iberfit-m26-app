@@ -42,7 +42,7 @@ test('U38 a provisioned occurrence never falls through to the legacy executor',(
   }]}),true);
   assert.equal(legacyStartNeedsOccurrence({...args,occurrences:[{
     id:'one',sessionId:SESSION,clientId:CLIENT,status:'cancelada',
-  }]}),false);
+  }]}),true,'cancelled occurrence history also fences the legacy executor');
 });
 
 test('U38 Coach and Client renderers share the start fence when two real appointments exist',()=>{

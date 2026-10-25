@@ -163,14 +163,13 @@ export function legacyStartNeedsOccurrence({
       if(ids.size>1)return true;
     }
   }
-  // A provisioned occurrence must never be started through the V26 executor
-  // even when there is only one dated occurrence for this prescription.
+  // Once any U30 occurrence was provisioned, including historical cancelled
+  // dates, the canonical prescription must never be consumed by V26. U31
+  // handles new date executions and preserves their separate history.
   if(Array.isArray(occurrences)){
     for(const occurrence of occurrences){
       if(String(field(occurrence,'sessionId','session_id')||'')===targetSession
-        &&clientIdOf(occurrence)===targetClient
-        &&!['cancelada','cancelado','cancelled','canceled'].includes(
-          fold(field(occurrence,'status','estado'))))return true;
+        &&clientIdOf(occurrence)===targetClient)return true;
     }
   }
   return false;
