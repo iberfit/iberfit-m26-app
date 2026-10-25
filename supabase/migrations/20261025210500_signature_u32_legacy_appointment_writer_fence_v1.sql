@@ -36,22 +36,33 @@ BEGIN
     SELECT 1 FROM public.training_session_occurrences_v1 o
     WHERE o.client_id=NEW.client_id
       AND o.status<>'cancelada'
-      AND o.starts_at IS NOT NULL AND o.ends_at IS NOT NULL
-      AND o.starts_at<NEW.end_at AND o.ends_at>NEW.start_at
-      AND NOT (
-        o.session_id=NEW.session_id
-        AND o.starts_at=NEW.start_at
-        AND o.ends_at=NEW.end_at
-        AND (
-          (o.appointment_id IS NOT NULL AND o.appointment_id=NEW.id)
-          OR (o.appointment_id IS NULL AND NOT EXISTS(
-            SELECT 1 FROM public.appointments other
-            WHERE other.id<>NEW.id
-              AND other.client_id=NEW.client_id
-              AND other.session_id=NEW.session_id
-              AND other.start_at=NEW.start_at AND other.end_at=NEW.end_at
-              AND other.status<>'cancelada'
-          ))
+      AND (
+        -- Date-only draft: do not silently create a second same-source
+        -- appointment on its local day. Time must be assigned through the
+        -- controlled occurrence lifecycle before linking an appointment.
+        (o.starts_at IS NULL AND o.ends_at IS NULL
+          AND o.session_id=NEW.session_id
+          AND (NEW.start_at AT TIME ZONE o.time_zone)::date=o.local_date
+          AND o.appointment_id IS DISTINCT FROM NEW.id)
+        OR (
+          o.starts_at IS NOT NULL AND o.ends_at IS NOT NULL
+          AND o.starts_at<NEW.end_at AND o.ends_at>NEW.start_at
+          AND NOT (
+            o.session_id=NEW.session_id
+            AND o.starts_at=NEW.start_at
+            AND o.ends_at=NEW.end_at
+            AND (
+              (o.appointment_id IS NOT NULL AND o.appointment_id=NEW.id)
+              OR (o.appointment_id IS NULL AND NOT EXISTS(
+                SELECT 1 FROM public.appointments other
+                WHERE other.id<>NEW.id
+                  AND other.client_id=NEW.client_id
+                  AND other.session_id=NEW.session_id
+                  AND other.start_at=NEW.start_at AND other.end_at=NEW.end_at
+                  AND other.status<>'cancelada'
+              ))
+            )
+          )
         )
       )
   ) THEN
