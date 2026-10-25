@@ -174,6 +174,18 @@ BEGIN
         RAISE EXCEPTION 'U32_TIME_REQUIRED_FOR_APPOINTMENT'
           USING errcode='22023';
       END IF;
+      -- Symmetric protection: the old appointment writer already rejects
+      -- creation over a date-only occurrence. A Coach batch must likewise
+      -- reject creating an untimed occurrence over an existing appointment
+      -- for the SAME published session and Chile local day.
+      IF EXISTS (SELECT 1 FROM public.appointments ap
+        WHERE ap.client_id=v_client
+          AND ap.session_id=v_session
+          AND ap.status<>'cancelada'
+          AND (ap.start_at AT TIME ZONE 'America/Santiago')::date=v_date) THEN
+        RAISE EXCEPTION 'U32_DATE_ONLY_ALREADY_HAS_APPOINTMENT'
+          USING errcode='23505';
+      END IF;
     ELSE
       IF v_time !~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' THEN
         RAISE EXCEPTION 'U32_INVALID_LOCAL_TIME' USING errcode='22023';
