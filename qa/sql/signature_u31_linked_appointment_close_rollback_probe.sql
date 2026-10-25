@@ -16,7 +16,7 @@ BEGIN
  FOR r IN
  SELECT e.client_id cid,e.entity_id sid,e.revision rev,
    e.body->'blocks' blocks, (e.body->>'durationMinutes')::int duration,
-   ca.coach_user_id actor,
+   ca.coach_user_id actor, cp.user_id client_actor,
    (p.body->>'startDate')::date starts,(p.body->>'endDate')::date ends
  FROM public.domain_entities_v26 e
  JOIN public.domain_entities_v26 p
@@ -24,6 +24,8 @@ BEGIN
      AND p.client_id=e.client_id AND p.status='publicado'
  JOIN public.client_assignments ca ON ca.client_id=e.client_id AND ca.active
  JOIN public.user_profiles up ON up.user_id=ca.coach_user_id AND up.role::text='coach'
+ JOIN public.user_profiles cp ON cp.client_id=e.client_id AND cp.role::text IN ('client','cliente')
+ JOIN public.client_access_v26 access ON access.client_id=e.client_id AND access.auth_user_id=cp.user_id AND access.status='activo'
  JOIN public.m26_canary_clients_v26 cc ON cc.client_id=e.client_id AND cc.active
  WHERE e.entity_type='session' AND e.status='disponible'
    AND e.body->>'deliveryModality'='guiada_en_app'
@@ -84,6 +86,12 @@ BEGIN
  ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
  IF ack->>'status'<>'confirmada' THEN
    RAISE EXCEPTION 'U31_LINKED_CONFIRM_FAILED:%',ack; END IF;
+ -- Switch to the REAL authenticated Client profile for start and completion.
+ PERFORM set_config('request.jwt.claim.sub',r.client_actor::text,true);
+ IF public.iberfit_current_role_v26()<>'cliente'
+    OR public.iberfit_client_id() IS DISTINCT FROM client THEN
+   RAISE EXCEPTION 'U31_LINKED_CLIENT_IDENTITY_INVALID';
+ END IF;
  cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR',
   'operationId',gen_random_uuid(),'clientId',client,
   'entityId',occurrence,'baseRevision',1,
@@ -129,6 +137,8 @@ BEGIN
  IF (SELECT revision FROM public.appointments WHERE id=appt_id)<>1 THEN
    RAISE EXCEPTION 'U31_LINKED_CLOSE_DUPLICATED_APPOINTMENT_UPDATE';
  END IF;
+ -- Return to authorized Coach for appointment cancellation scenario.
+ PERFORM set_config('request.jwt.claim.sub',actor::text,true);
  -- Second lifecycle: appointment cancellation while Coach has already
  -- started must not make the session impossible to close, nor reactivate
  -- the canceled appointment. The exercise results remain authoritative.
