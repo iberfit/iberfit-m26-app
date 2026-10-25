@@ -69,6 +69,12 @@ test('U30: duplicate or out-of-cycle days and time conflicts are fail-closed, ne
   error(()=>planDatedTrainingOccurrences({...input,dates:['2026-12-01']}),'OUTSIDE_CYCLE');
   error(()=>planDatedTrainingOccurrences({...input,dates:['2026-02-30']}),'LOCAL_DATE_INVALID');
   error(()=>planDatedTrainingOccurrences({...input,existingOccurrences:[{sessionId:SESSION,localDate:'2026-11-03'}]}),'DUPLICATE_LOCAL_DAY');
+  assert.equal(planDatedTrainingOccurrences({...input,existingOccurrences:[{
+    sessionId:SESSION,clientId:CLIENT,localDate:'2026-11-03',status:'cancelada',
+  }]}).count,3,'cancelled records remain in history without preventing replacement');
+  error(()=>planDatedTrainingOccurrences({...input,existingOccurrences:[{
+    sessionId:SESSION,clientId:CLIENT,localDate:'2026-11-03',status:'completada',
+  }]}),'DUPLICATE_LOCAL_DAY');
   error(()=>planDatedTrainingOccurrences({...input,existingAppointments:[
     {clientId:CLIENT,startsAt:'2026-10-27T21:20:00.000Z',endsAt:'2026-10-27T22:30:00.000Z',status:'confirmada'},
   ]}),'CLIENT_TIME_CONFLICT');
@@ -147,7 +153,7 @@ test('U30: database integrity, frozen snapshot and read restrictions are enforce
   assert.match(migration,/FOREIGN KEY \(session_id,client_id\)[\s\S]*?REFERENCES public\.sessions\(id,client_id\)/u);
   assert.match(migration,/FOREIGN KEY \(appointment_id,client_id,session_id\)[\s\S]*?REFERENCES public\.appointments\(id,client_id,session_id\)/u);
   assert.match(migration,/ON DELETE SET NULL \(appointment_id\)/u);
-  assert.match(migration,/UNIQUE \(session_id,local_date\)/u);
+  assert.match(migration,/CREATE UNIQUE INDEX u30_session_one_active_occurrence_per_local_day[\s\S]*?WHERE status <> 'cancelada'/u);
   assert.match(migration,/u30_snapshot_identity_check/u);
   assert.match(migration,/u30_clock_consistency_check/u);
   assert.match(migration,/u30_occurrence_source_protected/u);
