@@ -60,7 +60,24 @@ BEGIN
     END IF;
   END LOOP;
 
-  replay_operation:=gen_random_uuid();
+  -- Negative security probes: unknown Client, missing type, and Admin
+  -- attempting a Coach/Client execution are rejected before any write.
+  BEGIN
+    PERFORM private.iberfit_u31_occurrence_transition_v1(
+      jsonb_build_object('type','OCURRENCIA_CONFIRMAR',
+        'operationId',gen_random_uuid(),'clientId',gen_random_uuid(),
+        'entityId',c,'baseRevision',1));
+    RAISE EXCEPTION 'U31_QA_CROSS_CLIENT_SCOPE_ACCEPTED';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM private.iberfit_u31_occurrence_transition_v1(
+      jsonb_build_object('operationId',gen_random_uuid(),'clientId',r.client_id,
+        'entityId',c,'baseRevision',1));
+    RAISE EXCEPTION 'U31_QA_MISSING_TYPE_ACCEPTED';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
+
   cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR','operationId',replay_operation,
       'clientId',r.client_id,'entityId',a,'baseRevision',1,
       'payload',jsonb_build_object('executionId',x));
