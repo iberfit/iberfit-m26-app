@@ -95,6 +95,10 @@ test('U32: legacy appointment insert, update and UPSERT share batch schedule loc
   assert.match(fence,/o\.starts_at IS NULL AND o\.ends_at IS NULL/u);
   assert.match(fence,/o\.appointment_id IS DISTINCT FROM NEW\.id/u);
   assert.match(fenceQa,/U32_DATE_ONLY_DUPLICATE_APPOINTMENT_ALLOWED/u);
+  assert.match(migration,/U32_DATE_ONLY_ALREADY_HAS_APPOINTMENT/u);
+  assert.match(migration,/ap\.session_id=v_session/u);
+  assert.match(fenceQa,/U32_DATE_ONLY_ON_PREEXISTING_APPOINTMENT_ALLOWED/u);
+  assert.match(fenceQa,/U32_DATE_ONLY_INVERSE_PARTIAL_SAVE/u);
   assert.match(fenceQa,/QA unrelated session on same date/u);
 });
 
