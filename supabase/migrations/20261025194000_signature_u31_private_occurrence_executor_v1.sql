@@ -48,7 +48,8 @@ BEGIN
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'AUTH_REQUIRED' USING errcode='42501';
   END IF;
-  IF jsonb_typeof(p_command) IS DISTINCT FROM 'object' THEN
+  IF jsonb_typeof(p_command) IS DISTINCT FROM 'object'
+     OR octet_length(p_command::text)>524288 THEN
     RAISE EXCEPTION 'U31_INVALID_COMMAND' USING errcode='22023';
   END IF;
   BEGIN
@@ -114,6 +115,10 @@ BEGIN
   WHERE entity_type='session' AND entity_id=v_occ.session_id AND client_id=v_client;
   IF NOT FOUND OR v_source.status <> 'disponible' THEN
     RETURN jsonb_build_object('kind','rejected','reason','SOURCE_NOT_AVAILABLE',
+      'operationId',v_operation,'serverAt',v_now);
+  END IF;
+  IF v_occ.prescription_revision>v_source.revision THEN
+    RETURN jsonb_build_object('kind','rejected','reason','SOURCE_REVISION_INVALID',
       'operationId',v_operation,'serverAt',v_now);
   END IF;
   -- The source is a published guided prescription, not a mutable draft.
