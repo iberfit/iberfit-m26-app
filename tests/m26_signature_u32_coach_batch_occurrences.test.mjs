@@ -139,4 +139,6 @@ test('U32/U31: real linked appointment closes atomically and cancelled appointme
  assert.match(linkedQa,/U31_LINKED_CLOSE_DUPLICATED_APPOINTMENT_UPDATE/u);
  assert.match(linkedQa,/U31_CANCELLED_CLOSE_RESURRECTED_OR_LOST/u);
  assert.match(linkedQa,/U31_CANCELLED_WORKOUT_OR_APPOINTMENT_HISTORY_DAMAGED/u);
+ assert.match(linkedQa,/public\.iberfit_current_role_v26\(\)<>'cliente'/u);
+ assert.match(linkedQa,/U31_LINKED_CLIENT_FORGED_OWNER_ACCEPTED/u);
 });
