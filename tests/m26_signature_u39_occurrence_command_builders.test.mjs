@@ -71,11 +71,11 @@ test('U39 Santiago DST gap/fold fails safely instead of shifting timestamps',()=
   newOperationId:b,replacement:{localDate:'2026-09-06',localTime:'00:30'}
  }),/DST_NONEXISTENT_LOCAL_TIME/);
  assert.throws(()=>make('OCURRENCIA_REPROGRAMAR',{
-  newOperationId:b,replacement:{localDate:'2027-04-04',localTime:'00:30'}
+  newOperationId:b,replacement:{localDate:'2027-04-03',localTime:'23:30'}
  }),/DST_AMBIGUOUS_LOCAL_TIME/);
  const folded=make('OCURRENCIA_REPROGRAMAR',{
   newOperationId:b,replacement:{
-   localDate:'2027-04-04',localTime:'00:30',dstDisambiguation:'later'
+   localDate:'2027-04-03',localTime:'23:30',dstDisambiguation:'later'
   }
  });
  assert.equal(folded.payload.replacement.dstDisambiguation,'later');
