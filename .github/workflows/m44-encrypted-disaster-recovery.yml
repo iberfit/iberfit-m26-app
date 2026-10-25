@@ -1,5 +1,11 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# SIGNATURE P0 release 2026-10-25: renewal-only Canary push trigger.
+# Reissue an independent encrypted PROD DB + Storage recovery point and
+# isolated PG17 restore after the certified Client A/B and JWT bootstrap merge.
+# This edit intentionally changes no permissions, secrets, backup operations,
+# restore requirements, workflow concurrency or fail-closed checks.
+
 # SIGNATURE B2 Client 2026-10-24: comment-only certified Canary merge trigger.
 # Renew unchanged encrypted PROD DB+Storage backup, isolated PostgreSQL 17 restore
 # and integrity proof before the single frontend-only B2 production promotion.
