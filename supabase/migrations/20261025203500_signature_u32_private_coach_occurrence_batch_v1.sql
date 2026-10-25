@@ -152,7 +152,133 @@ BEGIN
       OR (v_item - 'localDate' - 'localTime' - 'dstDisambiguation' - 'appointmentId')
         <> '{}'::jsonb
       OR v_item->>'localDate' IS NULL
-      OR v_item->>'localDate' !~ '^\\d{4}-\\d{2}-\\d{2}$' THEN
+      OR v_item->>'localDate' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} THEN
+      RAISE EXCEPTION 'U32_INVALID_DATE_ITEM' USING errcode='22023';
+    END IF;
+    BEGIN
+      v_date:=(v_item->>'localDate')::date;
+      v_appointment_id:=nullif(v_item->>'appointmentId','')::uuid;
+    EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow
+      OR invalid_text_representation THEN
+      RAISE EXCEPTION 'U32_INVALID_DATE_ITEM' USING errcode='22023';
+    END;
+    IF v_date < (v_plan.body->>'startDate')::date
+      OR v_date > (v_plan.body->>'endDate')::date THEN
+      RAISE EXCEPTION 'U32_OUTSIDE_CYCLE' USING errcode='22023';
+    END IF;
+    v_time:=nullif(v_item->>'localTime','');
+    v_disambiguation:=nullif(v_item->>'dstDisambiguation','');
+    v_start:=NULL;v_end:=NULL;
+    IF v_time IS NULL THEN
+      IF v_disambiguation IS NOT NULL OR v_appointment_id IS NOT NULL THEN
+        RAISE EXCEPTION 'U32_TIME_REQUIRED_FOR_APPOINTMENT'
+          USING errcode='22023';
+      END IF;
+    ELSE
+      IF v_time !~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' THEN
+        RAISE EXCEPTION 'U32_INVALID_LOCAL_TIME' USING errcode='22023';
+      END IF;
+      v_clock:=(v_date::text||' '||v_time)::timestamp;
+      v_start:=v_clock AT TIME ZONE 'America/Santiago';
+      IF (v_start AT TIME ZONE 'America/Santiago') IS DISTINCT FROM v_clock THEN
+        RAISE EXCEPTION 'U32_DST_NONEXISTENT_LOCAL_TIME' USING errcode='22023';
+      END IF;
+      v_alternative:=NULL;
+      IF ((v_start+interval '1 hour') AT TIME ZONE 'America/Santiago')
+        =v_clock THEN
+        v_alternative:=v_start+interval '1 hour';
+      ELSIF ((v_start-interval '1 hour') AT TIME ZONE 'America/Santiago')
+        =v_clock THEN
+        v_alternative:=v_start-interval '1 hour';
+      END IF;
+      IF v_alternative IS NOT NULL THEN
+        IF v_disambiguation NOT IN ('earlier','later')
+          OR v_disambiguation IS NULL THEN
+          RAISE EXCEPTION 'U32_DST_AMBIGUOUS_LOCAL_TIME'
+            USING errcode='22023';
+        END IF;
+        v_start:=CASE WHEN v_disambiguation='earlier'
+          THEN LEAST(v_start,v_alternative)
+          ELSE GREATEST(v_start,v_alternative) END;
+      ELSIF v_disambiguation IS NOT NULL THEN
+        RAISE EXCEPTION 'U32_DST_DISAMBIGUATION_NOT_NEEDED'
+          USING errcode='22023';
+      END IF;
+      v_end:=v_start+v_duration*interval '1 minute';
+    END IF;
+
+    IF EXISTS(SELECT 1 FROM public.training_session_occurrences_v1 existing
+      WHERE existing.session_id=v_session AND existing.local_date=v_date
+        AND existing.status<>'cancelada') THEN
+      RAISE EXCEPTION 'U32_DUPLICATE_ACTIVE_LOCAL_DATE'
+        USING errcode='23505';
+    END IF;
+    -- Serialize with other U32 batch writers. Legacy CITA_CREAR currently
+    -- does NOT take this advisory key: cross-writer race must be addressed
+    -- separately before granting live EXECUTE to any caller.
+    IF v_start IS NOT NULL AND (
+      EXISTS(SELECT 1 FROM public.appointments ap
+        WHERE ap.client_id=v_client AND ap.status<>'cancelada'
+          AND ap.start_at<v_end AND ap.end_at>v_start
+          AND (v_appointment_id IS NULL OR ap.id<>v_appointment_id))
+      OR EXISTS(SELECT 1 FROM public.training_session_occurrences_v1 oc
+        WHERE oc.client_id=v_client AND oc.status<>'cancelada'
+          AND oc.starts_at IS NOT NULL
+          AND oc.starts_at<v_end AND oc.ends_at>v_start)
+    ) THEN
+      RAISE EXCEPTION 'U32_CLIENT_SCHEDULE_CONFLICT' USING errcode='23P01';
+    END IF;
+    IF v_appointment_id IS NOT NULL THEN
+      SELECT * INTO v_appointment FROM public.appointments
+      WHERE id=v_appointment_id AND client_id=v_client
+        AND session_id=v_session AND status='confirmada';
+      IF NOT FOUND OR v_appointment.start_at IS DISTINCT FROM v_start
+        OR v_appointment.end_at IS DISTINCT FROM v_end THEN
+        RAISE EXCEPTION 'U32_APPOINTMENT_MISMATCH' USING errcode='23503';
+      END IF;
+    END IF;
+    v_id:=gen_random_uuid();
+    INSERT INTO public.training_session_occurrences_v1(
+      id,client_id,session_id,appointment_id,local_date,local_time,time_zone,
+      starts_at,ends_at,duration_minutes,prescription_revision,
+      prescription_snapshot,created_operation_id
+    ) VALUES (v_id,v_client,v_session,v_appointment_id,
+      v_date,CASE WHEN v_time IS NULL THEN NULL ELSE v_time::time END,
+      'America/Santiago',v_start,v_end,v_duration,v_revision,v_snapshot,gen_random_uuid());
+    v_new_ids:=v_new_ids||jsonb_build_array(jsonb_build_object(
+      'id',v_id,'localDate',v_date,'startsAt',v_start,'appointmentId',v_appointment_id));
+  END LOOP;
+  v_ack:=jsonb_build_object('kind','ack','operationId',v_operation,
+    'entityId',v_session,'entityType','training_occurrence_batch',
+    'remoteRevision',v_source.revision,
+    'occurrences',v_new_ids,'count',jsonb_array_length(v_new_ids),
+    'duplicate',false,'serverAt',v_now);
+  INSERT INTO public.command_receipts_v26(
+    operation_id,command_type,entity_type,entity_id,client_id,
+    actor_user_id,base_revision,remote_revision,response,processed_at
+  ) VALUES(v_operation,'OCURRENCIAS_CREAR_LOTE','training_occurrence_batch',
+    v_session,v_client,v_actor,v_revision,v_source.revision,
+    v_ack||jsonb_build_object('requestHash',v_request_hash),v_now);
+  INSERT INTO public.command_events_v26(
+    operation_id,command_type,entity_type,entity_id,client_id,
+    actor_user_id,phase,base_revision,remote_revision,payload_hash
+  ) VALUES(v_operation,'OCURRENCIAS_CREAR_LOTE','training_occurrence_batch',
+    v_session,v_client,v_actor,'applied',v_revision,v_source.revision,v_request_hash);
+  INSERT INTO public.domain_events_v26(
+    operation_id,command_type,entity_type,entity_id,client_id,
+    actor_user_id,actor_role,phase,from_status,to_status,
+    base_revision,remote_revision,details
+  ) VALUES(v_operation,'OCURRENCIAS_CREAR_LOTE','training_occurrence_batch',
+    v_session,v_client,v_actor,v_role,'applied','available','scheduled',
+    v_revision,v_source.revision,jsonb_build_object('count',jsonb_array_length(v_new_ids)));
+  RETURN v_ack;
+END;
+$u32$;
+REVOKE ALL ON FUNCTION private.iberfit_u32_create_occurrences_batch_v1(jsonb)
+FROM PUBLIC,anon,authenticated,service_role;
+COMMENT ON FUNCTION private.iberfit_u32_create_occurrences_batch_v1(jsonb)
+IS 'U32 STAGING ONLY. No RPC grant or dispatch wiring; preflight must include canonical legacy appointment writer locking before launch.';
+ THEN
       RAISE EXCEPTION 'U32_INVALID_DATE_ITEM' USING errcode='22023';
     END IF;
     BEGIN
