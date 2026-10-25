@@ -299,6 +299,14 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     'Publishing is absent until the Coach has explicitly reviewed the preview').toHaveCount(0);
   await expect(builder.locator('[data-session-action="preview"]').first(),
     'Review is the actual available pre-publication action').toBeVisible();
+  // SIGNATURE B10: invalid empty Coach drafts must guide, not send the Coach
+  // into a domain exception. Save/exit remain available without QA writes.
+  await expect(builder.locator('[data-session-action="preview"]').first(),
+    'Empty Coach session must not be reviewable').toBeDisabled();
+  await expect(builder.locator('[data-session-review-readiness]'))
+    .toContainText('Añade al menos un ejercicio');
+  await expect(builder.locator('[data-session-action="save-draft"]').first())
+    .toBeEnabled();
 
   const title=process.env.M26_QA_U56_PUBLISH==='true'
     ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
@@ -330,6 +338,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   await builder.locator('[data-session-action="save-draft"]').first().click();
   await expect(builder.locator('.m26-builder-editor')).toHaveCount(2);
   await expect(builder.locator('[data-session-draft-field="title"]')).toHaveValue(title);
+  await expect(builder.locator('[data-session-review-readiness]')).toHaveCount(0);
+  await expect(builder.locator('[data-session-action="preview"]').first(),
+    'Valid domain prescription should release the review action').toBeEnabled();
   await builder.locator('[data-session-action="preview"]').first().click();
   await expect(builder.locator('[data-session-action="publish"]').first(),
     'A validated preview should enable, but must not invoke, publication').toBeEnabled({timeout:15_000});
