@@ -49,6 +49,18 @@ export function createRc39Controller({
     if(form)form.hidden=true;
   }
   async function onClick(event){
+    const dayLink=event.target.closest?.('[data-rc39-date-target]');
+    if(dayLink){
+      const key=String(dayLink.getAttribute('data-rc39-date-target')||'');
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(key))return;
+      const day=root.querySelector?.('#m26-plan-day-'+key);
+      if(!day)return;
+      event.preventDefault();
+      day.open=true;
+      day.querySelector?.('summary')?.focus?.({preventScroll:true});
+      day.scrollIntoView?.({block:'start',behavior:'auto'});
+      return;
+    }
     const button=event.target.closest?.('[data-rc39-action]');
     if(!button)return;
     const action=button.getAttribute('data-rc39-action');
