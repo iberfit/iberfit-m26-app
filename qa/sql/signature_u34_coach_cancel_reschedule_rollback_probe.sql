@@ -72,6 +72,20 @@ BEGIN
  IF replay->>'duplicate'<>'true'
  OR replay#>>'{replacement,id}' IS DISTINCT FROM replacement_id::text
  THEN RAISE EXCEPTION 'U34_QA_REBOOK_REPLAY_FAILED';END IF;
+ -- Reusing an existing successful U32 batch must not cancel a different
+ -- occurrence and pretend that the old batch is a new replacement.
+ BEGIN
+  PERFORM private.iberfit_u34_coach_occurrence_change_v1(
+    jsonb_build_object('type','OCURRENCIA_REPROGRAMAR',
+      'operationId',gen_random_uuid(),'clientId',r.cid,
+      'entityId',a,'baseRevision',0,
+      'payload',jsonb_build_object('newOperationId',batch_op,
+       'replacement',jsonb_build_object('localDate',d2::text))));
+  RAISE EXCEPTION 'U34_QA_REUSED_BATCH_ACCEPTED';
+ EXCEPTION WHEN check_violation THEN NULL;END;
+ IF NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
+   WHERE id=a AND status='planificada' AND revision=0) THEN
+   RAISE EXCEPTION 'U34_QA_REUSED_BATCH_CONSUMED_SOURCE';END IF;
  IF NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
     WHERE id=b AND status='cancelada' AND revision=1)
  OR NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
@@ -143,6 +157,18 @@ BEGIN
        'localTime','12:00','appointmentId',linked_id)))));
  IF ack->>'kind'<>'ack' THEN RAISE EXCEPTION 'U34_QA_LINKED_BATCH_FAILED';END IF;
  linked_occ:=(ack#>>'{occurrences,0,id}')::uuid;
+ -- Simulate typed/canonical divergence; U34 must fail closed, not
+ -- bury the inconsistency beneath a successful historical cancellation.
+ UPDATE public.appointments SET status='cancelada' WHERE id=linked_id;
+ ack:=private.iberfit_u34_coach_occurrence_change_v1(jsonb_build_object(
+   'type','OCURRENCIA_CANCELAR','operationId',gen_random_uuid(),
+   'clientId',r.cid,'entityId',linked_occ,'baseRevision',0));
+ IF ack->>'kind'<>'conflict' OR ack->>'reason'<>'APPOINTMENT_REVISION_DRIFT'
+ THEN RAISE EXCEPTION 'U34_QA_APPOINTMENT_DRIFT_ACCEPTED';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
+     WHERE id=linked_occ AND status='planificada' AND revision=0)
+ THEN RAISE EXCEPTION 'U34_QA_DRIFT_CONSUMED_OCCURRENCE';END IF;
+ UPDATE public.appointments SET status='confirmada' WHERE id=linked_id;
  ack:=private.iberfit_u34_coach_occurrence_change_v1(jsonb_build_object(
    'type','OCURRENCIA_CANCELAR','operationId',gen_random_uuid(),
    'clientId',r.cid,'entityId',linked_occ,'baseRevision',0));

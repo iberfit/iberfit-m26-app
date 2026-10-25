@@ -79,11 +79,12 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'U34_LINKED_APPOINTMENT_MISSING' USING errcode='23503';END IF;
   IF ap.status NOT IN ('confirmada','cancelada') THEN
    RETURN jsonb_build_object('kind','conflict','reason','APPOINTMENT_ALREADY_TERMINAL');END IF;
-  IF ap.status='confirmada' THEN
-   SELECT * INTO ap_entity FROM public.domain_entities_v26
+  SELECT * INTO ap_entity FROM public.domain_entities_v26
    WHERE entity_type='appointment' AND entity_id=ap.id AND client_id=owner FOR UPDATE;
-   IF NOT FOUND OR ap_entity.revision IS DISTINCT FROM ap.revision THEN
+  IF NOT FOUND OR ap_entity.revision IS DISTINCT FROM ap.revision
+    OR ap_entity.status IS DISTINCT FROM ap.status THEN
     RETURN jsonb_build_object('kind','conflict','reason','APPOINTMENT_REVISION_DRIFT');END IF;
+  IF ap.status='confirmada' THEN
    PERFORM public.iberfit_persist_entity_v26(
     'appointment',ap.id,owner,'cancelada',ap_entity.revision+1,
     ap_entity.body||jsonb_build_object('status','cancelada',
@@ -108,7 +109,8 @@ BEGIN
     'baseRevision',src_revision,'payload',jsonb_build_object(
     'targetClientId',owner,'previewConfirmed',true,
     'dates',jsonb_build_array(replacement))));
-  IF batch->>'kind'<>'ack' OR batch->>'count'<>'1' THEN
+  IF batch->>'kind'<>'ack' OR batch->>'count'<>'1'
+    OR batch->>'duplicate' IS DISTINCT FROM 'false' THEN
    RAISE EXCEPTION 'U34_REPLACEMENT_NOT_APPLIED' USING errcode='23514';END IF;
  END IF;
  ack:=jsonb_build_object('kind','ack','operationId',op,'entityId',occ.id,

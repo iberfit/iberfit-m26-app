@@ -19,6 +19,9 @@ test('U34 cancellation and replacement are all-or-nothing, preserves history',()
  assert.match(qa,/U34_QA_FAILED_REBOOK_CANCELLED_ORIGINAL/u);
  assert.match(qa,/U34_QA_REBOOK_REPLAY_FAILED/u);
  assert.match(qa,/U34_QA_HISTORY_NOT_PRESERVED/u);
+ assert.match(qa,/U34_QA_REUSED_BATCH_ACCEPTED/u);
+ assert.match(qa,/U34_QA_APPOINTMENT_DRIFT_ACCEPTED/u);
+ assert.match(sql,/batch->>'duplicate' IS DISTINCT FROM 'false'/u);
 });
 test('U34 rollback cannot delete historical receipts',()=>{
  assert.match(rollback,/u34_rollback_requires_no_persisted_change_receipts/u);
