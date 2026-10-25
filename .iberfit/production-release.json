@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "2a03d3c0b02a3b9af713ec2b728fa8fa64bbf862",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "c35d9a5223e30ac25c3ebdf91391c38dd37afc9e",
+  "notes": "SIGNATURE B12 cross-role warm premium polish: last-loaded premium CSS, scope-aware Client Coach Admin, mobile controls, exact QA tests & E2E. Same-SHA seven gates success; Coach WebAuthn #40160314970 second attempt recovered after initial QA post-MFA bootstrap recovery (incident still tracked, do not hide). 5 changed files, no backend SQL Auth Edge or Media changes; prior PROD exact source c35d9a; recent M44 encrypted PG17 DB+Storage proof #40158298901. Require fail-closed protected production gate, live identity smoke + rollback evidence."
+}
