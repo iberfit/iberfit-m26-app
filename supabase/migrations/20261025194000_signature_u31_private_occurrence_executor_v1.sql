@@ -40,6 +40,7 @@ DECLARE
   v_delivery_guard jsonb;
   v_status text;
   v_ack jsonb;
+  v_request_hash text;
   v_now timestamptz := clock_timestamp();
   v_next bigint;
 BEGIN
@@ -60,11 +61,15 @@ BEGIN
   END;
   IF v_operation IS NULL OR v_client IS NULL OR v_occurrence IS NULL
     OR v_base IS NULL OR v_base < 0
+    OR v_type IS NULL
     OR v_type NOT IN ('OCURRENCIA_CONFIRMAR','OCURRENCIA_INICIAR','OCURRENCIA_COMPLETAR')
     OR jsonb_typeof(coalesce(p_command->'payload','{}'::jsonb)) <> 'object'
   THEN
     RAISE EXCEPTION 'U31_INVALID_COMMAND' USING errcode='22023';
   END IF;
+  -- Stable SHA256 canonical JSONB serialization detects operationId reuse
+  -- with a different execution ID, results or feedback on a retried request.
+  v_request_hash:=encode(sha256(convert_to(p_command::text,'UTF8')),'hex');
   v_role := public.iberfit_current_role_v26();
   IF NOT public.iberfit_can_access_client_v26(v_client)
      OR NOT public.iberfit_canary_enabled_v26(v_client) THEN
@@ -86,11 +91,12 @@ BEGIN
   IF FOUND THEN
     IF v_receipt.command_type <> v_type OR v_receipt.entity_type <> 'training_occurrence'
       OR v_receipt.entity_id<>v_occurrence OR v_receipt.client_id<>v_client
-      OR v_receipt.actor_user_id<>v_actor OR v_receipt.base_revision<>v_base THEN
+      OR v_receipt.actor_user_id<>v_actor OR v_receipt.base_revision<>v_base
+      OR v_receipt.response->>'requestHash' IS DISTINCT FROM v_request_hash THEN
       RETURN jsonb_build_object('kind','rejected','reason','OPERATION_ID_REUSED',
         'operationId',v_operation,'serverAt',v_now);
     END IF;
-    RETURN v_receipt.response || jsonb_build_object('duplicate',true);
+    RETURN (v_receipt.response-'requestHash') || jsonb_build_object('duplicate',true);
   END IF;
 
   SELECT * INTO v_occ FROM public.training_session_occurrences_v1
@@ -342,8 +348,22 @@ BEGIN
     actor_user_id,base_revision,remote_revision,response,processed_at
   ) VALUES (
     v_operation,v_type,'training_occurrence',v_occ.id,v_client,
-    v_actor,v_base,v_next,v_ack,v_now
+    v_actor,v_base,v_next,
+    v_ack || jsonb_build_object('requestHash',v_request_hash),v_now
   );
+  INSERT INTO public.command_events_v26(
+    operation_id,command_type,entity_type,entity_id,client_id,
+    actor_user_id,phase,base_revision,remote_revision,payload_hash
+  ) VALUES (v_operation,v_type,'training_occurrence',v_occ.id,v_client,
+    v_actor,'applied',v_base,v_next,v_request_hash);
+  INSERT INTO public.domain_events_v26(
+    operation_id,command_type,entity_type,entity_id,client_id,
+    actor_user_id,actor_role,phase,from_status,to_status,
+    base_revision,remote_revision,details
+  ) VALUES (v_operation,v_type,'training_occurrence',v_occ.id,v_client,
+    v_actor,v_role,'applied',v_occ.status,v_status,
+    v_base,v_next,jsonb_build_object('sessionId',v_occ.session_id,
+      'occurrenceId',v_occ.id,'executionId',v_execution));
   RETURN v_ack;
 END;
 $u31$;
