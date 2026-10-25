@@ -2,7 +2,7 @@
 -- and the appointment writer fence inside a single BEGIN/ROLLBACK.
 -- Simulates a real canonical confirmed appointment, not a typed-only orphan.
 DO $qa$
-DECLARE r record;client uuid;session_id uuid;actor uuid;rev bigint;
+DECLARE r record;client uuid;v_session uuid;actor uuid;rev bigint;
   plan_date date;d2 date;d3 date;slot timestamptz;
   duration_min int;appt_id uuid:=gen_random_uuid();
   appointment_body jsonb;operation uuid;execution uuid:=gen_random_uuid();
@@ -37,7 +37,7 @@ BEGIN
      THEN EXIT; END IF;
  END LOOP;
  IF r.cid IS NULL THEN RAISE EXCEPTION 'U31_LINKED_QA_SOURCE_MISSING';END IF;
- client:=r.cid;session_id:=r.sid;actor:=r.actor;rev:=r.rev;
+ client:=r.cid;v_session:=r.sid;actor:=r.actor;rev:=r.rev;
  duration_min:=r.duration;
  plan_date:=GREATEST(r.starts,(now() AT TIME ZONE 'America/Santiago')::date-1);
  d2:=plan_date+7;d3:=plan_date+14;
@@ -45,7 +45,7 @@ BEGIN
     OR d3>r.ends THEN RAISE EXCEPTION 'U31_LINKED_QA_CYCLE_TOO_SHORT';END IF;
  slot:=((plan_date::text||' 12:00')::timestamp AT TIME ZONE 'America/Santiago');
  appointment_body:=jsonb_build_object(
-   'id',appt_id,'clientId',client,'sessionId',session_id,
+   'id',appt_id,'clientId',client,'sessionId',v_session,
    'status','confirmada','revision',0,
    'title','QA linked guided appointment','type','session',
    'mode','guiada_en_app','timeZone','America/Santiago',
@@ -55,13 +55,13 @@ BEGIN
    'appointment',appt_id,client,'confirmada',0,appointment_body);
  IF NOT EXISTS(SELECT 1 FROM public.appointments
    WHERE id=appt_id AND client_id=client
-     AND session_id=session_id AND status='confirmada') THEN
+     AND session_id=v_session AND status='confirmada') THEN
    RAISE EXCEPTION 'U31_LINKED_QA_CANONICAL_APPOINTMENT_MISSING';
  END IF;
  operation:=gen_random_uuid();
  ack:=private.iberfit_u32_create_occurrences_batch_v1(
   jsonb_build_object('type','OCURRENCIAS_CREAR_LOTE',
-   'operationId',operation,'clientId',client,'entityId',session_id,
+   'operationId',operation,'clientId',client,'entityId',v_session,
    'baseRevision',rev,'payload',jsonb_build_object(
      'targetClientId',client,'previewConfirmed',true,
      'dates',jsonb_build_array(
@@ -113,9 +113,9 @@ BEGIN
  OR NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
    WHERE id=occurrence AND status='completada' AND appointment_id=appt_id)
  OR (SELECT revision FROM public.domain_entities_v26
-     WHERE entity_type='session' AND entity_id=session_id)<>rev
+     WHERE entity_type='session' AND entity_id=v_session)<>rev
  OR (SELECT status FROM public.domain_entities_v26
-     WHERE entity_type='session' AND entity_id=session_id)<>'disponible'
+     WHERE entity_type='session' AND entity_id=v_session)<>'disponible'
  OR (SELECT count(*) FROM public.training_session_occurrences_v1
      WHERE id IN (second,third) AND status='planificada')<>2 THEN
    RAISE EXCEPTION 'U31_LINKED_CALENDAR_OR_SOURCE_STATE_WRONG';END IF;
