@@ -6,6 +6,9 @@ const migration=readFileSync(new URL('../supabase/migrations/20261025203500_sign
 const rollback=readFileSync(new URL('../supabase/rollbacks/20261025203500_signature_u32_private_coach_occurrence_batch_v1.rollback.sql',import.meta.url),'utf8');
 const qa=readFileSync(new URL('../qa/sql/signature_u32_coach_batch_rollback_probe.sql',import.meta.url),'utf8');
 const dstQa=readFileSync(new URL('../qa/sql/signature_u32_santiago_dst_rollback_probe.sql',import.meta.url),'utf8');
+const fence=readFileSync(new URL('../supabase/migrations/20261025210500_signature_u32_legacy_appointment_writer_fence_v1.sql',import.meta.url),'utf8');
+const fenceRollback=readFileSync(new URL('../supabase/rollbacks/20261025210500_signature_u32_legacy_appointment_writer_fence_v1.rollback.sql',import.meta.url),'utf8');
+const fenceQa=readFileSync(new URL('../qa/sql/signature_u32_legacy_appointment_race_rollback_probe.sql',import.meta.url),'utf8');
 
 test('U32: Coach can only schedule from authorized, published, server-owned source and cycle',()=>{
   assert.match(migration,/CREATE FUNCTION private\.iberfit_u32_create_occurrences_batch_v1\(p_command jsonb\)/u);
@@ -69,3 +72,28 @@ test('U32: database API stays closed; rollback cannot strand a historical batch'
   assert.doesNotMatch(rollback,/\bDELETE FROM\b|\bTRUNCATE\b|\bDROP TABLE\b|\bDROP COLUMN\b/iu);
   assert.match(qa,/U32_PRIVATE_EXECUTE_EXPOSED/u);
 });
+
+test('U32: legacy appointment insert, update and UPSERT share batch schedule lock',()=>{
+  assert.match(fence,/CREATE FUNCTION private\.iberfit_u32_appointment_writer_fence_v1\(\)/u);
+  assert.match(fence,/SECURITY DEFINER\s+SET search_path TO ''/u);
+  assert.match(fence,/CREATE TRIGGER u32_appointment_writer_fence\s+BEFORE INSERT OR UPDATE OF client_id,session_id,start_at,end_at,status\s+ON public\.appointments FOR EACH ROW/u);
+  assert.match(fence,/hashtextextended\('schedule_client:'\|\|NEW\.client_id::text,0\)/u);
+  assert.match(migration,/hashtextextended\('schedule_client:'\|\|v_client::text,0\)/u);
+  assert.match(fence,/U32_OCCURRENCE_APPOINTMENT_TIME_CONFLICT/u);
+  assert.match(fence,/o\.appointment_id IS NOT NULL AND o\.appointment_id=NEW\.id/u);
+  assert.match(fence,/o\.appointment_id IS NULL AND NOT EXISTS\(/u);
+  assert.match(fence,/other\.id<>NEW\.id/u);
+  assert.match(fence,/REVOKE ALL ON FUNCTION private\.iberfit_u32_appointment_writer_fence_v1\(\)/u);
+  assert.match(fenceQa,/U32_CROSS_WRITER_UNRELATED_APPOINTMENT_ACCEPTED/u);
+  assert.match(fenceQa,/U32_CROSS_WRITER_DUPLICATE_APPOINTMENT_ACCEPTED/u);
+  assert.match(fenceQa,/U32_CROSS_WRITER_DRIFTED_LINK_ACCEPTED/u);
+  assert.match(fenceQa,/U32_CROSS_WRITER_OWN_CONFIRM_FAILED/u);
+});
+
+test('U32: legacy appointment fencing rollback is fail-closed while active dated occurrences exist',()=>{
+  assert.match(fenceRollback,/u32_fence_rollback_requires_no_active_timed_occurrences/u);
+  assert.match(fenceRollback,/DROP TRIGGER u32_appointment_writer_fence ON public\.appointments/u);
+  assert.match(fenceRollback,/DROP FUNCTION private\.iberfit_u32_appointment_writer_fence_v1\(\)/u);
+  assert.doesNotMatch(fenceRollback,/\bDELETE FROM\b|\bTRUNCATE\b|\bDROP TABLE\b|\bDROP COLUMN\b/iu);
+});
+
