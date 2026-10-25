@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createM26Transport,isBootstrapStatementTimeout,M26_QA_PROJECT_REF,M26_QA_SUPABASE_ORIGIN} from '../src/m26/supabase-transport.js';
+import {createM26Transport,isBootstrapStatementTimeout,isFutureIssuedJwtClockSkew,M26_QA_PROJECT_REF,M26_QA_SUPABASE_ORIGIN} from '../src/m26/supabase-transport.js';
 
 const token='qa-synthetic-nonsecret-token';
 const timeoutBody={code:'57014',message:'canceling statement due to statement timeout'};
@@ -84,4 +84,56 @@ test('successful read bootstrap makes one request without delay',async()=>{
   assert.deepEqual(await f.transport.bootstrap(token),readBody);
   assert.equal(f.calls.length,1);
   assert.deepEqual(f.delays,[]);
+});
+
+const futureJwt={code:'PGRST303',message:'JWT issued at future'};
+
+test('future JWT skew classifier excludes generic 401, expired or malformed JWT and other status',()=>{
+  assert.equal(isFutureIssuedJwtClockSkew({status:401,body:futureJwt}),true);
+  for(const error of [
+    {status:403,body:futureJwt},
+    {status:401,body:{code:'PGRST301',message:futureJwt.message}},
+    {status:401,body:{code:'PGRST303',message:'JWT expired'}},
+    {status:401,body:{code:'PGRST303',message:'JWT claims parsing failed'}},
+    {status:401,body:{message:futureJwt.message}},
+    {status:500,body:futureJwt},
+  ])assert.equal(isFutureIssuedJwtClockSkew(error),false);
+});
+
+test('future-iat skew recovery retries read-only bootstrap with same JWT and original RPC',async()=>{
+  const f=fixture([{status:401,body:futureJwt},{status:200,body:readBody}]);
+  assert.deepEqual(await f.transport.bootstrap(token),readBody);
+  assert.deepEqual(f.delays,[350]);
+  assert.equal(f.calls.length,2);
+  for(const call of f.calls){
+    assert.equal(call.pathname,'/rest/v1/rpc/iberfit_bootstrap_v26');
+    assert.equal(call.method,'POST');
+    assert.equal(call.auth,'Bearer '+token);
+  }
+});
+
+test('future-iat skew failure stops after exactly three retries and no infinite loop',async()=>{
+  const f=fixture(Array.from({length:4},()=>({status:401,body:futureJwt})));
+  await assert.rejects(f.transport.bootstrap(token),error=>
+    error.status===401&&error.body?.code==='PGRST303');
+  assert.equal(f.calls.length,4);
+  assert.deepEqual(f.delays,[350,800,1300]);
+});
+
+test('future-iat skew and SQL statement timeout have separate finite retry budgets',async()=>{
+  const f=fixture([{status:401,body:futureJwt},{status:500,body:timeoutBody},{status:200,body:readBody}]);
+  assert.deepEqual(await f.transport.bootstrap(token),readBody);
+  assert.equal(f.calls.length,3);
+  assert.deepEqual(f.delays,[350,220]);
+});
+
+test('future JWT skew cannot cause a mutating-command retry or retry expired bootstrap JWT',async()=>{
+  const f=fixture([{status:401,body:futureJwt}]);
+  await assert.rejects(f.transport.execute(token,{type:'synthetic-command'}),error=>error.status===401);
+  assert.equal(f.calls.length,1);
+  assert.deepEqual(f.delays,[]);
+  const expired=fixture([{status:401,body:{code:'PGRST303',message:'JWT expired'}}]);
+  await assert.rejects(expired.transport.bootstrap(token),error=>error.status===401);
+  assert.equal(expired.calls.length,1);
+  assert.deepEqual(expired.delays,[]);
 });
