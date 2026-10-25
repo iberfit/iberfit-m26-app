@@ -300,7 +300,10 @@ function renderClientDatedPlanning(items,options){
       ?key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(key+'T12:00:00Z'))
       :'Sesiones sin fecha asignada';
     const isPrimary=key===primaryDay;
-    return `<details class="m26-rc39-day-group" id="m26-plan-day-${escape(key)}" data-training-date="${escape(key)}" ${isPrimary?'open data-rc39-primary-day="true"':''}>
+    // In Sessions, hiding the preview behind a second date disclosure
+    // blocks the workout on touch screens. Planning still expands one day.
+    const expand=options.expandAll===true||isPrimary;
+    return `<details class="m26-rc39-day-group" id="m26-plan-day-${escape(key)}" data-training-date="${escape(key)}" ${expand?'open':''} ${isPrimary?'data-rc39-primary-day="true"':''}>
       <summary class="m26-rc39-day-heading"><h3>${escape(label)}</h3><span>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</span></summary>
       <div class="m26-rc39-week">${dayItems.map((item)=>sessionCard(item,'client',options.contractModality,{serviceActive:options.serviceActive,...options.assets})).join('')}</div>
     </details>`;
@@ -639,7 +642,7 @@ function renderSessions(vm){
   return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${clientBriefMarkup}<section class="m26-rc39-week">${items.length?(role==='coach'
     ?renderCoachSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
     :client
-      ?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{}})
+      ?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{},expandAll:true})
       :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){

@@ -121,3 +121,22 @@ test('U35 date navigation opens target, restores keyboard focus and rejects inva
   assert.equal(prevented,1,'invalid selector data cannot activate arbitrary targets');
   controller.destroy();
 });
+
+test('U35 Sessions keeps guided exercise previews visible across dated and undated groups',()=>{
+  const dates=buildClientPlanningItems({sessions:[source],appointments:[a1,a2]});
+  const undated=buildClientPlanningItems({sessions:[{
+    ...source,id:'10000000-0000-4000-8000-000000000104',title:'Sesión guiada sin fecha'
+  }],appointments:[]});
+  const entries=[...dates,...undated];
+  const html=renderRc39Route({kind:'sesion',role:'client',serviceActive:true,
+    rc39:{planningItems:entries,sessionProjections:[dates[0]]},
+    sessionPreviewAssets:{catalog:[]}});
+  const groups=[...html.matchAll(/<details class="m26-rc39-day-group"[^>]*>/g)].map(x=>x[0]);
+  assert.equal(groups.length,3);
+  assert.equal(groups.every(x=>/\sopen(?:\s|>)/.test(x)),true);
+  assert.match(html,/data-training-date="unscheduled"[^>]*\sopen/);
+  assert.match(html,/data-rc39-session="10000000-0000-4000-8000-000000000104"/);
+  const planning=renderRc39Route(view(entries));
+  const expanded=[...planning.matchAll(/<details class="m26-rc39-day-group"[^>]*\sopen(?:\s|>)/g)];
+  assert.equal(expanded.length,1,'Planning retains only one expanded day');
+});
