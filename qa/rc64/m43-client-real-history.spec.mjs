@@ -193,11 +193,20 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
   const response=await observedBootstrap;
   const snapshot=await response.json();
   expect(['client','cliente']).toContain(String(snapshot?.user?.role||''));
+  expect(String(snapshot?.user?.clientId||''),
+    'Cross-account test must authenticate a real assigned Client B identity')
+    .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
   expect(Array.isArray(snapshot?.data?.m26Entities),
     'Cliente B bootstrap must have canonical entity projection').toBe(true);
   const ownEntities=snapshot.data.m26Entities;
+  // A foreign marker can leak outside title (nested plans, execution payloads,
+  // projection metadata). Check the entire authenticated data projection too;
+  // never attach or log the private payload itself.
+  const serializedProjection=JSON.stringify(snapshot.data);
   // Assert absence in the real backend response, not just CSS-hidden UI cards.
   for(const marker of [LIVE_MARKER,interactiveMarker]){
+    expect(serializedProjection.includes(marker),
+      'Cliente B must never receive Client A data anywhere in bootstrap').toBe(false);
     expect(ownEntities.some(item=>String(item?.body?.title||'').includes(marker)),
       'Cliente B must not receive the other Client run-marked entity').toBe(false);
   }

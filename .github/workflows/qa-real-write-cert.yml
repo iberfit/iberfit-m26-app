@@ -58,7 +58,10 @@ permissions:
   id-token: write
 
 concurrency:
-  group: iberfit-qa-real-write-cert
+  # Separate pending certifications by PR: GitHub replaces older pending
+  # runs within one concurrency group even when cancel-in-progress is false.
+  # Per-job iberfit-qa-shared-auth-readonly still serializes shared QA identities.
+  group: iberfit-qa-real-write-cert-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
