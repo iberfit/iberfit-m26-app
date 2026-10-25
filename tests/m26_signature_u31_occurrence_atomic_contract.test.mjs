@@ -6,6 +6,8 @@ const migration=readFileSync(
   new URL('../supabase/migrations/20261025194000_signature_u31_private_occurrence_executor_v1.sql',import.meta.url),'utf8');
 const rollback=readFileSync(
   new URL('../supabase/rollbacks/20261025194000_signature_u31_private_occurrence_executor_v1.rollback.sql',import.meta.url),'utf8');
+const rc29Validation=readFileSync(
+  new URL('../scripts/run_rc29_validation.mjs',import.meta.url),'utf8');
 const probe=readFileSync(
   new URL('../qa/sql/signature_u31_occurrence_atomic_rollback_probe.sql',import.meta.url),'utf8');
 
@@ -71,6 +73,15 @@ test('U31: recording one workout never transitions the shared prescription',()=>
   assert.match(probe,/U31_QA_SOURCE_PRESCRIPTION_CONSUMED/u);
   assert.match(probe,/U31_QA_NEXT_DATE_COULD_NOT_START/u);
   assert.match(probe,/U31_QA_INCOMPLETE_SERIES_ACCEPTED/u);
+});
+
+test('U31: RC29 CI failure diagnostic reveals numerical budgets without exposing arbitrary stderr',()=>{
+  assert.match(rc29Validation,/if\(name==='build'\)/u);
+  assert.match(rc29Validation,/meta\?\.budgetOk===false/u);
+  assert.match(rc29Validation,/javascriptBytes','javascriptLimit'/u);
+  assert.match(rc29Validation,/RC29_BUILD_SOURCE_MISSING\|ENOENT\|ENOSPC\|ENOMEM/u);
+  assert.doesNotMatch(rc29Validation,/\+\s*result\.stderr\s*\+/u);
+  assert.match(rc29Validation,/RC29_VALIDATION_FAILED/u);
 });
 
 test('U31: audit, staging rollback and QA fail-closed evidence',()=>{
