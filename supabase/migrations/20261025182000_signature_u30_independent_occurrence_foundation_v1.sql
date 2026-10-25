@@ -86,9 +86,15 @@ CREATE TABLE public.training_session_occurrences_v1 (
         AND ends_at-starts_at=duration_minutes*interval '1 minute'
       )
     ),
-  CONSTRAINT u30_occurrence_composite_identity UNIQUE (id,client_id,session_id),
-  CONSTRAINT u30_session_one_occurrence_per_local_day UNIQUE (session_id,local_date)
+  CONSTRAINT u30_occurrence_composite_identity UNIQUE (id,client_id,session_id)
 );
+
+-- Keep cancelled records as durable history while allowing the Coach to
+-- book a replacement for the same source/date. A completed or running date
+-- still occupies that slot, even across concurrent transactions.
+CREATE UNIQUE INDEX u30_session_one_active_occurrence_per_local_day
+  ON public.training_session_occurrences_v1(session_id,local_date)
+  WHERE status <> 'cancelada';
 
 -- IBERFIT-TABLE-ACCESS: public.training_session_occurrences_v1 :: Only trusted server-side reads of staged occurrence snapshots; never expose Client or Coach table access.
 -- IBERFIT-POLICY: public.training_session_occurrences_v1 = service-role-only
