@@ -25,7 +25,7 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   await expect(absentVisual).toHaveCount(1);
   await expect(absentVisual).toBeHidden();
   const editorTracks=await editors.first().locator(':scope > header').evaluate(node=>getComputedStyle(node).gridTemplateColumns);
-  expect(editorTracks.trim().split(/\\s+/u),'Compact missing-media header must use three tracks').toHaveLength(3);
+  expect(editorTracks.trim().split(/\s+/u),'Compact missing-media header must use three tracks').toHaveLength(3);
 
   await expect(editors.first().locator('[data-session-action="move-up"]')).toBeDisabled();
   await expect(editors.first().locator('[data-session-action="move-down"]')).toBeEnabled();
