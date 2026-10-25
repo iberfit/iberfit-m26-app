@@ -11,6 +11,7 @@ const fenceRollback=readFileSync(new URL('../supabase/rollbacks/20261025210500_s
 const fenceQa=readFileSync(new URL('../qa/sql/signature_u32_legacy_appointment_race_rollback_probe.sql',import.meta.url),'utf8');
 const endToEndQa=readFileSync(new URL('../qa/sql/signature_u32_u31_real_published_three_dates_rollback_probe.sql',import.meta.url),'utf8');
 const multiblockQa=readFileSync(new URL('../qa/sql/signature_u32_u31_real_multiblock_rollback_probe.sql',import.meta.url),'utf8');
+const linkedQa=readFileSync(new URL('../qa/sql/signature_u31_linked_appointment_close_rollback_probe.sql',import.meta.url),'utf8');
 
 test('U32: Coach can only schedule from authorized, published, server-owned source and cycle',()=>{
   assert.match(migration,/CREATE FUNCTION private\.iberfit_u32_create_occurrences_batch_v1\(p_command jsonb\)/u);
@@ -129,4 +130,13 @@ test('U32/U31 integration: real multi-block prescription cannot complete with mi
   assert.match(multiblockQa,/U32_MULTI_INCOMPLETE_EXERCISE_ACCEPTED/u);
   assert.match(multiblockQa,/U32_MULTI_THREE_BLOCK_CLOSE_FAILED/u);
   assert.match(multiblockQa,/U32_MULTI_SOURCE_OR_UPCOMING_CHANGED/u);
+});
+
+test('U32/U31: real linked appointment closes atomically and cancelled appointment remains cancelled',()=>{
+ assert.match(linkedQa,/PERFORM public\.iberfit_persist_entity_v26\(/u);
+ assert.match(linkedQa,/U31_LINKED_CLOSE_FAILED/u);
+ assert.match(linkedQa,/U31_LINKED_CALENDAR_OR_SOURCE_STATE_WRONG/u);
+ assert.match(linkedQa,/U31_LINKED_CLOSE_DUPLICATED_APPOINTMENT_UPDATE/u);
+ assert.match(linkedQa,/U31_CANCELLED_CLOSE_RESURRECTED_OR_LOST/u);
+ assert.match(linkedQa,/U31_CANCELLED_WORKOUT_OR_APPOINTMENT_HISTORY_DAMAGED/u);
 });
