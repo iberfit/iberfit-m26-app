@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {planDatedTrainingOccurrences,buildCoachOccurrenceBatchCommand} from '../src/m26/domain/dated-training-occurrences.js';
 
 const migration=readFileSync(new URL('../supabase/migrations/20261025203500_signature_u32_private_coach_occurrence_batch_v1.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/rollbacks/20261025203500_signature_u32_private_coach_occurrence_batch_v1.rollback.sql',import.meta.url),'utf8');
@@ -141,4 +142,56 @@ test('U32/U31: real linked appointment closes atomically and cancelled appointme
  assert.match(linkedQa,/U31_CANCELLED_WORKOUT_OR_APPOINTMENT_HISTORY_DAMAGED/u);
  assert.match(linkedQa,/public\.iberfit_current_role_v26\(\)<>'cliente'/u);
  assert.match(linkedQa,/U31_LINKED_CLIENT_FORGED_OWNER_ACCEPTED/u);
+});
+
+test('U32: immutable batch operation and distinct ordinal link every new date',()=>{
+  const schema=readFileSync(new URL('../supabase/migrations/20261025182000_signature_u30_independent_occurrence_foundation_v1.sql',import.meta.url),'utf8');
+  assert.match(schema,/u30_batch_unique_ordinal UNIQUE \(batch_operation_id,batch_ordinal\)/u);
+  assert.match(schema,/NEW.batch_operation_id IS DISTINCT FROM OLD.batch_operation_id/u);
+  assert.match(migration,/gen_random_uuid\(\),v_operation,v_ordinal/u);
+  assert.match(qa,/U32_BATCH_ORDINALS_NOT_UNIQUE/u);
+});
+
+test('U32: reviewed Coach batch carries only dates and receipt identity',()=>{
+  const clientId='11111111-1111-4111-8111-111111111111';
+  const sessionId='22222222-2222-4222-8222-222222222222';
+  const operationId='33333333-3333-4333-8333-333333333333';
+  const preview=planDatedTrainingOccurrences({
+    sessionId,clientId,sourceRevision:9,
+    sourceSnapshot:{clientId,sessionId,blocks:[{exerciseId:'squat'}]},
+    cycleStartDate:'2026-04-01',cycleEndDate:'2026-12-31',
+    dates:[{localDate:'2026-04-04',localTime:'23:30',disambiguation:'earlier'},
+      {localDate:'2026-10-27',localTime:'18:00'}],durationMinutes:60,
+  });
+  const args={operationId,sessionId,clientId,baseRevision:9,preview,confirmed:true,
+    appointmentIdsByDate:{'2026-10-27':'44444444-4444-4444-8444-444444444444'}};
+  const cmd=buildCoachOccurrenceBatchCommand(args);
+  assert.deepEqual(cmd.payload.dates,[
+    {localDate:'2026-04-04',localTime:'23:30',dstDisambiguation:'earlier'},
+    {localDate:'2026-10-27',localTime:'18:00',
+      appointmentId:'44444444-4444-4444-8444-444444444444'},
+  ]);
+  assert.equal(cmd.payload.previewConfirmed,true);
+  assert.equal(cmd.payload.targetClientId,clientId);
+  assert.equal(cmd.baseRevision,9);
+  assert.equal(Object.hasOwn(cmd.payload,'blocks'),false);
+  assert.equal(Object.hasOwn(cmd,'role'),false);
+  assert.ok(Object.isFrozen(cmd.payload.dates[0]));
+  assert.throws(()=>buildCoachOccurrenceBatchCommand({...args,confirmed:false}),/U30_PREVIEW_CONFIRMATION_REQUIRED/u);
+  assert.throws(()=>buildCoachOccurrenceBatchCommand({...args,baseRevision:10}),/U30_PREVIEW_SOURCE_CHANGED/u);
+  assert.throws(()=>buildCoachOccurrenceBatchCommand({...args,appointmentIdsByDate:{'2026-10-28':'44444444-4444-4444-8444-444444444444'}}),/U30_APPOINTMENT_DATE_NOT_SELECTED/u);
+  assert.throws(()=>buildCoachOccurrenceBatchCommand({...args,preview:{...preview,occurrences:preview.occurrences.map((o,i)=>i?{...o,startsAt:'2026-10-27T00:00:00.000Z'}:o)}}),/U30_PREVIEW_TIME_CHANGED/u);
+});
+
+test('U32: SQL appointment start_at/end_at cannot bypass Coach time conflict preflight',()=>{
+  const clientId='11111111-1111-4111-8111-111111111111';
+  const sessionId='22222222-2222-4222-8222-222222222222';
+  assert.throws(()=>planDatedTrainingOccurrences({
+    sessionId,clientId,sourceRevision:1,sourceSnapshot:{clientId,sessionId},
+    cycleStartDate:'2026-10-01',cycleEndDate:'2026-11-30',
+    dates:[{localDate:'2026-10-27',localTime:'18:00'}],
+    existingAppointments:[{client_id:clientId,status:'confirmada',
+      start_at:'2026-10-27T21:20:00.000Z',
+      end_at:'2026-10-27T22:20:00.000Z'}],
+  }),/U30_CLIENT_TIME_CONFLICT/u);
 });

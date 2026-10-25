@@ -40,6 +40,7 @@ DECLARE
   v_alternative timestamptz;
   v_snapshot jsonb;
   v_id uuid;
+  v_ordinal smallint:=0;
   v_new_ids jsonb := '[]'::jsonb;
   v_ack jsonb;
   v_now timestamptz:=clock_timestamp();
@@ -250,13 +251,15 @@ BEGIN
       END IF;
     END IF;
     v_id:=gen_random_uuid();
+    v_ordinal:=v_ordinal+1;
     INSERT INTO public.training_session_occurrences_v1(
       id,client_id,session_id,appointment_id,local_date,local_time,time_zone,
       starts_at,ends_at,duration_minutes,prescription_revision,
-      prescription_snapshot,created_operation_id
+      prescription_snapshot,created_operation_id,batch_operation_id,batch_ordinal
     ) VALUES (v_id,v_client,v_session,v_appointment_id,
       v_date,CASE WHEN v_time IS NULL THEN NULL ELSE v_time::time END,
-      'America/Santiago',v_start,v_end,v_duration,v_revision,v_snapshot,gen_random_uuid());
+      'America/Santiago',v_start,v_end,v_duration,v_revision,v_snapshot,
+      gen_random_uuid(),v_operation,v_ordinal);
     v_new_ids:=v_new_ids||jsonb_build_array(jsonb_build_object(
       'id',v_id,'localDate',v_date,'startsAt',v_start,'appointmentId',v_appointment_id));
   END LOOP;

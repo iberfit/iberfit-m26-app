@@ -106,8 +106,8 @@ export function planDatedTrainingOccurrences({
   const active=item=>!['cancelada','cancelled','canceled'].includes(
     String(item?.status||'').trim().toLowerCase());
   const existingWindow=item=>{
-    const startsAt=field(item,'startsAt','starts_at');
-    const endsAt=field(item,'endsAt','ends_at');
+    const startsAt=field(item,'startsAt','starts_at')??item?.startAt??item?.start_at??null;
+    const endsAt=field(item,'endsAt','ends_at')??item?.endAt??item?.end_at??null;
     if(startsAt===null&&endsAt===null)return null;
     if(startsAt===null||endsAt===null
       ||!Number.isFinite(Date.parse(startsAt))
@@ -151,6 +151,7 @@ export function planDatedTrainingOccurrences({
     const occurrence=deepFreeze({
       sessionId:sourceId,clientId:ownerId,localDate:day,
       localTime:clock,timeZone:ZONE,startsAt,endsAt,
+      dstDisambiguation:clock?(fields.disambiguation??null):null,
       durationMinutes,prescriptionRevision:revision,
       prescriptionSnapshot:structuredClone(snapshot),
       status:'planificada',revision:0,
@@ -193,3 +194,52 @@ export function prepareOccurrenceStateChange(record,{
   });
 }
 export const __u30Testables=Object.freeze({localDate,localClock,wallAt,ZONE});
+
+/** Strict pre-confirmed Coach command builder. Server validates independently. */
+export function buildCoachOccurrenceBatchCommand({
+  operationId,sessionId,clientId,baseRevision,preview,
+  confirmed=false,appointmentIdsByDate={},
+}={}){
+  if(confirmed!==true)fail('PREVIEW_CONFIRMATION_REQUIRED');
+  const operation=uuid(operationId),session=uuid(sessionId),client=uuid(clientId);
+  const revision=positiveRevision(baseRevision);
+  if(!preview||preview.timeZone!==ZONE||!Array.isArray(preview.occurrences)
+    ||preview.count!==preview.occurrences.length||!preview.count
+    ||preview.count>MAX_OCCURRENCES)fail('PREVIEW_INVALID');
+  if(!appointmentIdsByDate||typeof appointmentIdsByDate!=='object'
+    ||Array.isArray(appointmentIdsByDate))fail('APPOINTMENTS_INVALID');
+  const seen=new Set();
+  const dates=preview.occurrences.map(item=>{
+    const day=localDate(item?.localDate);
+    if(seen.has(day))fail('DUPLICATE_LOCAL_DAY');
+    seen.add(day);
+    if(uuid(item?.sessionId)!==session||uuid(item?.clientId)!==client
+      ||positiveRevision(item?.prescriptionRevision)!==revision)
+      fail('PREVIEW_SOURCE_CHANGED');
+    const clock=localClock(item?.localTime);
+    const date={localDate:day};
+    if(clock){
+      date.localTime=clock;
+      if(item.dstDisambiguation!=null){
+        if(!['earlier','later'].includes(item.dstDisambiguation))
+          fail('DST_DISAMBIGUATION_INVALID');
+        date.dstDisambiguation=item.dstDisambiguation;
+      }
+      const verified=resolveSantiagoLocalInstant(day,clock,{
+        disambiguation:item.dstDisambiguation??null});
+      if(item.startsAt!==verified)fail('PREVIEW_TIME_CHANGED');
+    }else if(item.startsAt!==null||item.endsAt!==null)
+      fail('PREVIEW_TIME_CHANGED');
+    if(Object.hasOwn(appointmentIdsByDate,day)){
+      if(!clock)fail('TIME_REQUIRED_FOR_APPOINTMENT');
+      date.appointmentId=uuid(appointmentIdsByDate[day]);
+    }
+    return Object.freeze(date);
+  });
+  for(const key of Object.keys(appointmentIdsByDate))
+    if(!seen.has(localDate(key)))fail('APPOINTMENT_DATE_NOT_SELECTED');
+  return deepFreeze({type:'OCURRENCIAS_CREAR_LOTE',
+    operationId:operation,clientId:client,entityId:session,
+    baseRevision:revision,
+    payload:{targetClientId:client,previewConfirmed:true,dates}});
+}

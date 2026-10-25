@@ -40,6 +40,8 @@ CREATE TABLE public.training_session_occurrences_v1 (
   status text NOT NULL DEFAULT 'planificada',
   revision bigint NOT NULL DEFAULT 0,
   created_operation_id uuid NOT NULL UNIQUE,
+  batch_operation_id uuid,
+  batch_ordinal smallint,
   start_operation_id uuid UNIQUE,
   close_operation_id uuid UNIQUE,
   execution_id uuid UNIQUE,
@@ -57,6 +59,11 @@ CREATE TABLE public.training_session_occurrences_v1 (
   CONSTRAINT u30_duration_check CHECK (duration_minutes BETWEEN 10 AND 240),
   CONSTRAINT u30_source_revision_check CHECK (prescription_revision>=0),
   CONSTRAINT u30_occurrence_revision_check CHECK (revision>=0),
+  CONSTRAINT u30_batch_link_check CHECK (
+    (batch_operation_id IS NULL AND batch_ordinal IS NULL)
+    OR (batch_operation_id IS NOT NULL AND batch_ordinal BETWEEN 1 AND 52)
+  ),
+  CONSTRAINT u30_batch_unique_ordinal UNIQUE (batch_operation_id,batch_ordinal),
   CONSTRAINT u30_snapshot_object_check
     CHECK (jsonb_typeof(prescription_snapshot)='object'),
   -- The frozen prescription must not smuggle another Client/session
@@ -124,6 +131,8 @@ BEGIN
   IF NEW.client_id IS DISTINCT FROM OLD.client_id
     OR NEW.session_id IS DISTINCT FROM OLD.session_id
     OR NEW.created_operation_id IS DISTINCT FROM OLD.created_operation_id
+    OR NEW.batch_operation_id IS DISTINCT FROM OLD.batch_operation_id
+    OR NEW.batch_ordinal IS DISTINCT FROM OLD.batch_ordinal
     OR NEW.prescription_revision IS DISTINCT FROM OLD.prescription_revision
     OR NEW.prescription_snapshot IS DISTINCT FROM OLD.prescription_snapshot THEN
     RAISE EXCEPTION 'U30_OCCURRENCE_SOURCE_IMMUTABLE' USING errcode='23514';

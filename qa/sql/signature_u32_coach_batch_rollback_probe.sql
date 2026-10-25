@@ -63,13 +63,19 @@ BEGIN
   WHERE client_id=v_client AND session_id=v_session
     AND local_date IN (d,d+7,d+14);
   IF count_rows<>3 THEN RAISE EXCEPTION 'U32_EXPECTED_THREE_ROWS';END IF;
+  IF (SELECT count(DISTINCT batch_ordinal) FROM public.training_session_occurrences_v1
+    WHERE batch_operation_id=op)<>3 THEN
+    RAISE EXCEPTION 'U32_BATCH_ORDINALS_NOT_UNIQUE';
+  END IF;
   IF EXISTS(SELECT 1 FROM public.training_session_occurrences_v1 oc
     WHERE client_id=v_client AND session_id=v_session
       AND (oc.prescription_revision<>v_revision
         OR oc.prescription_snapshot->>'sessionId'<>v_session::text
         OR oc.prescription_snapshot->>'clientId'<>v_client::text
         OR jsonb_typeof(oc.prescription_snapshot->'queue')<>'array'
-        OR oc.created_operation_id=op)) THEN
+        OR oc.created_operation_id=op
+        OR oc.batch_operation_id IS DISTINCT FROM op
+        OR oc.batch_ordinal NOT BETWEEN 1 AND 3)) THEN
     RAISE EXCEPTION 'U32_SNAPSHOT_NOT_SERVER_OWNED';END IF;
   slot:=((d+1)::text||' 18:00')::timestamp AT TIME ZONE 'America/Santiago';
   INSERT INTO public.appointments(client_id,title,mode,start_at,end_at,status)
