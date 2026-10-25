@@ -111,6 +111,30 @@ BEGIN
    WHERE id=o_id AND client_id=v_client AND appointment_id=a_id) THEN
   RAISE EXCEPTION 'U32_CROSS_WRITER_CANCEL_REMOVED_HISTORY';
  END IF;
+ -- Inverse order: a legacy appointment exists FIRST for this source.
+ -- Scheduling a date-only occurrence for the same local day must reject.
+ INSERT INTO public.appointments(client_id,session_id,title,mode,
+   start_at,end_at,status)
+ VALUES(v_client,v_session,'QA pre-existing legacy date','guiada_en_app',
+   ((d+3)::text||' 18:00')::timestamp AT TIME ZONE 'America/Santiago',
+   ((d+3)::text||' 19:00')::timestamp AT TIME ZONE 'America/Santiago',
+   'propuesta') RETURNING id INTO legacy_id;
+ BEGIN
+   PERFORM private.iberfit_u32_create_occurrences_batch_v1(
+     jsonb_build_object('type','OCURRENCIAS_CREAR_LOTE',
+       'operationId',gen_random_uuid(),'clientId',v_client,
+       'entityId',v_session,'baseRevision',v_base,
+       'payload',jsonb_build_object('targetClientId',v_client,
+         'previewConfirmed',true,'dates',jsonb_build_array(
+           jsonb_build_object('localDate',(d+3)::text)))));
+   RAISE EXCEPTION 'U32_DATE_ONLY_ON_PREEXISTING_APPOINTMENT_ALLOWED';
+ EXCEPTION WHEN unique_violation THEN NULL;END;
+ IF EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
+   WHERE session_id=v_session AND local_date=d+3 AND status<>'cancelada') THEN
+   RAISE EXCEPTION 'U32_DATE_ONLY_INVERSE_PARTIAL_SAVE';
+ END IF;
+ UPDATE public.appointments SET status='cancelada' WHERE id=legacy_id;
+
  -- A date-only occurrence cannot silently be duplicated by a new
  -- legacy appointment for the same source/day. Other unrelated appointments
  -- on that day remain possible because the draft has no reserved hour.
