@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 const migration=readFileSync(new URL('../supabase/migrations/20261025203500_signature_u32_private_coach_occurrence_batch_v1.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/rollbacks/20261025203500_signature_u32_private_coach_occurrence_batch_v1.rollback.sql',import.meta.url),'utf8');
 const qa=readFileSync(new URL('../qa/sql/signature_u32_coach_batch_rollback_probe.sql',import.meta.url),'utf8');
+const dstQa=readFileSync(new URL('../qa/sql/signature_u32_santiago_dst_rollback_probe.sql',import.meta.url),'utf8');
 
 test('U32: Coach can only schedule from authorized, published, server-owned source and cycle',()=>{
   assert.match(migration,/CREATE FUNCTION private\.iberfit_u32_create_occurrences_batch_v1\(p_command jsonb\)/u);
@@ -45,6 +46,19 @@ test('U32: date validation accounts for Santiago DST gaps and duplicated times',
   assert.match(migration,/EXISTS\(SELECT 1 FROM public\.appointments ap/u);
   assert.match(migration,/EXISTS\(SELECT 1 FROM public\.training_session_occurrences_v1 oc/u);
   assert.match(qa,/U32_CLIENT_APPOINTMENT_CONFLICT_ALLOWED/u);
+});
+
+test('U32: real QA exercises both Chile DST transitions and rebooking with history retained',()=>{
+  assert.match(dstQa,/U32_DST_GAP_ACCEPTED/u);
+  assert.match(dstQa,/U32_DST_FOLD_SILENTLY_ACCEPTED/u);
+  assert.match(dstQa,/U32_DST_NONEXISTENT_LOCAL_TIME/u);
+  assert.match(dstQa,/U32_DST_AMBIGUOUS_LOCAL_TIME/u);
+  assert.match(dstQa,/dstDisambiguation','earlier'/u);
+  assert.match(dstQa,/dstDisambiguation','later'/u);
+  assert.match(dstQa,/2026-04-05 02:30:00\+00/u);
+  assert.match(dstQa,/2026-04-05 03:30:00\+00/u);
+  assert.match(dstQa,/UPDATE public\.training_session_occurrences_v1 SET status='cancelada',revision=1/u);
+  assert.match(dstQa,/U32_DST_NORMAL_TIME_FAILED/u);
 });
 
 test('U32: database API stays closed; rollback cannot strand a historical batch',()=>{
