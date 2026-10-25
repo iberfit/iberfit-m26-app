@@ -27,7 +27,7 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   const editorTracks=await editors.first().locator(':scope > header').evaluate(node=>getComputedStyle(node).gridTemplateColumns);
   expect(editorTracks.trim().split(/\s+/u),'Compact missing-media header must use three tracks').toHaveLength(3);
   // B13 identity and small print must form two distinct, accessible lines.
-  const editorLabel=editors.first().locator(':scope > header > div:has(> strong)');
+  const editorLabel=editors.first().locator('.m26-builder-exercise-identity');
   const labelFlow=await editorLabel.evaluate(node=>({
     display:getComputedStyle(node).display,
     heading:getComputedStyle(node.querySelector('strong')).display,

@@ -55,3 +55,10 @@ test('B13: a missing visual does not consume one quarter of the Coach editor; re
  assert.match(section,/grid-column:1 \/ -1/u);
  assert.doesNotMatch(section,/!important|display:none;\s*\/\*.*valid-media/u);
 });
+
+test('B13: stable semantic identity hook isolates the name and subtitle on all viewport widths',()=>{
+ assert.match(ui,/class="m26-builder-exercise-identity"/u);
+ assert.match(css,/\.m26-builder-editor>header>\.m26-builder-exercise-identity\{/u);
+ assert.match(css,/\.m26-builder-exercise-identity>strong\{/u);
+ assert.match(css,/\.m26-builder-exercise-identity>small\{/u);
+});

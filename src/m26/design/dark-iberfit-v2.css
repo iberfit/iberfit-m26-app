@@ -3069,18 +3069,18 @@
 /* Distinct exercise identity above pattern/context on the narrow workbench.
  * Avoid a long title and its caption running into one continuous text run.
  */
-.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>div:has(>strong){
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>.m26-builder-exercise-identity{
   display:grid;
   align-content:center;
   gap:.18rem;
   min-width:0;
 }
-.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>div>strong{
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>.m26-builder-exercise-identity>strong{
   display:block;
   overflow-wrap:anywhere;
   line-height:1.3;
 }
-.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>div>small{
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>.m26-builder-exercise-identity>small{
   display:block;
   color:var(--iberfit-color-text-secondary);
   line-height:1.4;

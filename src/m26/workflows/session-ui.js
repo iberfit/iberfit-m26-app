@@ -626,7 +626,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
     <header>
       ${visual}
       <span>${index+1}</span>
-      <div><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
+      <div class="m26-builder-exercise-identity"><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
       <div class="m26-inline-actions">
         <button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia arriba"${index===0?' disabled aria-disabled="true"':''}>↑</button>
         <button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia abajo"${index===totalBlocks-1?' disabled aria-disabled="true"':''}>↓</button>
