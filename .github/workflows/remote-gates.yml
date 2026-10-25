@@ -17,6 +17,7 @@ on:
       - '.github/workflows/hosted-auth-security-hardening.yml'
       - '.github/workflows/production-promote.yml'
       - '.github/workflows/remote-gates.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   workflow_dispatch:
     inputs:
       confirmation:

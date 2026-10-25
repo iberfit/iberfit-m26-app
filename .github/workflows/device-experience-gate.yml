@@ -22,6 +22,7 @@ on:
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
       - '.github/workflows/coach-webauthn-recurring.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -41,6 +42,7 @@ on:
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
       - '.github/workflows/coach-webauthn-recurring.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   workflow_dispatch:
 
 permissions:

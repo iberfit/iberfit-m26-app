@@ -1,5 +1,10 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# SIGNATURE P0 seven-gate release matrix 2026-10-25: renewal-only push.
+# Refresh exact-SHA encrypted PROD DB and Storage isolated PG17 proof after
+# all required Canary QA workflow path filters cover M44-only release commits.
+# No changed jobs, scope, credentials, secrets, retention or fail-closed rules.
+
 # SIGNATURE P0 release 2026-10-25: renewal-only Canary push trigger.
 # Reissue an independent encrypted PROD DB + Storage recovery point and
 # isolated PG17 restore after the certified Client A/B and JWT bootstrap merge.
