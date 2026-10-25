@@ -78,6 +78,45 @@ test('U30: duplicate or out-of-cycle days and time conflicts are fail-closed, ne
   error(()=>planDatedTrainingOccurrences({...input,clientId:OTHER}),'SNAPSHOT_OWNER_MISMATCH');
 });
 
+test('U30: canonical and SQL snake_case calendar records block cross-session double booking',()=>{
+  const input=options();
+  const otherSession='66666666-6666-4666-8666-666666666666';
+  error(()=>planDatedTrainingOccurrences({...input,existingOccurrences:[{
+    session_id:otherSession,client_id:CLIENT,local_date:'2026-10-27',
+    starts_at:'2026-10-27T21:10:00.000Z',ends_at:'2026-10-27T21:50:00.000Z',
+    status:'confirmada',
+  }]}),'CLIENT_TIME_CONFLICT');
+  error(()=>planDatedTrainingOccurrences({...input,existingAppointments:[{
+    session_id:otherSession,client_id:CLIENT,
+    start_at:'2026-11-03T21:10:00.000Z',end_at:'2026-11-03T21:50:00.000Z',
+    status:'confirmada',
+  }].map(item=>({...item,startsAt:item.start_at,endsAt:item.end_at}))}),'CLIENT_TIME_CONFLICT');
+  // Projection commonly exposes startsAt/endsAt, while the table uses
+  // start_at/end_at. Both formats must be validated for actual appointments.
+  error(()=>planDatedTrainingOccurrences({...input,existingAppointments:[{
+    client_id:CLIENT,status:'confirmada',
+    starts_at:'2026-10-27T21:20:00.000Z',
+    ends_at:'2026-10-27T22:00:00.000Z',
+  }]}),'CLIENT_TIME_CONFLICT');
+  error(()=>planDatedTrainingOccurrences({...input,existingAppointments:[{
+    client_id:CLIENT,status:'confirmada',
+    starts_at:'2026-10-27T21:20:00.000Z',
+  }]}),'EXISTING_TIME_INVALID');
+  error(()=>planDatedTrainingOccurrences({...input,existingOccurrences:[{
+    session_id:SESSION,client_id:CLIENT,local_date:'2026-11-03',
+  }]}),'DUPLICATE_LOCAL_DAY');
+  assert.equal(planDatedTrainingOccurrences({...input,existingAppointments:[{
+    client_id:CLIENT,status:'cancelada',
+    starts_at:'2026-10-27T21:20:00.000Z',
+    ends_at:'2026-10-27T22:00:00.000Z',
+  }]}).count,3);
+  assert.equal(planDatedTrainingOccurrences({...input,existingOccurrences:[{
+    session_id:otherSession,client_id:OTHER,
+    starts_at:'2026-10-27T21:10:00.000Z',
+    ends_at:'2026-10-27T21:50:00.000Z',
+  }]}).count,3,'other Client scheduling remains isolated');
+});
+
 test('U30: date-only occurrences remain un-timed; invalid duration/count/revision fail',()=>{
   const input=options();
   const occurrence=planDatedTrainingOccurrences({...input,dates:['2026-11-03']}).occurrences[0];
