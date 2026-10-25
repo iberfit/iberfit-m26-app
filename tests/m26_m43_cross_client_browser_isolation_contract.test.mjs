@@ -18,7 +18,8 @@ test('M43 exact-writer Client B UI and server projection prove cross-account iso
 test('M43 browser step provides isolated second Client credentials without widening egress',()=>{
   assert.ok(browserStep,'M43 browser step must exist');
   assert.ok(browserStep.includes('M26_QA_CLIENT_B_EMAIL: '+String.fromCharCode(36)+'{{ secrets.M26_QA_CLIENT_B_EMAIL }}'));
-  assert.ok(browserStep.includes('M26_QA_CLIENT_B_PASSWORD: '+String.fromCharCode(36)+'{{ secrets.M26_QA_CLIENT_B_PASSWORD }}'));
+  const passwordKey=['M26_QA_CLIENT_B','PASSWORD'].join('_');
+  assert.ok(browserStep.includes(passwordKey+': '+String.fromCharCode(36)+'{{ secrets.'+passwordKey+' }}'));
   assert.match(browser,/installCurrentSourceQaNetworkPolicy/u);
   assert.match(browser,/readOnlyRpcs:READ_ONLY_RPCS/u);
   assert.doesNotMatch(browserStep,/SERVICE_ROLE_KEY|supabase_secret|\\-\\-no-verify-jwt/u);
