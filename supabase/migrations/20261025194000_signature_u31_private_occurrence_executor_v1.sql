@@ -24,6 +24,7 @@ DECLARE
   v_base bigint;
   v_revision bigint;
   v_execution_base bigint;
+  v_execution_ack_revision bigint;
   v_receipt public.command_receipts_v26%rowtype;
   v_occ public.training_session_occurrences_v1%rowtype;
   v_source public.domain_entities_v26%rowtype;
@@ -62,7 +63,7 @@ BEGIN
   IF v_operation IS NULL OR v_client IS NULL OR v_occurrence IS NULL
     OR v_base IS NULL OR v_base < 0
     OR v_type IS NULL
-    OR v_type NOT IN ('OCURRENCIA_CONFIRMAR','OCURRENCIA_INICIAR','OCURRENCIA_COMPLETAR')
+    OR v_type NOT IN ('OCURRENCIA_CONFIRMAR','OCURRENCIA_INICIAR','OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR')
     OR jsonb_typeof(coalesce(p_command->'payload','{}'::jsonb)) <> 'object'
   THEN
     RAISE EXCEPTION 'U31_INVALID_COMMAND' USING errcode='22023';
@@ -76,7 +77,7 @@ BEGIN
     RAISE EXCEPTION 'CLIENT_ACCESS_DENIED' USING errcode='42501';
   END IF;
   IF (v_type='OCURRENCIA_CONFIRMAR' AND v_role NOT IN ('coach','admin'))
-     OR (v_type IN ('OCURRENCIA_INICIAR','OCURRENCIA_COMPLETAR')
+     OR (v_type IN ('OCURRENCIA_INICIAR','OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR')
          AND v_role NOT IN ('coach','cliente')) THEN
     RAISE EXCEPTION 'ROLE_NOT_ALLOWED' USING errcode='42501';
   END IF;
@@ -255,6 +256,71 @@ BEGIN
       start_operation_id=v_operation,revision=v_next,updated_at=v_now
     WHERE id=v_occ.id AND client_id=v_client AND revision=v_occ.revision;
     v_status:='en_curso';
+    v_execution_ack_revision:=1;
+
+  ELSIF v_type='OCURRENCIA_GUARDAR_PROGRESO' THEN
+    IF v_occ.status<>'en_curso' OR v_occ.execution_id IS NULL THEN
+      RETURN jsonb_build_object('kind','rejected','reason','TRANSITION_FORBIDDEN',
+        'operationId',v_operation,'serverAt',v_now);
+    END IF;
+    BEGIN
+      v_execution:=nullif(p_command#>>'{payload,executionId}','')::uuid;
+      v_execution_base:=nullif(p_command#>>'{payload,executionBaseRevision}','')::bigint;
+    EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN
+      RAISE EXCEPTION 'U31_EXECUTION_IDENTIFIERS_INVALID' USING errcode='22023';
+    END;
+    IF v_execution IS DISTINCT FROM v_occ.execution_id THEN
+      RETURN jsonb_build_object('kind','rejected','reason','EXECUTION_MISMATCH',
+        'operationId',v_operation,'serverAt',v_now);
+    END IF;
+    SELECT * INTO v_execution_state FROM public.domain_entities_v26
+      WHERE entity_type='session_execution' AND entity_id=v_execution
+        AND client_id=v_client FOR UPDATE;
+    IF NOT FOUND OR v_execution_state.status NOT IN ('en_curso','pausada') THEN
+      RETURN jsonb_build_object('kind','rejected','reason','EXECUTION_NOT_ACTIVE',
+        'operationId',v_operation,'serverAt',v_now);
+    END IF;
+    IF v_execution_base IS NULL OR v_execution_state.revision<>v_execution_base THEN
+      RETURN jsonb_build_object('kind','conflict','reason','EXECUTION_REVISION_MISMATCH',
+        'operationId',v_operation,'remoteRevision',v_occ.revision,
+        'executionRevision',v_execution_state.revision,'serverAt',v_now);
+    END IF;
+    IF v_execution_state.body->>'occurrenceId' IS DISTINCT FROM v_occ.id::text
+      OR v_execution_state.body->>'sessionId' IS DISTINCT FROM v_occ.session_id::text THEN
+      RAISE EXCEPTION 'U31_EXECUTION_OWNER_MISMATCH' USING errcode='42501';
+    END IF;
+    v_results:=p_command#>'{payload,results}';
+    v_skipped:=coalesce(p_command#>'{payload,skippedSets}','{}'::jsonb);
+    IF jsonb_typeof(v_results) IS DISTINCT FROM 'object'
+      OR jsonb_typeof(v_skipped) IS DISTINCT FROM 'object'
+      OR octet_length(v_results::text)>262144
+      OR octet_length(v_skipped::text)>262144 THEN
+      RETURN jsonb_build_object('kind','rejected','reason','EXECUTION_CONTENT_INVALID',
+        'operationId',v_operation,'serverAt',v_now);
+    END IF;
+    v_execution_body:=v_execution_state.body || jsonb_build_object(
+      'revision',v_execution_base+1,'results',v_results,
+      'skippedSets',v_skipped,'updatedAt',v_now);
+    UPDATE public.domain_entities_v26 SET
+      revision=v_execution_base+1,body=v_execution_body,updated_at=v_now
+    WHERE entity_type='session_execution' AND entity_id=v_execution
+      AND client_id=v_client AND revision=v_execution_base;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'U31_PROGRESS_CAS_LOST' USING errcode='40001';
+    END IF;
+    UPDATE public.session_executions SET
+      revision=v_execution_base+1,summary=v_execution_body,updated_at=v_now
+    WHERE id=v_execution AND session_id=v_occ.session_id
+      AND client_id=v_client AND occurrence_id=v_occ.id
+      AND revision=v_execution_base;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'U31_PROGRESS_MIRROR_CAS_LOST' USING errcode='40001';
+    END IF;
+    -- Progress advances only execution revision; the occurrence remains
+    -- en_curso/revision=2 until the eventual validated completion.
+    v_next:=v_occ.revision;
+    v_execution_ack_revision:=v_execution_base+1;
+    v_status:='en_curso';
 
   ELSE -- OCURRENCIA_COMPLETAR: validate the EXACT existing completion contract.
     IF v_occ.status<>'en_curso' OR v_occ.execution_id IS NULL THEN
@@ -336,12 +402,14 @@ BEGIN
     -- NEVER call iberfit_persist_entity_v26('session',...) here.
     -- The next scheduled occurrence must retain the source prescription.
     v_status:='completada';
+    v_execution_ack_revision:=v_execution_base+1;
   END IF;
 
   v_ack:=jsonb_build_object(
     'kind','ack','operationId',v_operation,
     'entityId',v_occ.id,'entityType','training_occurrence',
     'remoteRevision',v_next,'status',v_status,'executionId',v_execution,
+    'executionRevision',v_execution_ack_revision,
     'serverAt',v_now,'duplicate',false);
   INSERT INTO public.command_receipts_v26(
     operation_id,command_type,entity_type,entity_id,client_id,
