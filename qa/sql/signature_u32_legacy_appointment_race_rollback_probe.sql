@@ -111,6 +111,35 @@ BEGIN
    WHERE id=o_id AND client_id=v_client AND appointment_id=a_id) THEN
   RAISE EXCEPTION 'U32_CROSS_WRITER_CANCEL_REMOVED_HISTORY';
  END IF;
+ -- A date-only occurrence cannot silently be duplicated by a new
+ -- legacy appointment for the same source/day. Other unrelated appointments
+ -- on that day remain possible because the draft has no reserved hour.
+ ack:=private.iberfit_u32_create_occurrences_batch_v1(
+   jsonb_build_object('type','OCURRENCIAS_CREAR_LOTE',
+     'operationId',gen_random_uuid(),'clientId',v_client,
+     'entityId',v_session,'baseRevision',v_base,
+     'payload',jsonb_build_object('targetClientId',v_client,
+       'previewConfirmed',true,'dates',jsonb_build_array(
+         jsonb_build_object('localDate',(d+2)::text)))));
+ IF ack->>'kind'<>'ack' OR ack->>'count'<>'1' THEN
+   RAISE EXCEPTION 'U32_DATE_ONLY_OCCURRENCE_CREATE_FAILED:%',ack;
+ END IF;
+ BEGIN
+   INSERT INTO public.appointments(client_id,session_id,title,mode,
+     start_at,end_at,status)
+   VALUES(v_client,v_session,'QA duplicate date-only session','guiada_en_app',
+     ((d+2)::text||' 18:00')::timestamp AT TIME ZONE 'America/Santiago',
+     ((d+2)::text||' 19:00')::timestamp AT TIME ZONE 'America/Santiago',
+     'propuesta');
+   RAISE EXCEPTION 'U32_DATE_ONLY_DUPLICATE_APPOINTMENT_ALLOWED';
+ EXCEPTION WHEN exclusion_violation THEN NULL;END;
+ INSERT INTO public.appointments(client_id,title,mode,
+   start_at,end_at,status)
+ VALUES(v_client,'QA unrelated session on same date','presencial',
+   ((d+2)::text||' 20:00')::timestamp AT TIME ZONE 'America/Santiago',
+   ((d+2)::text||' 21:00')::timestamp AT TIME ZONE 'America/Santiago',
+   'propuesta');
+
  IF NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='u32_appointment_writer_fence'
    AND tgrelid='public.appointments'::regclass AND NOT tgisinternal) THEN
   RAISE EXCEPTION 'U32_CROSS_WRITER_TRIGGER_NOT_INSTALLED';
