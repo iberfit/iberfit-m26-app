@@ -20,6 +20,7 @@ const ROWS=Object.freeze([
   ["Revisa el ejercicio alternativo seleccionado.","Check the selected alternative exercise.","Vérifiez l’exercice alternatif sélectionné.","Reveja o exercício alternativo selecionado."],
   ["Revisa los datos de la sesión antes de continuar.","Review the session details before continuing.","Vérifiez les informations de la séance avant de continuer.","Reveja os dados da sessão antes de continuar."],
   ["Ir a la biblioteca","Go to the library","Aller à la bibliothèque","Ir para a biblioteca"],
+  ["Revisar bloque","Review block","Vérifier le bloc","Rever bloco"],
   // SIGNATURE U19: sensor freshness, disconnection and signal-gap recovery.
   ['Señal interrumpida: el gráfico no une periodos sin mediciones.','Signal interrupted: the chart does not connect periods without measurements.','Signal interrompu : le graphique ne relie pas les périodes sans mesure.','Sinal interrompido: o gráfico não liga períodos sem medições.'],
   ['Sin señal en directo. Revisa la conexión del dispositivo.','No live signal. Check your device connection.','Aucun signal en direct. Vérifiez la connexion de votre appareil.','Sem sinal em direto. Verifique a ligação do dispositivo.'],
