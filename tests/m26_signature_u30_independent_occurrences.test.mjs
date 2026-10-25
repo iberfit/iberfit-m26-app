@@ -109,6 +109,12 @@ test('U30: database integrity, frozen snapshot and read restrictions are enforce
   assert.match(migration,/u30_clock_consistency_check/u);
   assert.match(migration,/u30_occurrence_source_protected/u);
   assert.match(migration,/ENABLE ROW LEVEL SECURITY/u);
+  assert.match(migration,/IBERFIT-TABLE-ACCESS: public\.training_session_occurrences_v1/u);
+  assert.match(migration,/IBERFIT-POLICY: public\.training_session_occurrences_v1 = service-role-only/u);
+  assert.match(migration,/GRANT SELECT ON TABLE public\.training_session_occurrences_v1 TO service_role/u);
+  assert.doesNotMatch(migration,/GRANT (?:ALL|INSERT|UPDATE|DELETE) ON TABLE public\.training_session_occurrences_v1 TO service_role/u);
+  assert.match(migration,/U30_OCCURRENCE_TERMINAL_IMMUTABLE/u);
+  assert.match(migration,/U30_OCCURRENCE_REVISION_CAS_REQUIRED/u);
   assert.match(migration,/REVOKE ALL ON TABLE[\s\S]*?FROM PUBLIC,anon,authenticated,service_role/u);
   assert.doesNotMatch(migration,/GRANT\s+(?:ALL|SELECT|INSERT|UPDATE|DELETE)[\s\S]*?TO\s+(?:anon|authenticated)/iu);
   assert.match(migration,/ADD COLUMN occurrence_id uuid/u);

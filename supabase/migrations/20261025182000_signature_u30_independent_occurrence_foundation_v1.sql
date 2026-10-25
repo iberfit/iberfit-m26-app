@@ -76,11 +76,16 @@ CREATE TABLE public.training_session_occurrences_v1 (
   CONSTRAINT u30_session_one_occurrence_per_local_day UNIQUE (session_id,local_date)
 );
 
+-- IBERFIT-TABLE-ACCESS: public.training_session_occurrences_v1 :: Only trusted server-side reads of staged occurrence snapshots; never expose Client or Coach table access.
+-- IBERFIT-POLICY: public.training_session_occurrences_v1 = service-role-only
 -- Client calendar reads are not enabled yet. Bootstrap / HTTP projection must
 -- explicitly whitelist safe per-role fields in the follow-up lifecycle PR.
 ALTER TABLE public.training_session_occurrences_v1 ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.training_session_occurrences_v1
   FROM PUBLIC,anon,authenticated,service_role;
+-- Server role receives only SELECT, not direct mutation. Future commands use
+-- an explicitly reviewed privileged write boundary, never Client DML.
+GRANT SELECT ON TABLE public.training_session_occurrences_v1 TO service_role;
 
 -- An already-created occurrence is always tied to the original prescription
 -- snapshot: changing source identity/history in-place is forbidden.
