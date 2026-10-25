@@ -53,9 +53,16 @@ export function resolveSantiagoLocalInstant(date,time,{disambiguation=null}={}){
     fail('DST_DISAMBIGUATION_INVALID');
   const naive=Date.parse(day+'T'+clock+':00.000Z');
   const candidates=[];
-  // Offset range covers every modern IANA zone; enumerate all 15-minute
-  // offsets rather than letting Date silently normalize gaps or folds.
-  for(let offset=-14*60;offset<=14*60;offset+=15){
+  // Sample the real IANA UTC offsets on both sides of the intended date.
+  // This avoids 113 Intl calls per occurrence on a Coach mobile device while
+  // still considering both offsets at DST folds and gaps in Santiago.
+  const offsets=new Set();
+  for(const shift of [-172_800_000,-86_400_000,0,86_400_000,172_800_000]){
+    const sample=naive+shift;
+    const sampledLocal=wallAt(sample);
+    offsets.add((Date.parse(sampledLocal+':00.000Z')-sample)/60_000);
+  }
+  for(const offset of offsets){
     const instant=naive-offset*60_000;
     if(wallAt(instant)===day+'T'+clock)candidates.push(instant);
   }
