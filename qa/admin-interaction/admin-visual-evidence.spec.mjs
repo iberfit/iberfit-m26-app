@@ -53,7 +53,9 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
     };
   });
   expect(vision.workspaceScheme).toContain('dark');
-  expect(vision.workspaceInk.toLowerCase()).toBe('#f5f5f0');
+  // SIGNATURE B12 shared warm ivory: preserve matte Admin workspace and
+  // assert the exact approved token rather than silently accepting any color.
+  expect(vision.workspaceInk.toLowerCase()).toBe('#f7f0e3');
   // M41's finished surface is deliberately MATTE. A gradient here is a
   // visual regression, not evidence of quality. Assert actual rendered paint.
   expect(vision.workspaceBackground).toBe('none');
