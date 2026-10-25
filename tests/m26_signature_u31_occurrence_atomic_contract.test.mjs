@@ -48,6 +48,19 @@ test('U31: lock and CAS prevent simultaneous operations from different devices',
   assert.match(probe,/U31_QA_CONCURRENT_START_ALLOWED/u);
 });
 
+test('U31: per-set progress persists with independent execution CAS and safe replay',()=>{
+  assert.match(migration,/OCURRENCIA_GUARDAR_PROGRESO/u);
+  assert.match(migration,/v_execution_ack_revision:=v_execution_base\+1/u);
+  assert.match(migration,/U31_PROGRESS_CAS_LOST/u);
+  assert.match(migration,/U31_PROGRESS_MIRROR_CAS_LOST/u);
+  assert.match(migration,/v_next:=v_occ\.revision;[\s\S]*?v_execution_ack_revision:=v_execution_base\+1/u);
+  assert.match(migration,/octet_length\(v_results::text\)>262144/u);
+  assert.match(probe,/U31_QA_PROGRESS_SAVE_FAILED/u);
+  assert.match(probe,/U31_QA_PROGRESS_REPLAY_MUTATION_ACCEPTED/u);
+  assert.match(probe,/U31_QA_STALE_DEVICE_PROGRESS_ACCEPTED/u);
+  assert.match(probe,/u31-qa-squat:2/u);
+});
+
 test('U31: recording one workout never transitions the shared prescription',()=>{
   assert.match(migration,/INSERT INTO public\.session_executions\([\s\S]*?occurrence_id/u);
   assert.match(migration,/INSERT INTO public\.domain_entities_v26/u);
