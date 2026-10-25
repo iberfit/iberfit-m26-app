@@ -3042,3 +3042,26 @@
     border-color:ButtonText;
   }
 }
+
+/* SIGNATURE B13 · Coach does not present an oversized golden error tile
+ * when media was never approved. Preserve genuine media and all written
+ * instructions; only the narrow *absent* placeholder is visually omitted.
+ * Structural :has() fallback is scoped to the actual builder editor.
+ */
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header:has(> .m26-exercise-media-fallback){
+  grid-template-columns:auto minmax(0,1fr) auto;
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header>.m26-exercise-media-fallback{
+  display:none;
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-group-prescription-heading:has(> .m26-exercise-media-fallback){
+  grid-template-columns:minmax(0,1fr);
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-group-prescription-heading>.m26-exercise-media-fallback{
+  display:none;
+}
+@media(max-width:520px){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-session-builder-v2 .m26-builder-editor>header:has(> .m26-exercise-media-fallback)>.m26-inline-actions{
+    grid-column:1 / -1;
+  }
+}

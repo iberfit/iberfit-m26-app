@@ -45,3 +45,13 @@ test('B13: native disclosure remains hidden when closed, scrollable when open an
  assert.match(b13,/@media\(forced-colors:active\)/u);
  assert.doesNotMatch(b13,/position:\s*(fixed|sticky)|z-index:/u);
 });
+
+test('B13: a missing visual does not consume one quarter of the Coach editor; real media remains untouched',()=>{
+ const section=css.slice(css.indexOf('/* SIGNATURE B13 · Coach does not present'));
+ assert.match(section,/\.m26-builder-editor>header:has\(> \.m26-exercise-media-fallback\)/u);
+ assert.match(section,/grid-template-columns:auto minmax\(0,1fr\) auto/u);
+ assert.match(section,/\.m26-builder-editor>header>\.m26-exercise-media-fallback\{\s*display:none/u);
+ assert.match(section,/\.m26-group-prescription-heading>\.m26-exercise-media-fallback\{\s*display:none/u);
+ assert.match(section,/grid-column:1 \/ -1/u);
+ assert.doesNotMatch(section,/!important|display:none;\s*\/\*.*valid-media/u);
+});

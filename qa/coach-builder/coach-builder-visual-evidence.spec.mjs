@@ -19,6 +19,14 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   // renderer on 320/390/tablet/desktop, without hiding valid controls.
   const editors=page.locator('.m26-builder-editor');
   await expect(editors).toHaveCount(2);
+  // B13: with no approved media, the cramped golden placeholder is omitted;
+  // exercise text and all genuine controls remain available on every viewport.
+  const absentVisual=editors.first().locator(':scope > header > .m26-exercise-media-fallback');
+  await expect(absentVisual).toHaveCount(1);
+  await expect(absentVisual).toBeHidden();
+  const editorTracks=await editors.first().locator(':scope > header').evaluate(node=>getComputedStyle(node).gridTemplateColumns);
+  expect(editorTracks.trim().split(/\\s+/u),'Compact missing-media header must use three tracks').toHaveLength(3);
+
   await expect(editors.first().locator('[data-session-action="move-up"]')).toBeDisabled();
   await expect(editors.first().locator('[data-session-action="move-down"]')).toBeEnabled();
   await expect(editors.last().locator('[data-session-action="move-up"]')).toBeEnabled();
