@@ -184,7 +184,8 @@ test('M41 Admin visual certification validates the actual matte UI instead of re
   const qa=read('qa/admin-interaction/admin-visual-evidence.spec.mjs');
   assert.match(qa,/expect\(vision\.workspaceBackground\)\.toBe\('none'\)/);
   assert.match(qa,/expect\(vision\.surfaceBackgroundImage\)\.toBe\('none'\)/);
-  assert.match(qa,/expect\(vision\.workspaceBackgroundColor\)\.toBe\('rgb\(11, 19, 16\)'\)/);
+  // B12 stays matte, with exact approved warmer forest canvas in Admin.
+  assert.match(qa,/expect\(vision\.workspaceBackgroundColor\)\.toBe\('rgb\(13, 25, 19\)'\)/);
   assert.match(qa,/expect\(vision\.navBackgroundColor\)\.toMatch/);
   assert.match(qa,/not\.toMatch\(\/rgb\\\(255/);
 });
