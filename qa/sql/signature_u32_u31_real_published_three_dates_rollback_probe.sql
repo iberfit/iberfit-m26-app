@@ -6,7 +6,7 @@ DO $u32_e2e$
 DECLARE
   r record;
   c uuid;s uuid;actor uuid;ex1 uuid:=gen_random_uuid();ex2 uuid:=gen_random_uuid();
-  a uuid;b uuid;third uuid;
+  a uuid;b uuid;third uuid;occurrence_id uuid;
   day1 date;d2 date;d3 date;
   snapshot jsonb;queue jsonb;
   block jsonb;exercise_key text;exercise_id text;
@@ -85,19 +85,15 @@ BEGIN
   IF queue IS DISTINCT FROM r.blocks THEN
     RAISE EXCEPTION 'U32_U31_SERVER_SNAPSHOT_DIFFERS_FROM_PUBLISHED';
   END IF;
-  FOREACH a IN ARRAY ARRAY[a,b,third] LOOP
+  FOREACH occurrence_id IN ARRAY ARRAY[a,b,third] LOOP
     cmd:=jsonb_build_object('type','OCURRENCIA_CONFIRMAR',
       'operationId',gen_random_uuid(),'clientId',c,
-      'entityId',a,'baseRevision',0);
+      'entityId',occurrence_id,'baseRevision',0);
     ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
     IF ack->>'kind'<>'ack' OR ack->>'status'<>'confirmada' THEN
       RAISE EXCEPTION 'U32_U31_CONFIRM_REJECTED:%',ack;
     END IF;
   END LOOP;
-  -- FOREACH reuses "a"; recover first ID using server's returned receipts.
-  SELECT (response#>>'{occurrences,0,id}')::uuid
-    INTO a FROM public.command_receipts_v26
-  WHERE operation_id=operation;
   cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR',
     'operationId',gen_random_uuid(),'clientId',c,
     'entityId',a,'baseRevision',1,
