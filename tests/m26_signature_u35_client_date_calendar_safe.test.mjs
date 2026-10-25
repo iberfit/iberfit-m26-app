@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildClientPlanningItems} from '../src/m26/rc39/session-policy.js';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {augmentRc39ViewModel} from '../src/m26/rc39/view-model.js';
 
 const CLIENT='10000000-0000-4000-8000-000000000101';
 const OTHER='10000000-0000-4000-8000-000000000102';
@@ -139,4 +140,20 @@ test('U35 Sessions keeps guided exercise previews visible across dated and undat
   const planning=renderRc39Route(view(entries));
   const expanded=[...planning.matchAll(/<details class="m26-rc39-day-group"[^>]*\sopen(?:\s|>)/g)];
   assert.equal(expanded.length,1,'Planning retains only one expanded day');
+});
+
+test('U35 Agenda and session projections never resurrect legacy start for shared dates',()=>{
+  const state={identity:{role:'client',clientId:CLIENT},
+    selectedClientId:null,
+    collections:{sessions:[source],appointments:[a1,a2]}};
+  const vm=augmentRc39ViewModel({kind:'agenda',role:'client'},
+    {identity:{role:'client',clientId:CLIENT}},state,new Date('2026-10-19T10:00:00Z'));
+  assert.equal(vm.rc39.planningItems.length,2);
+  assert.equal(vm.rc39.sessionProjections.length,1);
+  assert.equal(vm.rc39.sessionProjections[0].canClientStart,false);
+  assert.equal(vm.rc39.sessionProjections[0].recurringAwaitingActivation,true);
+  const html=renderRc39Route({...vm,kind:'agenda',role:'client',serviceActive:true});
+  assert.equal((html.match(/data-appointment-card="tuesday-/g)||[]).length,2);
+  assert.equal((html.match(/data-workflow-action="start-published-session"/g)||[]).length,0);
+  assert.match(html,/El inicio independiente por fecha/);
 });

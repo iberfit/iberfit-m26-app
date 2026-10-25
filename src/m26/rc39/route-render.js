@@ -473,7 +473,9 @@ function renderAgenda(vm){
   const isClient=role==='client';
   const canManage=['coach','admin'].includes(role);
   const contractModality=contractModalityOf(vm);
-  const projections=vm.rc39?.sessionProjections||[];
+  const projections=isClient
+    ?(vm.rc39?.planningItems||vm.rc39?.sessionProjections||[])
+    :(vm.rc39?.sessionProjections||[]);
   const appointments=vm.rc39?.appointments||[];
 
   const proposedCount=appointments.filter((item)=>

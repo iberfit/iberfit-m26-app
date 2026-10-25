@@ -209,10 +209,23 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const changeRequestAvailable=state?.environment?.rc39?.appointmentChangeRequests===true;
   const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable})));
   const operationalAppointments=(role==='client'?scopedAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
-  const sessionProjections=relevantSessions.map((session)=>Object.freeze({
-    ...clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now),
-    changeRequestAvailable,
-  }));
+  // Reuse the occurrence-aware Client policy on every surface, not only
+  // Planning/Sessions. Otherwise Agenda may resurrect a legacy start button
+  // for the same canonical prescription on another booked date.
+  const awaitingOccurrenceApi=new Set(role==='client'
+    ?planningItems.filter(item=>item.recurringAwaitingActivation===true)
+      .map(item=>String(item.id||''))
+    :[]);
+  const sessionProjections=relevantSessions.map((session)=>{
+    const base=clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now);
+    const needsOccurrenceEngine=role==='client'&&awaitingOccurrenceApi.has(String(base.id||''));
+    return Object.freeze({
+      ...base,
+      canClientStart:needsOccurrenceEngine?false:base.canClientStart,
+      recurringAwaitingActivation:needsOccurrenceEngine,
+      changeRequestAvailable,
+    });
+  });
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
