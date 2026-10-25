@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "c35d9a5223e30ac25c3ebdf91391c38dd37afc9e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "d29a59a73e1bfea30e4af28ca8a7366a30804ea8",
+  "notes": "SIGNATURE P0 final certified macro: B10 Coach Builder premium, bounded JWT bootstrap future-iat recovery, verified cross-client A/B privacy, real Coach->Client session/history/finish persistence, six role/device integrations, all seven exact Canary SHA gates SUCCESS, M44 encrypted PROD DB+Storage PG17 offsite restore run #40158298901 SUCCESS. No Prod SQL/Auth/Edge/data writes or Media deployment. B12 visual follow-up PR #1140 intentionally excluded; require strict previous-live SHA and live smoke/rollback."
+}
