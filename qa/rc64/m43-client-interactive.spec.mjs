@@ -65,7 +65,17 @@ test('Client executes exact synthetic guided workout through real UI and confirm
       executionId=nextId;
     }else if(!executionId||cmd.entityType!=='session_execution'||
       String(cmd.entityId)!==executionId)return false;
-    allowed.push({type:cmd.type,rpc:new URL(request.url()).pathname.split('/').at(-1)});
+    // Record only non-sensitive operation identity and transition shape.
+    // Both COMPLETE SET and NEXT persist through this same RPC type.
+    const snapshot=cmd.payload?.progressSnapshot;
+    allowed.push({type:cmd.type,rpc:new URL(request.url()).pathname.split('/').at(-1),
+      operationId:String(cmd.operationId),
+      ...(cmd.type==='EJECUCION_GUARDAR_PROGRESO'?{
+        progressStatus:String(snapshot?.status||''),
+        resultCount:Object.keys(snapshot?.results||{}).length,
+        stepIndex:Number(snapshot?.index),setIndex:Number(snapshot?.setIndex),
+      }:{}),
+    });
     return true;
   }
   await installCurrentSourceQaNetworkPolicy(context,{
@@ -152,12 +162,14 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await expect(dockPrimary,'Live rest dock stays touchable').toBeVisible();
   // The Client must not lose a tap while the previous set's remote mutation
   // is still pending. Wait for real server acknowledgement, then tap.
-  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(1);
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBe(1);
   await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
   await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
   await expect(dockPrimary).toBeEnabled({timeout:20_000});
   await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:20_000});
+  // Advancing the rest-to-next-set cursor is a distinct persisted transition.
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBe(2);
   // Completing one set must not advance straight to feedback. Confirm that
   // the rest leads to a genuine second set with independently entered results.
   await page.locator('[data-set-field="reps"]').first().fill('8');
@@ -167,12 +179,13 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await expect(dockPrimary,'Second set is reachable without scroll interception').toBeVisible();
   await dockPrimary.click();
   await expect(page.locator('[data-session-action="next"]')).toHaveCount(1);
-  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBeGreaterThanOrEqual(2);
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBe(3);
   await expect(page.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:20_000});
   await expect(page.locator('[data-session-action="next"]')).toBeEnabled({timeout:20_000});
   await expect(dockPrimary).toBeEnabled({timeout:20_000});
   await dockPrimary.click();
   await expect(page.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:20_000});
+  await expect.poll(()=>confirmedProgress.length,{timeout:20_000}).toBe(4);
   await page.locator('[data-session-feedback-rpe]').fill('7');
   await page.locator('[data-session-feedback-comment]').fill('IBERFIT QA M43 · feedback sintético UI');
   await expect(page.locator('[data-session-focus-dock].is-inline')).toHaveCount(1);
@@ -193,16 +206,27 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await finish.click();
   await expect(page.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
   await expect(page.locator('[data-session-live-state="completed"]')).toContainText('Confirmada');
-  // A completed workout with two ACKed sets must never send a third
-  // progress write, nor any additional execution command after FINISH.
+  // The two completed sets AND the two explicit NEXT transitions each need
+  // a separate, server-ACKed progress snapshot. Duplicates or late writes fail.
   // Inspect the actual request log, not only persisted history or UI state.
   function assertNoPostTerminalRequests(stage){
     const terminalIndex=allowed.findIndex(row=>row.type==='EJECUCION_COMPLETAR'
       &&row.rpc==='iberfit_execute_command_v26');
     expect(terminalIndex,stage+': completion transport must have been sent').toBeGreaterThanOrEqual(0);
-    expect(allowed.filter(row=>row.type==='EJECUCION_GUARDAR_PROGRESO'
-      &&row.rpc==='iberfit_execute_command_v26'),
-    stage+': exactly two set progress writes, never a third').toHaveLength(2);
+    const progress=allowed.filter(row=>row.type==='EJECUCION_GUARDAR_PROGRESO'
+      &&row.rpc==='iberfit_execute_command_v26');
+    expect(progress,stage+': two completed sets and two distinct NEXT transitions').toHaveLength(4);
+    expect(new Set(progress.map(row=>row.operationId)).size,
+      stage+': no duplicated progress transport operation').toBe(4);
+    expect(new Set(confirmedProgress).size,
+      stage+': each progress transition needs its own matching server ACK').toBe(4);
+    expect(progress.map(row=>row.resultCount),
+      stage+': NEXT must not invent extra recorded sets').toEqual([1,1,2,2]);
+    expect(progress.map(row=>row.progressStatus),
+      stage+': final NEXT must reach feedback, not mutate after completion')
+      .toEqual(['active','active','active','awaiting_feedback']);
+    expect(progress[0].stepIndex+':'+progress[0].setIndex).not.toBe(progress[1].stepIndex+':'+progress[1].setIndex);
+    expect(progress[2].stepIndex+':'+progress[2].setIndex).not.toBe(progress[3].stepIndex+':'+progress[3].setIndex);
     expect(allowed.slice(terminalIndex+1),
       stage+': no further command request may follow completion').toEqual([]);
   }
@@ -269,7 +293,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
       runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,
       allowedActions:[...new Set(allowed.map(x=>x.type))],
       networkErrors:unexpectedHttp.length,blockedWrites:0,completed:true,
-      restoredAfterReload:true,confirmedSetCount:2,historyEntriesAfterReload:1,
+      restoredAfterReload:true,confirmedSetCount:2,confirmedProgressTransitions:4,historyEntriesAfterReload:1,
       writesAfterReload:allowed.length-writesBeforeReload},null,2)),
     contentType:'application/json',
   });
