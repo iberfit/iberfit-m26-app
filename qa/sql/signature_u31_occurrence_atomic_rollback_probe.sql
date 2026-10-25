@@ -60,8 +60,8 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Negative security probes: unknown Client, missing type, and Admin
-  -- attempting a Coach/Client execution are rejected before any write.
+  -- Negative security probes: unknown Client and missing command type
+  -- must be rejected before touching any occurrence.
   BEGIN
     PERFORM private.iberfit_u31_occurrence_transition_v1(
       jsonb_build_object('type','OCURRENCIA_CONFIRMAR',
@@ -78,6 +78,7 @@ BEGIN
   EXCEPTION WHEN invalid_parameter_value THEN NULL;
   END;
 
+  replay_operation:=gen_random_uuid();
   cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR','operationId',replay_operation,
       'clientId',r.client_id,'entityId',a,'baseRevision',1,
       'payload',jsonb_build_object('executionId',x));
