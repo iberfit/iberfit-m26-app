@@ -152,7 +152,7 @@ BEGIN
       OR (v_item - 'localDate' - 'localTime' - 'dstDisambiguation' - 'appointmentId')
         <> '{}'::jsonb
       OR v_item->>'localDate' IS NULL
-      OR v_item->>'localDate' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} THEN
+      OR v_item->>'localDate' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
       RAISE EXCEPTION 'U32_INVALID_DATE_ITEM' USING errcode='22023';
     END IF;
     BEGIN
