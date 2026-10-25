@@ -121,7 +121,7 @@ export function planDatedTrainingOccurrences({
     const existingSession=String(field(item,'sessionId','session_id')||'')
       .trim().toLowerCase();
     const day=field(item,'localDate','local_date');
-    if(existingSession===sourceId&&day!==null)
+    if(existingSession===sourceId&&day!==null&&active(item))
       takenDays.add(localDate(day));
     if(owner(item)===ownerId&&active(item)){
       const window=existingWindow(item);
