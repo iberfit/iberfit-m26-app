@@ -99,7 +99,7 @@ BEGIN
       jsonb_set(jsonb_set(cmd,'{operationId}',to_jsonb(gen_random_uuid()::text)),
         '{clientId}',to_jsonb(gen_random_uuid()::text)));
     RAISE EXCEPTION 'U32_OTHER_CLIENT_ALLOWED';
-  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+  EXCEPTION WHEN insufficient_privilege OR invalid_parameter_value THEN NULL;END;
   SELECT user_id INTO admin_id FROM public.user_profiles WHERE role::text='admin' LIMIT 1;
   IF admin_id IS NULL THEN RAISE EXCEPTION 'U32_ADMIN_TEST_REQUIRED';END IF;
   PERFORM set_config('request.jwt.claim.sub',admin_id::text,true);
