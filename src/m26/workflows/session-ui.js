@@ -769,6 +769,33 @@ export function renderSessionLibraryResults({draft,catalog,query='',filters={},m
   return Object.freeze({count:matchingExercises.length,shown:visible.length,
     markup:`${reset}<div class="m26-exercise-results">${cards}${remainingCards}</div>${more}`});
 }
+// SIGNATURE B14: focus the first uniquely identifiable invalid block.
+// Do not guess when an exercise or block ID appears in multiple locations.
+function firstInvalidBuilderBlockId(draft,errors=[]){
+  const blocks=Array.isArray(draft?.blocks)?draft.blocks:[];
+  const invalid=new Set(errors);
+  const blockCounts=new Map(),exerciseCounts=new Map();
+  const exerciseIds=block=>block?.type==='exercise'?[block.exerciseId]:Array.isArray(block?.exerciseIds)?block.exerciseIds:[];
+  for(const block of blocks){
+    const bid=String(block?.id||'');
+    if(bid)blockCounts.set(bid,(blockCounts.get(bid)||0)+1);
+    for(const ex of new Set(exerciseIds(block))){
+      const key=String(ex||'');
+      if(key)exerciseCounts.set(key,(exerciseCounts.get(key)||0)+1);
+    }
+  }
+  for(const block of blocks){
+    const bid=String(block?.id||'');
+    if(!bid||blockCounts.get(bid)!==1)continue;
+    if(['group','rounds','groupType'].some(type=>invalid.has(type+':'+bid)))return bid;
+    for(const ex of exerciseIds(block)){
+      const key=String(ex||'');
+      if(!key||exerciseCounts.get(key)!==1)continue;
+      if(['exercise','prescription','metrics','alternative'].some(type=>invalid.has(type+':'+key)))return bid;
+    }
+  }
+  return null;
+}
 // SIGNATURE B10: show the same domain validation before the Coach taps Review.
 // A partial test/legacy catalog may not implement has(); the domain still
 // validates the actual command at review and publication (never bypassed).
@@ -792,7 +819,10 @@ export function sessionBuilderReviewReadiness(draft,catalog){
     has('metrics')?'Revisa el tiempo, la distancia y las métricas prescritas.':
     has('alternative')?'Revisa el ejercicio alternativo seleccionado.':
     'Revisa los datos de la sesión antes de continuar.';
-  return {ready:false,reason:guidance,next:has('blocks')?'library':null};
+  const globalError=['clientId','title','durationMinutes','deliveryModality','blocks'].some(has);
+  const targetBlockId=globalError?null:firstInvalidBuilderBlockId(draft,errors);
+  return {ready:false,reason:guidance,next:has('blocks')?'library':null,
+    ...(targetBlockId?{targetBlockId}:{})};
 }
 export function renderSessionBuilder({draft,catalog,query='',filters={},libraryVisibleLimit=24,templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
   const searchResults=renderSessionLibraryResults({draft,catalog,query,filters,mediaMap,role,visibleLimit:libraryVisibleLimit});
