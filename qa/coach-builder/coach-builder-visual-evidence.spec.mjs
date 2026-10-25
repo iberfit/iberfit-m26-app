@@ -94,7 +94,9 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
     expect(button.height,`Touch controls must be at least 48px tall: ${JSON.stringify(button)}`).toBeGreaterThanOrEqual(47.95);
     expect(button.width).toBeGreaterThan(40);
   }
+  // Editing fixture has the complete canonical prescription: Review is focusable.
   const lastButton=buttons.last();
+  await expect(lastButton,'Valid Coach prescription enables Review').toBeEnabled();
   await lastButton.scrollIntoViewIfNeeded();
   await lastButton.focus();
   await expect(lastButton).toBeFocused();
@@ -106,6 +108,28 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
   expect(hit,'Review action must be tappable and not obscured by mobile dock').toBe(true);
   const name=testInfo.project.name;
   await page.screenshot({path:`${OUT}/coach-builder-editing-${name}.png`,fullPage:true,animations:'disabled',caret:'hide'});
+
+  // B10: a truly invalid prescription must remain editable and saveable.
+  // Native disabled Review is not keyboard-focusable; use Save for focus QA.
+  await page.evaluate(()=>globalThis.__IBERFIT_COACH_BUILDER_VISUAL__.setMode('editing-invalid'));
+  const invalidFinish=page.locator('[data-session-builder-finish]');
+  const invalidReview=invalidFinish.locator('[data-session-action="preview"]');
+  const invalidSave=invalidFinish.locator('[data-session-action="save-draft"]');
+  const invalidLibrary=invalidFinish.locator('[data-session-jump="library"]');
+  await expect(invalidReview,'Incomplete prescriptions must not be reviewable').toBeDisabled();
+  await expect(invalidReview).toHaveAttribute('aria-disabled','true');
+  await expect(invalidReview).toHaveAttribute('aria-describedby','m26-builder-review-readiness');
+  await expect(page.locator('[data-session-review-readiness]')).toContainText('Revisa las series');
+  await expect(invalidSave).toBeEnabled();
+  await expect(invalidLibrary).toBeEnabled();
+  await invalidSave.scrollIntoViewIfNeeded();
+  await invalidSave.focus();
+  await expect(invalidSave,'Save remains keyboard accessible in invalid draft').toBeFocused();
+  for(const control of [invalidReview,invalidSave,invalidLibrary]){
+    const rect=await control.boundingBox();
+    expect(rect?.height,'B10 invalid draft controls remain touch sized').toBeGreaterThanOrEqual(47.95);
+  }
+  await page.screenshot({path:`${OUT}/coach-builder-editing-invalid-${name}.png`,fullPage:true,animations:'disabled',caret:'hide'});
 
   await page.evaluate(()=>globalThis.__IBERFIT_COACH_BUILDER_VISUAL__.setMode('empty'));
   await expect(page.locator('[data-session-builder-empty]')).toBeVisible();
@@ -124,7 +148,7 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
     schema:'iberfit.signature.coach-builder.synthetic-visual.v1',
     source:'actual renderSessionBuilder and canonical CSS in QA synthetic shell',
     syntheticQa:true,authenticatedBusinessLifecycle:false,
-    noBusinessWrites:true,role:'coach',name,metrics,states:['editing','empty','preview'],
-    files:['editing','empty','preview'].map(state=>`coach-builder-${state}-${name}.png`),
+    noBusinessWrites:true,role:'coach',name,metrics,states:['editing','editing-invalid','empty','preview'],
+    files:['editing','editing-invalid','empty','preview'].map(state=>`coach-builder-${state}-${name}.png`),
   },null,2)+'\n');
 });

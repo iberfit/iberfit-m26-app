@@ -2925,3 +2925,43 @@
     outline-color:Highlight;
   }
 }
+
+/* SIGNATURE B10 · no-error Coach review guidance, integrated into commandbar.
+ * An invalid draft stays editable and saveable; no extra overlay or modal. */
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-review-readiness,
+.m26-shell[data-m26-role="admin"] .m26-session-builder-v2 .m26-builder-review-readiness{
+  margin:.45rem 0 .9rem;
+  padding:.55rem .8rem;
+  border-left:2px solid #D7BA7C;
+  color:#EADFC8;
+  background:rgba(197,160,89,.055);
+  font-size:.9rem;
+  line-height:1.5;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-review-readiness button,
+.m26-shell[data-m26-role="admin"] .m26-session-builder-v2 .m26-builder-review-readiness button{
+  margin-inline-start:.6rem;
+  padding:.35rem .6rem;
+  min-height:44px;
+  border:1px solid rgba(215,186,124,.5);
+  border-radius:.45rem;
+  color:#F5E3BF;
+  background:#20392E;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.m26-session-builder-v2 [data-session-action="preview"]:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+.m26-session-builder-v2 .m26-builder-review-readiness button:focus-visible{
+  outline:3px solid #E9CB8F;
+  outline-offset:3px;
+}
+@media(forced-colors:active){
+  .m26-session-builder-v2 .m26-builder-review-readiness{
+    border-left-color:Highlight;
+    background:Canvas;
+    color:CanvasText;
+  }
+}
