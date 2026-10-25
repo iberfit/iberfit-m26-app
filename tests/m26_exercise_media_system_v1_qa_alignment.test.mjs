@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const contract=JSON.parse(read('scripts/exercise-media/contract.json'));
-const visual=contract.media_contract.visual;
+const visual=contract.media_contract.visual_system;
 const composer=read('scripts/exercise-media/compose-system-v1-auto.py');
 const auto=read('scripts/exercise-media/auto-factory-qa.mjs');
 const standalone=read('scripts/exercise-media/qa-system-v1.mjs');
