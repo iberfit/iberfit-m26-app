@@ -626,7 +626,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
     <header>
       ${visual}
       <span>${index+1}</span>
-      <div><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
+      <div class="m26-builder-exercise-identity"><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
       <div class="m26-inline-actions">
         <button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia arriba"${index===0?' disabled aria-disabled="true"':''}>↑</button>
         <button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia abajo"${index===totalBlocks-1?' disabled aria-disabled="true"':''}>↓</button>
@@ -803,6 +803,18 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
   const activeGroupTargetMarkup=activeGroup?`<div class="m26-builder-group-target" data-session-active-group-target role="status" aria-live="polite"><span><small>Añadiendo al grupo activo</small><strong>${e(groupName(activeGroup.type))} · ${e(activeGroup.exerciseIds.length)}/${e(activeGroupLimit)} ejercicios</strong></span><button type="button" data-session-action="close-group">Cerrar grupo</button></div>`:'';
   const totalBlocks=(draft.blocks||[]).length;
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks)).join('')||`<div class="m26-builder-program-empty" data-session-builder-empty><strong>Empieza por el primer ejercicio</strong><p>Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.</p><button type="button" data-session-jump="library">Buscar ejercicios</button></div>`;
+  // SIGNATURE B13 · Coach navigation on long sessions. Existing read-only
+  // focus handler scrolls to the real editor; this never changes a draft.
+  const blockIndex=draft.previewAccepted||totalBlocks<2?'':`<details class="m26-builder-block-index" data-session-builder-block-index>
+    <summary><span>Ir directamente a un bloque</span><strong>${e(totalBlocks)} bloques</strong></summary>
+    <div class="m26-builder-block-index-links" role="group" aria-label="Elegir bloque de la sesión">
+      ${(draft.blocks||[]).map((block,index)=>{
+        const current=block.type==='exercise'?catalog.get(block.exerciseId):null;
+        const label=block.type==='exercise'?exerciseDisplayName(current||{name_es:block.name||block.exerciseId||'Ejercicio'}):groupName(block.type);
+        return `<button type="button" data-session-review-block="${e(block.id)}">${e(index+1)}. ${e(label)}</button>`;
+      }).join('')}
+    </div>
+  </details>`;
   const metrics=draftMetrics(draft);
   const reviewReadiness=sessionBuilderReviewReadiness(draft,catalog);
   const reviewUnavailable=reviewReadiness.ready?'':' disabled aria-disabled="true" aria-describedby="m26-builder-review-readiness"';
@@ -922,6 +934,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
           ${draft.activeGroupId?'<button type="button" data-session-action="close-group">Cerrar grupo activo</button>':''}
         </div>
         ${draft.activeGroupId?'<p class="m26-notice" role="status">Añade ejercicios o cierra el grupo actual antes de crear otro. Si cierras un grupo incompleto, los ejercicios ya añadidos pasarán a ser individuales conservando sus prescripciones.</p>':''}
+        ${blockIndex}
         <div class="m26-builder-blocks">${blocks}</div>
         ${metrics.blocks?`<footer class="m26-builder-finish" data-session-builder-finish aria-label="Siguiente paso del constructor"><div class="m26-builder-finish-copy"><span>Antes de publicar</span><strong>Revisa la sesión completa</strong><p>Confirma modalidad y prescripción. Guardar borrador no publica el entrenamiento.</p></div><div class="m26-inline-actions m26-builder-finish-actions"><button type="button" data-session-jump="library">Añadir otro ejercicio</button><button type="button" data-session-action="save-draft">Guardar borrador</button><button type="button" class="m26-primary-action" data-session-action="preview"${reviewUnavailable}>Revisar sesión</button></div></footer>`:''}
       </main>
