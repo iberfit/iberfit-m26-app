@@ -71,7 +71,12 @@ BEGIN
       AND (v_role='coach' OR (
         o.status IN ('confirmada','en_curso','completada','cancelada')
         AND ap.id IS NOT NULL
-        AND ap.status IN ('confirmada','completada','cancelada')
+        AND (
+          (o.status='confirmada' AND ap.status='confirmada')
+          OR (o.status='en_curso' AND ap.status IN ('confirmada','cancelada'))
+          OR (o.status='completada' AND ap.status IN ('completada','cancelada','confirmada'))
+          OR (o.status='cancelada' AND ap.status IN ('confirmada','cancelada','completada'))
+        )
         AND EXISTS (
           SELECT 1 FROM public.domain_entities_v26 source
           WHERE source.entity_type='session'

@@ -98,6 +98,10 @@ BEGIN
  IF v_client_view->>'count'<>'1'
    OR v_client_view#>>'{occurrences,0,id}' IS DISTINCT FROM v_occurrence::text THEN
    RAISE EXCEPTION 'U33_QA_CLIENT_VISIBLE_CONFIRMED_INVALID';END IF;
+ UPDATE public.appointments SET status='cancelada' WHERE id=v_appointment;
+ v_client_view:=private.iberfit_u33_occurrence_calendar_v1(v_client,v_day,v_second);
+ IF v_client_view->>'count'<>'0' THEN
+   RAISE EXCEPTION 'U33_QA_CANCELLED_APPOINTMENT_SHOWN_AS_UPCOMING';END IF;
  BEGIN
    PERFORM private.iberfit_u33_occurrence_calendar_v1(gen_random_uuid(),v_day,v_second);
    RAISE EXCEPTION 'U33_QA_CLIENT_CROSS_SCOPE_ALLOWED';

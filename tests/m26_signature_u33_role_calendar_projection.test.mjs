@@ -18,6 +18,8 @@ test('U33: private paginated role-scoped calendar projection has no API grants',
 test('U33: clients cannot view unconfirmed or unlinked occurrences, source snapshots remain private',()=>{
   assert.match(migration,/o\.status IN \('confirmada','en_curso','completada','cancelada'\)/u);
   assert.match(migration,/ap\.id IS NOT NULL/u);
+  assert.match(migration,/o\.status='confirmada' AND ap\.status='confirmada'/u);
+  assert.match(qa,/U33_QA_CANCELLED_APPOINTMENT_SHOWN_AS_UPCOMING/u);
   assert.match(migration,/source\.status='disponible'/u);
   assert.match(migration,/source\.body->>'visibleToClient'='true'/u);
   assert.match(migration,/LIMIT p_limit \+ 1/u);
