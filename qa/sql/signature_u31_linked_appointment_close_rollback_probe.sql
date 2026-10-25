@@ -92,6 +92,14 @@ BEGIN
     OR public.iberfit_client_id() IS DISTINCT FROM client THEN
    RAISE EXCEPTION 'U31_LINKED_CLIENT_IDENTITY_INVALID';
  END IF;
+ BEGIN
+   PERFORM private.iberfit_u31_occurrence_transition_v1(
+     jsonb_build_object('type','OCURRENCIA_INICIAR',
+       'operationId',gen_random_uuid(),'clientId',gen_random_uuid(),
+       'entityId',occurrence,'baseRevision',1,
+       'payload',jsonb_build_object('executionId',gen_random_uuid())));
+   RAISE EXCEPTION 'U31_LINKED_CLIENT_FORGED_OWNER_ACCEPTED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR',
   'operationId',gen_random_uuid(),'clientId',client,
   'entityId',occurrence,'baseRevision',1,
