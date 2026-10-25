@@ -1,3 +1,4 @@
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -47,4 +48,15 @@ test('B10: Coach guidance is accessible, responsive and remains matte',()=>{
   assert.match(css,/:focus-visible/u);
   assert.match(css,/@media\(forced-colors:active\)/u);
   assert.doesNotMatch(css.slice(css.indexOf('/* SIGNATURE B10')),/!important|backdrop-filter|position:fixed|animation:/u);
+});
+
+
+test('B10: proactive guidance is available in all app languages',()=>{
+  for(const source of ["Añade al menos un ejercicio para revisar la sesión.","Selecciona un Cliente antes de revisar.","Indica un título válido para la sesión.","La duración debe estar entre 10 y 240 minutos.","Elige si la sesión es presencial o guiada en la aplicación.","Añade ejercicios a la sesión antes de revisar.","Completa el grupo de entrenamiento o ciérralo para corregirlo.","Revisa las rondas de los grupos.","Hay un ejercicio que ya no está disponible en la biblioteca.","Revisa las series, repeticiones y descansos de los ejercicios.","Revisa el tiempo, la distancia y las métricas prescritas.","Revisa el ejercicio alternativo seleccionado.","Revisa los datos de la sesión antes de continuar.","Ir a la biblioteca"]){
+    for(const language of ['en','fr','pt']){
+      const translation=iberfitSurfaceTranslate(source,{language});
+      assert.notEqual(translation,source,language+': '+source);
+      assert.ok(translation.length>8);
+    }
+  }
 });
