@@ -1,5 +1,10 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# SIGNATURE B13 production proof 2026-10-25. Source 0788e4496a68:
+# trigger fresh encrypted PROD DB + Storage archive, verified isolated
+# PostgreSQL 17 restore and integrity; no modification to jobs, secrets,
+# backup semantics, security policies, or frontend app behavior.
+
 # SIGNATURE P0 seven-gate release matrix 2026-10-25: renewal-only push.
 # Refresh exact-SHA encrypted PROD DB and Storage isolated PG17 proof after
 # all required Canary QA workflow path filters cover M44-only release commits.
