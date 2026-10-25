@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d29a59a73e1bfea30e4af28ca8a7366a30804ea8",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "cb7e72ab1dd106de1fc2c5518f800eeb53111dae",
+  "notes": "SIGNATURE B9 cross-role premium contrast and 10%-warmer caramel editorial #DDC091 user approved; Client Coach Admin Auth forms tables mobile. Exact source seven source gate SUCCESS runs: CI #40144560700; Canary Exact Deploy #40144560682; Coach WebAuthn #40144560748; Admin WebAuthn #40144560730; Device Experience Gate #40144560724; remote readonly #40144560735; Continuous Audit #40144560707. Supplemental SUCCESS: authenticated client #40144560857, Admin Matrix #40144560661, Daily Visual #40144560720, Final Production Bundle #40144560725, Frontend #40144560721. PR #1133 merged. Frontend-only change 4 files, no production SQL, Auth, Edge or data changes. Protected encrypted PROD DB+Storage M44 run #40141108848 SUCCESS 2026-10-24 23:05:55 UTC, base sha cb7e72 is ancestor of release sha. Require strict age/verified PG17 restore and artifact, LIVE PROD previous identity, controlled Cloudflare deployment, rollback and interactive Chromium live certification. Media system issue #749 excluded."
+}
