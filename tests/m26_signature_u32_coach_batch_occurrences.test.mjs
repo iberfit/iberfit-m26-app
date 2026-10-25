@@ -88,6 +88,9 @@ test('U32: legacy appointment insert, update and UPSERT share batch schedule loc
   assert.match(fenceQa,/U32_CROSS_WRITER_DUPLICATE_APPOINTMENT_ACCEPTED/u);
   assert.match(fenceQa,/U32_CROSS_WRITER_DRIFTED_LINK_ACCEPTED/u);
   assert.match(fenceQa,/U32_CROSS_WRITER_OWN_CONFIRM_FAILED/u);
+  assert.match(fenceQa,/PERFORM public\.iberfit_persist_entity_v26\(/u);
+  assert.match(fenceQa,/U32_CANONICAL_APPOINTMENT_CONFLICT_ACCEPTED/u);
+  assert.match(fenceQa,/U32_CANONICAL_APPOINTMENT_PARTIAL_WRITE/u);
 });
 
 test('U32: legacy appointment fencing rollback is fail-closed while active dated occurrences exist',()=>{
