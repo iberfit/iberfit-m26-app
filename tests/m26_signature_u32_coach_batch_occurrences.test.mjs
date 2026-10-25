@@ -91,6 +91,10 @@ test('U32: legacy appointment insert, update and UPSERT share batch schedule loc
   assert.match(fenceQa,/PERFORM public\.iberfit_persist_entity_v26\(/u);
   assert.match(fenceQa,/U32_CANONICAL_APPOINTMENT_CONFLICT_ACCEPTED/u);
   assert.match(fenceQa,/U32_CANONICAL_APPOINTMENT_PARTIAL_WRITE/u);
+  assert.match(fence,/o\.starts_at IS NULL AND o\.ends_at IS NULL/u);
+  assert.match(fence,/o\.appointment_id IS DISTINCT FROM NEW\.id/u);
+  assert.match(fenceQa,/U32_DATE_ONLY_DUPLICATE_APPOINTMENT_ALLOWED/u);
+  assert.match(fenceQa,/QA unrelated session on same date/u);
 });
 
 test('U32: legacy appointment fencing rollback is fail-closed while active dated occurrences exist',()=>{
