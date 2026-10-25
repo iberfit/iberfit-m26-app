@@ -2,7 +2,7 @@
 -- Execute after FK+U30+U31+U32+appointment fence inside BEGIN/ROLLBACK.
 -- No User PII output. Pure QA synthetic occurrences/executions.
 DO $u32_multi$
-DECLARE r record; cid uuid; sid uuid;coach uuid;revision bigint;
+DECLARE r record; cid uuid; sid uuid;coach uuid;v_source_revision bigint;
   first_date date;last_date date;
   a uuid;b uuid;third uuid;execution uuid:=gen_random_uuid();
   blocks jsonb;block jsonb;items jsonb:='{}'::jsonb;
@@ -45,7 +45,7 @@ BEGIN
    END IF;
  END LOOP;
  IF r.cid IS NULL THEN RAISE EXCEPTION 'U32_MULTI_QA_REAL_PUBLISHED_SOURCE_MISSING';END IF;
- cid:=r.cid;sid:=r.sid;revision:=r.rev;blocks:=r.blocks;
+ cid:=r.cid;sid:=r.sid;v_source_revision:=r.rev;blocks:=r.blocks;
  first_date:=GREATEST(r.starts,(now() AT TIME ZONE 'America/Santiago')::date-2);
  last_date:=first_date+14;
  IF first_date>(now() AT TIME ZONE 'America/Santiago')::date OR last_date>r.ends THEN
@@ -53,7 +53,7 @@ BEGIN
  ack:=private.iberfit_u32_create_occurrences_batch_v1(
    jsonb_build_object('type','OCURRENCIAS_CREAR_LOTE',
      'operationId',gen_random_uuid(),'clientId',cid,'entityId',sid,
-     'baseRevision',revision,'payload',
+     'baseRevision',v_source_revision,'payload',
      jsonb_build_object('targetClientId',cid,'previewConfirmed',true,
        'dates',jsonb_build_array(
          jsonb_build_object('localDate',first_date::text),
@@ -110,7 +110,7 @@ BEGIN
    OR (SELECT status FROM public.domain_entities_v26
       WHERE entity_type='session' AND entity_id=sid)<>'disponible'
    OR (SELECT revision FROM public.domain_entities_v26
-      WHERE entity_type='session' AND entity_id=sid)<>revision
+      WHERE entity_type='session' AND entity_id=sid)<>v_source_revision
    OR (SELECT count(*) FROM public.training_session_occurrences_v1
       WHERE id IN (b,third) AND status='planificada')<>2 THEN
    RAISE EXCEPTION 'U32_MULTI_SOURCE_OR_UPCOMING_CHANGED';END IF;
