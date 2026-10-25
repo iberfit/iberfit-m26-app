@@ -9,6 +9,7 @@ const dstQa=readFileSync(new URL('../qa/sql/signature_u32_santiago_dst_rollback_
 const fence=readFileSync(new URL('../supabase/migrations/20261025210500_signature_u32_legacy_appointment_writer_fence_v1.sql',import.meta.url),'utf8');
 const fenceRollback=readFileSync(new URL('../supabase/rollbacks/20261025210500_signature_u32_legacy_appointment_writer_fence_v1.rollback.sql',import.meta.url),'utf8');
 const fenceQa=readFileSync(new URL('../qa/sql/signature_u32_legacy_appointment_race_rollback_probe.sql',import.meta.url),'utf8');
+const endToEndQa=readFileSync(new URL('../qa/sql/signature_u32_u31_real_published_three_dates_rollback_probe.sql',import.meta.url),'utf8');
 
 test('U32: Coach can only schedule from authorized, published, server-owned source and cycle',()=>{
   assert.match(migration,/CREATE FUNCTION private\.iberfit_u32_create_occurrences_batch_v1\(p_command jsonb\)/u);
@@ -104,3 +105,14 @@ test('U32: legacy appointment fencing rollback is fail-closed while active dated
   assert.doesNotMatch(fenceRollback,/\bDELETE FROM\b|\bTRUNCATE\b|\bDROP TABLE\b|\bDROP COLUMN\b/iu);
 });
 
+
+test('U32/U31 integration: actual published Coach prescription survives first completion and next future weeks',()=>{
+  assert.match(endToEndQa,/U32_U31_SERVER_SNAPSHOT_DIFFERS_FROM_PUBLISHED/u);
+  assert.match(endToEndQa,/U32_U31_FIRST_PUBLISHED_SET_SAVE_FAILED/u);
+  assert.match(endToEndQa,/U32_U31_REAL_PUBLISHED_CLOSURE_FAILED/u);
+  assert.match(endToEndQa,/U32_U31_SOURCE_CONSUMED_OR_MIRROR_MISMATCH/u);
+  assert.match(endToEndQa,/U32_U31_FUTURE_WEEK_PREMATURE_START_ALLOWED/u);
+  assert.match(endToEndQa,/U32_U31_FUTURE_OCCURRENCES_NOT_PRESERVED/u);
+  assert.match(endToEndQa,/U32_U31_FIRST_EXECUTION_LOCK_REMAINS/u);
+  assert.match(endToEndQa,/U32_U31_REAL_PUBLISHED_3_DATE_LIFECYCLE_AND_FUTURE_GUARD_PASS/u);
+});
