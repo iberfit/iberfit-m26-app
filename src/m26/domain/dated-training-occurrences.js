@@ -91,10 +91,41 @@ export function planDatedTrainingOccurrences({
   if(!Number.isInteger(durationMinutes)||durationMinutes<10||durationMinutes>240)fail('DURATION_INVALID');
   if(!Array.isArray(dates)||!dates.length||dates.length>MAX_OCCURRENCES)fail('COUNT_INVALID');
   if(!Array.isArray(existingOccurrences)||!Array.isArray(existingAppointments))fail('EXISTING_INVALID');
+  // Work with either the canonical camelCase projection or real SQL
+  // snake_case records. Missing/partial timing must never silently bypass a
+  // collision check for a Client (including a different session on that day).
+  const field=(item,camel,snake)=>item?.[camel]??item?.[snake]??null;
+  const owner=item=>String(field(item,'clientId','client_id')||'').trim().toLowerCase();
+  const active=item=>!['cancelada','cancelled','canceled'].includes(
+    String(item?.status||'').trim().toLowerCase());
+  const existingWindow=item=>{
+    const startsAt=field(item,'startsAt','starts_at');
+    const endsAt=field(item,'endsAt','ends_at');
+    if(startsAt===null&&endsAt===null)return null;
+    if(startsAt===null||endsAt===null
+      ||!Number.isFinite(Date.parse(startsAt))
+      ||!Number.isFinite(Date.parse(endsAt))
+      ||Date.parse(endsAt)<=Date.parse(startsAt))fail('EXISTING_TIME_INVALID');
+    return {startsAt,endsAt};
+  };
   const takenDays=new Set();
+  const clientWindows=[];
   for(const item of existingOccurrences){
-    if(String(item?.sessionId||'').toLowerCase()===sourceId&&item?.localDate)
-      takenDays.add(String(item.localDate));
+    const existingSession=String(field(item,'sessionId','session_id')||'')
+      .trim().toLowerCase();
+    const day=field(item,'localDate','local_date');
+    if(existingSession===sourceId&&day!==null)
+      takenDays.add(localDate(day));
+    if(owner(item)===ownerId&&active(item)){
+      const window=existingWindow(item);
+      if(window)clientWindows.push(window);
+    }
+  }
+  for(const item of existingAppointments){
+    if(owner(item)===ownerId&&active(item)){
+      const window=existingWindow(item);
+      if(window)clientWindows.push(window);
+    }
   }
   const output=[];
   for(const input of dates){
@@ -118,12 +149,8 @@ export function planDatedTrainingOccurrences({
       status:'planificada',revision:0,
     });
     if(startsAt){
-      for(const appointment of existingAppointments){
-        if(String(appointment?.clientId||'').toLowerCase()!==ownerId)continue;
-        if(['cancelada','cancelled','canceled'].includes(String(appointment.status||'').toLowerCase()))continue;
-        if(!appointment.startsAt||!appointment.endsAt)continue;
-        if(!Number.isFinite(Date.parse(appointment.startsAt))||!Number.isFinite(Date.parse(appointment.endsAt)))fail('EXISTING_TIME_INVALID');
-        if(overlap(occurrence,appointment))fail('CLIENT_TIME_CONFLICT');
+      for(const prior of clientWindows){
+        if(overlap(occurrence,prior))fail('CLIENT_TIME_CONFLICT');
       }
       for(const other of output){
         if(other.startsAt&&overlap(occurrence,other))fail('CLIENT_TIME_CONFLICT');
