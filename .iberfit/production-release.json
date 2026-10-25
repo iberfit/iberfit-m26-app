@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f738228f52bfb4f62d659390b6db6a20b6dc69f3",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "b558e1a26db239d9bfb483357bfeade584d2b744",
+  "notes": "SIGNATURE B14 Coach guided invalid block review from B13, no domain mutation: safe unique target resolution, existing B13 focus path, ES/EN/FR/PT and negative regression tests. Only 3 frontend/test files compared to exact B13 production. After exact Canary 7 gates and fresh M44 encrypted offsite PG17 proof, use protected production promotion and certify live identity Chromium/audit with rollback evidence."
+}
