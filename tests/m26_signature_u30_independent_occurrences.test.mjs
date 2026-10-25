@@ -76,6 +76,9 @@ test('U30: duplicate or out-of-cycle days and time conflicts are fail-closed, ne
     {clientId:OTHER,startsAt:'2026-10-27T21:20:00.000Z',endsAt:'2026-10-27T22:30:00.000Z',status:'confirmada'},
   ]}).count,3,'other Clients are isolated');
   error(()=>planDatedTrainingOccurrences({...input,clientId:OTHER}),'SNAPSHOT_OWNER_MISMATCH');
+  error(()=>planDatedTrainingOccurrences({...input,sourceSnapshot:{
+    ...input.sourceSnapshot,sessionId:OTHER,
+  }}),'SNAPSHOT_SOURCE_MISMATCH');
 });
 
 test('U30: canonical and SQL snake_case calendar records block cross-session double booking',()=>{
@@ -145,6 +148,7 @@ test('U30: database integrity, frozen snapshot and read restrictions are enforce
   assert.match(migration,/FOREIGN KEY \(appointment_id,client_id,session_id\)[\s\S]*?REFERENCES public\.appointments\(id,client_id,session_id\)/u);
   assert.match(migration,/ON DELETE SET NULL \(appointment_id\)/u);
   assert.match(migration,/UNIQUE \(session_id,local_date\)/u);
+  assert.match(migration,/u30_snapshot_identity_check/u);
   assert.match(migration,/u30_clock_consistency_check/u);
   assert.match(migration,/u30_occurrence_source_protected/u);
   assert.match(migration,/ENABLE ROW LEVEL SECURITY/u);
