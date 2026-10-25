@@ -79,3 +79,45 @@ test('U35 date navigation is keyboard accessible, responsive and not a phantom b
   assert.match(controller,/data-rc39-date-target/);
   assert.match(controller,/day\.querySelector\?\.\('summary'\)\?\.focus/);
 });
+
+test('U35 Sessions area uses the same date-specific list and blocks misleading shared-source starts',()=>{
+  const items=buildClientPlanningItems({sessions:[source],appointments:[a1,a2]});
+  const vm={kind:'sesion',role:'client',serviceActive:true,
+    rc39:{planningItems:items,sessionProjections:[items[0]]},
+    sessionPreviewAssets:{catalog:[]}};
+  const markup=renderRc39Route(vm);
+  assert.match(markup,/data-m27-session-surface="sessions"/);
+  assert.match(markup,/aria-label="Fechas de entrenamiento programadas"/);
+  assert.equal((markup.match(/data-rc39-session="/g)||[]).length,2);
+  assert.equal((markup.match(/data-workflow-action="start-published-session"/g)||[]).length,0);
+  assert.match(markup,/data-training-date="2026-10-27"/);
+});
+
+test('U35 date navigation opens target, restores keyboard focus and rejects invalid date keys',async()=>{
+  const {createRc39Controller}=await import('../src/m26/rc39/controller.js');
+  let focused=0,scrolled=0,prevented=0;
+  const summary={focus:()=>{focused++}};
+  const day={open:false,querySelector:()=>summary,scrollIntoView:()=>{scrolled++}};
+  const handlers=new Map();
+  const root={
+    addEventListener:(name,handler)=>handlers.set(name,[...(handlers.get(name)||[]),handler]),
+    removeEventListener:()=>{},
+    querySelector:(selector)=>selector==='#m26-plan-day-2026-10-27'?day:null,
+  };
+  const store={getState:()=>({identity:{role:'client'},collections:{appointments:[]}})};
+  const controller=createRc39Controller({root,store});
+  controller.mount();
+  const key={current:'2026-10-27'};
+  const target={closest:(selector)=>selector==='[data-rc39-date-target]'
+    ?{getAttribute:()=>key.current}:null};
+  const event={target,preventDefault:()=>{prevented++}};
+  for(const handler of handlers.get('click')||[])await handler(event);
+  assert.equal(day.open,true);
+  assert.equal(focused,1);
+  assert.equal(scrolled,1);
+  assert.equal(prevented,1);
+  key.current='../2026-10-27';
+  for(const handler of handlers.get('click')||[])await handler(event);
+  assert.equal(prevented,1,'invalid selector data cannot activate arbitrary targets');
+  controller.destroy();
+});

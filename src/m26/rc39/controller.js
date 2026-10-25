@@ -52,7 +52,7 @@ export function createRc39Controller({
     const dayLink=event.target.closest?.('[data-rc39-date-target]');
     if(dayLink){
       const key=String(dayLink.getAttribute('data-rc39-date-target')||'');
-      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(key))return;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(key))return;
       const day=root.querySelector?.('#m26-plan-day-'+key);
       if(!day)return;
       event.preventDefault();

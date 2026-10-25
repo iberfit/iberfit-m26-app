@@ -607,13 +607,17 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
-  const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
+  const client=role==='client';
+  // Session screen and Planning share the SAME dated, scoped Client source.
+  // Never fall back to a single canonical CTA when two visible dates exist.
+  const items=(client
+    ?(vm.rc39?.planningItems||vm.rc39?.sessionProjections||[])
+    :(vm.rc39?.sessionProjections||[])).filter((item)=>!client||item.visible);
   // Client follows one deliberate path: Ver sesión -> Comenzar entrenamiento.
   // Never infer client permissions from badges, modality or a convenient CTA.
   const routePrimary=['coach','admin'].includes(role)
     ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
     :'';
-  const client=role==='client';
   const ready=client&&vm.serviceActive!==false&&items.some((item)=>
     experienceFor(item,role,contractModality).clientLiveWorkout&&clientCanStartProjection(item));
   const clientState=!items.length?'empty':vm.serviceActive===false&&client?'paused':ready?'ready':'published';
@@ -634,7 +638,9 @@ function renderSessions(vm){
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
   return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${clientBriefMarkup}<section class="m26-rc39-week">${items.length?(role==='coach'
     ?renderCoachSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
-    :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+    :client
+      ?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{}})
+      :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
