@@ -16,6 +16,7 @@ on:
       - '.github/workflows/remote-gates.yml'
       - '.github/workflows/hosted-auth-security-hardening.yml'
       - '.github/workflows/production-promote.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - '.github/workflows/continuous-app-audit.yml'
   push:
     branches:
@@ -34,6 +35,7 @@ on:
       - '.github/workflows/remote-gates.yml'
       - '.github/workflows/hosted-auth-security-hardening.yml'
       - '.github/workflows/production-promote.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - '.github/workflows/continuous-app-audit.yml'
   workflow_dispatch:
   workflow_call:
