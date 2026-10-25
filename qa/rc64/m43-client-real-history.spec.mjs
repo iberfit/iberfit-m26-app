@@ -149,3 +149,118 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
     body:await page.screenshot({fullPage:false}),contentType:'image/png',
   });
 });
+
+// P0 #1078: Writer verifies RLS at RPC level, but a second real login must
+// also prove cross-client privacy in the rendered app and backend projection.
+// This browser is STRICTLY readonly; it never modifies the synthetic workout.
+test('M43 authenticated Cliente B never sees Cliente A workout in server bootstrap, sessions or planning',async({page,context},testInfo)=>{
+  for(const name of ['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
+    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD']){
+    expect(process.env[name],name+' is required').toBeTruthy();
+  }
+  expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
+  expect(process.env.M26_QA_ONLY).toBe('true');
+  expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
+  expect(process.env.M26_SUPABASE_PUBLISHABLE_KEY).not.toMatch(/service[_-]?role|supabase_secret/iu);
+  const interactiveMarker=m43QaRunMarkers({
+    runId:process.env.GITHUB_RUN_ID,
+    attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT,
+  }).interactiveSessionTitle;
+  const blocked=[],pageErrors=[],serverErrors=[];
+  await installCurrentSourceQaNetworkPolicy(context,{
+    readOnlyRpcs:READ_ONLY_RPCS,
+    onBlocked:label=>blocked.push(label),
+  });
+  page.on('pageerror',e=>pageErrors.push(String(e?.message||'PAGE_ERROR').slice(0,180)));
+  page.on('response',response=>{
+    try{
+      const url=new URL(response.url());
+      if(url.origin===SUPABASE_ORIGIN&&response.status()>=500)
+        serverErrors.push(String(response.status())+' '+url.pathname);
+    }catch{}
+  });
+  await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
+  await page.getByRole('textbox',{name:'Correo',exact:true})
+    .fill(process.env.M26_QA_CLIENT_B_EMAIL);
+  await page.locator('#m26-login-password')
+    .fill(process.env.M26_QA_CLIENT_B_PASSWORD);
+  const observedBootstrap=page.waitForResponse(response=>{
+    try{return new URL(response.url()).origin===SUPABASE_ORIGIN
+      &&new URL(response.url()).pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'
+      &&response.status()===200;}catch{return false;}
+  },{timeout:40_000});
+  await page.getByRole('button',{name:'Entrar',exact:true}).click();
+  const response=await observedBootstrap;
+  const snapshot=await response.json();
+  expect(['client','cliente']).toContain(String(snapshot?.user?.role||''));
+  expect(String(snapshot?.user?.clientId||''),
+    'Cross-account test must authenticate a real assigned Client B identity')
+    .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
+  expect(Array.isArray(snapshot?.data?.m26Entities),
+    'Cliente B bootstrap must have canonical entity projection').toBe(true);
+  const ownEntities=snapshot.data.m26Entities;
+  // A foreign marker can leak outside title (nested plans, execution payloads,
+  // projection metadata). Check the entire authenticated data projection too;
+  // never attach or log the private payload itself.
+  const serializedProjection=JSON.stringify(snapshot.data);
+  // Assert absence in the real backend response, not just CSS-hidden UI cards.
+  for(const marker of [LIVE_MARKER,interactiveMarker]){
+    expect(serializedProjection.includes(marker),
+      'Cliente B must never receive Client A data anywhere in bootstrap').toBe(false);
+    expect(ownEntities.some(item=>String(item?.body?.title||'').includes(marker)),
+      'Cliente B must not receive the other Client run-marked entity').toBe(false);
+  }
+  const shell=page.locator('.m26-shell[data-m26-role="client"]');
+  await expect(shell).toBeVisible({timeout:35_000});
+  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
+  const welcome=page.locator('[data-m26-client-guided-welcome]');
+  if(await welcome.isVisible().catch(()=>false)){
+    const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count())await pause.click();
+  }
+  for(const selector of [
+    '[data-m26-guided-tour-close]:visible',
+    '[data-m26-client-context-guide-close]:visible'
+  ]){
+    const close=page.locator(selector).first();
+    if(await close.count())await close.click();
+  }
+  await page.locator('[data-m26-area="sesion"]:visible').first().click();
+  await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
+  const sessions=page.locator('[data-m27-session-surface="sessions"]');
+  await expect(sessions).toBeVisible({timeout:15_000});
+  await expect(sessions.getByRole('heading',{name:'Tu entrenamiento',exact:true})).toBeVisible();
+  for(const marker of [LIVE_MARKER,interactiveMarker]){
+    await expect(sessions.getByText(marker,{exact:false}),
+      'Foreign run marker must not be visible in sessions').toHaveCount(0);
+    await expect(page.locator('[data-m43-session-history] [data-m43-completed-session]')
+      .filter({hasText:marker}),'Foreign run marker must not be visible in history').toHaveCount(0);
+  }
+  await page.locator('[data-m26-area="planificacion"]:visible').first().click();
+  const planning=page.locator('[data-m27-session-surface="planning"]');
+  await expect(planning).toBeVisible({timeout:15_000});
+  await expect(planning.getByRole('heading',{name:'Tu planificación',exact:true})).toBeVisible();
+  for(const marker of [LIVE_MARKER,interactiveMarker]){
+    await expect(planning.getByText(marker,{exact:false}),
+      'Foreign run marker must not be visible in planning').toHaveCount(0);
+  }
+  const layout=await page.evaluate(()=>({
+    inner:document.documentElement.clientWidth,
+    scroll:document.documentElement.scrollWidth,
+  }));
+  expect(layout.scroll,'Cliente B has no horizontal overflow').toBeLessThanOrEqual(layout.inner+2);
+  expect(blocked.filter(x=>/\/rpc\/(?:iberfit_execute_command_v26|iberfit_command_preflight_v26)|\/rest\/v1\/(?:domain_entities_v26|sessions|training_cycles)/u.test(x)),
+    'No Client B mutations, even rejected ones').toEqual([]);
+  expect(pageErrors).toEqual([]);
+  expect(serverErrors).toEqual([]);
+  await testInfo.attach('m43-cross-client-isolation',{
+    contentType:'application/json',
+    body:Buffer.from(JSON.stringify({
+      schema:'iberfit.m43.qa-ui-cross-client-isolation.v1',
+      project:'QA',synthetic:true,productionTouched:false,
+      backendProjectionVerified:true,sessionsHidden:true,historyHidden:true,
+      planningHidden:true,mutationCount:0,pageErrorCount:0,serverErrorCount:0,
+      width:layout.inner,
+    })),
+  });
+});
