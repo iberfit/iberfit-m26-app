@@ -53,16 +53,19 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
     };
   });
   expect(vision.workspaceScheme).toContain('dark');
-  expect(vision.workspaceInk.toLowerCase()).toBe('#f5f5f0');
+  // SIGNATURE B12 shared warm ivory: preserve matte Admin workspace and
+  // assert the exact approved token rather than silently accepting any color.
+  expect(vision.workspaceInk.toLowerCase()).toBe('#f7f0e3');
   // M41's finished surface is deliberately MATTE. A gradient here is a
   // visual regression, not evidence of quality. Assert actual rendered paint.
   expect(vision.workspaceBackground).toBe('none');
-  expect(vision.workspaceBackgroundColor).toBe('rgb(11, 19, 16)');
+  // B12 warmer forest workspace remains MATTE, never a gradient or white panel.
+  expect(vision.workspaceBackgroundColor).toBe('rgb(13, 25, 19)');
   expect(vision.navScheme).toContain('dark');
   expect(vision.navBackground).toBe('none');
   expect(vision.navBackgroundColor).toMatch(/rgba?\(\s*(?:13,\s*30,\s*23|11,\s*19,\s*16)/u);
   expect(vision.surfaceBackgroundImage).toBe('none');
-  expect(vision.surfaceBackground).toMatch(/^rgb\(\s*(?:22,\s*40,\s*32|19,\s*34,\s*28|16,\s*29,\s*24)\s*\)$/u);
+  expect(vision.surfaceBackground).toMatch(/^rgb\(\s*(?:28,\s*48,\s*38|22,\s*40,\s*32|19,\s*34,\s*28|16,\s*29,\s*24)\s*\)$/u);
   expect(vision.workspaceBackgroundColor+' '+vision.navBackgroundColor+' '+vision.surfaceBackground)
     .not.toMatch(/rgb\(255,\s*255,\s*255\)|rgb\(243,\s*238,\s*227\)/u);
 
