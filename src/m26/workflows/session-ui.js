@@ -861,7 +861,8 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
   </div>`;
 
   const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview"${reviewUnavailable}>Revisar sesión</button>`;
-  const reviewGuidance=draft.previewAccepted||reviewReadiness.ready?'':`<p id="m26-builder-review-readiness" class="m26-builder-review-readiness" data-session-review-readiness role="status">${e(reviewReadiness.reason)}${reviewReadiness.next==='library'?'<button type="button" data-session-jump="library">Ir a la biblioteca</button>':''}</p>`;
+  const invalidBlockJump=reviewReadiness.targetBlockId?`<button type="button" data-session-review-block="${e(reviewReadiness.targetBlockId)}">Revisar bloque</button>`:'';
+  const reviewGuidance=draft.previewAccepted||reviewReadiness.ready?'':`<p id="m26-builder-review-readiness" class="m26-builder-review-readiness" data-session-review-readiness role="status">${e(reviewReadiness.reason)}${reviewReadiness.next==='library'?'<button type="button" data-session-jump="library">Ir a la biblioteca</button>':''}${invalidBlockJump}</p>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
   const adaptationSource=templateAdaptation?.source==='cycle'?'ciclo':templateAdaptation?.source==='profile'?'perfil':null;
   const adaptationDuration=Number(templateAdaptation?.clientDurationMinutes);
