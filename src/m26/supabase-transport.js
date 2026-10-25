@@ -10,8 +10,8 @@ export const M26_QA_SUPABASE_ORIGIN=`https://${M26_QA_PROJECT_REF}.supabase.co`;
 // future when Auth and PostgREST clocks differ. This is not proof of revocation.
 // Never classify arbitrary 401s or other JWT signature/expiry failures as skew.
 // Canonical bootstrap is read-only. Only SQLSTATE 57014 from the authenticated
-// statement timeout is eligible for one bounded retry; never expand this to
-// mutations, authentication errors, or arbitrary network/server failures.
+// statement timeout gets one bounded retry. A separately verified future-iat
+// PGRST303 has its own bounded read recovery, never for other 401s or writes.
 export function isBootstrapStatementTimeout(error){
   return Number(error?.status||0)===500
     &&String(error?.body?.code||'').trim()==='57014'
@@ -869,14 +869,25 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   }
 
   async function bootstrapWithBoundedStatementTimeoutRecovery(token){
-    try{
-      return await rpc(runtime.rpc.bootstrap,token,{});
-    }catch(error){
-      if(!isBootstrapStatementTimeout(error))throw error;
-      // Same session JWT, same read-only function; one retry at most.
-      // The hydration coordinator rejects stale owners before store commit.
-      await authRetryDelay(220);
-      return rpc(runtime.rpc.bootstrap,token,{});
+    // Two independent capped read-only recoveries. Only the exact PGRST303
+    // future-iat signature qualifies; generic 401, expired/revoked JWT and
+    // all mutations stay fail-closed. Never replace the authenticated JWT.
+    let skewRetries=0,timeoutRetries=0;
+    for(;;){
+      try{
+        return await rpc(runtime.rpc.bootstrap,token,{});
+      }catch(error){
+        if(isFutureIssuedJwtClockSkew(error)&&skewRetries<3){
+          await authRetryDelay([350,800,1300][skewRetries++]);
+          continue;
+        }
+        if(isBootstrapStatementTimeout(error)&&timeoutRetries<1){
+          timeoutRetries+=1;
+          await authRetryDelay(220);
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
