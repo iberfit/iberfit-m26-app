@@ -39,7 +39,7 @@ BEGIN
   source_status:=source.status;source_revision:=source.revision;
   snapshot:=jsonb_build_object('clientId',r.client_id,'sessionId',r.session_id,
     'queue',jsonb_build_array(jsonb_build_object(
-      'exerciseId','u31-qa-squat','sets',1)),'title','QA U31 isolated');
+      'exerciseId','u31-qa-squat','sets',2)),'title','QA U31 isolated');
 
   FOR n IN 1..3 LOOP
     INSERT INTO public.training_session_occurrences_v1(
@@ -104,9 +104,45 @@ BEGIN
     RAISE EXCEPTION 'U31_QA_CONCURRENT_START_ALLOWED: %',ack;
   END IF;
 
+  -- Store a first series during an interrupted session. Another device
+  -- cannot overwrite it from an obsolete execution revision.
+  cmd:=jsonb_build_object('type','OCURRENCIA_GUARDAR_PROGRESO',
+    'operationId',gen_random_uuid(),
+    'clientId',r.client_id,'entityId',a,'baseRevision',2,
+    'payload',jsonb_build_object('executionId',x,'executionBaseRevision',1,
+      'results',jsonb_build_object('u31-qa-squat:1',
+        jsonb_build_object('reps',10,'loadKg',20)),
+      'skippedSets','{}'::jsonb));
+  ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
+  IF ack->>'kind'<>'ack' OR ack->>'executionRevision'<>'2'
+     OR ack->>'remoteRevision'<>'2' OR ack->>'status'<>'en_curso' THEN
+    RAISE EXCEPTION 'U31_QA_PROGRESS_SAVE_FAILED: %',ack;
+  END IF;
+  replay:=private.iberfit_u31_occurrence_transition_v1(cmd);
+  IF replay->>'duplicate'<>'true' OR replay->>'executionRevision'<>'2' THEN
+    RAISE EXCEPTION 'U31_QA_PROGRESS_RETRY_FAILED';
+  END IF;
+  replay:=private.iberfit_u31_occurrence_transition_v1(
+    jsonb_set(cmd,'{payload,results}',
+      jsonb_build_object('u31-qa-squat:1',jsonb_build_object('reps',8))));
+  IF replay->>'reason'<>'OPERATION_ID_REUSED' THEN
+    RAISE EXCEPTION 'U31_QA_PROGRESS_REPLAY_MUTATION_ACCEPTED: %',replay;
+  END IF;
+  replay:=private.iberfit_u31_occurrence_transition_v1(
+    jsonb_set(cmd,'{operationId}',to_jsonb(gen_random_uuid()::text)));
+  IF replay->>'kind'<>'conflict' OR replay->>'reason'<>'EXECUTION_REVISION_MISMATCH' THEN
+    RAISE EXCEPTION 'U31_QA_STALE_DEVICE_PROGRESS_ACCEPTED: %',replay;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.session_executions
+    WHERE id=x AND occurrence_id=a AND revision=2)
+    OR NOT EXISTS (SELECT 1 FROM public.training_session_occurrences_v1
+    WHERE id=a AND revision=2 AND status='en_curso') THEN
+    RAISE EXCEPTION 'U31_QA_PROGRESS_NOT_INDEPENDENT';
+  END IF;
+
   cmd:=jsonb_build_object('type','OCURRENCIA_COMPLETAR','operationId',gen_random_uuid(),
       'clientId',r.client_id,'entityId',a,'baseRevision',2,
-      'payload',jsonb_build_object('executionId',x,'executionBaseRevision',1,
+      'payload',jsonb_build_object('executionId',x,'executionBaseRevision',2,
         'results','{}'::jsonb,'feedback',jsonb_build_object(
           'sessionRpe',7,'comment','QA valid effort','pain',false)));
   ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
@@ -114,7 +150,8 @@ BEGIN
     RAISE EXCEPTION 'U31_QA_INCOMPLETE_SERIES_ACCEPTED: %',ack;
   END IF;
   cmd:=jsonb_set(cmd,'{payload,results}',jsonb_build_object(
-    'u31-qa-squat:1',jsonb_build_object('reps',10,'loadKg',22)));
+    'u31-qa-squat:1',jsonb_build_object('reps',10,'loadKg',20),
+    'u31-qa-squat:2',jsonb_build_object('reps',8,'loadKg',22)));
   ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
   IF ack->>'kind'<>'ack' OR ack->>'status'<>'completada' THEN
     RAISE EXCEPTION 'U31_QA_VALID_CLOSE_FAILED: %',ack;
