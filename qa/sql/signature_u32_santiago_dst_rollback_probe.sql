@@ -3,7 +3,7 @@
 -- certifies exact Chile spring gap and autumn fold without any persistent DML.
 DO $qa$
 DECLARE
- r record;pid uuid;coach uuid;client uuid;session_id uuid;source_revision bigint;
+ r record;pid uuid;coach uuid;client uuid;v_session_id uuid;source_revision bigint;
  cmd jsonb;ack jsonb;early timestamptz;later timestamptz;
  occ_id uuid;instant timestamptz;day date;
 BEGIN
@@ -30,7 +30,7 @@ BEGIN
    END IF;
  END LOOP;
  IF r.cid IS NULL THEN RAISE EXCEPTION 'U32_DST_QA_NO_GUIDED_SOURCE';END IF;
- coach:=r.actor;client:=r.cid;session_id:=r.sid;source_revision:=r.rev;pid:=r.planid;
+ coach:=r.actor;client:=r.cid;v_session_id:=r.sid;source_revision:=r.rev;pid:=r.planid;
  UPDATE public.domain_entities_v26 SET
  body=jsonb_set(jsonb_set(body,'{startDate}',to_jsonb('2026-04-01'::text),true),
    '{endDate}',to_jsonb('2026-11-30'::text),true)
@@ -38,7 +38,7 @@ BEGIN
 
  -- Spring-forward: 00:30 does not exist in Santiago on 2026-09-06.
  cmd:=jsonb_build_object('type','OCURRENCIAS_CREAR_LOTE',
- 'operationId',gen_random_uuid(),'clientId',client,'entityId',session_id,
+ 'operationId',gen_random_uuid(),'clientId',client,'entityId',v_session_id,
  'baseRevision',source_revision,'payload',
  jsonb_build_object('targetClientId',client,'previewConfirmed',true,
    'dates',jsonb_build_array(jsonb_build_object(
@@ -88,9 +88,9 @@ BEGIN
    RAISE EXCEPTION 'U32_DST_FOLD_INSTANTS_WRONG';
  END IF;
  IF NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
-    WHERE session_id=session_id AND local_date='2026-04-04' AND status='cancelada')
+    WHERE session_id=v_session_id AND local_date='2026-04-04' AND status='cancelada')
    OR NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
-    WHERE session_id=session_id AND local_date='2026-04-04' AND status='planificada') THEN
+    WHERE session_id=v_session_id AND local_date='2026-04-04' AND status='planificada') THEN
    RAISE EXCEPTION 'U32_DST_REBOOK_PRESERVATION_FAILED';
  END IF;
 
