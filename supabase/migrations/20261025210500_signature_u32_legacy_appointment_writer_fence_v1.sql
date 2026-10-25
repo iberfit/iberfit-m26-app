@@ -43,7 +43,7 @@ BEGIN
         AND o.starts_at=NEW.start_at
         AND o.ends_at=NEW.end_at
         AND (
-          o.appointment_id=NEW.id
+          (o.appointment_id IS NOT NULL AND o.appointment_id=NEW.id)
           OR (o.appointment_id IS NULL AND NOT EXISTS(
             SELECT 1 FROM public.appointments other
             WHERE other.id<>NEW.id
