@@ -32,6 +32,8 @@ test('U31: operation ID replay is tied to all identifiers and hashed content',()
 test('U31: no Client can start without existing server-side ownership and guided delivery',()=>{
   assert.match(migration,/public\.iberfit_can_access_client_v26\(v_client\)/u);
   assert.match(migration,/public\.iberfit_canary_enabled_v26\(v_client\)/u);
+  assert.match(migration,/octet_length\(p_command::text\)>524288/u);
+  assert.match(migration,/SOURCE_REVISION_INVALID/u);
   assert.match(migration,/v_role NOT IN \('coach','cliente'\)/u);
   assert.match(migration,/private\.iberfit_training_command_guard_v1/u);
   assert.match(migration,/private\.iberfit_session_delivery_guard_m28/u);
