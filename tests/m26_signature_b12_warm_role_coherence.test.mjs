@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const css=readFileSync('src/m26/design/iberfit-premium-v3.css','utf8');
-const b12=css.slice(css.indexOf('/* SIGNATURE B12 |'));
+const b12=css.slice(css.indexOf('/* SIGNATURE B12 |'),css.indexOf('/* SIGNATURE B2 / Atelier Cliente'));
 test('SIGNATURE B12 warm layer exists in existing last-loaded canonical premium stylesheet',()=>{
   assert.ok(b12.length>1800);
   assert.match(b12,/--iberfit-signature-caramel:#DDC091/u);

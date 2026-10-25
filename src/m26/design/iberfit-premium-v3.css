@@ -1057,6 +1057,106 @@
 @media(forced-colors:active){.m26-shell[data-m26-role="client"] .m26-workspace :is(.m26-client-plan-next,.m26-client-progress-continuity button){border:1px solid ButtonText}}
 
 
+/* SIGNATURE B12 | One warm premium language across Client, Coach and Admin.
+ * Calibrated from the actual B10 authenticated desktop/mobile QA screenshots.
+ * The existing dark forest and role-specific density remain intact. This
+ * changes presentation only: no new overlays, navigation, commands or auth.
+ * Client's caramel journey keeps its accessible dark-on-light typography.
+ */
+.m26-shell[data-m26-role]{
+  --iberfit-signature-ivory:#F7F0E3;
+  --iberfit-signature-muted:#C9C6B9;
+  --iberfit-signature-caramel:#DDC091;
+  --iberfit-signature-line:rgba(221,192,145,.19);
+  --iberfit-v3-canvas:#0D1913;
+  --iberfit-v3-surface:#17291F;
+  --iberfit-v3-surface-raised:#22382C;
+  --iberfit-v3-panel:#1B3025;
+  --iberfit-v3-panel-raised:#274233;
+  --iberfit-v3-text:var(--iberfit-signature-ivory);
+  --iberfit-v3-text-secondary:var(--iberfit-signature-muted);
+  --iberfit-v3-gold:var(--iberfit-signature-caramel);
+  --iberfit-v3-line:var(--iberfit-signature-line);
+  --iberfit-v3-edge:rgba(221,192,145,.17);
+  --iberfit-v3-focus:var(--iberfit-signature-caramel);
+  --iberfit-color-accent-strong:var(--iberfit-signature-caramel);
+  --iberfit-color-focus:var(--iberfit-signature-caramel);
+}
+.m26-shell[data-m26-role="client"]{
+  --iberfit-v3-panel:#1D3629;
+  --iberfit-v3-panel-raised:#284536;
+}
+.m26-shell[data-m26-role="coach"]{
+  --iberfit-v3-panel:#192F24;
+  --iberfit-v3-panel-raised:#243C2E;
+}
+.m26-shell[data-m26-role="admin"]{
+  --iberfit-v3-panel:#1C3026;
+  --iberfit-v3-panel-raised:#263B2E;
+}
+.m26-shell[data-m26-role] .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-admin-panel,.m26-admin-table,.m26-rc39-session-card
+){
+  border-color:var(--iberfit-signature-line);
+}
+.m26-shell[data-m26-role] .m26-workspace :is(
+  .m26-route-intro,.m26-panel-heading,.m26-admin-panel
+){
+  min-width:0;
+}
+.m26-shell[data-m26-role] .m26-workspace :is(input,select,textarea):focus-visible,
+.m26-shell[data-m26-role] .m26-workspace :is(button,a,[role="button"],summary):focus-visible{
+  outline:3px solid var(--iberfit-signature-caramel);
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace :is(
+  .m26-rc39-session-card,.m26-client-content-card
+){
+  border-color:rgba(221,192,145,.24);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace :is(
+  .m26-route-intro h2,.m26-panel-heading h2
+){
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-session-builder-v2 :is(
+  .m26-builder-commandbar,.m26-builder-secondary-actions>summary,
+  .m26-builder-review-readiness
+){
+  border-color:rgba(221,192,145,.26);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-session-builder-v2 :is(
+  [data-session-action="save-draft"],[data-session-action="preview"]
+){
+  touch-action:manipulation;
+  min-height:48px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-table :is(td,th){
+  border-color:rgba(221,192,145,.13);
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-table th{
+  color:var(--iberfit-signature-caramel);
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-session-builder-v2 :is(input,select,textarea){
+    font-size:16px;
+  }
+  .m26-shell[data-m26-role] .m26-workspace :is(button,select,[role="button"]){
+    touch-action:manipulation;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role] .m26-workspace :is(
+    .m26-panel,.m26-admin-panel,.m26-rc39-session-card
+  ){border-color:CanvasText}
+  .m26-shell[data-m26-role] .m26-workspace :is(
+    input,select,textarea,button,a,[role="button"],summary
+  ):focus-visible{outline-color:Highlight}
+}
+
 /* SIGNATURE B2 / Atelier Cliente · source-specific compositional refinement.
    Keep this in the existing last-loaded v3 component sheet, without specificity-forcing declarations.
    Data selectors are read-only reflections of RC39 and session runtime states. */
@@ -1366,106 +1466,3 @@
   }
 }
 
-/* SIGNATURE B12 | One warm premium language across Client, Coach and Admin.
- * Calibrated from the actual B10 authenticated desktop/mobile QA screenshots.
- * The existing dark forest and role-specific density remain intact. This
- * changes presentation only: no new overlays, navigation, commands or auth.
- * Client's caramel journey keeps its accessible dark-on-light typography.
- */
-.m26-shell[data-m26-role]{
-  --iberfit-signature-ivory:#F7F0E3;
-  --iberfit-signature-muted:#C9C6B9;
-  --iberfit-signature-caramel:#DDC091;
-  --iberfit-signature-line:rgba(221,192,145,.19);
-  --iberfit-v3-canvas:#0D1913;
-  --iberfit-v3-surface:#17291F;
-  --iberfit-v3-surface-raised:#22382C;
-  --iberfit-v3-panel:#1B3025;
-  --iberfit-v3-panel-raised:#274233;
-  --iberfit-v3-text:var(--iberfit-signature-ivory);
-  --iberfit-v3-text-secondary:var(--iberfit-signature-muted);
-  --iberfit-v3-gold:var(--iberfit-signature-caramel);
-  --iberfit-v3-line:var(--iberfit-signature-line);
-  --iberfit-v3-edge:rgba(221,192,145,.17);
-  --iberfit-v3-focus:var(--iberfit-signature-caramel);
-}
-.m26-shell[data-m26-role="client"]{
-  --iberfit-v3-panel:#1D3629;
-  --iberfit-v3-panel-raised:#284536;
-}
-.m26-shell[data-m26-role="coach"]{
-  --iberfit-v3-panel:#192F24;
-  --iberfit-v3-panel-raised:#243C2E;
-}
-.m26-shell[data-m26-role="admin"]{
-  --iberfit-v3-panel:#1C3026;
-  --iberfit-v3-panel-raised:#263B2E;
-}
-.m26-shell[data-m26-role] .m26-workspace{
-  --iberfit-color-accent-strong:var(--iberfit-signature-caramel) !important;
-  --iberfit-color-focus:var(--iberfit-signature-caramel) !important;
-  --iberfit-color-border:var(--iberfit-signature-line) !important;
-  --iberfit-color-text-secondary:var(--iberfit-signature-muted) !important;
-}
-.m26-shell[data-m26-role] .m26-workspace :is(
-  .m26-panel,.m26-panel-soft,.m26-client-card,.m26-list-card,
-  .m26-library-card,.m26-publication-card,.m26-client-content-card,
-  .m26-admin-panel,.m26-admin-table,.m26-rc39-session-card
-){
-  border-color:var(--iberfit-signature-line);
-}
-.m26-shell[data-m26-role] .m26-workspace :is(
-  .m26-route-intro,.m26-panel-heading,.m26-admin-panel
-){
-  min-width:0;
-}
-.m26-shell[data-m26-role] .m26-workspace :is(input,select,textarea):focus-visible,
-.m26-shell[data-m26-role] .m26-workspace :is(button,a,[role="button"],summary):focus-visible{
-  outline:3px solid var(--iberfit-signature-caramel);
-  outline-offset:3px;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace :is(
-  .m26-rc39-session-card,.m26-client-content-card
-){
-  border-color:rgba(221,192,145,.24);
-}
-.m26-shell[data-m26-role="client"] .m26-workspace :is(
-  .m26-route-intro h2,.m26-panel-heading h2
-){
-  text-wrap:balance;
-}
-.m26-shell[data-m26-role="coach"] .m26-workspace .m26-session-builder-v2 :is(
-  .m26-builder-commandbar,.m26-builder-secondary-actions>summary,
-  .m26-builder-review-readiness
-){
-  border-color:rgba(221,192,145,.26);
-}
-.m26-shell[data-m26-role="coach"] .m26-workspace .m26-session-builder-v2 :is(
-  [data-session-action="save-draft"],[data-session-action="preview"]
-){
-  touch-action:manipulation;
-  min-height:48px;
-}
-.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-table :is(td,th){
-  border-color:rgba(221,192,145,.13);
-  font-variant-numeric:tabular-nums;
-}
-.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-table th{
-  color:var(--iberfit-signature-caramel);
-}
-@media(max-width:680px){
-  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-session-builder-v2 :is(input,select,textarea){
-    font-size:16px;
-  }
-  .m26-shell[data-m26-role] .m26-workspace :is(button,select,[role="button"]){
-    touch-action:manipulation;
-  }
-}
-@media(forced-colors:active){
-  .m26-shell[data-m26-role] .m26-workspace :is(
-    .m26-panel,.m26-admin-panel,.m26-rc39-session-card
-  ){border-color:CanvasText}
-  .m26-shell[data-m26-role] .m26-workspace :is(
-    input,select,textarea,button,a,[role="button"],summary
-  ):focus-visible{outline-color:Highlight}
-}
