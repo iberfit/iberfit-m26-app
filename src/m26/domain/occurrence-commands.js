@@ -10,6 +10,8 @@ const TYPES=new Set(['OCURRENCIA_CONFIRMAR','OCURRENCIA_INICIAR',
   'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR',
   'OCURRENCIA_CANCELAR','OCURRENCIA_REPROGRAMAR']);
 const MAX_BYTES=524288;
+const EXECUTION_CONTENT_MAX_BYTES=262144;
+const utf8Bytes=value=>new TextEncoder().encode(value).byteLength;
 
 function fail(reason){throw new Error('U39_'+reason);}
 const uid=(v)=>{
@@ -21,13 +23,13 @@ function revision(value){
   if(!Number.isSafeInteger(value)||value<0)fail('INVALID_REVISION');
   return value;
 }
-function jsonObject(v,required=true){
+function jsonObject(v,required=true,maxBytes=MAX_BYTES){
   if(v==null&&!required)return {};
   if(!v||typeof v!=='object'||Array.isArray(v))fail('INVALID_OBJECT');
   try{
     const clone=structuredClone(v);
     const encoded=JSON.stringify(clone);
-    if(!encoded||encoded.length>MAX_BYTES)fail('PAYLOAD_TOO_LARGE');
+    if(!encoded||utf8Bytes(encoded)>maxBytes)fail('PAYLOAD_TOO_LARGE');
     return JSON.parse(encoded);
   }catch(error){
     if(String(error?.message||'').startsWith('U39_'))throw error;
@@ -65,6 +67,19 @@ function replacementDate(source={}){
     }
     // Reject spring gaps and ambiguous clocks unless the Coach selects an
     // explicit side of the DST fold. Never silently shift training time.
+    if(replacement.dstDisambiguation){
+      // U32 rejects a DST side-selection when the local clock is unique.
+      // Distinguish an actual fold without guessing from UTC offsets.
+      let ambiguous=false;
+      try{
+        resolveSantiagoLocalInstant(replacement.localDate,replacement.localTime);
+      }catch(error){
+        if(String(error?.message||'')==='U30_DST_AMBIGUOUS_LOCAL_TIME')
+          ambiguous=true;
+        else throw error;
+      }
+      if(!ambiguous)fail('DST_DISAMBIGUATION_NOT_NEEDED');
+    }
     resolveSantiagoLocalInstant(replacement.localDate,replacement.localTime,{
       disambiguation:replacement.dstDisambiguation??null,
     });
@@ -99,14 +114,14 @@ export function buildOccurrenceScopedCommand({
   case 'OCURRENCIA_GUARDAR_PROGRESO':
     payload={executionId:uid(executionId),
       executionBaseRevision:revision(executionBaseRevision),
-      results:jsonObject(results),
-      skippedSets:jsonObject(skippedSets)};
+      results:jsonObject(results,true,EXECUTION_CONTENT_MAX_BYTES),
+      skippedSets:jsonObject(skippedSets,true,EXECUTION_CONTENT_MAX_BYTES)};
     break;
   case 'OCURRENCIA_COMPLETAR':
     payload={executionId:uid(executionId),
       executionBaseRevision:revision(executionBaseRevision),
-      results:jsonObject(results),
-      skippedSets:jsonObject(skippedSets),
+      results:jsonObject(results,true,EXECUTION_CONTENT_MAX_BYTES),
+      skippedSets:jsonObject(skippedSets,true,EXECUTION_CONTENT_MAX_BYTES),
       feedback:jsonObject(feedback)};
     break;
   case 'OCURRENCIA_REPROGRAMAR':{
@@ -121,6 +136,6 @@ export function buildOccurrenceScopedCommand({
   }
   const cmd={...base,payload};
   const encoded=JSON.stringify(cmd);
-  if(!encoded||encoded.length>MAX_BYTES)fail('PAYLOAD_TOO_LARGE');
+  if(!encoded||utf8Bytes(encoded)>MAX_BYTES)fail('PAYLOAD_TOO_LARGE');
   return freezeDeep(cmd);
 }

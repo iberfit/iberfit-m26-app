@@ -80,3 +80,15 @@ test('U39 Santiago DST gap/fold fails safely instead of shifting timestamps',()=
  });
  assert.equal(folded.payload.replacement.dstDisambiguation,'later');
 });
+
+test('U39 matches SQL U32 DST disambiguation rule and Unicode byte limits',()=>{
+ assert.throws(()=>make('OCURRENCIA_REPROGRAMAR',{
+   newOperationId:b,replacement:{
+     localDate:'2026-11-10',localTime:'10:00',dstDisambiguation:'earlier'
+   }
+ }),/U39_DST_DISAMBIGUATION_NOT_NEEDED/);
+ const unicode={comments:'á'.repeat(135000)};
+ assert.throws(()=>make('OCURRENCIA_GUARDAR_PROGRESO',{
+   executionId:e,executionBaseRevision:2,results:unicode,
+ }),/U39_PAYLOAD_TOO_LARGE/);
+});
