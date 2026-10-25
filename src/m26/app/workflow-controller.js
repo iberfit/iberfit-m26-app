@@ -16,7 +16,7 @@ import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
-import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision} from '../workflows/report-draft-safety.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
@@ -1686,6 +1686,21 @@ export function createWorkflowController({
     // Do not pick the newest supervised session merely because it was published last.
     const session=requestedId?candidate:eligible.find((item)=>actorCanExecuteSession({role,session:item})&&sessionHasExecutableBlocks(item));
     if(!session)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');
+    // Revalidate against CURRENT hydrated state immediately before dispatch.
+    // A stale tab or other UI route must not bypass the U35 calendar CTA
+    // fence and launch an old canonical executor for a repeated prescription.
+    const visibleAppointments=state.collections?.appointments||[];
+    const occurrenceRecords=state.collections?.trainingOccurrences||
+      state.collections?.sessionOccurrences||[];
+    if(legacyStartNeedsOccurrence({
+      appointments:visibleAppointments,occurrences:occurrenceRecords,
+      sessionId:String(session.id||session.body?.id||''),
+      clientId,
+    })){
+      const error=new Error('M26_OCCURRENCE_EXECUTOR_REQUIRED');
+      error.userMessage='Este entrenamiento tiene fechas de ejecución independientes. Ábrelo desde la agenda cuando el inicio por fecha esté habilitado; no se consumirá la prescripción compartida.';
+      throw error;
+    }
     if(!sessionReadyToStart(session)){
       const error=new Error('M38_SESSION_NOT_YET_AVAILABLE');
       error.userMessage=normalizedStatus(session)==='en_curso'

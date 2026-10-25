@@ -109,7 +109,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   if(role==='coach'){
     const isAppointmentConfirmed=!item.appointment||['confirmada','confirmado','confirmed'].includes(appointmentStatus);
     const needsAppointment=sessionRequiresConfirmedAppointment({role,session:item.session,appointment:item.appointment});
-    if(serviceActive&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
+    if(serviceActive&&!item.recurringAwaitingActivation&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
       actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar con Coach</button>`);
     }
     if(item.appointment?.changeRequest?.status==='pending'){

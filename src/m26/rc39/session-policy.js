@@ -137,6 +137,45 @@ export function appointmentSessionId(record){
 export function appointmentStartAt(record){
   return field(record,'startAt','start_at','scheduledAt','scheduled_at','date','fecha');
 }
+// U38 · One legacy canonical session may not impersonate multiple dated
+// executions. This is a UX/workflow fence; U31 server authorization remains
+// the source of truth. Neither missing appointments nor this pure check grant
+// permission to execute a session.
+export function legacyStartNeedsOccurrence({
+  appointments=[],occurrences=[],sessionId,clientId,
+}={}){
+  const targetSession=String(sessionId||'').trim();
+  const targetClient=String(clientId||'').trim();
+  if(!targetSession||!targetClient)return false;
+  const confirmed=new Set(['confirmada','confirmado','confirmed','realizada',
+    'realizado','completed','completada','completado']);
+  const ids=new Set();
+  if(Array.isArray(appointments)){
+    for(const appointment of appointments){
+      if(appointmentSessionId(appointment)!==targetSession
+        ||clientIdOf(appointment)!==targetClient
+        ||!confirmed.has(fold(field(appointment,'status','estado'))))continue;
+      const id=String(field(appointment,'id','entityId','entity_id')||'').trim();
+      const start=appointmentStartAt(appointment);
+      // Deduplicate multiple representations of the same appointment. Rows
+      // without IDs never prove independent occurrences.
+      if(id&&dateMs(start)!==null)ids.add(id);
+      if(ids.size>1)return true;
+    }
+  }
+  // A provisioned occurrence must never be started through the V26 executor
+  // even when there is only one dated occurrence for this prescription.
+  if(Array.isArray(occurrences)){
+    for(const occurrence of occurrences){
+      if(String(field(occurrence,'sessionId','session_id')||'')===targetSession
+        &&clientIdOf(occurrence)===targetClient
+        &&!['cancelada','cancelado','cancelled','canceled'].includes(
+          fold(field(occurrence,'status','estado'))))return true;
+    }
+  }
+  return false;
+}
+
 export function appointmentForSession(appointments=[],session={},now=new Date()){
   const sessionId=sessionIdOf(session);
   const clientId=clientIdOf(session);
