@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createM26Transport,isBootstrapStatementTimeout,isFutureIssuedJwtClockSkew,M26_QA_PROJECT_REF,M26_QA_SUPABASE_ORIGIN} from '../src/m26/supabase-transport.js';
 
 const token='qa-synthetic-nonsecret-token';
@@ -136,4 +137,13 @@ test('future JWT skew cannot cause a mutating-command retry or retry expired boo
   await assert.rejects(expired.transport.bootstrap(token),error=>error.status===401);
   assert.equal(expired.calls.length,1);
   assert.deepEqual(expired.delays,[]);
+});
+
+test('M42 private avatar gate restricts bootstrap JWT skew recovery and redacts 401 diagnostics',()=>{
+  const source=readFileSync(new URL('../scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs',import.meta.url),'utf8');
+  assert.match(source,/name==='iberfit_bootstrap_v26'/u);
+  assert.match(source,/isFutureIssuedJwtClockSkew\(\{status:r\.status,body:r\.body\}\)&&retries<3/u);
+  assert.match(source,/\[350,800,1300\]\[retries\+\+\]/u);
+  assert.match(source,/\^\[A-Z0-9\]\{3,12\}\$/u);
+  assert.doesNotMatch(source,/console\.log\([^)]*r\.body/u);
 });
