@@ -147,12 +147,19 @@ BEGIN
     'entityId',b,'baseRevision',1,
     'payload',jsonb_build_object('executionId',ex2));
   ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
-  IF ack->>'kind'<>'ack' OR ack->>'status'<>'en_curso' THEN
-    RAISE EXCEPTION 'U32_U31_SECOND_DATE_NOT_STARTABLE:%',ack;
+  IF ack->>'kind'<>'rejected' OR ack->>'reason'<>'FUTURE_DATE' THEN
+    RAISE EXCEPTION 'U32_U31_FUTURE_WEEK_PREMATURE_START_ALLOWED:%',ack;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
+    WHERE id=b AND client_id=c AND status='confirmada' AND execution_id IS NULL)
+    OR NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
+    WHERE id=third AND client_id=c AND status='confirmada'
+      AND execution_id IS NULL) THEN
+    RAISE EXCEPTION 'U32_U31_FUTURE_OCCURRENCES_NOT_PRESERVED';
   END IF;
   IF EXISTS(SELECT 1 FROM public.active_execution_locks_v26
     WHERE client_id=c AND execution_id=ex1) THEN
     RAISE EXCEPTION 'U32_U31_FIRST_EXECUTION_LOCK_REMAINS';
   END IF;
-  RAISE NOTICE 'U32_U31_REAL_PUBLISHED_3_DATE_LIFECYCLE_PASS';
+  RAISE NOTICE 'U32_U31_REAL_PUBLISHED_3_DATE_LIFECYCLE_AND_FUTURE_GUARD_PASS';
 END $u32_e2e$;
