@@ -35,7 +35,7 @@ test('U32: batch idempotency and all-or-none multi-date SQL',()=>{
   assert.match(migration,/v_receipt\.response->>'requestHash' IS DISTINCT FROM v_request_hash/u);
   assert.match(migration,/INSERT INTO public\.command_receipts_v26/u);
   assert.match(migration,/INSERT INTO public\.training_session_occurrences_v1/u);
-  assert.match(migration,/created_operation_id[\s\S]*?gen_random_uuid\(\)\);/u);
+  assert.match(migration,/created_operation_id,batch_operation_id,batch_ordinal[\s\S]*?gen_random_uuid\(\),v_operation,v_ordinal\);/u);
   assert.match(qa,/U32_PARTIAL_BATCH_PERSISTED/u);
   assert.match(qa,/U32_MODIFIED_REPLAY_ALLOWED/u);
   assert.match(qa,/U32_EXPECTED_THREE_ROWS/u);
