@@ -59,6 +59,20 @@ CREATE TABLE public.training_session_occurrences_v1 (
   CONSTRAINT u30_occurrence_revision_check CHECK (revision>=0),
   CONSTRAINT u30_snapshot_object_check
     CHECK (jsonb_typeof(prescription_snapshot)='object'),
+  -- The frozen prescription must not smuggle another Client/session
+  -- identity inside JSON even if a trusted writer passes the correct FKs.
+  CONSTRAINT u30_snapshot_identity_check CHECK (
+    (
+      NOT prescription_snapshot ? 'clientId'
+      OR (jsonb_typeof(prescription_snapshot->'clientId')='string'
+          AND lower(prescription_snapshot->>'clientId')=client_id::text)
+    )
+    AND (
+      NOT prescription_snapshot ? 'sessionId'
+      OR (jsonb_typeof(prescription_snapshot->'sessionId')='string'
+          AND lower(prescription_snapshot->>'sessionId')=session_id::text)
+    )
+  ),
   CONSTRAINT u30_occurrence_status_check
     CHECK (status IN ('planificada','confirmada','en_curso','completada','cancelada')),
   CONSTRAINT u30_clock_consistency_check
