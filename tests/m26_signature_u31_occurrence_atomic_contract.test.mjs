@@ -86,6 +86,19 @@ test('U31: RC29 CI failure diagnostic reveals numerical budgets without exposing
   assert.match(rc29Validation,/RC29_VALIDATION_FAILED/u);
 });
 
+test('U31: linked confirmed appointment closes with the execution, cancelled booking never resurrects',()=>{
+  assert.match(migration,/SELECT \* INTO v_appointment FROM public\.appointments/u);
+  assert.match(migration,/WHERE id=v_occ\.appointment_id AND client_id=v_client/u);
+  assert.match(migration,/v_appointment\.status='confirmada'/u);
+  assert.match(migration,/v_appointment_domain_revision IS DISTINCT FROM v_appointment\.revision/u);
+  assert.match(migration,/U31_APPOINTMENT_REVISION_DRIFT/u);
+  assert.match(migration,/PERFORM public\.iberfit_persist_entity_v26\(\s*'appointment'/u);
+  assert.match(migration,/v_appointment_completion_state:='preserved_'\|\|v_appointment\.status/u);
+  assert.match(migration,/v_appointment_completion_state:='completed'/u);
+  assert.match(migration,/'appointmentCompletionState',v_appointment_completion_state/u);
+  assert.doesNotMatch(migration,/PERFORM public\.iberfit_persist_entity_v26\(\s*'session'/u);
+});
+
 test('U31: audit, staging rollback and QA fail-closed evidence',()=>{
   assert.match(migration,/INSERT INTO public\.command_events_v26/u);
   assert.match(migration,/INSERT INTO public\.domain_events_v26/u);
