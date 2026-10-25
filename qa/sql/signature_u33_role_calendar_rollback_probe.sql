@@ -84,6 +84,29 @@ BEGIN
    OR result_client::text LIKE '%'||next_occurrence::text||'%' THEN
    RAISE EXCEPTION 'U33_QA_CLIENT_PROJECTION_UNSAFE_OR_MISSING';
  END IF;
+ -- A source downgraded to summary-only must immediately disappear
+ -- from Client calendar while still remaining visible to assigned Coach.
+ UPDATE public.domain_entities_v26 SET
+   body=jsonb_set(body,'{clientVisibilityLevel}','"summary_only"'::jsonb,true)
+ WHERE entity_type='session' AND entity_id=sid AND client_id=cid;
+ answer:=private.iberfit_u33_occurrence_calendar_v1(cid,day1,day1+8,52);
+ IF jsonb_array_length(answer->'items')<>0 THEN
+   RAISE EXCEPTION 'U33_QA_DOWNGRADED_VISIBILITY_LEAKED';
+ END IF;
+ UPDATE public.domain_entities_v26 SET
+   body=jsonb_set(body,'{clientVisibilityLevel}','"full"'::jsonb,true)
+ WHERE entity_type='session' AND entity_id=sid AND client_id=cid;
+ -- A cancelled appointment cannot leave a phantom future Client workout.
+ UPDATE public.appointments SET status='cancelada' WHERE id=appt;
+ answer:=private.iberfit_u33_occurrence_calendar_v1(cid,day1,day1+8,52);
+ IF jsonb_array_length(answer->'items')<>0 THEN
+   RAISE EXCEPTION 'U33_QA_CANCELLED_APPOINTMENT_VISIBLE';
+ END IF;
+ answer:=private.iberfit_u33_occurrence_calendar_v1(cid,day1,day1+8,1);
+ IF answer->>'hasMore'<>'false' THEN
+   RAISE EXCEPTION 'U33_QA_CLIENT_CALENDAR_TRUNCATION_WRONG';
+ END IF;
+
  BEGIN
   PERFORM private.iberfit_u33_occurrence_calendar_v1(
    gen_random_uuid(),day1,day1+8,52);

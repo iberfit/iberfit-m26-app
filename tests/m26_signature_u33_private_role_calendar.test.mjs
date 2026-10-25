@@ -25,6 +25,9 @@ test('U33: Client sees only confirmed authorized guided dates and no Coach presc
   assert.doesNotMatch(sql,/jsonb_build_object\([\s\S]*?'prescriptionSnapshot'/u);
   assert.match(qa,/U33_QA_CLIENT_PROJECTION_UNSAFE_OR_MISSING/u);
   assert.match(qa,/U33_QA_CROSS_CLIENT_CALENDAR_ACCEPTED/u);
+  assert.match(qa,/U33_QA_DOWNGRADED_VISIBILITY_LEAKED/u);
+  assert.match(qa,/U33_QA_CANCELLED_APPOINTMENT_VISIBLE/u);
+  assert.match(qa,/U33_QA_CLIENT_CALENDAR_TRUNCATION_WRONG/u);
   assert.match(qa,/U33_QA_PRIVATE_PROJECTION_EXPOSED/u);
 });
 
