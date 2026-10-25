@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b558e1a26db239d9bfb483357bfeade584d2b744",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "2a03d3c0b02a3b9af713ec2b728fa8fa64bbf862",
+  "notes": "SIGNATURE B13 Coach rapid block navigation, mobile readability and authenticated QA, plus M44-only recovery policy comment. Certified exact Canary SHA with seven required gates; 6 files vs B12 PROD, no backend Auth RLS SQL Edge changes. Require fresh protected M44 encrypted DB+Storage offsite archive and isolated PG17 restore, fail-closed production promotion, live identity smoke and rollback evidence."
+}
