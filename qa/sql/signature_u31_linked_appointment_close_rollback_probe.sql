@@ -7,6 +7,10 @@ DECLARE r record;client uuid;v_session uuid;actor uuid;rev bigint;
   duration_min int;appt_id uuid:=gen_random_uuid();
   appointment_body jsonb;operation uuid;execution uuid:=gen_random_uuid();
   occurrence uuid;second uuid;third uuid;ack jsonb;cmd jsonb;
+  cancelled_appt uuid:=gen_random_uuid();
+  cancelled_occ uuid;
+  cancelled_execution uuid:=gen_random_uuid();
+  cancellation_date date;
   exercise_id text;results jsonb;set_no int;sets int;
 BEGIN
  FOR r IN
@@ -125,5 +129,74 @@ BEGIN
  IF (SELECT revision FROM public.appointments WHERE id=appt_id)<>1 THEN
    RAISE EXCEPTION 'U31_LINKED_CLOSE_DUPLICATED_APPOINTMENT_UPDATE';
  END IF;
+ -- Second lifecycle: appointment cancellation while Coach has already
+ -- started must not make the session impossible to close, nor reactivate
+ -- the canceled appointment. The exercise results remain authoritative.
+ cancellation_date:=plan_date+1;
+ IF cancellation_date>(now() AT TIME ZONE 'America/Santiago')::date THEN
+   RAISE EXCEPTION 'U31_CANCELLED_APPOINTMENT_FIXTURE_FUTURE';
+ END IF;
+ slot:=((cancellation_date::text||' 12:00')::timestamp
+   AT TIME ZONE 'America/Santiago');
+ appointment_body:=jsonb_build_object(
+   'id',cancelled_appt,'clientId',client,'sessionId',v_session,
+   'status','confirmada','revision',0,'title','QA cancellation while active',
+   'type','session','mode','guiada_en_app',
+   'timeZone','America/Santiago',
+   'startAt',slot,'endAt',slot+duration_min*interval '1 minute',
+   'confirmedAt',now(),'confirmedBy',actor,'createdBy',actor);
+ PERFORM public.iberfit_persist_entity_v26(
+   'appointment',cancelled_appt,client,'confirmada',0,appointment_body);
+ ack:=private.iberfit_u32_create_occurrences_batch_v1(
+   jsonb_build_object('type','OCURRENCIAS_CREAR_LOTE',
+     'operationId',gen_random_uuid(),'clientId',client,
+     'entityId',v_session,'baseRevision',rev,
+     'payload',jsonb_build_object('targetClientId',client,
+       'previewConfirmed',true,'dates',jsonb_build_array(
+         jsonb_build_object('localDate',cancellation_date::text,
+           'localTime','12:00','appointmentId',cancelled_appt)))));
+ IF ack->>'kind'<>'ack' OR ack->>'count'<>'1' THEN
+   RAISE EXCEPTION 'U31_CANCELLED_APPOINTMENT_CREATE_FAILED:%',ack;END IF;
+ cancelled_occ:=(ack#>>'{occurrences,0,id}')::uuid;
+ cmd:=jsonb_build_object('type','OCURRENCIA_CONFIRMAR',
+   'operationId',gen_random_uuid(),'clientId',client,
+   'entityId',cancelled_occ,'baseRevision',0);
+ ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
+ IF ack->>'kind'<>'ack' THEN
+   RAISE EXCEPTION 'U31_CANCELLED_CONFIRM_FAILED:%',ack;END IF;
+ cmd:=jsonb_build_object('type','OCURRENCIA_INICIAR',
+   'operationId',gen_random_uuid(),'clientId',client,
+   'entityId',cancelled_occ,'baseRevision',1,
+   'payload',jsonb_build_object('executionId',cancelled_execution));
+ ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
+ IF ack->>'kind'<>'ack' THEN
+   RAISE EXCEPTION 'U31_CANCELLED_START_FAILED:%',ack;END IF;
+ appointment_body:=appointment_body||jsonb_build_object(
+   'status','cancelada','revision',1,'cancelledAt',now(),
+   'cancelledBy',actor,'closeReason','QA cancellation in progress');
+ PERFORM public.iberfit_persist_entity_v26(
+   'appointment',cancelled_appt,client,'cancelada',1,appointment_body);
+ cmd:=jsonb_build_object('type','OCURRENCIA_COMPLETAR',
+   'operationId',gen_random_uuid(),'clientId',client,
+   'entityId',cancelled_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',cancelled_execution,
+      'executionBaseRevision',1,'results',results,'skippedSets','{}'::jsonb,
+      'feedback',jsonb_build_object('sessionRpe',6,
+        'comment','Cita cancelada, entrenamiento realizado','pain',false)));
+ ack:=private.iberfit_u31_occurrence_transition_v1(cmd);
+ IF ack->>'kind'<>'ack' OR ack->>'status'<>'completada'
+   OR ack->>'appointmentCompletionState'<>'preserved_cancelada' THEN
+   RAISE EXCEPTION 'U31_CANCELLED_CLOSE_RESURRECTED_OR_LOST:%',ack;END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.appointments
+   WHERE id=cancelled_appt AND status='cancelada' AND revision=1)
+ OR NOT EXISTS(SELECT 1 FROM public.domain_entities_v26
+   WHERE entity_type='appointment' AND entity_id=cancelled_appt
+     AND status='cancelada' AND revision=1)
+ OR NOT EXISTS(SELECT 1 FROM public.session_executions
+   WHERE id=cancelled_execution AND occurrence_id=cancelled_occ
+     AND execution_status='cerrada_confirmada')
+ OR (SELECT status FROM public.domain_entities_v26
+   WHERE entity_type='session' AND entity_id=v_session)<>'disponible' THEN
+   RAISE EXCEPTION 'U31_CANCELLED_WORKOUT_OR_APPOINTMENT_HISTORY_DAMAGED';END IF;
  RAISE NOTICE 'U31_LINKED_APPOINTMENT_COMPLETED_ATOMICALLY';
 END $qa$;
