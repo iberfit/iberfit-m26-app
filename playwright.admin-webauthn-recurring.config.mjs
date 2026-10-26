@@ -12,7 +12,7 @@ export default defineConfig({
   expect:{timeout:20_000},
   use:{
     browserName:'chromium',
-    trace:'retain-on-failure',
+    trace:'off',
     screenshot:'only-on-failure',
     video:'off',
     serviceWorkers:'block',

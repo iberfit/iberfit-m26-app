@@ -4570,3 +4570,64 @@ m26-echart[data-density="compact"]{
     box-shadow:none;
   }
 }
+
+/* SIGNATURE · Coach Planificación: progressive full history; no new stylesheets. */
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-progressive{min-width:0}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch{
+  min-width:0;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 28%,var(--iberfit-color-border));
+  border-radius:var(--iberfit-radius-lg);
+  background:color-mix(in srgb,var(--iberfit-color-surface-raised) 82%,transparent);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>summary{
+  display:flex;align-items:center;justify-content:space-between;
+  min-height:52px;gap:.8rem;padding:.85rem 1rem;cursor:pointer;
+  list-style:none;color:var(--iberfit-color-text-primary);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary::-webkit-details-marker,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>summary::-webkit-details-marker{display:none}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary span:first-child{
+  display:grid;min-width:0;gap:.2rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary small{
+  color:var(--iberfit-color-text-secondary);font-size:.82rem;line-height:1.45;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary span:last-child,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>summary span:last-child{
+  flex:none;font-size:1.25rem;color:var(--iberfit-color-accent);transition:transform .16s ease;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive[open]>summary span:last-child,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch[open]>summary span:last-child{
+  transform:rotate(45deg);
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive-groups{
+  display:grid;gap:.6rem;padding:.25rem .7rem .8rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>.m26-stack{
+  padding:.5rem;min-width:0;
+}
+/* Author display:grid on archive groups / .m26-stack beats Chromium's UA
+ * details:not([open]) display:none. Explicitly keep CLOSED disclosures
+ * hidden: otherwise all 231 cards stretch the page despite no open attr. */
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive:not([open])>.m26-coach-planning-archive-groups,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch:not([open])>.m26-stack{
+  display:none;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary:focus-visible,
+.m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>summary:focus-visible{
+  outline:3px solid var(--iberfit-color-accent);outline-offset:3px;
+}
+@media(max-width:690px){
+  .m26-shell[data-m26-role="coach"] .m26-coach-planning-archive-groups{padding:.3rem .45rem .6rem}
+  .m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>.m26-stack{padding:.3rem}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="coach"] .m26-coach-planning-archive>summary span:last-child,
+  .m26-shell[data-m26-role="coach"] .m26-coach-planning-batch>summary span:last-child{transition:none}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-coach-planning-archive,
+  .m26-shell[data-m26-role="coach"] .m26-coach-planning-batch{border:1px solid CanvasText}
+}

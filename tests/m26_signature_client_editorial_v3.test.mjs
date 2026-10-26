@@ -36,6 +36,7 @@ test('SIGNATURE Client editorial v3 is scoped and never changes Coach/Admin',()=
 test('Training journey separates planning, executable sessions and evidence-based follow-up',()=>{
   const markup=renderHoyRoute(clientVm({
     appointments:[{id:'appt',sessionId:'s1',statusRaw:'confirmada',title:'Sesión de fuerza'}],
+    upcoming:[{id:'appt',sessionId:'s1',statusRaw:'confirmada',title:'Sesión de fuerza'}],
     rc39:{sessionProjections:[{id:'s1',visible:true,canClientStart:true,session:{title:'Sesión de fuerza'}}]},
   }));
   const journey=markup.match(/<section class="m26-client-home-journey"[\s\S]*?<\/section>/u)?.[0]||'';

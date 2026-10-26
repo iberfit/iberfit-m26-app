@@ -10,6 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -19,11 +20,15 @@ for(const name of required)if(!process.env[name])throw Error('M43_QA_ENV_MISSING
 if(process.env.M26_PROJECT_REF!==REF||process.env.M26_QA_ONLY!=='true'
   ||new URL(process.env.M26_SUPABASE_URL).origin!==BASE)
   throw Error('M43_QA_PRODUCTION_ORIGIN_DENIED');
+const RUN_MARKERS=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT});
 const KEY=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
 if(/service[_-]?role|supabase_secret/iu.test(KEY))throw Error('M43_QA_SECRET_KEY_DENIED');
 const evidence={schema:'iberfit.m43.authenticated-real-qa.v1',project:'QA',
   synthetic:true,productionTouched:false,serviceRoleUsed:false,mockBackend:false,
-  checks:[],warnings:[],phase:'environment',passed:false};
+  checks:[],warnings:[],phase:'environment',passed:false,
+  provenance:{runId:String(process.env.GITHUB_RUN_ID||''),
+    runAttempt:String(process.env.GITHUB_RUN_ATTEMPT||''),
+    sourceSha:String(process.env.GITHUB_SHA||'')}};
 function check(value,code){if(!value)throw Error('M43_QA_'+code);evidence.checks.push(code);}
 async function request(path,{token=null,payload,auth=false}={}){
   const target=new URL(path,BASE);
@@ -76,6 +81,49 @@ async function main(){
     &&environment.productionBlocked===true,'QA_ISOLATION');
   const [a,b,coachRole]=await Promise.all([
     bootstrap(clientA),bootstrap(clientB),rpc('iberfit_current_role_v26',coach)]);
+  // Long-running QA may hold hundreds of genuine synthetic histories from prior
+  // certifications. Keep a hard ceiling until a separately authorized, audited
+  // ephemeral-fixture cleanup lane exists; never delete history to hide a gate.
+  const budget=assessM43SyntheticFixtureBudget(a);
+  evidence.fixtureBudget={count:budget.count,total:budget.total,retained:budget.retained,limit:budget.limit,exhausted:budget.exhausted};
+  check(!budget.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED');
+  // This run creates TWO synthetic sessions: one RPC-certified and one
+  // browser-driven. Never exhaust the isolated fixture budget mid-run.
+  check(budget.count<=budget.limit-2,'INTERACTIVE_FIXTURE_BUDGET_RESERVED');
+  // The prior browser job can time out after an ACKed PAUSE. Leaving its
+  // active-execution lock behind blocks every later synthetic Client run.
+  // Keep the server lock; close only an old M43-marked, isolated QA execution
+  // through the actual authenticated command bus, preserving audit history.
+  const recovery=assessM43StalePausedRecovery(a,{runId:process.env.GITHUB_RUN_ID});
+  evidence.fixtureRecovery={kind:recovery.kind,reason:recovery.reason};
+  check(recovery.kind!=='blocked','FIXTURE_RECOVERY_'+recovery.reason);
+  if(recovery.kind==='recover'){
+    check(await attestCompletedM43Run(recovery.priorRunId),
+      'PRIOR_SYNTHETIC_WORKFLOW_NOT_COMPLETED');
+    const reason='IBERFIT QA M43 · cierre controlado de prueba interrumpida';
+    const closed=await send(clientA,{
+      type:'EJECUCION_CANCELAR',entityType:'session_execution',
+      entityId:recovery.executionId,clientId:recovery.clientId,
+      baseRevision:recovery.revision,payload:{reason,patch:{}},
+    },'STALE_SYNTHETIC_CANCEL');
+    check(closed.result?.kind==='ack','STALE_SYNTHETIC_CANCEL_ACK');
+    const observed=await bootstrap(clientA);
+    check(observed?.data?.m26Entities?.some(e=>e.entityType==='session_execution'
+      && String(e.entityId)===recovery.executionId && e.status==='cancelada'),
+      'STALE_SYNTHETIC_EXECUTION_CLOSED');
+    // Cancelled sessions are intentionally hidden in the Client projection.
+    // Coach bootstrap requires a *separate* privileged WebAuthn assurance;
+    // this Client-only repair must never bypass or borrow that privilege.
+    // The execution cancellation ACK is atomic: it closes its parent session
+    // and releases the server lock in the same transaction. The next Client
+    // start below verifies lock release via the real command path.
+    check(!observed?.data?.m26Entities?.some(e=>e.entityType==='session'
+      && String(e.entityId)===recovery.sessionId),
+      'STALE_SYNTHETIC_CANCELLED_SESSION_HIDDEN_FROM_CLIENT');
+    check(closed.result?.kind==='ack'&&Number(closed.result.remoteRevision)>recovery.revision,
+      'STALE_SYNTHETIC_ATOMIC_CLOSE_ACK');
+    evidence.fixtureRecovery={kind:'recovered',reason:'AUTHENTICATED_CANCEL_ACK'};
+  }
   const idA=String(a?.user?.clientId||''),idB=String(b?.user?.clientId||'');
   check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_SYNTHETIC_CLIENTS');
   check(String(coachRole).toLowerCase()==='coach','COACH_ROLE');
@@ -89,14 +137,14 @@ async function main(){
     startDate:now.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10),
     modality:'hibrido',weeklyFrequency:3,sessionDurationMinutes:75});
   const planId=randomUUID(),savedId=randomUUID();
-  const command=buildCycleCommand(cycle(planId,'IBERFIT QA M43 · ciclo principal'));
+  const command=buildCycleCommand(cycle(planId,RUN_MARKERS.publishedCycleTitle));
   await denied(clientA,command,'CLIENT_CANNOT_VALIDATE_PLAN');
   await denied(clientB,command,'FOREIGN_CLIENT_CANNOT_VALIDATE_PLAN');
   const validated=await send(coach,command,'PLAN_VALIDATE');
   const replay=await rpc('iberfit_execute_command_v26',coach,{p_command:validated.command});
   check(replay?.kind==='ack'&&replay.duplicate===true
     &&Number(replay.remoteRevision)===Number(validated.result.remoteRevision),'SERVER_IDEMPOTENCY');
-  await send(coach,buildCycleCommand(cycle(savedId,'IBERFIT QA M43 · ciclo no publicado')),
+  await send(coach,buildCycleCommand(cycle(savedId,RUN_MARKERS.unpublishedCycleTitle)),
     'SECOND_CYCLE_PRESERVED');
   evidence.phase='two-plans-validated';
   const before=await bootstrap(clientA);
@@ -114,7 +162,7 @@ async function main(){
     {id:'qa-m43-strength',name_es:'Sentadilla con mancuernas',measurement_profile:'strength'},
     {id:'qa-m43-run',name_es:'Carrera continua',measurement_profile:'endurance'},
     {id:'qa-m43-swim',name_es:'Natación crol en piscina',measurement_profile:'endurance'}]);
-  const draft=createSessionDraft({clientId:idA,title:'IBERFIT QA M43 · multideporte',
+  const draft=createSessionDraft({clientId:idA,title:RUN_MARKERS.sessionTitle,
     durationMinutes:75,deliveryModality:'guiada_en_app'});
   draft.cycleId=planId;
   addCatalogExercise(draft,'qa-m43-strength',catalog,{sets:1,reps:'8',plannedLoad:'22 kg',
@@ -139,20 +187,17 @@ async function main(){
   // Do not send a redundant SESION_HABILITAR after a confirmed state change.
   // Legacy supervised or non-atomic flows still require explicit enablement.
   let [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
-  let canonical=clientVisible?.data?.m26Entities?.find(item=>
+  const canonical=clientVisible?.data?.m26Entities?.find(item=>
     item.entityType==='session'&&String(item.entityId)===String(draft.id));
-  let readyRevision=Number(canonical?.revision??published.result.remoteRevision);
-  if(canonical?.status!=='disponible'){
-    const enabled=await send(coach,{type:'SESION_HABILITAR',entityType:'session',
-      entityId:draft.id,clientId:idA,baseRevision:readyRevision,
-      payload:{patch:{status:'disponible'}}},'SESSION_ENABLE');
-    readyRevision=Number(enabled.result.remoteRevision);
-    [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
-    canonical=clientVisible?.data?.m26Entities?.find(item=>
-      item.entityType==='session'&&String(item.entityId)===String(draft.id));
-  }
-  check(canonical?.status==='disponible','GUIDED_SESSION_READY_AFTER_PUBLICATION');
-  check(readyRevision===Number(canonical?.revision),'CANONICAL_SESSION_REVISION');
+  // M37 requires the publish ACK itself to include atomic enablement. A
+  // second command here masked regressions that would strand real Clients on
+  // a visible but unstartable session. Fail before any start mutation.
+  const enablement=verifyM43AtomicGuidedEnablement({
+    canonical,publishedResult:published.result,sessionId:draft.id,clientId:idA,
+  });
+  check(enablement.ok,'GUIDED_ATOMIC_ENABLEMENT_'+enablement.reason);
+  const readyRevision=enablement.revision;
+  check(readyRevision===Number(canonical.revision),'CANONICAL_SESSION_REVISION');
   check(contains(clientVisible,draft.id,'session')||baseContains(clientVisible,draft.id,'sessions'),
     'CLIENT_SEES_PUBLISHED_SESSION');
   check(!contains(otherVisible,draft.id,'session')&&!baseContains(otherVisible,draft.id,'sessions'),
@@ -201,6 +246,35 @@ async function main(){
   check((finalA?.data?.sessionExecutions||[]).every(e=>
     !['events','incidents','queue','progressSnapshot'].some(k=>Object.hasOwn(e,k))),
     'CLIENT_HTTP_LEGACY_EXECUTION_INTERNAL_FIELDS_OMITTED');
+  // A second run-unique published session remains READY for the genuine
+  // Client browser to start, pause, record and finish by clicking the product.
+  // This is QA-only; no real customer, old session or production data touched.
+  const uiDraft=createSessionDraft({
+    clientId:idA,title:RUN_MARKERS.interactiveSessionTitle,
+    durationMinutes:20,deliveryModality:'guiada_en_app',
+  });
+  uiDraft.cycleId=planId;
+  // A real rest and a second confirmed set are required. With only one set
+  // the engine intentionally skips the rest phase; an E2E claiming to test rest
+  // must never rely on such an impossible fixture.
+  addCatalogExercise(uiDraft,'qa-m43-strength',catalog,{
+    sets:2,reps:'8',plannedLoad:'20 kg',restSeconds:45,targetRpe:7,targetRir:2,
+  });
+  acceptSessionPreview(uiDraft,catalog);
+  const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
+    'INTERACTIVE_SESSION_PUBLISH');
+  const [uiClient,uiOther]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const uiCanonical=uiClient?.data?.m26Entities?.find(item=>
+    item.entityType==='session'&&String(item.entityId)===String(uiDraft.id));
+  check(verifyM43AtomicGuidedEnablement({
+    canonical:uiCanonical,publishedResult:uiPublished.result,
+    sessionId:uiDraft.id,clientId:idA,
+  }).ok,'INTERACTIVE_SESSION_ATOMIC_ENABLEMENT');
+  check(!contains(uiOther,uiDraft.id,'session')&&!baseContains(uiOther,uiDraft.id,'sessions'),
+    'INTERACTIVE_SESSION_FOREIGN_PRIVATE');
+  // Browser completion MUST occur in the downstream authenticated test,
+  // not in this Node writer. Otherwise a fake read-only test can pass.
+  check(uiCanonical?.status==='disponible','INTERACTIVE_SESSION_READY_FOR_BROWSER');
   evidence.phase='complete';
   evidence.passed=true;
 }

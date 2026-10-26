@@ -1,5 +1,5 @@
 import { currentExerciseSubstitutionScope,executionStructureUndoState,currentStep,nextExecutionStep,executionResultForStep,skippedSetForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
-import {exerciseMemoryDraftSuggestion} from './session-builder.js';
+import {exerciseMemoryDraftSuggestion,validateSessionDraft} from './session-builder.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -626,7 +626,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
     <header>
       ${visual}
       <span>${index+1}</span>
-      <div><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
+      <div class="m26-builder-exercise-identity"><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
       <div class="m26-inline-actions">
         <button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia arriba"${index===0?' disabled aria-disabled="true"':''}>↑</button>
         <button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia abajo"${index===totalBlocks-1?' disabled aria-disabled="true"':''}>↓</button>
@@ -769,6 +769,61 @@ export function renderSessionLibraryResults({draft,catalog,query='',filters={},m
   return Object.freeze({count:matchingExercises.length,shown:visible.length,
     markup:`${reset}<div class="m26-exercise-results">${cards}${remainingCards}</div>${more}`});
 }
+// SIGNATURE B14: focus the first uniquely identifiable invalid block.
+// Do not guess when an exercise or block ID appears in multiple locations.
+function firstInvalidBuilderBlockId(draft,errors=[]){
+  const blocks=Array.isArray(draft?.blocks)?draft.blocks:[];
+  const invalid=new Set(errors);
+  const blockCounts=new Map(),exerciseCounts=new Map();
+  const exerciseIds=block=>block?.type==='exercise'?[block.exerciseId]:Array.isArray(block?.exerciseIds)?block.exerciseIds:[];
+  for(const block of blocks){
+    const bid=String(block?.id||'');
+    if(bid)blockCounts.set(bid,(blockCounts.get(bid)||0)+1);
+    for(const ex of new Set(exerciseIds(block))){
+      const key=String(ex||'');
+      if(key)exerciseCounts.set(key,(exerciseCounts.get(key)||0)+1);
+    }
+  }
+  for(const block of blocks){
+    const bid=String(block?.id||'');
+    if(!bid||blockCounts.get(bid)!==1)continue;
+    if(['group','rounds','groupType'].some(type=>invalid.has(type+':'+bid)))return bid;
+    for(const ex of exerciseIds(block)){
+      const key=String(ex||'');
+      if(!key||exerciseCounts.get(key)!==1)continue;
+      if(['exercise','prescription','metrics','alternative'].some(type=>invalid.has(type+':'+key)))return bid;
+    }
+  }
+  return null;
+}
+// SIGNATURE B10: show the same domain validation before the Coach taps Review.
+// A partial test/legacy catalog may not implement has(); the domain still
+// validates the actual command at review and publication (never bypassed).
+export function sessionBuilderReviewReadiness(draft,catalog){
+  if(!Array.isArray(draft?.blocks)||!draft.blocks.length)
+    return {ready:false,reason:'Añade al menos un ejercicio para revisar la sesión.',next:'library'};
+  if(typeof catalog?.has!=='function')
+    return {ready:true,reason:'',next:null};
+  const {ok,errors}=validateSessionDraft(draft,catalog);
+  if(ok)return {ready:true,reason:'',next:null};
+  const has=prefix=>errors.some(code=>code===prefix||String(code).startsWith(prefix+':'));
+  const guidance=has('clientId')?'Selecciona un Cliente antes de revisar.':
+    has('title')?'Indica un título válido para la sesión.':
+    has('durationMinutes')?'La duración debe estar entre 10 y 240 minutos.':
+    has('deliveryModality')?'Elige si la sesión es presencial o guiada en la aplicación.':
+    has('blocks')?'Añade ejercicios a la sesión antes de revisar.':
+    has('group')?'Completa el grupo de entrenamiento o ciérralo para corregirlo.':
+    has('rounds')?'Revisa las rondas de los grupos.':
+    has('exercise')?'Hay un ejercicio que ya no está disponible en la biblioteca.':
+    has('prescription')?'Revisa las series, repeticiones y descansos de los ejercicios.':
+    has('metrics')?'Revisa el tiempo, la distancia y las métricas prescritas.':
+    has('alternative')?'Revisa el ejercicio alternativo seleccionado.':
+    'Revisa los datos de la sesión antes de continuar.';
+  const globalError=['clientId','title','durationMinutes','deliveryModality','blocks'].some(has);
+  const targetBlockId=globalError?null:firstInvalidBuilderBlockId(draft,errors);
+  return {ready:false,reason:guidance,next:has('blocks')?'library':null,
+    ...(targetBlockId?{targetBlockId}:{})};
+}
 export function renderSessionBuilder({draft,catalog,query='',filters={},libraryVisibleLimit=24,templates=[],actionState,undoRemoval=null,templateUndo=null,templateAdaptation=null,mediaMap,role='coach',clientContext=null,exerciseMemoryFor=null}={}){
   const searchResults=renderSessionLibraryResults({draft,catalog,query,filters,mediaMap,role,visibleLimit:libraryVisibleLimit});
   const matchingExercises={length:searchResults.count};
@@ -778,7 +833,21 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
   const activeGroupTargetMarkup=activeGroup?`<div class="m26-builder-group-target" data-session-active-group-target role="status" aria-live="polite"><span><small>Añadiendo al grupo activo</small><strong>${e(groupName(activeGroup.type))} · ${e(activeGroup.exerciseIds.length)}/${e(activeGroupLimit)} ejercicios</strong></span><button type="button" data-session-action="close-group">Cerrar grupo</button></div>`:'';
   const totalBlocks=(draft.blocks||[]).length;
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks)).join('')||`<div class="m26-builder-program-empty" data-session-builder-empty><strong>Empieza por el primer ejercicio</strong><p>Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.</p><button type="button" data-session-jump="library">Buscar ejercicios</button></div>`;
+  // SIGNATURE B13 · Coach navigation on long sessions. Existing read-only
+  // focus handler scrolls to the real editor; this never changes a draft.
+  const blockIndex=draft.previewAccepted||totalBlocks<2?'':`<details class="m26-builder-block-index" data-session-builder-block-index>
+    <summary><span>Ir directamente a un bloque</span><strong>${e(totalBlocks)} bloques</strong></summary>
+    <div class="m26-builder-block-index-links" role="group" aria-label="Elegir bloque de la sesión">
+      ${(draft.blocks||[]).map((block,index)=>{
+        const current=block.type==='exercise'?catalog.get(block.exerciseId):null;
+        const label=block.type==='exercise'?exerciseDisplayName(current||{name_es:block.name||block.exerciseId||'Ejercicio'}):groupName(block.type);
+        return `<button type="button" data-session-review-block="${e(block.id)}">${e(index+1)}. ${e(label)}</button>`;
+      }).join('')}
+    </div>
+  </details>`;
   const metrics=draftMetrics(draft);
+  const reviewReadiness=sessionBuilderReviewReadiness(draft,catalog);
+  const reviewUnavailable=reviewReadiness.ready?'':' disabled aria-disabled="true" aria-describedby="m26-builder-review-readiness"';
   const templateHistory=templateAdaptation?.templateName?templateHistoryCoverage(draft,exerciseMemoryFor):null;
   const undoRemovalMarkup=undoRemoval?.block?.id?`<div class="m26-notice m26-builder-undo" data-session-builder-undo role="status"><span>Bloque eliminado del borrador.</span><button type="button" data-session-action="restore-block">Deshacer</button></div>`:'';
   const templateUndoMarkup=templateUndo?.draft?.id?`<div class="m26-notice m26-builder-undo" data-session-template-undo role="status"><span>Plantilla aplicada al borrador.</span><button type="button" data-session-action="restore-template-load">Deshacer plantilla</button></div>`:'';
@@ -791,7 +860,9 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
     <label>Objetivo<select data-session-filter="intent">${builderFacetOptions(facets.intent,filters.intent,'Todos los objetivos')}</select></label>
   </div>`;
 
-  const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button><button type="button" data-session-action="publish" disabled aria-disabled="true" title="Revisa la sesión antes de publicarla">Publicar sesión</button>`;
+  const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview"${reviewUnavailable}>Revisar sesión</button>`;
+  const invalidBlockJump=reviewReadiness.targetBlockId?`<button type="button" data-session-review-block="${e(reviewReadiness.targetBlockId)}">Revisar bloque</button>`:'';
+  const reviewGuidance=draft.previewAccepted||reviewReadiness.ready?'':`<p id="m26-builder-review-readiness" class="m26-builder-review-readiness" data-session-review-readiness role="status">${e(reviewReadiness.reason)}${reviewReadiness.next==='library'?'<button type="button" data-session-jump="library">Ir a la biblioteca</button>':''}${invalidBlockJump}</p>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
   const adaptationSource=templateAdaptation?.source==='cycle'?'ciclo':templateAdaptation?.source==='profile'?'perfil':null;
   const adaptationDuration=Number(templateAdaptation?.clientDurationMinutes);
@@ -832,19 +903,25 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
         <h2>${e(draft.title)}</h2>
         <p>Construye rápido; la revisión final sigue siendo obligatoria antes de publicar.</p>
       </div>
-      <div class="m26-inline-actions">
+      <div class="m26-inline-actions m26-builder-command-actions">
         <button type="button" data-session-action="save-draft">Guardar borrador</button>
-        <details class="m26-draft-discard">
-          <summary class="m26-text-action">Descartar borrador</summary>
-          <div class="m26-notice">
-            <p>Elimina este borrador del dispositivo y de la sincronización. No modifica ninguna sesión publicada.</p>
-            <button type="button" data-session-action="discard-draft">Eliminar este borrador</button>
+        <details class="m26-builder-secondary-actions" data-session-builder-secondary-actions>
+          <summary class="m26-text-action">Más opciones</summary>
+          <div class="m26-builder-secondary-panel">
+            <button type="button" data-session-action="exit-session">Salir</button>
+            <details class="m26-draft-discard">
+              <summary class="m26-text-action">Descartar borrador</summary>
+              <div class="m26-notice">
+                <p>Elimina este borrador del dispositivo y de la sincronización. No modifica ninguna sesión publicada.</p>
+                <button type="button" data-session-action="discard-draft">Eliminar este borrador</button>
+              </div>
+            </details>
           </div>
         </details>
-        <button type="button" data-session-action="exit-session">Salir</button>
         ${primary}
       </div>
     </header>
+    ${reviewGuidance}
     ${renderProfessionalSessionClientContext(clientContext,role)}
     ${renderActionState(actionState)}
     ${undoRemovalMarkup}
@@ -888,8 +965,9 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
           ${draft.activeGroupId?'<button type="button" data-session-action="close-group">Cerrar grupo activo</button>':''}
         </div>
         ${draft.activeGroupId?'<p class="m26-notice" role="status">Añade ejercicios o cierra el grupo actual antes de crear otro. Si cierras un grupo incompleto, los ejercicios ya añadidos pasarán a ser individuales conservando sus prescripciones.</p>':''}
+        ${blockIndex}
         <div class="m26-builder-blocks">${blocks}</div>
-        ${metrics.blocks?`<footer class="m26-builder-finish" data-session-builder-finish aria-label="Siguiente paso del constructor"><div class="m26-builder-finish-copy"><span>Antes de publicar</span><strong>Revisa la sesión completa</strong><p>Confirma modalidad y prescripción. Guardar borrador no publica el entrenamiento.</p></div><div class="m26-inline-actions m26-builder-finish-actions"><button type="button" data-session-jump="library">Añadir otro ejercicio</button><button type="button" data-session-action="save-draft">Guardar borrador</button><button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button></div></footer>`:''}
+        ${metrics.blocks?`<footer class="m26-builder-finish" data-session-builder-finish aria-label="Siguiente paso del constructor"><div class="m26-builder-finish-copy"><span>Antes de publicar</span><strong>Revisa la sesión completa</strong><p>Confirma modalidad y prescripción. Guardar borrador no publica el entrenamiento.</p></div><div class="m26-inline-actions m26-builder-finish-actions"><button type="button" data-session-jump="library">Añadir otro ejercicio</button><button type="button" data-session-action="save-draft">Guardar borrador</button><button type="button" class="m26-primary-action" data-session-action="preview"${reviewUnavailable}>Revisar sesión</button></div></footer>`:''}
       </main>
     </div>`}
   </section>`;
@@ -1398,19 +1476,6 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ${professionalClientContext}${state}
       ${sync}
       ${timerStrip(execution)}
-      ${liveTelemetryStrip(execution,catalog)}
-      <div class="m26-panel m26-session-live-hero">
-        <div class="m26-session-live-heading">
-          <div>
-            <p class="m26-eyebrow">Entrenamiento terminado</p>
-            <h2>Último paso: cerrar la sesión</h2>
-            <p>${e(feedbackIntro)}</p>
-          </div>
-          <span class="m26-session-live-status">Cierre</span>
-        </div>
-        ${completedSessionSummary(execution)}
-        ${renderSessionAdjustmentSummary(execution)}
-      </div>
       <div class="m26-panel" data-session-live-feedback>
         <p class="m26-eyebrow">Feedback final</p>
         <h2>${e(feedbackTitle)}</h2>
@@ -1430,6 +1495,19 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
         </div>
       </div>
+      <div class="m26-panel m26-session-live-hero">
+        <div class="m26-session-live-heading">
+          <div>
+            <p class="m26-eyebrow">Entrenamiento terminado</p>
+            <h2>Último paso: cerrar la sesión</h2>
+            <p>${e(feedbackIntro)}</p>
+          </div>
+          <span class="m26-session-live-status">Cierre</span>
+        </div>
+        ${completedSessionSummary(execution)}
+        ${renderSessionAdjustmentSummary(execution)}
+      </div>
+      ${liveTelemetryStrip(execution,catalog)}
     </section>`;
   }
 
@@ -1438,27 +1516,27 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ${professionalClientContext}${state}
       ${sync}
       ${timerStrip(execution)}
-      ${liveTelemetryStrip(execution,catalog)}
       <div class="m26-panel m26-session-live-hero">
+        <p class="m26-eyebrow">Sesión en pausa</p>
+        <div class="m26-session-live-actions" data-session-paused-early-controls>
+          <button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button>
+          <button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button>
+        </div>
         <div class="m26-session-live-heading">
           <div>
-            <p class="m26-eyebrow">Sesión en pausa</p>
             <h2>${e(session.title||'Sesión IBERFIT')}</h2>
             <p>${isCoach?'El registro del cliente sigue protegido. El tiempo activo se detiene hasta reanudar.':'Tu registro sigue protegido. El tiempo activo se detiene y podrás continuar donde lo dejaste.'}</p>
           </div>
           <span class="m26-session-live-status">Pausada</span>
         </div>
         ${sessionLiveSummary(execution,session)}
-        <div class="m26-session-live-actions">
-          <button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button>
-          <button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button>
-        </div>
         <details class="m26-session-options">
           <summary>Cancelar esta sesión</summary>
           <label>Motivo para cancelar<input data-session-cancel-reason maxlength="500"></label>
           <button type="button" data-session-action="cancel">Cancelar sesión</button>
         </details>
       </div>
+      ${liveTelemetryStrip(execution,catalog)}
     </section>`;
   }
 

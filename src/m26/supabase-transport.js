@@ -1,3 +1,4 @@
+import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
 const DEFAULT_TIMEOUT_MS = 12_000;
 const EXACT_REMOTE_HOSTS = new Set(['app.iberfit.cl', 'coach.iberfit.cl', 'm26-canary.iberfit.cl']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -9,12 +10,23 @@ export const M26_QA_SUPABASE_ORIGIN=`https://${M26_QA_PROJECT_REF}.supabase.co`;
 // future when Auth and PostgREST clocks differ. This is not proof of revocation.
 // Never classify arbitrary 401s or other JWT signature/expiry failures as skew.
 // Canonical bootstrap is read-only. Only SQLSTATE 57014 from the authenticated
-// statement timeout is eligible for one bounded retry; never expand this to
-// mutations, authentication errors, or arbitrary network/server failures.
+// statement timeout gets one bounded retry. A separately verified future-iat
+// PGRST303 has its own bounded read recovery, never for other 401s or writes.
 export function isBootstrapStatementTimeout(error){
   return Number(error?.status||0)===500
     &&String(error?.body?.code||'').trim()==='57014'
     &&/canceling statement due to statement timeout/iu.test(String(error?.body?.message||''));
+}
+
+// Read-only assurance can be retried once after an actual network outage.
+// Authorization denial, malformed responses, JWT failures and SQL errors are
+// never treated as transport glitches.
+export function isTransientReadOnlyAssuranceTransportFailure(error){
+  const status=Number(error?.status||0);
+  if(status!==0)return [502,503,504].includes(status);
+  const message=String(error?.message||'');
+  return message==='M26_TIMEOUT'
+    || (error?.name==='TypeError'&&/Failed to fetch|Load failed|NetworkError|network request failed/iu.test(message));
 }
 
 export function isFutureIssuedJwtClockSkew(error){
@@ -217,9 +229,16 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function request(path, options = {}) {
     if(typeof path!=='string'||!path.startsWith('/')||path.startsWith('//')||/[\u0000-\u001f\u007f]/.test(path))throw new Error('M26_REQUEST_PATH_INVALID');
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), runtime.timeoutMs);
+    // Only the password exchange may use a shorter attempt budget. One
+    // retriable transport stall should not consume the entire login watchdog.
+    // Read/write RPCs keep their existing runtime timeout and CAS semantics.
+    const {requestTimeoutMs,token:providedToken,headers:providedHeaders={},body,...fetchOptions}=options;
+    const configuredTimeout=Number(runtime.timeoutMs)||DEFAULT_TIMEOUT_MS;
+    const requestedTimeout=Number(requestTimeoutMs);
+    const timeoutMs=Number.isFinite(requestedTimeout)&&requestedTimeout>=1_000
+      ?Math.min(configuredTimeout,requestedTimeout):configuredTimeout;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const {token:providedToken,headers:providedHeaders={},body,...fetchOptions}=options;
       const token = providedToken || runtime.publishableKey;
       if(!token||String(token).length>MAX_TOKEN_CHARS)throw new Error('M26_AUTH_TOKEN_INVALID');
       const response = await fetchImpl(`${runtime.url}${path}`, {
@@ -268,8 +287,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   function transientPasswordLoginError(error){
     const status=Number(error?.status||0);
     if([502,503,504].includes(status))return true;
+    if(status!==0)return false;
     const code=String(error?.message||error||'');
-    return error?.name==='TypeError'||/Failed to fetch|NetworkError|network request failed/i.test(code);
+    return code==='M26_TIMEOUT'||error?.name==='TypeError'
+      ||/Failed to fetch|NetworkError|network request failed/i.test(code);
   }
 
   async function passwordLoginRequest(payload){
@@ -279,6 +300,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         return await request('/auth/v1/token?grant_type=password',{
           method:'POST',
           body:JSON.stringify(payload),
+          requestTimeoutMs:8_000,
         });
       }catch(error){
         if(attempt>0||!transientPasswordLoginError(error))throw error;
@@ -557,11 +579,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function authAssuranceContext(token){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
-    // Retry only the verified PostgREST future-iat clock-skew response.
-    // Preserve the same token and the exact server-side assurance/MFA check.
-    // Never retry arbitrary 401s, forbidden, expired or invalid-signature JWTs.
-    let body;
-    for(let attempt=0;attempt<4;attempt+=1){
+    // This is a read-only, server-enforced assurance RPC. A transient outage
+    // may retry ONCE using exactly the same JWT; no privileged state is
+    // inferred locally. Verified future-iat skew retains its separate bound.
+    // Never retry arbitrary 401/403, invalid tokens, 500 or malformed JSON.
+    let body,skewRetries=0,networkRetries=0;
+    for(;;){
       try{
         body=await request('/rest/v1/rpc/'+RC65C_AUTH_ASSURANCE_RPC,{
           method:'POST',
@@ -570,8 +593,16 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         });
         break;
       }catch(error){
-        if(!isFutureIssuedJwtClockSkew(error)||attempt===3)throw error;
-        await authRetryDelay([350,800,1300][attempt]);
+        if(isFutureIssuedJwtClockSkew(error)&&skewRetries<3){
+          await authRetryDelay([350,800,1300][skewRetries++]);
+          continue;
+        }
+        if(isTransientReadOnlyAssuranceTransportFailure(error)&&networkRetries<1){
+          networkRetries+=1;
+          await authRetryDelay(220);
+          continue;
+        }
+        throw error;
       }
     }
     if(
@@ -747,15 +778,116 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return { ok: true, scope:normalizedScope };
   }
 
-  async function bootstrapWithBoundedStatementTimeoutRecovery(token){
+  // SIGNATURE U39: opt-in QA Coach full-snapshot replacement.
+  // Never expose or persist a partially hydrated snapshot. This is only
+  // selected by the QA Coach test identity; PostgreSQL independently verifies
+  // auth.uid(), role, scope and the genuine WebAuthn assurance on every RPC.
+  async function bootstrapQaCoachWithHistory(token,{assertOwner=()=>{}}={}){
+    if(!runtime.qaOnly)throw new Error('U39_QA_ONLY');
+    if(!token||typeof assertOwner!=='function')throw new Error('U39_AUTH_OR_OWNER_INVALID');
+    assertOwner();
+    const core=await request('/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa',{
+      method:'POST',token,body:'{}',
+    });
+    assertOwner();
+    if(core?.environment!=='QA'||core?.user?.role!=='coach'
+      ||!Array.isArray(core?.data?.clients))
+      throw new Error('U39_COACH_CORE_CONTEXT_INVALID');
+    const owner={};
+    const assembler=createPrivilegedHistoryAssembler(core,{owner,profile:'u38-qa-adaptive'});
+    const limits=__u36HistoryInternals.U38_QA_PAGE_LIMITS;
+    const sections=__u36HistoryInternals.SECTIONS;
+    const jobs=core.data.clients.flatMap(client=>sections.map(section=>({
+      clientId:client.id,section,
+    })));
+    let cursor=0;
+    let cancelled=false;
+    const nextJob=()=>jobs[cursor++]||null;
+    const check=()=>{
+      if(cancelled)throw new Error('U39_HISTORY_CANCELLED');
+      assertOwner();
+    };
+    async function readSection({clientId,section}){
+      let next={snapshotAt:null,cursor:null,expectedCount:null};
+      let limit=limits[section];
+      let pages=0;
+      do{
+        check();
+        if(++pages>128)throw new Error('U39_HISTORY_PAGE_LOOP');
+        let page;
+        for(;;){
+          check();
+          try{
+            page=await request('/rest/v1/rpc/iberfit_privileged_history_page_u38_qa',{
+              method:'POST',token,
+              body:JSON.stringify({
+                p_client_id:clientId,p_section:section,
+                p_snapshot_at:next.snapshotAt,
+                p_cursor:next.cursor,
+                p_expected_count:next.expectedCount,
+                p_limit:limit,
+              }),
+            });
+            break;
+          }catch(error){
+            // Only SQLSTATE 54000 with the exact U38 size-budget reason
+            // permits a smaller *read-only* page. Never retry MFA, 401/403,
+            // server timeouts, unrelated 500s or identity errors.
+            if(String(error?.body?.code||'')!=='54000'
+               ||String(error?.body?.message||'')!=='U38_PAGE_BODY_BUDGET_EXCEEDED'
+               ||limit===1)throw error;
+            limit=Math.max(1,Math.floor(limit/2));
+          }
+        }
+        check();
+        const result=assembler.accept({
+          owner,clientId,section,request:next,page,
+        });
+        if(result.done)return;
+        next=result.nextRequest;
+      }while(true);
+    }
+    async function worker(){
+      for(;;){
+        check();
+        const job=nextJob();
+        if(!job)return;
+        await readSection(job);
+      }
+    }
+    const workers=Array.from({length:Math.min(3,jobs.length)},()=>worker());
     try{
-      return await rpc(runtime.rpc.bootstrap,token,{});
+      await Promise.all(workers);
     }catch(error){
-      if(!isBootstrapStatementTimeout(error))throw error;
-      // Same session JWT, same read-only function; one retry at most.
-      // The hydration coordinator rejects stale owners before store commit.
-      await authRetryDelay(220);
-      return rpc(runtime.rpc.bootstrap,token,{});
+      cancelled=true;
+      await Promise.allSettled(workers);
+      throw error;
+    }
+    check();
+    if(assembler.status().ready!==true)throw new Error('U39_HISTORY_NOT_COMPLETE');
+    return assembler.finish({owner});
+  }
+
+  async function bootstrapWithBoundedStatementTimeoutRecovery(token){
+    // Two independent capped read-only recoveries. Only the exact PGRST303
+    // future-iat signature qualifies; generic 401, expired/revoked JWT and
+    // all mutations stay fail-closed. Never replace the authenticated JWT.
+    let skewRetries=0,timeoutRetries=0;
+    for(;;){
+      try{
+        return await rpc(runtime.rpc.bootstrap,token,{});
+      }catch(error){
+        if(isFutureIssuedJwtClockSkew(error)&&skewRetries<3){
+          await authRetryDelay([350,800,1300][skewRetries++]);
+          continue;
+        }
+        if(isBootstrapStatementTimeout(error)&&timeoutRetries<1){
+          timeoutRetries+=1;
+          await authRetryDelay(220);
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
@@ -1725,6 +1857,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     challengeWebAuthn,
     verifyWebAuthn,
     bootstrap: bootstrapWithBoundedStatementTimeoutRecovery,
+    bootstrapQaCoachWithHistory,
     backendHealth,
     backendBootstrap,
     draftBackendHealth,

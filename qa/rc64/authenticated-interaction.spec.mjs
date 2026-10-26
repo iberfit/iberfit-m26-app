@@ -247,7 +247,26 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
+  try{
+    await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
+  }catch(error){
+    // Only safe stage labels and operation categories. Never log typed
+    // credentials, request/response bodies, headers, tokens, user IDs or URLs.
+    const current=await page.evaluate(()=>({
+      stages:(Array.isArray(globalThis.__IBERFIT_AUTH_QA_STAGES__)
+        ?globalThis.__IBERFIT_AUTH_QA_STAGES__:[]).slice(-20).map(item=>item.stage),
+      shellMounted:Boolean(document.querySelector('.m26-shell[data-m26-role="client"]')),
+      loginVisible:Boolean(document.querySelector('[data-auth-form="login"]')),
+    })).catch(()=>({stages:[],shellMounted:false,loginVisible:false}));
+    console.error('IBERFIT_CLIENT_AUTH_SHELL_FAILURE:'+JSON.stringify({
+      ...current,
+      authRequests:authRequestRecords.map(({operation,status,result})=>({operation,status,result})),
+      requestFailures:unexpectedFailures.length,
+      blockedRequests:blocked.length,
+      serverErrors:failedAllowedResponses.length,
+    }));
+    throw error;
+  }
   const credentialSubmitToShellMs=performance.now()-credentialSubmitStartMs;
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
   // The interactive shell is a progressive milestone, not proof that the
@@ -257,6 +276,19 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     'All progressive controllers must be mounted before exercising preference writes'
   ).toHaveCount(1,{timeout:20_000});
   const credentialSubmitToInteractiveMs=performance.now()-credentialSubmitStartMs;
+  // The shell/controller ready milestone is independent of Playwright's
+  // requestfinished event. On slower mobile devices the last authorized read
+  // may still be pending at that instant. Observe its actual terminal result;
+  // never treat a pending request as a successful request or weaken the 200
+  // assertion. Keep tracing until each mandatory read is confirmed.
+  for(const required of ['main-snapshot','command-registry','appointment-changes']){
+    await expect.poll(()=>authRequestRecords.some((record)=>
+      record.operation===required&&record.status===200&&record.result==='finished'),{
+      message:`Authenticated primary request ${required} must finish successfully`,
+      timeout:10_000,
+      intervals:[100,250,500],
+    }).toBe(true);
+  }
   traceAuthNetwork=false;
   const authNetworkWaterfall=authRequestRecords
     .filter((record)=>record.result!=='pending')
@@ -267,12 +299,6 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
       status:record.status,
       result:record.result,
     }));
-  // Without this check the optional RC39 extension can silently discard a
-  // permissions error and make an unavailable agenda appear empty.
-  for(const required of ['main-snapshot','command-registry','appointment-changes']){
-    expect(authNetworkWaterfall.some((sample)=>sample.operation===required&&sample.status===200&&sample.result==='finished'),
-      `Authenticated primary request ${required} must finish successfully`).toBe(true);
-  }
   const authStageTimeline=await page.evaluate(()=>{
     const submit=globalThis.__IBERFIT_AUTH_QA_SUBMIT_MS__;
     const marks=globalThis.__IBERFIT_AUTH_QA_STAGES__;

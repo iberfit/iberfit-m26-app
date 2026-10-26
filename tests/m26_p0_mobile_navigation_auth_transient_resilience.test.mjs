@@ -128,10 +128,15 @@ test('fine-pointer desktop keeps bounded View Transitions available',()=>{
   assert.equal(updates,1);
 });
 
-test('remote authenticated gate mirrors the same single transient token retry policy',()=>{
+test('remote authenticated gate bounds token and explicit read-only retries to one retry',()=>{
   const source=fs.readFileSync('scripts/remote-gates/run_authenticated_readonly_gate.mjs','utf8');
-  assert.match(source,/authTokenRequest\?2:1/u);
+  const policy=fs.readFileSync('scripts/remote-gates/readonly-network-policy.mjs','utf8');
+  assert.match(source,/const attempts=authTokenRequest\|\|repeatable\?2:1/u);
   assert.match(source,/\[502,503,504\]/u);
-  assert.match(source,/setTimeout\(resolve,220\)/u);
+  assert.match(source,/setTimeout\(resolve,300\)/u);
+  assert.match(source,/isRetryableReadOnlyRequest/u);
+  assert.match(policy,/method!=='POST'/u);
+  assert.doesNotMatch(policy,/iberfit_execute_command_v26/u,
+    'Business mutations must never be in the remote retry allowlist');
   assert.doesNotMatch(source,/attempt<3|attempt<=2/u);
 });

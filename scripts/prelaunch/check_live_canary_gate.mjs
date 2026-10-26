@@ -55,6 +55,9 @@ async function inspectViewport(browser,{name,width,height}){
   const blockedMutations=[];
   const forbiddenOrigins=[];
   const consoleErrors=[];
+  // Keep only a categorical, privacy-safe bootstrap failure code. The raw
+  // warning may include URLs or error details and must not reach QA artifacts.
+  const bootstrapWarningCodes=[];
   const pageErrors=[];
   const requestFailures=[];
   const badResponses=[];
@@ -77,6 +80,10 @@ async function inspectViewport(browser,{name,width,height}){
   });
 
   page.on('console',(message)=>{
+    if(message.type()==='warning'&&String(message.text()||'').startsWith('[IBERFIT:bootstrap]')){
+      const match=String(message.text()||'').match(/\bM26_[A-Z0-9_]+\b/u);
+      bootstrapWarningCodes.push(match?.[0]||'M26_BOOTSTRAP_UNCLASSIFIED');
+    }
     if(message.type()==='error'){
       const location=message.location?.()||{};
       consoleErrors.push({
@@ -195,6 +202,7 @@ async function inspectViewport(browser,{name,width,height}){
       runtime,
       layout,
       warningNotices:warningDiagnostics,
+      bootstrapWarningCodes,
       blockedMutations,
       forbiddenOrigins,
       consoleErrors,

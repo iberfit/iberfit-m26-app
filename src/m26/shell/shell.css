@@ -386,8 +386,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 @media(prefers-reduced-motion:reduce){[data-wearable-import],[data-wearable-preview]{scroll-behavior:auto!important;transition:none!important}}
 
 /* RC22 · perceived performance and advanced accessibility */
-.m26-skip-link{position:fixed;z-index:1000;left:1rem;top:1rem;padding:.7rem 1rem;border-radius:.7rem;background:var(--m26-cream-100,#f7f1e3);color:var(--m26-green-950,#07150f);font-weight:800;transform:translateY(-180%);transition:transform .16s ease;box-shadow:var(--m26-shadow)}
-.m26-skip-link:focus{transform:translateY(0);outline:3px solid var(--m26-gold-400,#c7a45a);outline-offset:3px}
+.m26-skip-link{position:fixed;z-index:1000;left:1rem;top:1rem;display:inline-flex;align-items:center;min-block-size:44px;min-inline-size:44px;padding:.7rem 1rem;border-radius:.7rem;background:var(--m26-cream-100,#f7f1e3);color:var(--m26-green-950,#07150f);font-weight:800;transition:transform .16s ease;box-shadow:var(--m26-shadow)}
+/* Hide the skip link by clipping, NEVER by shrinking the interactive box.
+ * Mobile touch audits include keyboard-focusable controls; <44px fails them. */
+.m26-skip-link:not(:focus){clip-path:inset(50%);pointer-events:none;transform:none}
+.m26-skip-link:focus{clip-path:none;pointer-events:auto;transform:none;outline:3px solid var(--m26-gold-400,#c7a45a);outline-offset:3px}
 .m26-access-frame[aria-busy="true"] .m26-access-status{position:relative;overflow:hidden}
 .m26-access-frame[aria-busy="true"] .m26-access-status::after{content:"";display:block;width:45%;height:2px;margin:.8rem auto 0;background:linear-gradient(90deg,transparent,var(--m26-gold-400,#c7a45a),transparent);animation:m26-progress-scan 1.25s ease-in-out infinite}
 .m26-wearable-preview-actions{margin-top:1rem}

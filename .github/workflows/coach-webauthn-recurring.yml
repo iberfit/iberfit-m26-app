@@ -10,6 +10,7 @@ on:
       - 'playwright.coach-iri-document-privileged.config.mjs'
       - 'supabase/functions/iberfit-qa-webauthn-cert-broker/**'
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
+      - 'tests/m26_u56_coach_publish_scope.test.mjs'
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
       - '.github/workflows/coach-webauthn-recurring.yml'
   push:
@@ -37,6 +38,14 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: node --check qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs
+      - run: node --check qa/coach-webauthn-recurring/u56-qa-publish.mjs
+      - run: node --check qa/coach-webauthn-recurring/u58-execution-policy.mjs
+      - run: node --check qa/coach-webauthn-recurring/u58-existing-session-client.mjs
+      - run: node --check qa/coach-webauthn-recurring/u59-coach-readback.mjs
+      - run: node --test tests/m26_u59_readback_contract.test.mjs
+      - run: node --test tests/m26_u58_existing_execution_scope.test.mjs
+      - run: node --test tests/m26_u56_coach_publish_scope.test.mjs
       - run: node --test tests/m26_coach_webauthn_recurring_contract.test.mjs
 
   live-coach-webauthn:
@@ -105,6 +114,24 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          # U56: one-shot QA mutation only on an explicitly titled trusted
+          # Canary squash PUSH, never on PR, dispatch, or routine later merges.
+          M26_QA_U56_PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U56:') }}
+          # U58 executes the exact pre-existing QA U56 session only once.
+          # No published session is created. A rerun stays read-only.
+          M26_QA_U58_EXECUTE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U58:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58R:') || startsWith(github.event.head_commit.message, 'SIGNATURE U58S:')) }}
+          # U59: one-shot read-only Coach+Client check of already ACKed U58S.
+          # Pull requests, reruns and a second execution NEVER get this flag.
+          M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U59:') || startsWith(github.event.head_commit.message, 'SIGNATURE U59R:')) }}
+
+          # U57 readback targets the already-published U56 QA fixture. No new
+          # session publication, training start, write permission or bypass.
+          M26_QA_U57_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U57:') || startsWith(github.event.head_commit.message, 'SIGNATURE U57R:')) }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          # Only the exact SIGNATURE U37 Canary merge tests versioned QA RPCs.
+          # The OIDC reset broker intentionally refuses pull_request events.
+          M26_QA_U37_VERIFY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && startsWith(github.event.head_commit.message, 'SIGNATURE U37:') }}
         run: npx playwright test --config playwright.coach-webauthn-recurring.config.mjs
       - name: Reset Coach QA WebAuthn fixture before privileged IRI certification
         shell: bash

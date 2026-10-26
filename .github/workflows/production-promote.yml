@@ -83,6 +83,12 @@ jobs:
           test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
           test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
 
+      - name: Certify exact Canary CI, deploy and privileged WebAuthn (fail closed)
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/release/verify_source_qa_gates.mjs
+
       # Opt-in lane: backends and Hosted Auth remain at their already served state.
       # The exact previous production SHA and protected source paths are checked.
       - name: Certify frontend-only scope against exact live PROD (fail closed)

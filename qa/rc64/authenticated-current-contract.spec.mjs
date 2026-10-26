@@ -10,6 +10,7 @@ import {
   isQaMissingPrivateAvatarResponse,
   unexpectedQaResourceErrors,
 } from './secure-current-source-auth.mjs';
+import {evaluateRecoveredFirstFactor,mayRetryUserLoginAfterNetworkError} from './recovered-first-factor-contract.mjs';
 
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
 const OPTIONAL_READ_PATHS=new Set([
@@ -258,6 +259,9 @@ test('current authenticated contract separates privileged fail-closed identities
     const pageErrors=[];
     // Read-only diagnostic phases; never record secrets or identifying data.
     const authPhases=[];
+    const authNetworkFailureCodes=[];
+    const firstFactorEvents=[];
+    const firstFactorNetworkFailureCodes=[];
     const rpcStarts=new WeakMap();
     const rpcTimings=[];
     await installCurrentSourceQaNetworkPolicy(context,{
@@ -320,8 +324,10 @@ test('current authenticated contract separates privileged fail-closed identities
           const rpc=url.pathname.slice('/rest/v1/rpc/'.length);
           if(READ_ONLY_RPCS.has(rpc))rpcStarts.set(request,{rpc,started:process.hrtime.bigint()});
         }
-        if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
+        if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
           authPhases.push('first-factor-request');
+          firstFactorEvents.push('issued');
+        }
         if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-request');
       }catch{}
     });
@@ -345,6 +351,7 @@ test('current authenticated contract separates privileged fail-closed identities
         const phase=url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'
           ?'first-factor':url.pathname===ASSURANCE_PATH?'assurance':null;
         if(phase)authPhases.push(phase+'-http-'+String(response.status()));
+        if(phase==='first-factor')firstFactorEvents.push('http-'+String(response.status()));
       }catch{}
     });
     page.on('requestfailed',(request)=>{
@@ -352,9 +359,20 @@ test('current authenticated contract separates privileged fail-closed identities
       try{
         const url=new URL(request.url());
         if(url.origin===SUPABASE_ORIGIN){
-          if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')
+          if(url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
             authPhases.push('first-factor-requestfailed');
-          if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-requestfailed');
+            firstFactorEvents.push('requestfailed');
+            const errorText=String(request.failure()?.errorText||'');
+            firstFactorNetworkFailureCodes.push(errorText.match(/net::ERR_[A-Z_]{2,45}/u)?.[0]||'UNCLASSIFIED');
+          }
+          if(url.pathname===ASSURANCE_PATH){
+            authPhases.push('assurance-requestfailed');
+            // Record only a bounded Chromium network failure code. Never
+            // capture request URL, JWT, request headers or response payload.
+            const errorText=String(request.failure()?.errorText||'');
+            const code=errorText.match(/net::ERR_[A-Z_]{2,45}/u)?.[0]||'NETWORK_FAILURE_UNCLASSIFIED';
+            authNetworkFailureCodes.push(code);
+          }
         }
       }catch{}
       const label=qaRequestLabel(request);
@@ -376,16 +394,42 @@ test('current authenticated contract separates privileged fail-closed identities
       await page.locator('#m26-login-password').fill(account.password);
       // Handle rejection immediately: a failed click must not orphan an unhandled
       // assurance wait. Keep the same timeout and do not bypass the RPC.
-      const assuranceOutcome=page.waitForResponse((response)=>{
+      const makeAssuranceOutcome=()=>page.waitForResponse((response)=>{
         try{const url=new URL(response.url());return url.origin===SUPABASE_ORIGIN&&url.pathname===ASSURANCE_PATH;}catch{return false;}
       },{timeout:AUTH_FLOW_TIMEOUT_MS}).then(response=>({response}),error=>({error}));
+      const assuranceOutcome=makeAssuranceOutcome();
+      // The app already retries a transport stall once. The read-only gate may
+      // verify ONE explicit user retry if both transport attempts failed and
+      // the UI displays the specific network error. Never retry 400/401/403.
+      const networkErrorOutcome=page.locator('.m26-auth-notice[role="alert"]')
+        .filter({hasText:'No fue posible conectar'})
+        .waitFor({state:'visible',timeout:AUTH_FLOW_TIMEOUT_MS})
+        .then(()=>({networkErrorVisible:true}),()=>({networkErrorVisible:false}));
+      let firstFactorUserRetryCount=0;
       let assurance;
       let attemptStage='login-click';
       try{
         await page.getByRole('button',{name:'Entrar',exact:true}).click();
         attemptStage='assurance-response';
-        const outcome=await assuranceOutcome;
+        let outcome=await Promise.race([assuranceOutcome,networkErrorOutcome]);
+        if(outcome.networkErrorVisible===true){
+          expect(mayRetryUserLoginAfterNetworkError({
+            events:firstFactorEvents,
+            networkFailureCodes:firstFactorNetworkFailureCodes,
+            networkErrorVisible:true,
+            userRetryCount:firstFactorUserRetryCount,
+          }),'UI retry only after exactly two typed transport failures').toBe(true);
+          firstFactorUserRetryCount=1;
+          attemptStage='user-network-retry';
+          // Refill only the authentication form, which may have been replaced.
+          await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
+          await page.locator('#m26-login-password').fill(account.password);
+          const retryOutcome=makeAssuranceOutcome();
+          await page.getByRole('button',{name:'Entrar',exact:true}).click();
+          outcome=await retryOutcome;
+        }
         if(outcome.error)throw outcome.error;
+        if(!outcome.response)throw new Error('RC64_ASSURANCE_RESPONSE_REQUIRED');
         assurance=await readAssurance(outcome.response);
       }catch(error){
         const state=await page.evaluate(()=>{
@@ -413,7 +457,7 @@ test('current authenticated contract separates privileged fail-closed identities
           };
         }).catch(()=>({unavailable:true}));
         console.error('M26_QA_AUTH_PHASE_DIAGNOSTIC:'+JSON.stringify({
-          attemptStage,stages:[...authPhases],state,
+          attemptStage,stages:[...authPhases],authNetworkFailureCodes:authNetworkFailureCodes.slice(0,8),state,
         }));
         throw error;
       }
@@ -429,7 +473,21 @@ test('current authenticated contract separates privileged fail-closed identities
 
       await Promise.all(avatarChecks);
       expect(blocked,'Authenticated startup attempted a business mutation or foreign request').toEqual([]);
-      expect(externalFailures,'Critical authenticated requests must not fail').toEqual([]);
+      // An explicit, successfully recovered single first-factor transport
+      // interruption is not the same as an unresolved critical failure.
+      // This strict classifier MUST still reject 401/403, unknown network codes,
+      // multiple attempts, unpaired failures and every non-auth failing request.
+      const firstFactorRecovery=evaluateRecoveredFirstFactor({
+        events:firstFactorEvents,
+        networkFailureCodes:firstFactorNetworkFailureCodes,
+        externalFailures,
+        authenticated:true, // after authenticated role-specific assertions above
+        userRetryCount:firstFactorUserRetryCount,
+      });
+      expect(firstFactorRecovery.remainingFailures,
+        'Unrecovered or non-auth critical authenticated requests must not fail').toEqual([]);
+      expect(firstFactorRecovery.reason).not.toBe('FIRST_FACTOR_NOT_PROVEN_RECOVERED');
+
       expect(new Set(optionalReadFailures).size,'Optional read fallbacks must not retry-loop').toBe(optionalReadFailures.length);
       expect(optionalReadFailures.length,'At most one failure per declared optional read is tolerated').toBeLessThanOrEqual(OPTIONAL_READ_PATHS.size);
       expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length)).toEqual([]);
@@ -439,6 +497,8 @@ test('current authenticated contract separates privileged fail-closed identities
         account:account.name,
         role:account.role,
         authenticated:true,
+        firstFactorRecoveredOnce:firstFactorRecovery.recovered,
+        firstFactorExplicitUserRetryCount:firstFactorUserRetryCount,
         privilegedGate:account.kind==='privileged'?'webauthn-required':'not-required',
         browserEngine:browserName,
         cpuThrottleRate,

@@ -31,3 +31,26 @@ test('U26 privileged QA still runs only after Canary merge with fixture cleanup'
   assert.match(flow,/group: iberfit-qa-shared-auth-readonly/u);
   assert.match(flow,/Cleanup Coach QA WebAuthn fixture[\s\S]*?if: always\(\)/u);
 });
+
+test('U51 Coach IRI harness mirrors the exact QA-only U39 read-only bootstrap endpoints',()=>{
+  const privileged=read('qa/coach-iri-document-privileged/iri-document-privileged.spec.mjs');
+  const passing=read('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
+  const transport=read('src/m26/supabase-transport.js');
+  const allowBlock=privileged.slice(privileged.indexOf('const READ_ONLY_RPCS='),privileged.indexOf('const PHOTO_TABLES='));
+  assert.ok(allowBlock.length>300,'privileged IRI RPC allowlist exists');
+  const qaRpcNames=[...allowBlock.matchAll(/'([a-z0-9_]+_qa)'/gu)].map(match=>match[1]).sort();
+  const expected=[
+    'iberfit_bootstrap_v26_core_u37_qa',
+    'iberfit_privileged_history_page_u38_qa',
+  ].sort();
+  assert.deepEqual(qaRpcNames,expected,'no extra QA-only RPCs are permitted');
+  const coachAllowBlock=passing.slice(passing.indexOf('const READ_ONLY_RPCS='),passing.indexOf('const U26_IRI_READONLY_TABLES='));
+  for(const rpc of expected){
+    assert.ok(coachAllowBlock.includes("'"+rpc+"'"),'passing Coach harness requires '+rpc);
+    assert.ok(transport.includes("'/rest/v1/rpc/"+rpc+"'"),'atomic loader invokes '+rpc);
+  }
+  assert.match(privileged,/if\(url\.origin!==QA_ORIGIN\)return false/u);
+  assert.match(privileged,/if\(method==='POST'&&url\.pathname\.startsWith\(rpcPrefix\)\)/u);
+  assert.match(privileged,/READ_ONLY_RPCS\.has\(rpc\)/u);
+  assert.match(privileged,/await route\.abort\('blockedbyclient'\)/u);
+});

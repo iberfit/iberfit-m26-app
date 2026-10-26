@@ -207,6 +207,26 @@ function coachHomeClientCard(client={}) {
   </article>`;
 }
 
+// SIGNATURE B3.1: Coach native progressive lists preserve all original actions.
+function renderCoachProgressiveRecords(items,renderItem,{visible=4,batch=18,kind="agenda",label="Registros"}={}){
+  const list=Array.isArray(items)?items:[];
+  const first=list.slice(0,visible).map(renderItem).join("");
+  const rest=list.slice(visible);
+  if(!rest.length)return first;
+  const groups=[];
+  for(let offset=0;offset<rest.length;offset+=batch){
+    const part=rest.slice(offset,offset+batch);
+    const from=visible+offset+1,to=from+part.length-1;
+    groups.push(`<details class="m26-coach-records-batch" data-coach-records-batch>
+      <summary>${escapeHtml(label)} ${from}–${to}<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack">${part.map(renderItem).join("")}</div>
+    </details>`);
+  }
+  return `${first}<details class="m26-coach-records-archive" data-coach-records-archive="${escapeHtml(kind)}">
+    <summary>Consultar ${rest.length} ${escapeHtml(label.toLowerCase())} más<span aria-hidden="true">+</span></summary>
+    <div class="m26-coach-records-batches">${groups.join("")}</div>
+  </details>`;
+}
 function renderCoachHoyRoute(vm) {
   const cockpit=vm.coachCockpit||null;
   const proposalCount=vm.proposals?.length||0;
@@ -321,6 +341,15 @@ function renderCoachHoyRoute(vm) {
     ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${escapeHtml(primary.clientId)}" data-m26-target-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`
     :`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`;
 
+  // The hero is the only primary action in Coach Hoy. Keep every destination
+  // discoverable, but do not render its identical global destination twice.
+  // Client-scoped hero actions are different from global quick destinations.
+  const quickActions=[
+    {area:'clientes',label:'Clientes',glyph:'＋'},
+    {area:'planificacion',label:'Programar entrenamiento',glyph:'◇'},
+    {area:'agenda',label:'Agenda',glyph:'□'},
+  ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
+
   const attentionCount=Number(cockpit?.attentionCount||0);
   const attentionStatus=attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
@@ -335,13 +364,13 @@ function renderCoachHoyRoute(vm) {
   // Keep it readable in the agenda, but never offer a stale Start control.
   const upcomingAppointmentIds=new Set(upcoming.map((item)=>String(item?.id||'').trim()).filter(Boolean));
   const agendaBody=appointments.length
-    ?appointments.slice(0,4).map((item)=>{
+    ?renderCoachProgressiveRecords(appointments,(item)=>{
         const linkedClient=appointmentClient(item);
         return appointmentCard(item,{
           canStartSession:linkedClient?.serviceActive!==false&&
             upcomingAppointmentIds.has(String(item?.id||'').trim()),
         });
-      }).join('')
+      },{visible:4,batch:18,kind:'hoy',label:'Citas'})
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">✓</span>
         <div><strong>Agenda libre hoy</strong><small>Sin sesiones confirmadas.</small></div>
@@ -353,7 +382,7 @@ function renderCoachHoyRoute(vm) {
         <div><strong>Empieza por tu cartera</strong><small>Añade o recibe tu primer cliente.</small></div>
       </div>`
     :queueItems.length
-      ?`<div class="m26-stack">${queueItems.map(coachPriorityCard).join('')}</div>`
+      ?`<div class="m26-stack">${renderCoachProgressiveRecords(cockpit?.items||[],coachPriorityCard,{visible:4,batch:18,kind:'prioridades',label:'Prioridades'})}</div>`
       :`<div class="m26-coach-home-clear">
           <span aria-hidden="true">✓</span>
           <div><strong>Cartera al día</strong><small>Sin revisiones prioritarias.</small></div>
@@ -388,9 +417,7 @@ function renderCoachHoyRoute(vm) {
     <!-- m26-coach-launch-self-slot -->
 
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
-      <button type="button" data-m26-area="clientes"><span aria-hidden="true">＋</span><strong>Cliente</strong></button>
-      <button type="button" data-m26-area="planificacion"><span aria-hidden="true">◇</span><strong>Programar entrenamiento</strong></button>
-      <button type="button" data-m26-area="agenda"><span aria-hidden="true">□</span><strong>Agenda</strong></button>
+      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}"><span aria-hidden="true">${glyph}</span><strong>${label}</strong></button>`).join('')}
     </nav>
 
     <div class="m26-coach-home-grid">
@@ -415,7 +442,7 @@ function renderCoachHoyRoute(vm) {
           ${badge(attentionStatus,attentionCount?'warning':'success')}
         </div>
         ${attentionBody}
-        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Ver todas las prioridades</button>':''}
+        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Gestionar cartera completa</button>':''}
       </section>
     </div>
 
@@ -489,7 +516,11 @@ function renderClientHoyRoute(vm) {
       .filter(Boolean)
   );
 
+  const upcomingAppointmentIds=new Set(upcoming.map(item=>String(item?.id||'').trim()).filter(Boolean));
+  const linkedAppointmentSessionIds=new Set([...appointments,...upcoming].map(item=>String(item?.sessionId||'').trim()).filter(Boolean));
+  // Historical confirmed appointments never become an immediate workout.
   const runnable=appointments.find((item)=>{
+    if(!upcomingAppointmentIds.has(String(item?.id||'').trim()))return false;
     const status=String(item?.statusRaw||'').trim().toLowerCase();
     const sessionId=String(item?.sessionId||'').trim();
     return Boolean(sessionId)&&
@@ -497,7 +528,10 @@ function renderClientHoyRoute(vm) {
       executableIds.has(sessionId);
   })||null;
 
-  const standaloneGuided=serviceActive?projections.find((item)=>executableIds.has(String(item?.id||''))&&!item.appointmentId):null;
+  const standaloneGuided=serviceActive?projections.find((item)=>{
+    const id=String(item?.id||'').trim();
+    return executableIds.has(id)&&!item.appointmentId&&!linkedAppointmentSessionIds.has(id);
+  }):null;
   const firstProjection=projections[0]||null;
   // A past appointment from today's historical list is not an upcoming booking.
   const nextAppointment=upcoming[0]||null;
@@ -649,7 +683,7 @@ function renderClientHoyRoute(vm) {
     .filter((item)=>!runnable||String(item?.id||'').trim()!==String(runnable?.id||'').trim())
     .slice(0,2);
   const appointmentMarkup=agendaItems.map((item)=>appointmentCard(item,{
-    canStartSession:serviceActive&&executableIds.has(String(item?.sessionId||'').trim()),
+    canStartSession:serviceActive&&upcomingAppointmentIds.has(String(item?.id||'').trim())&&executableIds.has(String(item?.sessionId||'').trim()),
   })).join('');
   const iriCompleted=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
   const iriPending=Boolean(client?.iri&&!iriCompleted);
@@ -682,7 +716,7 @@ function renderClientHoyRoute(vm) {
       </button>`
     :'';
 
-  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3">
+  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
     ${operationBanner(vm.operations||{})}
 
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
@@ -3570,6 +3604,7 @@ function renderClientProgressStage(vm,stage){
       ${milestones.map(([label,value])=>`<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
     </div>
     <p class="m26-client-progress-next"><span aria-hidden="true">→</span><span>${escapeHtml(stage.next)}</span></p>
+    ${!stage.noHistory?'<div class="m26-client-progress-continuity"><span>Tu proceso continúa</span><button type="button" data-m26-area="sesion">Ver mis sesiones</button></div>':''}
     ${stage.noHistory?'<div class="m26-client-progress-empty-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div>':''}
   </section>`;
 }
@@ -3850,7 +3885,50 @@ function publicationCard(item,entity){
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
   return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}</article>`;
 }
-function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true}={}){if(!items?.length)return emptyState(emptyTitle,clientView?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.':'No hay contenido dentro del alcance seleccionado.');return `<div class="m26-stack">${items.map((item)=>clientView?clientContentCard(item,entity,{canStartSession}):publicationCard(item,entity)).join('')}</div>`;}
+
+/* SIGNATURE Coach · A visible working set, then all previous sessions grouped
+ * into native disclosures. The full data and its actions remain in the DOM.
+ * Never reorder sessions, modify publication state or hide Client/Admin. */
+export const COACH_PLANNING_VISIBLE_SESSIONS=6;
+export const COACH_PLANNING_ARCHIVE_GROUP=18;
+export function renderCoachPlanningSessionsProgressive(items=[],entity='session'){
+  if(!['planning','session'].includes(entity))throw new Error('COACH_PLANNING_ENTITY_INVALID');
+  const visible=items.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
+    .map(item=>publicationCard(item,entity)).join('');
+  const remaining=items.slice(COACH_PLANNING_VISIBLE_SESSIONS);
+  if(!remaining.length)return `<div class="m26-stack">${visible}</div>`;
+  const groups=[];
+  const noun=entity==='planning'?'ciclos':'sesiones';
+  const groupNoun=entity==='planning'?'Ciclos':'Sesiones';
+  for(let offset=0;offset<remaining.length;offset+=COACH_PLANNING_ARCHIVE_GROUP){
+    const slice=remaining.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
+    const from=COACH_PLANNING_VISIBLE_SESSIONS+offset+1;
+    const to=from+slice.length-1;
+    groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch>
+      <summary>${groupNoun} ${from}–${to}<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack">${slice.map(item=>publicationCard(item,entity)).join('')}</div>
+    </details>`);
+  }
+  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}">
+    ${visible}
+    <details class="m26-coach-planning-archive" data-coach-planning-archive>
+      <summary><span><strong>Consultar ${entity==='planning'?'otros':'otras'} ${remaining.length} ${noun}</strong>
+        <small>Historial completo, dividido en grupos. Todas las acciones siguen disponibles.</small></span>
+        <span aria-hidden="true">+</span></summary>
+      <div class="m26-coach-planning-archive-groups">${groups.join('')}</div>
+    </details>
+  </div>`;
+}
+function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true,coachPlanning=false}={}){
+  if(!items?.length)return emptyState(emptyTitle,clientView
+    ?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.'
+    :'No hay contenido dentro del alcance seleccionado.');
+  if(coachPlanning&&!clientView&&['session','planning'].includes(entity))
+    return renderCoachPlanningSessionsProgressive(items,entity);
+  return `<div class="m26-stack">${items.map(item=>clientView
+    ?clientContentCard(item,entity,{canStartSession})
+    :publicationCard(item,entity)).join('')}</div>`;
+}
 function selectedOption(value, expected) {
   return value === expected ? ' selected' : '';
 }
@@ -4155,11 +4233,15 @@ export function renderPlanningRoute(vm){
   const clientPlanGuideAttribute=isClient&&(hasCycle||vm.sessions.length)
     ?' data-m26-client-guide="plan-surface"'
     :'';
+  const clientPlanAction=isClient
+    ?`<button type="button" class="m26-client-plan-next" data-client-plan-next data-m26-area="${vm.serviceActive===false?'sesion':totalSessions?'sesion':'actividad'}">${vm.serviceActive===false?'Ver mis sesiones':totalSessions?'Ver mis sesiones':'Registrar cómo estoy'}</button>`
+    :'';
   return `<div class="m26-route m26-planning-workbench-v2" data-planning-workbench-v2>
     ${clientContextBar}
     <section class="m26-route-intro m26-planning-intro"${clientPlanGuideAttribute}>
       <div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>
       ${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}
+      ${clientPlanAction}
     </section>
     ${nextAction}
     ${cycleSummary}
@@ -4170,11 +4252,11 @@ export function renderPlanningRoute(vm){
     <section id="m26-planning-publications" class="m26-content-grid m26-planning-publication-grid" tabindex="-1">
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Versiones y publicación'}</h2></div>${!isClient?badge(`${approvedCycles} aprobados`,'neutral'):''}</div>
-        ${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient})}
+        ${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient,coachPlanning:vm.role==='coach'})}
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
-        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false})}
+        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false,coachPlanning:vm.role==='coach'})}
       </section>
     </section>
   </div>`;
@@ -4190,7 +4272,7 @@ export function renderAgendaRoute(vm) {
     .join('');
   const form = `<form class="m26-panel m26-panel-soft" data-workflow-form="appointment" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad de esta cita<select name="modality" required aria-describedby="m26-appointment-guidance"><option value="">Seleccionar modalidad</option><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online" disabled>Online en directo · opción futura</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help"></label><p id="m26-appointment-guidance" class="m26-field-help m26-wide">IBERFIT propone modalidad y duración cuando el expediente las confirma. Cualquier cambio manual prevalece.</p><p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
 
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? vm.appointments.map((item)=>appointmentCard(item,{canManage:['admin','coach'].includes(String(vm.role||''))})).join('') : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? (vm.role==='coach'?renderCoachProgressiveRecords(vm.appointments,(item)=>appointmentCard(item,{canManage:true}),{visible:6,batch:18,kind:'agenda',label:'Citas y propuestas'}):vm.appointments.map((item)=>appointmentCard(item,{canManage:['admin','coach'].includes(String(vm.role||''))})).join('')) : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
 }
 
 function nextSessionPrepDate(value){
@@ -4386,6 +4468,13 @@ export function renderSessionsRoute(vm){
     :directStart;
   const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation,{canStartSession:serviceActive,role:vm.role,publishedSessions:vm.sessions}):'';
   const pausedNotice=!serviceActive?'<section class="m26-notice is-warning" role="status"><strong>Entrenamiento en pausa</strong><p>Puedes consultar planificación, historial y contexto. Reanuda el servicio antes de iniciar una nueva sesión.</p></section>':'';
+  const coachStartReadiness=!isClient&&serviceActive&&!mayStartDirectly
+    ?`<section class="m26-coach-start-readiness" role="status" data-coach-start-readiness>
+       <div><strong>${hasConflictingAppointment?"Revisar la cita vinculada":hasPublishedSession?"Preparación pendiente":"No hay una sesión iniciable"}</strong>
+       <p>${hasConflictingAppointment?"La sesión seleccionada no coincide con la cita prevista; revisa la vinculación antes de empezar.":hasPublishedSession?"Comprueba el estado de publicación y la preparación de la siguiente sesión.":"Prepara y publica una sesión válida antes de comenzar el entrenamiento."}</p></div>
+       <button type="button" class="m26-text-action" data-m26-area="${hasConflictingAppointment?"agenda":"planificacion"}">${hasConflictingAppointment?"Revisar agenda":"Revisar planificación"}</button>
+     </section>`
+    :'';
   const deviceSessionContext=isClient&&vm.wearableContext?.summary&&Number(vm.wearableContext.summary.daysWithData||0)>0
     ?`<section class="m26-session-device-context" aria-label="Actividad confirmada junto al entrenamiento">
       <div><p class="m26-eyebrow">CONTEXTO · ÚLTIMOS SIETE DÍAS</p><h3>Tu actividad y recuperación</h3>
@@ -4394,7 +4483,7 @@ export function renderSessionsRoute(vm){
       <button type="button" data-m26-area="actividad">Ver mis dispositivos</button>
       </section>`
     :'';
-  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${deviceSessionContext}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
+  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${coachStartReadiness}${deviceSessionContext}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';

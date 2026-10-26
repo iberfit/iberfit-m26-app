@@ -75,7 +75,10 @@ export const EMAIL_OTP_DEPLOYMENT_READY=true;
 export const MFA_BACKEND_TIMEOUT_MS=18_000;
 const POST_MFA_SETUP_TIMEOUT_MS=16_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
-const AUTH_CATALOG_TIMEOUT_MS=6_000;
+// The remote exercise catalog may legally use up to 5s per network page; a
+// 6s outer auth deadline races that internal fallback and falsely logs out an
+// already-authenticated Client. Preserve the 16s overall setup hard-stop.
+const AUTH_CATALOG_TIMEOUT_MS=12_000;
 const SESSION_DRAFT_SCOPE='session-builder';
 const SESSION_TEMPLATE_SYNC_TIMEOUT_MS=4_500;
 const SESSION_TEMPLATE_ROLES=new Set(['coach','admin']);
@@ -730,8 +733,17 @@ export async function createM26Application({root=document.querySelector('#app'),
     };
     store.setHydration('loading');
     try{
+      // QA-only Coach rollout. Never infer authorization from this account
+      // selector: both versioned RPCs independently enforce real WebAuthn,
+      // server-side role and per-client ownership. PROD and QA Client/Admin
+      // preserve their existing bootstrap until independently certified.
+      const qaAtomicCoach=runtime.qaOnly===true
+        &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.coach@iberfit.cl';
+      const primarySnapshot=qaAtomicCoach
+        ?transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner})
+        :transport.bootstrap(currentToken());
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
-        transport.bootstrap(currentToken()),
+        primarySnapshot,
         transport.commandRegistry(currentToken()),
         rc39Transport?optionalAuthBootstrap(
           ()=>rc39Transport.extensions(currentToken()),
@@ -1277,7 +1289,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
     qaStage('rc64-setup-repositories-ready');
     telemetryRemoteSync=createTelemetryRemoteSync({transport,outbox:telemetryOutbox,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false,onDiagnostic:(code,error)=>reportDiagnostic(code,error)});
-    commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role});
+    commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,onPostAckRefreshError:(error,scope)=>reportDiagnostic('session-completion-refresh-after-ack',error,scope),registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role});
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
     adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate,onRefreshError:(error)=>reportDiagnostic('admin-refresh-after-ack',error)});
     communicationService=createCommunicationService({transport:communicationTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getState:()=>store.getState().communication,getIdentity:()=>store.getState().identity,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});

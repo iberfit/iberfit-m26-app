@@ -24,6 +24,11 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
   // SQL STABLE public profile projection; POST is the PostgREST RPC transport, not a write.
   'iberfit_exercise_measurement_profiles_public_v1',
+  // U51: the QA Coach U39 atomic loader uses these two read-only RPCs after
+  // genuine WebAuthn. Keep this explicit allowlist identical to the passing
+  // Coach WebAuthn harness; deny all other foreign RPCs and origins.
+  'iberfit_bootstrap_v26_core_u37_qa',
+  'iberfit_privileged_history_page_u38_qa',
 ]);
 const PHOTO_TABLES=new Set([
   '/rest/v1/iri_consents_v1',

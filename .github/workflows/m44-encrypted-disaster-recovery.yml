@@ -1,5 +1,36 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# IBERFIT SIGNATURE U46 — fresh offsite release readiness, 2026-10-25.
+# A certified merge to Canary requests a new encrypted production DB+Storage
+# archive, isolated PG17 restoration and integrity proof. Comment-only change:
+# no job logic, grants, secrets, permissions, safeguards or app code modified.
+
+# SIGNATURE B13 production proof 2026-10-25. Source 0788e4496a68:
+# trigger fresh encrypted PROD DB + Storage archive, verified isolated
+# PostgreSQL 17 restore and integrity; no modification to jobs, secrets,
+# backup semantics, security policies, or frontend app behavior.
+
+# SIGNATURE P0 seven-gate release matrix 2026-10-25: renewal-only push.
+# Refresh exact-SHA encrypted PROD DB and Storage isolated PG17 proof after
+# all required Canary QA workflow path filters cover M44-only release commits.
+# No changed jobs, scope, credentials, secrets, retention or fail-closed rules.
+
+# SIGNATURE P0 release 2026-10-25: renewal-only Canary push trigger.
+# Reissue an independent encrypted PROD DB + Storage recovery point and
+# isolated PG17 restore after the certified Client A/B and JWT bootstrap merge.
+# This edit intentionally changes no permissions, secrets, backup operations,
+# restore requirements, workflow concurrency or fail-closed checks.
+
+# SIGNATURE B2 Client 2026-10-24: comment-only certified Canary merge trigger.
+# Renew unchanged encrypted PROD DB+Storage backup, isolated PostgreSQL 17 restore
+# and integrity proof before the single frontend-only B2 production promotion.
+# No changes to jobs, permissions, secrets, encryption or data-write policy.
+
+# U49 2026-10-22 privacy release preflight: this comment-only workflow change
+# requests a fresh encrypted PROD DB+Storage backup and isolated PostgreSQL 17
+# restore on the next certified Canary push. No backup or secret policy changes.
+
+
 on:
   pull_request:
     branches: ['canary/rc74-4']
@@ -34,6 +65,10 @@ on:
 permissions:
   contents: read
 
+# SIGNATURE 2026-10-21: release-preflight trigger only, after frontend gates.
+# Protected PROD DB+Storage encrypted snapshot + isolated PostgreSQL 17 restore.
+# No change to schedule, security, code, policies, secrets or job logic.
+# Do not treat this comment as a recovery certificate; the live M44 job must pass.
 # Ops 2026-10-20 U22 bootstrap P0: comment-only trigger after certified
 # Canary merge to renew unchanged encrypted PROD DB+Storage PG17 restore proof.
 # Ops checkpoint 2026-10-20 SIGNATURE U22 release proof refresh:

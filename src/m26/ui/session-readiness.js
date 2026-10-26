@@ -75,6 +75,11 @@ const STYLES=`
   .m27-session-focus-dock.is-coach .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
   .m27-session-focus-meta>strong{font-size:.76rem}
 }
+/* Contextual phases keep the genuine quick action in document flow:
+   the fixed live dock must never cover Start, Resume or feedback inputs. */
+.m27-session-focus-dock.is-inline{position:static;z-index:auto;inset:auto;display:flex;align-items:center;flex-wrap:wrap;max-width:100%;margin-top:.72rem;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.m27-session-focus-active.m27-session-focus-inline{padding-bottom:0}
+@media (max-width:560px){.m27-session-focus-dock.is-inline{align-items:stretch;flex-direction:column}.m27-session-focus-dock.is-inline .m27-session-focus-actions{width:100%;max-width:none}.m27-session-focus-dock.is-inline .m27-session-focus-primary{flex:1 1 auto;min-width:0}}
 @media (forced-colors:active){.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
 @media (prefers-reduced-motion:reduce){.m27-session-focus-primary,.m27-session-focus-secondary{scroll-behavior:auto}}
 `;
@@ -442,7 +447,7 @@ function focusStateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
   const document=root.ownerDocument;
-  state={wakeLock:null,wakeRequest:null,wakeDesired:false,wakeGeneration:0,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onVisibility:null};
+  state={wakeLock:null,wakeRequest:null,wakeDesired:false,wakeGeneration:0,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onInput:null,onVisibility:null};
   state.onClick=(event)=>{
     const proxy=event.target?.closest?.('[data-session-focus-proxy]');
     if(proxy&&root.contains?.(proxy)){
@@ -450,7 +455,12 @@ function focusStateFor(root){
       const selector=String(proxy.dataset?.sessionFocusTarget||'').trim();
       const live=proxy.closest?.('[data-session-live-state]');
       const target=selector&&live?.querySelector?.(selector);
-      if(target&&!target.disabled){
+      // A focus proxy is a second activation surface for a real session command.
+      // While any session mutation owns the controller lock, every proxy must
+      // fail closed; otherwise an optimistic render can expose the next action
+      // and silently lose a fast Client tap.
+      const waitingForAck=root.dataset?.m26SessionActionPending==='true';
+      if(target&&!target.disabled&&!waitingForAck&&!proxy.disabled){
         target.focus?.({preventScroll:true});
         target.click?.();
       }
@@ -460,12 +470,20 @@ function focusStateFor(root){
     const sessionAction=event.target?.closest?.('[data-session-action]');
     if(sessionAction&&root.contains?.(sessionAction))scheduleFocusRefresh(root,state);
   };
+  // Validation can enable the canonical set button without a shell render.
+  // Refresh after the input event stack so the mobile focus proxy mirrors the
+  // canonical control while still respecting any outstanding ACK lock.
+  state.onInput=(event)=>{
+    const live=event.target?.closest?.('[data-session-live-state]');
+    if(live&&root.contains?.(live))scheduleFocusRefresh(root,state);
+  };
   state.onVisibility=()=>{
     const live=root.querySelector?.('[data-session-live-state]');
     const liveState=String(live?.getAttribute?.('data-session-live-state')||'').trim().toLowerCase();
     void syncWakeLock(root,state.enabled&&ACTIVE_WAKE_STATES.has(liveState));
   };
   root.addEventListener?.('click',state.onClick);
+  root.addEventListener?.('input',state.onInput);
   document?.addEventListener?.('visibilitychange',state.onVisibility);
   ROOT_STATE.set(root,state);
   return state;
@@ -555,6 +573,7 @@ function removeFocusDock(root){
   for(const live of root.querySelectorAll?.('[data-session-live-state]')||[]){
     live.classList?.remove?.('m27-session-focus-active');
     live.classList?.remove?.('m27-session-focus-coach');
+    live.classList?.remove?.('m27-session-focus-inline');
   }
   root.querySelector?.('[data-session-focus-dock]')?.remove?.();
 }
@@ -575,7 +594,12 @@ function focusProxyButton(document,live,selector,{primary=false}={}){
   const title=target.getAttribute?.('title');
   if(ariaLabel)proxy.setAttribute('aria-label',ariaLabel);
   if(title)proxy.setAttribute('title',title);
-  proxy.disabled=Boolean(target.disabled);
+  const waitingForAck=Boolean(live.closest?.('[data-m26-session-action-pending="true"]'));
+  proxy.disabled=Boolean(target.disabled)||waitingForAck;
+  if(waitingForAck){
+    proxy.dataset.m26WaitForAck='true';
+    proxy.setAttribute('aria-busy','true');
+  }
   proxy.setAttribute('aria-disabled',proxy.disabled?'true':'false');
   return proxy;
 }
@@ -586,6 +610,7 @@ function buildFocusDock(document,live,plan,role='client'){
   const context=focusContext(live,plan.state);
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const dock=create(document,'aside',`m27-session-focus-dock${isCoach?' is-coach':''}`);
+  if(['ready','feedback','paused'].includes(plan.state))dock.classList.add('is-inline');
   dock.setAttribute('data-session-focus-dock','true');
   dock.setAttribute('data-session-focus-role',isCoach?'coach':'client');
   dock.setAttribute('aria-label','Control rápido de la sesión');
@@ -650,8 +675,18 @@ function refreshSessionFocus(root){
   const dock=buildFocusDock(root.ownerDocument,live,plan,state.role);
   if(!dock)return false;
   live.classList.add('m27-session-focus-active');
+  if(dock.classList.contains('is-inline'))live.classList.add('m27-session-focus-inline');
   if(state.role==='coach')live.classList.add('m27-session-focus-coach');
-  live.append(dock);
+  // Inline controls belong beside the action phase. Never append an
+  // accessible completion action below long telemetry (or cover inputs with
+  // a fixed overlay); the primary real button remains the source of truth.
+  const inlineAnchor=dock.classList.contains('is-inline')
+    ?live.querySelector?.(plan.state==='feedback'
+      ?'[data-session-live-feedback]'
+      :'.m26-session-live-hero')
+    :null;
+  if(inlineAnchor?.insertAdjacentElement)inlineAnchor.insertAdjacentElement('afterend',dock);
+  else live.append(dock);
   wakeBadge(root,Boolean(state.wakeLock));
   return true;
 }
@@ -686,6 +721,7 @@ export function teardownSessionFocus({root}={}){
   if(state.refreshTimer)view.clearTimeout?.(state.refreshTimer);
   state.refreshTimer=null;
   root.removeEventListener?.('click',state.onClick);
+  root.removeEventListener?.('input',state.onInput);
   root.ownerDocument?.removeEventListener?.('visibilitychange',state.onVisibility);
   void releaseWakeLock(root,state);
   removeFocusDock(root);

@@ -118,7 +118,7 @@ test('auth recovers from a hung password request without reload or mixed-languag
 });
 
 
-test('failed full-app import offers usable bootstrap login and dispatches a single password request',async({browser})=>{
+test('failed full-app import preserves one user submit while a stalled password transport retries at most once',async({browser})=>{
   // Hermetic regression for the real fallback path; no requests reach Supabase.
   // The minimal form is intentionally hidden until full-app boot fails.
   const email='bootstrap.probe@iberfit.invalid';
@@ -195,9 +195,9 @@ test('failed full-app import offers usable bootstrap login and dispatches a sing
     await expect(card).toHaveAttribute('aria-busy','true');
     await expect(submit).toBeDisabled();
 
-    // Let the transport's own 12s timeout abort this held request.
-    // Aborting the route externally creates a different browser network error,
-    // which may correctly trigger the transport's bounded transient retry.
+    // The login transport applies an 8s per-attempt bound and a single
+    // automatic retry for its own timeout. This remains ONE explicit submit,
+    // with no navigation loop, escalation or unbounded requests.
     await expect(card).toHaveAttribute('aria-busy','false',{timeout:20_000});
     await expect(submit).toBeEnabled();
     await expect(page.locator('[data-minimal-auth-notice]')).toContainText(
@@ -206,7 +206,7 @@ test('failed full-app import offers usable bootstrap login and dispatches a sing
     await expect(form.locator('input[name="email"]')).toHaveValue(email);
     expect(await page.evaluate(()=>performance.getEntriesByType('navigation').length)).toBe(navigationCount);
     expect(failedImports).toBe(1);
-    expect(passwordRequests).toBe(1);
+    expect(passwordRequests).toBe(2);
     expect(unexpectedExternal).toEqual([]);
     expect(errors).toEqual([]);
   }finally{
@@ -268,8 +268,9 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     if(url.origin===SUPABASE_ORIGIN&&req.method()==='POST'&&
        url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'){
       assurancePosts+=1;
-      if(assurancePosts===1){
-        // Do not abort externally: allow the application's real request timeout.
+      if(assurancePosts<=2){
+        // Both automatic assurance reads are hung; test the bounded retry and
+        // the unchanged watchdog recovery without bypassing privileged MFA.
         heldAssurance.push(route);
         return;
       }
@@ -319,8 +320,9 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     await form.locator('button[type="submit"]').click();
     await expect.poll(()=>tokenPosts,{timeout:8_000}).toBe(1);
     await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(1);
+    await expect.poll(()=>assurancePosts,{timeout:20_000}).toBe(2);
 
-    // Token has been accepted, but there is no second-factor assurance response.
+    // Token has been accepted, but both bounded assurance reads stalled.
     // Never expose a privileged shell while this request is pending.
     await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
     await expect(page.locator('.m26-auth-page[data-auth-mode="recoverable-session"]')).toBeVisible({timeout:25_000});
@@ -333,7 +335,7 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     // Reuse the synthetic saved first-factor session without asking for or
     // resending a password; permission checking must still require WebAuthn.
     await retry.click();
-    await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(2);
+    await expect.poll(()=>assurancePosts,{timeout:8_000}).toBe(3);
     await expect.poll(()=>userReads,{timeout:8_000}).toBe(1);
     await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:8_000});
     await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
@@ -345,6 +347,66 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
     for(const route of heldAssurance)await route.abort('timedout').catch(()=>{});
     await context.close().catch(()=>{});
   }
+});
+
+
+test('one transient assurance network failure recovers automatically without privileged bypass',async({browser})=>{
+  const email='qa.rc64.auth-readonly-retry@iberfit.cl';
+  const userId='11111111-1111-4111-8111-111111111112';
+  const context=await browser.newContext({baseURL:LOCAL_ORIGIN,locale:'es-CL',
+    timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:390,height:844},hasTouch:true});
+  let tokenPosts=0,assurancePosts=0,userReads=0;
+  const unexpected=[];
+  await context.route('**/*',async(route)=>{
+    const request=route.request();let url;
+    try{url=new URL(request.url());}catch{unexpected.push('INVALID_URL');await route.abort('blockedbyclient');return;}
+    if(url.origin===LOCAL_ORIGIN){await route.continue();return;}
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='POST'&&
+       url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
+      tokenPosts+=1;
+      await route.fulfill({status:200,contentType:'application/json',
+        body:JSON.stringify({access_token:'synthetic-network-retry-access',
+          refresh_token:'synthetic-network-retry-refresh',expires_at:2_000_000_000,
+          user:{id:userId,email}})});
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='POST'&&
+       url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'){
+      assurancePosts+=1;
+      if(assurancePosts===1){await route.abort('failed');return;}
+      await route.fulfill({status:200,contentType:'application/json',
+        body:JSON.stringify({ok:true,privileged:true,privilegedRole:'coach',
+          mfaRequired:true,webauthnRequired:true,credentialEnrolled:false,
+          iberfitAssurance:'required',supabaseAal:'aal1',emailOtpAvailable:false})});
+      return;
+    }
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='GET'&&url.pathname==='/auth/v1/user'){
+      userReads+=1;
+      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:userId,email,factors:[]})});
+      return;
+    }
+    unexpected.push(request.method()+' '+url.pathname);
+    await route.abort('blockedbyclient');
+  });
+  const page=await context.newPage();const pageErrors=[];
+  page.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
+  try{
+    const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+    expect(navigation?.ok()).toBeTruthy();
+    const form=page.locator('form[data-auth-form="login"]');
+    await expect(form).toBeVisible();
+    await form.locator('input[name="email"]').fill(email);
+    await form.locator('input[name="password"]').fill('synthetic-browser-only-pass');
+    await form.locator('button[type="submit"]').click();
+    await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'))
+      .toBeVisible({timeout:16_000});
+    await expect(page.locator('.m26-shell[data-m26-role]')).toHaveCount(0);
+    await expect.poll(()=>assurancePosts,{timeout:3_000}).toBe(2);
+    expect(tokenPosts).toBe(1);
+    expect(userReads).toBe(1);
+    expect(unexpected).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  }finally{await context.close().catch(()=>{});}
 });
 
 

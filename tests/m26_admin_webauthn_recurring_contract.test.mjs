@@ -143,7 +143,7 @@ test('browser contract proves real registration assertion app choice and Admin s
   assert.match(spec,/iberfit\.qa-admin-webauthn-recurring\.v2/u);
   assert.match(config,/workers:1/u);
   assert.match(config,/browserName:'chromium'/u);
-  assert.match(config,/trace:'retain-on-failure'/u);
+  assert.match(config,/trace:'off'/u);
 });
 
 test('shared authenticated helper remains strictly read-only',async()=>{

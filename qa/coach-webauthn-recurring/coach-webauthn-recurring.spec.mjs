@@ -1,9 +1,15 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPublish,certifyU57ExistingClientReadback} from './u56-qa-publish.mjs';
+import {permittedU58ExecutionWrite} from './u58-execution-policy.mjs';
+import {certifyU58ExistingClientExecution} from './u58-existing-session-client.mjs';
+import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
+import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
+import {isQaBootstrapRequest,sanitizeQaBootstrapResponse,summarizeQaBootstrapSamples,summarizeQaBootstrapPayload} from './qa-bootstrap-response-metrics.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -23,6 +29,13 @@ const READ_ONLY_RPCS=new Set([
   'm26_backend_bootstrap_v43','m26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1','iberfit_exercise_media_manifest_v1',
   'iberfit_exercise_measurement_profiles_public_v1',
+  // U39 QA Coach only. Both endpoints recheck verified WebAuthn and client
+  // authorization server-side; all other origins and RPCs stay blocked.
+  'iberfit_bootstrap_v26_core_u37_qa',
+  'iberfit_privileged_history_page_u38_qa',
+  ...(process.env.M26_QA_U37_VERIFY==='true'
+    ? ['iberfit_bootstrap_v26_core_u37_qa','iberfit_privileged_history_page_u37_qa']
+    : []),
 ]);
 // U26: exact QA-only IRI data projections observed in authenticated Coach routes.
 // Verified 20-Oct-2026 on QA: RLS enabled + authenticated SELECT for each table.
@@ -32,6 +45,22 @@ const U26_IRI_READONLY_TABLES=new Set([
   'iri_photo_report_permissions_v1','iri_external_reports_v26',
 ]);
 const U26_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+function isU39QaBootstrapOrHistory(request){
+  try{
+    const u=new URL(request.url());
+    return u.origin===SUPABASE_ORIGIN && request.method().toUpperCase()==='POST'
+      &&['/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa',
+        '/rest/v1/rpc/iberfit_privileged_history_page_u38_qa'].includes(u.pathname);
+  }catch{return false;}
+}
+function isU39CoreBootstrap(request){
+  try{
+    const u=new URL(request.url());
+    return u.origin===SUPABASE_ORIGIN && request.method().toUpperCase()==='POST'
+      &&u.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa';
+  }catch{return false;}
+}
+
 function authenticatedQaRequest(request){
   const headers=request.headers?.()||{};
   return /^Bearer [A-Za-z0-9_.~-]+$/u.test(String(headers.authorization||headers.Authorization||''));
@@ -62,7 +91,7 @@ function isReadOnlyPushConfig(request,url,method){
   if(method!=='POST'||url.pathname!=='/functions/v1/iberfit-web-push-sender-v1')return false;
   try{const body=request.postDataJSON();return body&&typeof body==='object'&&!Array.isArray(body)&&body.action==='config'&&Object.keys(body).length===1;}catch{return false;}
 }
-function allowedQaRequest(request){
+function allowedQaRequest(request,scope=null){
   let url;try{url=new URL(request.url());}catch{return false;}
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
@@ -82,6 +111,8 @@ function allowedQaRequest(request){
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   if(method==='POST'&&url.pathname===WEBAUTHN_PATH)return true;
   if(isReadOnlyPushConfig(request,url,method))return true;
+  if(allowedU56SyntheticWrite(request,scope))return true;
+  if(permittedU58ExecutionWrite(request,scope))return true;
   const prefix='/rest/v1/rpc/';
   return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));
 }
@@ -102,12 +133,12 @@ async function fulfillCurrentSource(route,url){
   }
   await route.fulfill({status:404,body:'Not found'});
 }
-async function installPolicy(context,evidence){
+async function installPolicy(context,evidence,scope=null){
   await context.route('**/*',async(route)=>{
     const request=route.request();let url;
     try{url=new URL(request.url());}catch{evidence.blocked.push('INVALID_URL');await route.abort('blockedbyclient');return;}
     if(url.origin===CANARY_ORIGIN){await fulfillCurrentSource(route,url);return;}
-    if(allowedQaRequest(request)){
+    if(allowedQaRequest(request,scope)){
       const label=requestLabel(request);evidence.qaRequests.push(label);
       if(request.method().toUpperCase()==='POST'&&url.pathname===WEBAUTHN_PATH){
         try{const body=request.postDataJSON();evidence.webauthnActions.push(String(body?.action||'unknown'));}catch{evidence.webauthnActions.push('unparsed');}
@@ -117,6 +148,79 @@ async function installPolicy(context,evidence){
     evidence.blocked.push(requestLabel(request));await route.abort('blockedbyclient');
   });
 }
+// U37 authorized QA probe: capture only the same JWT headers already used by
+// the real application inside the browser, never return / serialize credentials
+// to Playwright, CI logs, screenshots, traces, or artifacts.
+async function installU37BrowserProbe(page){
+  await page.addInitScript(({qaOrigin})=>{
+    const original=globalThis.fetch.bind(globalThis);
+    let auth=null;
+    globalThis.fetch=(input,init)=>{
+      try{
+        const url=new URL(typeof input==='string'?input:input?.url||'',location.origin);
+        if(url.origin===qaOrigin&&url.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'){
+          const headers=new Headers(init?.headers||input?.headers||{});
+          const authorization=headers.get('authorization');
+          const apikey=headers.get('apikey');
+          if(authorization?.startsWith('Bearer ')&&apikey)
+            auth={authorization,apikey};
+        }
+      }catch{}
+      return original(input,init);
+    };
+    globalThis.__IBERFIT_QA_U37_PROBE__=async()=>{
+      if(!auth)return {ok:false,reason:'NO_AUTH_REQUEST_OBSERVED'};
+      const request=async(name,body)=>{
+        const started=performance.now();
+        const response=await original(qaOrigin+'/rest/v1/rpc/'+name,{
+          method:'POST',
+          headers:{authorization:auth.authorization,apikey:auth.apikey,
+            'Content-Type':'application/json'},
+          body:JSON.stringify(body),
+          cache:'no-store',
+          credentials:'omit',
+        });
+        const raw=await response.text();
+        let payload;
+        try{payload=JSON.parse(raw);}catch{payload=null;}
+        return {status:response.status,elapsedMs:Math.round(performance.now()-started),
+          bytes:new TextEncoder().encode(raw).length,
+          data:response.ok?payload:null};
+      };
+      const core=await request('iberfit_bootstrap_v26_core_u37_qa',{});
+      if(core.status!==200||!core.data||core.data.user?.role!=='coach'
+        ||!Array.isArray(core.data.data?.clients)){
+        return {ok:false,reason:'CORE_REJECTED',coreStatus:core.status};
+      }
+      const clients=core.data.data.clients;
+      const empty= ['m26Entities','domainEvents','sessionExecutions'].every(
+        key=>Array.isArray(core.data.data[key])&&core.data.data[key].length===0);
+      const clientId=clients[0]?.id;
+      if(!clientId)return {ok:false,reason:'COACH_WITHOUT_AUTHORIZED_CLIENT'};
+      const sample=await request('iberfit_privileged_history_page_u37_qa',{
+        p_client_id:clientId,p_section:'m26Entities',p_limit:8,
+      });
+      const records=sample.data?.records;
+      const revisions=core.data.remoteRevisions||{};
+      const safeRevisions=records?.every(row=>{
+        const key=row.entityType+':'+row.entityId;
+        return Object.prototype.hasOwnProperty.call(revisions,key)&&
+          revisions[key]===row.revision;
+      })===true;
+      return {
+        ok:core.status===200&&sample.status===200&&empty&&safeRevisions,
+        coreStatus:core.status,coreBytes:core.bytes,coreElapsedMs:core.elapsedMs,
+        emptyHistory:empty,authorizedClientCount:clients.length,
+        sampleStatus:sample.status,sampleBytes:sample.bytes,
+        sampleElapsedMs:sample.elapsedMs,
+        sampleSchemaIsExpected:sample.data?.schema==='iberfit.u35.privileged-history-page.qa.v1',
+        sampleCount:Array.isArray(records)?records.length:-1,
+        coreRevisionParity:safeRevisions,
+      };
+    };
+  },{qaOrigin:SUPABASE_ORIGIN});
+}
+
 async function addVirtualAuthenticator(page){
   const cdp=await page.context().newCDPSession(page);await cdp.send('WebAuthn.enable');
   const {authenticatorId}=await cdp.send('WebAuthn.addVirtualAuthenticator',{options:{protocol:'ctap2',transport:'internal',hasResidentKey:true,hasUserVerification:true,isUserVerified:true,automaticPresenceSimulation:true}});
@@ -171,6 +275,90 @@ async function openCertifiedCoachArea(page,area){
     'Genio first-use tour must not interrupt an actively selected workspace').toHaveCount(0,{timeout:12_000});
 }
 
+
+/**
+ * SIGNATURE U55 · actual Coach authoring UI, deliberately confined to a
+ * disconnected browser after successful real WebAuthn. This does NOT prove
+ * remote publication; that requires a separate QA write fixture (#1078).
+ * Never widen the recurring WebAuthn gate's read-only allowlist.
+ */
+async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors){
+  await setDevice(page,cdp,{name:'coach-authoring',width:1440,height:1000,mobile:false,touch:false});
+  await openCertifiedCoachArea(page,'sesion');
+  const open=page.locator('[data-workflow-action="open-session-builder"]:visible').first();
+  await expect(open,'Verified Coach must have a real authoring entry').toBeVisible({timeout:15_000});
+
+  // Explicit browser-network isolation BEFORE creating a draft: no mutation
+  // is dispatched to QA, even if an asynchronous autosave would be scheduled.
+  const priorQaRequests=evidence.qaRequests.length;
+  await context.setOffline(true);
+  await open.click();
+  const builder=page.locator('[data-session-builder-workbench-v2]');
+  await expect(builder,'Actual Coach builder must open without backend access').toBeVisible({timeout:15_000});
+  await expect(builder.locator('[data-session-action="publish"]'),
+    'Publishing is absent until the Coach has explicitly reviewed the preview').toHaveCount(0);
+  await expect(builder.locator('[data-session-action="preview"]').first(),
+    'Review is the actual available pre-publication action').toBeVisible();
+  // SIGNATURE B10: invalid empty Coach drafts must guide, not send the Coach
+  // into a domain exception. Save/exit remain available without QA writes.
+  await expect(builder.locator('[data-session-action="preview"]').first(),
+    'Empty Coach session must not be reviewable').toBeDisabled();
+  await expect(builder.locator('[data-session-review-readiness]'))
+    .toContainText('Añade al menos un ejercicio');
+  await expect(builder.locator('[data-session-action="save-draft"]').first())
+    .toBeEnabled();
+
+  const title=process.env.M26_QA_U56_PUBLISH==='true'
+    ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
+    :'QA U55 · Autoría local sin publicación';
+  await builder.locator('[data-session-draft-field="title"]').fill(title);
+  await builder.locator('[data-session-draft-field="deliveryModality"]').selectOption('guiada_en_app');
+  const candidates=await builder.locator('[data-session-search-results] [data-session-action="add-exercise"]')
+    .evaluateAll(nodes=>[...new Set(nodes.map(node=>node.getAttribute('data-exercise-id')).filter(Boolean))]);
+  expect(candidates.length,'QA Coach should see at least two distinct exercises').toBeGreaterThanOrEqual(2);
+  for(const id of candidates.slice(0,2)){
+    await builder.locator('[data-session-search-results] [data-session-action="add-exercise"][data-exercise-id="'+id+'"]').first().click();
+  }
+  const editors=builder.locator('.m26-builder-block.m26-builder-editor');
+  await expect(editors,'Two exercises must be added through real UI actions').toHaveCount(2,{timeout:15_000});
+
+  // Prescribe both exercise types safely; cardio/mobility and strength have
+  // different field sets. Every field edit uses a real input/change event.
+  for(let index=0;index<2;index++){
+    const block=editors.nth(index);
+    const blockId=await block.getAttribute('data-block-id');
+    expect(blockId,'Each added exercise must have a stable draft-block identity').toBeTruthy();
+    const field=(key)=>builder.locator('[data-session-block-field="'+key+'"][data-block-id="'+blockId+'"]').first();
+    if(await field('sets').count())await field('sets').fill('2');
+    if(await field('reps').count())await field('reps').fill('8');
+    if(await field('plannedDurationMinutes').count())await field('plannedDurationMinutes').fill('15');
+    if(await field('restSeconds').count())await field('restSeconds').fill('60');
+    if(await field('plannedLoad').count())await field('plannedLoad').fill('10 kg');
+  }
+  await builder.locator('[data-session-action="save-draft"]').first().click();
+  await expect(builder.locator('.m26-builder-editor')).toHaveCount(2);
+  await expect(builder.locator('[data-session-draft-field="title"]')).toHaveValue(title);
+  await expect(builder.locator('[data-session-review-readiness]')).toHaveCount(0);
+  await expect(builder.locator('[data-session-action="preview"]').first(),
+    'Valid domain prescription should release the review action').toBeEnabled();
+  await builder.locator('[data-session-action="preview"]').first().click();
+  await expect(builder.locator('[data-session-action="publish"]').first(),
+    'A validated preview should enable, but must not invoke, publication').toBeEnabled({timeout:15_000});
+  await expect(builder.getByText(title,{exact:true}).first()).toBeVisible();
+
+  await setDevice(page,cdp,{name:'coach-authoring-mobile',width:320,height:700,mobile:true,touch:true});
+  await verifyViewport(page,'coach-authoring-mobile-preview');
+  await page.screenshot({path:path.join(OUT_DIR,'u55-offline-coach-reviewed-preview-320.png'),fullPage:true});
+  expect(pageErrors,'Offline Coach editing must not throw a page exception').toEqual([]);
+  expect(evidence.blocked,'No forbidden write or foreign request even during offline authoring').toEqual([]);
+  expect(evidence.qaRequests.slice(priorQaRequests).some(label=>
+    /iberfit_execute_command_v26|iberfit_command_preflight_v26/u.test(label)),
+    'No server-side publication or command preflight may be attempted').toBe(false);
+  evidence.u55OfflineAuthoring={verified:true,localOnly:true,backendMutationCertified:false,
+    exercises:2,reviewed:true,mobile320NoOverflow:true,remotePublicationAttempted:false};
+  return title;
+}
+
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
   // SIGNATURE U26 adds authenticated professional route coverage on five devices.
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
@@ -183,17 +371,88 @@ async function openCertifiedCoachArea(page,area){
 
   const evidence={signatureU26Audits:[],schema:'iberfit.qa-coach-webauthn-recurring.v1',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'coach',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[]};
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
-  await installPolicy(context,evidence);
+  const u56Scope={enabled:false,clientId:null,title:null,sessionId:null,operationId:null};
+  let u56Client=null;
+  await installPolicy(context,evidence,u56Scope);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
+  // U48: on failure retain only whitelisted stage/error categories. No form
+  // values, JWTs, URLs, identities, fetch payloads or WebAuthn responses.
+  await page.addInitScript(()=>{
+    const stages=[],diagnostics=[];
+    globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
+      const value=String(stage||'');
+      if(/^rc64-[a-z0-9-]{1,64}$/u.test(value))stages.push(value);
+      if(stages.length>32)stages.shift();
+    };
+    globalThis.addEventListener('m26:diagnostic',(event)=>{
+      const detail=event?.detail||{};
+      const stage=String(detail.stage||'');
+      const code=String(detail.code||'');
+      if(!/^[a-z0-9-]{1,60}$/u.test(stage)
+        ||!/^M26_[A-Z0-9_]{2,120}$/u.test(code))return;
+      diagnostics.push({stage,code});
+      if(diagnostics.length>16)diagnostics.shift();
+    });
+    globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__={stages,diagnostics};
+  });
+  // Distinguish a genuinely absent, JWT-authenticated optional QA avatar
+  // from an unexpected HTTP error. Never ignore an unverified 400/404.
+  const errorResponseChecks=[];
+  const bootstrapChecks=[];
+  let bootstrapPayloadSample=null;
+  page.on('requestfinished',(request)=>{
+    if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN)
+      &&!isU39QaBootstrapOrHistory(request))return;
+    bootstrapChecks.push(Promise.resolve(request.response()).then((response)=>{
+      if(response?.status()===200&&!bootstrapPayloadSample
+        &&(isQaBootstrapRequest(request,SUPABASE_ORIGIN)||isU39CoreBootstrap(request))){
+        // Inspect at most the first successful QA-only RPC response.
+        // Only the aggregate summary can reach an artifact or CI log.
+        bootstrapPayloadSample=Promise.resolve(response.text())
+          .then(summarizeQaBootstrapPayload).catch(()=>null);
+      }
+      return sanitizeQaBootstrapResponse({
+        status:response?.status()||0,
+        timing:request.timing(),
+        contentLength:response?.headers()?.['content-length']??null,
+      });
+    },()=>sanitizeQaBootstrapResponse({status:0})));
+  });
+  page.on('requestfailed',(request)=>{
+    if(isQaBootstrapRequest(request,SUPABASE_ORIGIN)||isU39QaBootstrapOrHistory(request))
+      bootstrapChecks.push(Promise.resolve(sanitizeQaBootstrapResponse({status:0,timing:request.timing()})));
+  });
+  async function snapshotBootstrap(){
+    const results=await Promise.allSettled(bootstrapChecks);
+    return summarizeQaBootstrapSamples(results.map(item=>
+      item.status==='fulfilled'?item.value:sanitizeQaBootstrapResponse({status:0})));
+  }
+  page.on('response',(response)=>{
+    if(![400,404].includes(response.status()))return;
+    errorResponseChecks.push(Promise.resolve(isQaMissingPrivateAvatarResponse(response))
+      .then((knownMissing)=>({status:response.status(),knownMissing}),
+        ()=>({status:response.status(),knownMissing:false})));
+  });
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
   const {cdp,authenticatorId}=await addVirtualAuthenticator(page);
+  if(process.env.M26_QA_U37_VERIFY==='true')
+    await installU37BrowserProbe(page);
   try{
     await setDevice(page,cdp,{name:'desktop',width:1440,height:1000,mobile:false,touch:false});
     const response=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});expect(response?.status()).toBe(200);
     await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
     expect(evidence.webauthnActions).toContain('registration-options');expect(evidence.webauthnActions).toContain('registration-verify');
     evidence.registrationVerified=true;
+    if(process.env.M26_QA_U37_VERIFY==='true'){
+      const u37=await page.evaluate(()=>globalThis.__IBERFIT_QA_U37_PROBE__?.());
+      evidence.u37=u37;
+      expect(u37?.ok,'U37 real WebAuthn Coach must access both private scoped QA RPCs').toBe(true);
+      expect(u37?.coreStatus).toBe(200);
+      expect(u37?.coreBytes,'U37 light core should be bounded and independent of history').toBeLessThan(2_000_000);
+      expect(u37?.sampleSchemaIsExpected).toBe(true);
+      expect(u37?.coreRevisionParity).toBe(true);
+    }
 
     const logout=page.locator('[data-m26-action="logout"]').first();
     await expect(logout,'Coach shell must expose semantic logout').toHaveCount(1,{timeout:10_000});
@@ -238,6 +497,47 @@ async function openCertifiedCoachArea(page,area){
       await expect(page.locator('.m26-route').first(),
         device.name+': Coach real planning route').toBeVisible({timeout:12_000});
       await verifyViewport(page,device.name+'-m43-planning');
+      const progressivePlanning=page.locator('[data-coach-planning-progressive]');
+      const surfaceCount=await progressivePlanning.count();
+      const archivalSurfaces=[];
+      for(let surfaceIndex=0;surfaceIndex<surfaceCount;surfaceIndex++){
+        const surface=progressivePlanning.nth(surfaceIndex);
+        const entity=await surface.getAttribute('data-coach-planning-entity');
+        expect(['planning','session'],device.name+': progressive Coach entity must be scoped')
+          .toContain(entity);
+        expect(archivalSurfaces,device.name+': duplicate planning entity').not.toContain(entity);
+        archivalSurfaces.push(entity);
+        const archive=surface.locator('[data-coach-planning-archive]');
+        await expect(archive,device.name+': '+entity+' exposes complete native archive').toHaveCount(1);
+        await expect(archive,device.name+': archive starts collapsed').not.toHaveAttribute('open','');
+        const archiveGroups=archive.locator('.m26-coach-planning-archive-groups');
+        await expect(archiveGroups,'Closed '+entity+' archive MUST hide cards visually').toBeHidden();
+        await archive.locator(':scope > summary').click();
+        await expect(archiveGroups,entity+' archive is discoverable by touch').toBeVisible();
+        const firstBatch=archive.locator('[data-coach-planning-batch]').first();
+        await expect(firstBatch.locator(':scope > .m26-stack'),
+          'Closed '+entity+' batch MUST hide its cards').toBeHidden();
+        await firstBatch.locator(':scope > summary').click();
+        await expect(firstBatch.locator(':scope > .m26-stack'),
+          'Nested '+entity+' batch opens with all controls').toBeVisible();
+        await firstBatch.locator(':scope > summary').click();
+        await archive.locator(':scope > summary').click();
+        await expect(archiveGroups).toBeHidden();
+        const allCards=await surface.locator('[data-publication-card]').count();
+        expect(allCards,entity+': no historical Coach publication removed').toBeGreaterThan(6);
+        (evidence.coachPlanningProgressive??=[]).push({
+          viewport:device.name,entity,allCards,archiveCollapsed:true,
+        });
+      }
+      // Both histories must be collapsed: hiding only Sessions previously
+      // left hundreds of Cycle cards expanding the same 117,764px document.
+      expect(archivalSurfaces,device.name+': both Coach histories need archival grouping')
+        .toEqual(['planning','session']);
+      const scrollHeight=await page.evaluate(()=>
+        document.scrollingElement?.scrollHeight||document.documentElement.scrollHeight);
+      expect(scrollHeight,device.name+': Coach planning cannot create extreme scroll')
+        .toBeLessThan(24_000);
+      (evidence.coachPlanningPageHeight??=[]).push({viewport:device.name,scrollHeight});
       await page.screenshot({path:path.join(OUT_DIR,`m43-${device.name}-coach-planning.png`),fullPage:true});
       evidence.devices.push({...device,passed:true,m43CoachWorkspace:true});
       if(device.name==='desktop'||device.name==='mobile'){
@@ -249,12 +549,70 @@ async function openCertifiedCoachArea(page,area){
     evidence.m43CoachWorkspaceCertified=evidence.devices.length===5;
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
-    expect(consoleErrors,'Authenticated Coach console must remain clean').toEqual([]);
+    const errorResponses=await Promise.all(errorResponseChecks);
+    expect(errorResponses.filter((item)=>!item.knownMissing),
+      'Every HTTP 400/404 must be an authenticated, verified optional avatar absence').toEqual([]);
+    const absentAvatarCount=errorResponses.filter((item)=>item.knownMissing).length;
+    evidence.optionalAvatarAbsentCount=absentAvatarCount;
+    expect(unexpectedQaResourceErrors(consoleErrors,absentAvatarCount),
+      'Authenticated Coach console must have no unexpected errors').toEqual([]);
     expect(pageErrors,'Authenticated Coach page must remain clean').toEqual([]);
-    await mkdir(OUT_DIR,{recursive:true});await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+    const bootstrap=await snapshotBootstrap();
+    expect(bootstrap.requestCount,'Real authenticated Coach bootstrap requests must be observed').toBeGreaterThan(0);
+    expect(bootstrap.failureCount,'Every real Coach bootstrap RPC must finish without HTTP or network error').toBe(0);
+    if(process.env.M26_QA_U56_PUBLISH==='true'){
+      u56Client=await openU56ClientReadOnly(browser,installPolicy);
+      await setDevice(page,cdp,{name:'u56-client-context',width:1440,height:1000,mobile:false,touch:false});
+      expect(await clientSelector.locator('option[value="'+u56Client.clientId+'"]').count(),
+        'Real Coach must be assigned to this exact QA Client A').toBe(1);
+      await clientSelector.selectOption(u56Client.clientId);
+      u56Scope.clientId=u56Client.clientId;
+    }
+    // U59R must run against the authentically MFA-hydrated online Coach
+    // workspace BEFORE U55 intentionally disconnects this context and leaves
+    // a local builder open. Never restore network around unsynced QA drafts.
+    if(process.env.M26_QA_U59_READBACK==='true'){
+      for(const flag of ['M26_QA_U56_PUBLISH','M26_QA_U58_EXECUTE'])
+        expect(process.env[flag], 'U59 never authorizes QA mutation').not.toBe('true');
+      await certifyU59CoachConfirmedReadback({
+        browser,page,cdp,installPolicy,setDevice,evidence,
+      });
+    }
+    u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
+    if(u56Client){
+      await certifyU56OnlineCoachPublish({
+        page,context,cdp,client:u56Client,scope:u56Scope,evidence,setDevice,
+      });
+    }
+    if(process.env.M26_QA_U57_VERIFY==='true'){
+      expect(process.env.M26_QA_U56_PUBLISH,
+        'U57 prior-session readback must never activate the old publication gate')
+        .not.toBe('true');
+      await certifyU57ExistingClientReadback({browser,installPolicy,evidence});
+    }
+    if(process.env.M26_QA_U58_EXECUTE==='true'){
+      expect(process.env.M26_QA_U56_PUBLISH).not.toBe('true');
+      expect(process.env.M26_QA_U57_VERIFY).not.toBe('true');
+      await certifyU58ExistingClientExecution({browser,installPolicy,evidence});
+    }
+
   }finally{
-    await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
-    await cdp.send('WebAuthn.disable').catch(()=>{});
-    await context.close().catch(()=>{});
+    // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
+    // Do not redact an HTTP 500 into success or swallow an unexpected page error.
+    try{
+      evidence.bootstrap=await snapshotBootstrap();
+      evidence.bootstrapPayload=bootstrapPayloadSample?await bootstrapPayloadSample:null;
+      evidence.safeAuthStages=await page.evaluate(()=>{
+        const trace=globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__;
+        return {stages:[...(trace?.stages||[])],diagnostics:[...(trace?.diagnostics||[])]};
+      }).catch(()=>({stages:[],diagnostics:[]}));
+      await mkdir(OUT_DIR,{recursive:true});
+      await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+    }finally{
+      await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
+      await cdp.send('WebAuthn.disable').catch(()=>{});
+      await u56Client?.context.close().catch(()=>{});
+      await context.close().catch(()=>{});
+    }
   }
 });

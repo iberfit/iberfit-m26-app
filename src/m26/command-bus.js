@@ -110,7 +110,7 @@ export function sanitizeOperation(operation) {
   };
 }
 
-export function createCommandBus({ transport, repository, getToken, rehydrate, registry=M26_COMMAND_REGISTRY, getRole=()=>null, now=()=>Date.now() }) {
+export function createCommandBus({ transport, repository, getToken, rehydrate, onPostAckRefreshError=()=>{}, registry=M26_COMMAND_REGISTRY, getRole=()=>null, now=()=>Date.now() }) {
   if (!transport?.preflight || !transport?.execute) throw new Error('M26_TRANSPORT_REQUIRED');
   if (!repository?.put || !repository?.remove || !repository?.list) throw new Error('M26_OPERATION_REPOSITORY_REQUIRED');
   if (typeof getToken !== 'function') throw new Error('M26_TOKEN_PROVIDER_REQUIRED');
@@ -119,6 +119,41 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   // A remote ACK whose local cleanup failed must never be replayed by the
   // same live command bus. Durable server operation IDs protect across reloads.
   const confirmedRemoteOperations=new Map();
+  // Once an exact, authenticated completion ACK is received, its full remote
+  // snapshot supersedes older queued execution mutations. A background flush
+  // or an old browser callback must never send progress after this boundary.
+  const terminalExecutionLineages=new Set();
+  // Restore only authenticated, durable terminal ACKs before a new browser
+  // context can dispatch an old execution mutation. Coalesce the initial
+  // storage read to avoid redundant bootstrap work across concurrent sends.
+  let terminalRecoveryInFlight=null;
+  // Independently retain only exact server ACK revisions for this authenticated
+  // command-bus instance. UI onAck observers may belong to a stale/replaced
+  // execution object after a slow hydrate; never infer a CAS from local state.
+  const confirmedExecutionRevisions=new Map();
+  function recordConfirmedExecutionRevision(command,response){
+    if(command?.entityType!=='session_execution')return;
+    const scope=executionLineage(command);
+    const revision=Number(response?.remoteRevision);
+    const base=Number(command?.baseRevision);
+    if(!scope||!Number.isSafeInteger(revision)||!Number.isSafeInteger(base)
+      ||base<0||revision<=base)return;
+    const previous=confirmedExecutionRevisions.get(scope)||0;
+    confirmedExecutionRevisions.delete(scope);
+    confirmedExecutionRevisions.set(scope,Math.max(previous,revision));
+    // Bounded per-session memory; no persistent data, cross-session sharing
+    // or claim that the latest local edit was remotely accepted.
+    if(confirmedExecutionRevisions.size>256)
+      confirmedExecutionRevisions.delete(confirmedExecutionRevisions.keys().next().value);
+  }
+  function confirmedExecutionRevision(execution){
+    const scope=executionLineage({
+      entityType:'session_execution',
+      entityId:execution?.entityId??execution?.id,
+      clientId:execution?.clientId,
+    });
+    return scope?(confirmedExecutionRevisions.get(scope)||0):0;
+  }
   let flushInFlight=null;
   let localQueueOrder=0;
   const nowMs=()=>{const value=Number(now());if(!Number.isFinite(value))throw new Error('M26_CLOCK_INVALID');return value;};
@@ -150,6 +185,52 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return record;
   }
 
+  function terminalProgressForbidden(command){
+    return command?.entityType==='session_execution'
+      &&!isExecutionCompletionCommand(command)
+      &&terminalExecutionLineages.has(executionLineage(command));
+  }
+  async function sealConfirmedExecutionCompletion(command){
+    const lineage=executionLineage(command);
+    if(!lineage)return;
+    // Set synchronously before any storage await, closing late callback races.
+    terminalExecutionLineages.add(lineage);
+    const records=await repository.list();
+    for(const record of records){
+      if(executionLineage(record)!==lineage||record.status!=='pending'
+        ||record.retryable===false||isExecutionCompletionCommand(record))continue;
+      // Preserve identity/payload for diagnostics. Do not claim these stale
+      // commands were accepted: the confirmed terminal snapshot owns history.
+      await repository.put({
+        ...structuredClone(record),
+        status:'rejected',retryable:false,nextRetryAt:null,
+        errorCode:'M26_EXECUTION_SUPERSEDED_BY_COMPLETION',
+        updatedAt:new Date(nowMs()).toISOString(),
+      });
+    }
+  }
+
+  async function restoreTerminalCompletionFence(){
+    if(terminalRecoveryInFlight)return terminalRecoveryInFlight;
+    terminalRecoveryInFlight=(async()=>{
+      const archived=await repository.list();
+      for(const record of archived){
+        if(record?.status==='ack'&&durableCompletionPatch(record,record.entityId))
+          await sealConfirmedExecutionCompletion(record);
+      }
+    })().catch(error=>{
+      // A storage read failure is fail-closed for this dispatch; allow a
+      // subsequent attempt to recover when the local store is accessible.
+      terminalRecoveryInFlight=null;
+      throw error;
+    });
+    return terminalRecoveryInFlight;
+  }
+  async function assertNotTerminalExecutionMutation(command){
+    if(command?.entityType!=='session_execution'||isExecutionCompletionCommand(command))return;
+    await restoreTerminalCompletionFence();
+    if(terminalProgressForbidden(command))throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+  }
   async function alignStoredContract(record){
     const definition=getCommandDefinition(record?.type,registry);
     if(!definition||record?.conflictSensitive===definition.conflictSensitive)return record;
@@ -195,22 +276,69 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
 
   async function enqueue(commandInput) {
     const command = createCommand(commandInput,{registry,role:getRole?.()});
+    await assertNotTerminalExecutionMutation(command);
     const createdAt=safeCreatedAt(commandInput?.createdAt);
     const queued = await persist(command, 'pending', { createdAt, retryable: true, queuedOffline: true,attempts:safeAttempts(commandInput?.attempts),nextRetryAt:null,queueOrder:await nextQueueOrder() });
+    // Offline enqueue also crosses async storage boundaries. A completion
+    // ACK may land while its queue order or persistence was being written.
+    if(terminalProgressForbidden(command)){
+      try{
+        await repository.put({
+          ...structuredClone(queued),status:'rejected',retryable:false,
+          nextRetryAt:null,errorCode:'M26_EXECUTION_SUPERSEDED_BY_COMPLETION',
+          updatedAt:new Date(nowMs()).toISOString(),
+        });
+      }catch{}
+      throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+    }
     return { ok: false, queued: true, kind: 'queued', command: sanitizeOperation(queued), response: null };
   }
 
-  async function executeOnce(command, {createdAt,attempts=0,queuedOffline=false,queueOrder=null}={}) {
+  async function executeOnce(command, {createdAt,attempts=0,queuedOffline=false,queueOrder=null,onAck=null}={}) {
     const token = await getToken();
     if (!token) throw new Error('M26_AUTH_REQUIRED');
+    // An execution may have completed while a stale callback awaited token
+    // refresh. On a fresh page this also restores exact persisted terminal ACKs
+    // even if the ordinary background flush has not started yet.
+    await assertNotTerminalExecutionMutation(command);
     const previousAttempts=safeAttempts(attempts);
     const queueMeta={createdAt,attempts:previousAttempts,nextRetryAt:null,retryable:true,queuedOffline:queuedOffline===true};
     if(safeQueueOrder(queueOrder)!==null)queueMeta.queueOrder=safeQueueOrder(queueOrder);
     const queued = await persist(command, 'pending', queueMeta);
+    // The completion ACK may land *during* IndexedDB persistence. Recheck at
+    // the last synchronous dispatch boundary, before any transport request.
+    // Preserve the local operation as rejected, never as a retryable write.
+    if(terminalProgressForbidden(command)){
+      try{
+        await repository.put({
+          ...structuredClone(queued),status:'rejected',retryable:false,
+          nextRetryAt:null,errorCode:'M26_EXECUTION_SUPERSEDED_BY_COMPLETION',
+          updatedAt:new Date(nowMs()).toISOString(),
+        });
+      }catch{
+        // The in-memory terminal fence still forbids network dispatch; the
+        // durable completion ACK is recovered again on the next boot.
+      }
+      throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
+    }
     try {
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
       if (kind === 'ack' || kind === 'duplicate') {
+        recordConfirmedExecutionRevision(command,response);
+        if(isExecutionCompletionCommand(command)){
+          // Close the live browser race immediately. No storage failure may
+          // downgrade the already-committed server ACK to a retryable write.
+          terminalExecutionLineages.add(executionLineage(command));
+        }
+        // The remote revision is known at ACK arrival. Give the active
+        // execution its server-confirmed CAS value BEFORE the optional full
+        // bootstrap refresh. A slow refresh must never leave the next set
+        // using the previous baseRevision. This hook is advisory and cannot
+        // turn an authoritative ACK into another mutation or failed result.
+        if(typeof onAck==='function'){
+          try{onAck(response,command);}catch{}
+        }
         let acknowledged=null,localReceiptOk=true;
         // The server ACK is authoritative even when local receipt persistence
         // or cleanup fails. A durable ACK tombstone is preferred if removal
@@ -224,19 +352,40 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
             catch{acknowledged=await persist(command,'ack',ackMeta);}
           }
         }catch{localReceiptOk=false;}
+        if(isExecutionCompletionCommand(command)){
+          try{await sealConfirmedExecutionCompletion(command);}
+          catch{localReceiptOk=false;}
+        }
         // The server ACK is authoritative. Post-ACK local reconciliation can
         // fail because of a refresh, another tab or offline storage. Never turn
         // a successful publication into a new pending/rejected mutation:
         // retrying a different operation ID could otherwise create duplicates.
         let lineageOk=true,refreshOk=true;
-        try { await rebaseNextQueuedLineage({...queued,...command},response); }
-        catch { lineageOk=false; }
-        if(typeof rehydrate==='function'){
+        if(!isExecutionCompletionCommand(command)){
+          try { await rebaseNextQueuedLineage({...queued,...command},response); }
+          catch { lineageOk=false; }
+        }
+        // A server-confirmed workout completion is already durable. The optional
+        // full bootstrap is not a part of its CAS or persistence boundary:
+        // holding the ACK behind it can make the Client show "pending" after
+        // the server actually closed the workout. Start that read on the next
+        // event-loop turn, AFTER the caller can apply its authoritative ACK.
+        // Other commands retain the existing awaited refresh contract.
+        const deferredCompletionRefresh=typeof rehydrate==='function'&&isExecutionCompletionCommand(command);
+        if(deferredCompletionRefresh){
+          setTimeout(()=>{
+            void Promise.resolve().then(()=>rehydrate({reason:kind,response})).catch(error=>{
+              try{onPostAckRefreshError(error,{commandType:command.type,operationId:command.operationId});}catch{}
+            });
+          },0);
+        }else if(typeof rehydrate==='function'){
           try { await rehydrate({reason:kind,response}); }
           catch { refreshOk=false; }
         }
         const ackResult={ ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
-          response,refreshOk,lineageOk,localReceiptOk,refreshPending:!refreshOk||!localReceiptOk };
+          response,refreshOk:deferredCompletionRefresh?null:refreshOk,
+          refreshDeferred:deferredCompletionRefresh,lineageOk,localReceiptOk,
+          refreshPending:deferredCompletionRefresh||!refreshOk||!localReceiptOk };
         if(!localReceiptOk)confirmedRemoteOperations.set(command.operationId,{fingerprint:commandFingerprint(command),result:ackResult});
         else confirmedRemoteOperations.delete(command.operationId);
         return ackResult;
@@ -271,13 +420,15 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     }
   }
 
-  function execute(commandInput) {
+  function execute(commandInput,{onAck=null}={}) {
+    if(onAck!==null&&typeof onAck!=='function')throw new Error('M26_ACK_OBSERVER_INVALID');
     const command = createCommand(commandInput,{registry,role:getRole?.()}),fingerprint=commandFingerprint(command);
+    if(terminalProgressForbidden(command))return Promise.reject(new Error('M26_EXECUTION_ALREADY_COMPLETED'));
     const existing=inFlight.get(command.operationId);
     if(existing){if(existing.fingerprint!==fingerprint)return Promise.reject(new Error('M26_OPERATION_ID_COLLISION'));return existing.promise;}
     const confirmed=confirmedRemoteOperations.get(command.operationId);
     if(confirmed){if(confirmed.fingerprint!==fingerprint)return Promise.reject(new Error('M26_OPERATION_ID_COLLISION'));return Promise.resolve(confirmed.result);}
-    const promise=executeOnce(command,{createdAt:commandInput?.createdAt||undefined,attempts:commandInput?.attempts||0,queuedOffline:commandInput?.queuedOffline===true,queueOrder:commandInput?.queueOrder}).finally(()=>{
+    const promise=executeOnce(command,{createdAt:commandInput?.createdAt||undefined,attempts:commandInput?.attempts||0,queuedOffline:commandInput?.queuedOffline===true,queueOrder:commandInput?.queueOrder,onAck}).finally(()=>{
       if(inFlight.get(command.operationId)?.promise===promise)inFlight.delete(command.operationId);
     });
     inFlight.set(command.operationId,{promise,fingerprint});
@@ -311,6 +462,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     if(confirmed)return confirmed.result;
     const records = await repository.list();
     let record = records.find((item) => item.operationId === operationId);
+    if(record&&terminalProgressForbidden(record))throw new Error('M26_EXECUTION_ALREADY_COMPLETED');
     if (!record) throw new Error('M26_OPERATION_NOT_FOUND');
     if (record.status === 'conflict' || record.retryable === false) throw new Error('M26_OPERATION_NOT_RETRYABLE');
     if(blockingPredecessor(record,records))throw new Error('M26_OPERATION_BLOCKED_BY_PREDECESSOR');
@@ -319,6 +471,14 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   }
 
   async function runFlush({ limit = 20, stopOnConflict = false } = {}) {
+    // After a process restart, an ACK tombstone can survive the recovery
+    // checkpoint. Apply its completion boundary before selecting any queued
+    // command from the same execution lineage.
+    const archived=await repository.list();
+    for(const record of archived){
+      if(record.status==='ack'&&durableCompletionPatch(record,record.entityId))
+        await sealConfirmedExecutionCompletion(record);
+    }
     const requested=Number(limit);const safeLimit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):20;const at=nowMs();const results=[];
     while(results.length<safeLimit){
       const records=await repository.list();
@@ -350,7 +510,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return flushInFlight;
   }
 
-  return Object.freeze({ preflight, execute, enqueue, pending, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
+  return Object.freeze({ preflight, execute, enqueue, pending, confirmedExecutionRevision, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
 }
 
 export function createMemoryOperationRepository() {

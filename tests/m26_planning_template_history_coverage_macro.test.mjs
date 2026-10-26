@@ -43,7 +43,10 @@ test('si todos los ejercicios tienen memoria no se inventa una tarea pendiente',
   });
   assert.match(html,/2\/2 ejercicios con historial confirmado\./u);
   assert.match(html,/Historial disponible para todos/u);
-  assert.doesNotMatch(html,/data-session-review-block/u);
+  // A block index may navigate independently of missing-history guidance.
+  // No history gap means no suggested action, not no navigation capability.
+  assert.doesNotMatch(html,/Revisar primer bloque sin historial/u);
+  assert.match(html,/data-session-builder-block-index/u);
 });
 
 test('navegación a hueco de historial es local y no entra en command bus',()=>{

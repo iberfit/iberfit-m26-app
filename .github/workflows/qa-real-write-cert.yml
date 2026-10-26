@@ -10,6 +10,9 @@ on:
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
       - 'qa/rc64/m43-client-real-history.spec.mjs'
+      - 'qa/rc64/m43-client-interactive.spec.mjs'
+      - 'qa/rc64/secure-current-source-auth.mjs'
+      - 'playwright.m43-interactive-client.config.mjs'
       - 'playwright.m43-authenticated-browser.config.mjs'
       - 'supabase/qa-migrations/**'
       - 'supabase/qa-rollbacks/**'
@@ -31,6 +34,9 @@ on:
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
       - 'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs'
       - 'qa/rc64/m43-client-real-history.spec.mjs'
+      - 'qa/rc64/m43-client-interactive.spec.mjs'
+      - 'qa/rc64/secure-current-source-auth.mjs'
+      - 'playwright.m43-interactive-client.config.mjs'
       - 'playwright.m43-authenticated-browser.config.mjs'
       - 'supabase/qa-migrations/**'
       - 'supabase/qa-rollbacks/**'
@@ -48,10 +54,14 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 concurrency:
-  group: iberfit-qa-real-write-cert
+  # Separate pending certifications by PR: GitHub replaces older pending
+  # runs within one concurrency group even when cancel-in-progress is false.
+  # Per-job iberfit-qa-shared-auth-readonly still serializes shared QA identities.
+  group: iberfit-qa-real-write-cert-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -261,6 +271,7 @@ jobs:
           node-version: '22'
       - name: Execute M43 Coach-Client authenticated QA lifecycle
         env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
@@ -276,7 +287,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: iberfit-m43-real-qa-${{ github.run_id }}
+          name: iberfit-m43-real-qa-${{ github.run_id }}-a${{ github.run_attempt }}
           path: recovery/m43-qa/coach-client-real-write.json
           if-no-files-found: warn
           retention-days: 30
@@ -322,6 +333,22 @@ jobs:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
         run: node qa/rc64/build-authenticated-surface.mjs
+      # The writer may be from an earlier successful attempt when GitHub only
+      # reruns failed jobs. Never invent fixtures under the browser attempt.
+      - name: Resolve authenticated writer provenance from this exact run
+        id: m43-writer
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+        run: node scripts/remote-gates/m43-writer-handoff.mjs discover
+      - name: Download exact successful M43 writer evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.m43-writer.outputs.name }}
+          path: .tmp/m43-writer-evidence
+      - name: Certify matching writer provenance fail-closed
+        env:
+          M26_M43_SELECTED_WRITER_ATTEMPT: ${{ steps.m43-writer.outputs.writer_attempt }}
+        run: node scripts/remote-gates/m43-writer-handoff.mjs verify
       - name: Certify Client session and history in mobile tablet desktop
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -330,9 +357,20 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
         run: npx playwright test --config playwright.m43-authenticated-browser.config.mjs
+      - name: Certify real Client UI start pause resume set finish and persisted history
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: npx playwright test --config playwright.m43-interactive-client.config.mjs
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -340,6 +378,7 @@ jobs:
           name: iberfit-m43-auth-client-browser-${{ github.run_id }}
           path: |
             recovery/m43-qa/browser/
+            recovery/m43-qa/browser-interactive/
             test-results/
             playwright-report/
           if-no-files-found: error

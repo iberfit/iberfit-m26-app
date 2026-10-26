@@ -5,6 +5,22 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE B10: proactive Coach Builder readiness without hidden i18n regressions.
+  ["Añade al menos un ejercicio para revisar la sesión.","Add at least one exercise before reviewing the session.","Ajoutez au moins un exercice avant de vérifier la séance.","Adicione pelo menos um exercício antes de rever a sessão."],
+  ["Selecciona un Cliente antes de revisar.","Select a client before reviewing.","Sélectionnez un client avant de vérifier.","Selecione um cliente antes de rever."],
+  ["Indica un título válido para la sesión.","Enter a valid title for the session.","Indiquez un titre valide pour la séance.","Indique um título válido para a sessão."],
+  ["La duración debe estar entre 10 y 240 minutos.","Duration must be between 10 and 240 minutes.","La durée doit être comprise entre 10 et 240 minutes.","A duração deve ser entre 10 e 240 minutos."],
+  ["Elige si la sesión es presencial o guiada en la aplicación.","Choose whether the session is Coach-led or guided in the app.","Choisissez une séance en présentiel ou guidée dans l’application.","Escolha se a sessão é presencial ou guiada na aplicação."],
+  ["Añade ejercicios a la sesión antes de revisar.","Add exercises to the session before reviewing.","Ajoutez des exercices à la séance avant de vérifier.","Adicione exercícios à sessão antes de rever."],
+  ["Completa el grupo de entrenamiento o ciérralo para corregirlo.","Complete the training group or close it to make changes.","Complétez le groupe d’entraînement ou fermez-le pour le corriger.","Complete o grupo de treino ou feche-o para o corrigir."],
+  ["Revisa las rondas de los grupos.","Check the number of rounds in each group.","Vérifiez le nombre de tours des groupes.","Reveja o número de rondas dos grupos."],
+  ["Hay un ejercicio que ya no está disponible en la biblioteca.","An exercise is no longer available in the library.","Un exercice n’est plus disponible dans la bibliothèque.","Um exercício já não está disponível na biblioteca."],
+  ["Revisa las series, repeticiones y descansos de los ejercicios.","Check sets, repetitions and rest intervals for the exercises.","Vérifiez les séries, répétitions et temps de repos des exercices.","Reveja as séries, repetições e pausas dos exercícios."],
+  ["Revisa el tiempo, la distancia y las métricas prescritas.","Check prescribed time, distance and exercise metrics.","Vérifiez le temps, la distance et les mesures prescrites.","Reveja o tempo, a distância e as métricas prescritas."],
+  ["Revisa el ejercicio alternativo seleccionado.","Check the selected alternative exercise.","Vérifiez l’exercice alternatif sélectionné.","Reveja o exercício alternativo selecionado."],
+  ["Revisa los datos de la sesión antes de continuar.","Review the session details before continuing.","Vérifiez les informations de la séance avant de continuer.","Reveja os dados da sessão antes de continuar."],
+  ["Ir a la biblioteca","Go to the library","Aller à la bibliothèque","Ir para a biblioteca"],
+  ["Revisar bloque","Review block","Vérifier le bloc","Rever bloco"],
   // SIGNATURE U19: sensor freshness, disconnection and signal-gap recovery.
   ['Señal interrumpida: el gráfico no une periodos sin mediciones.','Signal interrupted: the chart does not connect periods without measurements.','Signal interrompu : le graphique ne relie pas les périodes sans mesure.','Sinal interrompido: o gráfico não liga períodos sem medições.'],
   ['Sin señal en directo. Revisa la conexión del dispositivo.','No live signal. Check your device connection.','Aucun signal en direct. Vérifiez la connexion de votre appareil.','Sem sinal em direto. Verifique a ligação do dispositivo.'],

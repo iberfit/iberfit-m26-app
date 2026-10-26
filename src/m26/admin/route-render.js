@@ -130,8 +130,10 @@ function operationItem(item,{canManage=false}={}){
     (task.dueAt?'Fecha límite no verificable':'Sin plazo definido');
   const outcome=!item.open&&task.resolutionNote
     ?`<p class="m26-admin-operation-outcome"><strong>Resolución:</strong> ${e(task.resolutionNote)}</p>`:'';
-  const resolve=canManage&&item.open?form('task-resolve',
-    `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Resolver incidencia'):'';
+  const resolve=canManage&&item.open
+    ?`<details class="m26-admin-operation-resolve"><summary>Resolver incidencia <small>Requiere motivo y revisión vigente</small></summary>${form('task-resolve',
+      `<input type="hidden" name="taskId" value="${e(task.id)}"><input type="hidden" name="baseRevision" value="${e(task.revision||0)}"><label>Motivo de resolución<input name="reason" minlength="3" required maxlength="500" placeholder="Qué se resolvió y cómo"></label>`,'Resolver incidencia')}</details>`
+    :'';
   return `<article class="m26-admin-operation-item${item.overdue?' is-overdue':''}" data-admin-operation-status="${item.open?'open':'closed'}" data-admin-operation-priority="${e(String(task.priority||'normal').toLowerCase())}">
     <div class="m26-admin-operation-top"><div class="m26-admin-operation-title"><span class="m26-eyebrow">${e(operationStatusLabel(task.status))}</span><h3>${e(title)}</h3></div><strong class="m26-admin-operation-priority" data-priority="${item.priorityRank===0?'critical':item.priorityRank===1?'high':'normal'}">${e(item.priorityLabel)}</strong></div>
     ${task.detail?`<p class="m26-admin-operation-detail">${e(task.detail)}</p>`:''}
@@ -183,8 +185,16 @@ function renderAudit(vm){
     events:vm.events||[],timeZone:vm.organization?.timezone,locale:vm.organization?.locale,
   });
   const count=timeline.summary.total;
-  const content=count?`<ol class="m26-admin-audit-timeline">${timeline.events.map(renderAuditEvent).join('')}</ol>`:
-    empty('Sin eventos','No hay auditoría visible en los registros autorizados.');
+  // Preserve the complete canonical audit timeline, but do not place every
+  // old event in the first visual scan. Native details keeps it keyboard/AT
+  // accessible, with no filtering or invented event state.
+  const recent=timeline.events.slice(0,12);
+  const older=timeline.events.slice(12);
+  const content=count
+    ?`<ol class="m26-admin-audit-timeline">${recent.map(renderAuditEvent).join('')}</ol>${older.length
+      ?`<details class="m26-admin-audit-archive"><summary>Consultar ${older.length} eventos adicionales</summary><ol class="m26-admin-audit-timeline" start="13">${older.map(renderAuditEvent).join('')}</ol></details>`
+      :''}`
+    :empty('Sin eventos','No hay auditoría visible en los registros autorizados.');
   return `<div class="m26-admin-route m26-admin-audit-route" data-admin-surface="audit">
     ${intro('Seguridad y responsabilidad','Auditoría','Quién intervino, sobre qué entidad y cuándo. El resultado no se presupone cuando el registro no lo contiene.')}
     <section class="m26-admin-panel" aria-labelledby="m26-admin-audit-title">
@@ -194,18 +204,44 @@ function renderAudit(vm){
   </div>`;
 }
 function renderHome(vm){
-  const cc=vm.commandCenter||{summary:{},priorities:[],coachLoad:[],criticalTasks:[]};
+  const cc=vm.commandCenter||{summary:{},priorities:[],coachLoad:[]};
   const s=cc.summary||{};
-  const priorities=cc.priorities?.length?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Servicio al día','No hay recorridos de cliente que requieran una decisión administrativa.');
+  const triage=vm.operationTriage||deriveAdminOperationsTriage({
+    tasks:vm.tasks||[],timeZone:vm.organization?.timezone||'America/Santiago',
+  });
+  const urgent=triage.open.filter((item)=>item.priorityRank<=1||item.overdue);
+  const urgentRows=urgent.slice(0,3).map((item)=>{
+    const task=item.task||{};
+    const context=[item.priorityLabel,item.overdue?'Vencida':item.dueToday?'Vence hoy':null,item.ownerLabel].filter(Boolean).join(' · ');
+    return `<li class="m26-admin-command-urgent-row"><div><strong>${e(task.title||task.type||'Incidencia')}</strong><small>${e(context)}</small></div><button type="button" data-m26-area="admin-operaciones">Revisar incidencia</button></li>`;
+  }).join('');
+  const urgency=urgent.length
+    ?`<section class="m26-admin-command-urgent" aria-labelledby="m26-admin-urgent-title"><header><div><p class="m26-eyebrow">Incidencias verificadas</p><h4 id="m26-admin-urgent-title">Operación que requiere atención</h4></div>${badge(urgent.length===1?'1 incidencia prioritaria':String(urgent.length)+' incidencias prioritarias')}</header><ol>${urgentRows}</ol>${urgent.length>3?'<p class="m26-admin-command-more">Se muestran 3 de '+urgent.length+'. Consulta el centro operativo para revisar todas.</p>':''}</section>`
+    :'';
+  const clientCount=cc.priorities?.length||0;
+  const priorities=clientCount?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Recorridos sin alertas','No hay recorridos de cliente que requieran una decisión administrativa.');
   const loads=cc.coachLoad?.length?cc.coachLoad.map(coachLoadCard).join(''):empty('Sin carga registrada','La capacidad del equipo aparecerá aquí cuando exista información.');
+  const tasks=triage.open.slice(0,12).map((item)=>{
+    const task=item.task||{};
+    const context=[item.priorityLabel,item.overdue?'Vencida':item.dueToday?'Vence hoy':null,item.ownerLabel].filter(Boolean).join(' · ');
+    return `<div class="m26-admin-list-item"><div><strong>${e(task.title||task.type||'Incidencia')}</strong><small>${e(context)}</small></div>${badge(operationStatusLabel(task.status))}</div>`;
+  }).join('');
+  const audit=deriveAdminAuditTimeline({
+    events:vm.audit||[],timeZone:vm.organization?.timezone||'America/Santiago',
+    locale:vm.organization?.locale||'es-CL',
+  }).events.slice(0,8);
+  const recentAudit=audit.map((item)=>`<div class="m26-admin-list-item"><strong>${e(item.title)}</strong><time${item.dateIso?(' datetime="'+e(item.dateIso)+'"'):''}>${e(item.dateLabel)}</time></div>`).join('');
   return `<div class="m26-admin-route m30-admin-command-route" data-admin-surface="command-center">
-    ${intro('Dirección del servicio','IBERFIT Command Center','Una única vista para decidir qué necesita atención en clientes, equipo y operación.')}
+    ${intro('Dirección del servicio','IBERFIT Command Center','Prioridades verificadas, capacidad de equipo y trazabilidad. Primero lo que requiere una decisión.')}
     <section class="m26-admin-panel m26-admin-command m30-admin-decision-center" data-admin-priority-center aria-labelledby="m30-admin-priority-title">
-      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Priorizado por asignación y etapa del recorrido IBERFIT.</p></div>${badge(cc.priorities?.length?`${cc.priorities.length} por revisar`:'Al día')}</div>
+      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Incidencias abiertas por gravedad y plazo; después, recorridos de cliente por etapa y asignación.</p></div>${badge(clientCount?String(clientCount)+' clientes por revisar':'Clientes al día')}</div>
+      ${urgency}
+      <div class="m26-admin-command-client-heading"><h4>Seguimiento de clientes</h4>${clientCount>8?'<span>Primeros 8 de '+clientCount+'</span>':''}</div>
       <div class="m26-admin-priority-list">${priorities}</div>
+      ${clientCount>8?'<p class="m26-admin-command-more">El resto de clientes está disponible en CRM y clientes.</p>':''}
     </section>
     <section class="m26-admin-stats m30-admin-kpis" aria-label="Indicadores de operación">
-      ${stat('Clientes activos',s.activeClients??vm.summary.activeClients??0)}
+      ${stat('Clientes activos',s.activeClients??vm.summary?.activeClients??0)}
       ${stat('En pausa',s.pausedClients??0)}
       ${stat('Sin Coach',s.unassignedClients??0)}
       ${stat('IRI pendientes',s.iriPending??0)}
@@ -213,10 +249,10 @@ function renderHome(vm){
       ${stat('Sin próxima cita',s.schedulingPending??0)}
     </section>
     <section class="m26-admin-grid m30-admin-operations-grid">
-      <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo</p><h3>Capacidad de Coaches</h3></div></div><div class="m26-admin-load-list">${loads}</div></article>
-      <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Operación</p><h3>Tareas abiertas</h3></div>${badge(s.criticalTasks?`${s.criticalTasks} prioritarias`:`${s.openTasks||0} abiertas`)}<button type="button" data-m26-area="admin-operaciones">Ver incidencias</button></div>${vm.tasks.length?vm.tasks.map((x)=>`<div class="m26-admin-list-item"><div><strong>${e(x.title||x.type)}</strong><small>${e(x.detail||'')}</small></div>${badge(x.status)}</div>`).join(''):empty('Sin tareas','No hay incidencias abiertas.')}</article>
+      <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo</p><h3>Capacidad de Coaches</h3></div><button type="button" data-m26-area="admin-equipo">Ver equipo</button></div><div class="m26-admin-load-list">${loads}</div></article>
+      <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Operación</p><h3>Tareas abiertas</h3><p>${triage.summary.open>12?'Mostrando 12 de '+triage.summary.open:triage.summary.open+' en total'}</p></div>${badge(s.criticalTasks?String(s.criticalTasks)+' prioritarias':String(s.openTasks??triage.summary.open)+' abiertas')}<button type="button" data-m26-area="admin-operaciones">Ver incidencias</button></div>${tasks||empty('Sin tareas','No hay incidencias abiertas.')}</article>
     </section>
-    <section class="m26-admin-panel m30-admin-audit"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Trazabilidad</p><h3>Actividad administrativa reciente</h3></div></div>${vm.audit.length?vm.audit.slice(0,8).map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.summary||x.eventType)}</strong><small>${e(x.occurredAt||'')}</small></div>`).join(''):empty('Sin eventos','Todavía no hay actividad administrativa.')}</section>
+    <section class="m26-admin-panel m30-admin-audit"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Trazabilidad</p><h3>Actividad administrativa reciente</h3><p>Últimos registros visibles, sin presumir resultado.</p></div><button type="button" data-m26-area="admin-auditoria">Ver auditoría</button></div>${recentAudit||empty('Sin eventos','Todavía no hay actividad administrativa visible.')}</section>
   </div>`;
 }
 function adminClientAccessLabel(status){
@@ -286,7 +322,39 @@ function renderUsers(vm){
     const integrity=(u.integrityIssues||[]).length
       ?`<div class="m26-admin-user360-warning" role="status"><strong>Revisión de integridad requerida</strong><small>${e((u.integrityIssues||[]).map((issue)=>issue.code).join(' · '))}</small></div>`
       :'';
-    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
+    // B5: operational decisions above the fold; preserve *all* secondary facts
+    // and privileged forms behind native, keyboard-accessible disclosure.
+    // Identity, Auth access and integrity must never be inferred from email.
+    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}" data-user-access-state="${e(accessStatus)}" data-user-integrity="${(u.integrityIssues||[]).length>0?'true':'false'}" data-user-unlinked="${(currentRole==='client'||roles.includes('client'))&&(!u.access||(accessStatus==='activo'&&u.access.authLinked!==true))?'true':'false'}">
+      <details class="m26-admin-user360-disclosure" data-admin-user-disclosure${(u.integrityIssues||[]).length?' open':''}>
+        <summary class="m26-admin-user360-summary">
+          <span class="m26-admin-user360-summary-identity"><small>Cuenta 360</small><strong>${e(u.name||u.authEmail||u.email||'Usuario')}</strong><small>${e(u.authEmail||u.email||'Sin correo de acceso')}</small></span>
+          <span class="m26-admin-user360-summary-roles">${roles.length?roles.map(role=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</span>
+          <span class="m26-admin-user360-summary-access"><small>Último acceso</small><strong>${lastAccess}</strong></span>
+          <span class="m26-admin-user360-summary-state">${badge(adminStatusLabel(u.status))}${(u.integrityIssues||[]).length?'<small class="m26-admin-user360-attention">Revisión requerida</small>':''}</span>
+          <span class="m26-admin-user360-summary-toggle" aria-hidden="true">Ficha</span>
+        </summary>
+        <div class="m26-admin-user360-details">
+      <div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360 · identidad y acceso</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div>
+      <div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div>
+      <dl class="m26-admin-user360-grid m26-admin-user360-essentials">
+        <div><dt>Acceso Cliente</dt><dd>${access}</dd></div>
+        <div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div>
+        <div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div>
+      </dl>
+      ${integrity}
+      <details class="m26-admin-user360-context">
+        <summary>Ver datos de la cuenta</summary>
+        <dl class="m26-admin-user360-grid m26-admin-user360-context-grid">
+          <div><dt>Relación operativa</dt><dd>${relation}</dd></div>
+          <div><dt>Correo de contacto</dt><dd>${contact}</dd></div>
+          <div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div>
+        </dl>
+      </details>
+      ${management}
+        </div>
+      </details>
+    </article>`;
   }).join('');
   const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
     <label class="m26-admin-user-search"><span>Buscar</span><input type="search" data-admin-user-search autocomplete="off" placeholder="Nombre, correo, cliente o Coach" aria-label="Buscar usuario por nombre, correo, cliente o Coach"></label>

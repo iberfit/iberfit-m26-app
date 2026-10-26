@@ -9,6 +9,9 @@ const REJECTED_PREFIXES=[
   'scripts/auth/',
 ];
 const REJECTED_PATHS=new Set(['supabase/config.toml']);
+// QA migration/rollback SQL files are inert repository evidence in a
+// frontend-only release. They must never become executable backend modules.
+const QA_SOURCE_SQL=/^supabase\/qa-(?:migrations|rollbacks)\/[0-9a-z][0-9a-z._-]*\.sql$/u;
 
 // A frontend-only release does not run SQL. New migration/rollback source files
 // remain unapplied and must never be mistaken for a completed DB migration.
@@ -26,10 +29,13 @@ export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,c
       throw Error('FRONTEND_ONLY_DIFF_PATH_INVALID');
     }
     if(REJECTED_PATHS.has(path)||REJECTED_PREFIXES.some(prefix=>path.startsWith(prefix))||
-       (path.startsWith('supabase/')&&!/^supabase\/(?:migrations|rollbacks)\//u.test(path))){
+       (path.startsWith('supabase/')&&
+        !/^supabase\/(?:migrations|rollbacks)\//u.test(path)&&
+        !QA_SOURCE_SQL.test(path))){
       blocked.push(path);
     }
-    if(/^supabase\/(?:migrations|rollbacks)\//u.test(path))unappliedMigrations.push(path);
+    if(/^supabase\/(?:migrations|rollbacks)\//u.test(path)||QA_SOURCE_SQL.test(path))
+      unappliedMigrations.push(path);
   }
   if(blocked.length){
     // File paths, never API keys, are safe to output in the protected CI log.

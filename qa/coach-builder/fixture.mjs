@@ -24,14 +24,14 @@ const state={
 const viewModel=createShellViewModel(state);
 function draft(mode){
   const blocks=mode==='empty'?[]:[
-    {id:'u14-block-1',type:'exercise',exerciseId:EXERCISE.id,name:EXERCISE.name_es,sets:3,reps:'8–12',targetRpe:7,restSeconds:60},
-    {id:'u14-block-2',type:'exercise',exerciseId:EXERCISE.id,name:EXERCISE.name_es,sets:2,reps:'10',targetRpe:7,restSeconds:75},
+    {id:'u14-block-1',type:'exercise',exerciseId:EXERCISE.id,name:EXERCISE.name_es,sets:3,reps:'8–12',targetRpe:7,targetRir:mode==='editing-invalid'?undefined:2,restSeconds:60},
+    {id:'u14-block-2',type:'exercise',exerciseId:EXERCISE.id,name:EXERCISE.name_es,sets:2,reps:'10',targetRpe:7,targetRir:2,restSeconds:75},
   ];
   return {id:'u14-session',title:'Fuerza base A',clientId:CLIENT,blocks,durationMinutes:55,
     deliveryModality:'presencial',previewAccepted:mode==='preview',activeGroupId:null};
 }
 function render(mode){
-  if(!['empty','editing','preview'].includes(mode))throw new Error('SIGNATURE_COACH_BUILDER_MODE_INVALID');
+  if(!['empty','editing','editing-invalid','preview'].includes(mode))throw new Error('SIGNATURE_COACH_BUILDER_MODE_INVALID');
   root.innerHTML=renderM26Shell(viewModel,renderSessionBuilder({
     draft:draft(mode),catalog,role:'coach',mediaMap:null,actionState:{status:'idle',message:''},filters:{},query:'',
   }));

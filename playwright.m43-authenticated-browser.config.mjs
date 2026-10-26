@@ -8,7 +8,7 @@ export default defineConfig({
   expect:{timeout:15_000},
   use:{baseURL:'http://127.0.0.1:4198',locale:'es-ES',
     timezoneId:'America/Santiago',serviceWorkers:'block',
-    screenshot:'only-on-failure',trace:'retain-on-failure',
+    screenshot:'only-on-failure',trace:'off',
     reducedMotion:'reduce'},
   webServer:{command:'node qa/rc64/real-shell-server.mjs 4198 127.0.0.1',
     url:'http://127.0.0.1:4198/',reuseExistingServer:false,timeout:30_000},

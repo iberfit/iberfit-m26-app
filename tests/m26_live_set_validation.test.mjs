@@ -49,3 +49,12 @@ test('public enhancer disables invalid completion and exposes accessible guidanc
   assert.match(text,/button\.setAttribute\('aria-disabled',result\.valid\?'false':'true'\)/);
   assert.match(text,/root\.addEventListener\('input',onInput\)/);
 });
+
+test('Client set validation is reconciled after saved observations hydrate on shell render',()=>{
+  const app=readFileSync(new URL('../public/m26/app.js',import.meta.url),'utf8');
+  const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  assert.match(app,/function onShellRendered\(\)\{[\s\S]*?refresh\(\);[\s\S]*?queueMicrotask\(syncLiveSetRequirements\)/u);
+  assert.match(controller,/render=\(\)=>\{baseRender\?\.\(\);hydrateActiveSetDraft\(getContext\(\)\)/u);
+  assert.match(app,/button\.disabled=!result\.valid/u);
+  assert.match(app,/root\.addEventListener\('input',onInput\)/u);
+});

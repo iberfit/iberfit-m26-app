@@ -82,6 +82,17 @@ export function iriPhotoMutationRequiresReload(records,hostNode){
     return Boolean(target)&&target!==hostNode&&!hostNode.contains?.(target);
   });
 }
+
+/** Optional IRI reads may finish after the professional switches clients, routes or sessions.
+ * A response/error from a detached host is stale; current-panel failures remain errors.
+ * Never infer authorization from a cached snapshot; only scope async UI ownership.
+ */
+export function iriPhotoLoadStillCurrent({mounted,originalHost,currentHost,originalKey,currentKey,currentContext}={}){
+  if(mounted!==true||!originalHost||originalHost!==currentHost||originalKey!==currentKey)return false;
+  if(currentContext?.canManage!==true||!currentContext?.assessmentId)return false;
+  return `${currentContext.role}:${currentContext.clientId||''}:${currentContext.assessmentId||''}`===originalKey;
+}
+
 function uuidV4(cryptoLike=globalThis.crypto){
   if(typeof cryptoLike?.randomUUID==='function')return cryptoLike.randomUUID();
   const bytes=new Uint8Array(16);
@@ -186,7 +197,7 @@ export function createIriPhotogrammetryController({
 }={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_IRI_PHOTO_CONTROLLER_REQUIRED');
   const service=createIriPhotogrammetryService({runtime});
-  let mounted=false,observer=null,loadScheduled=false,loadInFlight=null,loadInFlightKey='',busy=false;
+  let mounted=false,observer=null,loadScheduled=false,loadInFlight=null,loadInFlightKey='',loadInFlightHost=null,busy=false;
   let contextKey='',remote=null,signedUrls={},landmarks={},calibrationByView={},activeMarker=null,calibrationMarker=null,activeView='front';
 
   function context(){return resolveIriPhotogrammetryContext(store.getState());}
@@ -370,13 +381,14 @@ export function createIriPhotogrammetryController({
   async function load({force=false}={}){
     const node=host();if(!node)return null;
     const ctx=context();const key=`${ctx.role}:${ctx.clientId||''}:${ctx.assessmentId||''}`;
+    const stillCurrent=()=>iriPhotoLoadStillCurrent({mounted,originalHost:node,currentHost:host(),originalKey:key,currentKey:contextKey,currentContext:context()});
     if(!ctx.canManage||!ctx.assessmentId){contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();return null;}
     if(!force&&remote&&contextKey===key){
       const currentHost=host();
       if(currentHost&&!currentHost.querySelector?.('[data-iri-photo-loaded="true"]'))render();
       return remote;
     }
-    if(!force&&loadInFlight&&loadInFlightKey===key)return loadInFlight;
+    if(!force&&loadInFlight&&loadInFlightKey===key&&loadInFlightHost===node)return loadInFlight;
     if(force&&loadInFlight&&loadInFlightKey===key){
       try{await loadInFlight;}catch{}
     }
@@ -384,18 +396,24 @@ export function createIriPhotogrammetryController({
       contextKey=key;remote=null;signedUrls={};landmarks={};calibrationByView={};render();
       const token=await getToken();
       const next=await service.state(token,{assessmentId:ctx.assessmentId});
-      if(contextKey!==key)return null;
+      if(!stillCurrent())return null;
       remote=next;
       landmarks=landmarksForLatestCaptures(next.analysis,next.latestCaptures);
       calibrationByView=normalizePhotoCalibrations(next.analysisV2?.calibration||{});
       signedUrls=await signedUrlsFor(next,token);
-      if(contextKey!==key)return null;
+      if(!stillCurrent())return null;
       render();return remote;
     })();
-    loadInFlight=run;loadInFlightKey=key;
+    loadInFlight=run;loadInFlightKey=key;loadInFlightHost=node;
     try{return await run;}
+    catch(error){
+      // A stale, now-hidden photogrammetry panel must never report a late timeout
+      // as a fresh Coach/WebAuthn failure. An active panel still reports it.
+      if(!stillCurrent())return null;
+      throw error;
+    }
     finally{
-      if(loadInFlight===run){loadInFlight=null;loadInFlightKey='';}
+      if(loadInFlight===run){loadInFlight=null;loadInFlightKey='';loadInFlightHost=null;}
     }
   }
   async function clientSnapshotForPdf(assessmentId,{audience='client'}={}){
@@ -668,7 +686,7 @@ export function createIriPhotogrammetryController({
     if(!mounted)return;observer?.disconnect?.();observer=null;
     root.removeEventListener('click',onClick);root.removeEventListener('change',onChange);
     root.removeEventListener('pointerdown',onPointerDown);root.removeEventListener('keydown',onKeyDown);
-    mounted=false;remote=null;signedUrls={};landmarks={};calibrationByView={};activeMarker=null;calibrationMarker=null;contextKey='';loadInFlight=null;loadInFlightKey='';
+    mounted=false;remote=null;signedUrls={};landmarks={};calibrationByView={};activeMarker=null;calibrationMarker=null;contextKey='';loadInFlight=null;loadInFlightKey='';loadInFlightHost=null;
   }
   return Object.freeze({mount,destroy,load,ensurePhysicalConsent,clientSnapshotForPdf});
 }

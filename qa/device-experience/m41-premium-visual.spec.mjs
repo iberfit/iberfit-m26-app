@@ -12,9 +12,9 @@ const SOURCE_STYLES=[
   '/src/m26/ui/client-bottom-nav.css',
 ];
 const TASKS=[
-  {role:'client',path:'/qa/rc13_visual_cases/client_hoy_mobile.html',material:'#192e24'},
-  {role:'coach',path:'/qa/rc13_visual_cases/coach_planificacion_desktop.html',material:'#142820'},
-  {role:'admin',path:'/qa/admin-interaction/fixture.html?route=users',material:'#162820'},
+  {role:'client',path:'/qa/rc13_visual_cases/client_hoy_mobile.html',material:'#1d3629'},
+  {role:'coach',path:'/qa/rc13_visual_cases/coach_planificacion_desktop.html',material:'#192f24'},
+  {role:'admin',path:'/qa/admin-interaction/fixture.html?route=users',material:'#1c3026'},
 ];
 function luminance([r,g,b]){
   const linear=v=>{const n=v/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4};
@@ -51,7 +51,8 @@ test('M41 premium surfaces stay distinct, accessible and device-safe across real
     });
     expect(snapshot.role).toBe(task.role);
     expect(snapshot.material).toBe(task.material);
-    expect(snapshot.sourceAccent).toBe('#c5a059');
+    // B12: exact premium caramel remains a brand token; never relax role/device checks.
+    expect(snapshot.sourceAccent).toBe('#ddc091');
     expect(snapshot.font).toContain('Inter Variable');
     expect(snapshot.documentWidth,task.role+' overflows at '+viewport.width).toBeLessThanOrEqual(snapshot.viewportWidth+2);
 
