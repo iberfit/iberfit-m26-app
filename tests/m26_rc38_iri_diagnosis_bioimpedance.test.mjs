@@ -87,7 +87,7 @@ test('informe IRI separa valoración orientativa de la comparabilidad normativa'
 });
 
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
-  const html=renderReportsRoute({role:'client',reports:[],latestIri:{id:ASSESSMENT_ID},iriDiagnosis:{assessmentId:ASSESSMENT_ID,dateLabel:'30 de julio de 2026',classification:'Perfil IRI por dominios',processLabel:'7 de 7 etapas completadas',revision:2}});
+  const html=renderReportsRoute({role:'client',reports:[],latestIri:{id:ASSESSMENT_ID},iriDiagnosis:{assessmentId:ASSESSMENT_ID,confirmed:true,dateLabel:'30 de julio de 2026',classification:'Perfil IRI por dominios',processLabel:'7 de 7 etapas completadas',revision:2}});
   assert.match(html,/data-iri-diagnosis/);
   assert.match(html,/>Diagnóstico IRI</);
   assert.match(html,/Fecha de evaluación/);
