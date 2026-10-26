@@ -67,7 +67,9 @@ BEGIN
  -- Precisely the real prescription enters the execution snapshot.
  IF NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1
    WHERE id=a AND client_id=cid AND session_id=sid
-     AND prescription_snapshot->'queue'=blocks) THEN
+     AND prescription_snapshot->'blocks'=blocks
+     AND prescription_snapshot->'queue'=
+       private.iberfit_u32_build_execution_queue_v1(blocks)) THEN
    RAISE EXCEPTION 'U32_MULTI_PUBLISHED_SOURCE_DIFFERS';END IF;
  cmd:=jsonb_build_object('type','OCURRENCIA_CONFIRMAR',
    'operationId',gen_random_uuid(),'clientId',cid,'entityId',a,'baseRevision',0);

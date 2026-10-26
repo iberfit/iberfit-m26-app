@@ -82,7 +82,8 @@ BEGIN
   SELECT prescription_snapshot->'queue' INTO queue
   FROM public.training_session_occurrences_v1
   WHERE id=a AND client_id=c AND session_id=s;
-  IF queue IS DISTINCT FROM r.blocks THEN
+  IF queue IS DISTINCT FROM
+       private.iberfit_u32_build_execution_queue_v1(r.blocks) THEN
     RAISE EXCEPTION 'U32_U31_SERVER_SNAPSHOT_DIFFERS_FROM_PUBLISHED';
   END IF;
   FOREACH v_confirm_id IN ARRAY ARRAY[a,b,third] LOOP

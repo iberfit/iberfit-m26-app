@@ -127,6 +127,8 @@ test('U32/U31 integration: actual published Coach prescription survives first co
 test('U32/U31 integration: real multi-block prescription cannot complete with missing exercise',()=>{
   assert.match(multiblockQa,/jsonb_array_length\(e\.body->'blocks'\)=3/u);
   assert.match(multiblockQa,/U32_MULTI_PUBLISHED_SOURCE_DIFFERS/u);
+  assert.match(multiblockQa,/private\.iberfit_u32_build_execution_queue_v1\(blocks\)/u);
+  assert.match(endToEndQa,/private\.iberfit_u32_build_execution_queue_v1\(r\.blocks\)/u);
   assert.match(multiblockQa,/U32_MULTI_RESULT_SCOPE_COLLISION/u);
   assert.match(multiblockQa,/U32_MULTI_INCOMPLETE_EXERCISE_ACCEPTED/u);
   assert.match(multiblockQa,/U32_MULTI_THREE_BLOCK_CLOSE_FAILED/u);
