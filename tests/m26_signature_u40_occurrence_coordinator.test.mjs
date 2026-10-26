@@ -127,6 +127,7 @@ test('U40 authorization changes, corrupted ACKs and conflict need deliberate rec
   actor={userId:CLIENT_USER,role:'cliente',clientId:CLIENT,accessToken:'jwt'};
   assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
   await assert.rejects(svc.send(cmd('OCURRENCIA_CANCELAR')),/U40_ACTOR_NOT_ALLOWED/);
+  actor={userId:COACH,role:'coach',accessToken:'jwt'};
   const rejected=make({transport:{...noop,occurrenceCommand:async()=>({
     kind:'conflict',reason:'REVISION_MISMATCH',operationId:OP,remoteRevision:5,
   })}});
