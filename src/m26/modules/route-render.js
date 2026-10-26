@@ -89,7 +89,7 @@ function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
   return `<article class="m26-list-card m26-appointment-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div><div class="m26-appointment-state">${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}${controls}</div></article>`;
 }
 function clientIriState(client={}) {
-  if (client.iri?.confirmed || client.iri?.status === 'Completada') return 'completed';
+  if (client?.iri?.confirmed===true) return 'completed';
   if (Number(client.iri?.coverageCount || 0) > 0) return 'progress';
   return 'pending';
 }
@@ -618,7 +618,7 @@ function renderClientHoyRoute(vm) {
       markup:'<button type="button" class="m26-today-action is-primary" data-m26-area="sesion"><span aria-hidden="true">↗</span><strong>Ver mis sesiones</strong><small>Consulta tu historial sin iniciar sesiones nuevas.</small></button>',
     };
   }else if(!trainingSurface){
-    const iriReady=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
+    const iriReady=client?.iri?.confirmed===true;
     primary={
       area:'informes',
       eyebrow:'Tu punto de partida',
@@ -686,7 +686,7 @@ function renderClientHoyRoute(vm) {
   const appointmentMarkup=agendaItems.map((item)=>appointmentCard(item,{
     canStartSession:serviceActive&&upcomingAppointmentIds.has(String(item?.id||'').trim())&&executableIds.has(String(item?.sessionId||'').trim()),
   })).join('');
-  const iriCompleted=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
+  const iriCompleted=client?.iri?.confirmed===true;
   const iriPending=Boolean(client?.iri&&!iriCompleted);
   const iriGlanceMarkup=iriPending
     ?`<button type="button" data-m26-area="informes">
