@@ -12,20 +12,13 @@ export function clientWearableActivation(view){
     ['certified_native','certified_oauth'].includes(String(item.mode||''))&&
     item.policy?.productionAllowed===true
   );
-  if(records>0)return Object.freeze({kind:'observed',cta:false,
-    message:'Tu actividad confirmada ya está disponible en el seguimiento.'});
-  if(certified.length)return Object.freeze({kind:'linked',cta:false,
-    message:'Tu fuente está autorizada; las nuevas mediciones se mostrarán cuando se confirmen.'});
+  if(records>0)return Object.freeze({kind:'observed',cta:false});
+  if(certified.length)return Object.freeze({kind:'linked',cta:false});
   if(connections.some(item=>BLOCKED_STATES.has(
     String(item.status||item.state||'').toLowerCase()
-  )))return Object.freeze({kind:'blocked',cta:false,message:''});
+  )))return Object.freeze({kind:'blocked',cta:false});
   if(wearable.productionNativeReady!==true)return Object.freeze({
-    kind:'unavailable',cta:false,message:'',
+    kind:'unavailable',cta:false,
   });
-  return Object.freeze({
-    kind:'consent',cta:true,
-    title:'Tu actividad, sin tener que registrarla dos veces',
-    message:'Si ya usas un reloj o una app compatible con Health Connect, elige los datos que quieres compartir una sola vez. Después IBERFIT comprobará las nuevas mediciones al abrir la aplicación.',
-    label:'Elegir qué compartir',
-  });
+  return Object.freeze({kind:'consent',cta:true});
 }
