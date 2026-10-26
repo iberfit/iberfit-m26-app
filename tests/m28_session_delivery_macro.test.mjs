@@ -126,7 +126,11 @@ test('Interface keeps future live-online unavailable and preserves Android/offli
   const app=readFileSync('src/m26/app/application.js','utf8');
   const css=readFileSync('src/m26/design/premium-ux.css','utf8');
   assert.match(ui,/<option value="online" disabled>Online en directo · opción futura/u);
-  assert.match(app,/deliveryOwnership:body\?\.deliveryOwnership/u);
+  // B24: the player now receives a canonical security-preserving snapshot,
+  // not an inline extraction that drops legacy delivery/visibility fields.
+  assert.match(app,/const normalizePublishedSession=normalizePublishedSessionForExecution;/u);
+  const policy=readFileSync('src/m26/rc39/session-policy.js','utf8');
+  assert.match(policy,/export function normalizePublishedSessionForExecution/u);
   assert.match(css,/m26-session-delivery-select/u);
   assert.match(css,/min-height:44px/u);
 });
