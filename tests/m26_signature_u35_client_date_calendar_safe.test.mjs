@@ -78,7 +78,8 @@ test('U35 date navigation is keyboard accessible, responsive and not a phantom b
   assert.match(css,/\.m26-rc39-date-links>a:focus-visible/);
   assert.match(css,/env\(safe-area-inset-bottom\)/);
   assert.match(controller,/data-rc39-date-target/);
-  assert.match(controller,/day\.querySelector\?\.\('summary'\)\?\.focus/);
+  assert.match(controller,/day\.querySelector\?\.\(':scope > summary'\)\?\.focus/);
+  assert.match(controller,/link\.setAttribute\('aria-current'/);
 });
 
 test('U35 Sessions area uses the same date-specific list and blocks misleading shared-source starts',()=>{
