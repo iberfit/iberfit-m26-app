@@ -26,6 +26,14 @@ function validDate(value){
     fail('DATE_INVALID');
   return value;
 }
+function canonicalJson(value){
+  if(Array.isArray(value))return value.map(canonicalJson);
+  if(value&&typeof value==='object'){
+    return Object.fromEntries(Object.keys(value).sort()
+      .map(key=>[key,canonicalJson(value[key])]));
+  }
+  return value;
+}
 function verifyQueue(reference,prepared){
   if(!Array.isArray(reference)||reference.length<1||reference.length>500
     ||reference.length!==prepared.length)fail('QUEUE_DRIFT');
@@ -211,10 +219,10 @@ export function rehydrateOccurrenceWorkoutDraft({
     ||uuid(executionBody.sourceSnapshot.sessionId)!==uuid(occurrence.sessionId))
     fail('REHYDRATION_SOURCE_MISMATCH');
   if(!Array.isArray(executionBody.sourceSnapshot.queue)
-    ||JSON.stringify(executionBody.sourceSnapshot.queue)!==
-      JSON.stringify(prescriptionSnapshot?.queue)
-    ||JSON.stringify(executionBody.sourceSnapshot.blocks)!==
-      JSON.stringify(prescriptionSnapshot?.blocks))
+    ||JSON.stringify(canonicalJson(executionBody.sourceSnapshot.queue))!==
+      JSON.stringify(canonicalJson(prescriptionSnapshot?.queue))
+    ||JSON.stringify(canonicalJson(executionBody.sourceSnapshot.blocks))!==
+      JSON.stringify(canonicalJson(prescriptionSnapshot?.blocks)))
     fail('REHYDRATION_SOURCE_MISMATCH');
   const execRevision=revision(executionBody.revision);
   if(execRevision<1||!executionBody.results
@@ -254,5 +262,9 @@ export function rehydrateOccurrenceWorkoutDraft({
       &&!skippedSetForStep(draft.execution,step)))break;
     advanceExecution(draft.execution);
   }
+  // Navigating to persisted results is reconstruction, NOT a new training
+  // event. Keep the authoritative server history without fabricated steps.
+  draft.execution.events=Array.isArray(executionBody.events)
+    ?structuredClone(executionBody.events):[];
   return draft;
 }
