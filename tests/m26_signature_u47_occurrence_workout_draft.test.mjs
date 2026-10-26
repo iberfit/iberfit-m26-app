@@ -69,7 +69,7 @@ test('U47 confirmed starts and progress have independent CAS, never V26 fallback
  assert.equal(first.execution.status,'active');
  assert.equal(first.occurrenceRevision,2);
  assert.equal(first.executionRevision,1);
- recordSet(first.execution,first.session,{reps:8,load:20});
+ recordSet(first.execution,first.session,{reps:8,load:20,rpe:7,rir:3});
  const progress=buildOccurrenceWorkoutCommand(first,{action:'progress',operationId:OP2});
  assert.equal(progress.type,'OCURRENCIA_GUARDAR_PROGRESO');
  assert.equal(progress.baseRevision,2);
@@ -126,7 +126,7 @@ test('U47 completion sends results and feedback to occurrence, not canonical ses
  });
  const start=buildOccurrenceWorkoutCommand(d,{action:'start',operationId:OP1});
  applyOccurrenceWorkoutAck(d,start,ack(start,2,1));
- recordSet(d.execution,d.session,{reps:8,load:20});
+ recordSet(d.execution,d.session,{reps:8,load:20,rpe:7,rir:3});
  advanceExecution(d.execution);
  assert.equal(d.execution.status,'awaiting_feedback');
  finishExecution(d.execution,{sessionRpe:7,comment:'Buen entrenamiento',pain:false});
