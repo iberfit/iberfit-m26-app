@@ -17,14 +17,19 @@ function uid(value){
   return value.toLowerCase();
 }
 export function createOccurrenceWorkoutService({
-  enabled=false,coordinator,readPrivateOccurrence,
+  enabled=false,coordinator,readPrivateOccurrence,checkpoint,
   createId=()=>globalThis.crypto?.randomUUID?.(),
 }={}){
   if(!coordinator||!['send','hasUncertain','retryUncertain'].every(
     name=>typeof coordinator[name]==='function'
   )||typeof readPrivateOccurrence!=='function'||typeof createId!=='function')
     fail('DEPENDENCIES_REQUIRED');
+  if(enabled===true&&(checkpoint?.capability!=='encrypted-owner-bound-cas'||
+    !['readCheckpoint','writeCheckpoint','clearCheckpoint']
+      .every(name=>typeof checkpoint[name]==='function')))
+    fail('ENCRYPTED_CHECKPOINT_REQUIRED');
   let current=null,scope=null,busy=false,pending=false,stale=false,error=null;
+  let dirty=false,checkpointEtag=null;
   const requireEnabled=()=>{if(enabled!==true)fail('API_NOT_ENABLED');};
   const requireEditable=()=>{
     requireEnabled();
@@ -42,13 +47,14 @@ export function createOccurrenceWorkoutService({
     sessionId:current?.sessionId??null,
     occurrenceRevision:current?.occurrenceRevision??null,
     executionRevision:current?.executionRevision??null,
-    busy,hasUncertain:pending,error,
+    busy,hasUncertain:pending,unsavedWork:dirty,error,
     currentStep:current?.execution?
       structuredClone(currentStep(current.execution,current.session)):null,
   });
   async function open({clientId,occurrenceId}={}){
     requireEnabled();
     if(busy||pending)fail('RECOVERY_REQUIRED');
+    if(dirty)fail('UNSAVED_WORKOUT_BLOCKED');
     const target={clientId:uid(clientId),occurrenceId:uid(occurrenceId)};
     busy=true;
     try{
@@ -107,6 +113,48 @@ export function createOccurrenceWorkoutService({
         scope=target;current=null;pending=true;
         fail('RECOVERY_REQUIRED');
       }
+      const saved=await checkpoint.readCheckpoint(target);
+      if(saved){
+        const local=saved.snapshot,remote=next;
+        if(!local||remote.phase!=='active'||
+          local.phase!=='active'||
+          local.clientId!==remote.clientId||
+          local.occurrenceId!==remote.occurrenceId||
+          local.sessionId!==remote.sessionId||
+          local.localDate!==remote.localDate||
+          local.execution?.id!==remote.execution?.id||
+          JSON.stringify(local.execution?.queue)!==
+            JSON.stringify(remote.execution?.queue))
+          fail('CHECKPOINT_IDENTITY_DRIFT');
+        if(local.occurrenceRevision!==remote.occurrenceRevision||
+          local.executionRevision!==remote.executionRevision){
+          const sameValues=(items1,items2)=>
+            Object.entries(items1||{}).every(([key,value])=>
+              Object.prototype.hasOwnProperty.call(items2||{},key)&&
+              JSON.stringify(value)===JSON.stringify(items2[key]));
+          // Only dismiss a stale checkpoint if the server has ALREADY saved
+          // every result and skipped-set recorded locally.
+          if(!sameValues(local.execution.results,remote.execution.results)||
+            !sameValues(local.execution.skippedSets,remote.execution.skippedSets))
+            fail('CHECKPOINT_REMOTE_DIVERGED');
+          await checkpoint.clearCheckpoint(target,saved.etag);
+          checkpointEtag=null;dirty=false;
+        }else{
+          // Server snapshot is trusted for identity, source and revision.
+          // Local plaintext exists only inside the owner-unlocked AES vault.
+          const allowedStatus=new Set(['active','awaiting_feedback','completed']);
+          if(!allowedStatus.has(local.execution?.status)||
+            local.execution?.clientId!==remote.execution?.clientId||
+            local.execution?.sessionId!==remote.execution?.sessionId||
+            !local.execution.results||typeof local.execution.results!=='object'||
+            !local.execution.skippedSets||
+            typeof local.execution.skippedSets!=='object')
+            fail('CHECKPOINT_CONTENT_INVALID');
+          next=local;checkpointEtag=saved.etag;dirty=true;
+        }
+      }else{
+        checkpointEtag=null;dirty=false;
+      }
       scope=target;current=next;stale=false;error=null;
       return view();
     }catch(e){
@@ -139,6 +187,12 @@ export function createOccurrenceWorkoutService({
         return view(); // Never assume the durable pending journal was cleared.
       }
       applyOccurrenceWorkoutAck(current,command,response);
+      if(dirty){
+        // A confirmed server write may clear only its exact local ciphertext.
+        // If cleanup fails, remain locked rather than silently losing evidence.
+        await checkpoint.clearCheckpoint(scope,checkpointEtag);
+        checkpointEtag=null;dirty=false;
+      }
       pending=false;
       return view();
     }catch(e){
@@ -176,26 +230,27 @@ export function createOccurrenceWorkoutService({
     // ACK recovered after reload or an interrupted network round trip.
     return open(target);
   }
-  function record(input={}){
+  async function mutate(fn){
     requireEditable();
-    recordSet(current.execution,current.session,input);
-    return view();
+    busy=true;
+    try{
+      // Copy first. Do not show a successful set before ciphertext is durable.
+      const next=structuredClone(current);
+      fn(next.execution,next.session);
+      const nextEtag=await checkpoint.writeCheckpoint(scope,next,checkpointEtag);
+      current=next;checkpointEtag=nextEtag;dirty=true;error=null;
+      return view();
+    }catch(e){
+      // Includes IndexedDB readback/CAS failure, key loss, quota and eviction.
+      stale=true;error=String(e?.message||'U49_CHECKPOINT_FAILED');
+      throw e;
+    }finally{busy=false;}
   }
-  function skip(reason){
-    requireEditable();
-    skipExecutionSet(current.execution,current.session,{reason});
-    return view();
-  }
-  function advance(){
-    requireEditable();
-    advanceExecution(current.execution);
-    return view();
-  }
-  function finish(feedback){
-    requireEditable();
-    finishExecution(current.execution,feedback);
-    return view();
-  }
+  const record=input=>mutate((execution,session)=>recordSet(execution,session,input));
+  const skip=reason=>mutate((execution,session)=>
+    skipExecutionSet(execution,session,{reason}));
+  const advance=()=>mutate(execution=>advanceExecution(execution));
+  const finish=feedback=>mutate(execution=>finishExecution(execution,feedback));
   return Object.freeze({
     open,view,start:()=>dispatch('start'),save:()=>dispatch('progress'),
     complete:()=>dispatch('complete'),reconcile,record,skip,advance,finish,

@@ -101,6 +101,18 @@ export function createAtomicOccurrenceIndexedDbStore({
       };
     });
   };
+  // U51: atomic compare-and-swap, never a read-then-set across tabs.
+  const replaceIfEqual=(key,expected,next)=>{
+    const name=validateKey(key),old=validateCipher(expected),cipher=validateCipher(next);
+    return transact('readwrite',(store,setResult)=>{
+      const request=store.get(name);
+      request.onsuccess=()=>{
+        if(request.result!==old){setResult(false);return;}
+        const put=store.put(cipher,name);
+        put.onsuccess=()=>setResult(true);
+      };
+    });
+  };
   const deleteIfEqual=(key,expected)=>{
     const name=validateKey(key),ciphertext=validateCipher(expected);
     return transact('readwrite',(store,setResult)=>{
@@ -120,6 +132,6 @@ export function createAtomicOccurrenceIndexedDbStore({
   };
   return Object.freeze({
     capability:'persistent-owner-isolated-atomic',
-    get,putIfAbsent,deleteIfEqual,close,
+    get,putIfAbsent,replaceIfEqual,deleteIfEqual,close,
   });
 }

@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createOccurrenceWorkoutService} from '../src/m26/workflows/occurrence-workout-service.js';
+const checkpoint=()=>{
+  let entry=null,etag=0;
+  return {capability:'encrypted-owner-bound-cas',
+    readCheckpoint:async()=>entry?structuredClone(entry):null,
+    writeCheckpoint:async(_scope,snapshot,expectedEtag)=>{
+      if((entry?.etag??null)!==(expectedEtag??null))
+        throw new Error('CHECKPOINT_CAS_CONFLICT');
+      entry={snapshot:structuredClone(snapshot),etag:'test-etag-'+(++etag)};
+      return entry.etag;
+    },
+    clearCheckpoint:async(_scope,expected)=>{
+      if(entry?.etag!==expected)throw new Error('CHECKPOINT_CAS_CONFLICT');
+      entry=null;
+    },
+  };
+};
 const CLIENT='10000000-0000-4000-8000-000000000102';
 const SESSION='10000000-0000-4000-8000-000000000103';
 const OCC='10000000-0000-4000-8000-000000000105';
@@ -59,7 +75,7 @@ const setup=({offlineOnce=false,otherClient=false}={})=>{
    },
  };
  const service=createOccurrenceWorkoutService({
-   enabled:true,coordinator,createId:()=>sequence.shift(),
+   enabled:true,coordinator,checkpoint:checkpoint(),createId:()=>sequence.shift(),
    readPrivateOccurrence:async()=>({
      occurrence:{...occurrence,clientId:otherClient?EXEC:CLIENT},
      prescriptionSnapshot:structuredClone(snapshot),
@@ -86,12 +102,12 @@ test('U49 authentic owner workflow starts, records, saves and completes exactly 
  assert.equal(service.view().phase,'ready');
  await service.start();
  assert.equal(service.view().phase,'active');
- service.record({reps:8,rpe:7,rir:3,load:20});
+ await service.record({reps:8,rpe:7,rir:3,load:20});
  await service.save();
  assert.equal(service.view().executionRevision,2);
  assert.equal(service.view().occurrenceRevision,2);
- service.advance();
- service.finish({sessionRpe:7,comment:'Sesión completada con técnica',pain:false});
+ await service.advance();
+ await service.finish({sessionRpe:7,comment:'Sesión completada con técnica',pain:false});
  await service.complete();
  assert.equal(service.view().phase,'completed');
  assert.equal(service.view().occurrenceRevision,3);
@@ -160,7 +176,7 @@ test('U49 a remotely completed workout after unknown ACK opens read-only, never 
    sourceSnapshot:structuredClone(snapshot),queue:structuredClone(snapshot.queue)};
  let attempts=0;
  const s=createOccurrenceWorkoutService({
-   enabled:true,
+   enabled:true,checkpoint:checkpoint(),
    coordinator:{hasUncertain:async()=>false,retryUncertain:async()=>{},
      send:async()=>{attempts++;throw new Error('NEVER_RESTART');}},
    createId:()=>OPS[0],
@@ -180,7 +196,7 @@ test('U49 a remotely completed workout after unknown ACK opens read-only, never 
 });
 test('U49 forged completion with foreign execution fails closed',async()=>{
  const s=createOccurrenceWorkoutService({
-   enabled:true,
+   enabled:true,checkpoint:checkpoint(),
    coordinator:{hasUncertain:async()=>false,retryUncertain:async()=>{},
      send:async()=>{}},
    createId:()=>OPS[0],
@@ -197,7 +213,7 @@ test('U49 forged completion with foreign execution fails closed',async()=>{
 });
 test('U49 cancelled occurrence is read-only without fabricating an execution',async()=>{
  const s=createOccurrenceWorkoutService({
-   enabled:true,
+   enabled:true,checkpoint:checkpoint(),
    coordinator:{hasUncertain:async()=>false,retryUncertain:async()=>{},
      send:async()=>{throw new Error('NEVER_CALL');}},
    createId:()=>OPS[0],
