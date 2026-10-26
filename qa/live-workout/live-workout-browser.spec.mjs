@@ -622,3 +622,80 @@ test('SIGNATURE Coach-led appointment never converts into a Client start through
   const state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
   expect(state.launchCount).toBe(0);
 });
+
+
+test('SIGNATURE B15: calendar real renderer stays accessible at 320px with two independent dates',async({page},testInfo)=>{
+  await page.setViewportSize({width:320,height:740});
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+  const expected=await page.evaluate(async()=>{
+    const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
+    const {buildClientPlanningItems}=await import('/src/m26/rc39/session-policy.js');
+    const clientId='22222222-2222-4222-8222-222222222222';
+    const session={
+      id:'qa-b15-guided',clientId,
+      title:'Fuerza y movilidad · Entrenamiento personal',
+      status:'disponible',visibleToClient:true,
+      deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+      clientVisibilityLevel:'full',durationMinutes:50,
+      blocks:[{id:'qa-b15-block',type:'exercise',exerciseId:'qa-press',sets:3,reps:'8'}],
+    };
+    const booking=(id,startAt)=>({
+      id,clientId,sessionId:session.id,status:'confirmada',
+      visibleToClient:true,startAt,
+      endAt:new Date(Date.parse(startAt)+50*60*1000).toISOString(),
+      modality:'guiada_en_app',
+    });
+    const appointments=[
+      booking('qa-b15-first','2026-10-27T15:00:00Z'),
+      booking('qa-b15-second','2026-11-03T15:00:00Z'),
+    ];
+    const items=buildClientPlanningItems({
+      sessions:[session],appointments,now:new Date('2026-10-25T12:00:00Z'),
+    });
+    const vm={kind:'planificacion',role:'client',serviceActive:true,
+      selectedClient:{id:clientId,modality:'online'},
+      rc39:{planningItems:items,appointments:[]}};
+    document.querySelector('#qa-published-route').innerHTML=renderRc39Route(vm);
+    return {itemCount:items.length,blocked:items.every(item=>!item.canClientStart)};
+  });
+  expect(expected).toEqual({itemCount:2,blocked:true});
+  const nav=page.getByRole('navigation',{name:'Fechas de entrenamiento programadas'});
+  await expect(nav).toBeVisible();
+  const links=nav.locator('.m26-rc39-date-links>a');
+  await expect(links).toHaveCount(2);
+  const groups=page.locator('.m26-rc39-day-group');
+  await expect(groups).toHaveCount(2);
+  await expect(groups.nth(0)).toHaveAttribute('open','');
+  await expect(groups.nth(1)).not.toHaveAttribute('open');
+  await expect(page.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  const geometry=await page.evaluate(()=>{
+    const target=document.querySelector('.m26-rc39-date-links>a');
+    const nav=document.querySelector('.m26-rc39-date-links');
+    const rect=target.getBoundingClientRect();
+    return {
+      docWidth:document.documentElement.scrollWidth,
+      viewport:document.documentElement.clientWidth,
+      tapHeight:rect.height,tapWidth:rect.width,
+      scrollStyle:getComputedStyle(nav).overflowX,
+      focusOutline:getComputedStyle(target,':focus-visible').outlineStyle,
+    };
+  });
+  expect(geometry.docWidth).toBeLessThanOrEqual(geometry.viewport+1);
+  expect(geometry.tapHeight).toBeGreaterThanOrEqual(44);
+  expect(geometry.tapWidth).toBeGreaterThanOrEqual(44);
+  expect(geometry.scrollStyle).toBe('auto');
+  const summary=groups.nth(1).locator('summary');
+  if(testInfo.project.use?.hasTouch)await summary.tap();
+  else await summary.click();
+  await expect(groups.nth(1)).toHaveAttribute('open','');
+  await links.nth(0).focus();
+  const outline=await links.nth(0).evaluate(el=>getComputedStyle(el).outlineStyle);
+  expect(outline).toBe('solid');
+  if(testInfo.project.name==='live-workout-mobile-chromium'){
+    const {mkdir}=await import('node:fs/promises');
+    await mkdir('recovery/signature-published-sessions',{recursive:true});
+    await page.screenshot({path:'recovery/signature-published-sessions/b15-atelier-320-client-dates.png',
+      fullPage:true,animations:'disabled'});
+  }
+});
