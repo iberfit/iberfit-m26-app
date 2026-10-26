@@ -1474,7 +1474,9 @@ export function renderReadyWorkoutRoadmap({execution,session,catalog,role='clien
   const label=coach?'Ejecuta el Coach':mode==='autonomous'?'Entrenamiento autónomo':'Guiado por IBERFIT';
   const context=coach
     ?'Dirige el entrenamiento y registra los resultados observados del cliente. Las cargas previstas no son resultados.'
-    :'Realiza los ejercicios a tu ritmo, registra lo que haces y utiliza los descansos y alternativas cuando lo necesites.';
+    :mode==='autonomous'
+      ?'Entrena a tu ritmo. Consulta la prescripción y registra tus series reales durante la sesión.'
+      :'Sigue el orden de los ejercicios y registra lo que haces. Puedes pausar y consultar cada paso.';
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
   if(!queue.length)return '';
   const items=queue.map((step,index)=>{
@@ -1493,11 +1495,18 @@ export function renderReadyWorkoutRoadmap({execution,session,catalog,role='clien
   const extra=items.length>5
     ?'<details class="m26-ready-roadmap-more"><summary>Ver los '+e(items.length-5)+' pasos restantes</summary><ol start="6">'+items.slice(5).join('')+'</ol></details>':'';
   const kind=coach?'supervised':sessionDeliveryModality(session)==='guiada_en_app'?mode:'other';
-  return '<section class="m26-session-ready-roadmap" data-signature-ready-playback="'+e(kind)+'" aria-label="Vista previa de la sesión">'+
-    '<div class="m26-ready-roadmap-header"><div><p class="m26-eyebrow">Antes de comenzar</p><h3>Tu recorrido de hoy</h3></div>'+
+  const title=coach?'Orden de trabajo':'Tu recorrido de hoy';
+  const kicker=coach?'Preparación profesional':'Antes de comenzar';
+  const count=items.length+' '+(items.length===1?'paso previsto':'pasos previstos');
+  const note=coach
+    ?'Prescripción, no ejecución. Confirma Inicio para comenzar y registra únicamente el trabajo realmente realizado.'
+    :'Objetivos planificados, no resultados. El entrenamiento comienza únicamente al pulsar Inicio.';
+  return '<section class="m26-session-ready-roadmap" data-signature-ready-playback="'+e(kind)+'" data-ready-step-count="'+e(items.length)+'" aria-label="Vista previa de la sesión">'+
+    '<div class="m26-ready-roadmap-header"><div><p class="m26-eyebrow">'+e(kicker)+'</p><h3>'+e(title)+'</h3>'+
+    '<span class="m26-ready-roadmap-count">'+e(count)+'</span></div>'+
     '<span class="m26-ready-roadmap-mode">'+e(label)+'</span></div>'+
     '<p class="m26-ready-roadmap-intro">'+e(context)+'</p><ol>'+items.slice(0,5).join('')+'</ol>'+extra+
-    '<p class="m26-ready-roadmap-note">Objetivos planificados · el entrenamiento solo comienza cuando confirmas Inicio.</p></section>';
+    '<p class="m26-ready-roadmap-note">'+e(note)+'</p></section>';
 }
 
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,wearableContext=null,exerciseMemoryFor=null}={}){
