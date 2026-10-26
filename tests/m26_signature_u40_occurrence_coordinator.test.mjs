@@ -118,7 +118,7 @@ test('U40 authorization changes, corrupted ACKs and conflict need deliberate rec
     actor={userId:COACH,role:'coach',accessToken:'different'};
     return {kind:'ack',operationId:OP,entityId:A,remoteRevision:1};
   }}});
-  await assert.rejects(svc.send(cmd('OCURRENCIA_INICIAR',A,OP)),/U39_INVALID_UUID/);
+  assert.throws(()=>cmd('OCURRENCIA_INICIAR',A,OP),/U39_INVALID_UUID/);
   const valid=buildOccurrenceScopedCommand({
     type:'OCURRENCIA_INICIAR',operationId:OP,clientId:CLIENT,
     occurrenceId:A,baseRevision:0,executionId:B,
