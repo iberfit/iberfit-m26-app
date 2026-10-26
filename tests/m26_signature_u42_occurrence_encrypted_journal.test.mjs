@@ -49,7 +49,7 @@ test('U42 wrong key, modified ciphertext and altered owner fail closed',async()=
   const wrong=create(store,newKey);
   await assert.rejects(wrong.readPending(scope),/U42_AUTHENTICATION_TAG_INVALID/);
   const [name,raw]=[...store.values.entries()][0],value=JSON.parse(raw);
-  value.ciphertext=value.ciphertext.slice(0,8)+'A'+value.ciphertext.slice(9);
+  value.ciphertext=value.ciphertext.slice(0,8)+(value.ciphertext[8]==='A'?'B':'A')+value.ciphertext.slice(9);
   store.values.set(name,JSON.stringify(value));
   await assert.rejects(one.readPending(scope),/U42_AUTHENTICATION_TAG_INVALID/);
   const different=create(store,async()=>key,OTHER);
