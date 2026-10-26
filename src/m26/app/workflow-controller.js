@@ -85,7 +85,7 @@ function guidedFieldLabel(control){
   if(GUIDED_FORM_FIELD_LABELS[name])return GUIDED_FORM_FIELD_LABELS[name];
   const label=control?.labels?.[0]||control?.closest?.('label')||null;
   // A nested selector contributes every option to label.textContent.
-  // Keep the field's own label without reading its interactive descendants.
+  // Read label text nodes without including any nested input options.
   const direct=[...(label?.childNodes||[])]
     .filter(node=>node?.nodeType===3)
     .map(node=>String(node.textContent||'').trim())
