@@ -58,14 +58,14 @@ function reportDraft(){
   },{id:ASSESSMENT_ID},CLIENT_ID);
 }
 
-test('evaluación QA histórica con estado confirmado habilita el Diagnóstico IRI',()=>{
+test('evaluación QA con cierre de primera sesión confirmado habilita el Diagnóstico IRI',()=>{
   const state=confirmedState();
   state.collections.iriAssessments=[{
     id:ASSESSMENT_ID,
     clientId:CLIENT_ID,
     status:'confirmed',
     revision:2,
-    body:{assessmentDate:'2026-07-17'},
+    body:{assessmentDate:'2026-07-17',firstSessionCompletedAt:'2026-07-17T20:00:00Z'},
   }];
   const vm=createRouteViewModel({activeArea:'informes',identity:state.identity},state,new Date('2026-08-01T12:00:00Z'));
   assert.equal(vm.latestIri.id,ASSESSMENT_ID);
