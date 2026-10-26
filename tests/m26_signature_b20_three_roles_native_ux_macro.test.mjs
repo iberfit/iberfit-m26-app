@@ -36,7 +36,7 @@ test('B20 no repeated prompt after confirmed data, certified grant or revocation
  }).kind,'observed');
  assert.equal(clientWearableActivation({
  productionNativeReady:true,summary:{daysWithData:0},connections:[
- {status:'conectado',mode:'certified_native',policy:{productionAllowed:true}}],
+ {status:'conectado',provider:'health_connect',mode:'certified_native',policy:{productionAllowed:true}}],
  }).kind,'linked');
  assert.equal(clientWearableActivation({
  productionNativeReady:true,summary:{daysWithData:0},connections:[
