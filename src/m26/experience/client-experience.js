@@ -85,10 +85,6 @@ function iriReadiness(record){
     });
   }
 
-  const status=String(
-    value(record,'status','estado')||''
-  ).toLowerCase();
-
   const completedAt=value(
     record,
     'firstSessionCompletedAt',
