@@ -699,3 +699,52 @@ test('SIGNATURE B15: calendar real renderer stays accessible at 320px with two i
       fullPage:true,animations:'disabled'});
   }
 });
+
+
+test('SIGNATURE U45: two real browser tabs serialize IndexedDB claims and survive reload',async({page,context})=>{
+  const url='/qa/live-workout/published-sessions.fixture.html?scenario=empty';
+  await page.goto(url,{waitUntil:'domcontentloaded'});
+  const other=await context.newPage();
+  await other.goto(url,{waitUntil:'domcontentloaded'});
+  const databaseName='iberfit-occurrence-private-v1-qa-two-tabs';
+  const key='m26:occurrence:v1:'+'a'.repeat(64);
+  const makeStore=async(target)=>{
+    await target.evaluate(async(db)=>{
+      const {createAtomicOccurrenceIndexedDbStore}=await import(
+        '/src/m26/workflows/occurrence-indexeddb-store.js');
+      const store=createAtomicOccurrenceIndexedDbStore({databaseName:db});
+      await store.get('m26:occurrence:v1:'+'a'.repeat(64));
+      store.close();
+    },databaseName);
+  };
+  await Promise.all([makeStore(page),makeStore(other)]);
+  const contender=(target,letter)=>target.evaluate(async({db,key,value})=>{
+    const {createAtomicOccurrenceIndexedDbStore}=await import(
+      '/src/m26/workflows/occurrence-indexeddb-store.js');
+    const store=createAtomicOccurrenceIndexedDbStore({databaseName:db});
+    return store.putIfAbsent(key,value);
+  },{db:databaseName,key,value:letter.repeat(80)});
+  const winners=await Promise.all([
+    contender(page,'A'),contender(other,'B'),
+  ]);
+  expect(winners.filter(Boolean)).toHaveLength(1);
+  await page.reload({waitUntil:'domcontentloaded'});
+  const recovered=await page.evaluate(async({db,key})=>{
+    const {createAtomicOccurrenceIndexedDbStore}=await import(
+      '/src/m26/workflows/occurrence-indexeddb-store.js');
+    const store=createAtomicOccurrenceIndexedDbStore({databaseName:db});
+    const saved=await store.get(key);
+    const staleDelete=await store.deleteIfEqual(key,'wrong'.repeat(16));
+    const unchanged=await store.get(key);
+    const actualDelete=await store.deleteIfEqual(key,saved);
+    const afterDelete=await store.get(key);
+    store.close();
+    return {saved,staleDelete,unchanged,actualDelete,afterDelete};
+  },{db:databaseName,key});
+  expect(recovered.saved).toBe(winners[0]?'A'.repeat(80):'B'.repeat(80));
+  expect(recovered.staleDelete).toBe(false);
+  expect(recovered.unchanged).toBe(recovered.saved);
+  expect(recovered.actualDelete).toBe(true);
+  expect(recovered.afterDelete).toBeNull();
+  await other.close();
+});
