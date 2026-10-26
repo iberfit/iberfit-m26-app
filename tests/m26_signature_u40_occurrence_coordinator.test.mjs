@@ -183,3 +183,29 @@ test('U46 calendar projection rejects unreviewed fields and invalid time zone',a
  assert.equal(accepted.count,1);
  assert.equal(accepted.occurrences[0].title,'Fuerza con criterio');
 });
+
+test('U47 rejection without matching operationId cannot clear recovery journal',async()=>{
+ journalStore.clear();
+ actor={userId:COACH,role:'coach',accessToken:'jwt'};
+ const svc=make({transport:{...noop,occurrenceCommand:async()=>({
+   kind:'rejected',reason:'STALE_RESULT',
+ })}});
+ await assert.rejects(svc.send(cmd()),/U40_COMMAND_RESPONSE_MISMATCH/);
+ assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
+ journalStore.clear();
+});
+test('U47 start ACK must identify the same execution ID',async()=>{
+ journalStore.clear();
+ actor={userId:COACH,role:'coach',accessToken:'jwt'};
+ const start=buildOccurrenceScopedCommand({
+   type:'OCURRENCIA_INICIAR',operationId:OP,clientId:CLIENT,
+   occurrenceId:A,baseRevision:1,executionId:B,
+ });
+ const svc=make({transport:{...noop,occurrenceCommand:async()=>({
+   kind:'ack',operationId:OP,entityId:A,
+   executionId:CLIENT,remoteRevision:2,executionRevision:1,
+ })}});
+ await assert.rejects(svc.send(start),/U40_EXECUTION_REVISION_UNVERIFIED/);
+ assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
+ journalStore.clear();
+});

@@ -119,7 +119,9 @@ function verifyCalendarRow(row,owner,start,end,role){
 function verifiedResponse(reply,cmd){
   if(!reply||typeof reply!=='object'||Array.isArray(reply)||
     !['ack','conflict','rejected'].includes(reply.kind)||
-    (reply.operationId!=null&&String(reply.operationId).toLowerCase()!==cmd.operationId)||
+    // Every result (including rejected/conflict) MUST identify the operation.
+    // Otherwise a stale response could clear the only durable recovery record.
+    String(reply.operationId||'').toLowerCase()!==cmd.operationId||
     (reply.entityId!=null&&String(reply.entityId).toLowerCase()!==cmd.entityId)||
     (reply.clientId!=null&&String(reply.clientId).toLowerCase()!==cmd.clientId))
     throw error('COMMAND_RESPONSE_MISMATCH');
@@ -131,9 +133,10 @@ function verifiedResponse(reply,cmd){
   if(reply.kind!=='ack'&&typeof reply.reason!=='string')
     throw error('COMMAND_REJECTION_UNVERIFIED');
   if(reply.kind==='ack'&&
-    ['OCURRENCIA_INICIAR','OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR'].includes(cmd.type)&&
-    (!Number.isSafeInteger(reply.executionRevision)||reply.executionRevision<1))
-    throw error('EXECUTION_REVISION_UNVERIFIED');
+    ['OCURRENCIA_INICIAR','OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR'].includes(cmd.type)&&(
+      !Number.isSafeInteger(reply.executionRevision)||reply.executionRevision<1||
+      String(reply.executionId||'').toLowerCase()!==cmd.payload.executionId
+    ))throw error('EXECUTION_REVISION_UNVERIFIED');
   return immutable({...reply});
 }
 
