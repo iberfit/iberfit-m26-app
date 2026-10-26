@@ -53,18 +53,23 @@ test('field presets and results retain exact protocols without invented norms',a
   const form=page.locator('[data-workflow-form="iri"]');
   await expect(form.locator('[name="weeklyFrequency"]')).toHaveValue('');
   await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
-  const setup=form.locator('details.m26-iri-setup');
-  const summary=setup.locator('summary');
-  await summary.click();
-  await expect(setup).toHaveAttribute('open','');
-  await expect(setup.locator('[data-iri-setup-preset="floor"]')).toBeVisible();
+  const setup=form.locator('[data-iri-setup]');
+  const toggle=setup.locator('[data-iri-setup-toggle]');
+  const panel=setup.locator('[data-iri-setup-content]');
+  await expect(toggle).toHaveAttribute('aria-expanded','false');
+  await expect(panel).toBeHidden();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded','true');
+  await expect(panel).toBeVisible();
   for(const preset of ['floor','knees','trx','treadmill'])await form.locator(`[data-iri-setup-preset="${preset}"]`).click();
-  // Native disclosure stays operable with keyboard and preserves the chosen settings.
-  await summary.focus();
-  await summary.press('Enter');
-  await expect(setup).not.toHaveAttribute('open','');
-  await summary.press('Enter');
-  await expect(setup).toHaveAttribute('open','');
+  // Keyboard can close and reopen without hiding or changing preset values.
+  await toggle.focus();
+  await toggle.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded','false');
+  await expect(panel).toBeHidden();
+  await toggle.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded','true');
+  await expect(panel).toBeVisible();
   expect(errors,'the field fixture and controller must initialize without runtime errors').toEqual([]);
   await expect(form.locator('[data-iri-preset-status]')).toContainText('Preparación aplicada');
   // Populate hidden wizard steps through DOM to inspect the real controller's

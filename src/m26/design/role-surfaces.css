@@ -4883,3 +4883,46 @@ m26-echart[data-density="compact"]{
   .m26-shell .m26-ready-roadmap-more summary{scroll-behavior:auto}
 }
 
+
+/* SIGNATURE B26 · Preparación IRI: control estable para touch y teclado.
+   Un solo estado (hidden/aria-expanded), sin toggle implícito del navegador. */
+.m26-shell .m26-iri-setup-toggle,
+.m26-iri-workspace .m26-iri-setup-toggle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  min-width:0;
+  width:100%;
+  min-height:48px;
+  padding:.2rem .1rem;
+  border:0;
+  border-radius:.3rem;
+  background:transparent;
+  color:var(--iberfit-color-text-primary,var(--m26-cream-100));
+  font:700 .96rem/1.4 var(--iberfit-font-family-ui,inherit);
+  text-align:left;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.m26-iri-workspace .m26-iri-setup-toggle::after{
+  content:"+";
+  flex:0 0 auto;
+  font-size:1.25rem;
+  color:var(--iberfit-color-accent-strong,var(--m26-gold-300));
+}
+.m26-iri-workspace .m26-iri-setup-toggle[aria-expanded="true"]::after{content:"−"}
+.m26-iri-workspace .m26-iri-setup-toggle:focus-visible{
+  outline:3px solid var(--iberfit-color-accent,var(--m26-gold-300));
+  outline-offset:3px;
+}
+.m26-iri-workspace .m26-iri-setup-content{min-width:0}
+.m26-iri-workspace [data-iri-setup-content][hidden]{display:none}
+.m26-iri-workspace [data-iri-setup-content]:not([hidden]){padding:.35rem .05rem .6rem}
+.m26-iri-workspace [data-iri-setup-content] .m26-timer-actions{
+  display:flex;flex-wrap:wrap;gap:.55rem;
+}
+.m26-iri-workspace [data-iri-setup-content] [data-iri-setup-preset]{min-height:44px;touch-action:manipulation}
+@media(forced-colors:active){
+  .m26-iri-workspace .m26-iri-setup-toggle{border:1px solid ButtonText}
+}

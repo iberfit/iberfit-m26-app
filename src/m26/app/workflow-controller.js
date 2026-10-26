@@ -2233,10 +2233,19 @@ export function createWorkflowController({
     }
   }
   async function onClick(event){
-    // SIGNATURE B26: <details>/<summary> uses the browser's native toggle.
-    // Do not preventDefault and flip .open manually; this can leave the
-    // disclosure closed on mobile and makes its child controls unreachable.
-    if(event.target.closest?.('details.m26-iri-setup > summary'))return;
+    // SIGNATURE B26: explicit button + hidden content avoids touch/native
+    // disclosure double-toggles and guarantees a truthful expanded state.
+    const setupToggle=event.target.closest?.('[data-iri-setup-toggle]');
+    if(setupToggle){
+      event.preventDefault?.();
+      const form=setupToggle.closest?.('[data-workflow-form="iri"]');
+      const panel=form?.querySelector?.('[data-iri-setup-content]');
+      if(!panel)return;
+      const open=panel.hidden;
+      panel.hidden=!open;
+      setupToggle.setAttribute('aria-expanded',open?'true':'false');
+      return;
+    }
     const preset=event.target.closest?.('[data-iri-setup-preset]');
     if(preset){
       event.preventDefault?.();requireCoach();
