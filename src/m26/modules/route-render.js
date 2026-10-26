@@ -699,8 +699,8 @@ function renderClientHoyRoute(vm) {
   const healthActivation=clientWearableActivation(vm.wearables);
   const healthActivationMarkup=trainingSurface&&healthActivation.cta
     ?`<aside class="m26-client-health-activation" data-client-wearable-activation="consent" aria-label="Conectar actividad opcional">
-       <div><p class="m26-eyebrow">Opcional · datos protegidos</p><h3>${escapeHtml(healthActivation.title)}</h3><p>${escapeHtml(healthActivation.message)}</p></div>
-       <button type="button" data-m26-area="actividad">${escapeHtml(healthActivation.label)}</button>
+       <div><p class="m26-eyebrow">Opcional · datos protegidos</p><h3>Tu actividad, sin tener que registrarla dos veces</h3><p>Si ya usas un reloj o una app compatible con Health Connect, elige los datos que quieres compartir una sola vez. Después IBERFIT comprobará las nuevas mediciones al abrir la aplicación.</p></div>
+       <button type="button" data-m26-area="actividad">Elegir qué compartir</button>
      </aside>`:'';
   const nextAction=client?.nextAction||null;
   // A legacy/Coach-only destination must never retain a misleading CTA.
