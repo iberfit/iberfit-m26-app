@@ -9,8 +9,9 @@ export function clientWearableActivation(view){
   const connections=Array.isArray(wearable.connections)?wearable.connections:[];
   const certified=connections.filter(item=>
     ACTIVE_STATES.has(String(item.status||item.state||'').toLowerCase())&&
-    ['certified_native','certified_oauth'].includes(String(item.mode||''))&&
-    item.policy?.productionAllowed===true
+    ((String(item.mode||'')==='certified_native'&&
+      String(item.provider||'')==='health_connect'&&wearable.productionNativeReady===true)
+     ||(String(item.mode||'')==='certified_oauth'&&item.policy?.productionAllowed===true))
   );
   if(records>0)return Object.freeze({kind:'observed',cta:false});
   if(certified.length)return Object.freeze({kind:'linked',cta:false});
