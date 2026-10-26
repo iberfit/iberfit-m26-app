@@ -117,13 +117,50 @@ export function sessionVisibilityLevel(session={},appointment=null){
   const explicit=normalizeClientVisibilityLevel(
     field(session,'clientVisibilityLevel','client_visibility_level','visibilityLevel','visibility_level')
   );
-  // Explicitly hidden and withdrawn sessions stay hidden regardless of mode.
-  if(explicit==='hidden'||booleanField(session,'visibleToClient','visible_to_client','clientVisible','client_visible')===false)return 'hidden';
+  // Withdrawal on either representation wins over a stale full/true wrapper.
+  const body=bodyOf(session);
+  const levelValues=[session?.clientVisibilityLevel,session?.client_visibility_level,
+    session?.visibilityLevel,session?.visibility_level,body?.clientVisibilityLevel,
+    body?.client_visibility_level,body?.visibilityLevel,body?.visibility_level];
+  const visibleValues=[session?.visibleToClient,session?.visible_to_client,
+    session?.clientVisible,session?.client_visible,body?.visibleToClient,
+    body?.visible_to_client,body?.clientVisible,body?.client_visible];
+  if(levelValues.some(v=>normalizeClientVisibilityLevel(v)==='hidden')||
+    visibleValues.some(v=>v!==undefined&&v!==null&&['false','0','no'].includes(fold(v))))return 'hidden';
   const ownership=sessionDeliveryOwnership(session,appointment);
   // A contradictory legacy full-visibility flag cannot expose a supervised session.
   if(ownership==='coach_led'||ownership==='live_online')return 'summary_only';
   return explicit||'full';
 }
+// Canonical player snapshot: never discard permission-bearing delivery or
+// visibility from a published record when opening the exercise workspace.
+export function normalizePublishedSessionForExecution(record={}){
+  const body=bodyOf(record);
+  const source=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;
+  const blocks=Array.isArray(source?.blocks)?structuredClone(source.blocks):[];
+  const visibleValues=[record?.visibleToClient,record?.visible_to_client,
+    record?.clientVisible,record?.client_visible,body?.visibleToClient,
+    body?.visible_to_client,body?.clientVisible,body?.client_visible];
+  const visibilityRevoked=visibleValues.some(v=>v!==undefined&&v!==null&&
+    ['false','0','no'].includes(fold(v)));
+  return {
+    id:field(record,'id','entityId','entity_id'),
+    clientId:field(record,'clientId','client_id','clienteId','cliente_id'),
+    title:String(source?.title||source?.name||'Sesión IBERFIT'),
+    durationMinutes:Number(source?.durationMinutes||source?.duration_minutes||50),
+    deliveryModality:field(record,'deliveryModality','delivery_modality','modality','modalidad'),
+    deliveryOwnership:field(record,'deliveryOwnership','delivery_ownership','executionMode','execution_mode'),
+    execution_type:field(record,'execution_type','executionType'),
+    clientVisibilityLevel:sessionVisibilityLevel(record),
+    visibleToClient:visibilityRevoked?false:field(record,
+      'visibleToClient','visible_to_client','clientVisible','client_visible'),
+    status:field(record,'status','estado')||'borrador',
+    blocks,
+    revision:Number(field(record,'revision','version')||0),
+    createdAt:field(record,'createdAt','created_at')||null,
+  };
+}
+
 export function sessionIdOf(record){
   return String(field(record,'id','entityId','entity_id')||'').trim()||null;
 }

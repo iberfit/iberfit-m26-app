@@ -8,7 +8,7 @@ import {createAdminController} from '../admin/controller.js';
 import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} from '../shared/integration-context.js';
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
-import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart,normalizePublishedSessionForExecution} from '../rc39/session-policy.js';
 import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS} from './confirmed-session-appointment.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
@@ -91,11 +91,7 @@ function qaStage(stage){
   }catch{}
 }
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
-function normalizePublishedSession(record){
-  const body=record?.body&&typeof record.body==='object'?record.body:record;
-  const blocks=Array.isArray(body?.blocks)?structuredClone(body.blocks):[];
-  return {id:record?.id||body?.id,clientId:record?.clientId||record?.client_id||body?.clientId||body?.client_id,title:body?.title||body?.name||'Sesión IBERFIT',durationMinutes:Number(body?.durationMinutes||body?.duration_minutes||50),deliveryModality:body?.deliveryModality||body?.delivery_modality||record?.deliveryModality||record?.delivery_modality||null,deliveryOwnership:body?.deliveryOwnership||body?.delivery_ownership||record?.deliveryOwnership||record?.delivery_ownership||null,clientVisibilityLevel:body?.clientVisibilityLevel||body?.client_visibility_level||record?.clientVisibilityLevel||null,status:record?.status||body?.status||'borrador',blocks,revision:Number(record?.revision||body?.revision||0),createdAt:record?.createdAt||record?.created_at||body?.createdAt||body?.created_at||null};
-}
+const normalizePublishedSession=normalizePublishedSessionForExecution;
 function nextExpiry(session){return sessionExpiresSoon(session);}
 function safeTime(value){const time=value?new Date(value).getTime():NaN;return Number.isFinite(time)?time:null;}
 const PUBLISHED_SESSION_STATES=new Set(['disponible','published','publicado','active','activo','enabled','habilitado']);
