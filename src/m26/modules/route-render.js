@@ -4273,7 +4273,7 @@ export function renderAgendaRoute(vm) {
   const activeClientId=vm.clients.some(client=>client.id===vm.selectedClientId)
     ?vm.selectedClientId:(vm.clients[0]?.id||'');
   const linkedSessions=(vm.linkableSessions||[]).map(session=>
-    `<option value="${escapeHtml(session.id)}" data-client-id="${escapeHtml(session.clientId)}" data-modality="${escapeHtml(session.deliveryModality||'')}" data-session-duration="${escapeHtml(session.durationMinutes??'')}"${session.clientId===activeClientId?'':' disabled'}>${escapeHtml(session.title)}</option>`
+    `<option value="${escapeHtml(session.id)}" data-client-id="${escapeHtml(session.clientId)}" data-modality="${escapeHtml(session.deliveryModality||'')}" data-session-duration="${escapeHtml(session.durationMinutes??'')}"${session.clientId===activeClientId?'':' disabled'}>${escapeHtml(session.title||'Sesión publicada')}</option>`
   ).join('');
   const linkedSessionField=`<label class="m26-wide">Entrenamiento vinculado (opcional)
     <select name="sessionId" aria-describedby="m26-linked-session-help">

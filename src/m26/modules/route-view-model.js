@@ -523,7 +523,7 @@ export function linkableSessionsForCoachAgenda(state,visibleClientIds=[]){
       const minutes=Number(text(record,'durationMinutes','duration_minutes'));
       const mode=String(text(record,'deliveryModality','delivery_modality')||'').trim();
       return Object.freeze({id,clientId,
-        title:String(text(record,'title','name')||'Entrenamiento publicado').trim().slice(0,120),
+        title:String(text(record,'title','name')||'').trim().slice(0,120),
         deliveryModality:['presencial','guiada_en_app'].includes(mode)?mode:'',
         durationMinutes:Number.isFinite(minutes)&&minutes>=10&&minutes<=240
           ?minutes:null,
