@@ -291,7 +291,7 @@ function renderClientDatedPlanning(items,options){
     <div class="m26-rc39-date-links">${calendarDays.map((key)=>{
       const dayItems=dates.get(key)||[];
       const label=key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(key+'T12:00:00Z'));
-      return `<a href="#m26-plan-day-${escape(key)}" data-rc39-date-target="${escape(key)}" ${key===today?'aria-current="date"':''}><strong>${escape(label)}</strong><small>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</small></a>`;
+      return `<a href="#m26-plan-day-${escape(key)}" data-rc39-date-target="${escape(key)}" ${key===today?'data-rc39-today="true"':''} ${key===primaryDay?`aria-current="${key===today?'date':'location'}"`:''}><strong>${escape(label)}</strong><small>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</small></a>`;
     }).join('')}</div>
   </nav>`:'';
   const groups=[...dates.entries()].sort(([a],[b])=>a==='unscheduled'?1:b==='unscheduled'?-1:a.localeCompare(b)).map(([key,dayItems])=>{

@@ -748,3 +748,59 @@ test('SIGNATURE U45: two real browser tabs serialize IndexedDB claims and surviv
   expect(recovered.afterDelete).toBeNull();
   await other.close();
 });
+
+
+test('SIGNATURE B16: future day selection updates aria-current and opens that date without extra workflow actions',async({page})=>{
+  await page.setViewportSize({width:320,height:740});
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await page.evaluate(async()=>{
+    const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
+    const {buildClientPlanningItems}=await import('/src/m26/rc39/session-policy.js');
+    const {createRc39Controller}=await import('/src/m26/rc39/controller.js');
+    const clientId='22222222-2222-4222-8222-222222222222';
+    const session={
+      id:'qa-b16-guided',clientId,title:'Entrenamiento de fuerza · Dos fechas',
+      status:'disponible',visibleToClient:true,
+      deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+      clientVisibilityLevel:'full',durationMinutes:45,
+      blocks:[{id:'qa-block',type:'exercise',exerciseId:'qa-press',sets:3,reps:'8'}],
+    };
+    const dates=['2026-10-27T15:00:00Z','2026-11-03T15:00:00Z'];
+    const appointments=dates.map((startAt,index)=>({
+      id:'qa-b16-appointment-'+index,clientId,sessionId:session.id,
+      status:'confirmada',startAt,
+      endAt:new Date(Date.parse(startAt)+45*60_000).toISOString(),
+    }));
+    const items=buildClientPlanningItems({sessions:[session],appointments,
+      now:new Date('2026-10-25T12:00:00Z')});
+    const root=document.querySelector('#qa-published-route');
+    root.innerHTML=renderRc39Route({
+      kind:'planificacion',role:'client',serviceActive:true,
+      selectedClient:{id:clientId,modality:'online'},
+      rc39:{planningItems:items,appointments:[]},
+    });
+    const controller=createRc39Controller({
+      root,store:{getState:()=>({collections:{appointments:[]}})},
+    });
+    controller.mount();
+    globalThis.__QA_B16_CONTROLLER__=controller;
+  });
+  const links=page.locator('.m26-rc39-date-links>a');
+  await expect(links).toHaveCount(2);
+  await expect(links.nth(0)).toHaveAttribute('aria-current','location');
+  await expect(links.nth(1)).not.toHaveAttribute('aria-current');
+  await expect(page.locator('#m26-plan-day-2026-11-03')).not.toHaveAttribute('open','');
+  await links.nth(1).click();
+  await expect(page.locator('#m26-plan-day-2026-11-03')).toHaveAttribute('open','');
+  await expect(links.nth(1)).toHaveAttribute('aria-current','location');
+  await expect(links.nth(0)).not.toHaveAttribute('aria-current');
+  const facts=await page.evaluate(()=>({
+    focus:document.activeElement?.className,
+    width:document.documentElement.clientWidth,
+    scroll:document.documentElement.scrollWidth,
+  }));
+  expect(facts.focus).toBe('m26-rc39-day-heading');
+  expect(facts.scroll).toBeLessThanOrEqual(facts.width+1);
+  await expect(page.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  await page.evaluate(()=>globalThis.__QA_B16_CONTROLLER__?.destroy());
+});

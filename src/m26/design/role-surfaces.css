@@ -4686,11 +4686,11 @@ m26-echart[data-density="compact"]{
   color:var(--iberfit-color-text-secondary);
   line-height:1.35;
 }
-.m26-shell[data-m26-role="client"] .m26-rc39-date-links>a[aria-current="date"]{
+.m26-shell[data-m26-role="client"] .m26-rc39-date-links>a:is([aria-current="date"],[aria-current="location"]){
   border-color:color-mix(in srgb,var(--iberfit-color-accent) 72%,var(--iberfit-color-border));
   background:color-mix(in srgb,var(--iberfit-color-accent) 13%,var(--iberfit-color-surface-base));
 }
-.m26-shell[data-m26-role="client"] .m26-rc39-date-links>a[aria-current="date"] strong{
+.m26-shell[data-m26-role="client"] .m26-rc39-date-links>a:is([aria-current="date"],[aria-current="location"]) strong{
   color:var(--iberfit-color-accent-strong);
 }
 .m26-shell[data-m26-role="client"] .m26-rc39-date-groups{

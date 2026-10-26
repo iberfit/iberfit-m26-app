@@ -57,7 +57,16 @@ export function createRc39Controller({
       if(!day)return;
       event.preventDefault();
       day.open=true;
-      day.querySelector?.('summary')?.focus?.({preventScroll:true});
+      // Keep the selected day visually and accessibly in sync. A future
+      // planned day is the navigation location, not "today".
+      const navigation=dayLink.closest?.('.m26-rc39-date-navigation');
+      for(const link of navigation?.querySelectorAll?.('[data-rc39-date-target]')||[]){
+        if(link===dayLink){
+          link.setAttribute('aria-current',
+            link.getAttribute('data-rc39-today')==='true'?'date':'location');
+        }else link.removeAttribute('aria-current');
+      }
+      day.querySelector?.(':scope > summary')?.focus?.({preventScroll:true});
       day.scrollIntoView?.({block:'start',behavior:'auto'});
       return;
     }
