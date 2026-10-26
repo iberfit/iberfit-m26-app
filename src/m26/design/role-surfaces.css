@@ -4631,3 +4631,60 @@ m26-echart[data-density="compact"]{
   .m26-shell[data-m26-role="coach"] .m26-coach-planning-archive,
   .m26-shell[data-m26-role="coach"] .m26-coach-planning-batch{border:1px solid CanvasText}
 }
+
+/* SIGNATURE B21 · High-clarity live training. Different emphasis for
+ * Coach execution and Client autonomy; no overlays, motion traps or new CTAs. */
+.m26-shell .m26-signature-live-cue{
+  display:grid;
+  grid-template-columns:minmax(7rem,.24fr) minmax(0,1fr);
+  align-items:center;
+  gap:clamp(.65rem,2vw,1.35rem);
+  margin:.55rem 0 1rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 23%,var(--iberfit-color-border));
+  border-radius:.95rem;
+  padding:clamp(.9rem,2vw,1.25rem);
+  background:linear-gradient(113deg,color-mix(in srgb,var(--iberfit-color-accent) 7%,var(--iberfit-color-surface-raised)),var(--iberfit-color-surface-raised));
+}
+.m26-shell .m26-signature-live-cue-kicker{
+  text-transform:uppercase;letter-spacing:.1em;font-weight:800;
+  font-size:.67rem;line-height:1.4;
+  color:var(--iberfit-color-accent);
+}
+.m26-shell .m26-signature-live-cue strong{
+  display:block;
+  font-size:clamp(1rem,1.7vw,1.25rem);
+  line-height:1.26;
+  font-weight:750;
+  letter-spacing:-.025em;
+  text-wrap:balance;
+}
+.m26-shell .m26-signature-live-cue p{
+  margin:.22rem 0 0;
+  max-width:75ch;
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+  font-size:.85rem;line-height:1.48;
+}
+.m26-shell .m26-signature-live-cue[data-signature-live-actor="coach"]{
+  border-left:3px solid var(--iberfit-color-accent);
+}
+.m26-shell .m26-signature-live-cue[data-signature-live-actor="client"]{
+  border-radius:1.1rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 4%,var(--iberfit-color-surface-raised));
+}
+.m26-shell .m26-session-live-v3[data-session-role="coach"] .m26-session-live-hero{
+  padding:clamp(.8rem,2vw,1.3rem);
+}
+.m26-shell .m26-session-live-v3[data-session-role="client"] .m26-session-live-entry-v3{
+  border-color:color-mix(in srgb,var(--iberfit-color-accent) 23%,var(--iberfit-color-border));
+  border-radius:1.15rem;
+}
+.m26-shell .m26-session-live-v3 :is(.m26-session-live-quick-actions button,[data-session-action="complete-set"],[data-session-action="next"],[data-session-action="resume"]){
+  touch-action:manipulation;
+}
+@media(max-width:700px){
+  .m26-shell .m26-signature-live-cue{grid-template-columns:minmax(0,1fr);gap:.35rem;padding:.9rem}
+  .m26-shell .m26-session-live-v3 .m26-session-live-heading h2{font-size:clamp(1.45rem,6vw,2.3rem);line-height:1.12}
+}
+@media(forced-colors:active){
+  .m26-shell .m26-signature-live-cue{border-color:CanvasText}
+}

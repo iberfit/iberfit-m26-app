@@ -1417,6 +1417,54 @@ export function renderLiveModalityPrescription(planned={},profile={},exercise={}
           </div>`;
 }
 
+// SIGNATURE B21: a guided next-step cue without changing any execution,
+// authorization, reconciliation or medical measurement semantics.
+export function sessionLiveAttentionModel(execution,{role='client',recorded=false,restActive=false,hasNext=false}={}){
+  const status=String(execution?.status||'ready');
+  const coach=String(role||'').trim().toLowerCase()==='coach';
+  const step=({ready:'prepare',active:recorded?(restActive?'rest':'advance'):'record',
+    paused:'pause',awaiting_feedback:'feedback',completed:'complete',
+    cancelled:'cancelled'})[status]||'review';
+  return Object.freeze({
+    step,coach,hasNext:Boolean(hasNext),
+    sync:String(execution?.syncStatus||'unknown'),
+  });
+}
+function renderSessionLiveAttention(model){
+  const labels={
+    prepare:['Preparación','Antes de empezar',model.coach
+      ?'Verifica el cliente y las prescripciones. El inicio se confirma expresamente.'
+      :'Revisa tus objetivos y empieza cuando estés preparado.'],
+    record:['En curso',model.coach?'Registrar trabajo real':'Tu serie actual',
+      model.coach
+        ?'Prioriza la ejecución del cliente. Registra carga, repeticiones y esfuerzo observado.'
+        :'Realiza tu serie y registra lo que realmente has hecho.'],
+    rest:['Recuperación',model.coach?'Preparar siguiente serie':'Recupera y continúa',
+      model.coach?'Revisa el resultado anterior y prepara el siguiente ejercicio.'
+        :'Descansa el tiempo necesario. Continúa cuando estés listo.'],
+    advance:['Siguiente paso','Serie registrada',
+      model.hasNext?'Revisa el resultado y continúa con la siguiente serie.':
+        'La última serie está resuelta. Continúa al cierre de la sesión.'],
+    pause:['En pausa','Tu sesión sigue disponible',
+      model.coach?'Reanuda el trabajo con el cliente o guarda y sal.':
+        'Puedes reanudar el entrenamiento o guardar y salir.'],
+    feedback:['Cierre','Confirma cómo fue la sesión',
+      model.coach?'Registra el esfuerzo y la percepción del cliente antes de finalizar.':
+        'Valora el esfuerzo y añade un comentario para completar el seguimiento.'],
+    complete:['Finalización','Entrenamiento terminado',
+      'Comprueba el estado de sincronización antes de abandonar el seguimiento.'],
+    cancelled:['Sesión cancelada','Ejecución cerrada',
+      'Consulta el estado de sincronización de la cancelación.'],
+    review:['Revisión','Revisa el estado de la sesión',
+      'Continúa únicamente cuando el estado de ejecución esté confirmado.'],
+  };
+  const [eyebrow,title,detail]=labels[model.step]||labels.review;
+  return `<aside class="m26-signature-live-cue" data-signature-live-cue="${model.step}" data-signature-live-actor="${model.coach?'coach':'client'}">
+    <span class="m26-signature-live-cue-kicker">${e(eyebrow)}</span>
+    <div><strong>${e(title)}</strong><p>${e(detail)}</p></div>
+  </aside>`;
+}
+
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,wearableContext=null,exerciseMemoryFor=null}={}){
   const state=renderActionState(actionState);
   const sync=renderSessionSyncBanner(execution,{role});
@@ -1424,6 +1472,8 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const professionalClientContext=renderProfessionalSessionClientContext(clientContext,role);
+  const baseCue=sessionLiveAttentionModel(execution,{role});
+
 
   // In the ready state, show the useful sport target without requiring the
   // client to start the clock. Objectives are never displayed as measurements.
@@ -1445,6 +1495,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     return `<section class="m26-guided m26-session-live" data-session-live-state="ready">
       ${professionalClientContext}${state}
       ${sync}
+      ${renderSessionLiveAttention(baseCue)}
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
           <div>
@@ -1489,6 +1540,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${professionalClientContext}${state}
       ${sync}
+      ${renderSessionLiveAttention(baseCue)}
       ${timerStrip(execution)}
       <div class="m26-panel" data-session-live-feedback>
         <p class="m26-eyebrow">Feedback final</p>
@@ -1529,6 +1581,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     return `<section class="m26-guided m26-session-live" data-session-live-state="paused">
       ${professionalClientContext}${state}
       ${sync}
+      ${renderSessionLiveAttention(baseCue)}
       ${timerStrip(execution)}
       <div class="m26-panel m26-session-live-hero">
         <p class="m26-eyebrow">Sesión en pausa</p>
@@ -1587,6 +1640,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     return `<section class="m26-guided m26-session-live" data-session-live-state="completed">
       ${professionalClientContext}${state}
       ${sync}
+      ${renderSessionLiveAttention(baseCue)}
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
           <div>
@@ -1842,6 +1896,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   return `<section class="m26-guided m26-session-live m26-session-live-v2 m26-session-live-v3" data-session-live-state="${restActive?'rest':'active'}" data-session-live-v3 data-session-role="${isCoach?'coach':'client'}">
     ${professionalClientContext}
     ${sync}
+    ${renderSessionLiveAttention(sessionLiveAttentionModel(execution,{role,recorded:Boolean(recorded),restActive,hasNext:hasNextPlannedStep}))}
     <header class="m26-session-live-hero">
       <div class="m26-session-live-heading">
         <div>
