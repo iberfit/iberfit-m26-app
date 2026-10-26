@@ -54,7 +54,7 @@ export function createOccurrenceWorkoutService({
   async function open({clientId,occurrenceId}={}){
     requireEnabled();
     if(busy||pending)fail('RECOVERY_REQUIRED');
-    if(dirty)fail('UNSAVED_WORKOUT_BLOCKED');
+    if(dirty&&!stale)fail('UNSAVED_WORKOUT_BLOCKED');
     const target={clientId:uid(clientId),occurrenceId:uid(occurrenceId)};
     busy=true;
     try{
@@ -116,32 +116,41 @@ export function createOccurrenceWorkoutService({
       const saved=await checkpoint.readCheckpoint(target);
       if(saved){
         const local=saved.snapshot,remote=next;
-        if(!local||remote.phase!=='active'||
+        const completed=remote.phase==='completed';
+        if(!local||!['active','completed'].includes(remote.phase)||
           local.phase!=='active'||
           local.clientId!==remote.clientId||
           local.occurrenceId!==remote.occurrenceId||
           local.sessionId!==remote.sessionId||
           local.localDate!==remote.localDate||
-          local.execution?.id!==remote.execution?.id||
-          JSON.stringify(local.execution?.queue)!==
-            JSON.stringify(remote.execution?.queue))
+          (!completed&&(
+            local.execution?.id!==remote.execution?.id||
+            JSON.stringify(local.execution?.queue)!==
+              JSON.stringify(remote.execution?.queue)
+          ))||
+          (completed&&local.execution?.id!==result.executionBody?.id))
           fail('CHECKPOINT_IDENTITY_DRIFT');
-        if(local.occurrenceRevision!==remote.occurrenceRevision||
-          local.executionRevision!==remote.executionRevision){
-          const sameValues=(items1,items2)=>
-            Object.entries(items1||{}).every(([key,value])=>
-              Object.prototype.hasOwnProperty.call(items2||{},key)&&
-              JSON.stringify(value)===JSON.stringify(items2[key]));
-          // Only dismiss a stale checkpoint if the server has ALREADY saved
-          // every result and skipped-set recorded locally.
-          if(!sameValues(local.execution.results,remote.execution.results)||
-            !sameValues(local.execution.skippedSets,remote.execution.skippedSets))
+        const sameValues=(localValues,remoteValues)=>
+          Object.entries(localValues||{}).every(([key,value])=>
+            Object.prototype.hasOwnProperty.call(remoteValues||{},key)&&
+            JSON.stringify(value)===JSON.stringify(remoteValues[key]));
+        const revisionAdvanced=completed||
+          local.occurrenceRevision!==remote.occurrenceRevision||
+          local.executionRevision!==remote.executionRevision;
+        if(revisionAdvanced){
+          // Only dismiss a stale checkpoint when the server contains ALL
+          // locally saved results AND any locally completed feedback.
+          const server=completed?result.executionBody:remote.execution;
+          const localFeedback=local.execution?.feedback;
+          if(!sameValues(local.execution?.results,server?.results)||
+            !sameValues(local.execution?.skippedSets,server?.skippedSets)||
+            (localFeedback&&!sameValues(localFeedback,server?.feedback)))
             fail('CHECKPOINT_REMOTE_DIVERGED');
           await checkpoint.clearCheckpoint(target,saved.etag);
           checkpointEtag=null;dirty=false;
         }else{
           // Server snapshot is trusted for identity, source and revision.
-          // Local plaintext exists only inside the owner-unlocked AES vault.
+          // Only AES-GCM authenticated owner-scoped local progress is restored.
           const allowedStatus=new Set(['active','awaiting_feedback','completed']);
           if(!allowedStatus.has(local.execution?.status)||
             local.execution?.clientId!==remote.execution?.clientId||

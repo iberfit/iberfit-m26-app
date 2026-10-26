@@ -74,15 +74,16 @@ const setup=({offlineOnce=false,otherClient=false}={})=>{
      uncertain=null;return accept(cmd);
    },
  };
+ const cp=checkpoint();
  const service=createOccurrenceWorkoutService({
-   enabled:true,coordinator,checkpoint:checkpoint(),createId:()=>sequence.shift(),
+   enabled:true,coordinator,checkpoint:cp,createId:()=>sequence.shift(),
    readPrivateOccurrence:async()=>({
      occurrence:{...occurrence,clientId:otherClient?EXEC:CLIENT},
      prescriptionSnapshot:structuredClone(snapshot),
      executionBody:structuredClone(executionBody),
    }),
  });
- return {service,sent,coordinator};
+ return {service,sent,coordinator,checkpoint:cp};
 };
 test('U49 stays dormant without explicit certified access',async()=>{
  let called=0;
@@ -225,4 +226,49 @@ test('U49 cancelled occurrence is read-only without fabricating an execution',as
  const view=await s.open({clientId:CLIENT,occurrenceId:OCC});
  assert.equal(view.phase,'cancelled');
  await assert.rejects(s.start(),/U49_TERMINAL_READ_ONLY/);
+});
+
+// U51: every mutation MUST survive encrypted storage, and switching must not
+// silently drop a client's last unsynchronized set.
+test('U51 interrupted workout restores unsaved set under the same occurrence',async()=>{
+ const {service,coordinator,checkpoint:cp,sent}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ await service.start();
+ await service.record({reps:8,rpe:7,rir:3,load:20});
+ assert.equal(service.view().unsavedWork,true);
+ await assert.rejects(service.open({clientId:CLIENT,occurrenceId:OCC}),
+   /U49_UNSAVED_WORKOUT_BLOCKED/);
+ const restored=createOccurrenceWorkoutService({
+   enabled:true,coordinator,checkpoint:cp,createId:()=>OPS[1],
+   readPrivateOccurrence:async()=>({
+     occurrence:{...record(),status:'en_curso',revision:2,executionId:EXEC},
+     prescriptionSnapshot:structuredClone(snapshot),
+     executionBody:{
+       id:EXEC,clientId:CLIENT,sessionId:SESSION,occurrenceId:OCC,
+       status:'en_curso',startedAt:new Date().toISOString(),revision:1,
+       sourceSnapshot:structuredClone(snapshot),queue:structuredClone(snapshot.queue),
+       results:{},skippedSets:{},events:[],
+     },
+   }),
+ });
+ const view=await restored.open({clientId:CLIENT,occurrenceId:OCC});
+ assert.equal(view.phase,'active');
+ assert.equal(view.unsavedWork,true);
+ await restored.save();
+ assert.equal(restored.view().unsavedWork,false);
+ assert.equal(sent.length,2,'only start and one occurrence progress command');
+ const saved=sent[1];
+ assert.equal(saved.type,'OCURRENCIA_GUARDAR_PROGRESO');
+ assert.equal(Object.values(saved.payload.results)[0].reps,8);
+ assert.equal(await cp.readCheckpoint({clientId:CLIENT,occurrenceId:OCC}),null);
+});
+test('U51 ciphertext write rejection never reports a recorded set as saved',async()=>{
+ const {service,checkpoint:cp}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ await service.start();
+ cp.writeCheckpoint=async()=>{throw new Error('indexeddb_quota_denied');};
+ await assert.rejects(service.record({reps:8,rpe:7,rir:3,load:20}),
+   /indexeddb_quota_denied/);
+ assert.equal(service.view().phase,'needs-refresh');
+ assert.equal(service.view().unsavedWork,false);
 });
