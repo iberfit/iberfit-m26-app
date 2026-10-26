@@ -27,7 +27,7 @@ test('B20 native readiness is exact pinned Android transport, not a browser gues
 test('B20 first access invites one explicit consent route, never grants it implicitly',()=>{
  const ready=clientWearableActivation({productionNativeReady:true,summary:{daysWithData:0},connections:[]});
  assert.equal(ready.kind,'consent');assert.equal(ready.cta,true);
- assert.equal(ready.label,'Elegir qué compartir');
+ assert.equal(ready.label,undefined,'copy belongs to the translated render surface');
  assert.equal(clientWearableActivation({productionNativeReady:false}).cta,false);
 });
 test('B20 no repeated prompt after confirmed data, certified grant or revocation',()=>{
