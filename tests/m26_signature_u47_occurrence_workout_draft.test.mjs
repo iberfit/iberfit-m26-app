@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createOccurrenceWorkoutDraft,buildOccurrenceWorkoutCommand,applyOccurrenceWorkoutAck,
+  rehydrateOccurrenceWorkoutDraft,
 } from '../src/m26/workflows/occurrence-workout-draft.js';
-import {recordSet,advanceExecution,finishExecution} from '../src/m26/workflows/session-execution.js';
+import {recordSet,advanceExecution,finishExecution,currentStep} from '../src/m26/workflows/session-execution.js';
 const CLIENT='10000000-0000-4000-8000-000000000102';
 const SESSION='10000000-0000-4000-8000-000000000103';
 const OCC1='10000000-0000-4000-8000-000000000105';
@@ -142,4 +143,58 @@ test('U47 completion sends results and feedback to occurrence, not canonical ses
  applyOccurrenceWorkoutAck(d,complete,ack(complete,3,2,'completada'));
  assert.equal(d.phase,'completed');
  assert.equal(d.occurrenceRevision,3);
+});
+
+test('U48 resumes a dated workout at the first unresolved set using server-owned CAS',()=>{
+ const blk={...blocks[0],sets:3};
+ const frozen={clientId:CLIENT,sessionId:SESSION,
+   blocks:[blk],queue:[{...queue[0],sets:3}]};
+ const original=createOccurrenceWorkoutDraft({
+   occurrence:occurrence(),prescriptionSnapshot:frozen,executionId:EXEC1,
+ });
+ const start=buildOccurrenceWorkoutCommand(original,{action:'start',operationId:OP1});
+ applyOccurrenceWorkoutAck(original,start,ack(start,2,1));
+ recordSet(original.execution,original.session,{reps:8,load:20,rpe:7,rir:3});
+ const saved=buildOccurrenceWorkoutCommand(original,{action:'progress',operationId:OP2});
+ applyOccurrenceWorkoutAck(original,saved,ack(saved,2,2));
+ const remote={
+   id:EXEC1,clientId:CLIENT,sessionId:SESSION,occurrenceId:OCC1,
+   status:'en_curso',revision:2,startedAt:new Date().toISOString(),
+   sourceSnapshot:structuredClone(frozen),queue:structuredClone(frozen.queue),
+   results:structuredClone(original.execution.results),skippedSets:{},events:[],
+ };
+ const reopened=rehydrateOccurrenceWorkoutDraft({
+   occurrence:{...occurrence(),status:'en_curso',revision:2,executionId:EXEC1},
+   prescriptionSnapshot:frozen,executionBody:remote,
+ });
+ assert.equal(reopened.phase,'active');
+ assert.equal(reopened.executionRevision,2);
+ assert.equal(reopened.occurrenceRevision,2);
+ assert.equal(currentStep(reopened.execution,reopened.session).setNumber,2,
+   'the completed first set cannot be recorded twice after reload');
+ const next=buildOccurrenceWorkoutCommand(reopened,{action:'progress',operationId:OP3});
+ assert.equal(next.payload.executionBaseRevision,2);
+ assert.equal(next.baseRevision,2);
+ assert.equal(next.entityId,OCC1);
+});
+test('U48 fails closed for missing, foreign, changed and completed server records',()=>{
+ const frozen=snapshot();
+ const base={id:EXEC1,clientId:CLIENT,sessionId:SESSION,
+   occurrenceId:OCC1,status:'en_curso',revision:2,
+   startedAt:new Date().toISOString(),sourceSnapshot:frozen,
+   queue:structuredClone(frozen.queue),results:{},skippedSets:{}};
+ const o={...occurrence(),status:'en_curso',revision:2,executionId:EXEC1};
+ const args={occurrence:o,prescriptionSnapshot:frozen,executionBody:base};
+ assert.throws(()=>rehydrateOccurrenceWorkoutDraft({
+   ...args,executionBody:{...base,clientId:EXEC2},
+ }),/U47_REHYDRATION_OWNER_MISMATCH/);
+ assert.throws(()=>rehydrateOccurrenceWorkoutDraft({
+   ...args,executionBody:{...base,sourceSnapshot:{...frozen,clientId:EXEC2}},
+ }),/U47_REHYDRATION_SOURCE_MISMATCH/);
+ assert.throws(()=>rehydrateOccurrenceWorkoutDraft({
+   ...args,occurrence:{...o,status:'completada'},
+ }),/U47_REHYDRATION_NOT_ACTIVE/);
+ assert.throws(()=>rehydrateOccurrenceWorkoutDraft({
+   ...args,executionBody:{...base,results:null},
+ }),/U47_REHYDRATION_RESULTS_INVALID/);
 });

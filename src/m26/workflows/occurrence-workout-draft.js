@@ -1,7 +1,10 @@
 // SIGNATURE U47 · date-scoped, server-snapshot-verified workout preparation.
 // This is a private, opt-in contract bridge; NO UI mount or public RPC grant.
 // A dated execution MUST NOT call the legacy canonical session dispatcher.
-import {createExecution,startExecution} from './session-execution.js';
+import {
+  createExecution,startExecution,currentStep,advanceExecution,
+  executionResultForStep,skippedSetForStep,
+} from './session-execution.js';
 import {buildOccurrenceScopedCommand} from '../domain/occurrence-commands.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -178,5 +181,78 @@ export function applyOccurrenceWorkoutAck(draft,command,ack){
   draft.occurrenceRevision=ack.remoteRevision;
   draft.executionRevision=ack.executionRevision;
   draft.execution.revision=ack.executionRevision;
+  return draft;
+}
+
+/**
+ * SIGNATURE U48 · Resume a DATED execution from a fresh privately authorized
+ * server record. In-flight writes MUST first be reconciled via U40/U42/U45.
+ * Never rehydrate from U33's public calendar projection or localStorage.
+ * Never restart the canonical prescription when this read fails.
+ */
+export function rehydrateOccurrenceWorkoutDraft({
+  occurrence,prescriptionSnapshot,executionBody,
+}={}){
+  if(!occurrence||!executionBody||typeof executionBody!=='object'
+    ||Array.isArray(executionBody)
+    ||occurrence.status!=='en_curso'
+    ||occurrence.timeZone!=='America/Santiago'
+    ||!Number.isSafeInteger(occurrence.revision)||occurrence.revision<2
+    ||executionBody.status!=='en_curso')
+    fail('REHYDRATION_NOT_ACTIVE');
+  const executionId=uuid(occurrence.executionId);
+  if(uuid(executionBody.id)!==executionId
+    ||uuid(executionBody.clientId)!==uuid(occurrence.clientId)
+    ||uuid(executionBody.sessionId)!==uuid(occurrence.sessionId)
+    ||uuid(executionBody.occurrenceId)!==uuid(occurrence.id))
+    fail('REHYDRATION_OWNER_MISMATCH');
+  if(!executionBody.sourceSnapshot
+    ||uuid(executionBody.sourceSnapshot.clientId)!==uuid(occurrence.clientId)
+    ||uuid(executionBody.sourceSnapshot.sessionId)!==uuid(occurrence.sessionId))
+    fail('REHYDRATION_SOURCE_MISMATCH');
+  if(!Array.isArray(executionBody.sourceSnapshot.queue)
+    ||JSON.stringify(executionBody.sourceSnapshot.queue)!==
+      JSON.stringify(prescriptionSnapshot?.queue)
+    ||JSON.stringify(executionBody.sourceSnapshot.blocks)!==
+      JSON.stringify(prescriptionSnapshot?.blocks))
+    fail('REHYDRATION_SOURCE_MISMATCH');
+  const execRevision=revision(executionBody.revision);
+  if(execRevision<1||!executionBody.results
+    ||typeof executionBody.results!=='object'
+    ||Array.isArray(executionBody.results)
+    ||!executionBody.skippedSets
+    ||typeof executionBody.skippedSets!=='object'
+    ||Array.isArray(executionBody.skippedSets))
+    fail('REHYDRATION_RESULTS_INVALID');
+  const started=Date.parse(executionBody.startedAt);
+  if(!Number.isFinite(started)||started>Date.now()+5*60_000)
+    fail('REHYDRATION_START_INVALID');
+  // Reuse the one existing sports motor; the server's frozen U44 queue must
+  // match its exercise/group ordering before restoring any progress.
+  const draft=createOccurrenceWorkoutDraft({
+    occurrence:{...occurrence,status:'confirmada',executionId:null},
+    prescriptionSnapshot,executionId,
+  });
+  verifyQueue(executionBody.queue,draft.execution.queue);
+  startExecution(draft.execution);
+  draft.execution.startedAt=new Date(started).toISOString();
+  draft.execution.activeSince=draft.execution.startedAt;
+  draft.execution.accumulatedActiveMs=0;
+  draft.execution.results=structuredClone(executionBody.results);
+  draft.execution.skippedSets=structuredClone(executionBody.skippedSets);
+  draft.execution.events=Array.isArray(executionBody.events)
+    ?structuredClone(executionBody.events):[];
+  draft.execution.revision=execRevision;
+  draft.phase='active';
+  draft.executionRevision=execRevision;
+  // Move only across sets the server has already persisted; never mark a
+  // missing result complete. A wholly resolved workout may await feedback.
+  const maxSteps=draft.execution.queue.reduce((sum,item)=>sum+item.sets,0);
+  for(let index=0;index<maxSteps;index++){
+    const step=currentStep(draft.execution,draft.session);
+    if(!step||(!executionResultForStep(draft.execution,step)
+      &&!skippedSetForStep(draft.execution,step)))break;
+    advanceExecution(draft.execution);
+  }
   return draft;
 }
