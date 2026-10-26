@@ -46,14 +46,23 @@ export function createAtomicOccurrenceIndexedDbStore({
         if(!db.objectStoreNames.contains(OBJECT_STORE))
           db.createObjectStore(OBJECT_STORE);
       };
-      request.onblocked=()=>reject(fail('OPEN_BLOCKED'));
-      request.onerror=()=>reject(fail('OPEN_FAILED'));
+      // A blocked request can subsequently succeed after the caller has
+      // already received an error. Never retain that abandoned connection.
+      let abandoned=false;
+      request.onblocked=()=>{abandoned=true;reject(fail('OPEN_BLOCKED'));};
+      request.onerror=()=>{abandoned=true;reject(fail('OPEN_FAILED'));};
       request.onsuccess=()=>{
         const db=request.result;
+        if(abandoned){db.close();return;}
+        const invalidate=()=>{
+          if(connection===db){connection=null;opening=null;}
+        };
         db.onversionchange=()=>{
           db.close();
-          if(connection===db)connection=null;
+          invalidate();
         };
+        // Unexpected browser/OS database closures also require a fresh open.
+        db.onclose=invalidate;
         connection=db;
         resolve(db);
       };

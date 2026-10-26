@@ -88,3 +88,84 @@ test('U45 failure to claim write blocks network preparation',async()=>{
    ...store,putIfAbsent:async()=>{throw new Error('device_storage_denied');},
  },key).writePending(scope,command(op1)),/device_storage_denied/);
 });
+
+
+test('U45 reconnects after IDB version changes and unexpected closure',async()=>{
+  const databases=[];
+  let opens=0;
+  const indexedDBImpl={
+    open(){
+      opens++;
+      const db={
+        closed:false,
+        objectStoreNames:{contains:()=>true},
+        createObjectStore(){},
+        close(){this.closed=true;},
+        transaction(){
+          if(this.closed)throw Error('CLOSED_DATABASE');
+          const tx={
+            oncomplete:null,onabort:null,onerror:null,
+            objectStore(){return {
+              get(){
+                const req={result:undefined,onsuccess:null};
+                queueMicrotask(()=>{
+                  req.onsuccess?.();
+                  queueMicrotask(()=>tx.oncomplete?.());
+                });
+                return req;
+              },
+            };},
+          };
+          return tx;
+        },
+      };
+      databases.push(db);
+      const request={result:db,onsuccess:null};
+      queueMicrotask(()=>request.onsuccess?.());
+      return request;
+    },
+  };
+  const store=createAtomicOccurrenceIndexedDbStore({
+    indexedDBImpl,databaseName:'iberfit-occurrence-private-v1-qa-reconnect',
+  });
+  const key='m26:occurrence:v1:'+'a'.repeat(64);
+  assert.equal(await store.get(key),null);
+  assert.equal(opens,1);
+  databases[0].onversionchange?.();
+  assert.equal(databases[0].closed,true);
+  assert.equal(await store.get(key),null);
+  assert.equal(opens,2);
+  databases[1].closed=true;databases[1].onclose?.();
+  assert.equal(await store.get(key),null);
+  assert.equal(opens,3);
+  store.close();
+});
+
+test('U45 does not retain abandoned IDB connection after onblocked',async()=>{
+  const db={
+    closed:false,
+    close(){this.closed=true;},
+    objectStoreNames:{contains:()=>true},
+    createObjectStore(){},
+  };
+  const indexedDBImpl={
+    open(){
+      const request={result:db,onblocked:null,onsuccess:null};
+      queueMicrotask(()=>{
+        request.onblocked?.();
+        queueMicrotask(()=>request.onsuccess?.());
+      });
+      return request;
+    },
+  };
+  const store=createAtomicOccurrenceIndexedDbStore({
+    indexedDBImpl,databaseName:'iberfit-occurrence-private-v1-qa-blocked',
+  });
+  await assert.rejects(
+    store.get('m26:occurrence:v1:'+'b'.repeat(64)),
+    /U45_OPEN_BLOCKED/,
+  );
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(db.closed,true);
+  store.close();
+});
