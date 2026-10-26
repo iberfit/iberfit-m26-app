@@ -34,9 +34,11 @@ export function createAtomicOccurrenceIndexedDbStore({
     throw fail('DATABASE_NAME_INVALID');
   let connection=null;
   let opening=null;
+  let generation=0;
   async function database(){
     if(connection)return connection;
     if(opening)return opening;
+    const epoch=generation;
     opening=new Promise((resolve,reject)=>{
       let request;
       try{request=indexedDBImpl.open(databaseName,1);}
@@ -54,6 +56,11 @@ export function createAtomicOccurrenceIndexedDbStore({
       request.onsuccess=()=>{
         const db=request.result;
         if(abandoned){db.close();return;}
+        if(epoch!==generation){
+          db.close();
+          reject(fail('OPEN_CANCELLED'));
+          return;
+        }
         const invalidate=()=>{
           if(connection===db){connection=null;opening=null;}
         };
@@ -66,7 +73,11 @@ export function createAtomicOccurrenceIndexedDbStore({
         connection=db;
         resolve(db);
       };
-    }).catch(e=>{opening=null;throw e;});
+    }).catch(e=>{
+      // A late failure from a cancelled open cannot clear its replacement.
+      if(epoch===generation)opening=null;
+      throw e;
+    });
     return opening;
   }
   async function transact(mode,onStore){
@@ -136,6 +147,9 @@ export function createAtomicOccurrenceIndexedDbStore({
     });
   };
   const close=()=>{
+    // Invalidate in-flight opens before closing, so late success cannot
+    // resurrect private storage after logout or owner-key destruction.
+    generation++;
     if(connection)connection.close();
     connection=null;opening=null;
   };
