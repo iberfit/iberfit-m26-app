@@ -86,7 +86,13 @@ export function createAtomicOccurrenceIndexedDbStore({
       let tx,result;
       try{
         tx=db.transaction(OBJECT_STORE,mode);
-      }catch{
+      }catch(error){
+        // A closing IDB connection may reject new transactions before its
+        // onclose notification arrives (or without one). Never cache it.
+        if(error?.name==='InvalidStateError'&&connection===db){
+          connection=null;opening=null;
+          try{db.close();}catch{}
+        }
         reject(fail('TRANSACTION_UNAVAILABLE'));return;
       }
       tx.oncomplete=()=>resolve(result);

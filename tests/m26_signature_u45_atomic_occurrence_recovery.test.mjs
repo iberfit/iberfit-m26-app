@@ -224,3 +224,52 @@ test('U45 a delayed IDB open cannot resurrect a closed private vault',async()=>{
   store.close();
   assert.equal(databases[1].closed,true);
 });
+
+test('U45 recovers a closed connection even when no IDB onclose event fires',async()=>{
+  let opens=0;
+  const databases=[];
+  const indexedDBImpl={open(){
+    const first=++opens===1;
+    const db={
+      closed:false,
+      objectStoreNames:{contains:()=>true},
+      createObjectStore(){},
+      close(){this.closed=true;},
+      transaction(){
+        if(first){
+          const error=new Error('connection is closing');
+          error.name='InvalidStateError';
+          throw error;
+        }
+        if(this.closed)throw new Error('STALE_DATABASE');
+        const tx={
+          oncomplete:null,onerror:null,onabort:null,
+          objectStore(){return {get(){
+            const request={result:undefined,onsuccess:null};
+            queueMicrotask(()=>{
+              request.onsuccess?.();
+              queueMicrotask(()=>tx.oncomplete?.());
+            });
+            return request;
+          }};},
+        };
+        return tx;
+      },
+    };
+    databases.push(db);
+    const request={result:db,onsuccess:null};
+    queueMicrotask(()=>request.onsuccess?.());
+    return request;
+  }};
+  const store=createAtomicOccurrenceIndexedDbStore({
+    indexedDBImpl,databaseName:'iberfit-occurrence-private-v1-qa-stale-transaction',
+  });
+  const storageKey='m26:occurrence:v1:'+'d'.repeat(64);
+  await assert.rejects(store.get(storageKey),/U45_TRANSACTION_UNAVAILABLE/);
+  assert.equal(databases[0].closed,true);
+  assert.equal(await store.get(storageKey),null,
+    'next operation must acquire a fresh connection, not the dead one');
+  assert.equal(opens,2);
+  store.close();
+  assert.equal(databases[1].closed,true);
+});
