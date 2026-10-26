@@ -1,3 +1,4 @@
+import {isClientVisibleAppointment} from '../domain/appointment.js';
 const fold=(value)=>String(value??'')
   .trim()
   .toLowerCase()
@@ -136,6 +137,44 @@ export function appointmentSessionId(record){
 export function appointmentStartAt(record){
   return field(record,'startAt','start_at','scheduledAt','scheduled_at','date','fecha');
 }
+// U38 · One legacy canonical session may not impersonate multiple dated
+// executions. This is a UX/workflow fence; U31 server authorization remains
+// the source of truth. Neither missing appointments nor this pure check grant
+// permission to execute a session.
+export function legacyStartNeedsOccurrence({
+  appointments=[],occurrences=[],sessionId,clientId,
+}={}){
+  const targetSession=String(sessionId||'').trim();
+  const targetClient=String(clientId||'').trim();
+  if(!targetSession||!targetClient)return false;
+  const confirmed=new Set(['confirmada','confirmado','confirmed','realizada',
+    'realizado','completed','completada','completado']);
+  const ids=new Set();
+  if(Array.isArray(appointments)){
+    for(const appointment of appointments){
+      if(appointmentSessionId(appointment)!==targetSession
+        ||clientIdOf(appointment)!==targetClient
+        ||!confirmed.has(fold(field(appointment,'status','estado'))))continue;
+      const id=String(field(appointment,'id','entityId','entity_id')||'').trim();
+      const start=appointmentStartAt(appointment);
+      // Deduplicate multiple representations of the same appointment. Rows
+      // without IDs never prove independent occurrences.
+      if(id&&dateMs(start)!==null)ids.add(id);
+      if(ids.size>1)return true;
+    }
+  }
+  // Once any U30 occurrence was provisioned, including historical cancelled
+  // dates, the canonical prescription must never be consumed by V26. U31
+  // handles new date executions and preserves their separate history.
+  if(Array.isArray(occurrences)){
+    for(const occurrence of occurrences){
+      if(String(field(occurrence,'sessionId','session_id')||'')===targetSession
+        &&clientIdOf(occurrence)===targetClient)return true;
+    }
+  }
+  return false;
+}
+
 export function appointmentForSession(appointments=[],session={},now=new Date()){
   const sessionId=sessionIdOf(session);
   const clientId=clientIdOf(session);
@@ -236,11 +275,48 @@ export function clientSessionProjection(session={},appointment=null,now=new Date
     appointment,
   });
 }
+// Multiple confirmed dates are visual appointments, NOT independent
+// executable occurrences until the U31 scope-aware command API is live.
 export function buildClientPlanningItems({sessions=[],appointments=[],now=new Date()}={}){
-  return Object.freeze((sessions||[])
-    .map((session)=>clientSessionProjection(session,appointmentForSession(appointments,session),now))
-    .filter((item)=>item.visible)
-    .sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER)));
+  const bySession=new Map();
+  for(const appointment of appointments||[]){
+    const sessionId=appointmentSessionId(appointment);
+    const clientId=clientIdOf(appointment);
+    const appointmentId=String(field(appointment,'id','entityId','entity_id')||'');
+    if(!sessionId||!clientId||!appointmentId
+      ||!isClientVisibleAppointment(appointment)
+      ||dateMs(appointmentStartAt(appointment))===null)continue;
+    const key=clientId+'|'+sessionId;
+    if(!bySession.has(key))bySession.set(key,new Map());
+    bySession.get(key).set(appointmentId,appointment);
+  }
+  const output=[];
+  const sessionKeys=new Set();
+  for(const session of sessions||[]){
+    const source=clientSessionProjection(session,null,now);
+    if(!source.visible||!source.id)continue;
+    const key=String(source.clientId||'')+'|'+String(source.id);
+    if(sessionKeys.has(key))continue;
+    sessionKeys.add(key);
+    const dates=[...(bySession.get(key)?.values()||[])];
+    if(!dates.length){output.push(source);continue;}
+    const needsOccurrenceEngine=dates.length>1;
+    for(const appointment of dates){
+      const item=clientSessionProjection(session,appointment,now);
+      // A shared prescription can only be consumed once by the legacy V26
+      // executor: with multiple dates, no Client CTA may claim per-date start.
+      output.push(Object.freeze({
+        ...item,
+        canClientStart:needsOccurrenceEngine?false:item.canClientStart,
+        recurringAwaitingActivation:needsOccurrenceEngine,
+      }));
+    }
+  }
+  output.sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-
+    (dateMs(b.startAt)??Number.MAX_SAFE_INTEGER)||
+    String(a.id).localeCompare(String(b.id))||
+    String(a.appointmentId||'').localeCompare(String(b.appointmentId||'')));
+  return Object.freeze(output);
 }
 export function clientTaskIsOverdue(item,now=new Date()){
   if(!item?.canClientExecute)return false;

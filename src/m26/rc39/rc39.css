@@ -760,3 +760,60 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   }
 }
 
+
+/* SIGNATURE U27 · Agenda Cliente por fecha; superficies cálidas y navegación táctil. */
+.m26-rc39-date-navigation{display:grid;gap:.65rem;margin:1.1rem 0 1.35rem;min-width:0}
+.m26-rc39-date-navigation>.m26-eyebrow{margin:0;color:var(--m26-gold-300)}
+.m26-rc39-date-links{display:flex;gap:.55rem;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin;padding:.15rem .15rem .65rem;max-width:100%}
+.m26-rc39-date-links>a{flex:0 0 auto;min-width:6.1rem;min-height:4.1rem;display:grid;align-content:center;gap:.2rem;padding:.65rem .9rem;text-decoration:none;scroll-snap-align:start;border:1px solid rgba(228,205,152,.2);border-radius:.95rem;background:rgba(228,205,152,.055);color:var(--m26-cream-100)}
+.m26-rc39-date-links>a strong{font-size:.96rem;font-weight:650}
+.m26-rc39-date-links>a small{font-size:.75rem;color:var(--m26-muted)}
+.m26-rc39-date-links>a[aria-current="date"]{border-color:var(--m26-gold-300);background:rgba(200,166,93,.15)}
+.m26-rc39-date-links>a:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px}
+.m26-rc39-date-groups{display:grid;gap:1.5rem;min-width:0}
+.m26-rc39-day-group{display:grid;gap:.8rem;scroll-margin-top:1.25rem;scroll-margin-bottom:calc(6.5rem + env(safe-area-inset-bottom));min-width:0}
+.m26-rc39-day-heading{display:flex;align-items:baseline;cursor:pointer;list-style:none;min-height:48px;padding-top:.55rem;justify-content:space-between;gap:.65rem;border-bottom:1px solid rgba(228,205,152,.22);padding-bottom:.65rem}
+.m26-rc39-day-heading h3{margin:0;font-size:clamp(1.04rem,1.8vw,1.32rem);font-family:Georgia,serif;font-weight:500;color:var(--m26-cream-100);text-transform:capitalize}
+.m26-rc39-day-heading span{white-space:nowrap;color:var(--m26-muted);font-size:.8rem}
+.m26-rc39-day-group[data-training-date="unscheduled"]{opacity:.88}
+.m26-rc39-day-group[data-training-date="unscheduled"]>header{border-bottom-style:dashed}
+@media (max-width:480px){
+ .m26-rc39-date-navigation{margin:.8rem 0 1rem}
+ .m26-rc39-day-heading{align-items:flex-start}
+ .m26-rc39-date-links>a{min-width:5.7rem}
+}
+@media (prefers-reduced-motion:reduce){.m26-rc39-date-links{scroll-behavior:auto}}
+.m26-rc39-day-group summary::-webkit-details-marker{display:none}
+.m26-rc39-day-heading::after{content:'+';color:var(--m26-gold-300);font-size:1.22rem;line-height:1;align-self:center}
+.m26-rc39-day-group[open]>.m26-rc39-day-heading::after{content:'−'}
+.m26-rc39-day-heading:focus-visible{outline:3px solid var(--m26-gold-300);outline-offset:3px;border-radius:.5rem}
+.m26-rc39-day-group:not([open]){gap:0}
+.m26-rc39-day-group[open]>.m26-rc39-week{padding-top:.45rem}
+
+/* Shared warm, matte treatment for Client Planning and Sessions, not Coach. */
+.m26-shell[data-m26-role="client"] .m26-rc39-planning .m26-rc39-session-card{
+  min-width:0;
+  border-radius:1.4rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:var(--iberfit-shadow-subtle);
+  transform:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-planning .m26-rc39-session-card:hover{
+  box-shadow:var(--iberfit-shadow-subtle);
+  transform:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-planning .m26-rc39-session-card.is-autonomous{
+  border-color:color-mix(in srgb,var(--iberfit-color-gold-500) 38%,var(--iberfit-color-border));
+}
+.m26-shell[data-m26-role="client"] :is(.m26-rc39-planning,.m26-rc39-sessions) .m26-rc39-day-group>summary{
+  color:var(--iberfit-color-cream-100);
+  touch-action:manipulation;
+}
+
+
+/* SIGNATURE U35 · Readable, honest pending state for shared prescriptions. */
+.m26-shell[data-m26-role="client"] .m26-rc39-occurrence-pending{
+  margin:.5rem 0 0;padding:.75rem 1rem;border-inline-start:3px solid var(--m26-gold-300);
+  border-radius:.4rem;background:rgba(228,205,152,.09);color:var(--m26-cream-100);
+  font-size:.875rem;line-height:1.5;
+}

@@ -1,3 +1,4 @@
+import {civilDateInTimeZone} from '../domain/civil-date.js';
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {renderCompletedSessionHistory} from './completed-session-history.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
@@ -108,7 +109,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   if(role==='coach'){
     const isAppointmentConfirmed=!item.appointment||['confirmada','confirmado','confirmed'].includes(appointmentStatus);
     const needsAppointment=sessionRequiresConfirmedAppointment({role,session:item.session,appointment:item.appointment});
-    if(serviceActive&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
+    if(serviceActive&&!item.recurringAwaitingActivation&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
       actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar con Coach</button>`);
     }
     if(item.appointment?.changeRequest?.status==='pending'){
@@ -222,6 +223,7 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
     ${item.appointment?.changeRequest?.status==='pending'?`<aside class="m26-notice is-warning"><strong>Cambio solicitado por el cliente</strong><p>${escape(item.appointment.changeRequest.reason||'Sin motivo registrado')}</p></aside>`:''}
+    ${role==='client'&&item.recurringAwaitingActivation?'<p class="m26-rc39-occurrence-pending" role="status">Varias fechas comparten esta prescripción. El inicio independiente por fecha estará disponible cuando se habilite su ejecución.</p>':''}
     ${content}
     ${cardActions(item,role,experience,{serviceActive})}
     ${role==='client'&&item.confirmation?.canRequestChange&&item.changeRequestAvailable?`<form class="m26-rc39-change-form" data-rc39-change-form="${escape(item.appointmentId)}" hidden><label>Motivo o alternativa horaria<textarea name="reason" maxlength="500" required></textarea></label><div><button type="submit" class="m26-primary-action">Enviar solicitud</button><button type="button" data-rc39-action="close-change-request">Cancelar</button></div></form>`:''}
@@ -269,19 +271,62 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
+// Calendario editorial de Cliente: una sesión publicada puede aparecer en
+// muchas fechas confirmadas sin duplicar su prescripción ni inventar ejecuciones.
+function renderClientDatedPlanning(items,options){
+  const dates=new Map();
+  for(const item of items){
+    const key=item.startAt?civilDateInTimeZone(item.startAt):null;
+    const day=key||'unscheduled';
+    if(!dates.has(day))dates.set(day,[]);
+    dates.get(day).push(item);
+  }
+  const today=civilDateInTimeZone(new Date());
+  const calendarDays=[...dates.keys()].filter((key)=>key!=='unscheduled').sort();
+  const primaryDay=dates.has(today)?today
+    :calendarDays.find((key)=>key>=today)
+      ||calendarDays[calendarDays.length-1]||'unscheduled';
+  const calendarNav=calendarDays.length?`<nav class="m26-rc39-date-navigation" aria-label="Fechas de entrenamiento programadas">
+    <p class="m26-eyebrow">Calendario de entrenamientos</p>
+    <div class="m26-rc39-date-links">${calendarDays.map((key)=>{
+      const dayItems=dates.get(key)||[];
+      const label=key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(key+'T12:00:00Z'));
+      return `<a href="#m26-plan-day-${escape(key)}" data-rc39-date-target="${escape(key)}" ${key===today?'data-rc39-today="true"':''} ${key===primaryDay?`aria-current="${key===today?'date':'location'}"`:''}><strong>${escape(label)}</strong><small>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</small></a>`;
+    }).join('')}</div>
+  </nav>`:'';
+  const groups=[...dates.entries()].sort(([a],[b])=>a==='unscheduled'?1:b==='unscheduled'?-1:a.localeCompare(b)).map(([key,dayItems])=>{
+    const dated=key!=='unscheduled';
+    const label=dated
+      ?key===today?'Hoy':new Intl.DateTimeFormat('es-CL',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(key+'T12:00:00Z'))
+      :'Sesiones sin fecha asignada';
+    const isPrimary=key===primaryDay;
+    // In Sessions, hiding the preview behind a second date disclosure
+    // blocks the workout on touch screens. Planning still expands one day.
+    const expand=options.expandAll===true||isPrimary;
+    return `<details class="m26-rc39-day-group" id="m26-plan-day-${escape(key)}" data-training-date="${escape(key)}" ${expand?'open':''} ${isPrimary?'data-rc39-primary-day="true"':''}>
+      <summary class="m26-rc39-day-heading"><h3>${escape(label)}</h3><span>${escape(dayItems.length)} ${dayItems.length===1?'sesión':'sesiones'}</span></summary>
+      <div class="m26-rc39-week">${dayItems.map((item)=>sessionCard(item,'client',options.contractModality,{serviceActive:options.serviceActive,...options.assets})).join('')}</div>
+    </details>`;
+  }).join('');
+  return calendarNav+'<div class="m26-rc39-date-groups" data-rc39-date-mode="'+
+    (options.expandAll===true?'all':'single')+'">'+groups+'</div>';
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   // Client-only appointments were scoped by ownership, publication and time in the view model.
   const clientAppointments=Array.isArray(vm.clientAppointments)?vm.clientAppointments:[];
   const contractModality=contractModalityOf(vm);
   // Availability is a permission and session-readiness decision, not a modality badge.
-  const appExecutable=vm.serviceActive!==false?items.filter((item)=>
-    experienceFor(item,'client',contractModality).clientLiveWorkout&&clientCanStartProjection(item)).length:0;
-  const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
-  const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
-  const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
+  const distinctSessionCount=new Set(items.map((item)=>String(item.id||''))).size;
+  const scheduledDates=items.filter((item)=>item.appointmentId).length;
+  const appExecutable=vm.serviceActive!==false?new Set(items.filter((item)=>
+    experienceFor(item,'client',contractModality).clientLiveWorkout&&clientCanStartProjection(item))
+    .map((item)=>item.id)).size:0;
+  const supervised=new Set(items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).map((item)=>item.id)).size;
+  const sessionCountLabel=distinctSessionCount===1?'1 sesión publicada':`${distinctSessionCount} sesiones publicadas`;
+  const sessionCountShort=scheduledDates?`${scheduledDates} fechas programadas`:distinctSessionCount===1?'1 sesión':`${distinctSessionCount} sesiones`;
   const hasPublished=items.length>0;
-  const cards=hasPublished?items.map((item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):'';
+  const cards=hasPublished?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{}}):'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
@@ -290,7 +335,7 @@ function renderClientPlanning(vm){
       ${hasPublished?'':`<div class="m30-planning-pending-actions"><button type="button" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="progreso">Ver mi evolución</button></div>`}
     </div>
     ${hasPublished?`<div class="m30-planning-overview-metrics" aria-label="Sesiones publicadas por modalidad">
-      <div><span>Total</span><strong>${escape(items.length)}</strong><small>sesiones</small></div>
+      <div><span>Sesiones</span><strong>${escape(distinctSessionCount)}</strong><small>prescripciones distintas</small></div>
       <div><span>Con Coach</span><strong>${escape(supervised)}</strong><small>supervisadas</small></div>
       <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>entrenamiento guiado</small></div>
     </div>`:''}
@@ -302,7 +347,7 @@ function renderClientPlanning(vm){
   const modalityLabel=clientModalityLabel(contractModality);
   const planningTitle=modalityLabel==='Sin modalidad'?'Tu planificación':`Planificación · ${modalityLabel}`;
   const planningIntro=hasPublished
-    ?'Consulta tus sesiones publicadas, cuándo realizarlas y cuáles puedes iniciar desde la aplicación.'
+    ?'Consulta tus sesiones publicadas y fechas confirmadas. Solo aparecen acciones de inicio cuando están realmente disponibles.'
     :'Aquí tendrás tus sesiones y próximas citas cuando estén confirmadas.';
   return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section>${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
 }
@@ -342,6 +387,18 @@ function agendaClientOptions(vm={}){
 function renderAgendaProposalForm(vm,role){
   if(!['coach','admin'].includes(role))return '';
   const options=agendaClientOptions(vm);
+  // A dated appointment references the canonical published session. It is
+  // not a copy of its prescription or an authorization to execute it twice.
+  const selectedClient=String(vm.selectedClientId||'');
+  const linkedSessions=(vm.rc39?.sessionProjections||[])
+    .filter((item)=>item?.id&&item?.clientId&&item.visible&&isPublishedSession(item.session))
+    .filter((item)=>!selectedClient||item.clientId===selectedClient);
+  const sessionOptions=linkedSessions.map((item)=>{
+    const body=item.session?.body&&typeof item.session.body==='object'?item.session.body:item.session||{};
+    const duration=Number(body.durationMinutes??body.duration_minutes??0);
+    const suggestedDuration=Number.isFinite(duration)&&duration>=20&&duration<=240?String(duration):'';
+    return `<option value="${escape(item.id)}" data-client-id="${escape(item.clientId)}" data-modality="${escape(item.modality||'')}" data-session-duration="${escape(suggestedDuration)}">${escape(item.title)}</option>`;
+  }).join('');
   return `<form
     id="m26-agenda-proposal-form"
     class="m26-panel m26-panel-soft m30-agenda-proposal"
@@ -362,8 +419,16 @@ function renderAgendaProposalForm(vm,role){
           ${options||'<option value="">Sin clientes disponibles</option>'}
         </select>
       </label>
+      <label>Vincular sesión publicada
+        <select name="sessionId" aria-describedby="m26-appointment-session-guidance">
+          <option value="">Cita general sin sesión vinculada</option>
+          ${sessionOptions}
+        </select>
+        <small id="m26-appointment-session-guidance">Vincula una sesión a cada fecha. La prescripción no se duplica y cada cita se confirma por separado.</small>
+      </label>
       <label>Modalidad de esta cita
         <select name="modality" required>
+          <option value="">Selecciona modalidad</option>
           <option value="presencial">Presencial</option>
           <option value="guiada_en_app">Guiada en la aplicación</option>
           <option value="online">En línea</option>
@@ -429,7 +494,9 @@ function renderAgenda(vm){
   const isClient=role==='client';
   const canManage=['coach','admin'].includes(role);
   const contractModality=contractModalityOf(vm);
-  const projections=vm.rc39?.sessionProjections||[];
+  const projections=isClient
+    ?(vm.rc39?.planningItems||vm.rc39?.sessionProjections||[])
+    :(vm.rc39?.sessionProjections||[]);
   const appointments=vm.rc39?.appointments||[];
 
   const proposedCount=appointments.filter((item)=>
@@ -566,13 +633,17 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
-  const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
+  const client=role==='client';
+  // Session screen and Planning share the SAME dated, scoped Client source.
+  // Never fall back to a single canonical CTA when two visible dates exist.
+  const items=(client
+    ?(vm.rc39?.planningItems||vm.rc39?.sessionProjections||[])
+    :(vm.rc39?.sessionProjections||[])).filter((item)=>!client||item.visible);
   // Client follows one deliberate path: Ver sesión -> Comenzar entrenamiento.
   // Never infer client permissions from badges, modality or a convenient CTA.
   const routePrimary=['coach','admin'].includes(role)
     ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
     :'';
-  const client=role==='client';
   const ready=client&&vm.serviceActive!==false&&items.some((item)=>
     experienceFor(item,role,contractModality).clientLiveWorkout&&clientCanStartProjection(item));
   const clientState=!items.length?'empty':vm.serviceActive===false&&client?'paused':ready?'ready':'published';
@@ -593,7 +664,9 @@ function renderSessions(vm){
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
   return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${clientBriefMarkup}<section class="m26-rc39-week">${items.length?(role==='coach'
     ?renderCoachSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
-    :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+    :client
+      ?renderClientDatedPlanning(items,{contractModality,serviceActive:vm.serviceActive!==false,assets:vm.sessionPreviewAssets||{},expandAll:true})
+      :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;

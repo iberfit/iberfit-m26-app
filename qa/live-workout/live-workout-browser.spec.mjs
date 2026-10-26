@@ -622,3 +622,185 @@ test('SIGNATURE Coach-led appointment never converts into a Client start through
   const state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
   expect(state.launchCount).toBe(0);
 });
+
+
+test('SIGNATURE B15: calendar real renderer stays accessible at 320px with two independent dates',async({page},testInfo)=>{
+  await page.setViewportSize({width:320,height:740});
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
+  const expected=await page.evaluate(async()=>{
+    const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
+    const {buildClientPlanningItems}=await import('/src/m26/rc39/session-policy.js');
+    const clientId='22222222-2222-4222-8222-222222222222';
+    const session={
+      id:'qa-b15-guided',clientId,
+      title:'Fuerza y movilidad · Entrenamiento personal',
+      status:'disponible',visibleToClient:true,
+      deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+      clientVisibilityLevel:'full',durationMinutes:50,
+      blocks:[{id:'qa-b15-block',type:'exercise',exerciseId:'qa-press',sets:3,reps:'8'}],
+    };
+    const booking=(id,startAt)=>({
+      id,clientId,sessionId:session.id,status:'confirmada',
+      visibleToClient:true,startAt,
+      endAt:new Date(Date.parse(startAt)+50*60*1000).toISOString(),
+      modality:'guiada_en_app',
+    });
+    const appointments=[
+      booking('qa-b15-first','2026-10-27T15:00:00Z'),
+      booking('qa-b15-second','2026-11-03T15:00:00Z'),
+    ];
+    const items=buildClientPlanningItems({
+      sessions:[session],appointments,now:new Date('2026-10-25T12:00:00Z'),
+    });
+    const vm={kind:'planificacion',role:'client',serviceActive:true,
+      selectedClient:{id:clientId,modality:'online'},
+      rc39:{planningItems:items,appointments:[]}};
+    document.querySelector('#qa-published-route').innerHTML=renderRc39Route(vm);
+    return {itemCount:items.length,blocked:items.every(item=>!item.canClientStart)};
+  });
+  expect(expected).toEqual({itemCount:2,blocked:true});
+  const nav=page.getByRole('navigation',{name:'Fechas de entrenamiento programadas'});
+  await expect(nav).toBeVisible();
+  const links=nav.locator('.m26-rc39-date-links>a');
+  await expect(links).toHaveCount(2);
+  const groups=page.locator('.m26-rc39-day-group');
+  await expect(groups).toHaveCount(2);
+  await expect(groups.nth(0)).toHaveAttribute('open','');
+  await expect(groups.nth(1)).not.toHaveAttribute('open');
+  await expect(page.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  const geometry=await page.evaluate(()=>{
+    const target=document.querySelector('.m26-rc39-date-links>a');
+    const nav=document.querySelector('.m26-rc39-date-links');
+    const rect=target.getBoundingClientRect();
+    return {
+      docWidth:document.documentElement.scrollWidth,
+      viewport:document.documentElement.clientWidth,
+      tapHeight:rect.height,tapWidth:rect.width,
+      scrollStyle:getComputedStyle(nav).overflowX,
+    };
+  });
+  expect(geometry.docWidth).toBeLessThanOrEqual(geometry.viewport+1);
+  expect(geometry.tapHeight).toBeGreaterThanOrEqual(44);
+  expect(geometry.tapWidth).toBeGreaterThanOrEqual(44);
+  expect(geometry.scrollStyle).toBe('auto');
+  const summary=groups.nth(1).locator(':scope > summary.m26-rc39-day-heading');
+  if(testInfo.project.use?.hasTouch)await summary.tap();
+  else await summary.click();
+  await expect(groups.nth(1)).toHaveAttribute('open','');
+  await page.keyboard.press('Tab');
+  await links.nth(0).focus();
+  const outline=await links.nth(0).evaluate(el=>getComputedStyle(el).outlineStyle);
+  expect(outline).toBe('solid');
+  if(testInfo.project.name==='live-workout-mobile-chromium'){
+    const {mkdir}=await import('node:fs/promises');
+    await mkdir('recovery/signature-published-sessions',{recursive:true});
+    await page.screenshot({path:'recovery/signature-published-sessions/b15-atelier-320-client-dates.png',
+      fullPage:true,animations:'disabled'});
+  }
+});
+
+
+test('SIGNATURE U45: two real browser tabs serialize IndexedDB claims and survive reload',async({page,context})=>{
+  const url='/qa/live-workout/published-sessions.fixture.html?scenario=empty';
+  await page.goto(url,{waitUntil:'domcontentloaded'});
+  const other=await context.newPage();
+  await other.goto(url,{waitUntil:'domcontentloaded'});
+  const databaseName='iberfit-occurrence-private-v1-qa-two-tabs';
+  const key='m26:occurrence:v1:'+'a'.repeat(64);
+  const makeStore=async(target)=>{
+    await target.evaluate(async(db)=>{
+      const {createAtomicOccurrenceIndexedDbStore}=await import(
+        '/src/m26/workflows/occurrence-indexeddb-store.js');
+      const store=createAtomicOccurrenceIndexedDbStore({databaseName:db});
+      await store.get('m26:occurrence:v1:'+'a'.repeat(64));
+      store.close();
+    },databaseName);
+  };
+  await Promise.all([makeStore(page),makeStore(other)]);
+  const contender=(target,letter)=>target.evaluate(async({db,key,value})=>{
+    const {createAtomicOccurrenceIndexedDbStore}=await import(
+      '/src/m26/workflows/occurrence-indexeddb-store.js');
+    const store=createAtomicOccurrenceIndexedDbStore({databaseName:db});
+    return store.putIfAbsent(key,value);
+  },{db:databaseName,key,value:letter.repeat(80)});
+  const winners=await Promise.all([
+    contender(page,'A'),contender(other,'B'),
+  ]);
+  expect(winners.filter(Boolean)).toHaveLength(1);
+  await page.reload({waitUntil:'domcontentloaded'});
+  const recovered=await page.evaluate(async({db,key})=>{
+    const {createAtomicOccurrenceIndexedDbStore}=await import(
+      '/src/m26/workflows/occurrence-indexeddb-store.js');
+    const store=createAtomicOccurrenceIndexedDbStore({databaseName:db});
+    const saved=await store.get(key);
+    const staleDelete=await store.deleteIfEqual(key,'wrong'.repeat(16));
+    const unchanged=await store.get(key);
+    const actualDelete=await store.deleteIfEqual(key,saved);
+    const afterDelete=await store.get(key);
+    store.close();
+    return {saved,staleDelete,unchanged,actualDelete,afterDelete};
+  },{db:databaseName,key});
+  expect(recovered.saved).toBe(winners[0]?'A'.repeat(80):'B'.repeat(80));
+  expect(recovered.staleDelete).toBe(false);
+  expect(recovered.unchanged).toBe(recovered.saved);
+  expect(recovered.actualDelete).toBe(true);
+  expect(recovered.afterDelete).toBeNull();
+  await other.close();
+});
+
+
+test('SIGNATURE B16: future day selection updates aria-current and opens that date without extra workflow actions',async({page})=>{
+  await page.setViewportSize({width:320,height:740});
+  await page.goto('/qa/live-workout/published-sessions.fixture.html?scenario=mixed',{waitUntil:'domcontentloaded'});
+  await page.evaluate(async()=>{
+    const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
+    const {buildClientPlanningItems}=await import('/src/m26/rc39/session-policy.js');
+    const {createRc39Controller}=await import('/src/m26/rc39/controller.js');
+    const clientId='22222222-2222-4222-8222-222222222222';
+    const session={
+      id:'qa-b16-guided',clientId,title:'Entrenamiento de fuerza · Dos fechas',
+      status:'disponible',visibleToClient:true,
+      deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+      clientVisibilityLevel:'full',durationMinutes:45,
+      blocks:[{id:'qa-block',type:'exercise',exerciseId:'qa-press',sets:3,reps:'8'}],
+    };
+    const dates=['2026-10-27T15:00:00Z','2026-11-03T15:00:00Z'];
+    const appointments=dates.map((startAt,index)=>({
+      id:'qa-b16-appointment-'+index,clientId,sessionId:session.id,
+      status:'confirmada',startAt,
+      endAt:new Date(Date.parse(startAt)+45*60_000).toISOString(),
+    }));
+    const items=buildClientPlanningItems({sessions:[session],appointments,
+      now:new Date('2026-10-25T12:00:00Z')});
+    const root=document.querySelector('#qa-published-route');
+    root.innerHTML=renderRc39Route({
+      kind:'planificacion',role:'client',serviceActive:true,
+      selectedClient:{id:clientId,modality:'online'},
+      rc39:{planningItems:items,appointments:[]},
+    });
+    const controller=createRc39Controller({
+      root,store:{getState:()=>({collections:{appointments:[]}})},
+    });
+    controller.mount();
+    globalThis.__QA_B16_CONTROLLER__=controller;
+  });
+  const links=page.locator('.m26-rc39-date-links>a');
+  await expect(links).toHaveCount(2);
+  await expect(links.nth(0)).toHaveAttribute('aria-current','location');
+  await expect(links.nth(1)).not.toHaveAttribute('aria-current');
+  await expect(page.locator('#m26-plan-day-2026-11-03')).not.toHaveAttribute('open','');
+  await links.nth(1).click();
+  await expect(page.locator('#m26-plan-day-2026-11-03')).toHaveAttribute('open','');
+  await expect(links.nth(1)).toHaveAttribute('aria-current','location');
+  await expect(links.nth(0)).not.toHaveAttribute('aria-current');
+  const facts=await page.evaluate(()=>({
+    focus:document.activeElement?.className,
+    width:document.documentElement.clientWidth,
+    scroll:document.documentElement.scrollWidth,
+  }));
+  expect(facts.focus).toBe('m26-rc39-day-heading');
+  expect(facts.scroll).toBeLessThanOrEqual(facts.width+1);
+  await expect(page.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+  await page.evaluate(()=>globalThis.__QA_B16_CONTROLLER__?.destroy());
+});
