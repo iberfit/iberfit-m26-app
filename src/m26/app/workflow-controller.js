@@ -83,8 +83,19 @@ function clearAllStatuses(root){statusStore(root).clear();for(const node of root
 function guidedFieldLabel(control){
   const name=String(control?.name||'').trim();
   if(GUIDED_FORM_FIELD_LABELS[name])return GUIDED_FORM_FIELD_LABELS[name];
-  const label=String(control?.labels?.[0]?.textContent||control?.closest?.('label')?.textContent||'').replace(/\s+/g,' ').trim();
-  return label||name||'dato pendiente';
+  const label=control?.labels?.[0]||control?.closest?.('label')||null;
+  // A nested selector contributes every option to label.textContent.
+  // Read label text nodes without including any nested input options.
+  const direct=[...(label?.childNodes||[])]
+    .filter(node=>node?.nodeType===3)
+    .map(node=>String(node.textContent||'').trim())
+    .filter(Boolean).join(' ');
+  const containsInput=Boolean(label?.querySelector?.('input,select,textarea,button'));
+  const plain=containsInput?'':String(label?.textContent||'');
+  const accessible=String(control?.getAttribute?.('aria-label')||
+    control?.getAttribute?.('data-field-label')||'');
+  const text=String(direct||plain||accessible).replace(/\s+/g,' ').trim();
+  return text?text.slice(0,100):name||'dato pendiente';
 }
 export function syncGuidedWorkflowProgress(form){
   if(!form?.matches?.('[data-guided-required-form]'))return null;
