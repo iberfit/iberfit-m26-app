@@ -84,10 +84,10 @@ test('M42 ended training retains historical sessions but does not offer a new wo
   assert.doesNotMatch(html,/Tu evaluación inicial es independiente/);
 });
 
-test('M42 legacy completed IRI does not present a false pending diagnosis',()=>{
+test('M42 legacy status Completada cannot certify an unfinished initial IRI',()=>{
   const html=renderHoyRoute(clientVM({
     clients:[{name:'Cliente',serviceActive:false,trainingServiceStatus:'none',iri:{status:'Completada',confirmed:false}}]
   }));
-  assert.match(html,/Tu punto de partida confirmado/);
-  assert.doesNotMatch(html,/Consulta el estado de tu evaluación IRI/);
+  assert.match(html,/Consulta el estado de tu evaluación IRI/);
+  assert.doesNotMatch(html,/Tu punto de partida confirmado/);
 });
