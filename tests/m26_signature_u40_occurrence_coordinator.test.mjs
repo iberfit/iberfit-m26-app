@@ -12,8 +12,17 @@ const A='10000000-0000-4000-8000-000000000105';
 const B='10000000-0000-4000-8000-000000000106';
 const OP='10000000-0000-4000-8000-000000000107';
 let actor={userId:COACH,role:'coach',accessToken:'jwt'};
-const make=({transport,enabled=true,maxPages=12}={})=>
-  createOccurrenceCoordinator({transport,getAuthContext:async()=>actor,enabled,maxPages});
+const journalStore=new Map();
+const journal={
+  capability:'encrypted-owner-bound',
+  readPending:async(key)=>journalStore.get(key)||null,
+  writePending:async(key,value)=>{journalStore.set(key,structuredClone(value));},
+  clearPending:async(key)=>{journalStore.delete(key);},
+};
+const make=({transport,enabled=true,maxPages=12,recovery=journal}={})=>
+  createOccurrenceCoordinator({
+    transport,getAuthContext:async()=>actor,enabled,maxPages,journal:recovery,
+  });
 const cmd=(type='OCURRENCIA_CONFIRMAR',o=A,op=OP)=>
   buildOccurrenceScopedCommand({
     type,operationId:op,clientId:CLIENT,occurrenceId:o,
@@ -91,6 +100,7 @@ test('U40 rejects private rows, cross-client reads and cursor replay',async()=>{
 });
 
 test('U40 confirms only validated ACKs; no new start IDs on an uncertain write',async()=>{
+  journalStore.clear();
   actor={userId:COACH,role:'coach',accessToken:'jwt'};
   let sends=0,failFirst=true,lastCommand;
   const svc=make({transport:{...noop,occurrenceCommand:async(token,command)=>{
@@ -113,6 +123,7 @@ test('U40 confirms only validated ACKs; no new start IDs on an uncertain write',
 });
 
 test('U40 authorization changes, corrupted ACKs and conflict need deliberate recovery',async()=>{
+  journalStore.clear();
   actor={userId:CLIENT_USER,role:'cliente',clientId:CLIENT,accessToken:'jwt'};
   const svc=make({transport:{...noop,occurrenceCommand:async()=>{
     actor={userId:COACH,role:'coach',accessToken:'different'};
@@ -136,6 +147,7 @@ test('U40 authorization changes, corrupted ACKs and conflict need deliberate rec
 });
 
 test('U40 rejects canonical mutation and duplicate operation UUID with changed payload',async()=>{
+  journalStore.clear();
   actor={userId:COACH,role:'coach',accessToken:'jwt'};
   const svc=make({transport:{...noop,occurrenceCommand:async(_token,c)=>({
     kind:'ack',operationId:c.operationId,entityId:c.entityId,remoteRevision:1,

@@ -127,10 +127,11 @@ function verifiedResponse(reply,cmd){
  * It is intentionally NOT attached to current V26 session-controller.
  * Failures after a command is dispatched remain "uncertain", blocking all
  * new operation IDs on that occurrence. Recovery resends the IDENTICAL
- * command ID/payload; a page reload needs server receipt reconciliation.
+ * command ID/payload. U41 requires an owner-scoped encrypted recovery journal
+ * BEFORE making any write; a reload must recover the original receipt first.
  */
 export function createOccurrenceCoordinator({
-  enabled=false,transport,getAuthContext,maxPages=12,
+  enabled=false,transport,getAuthContext,maxPages=12,journal=null,
 }={}){
   if(!transport||typeof transport.occurrenceCalendar!=='function'||
     typeof transport.occurrenceCommand!=='function'||
@@ -138,6 +139,15 @@ export function createOccurrenceCoordinator({
     throw error('DEPENDENCIES_REQUIRED');
   if(!Number.isInteger(maxPages)||maxPages<1||maxPages>30)
     throw error('MAX_PAGES_INVALID');
+  if(journal!==null&&(
+    journal?.capability!=='encrypted-owner-bound'||
+    typeof journal.readPending!=='function'||
+    typeof journal.writePending!=='function'||
+    typeof journal.clearPending!=='function'
+  ))throw error('PRIVATE_JOURNAL_INVALID');
+  const requireJournal=()=>{
+    if(!journal)throw error('DURABLE_JOURNAL_REQUIRED');
+  };
   const inFlight=new Set(),uncertain=new Map(),usedIds=new Map();
   const requireEnabled=()=>{if(enabled!==true)throw error('API_NOT_ENABLED');};
   const authenticate=async()=>actorContext(await getAuthContext());
@@ -193,29 +203,62 @@ export function createOccurrenceCoordinator({
     // Never return partial results as a complete calendar.
     throw error('CALENDAR_PAGINATION_LIMIT');
   }
+  // The journal adapter must be user-authenticated, encrypted and recoverable
+  // independently from this in-memory controller. Never silently substitute
+  // localStorage or optimistic RAM for confirmed durable storage.
+  async function pendingRecord(scopeKey){
+    requireJournal();
+    const raw=await journal.readPending(scopeKey);
+    if(raw==null)return uncertain.get(scopeKey)||null;
+    const cmd=canonicalCommand(raw);
+    if(scopeKey.split('|').slice(-2).join('|')!==
+      cmd.clientId+'|'+cmd.entityId)
+      throw error('JOURNAL_OWNER_MISMATCH');
+    const signature=JSON.stringify(cmd);
+    const cached=uncertain.get(scopeKey);
+    if(cached&&cached.signature!==signature)
+      throw error('JOURNAL_CONFLICT');
+    return {cmd,signature};
+  }
   async function doSend(cmd,actor,scopeKey,signature,{recovery=false}={}){
     if(inFlight.has(scopeKey))throw error('COMMAND_IN_FLIGHT');
-    const previous=uncertain.get(scopeKey);
-    if(previous&&(!recovery||previous.signature!==signature))
-      throw error('UNCERTAIN_COMMAND_REQUIRES_RECONCILIATION');
-    if(recovery&&!previous)throw error('NO_PENDING_COMMAND');
     inFlight.add(scopeKey);
-    let dispatched=false;
+    let dispatched=false,confirmed=null;
     try{
+      const pending=await pendingRecord(scopeKey);
+      if(recovery){
+        if(!pending)throw error('NO_PENDING_COMMAND');
+        if(pending.signature!==signature)
+          throw error('JOURNAL_CONFLICT');
+      }else{
+        if(pending)throw error('UNCERTAIN_COMMAND_REQUIRES_RECONCILIATION');
+        // Durable recovery first, network dispatch second. A storage failure
+        // must never create a remote operation that a reload cannot identify.
+        await journal.writePending(scopeKey,cmd);
+        uncertain.set(scopeKey,{cmd,signature});
+      }
       assertOwner(actor,await authenticate());
       dispatched=true;
       const reply=await transport.occurrenceCommand(actor.accessToken,cmd);
       assertOwner(actor,await authenticate());
-      const response=verifiedResponse(reply,cmd);
-      uncertain.delete(scopeKey);
-      return response;
+      confirmed=verifiedResponse(reply,cmd);
+      try{
+        await journal.clearPending(scopeKey,cmd.operationId);
+        uncertain.delete(scopeKey);
+        return confirmed;
+      }catch{
+        // A remote ACK remains an ACK even if cleanup is unavailable.
+        // No second command ID is permitted until recovery is reconciled.
+        uncertain.set(scopeKey,{cmd,signature});
+        return immutable({...confirmed,localRecoveryPending:true});
+      }
     }catch(cause){
-      if(dispatched)uncertain.set(scopeKey,{signature,cmd});
+      if(dispatched&&confirmed===null)uncertain.set(scopeKey,{cmd,signature});
       throw cause;
     }finally{inFlight.delete(scopeKey);}
   }
   async function send(command){
-    requireEnabled();
+    requireEnabled();requireJournal();
     const cmd=canonicalCommand(command),actor=await authenticate();
     canAccess(actor,cmd.clientId,cmd.type);
     const key=scope(actor,cmd),signature=JSON.stringify(cmd);
@@ -225,20 +268,20 @@ export function createOccurrenceCoordinator({
     return doSend(cmd,actor,key,signature);
   }
   async function retryUncertain({clientId,occurrenceId}={}){
-    requireEnabled();
+    requireEnabled();requireJournal();
     const owner=uuid(clientId),id=uuid(occurrenceId),actor=await authenticate();
     canAccess(actor,owner);
     const key=actor.userId+'|'+owner+'|'+id;
-    const pending=uncertain.get(key);
+    const pending=await pendingRecord(key);
     if(!pending)throw error('NO_PENDING_COMMAND');
     canAccess(actor,owner,pending.cmd.type);
     return doSend(pending.cmd,actor,key,pending.signature,{recovery:true});
   }
   async function hasUncertain({clientId,occurrenceId}={}){
-    requireEnabled();
+    requireEnabled();requireJournal();
     const owner=uuid(clientId),id=uuid(occurrenceId),actor=await authenticate();
     canAccess(actor,owner);
-    return uncertain.has(actor.userId+'|'+owner+'|'+id);
+    return Boolean(await pendingRecord(actor.userId+'|'+owner+'|'+id));
   }
   return Object.freeze({calendar,send,retryUncertain,hasUncertain});
 }
