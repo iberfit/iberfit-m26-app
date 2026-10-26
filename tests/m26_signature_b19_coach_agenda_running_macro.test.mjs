@@ -76,6 +76,6 @@ test('B19 running pace is prominent and its decimal duration accepts 35.75 minut
  const j=html.indexOf('m26-builder-prescription-details',i);
  assert.ok(i>=0&&j>i);
  assert.match(html.slice(i,j),/data-session-block-field="plannedPace"/);
- assert.match(html.slice(i,j),/step="0.01"[^>]*data-session-block-field="plannedDurationMinutes"/);
+ assert.match(html.slice(i,j),/data-session-block-field="plannedDurationMinutes"[^>]*step="0.01"/);
  assert.equal((html.match(/data-session-block-field="plannedPace"/g)||[]).length,1);
 });
