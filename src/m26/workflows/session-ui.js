@@ -10,6 +10,7 @@ import {renderSessionHealthContext} from '../wearables/client-health-snapshot.js
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
+import {sessionDeliveryOwnership,sessionDeliveryModality} from '../rc39/session-policy.js';
 import {renderActionState} from '../ui/action-state.js';
 function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function previousSetSummary(values){
@@ -1465,6 +1466,40 @@ function renderSessionLiveAttention(model){
   </aside>`;
 }
 
+// SIGNATURE B25: a real execution-queue preview, not a simulated workout.
+export function renderReadyWorkoutRoadmap({execution,session,catalog,role='client'}={}){
+  const coach=String(role||'').toLowerCase()==='coach';
+  const ownership=sessionDeliveryOwnership(session);
+  const mode=coach?'supervised':ownership==='client_autonomous'?'autonomous':'guided';
+  const label=coach?'Ejecuta el Coach':mode==='autonomous'?'Entrenamiento autónomo':'Guiado por IBERFIT';
+  const context=coach
+    ?'Dirige el entrenamiento y registra los resultados observados del cliente. Las cargas previstas no son resultados.'
+    :'Realiza los ejercicios a tu ritmo, registra lo que haces y utiliza los descansos y alternativas cuando lo necesites.';
+  const queue=Array.isArray(execution?.queue)?execution.queue:[];
+  if(!queue.length)return '';
+  const items=queue.map((step,index)=>{
+    const exercise=catalog?.get?.(step?.exerciseId)||{};
+    const name=exerciseDisplayName(exercise)||String(step?.exerciseId||'Ejercicio');
+    const p=step?.prescription||{};
+    const sets=Number(step?.sets)||1;
+    const details=[
+      step?.groupType?groupName(step.groupType)+' · '+sets+' rondas':sets+' '+(sets===1?'serie':'series'),
+      metricPrescriptionSummary(p,{...exercise,measurementProfile:p.measurementProfile}),
+      p.plannedLoad?'Carga prevista: '+String(p.plannedLoad):'',
+    ].filter(Boolean).join(' · ');
+    return '<li><span class="m26-ready-roadmap-number" aria-hidden="true">'+e(index+1)+'</span>'+
+      '<span class="m26-ready-roadmap-step"><strong>'+e(name)+'</strong><small>'+e(details)+'</small></span></li>';
+  });
+  const extra=items.length>5
+    ?'<details class="m26-ready-roadmap-more"><summary>Ver los '+e(items.length-5)+' pasos restantes</summary><ol start="6">'+items.slice(5).join('')+'</ol></details>':'';
+  const kind=coach?'supervised':sessionDeliveryModality(session)==='guiada_en_app'?mode:'other';
+  return '<section class="m26-session-ready-roadmap" data-signature-ready-playback="'+e(kind)+'" aria-label="Recorrido del entrenamiento">'+
+    '<div class="m26-ready-roadmap-header"><div><p class="m26-eyebrow">Antes de comenzar</p><h3>Tu recorrido de hoy</h3></div>'+
+    '<span class="m26-ready-roadmap-mode">'+e(label)+'</span></div>'+
+    '<p class="m26-ready-roadmap-intro">'+e(context)+'</p><ol>'+items.slice(0,5).join('')+'</ol>'+extra+
+    '<p class="m26-ready-roadmap-note">Objetivos planificados · el entrenamiento solo comienza cuando confirmas Inicio.</p></section>';
+}
+
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',clientContext=null,wearableContext=null,exerciseMemoryFor=null}={}){
   const state=renderActionState(actionState);
   const sync=renderSessionSyncBanner(execution,{role});
@@ -1507,6 +1542,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         ${sessionLiveSummary(execution,session,{ready:true})}
         ${goal}
+        ${renderReadyWorkoutRoadmap({execution,session,catalog,role})}
         ${readySportPreview}
         ${sessionDurationConsistencyNotice(execution,session,{role})}
         ${isCoach?'':renderSessionHealthContext(wearableContext)}

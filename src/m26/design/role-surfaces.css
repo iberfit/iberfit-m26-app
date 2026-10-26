@@ -4688,3 +4688,50 @@ m26-echart[data-density="compact"]{
 @media(forced-colors:active){
   .m26-shell .m26-signature-live-cue{border-color:CanvasText}
 }
+
+/* SIGNATURE B25 · One truthful, responsive session roadmap for both actors.
+ * No overlays, fake progress, duplicate actions or heavyweight transitions. */
+.m26-shell .m26-session-ready-roadmap{
+  min-width:0;margin-block:clamp(.65rem,1.8vw,1.25rem);
+  padding:clamp(1rem,2.6vw,1.55rem);
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 23%,var(--iberfit-color-border));
+  border-radius:1.1rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 4%,var(--iberfit-color-surface-raised));
+}
+.m26-shell .m26-ready-roadmap-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem}
+.m26-shell .m26-ready-roadmap-header h3{font-family:var(--iberfit-font-family-editorial);font-size:clamp(1.3rem,2vw,1.8rem);font-weight:650;letter-spacing:-.025em;line-height:1.2;margin:.2rem 0}
+.m26-shell .m26-ready-roadmap-mode{display:inline-flex;align-items:center;min-height:36px;border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 33%,var(--iberfit-color-border));background:color-mix(in srgb,var(--iberfit-color-accent) 10%,var(--iberfit-color-surface-base));color:var(--iberfit-color-text-primary);padding:.35rem .8rem;border-radius:99px;font-weight:700;font-size:.76rem}
+.m26-shell .m26-ready-roadmap-intro{max-width:72ch;font-size:.9rem;line-height:1.6;color:var(--iberfit-color-text-secondary);margin:.55rem 0 .8rem}
+.m26-shell .m26-session-ready-roadmap ol{display:grid;gap:.45rem;list-style:none;margin:0;padding:0;min-width:0}
+.m26-shell .m26-session-ready-roadmap li{display:flex;align-items:start;gap:.85rem;min-width:0;padding:.65rem .1rem;border-bottom:1px solid var(--iberfit-color-border)}
+.m26-shell .m26-session-ready-roadmap li:last-child{border-bottom:0}
+.m26-shell .m26-ready-roadmap-number{display:grid;place-items:center;flex:0 0 1.8rem;height:1.8rem;border-radius:.6rem;font-size:.78rem;font-variant-numeric:tabular-nums;color:var(--iberfit-color-accent);font-weight:700;background:color-mix(in srgb,var(--iberfit-color-accent) 11%,transparent)}
+.m26-shell .m26-ready-roadmap-step{display:grid;min-width:0;gap:.16rem;flex:1}
+.m26-shell .m26-ready-roadmap-step strong{font-size:.95rem;line-height:1.45;overflow-wrap:anywhere}
+.m26-shell .m26-ready-roadmap-step small{font-size:.8rem;line-height:1.5;color:var(--iberfit-color-text-secondary);overflow-wrap:anywhere}
+.m26-shell .m26-ready-roadmap-more{margin-top:.2rem;min-width:0}
+.m26-shell .m26-ready-roadmap-more summary{display:flex;align-items:center;min-height:44px;max-width:100%;width:fit-content;padding:.3rem .4rem;color:var(--iberfit-color-accent);font-size:.86rem;font-weight:700;cursor:pointer}
+.m26-shell .m26-ready-roadmap-more summary:focus-visible{outline:3px solid var(--iberfit-color-accent);outline-offset:2px;border-radius:.3rem}
+.m26-shell .m26-ready-roadmap-more:not([open])>ol{display:none}
+.m26-shell .m26-ready-roadmap-note{font-size:.75rem;line-height:1.5;margin:.7rem 0 0;color:var(--iberfit-color-text-secondary)}
+.m26-shell[data-m26-role="client"] .m26-session-ready-roadmap{border-radius:1.25rem}
+.m26-shell[data-m26-role="client"] .m26-session-ready-roadmap li{padding-block:.75rem}
+.m26-shell[data-m26-role="coach"] .m26-session-ready-roadmap{padding:clamp(.85rem,1.5vw,1.15rem);border-radius:.85rem}
+.m26-shell[data-m26-role="coach"] .m26-session-ready-roadmap li{padding-block:.45rem}
+.m26-shell[data-m26-role="coach"] .m26-ready-roadmap-header h3{font-family:var(--iberfit-font-family-ui);font-size:1.13rem;font-weight:700}
+.m26-shell[data-m26-role="admin"] .m26-admin-table{max-inline-size:100%;min-inline-size:0;font-variant-numeric:tabular-nums}
+.m26-shell[data-m26-role="admin"] .m26-admin-table :is(th,td){overflow-wrap:anywhere;vertical-align:top}
+.m26-shell[data-m26-role="admin"] .m26-admin-table :is(button,a,select){min-height:44px}
+.m26-shell[data-m26-role="admin"] .m26-admin-table :is(button,a,select):focus-visible{outline:3px solid var(--iberfit-color-accent);outline-offset:2px}
+@media(max-width:580px){
+  .m26-shell .m26-session-ready-roadmap{padding:.9rem;border-radius:.9rem}
+  .m26-shell .m26-ready-roadmap-header{align-items:start}
+  .m26-shell .m26-ready-roadmap-step small{font-size:.81rem}
+  .m26-shell .m26-session-live[data-session-live-state="ready"] .m26-session-live-actions>button{min-height:48px;max-inline-size:100%}
+}
+@media(forced-colors:active){
+  .m26-shell .m26-session-ready-roadmap,.m26-shell .m26-ready-roadmap-mode{border:1px solid CanvasText}
+  .m26-shell .m26-ready-roadmap-number{color:CanvasText}
+}
+@media(prefers-contrast:more){.m26-shell .m26-session-ready-roadmap{border-width:2px}}
+@media(prefers-reduced-motion:reduce){.m26-shell .m26-ready-roadmap-more summary{scroll-behavior:auto}}
