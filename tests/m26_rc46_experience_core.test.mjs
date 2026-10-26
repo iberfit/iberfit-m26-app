@@ -10,7 +10,7 @@ test('una persona evaluada sin entrenamiento completa IRI sin obligaciones de pl
   const experience=deriveClientExperience({
     client:{trainingServiceStatus:'none'},
     profile:{phone:'ok'},
-    iri:{status:'confirmed'},
+    iri:{status:'confirmed',body:{firstSessionCompletedAt:'2026-07-30T20:00:00Z'}},
     cycle:null,
     nextAppointment:null,
   });
