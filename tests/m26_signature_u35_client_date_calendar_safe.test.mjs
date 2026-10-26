@@ -158,3 +158,78 @@ test('U35 Agenda and session projections never resurrect legacy start for shared
   assert.equal((html.match(/data-workflow-action="start-published-session"/g)||[]).length,0);
   assert.match(html,/El inicio independiente por fecha/);
 });
+
+// B17: date selection remains single-open in Planning but all-open in Sessions.
+// Arrow-key browsing only moves focus; opening a workout always needs activation.
+test('B17 date navigation synchronizes active day, focus and layout mode',async()=>{
+ const {createRc39Controller}=await import('../src/m26/rc39/controller.js');
+ const handlers=new Map(),date1='2026-10-20',date2='2026-10-27';
+ let focused='',prevented=0;
+ const strip={querySelectorAll:()=>links};
+ const nav={querySelectorAll:()=>links};
+ const groups={
+   mode:'single',
+   getAttribute(name){return name==='data-rc39-date-mode'?this.mode:null;},
+   querySelectorAll:()=>days,
+ };
+ function day(key,open){
+   const attrs=new Map([['data-rc39-primary-day',open?'true':'false']]);
+   return {key,open,attrs,
+     closest:sel=>sel==='.m26-rc39-date-groups'?groups:null,
+     setAttribute:(name,val)=>attrs.set(name,val),
+     removeAttribute:name=>attrs.delete(name),
+     querySelector:()=>({focus:()=>{focused='summary-'+key;}}),
+     scrollIntoView:()=>{},
+   };
+ }
+ const days=[day(date1,true),day(date2,false)];
+ function link(key){
+   const attrs=new Map([['data-rc39-date-target',key],['data-rc39-today','false']]);
+   return {key,attrs,
+     getAttribute:name=>attrs.get(name)||null,
+     setAttribute:(name,val)=>attrs.set(name,val),
+     removeAttribute:name=>attrs.delete(name),
+     closest:sel=>sel==='[data-rc39-date-target]'?links.find(l=>l.key===key):
+       sel==='.m26-rc39-date-navigation'?nav:
+       sel==='.m26-rc39-date-links'?strip:null,
+     focus:()=>{focused='link-'+key;},scrollIntoView:()=>{},
+   };
+ }
+ const links=[link(date1),link(date2)];
+ links[0].attrs.set('aria-current','location');
+ const root={
+   addEventListener:(type,handler)=>handlers.set(type,handler),
+   removeEventListener:(type)=>handlers.delete(type),
+   querySelector:(sel)=>sel==='#m26-plan-day-'+date1?days[0]:
+     sel==='#m26-plan-day-'+date2?days[1]:null,
+ };
+ const controller=createRc39Controller({
+   root,store:{getState:()=>({identity:{role:'client'},collections:{appointments:[]}})},
+ });
+ controller.mount();
+ const keydown=handlers.get('keydown'),click=handlers.get('click');
+ keydown({key:'ArrowRight',target:links[0],preventDefault:()=>{prevented++;}});
+ assert.equal(focused,'link-'+date2);
+ assert.equal(days[1].open,false,'arrow navigation does not open a session');
+ await click({target:links[1],preventDefault:()=>{prevented++;}});
+ assert.equal(focused,'summary-'+date2);
+ assert.equal(days[0].open,false);
+ assert.equal(days[1].open,true);
+ assert.equal(days[0].attrs.has('data-rc39-primary-day'),false);
+ assert.equal(days[1].attrs.get('data-rc39-primary-day'),'true');
+ assert.equal(links[1].attrs.get('aria-current'),'location');
+ assert.equal(links[0].attrs.has('aria-current'),false);
+ groups.mode='all';days[0].open=true;
+ await click({target:links[1],preventDefault:()=>{prevented++;}});
+ assert.equal(days[0].open,true,'Sessions must preserve independently open days');
+ assert.equal(days[1].open,true);
+ keydown({key:'Home',target:links[1],preventDefault:()=>{prevented++;}});
+ assert.equal(focused,'link-'+date1);
+ keydown({key:'End',target:links[0],preventDefault:()=>{prevented++;}});
+ assert.equal(focused,'link-'+date2);
+ const original=prevented;
+ keydown({key:'ArrowLeft',altKey:true,target:links[1],preventDefault:()=>{prevented++;}});
+ assert.equal(prevented,original,'modified shortcuts remain untouched');
+ controller.destroy();
+ assert.equal(handlers.has('keydown'),false);
+});

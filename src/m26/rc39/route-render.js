@@ -308,7 +308,8 @@ function renderClientDatedPlanning(items,options){
       <div class="m26-rc39-week">${dayItems.map((item)=>sessionCard(item,'client',options.contractModality,{serviceActive:options.serviceActive,...options.assets})).join('')}</div>
     </details>`;
   }).join('');
-  return calendarNav+'<div class="m26-rc39-date-groups">'+groups+'</div>';
+  return calendarNav+'<div class="m26-rc39-date-groups" data-rc39-date-mode="'+
+    (options.expandAll===true?'all':'single')+'">'+groups+'</div>';
 }
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];

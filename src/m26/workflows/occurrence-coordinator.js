@@ -13,6 +13,14 @@ const COMMAND_TYPES=new Set([
   'OCURRENCIA_CANCELAR','OCURRENCIA_REPROGRAMAR',
 ]);
 const READ_STATUSES=new Set(['planificada','confirmada','en_curso','completada','cancelada']);
+// U46 privacy contract: the server's U33 calendar is an intentionally small
+// projection, NEVER a source of prescription, feedback or private notes.
+// Reject newly added server columns unless explicitly audited for this role.
+const CALENDAR_PUBLIC_FIELDS=new Set([
+  'id','clientId','sessionId','appointmentId','appointmentStatus',
+  'localDate','localTime','timeZone','startsAt','endsAt',
+  'durationMinutes','status','revision','executionId','title',
+]);
 const uuid=value=>{
   const id=String(value||'').toLowerCase();
   if(!UUID.test(id))throw new Error('U40_INVALID_UUID');
@@ -84,12 +92,19 @@ function assertOwner(before,after){
 const isClient=role=>CLIENT_ROLES.has(role);
 function verifyCalendarRow(row,owner,start,end,role){
   if(!row||typeof row!=='object'||Array.isArray(row)||
+    Object.keys(row).some(key=>!CALENDAR_PUBLIC_FIELDS.has(key)))
+    throw error('CALENDAR_PRIVATE_DATA');
+  if(
     uuid(row.clientId)!==owner||!UUID.test(String(row.id||''))||
     !UUID.test(String(row.sessionId||'')))
     throw error('CALENDAR_SCOPE_MISMATCH');
   const date=preciseDate(row.localDate);
   if(date<start||date>end||!READ_STATUSES.has(row.status)||
-    !Number.isSafeInteger(row.revision)||row.revision<0)
+    !Number.isSafeInteger(row.revision)||row.revision<0||
+    (row.timeZone!=null&&row.timeZone!=='America/Santiago')||
+    (row.title!=null&&(typeof row.title!=='string'||row.title.length>240))||
+    (row.executionId!=null&&!UUID.test(String(row.executionId)))||
+    (row.appointmentId!=null&&!UUID.test(String(row.appointmentId))))
     throw error('CALENDAR_ROW_INVALID');
   if(isClient(role)&&(
     row.status==='planificada'||!UUID.test(String(row.appointmentId||''))

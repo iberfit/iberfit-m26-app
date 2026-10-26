@@ -161,3 +161,25 @@ test('U40 rejects canonical mutation and duplicate operation UUID with changed p
   await assert.rejects(svc.send(cmd('OCURRENCIA_CONFIRMAR',B,OP)),
     /U40_OPERATION_ID_REUSED/);
 });
+
+// U46: fail closed on server-side schema expansion; a private field must not
+// hitchhike into the Client or Coach calendar just because it was serialized.
+test('U46 calendar projection rejects unreviewed fields and invalid time zone',async()=>{
+ actor={userId:COACH,role:'coach',accessToken:'jwt'};
+ const fetchRows=extra=>make({transport:{...noop,occurrenceCalendar:async()=>({
+   kind:'calendar',clientId:CLIENT,count:1,hasMore:false,
+   occurrences:[item(A,'2026-10-27',extra)],
+ })}});
+ await assert.rejects(fetchRows({coachPrivateNote:'personal'}).calendar({
+   clientId:CLIENT,startDate:'2026-10-25',endDate:'2026-11-01',
+ }),/U40_CALENDAR_PRIVATE_DATA/);
+ await assert.rejects(fetchRows({timeZone:'UTC'}).calendar({
+   clientId:CLIENT,startDate:'2026-10-25',endDate:'2026-11-01',
+ }),/U40_CALENDAR_ROW_INVALID/);
+ const accepted=await fetchRows({
+   title:'Fuerza con criterio',timeZone:'America/Santiago',
+   executionId:null,durationMinutes:60,appointmentStatus:'confirmada',
+ }).calendar({clientId:CLIENT,startDate:'2026-10-25',endDate:'2026-11-01'});
+ assert.equal(accepted.count,1);
+ assert.equal(accepted.occurrences[0].title,'Fuerza con criterio');
+});

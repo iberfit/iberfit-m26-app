@@ -4659,6 +4659,7 @@ m26-echart[data-density="compact"]{
   scrollbar-width:thin;
   padding:.125rem .125rem .55rem;
   scroll-padding-inline:.25rem;
+  scroll-snap-type:x proximity;
   -webkit-overflow-scrolling:touch;
 }
 .m26-shell[data-m26-role="client"] .m26-rc39-date-links>a{
@@ -4674,6 +4675,7 @@ m26-echart[data-density="compact"]{
   background:color-mix(in srgb,var(--iberfit-color-surface-raised) 75%,var(--iberfit-color-surface-base));
   text-decoration:none;
   color:var(--iberfit-color-text-primary);
+  scroll-snap-align:start;
   transition:background-color .16s ease,border-color .16s ease;
 }
 .m26-shell[data-m26-role="client"] .m26-rc39-date-links>a strong{
