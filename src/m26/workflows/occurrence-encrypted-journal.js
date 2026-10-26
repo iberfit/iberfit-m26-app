@@ -47,8 +47,10 @@ const secretKey=async(keyProvider)=>{
   return key;
 };
 /**
- * store: {capability:'persistent-owner-isolated',get(key),set(key,value),
- *         delete(key)}. Key management must be managed by the session's
+ * store: {capability:'persistent-owner-isolated-atomic',get(key),
+ *         putIfAbsent(key,value),deleteIfEqual(key,expectedValue)}.
+ * Both write primitives MUST be linearizable across tabs/processes, not
+ * implemented as read-then-write promises. Key management belongs to the session's
  * private encrypted vault, NOT plaintext localStorage/sessionStorage.
  * This adapter is intentionally not auto-mounted to the current UI.
  */
@@ -56,16 +58,16 @@ export function createEncryptedOccurrenceJournal({
   ownerId,store,keyProvider,cryptoImpl=globalThis.crypto,
 }={}){
   const owner=uuid(ownerId);
-  if(store?.capability!=='persistent-owner-isolated'
-    ||typeof store.get!=='function'||typeof store.set!=='function'
-    ||typeof store.delete!=='function'||typeof keyProvider!=='function'
+  if(store?.capability!=='persistent-owner-isolated-atomic'
+    ||typeof store.get!=='function'||typeof store.putIfAbsent!=='function'
+    ||typeof store.deleteIfEqual!=='function'||typeof keyProvider!=='function'
     ||!cryptoImpl?.subtle?.digest||!cryptoImpl?.subtle?.encrypt
     ||!cryptoImpl?.subtle?.decrypt||!cryptoImpl?.getRandomValues)
     fail('DEPENDENCIES_REQUIRED');
   const storageKey=async(scope)=>'m26:occurrence:v1:'+
     Array.from(new Uint8Array(await cryptoImpl.subtle.digest('SHA-256',encoder.encode(scope))),
       b=>b.toString(16).padStart(2,'0')).join('');
-  const readPending=async(value)=>{
+  const readRecord=async(value)=>{
     const {scope,clientId,occurrenceId}=scopeParts(value,owner);
     const key=await storageKey(scope);
     const stored=await store.get(key);
@@ -93,8 +95,9 @@ export function createEncryptedOccurrenceJournal({
       !record.command||record.command.clientId!==clientId||
       record.command.entityId!==occurrenceId)
       fail('RECORD_SCOPE_MISMATCH');
-    return structuredClone(record.command);
+    return {command:structuredClone(record.command),ciphertext:stored};
   };
+  const readPending=async(value)=>(await readRecord(value))?.command??null;
   const writePending=async(value,command)=>{
     const {scope,clientId,occurrenceId}=scopeParts(value,owner);
     if(!command||typeof command!=='object'||Array.isArray(command)
@@ -111,23 +114,26 @@ export function createEncryptedOccurrenceJournal({
       name:'AES-GCM',iv,additionalData:encoder.encode(scope),
     },key,plain);
     const storageName=await storageKey(scope);
-    // Never overwrite an existing unresolved journal, even if the caller
-    // assumes there is none. Resolve/retry the earlier operation first.
-    if(await store.get(storageName)!=null)fail('PENDING_EXISTS');
-    await store.set(storageName,JSON.stringify({
+    // Cross-tab and cross-worker single-writer claim. Never perform
+    // get+set as two asynchronous operations: two tabs could both send.
+    const ciphertext=JSON.stringify({
       version:VERSION,iv:toB64(iv),ciphertext:toB64(encrypted),
-    }));
+    });
+    if(await store.putIfAbsent(storageName,ciphertext)!==true)
+      fail('PENDING_EXISTS');
     const persisted=await readPending(scope);
     if(JSON.stringify(persisted)!==JSON.stringify(command))
       fail('PERSISTENCE_UNVERIFIED');
   };
   const clearPending=async(value,operationId)=>{
     const {scope}=scopeParts(value,owner);
-    const record=await readPending(scope);
-    if(!record)return;
-    if(uuid(operationId)!==String(record.operationId).toLowerCase())
+    const entry=await readRecord(scope);
+    if(!entry)return;
+    if(uuid(operationId)!==String(entry.command.operationId).toLowerCase())
       fail('OPERATION_MISMATCH');
-    await store.delete(await storageKey(scope));
+    // Never delete an altered journal committed by another tab after read.
+    if(await store.deleteIfEqual(await storageKey(scope),entry.ciphertext)!==true)
+      fail('DELETION_CONFLICT');
     if(await readPending(scope)!==null)fail('DELETION_UNVERIFIED');
   };
   return Object.freeze({

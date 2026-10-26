@@ -18,11 +18,17 @@ const newKey=()=>webcrypto.subtle.generateKey(
 const storage=()=>{
   const values=new Map();
   return {
-    capability:'persistent-owner-isolated',
+    capability:'persistent-owner-isolated-atomic',
     values,
     get:async key=>values.get(key)??null,
-    set:async(key,value)=>{values.set(key,value);},
-    delete:async key=>{values.delete(key);},
+    putIfAbsent:async(key,value)=>{
+      if(values.has(key))return false;
+      values.set(key,value);return true;
+    },
+    deleteIfEqual:async(key,value)=>{
+      if(values.get(key)!==value)return false;
+      values.delete(key);return true;
+    },
   };
 };
 const create=(store,keyProvider,ownerId=COACH)=>
@@ -70,7 +76,7 @@ test('U42 unavailable private key and readback errors do not silently fall back'
  assert.equal(store.values.size,0);
  const key=await newKey();
  const unavailable=create({
-   ...store,set:async()=>{throw new Error('persistent_database_unavailable');},
+   ...store,putIfAbsent:async()=>{throw new Error('persistent_database_unavailable');},
  },async()=>key);
  await assert.rejects(unavailable.writePending(scope,command()),/persistent_database_unavailable/);
 });

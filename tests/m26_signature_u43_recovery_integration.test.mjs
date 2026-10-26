@@ -16,10 +16,16 @@ const command=()=>buildOccurrenceScopedCommand({
 const memory=()=>{
   const ciphertext=new Map();
   return {
-    ciphertext,capability:'persistent-owner-isolated',
+    ciphertext,capability:'persistent-owner-isolated-atomic',
     get:async key=>ciphertext.get(key)||null,
-    set:async(key,v)=>{ciphertext.set(key,v);},
-    delete:async key=>{ciphertext.delete(key);},
+    putIfAbsent:async(key,v)=>{
+      if(ciphertext.has(key))return false;
+      ciphertext.set(key,v);return true;
+    },
+    deleteIfEqual:async(key,v)=>{
+      if(ciphertext.get(key)!==v)return false;
+      ciphertext.delete(key);return true;
+    },
   };
 };
 const journal=(store,key,actor=ACTOR)=>createEncryptedOccurrenceJournal({
