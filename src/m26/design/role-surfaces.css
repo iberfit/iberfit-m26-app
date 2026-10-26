@@ -4886,6 +4886,13 @@ m26-echart[data-density="compact"]{
 
 /* SIGNATURE B26 · Preparación IRI: control estable para touch y teclado.
    Un solo estado (hidden/aria-expanded), sin toggle implícito del navegador. */
+/* Keep the disclosure in the hit-testing plane above adjacent wizard chrome.
+   Avoid any transparent sibling layer intercepting taps on narrow layouts. */
+.m26-iri-workspace .m26-iri-assessment-workspace>.m26-iri-setup{
+  position:relative;
+  z-index:2;
+  isolation:isolate;
+}
 .m26-shell .m26-iri-setup-toggle,
 .m26-iri-workspace .m26-iri-setup-toggle{
   display:flex;

@@ -64,4 +64,5 @@ test('B26 IRI: botón estable sin doble toggle móvil y navegación por teclado'
   assert.match(controller,/button\.setAttribute\('aria-expanded',expand\?'true':'false'\)/);
   assert.doesNotMatch(controller,/details\.open=!details\.open/);
   assert.match(css,/\[data-iri-setup-content\]\[hidden\]\{display:none\}/);
+  assert.match(css,/m26-iri-assessment-workspace>\.m26-iri-setup\{[\s\S]*?z-index:2/);
 });

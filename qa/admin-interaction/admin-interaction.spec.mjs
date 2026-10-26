@@ -74,6 +74,8 @@ test('field presets and results retain exact protocols without invented norms',a
       document.addEventListener(name,(event)=>{
         if(journal.length>25)return;
         journal.push({event:name,target:event.target?.tagName,
+          targetClass:String(event.target?.className||'').slice(0,140),
+          targetId:event.target?.id||'',
           inButton:event.composedPath?.().includes(button)||false,
           trusted:event.isTrusted,detail:event.detail||0,
           pointerType:event.pointerType||''});
@@ -84,15 +86,25 @@ test('field presets and results retain exact protocols without invented norms',a
         hidden:document.querySelector('[data-iri-setup-content]')?.hidden});
     }).observe(button,{attributes:true,attributeFilter:['aria-expanded']});
   });
+  await toggle.scrollIntoViewIfNeeded();
   await toggle.click();
   const mobileTouchEvidence=await page.evaluate(()=>{
     const button=document.querySelector('[data-iri-setup-toggle]');
     const rect=button.getBoundingClientRect();
     const hit=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+    const stack=document.elementsFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)
+      .slice(0,8).map(node=>({tag:node.tagName,id:node.id||'',
+        cls:String(node.className||'').slice(0,140),
+        z:getComputedStyle(node).zIndex,
+        position:getComputedStyle(node).position,
+        pointer:getComputedStyle(node).pointerEvents}));
     return {expanded:button.getAttribute('aria-expanded'),disabled:button.disabled,
       ready:button.hasAttribute('data-iri-setup-ready'),
       hidden:document.querySelector('[data-iri-setup-content]')?.hidden,
       focus:document.activeElement?.tagName,hit:hit?.tagName,
+      hitClass:String(hit?.className||'').slice(0,140),
+      buttonBounds:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+      scrollY:scrollY,stack,
       hitButton:button===hit||button.contains(hit),
       journal:globalThis.__IBERFIT_IRI_TOUCH_JOURNAL__};
   });
