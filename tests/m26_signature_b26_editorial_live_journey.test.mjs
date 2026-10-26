@@ -53,11 +53,12 @@ test('B26 interfaz sin animación repetida de rutas y con garantías a 320 px',(
 test('B26 IRI: botón estable sin doble toggle móvil y navegación por teclado',()=>{
   const controller=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
   const renderer=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
-  assert.match(renderer,/data-iri-setup-toggle disabled aria-expanded="false" aria-controls="m26-iri-setup-content"/);
+  assert.match(renderer,/data-iri-setup-toggle disabled aria-disabled="true" aria-expanded="false" aria-controls="m26-iri-setup-content"/);
   assert.match(renderer,/data-iri-setup-content hidden/);
   assert.match(controller,/button\.addEventListener\('click',onIriSetupToggle\)/);
   assert.match(controller,/button\.setAttribute\('data-iri-setup-ready',''\)/);
   assert.match(controller,/button\.disabled=false/);
+  assert.match(controller,/button\.setAttribute\('aria-disabled','false'\)/);
   assert.match(controller,/button\.removeEventListener\('click',onIriSetupToggle\)/);
   assert.match(controller,/event\.stopPropagation\?\.\(\)/);
   assert.match(controller,/button\.setAttribute\('aria-expanded',expand\?'true':'false'\)/);
