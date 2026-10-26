@@ -1209,7 +1209,7 @@ export function createWorkflowController({
     }
     computed(form);setIriStep(form,Number(form.dataset.iriStepIndex||0));
   }
-  const boundIriSetupToggles=new WeakSet();
+  const boundIriSetupToggles=new Set();
   function onIriSetupToggle(event){
     event.preventDefault?.();
     event.stopPropagation?.();
@@ -1225,6 +1225,10 @@ export function createWorkflowController({
     if(!button||boundIriSetupToggles.has(button))return;
     boundIriSetupToggles.add(button);
     button.addEventListener('click',onIriSetupToggle);
+    // Keep the native button inert until the real handler is present; no mobile
+    // tap can be swallowed by the microtask/MutationObserver binding window.
+    button.setAttribute('data-iri-setup-ready','');
+    button.disabled=false;
   }
   function scanRouteForms(){
     scanQueued=false;
@@ -2341,6 +2345,6 @@ export function createWorkflowController({
   return Object.freeze({
     mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('invalid',onInvalid,true);root.addEventListener('input',onInput);root.addEventListener('change',onChange);root.addEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
     flushLocalDrafts,
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.removeEventListener?.('pagehide',onPageHide);for(const button of boundIriSetupToggles){button.removeEventListener('click',onIriSetupToggle);button.removeAttribute('data-iri-setup-ready');if(button.isConnected)button.disabled=true;}boundIriSetupToggles.clear();clearAllStatuses(root);mounted=false;},
   });
 }
