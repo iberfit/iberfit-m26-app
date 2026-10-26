@@ -1673,7 +1673,16 @@ export function createWorkflowController({
       :!linkVerified?'La cita se ha creado, pero no se ha podido verificar su entrenamiento vinculado. Revisa Agenda antes de confirmarla.'
       :feedback.message,
       refreshed&&linkVerified?feedback.kind:'pending');
-    if(refreshed){form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();}
+    if(!refreshed||!linkVerified){
+      // The server might already have committed CITA_CREAR. Never clear the
+      // form or offer an easy duplicate before the Coach reconciles Agenda.
+      form.dataset.m26AppointmentUnverified=command.entityId;
+      const submit=form.querySelector?.('[data-workflow-action="create-appointment"]');
+      if(submit){submit.disabled=true;submit.setAttribute?.('aria-disabled','true');}
+      return {...result,refreshOk:false};
+    }
+    form.reset();initializedAppointmentForms.delete(form);
+    syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();
     return result;}
   async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){const feedback=mutationFeedback(result,{subject:'La cita'});status(root,'appointment',feedback.message,feedback.kind);return result;}
     let confirmed=null;

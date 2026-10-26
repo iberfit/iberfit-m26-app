@@ -60,6 +60,8 @@ test('B19 Coach write boundary verifies link before CITA_CREAR, no silent omissi
  assert.match(source,/resolveCoachAppointmentSessionLink\(context\(\)\.state,\{clientId,sessionId:selectedId\}\)/);
  assert.match(source,/draft\.sessionId=linked\.id/);
  assert.match(source,/persistedSession/);
+ assert.match(source,/m26AppointmentUnverified/);
+ assert.match(source,/if\(!refreshed\|\|!linkVerified\)/);
  assert.match(source,/santiagoAppointmentInstant\(raw\.startAt\)/);
  assert.match(source,/sessionField=form\.elements\?\.namedItem\?\.\('sessionId'\)/);
 });
