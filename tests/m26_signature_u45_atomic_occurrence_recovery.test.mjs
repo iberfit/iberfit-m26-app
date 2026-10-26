@@ -169,3 +169,58 @@ test('U45 does not retain abandoned IDB connection after onblocked',async()=>{
   assert.equal(db.closed,true);
   store.close();
 });
+
+
+test('U45 a delayed IDB open cannot resurrect a closed private vault',async()=>{
+  const requests=[];
+  const databases=[];
+  const idb={open(){
+    const db={
+      closed:false,
+      objectStoreNames:{contains:()=>true},
+      createObjectStore(){},
+      close(){this.closed=true;},
+      transaction(){
+        if(this.closed)throw Error('STALE_DATABASE');
+        const tx={
+          oncomplete:null,onerror:null,onabort:null,
+          objectStore(){return {get(){
+            const request={result:undefined,onsuccess:null};
+            queueMicrotask(()=>{
+              request.onsuccess?.();
+              queueMicrotask(()=>tx.oncomplete?.());
+            });
+            return request;
+          }};},
+        };
+        return tx;
+      },
+    };
+    databases.push(db);
+    const request={result:db,onsuccess:null,onerror:null,onblocked:null};
+    requests.push(request);
+    return request;
+  }};
+  const store=createAtomicOccurrenceIndexedDbStore({
+    indexedDBImpl:idb,databaseName:'iberfit-occurrence-private-v1-qa-logout-fence',
+  });
+  const storageKey='m26:occurrence:v1:'+'c'.repeat(64);
+  const stale=store.get(storageKey);
+  assert.equal(requests.length,1);
+  store.close();
+  const fresh=store.get(storageKey);
+  assert.equal(requests.length,2);
+
+  requests[0].onsuccess?.();
+  await assert.rejects(stale,/U45_OPEN_CANCELLED/);
+  assert.equal(databases[0].closed,true,'the obsolete connection must be closed');
+
+  const concurrent=store.get(storageKey);
+  assert.equal(requests.length,2,'late rejection must not clear the new opening');
+  requests[1].onsuccess?.();
+  assert.equal(await fresh,null);
+  assert.equal(await concurrent,null);
+  assert.equal(databases[1].closed,false);
+  store.close();
+  assert.equal(databases[1].closed,true);
+});
