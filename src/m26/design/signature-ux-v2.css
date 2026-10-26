@@ -2505,3 +2505,290 @@ body{
     content:none;
   }
 }
+
+/* SIGNATURE B19 · real Coach scheduling/workout continuity.
+ * Product lock: rich dark-green canvas, warm cream text, restrained brass
+ * accents, explicit professional controls; no ornamental KPI cards. */
+.m26-shell[data-m26-role="coach"] .m30-agenda-proposal{
+  --m26-composer-line:color-mix(in srgb,var(--iberfit-color-accent) 21%,var(--iberfit-color-border));
+  border-color:var(--m26-composer-line);
+  background:
+    linear-gradient(150deg,color-mix(in srgb,var(--iberfit-color-accent) 5%,transparent),transparent 58%),
+    var(--iberfit-color-surface-raised);
+}
+.m26-shell .m26-agenda-composer-steps{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.35rem;
+  padding:0;
+  margin:0 0 1.1rem;
+  list-style:none;
+  counter-reset:agenda-step;
+}
+.m26-shell .m26-agenda-composer-steps li{
+  counter-increment:agenda-step;
+  display:flex;
+  align-items:center;
+  min-width:0;
+  gap:.45rem;
+  font-size:.78rem;
+  font-weight:650;
+  line-height:1.35;
+  padding:.52rem .58rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-color-accent) 20%,var(--iberfit-color-border));
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+}
+.m26-shell .m26-agenda-composer-steps li::before{
+  content:counter(agenda-step,decimal-leading-zero);
+  font-size:.68rem;
+  color:var(--iberfit-color-accent);
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell .m30-agenda-proposal .m26-field-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start;
+  gap:1rem 1.12rem;
+}
+.m26-shell .m30-agenda-proposal .m26-field-grid>label,
+.m26-shell .m30-agenda-proposal .m26-field-grid>p{
+  min-width:0;
+}
+.m26-shell .m30-agenda-proposal :is(input,select){
+  width:100%;
+  min-height:48px;
+  font-size:1rem;
+}
+.m26-shell .m26-agenda-linked-field{
+  padding:.72rem .85rem;
+  border:1px solid var(--m26-composer-line);
+  border-radius:.75rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 5%,transparent);
+}
+.m26-shell .m26-agenda-linked-field select{
+  margin-top:.3rem;
+}
+.m26-shell .m26-agenda-linked-field small{
+  line-height:1.45;
+  max-width:72ch;
+}
+.m26-shell .m26-agenda-timezone{
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+  font-size:.8rem;
+  border-left:2px solid var(--iberfit-color-accent);
+  padding:.3rem .75rem;
+}
+.m26-shell .m30-agenda-proposal [data-workflow-action="create-appointment"]{
+  min-height:50px;
+  min-width:min(100%,15rem);
+}
+.m26-shell .m30-agenda-decision-metrics{
+  grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr));
+}
+.m26-shell .m26-builder-core-prescription:has([data-session-block-field="plannedPace"]){
+  padding:.7rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 19%,var(--iberfit-color-border));
+  border-radius:.8rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 4%,transparent);
+}
+.m26-shell .m26-builder-core-prescription [data-session-block-field="plannedPace"]{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.04em;
+  font-weight:700;
+}
+.m26-shell :is(.m26-agenda-linked-field select,.m26-builder-core-prescription input):focus-visible{
+  outline:2px solid var(--iberfit-color-accent);
+  outline-offset:3px;
+}
+@media(max-width:720px){
+  .m26-shell .m26-agenda-composer-steps{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.1rem .55rem;
+  }
+  .m26-shell .m30-agenda-proposal .m26-field-grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:.8rem;
+  }
+  .m26-shell .m30-agenda-proposal :is(input,select){
+    min-height:50px;
+    font-size:16px;
+  }
+  .m26-shell .m30-agenda-proposal [data-workflow-action="create-appointment"]{
+    width:100%;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell .m30-agenda-proposal :is(input,select){scroll-behavior:auto}
+}
+@media(forced-colors:active){
+  .m26-shell .m26-agenda-linked-field,.m26-shell .m30-agenda-proposal{
+    border:1px solid CanvasText;
+  }
+}
+
+/* SIGNATURE B20 · Role-specific wayfinding, warmth and accessible interaction.
+ * One visible next action: Client progresses, Coach prescribes, Admin resolves. */
+.m26-shell[data-m26-role="client"] .m26-client-home-feature{
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 23%,var(--iberfit-color-border));
+  border-radius:clamp(1.1rem,2.6vw,1.6rem);
+  box-shadow:0 19px 60px rgba(0,0,0,.13);
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-hero{
+  background:
+    radial-gradient(circle at 92% 2%,color-mix(in srgb,var(--iberfit-color-accent) 12%,transparent),transparent 23rem),
+    linear-gradient(148deg,color-mix(in srgb,var(--iberfit-color-surface-raised) 97%,#cfb582 3%),var(--iberfit-color-surface-base));
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-hero h2{
+  font-size:clamp(1.95rem,4.6vw,3.3rem);
+  line-height:1.08;
+  letter-spacing:-.036em;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary{
+  min-height:68px;
+  border-radius:.9rem;
+  box-shadow:0 10px 26px rgba(14,20,14,.18);
+}
+.m26-shell .m26-client-health-activation{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 25%,var(--iberfit-color-border));
+  border-radius:.95rem;
+  padding:clamp(.95rem,2vw,1.35rem);
+  background:color-mix(in srgb,var(--iberfit-color-accent) 6%,var(--iberfit-color-surface-raised));
+}
+.m26-shell .m26-client-health-activation>div{
+  min-width:0;max-width:65ch;
+}
+.m26-shell .m26-client-health-activation h3{
+  margin:.25rem 0 .3rem;
+  font-family:var(--iberfit-font-family-editorial);
+  font-weight:590;
+  font-size:clamp(1.15rem,2vw,1.4rem);
+  letter-spacing:-.022em;
+  text-wrap:balance;
+}
+.m26-shell .m26-client-health-activation p:last-child{
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+  line-height:1.55;
+  font-size:.9rem;
+  margin:0;
+}
+.m26-shell .m26-client-health-activation button{
+  flex:0 0 auto;
+  border:1px solid var(--iberfit-color-accent);
+  border-radius:.72rem;
+  min-height:48px;
+  padding:.7rem 1rem;
+  font-weight:750;
+}
+.m26-shell .m26-device-native-explanation{
+  border-left:2px solid var(--iberfit-color-accent);
+  padding:.5rem .8rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 6%,transparent);
+  line-height:1.55;
+}
+.m26-shell .m26-signature-client-session-guidance{
+  display:flex;
+  align-items:center;
+  line-height:1.55;
+  max-width:72ch;
+  font-weight:550;
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+  padding:.6rem .85rem;
+  border-left:2px solid var(--iberfit-color-accent);
+  background:color-mix(in srgb,var(--iberfit-color-accent) 4%,transparent);
+}
+.m26-shell[data-m26-role="coach"] .m26-signature-builder-flow{
+  border-radius:.8rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 18%,var(--iberfit-color-border));
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 86%,transparent);
+  padding:.8rem 1rem;
+}
+.m26-shell .m26-signature-builder-flow ol{
+  list-style:none;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin:0;
+  padding:0;
+  gap:.45rem;
+}
+.m26-shell .m26-signature-builder-flow li{
+  display:flex;
+  align-items:center;
+  gap:.55rem;
+  min-width:0;
+  padding:.6rem .7rem;
+  border-bottom:2px solid transparent;
+  font-size:.85rem;
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+}
+.m26-shell .m26-signature-builder-flow li span{
+  font-variant-numeric:tabular-nums;
+  color:var(--iberfit-color-accent);
+  font-size:.74rem;
+  flex:0 0 auto;
+}
+.m26-shell .m26-signature-builder-flow li strong{
+  min-width:0;
+  font-size:inherit;
+  line-height:1.35;
+}
+.m26-shell .m26-signature-builder-flow li[data-flow-current="true"]{
+  border-bottom-color:var(--iberfit-color-accent);
+  background:color-mix(in srgb,var(--iberfit-color-accent) 6%,transparent);
+  border-radius:.4rem .4rem 0 0;
+  color:var(--iberfit-color-text-primary,var(--m26-cream-100));
+}
+.m26-shell .m26-signature-builder-flow p{
+  margin:.65rem 0 0;
+  font-size:.8rem;
+  line-height:1.5;
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+}
+.m26-shell[data-m26-role="admin"] .m26-signature-admin-next{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:1rem;
+  padding:1.05rem clamp(1rem,2vw,1.5rem);
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 24%,var(--iberfit-color-border));
+  border-radius:1rem;
+  background:linear-gradient(110deg,color-mix(in srgb,var(--iberfit-color-accent) 9%,var(--iberfit-color-surface-raised)),var(--iberfit-color-surface-raised));
+}
+.m26-shell .m26-signature-admin-next>div{
+  display:grid;gap:.25rem;min-width:0;
+}
+.m26-shell .m26-signature-admin-next span{
+  font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--iberfit-color-accent);font-weight:800;
+}
+.m26-shell .m26-signature-admin-next strong{
+  font-size:clamp(1.05rem,2vw,1.3rem);
+  line-height:1.25;letter-spacing:-.016em;
+}
+.m26-shell .m26-signature-admin-next small{
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+  font-size:.83rem;line-height:1.45;
+}
+.m26-shell .m26-signature-admin-next button{min-height:48px;flex:0 0 auto}
+.m26-shell :is(.m26-client-health-activation button,.m26-signature-admin-next button,.m26-signature-builder-flow button):focus-visible{
+  outline:2px solid var(--iberfit-color-accent);outline-offset:3px;
+}
+@media(max-width:680px){
+  .m26-shell .m26-client-health-activation{flex-direction:column;align-items:stretch}
+  .m26-shell .m26-client-health-activation button{width:100%;min-height:52px}
+  .m26-shell .m26-signature-builder-flow ol{grid-template-columns:1fr;gap:0}
+  .m26-shell .m26-signature-builder-flow li{padding:.48rem .6rem}
+  .m26-shell .m26-signature-builder-flow li[data-flow-current="true"]{
+    border-bottom-color:transparent;border-left:2px solid var(--iberfit-color-accent);
+  }
+  .m26-shell .m26-signature-admin-next button{width:100%;min-height:52px}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell :is(.m26-client-health-activation,.m26-signature-builder-flow,.m26-signature-admin-next){
+    transition:none!important;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell :is(.m26-client-health-activation,.m26-signature-builder-flow,.m26-signature-admin-next){border-color:CanvasText}
+}

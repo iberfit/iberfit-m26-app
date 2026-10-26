@@ -334,6 +334,7 @@ function agendaClientOptions(vm={}){
       value="${escape(item.id)}"
       data-training-address="${escape(address)}"
       data-client-modality="${escape(profile.modality||item.modality||'')}"
+      data-session-duration="${escape(profile.sessionDurationMinutes??'')}"
       ${item.id===vm.selectedClientId?'selected':''}
     >${escape(item.name||'Cliente')}</option>`;
   }).join('');
@@ -342,10 +343,16 @@ function agendaClientOptions(vm={}){
 function renderAgendaProposalForm(vm,role){
   if(!['coach','admin'].includes(role))return '';
   const options=agendaClientOptions(vm);
+  const activeClientId=(vm.clients||[]).some(c=>c.id===vm.selectedClientId)
+    ?vm.selectedClientId:vm.clients?.[0]?.id||'';
+  const sessionOptions=(vm.linkableSessions||[]).map(item=>
+    `<option value="${escape(item.id)}" data-client-id="${escape(item.clientId)}" data-modality="${escape(item.deliveryModality||'')}" data-session-duration="${escape(item.durationMinutes??'')}"${item.clientId===activeClientId?'':' disabled'}>${escape(item.title||'Sesión publicada')}</option>`
+  ).join('');
   return `<form
     id="m26-agenda-proposal-form"
     class="m26-panel m26-panel-soft m30-agenda-proposal"
     data-workflow-form="appointment"
+    data-guided-required-form
     aria-labelledby="m26-agenda-proposal-title"
   >
     <div class="m26-panel-heading">
@@ -356,14 +363,25 @@ function renderAgendaProposalForm(vm,role){
       </div>
       ${statusBadge('Privada hasta confirmar','neutral')}
     </div>
+    <ol class="m26-agenda-composer-steps" aria-label="Etapas de la programación">
+      <li>Cliente</li><li>Entrenamiento</li><li>Horario</li><li>Confirmación posterior</li>
+    </ol>
     <div class="m26-field-grid">
       <label>Cliente
         <select name="clientId" required>
           ${options||'<option value="">Sin clientes disponibles</option>'}
         </select>
       </label>
+      <label class="m26-wide m26-agenda-linked-field">Entrenamiento de esta cita
+        <select name="sessionId" aria-describedby="m26-linked-session-help">
+          <option value="">Sin entrenamiento vinculado</option>
+          ${sessionOptions}
+        </select>
+        <small id="m26-linked-session-help">Selecciona una sesión publicada de este Cliente o deja la cita sin entrenamiento.</small>
+      </label>
       <label>Modalidad de esta cita
-        <select name="modality" required>
+        <select name="modality" required aria-describedby="m26-appointment-guidance">
+          <option value="" disabled selected>Seleccionar modalidad</option>
           <option value="presencial">Presencial</option>
           <option value="guiada_en_app">Guiada en la aplicación</option>
           <option value="online">En línea</option>
@@ -378,6 +396,8 @@ function renderAgendaProposalForm(vm,role){
       <label class="m26-wide">Ubicación
         <input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help">
       </label>
+      <p class="m26-field-help m26-wide m26-agenda-timezone">Horario de Chile continental · America/Santiago. La cita solo será visible al confirmar.</p>
+      <p id="m26-appointment-guidance" class="m26-field-help m26-wide" role="status">Elige primero Cliente y entrenamiento; revisa horario y modalidad antes de crear la propuesta.</p>
       <p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p>
     </div>
     <div class="m26-inline-actions">
@@ -413,7 +433,7 @@ function renderAgendaStandaloneCard(appointment,role){
   >
     <header>
       <div>
-        <p class="m26-eyebrow">Cita sin sesión enlazada</p>
+        <p class="m26-eyebrow">${appointment.sessionId?'Entrenamiento vinculado':'Cita sin sesión enlazada'}</p>
         <h3>${escape(appointment.title)}</h3>
         <p>${escape(formatDate(appointment.startAt))}</p>
       </div>
@@ -438,6 +458,7 @@ function renderAgenda(vm){
   const confirmationOpen=Number(vm.rc39?.confirmationOpen||0);
   const changeRequests=Number(vm.rc39?.changeRequests||0);
   const needsPreparation=Number(vm.rc39?.needsPreparation||0);
+  const linkedCount=appointments.filter(item=>Boolean(item.sessionId)).length;
   const nextAppointment=appointments[0]||null;
 
   const cards=appointments.length
@@ -475,6 +496,7 @@ function renderAgenda(vm){
           <span><small>Confirmaciones abiertas</small><strong>${escape(confirmationOpen)}</strong></span>
           <span><small>Cambios solicitados</small><strong>${escape(changeRequests)}</strong></span>
           <span><small>Por preparar</small><strong>${escape(needsPreparation)}</strong></span>
+          <span><small>Con entrenamiento</small><strong>${escape(linkedCount)}</strong></span>
         </div>
         <div class="m26-inline-actions">
           <a class="m26-primary-action" href="#m26-agenda-proposal-form">Nueva propuesta</a>
@@ -581,6 +603,7 @@ function renderSessions(vm){
     published:['Sesiones para consultar','Tu Coach dirige o habilita el inicio según cada sesión publicada.'],
     paused:['Entrenamiento en pausa','El contenido y el historial siguen disponibles; el inicio permanece deshabilitado.'],
   }[clientState]:null;
+  const sessionJourney=client?`<p class="m26-signature-client-session-guidance" data-signature-session-guidance="${clientState}">${clientState==='ready'?'Revisa los ejercicios, inicia cuando estés preparado y registra tus resultados paso a paso.':clientState==='paused'?'Puedes consultar tus sesiones e historial. No se permite iniciar mientras el servicio esté en pausa.':clientState==='empty'?'Tu Coach publicará aquí el trabajo disponible. Mientras tanto, puedes registrar cómo te encuentras.':'Consulta los ejercicios y la modalidad. Las sesiones con Coach se ejecutan bajo su supervisión.'}</p>`:'';
   const clientBriefMarkup=clientBrief?`<aside class="m26-client-sessions-brief" data-client-sessions-brief="${clientState}" aria-label="Estado de tus sesiones"><span class="m26-eyebrow">Tu entrenamiento</span><strong>${clientBrief[0]}</strong><p>${clientBrief[1]}</p></aside>`:'';
   const empty=client
     ?'<section class="m26-empty m26-client-sessions-empty" data-client-session-empty><p class="m26-eyebrow">A tu ritmo, con criterio</p><h3>Sin sesiones</h3><p>Tu Coach todavía no ha publicado sesiones para ti. Puedes consultar tu planificación o registrar cómo te encuentras, sin esperar a tener un entrenamiento disponible.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div></section>'
@@ -591,7 +614,7 @@ function renderSessions(vm){
   const introLabel=client&&normalizeClientModality(contractModality)===null
     ?'Sesiones · IBERFIT'
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${clientBriefMarkup}<section class="m26-rc39-week">${items.length?(role==='coach'
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${items.length?(role==='coach'
     ?renderCoachSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
     :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }

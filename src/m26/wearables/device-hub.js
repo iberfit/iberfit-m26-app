@@ -16,13 +16,14 @@ const escapeHtml=(value)=>String(value??'')
 
 export function deviceSourceChoice(item){
   const enabled=Boolean(item?.nativeReady&&item?.usableNow);
+  const nativeCompatible=item?.productionNativeReady===true;
   const key=String(item?.key||'');
   const title=SOURCE_LABELS[key]||item?.label||'Otra fuente';
   const cloud=item?.mode==='server_oauth';
   return `<article class="m26-device-choice m26-wearable-source" data-provider="${escapeHtml(key)}">
     <div><h3>${escapeHtml(title)}</h3>
-    <p>${enabled?'Disponible: autoriza los datos en la pantalla oficial.':cloud?'Vinculación de cuenta aún no certificada.':'La conexión directa requiere una aplicación y permisos certificados.'}</p></div>
-    <span class="m26-device-availability ${enabled?'is-ready':'is-pending'}">${enabled?'Disponible':'No disponible por ahora'}</span>
+    <p>${nativeCompatible?'Compatible con el canal Android de IBERFIT. Requiere permisos de Health Connect y una autorización activa; la conexión todavía no está confirmada.':enabled?'Disponible: autoriza los datos en la pantalla oficial.':cloud?'Vinculación de cuenta aún no certificada.':'La conexión directa requiere una aplicación y permisos certificados.'}</p></div>
+    <span class="m26-device-availability ${enabled||nativeCompatible?'is-ready':'is-pending'}">${nativeCompatible?'Compatible · requiere autorización':enabled?'Disponible':'No disponible por ahora'}</span>
   </article>`;
 }
 export function deviceConfirmedStats(summary){
@@ -50,9 +51,9 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
     ?`${automatic.length} fuente${automatic.length===1?'':'s'} vinculada${automatic.length===1?'':'s'}`
     :importCount?'Datos incorporados · sin enlace automático'
     :Number(summary.daysWithData||0)>0?'Datos de salud recibidos':'Sin mediciones confirmadas';
-  const primary=MAIN_SOURCES.map(key=>providers.find(item=>item.key===key)).filter(Boolean);
+  const primary=MAIN_SOURCES.map(key=>providers.find(item=>item.key===key)).filter(Boolean).map(item=>item.key==='health_connect'&&wearable?.productionNativeReady===true?{...item,productionNativeReady:true}:item);
   const others=providers.filter(item=>item.key!=='normalized_file'&&!MAIN_SOURCES.includes(item.key));
-  const directAvailable=providers.some(item=>item.usableNow&&item.nativeReady);
+  const directAvailable=wearable?.productionNativeReady===true||providers.some(item=>item.usableNow&&item.nativeReady);
   const stats=deviceConfirmedStats(summary);
   return `<section class="m26-device-hub" data-m26-device-hub aria-labelledby="m26-device-hub-heading">
     <header class="m26-device-hub-heading">
@@ -63,11 +64,12 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
     </header>
     ${stats||'<p class="m26-device-hub-empty">Aquí verás tus pasos, sueño y recuperación cuando existan datos confirmados. No es obligatorio conectar nada.</p>'}
     ${stats?`<p class="m26-data-footnote">Medias de los últimos siete días · ${escapeHtml(summary.daysWithData||0)} día(s) con datos. El reloj físico no está verificado.</p>`:''}
-    <details class="m26-device-link-picker" data-m26-device-link-picker>
+    <details class="m26-device-link-picker" data-m26-device-link-picker${wearable?.productionNativeReady===true&&!active.length&&Number(summary.daysWithData||0)===0?' open':''}>
       <summary class="m26-device-link-cta">${stats?'Conexión y otras fuentes':'Conectar mi actividad'} <span aria-hidden="true">↗</span></summary>
       <div class="m26-device-hub-body">
         <h3>¿Dónde registras tu actividad?</h3>
-        <p>${directAvailable?'Selecciona una fuente certificada. Tú autorizas los permisos.':'La sincronización directa aún no está disponible en esta versión web. Estas opciones muestran el estado real; no solicitaremos claves, datos ni permisos hasta que exista una integración certificada.'}</p>
+        ${wearable?.productionNativeReady===true?'<p class="m26-device-native-explanation">IBERFIT ha detectado una aplicación Android compatible. Puedes elegir las categorías que compartirás; después se sincronizarán al abrir IBERFIT. La autorización de Android se solicita por separado y puedes revocarla.</p>':''}
+        <p>${directAvailable?'La compatibilidad del teléfono no significa que IBERFIT ya esté autorizado. Elige las categorías en la integración oficial, si está habilitada, y concede los permisos del sistema.':'La sincronización directa aún no está disponible en esta versión web. Estas opciones muestran el estado real; no solicitaremos claves, datos ni permisos hasta que exista una integración certificada.'}</p>
         <div class="m26-device-choice-list">${primary.map(deviceSourceChoice).join('')}</div>
         <details class="m26-device-more-sources"><summary>Otras fuentes</summary><div class="m26-device-choice-list">${others.map(deviceSourceChoice).join('')}</div></details>
       </div>

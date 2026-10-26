@@ -1,6 +1,8 @@
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
 import {selectCurrentTrainingCycle} from '../workflows/planning-workflow.js';
+import {linkableSessionsForCoachAgenda} from '../workflows/agenda-workflow.js';
+export {linkableSessionsForCoachAgenda} from '../workflows/agenda-workflow.js';
 import {buildPeriodizationSnapshot} from '../planning/periodization-workbench.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
@@ -498,41 +500,6 @@ function publicationItems(records, entity, role) {
   });
 }
 
-// SIGNATURE B18 · One authorized, latest-state session selector per Coach.
-const LINKABLE_APPOINTMENT_SESSION_STATES=new Set([
-  'publicada','publicado','published','disponible','habilitado',
-]);
-export function linkableSessionsForCoachAgenda(state,visibleClientIds=[]){
-  const visible=new Set((Array.isArray(visibleClientIds)?visibleClientIds:[])
-    .map(x=>String(x||'').trim()).filter(Boolean));
-  if(!visible.size)return Object.freeze([]);
-  const latest=new Map();
-  for(const record of state?.collections?.sessions||[]){
-    const clientId=String(text(record,'clientId','client_id')||'').trim();
-    const id=String(text(record,'id')||record?.id||'').trim();
-    if(!visible.has(clientId)||!id)continue;
-    const revision=Number(text(record,'revision')||0);
-    const previous=latest.get(id);
-    if(previous&&previous.revision>revision)continue;
-    latest.set(id,{record,id,clientId,revision});
-  }
-  return Object.freeze([...latest.values()]
-    .filter(({record})=>LINKABLE_APPOINTMENT_SESSION_STATES.has(
-      String(domainStatus(record)||'').trim().toLowerCase()))
-    .map(({record,id,clientId})=>{
-      const minutes=Number(text(record,'durationMinutes','duration_minutes'));
-      const mode=String(text(record,'deliveryModality','delivery_modality')||'').trim();
-      return Object.freeze({id,clientId,
-        title:String(text(record,'title','name')||'').trim().slice(0,120),
-        deliveryModality:['presencial','guiada_en_app'].includes(mode)?mode:'',
-        durationMinutes:Number.isFinite(minutes)&&minutes>=10&&minutes<=240
-          ?minutes:null,
-      });
-    })
-    .sort((a,b)=>a.clientId.localeCompare(b.clientId)||
-      a.title.localeCompare(b.title)||a.id.localeCompare(b.id)));
-}
-
 function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}) {
   const area = shellVm.activeArea;
 
@@ -936,7 +903,7 @@ if (area === 'clientes') {
       role: shellVm.identity?.role,
       appointments: Object.freeze(appointments),
       clients: Object.freeze(clients),
-      linkableSessions:role==='coach'
+      linkableSessions:['coach','admin'].includes(role)
         ?linkableSessionsForCoachAgenda(state,clients.map(c=>c.id))
         :Object.freeze([]),
       selectedClientId: state.selectedClientId || null,

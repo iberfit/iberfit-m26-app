@@ -276,8 +276,9 @@ function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   if(profile.cardio){
     return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
-      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
+      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.01,max:1440})}
       ${profile.sport==='swimming'?field('plannedDistanceM','Distancia objetivo (m)',p.plannedDistanceM||'','number',{min:0,step:1,max:100000}):field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${['running','walking'].includes(profile.sport)?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 05:30'}):''}
       ${profile.sport==='swimming'?field('poolLengthM','Longitud de piscina (m) · opcional',p.poolLengthM??'','number',{min:15,step:1,max:100}):''}
       ${field('plannedWarmupMinutes','Calentamiento (min) · opcional',p.plannedWarmupMinutes??'','number',{min:0,step:0.5,max:240})}
       ${field('plannedCooldownMinutes','Vuelta a la calma (min) · opcional',p.plannedCooldownMinutes??'','number',{min:0,step:0.5,max:240})}
@@ -308,8 +309,7 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
     ?swimmingPrescriptionAdvisories(p,{...exercise,measurementProfile:p.measurementProfile})
       .map(({level,message})=>`<p class="m26-builder-metric-hint" data-swimming-prescription-advice="${e(level)}">${e(message)}</p>`).join('')
     :'';
-  return `${cardio&&['running','walking'].includes(sport)?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
-    ${cardio&&sport==='swimming'?field('plannedPacePer100M','Ritmo objetivo (min/100 m)',p.plannedPacePer100M||'', 'text',{maxLength:16,placeholder:'Ej. 01:55'}):''}
+  return `${cardio&&sport==='swimming'?field('plannedPacePer100M','Ritmo objetivo (min/100 m)',p.plannedPacePer100M||'', 'text',{maxLength:16,placeholder:'Ej. 01:55'}):''}
     ${cardio&&sport==='cycling'?field('plannedSpeedKmh','Velocidad objetivo (km/h)',p.plannedSpeedKmh||'','number',{min:0,step:0.1,max:120}):''}
     ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
     ${cardio?field('targetHeartRateBpm','FC objetivo (lpm o rango)',p.targetHeartRateBpm||'','text',{maxLength:24,placeholder:'Ej. 120-140'}):''}
@@ -896,6 +896,19 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
       ${templateAdaptationMarkup}
     </div>
   </details>`:'';
+  const flowStage=draft.previewAccepted?'review':metrics.blocks>0?'program':'start';
+  const builderFlow=`<nav class="m26-signature-builder-flow" aria-label="Recorrido de construcción de sesión" data-session-builder-flow="${flowStage}">
+    <ol>
+      <li data-flow-current="${flowStage==='start'}"><span>01</span><strong>Objetivo y modalidad</strong></li>
+      <li data-flow-current="${flowStage==='program'}"><span>02</span><strong>Prescribir ejercicios</strong></li>
+      <li data-flow-current="${flowStage==='review'}"><span>03</span><strong>Revisar antes de publicar</strong></li>
+    </ol>
+    <p>${flowStage==='review'
+      ?'Vista previa preparada. La publicación requiere una confirmación expresa.'
+      :flowStage==='program'
+        ?'Edita distancia, ritmo, series y alternativas. Puedes guardar sin publicar.'
+        :'Confirma duración y modo de la sesión; después añade los ejercicios.'}</p>
+  </nav>`;
   return `<section class="m26-session-builder m26-session-builder-v2" data-session-builder-workbench-v2 data-session-builder-has-blocks="${draft.blocks?.length?'true':'false'}">
     <header class="m26-builder-commandbar">
       <div>
@@ -921,6 +934,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
         ${primary}
       </div>
     </header>
+    ${builderFlow}
     ${reviewGuidance}
     ${renderProfessionalSessionClientContext(clientContext,role)}
     ${renderActionState(actionState)}

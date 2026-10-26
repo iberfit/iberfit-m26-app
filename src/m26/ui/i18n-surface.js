@@ -5,6 +5,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE B20: the optional Health Connect activation is always localized.
+  ['Opcional · datos protegidos','Optional · protected data','Facultatif · données protégées','Opcional · dados protegidos'],
+  ['Tu actividad, sin tener que registrarla dos veces','Your activity, without entering it twice','Votre activité, sans la saisir deux fois','A sua atividade, sem a registar duas vezes'],
+  ['Si ya usas un reloj o una app compatible con Health Connect, elige los datos que quieres compartir una sola vez. Después IBERFIT comprobará las nuevas mediciones al abrir la aplicación.','If you already use a watch or an app compatible with Health Connect, choose the data you want to share once. IBERFIT will then check for new measurements whenever you open the app.','Si vous utilisez déjà une montre ou une application compatible avec Health Connect, choisissez une seule fois les données à partager. IBERFIT vérifiera ensuite les nouvelles mesures à chaque ouverture de l’application.','Se já usa um relógio ou uma aplicação compatível com o Health Connect, escolha uma única vez os dados que pretende partilhar. Depois, a IBERFIT verificará novas medições ao abrir a aplicação.'],
+  ['Elegir qué compartir','Choose what to share','Choisir les données à partager','Escolher o que partilhar'],
   // SIGNATURE B10: proactive Coach Builder readiness without hidden i18n regressions.
   ["Añade al menos un ejercicio para revisar la sesión.","Add at least one exercise before reviewing the session.","Ajoutez au moins un exercice avant de vérifier la séance.","Adicione pelo menos um exercício antes de rever a sessão."],
   ["Selecciona un Cliente antes de revisar.","Select a client before reviewing.","Sélectionnez un client avant de vérifier.","Selecione um cliente antes de rever."],
