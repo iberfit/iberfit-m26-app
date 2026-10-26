@@ -9,4 +9,5 @@ SELECT 1 / CASE WHEN NOT EXISTS(
     AND command_type='OCURRENCIAS_CREAR_LOTE'
 ) THEN 1 ELSE 0 END AS u32_rollback_requires_no_batch_receipts;
 DROP FUNCTION private.iberfit_u32_create_occurrences_batch_v1(jsonb);
+DROP FUNCTION private.iberfit_u32_build_execution_queue_v1(jsonb);
 COMMIT;

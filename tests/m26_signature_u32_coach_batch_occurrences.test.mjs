@@ -23,7 +23,7 @@ test('U32: Coach can only schedule from authorized, published, server-owned sour
   assert.match(migration,/p\.body->>'endDate'|v_plan\.body->>'endDate'/u);
   assert.match(migration,/WHERE entity_type='planning' AND entity_id=v_plan_id/u);
   assert.match(migration,/v_payload - 'dates' - 'targetClientId' - 'previewConfirmed'/u);
-  assert.match(migration,/v_snapshot:=jsonb_build_object\([\s\S]*?'queue',v_source\.body->'blocks'/u);
+  assert.match(migration,/v_snapshot:=jsonb_build_object\([\s\S]*?'queue',private\.iberfit_u32_build_execution_queue_v1\(v_source\.body->'blocks'\)/u);
   assert.match(qa,/U32_UNTRUSTED_BLOCKS_ALLOWED/u);
   assert.match(qa,/U32_OTHER_CLIENT_ALLOWED/u);
   assert.match(qa,/U32_ADMIN_AS_COACH_ALLOWED/u);
