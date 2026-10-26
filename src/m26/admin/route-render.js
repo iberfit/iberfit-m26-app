@@ -219,13 +219,10 @@ function renderHome(vm){
     ?`<section class="m26-admin-command-urgent" aria-labelledby="m26-admin-urgent-title"><header><div><p class="m26-eyebrow">Incidencias verificadas</p><h4 id="m26-admin-urgent-title">Operación que requiere atención</h4></div>${badge(urgent.length===1?'1 incidencia prioritaria':String(urgent.length)+' incidencias prioritarias')}</header><ol>${urgentRows}</ol>${urgent.length>3?'<p class="m26-admin-command-more">Se muestran 3 de '+urgent.length+'. Consulta el centro operativo para revisar todas.</p>':''}</section>`
     :'';
   const adminNext=urgent.length
-    ?{area:'admin-operaciones',label:'Resolver incidencias prioritarias',
-      detail:'Incidencias verificadas pendientes de decisión'}
+    ?{area:'admin-operaciones',kind:'urgent'}
     :Number(s.unassignedClients||0)>0
-      ?{area:'admin-clientes',label:'Revisar clientes sin Coach',
-        detail:'La asignación de responsable necesita una decisión'}
-      :{area:'admin-operaciones',label:'Revisar la operación',
-        detail:'Controlar tareas abiertas y trazabilidad'};
+      ?{area:'admin-clientes',kind:'unassigned'}
+      :{area:'admin-operaciones',kind:'routine'};
   const clientCount=cc.priorities?.length||0;
   const priorities=clientCount?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Recorridos sin alertas','No hay recorridos de cliente que requieran una decisión administrativa.');
   const loads=cc.coachLoad?.length?cc.coachLoad.map(coachLoadCard).join(''):empty('Sin carga registrada','La capacidad del equipo aparecerá aquí cuando exista información.');
@@ -242,7 +239,7 @@ function renderHome(vm){
   return `<div class="m26-admin-route m30-admin-command-route" data-admin-surface="command-center">
     ${intro('Dirección del servicio','IBERFIT Command Center','Prioridades verificadas, capacidad de equipo y trazabilidad. Primero lo que requiere una decisión.')}
     <nav class="m26-signature-admin-next" aria-label="Siguiente decisión administrativa" data-admin-primary-action>
-      <div><span>Decisión prioritaria</span><strong>${e(adminNext.label)}</strong><small>${e(adminNext.detail)}</small></div>
+      <div><span>Decisión prioritaria</span><strong>${adminNext.kind==='urgent'?'Resolver incidencias prioritarias':adminNext.kind==='unassigned'?'Revisar clientes sin Coach':'Revisar la operación'}</strong><small>${adminNext.kind==='urgent'?'Incidencias verificadas pendientes de decisión':adminNext.kind==='unassigned'?'La asignación de responsable necesita una decisión':'Controlar tareas abiertas y trazabilidad'}</small></div>
       <button type="button" class="m26-primary-action" data-m26-area="${e(adminNext.area)}">Abrir gestión</button>
     </nav>
     <section class="m26-admin-panel m26-admin-command m30-admin-decision-center" data-admin-priority-center aria-labelledby="m30-admin-priority-title">
