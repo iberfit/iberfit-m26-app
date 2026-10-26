@@ -53,8 +53,18 @@ test('field presets and results retain exact protocols without invented norms',a
   const form=page.locator('[data-workflow-form="iri"]');
   await expect(form.locator('[name="weeklyFrequency"]')).toHaveValue('');
   await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
-  await form.getByText('Preparación rápida de terreno',{exact:true}).click();
+  const setup=form.locator('details.m26-iri-setup');
+  const summary=setup.locator('summary');
+  await summary.click();
+  await expect(setup).toHaveAttribute('open','');
+  await expect(setup.locator('[data-iri-setup-preset="floor"]')).toBeVisible();
   for(const preset of ['floor','knees','trx','treadmill'])await form.locator(`[data-iri-setup-preset="${preset}"]`).click();
+  // Native disclosure stays operable with keyboard and preserves the chosen settings.
+  await summary.focus();
+  await summary.press('Enter');
+  await expect(setup).not.toHaveAttribute('open','');
+  await summary.press('Enter');
+  await expect(setup).toHaveAttribute('open','');
   expect(errors,'the field fixture and controller must initialize without runtime errors').toEqual([]);
   await expect(form.locator('[data-iri-preset-status]')).toContainText('Preparación aplicada');
   // Populate hidden wizard steps through DOM to inspect the real controller's

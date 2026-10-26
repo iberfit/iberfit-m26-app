@@ -2233,16 +2233,10 @@ export function createWorkflowController({
     }
   }
   async function onClick(event){
-    const setupSummary=event.target.closest?.('details.m26-iri-setup > summary');
-    if(setupSummary){
-      event.preventDefault?.();
-      const details=setupSummary.parentElement;
-      if(details?.tagName==='DETAILS'){
-        details.open=!details.open;
-        setupSummary.setAttribute?.('aria-expanded',details.open?'true':'false');
-      }
-      return;
-    }
+    // SIGNATURE B26: <details>/<summary> uses the browser's native toggle.
+    // Do not preventDefault and flip .open manually; this can leave the
+    // disclosure closed on mobile and makes its child controls unreachable.
+    if(event.target.closest?.('details.m26-iri-setup > summary'))return;
     const preset=event.target.closest?.('[data-iri-setup-preset]');
     if(preset){
       event.preventDefault?.();requireCoach();

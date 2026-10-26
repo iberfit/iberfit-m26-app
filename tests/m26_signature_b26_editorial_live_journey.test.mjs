@@ -49,3 +49,12 @@ test('B26 interfaz sin animación repetida de rutas y con garantías a 320 px',(
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
   for(const role of ['client','coach','admin'])assert.match(css,new RegExp('data-m26-role="'+role+'"'));
 });
+
+test('B26 IRI: el disclosure de terreno es nativo, sin doble apertura manual',()=>{
+  const controller=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const renderer=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(renderer,/<details class="m26-iri-setup"><summary>Preparación rápida de terreno<\/summary>/);
+  assert.match(controller,/event\.target\.closest\?\.\('details\.m26-iri-setup > summary'\)\)return/);
+  assert.doesNotMatch(controller,/details\.open=!details\.open/);
+  assert.doesNotMatch(controller,/setupSummary\.setAttribute/);
+});
