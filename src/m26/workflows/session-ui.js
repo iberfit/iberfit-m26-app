@@ -276,8 +276,9 @@ function prescriptionWorkFields(blockId,exerciseId,exercise,p={},grouped=false){
   const field=(key,label,value,type='text',extra={})=>blockField({blockId,exerciseId,field:key,label,value,type,...extra});
   if(profile.cardio){
     return `${grouped?'':field('sets','Bloques',p.sets??1,'number',{min:1,max:100})}
-      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.1,max:1440})}
+      ${field('plannedDurationMinutes','Duración objetivo (min)',p.plannedDurationMinutes||'','number',{min:0,step:0.01,max:1440})}
       ${profile.sport==='swimming'?field('plannedDistanceM','Distancia objetivo (m)',p.plannedDistanceM||'','number',{min:0,step:1,max:100000}):field('plannedDistanceKm','Distancia objetivo (km)',p.plannedDistanceKm||'','number',{min:0,step:0.01,max:1000})}
+      ${['running','walking'].includes(profile.sport)?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 05:30'}):''}
       ${profile.sport==='swimming'?field('poolLengthM','Longitud de piscina (m) · opcional',p.poolLengthM??'','number',{min:15,step:1,max:100}):''}
       ${field('plannedWarmupMinutes','Calentamiento (min) · opcional',p.plannedWarmupMinutes??'','number',{min:0,step:0.5,max:240})}
       ${field('plannedCooldownMinutes','Vuelta a la calma (min) · opcional',p.plannedCooldownMinutes??'','number',{min:0,step:0.5,max:240})}
@@ -308,8 +309,7 @@ function prescriptionAdvancedFields(blockId,exerciseId,exercise,p={}){
     ?swimmingPrescriptionAdvisories(p,{...exercise,measurementProfile:p.measurementProfile})
       .map(({level,message})=>`<p class="m26-builder-metric-hint" data-swimming-prescription-advice="${e(level)}">${e(message)}</p>`).join('')
     :'';
-  return `${cardio&&['running','walking'].includes(sport)?field('plannedPace','Ritmo objetivo (min/km)',p.plannedPace||'', 'text',{maxLength:16,placeholder:'Ej. 06:00'}):''}
-    ${cardio&&sport==='swimming'?field('plannedPacePer100M','Ritmo objetivo (min/100 m)',p.plannedPacePer100M||'', 'text',{maxLength:16,placeholder:'Ej. 01:55'}):''}
+  return `${cardio&&sport==='swimming'?field('plannedPacePer100M','Ritmo objetivo (min/100 m)',p.plannedPacePer100M||'', 'text',{maxLength:16,placeholder:'Ej. 01:55'}):''}
     ${cardio&&sport==='cycling'?field('plannedSpeedKmh','Velocidad objetivo (km/h)',p.plannedSpeedKmh||'','number',{min:0,step:0.1,max:120}):''}
     ${cardio?field('targetHeartRateZone','Zona de FC',p.targetHeartRateZone||'','text',{maxLength:12,placeholder:'Ej. Z2'}):''}
     ${cardio?field('targetHeartRateBpm','FC objetivo (lpm o rango)',p.targetHeartRateBpm||'','text',{maxLength:24,placeholder:'Ej. 120-140'}):''}

@@ -5,7 +5,7 @@ import {evolutionPdfActionScope} from '../workflows/evolution-pdf-access.js';
 import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
 import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,planningFormSignature,finalizeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
-import {buildAppointmentCommand,buildConfirmAppointmentCommand} from '../workflows/agenda-workflow.js';
+import {buildAppointmentCommand,buildConfirmAppointmentCommand,resolveCoachAppointmentSessionLink,santiagoAppointmentInstant} from '../workflows/agenda-workflow.js';
 import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
@@ -207,11 +207,11 @@ export function appointmentEndFromDuration(startAt,durationMinutes){
   const duration=Number(durationMinutes);
   if(!match||!Number.isFinite(duration)||duration<1||duration>24*60)return '';
   const [,year,month,day,hour,minute]=match;
-  const date=new Date(Number(year),Number(month)-1,Number(day),Number(hour),Number(minute),0,0);
+  const date=new Date(Date.UTC(Number(year),Number(month)-1,Number(day),Number(hour),Number(minute),0,0));
   if(Number.isNaN(date.getTime()))return '';
-  date.setMinutes(date.getMinutes()+duration);
+  date.setUTCMinutes(date.getUTCMinutes()+duration);
   const pad=(value)=>String(value).padStart(2,'0');
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth()+1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }
 
 function appointmentModalitySuggestion(clientModality){
@@ -224,6 +224,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
   clearStatus(root,'appointment');
   const modalityField=form.elements?.namedItem?.('modality')||form.querySelector?.('[name="modality"]');
   const clientField=form.elements?.namedItem?.('clientId')||form.querySelector?.('[name="clientId"]');
+  const sessionField=form.elements?.namedItem?.('sessionId')||form.querySelector?.('[name="sessionId"]');
   const startField=form.elements?.namedItem?.('startAt')||form.querySelector?.('[name="startAt"]');
   const endField=form.elements?.namedItem?.('endAt')||form.querySelector?.('[name="endAt"]');
   const locationField=form.elements?.namedItem?.('location')||form.querySelector?.('[name="location"]');
@@ -232,8 +233,21 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
   const selectedOption=clientField?.selectedOptions?.[0]||clientField?.options?.[clientField?.selectedIndex]||null;
   const trainingAddress=String(selectedOption?.dataset?.trainingAddress||'').trim();
   const clientModality=String(selectedOption?.dataset?.clientModality||'').trim();
-  const suggestedModality=appointmentModalitySuggestion(clientModality);
-  const sessionDurationMinutes=Number(selectedOption?.dataset?.sessionDuration);
+  const chosenClientId=String(clientField?.value||'').trim();
+  for(const option of sessionField?.options||[]){
+    if(!option.value)continue;
+    option.disabled=String(option.dataset?.clientId||'')!==chosenClientId;
+  }
+  const selectedSessionOption=sessionField?.selectedOptions?.[0]||null;
+  if(selectedSessionOption?.value&&selectedSessionOption.disabled)
+    sessionField.value='';
+  const activeSessionOption=sessionField?.selectedOptions?.[0]||null;
+  const sessionModality=normalizeAppointmentModality(activeSessionOption?.dataset?.modality);
+  const suggestedModality=sessionModality||appointmentModalitySuggestion(clientModality);
+  const fromSession=Boolean(activeSessionOption?.value);
+  const sessionDurationMinutes=fromSession
+    ?Number(activeSessionOption?.dataset?.sessionDuration)
+    :Number(selectedOption?.dataset?.sessionDuration);
   const validDuration=Number.isFinite(sessionDurationMinutes)&&sessionDurationMinutes>=20&&sessionDurationMinutes<=240
     ?sessionDurationMinutes
     :null;
@@ -288,8 +302,8 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
   }
   if(guidance){
     const suggestions=[
-      suggestedModality?'modalidad del expediente':null,
-      validDuration?'duración habitual':null,
+      suggestedModality?(sessionModality?'modalidad del entrenamiento':'modalidad del expediente'):null,
+      validDuration?(fromSession?'duración del entrenamiento':'duración habitual'):null,
     ].filter(Boolean);
     guidance.textContent=suggestions.length
       ?`IBERFIT ha propuesto ${suggestions.join(' y ')}. Revísalas: cualquier cambio manual prevalece.`
@@ -1627,12 +1641,38 @@ export function createWorkflowController({
     if(localDraftOk&&result.refreshOk!==false)onRender();
     return settled;
   }
-  async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
+  async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=santiagoAppointmentInstant(raw.startAt),end=santiagoAppointmentInstant(raw.endAt);const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start,endAt:end,modality,location:String(raw.location||'').trim().slice(0,300)};
+    const selectedId=String(raw.sessionId||'').trim();
+    const linked=resolveCoachAppointmentSessionLink(context().state,{clientId,sessionId:selectedId});
+    if(linked){
+      draft.sessionId=linked.id;
+      draft.title=linked.title||'Sesión IBERFIT';
+      // A mismatched ownership cannot be corrected by a UI dropdown.
+      // Keep manual modality choices, but do not claim the appointment
+      // represents a different training delivery than the published plan.
+      if(linked.deliveryModality&&linked.deliveryModality!==modality)
+        throw new Error('M26_APPOINTMENT_LINKED_MODALITY_MISMATCH');
+    }
+    const command=buildAppointmentCommand(draft,0);
+    status(root,'appointment','Creando propuesta interna…','pending');
+    const result=await withTimeout(commandBus.execute(command),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');
     const feedback=mutationFeedback(result,{success:'Propuesta de cita creada. Aún no es visible para el cliente.',subject:'La cita'});
     if(!feedback.confirmed){status(root,'appointment',feedback.message,feedback.kind);return result;}
     let refreshed=result.refreshOk!==false;
     if(refreshed){try{await withTimeout(Promise.resolve(refreshState({reason:'appointment-created'})),15_000,'M26_WORKFLOW_REFRESH_TIMEOUT');}catch{refreshed=false;}}
-    status(root,'appointment',refreshed?feedback.message:'El servidor confirmó la propuesta de cita, pero la vista no se pudo actualizar. Comprueba la Agenda antes de crear otra.',refreshed?feedback.kind:'pending');
+    const persisted=refreshed
+      ?(context().state.collections.appointments||[]).find(item=>
+        String(item?.id||item?.body?.id||'')===command.entityId&&
+        String(item?.clientId||item?.client_id||item?.body?.clientId||'')===clientId)
+      :null;
+    const persistedSession=persisted?.sessionId??persisted?.session_id??
+      persisted?.body?.sessionId??persisted?.body?.session_id??null;
+    const linkVerified=!linked||String(persistedSession||'')===linked.id;
+    status(root,'appointment',
+      !refreshed?'El servidor confirmó la propuesta, pero la vista no se pudo actualizar. Comprueba la Agenda antes de crear otra.'
+      :!linkVerified?'La cita se ha creado, pero no se ha podido verificar su entrenamiento vinculado. Revisa Agenda antes de confirmarla.'
+      :feedback.message,
+      refreshed&&linkVerified?feedback.kind:'pending');
     if(refreshed){form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();}
     return result;}
   async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){const feedback=mutationFeedback(result,{subject:'La cita'});status(root,'appointment',feedback.message,feedback.kind);return result;}

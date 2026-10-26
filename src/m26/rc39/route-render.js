@@ -334,6 +334,7 @@ function agendaClientOptions(vm={}){
       value="${escape(item.id)}"
       data-training-address="${escape(address)}"
       data-client-modality="${escape(profile.modality||item.modality||'')}"
+      data-session-duration="${escape(profile.sessionDurationMinutes??'')}"
       ${item.id===vm.selectedClientId?'selected':''}
     >${escape(item.name||'Cliente')}</option>`;
   }).join('');
@@ -342,10 +343,16 @@ function agendaClientOptions(vm={}){
 function renderAgendaProposalForm(vm,role){
   if(!['coach','admin'].includes(role))return '';
   const options=agendaClientOptions(vm);
+  const activeClientId=(vm.clients||[]).some(c=>c.id===vm.selectedClientId)
+    ?vm.selectedClientId:vm.clients?.[0]?.id||'';
+  const sessionOptions=(vm.linkableSessions||[]).map(item=>
+    `<option value="${escape(item.id)}" data-client-id="${escape(item.clientId)}" data-modality="${escape(item.deliveryModality||'')}" data-session-duration="${escape(item.durationMinutes??'')}"${item.clientId===activeClientId?'':' disabled'}>${escape(item.title||'Sesión publicada')}</option>`
+  ).join('');
   return `<form
     id="m26-agenda-proposal-form"
     class="m26-panel m26-panel-soft m30-agenda-proposal"
     data-workflow-form="appointment"
+    data-guided-required-form
     aria-labelledby="m26-agenda-proposal-title"
   >
     <div class="m26-panel-heading">
@@ -356,14 +363,25 @@ function renderAgendaProposalForm(vm,role){
       </div>
       ${statusBadge('Privada hasta confirmar','neutral')}
     </div>
+    <ol class="m26-agenda-composer-steps" aria-label="Etapas de la programación">
+      <li>Cliente</li><li>Entrenamiento</li><li>Horario</li><li>Confirmación posterior</li>
+    </ol>
     <div class="m26-field-grid">
       <label>Cliente
         <select name="clientId" required>
           ${options||'<option value="">Sin clientes disponibles</option>'}
         </select>
       </label>
+      <label class="m26-wide m26-agenda-linked-field">Entrenamiento de esta cita
+        <select name="sessionId" aria-describedby="m26-linked-session-help">
+          <option value="">Sin entrenamiento vinculado</option>
+          ${sessionOptions}
+        </select>
+        <small id="m26-linked-session-help">Selecciona una sesión publicada de este Cliente o deja la cita sin entrenamiento.</small>
+      </label>
       <label>Modalidad de esta cita
-        <select name="modality" required>
+        <select name="modality" required aria-describedby="m26-appointment-guidance">
+          <option value="" disabled selected>Seleccionar modalidad</option>
           <option value="presencial">Presencial</option>
           <option value="guiada_en_app">Guiada en la aplicación</option>
           <option value="online">En línea</option>
@@ -378,6 +396,8 @@ function renderAgendaProposalForm(vm,role){
       <label class="m26-wide">Ubicación
         <input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help">
       </label>
+      <p class="m26-field-help m26-wide m26-agenda-timezone">Horario de Chile continental · America/Santiago. La cita solo será visible al confirmar.</p>
+      <p id="m26-appointment-guidance" class="m26-field-help m26-wide" role="status">Elige primero Cliente y entrenamiento; revisa horario y modalidad antes de crear la propuesta.</p>
       <p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p>
     </div>
     <div class="m26-inline-actions">
@@ -413,7 +433,7 @@ function renderAgendaStandaloneCard(appointment,role){
   >
     <header>
       <div>
-        <p class="m26-eyebrow">Cita sin sesión enlazada</p>
+        <p class="m26-eyebrow">${appointment.sessionId?'Entrenamiento vinculado':'Cita sin sesión enlazada'}</p>
         <h3>${escape(appointment.title)}</h3>
         <p>${escape(formatDate(appointment.startAt))}</p>
       </div>
@@ -438,6 +458,7 @@ function renderAgenda(vm){
   const confirmationOpen=Number(vm.rc39?.confirmationOpen||0);
   const changeRequests=Number(vm.rc39?.changeRequests||0);
   const needsPreparation=Number(vm.rc39?.needsPreparation||0);
+  const linkedCount=appointments.filter(item=>Boolean(item.sessionId)).length;
   const nextAppointment=appointments[0]||null;
 
   const cards=appointments.length
@@ -475,6 +496,7 @@ function renderAgenda(vm){
           <span><small>Confirmaciones abiertas</small><strong>${escape(confirmationOpen)}</strong></span>
           <span><small>Cambios solicitados</small><strong>${escape(changeRequests)}</strong></span>
           <span><small>Por preparar</small><strong>${escape(needsPreparation)}</strong></span>
+          <span><small>Con entrenamiento</small><strong>${escape(linkedCount)}</strong></span>
         </div>
         <div class="m26-inline-actions">
           <a class="m26-primary-action" href="#m26-agenda-proposal-form">Nueva propuesta</a>

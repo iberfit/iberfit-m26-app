@@ -2505,3 +2505,122 @@ body{
     content:none;
   }
 }
+
+/* SIGNATURE B19 · real Coach scheduling/workout continuity.
+ * Product lock: rich dark-green canvas, warm cream text, restrained brass
+ * accents, explicit professional controls; no ornamental KPI cards. */
+.m26-shell[data-m26-role="coach"] .m30-agenda-proposal{
+  --m26-composer-line:color-mix(in srgb,var(--iberfit-color-accent) 21%,var(--iberfit-color-border));
+  border-color:var(--m26-composer-line);
+  background:
+    linear-gradient(150deg,color-mix(in srgb,var(--iberfit-color-accent) 5%,transparent),transparent 58%),
+    var(--iberfit-color-surface-raised);
+}
+.m26-shell .m26-agenda-composer-steps{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.35rem;
+  padding:0;
+  margin:0 0 1.1rem;
+  list-style:none;
+  counter-reset:agenda-step;
+}
+.m26-shell .m26-agenda-composer-steps li{
+  counter-increment:agenda-step;
+  display:flex;
+  align-items:center;
+  min-width:0;
+  gap:.45rem;
+  font-size:.78rem;
+  font-weight:650;
+  line-height:1.35;
+  padding:.52rem .58rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-color-accent) 20%,var(--iberfit-color-border));
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+}
+.m26-shell .m26-agenda-composer-steps li::before{
+  content:counter(agenda-step,decimal-leading-zero);
+  font-size:.68rem;
+  color:var(--iberfit-color-accent);
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell .m30-agenda-proposal .m26-field-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start;
+  gap:1rem 1.12rem;
+}
+.m26-shell .m30-agenda-proposal .m26-field-grid>label,
+.m26-shell .m30-agenda-proposal .m26-field-grid>p{
+  min-width:0;
+}
+.m26-shell .m30-agenda-proposal :is(input,select){
+  width:100%;
+  min-height:48px;
+  font-size:1rem;
+}
+.m26-shell .m26-agenda-linked-field{
+  padding:.72rem .85rem;
+  border:1px solid var(--m26-composer-line);
+  border-radius:.75rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 5%,transparent);
+}
+.m26-shell .m26-agenda-linked-field select{
+  margin-top:.3rem;
+}
+.m26-shell .m26-agenda-linked-field small{
+  line-height:1.45;
+  max-width:72ch;
+}
+.m26-shell .m26-agenda-timezone{
+  color:var(--iberfit-color-text-secondary,var(--m26-cream-300));
+  font-size:.8rem;
+  border-left:2px solid var(--iberfit-color-accent);
+  padding:.3rem .75rem;
+}
+.m26-shell .m30-agenda-proposal [data-workflow-action="create-appointment"]{
+  min-height:50px;
+  min-width:min(100%,15rem);
+}
+.m26-shell .m30-agenda-decision-metrics{
+  grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr));
+}
+.m26-shell .m26-builder-core-prescription:has([data-session-block-field="plannedPace"]){
+  padding:.7rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 19%,var(--iberfit-color-border));
+  border-radius:.8rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 4%,transparent);
+}
+.m26-shell .m26-builder-core-prescription [data-session-block-field="plannedPace"]{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.04em;
+  font-weight:700;
+}
+.m26-shell :is(.m26-agenda-linked-field select,.m26-builder-core-prescription input):focus-visible{
+  outline:2px solid var(--iberfit-color-accent);
+  outline-offset:3px;
+}
+@media(max-width:720px){
+  .m26-shell .m26-agenda-composer-steps{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.1rem .55rem;
+  }
+  .m26-shell .m30-agenda-proposal .m26-field-grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:.8rem;
+  }
+  .m26-shell .m30-agenda-proposal :is(input,select){
+    min-height:50px;
+    font-size:16px;
+  }
+  .m26-shell .m30-agenda-proposal [data-workflow-action="create-appointment"]{
+    width:100%;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell .m30-agenda-proposal :is(input,select){scroll-behavior:auto}
+}
+@media(forced-colors:active){
+  .m26-shell .m26-agenda-linked-field,.m26-shell .m30-agenda-proposal{
+    border:1px solid CanvasText;
+  }
+}
