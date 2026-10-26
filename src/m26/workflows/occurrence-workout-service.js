@@ -74,6 +74,31 @@ export function createOccurrenceWorkoutService({
           prescriptionSnapshot:result.prescriptionSnapshot,
           executionBody:result.executionBody,
         });
+      }else if(['completada','cancelada'].includes(result.occurrence.status)){
+        // A confirmed remote completion after an interrupted ACK is NOT an
+        // error and must never be restarted. Keep terminal states read-only.
+        const o=result.occurrence,b=result.executionBody;
+        const date=String(o.localDate||'');
+        if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||
+          o.timeZone!=='America/Santiago'||
+          !Number.isSafeInteger(o.revision)||o.revision<0)
+          fail('TERMINAL_RECORD_INVALID');
+        const completed=o.status==='completada';
+        if(completed&&(!b||b.status!=='completada'
+          ||uid(o.executionId)!==uid(b.id)
+          ||uid(b.occurrenceId)!==target.occurrenceId
+          ||uid(b.clientId)!==target.clientId
+          ||uid(b.sessionId)!==uid(o.sessionId)
+          ||!Number.isSafeInteger(b.revision)||b.revision<1))
+          fail('COMPLETION_RECEIPT_SCOPE_MISMATCH');
+        next={
+          clientId:target.clientId,occurrenceId:target.occurrenceId,
+          sessionId:uid(o.sessionId),localDate:date,
+          occurrenceRevision:o.revision,
+          executionRevision:completed?b.revision:null,
+          phase:completed?'completed':'cancelled',
+          execution:null,session:null,
+        };
       }else fail('STATE_NOT_EXECUTABLE');
       // A command started by another tab during the read wins over our view.
       if(await coordinator.hasUncertain(target)){
@@ -92,6 +117,8 @@ export function createOccurrenceWorkoutService({
     if(busy)fail('BUSY');
     if(pending)fail('RECOVERY_REQUIRED');
     if(stale||!current)fail('PRIVATE_REFRESH_REQUIRED');
+    if(current.phase==='completed'||current.phase==='cancelled')
+      fail('TERMINAL_READ_ONLY');
     const command=buildOccurrenceWorkoutCommand(current,{
       action,operationId:uid(createId()),
     });

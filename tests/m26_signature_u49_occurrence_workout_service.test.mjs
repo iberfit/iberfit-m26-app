@@ -153,3 +153,60 @@ test('U49 failed cleanup of a conflict retains pending recovery',async()=>{
  assert.equal(service.view().phase,'pending-recovery');
  await assert.rejects(service.start(),/U49_RECOVERY_REQUIRED/);
 });
+
+test('U49 a remotely completed workout after unknown ACK opens read-only, never restarts',async()=>{
+ const executor={id:EXEC,clientId:CLIENT,sessionId:SESSION,occurrenceId:OCC,
+   status:'completada',revision:3,results:{},skippedSets:{},
+   sourceSnapshot:structuredClone(snapshot),queue:structuredClone(snapshot.queue)};
+ let attempts=0;
+ const s=createOccurrenceWorkoutService({
+   enabled:true,
+   coordinator:{hasUncertain:async()=>false,retryUncertain:async()=>{},
+     send:async()=>{attempts++;throw new Error('NEVER_RESTART');}},
+   createId:()=>OPS[0],
+   readPrivateOccurrence:async()=>({
+     occurrence:{...record(),status:'completada',revision:3,executionId:EXEC},
+     prescriptionSnapshot:structuredClone(snapshot),
+     executionBody:structuredClone(executor),
+   }),
+ });
+ const view=await s.open({clientId:CLIENT,occurrenceId:OCC});
+ assert.equal(view.phase,'completed');
+ assert.equal(view.executionRevision,3);
+ assert.equal(view.currentStep,null);
+ await assert.rejects(s.start(),/U49_TERMINAL_READ_ONLY/);
+ await assert.rejects(s.save(),/U49_TERMINAL_READ_ONLY/);
+ assert.equal(attempts,0);
+});
+test('U49 forged completion with foreign execution fails closed',async()=>{
+ const s=createOccurrenceWorkoutService({
+   enabled:true,
+   coordinator:{hasUncertain:async()=>false,retryUncertain:async()=>{},
+     send:async()=>{}},
+   createId:()=>OPS[0],
+   readPrivateOccurrence:async()=>({
+     occurrence:{...record(),status:'completada',revision:3,executionId:EXEC},
+     prescriptionSnapshot:structuredClone(snapshot),
+     executionBody:{id:EXEC,clientId:EXEC,sessionId:SESSION,
+       occurrenceId:OCC,status:'completada',revision:3},
+   }),
+ });
+ await assert.rejects(s.open({clientId:CLIENT,occurrenceId:OCC}),
+   /U49_COMPLETION_RECEIPT_SCOPE_MISMATCH/);
+ assert.equal(s.view().phase,'needs-refresh');
+});
+test('U49 cancelled occurrence is read-only without fabricating an execution',async()=>{
+ const s=createOccurrenceWorkoutService({
+   enabled:true,
+   coordinator:{hasUncertain:async()=>false,retryUncertain:async()=>{},
+     send:async()=>{throw new Error('NEVER_CALL');}},
+   createId:()=>OPS[0],
+   readPrivateOccurrence:async()=>({
+     occurrence:{...record(),status:'cancelada',revision:2},
+     prescriptionSnapshot:structuredClone(snapshot),
+   }),
+ });
+ const view=await s.open({clientId:CLIENT,occurrenceId:OCC});
+ assert.equal(view.phase,'cancelled');
+ await assert.rejects(s.start(),/U49_TERMINAL_READ_ONLY/);
+});
