@@ -50,7 +50,8 @@ test('IRI confirmado con 2 de 3 dominios habilita ambos informes',()=>{
   const html=renderIriRoute(iriVm());
   assert.doesNotMatch(reportButton(html,'generate-client-iri-report'),/disabled|aria-disabled="true"/);
   assert.doesNotMatch(reportButton(html,'generate-coach-iri-report'),/disabled|aria-disabled="true"/);
-  const reports=renderReportsRoute({role:'coach',canManage:true,latestIri:completedRecord(),reports:[]});
+  const confirmedRecord=completedRecord();
+  const reports=renderReportsRoute({role:'coach',canManage:true,latestIri:confirmedRecord,iriDiagnosis:{assessmentId:confirmedRecord.id,confirmed:Boolean(confirmedRecord.body.firstSessionCompletedAt),revision:1,dateLabel:'30 de julio de 2026',processLabel:'7 de 7 etapas completadas',classification:'Perfil IRI por dominios'},reports:[]});
   assert.match(reports,/Documentos del IRI/);
   assert.doesNotMatch(reportButton(reports,'generate-client-iri-report'),/disabled|aria-disabled="true"/);
   assert.doesNotMatch(reportButton(reports,'generate-coach-iri-report'),/disabled|aria-disabled="true"/);
