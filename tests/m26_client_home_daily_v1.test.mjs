@@ -164,7 +164,7 @@ test('Client Home keeps IRI visible only while the initial diagnosis is still pe
   assert.match(completed,/>Informes<\/button>/u);
 });
 
-test('Client Home treats legacy IRI status Completada as completed daily context',()=>{
+test('Client Home keeps status-only legacy IRI provisional until confirmed',()=>{
   const html=renderHoyRoute(vm({
     clients:[{
       id:'c1',
@@ -174,8 +174,9 @@ test('Client Home treats legacy IRI status Completada as completed daily context
       nextAction:{area:'actividad',label:'Registrar bienestar',reason:'Actualiza tu estado de hoy.'},
     }],
   }));
-  assert.doesNotMatch(html,/<span>Diagnóstico IRI<\/span>/u);
-  assert.match(html,/data-m26-area="informes">Informes<\/button>/u);
+  assert.match(html,/<span>Diagnóstico IRI<\/span>/u);
+  assert.match(html,/Consulta el estado de tu evaluación/u);
+  assert.doesNotMatch(html,/Tu punto de partida confirmado/u);
 });
 
 test('Client Home does not duplicate the primary runnable session in the agenda',()=>{
