@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {deriveClientExperience} from '../src/m26/experience/client-experience.js';
 import {renderProgressRoute,renderReportsRoute} from '../src/m26/modules/route-render.js';
 
 function progress(iriBaseline,iriCurrent){
@@ -55,4 +57,28 @@ test('B23 confirmed initial IRI retains Client and Coach diagnostic reporting',(
   assert.match(coach,/data-workflow-action="issue-client-iri-report"/);
   assert.match(coach,/data-workflow-action="issue-coach-iri-report"/);
   assert.match(coach,/name="assessmentId" value="iri-1"/);
+});
+
+
+test('B23 client readiness ignores negative or status-only completion labels',()=>{
+  for(const status of ['no confirmado','incompleto','borrador','completado','confirmed']){
+    const state=deriveClientExperience({iri:{status},profile:{completeness:100}});
+    assert.equal(state.readiness.iriConfirmed,false,status);
+    assert.ok(state.attention.includes('iri_incomplete'),status);
+  }
+  for(const raw of [{firstSessionCompletedAt:'2026-10-26T12:00:00Z'},{
+    body:{first_session_completed_at:'2026-10-26T12:00:00Z'}
+  }]){
+    const state=deriveClientExperience({iri:{...raw,status:'no confirmado'},profile:{completeness:100}});
+    assert.equal(state.readiness.iriConfirmed,true,'completed first session is the source of truth');
+  }
+});
+test('B23 route read model never confirms diagnosis from a presentation status alone',()=>{
+  const source=readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8');
+  const start=source.indexOf('function compactIri(record)');
+  const end=source.indexOf('function compactIriDiagnosis(record)',start);
+  assert.ok(start>0&&end>start);
+  const block=source.slice(start,end);
+  assert.match(block,/const confirmed=Boolean\(firstSessionCompletedAt\)/);
+  assert.doesNotMatch(block,/\|\|\s*\/\(\?:complet\|confirmad\)/);
 });
