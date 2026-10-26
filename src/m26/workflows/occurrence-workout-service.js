@@ -99,8 +99,11 @@ export function createOccurrenceWorkoutService({
     try{
       const response=await coordinator.send(command);
       if(response.kind!=='ack'){
-        pending=false;stale=true;error=String(response.reason||'U49_REJECTED');
-        return view(); // A conflict is definitive but requires fresh read.
+        // Even a definitive rejection can have an UNREMOVED encrypted
+        // journal if durable cleanup failed after receiving the response.
+        pending=Boolean(response.localRecoveryPending);
+        stale=true;error=String(response.reason||'U49_REJECTED');
+        return view();
       }
       if(response.localRecoveryPending){
         error='U49_RECOVERY_CLEANUP_REQUIRED';
@@ -110,8 +113,13 @@ export function createOccurrenceWorkoutService({
       pending=false;
       return view();
     }catch(e){
-      // A timeout after network dispatch is uncertain. U40 retained the
-      // SAME operation ID in U42/U45; never invent another one to retry.
+      // Distinguish a genuinely uncertain network send from a local validation
+      // or pre-dispatch denial. Without a pending journal there is nothing to
+      // replay: require a fresh private read instead of deadlocking forever.
+      // A failed journal read remains pending (fail closed).
+      try{pending=Boolean(await coordinator.hasUncertain(scope));}
+      catch{pending=true;}
+      stale=!pending;
       error=String(e?.message||'U49_REMOTE_UNCERTAIN');
       throw e;
     }finally{busy=false;}

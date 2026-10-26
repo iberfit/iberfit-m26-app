@@ -119,3 +119,37 @@ test('U49 denies a cross-client authoritative read without preparing an executio
  assert.equal(service.view().phase,'needs-refresh');
  assert.equal(sent.length,0);
 });
+
+test('U49 pre-dispatch rejection never traps the user in nonexistent recovery',async()=>{
+ const {service,coordinator}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ coordinator.send=async()=>{throw new Error('pre_dispatch_auth_denied');};
+ coordinator.hasUncertain=async()=>false;
+ await assert.rejects(service.start(),/pre_dispatch_auth_denied/);
+ assert.equal(service.view().phase,'needs-refresh');
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ assert.equal(service.view().phase,'ready');
+});
+test('U49 incorrect ACK requires fresh private read, never a fabricated retry',async()=>{
+ const {service,coordinator}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ coordinator.send=async cmd=>({
+   kind:'ack',operationId:cmd.operationId,entityId:cmd.entityId,
+   executionId:CLIENT,remoteRevision:2,executionRevision:1,status:'en_curso',
+ });
+ coordinator.hasUncertain=async()=>false;
+ await assert.rejects(service.start(),/U47_ACK_IDENTITY_MISMATCH/);
+ assert.equal(service.view().phase,'needs-refresh');
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ assert.equal(service.view().phase,'ready');
+});
+test('U49 failed cleanup of a conflict retains pending recovery',async()=>{
+ const {service,coordinator}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ coordinator.send=async()=>({
+   kind:'conflict',reason:'REVISION_MISMATCH',localRecoveryPending:true,
+ });
+ await service.start();
+ assert.equal(service.view().phase,'pending-recovery');
+ await assert.rejects(service.start(),/U49_RECOVERY_REQUIRED/);
+});
