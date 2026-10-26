@@ -79,7 +79,9 @@ export function createOccurrenceWorkoutService({
         // error and must never be restarted. Keep terminal states read-only.
         const o=result.occurrence,b=result.executionBody;
         const date=String(o.localDate||'');
-        if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||
+        if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)||
+          !Number.isFinite(Date.parse(date+'T12:00:00Z'))||
+          new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date||
           o.timeZone!=='America/Santiago'||
           !Number.isSafeInteger(o.revision)||o.revision<0)
           fail('TERMINAL_RECORD_INVALID');
