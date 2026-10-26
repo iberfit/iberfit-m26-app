@@ -176,7 +176,7 @@ function compactIri(record) {
     null;
   const status = statusLabel(record);
   // The completed initial-session evidence is authoritative. Free-text status
-  // may include negations such as 'no confirmado' or 'incompleto'.
+  // can include negative status labels, which do not prove completion.
   const confirmed=Boolean(firstSessionCompletedAt);
 
   return Object.freeze({
