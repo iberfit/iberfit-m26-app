@@ -175,8 +175,9 @@ function compactIri(record) {
     normScoring?.context?.sexForNorms ??
     null;
   const status = statusLabel(record);
-  const confirmed =
-    Boolean(firstSessionCompletedAt) || /(?:complet|confirmad)/i.test(status);
+  // The completed initial-session evidence is authoritative. Free-text status
+  // can include negative status labels, which do not prove completion.
+  const confirmed=Boolean(firstSessionCompletedAt);
 
   return Object.freeze({
     id: text(record, 'id'),

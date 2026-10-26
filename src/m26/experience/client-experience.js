@@ -85,19 +85,15 @@ function iriReadiness(record){
     });
   }
 
-  const status=String(
-    value(record,'status','estado')||''
-  ).toLowerCase();
-
   const completedAt=value(
     record,
     'firstSessionCompletedAt',
     'first_session_completed_at'
   );
 
-  const confirmed=
-    Boolean(completedAt)||
-    /(?:complet|confirmad|confirmed|complete)/i.test(status);
+  // Only an actually completed first-session record establishes the baseline.
+  // Never infer confirmation from editable/negated presentation labels.
+  const confirmed=Boolean(completedAt);
 
   return Object.freeze({
     exists:true,

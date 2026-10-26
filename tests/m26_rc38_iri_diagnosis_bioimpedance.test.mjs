@@ -58,14 +58,14 @@ function reportDraft(){
   },{id:ASSESSMENT_ID},CLIENT_ID);
 }
 
-test('evaluación QA histórica con estado confirmado habilita el Diagnóstico IRI',()=>{
+test('evaluación QA con cierre de primera sesión confirmado habilita el Diagnóstico IRI',()=>{
   const state=confirmedState();
   state.collections.iriAssessments=[{
     id:ASSESSMENT_ID,
     clientId:CLIENT_ID,
     status:'confirmed',
     revision:2,
-    body:{assessmentDate:'2026-07-17'},
+    body:{assessmentDate:'2026-07-17',firstSessionCompletedAt:'2026-07-17T20:00:00Z'},
   }];
   const vm=createRouteViewModel({activeArea:'informes',identity:state.identity},state,new Date('2026-08-01T12:00:00Z'));
   assert.equal(vm.latestIri.id,ASSESSMENT_ID);
@@ -87,7 +87,7 @@ test('informe IRI separa valoración orientativa de la comparabilidad normativa'
 });
 
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
-  const html=renderReportsRoute({role:'client',reports:[],latestIri:{id:ASSESSMENT_ID},iriDiagnosis:{assessmentId:ASSESSMENT_ID,dateLabel:'30 de julio de 2026',classification:'Perfil IRI por dominios',processLabel:'7 de 7 etapas completadas',revision:2}});
+  const html=renderReportsRoute({role:'client',reports:[],latestIri:{id:ASSESSMENT_ID},iriDiagnosis:{assessmentId:ASSESSMENT_ID,confirmed:true,dateLabel:'30 de julio de 2026',classification:'Perfil IRI por dominios',processLabel:'7 de 7 etapas completadas',revision:2}});
   assert.match(html,/data-iri-diagnosis/);
   assert.match(html,/>Diagnóstico IRI</);
   assert.match(html,/Fecha de evaluación/);

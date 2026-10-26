@@ -175,7 +175,7 @@ test('cliente puede consultar pero no gestionar el documento', () => {
   assert.equal(context.assessmentId, ASSESSMENT_ID);
   assert.equal(context.canManage, false);
   const html = renderReportsRoute({
-    role: 'client', latestIri: { id: ASSESSMENT_ID }, canManage: false, reports: [],
+    role: 'client', latestIri: { id: ASSESSMENT_ID }, iriDiagnosis:{assessmentId:ASSESSMENT_ID,confirmed:true,revision:1,dateLabel:'30 de julio de 2026',processLabel:'7 de 7 etapas completadas',classification:'Perfil IRI por dominios'}, canManage: false, reports: [],
   });
   assert.match(html, /data-iri-external-report-host/);
   assert.doesNotMatch(html, /bodyCompositionAttachment|Subir y guardar informe|Reemplazar y guardar/);
