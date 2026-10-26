@@ -20,6 +20,15 @@ test('Playwright browser cache is lockfile-bound and preserves deterministic ins
       assert.match(workflow,/npm ci/u,'remote: deterministic npm ci required');
       continue;
     }
+    if(name==='admin'||name==='device'){
+      // The same SHA-pinned browser image is already used by remote QA;
+      // it prevents apt mirror stalls without dropping any device or engine.
+      assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,`${name}: pinned browser image required`);
+      assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u,`${name}: browser path required`);
+      assert.match(workflow,/npm ci/u,`${name}: deterministic install required`);
+      assert.doesNotMatch(workflow,/playwright install-deps/u,`${name}: prevent network-dependent apt preparation`);
+      continue;
+    }
     assert.match(workflow,/actions\/cache@v4/u,`${name}: cache action missing`);
     assert.match(workflow,/~\/\.cache\/ms-playwright/u,`${name}: Playwright cache path missing`);
     assert.match(workflow,/hashFiles\('package-lock\.json'\)/u,`${name}: lockfile cache key missing`);
@@ -33,10 +42,16 @@ test('Playwright browser cache is lockfile-bound and preserves deterministic ins
 test('Chromium-only visual and device gates remain fail-closed',()=>{
   for(const name of ['device','daily']){
     const workflow=workflows[name];
-    assert.match(workflow,/playwright install-deps chromium/u,`${name}: Chromium deps missing`);
-    assert.match(workflow,/playwright install chromium/u,`${name}: Chromium miss install missing`);
     assert.match(workflow,/chromium\.executablePath\(\)/u,`${name}: Chromium readiness check missing`);
-    assert.match(workflow,/-chromium/u,`${name}: Chromium cache namespace missing`);
+    if(name==='daily'){
+      assert.match(workflow,/playwright install-deps chromium/u,'daily: Chromium deps missing');
+      assert.match(workflow,/playwright install chromium/u,'daily: Chromium miss install missing');
+      assert.match(workflow,/-chromium/u,'daily: Chromium cache namespace missing');
+    }else{
+      assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u,'device: bundled Chromium required');
+      assert.match(workflow,/device-experience-gate-phase-a/u);
+      assert.doesNotMatch(workflow,/playwright install-deps/u,'device: redundant apt setup forbidden');
+    }
   }
 });
 
@@ -45,11 +60,10 @@ test('Admin browser shards preserve Chromium WebKit and Firefox independently',(
   for(const browser of ['chromium','webkit','firefox']){
     assert.match(workflow,new RegExp(`browser: ${browser}`,'u'),`admin: ${browser} matrix entry missing`);
   }
-  assert.match(workflow,/playwright install-deps "\$\{\{ matrix\.browser \}\}"/u,'admin: per-browser system deps missing');
-  assert.match(workflow,/playwright install "\$\{\{ matrix\.browser \}\}"/u,'admin: per-browser cache-miss install missing');
+  assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u,'admin: version-pinned browser path missing');
   assert.match(workflow,/PW_BROWSER: \$\{\{ matrix\.browser \}\}/u,'admin: per-browser readiness check missing');
-  assert.match(workflow,/hashFiles\('package-lock\.json'\).*matrix\.browser/u,'admin: per-browser cache namespace missing');
-  assert.match(workflow,/restore-keys:[\s\S]*?-all/u,'admin: warm restore from all-browser cache missing');
+  assert.match(workflow,/runuser -u pwuser -- npx playwright test/u,'admin: non-root Firefox sandbox required');
+  assert.doesNotMatch(workflow,/playwright install-deps/u,'admin: apt mirror must not block release');
 });
 
 test('Remote gate preserves the full Chromium WebKit and Firefox bundle',()=>{
