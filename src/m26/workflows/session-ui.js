@@ -896,6 +896,19 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
       ${templateAdaptationMarkup}
     </div>
   </details>`:'';
+  const flowStage=draft.previewAccepted?'review':metrics.blocks>0?'program':'start';
+  const builderFlow=`<nav class="m26-signature-builder-flow" aria-label="Recorrido de construcción de sesión" data-session-builder-flow="${flowStage}">
+    <ol>
+      <li data-flow-current="${flowStage==='start'}"><span>01</span><strong>Objetivo y modalidad</strong></li>
+      <li data-flow-current="${flowStage==='program'}"><span>02</span><strong>Prescribir ejercicios</strong></li>
+      <li data-flow-current="${flowStage==='review'}"><span>03</span><strong>Revisar antes de publicar</strong></li>
+    </ol>
+    <p>${flowStage==='review'
+      ?'Vista previa preparada. La publicación requiere una confirmación expresa.'
+      :flowStage==='program'
+        ?'Edita distancia, ritmo, series y alternativas. Puedes guardar sin publicar.'
+        :'Confirma duración y modo de la sesión; después añade los ejercicios.'}</p>
+  </nav>`;
   return `<section class="m26-session-builder m26-session-builder-v2" data-session-builder-workbench-v2 data-session-builder-has-blocks="${draft.blocks?.length?'true':'false'}">
     <header class="m26-builder-commandbar">
       <div>
@@ -921,6 +934,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
         ${primary}
       </div>
     </header>
+    ${builderFlow}
     ${reviewGuidance}
     ${renderProfessionalSessionClientContext(clientContext,role)}
     ${renderActionState(actionState)}

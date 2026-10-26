@@ -9,6 +9,7 @@ import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
+import {clientWearableActivation} from '../wearables/activation-experience.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
 import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
@@ -695,6 +696,12 @@ function renderClientHoyRoute(vm) {
       </button>`
     :'';
 
+  const healthActivation=clientWearableActivation(vm.wearables);
+  const healthActivationMarkup=trainingSurface&&healthActivation.cta
+    ?`<aside class="m26-client-health-activation" data-client-wearable-activation="consent" aria-label="Conectar actividad opcional">
+       <div><p class="m26-eyebrow">Opcional · datos protegidos</p><h3>${escapeHtml(healthActivation.title)}</h3><p>${escapeHtml(healthActivation.message)}</p></div>
+       <button type="button" data-m26-area="actividad">${escapeHtml(healthActivation.label)}</button>
+     </aside>`:'';
   const nextAction=client?.nextAction||null;
   // A legacy/Coach-only destination must never retain a misleading CTA.
   // Remap the route and its copy together, then suppress optional actions
@@ -757,6 +764,7 @@ function renderClientHoyRoute(vm) {
 
     ${trainingSurface?renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided}):''}
     ${renderClientTodayHealth(vm.wearables)}
+    ${healthActivationMarkup}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">

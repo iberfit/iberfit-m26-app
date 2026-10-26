@@ -1,4 +1,5 @@
 import {providerReadiness,wearableProviderDefinition} from './contracts.js';
+import {isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {zeroCostProviderReadiness,wearableZeroCostPolicy} from './free-policy.js';
 import {createWearableConnectionState,wearableConnectionHealth} from './connection-state.js';
 import {summarizeWearableData} from './normalization.js';
@@ -11,5 +12,5 @@ export function buildWearableViewModel({records=[],connections=[],role='client',
   const connectionRows=(Array.isArray(connections)?connections:[]).map((item)=>{const definition=wearableProviderDefinition(item.provider||item.source);const legacyStatus=status(item.status);const state=createWearableConnectionState({provider:definition?.key||item.provider||item.source,state:legacyStatus==='conectado'?'connected':legacyStatus==='pausado'?'paused':legacyStatus==='revocado'?'revoked':'available',grantedScopes:Array.isArray(item.scopes)?item.scopes:[],lastSyncedAt:item.lastSyncedAt||item.last_synced_at||null});return Object.freeze({id:item.id||null,provider:state.provider,label:definition?.label||'Fuente desconocida',status:legacyStatus,state:state.state,mode:String(item.metadata?.mode||'').trim()||null,lastSyncedAt:state.lastSyncedAt,scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),policy:wearableZeroCostPolicy(state.provider)});});
   const providers=zeroCostProviderReadiness(providerReadiness(scope));
   const coverage=Object.freeze({fileImport:providers.filter((item)=>item.importReady).length,nativeBridge:providers.filter((item)=>item.nativeReady).length,directBlocked:providers.filter((item)=>item.directBlocked).length,total:providers.length});
-  return Object.freeze({summary,dailyRecords:summary.records,connections:Object.freeze(connectionRows),providers,coverage,canControl:String(role||'').toLowerCase()==='client',zeroCostOnly:true});
+  return Object.freeze({summary,dailyRecords:summary.records,connections:Object.freeze(connectionRows),providers,coverage,productionNativeReady:String(role||'').toLowerCase()==='client'&&isConnected360ProdNativeAvailable(scope),canControl:String(role||'').toLowerCase()==='client',zeroCostOnly:true});
 }
