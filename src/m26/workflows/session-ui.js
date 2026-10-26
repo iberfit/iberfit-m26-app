@@ -1493,7 +1493,7 @@ export function renderReadyWorkoutRoadmap({execution,session,catalog,role='clien
   const extra=items.length>5
     ?'<details class="m26-ready-roadmap-more"><summary>Ver los '+e(items.length-5)+' pasos restantes</summary><ol start="6">'+items.slice(5).join('')+'</ol></details>':'';
   const kind=coach?'supervised':sessionDeliveryModality(session)==='guiada_en_app'?mode:'other';
-  return '<section class="m26-session-ready-roadmap" data-signature-ready-playback="'+e(kind)+'" aria-label="Recorrido del entrenamiento">'+
+  return '<section class="m26-session-ready-roadmap" data-signature-ready-playback="'+e(kind)+'" aria-label="Vista previa de la sesión">'+
     '<div class="m26-ready-roadmap-header"><div><p class="m26-eyebrow">Antes de comenzar</p><h3>Tu recorrido de hoy</h3></div>'+
     '<span class="m26-ready-roadmap-mode">'+e(label)+'</span></div>'+
     '<p class="m26-ready-roadmap-intro">'+e(context)+'</p><ol>'+items.slice(0,5).join('')+'</ol>'+extra+
