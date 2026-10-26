@@ -4643,7 +4643,7 @@ m26-echart[data-density="compact"]{
   border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 23%,var(--iberfit-color-border));
   border-radius:.95rem;
   padding:clamp(.9rem,2vw,1.25rem);
-  background:linear-gradient(113deg,color-mix(in srgb,var(--iberfit-color-accent) 7%,var(--iberfit-color-surface-raised)),var(--iberfit-color-surface-raised));
+  background:color-mix(in srgb,var(--iberfit-color-accent) 5%,var(--iberfit-color-surface-raised));
 }
 .m26-shell .m26-signature-live-cue-kicker{
   text-transform:uppercase;letter-spacing:.1em;font-weight:800;
