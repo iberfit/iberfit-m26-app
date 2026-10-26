@@ -31,6 +31,11 @@ name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 # restore on the next certified Canary push. No backup or secret policy changes.
 
 
+# SIGNATURE B19/B20 post-Canary release checkpoint, 2026-10-26.
+# Request a fresh unchanged M44 encrypted PROD DB+Storage archive and isolated
+# PostgreSQL 17 restore; renewed <=2h proof for the fail-closed PROD gate.
+# Comments only: no backup logic, permissions, credentials or guards changed.
+
 on:
   pull_request:
     branches: ['canary/rc74-4']
