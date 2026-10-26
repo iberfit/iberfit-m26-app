@@ -1209,10 +1209,34 @@ export function createWorkflowController({
     }
     computed(form);setIriStep(form,Number(form.dataset.iriStepIndex||0));
   }
+  const boundIriSetupToggles=new WeakSet();
+  function onIriSetupToggle(event){
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    const button=event.currentTarget;
+    const panel=button?.closest?.('[data-iri-setup]')?.querySelector?.('[data-iri-setup-content]');
+    if(!panel)return;
+    const expand=panel.hidden===true;
+    panel.hidden=!expand;
+    button.setAttribute('aria-expanded',expand?'true':'false');
+  }
+  function bindIriSetupToggle(form){
+    const button=form?.querySelector?.('[data-iri-setup-toggle]');
+    if(!button||boundIriSetupToggles.has(button))return;
+    boundIriSetupToggles.add(button);
+    button.addEventListener('click',onIriSetupToggle);
+  }
   function scanRouteForms(){
     scanQueued=false;
     const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(onboardingForm)void initializeOnboardingForm(onboardingForm);
-    const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void initializeIriForm(iriForm);
+    const iriForm=root.querySelector?.('[data-workflow-form="iri"]');
+    if(iriForm){
+      // Bind before asynchronous draft restoration; direct listener is attached
+      // to the actual actionable element and never depends on bubbling through
+      // scrollable mobile shell ancestors.
+      bindIriSetupToggle(iriForm);
+      void initializeIriForm(iriForm);
+    }
     const appointmentForm=root.querySelector?.('[data-workflow-form="appointment"]');if(appointmentForm&&!initializedAppointmentForms.has(appointmentForm)){initializedAppointmentForms.add(appointmentForm);syncAppointmentFormState(appointmentForm,root);}
     const reportForm=root.querySelector?.('[data-workflow-form="report-approval"]');if(reportForm)void initializeReportForm(reportForm);
     const planForm=root.querySelector?.('[data-workflow-form="planning"]');if(planForm)void initializePlanForm(planForm);
@@ -2233,19 +2257,10 @@ export function createWorkflowController({
     }
   }
   async function onClick(event){
-    // SIGNATURE B26: explicit button + hidden content avoids touch/native
-    // disclosure double-toggles and guarantees a truthful expanded state.
-    const setupToggle=event.target.closest?.('[data-iri-setup-toggle]');
-    if(setupToggle){
-      event.preventDefault?.();
-      const form=setupToggle.closest?.('[data-workflow-form="iri"]');
-      const panel=form?.querySelector?.('[data-iri-setup-content]');
-      if(!panel)return;
-      const open=panel.hidden;
-      panel.hidden=!open;
-      setupToggle.setAttribute('aria-expanded',open?'true':'false');
-      return;
-    }
+    // The IRI disclosure has its own direct handler. A document/root-level
+    // delegated click races touch retargeting on 390 px Chromium; never toggle
+    // it a second time here.
+    if(event.target.closest?.('[data-iri-setup-toggle]'))return;
     const preset=event.target.closest?.('[data-iri-setup-preset]');
     if(preset){
       event.preventDefault?.();requireCoach();

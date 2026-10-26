@@ -58,6 +58,10 @@ test('field presets and results retain exact protocols without invented norms',a
   const panel=setup.locator('[data-iri-setup-content]');
   await expect(toggle).toHaveAttribute('aria-expanded','false');
   await expect(panel).toBeHidden();
+  await expect.poll(()=>page.evaluate(()=>{
+    const button=document.querySelector('[data-iri-setup-toggle]');
+    return Boolean(button&&button.isConnected&&button.closest('[data-workflow-form="iri"]'));
+  })).toBe(true);
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded','true');
   await expect(panel).toBeVisible();

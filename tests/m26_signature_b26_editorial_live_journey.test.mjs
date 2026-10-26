@@ -55,7 +55,9 @@ test('B26 IRI: botón estable sin doble toggle móvil y navegación por teclado'
   const renderer=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(renderer,/data-iri-setup-toggle aria-expanded="false" aria-controls="m26-iri-setup-content"/);
   assert.match(renderer,/data-iri-setup-content hidden/);
-  assert.match(controller,/setupToggle\.setAttribute\('aria-expanded',open\?'true':'false'\)/);
+  assert.match(controller,/button\.addEventListener\('click',onIriSetupToggle\)/);
+  assert.match(controller,/event\.stopPropagation\?\.\(\)/);
+  assert.match(controller,/button\.setAttribute\('aria-expanded',expand\?'true':'false'\)/);
   assert.doesNotMatch(controller,/details\.open=!details\.open/);
   assert.match(css,/\[data-iri-setup-content\]\[hidden\]\{display:none\}/);
 });
