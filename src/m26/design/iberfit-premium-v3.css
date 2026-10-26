@@ -1466,3 +1466,27 @@
   }
 }
 
+/* SIGNATURE B22 · Premium UX reference, verified against current release.
+ * No parallel RC30 stylesheet, global glass, fake metrics or decorative animations.
+ */
+.m26-shell[data-m26-role] .m26-route .m26-stat strong.is-text{
+  display:block;
+  max-width:100%;
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(.94rem,1.25vw,1.1rem);
+  font-weight:650;
+  line-height:1.35;
+  letter-spacing:-.01em;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role] .m26-route-intro > .m26-badge{
+  flex:0 1 auto;
+  align-self:flex-start;
+  width:fit-content;
+  max-width:100%;
+  white-space:normal;
+}
+.m26-shell[data-m26-role="coach"] .m26-content-grid{align-items:start}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role] .m26-route-intro > .m26-badge{border:1px solid CanvasText}
+}

@@ -24,7 +24,7 @@ function emptyState(title, copy) {
   return `<section class="m26-empty"><div class="m26-empty-mark" aria-hidden="true">I</div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(copy)}</p></section>`;
 }
 function stat(label, value, note = '') {
-  return `<article class="m26-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${note ? `<small>${escapeHtml(note)}</small>` : ''}</article>`;
+  return `<article class="m26-stat"><span>${escapeHtml(label)}</span><strong${String(value??"").trim().length>14?' class="is-text"':""}>${escapeHtml(value)}</strong>${note ? `<small>${escapeHtml(note)}</small>` : ''}</article>`;
 }
 function badge(text, kind = 'neutral') { return `<span class="m26-badge is-${escapeHtml(kind)}">${escapeHtml(text)}</span>`; }
 function professionalClientContextBar(clientContext,{activeArea=''}={}){
