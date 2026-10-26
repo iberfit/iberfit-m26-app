@@ -21,3 +21,15 @@ test('U44 unsupported, empty and malformed groups fail closed; rollback preserve
  assert.match(r,/DROP FUNCTION private\.iberfit_u32_build_execution_queue_v1\(jsonb\)/u);
  assert.doesNotMatch(r,/DELETE FROM|TRUNCATE|DROP TABLE/iu);
 });
+
+test('U44 migration delimiters and function declarations remain singular (regression: duplicate SQL from string replacement)',()=>{
+  const count=(source,needle)=>source.split(needle).length-1;
+  assert.equal(count(m,'CREATE FUNCTION private.iberfit_u32_create_occurrences_batch_v1('),1);
+  assert.equal(count(m,'CREATE FUNCTION private.iberfit_u32_build_execution_queue_v1('),1);
+  assert.equal(count(m,'$u32$'),2,'one open and one close for the U32 handler');
+  assert.equal(count(m,'$queue$'),2,'one open and one close for the U44 queue');
+  assert.equal(count(m,'v_snapshot:=jsonb_build_object('),1);
+  assert.equal(count(m,"'queue',private.iberfit_u32_build_execution_queue_v1("),1);
+  assert.equal(count(r,'DROP FUNCTION private.iberfit_u32_create_occurrences_batch_v1(jsonb);'),1);
+  assert.equal(count(r,'DROP FUNCTION private.iberfit_u32_build_execution_queue_v1(jsonb);'),1);
+});

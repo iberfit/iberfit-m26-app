@@ -678,17 +678,17 @@ test('SIGNATURE B15: calendar real renderer stays accessible at 320px with two i
       viewport:document.documentElement.clientWidth,
       tapHeight:rect.height,tapWidth:rect.width,
       scrollStyle:getComputedStyle(nav).overflowX,
-      focusOutline:getComputedStyle(target,':focus-visible').outlineStyle,
     };
   });
   expect(geometry.docWidth).toBeLessThanOrEqual(geometry.viewport+1);
   expect(geometry.tapHeight).toBeGreaterThanOrEqual(44);
   expect(geometry.tapWidth).toBeGreaterThanOrEqual(44);
   expect(geometry.scrollStyle).toBe('auto');
-  const summary=groups.nth(1).locator('summary');
+  const summary=groups.nth(1).locator(':scope > summary.m26-rc39-day-heading');
   if(testInfo.project.use?.hasTouch)await summary.tap();
   else await summary.click();
   await expect(groups.nth(1)).toHaveAttribute('open','');
+  await page.keyboard.press('Tab');
   await links.nth(0).focus();
   const outline=await links.nth(0).evaluate(el=>getComputedStyle(el).outlineStyle);
   expect(outline).toBe('solid');
