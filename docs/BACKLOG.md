@@ -1,3 +1,11 @@
+## SIGNATURE B32 · Flow-first Cliente/Coach/Admin · WIP 27-10-2026
+
+- Fuente LIVE/Canary exacta `405b8668226410398859faa1c5b289951848d0aa` y promoción protegida #40512134436 `SUCCESS`.
+- Una única rama `feat/signature-b32-flow-first-20261027`: Cliente planificación con siguiente acción solo por permisos/ejecución real, sesiones extensas mediante `details` nativos accesibles y sin eliminar cards; Cliente Agenda próxima cita únicamente futura y confirmada; agenda indexada en una pasada; Admin lista operativa prioritaria y resto íntegro accesible; composición editorial mobile-first y tests.
+- No se duplican `experienceNextAction` ni motores de decisión, no se cambia ejecución/autorización, no se suprimen funciones útiles; las sesiones nunca se inician por parecer disponibles. Si servicio está pausado, ninguna CTA de inicio nueva. IRI inicial permanece separado de evolución.
+- **Pendiente** hasta que suceda: tests dirigidos + CI PR completa, Canary exacto multidispositivo, validación de UX/foco/touch/teclado, release PROD protegida y smoke. No declarar B32 integrada por existir una rama o commit.
+- P0 #1075 y U30–U33 permanecen carriles separados por seguridad y riesgo de DDL.
+
 # IBERFIT · Backlog Vivo
 
 ## SIGNATURE B2 · Cliente insignia + continuidad y bloqueo de citas históricas · 2026-10-24

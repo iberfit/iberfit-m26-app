@@ -2920,3 +2920,34 @@ body{
     border-color:CanvasText;
   }
 }
+
+/* SIGNATURE B32 · Flow-first without hiding capabilities or introducing a second CTA system. */
+.m26-shell .m26-signature-task-focus{
+  display:flex;align-items:center;justify-content:space-between;gap:clamp(1rem,2.2vw,1.7rem);
+  padding:clamp(1rem,2vw,1.55rem);margin-block:.75rem 1.3rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent) 7%,var(--iberfit-color-canvas));
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent-strong) 28%,transparent);
+  border-radius:var(--iberfit-v2-card-radius);
+}
+.m26-shell .m26-signature-task-focus>div{min-width:0;flex:1}
+.m26-shell .m26-signature-task-focus h3{margin:.2rem 0 .35rem;font-family:var(--iberfit-font-family-editorial);font-size:clamp(1.15rem,2vw,1.55rem);line-height:1.2}
+.m26-shell .m26-signature-task-focus p{margin:0;max-width:65ch;color:var(--iberfit-color-text-secondary)}
+.m26-shell .m26-signature-task-focus .m26-eyebrow{color:var(--iberfit-color-accent-strong);font-family:var(--iberfit-font-family-ui)}
+.m26-shell .m26-signature-task-focus .m26-primary-action,
+.m26-shell .m26-signature-task-focus .m26-rc39-button{flex-shrink:0;min-height:2.75rem}
+.m26-shell .m26-signature-session-archive{width:100%;min-width:0;margin-block:.8rem 1.15rem;border-top:1px solid var(--iberfit-v2-line)}
+.m26-shell .m26-signature-session-archive>summary{cursor:pointer;min-height:2.75rem;padding:.85rem .35rem;color:var(--iberfit-color-text-primary);font-weight:600}
+.m26-shell .m26-signature-session-archive>summary:focus-visible,
+.m26-shell .m26-signature-task-focus :is(a,button):focus-visible{outline:2px solid var(--iberfit-color-accent-strong);outline-offset:3px}
+.m26-shell .m26-signature-archive-list{display:grid;gap:.95rem;padding-block:.45rem 1rem;min-width:0}
+.m26-shell .m26-admin-operation-more{grid-column:1/-1}
+@media(max-width:580px){
+ .m26-shell .m26-signature-task-focus{align-items:stretch;flex-direction:column;gap:.9rem}
+ .m26-shell .m26-signature-task-focus .m26-primary-action,
+ .m26-shell .m26-signature-task-focus .m26-rc39-button{width:100%;justify-content:center;text-align:center}
+ .m26-shell .m26-signature-session-archive>summary{min-height:3rem;touch-action:manipulation}
+}
+@media(prefers-reduced-motion:reduce){
+ .m26-shell .m26-signature-task-focus,
+ .m26-shell .m26-signature-session-archive{scroll-behavior:auto}
+}

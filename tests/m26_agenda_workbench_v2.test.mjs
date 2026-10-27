@@ -83,6 +83,10 @@ test('Agenda V2 unifica calendario, decisiones y propuesta real del Coach',()=>{
 });
 
 test('Agenda V2 no filtra controles internos ni calendario Coach al Cliente',()=>{
+  // A highlighted next booking must actually be in the future; historical fixtures
+  // stay in the full agenda but must not appear as the next confirmed booking.
+  const futureStart=new Date(Date.now()+7*24*60*60*1000);
+  const futureEnd=new Date(futureStart.getTime()+60*60*1000);
   const html=renderRc39Route({
     kind:'agenda',
     role:'client',
@@ -94,8 +98,8 @@ test('Agenda V2 no filtra controles internos ni calendario Coach al Cliente',()=
         id:'APT-CONFIRMED',
         clientId:'CLI-AGENDA-V2',
         title:'Sesión confirmada',
-        startAt:'2026-09-16T14:00:00-03:00',
-        endAt:'2026-09-16T15:00:00-03:00',
+        startAt:futureStart.toISOString(),
+        endAt:futureEnd.toISOString(),
         modality:'presencial',
         location:'Las Condes',
         status:'confirmada',

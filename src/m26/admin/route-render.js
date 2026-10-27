@@ -146,8 +146,10 @@ function renderOperations(vm){
   const summary=triage.summary;
   const create=vm.canManage?form('task-create',
     `<label>Prioridad<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select></label><label>Tipo<input name="taskType" value="manual_review" maxlength="80" required></label><label>Título<input name="title" maxlength="200" required placeholder="Qué requiere atención"></label><label>Detalle<textarea name="detail" maxlength="2000" placeholder="Contexto verificable para resolverla"></textarea></label>`,'Crear incidencia'):'';
+  const priorityTasks=triage.open.length>8?triage.open.slice(0,5):triage.open;
+  const laterTasks=triage.open.length>8?triage.open.slice(5):[];
   const pending=triage.open.length
-    ?`<div class="m26-admin-operation-list">${triage.open.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}</div>`
+    ?`<div class="m26-admin-operation-list">${priorityTasks.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}${laterTasks.length?`<details class="m26-signature-session-archive m26-admin-operation-more" data-admin-operation-more><summary>Ver otras ${laterTasks.length} incidencias abiertas</summary><div class="m26-admin-operation-list">${laterTasks.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}</div></details>`:''}</div>`
     :empty('Sin incidencias pendientes','No existen tareas operativas abiertas con los datos actuales.');
   const history=triage.history.length
     ?`<details class="m26-admin-operation-history"><summary>Historial de incidencias · ${summary.history}</summary><div class="m26-admin-operation-list">${triage.history.map((item)=>operationItem(item)).join('')}</div></details>`
