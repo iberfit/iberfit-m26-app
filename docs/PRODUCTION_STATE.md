@@ -1,3 +1,12 @@
+## Checkpoint exacto B34 PROD + WIP B35 · 27-10-2026
+
+- **Producción y Canary B34 verificados:** SHA `fee17f54f99d4824e11ccc7cde77c68010bfa0ba`, PROD `pjhmrhejsoofmouedavw`, QA `gjztkdwfmunnzhtvxrsu`. PR [#1167](https://github.com/iberfit/iberfit-m26-app/pull/1167) fusionada, 13/13 gates Canary y [promoción oficial #40592517376](https://github.com/iberfit/iberfit-m26-app/actions/runs/40592517376) SUCCESS intento 1; smoke Chromium, auditoría read-only, Lighthouse, rollback B33.
+- **WIP único B35 (NO publicado):** cierre P0 de escrituras tardías tras timeout de login/WebAuthn mediante retiro de la generación opaca de hidratación; nuevos puntos de control antes de pintar/usar catálogo/montar controladores; complejidad lineal en validación de páginas grandes de historial privilegiado QA. Mantener historial completo, roles, RLS, MFA y expiraciones originales.
+- **Base del riesgo y evidencia:** QA Coach U39 reconstruye el historial completo y no puede publicar snapshot parcial; el 27-10 20–22 UTC hubo 213 solicitudes de página QA HTTP 200, media upstream 346,6 ms y máximo 5.486 ms. Issue [#1075](https://github.com/iberfit/iberfit-m26-app/issues/1075) sigue abierta para SQL 57014 intermitente; no atribuir automáticamente una causa única. B35 no corrige el plan SQL ni garantiza una mejora de red cuantificada.
+- **Frontera de seguridad:** frontend JS, tests y documentación; sin SQL/RLS/Edge/Hosted Auth, sin aumentar timeouts, sin suprimir eventos o registros, sin pasar por alto los gates. B35 requiere PR, Canary exacto y promoción productiva independiente con M44 vigente.
+
+---
+
 ## Checkpoint verificado · SIGNATURE B33 EN PRODUCCIÓN · 27-10-2026
 
 - **PROD y Canary exactos:** `72de7224808ed5856b477515b9fb2fab091c6114`. PROD `pjhmrhejsoofmouedavw`, QA `gjztkdwfmunnzhtvxrsu`; `m26/version.json` contrastado directamente en ambos dominios.

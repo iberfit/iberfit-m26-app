@@ -1,3 +1,12 @@
+## WIP único · SIGNATURE B35 · Hidratación segura de Coach con historial amplio · 27-10-2026
+
+- **Base PROD/Canary:** B34 `fee17f54f99d4824e11ccc7cde77c68010bfa0ba`, release #40592517376 SUCCESS.
+- **Entrega B35 en curso:** al agotar el plazo o fallar el setup autenticado se retira la lease de hidratación del mismo usuario sin borrar credenciales válidas; promesas tardías no pueden rehidratar el estado ni reinstalar el shell sobre una pantalla de recuperación. La carga por páginas de historial completo conserva CAS, validaciones de autoría y snapshot, y cambia solo la detección local de duplicados/orden a O(n).
+- **NO confundir con solución SQL:** investigar por separado #1075 (timeouts 57014/latencia), no añadir concurrencia ni reintentos privilegiados sin evidencia; no reducir el historial, cambiar scopes, ni alterar el plazo POST_MFA_SETUP_TIMEOUT_MS.
+- **Validación requerida:** test de carrera con transporte diferido y timeout, páginas máximas y duplicados adversariales, CI/Canary protegido SHA exacto, WebAuthn Coach/Admin, pruebas Cliente/móvil/tablet, M44 restauración y promoción frontend-only con rollback.
+
+---
+
 ## WIP único · SIGNATURE B34 · Continuidad de sesiones y Coach task-first · 27-10-2026
 
 - Base LIVE/Canary certificada B33 `72de7224808ed5856b477515b9fb2fab091c6114`; promoción #40579925000 `SUCCESS`.
