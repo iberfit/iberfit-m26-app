@@ -459,7 +459,7 @@ export function renderProgressiveOnboardingPanel({role,state,readiness=null}={})
     }else if(launchReadiness?.nextRequirement==='session'){
       next='<button type="button" class="m26-primary-action" data-m26-area="agenda">Revisar primera sesión</button>';
     }else{
-      next='<span class="m26-chip">Verificación de acceso o perfil pendiente</span>';
+      next='<span class="m26-chip">Puesta en marcha pendiente</span>';
     }
   }else{
     next='<span class="m26-chip is-success">Recorrido completado</span>';
