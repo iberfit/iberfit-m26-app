@@ -1,4 +1,5 @@
 import {augmentAdminShellViewModel} from '../admin/view-model.js';
+import {deriveRoleWorkContinuation} from '../experience/journey-continuity.js';
 import {filterAdminMediaReviewNavigation,initialAreaFromPath} from '../admin/media-review.js';
 import {augmentRc39ShellViewModel} from '../rc39/view-model.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from '../rc39/multi-role.js';
@@ -163,5 +164,10 @@ function projectApplicationAccessToShell(vm,state){
 export function createShellViewModel(state){
   const rc39=augmentRc39ShellViewModel(createShellViewModelBase(state),state);
   const admin=augmentAdminShellViewModel(rc39,state);
-  return projectApplicationAccessToShell(admin,state);
+  const authorized=projectApplicationAccessToShell(admin,state);
+  // Client routes already render a context-aware primary CTA. Do not calculate
+  // another expensive Client health summary in the synchronous shell render.
+  const workContinuation=authorized?.identity?.role==='client'
+    ?null:deriveRoleWorkContinuation(authorized,state);
+  return workContinuation?Object.freeze({...authorized,workContinuation}):authorized;
 }

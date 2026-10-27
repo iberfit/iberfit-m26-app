@@ -2020,3 +2020,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-shell .m26-journey-help-content p{margin:0;color:var(--m26-cream-300,#e8deca);font-size:.88rem;line-height:1.55}
 .m26-shell .m26-journey-tour{justify-self:start;min-height:44px;padding:.45rem .8rem;border:1px solid var(--journey-line);border-radius:.55rem;color:var(--m26-cream-100,#f8f2e7);background:rgba(216,185,111,.08);cursor:pointer;touch-action:manipulation}
 .m26-shell .m26-journey-tour:focus-visible{outline:3px solid var(--m26-gold-300,#d8b96f);outline-offset:2px}
+
+/* SIGNATURE B29 · A real, authorized next action replaces—not duplicates—the generic CTA. */
+.m26-shell .m26-journey-next.is-evidence-led{background:rgba(199,164,90,.16);border-color:rgba(216,185,111,.5)}
+.m26-shell .m26-journey-next.is-evidence-led strong{font-weight:780}
+@media(forced-colors:active){.m26-shell .m26-journey-next.is-evidence-led{border:2px solid ButtonText}}
