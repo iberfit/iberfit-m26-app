@@ -73,7 +73,7 @@ test('B27: short Coach archive remains exactly one disclosure',()=>{
 test('B27: mobile touch, role separation, accessibility and motion safeguards',()=>{
  const a=readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
  const b=readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
- assert.match(a,/data-session-athlete-motion/u);
+ assert.match(a,/\.m26-session-athlete-motion/u);
  assert.match(a,/grid-template-areas:"motion" "primary" "context"/u);
  assert.match(a,/@media\(forced-colors:active\)/u);
  assert.match(b,/m26-rc39-coach-batch:not\(\[open\]\)>\.m26-rc39-coach-batch-body\{display:none\}/u);
