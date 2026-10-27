@@ -26,7 +26,7 @@ test('P0 recovery snapshot retains independent session revision for safe start C
 
 test('P0 cold-login and in-app recovered entry retain snapshot revision with legacy fallback',()=>{
   const source=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
-  const cold=source.slice(source.indexOf('async function restoreExecution(){'),source.indexOf('async function restoreExecutionAfterAuthentication(){'));
+  const cold=source.slice(source.indexOf('async function restoreExecution({'),source.indexOf('async function restoreExecutionAfterAuthentication(){'));
   const warm=source.slice(source.indexOf('async function onStartSession(event){'),source.indexOf('function surfaceRoleSwitchError('));
   assert.match(cold,/resolveRecoveredSessionForEntry\(\{/u);
   assert.match(cold,/sessionRevision:snapshot\.sessionRevision\?\?snapshot\.session\.revision\?\?0/u);

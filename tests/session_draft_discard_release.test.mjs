@@ -23,7 +23,7 @@ test('Coach sees an explicit two-step draft discard that cannot affect published
 test('discard is fail-closed: synchronized copy is removed before local recovery copy',()=>{
   const app=readFileSync('src/m26/app/application.js','utf8');
   const start=app.indexOf('async function discardCurrentSessionDraft()');
-  const end=app.indexOf('async function restoreExecution()',start);
+  const end=app.indexOf('async function restoreExecution(',start);
   assert.ok(start>=0&&end>start);
   const body=app.slice(start,end);
   assert.match(body,/M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION/);
