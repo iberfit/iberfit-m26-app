@@ -2951,3 +2951,11 @@ body{
  .m26-shell .m26-signature-task-focus,
  .m26-shell .m26-signature-session-archive{scroll-behavior:auto}
 }
+
+/* SIGNATURE B33 Coach: safe jump to the editable real block. */
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-task-navigation{min-width:0}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-task-navigation button{min-width:0;min-height:48px;overflow-wrap:anywhere;text-wrap:balance;font-weight:700;touch-action:manipulation}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-task-navigation button:first-child{border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 40%,var(--iberfit-color-border));color:var(--iberfit-color-text-primary)}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-task-navigation button:focus-visible{outline:3px solid var(--iberfit-color-accent-strong);outline-offset:2px}
+@media(max-width:370px){.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-task-navigation{grid-template-columns:minmax(0,1fr);position:relative;top:auto}}
+@media(forced-colors:active){.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-task-navigation button{border-color:CanvasText}}

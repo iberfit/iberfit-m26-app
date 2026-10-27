@@ -898,6 +898,13 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
     </div>
   </details>`:'';
   const flowStage=draft.previewAccepted?'review':metrics.blocks>0?'program':'start';
+  // B33 direct task focus: use the existing safe block navigation.
+  const focusBlock=(draft.blocks||[]).find(b=>b?.id===reviewReadiness.targetBlockId)||(draft.blocks||[])[0];
+  const focusName=focusBlock?(focusBlock.type==='exercise'?exerciseDisplayName(catalog.get(focusBlock.exerciseId)||{name_es:focusBlock.name||'Ejercicio'}):groupName(focusBlock.type)):'';
+  const taskNav=draft.previewAccepted?'':`<nav class="m26-builder-mobile-nav m26-builder-task-navigation" data-session-task-navigation aria-label="Continuar edición de entrenamiento">
+    ${focusBlock?`<button type="button" data-session-review-block="${e(focusBlock.id)}" aria-label="Ir a ajustar ${e(focusName)}">Ajustar ${e(focusName)}</button>`:'<button type="button" data-session-jump="library">Buscar primer ejercicio</button>'}
+    ${focusBlock?'<button type="button" data-session-jump="library">Añadir ejercicio</button>':'<button type="button" data-session-jump="meta">Configurar sesión</button>'}
+  </nav>`;
   const builderFlow=`<nav class="m26-signature-builder-flow" aria-label="Recorrido de construcción de sesión" data-session-builder-flow="${flowStage}">
     <ol>
       <li data-flow-current="${flowStage==='start'}"${flowStage==='start'?' aria-current="step"':''}><button type="button" data-session-jump="meta" aria-label="Ir a objetivo, duración y modalidad"><span>01</span><strong>Objetivo y modalidad</strong></button></li>
@@ -939,6 +946,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
     ${reviewGuidance}
     ${renderProfessionalSessionClientContext(clientContext,role)}
     ${renderActionState(actionState)}
+    ${taskNav}
     ${undoRemovalMarkup}
     ${templateUndoMarkup}
     <section class="m26-builder-session-strip" aria-label="Resumen de sesión · ${e(plural(metrics.exercises,'ejercicio','ejercicios'))} · ${e(plural(metrics.workUnits,'serie/ronda','series/rondas'))}">
@@ -956,10 +964,6 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
       <p id="m26-session-delivery-help" class="m26-field-help">Elige el tipo de esta sesión, independientemente de si el plan del Cliente es presencial, híbrido u online. En presencial registra el Coach; en guiada, el Cliente puede iniciar y registrar en IBERFIT.</p>
     </section>
     ${templateControls}
-    ${draft.previewAccepted?'':`<nav class="m26-builder-mobile-nav" aria-label="Navegación del constructor">
-      <button type="button" data-session-jump="program">Editar sesión</button>
-      <button type="button" data-session-jump="library">Añadir ejercicios</button>
-    </nav>`}
     ${draft.previewAccepted?previewMarkup(draft,catalog,mediaMap,role):`<div class="m26-builder-grid m26-builder-workbench-grid">
       <aside id="m26-session-builder-library" class="m26-panel m26-builder-library" data-session-jump-target="library" tabindex="-1" aria-label="Biblioteca de ejercicios">
         <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Añadir</p><h3>Biblioteca</h3></div><span data-session-library-result-count aria-live="polite">${e(plural(matchingExercises.length,'resultado','resultados'))}${activeFilterCount?` · ${e(plural(activeFilterCount,'filtro','filtros'))}`:''}</span></div>
