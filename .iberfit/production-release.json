@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "3e019c7affe4fb2795edbfa1a562a90c0bc06fd1",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "fee17f54f99d4824e11ccc7cde77c68010bfa0ba",
+  "notes": "SIGNATURE B35 · guarded post-MFA hydration and linear privileged history validation with full data; 12/12 exact Canary QA gates SUCCESS (remote smoke attempt 2); M44 encrypted DB+Storage and isolated restore attempt 13 success. 7 files frontend/tests/docs; no SQL, Edge or Hosted Auth."
+}
