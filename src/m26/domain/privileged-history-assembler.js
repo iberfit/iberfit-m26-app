@@ -125,15 +125,18 @@ export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT,pr
     const map=section==='m26Entities'?readRevisionMap(page.remoteRevisions):null;
     const seen=current?.seen||new Set();
     const keys=[];
+    const pageKeys=new Set();
     const records=[];
+    let previousTimestamp=Infinity;
     for(const raw of page.records){
       if(!raw||typeof raw!=='object'||Array.isArray(raw))failure('RECORD_INVALID');
       if(clientFor(section,raw)!==clientId)failure('CROSS_CLIENT_RECORD');
       const key=keyFor(section,raw);
       const timestamp=rowTimestamp(section,raw);
-      if(records.length&&timestamp>rowTimestamp(section,records[records.length-1]))
-        failure('PAGE_OUT_OF_ORDER');
-      if(seen.has(key)||keys.includes(key))failure('DUPLICATE_RECORD');
+      if(timestamp>previousTimestamp)failure('PAGE_OUT_OF_ORDER');
+      previousTimestamp=timestamp;
+      if(seen.has(key)||pageKeys.has(key))failure('DUPLICATE_RECORD');
+      pageKeys.add(key);
       if(section==='m26Entities'){
         const revision=coreRevisions[key];
         if(revision===undefined||!own(map,key)||!jsonEqual(map[key],revision)

@@ -1260,6 +1260,10 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   async function setupAuthenticated(){
     const authAttemptId=currentAuthAttemptId;
+    const ensureCurrentSetup=()=>{
+      if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))
+        throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
+    };
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
     // The catalog is independent from the authenticated snapshot. Start it in
@@ -1274,7 +1278,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       (error)=>Object.freeze({ok:false,error}),
     );
     const hydrationResult=await hydrate({reason:'login'});
-    if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
+    ensureCurrentSetup();
     const {installed,runtimeRegistry}=hydrationResult;
     qaStage('rc64-setup-hydrate-ready');
 
@@ -1285,9 +1289,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     shell.mount({progressive:true});
     qaStage('rc64-shell-frame-ready');
     await yieldWorkspacePaint();
+    ensureCurrentSetup(); // Late result cannot repaint after login timeout/retry.
     qaStage('rc64-shell-first-paint-ready');
 
     const catalogSetup=await catalogSetupPromise;
+    ensureCurrentSetup(); // Even successful catalog may outlive a failed auth attempt.
     if(!catalogSetup.ok)throw catalogSetup.error;
     qaStage('rc64-setup-catalog-ready');
 
@@ -1338,7 +1344,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,mediaMap,role:String(store.getState().identity?.role||'coach'),commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},libraryVisibleLimit:sessionUi?.libraryVisibleLimit||24,setLibraryVisibleLimit:(n)=>{if(sessionUi)sessionUi.libraryVisibleLimit=Math.min(10000,Math.max(24,Math.ceil(Number(n||24)/24)*24));},setFilter:(key,value)=>{if(!sessionUi)return;const safeKey=String(key||'').trim();if(!['pattern','equipment','difficulty','intent'].includes(safeKey))return;const next={...(sessionUi.filters||{})};const normalized=String(value||'').trim();if(normalized)next[safeKey]=normalized;else delete next[safeKey];sessionUi.filters=next;},builderUndo:sessionUi?.undoRemoval||null,setBuilderUndo:(value)=>{if(sessionUi)sessionUi.undoRemoval=value||null;},templateUndo:sessionUi?.templateUndo||null,restoreTemplateLoad:restoreCurrentTemplateLoad,clearTemplateUndo:clearCurrentTemplateUndo,autosaveDraft:saveSessionDraft,discardDraft:discardCurrentSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const draft=sessionUi?.draft;const clientId=String(draft?.clientId||'');const sessionId=String(draft?.id||'');const published=()=>Boolean(sessionId&&clientId&&(store.getState().collections.sessions||[]).some(item=>String(item?.id||'')===sessionId&&String(item?.clientId||item?.client_id||'')===clientId&&['publicada','published','publicado','disponible'].includes(String(item?.status||'').toLowerCase())));if(!published())await hydrate({reason:'session-published-verify'});if(!published())throw new Error('M35_SESSION_CONFIRM_NOT_VISIBLE');await clearSessionDraft(clientId).catch(error=>reportDiagnostic('session-draft-cleanup-after-publish',error));sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{reportSoftDiagnostic('session-action',error);if(sessionUi){const recovery=sessionCommandFailureOutcome(error,{role:store.getState().identity?.role,draft:sessionUi.draft,catalog});sessionUi.actionState.status=recovery?.status||'error';sessionUi.actionState.message=recovery?.message||friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
-    if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
+    ensureCurrentSetup();
     render();
     qaStage('rc64-shell-route-ready');
     const mountedShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
@@ -2143,6 +2149,10 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   function surfaceRetriableSessionFailure(error,stage='resume'){
     invalidateAuthAttempt();
+    // Retire only the obsolete hydration generation; preserve the authenticated
+    // token, WebAuthn assurance and durable user work for explicit retry.
+    // Any late bootstrap response now fails requireOwner before store.hydrate.
+    if(session&&typeof session==='object')hydrationSessionLeases.set(session,Object.freeze({}));
     loginBusy=false;
     destroyControllers();
     store.reset();
