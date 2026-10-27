@@ -5,6 +5,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE B35: recoverable session expiry must work in all supported locales.
+  ["Tu sesión ha caducado. Vuelve a entrar para continuar.",
+   "Your session has expired. Sign in again to continue.",
+   "Votre session a expiré. Reconnectez-vous pour continuer.",
+   "A sua sessão expirou. Inicie sessão novamente para continuar."],
   // SIGNATURE B21: next-step training language, translated in four locales.
   ["Preparación","Preparation","Préparation","Preparação"],
   ["Antes de empezar","Before you start","Avant de commencer","Antes de começar"],

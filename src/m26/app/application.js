@@ -2150,7 +2150,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   function surfaceRetriableSessionFailure(error,stage='resume'){
     invalidateAuthAttempt();
     // Retire only the obsolete hydration generation; preserve the authenticated
-    // token, WebAuthn assurance and user's durable work for explicit retry.
+    // token, WebAuthn assurance and durable user work for explicit retry.
     // Any late bootstrap response now fails requireOwner before store.hydrate.
     if(session&&typeof session==='object')hydrationSessionLeases.set(session,Object.freeze({}));
     loginBusy=false;

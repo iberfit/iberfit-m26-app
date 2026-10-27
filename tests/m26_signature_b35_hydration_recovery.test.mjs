@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createHydrationCoordinator} from '../src/m26/app/hydration-coordinator.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
 const load=(begin,end,context,name)=>{
@@ -106,4 +107,12 @@ test('B35 actual recovery path is used for confirmed MFA timeout without clearin
   const end=app.indexOf('  function discardSessionAfterFailure(',start);
   const body=app.slice(start,end);
   assert.doesNotMatch(body,/vault\.clear|transport\.logout|session=null|setTimeout/);
+});
+
+test('B35 recovery expiry message is localized without changing the canonical Spanish meaning',()=>{
+  const es='Tu sesión ha caducado. Vuelve a entrar para continuar.';
+  assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),'Your session has expired. Sign in again to continue.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),'Votre session a expiré. Reconnectez-vous pour continuer.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),'A sua sessão expirou. Inicie sessão novamente para continuar.');
+  assert.equal(iberfitSurfaceTranslate(es,{language:'es'}),es);
 });
