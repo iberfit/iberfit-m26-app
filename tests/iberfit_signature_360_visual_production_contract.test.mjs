@@ -622,7 +622,10 @@ test('SIGNATURE Client Sessions uses accessible matte surfaces and scoped contro
   const css=fs.readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
   const start=css.indexOf('SIGNATURE 360 · Client Sessions');
   assert.ok(start>0);
-  const signature=css.slice(start);
+  // B27 adds closed native Coach details later in the file; never conflate
+  // their safe disclosure state with forbidden Client business-control hiding.
+  const nextSection=css.indexOf('/* SIGNATURE B27:',start);
+  const signature=css.slice(start,nextSection<0?undefined:nextSection);
   assert.match(signature,/\.m26-shell\[data-m26-role="client"\] \.m26-rc39-sessions/u);
   assert.match(signature,/\.m26-client-sessions-empty/u);
   assert.match(signature,/\.m26-session-preview-actions \.m26-live-workout-action/u);

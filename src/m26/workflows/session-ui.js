@@ -1872,6 +1872,17 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     restActive,
     exercise:ex,
   });
+  // B27: a truthful cue from the next step of the real execution queue.
+  const upcomingExercise=nextStep?.exerciseId?(catalog?.get?.(nextStep.exerciseId)||{}):null;
+  const upcomingName=upcomingExercise?(exerciseDisplayName(upcomingExercise)||String(nextStep.exerciseId||'Ejercicio')):'';
+  const sameNextExercise=Boolean(nextStep&&nextStep.exerciseId===step.exerciseId);
+  const nextStepCue=hasNextPlannedStep
+    ?(sameNextExercise?'La siguiente serie continúa en este ejercicio':'Después: '+upcomingName)
+    :'Última serie prevista · continúa al cierre cuando esté registrada';
+  // Exactly one real media block, before the Client's working fields.
+  const clientMotion=!isCoach&&!restActive&&visual
+    ?'<section class="m26-session-athlete-motion" data-session-client-motion aria-label="Referencia visual del ejercicio actual"><div class="m26-session-athlete-motion-label"><span>Movimiento actual</span><strong>'+e(exerciseDisplayName(ex)||step.exerciseId)+'</strong></div>'+visual+'</section>'
+    :'';
   const liveTelemetry=liveTelemetryStrip(execution,catalog);
   const liveTelemetryDisclosure=liveTelemetry
     ?`<details class="m26-session-live-data">
@@ -1958,6 +1969,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
       ${timerStrip(execution)}
       <progress class="m26-progress" max="100" value="${progress}" aria-label="Progreso ${progress}%">${progress}%</progress>
       ${goal}
+      <p class="m26-session-up-next" data-session-next-queue-cue><span>Siguiente paso</span><strong>${e(nextStepCue)}</strong></p>
     </header>
 
     <div role="group" class="m26-session-live-quick-actions" data-session-quick-controls ${isCoach?'data-session-coach-quick-controls':'data-session-client-quick-controls'} aria-label="${isCoach?'Acciones rápidas del Coach':'Acciones rápidas del entrenamiento'}">
@@ -1969,12 +1981,13 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     ${touchFocus}
 
     <div class="m26-session-live-workbench is-${restActive?'rest':'active'}">
+      ${clientMotion}
       <main class="m26-session-live-primary" aria-label="Registro de la serie actual">
         ${setPanel}
       </main>
 
       <aside class="m26-session-live-context m26-session-live-context-v3" aria-label="Contexto del ejercicio actual">
-        ${restActive?'':visual}
+        ${restActive||!isCoach?'':visual}
         <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
           <p class="m26-eyebrow">Objetivo de esta serie</p>
           ${renderLiveModalityPrescription(planned,executionProfile,ex,role)}

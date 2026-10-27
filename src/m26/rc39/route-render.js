@@ -559,6 +559,8 @@ function renderAgenda(vm){
 // Keep all cards and their actions in the document; native disclosure prevents
 // a many-thousand-pixel page from overwhelming mobile session navigation.
 export const COACH_SESSIONS_FIRST_PAGE=6;
+// Entire Coach archive, grouped without hiding or dropping canonical actions.
+export const COACH_SESSIONS_ARCHIVE_BATCH=18;
 // Visual priority only. Sessions retain IDs, permissions, source objects and
 // original relative order when no reliable date is available.
 export function prioritizeCoachSessions(items=[],now=new Date()){
@@ -580,7 +582,17 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
   const first=ordered.slice(0,COACH_SESSIONS_FIRST_PAGE).map(renderCard).join('');
   const remaining=ordered.slice(COACH_SESSIONS_FIRST_PAGE);
   if(!remaining.length)return first;
-  const more=remaining.map(renderCard).join('');
+  const more=remaining.length<=COACH_SESSIONS_ARCHIVE_BATCH
+    ?remaining.map(renderCard).join('')
+    :Array.from({length:Math.ceil(remaining.length/COACH_SESSIONS_ARCHIVE_BATCH)},(_,batch)=>{
+      const offset=batch*COACH_SESSIONS_ARCHIVE_BATCH;
+      const slice=remaining.slice(offset,offset+COACH_SESSIONS_ARCHIVE_BATCH);
+      const from=COACH_SESSIONS_FIRST_PAGE+offset+1;
+      const to=from+slice.length-1;
+      return '<details class="m26-rc39-coach-batch" data-coach-sessions-batch>'+
+        '<summary class="m26-rc39-coach-batch-toggle"><span>Sesiones '+escape(String(from))+'–'+escape(String(to))+'</span><span aria-hidden="true">+</span></summary>'+
+        '<div class="m26-rc39-week m26-rc39-coach-batch-body">'+slice.map(renderCard).join('')+'</div></details>';
+    }).join('');
   return `${first}<details class="m26-rc39-coach-more" data-coach-sessions-more>
     <summary class="m26-rc39-coach-more-toggle">
       <span><strong>Ver otras ${escape(String(remaining.length))} sesiones</strong>
