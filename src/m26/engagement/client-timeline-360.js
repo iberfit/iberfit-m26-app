@@ -7,6 +7,7 @@ import {
   normalizeAppointmentRecord,
 } from '../domain/appointment.js';
 import {parseDateValue} from '../domain/civil-date.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
@@ -110,12 +111,14 @@ function onboardingRows(state,clientId,start,end){
 
 function executionByDate(state,clientId){
   const map=new Map();
-  for(const record of forClient(state,'sessionExecutions',clientId)){
+  // Only remote-confirmed, completed executions can supply feedback to an
+  // otherwise confirmed Client timeline row. Never borrow from pending work.
+  for(const record of confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true})){
     const key=rowDateKey(dateOf(record));
     if(!key)continue;
-    const list=map.get(key)||[];
-    list.push(record);
-    map.set(key,list);
+    const records=map.get(key)||[];
+    records.push(record);
+    map.set(key,records);
   }
   return map;
 }
@@ -134,7 +137,14 @@ function enrichConfirmedExecutionRows(rows,state,clientId){
   return rows.map((row)=>{
     if(row?.kind!=='execution')return row;
     const candidates=byDate.get(rowDateKey(row.date))||[];
-    const match=candidates.find((record)=>sessionTitle(record)===clean(row.title,140))||candidates[0];
+    const id=String(row.executionId||'').trim();
+    // Prefer canonical identity, not date/title: several real workouts can
+    // share their time and title. Legacy id-less rows need a unique match.
+    const match=id
+      ?candidates.find((record)=>sessionExecutionId(record)===id)
+      :candidates.length===1&&sessionTitle(candidates[0])===clean(row.title,140)
+        ?candidates[0]
+        :null;
     if(!match)return row;
     const feedback=feedbackOf(match);
     if(!painFlag(feedback))return row;
@@ -145,7 +155,12 @@ function enrichConfirmedExecutionRows(rows,state,clientId){
 }
 
 function fingerprint(row){
-  return [String(row?.kind||''),rowDateKey(row?.date),clean(row?.title,140),clean(row?.detail,220)].join('|');
+  const id=row?.kind==='execution'?String(row?.executionId||'').trim():'';
+  // A confirmed execution is a distinct event, even when its title and
+  // timestamp coincide with another legitimately completed workout.
+  return id?'execution|'+id:[
+    String(row?.kind||''),rowDateKey(row?.date),clean(row?.title,140),clean(row?.detail,220),
+  ].join('|');
 }
 
 export function buildClientTimeline360(state,clientId,{now=new Date(),days=90,limit=24}={}){

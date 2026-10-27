@@ -7,6 +7,8 @@ import {
   confirmedSessionExecutionsForClient,
   unconfirmedSessionExecutionIds as unconfirmedCompletionIds,
   sessionExecutionIsConfirmed as executionIsConfirmed,
+  sessionExecutionIsCompleted as executionIsCompleted,
+  sessionExecutionId,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
@@ -426,7 +428,7 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const safeLimit=safePositiveInteger(limit,{fallback:24,min:1,max:200});
   const rows=[];
   const blockedExecutionIds=unconfirmedCompletionIds(state);
-  for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
+  for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)&&executionIsCompleted(item)))if(within(dateOf(item),start,end))rows.push({kind:'execution',executionId:sessionExecutionId(item)||null,date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
   // Client progress is a confirmed history; Coach still retains access to
   // provisional IRI events in their professional chronology.
   const iriBaseline=iriBaselineRecord(state,clientId,{confirmedOnly:confirmedIriOnly});
