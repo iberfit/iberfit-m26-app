@@ -54,7 +54,16 @@ test('Client set validation is reconciled after saved observations hydrate on sh
   const app=readFileSync(new URL('../public/m26/app.js',import.meta.url),'utf8');
   const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   assert.match(app,/function onShellRendered\(\)\{[\s\S]*?refresh\(\);[\s\S]*?queueMicrotask\(syncLiveSetRequirements\)/u);
-  assert.match(controller,/render=\(\)=>\{baseRender\?\.\(\);hydrateActiveSetDraft\(getContext\(\)\)/u);
+  // The Coach editor can snapshot/restore its panels before and after rendering.
+  // Regardless of that UX work, the live Client set must hydrate AFTER the
+  // shell's base render, rather than before it.
+  const renderWrapper=controller.match(/render=\(\)=>\{([^\n]*)/u)?.[1]||'';
+  const baseIndex=renderWrapper.indexOf('baseRender?.();');
+  const hydrateIndex=renderWrapper.indexOf('hydrateActiveSetDraft(getContext())');
+  assert.ok(baseIndex>=0,'The shell must complete the base render');
+  assert.ok(hydrateIndex>baseIndex,'Saved live-set fields hydrate after the shell render');
+  assert.match(renderWrapper,/restoreSessionBuilderDisclosureState\(/u);
+  assert.match(renderWrapper,/restoreSessionBuilderFocus\(/u);
   assert.match(app,/button\.disabled=!result\.valid/u);
   assert.match(app,/root\.addEventListener\('input',onInput\)/u);
 });

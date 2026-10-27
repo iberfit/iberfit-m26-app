@@ -421,6 +421,103 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   }
 }
 
+
+// SIGNATURE B30: Preserve open Coach prescription panels only across a render
+// of the SAME draft. No persistence, account data or external state changes.
+const SESSION_BUILDER_DISCLOSURE_SELECTOR='details[data-session-disclosure-key]';
+const SESSION_BUILDER_KEY=/^(?:block-index|templates|block:[A-Za-z0-9._:-]{1,200}|group:[A-Za-z0-9._:-]{1,200}:[A-Za-z0-9._:-]{1,200})$/u;
+const SESSION_BUILDER_DISCLOSURE_MAX=120;
+export function captureSessionBuilderDisclosureState(root,draftId){
+  const id=String(draftId||'').trim();
+  const panel=id?root?.querySelector?.('[data-session-builder-workbench-v2]'):null;
+  if(!panel?.querySelectorAll)return null;
+  const open=[];
+  for(const entry of panel.querySelectorAll(SESSION_BUILDER_DISCLOSURE_SELECTOR)){
+    if(open.length>=SESSION_BUILDER_DISCLOSURE_MAX)break;
+    const key=String(entry?.getAttribute?.('data-session-disclosure-key')||'');
+    if(entry?.open===true&&SESSION_BUILDER_KEY.test(key)&&!open.includes(key))open.push(key);
+  }
+  return Object.freeze({draftId:id,open:Object.freeze(open)});
+}
+export function restoreSessionBuilderDisclosureState(root,snapshot,draftId){
+  if(!snapshot||String(draftId||'').trim()!==snapshot.draftId)return 0;
+  const panel=root?.querySelector?.('[data-session-builder-workbench-v2]');
+  if(!panel?.querySelectorAll)return 0;
+  const allowed=new Set(Array.isArray(snapshot.open)?snapshot.open.slice(0,SESSION_BUILDER_DISCLOSURE_MAX):[]);
+  let count=0;
+  for(const entry of panel.querySelectorAll(SESSION_BUILDER_DISCLOSURE_SELECTOR)){
+    const key=String(entry?.getAttribute?.('data-session-disclosure-key')||'');
+    if(SESSION_BUILDER_KEY.test(key)&&allowed.has(key)&&entry?.open!==true){entry.open=true;count++;}
+  }
+  return count;
+}
+
+
+const SESSION_FOCUS_FIELDS=Object.freeze([
+  Object.freeze({kind:'block',attribute:'data-session-block-field'}),
+  Object.freeze({kind:'draft',attribute:'data-session-draft-field'}),
+  Object.freeze({kind:'search',attribute:'data-session-search'}),
+  Object.freeze({kind:'filter',attribute:'data-session-filter'}),
+  Object.freeze({kind:'template-name',attribute:'data-session-template-name'}),
+  Object.freeze({kind:'template-select',attribute:'data-session-template-select'}),
+]);
+const SESSION_FOCUS_KEY=/^[A-Za-z0-9._:-]{1,200}$/u;
+export function captureSessionBuilderFocus(root,draftId){
+  const id=String(draftId||'').trim();
+  const panel=id?root?.querySelector?.('[data-session-builder-workbench-v2]'):null;
+  const focused=root?.ownerDocument?.activeElement;
+  if(!panel?.contains?.(focused)||!focused?.getAttribute)return null;
+  const definition=SESSION_FOCUS_FIELDS.find(row=>focused.getAttribute(row.attribute)!==null);
+  if(!definition)return null;
+  const field=String(focused.getAttribute(definition.attribute)||'');
+  const blockId=String(focused.getAttribute('data-block-id')||'');
+  const exerciseId=String(focused.getAttribute('data-exercise-id')||'');
+  if(definition.kind==='block'&&(!SESSION_FOCUS_KEY.test(blockId)||!SESSION_FOCUS_KEY.test(field)))return null;
+  if(!['search','template-name','template-select'].includes(definition.kind)&&definition.kind!=='block'&&!SESSION_FOCUS_KEY.test(field))return null;
+  if(exerciseId&&!SESSION_FOCUS_KEY.test(exerciseId))return null;
+  let start=null,end=null;
+  try{
+    if(Number.isInteger(focused.selectionStart)&&Number.isInteger(focused.selectionEnd)){
+      start=Math.min(focused.selectionStart,200000);
+      end=Math.min(focused.selectionEnd,200000);
+    }
+  }catch{}
+  return Object.freeze({draftId:id,kind:definition.kind,field,blockId,exerciseId,start,end});
+}
+export function restoreSessionBuilderFocus(root,snapshot,draftId){
+  if(!snapshot||String(draftId||'').trim()!==snapshot.draftId)return false;
+  const panel=root?.querySelector?.('[data-session-builder-workbench-v2]');
+  if(!panel?.querySelectorAll)return false;
+  if(panel.contains?.(root?.ownerDocument?.activeElement))return false;
+  const definition=SESSION_FOCUS_FIELDS.find(x=>x.kind===snapshot.kind);
+  if(!definition)return false;
+  const candidates=panel.querySelectorAll('['+definition.attribute+']');
+  for(const item of candidates){
+    if(String(item?.getAttribute?.(definition.attribute)||'')!==snapshot.field)continue;
+    if(String(item?.getAttribute?.('data-block-id')||'')!==snapshot.blockId)continue;
+    if(String(item?.getAttribute?.('data-exercise-id')||'')!==snapshot.exerciseId)continue;
+    if(typeof item.focus!=='function')return false;
+    try{item.focus({preventScroll:true});}catch{item.focus();}
+    if(Number.isInteger(snapshot.start)&&Number.isInteger(snapshot.end)){
+      try{item.setSelectionRange?.(snapshot.start,snapshot.end);}catch{}
+    }
+    return true;
+  }
+  return false;
+}
+
+// Shortcut reuses exactly the button and its current persistence protections.
+export function isCoachDraftSaveShortcut(event,context={},root){
+ const role=String(context?.actor?.role||'').trim().toLowerCase();
+ if(!['coach','entrenador'].includes(role)||!context?.draft?.id)return false;
+ if(String(event?.key||'').toLowerCase()!=='s'||!(event?.ctrlKey||event?.metaKey)||
+    event?.altKey||event?.shiftKey||event?.isComposing||event?.repeat)return false;
+ if(event?.defaultPrevented||!event?.target?.closest?.('[data-session-builder-workbench-v2]'))return false;
+ if(!root?.querySelector?.('[data-session-builder-workbench-v2]'))return false;
+ const button=root.querySelector?.('[data-session-action="save-draft"]');
+ return Boolean(button&&!button.disabled&&button?.getAttribute?.('aria-disabled')!=='true');
+}
+
 export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,progressActionTimeoutMs=4000,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
@@ -838,7 +935,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return suggestion;
   }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
+  render=()=>{const draftBefore=getContext()?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -1381,6 +1478,11 @@ async function click(event){
   }
   function keydown(event){
     const context=getContext();
+    if(isCoachDraftSaveShortcut(event,context,root)){
+      event.preventDefault?.();
+      root.querySelector('[data-session-action="save-draft"]')?.click?.();
+      return;
+    }
     if(
       !isCoachContext(context)||
       event?.key!=='Enter'||
