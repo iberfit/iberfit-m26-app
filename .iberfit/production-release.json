@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "405b8668226410398859faa1c5b289951848d0aa",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "667403678a6f3bdf71de7ac6ab6dd84a5f20d229",
+  "notes": "SIGNATURE B29+B30+B31 · frontend-only, sin backend/SQL/Auth; 12/12 Canary gates certificados"
+}
