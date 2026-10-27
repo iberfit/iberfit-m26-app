@@ -1,3 +1,7 @@
+import {clientHealthSummary} from '../modules/domain-selectors.js';
+import {deriveClientExperience,experienceNextAction} from './client-experience.js';
+import {resolveM26Route} from '../shell/route-guard.js';
+
 /**
  * SIGNATURE B28: role-aware continuity of work.
  * This is a navigation affordance, not a workflow state machine or permission grant.
@@ -113,6 +117,76 @@ export function journeyHelpFor(vm){
     tourAttribute:role==='client'?'data-m26-client-context-guide-open':'data-m26-guided-tour-open'});
 }
 
+
+/* SIGNATURE B29. Advisory navigation only; no implicit mutations. */
+const ACTION_NAMES=Object.freeze({
+ es:{heading:'Según tu situación actual',complete_profile:'Completar expediente',prepare_plan:'Preparar planificación',schedule_appointment:'Organizar próxima cita',review_follow_up:'Revisar seguimiento',review_iri:'Revisar Diagnóstico IRI',view_next_appointment:'Ver próxima cita',open_autonomous_workout:'Ver entrenamiento disponible',review_plan:'Revisar mi plan',daily_checkin:'Registrar cómo estoy hoy',sync_attention:'Revisar cambios sin confirmar',sync_attention_admin:'Revisar incidencias operativas'},
+ en:{heading:'Based on your current situation',complete_profile:'Complete the record',prepare_plan:'Prepare the plan',schedule_appointment:'Arrange next appointment',review_follow_up:'Review follow-up',review_iri:'Review initial IRI assessment',view_next_appointment:'View next appointment',open_autonomous_workout:'View available workout',review_plan:'Review my plan',daily_checkin:'Record how I feel today',sync_attention:'Review unconfirmed changes',sync_attention_admin:'Review operational incidents'},
+ fr:{heading:'Selon votre situation actuelle',complete_profile:'Compléter le dossier',prepare_plan:'Préparer le programme',schedule_appointment:'Organiser le prochain rendez-vous',review_follow_up:'Vérifier le suivi',review_iri:'Consulter le bilan IRI initial',view_next_appointment:'Voir le prochain rendez-vous',open_autonomous_workout:'Voir la séance disponible',review_plan:'Consulter mon programme',daily_checkin:'Noter mon état du jour',sync_attention:'Vérifier les changements non confirmés',sync_attention_admin:'Examiner les incidents opérationnels'},
+ pt:{heading:'Segundo a situação atual',complete_profile:'Completar a ficha',prepare_plan:'Preparar o plano',schedule_appointment:'Organizar a próxima sessão',review_follow_up:'Rever o acompanhamento',review_iri:'Rever a avaliação IRI inicial',view_next_appointment:'Ver a próxima marcação',open_autonomous_workout:'Ver treino disponível',review_plan:'Rever o meu plano',daily_checkin:'Registar como estou hoje',sync_attention:'Rever alterações não confirmadas',sync_attention_admin:'Rever incidentes operacionais'}
+});
+const ACTION_KEYS=Object.freeze({
+ client:new Set(['view_next_appointment','open_autonomous_workout','review_plan','daily_checkin']),
+ coach:new Set(['complete_profile','prepare_plan','schedule_appointment','review_follow_up','review_iri','sync_attention']),admin:new Set(['sync_attention_admin'])
+});
+const CONTEXT_PAGES=Object.freeze({client:new Set(['planificacion','progreso']),coach:new Set(['expediente','iri','planificacion','progreso']),admin:new Set(['admin-clientes','admin-auditoria'])});
+function visibleRouteSet(vm){
+ return new Set([...vm?.navigation?.primary||[],...vm?.navigation?.context||[],...vm?.navigation?.tools||[]].map(x=>String(x?.key||'')));
+}
+export function projectSafeWorkAction({vm,state,action,experience}={}){
+ const role=String(vm?.identity?.role||''),area=String(action?.area||''),key=String(action?.key||'');
+ if(vm?.mode!=='authenticated'||state?.hydration?.status!=='ready')return null;
+ if(String(state?.identity?.role||'')!==role)return null;
+ if(!CONTEXT_PAGES[role]?.has(vm?.activeArea)||!ACTION_KEYS[role]?.has(key))return null;
+ if(!visibleRouteSet(vm).has(area)||area===vm.activeArea)return null;
+ if(role==='admin'){
+  if(key!=='sync_attention_admin'||area!=='admin-operaciones'||
+     !((state?.conflicts?.length||0)+(state?.rejectedOperations?.length||0)))return null;
+  const lang=String(vm?.language||'es').split('-')[0].toLowerCase();
+  const local=ACTION_NAMES[lang]||ACTION_NAMES.es;
+  return Object.freeze({key,area,personId:null,label:local[key],heading:local.heading,source:'operations'});
+ }
+ const clientId=role==='client'?String(state?.identity?.clientId||''):String(state?.selectedClientId||'');
+ if(!clientId||String(vm?.selectedClient?.id||'')!==clientId)return null;
+ if(role==='client'&&String(vm?.identity?.clientId||'')!==clientId)return null;
+ if(!state?.collections?.clients?.some?.(x=>String(x?.id||'')===clientId))return null;
+ if(area==='sesion'&&experience?.trainingServiceStatus!=='active')return null;
+ const language=String(vm?.language||'es').split('-')[0].toLowerCase();
+ const local=ACTION_NAMES[language]||ACTION_NAMES.es;
+ return Object.freeze({key,area,personId:clientId,label:local[key],heading:local.heading,source:key==='sync_attention'?'operations':'health-summary'});
+}
+export function deriveRoleWorkContinuation(vm,state,{now=new Date()}={}){
+ if(vm?.mode!=='authenticated'||state?.hydration?.status!=='ready')return null;
+ const role=String(vm?.identity?.role||'');
+ if(String(state?.identity?.role||'')!==role)return null;
+ if(!CONTEXT_PAGES[role]?.has(vm?.activeArea))return null;
+ if(role==='admin'){
+  const action=projectSafeWorkAction({vm,state,action:{key:'sync_attention_admin',area:'admin-operaciones'}});
+  return action&&resolveM26Route(state,action.area).allowed?action:null;
+ }
+ const clientId=role==='client'?String(state?.identity?.clientId||''):String(state?.selectedClientId||'');
+ if(!clientId||clientId!==String(vm?.selectedClient?.id||''))return null;
+ if(role==='coach'&&((state?.conflicts?.length||0)+(state?.rejectedOperations?.length||0))>0){
+  const recovery=projectSafeWorkAction({vm,state,action:{key:'sync_attention',area:'verificacion'}});
+  if(recovery&&resolveM26Route(state,recovery.area).allowed)return recovery;
+ }
+ if(!state?.collections?.clients?.some?.(x=>String(x?.id||'')===clientId))return null;
+ // Invalid or partial read-model data must never take down the authenticated shell.
+ // A missing recommendation is preferable to inventing a task or blocking navigation.
+ try{
+  const summary=clientHealthSummary(state,clientId,now);
+  if(!summary||String(summary?.client?.id||'')!==clientId)return null;
+  const experience=deriveClientExperience(summary);
+  const action=experienceNextAction(experience,{role});
+  const proposed=projectSafeWorkAction({vm,state,action,experience});
+  if(!proposed)return null;
+  const decision=resolveM26Route(state,proposed.area);
+  return decision.allowed&&decision.area===proposed.area?proposed:null;
+ }catch{
+  return null;
+ }
+}
+
 function safeText(value){
   return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;')
     .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
@@ -156,7 +230,15 @@ export function renderJourneyContinuity(vm){
   const model=deriveJourneyContinuity(vm);
   if(!model)return '';
   const steps=model.steps.map(step=>'<button type="button" class="m26-journey-step'+(step.active?' is-current':'')+'" data-m26-area="'+safeText(step.area)+'"'+(step.active?' aria-current="step"':'')+'><span>'+safeText(step.label)+'</span></button>').join('');
-  const next=model.next?'<button type="button" class="m26-journey-next" data-m26-area="'+safeText(model.next.area)+'" aria-label="'+safeText(model.nextCopy+': '+model.next.label)+'"><span>'+safeText(model.nextCopy)+'</span><strong>'+safeText(model.next.label)+'</strong><span aria-hidden="true">→</span></button>':'';
+  // Client has the existing Hoy/Plan/Progress action and four visible journey
+  // destinations. A second primary CTA adds cognitive load on narrow screens.
+  const useNativeClientAction=model.role==='client';
+  const suggestion=!useNativeClientAction&&vm?.workContinuation&&vm.workContinuation.area!==vm.activeArea?vm.workContinuation:null;
+  const nextTarget=useNativeClientAction?null:(suggestion||model.next);
+  const nextText=suggestion?.label||model.next?.label;
+  const nextHeading=suggestion?.heading||model.nextCopy;
+  const provenance=suggestion?' data-m26-work-continuation="'+safeText(suggestion.source)+'"':'';
+  const next=nextTarget?'<button type="button" class="m26-journey-next'+(suggestion?' is-evidence-led':'')+'" data-m26-area="'+safeText(nextTarget.area)+'"'+provenance+' aria-label="'+safeText(nextHeading+': '+nextText)+'"><span>'+safeText(nextHeading)+'</span><strong>'+safeText(nextText)+'</strong><span aria-hidden="true">→</span></button>':'';
   const help=journeyHelpFor(vm);
   const helpMarkup=help?'<details class="m26-journey-help"><summary>'+safeText(help.label)+'</summary><div class="m26-journey-help-content">'+help.items.map(item=>'<p>'+safeText(item)+'</p>').join('')+'<button type="button" class="m26-journey-tour" '+help.tourAttribute+'>'+safeText(help.tour)+'</button></div></details>':'';
   const person=model.person?'<span class="m26-journey-person">'+safeText(model.person)+'</span>':'';

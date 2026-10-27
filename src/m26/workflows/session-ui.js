@@ -726,7 +726,7 @@ function previewMarkup(draft,catalog,mediaMap,role){
     }).join('');
     return `<li class="m26-session-preview-group" data-session-preview-block="${e(block.id)}"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div><button type="button" class="m26-session-preview-edit" data-session-action="edit-preview" data-block-id="${e(block.id)}">Editar este bloque</button></li>`;
   }).join('');
-  return `<section class="m26-panel m26-session-preview" aria-label="Vista previa de la sesión">
+  return `<section class="m26-panel m26-session-preview" data-session-jump-target="review" tabindex="-1" aria-label="Vista previa de la sesión">
     <p class="m26-eyebrow">Revisión previa</p>
     <h3>${e(draft.title)}</h3>
     <p>${e(draft.durationMinutes)} minutos · ${e(draft.blocks.length)} bloques</p>
@@ -900,9 +900,9 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
   const flowStage=draft.previewAccepted?'review':metrics.blocks>0?'program':'start';
   const builderFlow=`<nav class="m26-signature-builder-flow" aria-label="Recorrido de construcción de sesión" data-session-builder-flow="${flowStage}">
     <ol>
-      <li data-flow-current="${flowStage==='start'}"><span>01</span><strong>Objetivo y modalidad</strong></li>
-      <li data-flow-current="${flowStage==='program'}"><span>02</span><strong>Prescribir ejercicios</strong></li>
-      <li data-flow-current="${flowStage==='review'}"><span>03</span><strong>Revisar antes de publicar</strong></li>
+      <li data-flow-current="${flowStage==='start'}"${flowStage==='start'?' aria-current="step"':''}><button type="button" data-session-jump="meta" aria-label="Ir a objetivo, duración y modalidad"><span>01</span><strong>Objetivo y modalidad</strong></button></li>
+      <li data-flow-current="${flowStage==='program'}"${flowStage==='program'?' aria-current="step"':''}>${draft.previewAccepted?'<span>02</span><strong>Prescribir ejercicios</strong>':'<button type="button" data-session-jump="program" aria-label="Ir a editar ejercicios"><span>02</span><strong>Prescribir ejercicios</strong></button>'}</li>
+      <li data-flow-current="${flowStage==='review'}"${flowStage==='review'?' aria-current="step"':''}>${draft.previewAccepted?'<button type="button" data-session-jump="review" aria-label="Ir a revisión antes de publicar"><span>03</span><strong>Revisar antes de publicar</strong></button>':'<span>03</span><strong>Revisar antes de publicar</strong>'}</li>
     </ol>
     <p>${flowStage==='review'
       ?'Vista previa preparada. La publicación requiere una confirmación expresa.'
@@ -947,7 +947,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
       <div><span>Bloques</span><strong>${e(metrics.blocks)}</strong>${metrics.groups?`<small>${e(metrics.groups)} grupos</small>`:''}</div>
       <div><span>Duración</span><strong>${e(draft.durationMinutes)} min</strong></div>
     </section>
-    <section class="m26-panel m26-panel-soft m26-builder-session-meta">
+    <section class="m26-panel m26-panel-soft m26-builder-session-meta" data-session-jump-target="meta" tabindex="-1" aria-label="Objetivo, duración y modalidad">
       <div class="m26-field-grid">
         <label>Título<input data-session-draft-field="title" maxlength="120" value="${e(draft.title)}"></label>
         <label>Duración estimada (min)<input type="number" min="10" max="240" data-session-draft-field="durationMinutes" value="${e(draft.durationMinutes)}"></label>
