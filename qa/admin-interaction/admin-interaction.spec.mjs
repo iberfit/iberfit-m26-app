@@ -26,6 +26,9 @@ test('IRI entry submits without a weekly training frequency',async({page})=>{
   const form=page.locator('[data-admin-form="client-create"]');
   await form.locator('[name="name"]').fill('Persona IRI QA');
   await form.locator('[name="email"]').fill('qa-persona@example.invalid');
+  // Optional information remains available through a native disclosure.
+  await form.locator('[data-client-optional-contact] summary').click();
+  await expect(form.locator('[data-client-optional-contact]')).toHaveJSProperty('open',true);
   await form.locator('[name="phone"]').fill('+56 9 5555 0202');
   await form.locator('[name="birthDate"]').fill('1990-04-10');
   await form.locator('[name="sexForNorms"]').selectOption('female');
@@ -290,6 +293,8 @@ test('Admin client-create wizard preserves entered values while selects and step
   const phone=form.locator('input[name="phone"]');
   await name.fill('Cliente QA Interacción');
   await email.fill('cliente.qa.interaccion@example.com');
+  await form.locator('[data-client-optional-contact] summary').click();
+  await expect(form.locator('[data-client-optional-contact]')).toHaveJSProperty('open',true);
   await phone.fill('+56 9 5555 0101');
   await form.locator('input[name="birthDate"]').fill('1988-04-16');
   await form.locator('select[name="sexForNorms"]').selectOption('female');
@@ -369,6 +374,8 @@ test('Admin client-create wizard preserves entered values while selects and step
   await frequency.fill('2');
   await duration.fill('60');
   await assessment.selectOption('iri');
+  await form.locator('[data-client-optional-logistics] summary').click();
+  await expect(form.locator('[data-client-optional-logistics]')).toHaveJSProperty('open',true);
   await zone.fill('Las Condes');
 
   await expect(intent).toHaveValue('training');

@@ -71,6 +71,8 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   const phone=form.locator('input[name="phone"]');
   await name.fill('Cliente continuidad QA');
   await email.fill('continuidad.qa@example.com');
+  await form.locator('[data-client-optional-contact] summary').click();
+  await expect(form.locator('[data-client-optional-contact]')).toHaveJSProperty('open',true);
   await phone.fill('+56 9 5555 0202');
   await form.locator('input[name="birthDate"]').fill('1988-04-16');
 
