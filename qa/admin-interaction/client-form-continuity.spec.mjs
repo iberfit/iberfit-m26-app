@@ -71,6 +71,8 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   const phone=form.locator('input[name="phone"]');
   await name.fill('Cliente continuidad QA');
   await email.fill('continuidad.qa@example.com');
+  await form.locator('[data-client-optional-contact] summary').click();
+  await expect(form.locator('[data-client-optional-contact]')).toHaveJSProperty('open',true);
   await phone.fill('+56 9 5555 0202');
   await form.locator('input[name="birthDate"]').fill('1988-04-16');
 
@@ -101,6 +103,9 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   await form.locator('select[name="modality"]').selectOption('Híbrido');
   await form.locator('input[name="weeklyFrequency"]').fill('2');
   await form.locator('input[name="sessionDurationMinutes"]').fill('60');
+  // Complete optional logistics via the real keyboard/touch-accessible disclosure.
+  await form.locator('[data-client-optional-logistics] summary').click();
+  await expect(form.locator('[data-client-optional-logistics]')).toHaveJSProperty('open',true);
   const access=form.locator('textarea[name="accessInstructions"]');
   await access.fill('Acceso por conserjería; llamar al llegar.');
 
