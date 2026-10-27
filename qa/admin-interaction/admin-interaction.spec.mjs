@@ -53,8 +53,74 @@ test('field presets and results retain exact protocols without invented norms',a
   const form=page.locator('[data-workflow-form="iri"]');
   await expect(form.locator('[name="weeklyFrequency"]')).toHaveValue('');
   await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
-  await form.getByText('Preparación rápida de terreno',{exact:true}).click();
+  const setup=form.locator('[data-iri-setup]');
+  const toggle=setup.locator('[data-iri-setup-toggle]');
+  const panel=setup.locator('[data-iri-setup-content]');
+  await expect(toggle).toHaveAttribute('aria-expanded','false');
+  await expect(panel).toBeHidden();
+  await expect.poll(()=>page.evaluate(()=>{
+    const button=document.querySelector('[data-iri-setup-toggle]');
+    return Boolean(button&&button.isConnected&&button.closest('[data-workflow-form="iri"]'));
+  })).toBe(true);
+  await expect(toggle).toHaveAttribute('data-iri-setup-ready','');
+  await expect(toggle).toBeEnabled();
+  // Record the trusted mobile Chromium event route and state transitions only
+  // for this synthetic fixture. A click can be swallowed between down and up.
+  await page.evaluate(()=>{
+    const button=document.querySelector('[data-iri-setup-toggle]');
+    const journal=[];
+    globalThis.__IBERFIT_IRI_TOUCH_JOURNAL__=journal;
+    for(const name of ['pointerdown','pointerup','mousedown','mouseup','click','touchstart','touchend']){
+      document.addEventListener(name,(event)=>{
+        if(journal.length>25)return;
+        journal.push({event:name,target:event.target?.tagName,
+          targetClass:String(event.target?.className||'').slice(0,140),
+          targetId:event.target?.id||'',
+          inButton:event.composedPath?.().includes(button)||false,
+          trusted:event.isTrusted,detail:event.detail||0,
+          pointerType:event.pointerType||''});
+      },{capture:true});
+    }
+    new MutationObserver(()=>{
+      journal.push({change:'aria',expanded:button.getAttribute('aria-expanded'),
+        hidden:document.querySelector('[data-iri-setup-content]')?.hidden});
+    }).observe(button,{attributes:true,attributeFilter:['aria-expanded']});
+  });
+  await toggle.scrollIntoViewIfNeeded();
+  await toggle.click();
+  const mobileTouchEvidence=await page.evaluate(()=>{
+    const button=document.querySelector('[data-iri-setup-toggle]');
+    const rect=button.getBoundingClientRect();
+    const hit=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+    const stack=document.elementsFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)
+      .slice(0,8).map(node=>({tag:node.tagName,id:node.id||'',
+        cls:String(node.className||'').slice(0,140),
+        z:getComputedStyle(node).zIndex,
+        position:getComputedStyle(node).position,
+        pointer:getComputedStyle(node).pointerEvents}));
+    return {expanded:button.getAttribute('aria-expanded'),disabled:button.disabled,
+      ready:button.hasAttribute('data-iri-setup-ready'),
+      hidden:document.querySelector('[data-iri-setup-content]')?.hidden,
+      focus:document.activeElement?.tagName,hit:hit?.tagName,
+      hitClass:String(hit?.className||'').slice(0,140),
+      buttonBounds:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+      scrollY:scrollY,stack,
+      hitButton:button===hit||button.contains(hit),
+      journal:globalThis.__IBERFIT_IRI_TOUCH_JOURNAL__};
+  });
+  if(mobileTouchEvidence.expanded!=='true')
+    console.error('B26_IRI_MOBILE_CLICK_DIAGNOSTIC='+JSON.stringify(mobileTouchEvidence));
+  await expect(toggle).toHaveAttribute('aria-expanded','true');
+  await expect(panel).toBeVisible();
   for(const preset of ['floor','knees','trx','treadmill'])await form.locator(`[data-iri-setup-preset="${preset}"]`).click();
+  // Keyboard can close and reopen without hiding or changing preset values.
+  await toggle.focus();
+  await toggle.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded','false');
+  await expect(panel).toBeHidden();
+  await toggle.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded','true');
+  await expect(panel).toBeVisible();
   expect(errors,'the field fixture and controller must initialize without runtime errors').toEqual([]);
   await expect(form.locator('[data-iri-preset-status]')).toContainText('Preparación aplicada');
   // Populate hidden wizard steps through DOM to inspect the real controller's

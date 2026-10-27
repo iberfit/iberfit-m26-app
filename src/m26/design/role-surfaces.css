@@ -1223,65 +1223,11 @@
     0 12px 25px rgba(0,0,0,.25);
 }
 
-/* ------------------------------------------------------------
-   ROUTE TRANSITIONS
-   ------------------------------------------------------------ */
-
-@keyframes iberfit-premium-route-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-:is(
-  .m26-route,
-  .m26-admin-route,
-  .m26-communication-route
-) > * {
-  animation:
-    iberfit-premium-route-enter
-    360ms
-    cubic-bezier(.2,.72,.2,1)
-    both;
-}
-
-:is(
-  .m26-route,
-  .m26-admin-route,
-  .m26-communication-route
-) > *:nth-child(2) {
-  animation-delay: 35ms;
-}
-
-:is(
-  .m26-route,
-  .m26-admin-route,
-  .m26-communication-route
-) > *:nth-child(3) {
-  animation-delay: 70ms;
-}
-
-:is(
-  .m26-route,
-  .m26-admin-route,
-  .m26-communication-route
-) > *:nth-child(4) {
-  animation-delay: 105ms;
-}
-
-:is(
-  .m26-route,
-  .m26-admin-route,
-  .m26-communication-route
-) > *:nth-child(n+5) {
-  animation-delay: 135ms;
-}
+/* SIGNATURE B26 · Transiciones sin repetición.
+   La aplicación reconstruye rutas y partes de rutas con innerHTML durante
+   registros y sincronización. No animar cada hijo tras cada escritura:
+   evita parpadeos, retrasos y movimientos inesperados durante una sesión.
+   Conservamos solo feedback explícito de controles y reduce-motion. */
 
 /* ------------------------------------------------------------
    ROLE-SPECIFIC FINISH
@@ -4689,49 +4635,301 @@ m26-echart[data-density="compact"]{
   .m26-shell .m26-signature-live-cue{border-color:CanvasText}
 }
 
-/* SIGNATURE B25 · One truthful, responsive session roadmap for both actors.
- * No overlays, fake progress, duplicate actions or heavyweight transitions. */
-.m26-shell .m26-session-ready-roadmap{
-  min-width:0;margin-block:clamp(.65rem,1.8vw,1.25rem);
-  padding:clamp(1rem,2.6vw,1.55rem);
-  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 23%,var(--iberfit-color-border));
-  border-radius:1.1rem;
-  background:color-mix(in srgb,var(--iberfit-color-accent) 4%,var(--iberfit-color-surface-raised));
+/* SIGNATURE B26 · Dirección editorial aplicada a superficies reales.
+   Una misma identidad cálida, tres jerarquías operativas diferentes.
+   Sin nuevos overlays, sin tarjeta por dato y sin animaciones de re-render. */
+.m26-shell[data-m26-role]{
+  --iberfit-signature-parchment:#f0e8d7;
+  --iberfit-signature-rule:color-mix(in srgb,var(--iberfit-color-accent) 22%,transparent);
 }
-.m26-shell .m26-ready-roadmap-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem}
-.m26-shell .m26-ready-roadmap-header h3{font-family:var(--iberfit-font-family-editorial);font-size:clamp(1.3rem,2vw,1.8rem);font-weight:650;letter-spacing:-.025em;line-height:1.2;margin:.2rem 0}
-.m26-shell .m26-ready-roadmap-mode{display:inline-flex;align-items:center;min-height:36px;border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 33%,var(--iberfit-color-border));background:color-mix(in srgb,var(--iberfit-color-accent) 10%,var(--iberfit-color-surface-base));color:var(--iberfit-color-text-primary);padding:.35rem .8rem;border-radius:99px;font-weight:700;font-size:.76rem}
-.m26-shell .m26-ready-roadmap-intro{max-width:72ch;font-size:.9rem;line-height:1.6;color:var(--iberfit-color-text-secondary);margin:.55rem 0 .8rem}
-.m26-shell .m26-session-ready-roadmap ol{display:grid;gap:.45rem;list-style:none;margin:0;padding:0;min-width:0}
-.m26-shell .m26-session-ready-roadmap li{display:flex;align-items:start;gap:.85rem;min-width:0;padding:.65rem .1rem;border-bottom:1px solid var(--iberfit-color-border)}
-.m26-shell .m26-session-ready-roadmap li:last-child{border-bottom:0}
-.m26-shell .m26-ready-roadmap-number{display:grid;place-items:center;flex:0 0 1.8rem;height:1.8rem;border-radius:.6rem;font-size:.78rem;font-variant-numeric:tabular-nums;color:var(--iberfit-color-accent);font-weight:700;background:color-mix(in srgb,var(--iberfit-color-accent) 11%,transparent)}
-.m26-shell .m26-ready-roadmap-step{display:grid;min-width:0;gap:.16rem;flex:1}
-.m26-shell .m26-ready-roadmap-step strong{font-size:.95rem;line-height:1.45;overflow-wrap:anywhere}
-.m26-shell .m26-ready-roadmap-step small{font-size:.8rem;line-height:1.5;color:var(--iberfit-color-text-secondary);overflow-wrap:anywhere}
-.m26-shell .m26-ready-roadmap-more{margin-top:.2rem;min-width:0}
-.m26-shell .m26-ready-roadmap-more summary{display:flex;align-items:center;min-height:44px;max-width:100%;width:fit-content;padding:.3rem .4rem;color:var(--iberfit-color-accent);font-size:.86rem;font-weight:700;cursor:pointer}
-.m26-shell .m26-ready-roadmap-more summary:focus-visible{outline:3px solid var(--iberfit-color-accent);outline-offset:2px;border-radius:.3rem}
-.m26-shell .m26-ready-roadmap-more:not([open])>ol{display:none}
-.m26-shell .m26-ready-roadmap-note{font-size:.75rem;line-height:1.5;margin:.7rem 0 0;color:var(--iberfit-color-text-secondary)}
-.m26-shell[data-m26-role="client"] .m26-session-ready-roadmap{border-radius:1.25rem}
-.m26-shell[data-m26-role="client"] .m26-session-ready-roadmap li{padding-block:.75rem}
-.m26-shell[data-m26-role="coach"] .m26-session-ready-roadmap{padding:clamp(.85rem,1.5vw,1.15rem);border-radius:.85rem}
-.m26-shell[data-m26-role="coach"] .m26-session-ready-roadmap li{padding-block:.45rem}
-.m26-shell[data-m26-role="coach"] .m26-ready-roadmap-header h3{font-family:var(--iberfit-font-family-ui);font-size:1.13rem;font-weight:700}
-.m26-shell[data-m26-role="admin"] .m26-admin-table{max-inline-size:100%;min-inline-size:0;font-variant-numeric:tabular-nums}
-.m26-shell[data-m26-role="admin"] .m26-admin-table :is(th,td){overflow-wrap:anywhere;vertical-align:top}
+.m26-shell[data-m26-role] :is(.m26-route-intro h2,.m26-admin-hero h2,.m26-coach-home-command h2){
+  text-wrap:balance;
+  overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role="client"] .m26-route-intro h2{
+  font-size:clamp(1.75rem,4.7vw,2.8rem);
+  line-height:1.1;
+  letter-spacing:-.036em;
+  color:var(--iberfit-signature-parchment);
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage{
+  background:#173328;
+  border-color:var(--iberfit-signature-rule);
+  box-shadow:0 12px 30px rgba(0,0,0,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-stage::after{content:none}
+.m26-shell[data-m26-role="client"] .m26-client-progress-milestones>div{
+  background:transparent;
+  border-top-color:var(--iberfit-signature-rule);
+}
+.m26-shell[data-m26-role="coach"] .m26-professional-client-context{
+  border-radius:.65rem;
+  border-inline-start:3px solid var(--iberfit-color-accent);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-client-workspace{
+  box-shadow:0 9px 25px rgba(0,0,0,.12);
+  border-radius:.95rem;
+}
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-hero,.m26-admin-panel,.m26-admin-stat){
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-hero{
+  background:#1b3026;
+  border-top:2px solid var(--iberfit-color-role-admin-accent);
+  border-radius:.8rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-table{
+  max-inline-size:100%;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-gutter:stable;
+  -webkit-overflow-scrolling:touch;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-table :is(th,td){
+  overflow-wrap:anywhere;
+  vertical-align:top;
+}
 .m26-shell[data-m26-role="admin"] .m26-admin-table :is(button,a,select){min-height:44px}
-.m26-shell[data-m26-role="admin"] .m26-admin-table :is(button,a,select):focus-visible{outline:3px solid var(--iberfit-color-accent);outline-offset:2px}
+.m26-shell[data-m26-role="admin"] .m26-admin-table :is(button,a,select):focus-visible{
+  outline:3px solid var(--iberfit-color-accent);outline-offset:2px;
+}
+
+/* Roadmap B26 · lectura como itinerario editorial, sin simular avance. */
+.m26-shell .m26-session-ready-roadmap{
+  min-width:0;
+  display:grid;
+  gap:.75rem;
+  margin-block:clamp(.65rem,1.8vw,1.25rem);
+  padding:clamp(1rem,2.6vw,1.7rem);
+  border:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  border-top:2px solid var(--iberfit-color-accent);
+  border-radius:.75rem;
+  background:var(--iberfit-color-surface-base);
+  box-shadow:none;
+}
+.m26-shell .m26-ready-roadmap-header{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  gap:.65rem 1rem;
+}
+.m26-shell .m26-ready-roadmap-header h3{
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.4rem,2.6vw,2rem);
+  font-weight:550;
+  color:var(--iberfit-signature-parchment,var(--iberfit-color-text-primary));
+  letter-spacing:-.038em;
+  line-height:1.12;
+  text-wrap:balance;
+  margin:.16rem 0;
+}
+.m26-shell .m26-ready-roadmap-count{
+  display:block;
+  margin:.36rem 0 0;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.8rem;
+  line-height:1.45;
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell .m26-ready-roadmap-mode{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  max-width:100%;
+  padding:.35rem .8rem;
+  border:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  border-radius:99px;
+  color:var(--iberfit-color-text-primary);
+  background:color-mix(in srgb,var(--iberfit-color-accent) 8%,transparent);
+  font-size:.78rem;
+  font-weight:650;
+  line-height:1.3;
+  text-align:center;
+}
+.m26-shell .m26-ready-roadmap-intro{
+  max-width:67ch;
+  margin:0;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.91rem;
+  line-height:1.6;
+}
+.m26-shell .m26-session-ready-roadmap ol{
+  display:grid;
+  gap:0;
+  min-width:0;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.m26-shell .m26-session-ready-roadmap li{
+  position:relative;
+  display:grid;
+  grid-template-columns:2rem minmax(0,1fr);
+  align-items:start;
+  gap:.85rem;
+  min-width:0;
+  padding:.75rem 0;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-color-border) 68%,transparent);
+}
+.m26-shell .m26-session-ready-roadmap li:last-child{border-bottom:0}
+.m26-shell .m26-ready-roadmap-number{
+  display:grid;
+  place-items:center;
+  width:2rem;
+  height:2rem;
+  border:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  border-radius:50%;
+  background:transparent;
+  color:var(--iberfit-color-accent-strong);
+  font-size:.77rem;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell .m26-ready-roadmap-step{
+  display:grid;
+  align-content:center;
+  gap:.22rem;
+  min-width:0;
+  min-height:2rem;
+}
+.m26-shell .m26-ready-roadmap-step strong{
+  font-size:.98rem;
+  font-weight:660;
+  line-height:1.36;
+  color:var(--iberfit-color-text-primary);
+  overflow-wrap:anywhere;
+}
+.m26-shell .m26-ready-roadmap-step small{
+  font-size:.8rem;
+  line-height:1.55;
+  color:var(--iberfit-color-text-secondary);
+  overflow-wrap:anywhere;
+}
+.m26-shell .m26-ready-roadmap-more{min-width:0}
+.m26-shell .m26-ready-roadmap-more summary{
+  display:inline-flex;
+  align-items:center;
+  min-height:48px;
+  max-width:100%;
+  padding:.45rem .25rem;
+  cursor:pointer;
+  color:var(--iberfit-color-accent-strong);
+  font-size:.88rem;
+  font-weight:700;
+  line-height:1.4;
+  touch-action:manipulation;
+}
+.m26-shell .m26-ready-roadmap-more summary:focus-visible{
+  outline:3px solid var(--iberfit-color-accent);
+  outline-offset:2px;
+  border-radius:.25rem;
+}
+.m26-shell .m26-ready-roadmap-more:not([open])>ol{display:none}
+.m26-shell .m26-ready-roadmap-note{
+  margin:0;
+  padding-top:.6rem;
+  border-top:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  color:var(--iberfit-color-text-secondary);
+  font-size:.78rem;
+  line-height:1.55;
+}
+.m26-shell[data-m26-role="client"] .m26-session-ready-roadmap{
+  border-radius:1.05rem;
+  padding:clamp(1.05rem,2.5vw,1.65rem);
+}
+.m26-shell[data-m26-role="client"] .m26-session-ready-roadmap li{padding-block:.85rem}
+.m26-shell[data-m26-role="coach"] .m26-session-ready-roadmap{
+  gap:.55rem;
+  padding:clamp(.85rem,1.5vw,1.15rem);
+  border-top-width:3px;
+  border-radius:.5rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-ready-roadmap li{padding-block:.52rem}
+.m26-shell[data-m26-role="coach"] .m26-ready-roadmap-header h3{
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(1.13rem,1.8vw,1.38rem);
+  font-weight:750;
+  letter-spacing:-.026em;
+}
+.m26-shell[data-m26-role="coach"] .m26-ready-roadmap-mode{
+  border-radius:.4rem;
+}
 @media(max-width:580px){
-  .m26-shell .m26-session-ready-roadmap{padding:.9rem;border-radius:.9rem}
-  .m26-shell .m26-ready-roadmap-header{align-items:start}
-  .m26-shell .m26-ready-roadmap-step small{font-size:.81rem}
-  .m26-shell .m26-session-live[data-session-live-state="ready"] .m26-session-live-actions>button{min-height:48px;max-inline-size:100%}
+  .m26-shell .m26-ready-roadmap-header{grid-template-columns:minmax(0,1fr)}
+  .m26-shell .m26-ready-roadmap-mode{justify-self:start}
+  .m26-shell .m26-session-ready-roadmap{padding:.85rem}
+  .m26-shell .m26-ready-roadmap-step small{font-size:.82rem}
+  .m26-shell .m26-session-live[data-session-live-state="ready"] .m26-session-live-actions>button{
+    min-height:48px;max-inline-size:100%;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-admin-table{max-width:calc(100vw - 2rem)}
 }
 @media(forced-colors:active){
-  .m26-shell .m26-session-ready-roadmap,.m26-shell .m26-ready-roadmap-mode{border:1px solid CanvasText}
+  .m26-shell .m26-session-ready-roadmap,
+  .m26-shell .m26-ready-roadmap-mode,
+  .m26-shell .m26-ready-roadmap-number,
+  .m26-shell[data-m26-role="coach"] .m26-professional-client-context{
+    border-color:CanvasText;
+  }
   .m26-shell .m26-ready-roadmap-number{color:CanvasText}
 }
-@media(prefers-contrast:more){.m26-shell .m26-session-ready-roadmap{border-width:2px}}
-@media(prefers-reduced-motion:reduce){.m26-shell .m26-ready-roadmap-more summary{scroll-behavior:auto}}
+@media(prefers-contrast:more){
+  .m26-shell .m26-session-ready-roadmap{border-width:2px}
+  .m26-shell .m26-ready-roadmap-step small{color:var(--iberfit-color-text-primary)}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell .m26-ready-roadmap-more summary{scroll-behavior:auto}
+}
+
+
+/* SIGNATURE B26 · Preparación IRI: control estable para touch y teclado.
+   Un solo estado (hidden/aria-expanded), sin toggle implícito del navegador. */
+/* Keep the disclosure in the hit-testing plane above adjacent wizard chrome.
+   Avoid any transparent sibling layer intercepting taps on narrow layouts. */
+.m26-iri-workspace .m26-iri-assessment-workspace>.m26-iri-setup{
+  position:relative;
+  z-index:2;
+  isolation:isolate;
+}
+.m26-shell .m26-iri-setup-toggle,
+.m26-iri-workspace .m26-iri-setup-toggle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  min-width:0;
+  width:100%;
+  min-height:48px;
+  padding:.2rem .1rem;
+  border:0;
+  border-radius:.3rem;
+  background:transparent;
+  color:var(--iberfit-color-text-primary,var(--m26-cream-100));
+  font:700 .96rem/1.4 var(--iberfit-font-family-ui,inherit);
+  text-align:left;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.m26-iri-workspace .m26-iri-setup-toggle::after{
+  content:"+";
+  flex:0 0 auto;
+  font-size:1.25rem;
+  color:var(--iberfit-color-accent-strong,var(--m26-gold-300));
+}
+.m26-iri-workspace .m26-iri-setup-toggle[aria-expanded="true"]::after{content:"−"}
+.m26-iri-workspace .m26-iri-setup-toggle:focus-visible{
+  outline:3px solid var(--iberfit-color-accent,var(--m26-gold-300));
+  outline-offset:3px;
+}
+.m26-iri-workspace .m26-iri-setup-content{min-width:0}
+.m26-iri-workspace [data-iri-setup-content][hidden]{display:none}
+.m26-iri-workspace [data-iri-setup-content]:not([hidden]){padding:.35rem .05rem .6rem}
+.m26-iri-workspace [data-iri-setup-content] .m26-timer-actions{
+  display:flex;flex-wrap:wrap;gap:.55rem;
+}
+.m26-iri-workspace [data-iri-setup-content] [data-iri-setup-preset]{min-height:44px;touch-action:manipulation}
+@media(forced-colors:active){
+  .m26-iri-workspace .m26-iri-setup-toggle{border:1px solid ButtonText}
+}

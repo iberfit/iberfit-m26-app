@@ -1209,10 +1209,46 @@ export function createWorkflowController({
     }
     computed(form);setIriStep(form,Number(form.dataset.iriStepIndex||0));
   }
+  const boundIriSetupToggles=new Set();
+  function onIriSetupToggle(event){
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    const button=event.currentTarget;
+    const panel=button?.closest?.('[data-iri-setup]')?.querySelector?.('[data-iri-setup-content]');
+    if(!panel)return;
+    const expand=panel.hidden===true;
+    panel.hidden=!expand;
+    button.setAttribute('aria-expanded',expand?'true':'false');
+  }
+  function bindIriSetupToggle(form){
+    const button=form?.querySelector?.('[data-iri-setup-toggle]');
+    if(!button||boundIriSetupToggles.has(button))return;
+    boundIriSetupToggles.add(button);
+    button.addEventListener('click',onIriSetupToggle);
+    // Keep the native button inert until the real handler is present; no mobile
+    // tap can be swallowed by the microtask/MutationObserver binding window.
+    button.setAttribute('data-iri-setup-ready','');
+    button.disabled=false;
+    button.setAttribute('aria-disabled','false');
+  }
   function scanRouteForms(){
     scanQueued=false;
+    // Route replacements must not retain detached buttons and their listeners.
+    for(const previous of boundIriSetupToggles){
+      if(!previous.isConnected){
+        previous.removeEventListener('click',onIriSetupToggle);
+        boundIriSetupToggles.delete(previous);
+      }
+    }
     const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(onboardingForm)void initializeOnboardingForm(onboardingForm);
-    const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void initializeIriForm(iriForm);
+    const iriForm=root.querySelector?.('[data-workflow-form="iri"]');
+    if(iriForm){
+      // Bind before asynchronous draft restoration; direct listener is attached
+      // to the actual actionable element and never depends on bubbling through
+      // scrollable mobile shell ancestors.
+      bindIriSetupToggle(iriForm);
+      void initializeIriForm(iriForm);
+    }
     const appointmentForm=root.querySelector?.('[data-workflow-form="appointment"]');if(appointmentForm&&!initializedAppointmentForms.has(appointmentForm)){initializedAppointmentForms.add(appointmentForm);syncAppointmentFormState(appointmentForm,root);}
     const reportForm=root.querySelector?.('[data-workflow-form="report-approval"]');if(reportForm)void initializeReportForm(reportForm);
     const planForm=root.querySelector?.('[data-workflow-form="planning"]');if(planForm)void initializePlanForm(planForm);
@@ -2233,16 +2269,10 @@ export function createWorkflowController({
     }
   }
   async function onClick(event){
-    const setupSummary=event.target.closest?.('details.m26-iri-setup > summary');
-    if(setupSummary){
-      event.preventDefault?.();
-      const details=setupSummary.parentElement;
-      if(details?.tagName==='DETAILS'){
-        details.open=!details.open;
-        setupSummary.setAttribute?.('aria-expanded',details.open?'true':'false');
-      }
-      return;
-    }
+    // The IRI disclosure has its own direct handler. A document/root-level
+    // delegated click races touch retargeting on 390 px Chromium; never toggle
+    // it a second time here.
+    if(event.target.closest?.('[data-iri-setup-toggle]'))return;
     const preset=event.target.closest?.('[data-iri-setup-preset]');
     if(preset){
       event.preventDefault?.();requireCoach();
@@ -2323,6 +2353,6 @@ export function createWorkflowController({
   return Object.freeze({
     mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('invalid',onInvalid,true);root.addEventListener('input',onInput);root.addEventListener('change',onChange);root.addEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
     flushLocalDrafts,
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);clearTimeout(reportSaveTimer);clearTimeout(planSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('invalid',onInvalid,true);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('m26:report-before-switch',onBeforeReportSwitch);globalThis.removeEventListener?.('pagehide',onPageHide);for(const button of boundIriSetupToggles){button.removeEventListener('click',onIriSetupToggle);button.removeAttribute('data-iri-setup-ready');if(button.isConnected){button.disabled=true;button.setAttribute('aria-disabled','true');}}boundIriSetupToggles.clear();clearAllStatuses(root);mounted=false;},
   });
 }

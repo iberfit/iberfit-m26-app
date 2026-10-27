@@ -34,13 +34,12 @@ test('Browser shards execute only their declared projects and keep one-worker pr
   assert.match(config,/workers:1/u);
 });
 
-test('Browser shards retain deterministic install cache readiness and unique failure artifacts',()=>{
+test('Browser shards retain pinned browser readiness, non-root execution and unique failure artifacts',()=>{
   assert.match(workflow,/npm ci/u);
-  assert.match(workflow,/actions\/cache@v4/u);
-  assert.match(workflow,/hashFiles\('package-lock\.json'\).*matrix\.browser/u);
-  assert.match(workflow,/restore-keys:[\s\S]*?-all/u);
-  assert.match(workflow,/playwright install-deps "\$\{\{ matrix\.browser \}\}"/u);
-  assert.match(workflow,/cache-hit != 'true'/u);
+  assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u);
+  assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
+  assert.match(workflow,/runuser -u pwuser -- npx playwright test/u);
+  assert.doesNotMatch(workflow,/playwright install-deps/u);
   assert.match(workflow,/PW_BROWSER: \$\{\{ matrix\.browser \}\}/u);
   assert.match(workflow,/admin-interaction-matrix-\$\{\{ matrix\.browser \}\}-\$\{\{ github\.run_id \}\}/u);
 });

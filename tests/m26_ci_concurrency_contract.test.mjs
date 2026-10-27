@@ -36,17 +36,26 @@ test('shared authenticated QA remains globally serialized and non-cancellable in
   }
 });
 
-test('concurrency optimization does not remove browser cache or deterministic dependency contracts',()=>{
+test('concurrency optimization retains deterministic cached or SHA-pinned browser supply',()=>{
   for(const [name,workflow] of [['daily',daily],['admin',admin],['remote',remote]]){
     assert.match(workflow,/npm ci/u,`${name}: npm ci missing`);
-    if(name==='remote'){
-    assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,'remote: SHA-pinned Playwright image required');
-    assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u);
-    assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
-    assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+    if(name==='remote'||name==='admin'){
+      // Both use the same immutable, browser-complete supply chain instead
+      // of apt mirror downloads; verify the replacement rather than require
+      // the old cache mechanism that the pinned image makes redundant.
+      assert.match(workflow,/mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:[0-9a-f]{64}/u,`${name}: SHA-pinned Playwright image required`);
+      assert.match(workflow,/PLAYWRIGHT_BROWSERS_PATH: \/ms-playwright/u,`${name}: browser path required`);
+      if(name==='remote'){
+        assert.match(workflow,/QA_BROWSER_MISSING/u,'remote: browser availability must fail closed');
+        assert.match(workflow,/needs: prepare-ui/u,'remote: auth must depend on completed non-auth prep');
+      }else{
+        assert.match(workflow,/PW_BROWSER: \$\{\{ matrix\.browser \}\}/u,'admin: each engine remains verified');
+        assert.match(workflow,/runuser -u pwuser -- npx playwright test/u,'admin: non-root Firefox remains certified');
+        assert.doesNotMatch(workflow,/playwright install-deps/u,'admin: apt mirror must not block CI');
+      }
     }else{
-    assert.match(workflow,/actions\/cache@v4/u,`${name}: Playwright cache missing`);
-    assert.match(workflow,/playwright install-deps/u,`${name}: Playwright system deps missing`);
+      assert.match(workflow,/actions\/cache@v4/u,`${name}: Playwright cache missing`);
+      assert.match(workflow,/playwright install-deps/u,`${name}: Playwright system deps missing`);
     }
   }
 });

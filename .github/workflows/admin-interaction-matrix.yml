@@ -70,6 +70,10 @@ jobs:
             projects: >-
               --project=admin-desktop-firefox
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -80,25 +84,15 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Restore Playwright ${{ matrix.browser }} cache
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-${{ matrix.browser }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-all
-      - name: Install ${{ matrix.browser }} system dependencies
-        run: npx playwright install-deps "${{ matrix.browser }}"
-      - name: Install ${{ matrix.browser }} browser on cache miss
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install "${{ matrix.browser }}"
-      - name: Verify Playwright ${{ matrix.browser }} cache
+      - name: Verify version-pinned Playwright ${{ matrix.browser }} binary
         env:
           PW_BROWSER: ${{ matrix.browser }}
         run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; const browser={chromium,firefox,webkit}[process.env.PW_BROWSER]; if(!browser||!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+String(process.env.PW_BROWSER||'UNKNOWN').toUpperCase()+'_NOT_READY');"
       - name: Exercise Client Coach Admin inputs selects focus and rerender · ${{ matrix.browser }}
-        run: npx playwright test --config playwright.admin-interaction.config.mjs ${{ matrix.projects }}
+        run: |
+          mkdir -p test-results playwright-report
+          chown -R pwuser:pwuser test-results playwright-report
+          runuser -u pwuser -- npx playwright test --config playwright.admin-interaction.config.mjs ${{ matrix.projects }}
       - name: Preserve failures only
         if: failure()
         uses: actions/upload-artifact@v4
