@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "72de7224808ed5856b477515b9fb2fab091c6114",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "3b3767840cca1effd15a645d97104d9da687cc5c",
+  "notes": "SIGNATURE B33 · frontend-only; 10 changed files, 13/13 exact Canary QA workflows, Coach/Admin WebAuthn and authenticated Client E2E"
+}
