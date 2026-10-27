@@ -4933,3 +4933,105 @@ m26-echart[data-density="compact"]{
 @media(forced-colors:active){
   .m26-iri-workspace .m26-iri-setup-toggle{border:1px solid ButtonText}
 }
+
+/* SIGNATURE B27: one active action for the athlete, compact Coach workbench.
+   No fixed overlays, no duplicated media, no fake completed exercise values. */
+.m26-shell .m26-session-live-v3 .m26-session-live-hero{
+  padding:clamp(1rem,2.6vw,1.8rem);
+  border:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  border-top:3px solid var(--iberfit-color-accent);
+  border-radius:.85rem;background:#162d24;box-shadow:none;
+}
+.m26-shell .m26-session-live-v3 .m26-session-live-heading h2{
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.65rem,3.5vw,2.6rem);
+  font-weight:580;line-height:1.1;letter-spacing:-.035em;
+  color:var(--iberfit-signature-parchment,var(--iberfit-color-text-primary));text-wrap:balance;
+}
+.m26-shell .m26-session-live-v3 .m26-session-live-progress-badge{
+  border:0;border-inline-start:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  border-radius:0;background:transparent;padding-inline-start:1rem;
+}
+.m26-shell .m26-session-up-next{
+  display:flex;align-items:baseline;gap:.3rem .75rem;flex-wrap:wrap;
+  margin:.8rem 0 0;padding:.75rem 0 0;
+  border-top:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  font-size:.82rem;line-height:1.5;overflow-wrap:anywhere;
+}
+.m26-shell .m26-session-up-next span{
+  color:var(--iberfit-color-text-secondary);font-size:.71rem;
+  font-weight:750;letter-spacing:.095em;text-transform:uppercase;
+}
+.m26-shell .m26-session-up-next strong{
+  color:var(--iberfit-signature-parchment,var(--iberfit-color-text-primary));font-weight:650;
+}
+.m26-shell .m26-session-athlete-motion{
+  min-width:0;max-width:100%;margin:0;display:grid;align-content:start;gap:.65rem;
+  padding:clamp(.65rem,1.6vw,.9rem);
+  border:1px solid var(--iberfit-signature-rule,var(--iberfit-color-border));
+  border-radius:.8rem;background:color-mix(in srgb,var(--iberfit-color-surface-base) 90%,transparent);
+}
+.m26-shell .m26-session-athlete-motion-label{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:.25rem .65rem;min-width:0;
+}
+.m26-shell .m26-session-athlete-motion-label span{
+  font-size:.69rem;font-weight:750;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--iberfit-color-accent-strong);
+}
+.m26-shell .m26-session-athlete-motion-label strong{
+  font-weight:600;font-size:.92rem;color:var(--iberfit-color-text-primary);overflow-wrap:anywhere;
+}
+.m26-shell .m26-session-athlete-motion :is(.m26-exercise-media,.m26-exercise-media-experience){
+  min-width:0;max-width:100%;margin:0;
+}
+.m26-shell .m26-session-athlete-motion .m26-exercise-media-image{
+  display:block;max-height:24rem;object-fit:contain;
+}
+.m26-shell .m26-session-live-v3[data-session-role="client"]
+  .m26-session-live-workbench:has(>.m26-session-athlete-motion){
+  display:grid;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr);
+  grid-template-areas:"motion primary" "context primary";align-items:start;
+}
+.m26-shell .m26-session-live-v3[data-session-role="client"]
+  .m26-session-live-workbench:has(>.m26-session-athlete-motion)>.m26-session-athlete-motion{grid-area:motion}
+.m26-shell .m26-session-live-v3[data-session-role="client"]
+  .m26-session-live-workbench:has(>.m26-session-athlete-motion)>.m26-session-live-primary{grid-area:primary}
+.m26-shell .m26-session-live-v3[data-session-role="client"]
+  .m26-session-live-workbench:has(>.m26-session-athlete-motion)>.m26-session-live-context{grid-area:context}
+.m26-shell .m26-session-live-v3 :is(.m26-session-live-entry-v3,.m26-session-rest-focus-v3){
+  box-shadow:none;border-radius:.8rem;
+}
+.m26-shell .m26-session-live-v3[data-session-role="coach"] .m26-session-live-workbench{
+  grid-template-columns:minmax(0,1.2fr) minmax(18rem,.8fr);
+}
+.m26-shell .m26-session-live-v3[data-session-role="coach"] .m26-session-live-entry-v3{
+  border-inline-start:3px solid var(--iberfit-color-accent);
+}
+.m26-shell .m26-session-live-v3 :is(button,input,summary,select):focus-visible{
+  outline:3px solid var(--iberfit-color-accent);outline-offset:3px;
+}
+@media(max-width:900px){
+  .m26-shell .m26-session-live-v3[data-session-role="coach"] .m26-session-live-workbench{grid-template-columns:1fr}
+  .m26-shell .m26-session-live-v3[data-session-role="client"]
+    .m26-session-live-workbench:has(>.m26-session-athlete-motion){
+    grid-template-columns:minmax(0,1fr);grid-template-areas:"motion" "primary" "context";
+  }
+}
+@media(max-width:580px){
+  .m26-shell .m26-session-athlete-motion{padding:.55rem;border-radius:.65rem}
+  .m26-shell .m26-session-athlete-motion .m26-exercise-media-image{max-height:13rem}
+  .m26-shell .m26-session-live-v3 .m26-session-live-heading h2{font-size:clamp(1.45rem,7vw,1.95rem)}
+  .m26-shell .m26-session-live-v3 .m26-session-live-hero{padding:.85rem}
+}
+@media(forced-colors:active){
+  .m26-shell .m26-session-athlete-motion,
+  .m26-shell .m26-session-live-v3 .m26-session-live-hero{border-color:CanvasText}
+  .m26-shell .m26-session-up-next{border-top-color:CanvasText}
+}
+@media(prefers-contrast:more){
+  .m26-shell .m26-session-athlete-motion{border-width:2px}
+  .m26-shell .m26-session-up-next span{color:var(--iberfit-color-text-primary)}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell .m26-session-athlete-motion *{transition:none!important;animation:none!important}
+}
