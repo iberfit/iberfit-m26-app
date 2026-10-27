@@ -76,3 +76,59 @@ test('No muestra pasos de otros roles aunque el modelo llegue alterado',()=>{
   const html=renderJourneyContinuity(make('client','planificacion',['hoy','planificacion','sesion','progreso','admin-auditoria','iri']));
   assert.doesNotMatch(html,/data-m26-area="admin-auditoria"|data-m26-area="iri"/);
 });
+
+
+test('Ayuda en plan cliente es contextual, plegable y permite abrir la guía existente',()=>{
+  const html=renderJourneyContinuity(make('client','planificacion',['hoy','planificacion','sesion','progreso']));
+  assert.match(html,/<details class="m26-journey-help"><summary>¿Qué hago aquí\?<\/summary>/);
+  assert.match(html,/data-m26-client-context-guide-open/);
+  assert.match(html,/Tu Coach organiza|ha preparado tu Coach/);
+  assert.doesNotMatch(html,/data-m26-guided-tour-open/);
+});
+
+test('El guía profesional reutiliza el tour existente sin duplicar controles de negocio',()=>{
+  const html=renderJourneyContinuity(make('coach','iri',['expediente','iri','planificacion','sesion','progreso']));
+  assert.match(html,/data-m26-guided-tour-open/);
+  assert.match(html,/Diagnóstico IRI/);
+  assert.doesNotMatch(html,/<script|onclick\s*=|data-workflow-action|data-m26-action="/i);
+});
+
+test('Ayuda diferencia diagnóstico inicial IRI de seguimiento longitudinal',()=>{
+  const coach=renderJourneyContinuity(make('coach','iri',['expediente','iri','planificacion','sesion','progreso']));
+  const client=renderJourneyContinuity(make('client','progreso',['hoy','planificacion','sesion','progreso']));
+  assert.match(coach,/diagnóstico de partida/);
+  assert.match(client,/punto de partida/);
+  assert.match(client,/no una medición de progreso/);
+});
+
+test('No enseña ayuda a quien no tiene expediente o ruta visible',()=>{
+  const html=renderJourneyContinuity(make('admin','admin-iri',['admin-clientes','admin-iri'],{selected:false}));
+  assert.equal(html,'');
+  assert.equal(renderJourneyContinuity(make('admin','admin-agenda',['admin-agenda','admin-usuarios'])),'');
+});
+
+test('Ayuda de Admin mantiene áreas operativas y expedientes en bloques distintos',()=>{
+  const ops=renderJourneyContinuity(make('admin','admin-operaciones',['admin-clientes','admin-operaciones','admin-auditoria']));
+  assert.match(ops,/Prioriza incidencias/);
+  assert.doesNotMatch(ops,/Diagnóstico IRI/);
+  const person=renderJourneyContinuity(make('admin','admin-iri',['admin-iri','admin-expediente','admin-informes']));
+  assert.match(person,/trazabilidad del diagnóstico inicial/);
+  assert.doesNotMatch(person,/data-m26-area="admin-operaciones"/);
+});
+
+test('Navegación opcional se mantiene semánticamente accesible',()=>{
+  const html=renderJourneyContinuity(make('coach','progreso',['expediente','iri','planificacion','sesion','progreso']));
+  assert.match(html,/<nav class="m26-journey-steps" aria-label="Espacio de la persona">/);
+  assert.match(html,/<summary>¿Qué hago aquí\?<\/summary>/);
+  assert.equal((html.match(/aria-current="step"/g)||[]).length,1);
+  assert.match(html,/id="m26-journey-explanation" class="m26-journey-note"/);
+});
+
+test('Ayuda localizada en español, inglés, francés y portugués sin fugas de contenido',()=>{
+  const expected={es:'¿Qué hago aquí?',en:'What can I do here?',fr:'Que faire ici ?',pt:'O que faço aqui?'};
+  for(const [language,copy] of Object.entries(expected)){
+    const html=renderJourneyContinuity(make('client','progreso',['hoy','planificacion','sesion','progreso'],{language}));
+    assert.ok(html.includes(copy),language);
+    assert.match(html,/data-m26-client-context-guide-open/);
+  }
+});

@@ -71,6 +71,48 @@ const LABELS=Object.freeze({
   }),
 });
 
+
+const AREA_GUIDANCE=Object.freeze({
+  client:Object.freeze({
+    planificacion:Object.freeze({es:['Comprueba qué ha preparado tu Coach y cuándo corresponde cada sesión.','Para entrenar, entra en Sesiones y revisa cuáles están habilitadas para ti.'],en:['Review your coach’s plan and the timing of each session.','To train, open Sessions and check which workouts are available to you.'],fr:['Consultez le programme de votre coach et le calendrier des séances.','Pour vous entraîner, ouvrez Séances et vérifiez celles qui vous sont proposées.'],pt:['Veja o plano do seu Coach e quando está prevista cada sessão.','Para treinar, abra Sessões e verifique quais estão disponíveis.']}),
+    progreso:Object.freeze({es:['Consulta la evolución que puede justificarse con registros reales.','La evaluación IRI inicial es tu punto de partida, no una medición de progreso.'],en:['Review progress supported by actual recorded results.','Your initial IRI assessment is a starting point, not a progress measurement.'],fr:['Consultez une évolution fondée sur les résultats réellement enregistrés.','Le bilan IRI initial est votre point de départ, pas une mesure de progression.'],pt:['Consulte a evolução sustentada por resultados efetivamente registados.','A avaliação IRI inicial é o ponto de partida, não uma medida de progresso.']}),
+  }),
+  coach:Object.freeze({
+    expediente:Object.freeze({es:['Comprueba el contexto de la persona antes de decidir el trabajo.','Accede al Diagnóstico IRI para revisar el punto de partida; el seguimiento se consulta aparte.'],en:['Review the person’s context before making training decisions.','Open the initial IRI assessment for the baseline; ongoing follow-up is separate.'],fr:['Examinez le contexte de la personne avant de décider du travail.','Ouvrez le bilan IRI initial pour la référence ; le suivi est distinct.'],pt:['Consulte o contexto da pessoa antes de decidir o treino.','Abra a avaliação IRI inicial para a referência; o acompanhamento é separado.']}),
+    iri:Object.freeze({es:['Documenta la evaluación inicial, sus condiciones y la evidencia disponible.','El IRI es el diagnóstico de partida: no lo conviertas en una evolución ni bloquees el plan si es diferible.'],en:['Document the baseline assessment, its conditions and supporting evidence.','IRI is the starting diagnosis: do not treat it as progress or block planning when it can be deferred.'],fr:['Documentez le bilan initial, ses conditions et les preuves disponibles.','Le bilan IRI est le point de départ : ne le confondez pas avec le suivi et ne bloquez pas le plan s’il peut être reporté.'],pt:['Documente a avaliação inicial, as condições e a evidência disponível.','O IRI é o diagnóstico de partida: não o confunda com a evolução nem bloqueie o plano quando é adiável.']}),
+    planificacion:Object.freeze({es:['Organiza ejercicios, series, cargas y variantes según el contexto del cliente.','Revisa la prescripción antes de publicarla; planificado no significa realizado.'],en:['Organize exercises, sets, loads and alternatives for this client.','Review the prescription before publishing; planned does not mean performed.'],fr:['Organisez exercices, séries, charges et variantes pour cette personne.','Vérifiez la prescription avant de publier ; prévu ne veut pas dire réalisé.'],pt:['Organize exercícios, séries, cargas e variantes para esta pessoa.','Reveja a prescrição antes de publicar; planeado não significa realizado.']}),
+    progreso:Object.freeze({es:['Compara resultados y adherencia solo cuando los datos sean equivalentes.','Decide ajustes, progresiones o regresiones con criterio; el diagnóstico inicial se mantiene separado.'],en:['Compare outcomes and adherence only when data is comparable.','Use your judgement for progression or regression; keep the initial diagnosis separate.'],fr:['Comparez les résultats et l’adhérence uniquement si les données sont comparables.','Décidez des progressions ou régressions ; gardez le bilan initial distinct.'],pt:['Compare os resultados e a adesão apenas quando os dados forem comparáveis.','Decida progressões ou regressões com critério; mantenha a avaliação inicial separada.']}),
+  }),
+  admin:Object.freeze({
+    'admin-clientes':Object.freeze({es:['Localiza a la persona y revisa el estado de su relación con IBERFIT.','Para intervenir en un expediente, selecciona primero el contexto correcto.'],en:['Find a person and review their relationship with IBERFIT.','Select the correct record before making changes.'],fr:['Retrouvez une personne et examinez son parcours avec IBERFIT.','Sélectionnez le bon dossier avant toute intervention.'],pt:['Encontre uma pessoa e consulte o seu percurso com a IBERFIT.','Selecione a ficha correta antes de intervir.']}),
+    'admin-operaciones':Object.freeze({es:['Prioriza incidencias y tareas que requieran intervención.','Confirma el resultado antes de considerar una operación resuelta.'],en:['Prioritize incidents and tasks that need action.','Verify the outcome before marking an operation as resolved.'],fr:['Priorisez les incidents et les tâches nécessitant une intervention.','Vérifiez le résultat avant de considérer l’opération comme résolue.'],pt:['Priorize incidentes e tarefas que exijam intervenção.','Verifique o resultado antes de considerar uma operação resolvida.']}),
+    'admin-auditoria':Object.freeze({es:['Examina los eventos y su trazabilidad antes de actuar.','Mantén separados revisión, permisos y modificaciones de datos.'],en:['Review events and their audit trail before acting.','Keep review, permissions and data changes separate.'],fr:['Examinez les événements et leur traçabilité avant d’agir.','Séparez contrôle, autorisations et modifications de données.'],pt:['Analise os eventos e a rastreabilidade antes de atuar.','Separe revisão, permissões e alterações de dados.']}),
+    'admin-expediente':Object.freeze({es:['Comprueba la identidad y el contexto de la persona seleccionada.','Mantén separados su diagnóstico IRI inicial y los datos longitudinales.'],en:['Verify the identity and context of the selected person.','Keep the initial IRI diagnosis separate from longitudinal data.'],fr:['Vérifiez l’identité et le contexte de la personne sélectionnée.','Distinguez le bilan IRI initial des données longitudinales.'],pt:['Confirme a identidade e o contexto da pessoa selecionada.','Mantenha o diagnóstico IRI inicial separado dos dados longitudinais.']}),
+    'admin-iri':Object.freeze({es:['Revisa evidencia, protocolo y trazabilidad del diagnóstico inicial.','La evolución posterior pertenece al seguimiento y a sus informes.'],en:['Review evidence, protocol and traceability of the baseline diagnosis.','Later progress belongs to follow-up and its reports.'],fr:['Vérifiez les preuves, le protocole et la traçabilité du bilan initial.','L’évolution ultérieure relève du suivi et de ses rapports.'],pt:['Reveja evidência, protocolo e rastreabilidade do diagnóstico inicial.','A evolução posterior pertence ao acompanhamento e aos relatórios.']}),
+    'admin-informes':Object.freeze({es:['Consulta los informes disponibles con su fecha y finalidad.','No deduzcas progreso de una evaluación inicial aislada.'],en:['Review available reports with their date and purpose.','Do not infer progress from a standalone baseline assessment.'],fr:['Consultez les rapports avec leur date et leur finalité.','N’inférez pas de progression d’un seul bilan initial.'],pt:['Consulte relatórios com a respetiva data e finalidade.','Não infira progresso de uma avaliação inicial isolada.']}),
+    'admin-notas':Object.freeze({es:['Consulta las notas internas dentro del expediente correcto.','Comprueba el destinatario y los permisos antes de incorporar información sensible.'],en:['Review internal notes within the correct record.','Check the recipient and permissions before adding sensitive information.'],fr:['Consultez les notes internes dans le bon dossier.','Vérifiez destinataire et autorisations avant d’ajouter des informations sensibles.'],pt:['Consulte as notas internas na ficha correta.','Verifique o destinatário e as permissões antes de incluir dados sensíveis.']}),
+  }),
+});
+const GUIDE_UI=Object.freeze({
+  es:Object.freeze({label:'¿Qué hago aquí?',tour:'Ver guía interactiva',related:'Abrir sección relacionada'}),
+  en:Object.freeze({label:'What can I do here?',tour:'Open interactive guide',related:'Open related section'}),
+  fr:Object.freeze({label:'Que faire ici ?',tour:'Ouvrir le guide interactif',related:'Ouvrir la rubrique liée'}),
+  pt:Object.freeze({label:'O que faço aqui?',tour:'Abrir guia interativo',related:'Abrir secção relacionada'}),
+});
+
+export function journeyHelpFor(vm){
+  const language=String(vm?.language||'es').split('-')[0].toLowerCase();
+  const lang=Object.hasOwn(GUIDE_UI,language)?language:'es';
+  const role=String(vm?.identity?.role||'');
+  const area=String(vm?.activeArea||'');
+  const copy=AREA_GUIDANCE[role]?.[area]?.[lang];
+  if(!copy)return null;
+  return Object.freeze({label:GUIDE_UI[lang].label,tour:GUIDE_UI[lang].tour,
+    related:GUIDE_UI[lang].related,
+    items:Object.freeze(copy.map(item=>String(item))),
+    tourAttribute:role==='client'?'data-m26-client-context-guide-open':'data-m26-guided-tour-open'});
+}
+
 function safeText(value){
   return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;')
     .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
@@ -115,8 +157,10 @@ export function renderJourneyContinuity(vm){
   if(!model)return '';
   const steps=model.steps.map(step=>'<button type="button" class="m26-journey-step'+(step.active?' is-current':'')+'" data-m26-area="'+safeText(step.area)+'"'+(step.active?' aria-current="step"':'')+'><span>'+safeText(step.label)+'</span></button>').join('');
   const next=model.next?'<button type="button" class="m26-journey-next" data-m26-area="'+safeText(model.next.area)+'" aria-label="'+safeText(model.nextCopy+': '+model.next.label)+'"><span>'+safeText(model.nextCopy)+'</span><strong>'+safeText(model.next.label)+'</strong><span aria-hidden="true">→</span></button>':'';
+  const help=journeyHelpFor(vm);
+  const helpMarkup=help?'<details class="m26-journey-help"><summary>'+safeText(help.label)+'</summary><div class="m26-journey-help-content">'+help.items.map(item=>'<p>'+safeText(item)+'</p>').join('')+'<button type="button" class="m26-journey-tour" '+help.tourAttribute+'>'+safeText(help.tour)+'</button></div></details>':'';
   const person=model.person?'<span class="m26-journey-person">'+safeText(model.person)+'</span>':'';
-  return '<section class="m26-journey" data-m26-journey="'+safeText(model.role)+'" aria-label="'+safeText(model.title)+'" aria-describedby="m26-journey-explanation"><div class="m26-journey-heading"><p class="m26-eyebrow">'+safeText(model.title)+'</p>'+person+'</div><nav class="m26-journey-steps" aria-label="'+safeText(model.title)+'">'+steps+'</nav>'+next+'<span id="m26-journey-explanation" class="m26-journey-note">'+safeText(model.note)+'</span></section>';
+  return '<section class="m26-journey" data-m26-journey="'+safeText(model.role)+'" aria-label="'+safeText(model.title)+'" aria-describedby="m26-journey-explanation"><div class="m26-journey-heading"><p class="m26-eyebrow">'+safeText(model.title)+'</p>'+person+'</div><nav class="m26-journey-steps" aria-label="'+safeText(model.title)+'">'+steps+'</nav>'+next+helpMarkup+'<span id="m26-journey-explanation" class="m26-journey-note">'+safeText(model.note)+'</span></section>';
 }
 
 export const __journeyContinuityInternals=Object.freeze({safeText,copyFor,visibleAreas});

@@ -2011,3 +2011,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .m26-shell .m26-journey,.m26-shell .m26-journey-step.is-current,.m26-shell .m26-journey-next{border-color:CanvasText}
 }
 @media(prefers-reduced-motion:reduce){.m26-shell .m26-journey-steps{scroll-behavior:auto}}
+
+/* SIGNATURE B28: opt-in inline task help; reuses the already-installed guided tour. */
+.m26-shell .m26-journey-help{grid-column:1/-1;min-width:0;border-top:1px solid var(--journey-line);padding-top:.25rem}
+.m26-shell .m26-journey-help>summary{display:inline-flex;align-items:center;min-height:44px;gap:.4rem;color:var(--m26-gold-300,#d8b96f);cursor:pointer;font-weight:620;font-size:.84rem;touch-action:manipulation}
+.m26-shell .m26-journey-help>summary:focus-visible{outline:3px solid var(--m26-gold-300,#d8b96f);outline-offset:3px}
+.m26-shell .m26-journey-help-content{max-width:66ch;padding:0 0 .45rem .05rem;display:grid;gap:.4rem}
+.m26-shell .m26-journey-help-content p{margin:0;color:var(--m26-cream-300,#e8deca);font-size:.88rem;line-height:1.55}
+.m26-shell .m26-journey-tour{justify-self:start;min-height:44px;padding:.45rem .8rem;border:1px solid var(--journey-line);border-radius:.55rem;color:var(--m26-cream-100,#f8f2e7);background:rgba(216,185,111,.08);cursor:pointer;touch-action:manipulation}
+.m26-shell .m26-journey-tour:focus-visible{outline:3px solid var(--m26-gold-300,#d8b96f);outline-offset:2px}
