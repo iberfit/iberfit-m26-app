@@ -455,7 +455,9 @@ export function renderProgressiveOnboardingPanel({role,state,readiness=null}={})
     }else if(launchReadiness?.nextRequirement==='client'){
       next='<button type="button" class="m26-primary-action" data-m26-area="clientes">Completar primer cliente</button>';
     }else if(launchReadiness?.nextRequirement==='planning'){
-      next='<button type="button" class="m26-primary-action" data-m26-area="clientes">Preparar primera planificación</button>';
+      next='<button type="button" class="m26-primary-action" data-m26-area="planificacion">Preparar primera planificación</button>';
+    }else if(launchReadiness?.nextRequirement==='session'){
+      next='<button type="button" class="m26-primary-action" data-m26-area="agenda">Revisar primera sesión</button>';
     }else{
       next='<span class="m26-chip">Puesta en marcha pendiente</span>';
     }

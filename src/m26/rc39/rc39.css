@@ -434,11 +434,17 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   font-size:clamp(1.08rem,1.8vw,1.34rem);
   letter-spacing:-.02em;
 }
-.m26-coach-launch-summary-copy p:last-child{
+.m26-coach-launch-summary-copy p{
   margin:0;
   color:var(--m26-muted);
-  font-size:.8rem;
-  line-height:1.4;
+  font-size:.82rem;
+  line-height:1.45;
+}
+.m26-coach-launch-summary-copy .m26-coach-launch-summary-next{
+  color:var(--m26-cream-100);
+  font-size:.9rem;
+  font-weight:600;
+  overflow-wrap:anywhere;
 }
 .m26-coach-launch-summary-status{
   display:flex;
@@ -479,6 +485,22 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   line-height:1.5;
 }
 .m26-coach-launch-body meter{width:100%}
+/* Six canonical milestones remain present but no longer form a stack of
+   nested SaaS cards. A continuous editorial list scans faster in a session. */
+.m26-coach-launch-body .m26-stack{gap:0}
+.m26-coach-launch-body [data-coach-launch-milestone]{
+  border:0;
+  border-bottom:1px solid rgba(228,205,152,.13);
+  border-radius:0;
+  box-shadow:none;
+  background:transparent;
+  padding:.85rem .1rem;
+}
+.m26-coach-launch-body [data-coach-launch-milestone]:last-child{border-bottom:0}
+.m26-coach-launch-body [data-coach-launch-milestone] h3{
+  font-size:clamp(.93rem,1.4vw,1.05rem);
+  line-height:1.4;
+}
 .m26-coach-launch-self[data-coach-launch-density="compact"]:not([open]){
   border-color:rgba(228,205,152,.10);
   background:rgba(4,17,12,.32);
@@ -503,7 +525,8 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   }
   .m26-coach-launch-summary-status .m26-badge{max-width:9rem;text-align:right}
   .m26-coach-launch-summary-copy h2{font-size:1.02rem}
-  .m26-coach-launch-summary-copy p:last-child{font-size:.74rem}
+  .m26-coach-launch-summary-copy p{font-size:.78rem}
+  .m26-coach-launch-summary-copy .m26-coach-launch-summary-next{font-size:.85rem}
   .m26-coach-launch-toggle{width:2.15rem;height:2.15rem}
   .m26-coach-launch-body{padding:0 .9rem .9rem}
 }

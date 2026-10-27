@@ -214,3 +214,21 @@ test('Coach launch disclosure styling preserves touch, reduced-motion and print 
   assert.match(block,/@media\(prefers-reduced-motion:reduce\)/u);
   assert.match(block,/@media print/u);
 });
+
+test('Coach launch keeps next operational action visible when the detailed tour is folded',()=>{
+  const current=state({collections:{
+    clients:[{id:'client-1',name:'Ana'}],
+    sessions:[],sessionExecutions:[],appointments:[],checkins:[],
+    iriAssessments:[],wearableDailySummaries:[],
+  }});
+  const shell=augmentRc39ShellViewModel({
+    mode:'authenticated',identity:current.identity,activeArea:'hoy',
+  },current);
+  const route={kind:'hoy',role:'coach',clients:current.collections.clients,
+    appointments:[],proposals:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0},
+    coachCockpit:null,rc39:{coachLaunchJourney:shell.coachLaunchJourney}};
+  const html=enhanceRc39ShellMarkup(renderHoyRoute(route),shell);
+  assert.match(html,/data-coach-launch-density="compact"/u);
+  assert.match(html,/data-coach-launch-next-label>[^<]*Preparar primera planificación/u);
+  assert.match(html,/data-m26-area="planificacion"/u);
+});

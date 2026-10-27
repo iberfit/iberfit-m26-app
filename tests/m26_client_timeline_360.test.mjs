@@ -132,3 +132,30 @@ test('client isolation is preserved across all added lifecycle collections',()=>
   assert.equal(titles.includes('Plan de otro cliente'),false);
   assert.equal(titles.includes('Cita de otro cliente'),false);
 });
+
+test('Timeline 360 never attributes discomfort to a different same-time execution',()=>{
+  const source=state();
+  source.collections.sessionExecutions=[
+    {id:'exec-1',clientId:'client-1',status:'completed',syncStatus:'clean',
+      completedAt:'2026-09-04T10:00:00Z',title:'Fuerza A',feedback:{pain:false}},
+    {id:'exec-2',clientId:'client-1',status:'completed',syncStatus:'clean',
+      completedAt:'2026-09-04T10:00:00Z',title:'Fuerza A',
+      feedback:{pain:true,painNotes:'Solo segunda ejecución'}},
+    {id:'exec-unconfirmed',clientId:'client-1',status:'en_curso',syncStatus:'clean',
+      completedAt:'2026-09-04T10:00:00Z',title:'Fuerza A',
+      feedback:{pain:true,painNotes:'No confirmada'}},
+  ];
+  const rows=buildClientTimeline360(source,'client-1',{now:NOW,days:90,limit:30})
+    .filter(row=>row.kind==='execution');
+  assert.equal(rows.length,2,'two genuine completions are never collapsed by shared title/date');
+  assert.equal(rows.find(row=>row.executionId==='exec-1')?.detail.includes('Molestia'),false);
+  assert.match(rows.find(row=>row.executionId==='exec-2')?.detail||'',/Solo segunda ejecución/u);
+  assert.equal(rows.some(row=>row.detail.includes('No confirmada')),false);
+});
+
+test('Timeline 360 excludes provisional completion with a pending local command',()=>{
+  const source=state();
+  source.pendingOperations=[{type:'EJECUCION_COMPLETAR',entityId:'exec-1'}];
+  assert.equal(buildClientTimeline360(source,'client-1',{now:NOW,days:90,limit:30})
+    .some(row=>row.kind==='execution'),false);
+});

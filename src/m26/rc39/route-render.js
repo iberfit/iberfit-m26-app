@@ -242,12 +242,17 @@ function renderCoachLaunchSelf(vm){
   const actionMarkup=action&&action.area
     ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-m26-area="${escape(action.area)}">${escape(actionLabel)}</button></div>`
     : `<p>${escape(copy.noAction)}</p>`;
+  const nextLabel=actionLabel
+    ?`${copy.nextTitle}: ${actionLabel}`
+    :journey.ready?copy.ready
+      :!journey.profileVerified||!journey.accountStatusVerified?copy.adminTitle
+        :copy.noAction;
   const operationalStarted=(journey.milestones||[]).some((item)=>['client','planning','session'].includes(item?.id)&&item?.complete===true);
   const launchExpanded=!journey.ready&&!operationalStarted;
   const progressCopy=copy.progress(journey.completedCount,journey.total);
   return `<details class="m26-panel m26-panel-soft m26-coach-launch-self" data-coach-launch-self="${escape(journey.stage||'pending')}" data-coach-launch-density="${launchExpanded?'guided':'compact'}"${launchExpanded?' open':''}>
     <summary class="m26-coach-launch-summary" aria-labelledby="m26-coach-launch-title">
-      <div class="m26-coach-launch-summary-copy"><p class="m26-eyebrow">${escape(copy.eyebrow)}</p><h2 id="m26-coach-launch-title">${escape(copy.title)}</h2><p>${escape(progressCopy)}</p></div>
+      <div class="m26-coach-launch-summary-copy"><p class="m26-eyebrow">${escape(copy.eyebrow)}</p><h2 id="m26-coach-launch-title">${escape(copy.title)}</h2><p>${escape(progressCopy)}</p><p class="m26-coach-launch-summary-next" data-coach-launch-next-label>${escape(nextLabel)}</p></div>
       <div class="m26-coach-launch-summary-status"><strong>${escape(`${journey.percent}%`)}</strong>${statusBadge(status,journey.ready?'success':'pending')}<span class="m26-coach-launch-toggle" aria-hidden="true">＋</span></div>
     </summary>
     <div class="m26-coach-launch-body">
