@@ -2811,3 +2811,112 @@ body{
 /* SIGNATURE B30 · Coach shortcut aid: low-noise, high-legibility. */
 .m26-shell .m26-builder-shortcut{align-self:center;font-size:.75rem;line-height:1.4;color:var(--iberfit-color-text-secondary,var(--m26-cream-300));white-space:nowrap}
 @media(max-width:680px){.m26-shell .m26-builder-shortcut{white-space:normal;font-size:.7rem}}
+
+
+/*
+ * SIGNATURE B31 — editorial Coach workbench
+ * Replace nested dashboard tiles with a restrained session control strip.
+ * Scope is Coach session builder only. Client playback, Admin and non-session
+ * surfaces retain their current presentation and interaction contracts.
+ */
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2{
+  --m26-editorial-rule:color-mix(in srgb,var(--iberfit-color-accent) 22%,var(--iberfit-color-border));
+  gap:clamp(.7rem,1.8vw,1.05rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-commandbar{
+  gap:.8rem;
+  padding:clamp(.8rem,1.5vw,1.05rem);
+  box-shadow:0 5px 20px rgba(0,0,0,.09);
+  backdrop-filter:none;
+  border-radius:1rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-commandbar h2{
+  line-height:1.12;
+  letter-spacing:-.023em;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-signature-builder-flow{
+  background:transparent;
+  border:0;
+  border-top:1px solid var(--m26-editorial-rule);
+  border-bottom:1px solid var(--m26-editorial-rule);
+  border-radius:0;
+  padding:.65rem .2rem .55rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-signature-builder-flow ol{
+  margin:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-signature-builder-flow p{
+  margin:.4rem .4rem 0;
+  max-width:70ch;
+  line-height:1.45;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0;
+  border-bottom:1px solid var(--m26-editorial-rule);
+  padding:0 0 .6rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip>div{
+  min-width:0;
+  min-height:3.3rem;
+  gap:.12rem;
+  padding:.35rem clamp(.5rem,1.25vw,.95rem);
+  border:0;
+  border-right:1px solid var(--m26-editorial-rule);
+  border-radius:0;
+  background:transparent;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip>div:first-child{
+  padding-inline-start:.2rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip>div:last-child{
+  border-right:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip strong{
+  font-size:clamp(1.18rem,2vw,1.45rem);
+  font-variant-numeric:tabular-nums;
+  line-height:1.12;
+}
+.m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-meta{
+  border-color:var(--m26-editorial-rule);
+  background:transparent;
+  box-shadow:none;
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-commandbar{
+    padding:.78rem .82rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-commandbar>div:first-child>p:last-child{
+    max-width:50ch;
+    font-size:.78rem;
+    line-height:1.4;
+    text-wrap:pretty;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-shortcut{
+    flex-basis:100%;
+    max-width:100%;
+    white-space:normal;
+    font-size:.7rem;
+    line-height:1.35;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    row-gap:.35rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip>div:nth-child(2n){
+    border-right:0;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip>div:nth-child(2n+1){
+    padding-inline-start:.2rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip,
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-signature-builder-flow{
+    border-color:CanvasText;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-session-builder-v2 .m26-builder-session-strip>div{
+    border-color:CanvasText;
+  }
+}
