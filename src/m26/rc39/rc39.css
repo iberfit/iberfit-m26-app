@@ -783,3 +783,35 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   }
 }
 
+
+/* SIGNATURE B27: all Coach sessions remain in accessible batches of 18. */
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch{
+  margin:.45rem 0;min-width:0;border-top:1px solid var(--iberfit-color-border);background:transparent;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle{
+  display:flex;justify-content:space-between;align-items:center;gap:.7rem;
+  min-height:54px;padding:.7rem .6rem;list-style:none;cursor:pointer;
+  touch-action:manipulation;color:var(--m26-cream-100);font-weight:650;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle::-webkit-details-marker{display:none}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle span:last-child{color:var(--m26-gold-300)}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch[open] .m26-rc39-coach-batch-toggle span:last-child{transform:rotate(45deg)}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch:not([open])>.m26-rc39-coach-batch-body{display:none}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-more:not([open])>.m26-rc39-coach-more-grid{display:none}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle:focus-visible{
+  outline:3px solid var(--m26-gold-300);outline-offset:2px;border-radius:.3rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch .m26-rc39-session-card{
+  box-shadow:none;border-radius:.7rem;
+}
+@media(max-width:690px){
+  .m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle{min-height:58px;padding:.8rem .45rem}
+  .m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch .m26-rc39-week{padding:.2rem 0 .7rem}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch{border-top-color:CanvasText}
+  .m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle:focus-visible{outline-color:Highlight}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle span:last-child{transition:none}
+}
