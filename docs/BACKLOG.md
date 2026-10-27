@@ -1,3 +1,11 @@
+## WIP único · SIGNATURE B34 · Continuidad de sesiones y Coach task-first · 27-10-2026
+
+- Base LIVE/Canary certificada B33 `72de7224808ed5856b477515b9fb2fab091c6114`; promoción #40579925000 `SUCCESS`.
+- **Objetivo B34 (NO publicado):** impedir navegación tardía tras timeout de recuperación local y tras cambio de identidad/rol; evitar escaneo duplicado de snapshots ya purgados por `list()`; presentar dos sesiones Coach completas y cuatro siguientes bajo `details` nativos con todas sus acciones y el archivo histórico íntegro.
+- **Límites:** frontend + pruebas + documentación; no tocar RLS, SQL, Edge, Hosted Auth, motores de ejecución ni políticas de publicación. Recuperación cancelada debe ser fail-soft, sin elevar timeouts por conveniencia.
+- **Aceptación pendiente:** preflight dirigido, CI y matrices PR, Canary exacto y 13 gates de integración, WebAuthn real, QA Cliente ejecutable, producción protegida y smoke autenticado.
+
+---
 ## SIGNATURE B32 · Flow-first Cliente/Coach/Admin · WIP 27-10-2026
 
 - Fuente LIVE/Canary exacta `405b8668226410398859faa1c5b289951848d0aa` y promoción protegida #40512134436 `SUCCESS`.

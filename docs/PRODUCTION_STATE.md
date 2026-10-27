@@ -1,3 +1,12 @@
+## Checkpoint verificado · SIGNATURE B33 EN PRODUCCIÓN · 27-10-2026
+
+- **PROD y Canary exactos:** `72de7224808ed5856b477515b9fb2fab091c6114`. PROD `pjhmrhejsoofmouedavw`, QA `gjztkdwfmunnzhtvxrsu`; `m26/version.json` contrastado directamente en ambos dominios.
+- **B33 integrado y certificado:** PR [#1166](https://github.com/iberfit/iberfit-m26-app/pull/1166), postmerge 13/13 `SUCCESS` y [promoción protegida #40579925000](https://github.com/iberfit/iberfit-m26-app/actions/runs/40579925000) `completed/success` intento 1; Chromium productivo 3/3 y auditoría read-only correctos.
+- **Producción:** Cloudflare deployment `69976a49-ca2d-42f8-ab9e-1d50cef0df29`, rollback preparado `ddfdfc06-e7e9-4663-a981-0abe0aa1b338` (B32). Frontend-only, 10 archivos modificados, sin cambios SQL/RLS/Auth/Edge.
+- **Riesgo en vigilancia:** en el primer intento WebAuthn Coach se observó `M26_SESSION_RECOVERY_TIMEOUT` pese a 62/62 bootstrap HTTP 200; segundo intento pasó. En Admin se observó 503 intermitente en una prueba negativa del catálogo; segundo intento pasó. No declarar causas resueltas solo por reintentos verdes.
+- **WIP único siguiente:** SIGNATURE B34, recuperación de sesión abortable y protegida por identidad + navegación Coach de sesiones compacta; pendiente de PR, CI, Canary y producción. La versión B34 no está publicada.
+
+---
 ## Checkpoint verificado · SIGNATURE B29+B30+B31 LIVE · 2026-10-27
 
 - **PROD y Canary, SHA fuente idéntico:** `405b8668226410398859faa1c5b289951848d0aa`. `app.iberfit.cl/m26/version.json` confirma PRODUCTION/`pjhmrhejsoofmouedavw`, y Canary confirma QA/`gjztkdwfmunnzhtvxrsu`. La separación de entornos se mantiene.

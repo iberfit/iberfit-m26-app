@@ -290,16 +290,18 @@ export async function recoverExecutionAfterAuthentication({
 }={}){
   if(pendingIriExternalReportIntent||typeof restoreExecution!=='function')return false;
   const safeTimeout=Math.max(50,Math.min(Number(timeoutMs)||1500,5000));
+  const recoveryAbort=new AbortController();
   let timer=null;
   try{
     const result=await Promise.race([
-      Promise.resolve().then(()=>restoreExecution()),
+      Promise.resolve().then(()=>restoreExecution({signal:recoveryAbort.signal})),
       new Promise((_,reject)=>{
-        timer=setTimeoutFn?.(()=>reject(new Error('M26_SESSION_RECOVERY_TIMEOUT')),safeTimeout)??null;
+        timer=setTimeoutFn?.(()=>{recoveryAbort.abort();reject(new Error('M26_SESSION_RECOVERY_TIMEOUT'));},safeTimeout)??null;
       }),
     ]);
     return Boolean(result);
   }catch(error){
+    recoveryAbort.abort();
     try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}
     return false;
   }finally{
@@ -1191,9 +1193,17 @@ export async function createM26Application({root=document.querySelector('#app'),
     store.navigate('sesion');
     return Object.freeze({ok:true,local:true,remote:true});
   }
-  async function restoreExecution(){
-    await recoveryCoordinator?.purgeExpired?.();const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
-    const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>{
+  async function restoreExecution({signal}={}){
+    const ownerCoordinator=recoveryCoordinator;
+    const ownerUserId=String(session?.user?.id||'');
+    if(signal?.aborted||!ownerCoordinator||!ownerUserId)return false;
+    // Listing validates and expires snapshots; a separate full purge doubles local I/O.
+    const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
+    const snapshots=await ownerCoordinator.list?.()||[];
+    if(signal?.aborted||recoveryCoordinator!==ownerCoordinator||String(session?.user?.id||'')!==ownerUserId)return false;
+    const fresh=store.getState();
+    if(['id','role','clientId'].some((key)=>String(fresh.identity?.[key]||'')!==String(state.identity?.[key]||''))||String(fresh.selectedClientId||'')!==String(state.selectedClientId||''))return false;
+    const snapshot=snapshots.find((item)=>{
       if(!visible.has(item.execution?.clientId)||(state.identity?.role==='client'&&item.execution?.clientId!==own))return false;
       try{return Boolean(resolveRecoveredSessionForEntry({
         state,snapshot:item,clientId:item.execution.clientId,role:String(state.identity?.role||'client'),

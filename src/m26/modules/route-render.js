@@ -3897,12 +3897,21 @@ function publicationCard(item,entity){
 /* SIGNATURE Coach · A visible working set, then all previous sessions grouped
  * into native disclosures. The full data and its actions remain in the DOM.
  * Never reorder sessions, modify publication state or hide Client/Admin. */
+export const COACH_PLANNING_FOCUS_SESSIONS=2;
 export const COACH_PLANNING_VISIBLE_SESSIONS=6;
 export const COACH_PLANNING_ARCHIVE_GROUP=18;
 export function renderCoachPlanningSessionsProgressive(items=[],entity='session'){
   if(!['planning','session'].includes(entity))throw new Error('COACH_PLANNING_ENTITY_INVALID');
   const visible=items.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
-    .map(item=>publicationCard(item,entity)).join('');
+    .map((item,index)=>{
+      const card=publicationCard(item,entity);
+      if(index<COACH_PLANNING_FOCUS_SESSIONS)return card;
+      return `<details class="m26-coach-planning-compact" data-coach-planning-compact>
+        <summary><span class="m26-coach-planning-compact-title"><small>${escapeHtml(item.dateLabel||'IBERFIT')}</small><strong>${escapeHtml(item.title||'Contenido IBERFIT')}</strong></span>
+          <span class="m26-coach-planning-compact-meta">${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}<span aria-hidden="true">+</span></span>
+        </summary>${card}
+      </details>`;
+    }).join('');
   const remaining=items.slice(COACH_PLANNING_VISIBLE_SESSIONS);
   if(!remaining.length)return `<div class="m26-stack">${visible}</div>`;
   const groups=[];
