@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "fee17f54f99d4824e11ccc7cde77c68010bfa0ba",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "72de7224808ed5856b477515b9fb2fab091c6114",
+  "notes": "SIGNATURE B34 · recuperación de sesión fail-soft protegida por identidad y Coach listado task-first; 13/13 Canary SUCCESS; M44 cifrado y restaurado intento 12; frontend-only, sin SQL/Edge/Auth"
+}
