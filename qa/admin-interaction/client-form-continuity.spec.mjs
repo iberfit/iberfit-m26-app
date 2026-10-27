@@ -103,6 +103,9 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   await form.locator('select[name="modality"]').selectOption('Híbrido');
   await form.locator('input[name="weeklyFrequency"]').fill('2');
   await form.locator('input[name="sessionDurationMinutes"]').fill('60');
+  // Complete optional logistics via the real keyboard/touch-accessible disclosure.
+  await form.locator('[data-client-optional-logistics] summary').click();
+  await expect(form.locator('[data-client-optional-logistics]')).toHaveJSProperty('open',true);
   const access=form.locator('textarea[name="accessInstructions"]');
   await access.fill('Acceso por conserjería; llamar al llegar.');
 
