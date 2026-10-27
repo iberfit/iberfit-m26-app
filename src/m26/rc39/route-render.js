@@ -286,7 +286,19 @@ function renderClientPlanning(vm){
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
   const hasPublished=items.length>0;
-  const cards=hasPublished?items.map((item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join(''):'';
+  const readyItems=vm.serviceActive!==false?items.filter((item)=>
+    clientCanStartProjection(item)&&experienceFor(item,'client',contractModality).clientLiveWorkout):[];
+  const nearestAppointment=clientAppointments[0]||null;
+  const focus=readyItems[0]
+    ?`<section class="m26-signature-task-focus is-ready" data-signature-planning-focus="ready" aria-label="Siguiente acción de entrenamiento"><div><p class="m26-eyebrow">Listo para ti</p><h3>${escape(readyItems[0].title)}</h3><p>Tu Coach ha publicado una sesión que puedes revisar y realizar en la aplicación.</p></div><button type="button" class="m26-primary-action" data-m26-area="sesion">Ver entrenamiento</button></section>`
+    :nearestAppointment
+      ?`<section class="m26-signature-task-focus" data-signature-planning-focus="appointment" aria-label="Próxima cita confirmada"><div><p class="m26-eyebrow">Lo próximo</p><h3>${escape(nearestAppointment.title||'Tu próxima cita')}</h3><p>${escape(nearestAppointment.dateLabel||'Consulta la fecha en tu agenda')}. Tu Coach dirige las sesiones supervisadas.</p></div><a class="m26-rc39-button" href="#m26-client-next-appointment">Consultar cita</a></section>`
+      :'';
+  // Keep every published card in the DOM and reachable by native keyboard/touch disclosure.
+  const makePlanningCard=(item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})});
+  const leadingItems=items.length>6?items.slice(0,4):items;
+  const remainingItems=items.length>6?items.slice(4):[];
+  const cards=hasPublished?`${leadingItems.map(makePlanningCard).join('')}${remainingItems.length?`<details class="m26-signature-session-archive" data-signature-planning-archive><summary>Ver otras ${remainingItems.length} sesiones publicadas</summary><div class="m26-signature-archive-list">${remainingItems.map(makePlanningCard).join('')}</div></details>`:''}`:'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
@@ -309,7 +321,7 @@ function renderClientPlanning(vm){
   const planningIntro=hasPublished
     ?'Consulta tus sesiones publicadas, cuándo realizarlas y cuáles puedes iniciar desde la aplicación.'
     :'Aquí tendrás tus sesiones y próximas citas cuando estén confirmadas.';
-  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section>${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
+  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section>${focus}${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
 }
 function renderCoachToday(vm){
   const items=vm.rc39?.sessionProjections||[];
@@ -464,11 +476,29 @@ function renderAgenda(vm){
   const changeRequests=Number(vm.rc39?.changeRequests||0);
   const needsPreparation=Number(vm.rc39?.needsPreparation||0);
   const linkedCount=appointments.filter(item=>Boolean(item.sessionId)).length;
-  const nextAppointment=appointments[0]||null;
+  // Historical and cancelled entries remain in the full agenda but never masquerade
+  // as the Client's next confirmed booking. Invalid dates fail closed, not the route.
+  const nowMs=Date.now();
+  const nextAppointment=isClient?[...appointments]
+    .filter((item)=>{
+      const when=Date.parse(String(item?.startAt||''));
+      const status=agendaAppointmentStatus(item);
+      return Number.isFinite(when)&&when>=nowMs&&
+        ['confirmada','confirmado','confirmed'].includes(status);
+    })
+    .sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt))[0]||null
+    :appointments[0]||null;
 
+  // Index projections once; the old per-appointment find was quadratic.
+  const projectionByAppointment=new Map();
+  for(const projection of projections){
+    if(!projection?.appointmentId||(isClient&&projection.visible!==true))continue;
+    if(!projectionByAppointment.has(projection.appointmentId))
+      projectionByAppointment.set(projection.appointmentId,projection);
+  }
   const cards=appointments.length
     ?appointments.map((appointment)=>{
-      const item=projections.find((projection)=>projection.appointmentId===appointment.id&&(!isClient||projection.visible===true));
+      const item=projectionByAppointment.get(appointment.id);
       return item
         ?sessionCard(item,role,contractModality,vm.sessionPreviewAssets||{})
         :renderAgendaStandaloneCard(appointment,role);
@@ -602,6 +632,18 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
     <div class="m26-rc39-week m26-rc39-coach-more-grid">${more}</div>
   </details>`;
 }
+// SIGNATURE B32: one clearly actionable surface first; other records remain
+// accessible without an unbounded vertical scroll or duplicated start controls.
+function renderClientSessionsProgressive(items,contractModality,options={}){
+  const ready=options.serviceActive!==false?items.filter((item)=>
+    clientCanStartProjection(item)&&experienceFor(item,'client',contractModality).clientLiveWorkout):[];
+  const readySet=new Set(ready);
+  const ordered=[...ready,...items.filter((item)=>!readySet.has(item))];
+  const foreground=ordered.length>6?ordered.slice(0,4):ordered;
+  const remaining=ordered.length>6?ordered.slice(4):[];
+  const render=(item)=>sessionCard(item,'client',contractModality,options);
+  return `${foreground.map(render).join('')}${remaining.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${remaining.length} sesiones</summary><div class="m26-signature-archive-list">${remaining.map(render).join('')}</div></details>`:''}`;
+}
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
@@ -631,9 +673,7 @@ function renderSessions(vm){
   const introLabel=client&&normalizeClientModality(contractModality)===null
     ?'Sesiones · IBERFIT'
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${items.length?(role==='coach'
-    ?renderCoachSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
-    :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')):empty}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+  const sessionCards=items.length?(role==='coach' data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${sessionCards}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;

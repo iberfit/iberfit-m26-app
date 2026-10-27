@@ -1,3 +1,12 @@
+## Checkpoint verificado · SIGNATURE B29+B30+B31 LIVE · 2026-10-27
+
+- **PROD y Canary, SHA fuente idéntico:** `405b8668226410398859faa1c5b289951848d0aa`. `app.iberfit.cl/m26/version.json` confirma PRODUCTION/`pjhmrhejsoofmouedavw`, y Canary confirma QA/`gjztkdwfmunnzhtvxrsu`. La separación de entornos se mantiene.
+- **PROMOCIÓN REAL certificada:** Production Promotion [#40512134436](https://github.com/iberfit/iberfit-m26-app/actions/runs/40512134436), intento 2 `completed/success`, 27/10 14:21:37 UTC; Lighthouse, Chromium interactivo, auditoría read-only, identidad SHA, Hosted Auth sin cambios y rollback verificados. Release marker `eed6d87a963bb86b1b58e0a77d9f4d037729092b`. Frontend-only, sin SQL/Edge/Auth.
+- **Canary completo:** 12/12 workflows `SUCCESS` sobre SHA `405b866...`, incluido Exact Deploy #40506728547, Device Experience, WebAuthn Coach/Admin y Remote Gates autenticados.
+- **Recuperación:** M44 DB+Storage PROD cifrado y restauración aislada PG17 certificadas con [run #40274897253 intento 9](https://github.com/iberfit/iberfit-m26-app/actions/runs/40274897253). Primer intento de promoción correctamente bloqueado por `M44_OFFSITE_RUN_TOO_OLD`; reintento aprobado tras renovar la evidencia.
+- **Siguiente WIP único:** SIGNATURE B32, mejoras Cliente/Coach/Admin de progresión visual y tarea real, sin tocar backend. Rama `feat/signature-b32-flow-first-20261027` aún no certificada; NO en Canary ni PROD.
+- **Problemas independientes abiertos:** #1075 bootstrap QA 57014 intermitente (sin relajar ACL/timeouts), #821 auth/performance, #1064 ocurrencias por fecha (U30–U33 PR Draft sin despliegue).
+
 # IBERFIT · Production State
 
 ## Checkpoint operativo vigente · SIGNATURE 360 · 17-10-2026
