@@ -2807,3 +2807,7 @@ body{
 .m26-shell [data-session-jump-target="meta"]:focus-visible,
 .m26-shell [data-session-jump-target="review"]:focus-visible{outline:3px solid var(--iberfit-color-accent,var(--m26-gold-300));outline-offset:3px}
 @media(forced-colors:active){.m26-shell .m26-signature-builder-flow li>button{border:1px solid ButtonText}}
+
+/* SIGNATURE B30 · Coach shortcut aid: low-noise, high-legibility. */
+.m26-shell .m26-builder-shortcut{align-self:center;font-size:.75rem;line-height:1.4;color:var(--iberfit-color-text-secondary,var(--m26-cream-300));white-space:nowrap}
+@media(max-width:680px){.m26-shell .m26-builder-shortcut{white-space:normal;font-size:.7rem}}

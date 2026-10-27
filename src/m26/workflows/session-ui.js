@@ -639,7 +639,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
     <div class="m26-field-grid m26-builder-core-prescription">
       ${prescriptionWorkFields(block.id,'',exercise,block)}
     </div>
-    <details class="m26-builder-prescription-details">
+    <details class="m26-builder-prescription-details" data-session-disclosure-key="block:${e(block.id)}">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
         ${prescriptionAdvancedFields(block.id,'',exercise,block)}
@@ -661,7 +661,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
     <div class="m26-field-grid m26-builder-core-prescription">
       ${prescriptionWorkFields(group.id,exerciseId,exercise,p,true)}
     </div>
-    <details class="m26-builder-prescription-details">
+    <details class="m26-builder-prescription-details" data-session-disclosure-key="group:${e(group.id)}:${e(exerciseId)}">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
         ${prescriptionAdvancedFields(group.id,exerciseId,exercise,p)}
@@ -836,7 +836,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,totalBlocks)).join('')||`<div class="m26-builder-program-empty" data-session-builder-empty><strong>Empieza por el primer ejercicio</strong><p>Busca en la biblioteca y construye el orden de la sesión. La revisión será necesaria antes de publicar.</p><button type="button" data-session-jump="library">Buscar ejercicios</button></div>`;
   // SIGNATURE B13 · Coach navigation on long sessions. Existing read-only
   // focus handler scrolls to the real editor; this never changes a draft.
-  const blockIndex=draft.previewAccepted||totalBlocks<2?'':`<details class="m26-builder-block-index" data-session-builder-block-index>
+  const blockIndex=draft.previewAccepted||totalBlocks<2?'':`<details class="m26-builder-block-index" data-session-builder-block-index data-session-disclosure-key="block-index">
     <summary><span>Ir directamente a un bloque</span><strong>${e(totalBlocks)} bloques</strong></summary>
     <div class="m26-builder-block-index-links" role="group" aria-label="Elegir bloque de la sesión">
       ${(draft.blocks||[]).map((block,index)=>{
@@ -882,7 +882,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
       ${templateHistory?.firstMissingBlockId?`<button type="button" data-session-review-block="${e(templateHistory.firstMissingBlockId)}">Revisar primer bloque sin historial</button>`:templateHistory?.total?'<span class="m26-builder-template-aligned">Historial disponible para todos</span>':''}
     </div>
   </div>`:'';
-  const templateControls=['coach','admin'].includes(String(role||''))?`<details class="m26-panel m26-panel-soft m26-builder-template-drawer" data-session-template-tools>
+  const templateControls=['coach','admin'].includes(String(role||''))?`<details class="m26-panel m26-panel-soft m26-builder-template-drawer" data-session-template-tools data-session-disclosure-key="templates">
     <summary><span><small>Reutilización</small><strong>Plantillas versionadas</strong></span><span>${templates?.length||0} guardadas</span></summary>
     <div class="m26-builder-template-body">
       <p>Se guardan en este dispositivo para tu usuario y no contienen el identificador del cliente.</p>
@@ -918,7 +918,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
         <p>Construye rápido; la revisión final sigue siendo obligatoria antes de publicar.</p>
       </div>
       <div class="m26-inline-actions m26-builder-command-actions">
-        <button type="button" data-session-action="save-draft">Guardar borrador</button>
+        <button type="button" data-session-action="save-draft" title="Atajo: Ctrl/⌘ S">Guardar borrador</button><small class="m26-builder-shortcut">Ctrl/⌘ S · guarda sin publicar</small>
         <details class="m26-builder-secondary-actions" data-session-builder-secondary-actions>
           <summary class="m26-text-action">Más opciones</summary>
           <div class="m26-builder-secondary-panel">
