@@ -3,6 +3,7 @@ import {enhanceRc39ShellMarkup} from '../rc39/shell-enhancer.js';
 import {areaIconName,renderIberfitIcon} from '../design/icons.js';
 import {applyIberfitDocumentLanguage} from '../ui/i18n.js';
 import {iberfitShellTranslate} from '../ui/i18n-shell.js';
+import {renderJourneyContinuity} from '../experience/journey-continuity.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -223,8 +224,10 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const productivity=coachProductivityShell(vm);
   const pageTitle=tx(`area.${vm.activeArea}.label`,vm.page.label);
   const workspace=workspaceHome(vm);
+  const journey=renderJourneyContinuity(vm);
   const coachToday=vm.identity?.role==='coach'&&vm.activeArea==='hoy';
   const mainContent=coachToday?`${routeContent}${workspace}`:`${workspace}${routeContent}`;
+  const guidedMainContent=`${journey}${mainContent}`;
 
   return `${shellStyles()}<div class="m26-shell" data-m26-role="${escapeHtml(vm.identity.role)}"><a class="m26-skip-link" href="#m26-main">${escapeHtml(tx('shell.skipToContent','Saltar al contenido'))}</a>
     <aside class="m26-sidebar" aria-label="${escapeHtml(tx('shell.accessibility.navigation','Navegación IBERFIT'))}">
@@ -237,7 +240,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
         <div class="m26-topbar-heading"><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
         <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}</div>
       </header>
-      <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${mainContent}</main>
+      <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${guidedMainContent}</main>
       <nav class="m26-mobile-nav" aria-label="IBERFIT">${quickMobileItems.map((item) => navItem(item, vm.activeArea,{compactAdminMobile:vm.identity.role==='admin'})).join('')}${mobileMore}</nav>
     </section>
     ${productivity.palette}
