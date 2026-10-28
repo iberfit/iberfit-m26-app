@@ -236,7 +236,7 @@ test('Hoy Cliente inicia directamente una sesión autónoma confirmada vinculada
     (html.match(/data-workflow-action="start-published-session" data-entity-id="s1"/gu)||[]).length,
     1,
   );
-  assert.doesNotMatch(html,/>Comenzar entrenamiento<\/button>/u);
+  assert.doesNotMatch(html,/>Preparar entrenamiento<\/button>/u);
 });
 
 test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrenamiento autónomo', () => {
@@ -254,7 +254,7 @@ test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrena
   );
   assert.doesNotMatch(
     html,
-    />Comenzar entrenamiento<\/button>/
+    />Preparar entrenamiento<\/button>/
   );
 });
 
@@ -316,7 +316,7 @@ test('Sesiones Cliente no ofrece inicio autónomo para una sesión presencial di
   );
 });
 
-test('Sesiones Cliente ofrece un único comienzo autorizado dentro de Ver sesión', () => {
+test('Sesiones Cliente ofrece un único comienzo autorizado fuera del desplegable de detalles', () => {
   const base = ready('client');
   const state = ready('client', {
     activeArea: 'sesion',
@@ -350,10 +350,11 @@ test('Sesiones Cliente ofrece un único comienzo autorizado dentro de Ver sesió
 
   assert.doesNotMatch(html, /data-session-primary-start/);
   assert.match(html, /<summary>Ver sesión<\/summary>/);
+   assert.ok(html.indexOf('data-workflow-action=\"start-published-session\"')>html.indexOf('</details>'));
   assert.equal([...html.matchAll(/data-workflow-action="start-published-session"/g)].length,1);
   assert.match(
     html,
-    /data-workflow-action="start-published-session" data-entity-id="s-live">Comenzar entrenamiento<\/button>/
+    /data-workflow-action="start-published-session" data-entity-id="s-live">Preparar entrenamiento<\/button>/
   );
 });
 
@@ -396,11 +397,11 @@ test('Sesiones Cliente nunca elige implícitamente entre varios Live Workout eje
   assert.doesNotMatch(html, /data-session-primary-start/);
   assert.match(
     html,
-    /data-workflow-action="start-published-session" data-entity-id="s-old">Comenzar entrenamiento<\/button>/
+    /data-workflow-action="start-published-session" data-entity-id="s-old">Preparar entrenamiento<\/button>/
   );
   assert.match(
     html,
-    /data-workflow-action="start-published-session" data-entity-id="s-new">Comenzar entrenamiento<\/button>/
+    /data-workflow-action="start-published-session" data-entity-id="s-new">Preparar entrenamiento<\/button>/
   );
   assert.equal(
     [...html.matchAll(/data-workflow-action="start-published-session"/g)].length,

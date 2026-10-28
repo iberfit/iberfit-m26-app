@@ -1,3 +1,4 @@
+import {prioritizeClientSessionItems} from './client-session-priority.js';
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {renderCompletedSessionHistory} from './completed-session-history.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
@@ -206,9 +207,9 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment}));
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
   const inPreviewStart=role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)
-    ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar entrenamiento</button></div>`:'';
+    ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Preparar entrenamiento</button></div>`:'';
   const content=detailAvailable
-    ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}${inPreviewStart}</div></details>`
+    ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
     : `<p class="m26-rc39-summary-copy">${supervised
        ?(item.ownership==='coach_led'?'Esta sesión la dirige tu Coach.':'La sesión se realiza en directo con tu Coach.')
        :'El detalle de esta sesión estará disponible cuando tu Coach lo habilite.'}</p>`;
@@ -223,6 +224,7 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
     ${item.appointment?.changeRequest?.status==='pending'?`<aside class="m26-notice is-warning"><strong>Cambio solicitado por el cliente</strong><p>${escape(item.appointment.changeRequest.reason||'Sin motivo registrado')}</p></aside>`:''}
     ${content}
+    ${inPreviewStart}
     ${cardActions(item,role,experience,{serviceActive})}
     ${role==='client'&&item.confirmation?.canRequestChange&&item.changeRequestAvailable?`<form class="m26-rc39-change-form" data-rc39-change-form="${escape(item.appointmentId)}" hidden><label>Motivo o alternativa horaria<textarea name="reason" maxlength="500" required></textarea></label><div><button type="submit" class="m26-primary-action">Enviar solicitud</button><button type="button" data-rc39-action="close-change-request">Cancelar</button></div></form>`:''}
   </article>`;
@@ -274,6 +276,13 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
+// One canonical, permission-aware ordering rule for both Cliente routes.
+// The helper never modifies source prescription, role, or publication state.
+export function prioritizeClientPublishedSessions(items=[],{serviceActive=true,contractModality=null}={}){
+  return prioritizeClientSessionItems(items,(item)=>serviceActive&&
+    clientCanStartProjection(item)&&
+    experienceFor(item,'client',contractModality).clientLiveWorkout);
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   // Client-only appointments were scoped by ownership, publication and time in the view model.
@@ -286,8 +295,10 @@ function renderClientPlanning(vm){
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
   const hasPublished=items.length>0;
-  const readyItems=vm.serviceActive!==false?items.filter((item)=>
-    clientCanStartProjection(item)&&experienceFor(item,'client',contractModality).clientLiveWorkout):[];
+  const actionable=(item)=>vm.serviceActive!==false&&clientCanStartProjection(item)&&
+    experienceFor(item,'client',contractModality).clientLiveWorkout;
+  const prioritizedItems=prioritizeClientPublishedSessions(items,{serviceActive:vm.serviceActive!==false,contractModality});
+  const readyItems=prioritizedItems.filter(actionable);
   const nearestAppointment=clientAppointments[0]||null;
   const focus=readyItems[0]
     ?`<section class="m26-signature-task-focus is-ready" data-signature-planning-focus="ready" aria-label="Siguiente acción de entrenamiento"><div><p class="m26-eyebrow">Listo para ti</p><h3>${escape(readyItems[0].title)}</h3><p>Tu Coach ha publicado una sesión que puedes revisar y realizar en la aplicación.</p></div><button type="button" class="m26-primary-action" data-m26-area="sesion">Ver entrenamiento</button></section>`
@@ -296,8 +307,8 @@ function renderClientPlanning(vm){
       :'';
   // Keep every published card in the DOM and reachable by native keyboard/touch disclosure.
   const makePlanningCard=(item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})});
-  const leadingItems=items.length>6?items.slice(0,4):items;
-  const remainingItems=items.length>6?items.slice(4):[];
+  const leadingItems=prioritizedItems.length>6?prioritizedItems.slice(0,4):prioritizedItems;
+  const remainingItems=prioritizedItems.length>6?prioritizedItems.slice(4):[];
   const cards=hasPublished?`${leadingItems.map(makePlanningCard).join('')}${remainingItems.length?`<details class="m26-signature-session-archive" data-signature-planning-archive><summary>Ver otras ${remainingItems.length} sesiones publicadas</summary><div class="m26-signature-archive-list">${remainingItems.map(makePlanningCard).join('')}</div></details>`:''}`:'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
@@ -601,9 +612,15 @@ export function prioritizeCoachSessions(items=[],now=new Date()){
     const dated=Number.isFinite(at);
     const section=!dated?1:at>=present?0:2;
     const time=section===0?at:section===2?-at:0;
-    return {item,index,section,time};
+    const body=item?.session?.body&&typeof item.session.body==='object'?item.session.body:item?.session||{};
+    const published=body.publishedAt||body.published_at||item?.publishedAt||item?.published_at;
+    const recent=typeof published==='string'?Date.parse(published):NaN;
+    return {item,index,section,time,recent:Number.isFinite(recent)?recent:null};
   });
-  mapped.sort((a,b)=>a.section-b.section||a.time-b.time||a.index-b.index);
+  mapped.sort((a,b)=>a.section-b.section||a.time-b.time||
+    (a.section===1&&b.section===1&&a.recent!==null&&b.recent!==null?b.recent-a.recent:0)||
+    (a.section===1&&b.section===1&&a.recent!==null?-1:a.section===1&&b.section===1&&b.recent!==null?1:0)||
+    a.index-b.index);
   return mapped.map(({item})=>item);
 }
 export function renderCoachSessionsProgressive(items=[],contractModality,options={}){
@@ -635,14 +652,15 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
 // SIGNATURE B32: one clearly actionable surface first; other records remain
 // accessible without an unbounded vertical scroll or duplicated start controls.
 function renderClientSessionsProgressive(items,contractModality,options={}){
-  const ready=options.serviceActive!==false?items.filter((item)=>
-    clientCanStartProjection(item)&&experienceFor(item,'client',contractModality).clientLiveWorkout):[];
-  const readySet=new Set(ready);
-  const ordered=[...ready,...items.filter((item)=>!readySet.has(item))];
+  const actionable=(item)=>options.serviceActive!==false&&clientCanStartProjection(item)&&
+    experienceFor(item,'client',contractModality).clientLiveWorkout;
+  const ordered=prioritizeClientPublishedSessions(items,{serviceActive:options.serviceActive!==false,contractModality});
+  const readyCount=ordered.filter(actionable).length;
   const foreground=ordered.length>6?ordered.slice(0,4):ordered;
   const remaining=ordered.length>6?ordered.slice(4):[];
   const render=(item)=>sessionCard(item,'client',contractModality,options);
-  return `${foreground.map(render).join('')}${remaining.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${remaining.length} sesiones</summary><div class="m26-signature-archive-list">${remaining.map(render).join('')}</div></details>`:''}`;
+  const extraReady=remaining.filter(actionable).length;
+  return `${readyCount?`<p class="m26-session-available-summary" data-session-available-count="${readyCount}">${readyCount} ${readyCount===1?'entrenamiento listo':'entrenamientos listos'} · Prepara uno cuando quieras.</p>`:''}${foreground.map(render).join('')}${remaining.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${remaining.length} sesiones${extraReady?' · '+extraReady+' disponibles':''}</summary><div class="m26-signature-archive-list">${remaining.map(render).join('')}</div></details>`:''}`;
 }
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;

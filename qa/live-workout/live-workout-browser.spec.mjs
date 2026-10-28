@@ -388,13 +388,18 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   await expect(direct).not.toContainText('Press de pecho');
   await expect(direct.locator('details.m26-session-preview-disclosure')).toHaveCount(0);
   await expect(guided.locator('details.m26-session-preview-disclosure')).toHaveCount(1);
+  const readyCta=guided.locator('[data-workflow-action="start-published-session"]');
+  await expect(readyCta,'U48 start action is immediately visible without opening exercise details').toBeVisible();
+  await expect(readyCta).toBeEnabled();
+  await expect(readyCta).toHaveCount(1);
+  await expect(readyCta).toHaveAttribute('data-entity-id','guided');
   await activatePublishedPreview(guided,testInfo);
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await expect(guided.locator('.m26-session-preview-exercise h5')).toHaveText('Press de pecho');
   await expect(guided).toContainText('8-10');
   await expect(guided).toContainText('Sin referencia visual');
-  await expect(guided.locator('[data-workflow-action="start-published-session"]')).toHaveText('Comenzar entrenamiento');
+  await expect(readyCta).toHaveText('Preparar entrenamiento');
   await expect(page.locator('#qa-client-session-previews')).not.toContainText('QA_PRIVATE_NO_CLIENT');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const geometry=await guided.evaluate(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth}));
@@ -418,12 +423,17 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(led.locator('.m26-session-preview-disclosure')).toHaveCount(0);
   await expect(led.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
   await expect(self).toContainText('Fuerza autónoma');
-  await expect(self.locator('[data-workflow-action="start-published-session"]')).toBeHidden();
+  const directStart=self.locator('[data-workflow-action="start-published-session"]');
+  await expect(directStart,'U48 guided Client Play must be available without disclosure').toBeVisible();
+  await expect(directStart).toBeEnabled();
+  await expect(directStart).toHaveCount(1);
+  await expect(directStart).toHaveAttribute('data-entity-id','qa-published-guided');
   await activatePublishedPreview(self,testInfo);
   await expect(self.locator('details.m26-session-preview-disclosure'),
     'Client preview must open by a real tap, including mobile WebKit').toHaveAttribute('open','');
   const start=self.locator('[data-workflow-action="start-published-session"]');
   await expect(start).toBeVisible();
+  await expect(start).toHaveText('Preparar entrenamiento');
   await expect(self).toContainText('Press de pecho');
   await expect(self).toContainText('Remo TRX');
   await expect(self).toContainText('3-1-1');

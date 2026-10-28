@@ -75,7 +75,7 @@ test('client planning overview preserves delivery ownership and reports supervis
   assert.ok(html.includes('<span>En app</span><strong>1</strong>'));
   assert.ok(html.includes('data-session-experience-card="hybrid_coach_led"'));
   assert.ok(html.includes('data-session-experience-card="hybrid_autonomous"'));
-  assert.ok(html.includes('Comenzar entrenamiento'));
+  assert.ok(html.includes('Preparar entrenamiento'));
   assert.ok(html.includes('Sesión con tu Coach'));
 });
 

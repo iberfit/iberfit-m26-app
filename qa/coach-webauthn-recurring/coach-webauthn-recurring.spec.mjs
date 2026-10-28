@@ -5,6 +5,8 @@ import {certifyU58ExistingClientExecution} from './u58-existing-session-client.m
 import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import {newU47Scope,u47WriteAuthorized} from './u47-running-policy.mjs';
 import {certifyU47RunningClientLifecycle} from './u47-fresh-running-e2e.mjs';
+import {certifyU48ExistingRunning} from './u48-running-recovery.mjs';
+import {certifyU48UniversalSessionVisibility} from './u48-client-visible-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -389,6 +391,8 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
   // U26 baseline SLA remains exact for all ordinary/recurring QA gates.
   test.setTimeout(420_000);
+  // Only first, strictly gated U48 run includes an additional real workout.
+  if(process.env.M26_QA_U48_RUNNING==='true')test.setTimeout(840_000);
   // The distinct first-push-only U47 scenario adds actual Client publication,
   // running, completion and readback AFTER the untouched five-device MFA test.
   if(process.env.M26_QA_U47_RUNNING==='true')test.setTimeout(840_000);
@@ -608,6 +612,16 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       await certifyU59CoachConfirmedReadback({
         browser,page,cdp,installPolicy,setDevice,evidence,
       });
+    }
+    // U48 must use the online, independently MFA-verified Coach context for
+    // post-completion readback, BEFORE U55 intentionally goes offline.
+    if(process.env.M26_QA_U48_READBACK==='true'){
+      await certifyU48UniversalSessionVisibility({browser,installPolicy,evidence});
+    }
+    if(process.env.M26_QA_U48_RUNNING==='true'){
+      expect(process.env.M26_QA_U47_RUNNING).not.toBe('true');
+      await certifyU48ExistingRunning({browser,installPolicy,evidence,
+        coachPage:page,cdp,setDevice});
     }
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
     if(u56Client&&process.env.M26_QA_U56_PUBLISH==='true'){

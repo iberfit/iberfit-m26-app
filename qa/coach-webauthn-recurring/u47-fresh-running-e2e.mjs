@@ -105,9 +105,16 @@ export async function certifyU47RunningClientLifecycle({
   expect(priorLegacy,'No pre-existing legacy execution of this new session').toHaveLength(0);
   trace.clientVisible=true;
   Object.assign(clientScope,{sessionId,serverPublicationConfirmed:true,historyClean:true});
-  await card.locator('details.m26-session-preview-disclosure > summary').click();
+  // The original U47 14-minute hang selected an invisible nested summary.
+  // Reveal an explicitly archived card, then enforce a bounded visible CTA.
+  const archive=card.locator('xpath=ancestor::details[@data-signature-session-archive]');
+  if(await archive.count()&&!(await archive.first().evaluate(node=>node.open)))
+    await archive.first().locator(':scope > summary').click({timeout:5000});
+  await expect(card,'A workout must be visible, not only present in the DOM')
+    .toBeVisible({timeout:10000});
   const action=card.locator('[data-workflow-action="start-published-session"]');
-  await expect(action).toBeVisible();
+  await expect(action,'Primary CTA must be visible without opening exercise details')
+    .toBeVisible({timeout:8000});
   const acceptedAcks=[],httpErrors=[];
   clientPage.on('response',async response=>{
     try{

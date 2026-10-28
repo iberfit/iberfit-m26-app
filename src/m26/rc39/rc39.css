@@ -815,3 +815,18 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media(prefers-reduced-motion:reduce){
   .m26-shell[data-m26-role="coach"] .m26-rc39-coach-batch-toggle span:last-child{transition:none}
 }
+
+/* SIGNATURE U48: accessible primary training action, distinct from optional preview. */
+.m26-shell[data-m26-role="client"] .m26-rc39-session-card[data-client-session-card-state="ready"]{
+ border-color:rgba(181,151,90,.54);background:#112a20;box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-session-card>.m26-session-preview-actions{display:flex;width:100%;margin:0}
+.m26-shell[data-m26-role="client"] .m26-rc39-session-card>.m26-session-preview-actions .m26-live-workout-action{
+ min-height:52px;width:100%;border-radius:.9rem;touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-session-available-summary{color:#dfd2b2;line-height:1.6;margin:0 0 .5rem}
+.m26-shell[data-m26-role="client"] .m26-session-available-summary::before{
+ content:'';display:inline-block;width:.42rem;height:.42rem;margin-right:.55rem;
+ vertical-align:middle;border-radius:50%;background:#b5975a;
+}
+@media(max-width:420px){.m26-shell[data-m26-role="client"] .m26-rc39-session-card[data-client-session-card-state="ready"]{padding:1rem;gap:.8rem}}
