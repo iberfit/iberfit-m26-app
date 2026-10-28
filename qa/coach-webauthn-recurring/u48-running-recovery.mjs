@@ -11,7 +11,7 @@ const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 const SESSION='4d244c01-8966-40f1-8cc7-9e6ec46d1708';
 const TITLE='QA U47 · Running 40738135729-1';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-export async function certifyU48ExistingRunning({browser,installPolicy,evidence}){
+export async function certifyU48ExistingRunning({browser,installPolicy,evidence,coachPage,cdp,setDevice}){
  const {expect}=await import('@playwright/test');
  if(process.env.M26_QA_U48_RUNNING!=='true'||
     process.env.M26_QA_U47_RUNNING==='true'||process.env.GITHUB_RUN_ATTEMPT!=='1'||
@@ -133,11 +133,34 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence}
   expect(scope.uniqueByOperation.size,'Reload cannot repeat a command').toBe(operations);
   expect(acked.filter(e=>e.type==='SESION_INICIAR')).toHaveLength(1);
   expect(acked.filter(e=>e.type==='EJECUCION_COMPLETAR')).toHaveLength(1);
+  // Independently privileged Coach must observe the real training feedback,
+  // not only the Client's optimistic local completion state. Never use
+  // Coach context to write, re-publish or bypass Client RLS.
+  expect(coachPage,'U48 requires live Coach WebAuthn context').toBeTruthy();
+  await setDevice(coachPage,cdp,{name:'u48-coach-readback',width:1440,height:1000,mobile:false,touch:false});
+  await expect(coachPage.locator('.m26-shell[data-m26-role="coach"]'),
+    'Coach must retain independent privileged MFA before readback')
+    .toBeVisible({timeout:15_000});
+  const clientPicker=coachPage.locator('[data-m26-client-select]').first();
+  await expect(clientPicker.locator('option[value="'+client.clientId+'"]'),
+    'Coach must be assigned to the exact synthetic QA Client A').toHaveCount(1,{timeout:15_000});
+  await clientPicker.selectOption(client.clientId);
+  const dossier=coachPage.locator('[data-m26-area="expediente"]:visible').first();
+  await expect(dossier).toBeVisible({timeout:15_000});
+  await dossier.click({timeout:8_000});
+  const coachWorkspace=coachPage.locator('[data-coach-client-workspace][data-client-id="'+client.clientId+'"]');
+  await expect(coachWorkspace,'Coach can inspect the same authorized Client after the finish ACK')
+    .toBeVisible({timeout:30_000});
+  await expect(coachWorkspace,'Coach must observe actual running feedback, not an uncommitted preview')
+    .toContainText('IBERFIT QA U48 · running sintético',{timeout:30_000});
+  await expect(coachWorkspace).toContainText('RPE 7');
+  trace.coachReadback=true;
   expect(httpErrors).toEqual([]);
   expect(errors).toEqual([]);
   expect(client.evidence.blocked).toEqual([]);
   trace.readback=true;
   evidence.u48Running={...trace,certified:true,qaOnly:true,existingFixture:true,
+    independentCoachMfaReadback:true,
     withoutAppointment:true,serverAcknowledged:true,oneExecution:true,
     source:'real-authenticated-client'};
  }finally{

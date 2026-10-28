@@ -612,6 +612,13 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         browser,page,cdp,installPolicy,setDevice,evidence,
       });
     }
+    // U48 must use the online, independently MFA-verified Coach context for
+    // post-completion readback, BEFORE U55 intentionally goes offline.
+    if(process.env.M26_QA_U48_RUNNING==='true'){
+      expect(process.env.M26_QA_U47_RUNNING).not.toBe('true');
+      await certifyU48ExistingRunning({browser,installPolicy,evidence,
+        coachPage:page,cdp,setDevice});
+    }
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
     if(u56Client&&process.env.M26_QA_U56_PUBLISH==='true'){
       await certifyU56OnlineCoachPublish({
@@ -628,10 +635,6 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         page,context,cdp,client:u56Client,coachScope:u56Scope,
         clientScope:u47ClientScope,evidence,setDevice,
       });
-    }
-    if(process.env.M26_QA_U48_RUNNING==='true'){
-      expect(process.env.M26_QA_U47_RUNNING).not.toBe('true');
-      await certifyU48ExistingRunning({browser,installPolicy,evidence});
     }
     if(process.env.M26_QA_U57_VERIFY==='true'){
       expect(process.env.M26_QA_U56_PUBLISH,

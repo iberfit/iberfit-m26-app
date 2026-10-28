@@ -39,3 +39,15 @@ test('U48 never permits non-first protected runs without explicit flag',()=>{
  assert.equal(u47WriteAuthorized(req(cmd()),s),false);
  process.env.M26_QA_U48_RUNNING='true';
 });
+
+
+test('U48 Coach readback is sequenced before U55 offline builder with no secondary Coach publication',async()=>{
+ const fs=await import('node:fs');
+ const spec=fs.readFileSync(new URL('../qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs',import.meta.url),'utf8');
+ const recovery=fs.readFileSync(new URL('../qa/coach-webauthn-recurring/u48-running-recovery.mjs',import.meta.url),'utf8');
+ assert.ok(spec.indexOf("await certifyU48ExistingRunning({browser")>0);
+ assert.ok(spec.indexOf("await certifyU48ExistingRunning({browser")<spec.indexOf('u56Scope.title=await certifyOfflineCoachAuthoring('));
+ assert.match(recovery,/data-coach-client-workspace/);
+ assert.match(recovery,/independentCoachMfaReadback:true/);
+ assert.doesNotMatch(recovery,/SESION_PUBLICAR/);
+});
