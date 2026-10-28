@@ -387,8 +387,11 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
   // SIGNATURE U26 adds authenticated professional route coverage on five devices.
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
-  // U47 performs one additional real Client workout; routine 420s SLA unchanged.
-  test.setTimeout(process.env.M26_QA_U47_RUNNING==='true'?840_000:420_000);
+  // U26 baseline SLA remains exact for all ordinary/recurring QA gates.
+  test.setTimeout(420_000);
+  // The distinct first-push-only U47 scenario adds actual Client publication,
+  // running, completion and readback AFTER the untouched five-device MFA test.
+  if(process.env.M26_QA_U47_RUNNING==='true')test.setTimeout(840_000);
   const missing=REQUIRED.filter((name)=>!process.env[name]);expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
