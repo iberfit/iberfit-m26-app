@@ -1,3 +1,13 @@
+## SIGNATURE U48 · Visibilidad resuelta; validación cardio pendiente · 28-10-2026
+
+- PR #1188 integrada: Canary source `3ae73dd26f5af420420c998a6564d346a99cafd8`. Canary Exact Deploy [40779051927](https://github.com/iberfit/iberfit-m26-app/actions/runs/40779051927) SUCCESS: regresión completa, identidad exacta, smoke escritorio/móvil y rollback disponible. CI, auditoría, dispositivos/PWA y evidencia visual SUCCESS sobre ese SHA.
+- QA autenticado [40779051887](https://github.com/iberfit/iberfit-m26-app/actions/runs/40779051887), job `123135772414`: el Cliente ya encuentra el running U47 y supera inicio con ACK. Falla después al completar serie: el enhancer público exige `reps/seconds`, ignorando `durationMinutes/distanceKm` que admite el motor. Distancia 6.5 km, duración 35.8 min y RPE 7 no habilitan el botón.
+- WIP `fix/u48-live-modality-validation`: validación del formulario acorde con las métricas de cardio, transporte e intervalos; conserva límites, RPE obligatorio y requisitos de fuerza. Regresión del input público y registro por motor real. Implementación candidata, NO desplegada.
+- **Estado QA con escritura parcial:** el entrenamiento sintético existente recibió inicio confirmado, pero no se alcanzó ACK de progreso/cierre ni lectura de historial. No repetir el ensayo de inicio ni borrar/resetear ejecución. Antes de nueva certificación, inspeccionar estado canónico y preparar recuperación explícita de esa misma ejecución.
+- **PROD no modificada en este bloque. NO-GO de promoción** hasta corregir, superar CI y certificar continuidad/cierre/historial autenticados. Health Connect y Android físico no se recertifican con este trabajo.
+
+---
+
 ## SIGNATURE U45 · Primera entrada de campaña sin waterfall · WIP 28-10-2026
 
 - **Base canónica comprobada:** `919b053df6c9ac24b8dc95b98dea90940d6314ce` en Canary y PROD, ambos dominios consultados y QA/PROD identificados correctamente. PR #1181 U44 ya fusionada; no reimplementar.
