@@ -131,7 +131,18 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
   await expect(visibleNavigationTarget,'Authenticated workspace must expose a visible enabled navigation target').toBeVisible({timeout:5_000});
   const targetArea=await visibleNavigationTarget.getAttribute('data-m26-area');
   expect(targetArea).toBeTruthy();
-  await visibleNavigationTarget.click({timeout:5_000});
+  const navigationClickStart=Date.now();
+  try{
+    await visibleNavigationTarget.click({timeout:5_000});
+  }catch(error){
+    console.error('RC64_CLIENT_NAV_CLICK_FAILURE:'+JSON.stringify({
+      project:projectName,area:targetArea,elapsedMs:Date.now()-navigationClickStart,
+    }));
+    throw error;
+  }
+  console.log('RC64_CLIENT_NAV_CLICK_LATENCY:'+JSON.stringify({
+    project:projectName,area:targetArea,elapsedMs:Date.now()-navigationClickStart,
+  }));
   await expect(
     page.locator(`.m26-client-bottom-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
   ).toBeVisible({timeout:5_000});

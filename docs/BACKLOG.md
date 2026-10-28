@@ -1,3 +1,12 @@
+## WIP único · SIGNATURE B37 · Navegación táctil sin bloqueo del clic · 27-10-2026
+
+- **Canary B36 realmente servido:** `6384db077a2d3082e72839d4e7cd3bc74990640b` en `m26-canary.iberfit.cl` con Supabase QA; **PROD permanece B35** `3e019c7affe4fb2795edbfa1a562a90c0bc06fd1`.
+- **Incidencia P1 [#1170](https://github.com/iberfit/iberfit-m26-app/issues/1170):** Device Gate B36 #40611327053 falló por timeout de `locator.click` durante navegación Cliente a Planificación en móvil y luego tablet apaisada; todos los demás gates, incluidos WebAuthn y QA real write, PASS. No atribuir causalidad definitiva sin perfilado.
+- **B37 en desarrollo, NO en Canary ni PROD:** desacopla el cambio de ruta del evento touch que origina el clic; invalida la navegación diferida si cambia la sesión, la ruta o se desmonta el controlador. Mantiene controles de autorización, rutas, foco, UI y la prueba Playwright real de 5 s. Añade diagnósticos sin registrar datos sensibles.
+- **Salida:** Fast Lane, CI, Device Experience Gate auténtico en móvil/tablet, Canvas/Canary exactos, los siete gates fuente y promoción frontend-only protegida con M44 y rollback. El P1 permanece bloqueante hasta certificación.
+
+---
+
 ## WIP único · SIGNATURE B36 · Cancelación de lecturas obsoletas y CPU de históricos · 27-10-2026
 
 - **Base verificada PROD/Canary:** B35 exacto `3e019c7affe4fb2795edbfa1a562a90c0bc06fd1`; no reimplementar B35.
