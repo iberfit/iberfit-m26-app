@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "0107f58fe71f225b11818758576c4f28b03d4eba",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "919b053df6c9ac24b8dc95b98dea90940d6314ce",
+  "notes": "SIGNATURE U45: primera entrada ligera desde campañas sin retrasar login; M44 cifrado y restaurado, gates exactos Coach/Admin/Device/CI/Canary certificados; sin cambio backend ni SQL"
+}
