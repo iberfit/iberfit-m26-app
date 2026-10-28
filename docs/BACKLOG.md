@@ -1,3 +1,12 @@
+## WIP único · SIGNATURE B36 · Cancelación de lecturas obsoletas y CPU de históricos · 27-10-2026
+
+- **Base verificada PROD/Canary:** B35 exacto `3e019c7affe4fb2795edbfa1a562a90c0bc06fd1`; no reimplementar B35.
+- **WIP (NO desplegado):** AbortSignal ligado al job de hidratación sin modificar lease de identidad, cancelación de lecturas bootstrap/QA U39 al caducar o cerrar autenticación y reducción de `Date.parse` redundante al validar/ordenar eventos.
+- **Alcance:** frontend, tests, seguimiento. Ningún SQL/RLS/Edge/Hosted Auth. Esto NO arregla #1075 (SQL 57014) ni acredita mejora de latencia medida.
+- **Antes del cierre:** tests de carreras y abort, WebAuthn Coach/Admin real, CI/Device/Canary SHA exacto, M44 y promoción PROD protegida con rollback. No ocultar historial ni relajar assurance/ACL/timeouts. Connected360 sigue inmediatamente después.
+
+---
+
 ## WIP único · SIGNATURE B35 · Hidratación segura de Coach con historial amplio · 27-10-2026
 
 - **Base PROD/Canary:** B34 `fee17f54f99d4824e11ccc7cde77c68010bfa0ba`, release #40592517376 SUCCESS.

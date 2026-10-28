@@ -23,6 +23,7 @@ test('B35 recoverable timeout retires old hydration lease but preserves authenti
     session,hydrationSessionLeases:leases,loginBusy:true,mfaState:{kind:'ready'},
     authMode:'post-mfa-loading',sessionRetryAvailable:false,
     invalidateAuthAttempt:()=>stages.push('invalidate'),
+    hydrationCoordinator:{cancel:()=>stages.push('abort-remote')},
     destroyControllers:()=>stages.push('destroy'),
     store:{reset:()=>stages.push('reset')},
     reportSoftDiagnostic:()=>stages.push('diagnostic'),
@@ -36,7 +37,7 @@ test('B35 recoverable timeout retires old hydration lease but preserves authenti
   assert.strictEqual(sandbox.session,session);
   assert.equal(sandbox.authMode,'recoverable-session');
   assert.equal(sandbox.sessionRetryAvailable,true);
-  assert.deepEqual(stages,['invalidate','destroy','reset','diagnostic','recovery-ui']);
+  assert.deepEqual(stages,['invalidate','abort-remote','destroy','reset','diagnostic','recovery-ui']);
 });
 
 test('B35 late full-snapshot backend response after recovery cannot hydrate canonical store or overwrite a newer login',async()=>{

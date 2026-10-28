@@ -232,13 +232,18 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     // Only the password exchange may use a shorter attempt budget. One
     // retriable transport stall should not consume the entire login watchdog.
     // Read/write RPCs keep their existing runtime timeout and CAS semantics.
-    const {requestTimeoutMs,token:providedToken,headers:providedHeaders={},body,...fetchOptions}=options;
+    const {requestTimeoutMs,token:providedToken,headers:providedHeaders={},body,signal:externalSignal,...fetchOptions}=options;
     const configuredTimeout=Number(runtime.timeoutMs)||DEFAULT_TIMEOUT_MS;
     const requestedTimeout=Number(requestTimeoutMs);
     const timeoutMs=Number.isFinite(requestedTimeout)&&requestedTimeout>=1_000
       ?Math.min(configuredTimeout,requestedTimeout):configuredTimeout;
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const abortFromCaller=()=>controller.abort();
+    let timer=null;
     try {
+      if(externalSignal?.aborted)throw new Error('M26_REQUEST_CANCELLED');
+      externalSignal?.addEventListener?.('abort',abortFromCaller,{once:true});
+      if(externalSignal?.aborted)controller.abort();
+      timer=setTimeout(() => controller.abort(), timeoutMs);
       const token = providedToken || runtime.publishableKey;
       if(!token||String(token).length>MAX_TOKEN_CHARS)throw new Error('M26_AUTH_TOKEN_INVALID');
       const response = await fetchImpl(`${runtime.url}${path}`, {
@@ -273,10 +278,11 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       }
       return payload;
     } catch (error) {
-      if (error?.name === 'AbortError') throw new Error('M26_TIMEOUT');
+      if (error?.name === 'AbortError') throw new Error(externalSignal?.aborted?'M26_REQUEST_CANCELLED':'M26_TIMEOUT');
       throw error;
     } finally {
-      clearTimeout(timer);
+      if(timer!==null)clearTimeout(timer);
+      externalSignal?.removeEventListener?.('abort',abortFromCaller);
     }
   }
 
@@ -782,12 +788,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   // Never expose or persist a partially hydrated snapshot. This is only
   // selected by the QA Coach test identity; PostgreSQL independently verifies
   // auth.uid(), role, scope and the genuine WebAuthn assurance on every RPC.
-  async function bootstrapQaCoachWithHistory(token,{assertOwner=()=>{}}={}){
+  async function bootstrapQaCoachWithHistory(token,{assertOwner=()=>{},signal}={}){
     if(!runtime.qaOnly)throw new Error('U39_QA_ONLY');
     if(!token||typeof assertOwner!=='function')throw new Error('U39_AUTH_OR_OWNER_INVALID');
     assertOwner();
     const core=await request('/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa',{
-      method:'POST',token,body:'{}',
+      method:'POST',token,body:'{}',signal,
     });
     assertOwner();
     if(core?.environment!=='QA'||core?.user?.role!=='coach'
@@ -804,7 +810,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     let cancelled=false;
     const nextJob=()=>jobs[cursor++]||null;
     const check=()=>{
-      if(cancelled)throw new Error('U39_HISTORY_CANCELLED');
+      if(cancelled||signal?.aborted)throw new Error('U39_HISTORY_CANCELLED');
       assertOwner();
     };
     async function readSection({clientId,section}){
@@ -819,7 +825,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
           check();
           try{
             page=await request('/rest/v1/rpc/iberfit_privileged_history_page_u38_qa',{
-              method:'POST',token,
+              method:'POST',token,signal,
               body:JSON.stringify({
                 p_client_id:clientId,p_section:section,
                 p_snapshot_at:next.snapshotAt,
@@ -868,14 +874,15 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return assembler.finish({owner});
   }
 
-  async function bootstrapWithBoundedStatementTimeoutRecovery(token){
+  async function bootstrapWithBoundedStatementTimeoutRecovery(token,{signal}={}){
     // Two independent capped read-only recoveries. Only the exact PGRST303
     // future-iat signature qualifies; generic 401, expired/revoked JWT and
     // all mutations stay fail-closed. Never replace the authenticated JWT.
     let skewRetries=0,timeoutRetries=0;
     for(;;){
+      if(signal?.aborted)throw new Error('M26_REQUEST_CANCELLED');
       try{
-        return await rpc(runtime.rpc.bootstrap,token,{});
+        return await rpc(runtime.rpc.bootstrap,token,{}, {signal});
       }catch(error){
         if(isFutureIssuedJwtClockSkew(error)&&skewRetries<3){
           await authRetryDelay([350,800,1300][skewRetries++]);
@@ -891,11 +898,11 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     }
   }
 
-  async function rpc(name, token, params = {}) {
+  async function rpc(name, token, params = {}, {signal} = {}) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     if(!Object.values(CANONICAL_RPC).includes(name))throw new Error('M26_RPC_NOT_ALLOWED');
     return request(`/rest/v1/rpc/${name}`, {
-      method: 'POST', token, body: JSON.stringify(params),
+      method: 'POST', token, body: JSON.stringify(params), signal,
     });
   }
 

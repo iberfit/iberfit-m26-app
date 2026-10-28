@@ -716,7 +716,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-catalog-ready');
     return catalog;
   }
-  async function hydratePass({reason='bootstrap',ownerSession}={}){
+  async function hydratePass({reason='bootstrap',ownerSession,signal}={}){
     // Capture ownership at request time, not after a concurrent login starts.
     const requestedOwner=ownerSession===undefined?hydrationLeaseFor(session):ownerSession;
     if(!requestedOwner||hydrationLeaseFor(session)!==requestedOwner)
@@ -738,8 +738,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       const qaAtomicCoach=runtime.qaOnly===true
         &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.coach@iberfit.cl';
       const primarySnapshot=qaAtomicCoach
-        ?transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner})
-        :transport.bootstrap(currentToken());
+        ?transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner,signal})
+        :transport.bootstrap(currentToken(),{signal});
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
         primarySnapshot,
         transport.commandRegistry(currentToken()),
@@ -1626,7 +1626,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,scope='local',message='',noticeKind='status',preserveWorkflowDrafts=true}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;refreshInFlightOwnerSession=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers({preserveWorkflowDrafts});store.reset();authMessage(message,noticeKind);void transport?.logout?.(token,{scope}).catch(()=>{});}
+  function finishLogout({token,scope='local',message='',noticeKind='status',preserveWorkflowDrafts=true}={}){hydrationCoordinator.cancel();invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;refreshInFlightOwnerSession=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers({preserveWorkflowDrafts});store.reset();authMessage(message,noticeKind);void transport?.logout?.(token,{scope}).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token,scope:'local'});}
   function onLogoutAllSessions(){
     if(!session)return false;
@@ -1796,6 +1796,7 @@ function onAuthClick(event) {
   }
 
   if(action==='use-another-account'){
+    hydrationCoordinator.cancel();
     const token=currentToken();
     invalidateAuthAttempt();
     loginBusy=false;
@@ -2149,6 +2150,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   function surfaceRetriableSessionFailure(error,stage='resume'){
     invalidateAuthAttempt();
+    // Stop obsolete reads; the identity lease below still fences stale writes.
+    hydrationCoordinator.cancel();
     // Retire only the obsolete hydration generation; preserve the authenticated
     // token, WebAuthn assurance and durable user work for explicit retry.
     // Any late bootstrap response now fails requireOwner before store.hydrate.
@@ -2164,6 +2167,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMessage(contextMissing?'M26_ROLE_CONTEXT_MISSING':'',contextMissing?'error':'status');
   }
   function discardSessionAfterFailure(error,stage='resume'){
+    hydrationCoordinator.cancel();
     vault.clear();
     session=null;
     mfaState=null;
@@ -2409,6 +2413,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Promise.resolve(false);
 }
   function destroy() {
+  hydrationCoordinator.cancel();
   invalidateAuthAttempt();
   loginBusy=false;
   const recoveryToken = recoverySession?.accessToken || null;
