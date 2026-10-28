@@ -61,7 +61,7 @@ export function allowedU56SyntheticWrite(request,scope){
   return true;
 }
 
-export async function openU56ClientReadOnly(browser,installPolicy){
+export async function openU56ClientReadOnly(browser,installPolicy,writeScope=null){
   const {expect}=await import('@playwright/test');
   for(const key of ['M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT'])
     expect(process.env[key],'U56 requires real synthetic QA credentials and run ID').toBeTruthy();
@@ -71,7 +71,7 @@ export async function openU56ClientReadOnly(browser,installPolicy){
     serviceWorkers:'block',viewport:{width:390,height:844},hasTouch:true,
   });
   const evidence={blocked:[],qaRequests:[],webauthnActions:[]};
-  await installPolicy(context,evidence);
+  await installPolicy(context,evidence,writeScope);
   const page=await context.newPage(),pageErrors=[];
   let clientId=null;
   page.on('pageerror',error=>pageErrors.push(String(error?.message||'PAGE_ERROR').slice(0,150)));
