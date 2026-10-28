@@ -23,7 +23,10 @@ test('U48 newest authorized running is visible before session archive, without d
  const ordered=prioritizeClientSessionItems(items,x=>x.canClientExecute);
  assert.equal(ordered[0].id,'running');assert.equal(items[0].id,'s0');
  const html=render('sesion',items),at=id=>html.indexOf('data-rc39-session="'+id+'"');
- assert.ok(at('running')>=0&&at('running')<html.indexOf('data-signature-session-archive'));
+ const archiveAt=html.indexOf('data-signature-session-archive');
+ assert.equal(archiveAt,-1,'All nine authorized sessions are available, so none belongs in history');
+ assert.ok(at('running')>=0&&at('running')<(archiveAt>=0?archiveAt:html.length),
+   'Newly published workout must be directly visible, whether or not history exists');
  assert.ok(at('running')<at('s0'));
  assert.match(html,/data-session-available-count="9"/);
  for(let i=0;i<8;i++)assert.ok(at('s'+i)>=0);
