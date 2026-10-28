@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "f88bd4aff5a71d40a59d23a5c5afa6bc1654fec9",
+  "notes": "Connected360 C39 civil-day/source validation; QA 9/9 postmerge certified; frontend only, no SQL/Edge/Hosted Auth"
+}
