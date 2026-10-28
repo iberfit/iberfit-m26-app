@@ -83,3 +83,44 @@ test('U48: equal or malformed publication timestamps preserve deterministic orig
  assert.deepEqual(prioritizeClientPublishedSessions(projections).map(x=>x.id),
    projections.map(x=>x.id));
 });
+
+// Regression from authenticated QA: U47 was the FIFTH of eight ready sessions.
+// The previous 4-item clamp hid its actionable Play under history <details>.
+test('U48 postmerge: all eight ready sessions including older running are visible on both Client routes',()=>{
+ const ready=Array.from({length:8},(_,i)=>published(i===7?'running':'strength',i+1,{
+   publishedAt:new Date(Date.UTC(2026,9,28,20,0-i)).toISOString(),
+ }));
+ const inactive=Array.from({length:25},(_,i)=>published('onsite',100+i,{onsite:true}));
+ const projections=project([...inactive,...ready]);
+ for(const kind of ['sesion','planificacion']){
+   const html=renderRc39Route(vm(kind,projections));
+   const historyMarker='data-signature-'+(kind==='sesion'?'session':'planning')+'-archive';
+   const historyAt=html.indexOf(historyMarker);
+   assert.ok(historyAt>0,'Review-only history remains discoverable');
+   const immediate=html.slice(0,historyAt);
+   for(const session of ready){
+     assert.match(immediate,new RegExp('data-rc39-session="'+session.id+'"'),session.id+' must not be under history');
+     assert.match(immediate,new RegExp('data-workflow-action="start-published-session" data-entity-id="'+session.id+'"'),
+       session.id+' retains a direct authorized Play');
+   }
+   assert.ok(html.indexOf('data-rc39-session="session-8"')<historyAt);
+   assert.equal(cardIds(html).length,ready.length+inactive.length,'No sessions dropped or duplicated');
+   assert.equal((immediate.match(/data-workflow-action="start-published-session"/gu)||[]).length,ready.length);
+ }
+});
+test('U48 postmerge: more than 24 ready sessions use a named available group, never historical archive',()=>{
+ const ready=Array.from({length:30},(_,i)=>published('running',i+1));
+ const inactive=Array.from({length:4},(_,i)=>published('onsite',100+i,{onsite:true}));
+ const projections=project([...inactive,...ready]);
+ for(const kind of ['sesion','planificacion']){
+   const html=renderRc39Route(vm(kind,projections));
+   const history='data-signature-'+(kind==='sesion'?'session':'planning')+'-archive';
+   const overflow='data-signature-ready-overflow';
+   assert.ok(html.indexOf(overflow)>0&&html.indexOf(overflow)<html.indexOf(history));
+   assert.match(html,/Ver otros 6 entrenamientos disponibles/u);
+   assert.ok(html.indexOf('data-rc39-session="session-30"')<html.indexOf(history));
+   const startCount=(html.match(/data-workflow-action="start-published-session"/gu)||[]).length;
+   assert.equal(startCount,30,'All authorized workouts retain their unique start action');
+   assert.equal(cardIds(html).length,34,'Overflow does not duplicate or discard an older session');
+ }
+});
