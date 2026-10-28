@@ -206,8 +206,16 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     item.canClientExecute===true&&sessionIdOf(item.session)===String(item.id||'')&&
     actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment}));
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
-  const inPreviewStart=role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)
-    ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Preparar entrenamiento</button></div>`:'';
+  const canResume=role==='client'&&serviceActive&&experience.clientLiveWorkout&&
+    item.visible===true&&item.visibility==='full'&&item.canClientExecute===true&&
+    String(publishedBody(item.session).status||item.session?.status||'').toLowerCase()==='en_curso'&&
+    sessionIdOf(item.session)===String(item.id||'')&&
+    actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment})&&
+    sessionHasExecutableBlocks(item.session);
+  const inPreviewStart=canResume
+    ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Continuar entrenamiento</button></div>`
+    :role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)
+      ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Preparar entrenamiento</button></div>`:'';
   const content=detailAvailable
     ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
     : `<p class="m26-rc39-summary-copy">${supervised

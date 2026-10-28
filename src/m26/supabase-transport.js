@@ -1845,6 +1845,30 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...response});
   }
 
+  // Read one explicitly identified execution under the existing authenticated
+  // session_executions SELECT RLS. Never use an admin/service key or enumerate.
+  async function readExistingExecution(token,{clientId,sessionId,executionId}={}){
+    const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+    if(!token)throw Error('M48_RECOVERY_AUTH_REQUIRED');
+    if(![clientId,sessionId,executionId].every(id=>uuid.test(String(id||''))))
+      throw Error('M48_RECOVERY_IDENTITY_INVALID');
+    const select='id,client_id,session_id,execution_status,revision,summary';
+    const path='/rest/v1/session_executions?select='+encodeURIComponent(select)+
+      '&id=eq.'+encodeURIComponent(executionId)+
+      '&session_id=eq.'+encodeURIComponent(sessionId)+
+      '&client_id=eq.'+encodeURIComponent(clientId)+'&limit=2';
+    const rows=await request(path,{method:'GET',token});
+    if(!Array.isArray(rows)||rows.length!==1)throw Error('M48_RECOVERY_REMOTE_NOT_UNIQUE');
+    const row=rows[0];
+    if(String(row?.id)!==String(executionId)||
+      String(row?.session_id)!==String(sessionId)||
+      String(row?.client_id)!==String(clientId)||
+      !Number.isSafeInteger(Number(row?.revision))||Number(row.revision)<1||
+      !row.summary||typeof row.summary!=='object'||Array.isArray(row.summary))
+      throw Error('M48_RECOVERY_REMOTE_INVALID');
+    return row;
+  }
+
   async function commandRegistry(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     const select = 'command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,snapshot_on_apply,conflict_sensitive,bootstrap_allowed,enabled';
@@ -1908,6 +1932,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     renameExercise,
     updateExerciseMeasurementProfile,
     commandRegistry,
+    readExistingExecution,
     clientOnboardingPreflight,
     createReportDraft,
     createClientDraft,
