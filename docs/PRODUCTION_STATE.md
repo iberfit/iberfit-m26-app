@@ -1,3 +1,12 @@
+## WIP único · Connected360 C39 · Integridad del día civil, fuentes desconocidas y recuperación sin bloqueo · 28-10-2026
+
+- **Producción certificada:** SIGNATURE B38 + Connected360 C38 SHA `f88bd4aff5a71d40a59d23a5c5afa6bc1654fec9`, [promoción oficial #40626067758](https://github.com/iberfit/iberfit-m26-app/actions/runs/40626067758) SUCCESS intento 1. Supabase PROD/QA aislados; sin migración ni despliegue backend.
+- **C39 en desarrollo — NO fusionado ni publicado:** historial de Health Connect muestra los últimos siete **días civiles del dispositivo** (no las fechas UTC, que cambian de día a las 21:00 en Chile); normalización rechaza fechas imposibles y revalida filas con forma de snapshot en lugar de confiar en ellas; fuentes nuevas o malformadas aparecen como no disponibles sin bloquear la vista ni insinuar vínculo/permiso certificado.
+- **Integridad y límites:** no borrar filas almacenadas, no inferir propiedad del reloj, no modificar consentimiento, autorización, RLS, Auth ni sesiones. QA con prueba explícita `America/Santiago`, fechas inválidas, entradas adversarias y recuperación del Cliente.
+- **Salida:** Fast Lane + auditoría integral + CI + Device Experience, merge solo con gates verdes; Canary exacto; PROD exclusivamente por workflow con M44/rollback y SHA live confirmado.
+
+---
+
 ## Connected360 C38 · Autorización Android verificada · WIP 27-10-2026
 
 - **Producción verificada:** B36+B37 `b3d7a733ddde8cc192af0143c126f2b64f6524d6`, promoción oficial [#40618977447](https://github.com/iberfit/iberfit-m26-app/actions/runs/40618977447) SUCCESS intento 2, backup M44 nuevo, frontend-only.
