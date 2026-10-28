@@ -154,6 +154,11 @@ function enableMinimalAuthShell({reveal=false}={}){
   card?.setAttribute?.('data-auth-mode','login');
   card?.setAttribute?.('data-auth-state','ready');
   card?.setAttribute?.('aria-busy','false');
+  const actions=card?.querySelector?.('.m26-auth-actions');
+  if(actions)actions.hidden=true;
+  const page=root.querySelector?.('.m26-auth-page');
+  page?.setAttribute?.('data-auth-mode','login');
+  page?.setAttribute?.('data-auth-state','ready');
   const title=card?.querySelector?.('#m26-auth-title');
   if(title)title.textContent='Tu espacio IBERFIT';
   const copy=card?.querySelector?.('.m26-auth-copy>p:last-child');
@@ -1065,9 +1070,23 @@ async function loadFullApplication(){
 
 if(runtime.enabled){
   installMinimalAuthBootstrap();
-  startBootstrapWatchdog();
   try{
-    await loadFullApplication();
+    // Do not download the entire Client/Coach/Admin graph merely to display
+    // sign-in. Existing sessions and Auth/deep-link callbacks keep the
+    // original complete, secured bootstrap and account recovery.
+    const [{createSessionVault},{shouldLoadFullApplicationImmediately}]=await Promise.all([
+      import('/src/m26/app/session-vault.js'),
+      import('/src/m26/app/preauth-start-policy.js'),
+    ]);
+    if(shouldLoadFullApplicationImmediately({
+      session:createSessionVault().load(),
+      locationLike:globalThis.location,
+    })){
+      startBootstrapWatchdog();
+      await loadFullApplication();
+    }else{
+      enableMinimalAuthShell({reveal:true});
+    }
   }catch(error){
     clearBootstrapWatchdog();
     if(minimalAuthInstalled&&!minimalAuthBusy)surfaceDeferredFullAppFailure(error);

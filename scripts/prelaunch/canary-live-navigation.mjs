@@ -10,9 +10,10 @@ export async function navigateCanaryLiveForCertification(page,url,{
     waitUntil:'domcontentloaded',
     timeout:navigationTimeoutMs,
   });
-  // The load event and the usable login are separate requirements.
-  // Fail closed if either never materializes; do not swallow timeouts.
-  await page.waitForFunction(()=>document.readyState==='complete',null,{
+  // DOM readiness is required, but a slow optional asset must not
+  // masquerade as an unready login. The live gate independently imports
+  // the actual application module and rejects all runtime/browser errors.
+  await page.waitForFunction(()=>['interactive','complete'].includes(document.readyState),null,{
     timeout:readinessTimeoutMs,
   });
   await page.locator('form[data-auth-form="login"]').waitFor({

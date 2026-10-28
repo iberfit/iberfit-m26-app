@@ -102,7 +102,9 @@ test('RC64.2A disabled runtime uses external critical CSS and does not fetch ful
   assert.match(entry,/settleDisabledAuthShell\(\);/u);
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
-  assert.match(entry,/if\(runtime\.enabled\)\{\s*installMinimalAuthBootstrap\(\);\s*startBootstrapWatchdog\(\);/u);
+  assert.match(entry,/if\(runtime\.enabled\)\{\s*installMinimalAuthBootstrap\(\);/u);
+  assert.match(entry,/if\(shouldLoadFullApplicationImmediately\([\s\S]*?startBootstrapWatchdog\(\);/u);
+  assert.match(entry,/enableMinimalAuthShell\(\{reveal:true\}\)/u);
   assert.match(entry,/if\(minimalAuthInstalled&&!minimalAuthBusy\)surfaceDeferredFullAppFailure\(error\)/u);
   assert.match(entry,/else renderBootstrapRecovery\(error\)/u);
   assert.doesNotMatch(index,/href="\/src\/m26\/design\/adaptive-layout\.css"/u);
@@ -149,7 +151,9 @@ test('RC64.2A initial HTML starts in checking state and disabled runtime settles
   assert.ok(staticIndex>=0&&moduleIndex>staticIndex);
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
-  assert.match(entry,/if\(runtime\.enabled\)\{\s*installMinimalAuthBootstrap\(\);\s*startBootstrapWatchdog\(\);/u);
+  assert.match(entry,/if\(runtime\.enabled\)\{\s*installMinimalAuthBootstrap\(\);/u);
+  assert.match(entry,/if\(shouldLoadFullApplicationImmediately\([\s\S]*?startBootstrapWatchdog\(\);/u);
+  assert.match(entry,/enableMinimalAuthShell\(\{reveal:true\}\)/u);
   assert.match(entry,/function settleDisabledAuthShell\(\)/u);
   assert.match(entry,/data-auth-state','unavailable'/u);
   assert.match(entry,/Acceso no disponible temporalmente\./u);

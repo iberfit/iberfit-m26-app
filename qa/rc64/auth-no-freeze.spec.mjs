@@ -60,7 +60,7 @@ test('auth recovers from a hung password request without reload or mixed-languag
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,300)));
 
   try{
-    const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+    const navigation=await page.goto('/?u44_full_auth_smoke=1',{waitUntil:'networkidle',timeout:15_000});
     expect(navigation?.ok()).toBeTruthy();
 
     await expect(page.locator('.m26-auth-page')).toBeVisible();
@@ -174,7 +174,7 @@ test('failed full-app import preserves one user submit while a stalled password 
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error||'PAGE_ERROR').slice(0,250)));
   try{
-    const response=await page.goto('/',{waitUntil:'domcontentloaded',timeout:15_000});
+    const response=await page.goto('/?u44_full_auth_smoke=1',{waitUntil:'domcontentloaded',timeout:15_000});
     expect(response?.ok()).toBeTruthy();
 
     const form=page.locator('form[data-auth-form="login"]');
@@ -307,7 +307,7 @@ test('token HTTP 200 followed by stalled assurance recovers and retries without 
   const page=await context.newPage();
   page.on('pageerror',error=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,200)));
   try{
-    const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+    const navigation=await page.goto('/?u44_full_auth_smoke=1',{waitUntil:'networkidle',timeout:15_000});
     expect(navigation?.ok()).toBeTruthy();
     const form=page.locator('form[data-auth-form="login"]');
     await expect(form).toBeVisible();
@@ -391,7 +391,7 @@ test('one transient assurance network failure recovers automatically without pri
   const page=await context.newPage();const pageErrors=[];
   page.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
   try{
-    const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+    const navigation=await page.goto('/?u44_full_auth_smoke=1',{waitUntil:'networkidle',timeout:15_000});
     expect(navigation?.ok()).toBeTruthy();
     const form=page.locator('form[data-auth-form="login"]');
     await expect(form).toBeVisible();
@@ -506,7 +506,7 @@ for(const device of [
     try{
       const cdp=await context.newCDPSession(page);
       await cdp.send('Emulation.setCPUThrottlingRate',{rate:device.cpu});
-      const response=await page.goto('/',{waitUntil:'domcontentloaded',timeout:22_000});
+      const response=await page.goto('/?u44_full_auth_smoke=1',{waitUntil:'domcontentloaded',timeout:22_000});
       expect(response?.ok()).toBeTruthy();
       const form=page.locator('form[data-auth-form="login"]');
       await expect(form).toBeVisible({timeout:14_000});
@@ -543,3 +543,50 @@ for(const device of [
     }
   });
 }
+
+test('U44 logged-out cold entry uses interactive first-factor without eager app mount, one scoped POST',async({browser})=>{
+  const context=await browser.newContext({
+    baseURL:LOCAL_ORIGIN,locale:'es-CL',timezoneId:'America/Santiago',
+    serviceWorkers:'block',viewport:{width:390,height:844},hasTouch:true,
+  });
+  let passwordPosts=0;
+  const unexpected=[];
+  await context.route('**/*',async route=>{
+    const request=route.request(),url=new URL(request.url());
+    if(url.origin===LOCAL_ORIGIN){await route.continue();return;}
+    if(url.origin===SUPABASE_ORIGIN&&request.method()==='POST'&&
+       url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'){
+      passwordPosts++;
+      await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({
+        error:'invalid_grant',error_description:'Invalid login credentials',
+      })});
+      return;
+    }
+    unexpected.push(request.method()+' '+url.origin+' '+url.pathname);
+    await route.abort('blockedbyclient');
+  });
+  const page=await context.newPage();
+  const pageErrors=[];
+  page.on('pageerror',error=>pageErrors.push(String(error?.message||error)));
+  try{
+    const response=await page.goto('/',{waitUntil:'domcontentloaded',timeout:15_000});
+    expect(response?.ok()).toBeTruthy();
+    const form=page.locator('form[data-auth-form="login"]');
+    await expect(form).toBeVisible({timeout:6_000});
+    const submit=form.locator('button[type="submit"]');
+    await expect(submit).toBeEnabled();
+    expect(await page.evaluate(()=>Boolean(globalThis.__IBERFIT_M26_APP__))).toBe(false);
+    expect(await page.locator('[data-bootstrap-slow-recovery]').count()).toBe(0);
+    await form.locator('input[name="email"]').fill('qa.rc64.u44.signin@iberfit.cl');
+    await form.locator('input[name="password"]').fill('synthetic-only-password');
+    await submit.click();
+    await expect.poll(()=>passwordPosts,{timeout:7_000}).toBe(1);
+    await expect(page.locator('[data-minimal-auth-notice]')).toContainText(
+      'El correo o la contraseña no son correctos.',
+    );
+    await expect(submit).toBeEnabled();
+    expect(await page.evaluate(()=>Boolean(globalThis.__IBERFIT_M26_APP__))).toBe(false);
+    expect(unexpected).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  }finally{await context.close().catch(()=>{});}
+});
