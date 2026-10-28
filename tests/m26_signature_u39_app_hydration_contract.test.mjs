@@ -14,8 +14,8 @@ const other=[
 
 test('U39 production, QA Admin and QA Client continue on the unchanged bootstrap method',()=>{
  assert.match(app,/const qaAtomicCoach=runtime\.qaOnly===true[\s\S]*qa\.rc74\.coach@iberfit\.cl/u);
- assert.match(app,/transport\.bootstrapQaCoachWithHistory\(currentToken\(\),\{assertOwner:requireOwner\}\)/u);
- assert.match(app,/:transport\.bootstrap\(currentToken\(\)\)/u);
+ assert.match(app,/transport\.bootstrapQaCoachWithHistory\(currentToken\(\),\{assertOwner:requireOwner,signal\}\)/u);
+ assert.match(app,/:transport\.bootstrap\(currentToken\(\),\{signal\}\)/u);
  assert.match(app,/requireOwner\(\); \/\/ Never interpret A's snapshot under B's active role\/token/u);
  const start=app.indexOf('const qaAtomicCoach=');
  const store=app.indexOf('store.hydrate(enriched)',start);

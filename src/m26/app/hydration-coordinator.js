@@ -19,7 +19,7 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
       return inFlight.promise;
     }
 
-    const job={owner,queued:false,queuedReason:requestedReason,promise:null};
+    const job={owner,queued:false,queuedReason:requestedReason,promise:null,controller:new AbortController()};
     const pending=Promise.resolve().then(async()=>{
       let result=null;
       let currentReason=requestedReason;
@@ -32,7 +32,8 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
         const queuedBeforeStart=firstPass&&job.queued;
         firstPass=false;
         job.queued=false;
-        result=await run({reason:currentReason,ownerSession:owner});
+        result=await run({reason:currentReason,ownerSession:owner,signal:job.controller.signal});
+        if(job.controller.signal.aborted)throw new Error('M26_HYDRATION_CANCELLED');
         if(queuedBeforeStart)job.queued=true;
         currentReason=job.queuedReason;
       }while(job.queued&&inFlight===job);
@@ -46,7 +47,14 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
     return pending;
   }
 
-  return Object.freeze({request});
+  // Abort obsolete network reads and never run a queued pass after teardown.
+  function cancel(){
+    if(!inFlight)return false;
+    inFlight.queued=false;
+    inFlight.controller.abort();
+    return true;
+  }
+  return Object.freeze({request,cancel});
 }
 
 export const __hydrationCoordinatorInternals=Object.freeze({safeReason});

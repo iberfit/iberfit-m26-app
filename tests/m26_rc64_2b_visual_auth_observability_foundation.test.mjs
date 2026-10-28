@@ -458,7 +458,7 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   ]);
 
   assert.match(smoke,/domain_command_registry_v26/u);
-  assert.match(application,/transport\.bootstrap\(currentToken\(\)\)/u);
+  assert.match(application,/transport\.bootstrap\(currentToken\(\),\{signal\}\)/u);
   assert.match(application,/transport\.commandRegistry\(currentToken\(\)\)/u);
   assert.match(application,/rc39Transport\.extensions\(currentToken\(\)\)/u);
   assert.match(application,/adminTransport\.applicationContextOptional\(currentToken\(\)\)/u);

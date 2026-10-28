@@ -34,8 +34,10 @@ function clientFor(section,item){
 function rowTimestamp(section,record){
   const raw=section==='m26Entities'?record.updatedAt
     :section==='domainEvents'?record.created_at:record.updated_at;
-  if(!positiveDate(raw))failure('INVALID_RECORD_DATE');
-  return Date.parse(raw);
+  if(typeof raw!=='string'||raw.length>50)failure('INVALID_RECORD_DATE');
+  const timestamp=Date.parse(raw);
+  if(!Number.isFinite(timestamp))failure('INVALID_RECORD_DATE');
+  return timestamp;
 }
 function cursorMatchesLastRow(section,cursor,record){
   if(rowTimestamp(section,record)!==Date.parse(cursor.at))return false;
@@ -43,13 +45,15 @@ function cursorMatchesLastRow(section,cursor,record){
   return cursor.id===actualId
     &&(section!=='m26Entities'||cursor.type===record.entityType);
 }
-function compareEvents(a,b){
-  const at=Date.parse(String(a?.created_at||''))||0,bt=Date.parse(String(b?.created_at||''))||0;
-  if(at!==bt)return bt-at;
-  try{
-    const ai=BigInt(String(a?.id)),bi=BigInt(String(b?.id));
-    return ai===bi?0:ai>bi?-1:1;
-  }catch{return 0;}
+function sortEventsOnce(records){
+  // Records have been checked during accept. Decorate dates and bigint IDs
+  // once rather than reparsing each comparator call (O(n log n) parses).
+  return records.map(record=>({
+    record,at:Date.parse(record.created_at),id:BigInt(String(record.id)),
+  })).sort((a,b)=>{
+    if(a.at!==b.at)return b.at-a.at;
+    return a.id===b.id?0:a.id>b.id?-1:1;
+  }).map(item=>item.record);
 }
 function isCursor(value,section){
   if(!value||typeof value!=='object'||Array.isArray(value)
@@ -182,7 +186,7 @@ export function createPrivilegedHistoryAssembler(core,{owner,limit=PAGE_LIMIT,pr
     const result=deepCopy(core);
     for(const section of SECTIONS){
       const entries=collected[section];
-      result.data[section]=section==='domainEvents'?entries.sort(compareEvents):entries;
+      result.data[section]=section==='domainEvents'?sortEventsOnce(entries):entries;
     }
     return result;
   }
