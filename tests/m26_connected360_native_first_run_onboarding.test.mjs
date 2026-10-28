@@ -208,3 +208,79 @@ test('native and PWA capability truth do not relax the production policy of gene
   assert.match(progressive,/connectNativeHealth,/u);
   assert.match(app,/wearables\.startProductionHealthConnection\(scopes\)/u);
 });
+
+test('native callback before awaited Android request confirmation is queued, never accepted early',async()=>{
+  let finish;
+  const f=nativeFixture({connect:()=>new Promise(resolve=>{finish=resolve;})});
+  const key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.controller.mount();await flush();f.inputs[0].checked=true;
+  f.action('start');await flush();
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  finish({requested:true});await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'chosen');
+  f.controller.destroy();
+});
+
+test('early native result cannot outlive a rejected Android permission request',async()=>{
+  let rejectRequest;
+  const f=nativeFixture({connect:()=>new Promise((_resolve,reject)=>{rejectRequest=reject;})});
+  const key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.controller.mount();await flush();f.inputs[0].checked=true;
+  f.action('start');await flush();
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  rejectRequest(new Error('Android permission request failed'));await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  assert.ok(f.dialog(),'failed request must remain retryable');
+  f.controller.destroy();
+});
+
+test('a denied Android return arriving before request acknowledgement offers a retry',async()=>{
+  let finish;
+  const f=nativeFixture({connect:()=>new Promise(resolve=>{finish=resolve;})});
+  const key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.controller.mount();await flush();f.inputs[0].checked=true;
+  f.action('start');await flush();
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:false}});
+  finish({requested:true});await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  assert.ok(f.dialog());
+  assert.match(f.status.textContent,/No podemos confirmar todavía la conexión/u);
+  f.controller.destroy();
+});
+
+test('WebView pageshow never drops a late owner-scoped, verified Android permission result',async()=>{
+  const f=nativeFixture(),key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.controller.mount();await flush();f.inputs[0].checked=true;f.action('start');await flush();
+  f.scopeListener.get('pageshow')?.();await flush();
+  assert.ok(f.dialog(),'resumed WebView must remain usable before OS callback');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'chosen');
+  assert.equal(f.dialog(),null);
+  f.controller.destroy();
+});
+
+test('a Client who dismisses the resumed prompt cannot be re-opted-in by a late callback',async()=>{
+  const f=nativeFixture(),key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.controller.mount();await flush();f.inputs[0].checked=true;f.action('start');await flush();
+  f.scopeListener.get('pageshow')?.();await flush();
+  f.action('later');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'dismissed');
+  assert.equal(f.dialog(),null);
+  f.controller.destroy();
+});
+
+test('late permission result after resumed WebView cannot mark a different Client connected',async()=>{
+  const f=nativeFixture(),key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.controller.mount();await flush();f.inputs[0].checked=true;f.action('start');await flush();
+  f.scopeListener.get('pageshow')?.();await flush();
+  f.setUserId('native-owner-b');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  f.controller.destroy();
+});
