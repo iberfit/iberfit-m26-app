@@ -67,7 +67,8 @@ test('B36 QA historical fan-out aborts in-flight reads; never assembles a partia
   controller.abort();
   await assert.rejects(pending,/M26_REQUEST_CANCELLED|U39_HISTORY_CANCELLED/);
   assert.equal(calls.length,4,'no further pagination after cancellation');
-  assert.equal(calls.every(c=>c.signal.aborted),true);
+  assert.equal(calls.slice(1).every(c=>c.signal.aborted),true,
+    'only the pending history reads must abort; completed core must remain completed');
 });
 
 test('B36 sorting preserves descending bigint tie breaks',()=>{
