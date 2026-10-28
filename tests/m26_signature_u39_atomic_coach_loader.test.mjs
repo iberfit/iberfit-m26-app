@@ -188,3 +188,32 @@ test('U39 multi-client and multi-page recovery produces one complete snapshot un
  assert.equal(calls.filter(x=>!x.first).length,6);
  assert.equal(full.data.checkins.length,1);
 });
+
+test('U42 bounded QA Coach history workers overlap independent scopes, cap load and publish only after complete',async()=>{
+ const clients=Array.from({length:3},(_,i)=>
+   '10000000-0000-4000-8000-'+String(i+1).padStart(12,'0'));
+ const fullCore={...core(),data:{...core().data,clients:clients.map(id=>({id}))}};
+ let active=0,maximum=0,started=0,completed=0;
+ const f=makeTransport(async(path,params)=>{
+   if(path.endsWith('/iberfit_bootstrap_v26_core_u37_qa'))return response(fullCore);
+   if(!path.endsWith('/iberfit_privileged_history_page_u38_qa'))
+     throw new Error('U42_UNEXPECTED_ENDPOINT');
+   assert.ok(clients.includes(params.p_client_id),'server-authorized client');
+   active++;started++;maximum=Math.max(active,maximum);
+   // Deliberately keep all independent reads in flight for a turn.
+   await new Promise(resolve=>setImmediate(resolve));
+   active--;completed++;
+   return response(pageFor(params.p_section,[],{totalCount:0,remoteRevisions:{}}));
+ });
+ const result=await f.transport.bootstrapQaCoachWithHistory(TOKEN);
+ assert.equal(maximum,5,'strict five-worker backpressure, not serial three');
+ assert.equal(active,0);
+ assert.equal(started,9);
+ assert.equal(completed,9);
+ assert.equal(result.data.clients.length,3);
+ assert.deepEqual(result.data.m26Entities,[]);
+ assert.deepEqual(result.data.domainEvents,[]);
+ assert.deepEqual(result.data.sessionExecutions,[]);
+ assert.equal(f.calls[0].pathname.endsWith('iberfit_bootstrap_v26_core_u37_qa'),true,
+   'authorized core must be read first');
+});
