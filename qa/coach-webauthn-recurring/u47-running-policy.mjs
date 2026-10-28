@@ -56,6 +56,9 @@ export function u47WriteAuthorized(request,scope){
   if(!['iberfit_command_preflight_v26','iberfit_execute_command_v26'].includes(rpc))
     return false;
   const cmd=body?.p_command,type=String(cmd?.type||''),isExecute=rpc==='iberfit_execute_command_v26';
+  // U48 resumes the execution already ACKed by QA. Never permit a second
+  // SESION_INICIAR, including its preflight, even when the browser fixture is stale.
+  if(resumedU48&&type==='SESION_INICIAR')return false;
   if(!LIMITS.has(type)||cmd?.clientId!==scope.clientId||!isUuid(cmd?.operationId)||
      !Number.isSafeInteger(Number(cmd?.baseRevision))||Number(cmd.baseRevision)<0)
     return false;
