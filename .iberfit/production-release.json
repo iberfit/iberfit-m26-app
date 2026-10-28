@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b3d7a733ddde8cc192af0143c126f2b64f6524d6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "3e019c7affe4fb2795edbfa1a562a90c0bc06fd1",
+  "notes": "SIGNATURE B36+B37 frontend-only: abort stale bootstrap, historical event efficiency and touch-safe Client navigation; no SQL, Edge or Hosted Auth changes"
+}
