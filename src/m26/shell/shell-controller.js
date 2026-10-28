@@ -162,6 +162,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let renderQueued=false;
   let queuedState=null;
   let generation=0;
+  let touchRouteTicket=0;
   let lastMarkup='';
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
@@ -861,14 +862,36 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       releasePointerInteraction({deferRender:false});
       releaseFormInteraction({deferRender:false});
       const documentLike=root.ownerDocument||globalThis.document;
-      runRouteViewTransition(
+      const windowLike=documentLike?.defaultView||globalThis.window;
+      const commitRoute=()=>runRouteViewTransition(
         ()=>{
           store.navigate(decision.area);
           reconcileRouteRender(decision.area);
           focusMain();
         },
-        {documentLike,windowLike:documentLike?.defaultView||globalThis.window},
+        {documentLike,windowLike},
       );
+      // A touch-initiated click must finish dispatching before the shell can
+      // replace its own navigation button. A microtask render during click
+      // can stall the browser action on slower Client/Plan surfaces.
+      const clientTouch=String(current.identity?.role||'')==='client'&&(
+        Number(windowLike?.navigator?.maxTouchPoints||0)>0
+        ||windowLike?.matchMedia?.('(pointer: coarse)')?.matches===true
+      );
+      if(clientTouch&&typeof windowLike?.setTimeout==='function'){
+        const ticket=++touchRouteTicket;
+        const version=generation;
+        const ownerId=String(current.identity?.id||'');
+        const previousArea=String(current.activeArea||'');
+        windowLike.setTimeout(()=>{
+          if(ticket!==touchRouteTicket||version!==generation||!unsubscribe)return;
+          const latest=store.getState();
+          if(String(latest.identity?.id||'')!==ownerId
+            ||String(latest.identity?.role||'')!=='client'
+            ||String(latest.activeArea||'')!==previousArea)return;
+          commitRoute();
+        },0);
+      }else commitRoute();
       return;
     }
 
