@@ -45,6 +45,9 @@ jobs:
       - run: node --check qa/coach-webauthn-recurring/u59-coach-readback.mjs
       - run: node --check qa/coach-webauthn-recurring/u47-running-policy.mjs
       - run: node --check qa/coach-webauthn-recurring/u47-fresh-running-e2e.mjs
+      - run: node --check qa/coach-webauthn-recurring/u48-client-visible-readback.mjs
+      - run: node --test tests/m26_u48_universal_client_session_visibility.test.mjs
+      - run: node --test tests/m26_u48_universal_training_lifecycle.test.mjs
       - run: node --test tests/m26_u47_running_e2e_policy.test.mjs
       - run: node --test tests/m26_u59_readback_contract.test.mjs
       - run: node --test tests/m26_u58_existing_execution_scope.test.mjs
@@ -126,6 +129,9 @@ jobs:
           # U47: ONE new synthetic QA running session; disabled on PR,
           # manual dispatch, recurring runs, or any rerun. No production writes.
           M26_QA_U47_RUNNING: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U47:') }}
+          # U48: read-only acceptance of the already-published synthetic U47
+          # from both Client routes. Never grants publication or workout writes.
+          M26_QA_U48_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && startsWith(github.event.head_commit.message, 'SIGNATURE U48:') }}
           # U59: one-shot read-only Coach+Client check of already ACKed U58S.
           # Pull requests, reruns and a second execution NEVER get this flag.
           M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U59:') || startsWith(github.event.head_commit.message, 'SIGNATURE U59R:')) }}
