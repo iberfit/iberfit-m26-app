@@ -114,8 +114,16 @@ test('post-MFA mobile handoff overlaps catalog fetch with hydration but awaits i
   assert.match(source,/root\.dataset\.m26Controllers='ready'/u);
   assert.match(source,/cancelProgressiveControllerMounts\(\)/u);
   assert.match(block,/const controllerEntries=\[/u);
-  assert.match(block,/\{name:'workflow',controller:workflow\}/u);
-  assert.match(block,/\{name:'session',controller:sessionController\}/u);
+  // Published workouts and the live player are interaction-critical: they
+  // must not wait behind unrelated progressive controllers after the UI is ready.
+  assert.match(block,/workflow\.mount\(\);/u);
+  assert.match(block,/sessionController\.mount\(\);/u);
+  const sharedEntryReady=block.indexOf("root.dataset.m26SessionEntryReady='ready'");
+  const interactiveReady=block.indexOf("root.dataset.m26Interactive='ready'");
+  assert.ok(sharedEntryReady>controllersReady&&interactiveReady>sharedEntryReady,
+    'the shared entry handlers must mount before publishing interactive readiness');
+  assert.doesNotMatch(block,/\{name:'workflow',controller:workflow\}/u);
+  assert.doesNotMatch(block,/\{name:'session',controller:sessionController\}/u);
   assert.match(block,/progressiveControllerMountPromise=\(async\(\)=>\{/u);
 });
 
