@@ -95,11 +95,26 @@ function isReadOnlyPushConfig(request,url,method){
   if(method!=='POST'||url.pathname!=='/functions/v1/iberfit-web-push-sender-v1')return false;
   try{const body=request.postDataJSON();return body&&typeof body==='object'&&!Array.isArray(body)&&body.action==='config'&&Object.keys(body).length===1;}catch{return false;}
 }
+// The U48 Client recovery reads ONLY one exact QA execution under real RLS.
+// No broad table enumeration, no foreign Client, no POST and no credential leak.
+function allowedU48ExistingExecutionRead(request){
+  if(process.env.M26_QA_U48_RUNNING!=='true'&&process.env.M26_QA_U48_READBACK!=='true')return false;
+  let url;try{url=new URL(request.url());}catch{return false;}
+  return url.origin===SUPABASE_ORIGIN&&
+    request.method().toUpperCase()==='GET'&&authenticatedQaRequest(request)&&
+    url.pathname==='/rest/v1/session_executions'&&url.searchParams.size===5&&
+    url.searchParams.get('id')==='eq.16145839-2e7d-48e2-bf0c-e94325f5c54c'&&
+    url.searchParams.get('session_id')==='eq.4d244c01-8966-40f1-8cc7-9e6ec46d1708'&&
+    url.searchParams.get('client_id')==='eq.57f56a87-d04e-47d5-b1cc-8d4939d7c804'&&
+    url.searchParams.get('limit')==='2'&&
+    url.searchParams.get('select')==='id,client_id,session_id,execution_status,revision,summary';
+}
 function allowedQaRequest(request,scope=null){
   let url;try{url=new URL(request.url());}catch{return false;}
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
   if(isQaPrivateAvatarRead(request))return true;
+  if(allowedU48ExistingExecutionRead(request))return true;
   // QA-only: exact JWT-authenticated, time-bounded private photo signing/read.
   if(isQaIriSignedPhotoRead(request,{qaOrigin:SUPABASE_ORIGIN}))return true;
   if(method==='GET'&&authenticatedQaRequest(request)&&
