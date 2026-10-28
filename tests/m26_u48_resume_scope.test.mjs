@@ -23,15 +23,29 @@ test('U48 one-shot flag cannot publish or mutate any other QA prescription',()=>
  assert.equal(u47WriteAuthorized(req(cmd(),'https://pjhmrhejsoofmouedavw.supabase.co'),s),false);
  assert.equal(s.uniqueByOperation.size,0);
 });
-test('U48 resumed existing running requires exact verified scope and no invented appointment',()=>{
+test('U48 cannot start the already ACKed running a second time',()=>{
  const s=scope();
  const foreign=scope();foreign.sessionId=EXEC;
  assert.equal(u47WriteAuthorized(req(cmd()),foreign),false);
  const withCita=cmd();withCita.payload.appointmentId=EXEC;
  assert.equal(u47WriteAuthorized(req(withCita),s),false);
- assert.equal(u47WriteAuthorized(req(cmd()),s),true);
+ assert.equal(u47WriteAuthorized(req(cmd()),s),false);
  assert.equal(u47WriteAuthorized(req({...cmd(),operationId:'50000000-0000-4000-8000-000000000002'}),s),false);
- assert.equal(s.executionId,EXEC);
+ assert.equal(s.executionId,null);
+ assert.equal(s.uniqueByOperation.size,0);
+ assert.equal(s.typeCounts.get('SESION_INICIAR')||0,0);
+});
+test('U48 may only continue the verified existing execution ID, not a new or foreign one',()=>{
+ const s=scope();
+ s.executionId=EXEC; // Only after independent authoritative bootstrap/DB validation.
+ const progress={...cmd('EJECUCION_GUARDAR_PROGRESO'),entityType:'session_execution',
+   entityId:EXEC,baseRevision:1,operationId:'50000000-0000-4000-8000-000000000031',
+   payload:{progressSnapshot:{sessionId:ID,clientId:CLIENT}}};
+ assert.equal(u47WriteAuthorized(req(progress),s),true);
+ assert.equal(u47WriteAuthorized(req({...progress,operationId:'50000000-0000-4000-8000-000000000032',entityId:ID}),s),false);
+ assert.equal(u47WriteAuthorized(req({...progress,operationId:'50000000-0000-4000-8000-000000000033',payload:{progressSnapshot:{sessionId:ID,clientId:EXEC}}}),s),false);
+ assert.equal(s.typeCounts.get('EJECUCION_GUARDAR_PROGRESO'),1);
+ assert.equal(s.typeCounts.get('SESION_INICIAR')||0,0);
 });
 test('U48 never permits non-first protected runs without explicit flag',()=>{
  const s=scope();
