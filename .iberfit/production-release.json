@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "919b053df6c9ac24b8dc95b98dea90940d6314ce",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837",
+  "notes": "SIGNATURE 360 U43 scoped bootstrap PROD migrated and validated separately; U44 signed-out preauth and full Canary module certified. No Supabase mutations in the frontend release."
+}
