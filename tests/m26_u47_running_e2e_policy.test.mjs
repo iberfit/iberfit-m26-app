@@ -8,7 +8,7 @@ const SESSION='20000000-0000-4000-8000-000000000472';
 const EXEC='30000000-0000-4000-8000-000000000473';
 const BLOCK='40000000-0000-4000-8000-000000000474';
 const TITLE='QA U47 · Running 40731417010-1';
-const OP=n=>\`50000000-0000-4000-8000-\${String(n).padStart(12,'0')}\`;
+const OP=n=>'50000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const old=process.env.M26_QA_U47_RUNNING;
 process.env.M26_QA_U47_RUNNING='true';
 process.on('exit',()=>{if(old===undefined)delete process.env.M26_QA_U47_RUNNING;else process.env.M26_QA_U47_RUNNING=old;});
