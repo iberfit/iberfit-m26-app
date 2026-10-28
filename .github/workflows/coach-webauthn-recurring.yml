@@ -47,6 +47,7 @@ jobs:
       - run: node --check qa/coach-webauthn-recurring/u47-fresh-running-e2e.mjs
       - run: node --check qa/coach-webauthn-recurring/u48-running-recovery.mjs
       - run: node --test tests/m26_u47_running_e2e_policy.test.mjs
+      - run: node --test tests/m26_u48_resume_scope.test.mjs
       - run: node --test tests/m26_u59_readback_contract.test.mjs
       - run: node --test tests/m26_u58_existing_execution_scope.test.mjs
       - run: node --test tests/m26_u56_coach_publish_scope.test.mjs
