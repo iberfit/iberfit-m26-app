@@ -1362,6 +1362,14 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
 
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    // A route is not interactive until its shared published-workout and
+    // in-session click handlers are mounted. Prevent first-click loss on
+    // running, strength, swimming and mixed sessions, on touch and desktop.
+    ensureCurrentSetup();
+    workflow.mount();
+    sessionController.mount();
+    if(root?.dataset)root.dataset.m26SessionEntryReady='ready';
+    qaStage('rc64-session-entry-controller-ready');
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     if(root?.dataset)root.dataset.m26Interactive='ready';
     qaStage('rc64-shell-interactive-ready');
@@ -1381,14 +1389,12 @@ export async function createM26Application({root=document.querySelector('#app'),
       {name:'media-experience',controller:mediaExperience},
       {name:'profile-avatars',controller:avatarController},
       {name:'productivity',controller:productivity},
-      {name:'workflow',controller:workflow},
       {name:'iri-photogrammetry',controller:iriPhotogrammetry},
       {name:'engagement',controller:engagement},
       {name:'verification',controller:verification},
       {name:'rc39',controller:rc39},
       {name:'communication',controller:communication},
       {name:'admin',controller:admin},
-      {name:'session',controller:sessionController},
       {name:'iri-external-reports',controller:iriExternalReports},
     ];
 
@@ -1453,6 +1459,18 @@ export async function createM26Application({root=document.querySelector('#app'),
     });
 
 
+  }
+  // A published training CTA must never look interactive before its actual
+  // delegated handlers exist. Applies to every sport and both execution roles.
+  function guardPendingSessionEntry(event){
+    const button=event?.target?.closest?.('[data-workflow-action="start-published-session"],[data-session-action="start"]');
+    if(!button||root?.dataset?.m26SessionEntryReady==='ready')return;
+    event.preventDefault?.();
+    event.stopImmediatePropagation?.();
+    const message='IBERFIT está preparando los controles del entrenamiento. Vuelve a pulsar cuando termine de cargar.';
+    const notice=button.closest?.('[data-rc39-session]')?.querySelector?.('[data-workflow-status="session"]');
+    if(notice){notice.textContent=message;notice.dataset.status='pending';}
+    try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
@@ -1689,7 +1707,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers({preserveWorkflowDrafts=true}={}){workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset)delete root.dataset.m26Interactive;telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers({preserveWorkflowDrafts=true}={}){workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;
@@ -2352,6 +2370,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   });
 
   root.addEventListener('submit', onSubmit);
+  root.addEventListener('click', guardPendingSessionEntry, true);
   root.addEventListener('click', onAuthClick);
 
   const recovery = inspectPasswordRecoveryHash(
@@ -2423,6 +2442,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   destroyControllers();
   store.reset();
   root.removeEventListener('submit', onSubmit);
+  root.removeEventListener('click', guardPendingSessionEntry, true);
   root.removeEventListener('click', onAuthClick);
   void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
 }
