@@ -861,7 +861,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         await readSection(job);
       }
     }
-    const workers=Array.from({length:Math.min(3,jobs.length)},()=>worker());
+    // A verified QA Coach may have several independent client histories.
+    // Three sequential section workers could exhaust the 16s post-MFA
+    // budget before a *complete* authenticated snapshot reached the store.
+    // Five bounded workers make progress across clients without unbounded
+    // requests or weakening the atomic assembler, owner/CAS or SQL guards.
+    const workers=Array.from({length:Math.min(5,jobs.length)},()=>worker());
     try{
       await Promise.all(workers);
     }catch(error){
