@@ -32,6 +32,20 @@ test('Device Experience policy defines task semantics and records recurrent Coac
   assert.match(policy,/IBERFIT Admin WebAuthn Recurring/u);
 });
 
+test('SQL bootstrap and QA migrations trigger the full Device Experience gate on PR and Canary push',()=>{
+  const prSection=workflow.split('  pull_request:')[1]?.split('  push:')[0]||'';
+  const pushSection=workflow.split('  push:')[1]?.split('  workflow_dispatch:')[0]||'';
+  for(const [name,section] of [['pull_request',prSection],['push',pushSection]]){
+    assert.ok(section.includes("branches: [canary/rc74-4]"),name+': protected branch required');
+    for(const path of ["'supabase/migrations/**'","'supabase/qa-migrations/**'","'.github/workflows/device-experience-gate.yml'"]){
+      assert.ok(section.includes(path),name+': migration/device gate coverage missing '+path);
+    }
+  }
+  assert.match(workflow,/client-real-coach-webauthn-matrix/u);
+  assert.match(workflow,/pwa-installed-device-matrix/u);
+  assert.match(workflow,/admin-synthetic-task-matrix/u);
+});
+
 test('Device gate cancels stale runs only within the same PR or ref',()=>{
   assert.ok(workflow.includes('group: iberfit-device-experience-${{ github.event.pull_request.number || github.ref }}'));
   assert.ok(workflow.includes('cancel-in-progress: true'));

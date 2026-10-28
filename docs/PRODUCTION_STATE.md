@@ -1,3 +1,12 @@
+## SIGNATURE U43 · Release gate coverage + fresh M44 recovery proof · 28-10-2026
+
+- **Base exacta:** `98c3a930926311a67aba19a1e355066d9062c68b` U43 merged Canary source; SQL QA ya aplicada, Cliente A/B/Coach/Admin JSONB exacto y RC64.2B #40665322818 7/7 SUCCESS tras corrección. CI, audit, PROD Data Safety de base success. PROD LIVE sigue C39 `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`.
+- **Bloqueo del pipeline identificado:** `scripts/release/verify_source_qa_gates.mjs` requiere el Device Experience Gate SUCCESS sobre SHA exacto. Su `push.paths` excluía las migraciones SQL-only U43; no existía run Device sobre SHA de U43 a pesar de CI/Canary/seguridad. Nunca rebajar el gate ni interpretar un SUCCESS de un SHA antiguo como certificación nueva.
+- **Solución protegida:** añadir `supabase/migrations/**` y `supabase/qa-migrations/**` a filtros pull_request/push de Device Gate, con test de cobertura real de ambos eventos y tareas. Modificar exclusivamente un comentario de `m44-encrypted-disaster-recovery.yml` para pedir backup DB+Storage PROD cifrado, restauración aislada PG17 e integridad de objetos con el SHA nuevo. Sin cambiar seguridad ni jobs; QA write y WebAuthn siguen en cola protegida.
+- **Alcance hasta certificación:** workflow + tests + documentación; **NO** nuevo SQL aplicado ni despliegue PROD. Exigir 7/7 gates exactos, backup <=2h y rollback para una migración SQL PROD independiente, luego Pages frontend-only protegido y smoke LIVE. No declarar PRODUCCIÓN antes de comprobar identidad LIVE.
+
+---
+
 ## SIGNATURE U43 · Bootstrap Cliente/Coach, autorización equivalente y latencia · 28-10-2026
 
 - **Base:** Canary `3ac37e23eefea92fed3f11c99f26f38847423575` exacto QA. Production LIVE `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`. Canary Exact Deploy #40665322832 SUCCESS y WebAuthn Coach/Admin postmerge SUCCESS.
