@@ -1,3 +1,13 @@
+## SIGNATURE U45 · Primera entrada de campaña sin waterfall · WIP 28-10-2026
+
+- **Base canónica comprobada:** `919b053df6c9ac24b8dc95b98dea90940d6314ce` en Canary y PROD, ambos dominios consultados y QA/PROD identificados correctamente. PR #1181 U44 ya fusionada; no reimplementar.
+- **Fricción reproducible en contrato:** el arranque ligero U44 enviaba al módulo completo a un visitante con parámetros ordinarios de adquisición como `?utm_source=instagram`, pese a no existir sesión ni callback de autenticación. Enlaces de entrada de campañas podían recuperar la espera del grafo completo antes del primer acceso.
+- **Candidato U45 en rama `fix/signature-u45-campaign-first-action-20261028`, todavía no publicado:** permitir únicamente parámetros de atribución conocidos (incluyendo valores combinados y `prelaunch` de Canary) para mostrar inmediatamente el acceso ligero. **Sesión guardada, OAuth `code/state`, recovery `type/token_hash`, errores Auth, hash, ruta profunda y queries desconocidas siguen cargando la aplicación completa**. Mismo vault, login, WebAuthn, permisos y posterior hidratación. Sin cambios de RLS, SQL, datos, secreto, API ni tracking adicional.
+- **Regresión:** matriz determinista de parámetros marketing puros, marketing más callback Auth, entradas desconocidas y persistencia de sesión en `tests/m26_u44_preauth_canary_runtime_contract.test.mjs`.
+- **Condición de salida:** CI/contratos + QA visual Chromium/WebKit/Firefox cuando corresponda, PR integrado, Canary SHA exacto, Gates, respaldo M44 y promoción protegida a PROD con smoke real. Este registro no afirma CI, Canary ni producción GREEN.
+
+---
+
 ## SIGNATURE U44 · Preauth ligero y módulo real Canary · 28-10-2026
 
 - **Base exacta:** `5757d559a9fdec2c79b55fffc08f673feb3fc3f0`, 6/7 gates SUCCESS y M44 full encrypted PROD DB+Storage/PG17 restore SUCCESS. Canary Exact Deploy #40686362592 FAIL después de desplegar por `document.readyState=complete` no alcanzado en 30s; rollback confirmado a `3ac37e23eefea92fed3f11c99f26f38847423575`. Deploy previo #40672802456 mostraba `M26_BOOTSTRAP_MODULE_TIMEOUT` al cargar todo sin sesión. PROD LIVE sigue `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`, sin SQL PROD.
