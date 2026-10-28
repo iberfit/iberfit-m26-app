@@ -118,3 +118,48 @@ test('U48 recovered execution fails closed on identity, duplicate, CAS and plan 
   assert.throws(()=>recoverAuthenticatedRemoteExecution(d),/M48_RECOVERY_/);
  }
 });
+
+test('U48 restores a durable partially completed workout from server progressSnapshot, not a blank start',()=>{
+ const block={...baseBlock,sets:2};
+ const data=remoteFixture(block);
+ const original=recoverAuthenticatedRemoteExecution(data).execution;
+ const observed={exerciseId:block.exerciseId,setNumber:1,reps:null,seconds:1200,rpe:7,
+   distanceKm:3.3,completedAt:'2026-10-28T20:20:00.000Z'};
+ data.executionRow.revision=2;
+ data.executionRow.summary.revision=2;
+ data.executionRow.summary.progressSavedAt='2026-10-28T20:20:01.000Z';
+ data.executionRow.summary.progressSnapshot={
+   id:EXEC,clientId:CLIENT,sessionId:ID,status:'active',revision:1,
+   startedAt:'2026-10-28T20:00:00.000Z',index:0,setIndex:1,
+   queue:structuredClone(original.queue),results:{[block.exerciseId+':1']:observed},
+   events:[{type:'SET_COMPLETED',at:observed.completedAt}],accumulatedActiveMs:1_200_000,
+   skippedSets:{},skippedExercises:{},
+ };
+ const recovered=recoverAuthenticatedRemoteExecution(data).execution;
+ assert.equal(recovered.id,EXEC);
+ assert.equal(recovered.revision,2);
+ assert.equal(recovered.setIndex,1);
+ assert.equal(recovered.results[block.exerciseId+':1'].distanceKm,3.3);
+ assert.equal(recovered.events.length,1);
+ assert.equal(buildProgressExecutionCommand(recovered).baseRevision,2);
+});
+test('U48 rejects forged nested progress identity or a missing durable queue',()=>{
+ for(const mutate of [
+  s=>{s.sessionId=EXEC;},
+  s=>{s.clientId=EXEC;},
+  s=>{s.revision=999;},
+  s=>{s.queue=[];},
+  s=>{s.results=null;},
+ ]){
+  const data=remoteFixture(),exec=recoverAuthenticatedRemoteExecution(data).execution;
+  data.executionRow.revision=2;data.executionRow.summary.revision=2;
+  data.executionRow.summary.progressSavedAt='2026-10-28T20:20:01.000Z';
+  data.executionRow.summary.progressSnapshot={
+    id:EXEC,clientId:CLIENT,sessionId:ID,status:'active',revision:1,
+    startedAt:'2026-10-28T20:00:00.000Z',index:0,setIndex:0,
+    queue:structuredClone(exec.queue),results:{},events:[],
+  };
+  mutate(data.executionRow.summary.progressSnapshot);
+  assert.throws(()=>recoverAuthenticatedRemoteExecution(data),/M48_RECOVERY_/);
+ }
+});

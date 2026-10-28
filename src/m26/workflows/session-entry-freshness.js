@@ -135,28 +135,50 @@ export function recoverAuthenticatedRemoteExecution({
     throw Error('M48_RECOVERY_PRESCRIPTION_DRIFT');
 
   const execution=createExecution({session,clientId:owner,executionId:remoteId});
-  if(Array.isArray(body.queue)||body.results!==undefined){
-    if(!Array.isArray(body.queue)||!body.queue.length||
-       !body.results||typeof body.results!=='object'||Array.isArray(body.results)||
-       body.queue.length!==execution.queue.length||
-       body.queue.some((q,i)=>clean(q.blockId)!==clean(execution.queue[i].blockId)||
+  // The command RPC preserves the original start summary and appends each
+  // durable work checkpoint as progressSnapshot. Reading only top-level queue
+  // would silently erase every previously ACKed set after device loss.
+  const checkpoint=body.progressSnapshot;
+  if(checkpoint!==undefined&&(checkpoint===null||typeof checkpoint!=='object'||
+    Array.isArray(checkpoint)))throw Error('M48_RECOVERY_CHECKPOINT_INVALID');
+  const work=checkpoint||body;
+  if(checkpoint||Array.isArray(body.queue)||body.results!==undefined){
+    const savedRevision=Number(work.revision);
+    const savedStartedAt=Date.parse(work.startedAt||'');
+    if(clean(work.id)!==remoteId||clean(work.clientId)!==owner||
+       clean(work.sessionId)!==id||!Number.isSafeInteger(savedRevision)||
+       savedRevision<0||savedRevision>revision||
+       !Number.isFinite(savedStartedAt)||Math.abs(savedStartedAt-startedAt)>120000||
+       !Array.isArray(work.queue)||!work.queue.length||
+       !work.results||typeof work.results!=='object'||Array.isArray(work.results)||
+       work.queue.length!==execution.queue.length||
+       work.queue.some((q,i)=>clean(q.blockId)!==clean(execution.queue[i].blockId)||
          clean(q.exerciseId)!==clean(execution.queue[i].exerciseId)||
          Number(q.sets)!==Number(execution.queue[i].sets))||
-       !['active','paused','awaiting_feedback'].includes(body.status)||
-       !Number.isSafeInteger(Number(body.index))||Number(body.index)<0||
-       Number(body.index)>execution.queue.length||
-       !Number.isSafeInteger(Number(body.setIndex))||Number(body.setIndex)<0)
+       !['active','paused','awaiting_feedback'].includes(work.status)||
+       !Number.isSafeInteger(Number(work.index))||Number(work.index)<0||
+       Number(work.index)>execution.queue.length||
+       !Number.isSafeInteger(Number(work.setIndex))||Number(work.setIndex)<0||
+       !Array.isArray(work.events)||work.events.length>20000)
       throw Error('M48_RECOVERY_PROGRESS_AMBIGUOUS');
+    const plan=work.planSnapshot;
+    if(plan&&(typeof plan!=='object'||Array.isArray(plan)||
+       clean(plan.sessionId)!==id||!Array.isArray(plan.queue)||
+       plan.queue.length!==work.queue.length))
+      throw Error('M48_RECOVERY_PLAN_SNAPSHOT_CONFLICT');
     Object.assign(execution,{
-      queue:structuredClone(body.queue),results:structuredClone(body.results),
-      events:Array.isArray(body.events)?structuredClone(body.events):[],
-      status:body.status,index:Number(body.index),setIndex:Number(body.setIndex),
-      planSnapshot:body.planSnapshot&&typeof body.planSnapshot==='object'
-        ?structuredClone(body.planSnapshot):execution.planSnapshot,
-      accumulatedActiveMs:Number.isFinite(Number(body.accumulatedActiveMs))
-        ?Math.max(0,Number(body.accumulatedActiveMs)):0,
-      activeSince:body.status==='active'?new Date().toISOString():null,
-      restUntil:body.restUntil||null,feedback:body.feedback||null,
+      queue:structuredClone(work.queue),results:structuredClone(work.results),
+      events:structuredClone(work.events),
+      status:work.status,index:Number(work.index),setIndex:Number(work.setIndex),
+      planSnapshot:plan?structuredClone(plan):execution.planSnapshot,
+      skippedSets:work.skippedSets&&typeof work.skippedSets==='object'&&!Array.isArray(work.skippedSets)
+        ?structuredClone(work.skippedSets):{},
+      skippedExercises:work.skippedExercises&&typeof work.skippedExercises==='object'&&!Array.isArray(work.skippedExercises)
+        ?structuredClone(work.skippedExercises):{},
+      accumulatedActiveMs:Number.isFinite(Number(work.accumulatedActiveMs))
+        ?Math.max(0,Number(work.accumulatedActiveMs)):0,
+      activeSince:work.status==='active'?new Date().toISOString():null,
+      restUntil:work.restUntil||null,feedback:work.feedback||null,
     });
   }else{
     // Server start acknowledgment precedes the first progress snapshot.
