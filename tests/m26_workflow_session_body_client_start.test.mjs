@@ -14,7 +14,7 @@ function makeRoot(events,handlers){
     removeEventListener(type){handlers.delete(type);},
     querySelector(){return null;},
     querySelectorAll(){return [];},
-    dispatchEvent(event){events.push(event);return true;},
+    dispatchEvent(event){events.push(event);if(event.type==='m26:start-session')event.detail.completion=Promise.resolve(true);return true;},
   };
 }
 
