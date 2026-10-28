@@ -398,6 +398,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   const evidence={signatureU26Audits:[],schema:'iberfit.qa-coach-webauthn-recurring.v1',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'coach',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[]};
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   const u56Scope={enabled:false,clientId:null,title:null,sessionId:null,operationId:null};
+  const u47ClientScope={enabled:false};
   let u56Client=null;
   await installPolicy(context,evidence,u56Scope);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
@@ -586,8 +587,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     const bootstrap=await snapshotBootstrap();
     expect(bootstrap.requestCount,'Real authenticated Coach bootstrap requests must be observed').toBeGreaterThan(0);
     expect(bootstrap.failureCount,'Every real Coach bootstrap RPC must finish without HTTP or network error').toBe(0);
-    if(process.env.M26_QA_U56_PUBLISH==='true'){
-      u56Client=await openU56ClientReadOnly(browser,installPolicy);
+    if(process.env.M26_QA_U56_PUBLISH==='true'||process.env.M26_QA_U47_RUNNING==='true'){
+      u56Client=await openU56ClientReadOnly(browser,installPolicy,
+        process.env.M26_QA_U47_RUNNING==='true'?u47ClientScope:null);
       await setDevice(page,cdp,{name:'u56-client-context',width:1440,height:1000,mobile:false,touch:false});
       expect(await clientSelector.locator('option[value="'+u56Client.clientId+'"]').count(),
         'Real Coach must be assigned to this exact QA Client A').toBe(1);
@@ -605,9 +607,20 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       });
     }
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
-    if(u56Client){
+    if(u56Client&&process.env.M26_QA_U56_PUBLISH==='true'){
       await certifyU56OnlineCoachPublish({
         page,context,cdp,client:u56Client,scope:u56Scope,evidence,setDevice,
+      });
+    }
+    if(process.env.M26_QA_U47_RUNNING==='true'){
+      expect(process.env.M26_QA_U56_PUBLISH,'U47 cannot combine with U56').not.toBe('true');
+      expect(u56Client,'U47 requires independent QA Client authentication').toBeTruthy();
+      const title=u56Scope.title;
+      Object.assign(u56Scope,newU47Scope({stage:'publish',clientId:u56Client.clientId,title}));
+      Object.assign(u47ClientScope,newU47Scope({stage:'execute',clientId:u56Client.clientId,title}));
+      await certifyU47RunningClientLifecycle({
+        page,context,cdp,client:u56Client,coachScope:u56Scope,
+        clientScope:u47ClientScope,evidence,setDevice,
       });
     }
     if(process.env.M26_QA_U57_VERIFY==='true'){
