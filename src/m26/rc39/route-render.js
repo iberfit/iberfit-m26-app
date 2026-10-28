@@ -76,7 +76,7 @@ const clientCanStartProjection=(item)=>Boolean(item?.visible===true&&item?.visib
   sessionReadyToStart(item?.session)&&
   sessionHasExecutableBlocks(item?.session));
 // In-progress work is actionable as a RECOVERY, never another start.
-const clientCanResumeProjection=(item)=>Boolean(item?.visible===true&&
+const clientCanResumeProjection=(item)=>Boolean(item?.canClientResume===true&&item?.visible===true&&
   item?.visibility==='full'&&item?.canClientExecute===true&&
   String(publishedBody(item?.session).status||item?.session?.status||'').toLowerCase()==='en_curso'&&
   sessionIdOf(item?.session)===String(item?.id||'')&&
