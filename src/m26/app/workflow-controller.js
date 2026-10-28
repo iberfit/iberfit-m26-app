@@ -161,6 +161,7 @@ function friendlyError(error){
   if(/M42_WORKSPACE_ALREADY_ACTIVE/.test(code))return 'Tienes una sesión o un borrador abierto. Termínalo o sal de él antes de abrir otro.';
   if(/M42_SESSION_(?:NO_LONGER_VISIBLE|NO_LONGER_AVAILABLE)/.test(code))return 'La sesión ya no está disponible. Actualiza tu planificación y selecciona una sesión habilitada.';
   if(/M42_SESSION_UPDATED_REOPEN/.test(code))return 'Tu Coach ha actualizado esta sesión. Abre de nuevo la versión más reciente antes de empezar.';
+  if(/M42_SESSION_ENTRY_HANDLER_MISSING/.test(code))return 'El reproductor no está preparado. Actualiza IBERFIT y vuelve a intentarlo; no se ha iniciado ningún entrenamiento.';
   if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
@@ -1772,10 +1773,13 @@ export function createWorkflowController({
     const request={clientId,session,completion:null};
     status(root,'session',role==='client'?'Preparando tu sesión guiada…':'Preparando sesión…','pending');
     emit(root,'m26:start-session',request);
-    if(request.completion){
-      const opened=await request.completion;
-      if(opened!==true)throw new Error('M42_SESSION_WORKSPACE_UNAVAILABLE');
-    }
+    // Event dispatch alone is not a successful workspace handoff. If the
+    // controller was not mounted (or a stale shell lost its listener), a
+    // missing async acknowledgement must fail closed, never paint success.
+    if(!request.completion||typeof request.completion.then!=='function')
+      throw new Error('M42_SESSION_ENTRY_HANDLER_MISSING');
+    const opened=await request.completion;
+    if(opened!==true)throw new Error('M42_SESSION_WORKSPACE_UNAVAILABLE');
     // Do not call a queued or merely published session "started".
     status(root,'session','Sesión abierta. Confirma Inicio para comenzar el entrenamiento.','success');
   }
