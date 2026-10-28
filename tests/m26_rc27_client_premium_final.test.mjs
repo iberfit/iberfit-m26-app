@@ -114,7 +114,7 @@ test('controlador inicia la sesión publicada seleccionada y no la última por d
   const root={
     addEventListener(type,fn){listeners[type]=fn;},removeEventListener(type){delete listeners[type];},
     querySelector(selector){return selector==='[data-workflow-status="session"]'?statusNode:null;},
-    dispatchEvent(event){events.push(event);return true;},
+    dispatchEvent(event){events.push(event);if(event.type==='m26:start-session')event.detail.completion=Promise.resolve(true);return true;},
   };
   const state=stateFor(client,'sesion');
   const controller=createWorkflowController({root,store:{getState:()=>state},commandBus:{execute:async()=>({ok:true})},catalog:{list:()=>[]}});

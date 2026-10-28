@@ -6,7 +6,7 @@ if(typeof globalThis.CustomEvent!=='function'){
     constructor(type,{detail}={}){this.type=type;this.detail=detail;}
   };
 }
-function setup({reject=false}={}){
+function setup({reject=false,completionMode='promise'}={}){
   const handlers=new Map(),events=[],status={textContent:'',dataset:{}};
   let release,requests=0;
   const root={
@@ -18,6 +18,9 @@ function setup({reject=false}={}){
       events.push(event);
       if(event.type==='m26:start-session'){
         requests++;
+        if(completionMode==='missing')return true;
+        if(completionMode==='invalid'){event.detail.completion={};return true;}
+        if(completionMode==='not-opened'){event.detail.completion=Promise.resolve(false);return true;}
         event.detail.completion=new Promise((resolve,decline)=>{
           release=()=>reject?decline(new Error('M26_SESSION_CLIENT_MISMATCH')):resolve(true);
         });
@@ -61,3 +64,18 @@ test('M42 failed async workspace opening never paints false success',async()=>{
   assert.equal(s.events.some(e=>e.type==='m26:workflow-error'),true);
   s.ctrl.destroy();
 });
+
+for(const completionMode of ['missing','invalid','not-opened']){
+  test('U46 missing or invalid session player handshake never reports success: '+completionMode,async()=>{
+    const s=setup({completionMode});
+    await s.trigger();
+    assert.equal(s.requests,1,'first tap dispatches once');
+    assert.equal(s.status.dataset.status,'error','never present a false opened state');
+    assert.doesNotMatch(s.status.textContent,/Sesión abierta|Confirma Inicio/u);
+    assert.match(s.status.textContent,completionMode==='not-opened'
+      ?/No se pudo abrir la sesión/u:/reproductor no está preparado/u);
+    assert.equal(s.events.filter(e=>e.type==='m26:workflow-error').length,1);
+    assert.equal(s.button.disabled,false,'a recoverable failure must allow retry');
+    s.ctrl.destroy();
+  });
+}

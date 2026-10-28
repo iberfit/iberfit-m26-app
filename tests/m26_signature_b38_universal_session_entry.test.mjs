@@ -77,3 +77,48 @@ for(const sport of ['running','strength','swimming','mixed']){
     }
   });
 }
+
+for(const sport of ['running','strength','swimming','mixed']){
+  test('U46 '+sport+' first click fails closed if the session workspace listener is missing',async()=>{
+    const listeners=new Map(),notifications=[],events=[];
+    const id='10000000-0000-4000-8000-000000000201';
+    const clientId='10000000-0000-4000-8000-000000000202';
+    const session={id,clientId,status:'disponible',
+      deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+      clientVisibilityLevel:'full',
+      body:{id,clientId,title:'Entrenamiento '+sport,
+        blocks:[{id:'block1',type:'exercise',exerciseId:'exercise1',name:'Ejercicio '+sport}]}};
+    const root={
+      addEventListener(name,fn){listeners.set(name,fn);},
+      removeEventListener(name){listeners.delete(name);},
+      querySelector(){return null;},
+      querySelectorAll(){return [];},
+      dispatchEvent(evt){events.push(evt);return true;},
+    };
+    const original=globalThis.dispatchEvent;
+    globalThis.dispatchEvent=event=>{notifications.push(event);return true;};
+    const button={dataset:{entityId:id},type:'button',disabled:false,
+      closest(selector){return selector==='[data-workflow-action]'?this:null;},
+      getAttribute(){return 'start-published-session';},
+      setAttribute(){},removeAttribute(){}};
+    const controller=createWorkflowController({root,
+      store:{getState:()=>({identity:{role:'client',clientId},selectedClientId:clientId,
+        collections:{clients:[{id:clientId}],sessions:[session]}})},
+      commandBus:{execute:async()=>({ok:true})},
+      catalog:{list(){return [];},count:0},mediaMap:null});
+    try{
+      controller.mount();
+      await listeners.get('click')({target:button,preventDefault(){}});
+      assert.equal(events.filter(evt=>evt.type==='m26:start-session').length,1);
+      assert.equal(events.filter(evt=>evt.type==='m26:workflow-error').length,1);
+      assert.ok(notifications.some(evt=>evt.type==='m26:toast'&&
+        /reproductor no está preparado/u.test(evt.detail?.message||'')),
+        'Any sport without an attached player must show an actionable visible error');
+      assert.equal(button.disabled,false,'The user can retry after recovering');
+    }finally{
+      controller.destroy();
+      if(original===undefined)delete globalThis.dispatchEvent;
+      else globalThis.dispatchEvent=original;
+    }
+  });
+}
