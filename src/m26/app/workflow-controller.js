@@ -1753,7 +1753,10 @@ export function createWorkflowController({
     // Do not pick the newest supervised session merely because it was published last.
     const session=requestedId?candidate:eligible.find((item)=>actorCanExecuteSession({role,session:item})&&sessionHasExecutableBlocks(item));
     if(!session)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');
-    if(!sessionReadyToStart(session)){
+    const resumeExisting=['client','cliente'].includes(String(role||'').toLowerCase())&&
+      normalizedStatus(session)==='en_curso'&&
+      actorCanExecuteSession({role,session})&&sessionHasExecutableBlocks(session);
+    if(!sessionReadyToStart(session)&&!resumeExisting){
       const error=new Error('M38_SESSION_NOT_YET_AVAILABLE');
       error.userMessage=normalizedStatus(session)==='en_curso'
         ?'Esta sesión ya está iniciada. Recupera el entrenamiento activo en lugar de empezar otro.'
@@ -1771,7 +1774,8 @@ export function createWorkflowController({
       throw error;
     }
     const request={clientId,session,completion:null};
-    status(root,'session',role==='client'?'Preparando tu sesión guiada…':'Preparando sesión…','pending');
+    status(root,'session',resumeExisting?'Recuperando tu entrenamiento en curso…':
+      role==='client'?'Preparando tu sesión guiada…':'Preparando sesión…','pending');
     emit(root,'m26:start-session',request);
     // Event dispatch alone is not a successful workspace handoff. If the
     // controller was not mounted (or a stale shell lost its listener), a
@@ -1781,7 +1785,9 @@ export function createWorkflowController({
     const opened=await request.completion;
     if(opened!==true)throw new Error('M42_SESSION_WORKSPACE_UNAVAILABLE');
     // Do not call a queued or merely published session "started".
-    status(root,'session','Sesión abierta. Confirma Inicio para comenzar el entrenamiento.','success');
+    status(root,'session',resumeExisting?
+      'Entrenamiento recuperado del servidor. Continúa donde lo dejaste.':
+      'Sesión abierta. Confirma Inicio para comenzar el entrenamiento.','success');
   }
   function generateIntelligence(){
     requireCoach();

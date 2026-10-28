@@ -75,6 +75,14 @@ const clientCanStartProjection=(item)=>Boolean(item?.visible===true&&item?.visib
   actorCanExecuteSession({role:'client',session:item?.session,appointment:item?.appointment})&&
   sessionReadyToStart(item?.session)&&
   sessionHasExecutableBlocks(item?.session));
+// In-progress work is actionable as a RECOVERY, never another start.
+const clientCanResumeProjection=(item)=>Boolean(item?.visible===true&&
+  item?.visibility==='full'&&item?.canClientExecute===true&&
+  String(publishedBody(item?.session).status||item?.session?.status||'').toLowerCase()==='en_curso'&&
+  sessionIdOf(item?.session)===String(item?.id||'')&&
+  actorCanExecuteSession({role:'client',session:item?.session,appointment:item?.appointment})&&
+  sessionHasExecutableBlocks(item?.session));
+const clientSessionActionable=(item)=>clientCanStartProjection(item)||clientCanResumeProjection(item);
 const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   const actions=[];
   const appointmentBody=item.appointment?.body&&typeof item.appointment.body==='object'
@@ -206,12 +214,7 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     item.canClientExecute===true&&sessionIdOf(item.session)===String(item.id||'')&&
     actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment}));
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
-  const canResume=role==='client'&&serviceActive&&experience.clientLiveWorkout&&
-    item.visible===true&&item.visibility==='full'&&item.canClientExecute===true&&
-    String(publishedBody(item.session).status||item.session?.status||'').toLowerCase()==='en_curso'&&
-    sessionIdOf(item.session)===String(item.id||'')&&
-    actorCanExecuteSession({role:'client',session:item.session,appointment:item.appointment})&&
-    sessionHasExecutableBlocks(item.session);
+  const canResume=role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanResumeProjection(item);
   const inPreviewStart=canResume
     ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Continuar entrenamiento</button></div>`
     :role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)
@@ -308,7 +311,7 @@ function clientSessionDisplayBuckets(ordered,actionable){
 // The helper never modifies source prescription, role, or publication state.
 export function prioritizeClientPublishedSessions(items=[],{serviceActive=true,contractModality=null}={}){
   return prioritizeClientSessionItems(items,(item)=>serviceActive&&
-    clientCanStartProjection(item)&&
+    clientSessionActionable(item)&&
     experienceFor(item,'client',contractModality).clientLiveWorkout);
 }
 function renderClientPlanning(vm){
@@ -323,7 +326,7 @@ function renderClientPlanning(vm){
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
   const hasPublished=items.length>0;
-  const actionable=(item)=>vm.serviceActive!==false&&clientCanStartProjection(item)&&
+  const actionable=(item)=>vm.serviceActive!==false&&clientSessionActionable(item)&&
     experienceFor(item,'client',contractModality).clientLiveWorkout;
   const prioritizedItems=prioritizeClientPublishedSessions(items,{serviceActive:vm.serviceActive!==false,contractModality});
   const readyItems=prioritizedItems.filter(actionable);
@@ -698,7 +701,7 @@ function renderSessions(vm){
     :'';
   const client=role==='client';
   const ready=client&&vm.serviceActive!==false&&items.some((item)=>
-    experienceFor(item,role,contractModality).clientLiveWorkout&&clientCanStartProjection(item));
+    experienceFor(item,role,contractModality).clientLiveWorkout&&clientSessionActionable(item));
   const clientState=!items.length?'empty':vm.serviceActive===false&&client?'paused':ready?'ready':'published';
   const clientBrief=client&&items.length?{
     ready:['Disponible para entrenar','Tienes una sesión guiada que puedes revisar antes de empezar.'],

@@ -65,3 +65,56 @@ test('U48 Coach readback is sequenced before U55 offline builder with no seconda
  assert.match(recovery,/independentCoachMfaReadback:true/);
  assert.doesNotMatch(recovery,/SESION_PUBLICAR/);
 });
+
+
+// Universal remote recovery (running, strength, swimming) is NOT a second start.
+import {recoverAuthenticatedRemoteExecution} from '../src/m26/workflows/session-entry-freshness.js';
+import {buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
+const baseBlock={id:'40000000-0000-4000-8000-000000000475',type:'exercise',
+ exerciseId:'IBF-CARRERA-SUAVE',sets:1,restSeconds:0,measurementProfile:'endurance'};
+function remoteFixture(block=baseBlock){
+ const session={id:ID,clientId:CLIENT,title:'Trabajo autorizado',status:'en_curso',
+  revision:3,visibleToClient:true,clientVisibilityLevel:'full',
+  deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',blocks:[block]};
+ const row={id:EXEC,client_id:CLIENT,session_id:ID,execution_status:'activa',revision:1,
+  summary:{id:EXEC,sessionId:ID,clientId:CLIENT,status:'en_curso',revision:1,
+   sourceSnapshot:[structuredClone(block)],items:[structuredClone(block)],
+   cursor:{itemIndex:0,setIndex:0},startedAt:'2026-10-28T20:00:00.000Z'}};
+ const visibleExecutions=[{id:EXEC,sessionId:ID,clientId:CLIENT,executionStatus:'activa'}];
+ const canonicalExecutions=[{entityId:EXEC,sessionId:ID,clientId:CLIENT,status:'en_curso'}];
+ return {session,clientId:CLIENT,executionRow:row,visibleExecutions,canonicalExecutions};
+}
+test('U48 verified existing running reconstructs same remote CAS without a second start',()=>{
+ const data=remoteFixture();
+ const recovered=recoverAuthenticatedRemoteExecution(data);
+ assert.equal(recovered.execution.id,EXEC);
+ assert.equal(recovered.execution.status,'active');
+ assert.equal(recovered.execution.revision,1);
+ assert.equal(recovered.execution.results && Object.keys(recovered.execution.results).length,0);
+ assert.equal(recovered.execution.events.length,0);
+ assert.equal(buildProgressExecutionCommand(recovered.execution).entityId,EXEC);
+ assert.equal(buildProgressExecutionCommand(recovered.execution).baseRevision,1);
+});
+test('U48 recovery is generic for authorized strength and swimming blocks',()=>{
+ for(const exerciseId of ['IBF-SENTADILLA','IBF-NATACION-SUAVE']){
+  const data=remoteFixture({...baseBlock,exerciseId,
+   measurementProfile:exerciseId==='IBF-SENTADILLA'?'strength':'endurance'});
+  assert.equal(recoverAuthenticatedRemoteExecution(data).execution.queue[0].exerciseId,exerciseId);
+ }
+});
+test('U48 recovered execution fails closed on identity, duplicate, CAS and plan drift',()=>{
+ const variants=[
+  d=>{d.executionRow.client_id=EXEC;},
+  d=>{d.executionRow.summary.revision=0;},
+  d=>{d.visibleExecutions.push({...d.visibleExecutions[0]});},
+  d=>{d.executionRow.summary.items[0].exerciseId='OTHER';},
+  d=>{d.executionRow.summary.progressSavedAt='2026-10-28T20:01:00.000Z';},
+  d=>{d.executionRow.id='00000000-0000-4000-8000-000000000000';},
+  d=>{d.canonicalExecutions[0].entityId='00000000-0000-4000-8000-000000000000';},
+  d=>{d.session.status='disponible';},
+ ];
+ for(const mutate of variants){
+  const d=remoteFixture();mutate(d);
+  assert.throws(()=>recoverAuthenticatedRemoteExecution(d),/M48_RECOVERY_/);
+ }
+});
