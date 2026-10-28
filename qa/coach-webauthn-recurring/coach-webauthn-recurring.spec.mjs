@@ -5,6 +5,7 @@ import {certifyU58ExistingClientExecution} from './u58-existing-session-client.m
 import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import {newU47Scope,u47WriteAuthorized} from './u47-running-policy.mjs';
 import {certifyU47RunningClientLifecycle} from './u47-fresh-running-e2e.mjs';
+import {certifyU48UniversalSessionVisibility} from './u48-client-visible-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -602,6 +603,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     // U59R must run against the authentically MFA-hydrated online Coach
     // workspace BEFORE U55 intentionally disconnects this context and leaves
     // a local builder open. Never restore network around unsynced QA drafts.
+    if(process.env.M26_QA_U48_READBACK==='true'){
+      await certifyU48UniversalSessionVisibility({browser,installPolicy,evidence});
+    }
     if(process.env.M26_QA_U59_READBACK==='true'){
       for(const flag of ['M26_QA_U56_PUBLISH','M26_QA_U58_EXECUTE'])
         expect(process.env[flag], 'U59 never authorizes QA mutation').not.toBe('true');
