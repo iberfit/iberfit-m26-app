@@ -65,7 +65,7 @@ export function u47WriteAuthorized(request,scope){
        p.visibleToClient!==true||p.deliveryModality!=='guiada_en_app'||
        p.deliveryOwnership!=='guided_in_app'||p.clientVisibilityLevel!=='full'||
        !Array.isArray(p.blocks)||p.blocks.length!==1||
-       !isUuid(b?.id)||!String(b?.exerciseId||'').trim()||
+       !isUuid(b?.id)||b?.exerciseId!=='IBF-CARRERA-SUAVE'||
        Number(b.sets)!==1||Number(b.plannedDistanceKm)!==6.5||
        Number(b.plannedDurationMinutes)!==35.75||String(b.plannedPace)!=='05:30')
       return false;
