@@ -5,6 +5,7 @@ import {certifyU58ExistingClientExecution} from './u58-existing-session-client.m
 import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import {newU47Scope,u47WriteAuthorized} from './u47-running-policy.mjs';
 import {certifyU47RunningClientLifecycle} from './u47-fresh-running-e2e.mjs';
+import {certifyU48ExistingRunning} from './u48-running-recovery.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -389,6 +390,8 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
   // U26 baseline SLA remains exact for all ordinary/recurring QA gates.
   test.setTimeout(420_000);
+  // Only first, strictly gated U48 run includes an additional real workout.
+  if(process.env.M26_QA_U48_RUNNING==='true')test.setTimeout(840_000);
   // The distinct first-push-only U47 scenario adds actual Client publication,
   // running, completion and readback AFTER the untouched five-device MFA test.
   if(process.env.M26_QA_U47_RUNNING==='true')test.setTimeout(840_000);
@@ -625,6 +628,10 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         page,context,cdp,client:u56Client,coachScope:u56Scope,
         clientScope:u47ClientScope,evidence,setDevice,
       });
+    }
+    if(process.env.M26_QA_U48_RUNNING==='true'){
+      expect(process.env.M26_QA_U47_RUNNING).not.toBe('true');
+      await certifyU48ExistingRunning({browser,installPolicy,evidence});
     }
     if(process.env.M26_QA_U57_VERIFY==='true'){
       expect(process.env.M26_QA_U56_PUBLISH,
