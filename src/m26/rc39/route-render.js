@@ -605,9 +605,15 @@ export function prioritizeCoachSessions(items=[],now=new Date()){
     const dated=Number.isFinite(at);
     const section=!dated?1:at>=present?0:2;
     const time=section===0?at:section===2?-at:0;
-    return {item,index,section,time};
+    const body=item?.session?.body&&typeof item.session.body==='object'?item.session.body:item?.session||{};
+    const published=body.publishedAt||body.published_at||item?.publishedAt||item?.published_at;
+    const recent=typeof published==='string'?Date.parse(published):NaN;
+    return {item,index,section,time,recent:Number.isFinite(recent)?recent:null};
   });
-  mapped.sort((a,b)=>a.section-b.section||a.time-b.time||a.index-b.index);
+  mapped.sort((a,b)=>a.section-b.section||a.time-b.time||
+    (a.section===1&&b.section===1&&a.recent!==null&&b.recent!==null?b.recent-a.recent:0)||
+    (a.section===1&&b.section===1&&a.recent!==null?-1:a.section===1&&b.section===1&&b.recent!==null?1:0)||
+    a.index-b.index);
   return mapped.map(({item})=>item);
 }
 export function renderCoachSessionsProgressive(items=[],contractModality,options={}){

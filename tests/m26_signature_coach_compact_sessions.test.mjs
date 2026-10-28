@@ -68,3 +68,15 @@ test('SIGNATURE Coach prioritizes the nearest future dated session, keeps undate
   assert.deepEqual(input,before,'date prioritization must be a pure display projection');
   assert.strictEqual(sorted[0],input[3],'canonical session object identity is untouched');
 });
+
+
+test('U48 Coach prioritizes recently published undated sessions without hiding appointments',()=>{
+ const now=new Date('2026-10-20T15:00:00Z');
+ const baseline={id:'future',startAt:'2026-10-21T15:00:00Z',session:{publishedAt:'2026-08-01T10:00:00Z'}};
+ const old={id:'old',startAt:null,session:{publishedAt:'2026-09-01T10:00:00Z'}};
+ const fresh={id:'fresh',startAt:null,session:{publishedAt:'2026-10-28T12:00:00Z'}};
+ const past={id:'past',startAt:'2026-10-01T15:00:00Z'};
+ const input=[old,past,fresh,baseline];
+ assert.deepEqual(prioritizeCoachSessions(input,now).map(x=>x.id),['future','fresh','old','past']);
+ assert.strictEqual(input[0],old,'Coach priority is visual only, never mutates domain state');
+});

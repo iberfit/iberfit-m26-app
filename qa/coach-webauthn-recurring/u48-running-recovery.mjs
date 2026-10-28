@@ -49,6 +49,16 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence}
   await page.reload({waitUntil:'domcontentloaded',timeout:25_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:35_000});
   await expect.poll(()=>boot,{timeout:15_000}).not.toBeNull();
+  const matching=(boot?.m26Entities||[]).filter(row=>
+    String(row?.entityType||row?.entity_type||'')==='session'&&
+    String(row?.entityId||row?.entity_id||row?.id||'')===SESSION);
+  expect(matching,'U48 requires the one exact already published canonical QA session').toHaveLength(1);
+  const record=matching[0];
+  expect(String(record.status||record.body?.status)).toBe('disponible');
+  expect(String(record.body?.title||'')).toBe(TITLE);
+  expect(String(record.clientId||record.client_id||record.body?.clientId||'')).toBe(client.clientId);
+  expect(String(record.body?.deliveryOwnership||'')).toBe('guided_in_app');
+  expect(record.body?.visibleToClient).toBe(true);
   const validation=inspectU58CanonicalHistory({
     canonicalEntities:boot?.m26Entities,
     historicalExecutions:boot?.sessionExecutions,
