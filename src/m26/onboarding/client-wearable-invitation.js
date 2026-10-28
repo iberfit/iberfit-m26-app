@@ -104,6 +104,7 @@ export function createClientWearableInvitationController({root,identityProvider=
   const storageValue=storageFrom(storage,scope);
   const memory=new Map();
   let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null,busy=false;
+  let pendingNativeKey=null,nativePermissionRetry=false;
   function guideStatus(userId){
     const key=clientGuidedWelcomeScopeKey({userId,role:'client'});
     const recorded=readJson(storageValue,key);
@@ -133,6 +134,8 @@ export function createClientWearableInvitationController({root,identityProvider=
     const ctx=identity();if(!ctx){close();return;}
     // The first-run prompt cannot race the post-login native controller mount.
     if(ctx.native&&!nativeHealthReady()){close();return;}
+    // A pending Android permission ceremony is not a verified connection.
+    if(ctx.native&&pendingNativeKey===ctx.key){close();return;}
     let state=record(ctx.key);
     const welcome=guideStatus(ctx.userId);
     if(!state){
@@ -152,6 +155,14 @@ export function createClientWearableInvitationController({root,identityProvider=
     doc.body.insertAdjacentHTML('beforeend',connected360InvitationMarkup(capabilities,getIberfitLanguage()));
     dialog=doc.querySelector?.('[data-m26-connected360-invitation]')||null;
     activeKey=dialog?ctx.key:null;
+    if(ctx.native&&nativePermissionRetry){
+      const status=dialog?.querySelector?.('[data-m26-connected360-status]');
+      if(status)status.textContent=iberfitSurfaceTranslate(
+        'No se han confirmado los permisos de Android. Puedes volver a intentarlo o gestionarlos desde Dispositivos.',
+        {language:getIberfitLanguage()},
+      );
+      nativePermissionRetry=false;
+    }
     // Non-modal: no focus theft, no forced permission prompt and no overlay over the app.
   }
   function refresh(){if(!mounted||scheduled)return;scheduled=true;queueMicrotask(render);}
@@ -187,10 +198,14 @@ export function createClientWearableInvitationController({root,identityProvider=
     busy=true;button.disabled=true;
     if(note)note.textContent=t('Comprobando tu sesión y registrando las categorías autorizadas…');
     try{
-      await connectNativeHealth(metrics);
-      // Never persist a decision for another login after an asynchronous grant.
+      const request=await connectNativeHealth(metrics);
+      if(request?.requested!==true)throw new Error('M26_CONNECTED360_OS_PERMISSION_REQUEST_NOT_CONFIRMED');
+      // Server consent is not an Android OS permission. Record success only
+      // after an owner-scoped native return and a verified read/grant result.
       if(!mounted||identity()?.key!==ctx.key)return;
-      write(ctx.key,'chosen');close();
+      pendingNativeKey=ctx.key;
+      nativePermissionRetry=false;
+      close();
     }catch(error){
       if(!mounted||identity()?.key!==ctx.key)return;
       if(note)note.textContent=/OFFLINE|NetworkError|Failed to fetch/u.test(String(error?.message||''))
@@ -210,6 +225,24 @@ export function createClientWearableInvitationController({root,identityProvider=
     const hint=dialog.querySelector?.('.m26-connected360-provider');
     if(hint)hint.textContent=iberfitSurfaceTranslate('No se ha podido abrir Actividad. Puedes encontrarla también desde Ajustes.',{language:getIberfitLanguage()});
   }
+  function onNativePermissionOutcome(event){
+    const pending=pendingNativeKey;
+    pendingNativeKey=null;
+    if(!mounted||!pending||identity()?.key!==pending)return;
+    if(event?.detail?.confirmed===true){
+      write(pending,'chosen');close();
+    }else{
+      // Declined/unknown permissions retain the original optional offer;
+      // never present an unverified Health Connect connection as complete.
+      nativePermissionRetry=true;close();refresh();
+    }
+  }
+  function onPageShow(){
+    // Android WebView can reload before delivering a permission-return event.
+    // Recover with the uncommitted offer rather than suppress it forever.
+    if(pendingNativeKey)pendingNativeKey=null;
+    refresh();
+  }
   function keydown(event){
     if(event?.key!=='Escape'||!dialog)return;
     const ctx=identity();if(ctx)write(ctx.key,'dismissed');close();
@@ -220,15 +253,17 @@ export function createClientWearableInvitationController({root,identityProvider=
       doc?.addEventListener?.('click',click);doc?.addEventListener?.('keydown',keydown);
       root.addEventListener?.('m26:client-guided-welcome-completed',refresh);
       root.addEventListener?.('m26:native-wearables-ready',refresh);
-      scope?.addEventListener?.('pageshow',refresh);refresh();
+      root.addEventListener?.('m26:connected360-native-permission-outcome',onNativePermissionOutcome);
+      scope?.addEventListener?.('pageshow',onPageShow);refresh();
     },
     refresh,
     destroy(){
-      mounted=false;scheduled=false;busy=false;
+      mounted=false;scheduled=false;busy=false;pendingNativeKey=null;nativePermissionRetry=false;
       doc?.removeEventListener?.('click',click);doc?.removeEventListener?.('keydown',keydown);
       root.removeEventListener?.('m26:client-guided-welcome-completed',refresh);
       root.removeEventListener?.('m26:native-wearables-ready',refresh);
-      scope?.removeEventListener?.('pageshow',refresh);
+      root.removeEventListener?.('m26:connected360-native-permission-outcome',onNativePermissionOutcome);
+      scope?.removeEventListener?.('pageshow',onPageShow);
       close();style?.remove?.();style=null;
     },
   });

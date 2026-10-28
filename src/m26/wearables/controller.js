@@ -1007,9 +1007,36 @@ export function createWearableController({
     if(doc?.visibilityState!=='hidden')requestForegroundSync();
   }
   function onNativeHealthPermissionsReturned(){
-    // Resume after the OS prompt, even when Android WebView never emitted
-    // pageshow/visibilitychange. Server and OS consent are rechecked.
-    if(mounted&&productionSync)requestForegroundSync({force:true});
+    // Android only signals that its permission screen returned, NOT whether
+    // the user granted it. A previous no-permission read must never be reused.
+    if(!mounted||!productionSync)return;
+    const expected=qaClientIdentity();
+    const epoch=nativeIdentityEpoch;
+    if(expected.role!=='client'||!expected.ownerId||!expected.clientId)return;
+    const stillCurrent=()=>{
+      const current=qaClientIdentity();
+      return mounted&&epoch===nativeIdentityEpoch&&
+        current.role==='client'&&current.ownerId===expected.ownerId&&
+        current.clientId===expected.clientId;
+    };
+    foregroundSync.invalidate();
+    productionSync.invalidate();
+    const outcome=(confirmed)=>{
+      if(!stillCurrent())return;
+      // UI confirmation only: consent, authorization and uploads remain
+      // guarded by productionSync. No health records enter this DOM event.
+      root.dispatchEvent?.(new CustomEvent('m26:connected360-native-permission-outcome',{
+        detail:{confirmed:confirmed===true},
+      }));
+    };
+    void foregroundSync.trigger({force:true}).then((results)=>{
+      if(!stillCurrent())return;
+      const nativeResult=Array.isArray(results)?results[0]:null;
+      outcome(nativeResult?.ok===true||nativeResult?.skipped==='no-recent-observations');
+    }).catch(error=>{
+      emitDiagnostic('connected360-prod-os-permissions-return',error);
+      outcome(false);
+    });
   }
 
   // Same authenticated native route for the first-day welcome and the

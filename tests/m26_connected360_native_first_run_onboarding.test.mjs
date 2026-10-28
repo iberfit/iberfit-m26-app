@@ -8,7 +8,7 @@ import {
 import {clientGuidedWelcomeScopeKey} from '../src/m26/onboarding/client-guided-welcome.js';
 
 function nativeFixture({guide='completed',connect=async()=>({requested:true}),ready=()=>true}={}){
-  const cache=new Map(),listener=new Map(),rootListener=new Map();
+  const cache=new Map(),listener=new Map(),rootListener=new Map(),scopeListener=new Map();
   const storage={getItem:key=>cache.get(key)||null,setItem:(key,value)=>cache.set(key,String(value))};
   let who='native-owner-a',dialog=null,rendered=0,requested=[];
   storage.setItem(clientGuidedWelcomeScopeKey({userId:who,role:'client'}),JSON.stringify({status:guide}));
@@ -34,14 +34,14 @@ function nativeFixture({guide='completed',connect=async()=>({requested:true}),re
   };
   const scope={location:{origin:'https://app.iberfit.cl'},document:doc,localStorage:storage,
     IBERFIT_CONNECTED360_NATIVE:{postMessage(){},addEventListener(){}},
-    addEventListener(){},removeEventListener(){}};
+    addEventListener:(name,fn)=>scopeListener.set(name,fn),removeEventListener:name=>scopeListener.delete(name)};
   const controller=createClientWearableInvitationController({root,scope,
     identityProvider:()=>({role:'client',userId:who}),stateProvider:()=>({collections:{wearableConnections:[]}}),
     nativeHealthReady:ready,
     connectNativeHealth:async scopes=>{requested.push([...scopes]);return connect(scopes);}});
   function action(name){const button={kind:'action',disabled:false,getAttribute:()=>name};
     listener.get('click')?.({target:{closest:()=>button}});return button;}
-  return {controller,scope,storage,inputs,status,rootListener,requested,action,
+  return {controller,scope,storage,inputs,status,rootListener,scopeListener,requested,action,
     dialog:()=>dialog,rendered:()=>rendered,setUserId:value=>{who=value;}};
 }
 const flush=async()=>{await Promise.resolve();await Promise.resolve();await Promise.resolve();};
@@ -72,9 +72,13 @@ test('native first-run is an explicit, granular one-tap consent with no navigati
   assert.deepEqual(f.requested,[['steps','sleepMinutes']]);
   assert.equal(f.dialog(),null);
   const key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending',
+    'OS permission request is not confirmation');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
   assert.equal(JSON.parse(f.storage.getItem(key)).status,'chosen');
   f.controller.refresh();await flush();
-  assert.equal(f.rendered(),1,'no repeat after successful first-run authorization');
+  assert.equal(f.rendered(),1,'no repeat after verified OS authorization');
   f.controller.destroy();
 });
 
@@ -92,7 +96,7 @@ test('native welcome waits for the post-login controller without a loading lock 
 
 test('native errors allow retry; declining is respected without writing health consent',async()=>{
   let tries=0;
-  const f=nativeFixture({connect:async()=>{tries++;if(tries===1)throw Error('network lost');}});
+  const f=nativeFixture({connect:async()=>{tries++;if(tries===1)throw Error('network lost');return {requested:true};}});
   f.controller.mount();await flush();f.inputs[0].checked=true;
   f.action('start');await flush();
   assert.equal(f.dialog()!==null,true);
@@ -100,6 +104,15 @@ test('native errors allow retry; declining is respected without writing health c
   assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
   f.action('start');await flush();
   assert.equal(tries,2);
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:false}});
+  await flush();
+  assert.ok(f.dialog(),'denied Android permission must keep the optional retry available');
+  assert.match(f.status.textContent,/No se han confirmado los permisos/u);
+  f.action('start');await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
   assert.equal(JSON.parse(f.storage.getItem(key)).status,'chosen');
   f.controller.destroy();
   const dismissed=nativeFixture();dismissed.controller.mount();await flush();
@@ -109,6 +122,58 @@ test('native errors allow retry; declining is respected without writing health c
   dismissed.controller.refresh();await flush();
   assert.equal(dismissed.rendered(),1);
   dismissed.controller.destroy();
+});
+
+test('native return event cannot spoof completion before the real OS permission ceremony',async()=>{
+  const f=nativeFixture();f.controller.mount();await flush();
+  const key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  assert.ok(f.dialog());
+  f.inputs[1].checked=true;f.action('start');await flush();
+  assert.equal(f.dialog(),null);
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await flush();
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'chosen');
+  f.controller.destroy();
+});
+
+test('native pending permission recovers after webview pageshow without manufacturing a grant',async()=>{
+  const f=nativeFixture();f.controller.mount();await flush();
+  f.inputs[0].checked=true;f.action('start');await flush();
+  assert.equal(f.dialog(),null);
+  const key=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  f.scopeListener.get('pageshow')?.();
+  await flush();
+  assert.ok(f.dialog(),'an interrupted OS flow must recover the same offer after WebView resumes');
+  assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
+  f.controller.destroy();
+});
+
+test('native permission outcome is owner bound and cannot commit for another Client',async()=>{
+  const f=nativeFixture();f.controller.mount();await flush();
+  f.inputs[0].checked=true;f.action('start');await flush();
+  f.setUserId('native-owner-b');
+  f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  const oldKey=connected360InvitationKey({userId:'native-owner-a',role:'client',native:true});
+  assert.equal(JSON.parse(f.storage.getItem(oldKey)).status,'pending');
+  f.controller.destroy();
+});
+
+test('native returned permissions trigger a fresh, owner-scoped foreground health recheck',()=>{
+  const code=readFileSync('src/m26/wearables/controller.js','utf8');
+  const start=code.indexOf('function onNativeHealthPermissionsReturned(){');
+  const end=code.indexOf('async function startProductionHealthConnection(scopes)',start);
+  assert.ok(start>0&&end>start);
+  const section=code.slice(start,end);
+  assert.match(section,/foregroundSync\.invalidate\(\)/u);
+  assert.match(section,/productionSync\.invalidate\(\)/u);
+  assert.match(section,/foregroundSync\.trigger\(\{force:true\}\)/u);
+  assert.match(section,/epoch===nativeIdentityEpoch/u);
+  assert.match(section,/nativeResult\?\.skipped==='no-recent-observations'/u);
+  assert.match(section,/m26:connected360-native-permission-outcome/u);
+  assert.doesNotMatch(section,/reauthorizeWearable|grantWithoutPermission/u);
 });
 
 test('native invite never inherits PWA opt-out nor stores a decision for another account',async()=>{
