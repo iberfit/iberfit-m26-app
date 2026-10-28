@@ -108,6 +108,9 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   expect(saved.rawSession).toContain('p0-browser-token');
   expect(saved.draft).toContain('"revision":7');
 
+  // An earlier pre-auth-only navigation must not leave a stale one-shot
+  // update guard that blocks the next service-worker version.
+  expect(await page.evaluate(()=>sessionStorage.getItem('m26:bootstrap-update-reload-v1'))).toBeNull();
   await setRelease(request,'n',{optionalFail:true});
   await page.evaluate(()=>sessionStorage.setItem('p0:pwa-navigation-count','0'));
 
@@ -121,6 +124,7 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   await page.waitForFunction(()=>globalThis.__IBERFIT_P0_BROWSER_RELEASE__==='n',null,{timeout:20_000});
   await waitForController(page);
   await expect(page.locator('.m26-auth-page')).toHaveAttribute('data-auth-state','unavailable');
+  expect(await page.evaluate(()=>sessionStorage.getItem('m26:bootstrap-update-reload-v1'))).toBeNull();
 
   const afterUpgrade=await page.evaluate(async({sessionKey,draftKey,currentCache,previousCache,shellPath})=>{
     const {createSessionVault}=await import('/src/m26/app/session-vault.js');

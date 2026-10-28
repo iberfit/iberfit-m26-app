@@ -6,6 +6,7 @@ import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import {newU47Scope,u47WriteAuthorized} from './u47-running-policy.mjs';
 import {certifyU47RunningClientLifecycle} from './u47-fresh-running-e2e.mjs';
 import {certifyU48ExistingRunning} from './u48-running-recovery.mjs';
+import {certifyU48UniversalSessionVisibility} from './u48-client-visible-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -614,6 +615,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     }
     // U48 must use the online, independently MFA-verified Coach context for
     // post-completion readback, BEFORE U55 intentionally goes offline.
+    if(process.env.M26_QA_U48_READBACK==='true'){
+      await certifyU48UniversalSessionVisibility({browser,installPolicy,evidence});
+    }
     if(process.env.M26_QA_U48_RUNNING==='true'){
       expect(process.env.M26_QA_U47_RUNNING).not.toBe('true');
       await certifyU48ExistingRunning({browser,installPolicy,evidence,

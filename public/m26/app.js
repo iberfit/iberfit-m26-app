@@ -316,6 +316,9 @@ function settleDisabledAuthShell(){
   const page=root.querySelector?.('.m26-auth-page');
   page?.setAttribute?.('data-auth-mode','login');
   page?.setAttribute?.('data-auth-state','unavailable');
+  // A stable pre-auth shell completes a navigation too: a stale reload guard
+  // must not suppress the next installed-PWA release after an earlier upgrade.
+  clearBootstrapReloadGuard();
   return true;
 }
 
@@ -328,9 +331,12 @@ function controllerReloadOnce(){
   return true;
 }
 
+let pendingPwaActivationWorker=null;
 function activateWaitingWorkerAtColdStart(registration){
   const waiting=registration?.waiting;
   if(!waiting||!globalThis.navigator?.serviceWorker?.controller)return false;
+  if(pendingPwaActivationWorker===waiting)return true;
+  pendingPwaActivationWorker=waiting;
   const onControllerChange=()=>controllerReloadOnce();
   globalThis.navigator.serviceWorker.addEventListener?.('controllerchange',onControllerChange,{once:true});
   waiting.postMessage?.({type:'SKIP_WAITING'});
@@ -344,9 +350,12 @@ async function prepareInstalledPwaUpdate(){
   const armInstalling=()=>{
     const installing=registration.installing;
     if(!installing?.addEventListener)return;
-    installing.addEventListener('statechange',()=>{
+    const activateInstalled=()=>{
       if(installing.state==='installed')activateWaitingWorkerAtColdStart(registration);
-    });
+    };
+    installing.addEventListener('statechange',activateInstalled);
+    // The browser can reach 'installed' before updatefound's listener attaches.
+    activateInstalled();
   };
   registration.addEventListener?.('updatefound',armInstalling);
   armInstalling();

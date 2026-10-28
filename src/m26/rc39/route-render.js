@@ -276,6 +276,13 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
+// One canonical, permission-aware ordering rule for both Cliente routes.
+// The helper never modifies source prescription, role, or publication state.
+export function prioritizeClientPublishedSessions(items=[],{serviceActive=true,contractModality=null}={}){
+  return prioritizeClientSessionItems(items,(item)=>serviceActive&&
+    clientCanStartProjection(item)&&
+    experienceFor(item,'client',contractModality).clientLiveWorkout);
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   // Client-only appointments were scoped by ownership, publication and time in the view model.
@@ -290,7 +297,7 @@ function renderClientPlanning(vm){
   const hasPublished=items.length>0;
   const actionable=(item)=>vm.serviceActive!==false&&clientCanStartProjection(item)&&
     experienceFor(item,'client',contractModality).clientLiveWorkout;
-  const prioritizedItems=prioritizeClientSessionItems(items,actionable);
+  const prioritizedItems=prioritizeClientPublishedSessions(items,{serviceActive:vm.serviceActive!==false,contractModality});
   const readyItems=prioritizedItems.filter(actionable);
   const nearestAppointment=clientAppointments[0]||null;
   const focus=readyItems[0]
@@ -647,7 +654,7 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
 function renderClientSessionsProgressive(items,contractModality,options={}){
   const actionable=(item)=>options.serviceActive!==false&&clientCanStartProjection(item)&&
     experienceFor(item,'client',contractModality).clientLiveWorkout;
-  const ordered=prioritizeClientSessionItems(items,actionable);
+  const ordered=prioritizeClientPublishedSessions(items,{serviceActive:options.serviceActive!==false,contractModality});
   const readyCount=ordered.filter(actionable).length;
   const foreground=ordered.length>6?ordered.slice(0,4):ordered;
   const remaining=ordered.length>6?ordered.slice(4):[];
