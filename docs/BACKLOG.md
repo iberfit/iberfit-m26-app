@@ -1,3 +1,13 @@
+## Connected360 C38 · Autorización Android verificada · WIP 27-10-2026
+
+- **Producción verificada:** B36+B37 `b3d7a733ddde8cc192af0143c126f2b64f6524d6`, promoción oficial [#40618977447](https://github.com/iberfit/iberfit-m26-app/actions/runs/40618977447) SUCCESS intento 2, backup M44 nuevo, frontend-only.
+- **Canary concurrente:** incluye SIGNATURE B38 de inicio universal de sesiones [#1172](https://github.com/iberfit/iberfit-m26-app/pull/1172) sobre SHA `1238226014052fc2966767beb33d1307174f2ab3`. Connected360 C38 preserva exactamente esos cambios y no sustituye su circuito de certificación.
+- **C38 candidato, NO desplegado:** Health Connect ya dispone de invitación granular y autosync al abrir. Corregir que un `health.permissions` solicitado pero no confirmado ocultase la invitación. Solo declarar la elección completada cuando el regreso de Android produce una lectura autorizada o un resultado de permiso confirmado sin observaciones; recuperar tras rechazo, WebView y cambio de cuenta.
+- **Seguridad:** no autorizar desde la reanudación, no persistir datos clínicos en eventos DOM, no solicitar permisos background, no interferir con autenticación, sesiones ni IRI. Solo frontend/test/documentación.
+- **Salida:** PR, Fast Lane, CI, auditoría, Device Gate, WebAuthn, Canary exacto y promoción si y solo si se completan todas las certificaciones; no confundir código preparado con release productiva.
+
+---
+
 ## WIP único · SIGNATURE B37 · Navegación táctil sin bloqueo del clic · 27-10-2026
 
 - **Canary B36 realmente servido:** `6384db077a2d3082e72839d4e7cd3bc74990640b` en `m26-canary.iberfit.cl` con Supabase QA; **PROD permanece B35** `3e019c7affe4fb2795edbfa1a562a90c0bc06fd1`.
