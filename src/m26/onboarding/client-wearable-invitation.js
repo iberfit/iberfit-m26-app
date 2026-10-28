@@ -104,7 +104,10 @@ export function createClientWearableInvitationController({root,identityProvider=
   const storageValue=storageFrom(storage,scope);
   const memory=new Map();
   let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null,busy=false;
-  let pendingNativeKey=null,nativePermissionRetry=false;
+  // OS callbacks may arrive before the native request promise resolves, or
+  // after WebView pageshow. Neither lifecycle may manufacture a consent.
+  let pendingNativeKey=null,recoverableNativeKey=null,nativeRequestKey=null;
+  let earlyNativeOutcome=null,nativePermissionRetry=false;
   function guideStatus(userId){
     const key=clientGuidedWelcomeScopeKey({userId,role:'client'});
     const recorded=readJson(storageValue,key);
@@ -196,6 +199,10 @@ export function createClientWearableInvitationController({root,identityProvider=
       return;
     }
     busy=true;button.disabled=true;
+    // A fresh explicit attempt supersedes an interrupted return, never a server grant.
+    recoverableNativeKey=null;
+    nativeRequestKey=ctx.key;
+    earlyNativeOutcome=null;
     if(note)note.textContent=t('Comprobando tu sesión y registrando las categorías autorizadas…');
     try{
       const request=await connectNativeHealth(metrics);
@@ -206,12 +213,21 @@ export function createClientWearableInvitationController({root,identityProvider=
       pendingNativeKey=ctx.key;
       nativePermissionRetry=false;
       close();
+      // Android can deliver a verified read/grant outcome before the awaiting
+      // JS call confirms that the permission ceremony was actually requested.
+      // Do not commit the queued result until that request is acknowledged.
+      if(earlyNativeOutcome!==null){
+        onNativePermissionOutcome({detail:{confirmed:earlyNativeOutcome}});
+      }
     }catch(error){
       if(!mounted||identity()?.key!==ctx.key)return;
       if(note)note.textContent=/OFFLINE|NetworkError|Failed to fetch/u.test(String(error?.message||''))
         ?t('No hay conexión. Tu elección no se ha completado; vuelve a intentar cuando tengas internet.')
         :t('No podemos confirmar todavía la conexión. Tus autorizaciones existentes se conservan; puedes reintentar sin reinstalar la aplicación.');
-    }finally{busy=false;button.disabled=false;}
+    }finally{
+      if(nativeRequestKey===ctx.key){nativeRequestKey=null;earlyNativeOutcome=null;}
+      busy=false;button.disabled=false;
+    }
   }
   function click(event){
     const btn=event.target?.closest?.('[data-m26-connected360-action]');
@@ -219,16 +235,29 @@ export function createClientWearableInvitationController({root,identityProvider=
     const ctx=identity();if(!ctx||ctx.key!==activeKey){close();return;}
     const action=btn.getAttribute?.('data-m26-connected360-action');
     if(busy)return;
-    if(action==='later'){write(ctx.key,'dismissed');close();return;}
+    if(action==='later'){
+      pendingNativeKey=null;recoverableNativeKey=null;
+      nativeRequestKey=null;earlyNativeOutcome=null;
+      write(ctx.key,'dismissed');close();return;
+    }
     if(action==='start'&&ctx.native){void startNative(ctx,btn);return;}
     if(action==='start'&&navigate()){write(ctx.key,'chosen');close();return;}
     const hint=dialog.querySelector?.('.m26-connected360-provider');
     if(hint)hint.textContent=iberfitSurfaceTranslate('No se ha podido abrir Actividad. Puedes encontrarla también desde Ajustes.',{language:getIberfitLanguage()});
   }
   function onNativePermissionOutcome(event){
-    const pending=pendingNativeKey;
-    pendingNativeKey=null;
-    if(!mounted||!pending||identity()?.key!==pending)return;
+    const pending=pendingNativeKey||recoverableNativeKey;
+    if(!pending){
+      // A callback racing the explicit Android bridge call is buffered only
+      // in memory, for this owner. It cannot mark the offer as completed until
+      // the bridge returns requested:true (and never survives rejection).
+      if(nativeRequestKey&&mounted&&identity()?.key===nativeRequestKey){
+        earlyNativeOutcome=event?.detail?.confirmed===true;
+      }
+      return;
+    }
+    pendingNativeKey=null;recoverableNativeKey=null;
+    if(!mounted||identity()?.key!==pending||FINAL.has(record(pending)?.status))return;
     if(event?.detail?.confirmed===true){
       write(pending,'chosen');close();
     }else{
@@ -238,13 +267,19 @@ export function createClientWearableInvitationController({root,identityProvider=
     }
   }
   function onPageShow(){
-    // Android WebView can reload before delivering a permission-return event.
-    // Recover with the uncommitted offer rather than suppress it forever.
-    if(pendingNativeKey)pendingNativeKey=null;
+    // A returning WebView must show a usable retry if no callback arrives.
+    // Keep the original owner-scoped ticket to reconcile a late verified
+    // outcome instead of dropping it solely because pageshow fired first.
+    if(pendingNativeKey){
+      recoverableNativeKey=pendingNativeKey;
+      pendingNativeKey=null;
+    }
     refresh();
   }
   function keydown(event){
     if(event?.key!=='Escape'||!dialog)return;
+    pendingNativeKey=null;recoverableNativeKey=null;
+    nativeRequestKey=null;earlyNativeOutcome=null;
     const ctx=identity();if(ctx)write(ctx.key,'dismissed');close();
   }
   return Object.freeze({
@@ -258,7 +293,9 @@ export function createClientWearableInvitationController({root,identityProvider=
     },
     refresh,
     destroy(){
-      mounted=false;scheduled=false;busy=false;pendingNativeKey=null;nativePermissionRetry=false;
+      mounted=false;scheduled=false;busy=false;
+      pendingNativeKey=null;recoverableNativeKey=null;nativeRequestKey=null;
+      earlyNativeOutcome=null;nativePermissionRetry=false;
       doc?.removeEventListener?.('click',click);doc?.removeEventListener?.('keydown',keydown);
       root.removeEventListener?.('m26:client-guided-welcome-completed',refresh);
       root.removeEventListener?.('m26:native-wearables-ready',refresh);
