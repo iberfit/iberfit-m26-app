@@ -1,3 +1,12 @@
+## WIP único · U42 Canary live smoke navigation · 28-10-2026
+
+- **Base exacta:** Canary source protegido `deabc3fd879f838756994adad8789260261784dd`; QA WebAuthn Coach/Admin, QA Real Write, CI, Device y gates remotos SUCCESS. Canary Exact Deploy [#40658515649](https://github.com/iberfit/iberfit-m26-app/actions/runs/40658515649) FAILURE en el paso Chromium del login read-only.
+- **Causa observable:** `page.goto(... waitUntil:'networkidle' ...)` expiró a 45 s antes de validar la UI. Cloudflare había propagado el SHA U42; el rollback Canary restituyó `410a80a5bded459ed26f46d0942b3635c1e01512` y no tocó PROD `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`.
+- **Corrección candidata — NO PUBLICADA:** sustituir espera de silencio global de red por DOM listo + documento completo + formulario visible con tiempos acotados. Mantener SHA, QA-only, runtime, avisos, seguridad read-only, errores de página, accesibilidad y prueba desktop/móvil con rollback. Tests dirigidos de red activa y falta de readiness.
+- **Salida:** tests y gates de PR, merge protegido a Canary, Exact Deploy nuevo y QA real; únicamente después promoción oficial frontend-only C40+U42+gate si la comparación contra PROD lo permite, con M44 y smoke productivo.
+
+---
+
 ## WIP único · Connected360 C39 · Integridad del día civil, fuentes desconocidas y recuperación sin bloqueo · 28-10-2026
 
 - **Producción certificada:** SIGNATURE B38 + Connected360 C38 SHA `f88bd4aff5a71d40a59d23a5c5afa6bc1654fec9`, [promoción oficial #40626067758](https://github.com/iberfit/iberfit-m26-app/actions/runs/40626067758) SUCCESS intento 1. Supabase PROD/QA aislados; sin migración ni despliegue backend.

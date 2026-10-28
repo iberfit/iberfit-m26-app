@@ -2,6 +2,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from '@playwright/test';
 import {MAX_CANARY_EDGE_ATTEMPTS,isRetryableCanaryStaticFailure} from './m43-canary-edge-policy.mjs';
+import {navigateCanaryLiveForCertification} from './canary-live-navigation.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
@@ -122,10 +123,7 @@ async function inspectViewport(browser,{name,width,height}){
   });
 
   try{
-    const response=await page.goto(`${CANARY_ORIGIN}/?prelaunch=${Date.now()}`,{
-      waitUntil:'networkidle',
-      timeout:45_000,
-    });
+    const response=await navigateCanaryLiveForCertification(page,`${CANARY_ORIGIN}/?prelaunch=${Date.now()}`);
     invariant(response?.ok(),'PRELAUNCH_LIVE_DOCUMENT_NOT_OK');
     invariant(new URL(page.url()).origin===CANARY_ORIGIN,'PRELAUNCH_LIVE_REDIRECTED_ORIGIN');
 
