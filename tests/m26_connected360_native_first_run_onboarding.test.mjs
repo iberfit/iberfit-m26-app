@@ -108,7 +108,7 @@ test('native errors allow retry; declining is respected without writing health c
   f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:false}});
   await flush();
   assert.ok(f.dialog(),'denied Android permission must keep the optional retry available');
-  assert.match(f.status.textContent,/No se han confirmado los permisos/u);
+  assert.match(f.status.textContent,/No podemos confirmar todavía la conexión/u);
   f.action('start');await flush();
   assert.equal(JSON.parse(f.storage.getItem(key)).status,'pending');
   f.rootListener.get('m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});

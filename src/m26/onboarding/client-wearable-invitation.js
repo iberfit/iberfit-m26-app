@@ -158,7 +158,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(ctx.native&&nativePermissionRetry){
       const status=dialog?.querySelector?.('[data-m26-connected360-status]');
       if(status)status.textContent=iberfitSurfaceTranslate(
-        'No se han confirmado los permisos de Android. Puedes volver a intentarlo o gestionarlos desde Dispositivos.',
+        'No podemos confirmar todavía la conexión. Tus autorizaciones existentes se conservan; puedes reintentar sin reinstalar la aplicación.',
         {language:getIberfitLanguage()},
       );
       nativePermissionRetry=false;
