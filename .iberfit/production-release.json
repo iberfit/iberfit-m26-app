@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f88bd4aff5a71d40a59d23a5c5afa6bc1654fec9",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "b3d7a733ddde8cc192af0143c126f2b64f6524d6",
+  "notes": "SIGNATURE B38 universal workout entry and Connected360 C38 native permission confirmation; all postmerge source gates success; exact frontend-only promotion, no SQL/Edge/Hosted Auth mutation."
+}
