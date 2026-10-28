@@ -1,4 +1,9 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
+# SIGNATURE B36+B37 release 2026-10-27: renew protected recovery evidence.
+# Canary push of this comment-only change requests the existing encrypted
+# PROD DB + Storage backup and isolated PG17 restoration before frontend-only
+# promotion. No change to jobs, permissions, secrets, storage scope or checks.
+
 
 # IBERFIT SIGNATURE U46 — fresh offsite release readiness, 2026-10-25.
 # A certified merge to Canary requests a new encrypted production DB+Storage
