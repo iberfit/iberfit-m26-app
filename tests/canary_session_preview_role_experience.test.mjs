@@ -30,20 +30,20 @@ test('Cliente presencial: título y duración, nunca bloques ni prescripción',(
  assert.match(value,/Fuerza presencial/);
  assert.match(value,/55 min/);
  assert.match(value,/Esta sesión la dirige tu Coach/);
- for(const forbidden of ['Press de pecho','Remo TRX','Biserie','3-1-1','Control escapular','NOTA PRIVADA NO MOSTRAR','Ver sesión','Comenzar entrenamiento']){
+ for(const forbidden of ['Press de pecho','Remo TRX','Biserie','3-1-1','Control escapular','NOTA PRIVADA NO MOSTRAR','Ver sesión','Preparar entrenamiento']){
    assert.doesNotMatch(value,new RegExp(forbidden),forbidden);
  }
 });
 test('Cliente autónomo: Ver sesión completo y ejercicios con medios honestos; el CTA conserva ID exacto',()=>{
  const value=html('client',[item('guiada','guided_in_app','full')]);
- for(const visible of ['Ver sesión','Press de pecho','Remo TRX','Sentadilla','Biserie','3 rondas','8-12','60 s','RPE','RIR','3-1-1','Control escapular','Alternativa','Sin referencia visual','Comenzar entrenamiento']){
+ for(const visible of ['Ver sesión','Press de pecho','Remo TRX','Sentadilla','Biserie','3 rondas','8-12','60 s','RPE','RIR','3-1-1','Control escapular','Alternativa','Sin referencia visual','Preparar entrenamiento']){
    assert.ok(value.includes(visible),visible);
  }
  assert.match(value,/data-entity-id="guiada"/);
  assert.equal((value.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
  const disclosure=value.indexOf('<details class="m26-rc39-session-content');
  const launch=value.indexOf('data-workflow-action="start-published-session"');
- assert.ok(disclosure>=0&&launch>disclosure&&value.indexOf('</details>',launch)>launch);
+ assert.ok(disclosure>=0&&launch>value.indexOf('</details>',disclosure),'primary start is visible after optional preview');
  assert.doesNotMatch(value,/data-session-primary-start/);
  assert.match(value,/loading="lazy"|Sin referencia visual/);
  assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
@@ -51,7 +51,7 @@ test('Cliente autónomo: Ver sesión completo y ejercicios con medios honestos; 
 test('Visibilidad summary_only contradictoria oculta prescripción aunque tenga bloques',()=>{
  const guided=item('guiada','guided_in_app','summary_only');
  const value=html('client',[guided]);
- assert.doesNotMatch(value,/Press de pecho|Ver sesión|Sin referencia visual|Comenzar entrenamiento/);
+ assert.doesNotMatch(value,/Press de pecho|Ver sesión|Sin referencia visual|Preparar entrenamiento/);
  assert.match(value,/El detalle de esta sesión estará disponible/);
 });
 test('Coach conserva acceso a prescripción de sesiones dirigidas y conoce visibilidad del cliente',()=>{
@@ -83,10 +83,10 @@ test('Cliente no recibe prescripción ni CTA si la proyección contradice al ser
  const misleading=item('guiada','guided_in_app','full');
  misleading.session={...misleading.session,deliveryOwnership:'coach_led',deliveryModality:'presencial',clientVisibilityLevel:'full'};
  let value=html('client',[misleading]);
- assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Press de pecho/);
+ assert.doesNotMatch(value,/Ver sesión|Preparar entrenamiento|Press de pecho/);
  const wrongId={...item('guiada','guided_in_app','full'),id:'OTRA-SESION'};
  value=html('client',[wrongId]);
- assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Press de pecho/);
+ assert.doesNotMatch(value,/Ver sesión|Preparar entrenamiento|Press de pecho/);
 });
 
 test('Vista previa robusta: bloques nulos, dispersos y arrays importados no bloquean Cliente ni Coach',()=>{
@@ -99,7 +99,7 @@ test('Vista previa robusta: bloques nulos, dispersos y arrays importados no bloq
     assert.match(value,/Biserie/);
     assert.match(value,/Ejercicio 1/);
     assert.doesNotMatch(value,/Ejercicio 4|NOTA PRIVADA NO MOSTRAR/);
-    if(role==='client')assert.match(value,/Comenzar entrenamiento/);
+    if(role==='client')assert.match(value,/Preparar entrenamiento/);
   }
 });
 
@@ -111,7 +111,7 @@ test('Una sesion con todos los bloques importados invalidos no ofrece inicio Cli
     const value=html(role,[broken]);
     assert.match(value,/Fuerza autónoma/);
     assert.match(value,/El detalle de esta sesión estará disponible/);
-    assert.doesNotMatch(value,/Ver sesión|Comenzar entrenamiento|Comenzar con Coach|data-workflow-action="start-published-session"/);
+    assert.doesNotMatch(value,/Ver sesión|Preparar entrenamiento|Comenzar con Coach|data-workflow-action="start-published-session"/);
     assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
   }
 });
@@ -124,7 +124,7 @@ test('El limite de 120 bloques se aplica despues de descartar bloques nulos',()=
   assert.match(value,/Press de pecho/);
   assert.match(value,/Biserie/);
   assert.match(value,/Ejercicio 1/);
-  assert.match(value,/Comenzar entrenamiento/);
+  assert.match(value,/Preparar entrenamiento/);
   assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);
 });
 
@@ -172,6 +172,6 @@ test('SIGNATURE stale client projection cannot re-enable a workout that has alre
   const value=html('client',[stale]);
   assert.match(value,/Fuerza autónoma/u);
   assert.match(value,/Ver sesión/u);
-  assert.doesNotMatch(value,/data-workflow-action="start-published-session"|Comenzar entrenamiento/u);
+  assert.doesNotMatch(value,/data-workflow-action="start-published-session"|Preparar entrenamiento/u);
   assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/u);
 });
