@@ -274,6 +274,35 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
+// SIGNATURE U48 — actionable sessions must never be buried beneath old
+// published/supervised records. This only orders a *pre-authorized* projection;
+// it never changes publication state, permission, owner, modality or execution.
+const clientPublishedAtMs=(item)=>{
+  const payload=publishedBody(item?.session);
+  const candidates=[payload?.publishedAt,payload?.published_at,item?.session?.publishedAt,
+    item?.session?.published_at,payload?.createdAt,payload?.created_at,
+    item?.session?.createdAt,item?.session?.created_at];
+  for(const value of candidates){
+    if(typeof value!=='string'||!value.trim())continue;
+    const stamp=Date.parse(value);
+    if(Number.isFinite(stamp))return stamp;
+  }
+  return null;
+};
+export function prioritizeClientPublishedSessions(items=[],{serviceActive=true,contractModality=null}={}){
+  const published=Array.isArray(items)?items:[];
+  if(!serviceActive)return [...published];
+  const ready=[],other=[];
+  for(let i=0;i<published.length;i++){
+    const item=published[i];
+    if(clientCanStartProjection(item)&&
+       experienceFor(item,'client',contractModality).clientLiveWorkout)
+      ready.push({item,index:i,time:clientPublishedAtMs(item)});
+    else other.push(item);
+  }
+  ready.sort((a,b)=>(b.time??0)-(a.time??0)||a.index-b.index);
+  return [...ready.map(x=>x.item),...other];
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   // Client-only appointments were scoped by ownership, publication and time in the view model.
@@ -286,7 +315,8 @@ function renderClientPlanning(vm){
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
   const hasPublished=items.length>0;
-  const readyItems=vm.serviceActive!==false?items.filter((item)=>
+  const prioritized=prioritizeClientPublishedSessions(items,{serviceActive:vm.serviceActive!==false,contractModality});
+  const readyItems=vm.serviceActive!==false?prioritized.filter((item)=>
     clientCanStartProjection(item)&&experienceFor(item,'client',contractModality).clientLiveWorkout):[];
   const nearestAppointment=clientAppointments[0]||null;
   const focus=readyItems[0]
@@ -296,8 +326,8 @@ function renderClientPlanning(vm){
       :'';
   // Keep every published card in the DOM and reachable by native keyboard/touch disclosure.
   const makePlanningCard=(item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})});
-  const leadingItems=items.length>6?items.slice(0,4):items;
-  const remainingItems=items.length>6?items.slice(4):[];
+  const leadingItems=prioritized.length>6?prioritized.slice(0,4):prioritized;
+  const remainingItems=prioritized.length>6?prioritized.slice(4):[];
   const cards=hasPublished?`${leadingItems.map(makePlanningCard).join('')}${remainingItems.length?`<details class="m26-signature-session-archive" data-signature-planning-archive><summary>Ver otras ${remainingItems.length} sesiones publicadas</summary><div class="m26-signature-archive-list">${remainingItems.map(makePlanningCard).join('')}</div></details>`:''}`:'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
@@ -635,10 +665,9 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
 // SIGNATURE B32: one clearly actionable surface first; other records remain
 // accessible without an unbounded vertical scroll or duplicated start controls.
 function renderClientSessionsProgressive(items,contractModality,options={}){
-  const ready=options.serviceActive!==false?items.filter((item)=>
-    clientCanStartProjection(item)&&experienceFor(item,'client',contractModality).clientLiveWorkout):[];
-  const readySet=new Set(ready);
-  const ordered=[...ready,...items.filter((item)=>!readySet.has(item))];
+  const ordered=prioritizeClientPublishedSessions(items,{
+    serviceActive:options.serviceActive!==false,contractModality,
+  });
   const foreground=ordered.length>6?ordered.slice(0,4):ordered;
   const remaining=ordered.length>6?ordered.slice(4):[];
   const render=(item)=>sessionCard(item,'client',contractModality,options);
