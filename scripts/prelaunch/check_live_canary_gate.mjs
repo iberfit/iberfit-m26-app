@@ -145,6 +145,19 @@ async function inspectViewport(browser,{name,width,height}){
     invariant(await enter.isVisible(),'PRELAUNCH_LIVE_ENTER_MISSING');
     invariant(await enter.isEnabled(),'PRELAUNCH_LIVE_ENTER_DISABLED');
 
+    // Fail closed unless the actual, full app module graph imports on LIVE.
+    // The minimal sign-in DOM alone is NOT sufficient for a green gate.
+    // No app mount, password submission or state-changing RPC.
+    const moduleReady=await page.evaluate(async()=>{
+      const moduleImport=import('/src/m26/app/application.js').then(
+        module=>typeof module.createM26Application==='function',
+        ()=>false,
+      );
+      const deadline=new Promise(resolve=>setTimeout(()=>resolve(false),45000));
+      return Promise.race([moduleImport,deadline]);
+    });
+    invariant(moduleReady===true,'PRELAUNCH_LIVE_AUTH_MODULE_IMPORT_FAILED');
+
     const warningLocator=page.locator('.m26-notice.is-warning');
     const warningDiagnostics=[];
     for(let index=0,count=await warningLocator.count();index<count;index+=1){

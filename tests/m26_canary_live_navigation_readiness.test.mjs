@@ -33,7 +33,7 @@ test('continuous background network does not block live Canary navigation if the
   assert.equal(response.ok(),true);
   assert.deepEqual(calls.map(x=>x.step),['goto','document-ready','login-visible']);
   assert.deepEqual(calls[0].options,{waitUntil:'domcontentloaded',timeout:45_000});
-  assert.match(calls[1].predicate,/document\.readyState==='complete'/u);
+  assert.ok(calls[1].predicate.includes("['interactive','complete'].includes(document.readyState)"));
   assert.deepEqual(calls[1].options,{timeout:30_000});
   assert.equal(calls[2].selector,'form[data-auth-form="login"]');
   assert.deepEqual(calls[2].options,{state:'visible',timeout:30_000});
@@ -67,4 +67,10 @@ test('live QA gate keeps the original fail-closed safety assertions and uses vis
   ])assert.ok(gate.includes(guard),`guard missing: ${guard}`);
   assert.match(gate,/name:'desktop',width:1440,height:1000/u);
   assert.match(gate,/name:'mobile',width:390,height:844/u);
+});
+
+test('U44 LIVE QA gate proves the actual application module graph as well as interactive sign-in',()=>{
+  assert.match(gate,/PRELAUNCH_LIVE_AUTH_MODULE_IMPORT_FAILED/u);
+  assert.match(gate,/import\('\/src\/m26\/app\/application\.js'\)/u);
+  assert.match(gate,/moduleReady===true/u);
 });

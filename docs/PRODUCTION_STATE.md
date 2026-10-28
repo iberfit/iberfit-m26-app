@@ -1,3 +1,12 @@
+## SIGNATURE U44 · Preauth ligero y módulo real Canary · 28-10-2026
+
+- **Base exacta:** `5757d559a9fdec2c79b55fffc08f673feb3fc3f0`, 6/7 gates SUCCESS y M44 full encrypted PROD DB+Storage/PG17 restore SUCCESS. Canary Exact Deploy #40686362592 FAIL después de desplegar por `document.readyState=complete` no alcanzado en 30s; rollback confirmado a `3ac37e23eefea92fed3f11c99f26f38847423575`. Deploy previo #40672802456 mostraba `M26_BOOTSTRAP_MODULE_TIMEOUT` al cargar todo sin sesión. PROD LIVE sigue `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`, sin SQL PROD.
+- **Corrección:** acceso de visitante sin sesión renderizado sin importar todo el grafo Cliente/Coach/Admin. Con sesión persistente, callbacks Auth, recuperación o deep links, mantener hidratación original. Inicio de contraseña utiliza transporte y vault existentes, luego monta app completa y WebAuthn. No se modifican políticas RLS, credenciales, permisos ni datos.
+- **Gate fortalecido:** esperar DOM interactivo, formulario funcional y full application module graph realmente importable desde Canary; conservar checks SHA/QA/errores/privacidad/visual móvil+escritorio y rollback. Una pantalla estática sin módulo real no puede ser GREEN.
+- **Salida:** PR CI/Device/Policy GREEN, merge exacto, Canary 7/7 y M44 reciente, SQL PROD independiente reversible, Pages producción solo después de comprobar LIVE. Nada en PROD antes de los gates.
+
+---
+
 ## SIGNATURE U43 · Release gate coverage + fresh M44 recovery proof · 28-10-2026
 
 - **Base exacta:** `98c3a930926311a67aba19a1e355066d9062c68b` U43 merged Canary source; SQL QA ya aplicada, Cliente A/B/Coach/Admin JSONB exacto y RC64.2B #40665322818 7/7 SUCCESS tras corrección. CI, audit, PROD Data Safety de base success. PROD LIVE sigue C39 `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`.
