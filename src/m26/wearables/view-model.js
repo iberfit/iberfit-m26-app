@@ -9,7 +9,21 @@ function status(value){const key=String(value||'').trim().toLowerCase();return [
 
 export function buildWearableViewModel({records=[],connections=[],role='client',now=new Date(),scope=globalThis}={}){
   const summary=summarizeWearableData(records,{now,days:7});
-  const connectionRows=(Array.isArray(connections)?connections:[]).map((item)=>{const definition=wearableProviderDefinition(item.provider||item.source);const legacyStatus=status(item.status);const state=createWearableConnectionState({provider:definition?.key||item.provider||item.source,state:legacyStatus==='conectado'?'connected':legacyStatus==='pausado'?'paused':legacyStatus==='revocado'?'revoked':'available',grantedScopes:Array.isArray(item.scopes)?item.scopes:[],lastSyncedAt:item.lastSyncedAt||item.last_synced_at||null});return Object.freeze({id:item.id||null,provider:state.provider,label:definition?.label||'Fuente desconocida',status:legacyStatus,state:state.state,mode:String(item.metadata?.mode||'').trim()||null,lastSyncedAt:state.lastSyncedAt,scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),policy:wearableZeroCostPolicy(state.provider)});});
+  const connectionRows=(Array.isArray(connections)?connections:[]).map((item)=>{
+    const definition=wearableProviderDefinition(item?.provider||item?.source);
+    if(!definition){
+      // Preserve the unknown source in the history without promoting it to a
+      // linked device or trusting its permissions/metadata. Never fail the
+      // entire Client/Coach health view on a future provider or legacy row.
+      return Object.freeze({
+        id:item?.id||null,provider:null,label:'Fuente desconocida',
+        status:'pendiente',state:'unavailable',mode:null,lastSyncedAt:null,
+        scopes:Object.freeze([]),health:Object.freeze({
+          state:'unavailable',ageHours:null,freshness:'sin_datos',actionRequired:true,
+        }),policy:null,
+      });
+    }
+    const legacyStatus=status(item.status);const state=createWearableConnectionState({provider:definition?.key||item.provider||item.source,state:legacyStatus==='conectado'?'connected':legacyStatus==='pausado'?'paused':legacyStatus==='revocado'?'revoked':'available',grantedScopes:Array.isArray(item.scopes)?item.scopes:[],lastSyncedAt:item.lastSyncedAt||item.last_synced_at||null});return Object.freeze({id:item.id||null,provider:state.provider,label:definition?.label||'Fuente desconocida',status:legacyStatus,state:state.state,mode:String(item.metadata?.mode||'').trim()||null,lastSyncedAt:state.lastSyncedAt,scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),policy:wearableZeroCostPolicy(state.provider)});});
   const providers=zeroCostProviderReadiness(providerReadiness(scope));
   const coverage=Object.freeze({fileImport:providers.filter((item)=>item.importReady).length,nativeBridge:providers.filter((item)=>item.nativeReady).length,directBlocked:providers.filter((item)=>item.directBlocked).length,total:providers.length});
   return Object.freeze({summary,dailyRecords:summary.records,connections:Object.freeze(connectionRows),providers,coverage,productionNativeReady:String(role||'').toLowerCase()==='client'&&isConnected360ProdNativeAvailable(scope),canControl:String(role||'').toLowerCase()==='client',zeroCostOnly:true});
