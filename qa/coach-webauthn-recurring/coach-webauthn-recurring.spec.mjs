@@ -3,6 +3,8 @@ import {allowedU56SyntheticWrite,openU56ClientReadOnly,certifyU56OnlineCoachPubl
 import {permittedU58ExecutionWrite} from './u58-execution-policy.mjs';
 import {certifyU58ExistingClientExecution} from './u58-existing-session-client.mjs';
 import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
+import {newU47Scope,u47WriteAuthorized} from './u47-running-policy.mjs';
+import {certifyU47RunningClientLifecycle} from './u47-fresh-running-e2e.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
@@ -113,6 +115,7 @@ function allowedQaRequest(request,scope=null){
   if(isReadOnlyPushConfig(request,url,method))return true;
   if(allowedU56SyntheticWrite(request,scope))return true;
   if(permittedU58ExecutionWrite(request,scope))return true;
+  if(u47WriteAuthorized(request,scope))return true;
   const prefix='/rest/v1/rpc/';
   return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));
 }
@@ -308,35 +311,57 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   await expect(builder.locator('[data-session-action="save-draft"]').first())
     .toBeEnabled();
 
-  const title=process.env.M26_QA_U56_PUBLISH==='true'
-    ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
-    :'QA U55 · Autoría local sin publicación';
+  const u47=process.env.M26_QA_U47_RUNNING==='true';
+  const title=u47?'QA U47 · Running '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
+    :process.env.M26_QA_U56_PUBLISH==='true'
+      ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
+      :'QA U55 · Autoría local sin publicación';
   await builder.locator('[data-session-draft-field="title"]').fill(title);
   await builder.locator('[data-session-draft-field="deliveryModality"]').selectOption('guiada_en_app');
-  const candidates=await builder.locator('[data-session-search-results] [data-session-action="add-exercise"]')
-    .evaluateAll(nodes=>[...new Set(nodes.map(node=>node.getAttribute('data-exercise-id')).filter(Boolean))]);
-  expect(candidates.length,'QA Coach should see at least two distinct exercises').toBeGreaterThanOrEqual(2);
-  for(const id of candidates.slice(0,2)){
+  let candidates;
+  if(u47){
+    await builder.locator('[data-session-search]').fill('carrera');
+    const running=builder.locator('[data-session-search-results] [data-session-action="add-exercise"]')
+      .filter({hasText:/carrera continua|carrera suave|trote continuo|running continuo/iu}).first();
+    await expect(running,'Running must exist in the genuine Coach catalogue').toBeVisible({timeout:12_000});
+    candidates=[await running.getAttribute('data-exercise-id')];
+  }else{
+    candidates=await builder.locator('[data-session-search-results] [data-session-action="add-exercise"]')
+      .evaluateAll(nodes=>[...new Set(nodes.map(node=>node.getAttribute('data-exercise-id')).filter(Boolean))]);
+  }
+  const expectedBlocks=u47?1:2;
+  expect(candidates.length,'The real catalog must contain the prescribed exercises').toBeGreaterThanOrEqual(expectedBlocks);
+  for(const id of candidates.slice(0,expectedBlocks)){
     await builder.locator('[data-session-search-results] [data-session-action="add-exercise"][data-exercise-id="'+id+'"]').first().click();
   }
   const editors=builder.locator('.m26-builder-block.m26-builder-editor');
-  await expect(editors,'Two exercises must be added through real UI actions').toHaveCount(2,{timeout:15_000});
+  await expect(editors,'Exact U47 running or U55 exercise count').toHaveCount(expectedBlocks,{timeout:15_000});
 
   // Prescribe both exercise types safely; cardio/mobility and strength have
   // different field sets. Every field edit uses a real input/change event.
-  for(let index=0;index<2;index++){
+  for(let index=0;index<expectedBlocks;index++){
     const block=editors.nth(index);
     const blockId=await block.getAttribute('data-block-id');
     expect(blockId,'Each added exercise must have a stable draft-block identity').toBeTruthy();
     const field=(key)=>builder.locator('[data-session-block-field="'+key+'"][data-block-id="'+blockId+'"]').first();
-    if(await field('sets').count())await field('sets').fill('2');
-    if(await field('reps').count())await field('reps').fill('8');
-    if(await field('plannedDurationMinutes').count())await field('plannedDurationMinutes').fill('15');
-    if(await field('restSeconds').count())await field('restSeconds').fill('60');
-    if(await field('plannedLoad').count())await field('plannedLoad').fill('10 kg');
+    if(u47){
+      await expect(field('plannedDistanceKm'),'Running must expose km, not strength reps').toBeVisible();
+      await expect(field('plannedPace'),'Running must expose target min/km').toBeVisible();
+      if(await field('sets').count())await field('sets').fill('1');
+      await field('plannedDistanceKm').fill('6.5');
+      await field('plannedDurationMinutes').fill('35.75');
+      await field('plannedPace').fill('05:30');
+      if(await field('restSeconds').count())await field('restSeconds').fill('0');
+    }else{
+      if(await field('sets').count())await field('sets').fill('2');
+      if(await field('reps').count())await field('reps').fill('8');
+      if(await field('plannedDurationMinutes').count())await field('plannedDurationMinutes').fill('15');
+      if(await field('restSeconds').count())await field('restSeconds').fill('60');
+      if(await field('plannedLoad').count())await field('plannedLoad').fill('10 kg');
+    }
   }
   await builder.locator('[data-session-action="save-draft"]').first().click();
-  await expect(builder.locator('.m26-builder-editor')).toHaveCount(2);
+  await expect(builder.locator('.m26-builder-editor')).toHaveCount(expectedBlocks);
   await expect(builder.locator('[data-session-draft-field="title"]')).toHaveValue(title);
   await expect(builder.locator('[data-session-review-readiness]')).toHaveCount(0);
   await expect(builder.locator('[data-session-action="preview"]').first(),
@@ -355,14 +380,15 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     /iberfit_execute_command_v26|iberfit_command_preflight_v26/u.test(label)),
     'No server-side publication or command preflight may be attempted').toBe(false);
   evidence.u55OfflineAuthoring={verified:true,localOnly:true,backendMutationCertified:false,
-    exercises:2,reviewed:true,mobile320NoOverflow:true,remotePublicationAttempted:false};
+    exercises:expectedBlocks,reviewed:true,mobile320NoOverflow:true,remotePublicationAttempted:false};
   return title;
 }
 
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
   // SIGNATURE U26 adds authenticated professional route coverage on five devices.
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
-  test.setTimeout(420_000);
+  // U47 performs one additional real Client workout; routine 420s SLA unchanged.
+  test.setTimeout(process.env.M26_QA_U47_RUNNING==='true'?840_000:420_000);
   const missing=REQUIRED.filter((name)=>!process.env[name]);expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
