@@ -1,3 +1,12 @@
+## WIP único · SIGNATURE B38 · Inicio fiable de cualquier entrenamiento · 27-10-2026
+
+- **Base exacta:** Canary source `b3d7a733ddde8cc192af0143c126f2b64f6524d6` (B37 merge #1171); PROD B35 según el último checkpoint documental y pendiente de lectura verificable del `version.json` LIVE.
+- **Incidencia real Cliente, P1:** CTA de inicio de running visible pero sin reacción. PROD read-only confirmó servicio y acceso activos, sesión guiada visible/canónica disponible con ejercicio válido y 0 comandos `SESION_INICIAR`. El navegador autenticado concreto todavía no es accesible desde esta conexión; causalidad definitiva pendiente de E2E.
+- **B38 preparado para revisión, NO desplegado:** `workflow` y `sessionController` pasan a montaje crítico síncrono antes de declarar la aplicación interactiva; se elimina su montaje tardío progresivo. Un clic durante preparación recibe información explícita (sin intentar ni duplicar escrituras). Un error de entrada también se comunica si la ruta carece de panel de estado. Misma protección transversal para running, fuerza, natación y mixtos; se conservan permisos, autenticación, CAS, confirmaciones y recuperación.
+- **Antes de producción:** contratos unitarios, CI, Device Experience autenticado Cliente/Coach, E2E QA real con inicio ACK y cierre, Canary exacto, backup M44 vigente, promoción controlada y smoke LIVE sin modificación de datos reales. El proyecto no se declara corregido en PROD mientras falte esa evidencia. Seguimiento #919 y #1078.
+
+---
+
 ## WIP único · SIGNATURE B37 · Navegación táctil sin bloqueo del clic · 27-10-2026
 
 - **Canary B36 realmente servido:** `6384db077a2d3082e72839d4e7cd3bc74990640b` en `m26-canary.iberfit.cl` con Supabase QA; **PROD permanece B35** `3e019c7affe4fb2795edbfa1a562a90c0bc06fd1`.
