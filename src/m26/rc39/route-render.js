@@ -276,6 +276,26 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
+// The active Client must not have to open historical archives to discover
+// an authorised workout. Up to 24 ready workouts are immediately actionable;
+// additional ready sessions have their OWN explicitly labelled disclosure,
+// separate from non-actionable history. The small visible historical preview
+// is preserved when there are few ready workouts.
+const MAX_CLIENT_READY_FOREGROUND=24;
+function clientSessionDisplayBuckets(ordered,actionable){
+  const ready=ordered.filter(actionable);
+  const other=ordered.filter((item)=>!actionable(item));
+  const primaryReady=ready.slice(0,MAX_CLIENT_READY_FOREGROUND);
+  const additionalReady=ready.slice(MAX_CLIENT_READY_FOREGROUND);
+  const historyPreviewCount=ordered.length>6?Math.max(0,4-primaryReady.length):other.length;
+  const foreground=[...primaryReady,...other.slice(0,historyPreviewCount)];
+  return Object.freeze({
+    foreground,
+    additionalReady,
+    history:other.slice(historyPreviewCount),
+    readyCount:ready.length,
+  });
+}
 // One canonical, permission-aware ordering rule for both Cliente routes.
 // The helper never modifies source prescription, role, or publication state.
 export function prioritizeClientPublishedSessions(items=[],{serviceActive=true,contractModality=null}={}){
@@ -305,11 +325,11 @@ function renderClientPlanning(vm){
     :nearestAppointment
       ?`<section class="m26-signature-task-focus" data-signature-planning-focus="appointment" aria-label="Próxima cita confirmada"><div><p class="m26-eyebrow">Lo próximo</p><h3>${escape(nearestAppointment.title||'Tu próxima cita')}</h3><p>${escape(nearestAppointment.dateLabel||'Consulta la fecha en tu agenda')}. Tu Coach dirige las sesiones supervisadas.</p></div><a class="m26-rc39-button" href="#m26-client-next-appointment">Consultar cita</a></section>`
       :'';
-  // Keep every published card in the DOM and reachable by native keyboard/touch disclosure.
+  // Available training is distinct from historical/review-only records.
+  // Never bury one of the first 24 ready sessions inside the history disclosure.
   const makePlanningCard=(item)=>sessionCard(item,'client',contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})});
-  const leadingItems=prioritizedItems.length>6?prioritizedItems.slice(0,4):prioritizedItems;
-  const remainingItems=prioritizedItems.length>6?prioritizedItems.slice(4):[];
-  const cards=hasPublished?`${leadingItems.map(makePlanningCard).join('')}${remainingItems.length?`<details class="m26-signature-session-archive" data-signature-planning-archive><summary>Ver otras ${remainingItems.length} sesiones publicadas</summary><div class="m26-signature-archive-list">${remainingItems.map(makePlanningCard).join('')}</div></details>`:''}`:'';
+  const display=clientSessionDisplayBuckets(prioritizedItems,actionable);
+  const cards=hasPublished?`${display.foreground.map(makePlanningCard).join('')}${display.additionalReady.length?`<details class="m26-signature-ready-overflow" data-signature-ready-overflow><summary>Ver otros ${display.additionalReady.length} entrenamientos disponibles</summary><div class="m26-signature-archive-list">${display.additionalReady.map(makePlanningCard).join('')}</div></details>`:''}${display.history.length?`<details class="m26-signature-session-archive" data-signature-planning-archive><summary>Ver otras ${display.history.length} sesiones publicadas</summary><div class="m26-signature-archive-list">${display.history.map(makePlanningCard).join('')}</div></details>`:''}`:'';
   const overview=`<section class="m30-planning-overview${hasPublished?'':' is-pending'}" data-m30-planning-overview data-m30-planning-state="${hasPublished?'published':'pending'}" aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
@@ -655,12 +675,9 @@ function renderClientSessionsProgressive(items,contractModality,options={}){
   const actionable=(item)=>options.serviceActive!==false&&clientCanStartProjection(item)&&
     experienceFor(item,'client',contractModality).clientLiveWorkout;
   const ordered=prioritizeClientPublishedSessions(items,{serviceActive:options.serviceActive!==false,contractModality});
-  const readyCount=ordered.filter(actionable).length;
-  const foreground=ordered.length>6?ordered.slice(0,4):ordered;
-  const remaining=ordered.length>6?ordered.slice(4):[];
+  const display=clientSessionDisplayBuckets(ordered,actionable);
   const render=(item)=>sessionCard(item,'client',contractModality,options);
-  const extraReady=remaining.filter(actionable).length;
-  return `${readyCount?`<p class="m26-session-available-summary" data-session-available-count="${readyCount}">${readyCount} ${readyCount===1?'entrenamiento listo':'entrenamientos listos'} · Prepara uno cuando quieras.</p>`:''}${foreground.map(render).join('')}${remaining.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${remaining.length} sesiones${extraReady?' · '+extraReady+' disponibles':''}</summary><div class="m26-signature-archive-list">${remaining.map(render).join('')}</div></details>`:''}`;
+  return `${display.readyCount?`<p class="m26-session-available-summary" data-session-available-count="${display.readyCount}">${display.readyCount} ${display.readyCount===1?'entrenamiento listo':'entrenamientos listos'} · Prepara uno cuando quieras.</p>`:''}${display.foreground.map(render).join('')}${display.additionalReady.length?`<details class="m26-signature-ready-overflow" data-signature-ready-overflow><summary>Ver otros ${display.additionalReady.length} entrenamientos disponibles</summary><div class="m26-signature-archive-list">${display.additionalReady.map(render).join('')}</div></details>`:''}${display.history.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${display.history.length} sesiones para consultar</summary><div class="m26-signature-archive-list">${display.history.map(render).join('')}</div></details>`:''}`;
 }
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;

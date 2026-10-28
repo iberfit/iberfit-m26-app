@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildClientPlanningItems} from '../src/m26/rc39/session-policy.js';
 import {prioritizeClientPublishedSessions,renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {projectCollectionsForRole} from '../src/m26/security/role-projection.js';
 
 const clientId='qa-client-u48';
 const sports=['running','strength','swimming','walking','cycling','mobility','mixed',
@@ -82,4 +83,66 @@ test('U48: equal or malformed publication timestamps preserve deterministic orig
  const projections=project(sessions);
  assert.deepEqual(prioritizeClientPublishedSessions(projections).map(x=>x.id),
    projections.map(x=>x.id));
+});
+
+// Regression from authenticated QA: U47 was the FIFTH of eight ready sessions.
+// The previous 4-item clamp hid its actionable Play under history <details>.
+test('U48 postmerge: all eight ready sessions including older running are visible on both Client routes',()=>{
+ const ready=Array.from({length:8},(_,i)=>published(i===7?'running':'strength',i+1,{
+   publishedAt:new Date(Date.UTC(2026,9,28,20,0-i)).toISOString(),
+ }));
+ const inactive=Array.from({length:25},(_,i)=>published('onsite',100+i,{onsite:true}));
+ const projections=project([...inactive,...ready]);
+ for(const kind of ['sesion','planificacion']){
+   const html=renderRc39Route(vm(kind,projections));
+   const historyMarker='data-signature-'+(kind==='sesion'?'session':'planning')+'-archive';
+   const historyAt=html.indexOf(historyMarker);
+   assert.ok(historyAt>0,'Review-only history remains discoverable');
+   const immediate=html.slice(0,historyAt);
+   for(const session of ready){
+     assert.match(immediate,new RegExp('data-rc39-session="'+session.id+'"'),session.id+' must not be under history');
+     assert.match(immediate,new RegExp('data-workflow-action="start-published-session" data-entity-id="'+session.id+'"'),
+       session.id+' retains a direct authorized Play');
+   }
+   assert.ok(html.indexOf('data-rc39-session="session-8"')<historyAt);
+   assert.equal(cardIds(html).length,ready.length+inactive.length,'No sessions dropped or duplicated');
+   assert.equal((immediate.match(/data-workflow-action="start-published-session"/gu)||[]).length,ready.length);
+ }
+});
+test('U48 postmerge: more than 24 ready sessions use a named available group, never historical archive',()=>{
+ const ready=Array.from({length:30},(_,i)=>published('running',i+1));
+ const inactive=Array.from({length:4},(_,i)=>published('onsite',100+i,{onsite:true}));
+ const projections=project([...inactive,...ready]);
+ for(const kind of ['sesion','planificacion']){
+   const html=renderRc39Route(vm(kind,projections));
+   const history='data-signature-'+(kind==='sesion'?'session':'planning')+'-archive';
+   const overflow='data-signature-ready-overflow';
+   assert.ok(html.indexOf(overflow)>0&&html.indexOf(overflow)<html.indexOf(history));
+   assert.match(html,/Ver otros 6 entrenamientos disponibles/u);
+   assert.ok(html.indexOf('data-rc39-session="session-30"')<html.indexOf(history));
+   const startCount=(html.match(/data-workflow-action="start-published-session"/gu)||[]).length;
+   assert.equal(startCount,30,'All authorized workouts retain their unique start action');
+   assert.equal(cardIds(html).length,34,'Overflow does not duplicate or discard an older session');
+ }
+});
+
+test('U48 postmerge: Client safety projection retains publication clock without exposing draft or another Client',()=>{
+ const old=published('strength',1,{publishedAt:'2026-10-19T17:00:00.000Z'});
+ const newRunning=published('running',8,{publishedAt:'2026-10-28T17:56:49.739Z'});
+ const foreign={...published('foreign',300),clientId:'other-client'};
+ const draft=published('private',301,{status:'draft'});
+ const clientSafe=projectCollectionsForRole({sessions:[old,foreign,draft,newRunning]},{
+   role:'client',clientId,
+ },['sessions']);
+ assert.equal(clientSafe.sessions.length,2,'Cross-Client and unpublished cannot be projected');
+ assert.equal(clientSafe.sessions.find(s=>s.id==='session-8')?.publishedAt,'2026-10-28T17:56:49.739Z');
+ assert.equal(clientSafe.sessions.find(s=>s.id==='session-1')?.publishedAt,'2026-10-19T17:00:00.000Z');
+ for(const kind of ['sesion','planificacion']){
+   const html=renderRc39Route(vm(kind,project(clientSafe.sessions)));
+   const ids=cardIds(html);
+   assert.deepEqual(ids,['session-8','session-1'],
+     'Canonical latest-first ordering must survive backend→client privacy projection→view');
+   assert.doesNotMatch(html,/data-rc39-session="session-300"|data-rc39-session="session-301"/u);
+   assert.match(html,/data-workflow-action="start-published-session" data-entity-id="session-8"/u);
+ }
 });
