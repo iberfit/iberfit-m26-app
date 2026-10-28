@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "986974b710cce6f7c908e235790a6783ad952d79",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "0107f58fe71f225b11818758576c4f28b03d4eba",
+  "notes": "SIGNATURE U46: entrenamiento primer clic ACK de reproductor, sin falso éxito; CI, WebAuthn Coach/Admin, Device, Canary y smoke autenticado exactos; backup M44 y rollback; sin SQL/Edge/Auth"
+}
