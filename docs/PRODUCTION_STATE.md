@@ -1,3 +1,13 @@
+## SIGNATURE U43 · Bootstrap Cliente/Coach, autorización equivalente y latencia · 28-10-2026
+
+- **Base:** Canary `3ac37e23eefea92fed3f11c99f26f38847423575` exacto QA. Production LIVE `3a74c4f28f6c94f1d3d8b0fc63971c4d7ac65837`. Canary Exact Deploy #40665322832 SUCCESS y WebAuthn Coach/Admin postmerge SUCCESS.
+- **Bloqueo:** gate remoto RC64.2B #40665322818 falló dos veces (6/7 passes): primero WebKit mobile, después Firefox; Cliente alcanzó interactividad a 11.0/10.8 s frente al SLA real 10 s. RPC `iberfit_bootstrap_v26` tardó 4.1/8.7 s; no falsificar éxito ni subir timeout.
+- **U43 migración REVERSIBLE preparada (NO aplicar sin QA):** mismo cuerpo QA/PROD y rollback original exacto con guards de entorno. Calcular el scope de Cliente (id en sesión) y Coach (asignaciones activas) una vez por request; Admin conserva acceso a todos los registros y NULL. Reemplaza sólo 15 comprobaciones por fila en `iberfit_bootstrap_v26_rc29`. No modifica tablas, RLS, WebAuthn, documentos IRI, publicaciones ni payload.
+- **Prueba QA privada hecha:** candidata en `private.iberfit_bootstrap_v26_rc29_scoped_u43_qa()`, sin permisos públicos, coincidencia JSONB **exacta** en QA Cliente A/B, Coach, Admin. Bench puntual: Cliente A 2.42 s → 1.22 s; Coach 9.16 s → 5.72 s. Prototipo previo `private.iberfit_bootstrap_v26_rc29_candidate_qa` fue rechazado por fuga potencial de payload; jamás promoverlo.
+- **Salida:** aplicar QA-only tras registrar source; ejecutar comparación y smoke RC64.2B 7/7 más WebAuthn real, CI/Canary. Después evaluar migración separada PRODUCCIÓN con M44 y rollback, sin confundirla con frontend-only C40+U42; promover frontend por pipeline exclusivamente con gates exactos verdes.
+
+---
+
 ## WIP único · U42 Canary live smoke navigation · 28-10-2026
 
 - **Base exacta:** Canary source protegido `deabc3fd879f838756994adad8789260261784dd`; QA WebAuthn Coach/Admin, QA Real Write, CI, Device y gates remotos SUCCESS. Canary Exact Deploy [#40658515649](https://github.com/iberfit/iberfit-m26-app/actions/runs/40658515649) FAILURE en el paso Chromium del login read-only.
