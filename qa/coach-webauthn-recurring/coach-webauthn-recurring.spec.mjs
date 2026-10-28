@@ -114,9 +114,9 @@ function allowedQaRequest(request,scope=null){
   const method=request.method().toUpperCase();
   if(url.origin!==SUPABASE_ORIGIN)return false;
   if(isQaPrivateAvatarRead(request))return true;
-  if(allowedU48ExistingExecutionRead(request))return true;
   // QA-only: exact JWT-authenticated, time-bounded private photo signing/read.
   if(isQaIriSignedPhotoRead(request,{qaOrigin:SUPABASE_ORIGIN}))return true;
+  if(allowedU48ExistingExecutionRead(request))return true;
   if(method==='GET'&&authenticatedQaRequest(request)&&
     /^\/rest\/v1\/[a-z][a-z0-9_]*$/u.test(url.pathname)&&
     U26_IRI_READONLY_TABLES.has(url.pathname.slice('/rest/v1/'.length)))return true;
