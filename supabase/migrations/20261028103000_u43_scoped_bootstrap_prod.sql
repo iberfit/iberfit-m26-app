@@ -4,16 +4,12 @@
 -- Preserves SECURITY DEFINER, search_path, all publication/IRI/report filters,
 -- null and orphan scope, legacy APIs and response shape. No data writes.
 -- U43: fail closed. This SQL is authorized for PRODUCTION only.
-DO $environment_guard$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.iberfit_system_settings
-    WHERE key='environment' AND value #>> '{}'='PRODUCTION'
-  ) THEN
-    RAISE EXCEPTION 'U43_WRONG_ENVIRONMENT_PRODUCTION' USING ERRCODE='42501';
-  END IF;
-END
-$environment_guard$;
+-- U43_WRONG_ENVIRONMENT_PRODUCTION: fail closed before any DDL.
+-- A scalar division by zero aborts the migration on QA or unknown environment.
+SELECT 1 / (CASE WHEN EXISTS (
+  SELECT 1 FROM public.iberfit_system_settings
+  WHERE key='environment' AND value #>> '{}'='PRODUCTION'
+) THEN 1 ELSE 0 END) AS u43_environment_guard;
 
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_rc29()
  RETURNS jsonb
