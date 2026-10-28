@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildClientPlanningItems} from '../src/m26/rc39/session-policy.js';
 import {prioritizeClientPublishedSessions,renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {projectCollectionsForRole} from '../src/m26/security/role-projection.js';
 
 const clientId='qa-client-u48';
 const sports=['running','strength','swimming','walking','cycling','mobility','mixed',
@@ -122,5 +123,26 @@ test('U48 postmerge: more than 24 ready sessions use a named available group, ne
    const startCount=(html.match(/data-workflow-action="start-published-session"/gu)||[]).length;
    assert.equal(startCount,30,'All authorized workouts retain their unique start action');
    assert.equal(cardIds(html).length,34,'Overflow does not duplicate or discard an older session');
+ }
+});
+
+test('U48 postmerge: Client safety projection retains publication clock without exposing draft or another Client',()=>{
+ const old=published('strength',1,{publishedAt:'2026-10-19T17:00:00.000Z'});
+ const newRunning=published('running',8,{publishedAt:'2026-10-28T17:56:49.739Z'});
+ const foreign={...published('foreign',300),clientId:'other-client'};
+ const draft=published('private',301,{status:'draft'});
+ const clientSafe=projectCollectionsForRole({sessions:[old,foreign,draft,newRunning]},{
+   role:'client',clientId,
+ },['sessions']);
+ assert.equal(clientSafe.sessions.length,2,'Cross-Client and unpublished cannot be projected');
+ assert.equal(clientSafe.sessions.find(s=>s.id==='session-8')?.publishedAt,'2026-10-28T17:56:49.739Z');
+ assert.equal(clientSafe.sessions.find(s=>s.id==='session-1')?.publishedAt,'2026-10-19T17:00:00.000Z');
+ for(const kind of ['sesion','planificacion']){
+   const html=renderRc39Route(vm(kind,project(clientSafe.sessions)));
+   const ids=cardIds(html);
+   assert.deepEqual(ids,['session-8','session-1'],
+     'Canonical latest-first ordering must survive backend→client privacy projection→view');
+   assert.doesNotMatch(html,/data-rc39-session="session-300"|data-rc39-session="session-301"/u);
+   assert.match(html,/data-workflow-action="start-published-session" data-entity-id="session-8"/u);
  }
 });

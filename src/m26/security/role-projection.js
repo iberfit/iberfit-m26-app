@@ -123,6 +123,10 @@ function projectPublication(key,record){
   if(key==='trainingCycles'){
     assign(out,'name',record,'name','nombre','title','titulo');assign(out,'goal',record,'goal','objective','objetivo','summary','resumen');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');
   }else if(key==='sessions'){
+    // Publication time is safe, user-visible metadata for an already
+    // authorized session. Omitting it discarded the canonical ordering clock,
+    // leaving the newest enabled training buried under old QA/history cards.
+    assign(out,'publishedAt',record,'publishedAt','published_at');
     assign(out,'objective',record,'objective','goal','objetivo','summary','resumen');assign(out,'durationMinutes',record,'durationMinutes','duration_minutes','duracionMinutos','duration');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');assign(out,'deliveryOwnership',record,'deliveryOwnership','delivery_ownership','executionMode','execution_mode');assign(out,'deliveryModality',record,'deliveryModality','delivery_modality','modality','modalidad','execution_type','executionType');const visibility=sessionVisibilityLevel(record);out.clientVisibilityLevel=visibility;out.blocks=visibility==='full'?safeSessionBlocks(record):[];
   }else if(key==='reports'){
     assign(out,'periodStart',record,'periodStart','period_start');assign(out,'periodEnd',record,'periodEnd','period_end');assign(out,'summary',record,'summary','resumen');assign(out,'conclusions',record,'conclusions','conclusiones');assign(out,'recommendations',record,'recommendations','recomendaciones','nextSteps','next_steps');
