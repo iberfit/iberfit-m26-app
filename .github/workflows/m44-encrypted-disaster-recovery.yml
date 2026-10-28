@@ -1,6 +1,9 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
 # IBERFIT SIGNATURE U46 — fresh offsite release readiness, 2026-10-25.
+# SIGNATURE U43 release gating 2026-10-28: renew encrypted PROD DB+Storage,
+# PG17 isolated restore and byte-integrity proof on exact Canary merge.
+# Trigger-only comment. No backup logic, secrets, DDL, or safety changes.
 # SIGNATURE U42 + Connected360 C40 2026-10-28: on certified Canary merge,
 # trigger fresh unchanged encrypted PROD DB+Storage archive, isolated PG17
 # restore and Storage byte verification for the strict <=2h production gate.
