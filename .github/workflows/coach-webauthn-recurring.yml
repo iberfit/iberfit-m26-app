@@ -139,6 +139,10 @@ jobs:
           # is no longer "en_curso", so a failed-only rerun must not incorrectly
           # demand the now-consumed Continue CTA. No PR, dispatch or rerun writes.
           M26_QA_U48_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U48:') }}
+          # U48R: original QA execution is ALREADY closed and acknowledged.
+          # Only an explicitly titled first Canary push may read its result.
+          # Never rerun, create, update, publish, resume, or complete anything.
+          M26_QA_U48_COMPLETED_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U48R:') }}
           # U59: one-shot read-only Coach+Client check of already ACKed U58S.
           # Pull requests, reruns and a second execution NEVER get this flag.
           M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U59:') || startsWith(github.event.head_commit.message, 'SIGNATURE U59R:')) }}
