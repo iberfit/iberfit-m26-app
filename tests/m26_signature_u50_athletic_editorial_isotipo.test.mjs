@@ -30,7 +30,7 @@ test('U50 preserves separate Solo IRI and no training shortcut',()=>{
 });
 test('U50 uses official art, scoped role styling, touch/focus and reduced motion',()=>{
  const css=read('../src/m26/design/iberfit-premium-v3.css');
- const part=css.slice(css.indexOf('/* SIGNATURE U50 · Athletic Editorial:'));
+ const part=css.slice(css.indexOf('/* SIGNATURE U50 · Athletic Editorial:'),css.indexOf('/* SIGNATURE B6 · Atelier Cliente'));
  assert.ok(part.startsWith('/* SIGNATURE U50'));
  assert.ok(part.includes("url('/public/isotipo-iberfit.png')"));
  for(const role of ['client','coach','admin']) assert.ok(part.includes('data-m26-role="'+role+'"'));

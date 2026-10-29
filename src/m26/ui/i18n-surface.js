@@ -5,6 +5,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE U50: real Client wellbeing navigation copy in all UI locales.
+  ["Energía, sueño y recuperación","Energy, sleep and recovery","Énergie, sommeil et récupération","Energia, sono e recuperação"],
   // SIGNATURE B35: recoverable session expiry must work in all supported locales.
   ["Tu sesión ha caducado. Vuelve a entrar para continuar.",
    "Your session has expired. Sign in again to continue.",
