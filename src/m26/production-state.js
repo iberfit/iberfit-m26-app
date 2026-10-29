@@ -2,6 +2,7 @@ import {createCommunicationState,projectCommunicationSnapshot} from './communica
 import {createAdminState,projectAdminSnapshot} from './admin/admin-state.js';
 import { projectCollectionsForRole, projectRemoteRevisionsForRole, assertClientProjectionSafe, projectIdentityForRole, projectEnvironmentForRole, projectCanaryForRole, projectMetricsForRole } from './security/role-projection.js';
 import {reconcileCanonicalTrainingCollections} from './domain/canonical-training-collections.js';
+import {expandQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
 export const M26_UI_SCHEMA = 'iberfit-m26-ui-v1';
 
 export const M26_COLLECTION_KEYS = Object.freeze([
@@ -177,7 +178,9 @@ function normalizeCollection(data, key) {
 
 export function stateFromBootstrap(rawSnapshot, previous = createProductionState()) {
   qaStage('rc64-state-start');
-  const snapshot = assertProductionSnapshot(rawSnapshot);
+  // Size and role checks apply to the authenticated, compact QA-only wire
+  // envelope BEFORE lossless reconstruction. Never raise the 20 MB guard.
+  const snapshot = expandQaCanonicalExecutionSummaries(assertProductionSnapshot(rawSnapshot));
   qaStage('rc64-state-assert-ready');
   const rawCollections = reconcileCanonicalTrainingCollections(Object.fromEntries(
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
