@@ -1,4 +1,5 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
+import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
 const DEFAULT_TIMEOUT_MS = 12_000;
 const EXACT_REMOTE_HOSTS = new Set(['app.iberfit.cl', 'coach.iberfit.cl', 'm26-canary.iberfit.cl']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -876,7 +877,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     }
     check();
     if(assembler.status().ready!==true)throw new Error('U39_HISTORY_NOT_COMPLETE');
-    return assembler.finish({owner});
+    // Privileged U38 history includes exact copies of each execution summary
+    // in legacy sessionExecutions and canonical entity.body. Reference only
+    // verified duplicates; retain full lossless reconstruction and 20MB cap.
+    return compactQaCanonicalExecutionSummaries(assembler.finish({owner}));
   }
 
   async function bootstrapWithBoundedStatementTimeoutRecovery(token,{signal}={}){
