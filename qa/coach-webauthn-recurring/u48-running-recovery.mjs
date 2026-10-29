@@ -64,13 +64,20 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
     String(row?.entityId||row?.entity_id||row?.id||'')===EXECUTION&&
     String(row?.body?.sessionId||'')===SESSION&&
     String(row?.clientId||row?.body?.clientId||'')===client.clientId);
-  const historical=(boot?.sessionExecutions||[]).filter(row=>
-    String(row?.id||'')===EXECUTION&&String(row?.sessionId||row?.session_id||'')===SESSION&&
-    String(row?.clientId||row?.client_id||'')===client.clientId);
+  // SECURITY DEFINER bootstrap intentionally strips client/session/status from
+  // legacy session_executions. It exposes only id+revision, while the separately
+  // scoped m26Entities canonical envelope carries the authorized lineage.
+  // The hydrated Client reconciler restores these fields for the actual UI.
+  const historical=(boot?.sessionExecutions||[]).filter(row=>String(row?.id||'')===EXECUTION);
   expect(canonical,'Exact canonical U47 execution must still be active').toHaveLength(1);
-  expect(historical,'Same server-backed execution must be visible in Client history').toHaveLength(1);
+  expect(historical,'A single privacy-projected matching legacy execution must exist').toHaveLength(1);
   expect(String(canonical[0]?.status||canonical[0]?.body?.status)).toBe('en_curso');
-  expect(String(historical[0]?.executionStatus||historical[0]?.execution_status||historical[0]?.status)).toMatch(/^(activa|en_curso)$/u);
+  expect(String(canonical[0]?.body?.clientId||'')).toBe(client.clientId);
+  expect(String(canonical[0]?.body?.sessionId||'')).toBe(SESSION);
+  expect(Number(canonical[0]?.revision)).toBe(1);
+  expect(Number(historical[0]?.revision)).toBe(1);
+  expect(historical[0]?.clientId??historical[0]?.client_id??null).toBeNull();
+  expect(historical[0]?.sessionId??historical[0]?.session_id??null).toBeNull();
   evidence.u48Readiness={valid:true,reason:'EXACT_EXISTING_ACTIVE_EXECUTION',
     canonicalId:EXECUTION,activeLockCount:1};
   const welcome=page.locator('[data-m26-client-guided-welcome]');

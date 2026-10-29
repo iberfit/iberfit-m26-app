@@ -1,3 +1,14 @@
+## SIGNATURE U48 · Recuperación segura U47 + validación cardio · WIP 28-10-2026
+
+- **Implementación preparada, NO desplegada:** PR #1189 `fix/u48-live-modality-validation`, HEAD comprobado `8925bab19b2598fda84669d306c7491a0d3386d8` antes del ajuste final de proyección; base Canary `3ae73dd26f5af420420c998a6564d346a99cafd8`. Validador cardio, transporte e intervalos; RPE y requisitos de fuerza intactos.
+- **Recuperación cross-device:** GET autenticado contra `session_executions` con filtro exacto de cliente, sesión y ejecución; RLS real; comprobación CAS, autorización de modalidad, prescripción, historial canónico y restauración de resultados previamente confirmados en `progressSnapshot`. No se envía un segundo `SESION_INICIAR`. UI Cliente ofrece «Continuar entrenamiento» sólo con evidencia de ejecución activa única; tests fuerza/running/natación, fraude de identidad y conflictos.
+- **Proyección QA estudiada:** `iberfit_m43_client_safe_execution_v1(to_jsonb(session_executions))` elimina deliberadamente cliente/sesión/estado de la colección bruta. `reconcileCanonicalTrainingCollections` restaura esos campos únicamente desde `m26Entities` autorizado. El runner E2E U48 se adapta a esa diferencia sin ampliar bootstrap ni RLS.
+- **Gates sobre HEAD anterior `8925bab...`:** 11/12 SUCCESS (CI, Session QA, Fast Lane, WebAuthn, Policy, Device, Audit, Client, Admin, Visual, M44). Único FAIL: QA Real Write M43 `M43_QA_FIXTURE_RECOVERY_UNMARKED_SESSION`, porque U47 conserva lock legítimo del Cliente A. No cancelar U47, no relajar gate ni afirmar GREEN total.
+- **DB QA READ ONLY:** sesión `4d244c01-8966-40f1-8cc7-9e6ec46d1708` `en_curso` rev3; ejecución `16145839-2e7d-48e2-bf0c-e94325f5c54c` `activa` rev1; 1 lock, sin `progressSnapshot`. Fixture congelado hasta certificación one-shot.
+- **Salida:** evaluar gate M43 temporalmente impedido por fixture; no merge si la política de integración requiere ese gate. Si todos los checks requeridos son conformes, fusionar con SHA protegido y título de integración `SIGNATURE U48:` para habilitar exclusivamente la primera ejecución real en QA. Verificar ACK de progreso/cierre, readback Cliente y Coach, y Canary versión exacta antes de PROD. Nunca usar SQL para simular ACK ni cerrar el lock.
+
+---
+
 ## SIGNATURE U48 · Visibilidad resuelta; validación cardio pendiente · 28-10-2026
 
 - PR #1188 integrada: Canary source `3ae73dd26f5af420420c998a6564d346a99cafd8`. Canary Exact Deploy [40779051927](https://github.com/iberfit/iberfit-m26-app/actions/runs/40779051927) SUCCESS: regresión completa, identidad exacta, smoke escritorio/móvil y rollback disponible. CI, auditoría, dispositivos/PWA y evidencia visual SUCCESS sobre ese SHA.

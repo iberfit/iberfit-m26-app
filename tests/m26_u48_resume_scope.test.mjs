@@ -163,3 +163,23 @@ test('U48 rejects forged nested progress identity or a missing durable queue',()
   assert.throws(()=>recoverAuthenticatedRemoteExecution(data),/M48_RECOVERY_/);
  }
 });
+
+test('U48 client bootstrap reconciles its intentionally redacted legacy execution against verified canonical lineage',async()=>{
+ const {reconcileCanonicalTrainingCollections}=await import('../src/m26/domain/canonical-training-collections.js');
+ const sanitizedLegacy={id:EXEC,revision:1,results:[],feedback:{},sourceSnapshot:{}};
+ const canonical={entityType:'session_execution',entityId:EXEC,clientId:CLIENT,status:'en_curso',revision:1,
+  body:{id:EXEC,clientId:CLIENT,sessionId:ID,status:'en_curso',revision:1}};
+ const collections=reconcileCanonicalTrainingCollections({
+  m26Entities:[canonical],sessionExecutions:[sanitizedLegacy],
+ });
+ assert.equal(collections.sessionExecutions.length,1);
+ const execution=collections.sessionExecutions[0];
+ assert.equal(execution.id,EXEC);
+ assert.equal(execution.clientId,CLIENT);
+ assert.equal(execution.sessionId,ID);
+ assert.equal(execution.status,'en_curso');
+ assert.equal(execution.revision,1);
+ assert.deepEqual(execution.results,[]);
+ assert.equal(sanitizedLegacy.clientId,undefined,'server raw privacy projection not mutated');
+ assert.equal(sanitizedLegacy.sessionId,undefined,'server raw privacy projection not mutated');
+});
