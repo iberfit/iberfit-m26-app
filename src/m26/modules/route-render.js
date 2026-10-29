@@ -745,6 +745,7 @@ function renderClientHoyRoute(vm) {
   return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
     ${operationBanner(vm.operations||{})}
 
+    <section class="m26-client-home-stage" aria-label="Inicio y actividad de hoy">
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
       <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
@@ -765,6 +766,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${clientCompass}
+    </section>
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">
@@ -784,9 +786,9 @@ function renderClientHoyRoute(vm) {
       ${iriGlanceMarkup}
     </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><div class="m26-client-home-appointment"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></div></section>`:''}
 
-    ${trainingSurface?renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided}):''}
     ${renderClientTodayHealth(vm.wearables)}
     ${healthActivationMarkup}
+    ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided})}</details>`:''}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">

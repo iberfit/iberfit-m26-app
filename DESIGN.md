@@ -223,3 +223,11 @@ autorizan por sí mismos `start-published-session`.
 - Cliente: Entreno, Evolución y Bienestar como accesos a rutas reales, sin simular sesión lista ni métricas. Preservar IRI de inicio separado del seguimiento longitudinal.
 - Coach: prioridad real de sesión/ejecución, decisión rápida y datos de carga; Admin: operación, trazabilidad, tablas legibles. Cada rol conserva densidad propia.
 - Microinteracciones discretas, 44px+ touch, foco visible, soporte reduced motion y forced colors. No introducir imágenes externas ni efectos que eleven el coste de render.
+
+## SIGNATURE U51 · Composición real de producto (29-10-2026)
+
+- El estándar de referencia visual se valida **sobre el mismo DOM, estado y datos de IBERFIT**. Las imágenes conceptuales no son evidencia de implementación.
+- Cliente Hoy: la acción principal y las rutas Entreno / Evolución / Bienestar forman una sola composición compacta. Las métricas o sesiones se muestran sólo con registros confirmados. El método sigue disponible mediante un disclosure accesible; la prioridad visual es la acción real.
+- Coach: preservar la guía funcional de puesta en marcha, reducir ruido y destacar cliente, próxima decisión, agenda y carga. Admin: compactar directorio sin esconder controles de permisos y mostrar únicamente barras de capacidad respaldadas por carga registrada.
+- Se reutilizan el isotipo oficial y el controlador de avatares privados M42. No se añaden assets ficticios, imágenes ambientales de personas ni paisajes.
+- 320px/móvil/tablet/escritorio, foco, touch, safe areas, accesibilidad, WebAuthn, PWA y tests de sesiones determinan la certificación.

@@ -77,7 +77,12 @@ function commandPriority(item){
 function coachLoadCard(item){
   const value=item.loadPercent==null?'Sin capacidad definida':`${item.loadPercent}%`;
   const detail=item.capacityHours==null?`${item.clientCount} clientes`:`${item.assignedHours} de ${item.capacityHours} h · ${item.clientCount} clientes`;
-  return `<article class="m26-admin-coach-load is-${e(item.status||'unknown')}"><div><strong>${e(item.coachName)}</strong><small>${e(detail)}</small></div><span>${e(value)}</span></article>`;
+  // A gauge is only rendered for a recorded finite load: no synthetic score
+  // and no inferred availability when the capacity denominator is missing.
+  const load=Number(item.loadPercent);
+  const hasLoad=item.loadPercent!=null&&Number.isFinite(load)&&load>=0;
+  const gauge=hasLoad?`<progress max="100" value="${e(Math.min(100,load))}" aria-label="Carga de ${e(item.coachName)}: ${e(value)}">${e(value)}</progress>`:'';
+  return `<article class="m26-admin-coach-load is-${e(item.status||'unknown')}"><div><strong>${e(item.coachName)}</strong><small>${e(detail)}</small>${gauge}</div><span>${e(value)}</span></article>`;
 }
 function coachClientList(items=[]){
   return items.length

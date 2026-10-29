@@ -1,3 +1,13 @@
+## SIGNATURE U51 · Producto visual auténtico · candidato (29-10-2026)
+
+- Base confirmada: `2d8eb0403755276932e2f554378ab8d31010faac` (U50 en Canary).
+- Problema observado: Cliente Hoy consume el primer viewport en explicación y contenedores; Coach repite onboarding antes del trabajo; Admin usa filas demasiado altas y no grafica carga existente.
+- Candidato: una única composición Cliente con acción y triada, datos reales de actividad adelantados, proceso en disclosure; Coach Hero/agenda con densidad operativa; Admin directorio comprimido y barras de capacidad realmente confirmada.
+- **NO certificar / NO promover** hasta 9 workflows, QA visual real, verificación Mobile Safari/Chromium, privacidad avatar y WebAuthn Admin. Último WebAuthn Admin push U50 tuvo un GET de avatar privado bloqueado por la política de requests del test: se investiga por separado, sin relajar seguridad.
+- No se modifican Auth, RLS, Supabase, contratos de publicación ni backend. QA y PROD siguen separados.
+
+---
+
 ## SIGNATURE U50 · Rediseño Athletic Editorial / isotipo oficial · WIP · 29-10-2026
 
 - Visual aprobado: verde oscuro, alto contraste, crema/warm gray; sin fondos paisajísticos ni personas decorativas. Isotipo oficial sin recolor y con baja opacidad.
