@@ -2126,3 +2126,179 @@
     outline-color:Highlight;
   }
 }
+
+
+/* SIGNATURE U53 — retinal/vector instrument: visual fidelity without raster
+   scaling, fabricated chart data, gradient glow or extra UI route logic. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
+  position:relative;
+  border-radius:1.2rem;
+  background:#0E241A;
+  border-color:rgba(204,176,118,.32);
+  padding:clamp(1.1rem,2.4vw,1.75rem);
+  gap:clamp(1rem,2vw,1.4rem);
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence::before{
+  content:"";display:block;position:absolute;inset:0 auto auto 1.25rem;
+  width:3.1rem;height:3px;border-radius:0 0 3px 3px;background:#D5B775;
+  pointer-events:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head{
+  align-items:start;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
+  font-size:clamp(1.9rem,3vw,2.7rem);
+  line-height:1.06;
+  font-weight:600;
+  letter-spacing:-.034em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head .m26-eyebrow{
+  color:#D6B777;letter-spacing:.15em;font-size:.72rem;font-weight:750;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+  padding:0;gap:0;
+  border:1px solid rgba(210,191,146,.18);border-radius:.88rem;
+  overflow:hidden;
+  background:rgba(255,255,255,.018);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{
+  min-height:105px;padding:1rem 1.05rem;gap:.45rem;
+  border:0;border-inline-end:1px solid rgba(210,191,146,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+  font-family:var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+  font-size:clamp(2.3rem,5vw,3.4rem);font-weight:660;line-height:1;
+  letter-spacing:-.065em;color:#F3E6CD;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact span{
+  color:#CFD8CB;font-size:.83rem;line-height:1.35;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+  margin:0;min-width:0;
+  padding:1rem clamp(.75rem,2vw,1.25rem) .8rem;
+  border:1px solid rgba(211,185,126,.17);
+  border-radius:.9rem;
+  background:#142D22;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:.5rem 1rem;flex-wrap:wrap;margin-bottom:.35rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption>div{
+  display:grid;gap:.3rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption strong{
+  color:#F3E8D7;font-size:1.09rem;line-height:1.25;letter-spacing:-.015em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption small{
+  color:#B8C5BA;font-size:.74rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-kicker{
+  color:#D7BA7C;font-size:.64rem;letter-spacing:.13em;font-weight:700;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart svg{
+  display:block;width:100%;max-width:100%;height:auto;
+  overflow:visible;
+  shape-rendering:geometricPrecision;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-grid{
+  stroke:rgba(218,211,182,.22);stroke-width:1;
+  stroke-dasharray:3 6;fill:none;vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-area{
+  fill:rgba(204,173,106,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-line{
+  fill:none;stroke:#E5C484;stroke-width:3;
+  stroke-linecap:round;stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-dot{
+  fill:#F2DBA7;stroke:#142D22;stroke-width:2;vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-tick,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-date{
+  fill:#C6D2C6;font:600 11px/1 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-source{
+  display:block;color:#B8C7B8;font-size:.73rem;line-height:1.48;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing{
+  border-top:1px solid rgba(210,191,146,.18);padding-top:.85rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial svg{
+  shape-rendering:geometricPrecision;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial strong{
+  font-size:.82rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-value{
+  vector-effect:non-scaling-stroke;stroke-width:6;
+}
+/* Readability and touch: the hero is a true editorial hierarchy, not an
+   enlarged low-resolution raster background. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+  max-width:100%;overflow-wrap:break-word;
+  font-kerning:normal;
+  font-variant-ligatures:common-ligatures;
+  letter-spacing:-.035em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-feature{
+  overflow:hidden;
+}
+@media(min-width:790px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart){
+   grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
+   align-items:start;gap:1.25rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-evidence-head{
+   grid-column:1/-1;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-facts{
+   grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-chart{
+   align-self:stretch;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-wellbeing{
+   grid-column:1/-1;
+ }
+}
+@media(max-width:680px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button{
+   min-height:48px;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+   grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{
+   min-height:95px;padding:.9rem;
+   border:0;border-block-end:1px solid rgba(210,191,146,.15);
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:nth-child(odd){
+   border-inline-end:1px solid rgba(210,191,146,.14);
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+   font-size:clamp(2.05rem,10vw,2.65rem);
+ }
+}
+@media(max-width:359px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{padding:.9rem;}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+   padding:.85rem .55rem;
+ }
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+   background:Canvas;border-color:CanvasText;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart :is(.m26-athletic-chart-area,.m26-athletic-chart-grid,.m26-athletic-chart-line,.m26-athletic-chart-dot){
+   fill:none;stroke:CanvasText;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart .m26-athletic-chart-line{
+   stroke:Highlight;
+ }
+}

@@ -27,3 +27,38 @@ test('Authenticated Client Today prioritizes confirmed progress before secondary
  assert.ok(progress>0&&glance>progress);
  assert.equal(h.split('data-workflow-action="start-published-session"').length-1,0);
 });
+
+
+test('U53 only plots confirmed comparable time ordered volume series in vector SVG',()=>{
+  const base={completedSessions:2,plannedSessions:2,adherence:1,volumeDelta:12.5,checkins:0};
+  const rows=[
+    {date:'2026-10-21T12:00:00.000Z',volume:320},
+    {date:'2026-10-28T12:00:00.000Z',volume:360},
+  ];
+  const h=renderAthleticClientEvidence({...base,comparableVolumeSeries:rows});
+  assert.match(h,/data-verified-volume-chart/u);
+  assert.match(h,/<svg viewBox="0 0 370 180"/u);
+  assert.match(h,/kg·rep/u);
+  assert.match(h,/360 kg × repeticiones/u);
+  assert.match(h,/escala desde cero/u);
+  assert.match(h,/aria-label="Volumen confirmado/u);
+  assert.ok(h.includes('line')&&h.includes('polyline'));
+  assert.ok(h.indexOf('data-verified-volume-chart')>h.indexOf('Sesiones completadas'));
+  assert.doesNotMatch(h,/linearGradient|data-workflow-action="start-published-session"/u);
+  assert.doesNotMatch(renderAthleticClientEvidence({...base,volumeDelta:null,comparableVolumeSeries:rows}),/data-verified-volume-chart/u);
+  assert.doesNotMatch(renderAthleticClientEvidence({...base,comparableVolumeSeries:[rows[1],rows[0]]}),/data-verified-volume-chart/u);
+  assert.doesNotMatch(renderAthleticClientEvidence({...base,comparableVolumeSeries:[{date:'not a date',volume:30},rows[1]]}),/data-verified-volume-chart/u);
+  assert.doesNotMatch(renderAthleticClientEvidence({...base,comparableVolumeSeries:[{date:rows[0].date,volume:-10},rows[1]]}),/data-verified-volume-chart/u);
+});
+test('U53 home continuity never inserts using a nested node from the new editorial hero',()=>{
+ const source=(await import('node:fs')).readFileSync('src/m26/ui/progress-continuity.js','utf8');
+ const engine=(await import('node:fs')).readFileSync('src/m26/engagement/progress-engine.js','utf8');
+ const css=(await import('node:fs')).readFileSync('src/m26/design/iberfit-premium-v3.css','utf8');
+ assert.match(source,/node\?\.parentNode===host/u,'insertBefore reference must be owned by its parent');
+ assert.match(source,/host\.querySelector\?\.\(':scope > \.m26-athletic-evidence'\)/u);
+ assert.doesNotMatch(source,/host\.insertBefore\(section,anchor\.nextSibling\);\s*else if\(anchor\)/u);
+ assert.match(engine,/const comparableVolumeSeries=comparableVolumes/u);
+ assert.match(engine,/volumeSeries\.slice\(-16\)/u);
+ assert.match(css,/shape-rendering:geometricPrecision/u);
+ assert.match(css,/vector-effect:non-scaling-stroke/u);
+});
