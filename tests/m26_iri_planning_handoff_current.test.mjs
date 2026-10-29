@@ -135,5 +135,11 @@ test('planning view model derives the handoff only from the confirmed initial IR
   assert.match(source,/confirmedFirstSessionDraft\(baselineIri,clientId\)/u);
   assert.match(source,/String\(domainDate\(a\)\|\|''\)\.localeCompare\(String\(domainDate\(b\)\|\|''\)\)/u);
   assert.match(source,/buildIriPlanningSeed\(\{decisionLog,profile\}\)/u);
-  assert.match(source,/iriPlanningSeed=canEdit\?/u);
+  // A Client must not build private IRI editor decisions; only Coaches
+  // or Admins with an active training service may compute the handoff.
+  assert.match(source,/let iriPlanningSeed=null;\s*if\(canEdit\)\{/u);
+  assert.match(source,/iriPlanningSeed=buildIriPlanningSeed\(\{decisionLog,profile\}\)/u);
+  const block=source.slice(source.indexOf("if (area === 'planificacion') {"),source.indexOf("if (area === 'agenda') {"));
+  assert.ok(block.indexOf("recordsForClient(state,'iriAssessments',clientId)")>block.indexOf('if(canEdit){'));
+  assert.match(block,/iriPlanningSeed,/u);
 });
