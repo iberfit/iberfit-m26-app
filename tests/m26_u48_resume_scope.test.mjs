@@ -212,3 +212,69 @@ test('U48 revision 2 restores the last confirmed set and advances to feedback wi
  assert.equal(cmd.clientId,CLIENT);
  assert.equal(cmd.payload.progressSnapshot.status,'awaiting_feedback');
 });
+
+
+test('U48 real QA-shaped rev2: an empty remaining-items list is NOT an empty prescription',()=>{
+ const d=remoteFixture(),first=recoverAuthenticatedRemoteExecution(d).execution;
+ d.executionRow.revision=2;d.executionRow.summary.revision=2;
+ d.executionRow.summary.items=[]; // SQL QA U47 actual: completed last set => 0 remaining items.
+ d.executionRow.summary.progressSavedAt='2026-10-29T11:00:32.668486+00:00';
+ d.executionRow.summary.progressSnapshot={
+   id:EXEC,clientId:CLIENT,sessionId:ID,status:'active',revision:1,
+   startedAt:d.executionRow.summary.startedAt,index:0,setIndex:0,
+   queue:structuredClone(first.queue),
+   planSnapshot:{sessionId:ID,queue:structuredClone(first.queue),
+     blocks:structuredClone(d.session.blocks),schemaVersion:1,sessionRevision:3},
+   results:{[first.queue[0].exerciseId+':1']:{
+     exerciseId:first.queue[0].exerciseId,setNumber:1,seconds:2148,
+     distanceKm:6.5,rpe:7,completedAt:'2026-10-29T11:00:32.417Z'}},
+   events:[{type:'SET_COMPLETED',at:'2026-10-29T11:00:32.417Z'}],
+   skippedSets:{},skippedExercises:[],accumulatedActiveMs:0,
+ };
+ const recovered=recoverAuthenticatedRemoteExecution(d).execution;
+ assert.equal(recovered.id,EXEC);
+ assert.equal(recovered.revision,2);
+ assert.equal(recovered.results[first.queue[0].exerciseId+':1'].distanceKm,6.5);
+ assert.equal(recovered.queue.length,1);
+ assert.equal(recovered.status,'active');
+ advanceExecution(recovered);
+ assert.equal(recovered.status,'awaiting_feedback');
+ assert.equal(buildProgressExecutionCommand(recovered).baseRevision,2);
+ assert.equal(Object.keys(recovered.results).length,1,'Previously ACKed set must not duplicate');
+ // No progress checkpoint, no recorded result, wrong plan or foreign remaining
+ // item can ever justify discarding the original source-vs-items comparison.
+ const missing=structuredClone(d);delete missing.executionRow.summary.progressSnapshot;
+ assert.throws(()=>recoverAuthenticatedRemoteExecution(missing),/M48_RECOVERY_PRESCRIPTION_DRIFT/);
+ const noResult=structuredClone(d);noResult.executionRow.summary.progressSnapshot.results={};
+ assert.throws(()=>recoverAuthenticatedRemoteExecution(noResult),/M48_RECOVERY_PRESCRIPTION_DRIFT/);
+ const changedPlan=structuredClone(d);changedPlan.executionRow.summary.progressSnapshot.planSnapshot.blocks[0].exerciseId='FOREIGN';
+ assert.throws(()=>recoverAuthenticatedRemoteExecution(changedPlan),/M48_RECOVERY_PRESCRIPTION_DRIFT/);
+ const incompleteIdentity=structuredClone(d);incompleteIdentity.executionRow.summary.progressSnapshot.clientId=EXEC;
+ assert.throws(()=>recoverAuthenticatedRemoteExecution(incompleteIdentity),/M48_RECOVERY_PROGRESS_AMBIGUOUS/);
+ const wrongScope=structuredClone(d);wrongScope.executionRow.client_id=EXEC;
+ assert.throws(()=>recoverAuthenticatedRemoteExecution(wrongScope),/M48_RECOVERY_SCOPE_INVALID/);
+});
+test('U48 rev2: checkpoint-backed remaining items are an ordered subset, never a substitute prescription',()=>{
+ const d=remoteFixture(),second={...d.session.blocks[0],id:'40000000-0000-4000-8000-000000000476',exerciseId:'IBF-SEGUNDO'};
+ d.session.blocks.push(second);
+ d.executionRow.summary.sourceSnapshot.push(structuredClone(second));
+ d.executionRow.summary.items=[structuredClone(second)];
+ const original=recoverAuthenticatedRemoteExecution({...d,
+   executionRow:{...d.executionRow,summary:{...d.executionRow.summary,items:structuredClone(d.session.blocks)}}}).execution;
+ d.executionRow.revision=2;d.executionRow.summary.revision=2;
+ d.executionRow.summary.progressSavedAt='2026-10-29T11:00:32Z';
+ d.executionRow.summary.progressSnapshot={
+   id:EXEC,sessionId:ID,clientId:CLIENT,status:'active',revision:1,
+   startedAt:d.executionRow.summary.startedAt,index:0,setIndex:0,
+   queue:structuredClone(original.queue),
+   planSnapshot:{sessionId:ID,queue:structuredClone(original.queue),blocks:structuredClone(d.session.blocks)},
+   results:{[original.queue[0].exerciseId+':1']:{exerciseId:original.queue[0].exerciseId,setNumber:1,rpe:7}},
+   events:[],skippedSets:{},skippedExercises:[],
+ };
+ const e=recoverAuthenticatedRemoteExecution(d).execution;
+ assert.equal(e.queue.length,2);
+ assert.equal(e.revision,2);
+ assert.equal(Object.keys(e.results).length,1);
+ const forged=structuredClone(d);forged.executionRow.summary.items=[{...second,id:'40000000-0000-4000-8000-000000000477'}];
+ assert.throws(()=>recoverAuthenticatedRemoteExecution(forged),/M48_RECOVERY_PRESCRIPTION_DRIFT/);
+});

@@ -108,8 +108,23 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
   Object.assign(scope,newU47Scope({stage:'execute',clientId:client.clientId,title:TITLE}),
     {sessionId:SESSION,executionId:EXECUTION,
       serverPublicationConfirmed:true,historyClean:true,enabled:true});
+  // Distinguish a workspace-recovery rejection from a slow render; capture
+  // only static error codes, never JWTs or private response bodies.
+  await page.evaluate(()=>{
+    globalThis.__u48EntryErrorCodes=[];
+    globalThis.addEventListener('m26:workflow-error',event=>{
+      const code=String(event?.detail?.code||'');
+      if(/^M(?:26|38|42|43|48)_[A-Z0-9_]{1,95}$/u.test(code))
+        globalThis.__u48EntryErrorCodes.push(code);
+    },{once:true});
+  });
   await cta.click({timeout:8_000});
-  await expect(page.locator('[data-session-live-state]')).toBeVisible({timeout:25_000});
+  await expect.poll(async()=>{
+    if(await page.locator('[data-session-live-state]').count())return 'OPEN';
+    const error=await page.evaluate(()=>globalThis.__u48EntryErrorCodes?.[0]||'');
+    return error?'ERROR:'+error:'PENDING';
+  },{timeout:25_000,message:'U48 canonical recovery must open an owned session or expose a safe error code'})
+    .toBe('OPEN');
   await expect(page.locator('[data-session-live-state="ready"]')).toHaveCount(0);
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
   expect(acked.filter(e=>e.type==='SESION_INICIAR'),'Recovery MUST NOT emit a second start').toHaveLength(0);

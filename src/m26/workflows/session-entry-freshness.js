@@ -123,24 +123,55 @@ export function recoverAuthenticatedRemoteExecution({
   const source=Array.isArray(body.sourceSnapshot)?body.sourceSnapshot:null;
   const items=Array.isArray(body.items)?body.items:null;
   const blocks=Array.isArray(session.blocks)?session.blocks:null;
+  const checkpoint=body.progressSnapshot;
+  if(checkpoint!==undefined&&(checkpoint===null||typeof checkpoint!=='object'||
+    Array.isArray(checkpoint)))throw Error('M48_RECOVERY_CHECKPOINT_INVALID');
   const signature=(b)=>JSON.stringify({
     id:clean(b?.id),type:clean(b?.type),exerciseId:clean(b?.exerciseId),
     sets:Number(b?.sets??0),rounds:Number(b?.rounds??0),
     exerciseIds:Array.isArray(b?.exerciseIds)?b.exerciseIds.map(clean):[],
   });
+  // The immutable prescription is in sourceSnapshot. On an ACKed workout,
+  // summary.items can become the ordered REMAINING items (including [] after
+  // its final recorded set). Requiring items to equal all initial blocks
+  // prevents a legitimate Client from reopening already saved progress.
+  // A reduced items projection is accepted ONLY when an authenticated, durable
+  // checkpoint independently matches the full unchanged prescription.
+  const checkpointPlan=checkpoint?.planSnapshot;
+  const results=checkpoint?.results;
+  const hasDurableWork=checkpoint&&Array.isArray(checkpoint.queue)&&
+    results&&typeof results==='object'&&!Array.isArray(results)&&
+    Object.keys(results).length>0&&checkpointPlan&&
+    !Array.isArray(checkpointPlan)&&
+    clean(checkpointPlan.sessionId)===id&&
+    Array.isArray(checkpointPlan.blocks)&&
+    Array.isArray(checkpointPlan.queue)&&
+    checkpointPlan.blocks.length===blocks?.length&&
+    checkpointPlan.queue.length===checkpoint.queue.length&&
+    blocks.every((block,i)=>signature(block)===signature(checkpointPlan.blocks[i]));
+  const matchesRemainingItems=()=>{
+    if(!hasDurableWork||items.length>=blocks.length)return false;
+    let nextIndex=0;
+    for(const item of items){
+      let match=-1;
+      for(let i=nextIndex;i<blocks.length;i++){
+        if(signature(item)===signature(blocks[i])){match=i;break;}
+      }
+      if(match<0)return false;
+      nextIndex=match+1;
+    }
+    return true;
+  };
   if(!source||!items||!blocks||!blocks.length||source.length!==blocks.length||
-     items.length!==blocks.length||
-     blocks.some((b,i)=>!clean(b.id)||signature(b)!==signature(source[i])||
-       signature(b)!==signature(items[i])))
+     blocks.some((b,i)=>!clean(b.id)||signature(b)!==signature(source[i]))||
+     !(items.length===blocks.length&&blocks.every((b,i)=>signature(b)===signature(items[i]))||
+       matchesRemainingItems()))
     throw Error('M48_RECOVERY_PRESCRIPTION_DRIFT');
 
   const execution=createExecution({session,clientId:owner,executionId:remoteId});
   // The command RPC preserves the original start summary and appends each
   // durable work checkpoint as progressSnapshot. Reading only top-level queue
   // would silently erase every previously ACKed set after device loss.
-  const checkpoint=body.progressSnapshot;
-  if(checkpoint!==undefined&&(checkpoint===null||typeof checkpoint!=='object'||
-    Array.isArray(checkpoint)))throw Error('M48_RECOVERY_CHECKPOINT_INVALID');
   const work=checkpoint||body;
   if(checkpoint||Array.isArray(body.queue)||body.results!==undefined){
     const savedRevision=Number(work.revision);
