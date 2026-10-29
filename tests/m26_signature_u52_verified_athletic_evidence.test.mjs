@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {renderAthleticClientEvidence} from '../src/m26/design/athletic-client-evidence.js';
 import {renderHoyRoute} from '../src/m26/modules/route-render.js';
 test('No confirmed evidence means no fabricated athletic chart',()=>{
@@ -51,9 +52,9 @@ test('U53 only plots confirmed comparable time ordered volume series in vector S
   assert.doesNotMatch(renderAthleticClientEvidence({...base,comparableVolumeSeries:[{date:rows[0].date,volume:-10},rows[1]]}),/data-verified-volume-chart/u);
 });
 test('U53 home continuity never inserts using a nested node from the new editorial hero',()=>{
- const source=(await import('node:fs')).readFileSync('src/m26/ui/progress-continuity.js','utf8');
- const engine=(await import('node:fs')).readFileSync('src/m26/engagement/progress-engine.js','utf8');
- const css=(await import('node:fs')).readFileSync('src/m26/design/iberfit-premium-v3.css','utf8');
+ const source=readFileSync('src/m26/ui/progress-continuity.js','utf8');
+ const engine=readFileSync('src/m26/engagement/progress-engine.js','utf8');
+ const css=readFileSync('src/m26/design/iberfit-premium-v3.css','utf8');
  assert.match(source,/node\?\.parentNode===host/u,'insertBefore reference must be owned by its parent');
  assert.match(source,/host\.querySelector\?\.\(':scope > \.m26-athletic-evidence'\)/u);
  assert.doesNotMatch(source,/host\.insertBefore\(section,anchor\.nextSibling\);\s*else if\(anchor\)/u);
