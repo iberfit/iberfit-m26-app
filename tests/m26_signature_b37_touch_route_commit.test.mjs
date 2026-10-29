@@ -37,8 +37,13 @@ test('B37: delayed touch commits fail closed on newer navigation, logout or acco
   assert.match(source,/function destroy\(\)\s*\{[^]*?generation\+=1;/u);
 });
 
-test('B37: existing UI harness still checks a physical click and a real route change',()=>{
-  assert.match(qaSource,/visibleNavigationTarget\.click\(\{timeout:5_000\}\)/u);
+test('B37: existing UI harness checks real touch/mouse pointer and visible route under original five-second SLA',()=>{
+  assert.match(qaSource,/visibleNavigationTarget\.scrollIntoViewIfNeeded/u);
+  assert.match(qaSource,/await page\.touchscreen\.tap\(x,y\)/u);
+  assert.match(qaSource,/await page\.mouse\.click\(x,y\)/u);
+  assert.match(qaSource,/await expect\(activeNavigation/u);
+  assert.match(qaSource,/toBeLessThanOrEqual\(5_000\)/u);
   assert.match(qaSource,/\[aria-current="page"\]:visible/u);
   assert.match(qaSource,/RC64_CLIENT_NAV_CLICK_LATENCY/u);
+  assert.doesNotMatch(qaSource,/visibleNavigationTarget\.click\(\{timeout:5_000\}\)/u);
 });

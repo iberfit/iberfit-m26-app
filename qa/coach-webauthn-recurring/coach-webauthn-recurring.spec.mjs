@@ -6,6 +6,7 @@ import {certifyU59CoachConfirmedReadback} from './u59-coach-readback.mjs';
 import {newU47Scope,u47WriteAuthorized} from './u47-running-policy.mjs';
 import {certifyU47RunningClientLifecycle} from './u47-fresh-running-e2e.mjs';
 import {certifyU48ExistingRunning} from './u48-running-recovery.mjs';
+import {certifyU48CompletedReadback} from './u48-completed-readback.mjs';
 import {certifyU48UniversalSessionVisibility} from './u48-client-visible-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
@@ -98,7 +99,8 @@ function isReadOnlyPushConfig(request,url,method){
 // The U48 Client recovery reads ONLY one exact QA execution under real RLS.
 // No broad table enumeration, no foreign Client, no POST and no credential leak.
 function allowedU48ExistingExecutionRead(request){
-  if(process.env.M26_QA_U48_RUNNING!=='true'&&process.env.M26_QA_U48_READBACK!=='true')return false;
+  if(!['M26_QA_U48_RUNNING','M26_QA_U48_READBACK','M26_QA_U48_COMPLETED_READBACK']
+    .some(key=>process.env[key]==='true'))return false;
   let url;try{url=new URL(request.url());}catch{return false;}
   return url.origin===SUPABASE_ORIGIN&&
     request.method().toUpperCase()==='GET'&&authenticatedQaRequest(request)&&
@@ -424,7 +426,8 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   // U26 baseline SLA remains exact for all ordinary/recurring QA gates.
   test.setTimeout(420_000);
   // Only first, strictly gated U48 run includes an additional real workout.
-  if(process.env.M26_QA_U48_RUNNING==='true')test.setTimeout(840_000);
+  if(process.env.M26_QA_U48_RUNNING==='true'||process.env.M26_QA_U48_COMPLETED_READBACK==='true')
+    test.setTimeout(840_000);
   // The distinct first-push-only U47 scenario adds actual Client publication,
   // running, completion and readback AFTER the untouched five-device MFA test.
   if(process.env.M26_QA_U47_RUNNING==='true')test.setTimeout(840_000);
@@ -653,6 +656,12 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     if(process.env.M26_QA_U48_RUNNING==='true'){
       expect(process.env.M26_QA_U47_RUNNING).not.toBe('true');
       await certifyU48ExistingRunning({browser,installPolicy,evidence,
+        coachPage:page,cdp,setDevice});
+    }
+    // After the original execution is irreversibly ACKed, never re-enable
+    // the U48 one-shot command. Certify Client+Coach via real MFA / RLS reads.
+    if(process.env.M26_QA_U48_COMPLETED_READBACK==='true'){
+      await certifyU48CompletedReadback({browser,installPolicy,evidence,
         coachPage:page,cdp,setDevice});
     }
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
