@@ -56,3 +56,12 @@ test('U51 single canonical stylesheet preserves B6 and accessibility policies',(
  assert.ok(s.includes('.m26-coach-home-glance :is(span,strong,small)'));
  assert.ok(s.includes('background:#EEE6D8!important'));
 });
+
+test('U54 authenticated atlas actions use genuine vector icons for Coach and Client',()=>{
+ const coach=renderHoyRoute({role:'coach',clients:[{id:'c1',name:'Cliente'}],appointments:[],upcoming:[],operations:{},coachCockpit:{totalClients:1,attentionCount:0,items:[]}});
+ assert.match(coach,/m26-atlas-coach-icon/u);
+ assert.match(coach,/m26-atlas-icon-svg/u);
+ assert.doesNotMatch(coach,/aria-hidden="true">◇/u);
+ const client=renderHoyRoute(base());
+ assert.equal((client.match(/class="m26-atlas-client-icon"/gu)||[]).length,3);
+});

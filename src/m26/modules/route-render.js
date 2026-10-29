@@ -348,9 +348,9 @@ function renderCoachHoyRoute(vm) {
   // discoverable, but do not render its identical global destination twice.
   // Client-scoped hero actions are different from global quick destinations.
   const quickActions=[
-    {area:'clientes',label:'Clientes',glyph:'＋'},
-    {area:'planificacion',label:'Programar entrenamiento',glyph:'◇'},
-    {area:'agenda',label:'Agenda',glyph:'□'},
+    {area:'clientes',label:'Clientes',glyph:'users'},
+    {area:'planificacion',label:'Programar entrenamiento',glyph:'dumbbell'},
+    {area:'agenda',label:'Agenda',glyph:'calendar-days'},
   ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
 
   const attentionCount=Number(cockpit?.attentionCount||0);
@@ -424,7 +424,7 @@ function renderCoachHoyRoute(vm) {
     <!-- m26-coach-launch-self-slot -->
 
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
-      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}"><span aria-hidden="true">${glyph}</span><strong>${label}</strong></button>`).join('')}
+      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}"><span class="m26-atlas-coach-icon" aria-hidden="true">${renderIberfitIcon(glyph,{className:'m26-atlas-icon-svg'})}</span><strong>${label}</strong></button>`).join('')}
     </nav>
 
     <div class="m26-coach-home-grid">
@@ -726,15 +726,15 @@ function renderClientHoyRoute(vm) {
     <div class="m26-client-home-compass-heading"><strong>Tu estado de hoy</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
     <div class="m26-client-home-compass-actions">
       <button type="button" data-m26-area="sesion">
-        ${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}
+        <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}</span>
         <span><strong>Entreno</strong><small>${runnable||standaloneGuided?'Sesión lista para empezar':projections.length?'Ver sesiones publicadas':serviceActive?'Consulta tus sesiones':'Historial disponible'}</small></span>
       </button>
       <button type="button" data-m26-area="progreso">
-        ${renderIberfitIcon('chart',{className:'m26-client-home-compass-icon'})}
+        <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('chart',{className:'m26-client-home-compass-icon'})}</span>
         <span><strong>Evolución</strong><small>Historial y progreso confirmado</small></span>
       </button>
       <button type="button" data-m26-area="actividad">
-        ${renderIberfitIcon('heart-pulse',{className:'m26-client-home-compass-icon'})}
+        <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('heart-pulse',{className:'m26-client-home-compass-icon'})}</span>
         <span><strong>Bienestar</strong><small>Energía, sueño y recuperación</small></span>
       </button>
     </div>
