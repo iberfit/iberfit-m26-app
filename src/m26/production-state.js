@@ -144,13 +144,17 @@ export function assertProductionSnapshot(snapshot) {
   // payload contents, IDs, roles beyond the known Coach fixture, or messages.
   // The test harness may consume only these static stage labels and counters.
   if(snapshot.environment==='QA'&&snapshot.user?.role==='coach'&&snapshot.canary?.active===true){
-    qaStage('rc64-state-wire-size-mb-'+Math.ceil(wireBytes/1_000_000));
+    if(wireBytes>MAX_BOOTSTRAP_BYTES)qaStage('rc64-state-wire-over-limit');
+    else if(wireBytes>18_000_000)qaStage('rc64-state-wire-18-to-20mb');
+    else if(wireBytes>16_000_000)qaStage('rc64-state-wire-16-to-18mb');
+    else qaStage('rc64-state-wire-under16mb');
     const executions=Array.isArray(snapshot.data?.sessionExecutions)
       ?snapshot.data.sessionExecutions:[];
     const compacted=executions.filter(e=>
       e?.summary&&typeof e.summary==='object'&&
       Object.hasOwn(e.summary,'__iberfitQaCanonicalExecutionSummaryRefV1')).length;
-    qaStage('rc64-state-wire-summary-refs-'+compacted);
+    if(compacted>0)qaStage('rc64-state-wire-refs-present');
+    else qaStage('rc64-state-wire-refs-absent');
   }
   if(wireBytes>MAX_BOOTSTRAP_BYTES)throw new Error('M26_BOOTSTRAP_TOO_LARGE');
   if (containsSyntheticData(snapshot)&&!syntheticCanaryAllowed(snapshot)) throw new Error('M26_SYNTHETIC_DATA_REJECTED');
@@ -200,15 +204,14 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
     snapshot=expandQaCanonicalExecutionSummaries(envelope);
     qaStage('rc64-state-reconstruction-validated');
   }catch(error){
-    const code=String(error?.message||'');
-    const diagnostics=new Set([
-      'M26_BOOTSTRAP_TOO_LARGE',
-      'M26_SYNTHETIC_DATA_REJECTED',
-      'M26_BOOTSTRAP_NOT_SERIALIZABLE',
-      'U48_QA_CANONICAL_SUMMARY_REF_INVALID',
-      'U48_QA_CANONICAL_SUMMARY_LINEAGE_CONFLICT',
-    ]);
-    qaStage('rc64-state-rejected-'+(diagnostics.has(code)?code:'OTHER'));
+    switch(String(error?.message||'')){
+      case 'M26_BOOTSTRAP_TOO_LARGE':qaStage('rc64-state-rejected-too-large');break;
+      case 'M26_SYNTHETIC_DATA_REJECTED':qaStage('rc64-state-rejected-synthetic');break;
+      case 'M26_BOOTSTRAP_NOT_SERIALIZABLE':qaStage('rc64-state-rejected-not-serializable');break;
+      case 'U48_QA_CANONICAL_SUMMARY_REF_INVALID':qaStage('rc64-state-rejected-ref-invalid');break;
+      case 'U48_QA_CANONICAL_SUMMARY_LINEAGE_CONFLICT':qaStage('rc64-state-rejected-lineage-conflict');break;
+      default:qaStage('rc64-state-rejected-other');break;
+    }
     throw error;
   }
   qaStage('rc64-state-assert-ready');
