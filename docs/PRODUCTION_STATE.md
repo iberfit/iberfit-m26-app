@@ -1,3 +1,12 @@
+## SIGNATURE U48 · Progreso confirmado y recuperación del último paso · 29-10-2026
+
+- PR #1193 fusionada como `dc2aafb897c14f215646d2ccf45145e523835187`, Canary LIVE QA verificado. PROD LIVE sigue `986974b710cce6f7c908e235790a6783ad952d79` y queda intacta.
+- Coach real QA run #40860589639: WebAuthn, rutas Coach, sesión U47 visible y reentrada sin `SESION_INICIAR` nuevo; ejecución original `16145839-2e7d-48e2-bf0c-e94325f5c54c` activa **rev2**, `progressSnapshot` persistido, un `EJECUCION_GUARDAR_PROGRESO` aplicado, un lock; fallo de transición a feedback, sin `EJECUCION_COMPLETAR`.
+- WIP de recuperación: prueba one-shot acepta exclusivamente revision 1 o rev2 del fixture exacto; rev2 restaura serie confirmada y PROHÍBE volver a registrarla. Espera settlement del controlador, requiere siguiente paso en un toque y ACK separado del checkpoint de feedback, después cierre y readback independiente.
+- NO rerun del ensayo de escritura original; no SQL de reparación, sin segundo inicio ni nueva ejecución. NO-GO promoción hasta CI/gates de SHA exacto verdes, U47 completada con lock liberado y readback Cliente/Coach.
+
+---
+
 ## SIGNATURE U48 · QA Real Write completo y visual histórico legítimo · 29-10-2026
 
 - PR #1189 en `fix/u48-live-modality-validation`, base protegida Canary `3ae73dd26f5af420420c998a6564d346a99cafd8`. SHA anterior `fc15dee1e9398d5d96a27141118e6b8046ca72ff` comprobado: **QA Real Write Certification 5/5 jobs SUCCESS**, incluido M43 writer con Client B aislado y navegador Cliente con inicio, pausa, reanudación, series, cierre e historial real. Otros gates CI, Fast Lane, audit, Coach WebAuthn, Admin, Session QA, Client authenticated SUCCESS.

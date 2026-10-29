@@ -20,7 +20,8 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
  const scope={enabled:false};
  const client=await openU56ClientReadOnly(browser,installPolicy,scope);
  const {context,page}=client;const trace={publishedBefore:true,noSecondStart:false,
-   firstTapVisible:false,progressAck:false,finishAck:false,readback:false};
+   firstTapVisible:false,progressAck:false,recoveredConfirmedProgress:false,
+   skippedPreviouslyRecordedSet:false,finishAck:false,readback:false};
  let boot=null,errors=[],acked=[],httpErrors=[];
  evidence.u48Running=trace;
  page.on('pageerror',error=>errors.push(String(error?.message||'PAGE_ERROR').slice(0,140)));
@@ -74,8 +75,12 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
   expect(String(canonical[0]?.status||canonical[0]?.body?.status)).toBe('en_curso');
   expect(String(canonical[0]?.body?.clientId||'')).toBe(client.clientId);
   expect(String(canonical[0]?.body?.sessionId||'')).toBe(SESSION);
-  expect(Number(canonical[0]?.revision)).toBe(1);
-  expect(Number(historical[0]?.revision)).toBe(1);
+  // Revision 2 is the same original QA execution after the first genuine
+  // progress ACK. Never register its final set a second time on reentry.
+  const persistedRevision=Number(canonical[0]?.revision);
+  expect([1,2],'Only exact untouched or once-progressed U47 is eligible').toContain(persistedRevision);
+  expect(Number(historical[0]?.revision)).toBe(persistedRevision);
+  trace.recoveredConfirmedProgress=persistedRevision===2;
   expect(historical[0]?.clientId??historical[0]?.client_id??null).toBeNull();
   expect(historical[0]?.sessionId??historical[0]?.session_id??null).toBeNull();
   evidence.u48Readiness={valid:true,reason:'EXACT_EXISTING_ACTIVE_EXECUTION',
@@ -109,19 +114,36 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
   expect(acked.filter(e=>e.type==='SESION_INICIAR'),'Recovery MUST NOT emit a second start').toHaveLength(0);
   trace.noSecondStart=true;
-  await page.locator('[data-set-field="distanceKm"]').first().fill('6.5');
-  await page.locator('[data-set-field="durationMinutes"]').first().fill('35.8');
-  await page.locator('[data-set-field="rpe"]').first().fill('7');
-  const finishSet=page.locator('[data-session-live-state="active"] [data-session-action="complete-set"]');
-  await expect(finishSet).toBeEnabled({timeout:20_000});
-  await finishSet.click();
-  await expect.poll(()=>acked.some(e=>e.type==='EJECUCION_GUARDAR_PROGRESO'),{timeout:25_000}).toBe(true);
+  if(persistedRevision===1){
+    await page.locator('[data-set-field="distanceKm"]').first().fill('6.5');
+    await page.locator('[data-set-field="durationMinutes"]').first().fill('35.8');
+    await page.locator('[data-set-field="rpe"]').first().fill('7');
+    const finishSet=page.locator('[data-session-live-state="active"] [data-session-action="complete-set"]');
+    await expect(finishSet).toBeEnabled({timeout:20_000});
+    await finishSet.click();
+    await expect.poll(()=>acked.some(e=>e.type==='EJECUCION_GUARDAR_PROGRESO'),{timeout:25_000}).toBe(true);
+  }else{
+    // The recorded set comes only from the original RLS-backed execution.
+    await expect(page.locator('[data-session-rest-focus]')).toContainText('Serie registrada',{timeout:30_000});
+    await expect(page.locator('[data-session-live-state="active"] [data-session-action="complete-set"]')).toHaveCount(0);
+    trace.skippedPreviouslyRecordedSet=true;
+  }
   scope.setConfirmed=true;trace.progressAck=true;
   const feedback=page.locator('[data-session-live-state="feedback"]');
   if(!await feedback.isVisible().catch(()=>false)){
     const next=page.locator('[data-session-rest-focus] [data-session-action="next"]');
-    await expect(next).toBeEnabled({timeout:20_000});
+    await expect(page.locator('[data-session-rest-focus]')).toBeVisible({timeout:30_000});
+    // HTTP ACK does not mean the previous controller operation finished.
+    // Clicking while it still holds the lock can discard the only user tap.
+    await expect(page.locator('[data-m26-session-action-pending="true"]'),
+      'NEXT must await the full local settlement of the previous ACK').toHaveCount(0,{timeout:35_000});
+    await expect(next).toBeEnabled({timeout:25_000});
+    const previousProgressAcks=acked.filter(e=>e.type==='EJECUCION_GUARDAR_PROGRESO').length;
     await next.click();
+    await expect(feedback,'The last recorded set must lead to feedback on one settled tap')
+      .toBeVisible({timeout:35_000});
+    await expect.poll(()=>acked.filter(e=>e.type==='EJECUCION_GUARDAR_PROGRESO').length,
+      {timeout:30_000}).toBeGreaterThan(previousProgressAcks);
   }
   await expect(feedback).toBeVisible({timeout:20_000});
   await page.locator('[data-session-feedback-rpe]').fill('7');
