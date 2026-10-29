@@ -368,6 +368,14 @@
   background:#192B23!important;
 }
 
+/* Admin verified user counts use the same readable warm instrument surface. */
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat{
+  background:#EEE6D8!important;
+  border-color:rgba(25,48,37,.2)!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat :is(span,strong,small){
+  color:#193025!important;
+}
 /* Coach: low cognitive load, priority first */
 .m26-shell[data-m26-role="coach"] .m26-coach-home-command{
   border-color:rgba(197,160,89,.18)!important;
@@ -375,7 +383,13 @@
   background:#1C3529!important;
   box-shadow:0 8px 22px rgba(0,0,0,.14)!important;
 }
-.m26-shell[data-m26-role="coach"] .m26-coach-home-glance,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-glance{
+  border-color:rgba(197,160,89,.28)!important;
+  background:#EEE6D8!important;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-glance :is(span,strong,small){
+  color:#193025!important;
+}
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button{
   border-color:rgba(197,160,89,.28)!important;
   background:#1A3026!important;
@@ -1395,7 +1409,7 @@
   content:"";position:absolute;inset:auto -5% -37% auto;
   width:clamp(13rem,35%,24rem);aspect-ratio:1;
   background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
-  opacity:.075;pointer-events:none;z-index:0;
+  opacity:.04;pointer-events:none;z-index:0;
 }
 .m26-shell[data-m26-role="client"] .m26-client-home-hero>*,
 .m26-shell[data-m26-role="coach"] .m26-coach-home-command>*,
