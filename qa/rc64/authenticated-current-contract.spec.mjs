@@ -153,6 +153,12 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     // Start the navigation SLA at the genuine input, not at Playwright's
     // prior scroll, DOM hit-testing or touch-capability lookup.
     navigationClickStart=Date.now();
+    const physicalHit=await page.evaluate(({x,y})=>{
+      const target=document.elementFromPoint(x,y);
+      const area=target?.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area')||'';
+      return {area:String(area).slice(0,30),insideNavigation:Boolean(target?.closest?.('.m26-client-bottom-nav,.m26-mobile-nav,.m26-sidebar'))};
+    },{x,y});
+    console.log('RC64_CLIENT_NAV_POINTER_HIT:'+JSON.stringify({project:projectName,area:targetArea,hitArea:physicalHit.area,insideNavigation:physicalHit.insideNavigation}));
     if(hasTouch)await page.touchscreen.tap(x,y);
     else await page.mouse.click(x,y);
     await expect(activeNavigation,'The real pointer action must activate the requested route')
@@ -161,6 +167,12 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
       'Client navigation must become visible within the ORIGINAL 5s SLA')
       .toBeLessThanOrEqual(5_000);
   }catch(error){
+    const routeTrace=await page.evaluate(()=>({
+      lastStages:(globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.shellRouteTimings||[]).slice(-28),
+      renderedArea:document.querySelector('[data-m26-area][aria-current="page"]')?.getAttribute('data-m26-area')||'',
+      shellRole:document.querySelector('.m26-shell')?.getAttribute('data-m26-role')||'',
+    })).catch(()=>({unavailable:true}));
+    console.error('RC64_CLIENT_NAV_ROUTE_TRACE:'+JSON.stringify({project:projectName,area:targetArea,routeTrace}));
     console.error('RC64_CLIENT_NAV_CLICK_FAILURE:'+JSON.stringify({
       project:projectName,area:targetArea,inputMode,
       elapsedMs:navigationClickStart===null?null:Date.now()-navigationClickStart,

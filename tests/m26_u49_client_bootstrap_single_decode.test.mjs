@@ -27,3 +27,15 @@ test('U49 only optimizes bootstrap, preserving 20MB, Auth headers and other RPCs
   assert.ok(s.includes(key),key);
  assert.match(s,/authorization: `Bearer \$\{String\(token\)\}`/u);
 });
+
+test('U49 no unrelated progress scans on Client Plan and captures privacy-safe route timings',()=>{
+ const shell=readFileSync('src/m26/shell/shell-controller.js','utf8');
+ const device=readFileSync('qa/rc64/authenticated-current-contract.spec.mjs','utf8');
+ assert.match(shell,/if\(\['hoy','progreso','sesion'\]\.includes\(area\)\)\s*enhanceProgressContinuity/u);
+ assert.match(shell,/function markQaShellStage\(phase,area='',elapsedMs=null\)/u);
+ assert.match(shell,/markQaShellStage\('route-commit',decision\.area\)/u);
+ assert.match(shell,/markQaShellStage\('dom-committed',area/u);
+ assert.match(device,/RC64_CLIENT_NAV_ROUTE_TRACE/u);
+ assert.match(device,/RC64_CLIENT_NAV_POINTER_HIT/u);
+ assert.doesNotMatch(shell,/rows\.push\(\{[^}]*clientId/u);
+});
