@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {renderHoyRoute} from '../src/m26/modules/route-render.js';
-import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 
 const read=(p)=>fs.readFileSync(new URL(p,import.meta.url),'utf8');
 const vm=(other={})=>({role:'client',serviceKind:'training',clients:[{id:'c1',name:'Cliente QA',serviceActive:true}],appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[]},...other});
@@ -36,7 +35,7 @@ test('U51 Admin Coach bar is sourced only from recorded finite capacity',()=>{
 });
 test('U51 single canonical stylesheet preserves B6 and accessibility policies',()=>{
  const s=read('../src/m26/design/iberfit-premium-v3.css');
- const a=s.indexOf('/* SIGNATURE U51 · Composición real');
+ const a=s.indexOf('/* SIGNATURE U51 · Authentic product composition');
  const b=s.indexOf('/* SIGNATURE B6 · Atelier Cliente');
  assert.ok(a>=0&&b>a);
  const part=s.slice(a,b);
