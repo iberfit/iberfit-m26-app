@@ -139,7 +139,20 @@ export function containsSyntheticData(value) {
 
 export function assertProductionSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('M26_BOOTSTRAP_INVALID');
-  if(jsonByteLength(snapshot)>MAX_BOOTSTRAP_BYTES)throw new Error('M26_BOOTSTRAP_TOO_LARGE');
+  const wireBytes=jsonByteLength(snapshot);
+  // Authenticated QA-only, coarse structural diagnostics. Never log tokens,
+  // payload contents, IDs, roles beyond the known Coach fixture, or messages.
+  // The test harness may consume only these static stage labels and counters.
+  if(snapshot.environment==='QA'&&snapshot.user?.role==='coach'&&snapshot.canary?.active===true){
+    qaStage('rc64-state-wire-size-mb-'+Math.ceil(wireBytes/1_000_000));
+    const executions=Array.isArray(snapshot.data?.sessionExecutions)
+      ?snapshot.data.sessionExecutions:[];
+    const compacted=executions.filter(e=>
+      e?.summary&&typeof e.summary==='object'&&
+      Object.hasOwn(e.summary,'__iberfitQaCanonicalExecutionSummaryRefV1')).length;
+    qaStage('rc64-state-wire-summary-refs-'+compacted);
+  }
+  if(wireBytes>MAX_BOOTSTRAP_BYTES)throw new Error('M26_BOOTSTRAP_TOO_LARGE');
   if (containsSyntheticData(snapshot)&&!syntheticCanaryAllowed(snapshot)) throw new Error('M26_SYNTHETIC_DATA_REJECTED');
   const role=normalizeRole(snapshot.user?.role);
   if (!safeId(snapshot.user?.id) || !role) throw new Error('M26_IDENTITY_REQUIRED');
@@ -180,7 +193,24 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
   qaStage('rc64-state-start');
   // Size and role checks apply to the authenticated, compact QA-only wire
   // envelope BEFORE lossless reconstruction. Never raise the 20 MB guard.
-  const snapshot = expandQaCanonicalExecutionSummaries(assertProductionSnapshot(rawSnapshot));
+  let snapshot;
+  try{
+    const envelope=assertProductionSnapshot(rawSnapshot);
+    qaStage('rc64-state-wire-validated');
+    snapshot=expandQaCanonicalExecutionSummaries(envelope);
+    qaStage('rc64-state-reconstruction-validated');
+  }catch(error){
+    const code=String(error?.message||'');
+    const diagnostics=new Set([
+      'M26_BOOTSTRAP_TOO_LARGE',
+      'M26_SYNTHETIC_DATA_REJECTED',
+      'M26_BOOTSTRAP_NOT_SERIALIZABLE',
+      'U48_QA_CANONICAL_SUMMARY_REF_INVALID',
+      'U48_QA_CANONICAL_SUMMARY_LINEAGE_CONFLICT',
+    ]);
+    qaStage('rc64-state-rejected-'+(diagnostics.has(code)?code:'OTHER'));
+    throw error;
+  }
   qaStage('rc64-state-assert-ready');
   const rawCollections = reconcileCanonicalTrainingCollections(Object.fromEntries(
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
