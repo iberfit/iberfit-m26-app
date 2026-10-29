@@ -1940,6 +1940,62 @@
  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track{stroke:CanvasText}
 }
 
+
+/* U52 visual QA refinement — compact honest context, lighter visual rhythm. */
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    min-width:0;gap:0;overflow:hidden;
+    border:1px solid rgba(216,192,138,.24);
+    border-radius:1rem;
+    background:#173125;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+    min-height:92px;
+    padding:.65rem .78rem;
+    gap:.18rem;
+    border:0;
+    border-inline-start:1px solid rgba(216,192,138,.18);
+    border-radius:0;
+    box-shadow:none;
+    background:transparent;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:first-child{
+    border-inline-start:0;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button span{
+    font-size:.71rem;letter-spacing:.055em;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
+    font-size:.94rem;line-height:1.22;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button small{
+    font-size:.73rem;line-height:1.32;
+  }
+}
+@media(max-width:359px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+    min-height:56px;border-inline-start:0;border-block-start:1px solid rgba(216,192,138,.18);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:first-child{border-block-start:0}
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  border:1px solid rgba(216,192,138,.26);
+  background:#12281E;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+  border:1px solid rgba(216,192,138,.14);
+  color:#F4E7D1;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:focus-visible{
+  outline:3px solid #D8BA7E;outline-offset:2px;
+}
+
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
  * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
  * distinct forest/cream hero. This is strictly presentational, scoped to the

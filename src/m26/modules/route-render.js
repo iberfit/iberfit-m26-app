@@ -757,7 +757,7 @@ function renderClientHoyRoute(vm) {
         <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <span class="m26-client-home-avatar" data-iberfit-avatar-client="${escapeHtml(client?.id||'')}" aria-hidden="true">${escapeHtml(name.trim().slice(0,1).toUpperCase()||'I')}</span>
-        <p>${escapeHtml(primary.detail)}</p>
+        ${primary.area==='actividad'?'':`<p>${escapeHtml(primary.detail)}</p>`}
       </div>
       ${primary.area==='actividad'?'':`<div class="m26-client-home-status">
         <span>${escapeHtml(primary.eyebrow)}</span>
