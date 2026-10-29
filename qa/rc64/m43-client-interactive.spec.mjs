@@ -13,6 +13,12 @@ import {
 // when GitHub reruns a failed browser job without recreating the fixture.
 // A GitHub Actions job without verified writer provenance must fail closed.
 const WRITER_ATTEMPT=process.env.M26_M43_WRITER_ATTEMPT;
+const OWNER_FIXTURE=process.env.M26_M43_FIXTURE_CLIENT_LABEL||'A';
+if(!['A','B'].includes(OWNER_FIXTURE)||
+   (process.env.GITHUB_ACTIONS==='true'&&!process.env.M26_M43_FIXTURE_CLIENT_LABEL))
+  throw Error('M43_INTERACTIVE_FIXTURE_PROVENANCE_MISSING');
+const ownerEmail=()=>process.env['M26_QA_CLIENT_'+OWNER_FIXTURE+'_EMAIL'];
+const ownerPassword=()=>process.env['M26_QA_CLIENT_'+OWNER_FIXTURE+'_PASSWORD'];
 if(process.env.GITHUB_ACTIONS==='true'&&!WRITER_ATTEMPT)
   throw Error('M43_QA_WRITER_ATTESTATION_REQUIRED');
 const LIVE=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT})
@@ -37,13 +43,13 @@ const WRITES=new Set([
 
 test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context},testInfo)=>{
   for(const name of ['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
-    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD']){
+    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_'+OWNER_FIXTURE+'_EMAIL','M26_QA_CLIENT_'+OWNER_FIXTURE+'_PASSWORD']){
     expect(process.env[name],name+' required').toBeTruthy();
   }
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
   expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
-  expect(process.env.M26_QA_CLIENT_A_EMAIL).toBe('qa.rc74.client-a@iberfit.cl');
+  expect(ownerEmail()).toBe('qa.rc74.client-'+OWNER_FIXTURE.toLowerCase()+'@iberfit.cl');
   expect(process.env.M26_SUPABASE_PUBLISHABLE_KEY).not.toMatch(/service[_-]?role|supabase_secret/iu);
 
   let clientId=null,sessionId=null,executionId=null;
@@ -107,8 +113,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
     }catch{}
   });
   await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
-  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
-  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(ownerEmail());
+  await page.locator('#m26-login-password').fill(ownerPassword());
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
   await expect(page.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:40_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});

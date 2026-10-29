@@ -33,7 +33,12 @@ export function verifyWriterEvidence(proof,{runId,writerAttempt,sourceSha}={}){
     ||String(proof?.provenance?.runAttempt)!==String(writerAttempt)
     ||String(proof?.provenance?.sourceSha)!==String(sourceSha))
     throw Error('M43_WRITER_HANDOFF_UNVERIFIED');
-  return Object.freeze({runId:String(runId),attempt:String(writerAttempt)});
+  const label=proof?.fixtureSelection?.label??'A';
+  if(!['A','B'].includes(label)||
+     (label==='B'&&proof?.fixtureSelection?.reason!=='EXACT_U47_LOCK_ISOLATION'))
+    throw Error('M43_WRITER_FIXTURE_SELECTION_INVALID');
+  return Object.freeze({runId:String(runId),attempt:String(writerAttempt),
+    fixtureLabel:label});
 }
 
 async function main(){
@@ -63,7 +68,7 @@ async function main(){
     const writerAttempt=String(process.env.M26_M43_SELECTED_WRITER_ATTEMPT||'');
     const json=JSON.parse(readFileSync('.tmp/m43-writer-evidence/coach-client-real-write.json','utf8'));
     const verified=verifyWriterEvidence(json,{runId,writerAttempt,sourceSha});
-    appendFileSync(process.env.GITHUB_ENV,`M26_M43_WRITER_ATTEMPT=${verified.attempt}\n`);
+    appendFileSync(process.env.GITHUB_ENV,`M26_M43_WRITER_ATTEMPT=${verified.attempt}\nM26_M43_FIXTURE_CLIENT_LABEL=${verified.fixtureLabel}\n`);
     console.log('M43_WRITER_HANDOFF_VERIFIED:exact-run-source-attempt');
     return;
   }

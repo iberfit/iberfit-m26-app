@@ -10,7 +10,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
-import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,selectM43QaFixtureForU47Isolation,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -72,15 +72,25 @@ async function send(session,body,label){
   return {command,result};
 }
 async function main(){
-  const [coach,clientA,clientB]=await Promise.all([
+  let [coach,clientA,clientB]=await Promise.all([
     login(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD),
     login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD),
     login(process.env.M26_QA_CLIENT_B_EMAIL,process.env.M26_QA_CLIENT_B_PASSWORD)]);
   const environment=await rpc('iberfit_environment',clientA);
   check(environment?.environment==='QA'&&environment.realDataAllowed===false
     &&environment.productionBlocked===true,'QA_ISOLATION');
-  const [a,b,coachRole]=await Promise.all([
+  let [a,b,coachRole]=await Promise.all([
     bootstrap(clientA),bootstrap(clientB),rpc('iberfit_current_role_v26',coach)]);
+  // Client A may be locked by the exact U47 running certification. The gate
+  // must continue its FULL authenticated lifecycle on distinct QA Client B,
+  // including Client A as the foreign/negative actor and the real browser
+  // writer-handoff. Never cancel/alter the U47 fixture to turn a gate green.
+  const fixture=selectM43QaFixtureForU47Isolation(a,b,{runId:process.env.GITHUB_RUN_ID});
+  evidence.fixtureSelection=fixture;
+  if(fixture.label==='B'){
+    [clientA,clientB]=[clientB,clientA];
+    [a,b]=[b,a];
+  }
   // Long-running QA may hold hundreds of genuine synthetic histories from prior
   // certifications. Keep a hard ceiling until a separately authorized, audited
   // ephemeral-fixture cleanup lane exists; never delete history to hide a gate.
