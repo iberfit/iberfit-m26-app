@@ -426,14 +426,32 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
 
+  // Records ONLY route stage names and duration in opted-in QA memory. No
+  // identifiers, payloads, private text or network content are ever logged.
+  // Production does not allocate the QA diagnostic structure.
+  function markQaShellStage(phase,area='',elapsedMs=null){
+    const qa=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
+    if(!qa||!Array.isArray(qa.appStageTimes))return;
+    const rows=Array.isArray(qa.shellRouteTimings)?qa.shellRouteTimings:(qa.shellRouteTimings=[]);
+    rows.push({phase:String(phase).slice(0,40),
+      area:String(area).slice(0,30),
+      elapsedMs:Number.isFinite(elapsedMs)?Math.round(elapsedMs):null});
+    if(rows.length>60)rows.splice(0,rows.length-60);
+  }
+
   function renderNow(state = store.getState(),{force=false}={}) {
     if(!force&&shellInteractionActive()){
       queuedState=state;
       return false;
     }
+    const shellStartedAt=Date.now();
     const viewModel = createShellViewModel(state);
+    const area=String(viewModel.activeArea||'');
+    markQaShellStage('view-model',area,Date.now()-shellStartedAt);
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
+    markQaShellStage('route-markup',area,Date.now()-shellStartedAt);
     const markup=renderM26Shell(viewModel, routeMarkup);
+    markQaShellStage('shell-markup',area,Date.now()-shellStartedAt);
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
     // An external route/role transition can arrive while "Más" is expanded.
     // Never resurrect that old drawer (and its inert workspace) on the new route.
@@ -457,6 +475,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     root.innerHTML = markup;
     lastMarkup=markup;
     restoreDisclosureContinuity(disclosureSnapshot);
+    markQaShellStage('dom-committed',area,Date.now()-shellStartedAt);
     syncAdaptiveLayout();
     enhanceCoachActionCenter({root,shellVm:viewModel,state});
     enhanceNativeWorkspace({root,viewModel});
@@ -467,6 +486,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     enhanceExerciseHistoryWindow({root,viewModel});
     revalidatePendingSessionEntry(root,{state,now:new Date(),buildContext:buildAdaptiveSessionContext,buildDecision:buildSessionEntryDecision});
     clearClientSwitchBusy();
+    markQaShellStage('enhancements-complete',area,Date.now()-shellStartedAt);
     root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
     return true;
   }
@@ -863,8 +883,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       releaseFormInteraction({deferRender:false});
       const documentLike=root.ownerDocument||globalThis.document;
       const windowLike=documentLike?.defaultView||globalThis.window;
+      markQaShellStage('route-click',decision.area);
       const commitRoute=()=>runRouteViewTransition(
         ()=>{
+          markQaShellStage('route-commit',decision.area);
           store.navigate(decision.area);
           reconcileRouteRender(decision.area);
           focusMain();

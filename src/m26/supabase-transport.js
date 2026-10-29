@@ -222,6 +222,24 @@ function validateAuthBody(body,code='M26_AUTH_INVALID_RESPONSE'){
 function contentLength(response){const value=Number(response?.headers?.get?.('content-length')||0);return Number.isFinite(value)&&value>0?value:0;}
 function jsonByteLength(value){let text;try{text=JSON.stringify(value);}catch{throw new Error('M26_RESPONSE_NOT_SERIALIZABLE');}if(text===undefined)return 0;return typeof TextEncoder==='function'?new TextEncoder().encode(text).length:text.length;}
 
+/** U49: Authenticated read-only bootstrap parses ONCE after enforcing the
+ * exact 20MB UTF-8 wire-body cap. Never cache private data or bypass RLS.
+ * Large Client payloads previously incurred a second JSON.stringify.
+ */
+export async function parseCanonicalBootstrapResponse(response,maxBytes=MAX_RESPONSE_BYTES){
+  const bound=Number(maxBytes);
+  if(!Number.isSafeInteger(bound)||bound<1||bound>MAX_RESPONSE_BYTES)
+    throw new Error('M26_RESPONSE_LIMIT_INVALID');
+  const raw=await response.text();
+  if(typeof raw!=='string')throw new Error('M26_BOOTSTRAP_TEXT_INVALID');
+  if(raw.length>bound)throw Object.assign(new Error('M26_RESPONSE_TOO_LARGE'),{status:413});
+  const bytes=typeof TextEncoder==='function'
+    ?new TextEncoder().encode(raw).byteLength
+    :typeof Blob==='function'?new Blob([raw]).size:Infinity;
+  if(bytes>bound)throw Object.assign(new Error('M26_RESPONSE_TOO_LARGE'),{status:413});
+  try{return JSON.parse(raw);}catch{return {};}
+}
+
 export function createM26Transport(rawRuntime, dependencies = {}) {
   const runtime = validateM26Runtime(rawRuntime);
   const fetchImpl = dependencies.fetchImpl || globalThis.fetch;
@@ -265,12 +283,18 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       });
       if(contentLength(response)>MAX_RESPONSE_BYTES)throw Object.assign(new Error('M26_RESPONSE_TOO_LARGE'),{status:413});
       const contentType = response.headers?.get?.('content-type') || '';
+      const canonicalBootstrapWire=path==='/rest/v1/rpc/iberfit_bootstrap_v26'
+        &&response.status!==204&&contentType.includes('application/json')
+        &&typeof response.text==='function';
+      // Keep all other RPCs unchanged, including Auth and write operations.
       const payload = response.status === 204
         ? null
-        : contentType.includes('application/json')
-          ? await response.json().catch(() => ({}))
-          : await response.text().catch(() => '');
-      if((typeof payload==='string'&&payload.length>MAX_RESPONSE_BYTES)||(payload&&typeof payload==='object'&&jsonByteLength(payload)>MAX_RESPONSE_BYTES))throw Object.assign(new Error('M26_RESPONSE_TOO_LARGE'),{status:413});
+        : canonicalBootstrapWire
+          ? await parseCanonicalBootstrapResponse(response)
+          : contentType.includes('application/json')
+            ? await response.json().catch(() => ({}))
+            : await response.text().catch(() => '');
+      if(!canonicalBootstrapWire&&((typeof payload==='string'&&payload.length>MAX_RESPONSE_BYTES)||(payload&&typeof payload==='object'&&jsonByteLength(payload)>MAX_RESPONSE_BYTES)))throw Object.assign(new Error('M26_RESPONSE_TOO_LARGE'),{status:413});
       if (!response.ok) {
         const error = new Error(payload?.message || payload?.error_description || payload?.error || `M26_HTTP_${response.status}`);
         error.status = response.status;
