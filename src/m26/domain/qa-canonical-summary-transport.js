@@ -4,7 +4,15 @@ const REF='__iberfitQaCanonicalExecutionSummaryRefV1';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const str=x=>String(x??'');
-const qaCoach=s=>s?.environment==='QA'&&s?.user?.role==='coach'&&s?.canary?.active===true;
+// The authenticated server envelope uses environment:'QA'; hydration decorates
+// that same verified context as environment:{mode:'QA', ...extensions}. Both
+// are supported, but neither PROD nor an unallowlisted role may expand refs.
+const qaCoach=s=>{
+ const env=s?.environment;
+ const mode=typeof env==='string'?env:(object(env)?env.mode:null);
+ return mode==='QA'&&s?.user?.role==='coach'&&
+   s?.canary?.active===true&&s?.canary?.scope==='allowlist';
+};
 const canon=x=>Array.isArray(x)?'['+x.map(canon).join(',')+']'
   :object(x)?'{'+Object.keys(x).sort().map(k=>JSON.stringify(k)+':'+canon(x[k])).join(',')+'}'
   :JSON.stringify(x);
