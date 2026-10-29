@@ -41,3 +41,19 @@ test('U49 no unrelated progress scans on Client Plan and captures privacy-safe r
  assert.match(device,/RC64_CLIENT_NAV_POINTER_HIT/u);
  assert.doesNotMatch(shell,/rows\.push\(\{[^}]*clientId/u);
 });
+
+test('U49: Client Planning never computes private professional IRI editor seed or duplicate cycle selection',()=>{
+ const src=readFileSync('src/m26/modules/route-view-model.js','utf8');
+ const start=src.indexOf("if (area === 'planificacion') {");
+ const end=src.indexOf("if (area === 'agenda') {",start);
+ const block=src.slice(start,end);
+ assert.ok(start>0&&end>start);
+ assert.match(block,/let iriPlanningSeed=null;\s*if\(canEdit\)\{/u);
+ const gate=block.indexOf('if(canEdit){');
+ const assessments=block.indexOf("recordsForClient(state,'iriAssessments',clientId)",gate);
+ assert.ok(assessments>gate,'IRI private calculations run only behind Coach/Admin edit permission');
+ assert.match(block,/const currentCycle=selectCurrentTrainingCycle\(cycles,\{clientId,now\}\);/u);
+ assert.equal((block.match(/selectCurrentTrainingCycle\(cycles,\{clientId,now\}\)/gu)||[]).length,1);
+ assert.match(block,/cycle:currentCycle,now/u);
+ assert.match(block,/iriPlanningSeed,/u);
+});

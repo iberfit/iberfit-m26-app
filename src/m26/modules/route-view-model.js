@@ -857,17 +857,25 @@ if (area === 'clientes') {
     const rawProfile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
     const client=(state?.collections?.clients||[]).find((item)=>item.id===clientId);
     const profile=normalizeClientProfile(rawProfile||{},client||{});
-    const baselineIri=recordsForClient(state,'iriAssessments',clientId)
-      .filter((record)=>{
-        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
-        return !type||type==='inicial';
-      })
-      .sort((a,b)=>String(domainDate(a)||'').localeCompare(String(domainDate(b)||'')))[0]||null;
-    const baselineDraft=baselineIri&&compactIri(baselineIri)?.confirmed
-      ?confirmedFirstSessionDraft(baselineIri,clientId)
-      :null;
-    const decisionLog=buildIri2DecisionLog({assessments:baselineDraft?[baselineDraft]:[]});
-    const iriPlanningSeed=canEdit?buildIriPlanningSeed({decisionLog,profile}):null;
+    // A Client never edits plans. Preparing the professional IRI drafting
+    // seed on every Client touch navigation needlessly sorts assessments,
+    // normalizes their detail and builds a decision log that is then discarded.
+    // Keep the full original editor path for Coach/Admin only.
+    let iriPlanningSeed=null;
+    if(canEdit){
+      const baselineIri=recordsForClient(state,'iriAssessments',clientId)
+        .filter((record)=>{
+          const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+          return !type||type==='inicial';
+        })
+        .sort((a,b)=>String(domainDate(a)||'').localeCompare(String(domainDate(b)||'')))[0]||null;
+      const baselineDraft=baselineIri&&compactIri(baselineIri)?.confirmed
+        ?confirmedFirstSessionDraft(baselineIri,clientId)
+        :null;
+      const decisionLog=buildIri2DecisionLog({assessments:baselineDraft?[baselineDraft]:[]});
+      iriPlanningSeed=buildIriPlanningSeed({decisionLog,profile});
+    }
+    const currentCycle=selectCurrentTrainingCycle(cycles,{clientId,now});
     return Object.freeze({
       kind: 'planificacion',
       clientId,
@@ -887,8 +895,8 @@ if (area === 'clientes') {
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),
       sessionCounts: publicationCounts(sessions),
-      currentCycle: clone(selectCurrentTrainingCycle(cycles,{clientId,now}) || cycles[0] || null),
-      periodization:clientId&&trainingActive?buildPeriodizationSnapshot(state,clientId,{cycle:selectCurrentTrainingCycle(cycles,{clientId,now}),now}):null,
+      currentCycle: clone(currentCycle || cycles[0] || null),
+      periodization:clientId&&trainingActive?buildPeriodizationSnapshot(state,clientId,{cycle:currentCycle,now}):null,
     });
   }
 
