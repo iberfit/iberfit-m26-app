@@ -25,15 +25,15 @@ function capture(run){
 }
 test('Guard reveals only QA Coach byte bucket and compact reference count',()=>{
  const stages=capture(()=>assertProductionSnapshot(qaFixture()));
- assert.ok(stages.includes('rc64-state-wire-summary-refs-1'));
- assert.ok(stages.some(stage=>/^rc64-state-wire-size-mb-[1-9][0-9]*$/.test(stage)));
+ assert.ok(stages.includes('rc64-state-wire-refs-present'));
+ assert.ok(stages.includes('rc64-state-wire-under16mb'));
  assert.ok(stages.every(s=>!s.includes(ID)&&!s.includes(CLIENT)&&!s.includes(SESSION)));
 });
 test('Invalid reconstruction is distinguishable from valid envelope without weakening privacy',()=>{
  const stages=capture(()=>assert.throws(
   ()=>stateFromBootstrap(qaFixture()),/U48_QA_CANONICAL_SUMMARY_LINEAGE_CONFLICT/));
  assert.ok(stages.includes('rc64-state-wire-validated'));
- assert.ok(stages.includes('rc64-state-rejected-U48_QA_CANONICAL_SUMMARY_LINEAGE_CONFLICT'));
+ assert.ok(stages.includes('rc64-state-rejected-lineage-conflict'));
  assert.ok(!stages.includes('rc64-state-reconstruction-validated'));
 });
 test('20MB oversize still fails closed, with a different diagnostic',()=>{
@@ -41,12 +41,12 @@ test('20MB oversize still fails closed, with a different diagnostic',()=>{
  snapshot.data.padding='a'.repeat(20_010_000);
  const stages=capture(()=>assert.throws(
   ()=>stateFromBootstrap(snapshot),/M26_BOOTSTRAP_TOO_LARGE/));
- assert.ok(stages.includes('rc64-state-rejected-M26_BOOTSTRAP_TOO_LARGE'));
+ assert.ok(stages.includes('rc64-state-rejected-too-large'));
  assert.ok(!stages.includes('rc64-state-wire-validated'));
 });
 test('No size diagnostics are exposed for production snapshots',()=>{
  const snapshot=qaFixture();snapshot.environment='PROD';snapshot.canary.active=false;
  const stages=capture(()=>assert.throws(()=>stateFromBootstrap(snapshot)));
- assert.ok(stages.every(s=>!s.startsWith('rc64-state-wire-size-mb-')));
- assert.ok(stages.every(s=>!s.startsWith('rc64-state-wire-summary-refs-')));
+ assert.ok(stages.every(s=>!s.startsWith('rc64-state-wire-over-limit')&&!s.startsWith('rc64-state-wire-under16mb')&&!s.startsWith('rc64-state-wire-16-to-18mb')&&!s.startsWith('rc64-state-wire-18-to-20mb')));
+ assert.ok(stages.every(s=>!s.startsWith('rc64-state-wire-refs-')));
 });
