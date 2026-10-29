@@ -1,3 +1,12 @@
+## SIGNATURE U50 · Rediseño Athletic Editorial / isotipo oficial · WIP · 29-10-2026
+
+- Visual aprobado: verde oscuro, alto contraste, crema/warm gray; sin fondos paisajísticos ni personas decorativas. Isotipo oficial sin recolor y con baja opacidad.
+- Candidato U50: rutas Entreno/Evolución/Bienestar reales desde Cliente Hoy; avatar privado M42 real; bandas editoriales Coach/Admin; datos de progreso reales.
+- Base comprobada `35edf9e125750f2a7c6c7cbfc430dd7b10603f03`. Rama candidata `feat/signature-u50-athletic-editorial-isotipo-20261029`.
+- **NO-GO hasta CI, dispositivo y QA exactos**. U47 one-shot/fixture de escritura reservado debe permanecer intacto. Ni Canary LIVE ni PROD se declaran actualizados por el candidato.
+
+---
+
 ## SIGNATURE U48 · Progreso confirmado y recuperación del último paso · 29-10-2026
 
 - PR #1193 fusionada como `dc2aafb897c14f215646d2ccf45145e523835187`, Canary LIVE QA verificado. PROD LIVE sigue `986974b710cce6f7c908e235790a6783ad952d79` y queda intacta.
