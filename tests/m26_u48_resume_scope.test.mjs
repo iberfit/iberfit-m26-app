@@ -69,7 +69,7 @@ test('U48 Coach readback is sequenced before U55 offline builder with no seconda
 
 // Universal remote recovery (running, strength, swimming) is NOT a second start.
 import {recoverAuthenticatedRemoteExecution} from '../src/m26/workflows/session-entry-freshness.js';
-import {buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
+import {advanceExecution,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
 const baseBlock={id:'40000000-0000-4000-8000-000000000475',type:'exercise',
  exerciseId:'IBF-CARRERA-SUAVE',sets:1,restSeconds:0,measurementProfile:'endurance'};
 function remoteFixture(block=baseBlock){
@@ -182,4 +182,33 @@ test('U48 client bootstrap reconciles its intentionally redacted legacy executio
  assert.deepEqual(execution.results,[]);
  assert.equal(sanitizedLegacy.clientId,undefined,'server raw privacy projection not mutated');
  assert.equal(sanitizedLegacy.sessionId,undefined,'server raw privacy projection not mutated');
+});
+
+test('U48 revision 2 restores the last confirmed set and advances to feedback without replay',()=>{
+ const data=remoteFixture();
+ const initial=recoverAuthenticatedRemoteExecution(data).execution;
+ const step=initial.queue[0],key=step.exerciseId+':1';
+ const observed={exerciseId:step.exerciseId,setNumber:1,reps:null,seconds:2148,
+   rpe:7,distanceKm:6.5,completedAt:'2026-10-28T20:20:00.000Z'};
+ data.executionRow.revision=2;data.executionRow.summary.revision=2;
+ data.executionRow.summary.progressSavedAt='2026-10-28T20:20:01.000Z';
+ data.executionRow.summary.progressSnapshot={
+   id:EXEC,clientId:CLIENT,sessionId:ID,status:'active',revision:1,
+   startedAt:'2026-10-28T20:00:00.000Z',index:0,setIndex:0,
+   queue:structuredClone(initial.queue),results:{[key]:observed},
+   events:[{type:'SET_COMPLETED',at:observed.completedAt}],
+   accumulatedActiveMs:1200000,skippedSets:{},skippedExercises:{},
+ };
+ const recovered=recoverAuthenticatedRemoteExecution(data).execution;
+ assert.equal(recovered.revision,2);
+ assert.equal(recovered.status,'active');
+ assert.equal(Object.keys(recovered.results).length,1);
+ advanceExecution(recovered);
+ assert.equal(recovered.status,'awaiting_feedback');
+ assert.equal(Object.keys(recovered.results).length,1,'Never register the same set again');
+ const cmd=buildProgressExecutionCommand(recovered);
+ assert.equal(cmd.baseRevision,2,'Server-confirmed CAS must be retained');
+ assert.equal(cmd.entityId,EXEC,'Use exact original execution');
+ assert.equal(cmd.clientId,CLIENT);
+ assert.equal(cmd.payload.progressSnapshot.status,'awaiting_feedback');
 });
