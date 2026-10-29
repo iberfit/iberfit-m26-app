@@ -136,7 +136,7 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
   // reached the app. Verify the USER-VISIBLE route within the original 5s
   // budget instead of measuring Playwright's unrelated navigation waiter.
   // These are genuine pointer events, NOT DOM-dispatched synthetic clicks.
-  const navigationClickStart=Date.now();
+  let navigationClickStart=null;
   const activeNavigation=page.locator(
     `.m26-client-bottom-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`,
   ).first();
@@ -150,6 +150,9 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     const x=rect.x+rect.width/2,y=rect.y+rect.height/2;
     const hasTouch=await page.evaluate(()=>navigator.maxTouchPoints>0);
     inputMode=hasTouch?'touch':'mouse';
+    // Start the navigation SLA at the genuine input, not at Playwright's
+    // prior scroll, DOM hit-testing or touch-capability lookup.
+    navigationClickStart=Date.now();
     if(hasTouch)await page.touchscreen.tap(x,y);
     else await page.mouse.click(x,y);
     await expect(activeNavigation,'The real pointer action must activate the requested route')
@@ -160,7 +163,7 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
   }catch(error){
     console.error('RC64_CLIENT_NAV_CLICK_FAILURE:'+JSON.stringify({
       project:projectName,area:targetArea,inputMode,
-      elapsedMs:Date.now()-navigationClickStart,
+      elapsedMs:navigationClickStart===null?null:Date.now()-navigationClickStart,
     }));
     throw error;
   }

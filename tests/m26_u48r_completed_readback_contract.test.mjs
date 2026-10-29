@@ -48,3 +48,13 @@ test('Device gate uses genuine pointer actions and preserves original five-secon
  assert.match(device,/await expect\(activeNavigation/u);
  assert.doesNotMatch(device,/visibleNavigationTarget\.click\(\{timeout:5_000\}\)/u);
 });
+
+test('Client navigation latency starts at actual pointer input, excluding test-only hit testing',()=>{
+ const device=readFileSync('qa/rc64/authenticated-current-contract.spec.mjs','utf8');
+ const touch=device.indexOf("inputMode=hasTouch?'touch':'mouse';");
+ const timestamp=device.indexOf('navigationClickStart=Date.now();',touch);
+ const input=device.indexOf('if(hasTouch)await page.touchscreen.tap(x,y);',touch);
+ const observable=device.indexOf('await expect(activeNavigation',input);
+ assert.ok(touch>0&&timestamp>touch&&input>timestamp&&observable>input);
+ assert.match(device,/toBeLessThanOrEqual\(5_000\)/u);
+});
