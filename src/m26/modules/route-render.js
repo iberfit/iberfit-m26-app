@@ -18,6 +18,7 @@ import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTru
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
 import {renderIberfitIcon} from '../design/icons.js';
+import {renderAthleticClientEvidence} from '../design/athletic-client-evidence.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -790,6 +791,7 @@ function renderClientHoyRoute(vm) {
       ${iriGlanceMarkup}
     </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><div class="m26-client-home-appointment"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></div></section>`:''}
 
+    ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
     ${renderClientTodayHealth(vm.wearables)}
     ${healthActivationMarkup}
     ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided})}</details>`:''}

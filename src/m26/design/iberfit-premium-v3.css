@@ -369,11 +369,11 @@
 }
 
 /* Admin verified user counts use the same readable warm instrument surface. */
-.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat{
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview > .m26-admin-stat:first-child{
   background:#EEE6D8!important;
   border-color:rgba(25,48,37,.2)!important;
 }
-.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat :is(span,strong,small){
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview > .m26-admin-stat:first-child :is(span,strong,small){
   color:#193025!important;
 }
 /* Coach: low cognitive load, priority first */
@@ -1805,6 +1805,139 @@
   .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress{
     border:1px solid CanvasText;
   }
+}
+
+
+/* U52 · Confirmed athletic performance is the hero data, never fake imagery. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
+ display:grid;gap:1rem;min-width:0;overflow:hidden;
+ padding:clamp(1rem,2.1vw,1.45rem);
+ border:1px solid rgba(216,192,138,.25);
+ border-radius:1.15rem;
+ background:#10251C;color:#F3E8D7;
+ box-shadow:0 10px 28px rgba(1,14,8,.13);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head{
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+ gap:.75rem 1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
+ margin:.15rem 0;color:#F3E8D7;letter-spacing:-.025em;
+ font:600 clamp(1.45rem,2.5vw,1.9rem)/1.12 var(--iberfit-font-family-editorial,Georgia,serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head small{
+ color:#CBD4CA;font-size:.82rem;line-height:1.45;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button{
+ min-height:48px;padding:.55rem .85rem;flex:0 0 auto;
+ border:1px solid rgba(216,192,138,.35);border-radius:.7rem;
+ background:transparent;color:#F0D6A2;cursor:pointer;
+ font:700 .89rem/1.3 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+ transition:background-color 180ms ease,border-color 180ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button:hover{
+ background:rgba(216,192,138,.09);border-color:#D8BA7E;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button:focus-visible{
+ outline:3px solid #EBD3A3;outline-offset:2px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));
+ padding:.85rem 0;gap:0;
+ border-block:1px solid rgba(216,192,138,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{
+ display:grid;align-content:start;gap:.3rem;min-width:0;
+ padding:.5rem clamp(.55rem,1.5vw,1.1rem);
+ border-inline-start:1px solid rgba(216,192,138,.16);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:first-child{border-inline-start:0}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+ color:#F5E6C9;font-size:clamp(1.6rem,3vw,2.2rem);font-weight:760;
+ letter-spacing:-.05em;font-variant-numeric:tabular-nums;line-height:1.05;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact span{color:#D0D5CB;font-size:.78rem;line-height:1.35}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact[data-trend="up"] strong{color:#A9D4AC}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact[data-trend="down"] strong{color:#EBC8A8}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact meter{
+ width:100%;height:.48rem;accent-color:#D4B878;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing{display:grid;gap:.65rem}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing-head{
+ display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.35rem .8rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing-head strong{font-size:.87rem;color:#F0E4D0}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing-head small{color:#C5CDC0;font-size:.77rem}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dials{
+ list-style:none;padding:0;margin:0;display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial{
+ min-width:0;display:grid;justify-items:center;align-content:start;gap:.18rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial svg{width:min(100%,84px);height:auto}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track{
+ fill:none;stroke:#3C5548;stroke-width:7;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-value{
+ fill:none;stroke:#D6B676;stroke-width:7;stroke-linecap:round;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial text{
+ fill:#F6E6C8;font:750 19px/1 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial strong{
+ font-size:.76rem;line-height:1.24;text-align:center;color:#F0E4D0;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-grid{
+ grid-template-columns:minmax(0,1.6fr) minmax(15rem,.85fr);
+ gap:1rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-agenda{
+ border-color:rgba(216,192,138,.27);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:.35rem;padding:.3rem;border-radius:.85rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+ min-height:56px;justify-content:center;align-items:center;
+ padding:.5rem .7rem;border-radius:.7rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis .m26-admin-stat{
+ min-height:84px;padding:.95rem;border-radius:.85rem;display:grid;align-content:start;gap:.3rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis .m26-admin-stat strong{
+ font-size:clamp(1.65rem,2.1vw,2.15rem);font-weight:800;font-variant-numeric:tabular-nums;
+ letter-spacing:-.045em;line-height:1;
+}
+@media(max-width:950px){
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:680px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{padding:1rem;gap:.75rem}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:nth-child(odd){border-inline-start:0}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{border-block-end:1px solid rgba(216,192,138,.1)}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dials{gap:.2rem}
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{min-height:64px;flex-direction:column}
+ .m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:360px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dials{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{font-size:1.5rem}
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{grid-template-columns:minmax(0,1fr)}
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{min-height:48px;flex-direction:row}
+}
+@media(prefers-reduced-motion:reduce){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence button{transition:none}
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{background:Canvas;color:CanvasText;border-color:CanvasText}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-value{stroke:Highlight}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track{stroke:CanvasText}
 }
 
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.

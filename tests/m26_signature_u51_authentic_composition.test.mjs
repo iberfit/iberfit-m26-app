@@ -51,7 +51,7 @@ test('U51 single canonical stylesheet preserves B6 and accessibility policies',(
  assert.ok(!part.includes('position:fixed'));
  assert.ok(!part.includes('https://'));
  assert.ok(read('../src/m26/design/brand-truth.json').includes('public/isotipo-iberfit.png'));
- assert.ok(s.includes('.m26-admin-user360-overview .m26-admin-stat'));
+ assert.ok(s.includes('.m26-admin-user360-overview > .m26-admin-stat:first-child'));
  assert.ok(s.includes('.m26-coach-home-glance :is(span,strong,small)'));
  assert.ok(s.includes('background:#EEE6D8!important'));
 });
