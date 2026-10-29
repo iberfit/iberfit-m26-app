@@ -356,6 +356,10 @@ function renderCoachHoyRoute(vm) {
   const attentionStatus=attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
     :'Cartera al día';
+  const portfolioCount=Number(cockpit?.totalClients??clients.length);
+  const attentionMeter=Number.isFinite(portfolioCount)&&portfolioCount>0&&Number.isFinite(attentionCount)&&attentionCount>=0
+    ?`<progress max="${escapeHtml(portfolioCount)}" value="${escapeHtml(Math.min(attentionCount,portfolioCount))}" aria-label="${escapeHtml(attentionStatus)}">${escapeHtml(attentionStatus)}</progress>`
+    :'';
   const operationStatus=vm.operations?.pending
     ?'Sincronizando cambios'
     :vm.operations?.rejected
@@ -412,7 +416,7 @@ function renderCoachHoyRoute(vm) {
       <div class="m26-coach-home-glance" aria-label="Resumen de hoy">
         <span><strong>${escapeHtml((cockpit?.totalClients||clients.length)||'Sin clientes')}</strong>${(cockpit?.totalClients||clients.length)?' clientes en cartera':''}</span>
         <span><strong>${escapeHtml(appointments.length||'Agenda libre')}</strong>${appointments.length?' sesiones hoy':''}</span>
-        <span><strong>${escapeHtml(attentionStatus)}</strong></span>
+        <span class="m26-coach-home-attention-meter"><strong>${escapeHtml(attentionStatus)}</strong>${attentionMeter}</span>
         ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
     </section>
@@ -754,10 +758,10 @@ function renderClientHoyRoute(vm) {
         <span class="m26-client-home-avatar" data-iberfit-avatar-client="${escapeHtml(client?.id||'')}" aria-hidden="true">${escapeHtml(name.trim().slice(0,1).toUpperCase()||'I')}</span>
         <p>${escapeHtml(primary.detail)}</p>
       </div>
-      <div class="m26-client-home-status">
+      ${primary.area==='actividad'?'':`<div class="m26-client-home-status">
         <span>${escapeHtml(primary.eyebrow)}</span>
         <strong>${escapeHtml(primary.title)}</strong>
-      </div>
+      </div>`}
       </div>
 
       <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>

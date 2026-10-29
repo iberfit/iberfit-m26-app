@@ -17,6 +17,7 @@ test('U51 Client has one coherent hero and three real navigation routes, not fak
  assert.ok(h.includes('m26-client-home-method-disclosure'));
  assert.ok(h.indexOf('data-m26-client-health')<h.indexOf('m26-client-home-method-disclosure'));
  assert.ok(!h.includes('data-workflow-action="start-published-session"'));
+ assert.ok(!h.includes('class="m26-client-home-status"'),'fallback CTA already communicates the next step');
 });
 test('U51 never changes canonical session start authority or Solo IRI',()=>{
  const projection={id:'s1',visible:true,canClientStart:true,session:{title:'Fuerza QA'}};
@@ -25,6 +26,12 @@ test('U51 never changes canonical session start authority or Solo IRI',()=>{
  const iri=renderHoyRoute(vm({serviceKind:'iri_only',rc39:{sessionProjections:[projection]}}));
  assert.ok(!iri.includes('data-client-home-compass'));
  assert.ok(!iri.includes('data-workflow-action="start-published-session"'));
+});
+test('U51 Coach portfolio attention is visibly proportional to confirmed client count',()=>{
+ const h=renderHoyRoute({role:'coach',clients:[{id:'c1',name:'Cliente Uno'}],operations:{},appointments:[],upcoming:[],coachCockpit:{totalClients:2,attentionCount:1,items:[]}});
+ assert.ok(h.includes('class="m26-coach-home-attention-meter"'));
+ assert.ok(h.includes('max="2" value="1"'));
+ assert.ok(h.includes('1 requiere atención'));
 });
 test('U51 Admin Coach bar is sourced only from recorded finite capacity',()=>{
  const s=read('../src/m26/admin/route-render.js');

@@ -1768,6 +1768,31 @@
   }
 }
 
+
+/* U51 verified correction: one activity CTA, one truthful attention meter. */
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter{
+  display:grid;gap:.5rem;min-width:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress{
+  appearance:none;display:block;inline-size:100%;block-size:6px;
+  overflow:hidden;border:0;border-radius:99px;
+  background:#425D4B;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress::-webkit-progress-bar{
+  border-radius:99px;background:#425D4B;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress::-webkit-progress-value{
+  border-radius:99px;background:#D2B474;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress::-moz-progress-bar{
+  border-radius:99px;background:#D2B474;
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress{
+    border:1px solid CanvasText;
+  }
+}
+
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
  * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
  * distinct forest/cream hero. This is strictly presentational, scoped to the
