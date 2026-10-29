@@ -310,9 +310,14 @@ function clientSessionDisplayBuckets(ordered,actionable){
 // One canonical, permission-aware ordering rule for both Cliente routes.
 // The helper never modifies source prescription, role, or publication state.
 export function prioritizeClientPublishedSessions(items=[],{serviceActive=true,contractModality=null}={}){
-  return prioritizeClientSessionItems(items,(item)=>serviceActive&&
-    clientSessionActionable(item)&&
-    experienceFor(item,'client',contractModality).clientLiveWorkout);
+  const permitted=(item)=>serviceActive&&clientSessionActionable(item)&&
+    experienceFor(item,'client',contractModality).clientLiveWorkout;
+  const ordered=prioritizeClientSessionItems(items,permitted);
+  // Reconnecting an already ACKed training takes priority over new Starts:
+  // never bury an in-progress execution inside the 24-item overflow.
+  const recovering=ordered.filter(item=>permitted(item)&&clientCanResumeProjection(item));
+  const ids=new Set(recovering);
+  return [...recovering,...ordered.filter(item=>!ids.has(item))];
 }
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
@@ -321,7 +326,7 @@ function renderClientPlanning(vm){
   const contractModality=contractModalityOf(vm);
   // Availability is a permission and session-readiness decision, not a modality badge.
   const appExecutable=vm.serviceActive!==false?items.filter((item)=>
-    experienceFor(item,'client',contractModality).clientLiveWorkout&&clientCanStartProjection(item)).length:0;
+    experienceFor(item,'client',contractModality).clientLiveWorkout&&clientSessionActionable(item)).length:0;
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
   const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
   const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
@@ -683,7 +688,7 @@ export function renderCoachSessionsProgressive(items=[],contractModality,options
 // SIGNATURE B32: one clearly actionable surface first; other records remain
 // accessible without an unbounded vertical scroll or duplicated start controls.
 function renderClientSessionsProgressive(items,contractModality,options={}){
-  const actionable=(item)=>options.serviceActive!==false&&clientCanStartProjection(item)&&
+  const actionable=(item)=>options.serviceActive!==false&&clientSessionActionable(item)&&
     experienceFor(item,'client',contractModality).clientLiveWorkout;
   const ordered=prioritizeClientPublishedSessions(items,{serviceActive:options.serviceActive!==false,contractModality});
   const display=clientSessionDisplayBuckets(ordered,actionable);
