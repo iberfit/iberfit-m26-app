@@ -31,7 +31,9 @@ test('U49 only optimizes bootstrap, preserving 20MB, Auth headers and other RPCs
 test('U49 no unrelated progress scans on Client Plan and captures privacy-safe route timings',()=>{
  const shell=readFileSync('src/m26/shell/shell-controller.js','utf8');
  const device=readFileSync('qa/rc64/authenticated-current-contract.spec.mjs','utf8');
- assert.match(shell,/if\(\['hoy','progreso','sesion'\]\.includes\(area\)\)\s*enhanceProgressContinuity/u);
+ const progress=readFileSync('src/m26/ui/progress-continuity.js','utf8');
+ assert.match(progress,/if\(!\['hoy','progreso','sesion'\]\.includes\(String\(viewModel\?\.activeArea\|\|''\)\)\)return false/u);
+ assert.match(shell,/enhanceCliente360\(\{root,viewModel,state\}\);\s*enhanceProgressContinuity/u);
  assert.match(shell,/function markQaShellStage\(phase,area='',elapsedMs=null\)/u);
  assert.match(shell,/markQaShellStage\('route-commit',decision\.area\)/u);
  assert.match(shell,/markQaShellStage\('dom-committed',area/u);

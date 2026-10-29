@@ -1178,6 +1178,10 @@ function enhanceCompletedClosure({root}){
 
 export function enhanceProgressContinuity({root,viewModel,state,now=new Date()}={}){
   if(!root?.querySelector||!root.ownerDocument)return false;
+  // All seven enhancements operate exclusively on Hoy, Progreso or Sesion.
+  // On Planificacion, Agenda or Ajustes there are no owned controls to
+  // augment; skip stylesheet installation and redundant DOM queries entirely.
+  if(!['hoy','progreso','sesion'].includes(String(viewModel?.activeArea||'')))return false;
   installStyles(root.ownerDocument);
   const home=enhanceClientHome({root,viewModel,state,now});
   const constancy=enhanceConstancy({root,viewModel,state,now});

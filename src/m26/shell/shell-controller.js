@@ -474,17 +474,13 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const disclosureSnapshot=captureDisclosureContinuity();
     root.innerHTML = markup;
     lastMarkup=markup;
-    markQaShellStage('dom-committed',area,Date.now()-shellStartedAt);
     restoreDisclosureContinuity(disclosureSnapshot);
+    markQaShellStage('dom-committed',area,Date.now()-shellStartedAt);
     syncAdaptiveLayout();
     enhanceCoachActionCenter({root,shellVm:viewModel,state});
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
-    // These enhancers target only Hoy, Progreso and active/completed
-    // session panels. Never run their stylesheet and six DOM scans when
-    // navigating to Planificación, Agenda, Informes or Ajustes.
-    if(['hoy','progreso','sesion'].includes(area))
-      enhanceProgressContinuity({root,viewModel,state});
+    enhanceProgressContinuity({root,viewModel,state});
     enhanceSessionReadiness({root,viewModel,state});
     enhanceSessionFocus({root,viewModel});
     enhanceExerciseHistoryWindow({root,viewModel});
