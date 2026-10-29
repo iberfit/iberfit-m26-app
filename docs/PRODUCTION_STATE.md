@@ -1,3 +1,13 @@
+## SIGNATURE U48 · QA Real Write completo y visual histórico legítimo · 29-10-2026
+
+- PR #1189 en `fix/u48-live-modality-validation`, base protegida Canary `3ae73dd26f5af420420c998a6564d346a99cafd8`. SHA anterior `fc15dee1e9398d5d96a27141118e6b8046ca72ff` comprobado: **QA Real Write Certification 5/5 jobs SUCCESS**, incluido M43 writer con Client B aislado y navegador Cliente con inicio, pausa, reanudación, series, cierre e historial real. Otros gates CI, Fast Lane, audit, Coach WebAuthn, Admin, Session QA, Client authenticated SUCCESS.
+- Fallo visual confirmado en cinco viewports: la sesión Cliente A puede estar en estado `empty` (ninguna acción nueva disponible) y conservar historial de entrenamientos completados. `renderCompletedSessionHistory({hideEmpty:true})` renderiza correctamente exclusivamente completados confirmados, sin CTA de iniciar. El antiguo test `toHaveCount(0)` sobre el contenedor de historial es contrario al producto. Revisión: validar filas confirmadas, no iniciar desde histórico ni exponer notas privadas, y permitir ausencia total cuando no existe historial.
+- Device Experience y Canary Policy sobre el HEAD anterior dieron FAIL por dependencia de esa misma prueba visual. No se rebajan gates. Reejecutar todos los checks sobre el nuevo SHA antes de merge.
+- QA U47 **inalterada** por este cambio: sesión `4d244c01-8966-40f1-8cc7-9e6ec46d1708` en curso rev3, ejecución `16145839-2e7d-48e2-bf0c-e94325f5c54c` activa rev1, exactamente un lock; sin segundo SESION_INICIAR ni ACK de finalización U47. Nada de SQL de reparación directa.
+- Condición salida: checks obligatorios SUCCESS en HEAD exacto, integración única `SIGNATURE U48:` solo con runner de primera ejecución, certificación ACK progreso/cierre/readback Cliente+Coach WebAuthn; comprobar Canary LIVE SHA, PROD por runbook separado. No declarar terminado prematuramente.
+
+---
+
 ## SIGNATURE U48 · Recuperación segura U47 + validación cardio · WIP 28-10-2026
 
 - **Implementación preparada, NO desplegada:** PR #1189 `fix/u48-live-modality-validation`, HEAD comprobado `8925bab19b2598fda84669d306c7491a0d3386d8` antes del ajuste final de proyección; base Canary `3ae73dd26f5af420420c998a6564d346a99cafd8`. Validador cardio, transporte e intervalos; RPE y requisitos de fuerza intactos.
