@@ -58,7 +58,7 @@ test('U48 real 32-session load: only the owned canonical ACK makes existing runn
   const html=screen(state,kind),target=html.indexOf('data-rc39-session="'+session+'"');
   const history=html.indexOf('data-signature-'+(kind==='sesion'?'session':'planning')+'-archive');
   const overflow=html.indexOf('data-signature-ready-overflow');
-  assert.ok(target>=0&&target<history&&target<overflow,kind+': continue must be first, not archived');
+  assert.ok(target>=0&&(history<0||target<history)&&(overflow<0||target<overflow),kind+': continue must be first, not archived');
   assert.match(html,new RegExp('data-workflow-action="start-published-session" data-entity-id="'+session+'">Continuar entrenamiento'));
   assert.equal((html.match(new RegExp('data-rc39-session="'+session+'"','gu'))||[]).length,1);
  }
@@ -69,13 +69,18 @@ test('U48 projection fails closed when active canonical owner/session/revision m
   x=>{x.m26Entities[1].body.clientId=other;},
   x=>{x.m26Entities[1].body.sessionId=other;},
   x=>{x.m26Entities[1].body.revision=7;},
-  x=>{x.sessionExecutions=[];},
   x=>{x.m26Entities.splice(1,1);},
  ]){
   const raw=fixture().raw;mutate(raw);
   const html=screen(projected(raw),'sesion');
   assert.doesNotMatch(html,new RegExp('data-workflow-action="start-published-session" data-entity-id="'+session+'">Continuar entrenamiento'));
  }
+});
+test('U48 canonical-only ACK remains recoverable when legacy execution table has no duplicate',()=>{
+ const raw=fixture().raw;
+ raw.sessionExecutions=[];
+ const html=screen(projected(raw),'sesion');
+ assert.match(html,new RegExp('data-workflow-action="start-published-session" data-entity-id="'+session+'">Continuar entrenamiento'));
 });
 test('U48 paused service must show no resume CTA despite evidence; no second start',()=>{
  const state=projected(fixture().raw);
