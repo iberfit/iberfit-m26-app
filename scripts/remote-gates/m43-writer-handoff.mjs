@@ -37,8 +37,11 @@ export function verifyWriterEvidence(proof,{runId,writerAttempt,sourceSha}={}){
   if(!['A','B'].includes(label)||
      (label==='B'&&proof?.fixtureSelection?.reason!=='EXACT_U47_LOCK_ISOLATION'))
     throw Error('M43_WRITER_FIXTURE_SELECTION_INVALID');
+  // Earlier writer evidence is immutable and did not contain fixtureSelection.
+  // Preserve its exact validated return shape; only new explicitly attested
+  // identities add a fixture label, with no fallback privilege escalation.
   return Object.freeze({runId:String(runId),attempt:String(writerAttempt),
-    fixtureLabel:label});
+    ...(proof?.fixtureSelection?{fixtureLabel:label}:{})});
 }
 
 async function main(){
@@ -68,7 +71,7 @@ async function main(){
     const writerAttempt=String(process.env.M26_M43_SELECTED_WRITER_ATTEMPT||'');
     const json=JSON.parse(readFileSync('.tmp/m43-writer-evidence/coach-client-real-write.json','utf8'));
     const verified=verifyWriterEvidence(json,{runId,writerAttempt,sourceSha});
-    appendFileSync(process.env.GITHUB_ENV,`M26_M43_WRITER_ATTEMPT=${verified.attempt}\nM26_M43_FIXTURE_CLIENT_LABEL=${verified.fixtureLabel}\n`);
+    appendFileSync(process.env.GITHUB_ENV,`M26_M43_WRITER_ATTEMPT=${verified.attempt}\nM26_M43_FIXTURE_CLIENT_LABEL=${verified.fixtureLabel||'A'}\n`);
     console.log('M43_WRITER_HANDOFF_VERIFIED:exact-run-source-attempt');
     return;
   }
