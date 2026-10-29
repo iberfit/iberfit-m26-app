@@ -452,7 +452,20 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           await expect(sessionsRoute.locator('button[data-m26-area="planificacion"]')).toBeVisible();
           await expect(sessionsRoute.locator('button[data-m26-area="actividad"]')).toBeVisible();
           await expect(sessionsRoute.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
-          await expect(sessionsRoute.locator('[data-m43-session-history]')).toHaveCount(0);
+          // No currently startable session does NOT mean no completed
+          // training. Preserve the independently confirmed history; it has
+          // no Start controls and is legal even beside the empty state.
+          const history=sessionsRoute.locator('[data-m43-session-history]');
+          if(await history.count()){
+            await expect(history).toBeVisible();
+            const completed=history.locator('[data-m43-completed-session]');
+            expect(await completed.count(),
+              'History beside an empty active-session list requires actual confirmed completions').toBeGreaterThan(0);
+            for(const item of await completed.all()){
+              await expect(item).toContainText('Completada');
+              await expect(item.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
+            }
+          }
         }else{
           await expect(sessionsRoute.locator('.m26-rc39-session-card').first()).toBeVisible();
           const supervisedCards=sessionsRoute.locator('.m26-rc39-session-card.is-coach,.m26-rc39-session-card.is-online');
@@ -460,8 +473,24 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
             await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
           }
           if(sessionsState==='ready'){
-            const launch=sessionsRoute.locator('details.m26-session-preview-disclosure [data-workflow-action="start-published-session"]');
-            expect(await launch.count(),'ready Client sessions can start only from authorized preview').toBeGreaterThan(0);
+            // A visible first-tap CTA is deliberately OUTSIDE the optional
+            // exercise-details disclosure. Verify same authorized session,
+            // and never allow a hidden or supervised card to satisfy the gate.
+            const actionable=sessionsRoute.locator(
+              '.m26-rc39-session-card.is-autonomous[data-client-session-card-state="ready"]');
+            expect(await actionable.count(),
+              'At least one independently authorized ready/continuable session').toBeGreaterThan(0);
+            for(const card of await actionable.all()){
+              await expect(card.locator('details.m26-session-preview-disclosure > summary'),
+                'Exercises stay reviewable without requiring expansion for launch').toBeVisible();
+              const launch=card.locator(':scope > .m26-session-preview-actions [data-workflow-action="start-published-session"]');
+              await expect(launch,'One-tap launch must belong to the same card').toHaveCount(1);
+              await expect(launch).toBeVisible();
+              await expect(launch).toBeEnabled();
+              await expect(launch).toHaveAttribute('data-entity-id',
+                await card.getAttribute('data-rc39-session'));
+              await expect(launch.locator('xpath=ancestor::details')).toHaveCount(0);
+            }
           }
         }
         clientRouteAudits.push(await certifyClientSignatureRoute(page,'sesion'));

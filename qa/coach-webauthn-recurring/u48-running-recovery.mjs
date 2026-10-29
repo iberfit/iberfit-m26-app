@@ -4,11 +4,11 @@
  * no service_role, no changes to unrelated Client A sessions.
  */
 import {newU47Scope} from './u47-running-policy.mjs';
-import {inspectU58CanonicalHistory} from './u58-execution-policy.mjs';
 import {openU56ClientReadOnly} from './u56-qa-publish.mjs';
 
 const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 const SESSION='4d244c01-8966-40f1-8cc7-9e6ec46d1708';
+const EXECUTION='16145839-2e7d-48e2-bf0c-e94325f5c54c';
 const TITLE='QA U47 · Running 40738135729-1';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 export async function certifyU48ExistingRunning({browser,installPolicy,evidence,coachPage,cdp,setDevice}){
@@ -19,7 +19,7 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
    throw Error('U48_TRUSTED_CANARY_ONE_SHOT_ONLY');
  const scope={enabled:false};
  const client=await openU56ClientReadOnly(browser,installPolicy,scope);
- const {context,page}=client;const trace={publishedBefore:true,oneStart:false,
+ const {context,page}=client;const trace={publishedBefore:true,noSecondStart:false,
    firstTapVisible:false,progressAck:false,finishAck:false,readback:false};
  let boot=null,errors=[],acked=[],httpErrors=[];
  evidence.u48Running=trace;
@@ -54,21 +54,32 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
     String(row?.entityId||row?.entity_id||row?.id||'')===SESSION);
   expect(matching,'U48 requires the one exact already published canonical QA session').toHaveLength(1);
   const record=matching[0];
-  expect(String(record.status||record.body?.status)).toBe('disponible');
+  expect(String(record.status||record.body?.status)).toBe('en_curso');
   expect(String(record.body?.title||'')).toBe(TITLE);
   expect(String(record.clientId||record.client_id||record.body?.clientId||'')).toBe(client.clientId);
   expect(String(record.body?.deliveryOwnership||'')).toBe('guided_in_app');
   expect(record.body?.visibleToClient).toBe(true);
-  const validation=inspectU58CanonicalHistory({
-    canonicalEntities:boot?.m26Entities,
-    historicalExecutions:boot?.sessionExecutions,
-    clientId:client.clientId,sessionId:SESSION,
-  });
-  evidence.u48Readiness={valid:validation.ok,reason:validation.reason,
-    reconciled:validation.reconciledHistory,
-    activeLockCount:validation.ok?0:null};
-  expect(validation.ok,'All historical QA executions must reconcile; never infer clean from missing rows')
-    .toBe(true);
+  const canonical=(boot?.m26Entities||[]).filter(row=>
+    String(row?.entityType||row?.entity_type||'')==='session_execution'&&
+    String(row?.entityId||row?.entity_id||row?.id||'')===EXECUTION&&
+    String(row?.body?.sessionId||'')===SESSION&&
+    String(row?.clientId||row?.body?.clientId||'')===client.clientId);
+  // SECURITY DEFINER bootstrap intentionally strips client/session/status from
+  // legacy session_executions. It exposes only id+revision, while the separately
+  // scoped m26Entities canonical envelope carries the authorized lineage.
+  // The hydrated Client reconciler restores these fields for the actual UI.
+  const historical=(boot?.sessionExecutions||[]).filter(row=>String(row?.id||'')===EXECUTION);
+  expect(canonical,'Exact canonical U47 execution must still be active').toHaveLength(1);
+  expect(historical,'A single privacy-projected matching legacy execution must exist').toHaveLength(1);
+  expect(String(canonical[0]?.status||canonical[0]?.body?.status)).toBe('en_curso');
+  expect(String(canonical[0]?.body?.clientId||'')).toBe(client.clientId);
+  expect(String(canonical[0]?.body?.sessionId||'')).toBe(SESSION);
+  expect(Number(canonical[0]?.revision)).toBe(1);
+  expect(Number(historical[0]?.revision)).toBe(1);
+  expect(historical[0]?.clientId??historical[0]?.client_id??null).toBeNull();
+  expect(historical[0]?.sessionId??historical[0]?.session_id??null).toBeNull();
+  evidence.u48Readiness={valid:true,reason:'EXACT_EXISTING_ACTIVE_EXECUTION',
+    canonicalId:EXECUTION,activeLockCount:1};
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   if(await welcome.isVisible().catch(()=>false)){
     const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
@@ -90,14 +101,14 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
   await expect(cta,'Start must be visible WITHOUT expanding exercise details').toBeVisible({timeout:8_000});
   trace.firstTapVisible=true;
   Object.assign(scope,newU47Scope({stage:'execute',clientId:client.clientId,title:TITLE}),
-    {sessionId:SESSION,serverPublicationConfirmed:true,historyClean:true,enabled:true});
+    {sessionId:SESSION,executionId:EXECUTION,
+      serverPublicationConfirmed:true,historyClean:true,enabled:true});
   await cta.click({timeout:8_000});
   await expect(page.locator('[data-session-live-state]')).toBeVisible({timeout:25_000});
-  if(await page.locator('[data-session-live-state="ready"]').count())
-    await page.locator('[data-session-action="start"]').first().click();
+  await expect(page.locator('[data-session-live-state="ready"]')).toHaveCount(0);
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
-  await expect.poll(()=>acked.some(e=>e.type==='SESION_INICIAR'),{timeout:25_000}).toBe(true);
-  trace.oneStart=true;
+  expect(acked.filter(e=>e.type==='SESION_INICIAR'),'Recovery MUST NOT emit a second start').toHaveLength(0);
+  trace.noSecondStart=true;
   await page.locator('[data-set-field="distanceKm"]').first().fill('6.5');
   await page.locator('[data-set-field="durationMinutes"]').first().fill('35.8');
   await page.locator('[data-set-field="rpe"]').first().fill('7');
@@ -131,7 +142,7 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
   await expect(page.locator('[data-m43-session-history] [data-m43-completed-session]')
     .filter({hasText:TITLE})).toHaveCount(1,{timeout:25_000});
   expect(scope.uniqueByOperation.size,'Reload cannot repeat a command').toBe(operations);
-  expect(acked.filter(e=>e.type==='SESION_INICIAR')).toHaveLength(1);
+  expect(acked.filter(e=>e.type==='SESION_INICIAR')).toHaveLength(0);
   expect(acked.filter(e=>e.type==='EJECUCION_COMPLETAR')).toHaveLength(1);
   // Independently privileged Coach must observe the real training feedback,
   // not only the Client's optimistic local completion state. Never use
@@ -162,6 +173,7 @@ export async function certifyU48ExistingRunning({browser,installPolicy,evidence,
   evidence.u48Running={...trace,certified:true,qaOnly:true,existingFixture:true,
     independentCoachMfaReadback:true,
     withoutAppointment:true,serverAcknowledged:true,oneExecution:true,
+    recoveredExistingExecutionId:EXECUTION,
     source:'real-authenticated-client'};
  }finally{
    scope.enabled=false;

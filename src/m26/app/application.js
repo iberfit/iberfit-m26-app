@@ -31,7 +31,7 @@ import {createShellController} from '../shell/shell-controller.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
 import {createClientAvatarController} from '../profile/client-avatar.js';
 import {createWorkspaceEntryGate} from './workspace-entry-gate.js';
-import {resolveCurrentSessionForEntry,resolveRecoveredSessionForEntry} from '../workflows/session-entry-freshness.js';
+import {resolveCurrentSessionForEntry,resolveRecoveredSessionForEntry,recoverAuthenticatedRemoteExecution} from '../workflows/session-entry-freshness.js';
 import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
 import {createProgressiveOnboardingController} from '../onboarding/progressive-onboarding.js';
@@ -1549,6 +1549,40 @@ export async function createM26Application({root=document.querySelector('#app'),
           ...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},
           session:recovered.session,execution:recovered.execution,
           sessionRevision:recovered.sessionRevision??recovered.session.revision??0,appointmentId:recovered.appointmentId||null};
+        store.navigate('sesion');render();return true;
+      }
+      // A server-ACKed execution is not a new workout. The local snapshot can
+      // be absent after browser/device loss; use the existing RLS read instead.
+      const latestState=store.getState();
+      const currentCandidate=(latestState.collections.sessions||[]).find(
+        row=>String(row?.id||row?.body?.id||'')===sessionId&&
+          String(row?.clientId||row?.body?.clientId||'')===clientId);
+      if(String(currentCandidate?.status||currentCandidate?.body?.status||'').toLowerCase()==='en_curso'){
+        if(!draftOnline())throw Error('M48_RECOVERY_ONLINE_REQUIRED');
+        const visibleExecutions=(latestState.collections.sessionExecutions||[])
+          .filter(row=>String(row?.sessionId||row?.session_id||'')===sessionId&&
+            String(row?.clientId||row?.client_id||'')===clientId);
+        const active=visibleExecutions.filter(row=>['activa','en_curso','active'].includes(
+          String(row?.executionStatus||row?.execution_status||row?.status||'').toLowerCase()));
+        if(active.length!==1)throw Error('M48_RECOVERY_NO_UNIQUE_ACTIVE_EXECUTION');
+        const activeId=String(active[0].id||active[0].executionId||'');
+        const recoveredRow=await transport.readExistingExecution(currentToken(),{
+          clientId,sessionId,executionId:activeId,
+        });
+        if(!isCurrent()||String(session?.user?.id||'')!==String(state.identity?.id||''))
+          return false;
+        const remoteSession=normalizePublishedSession(currentCandidate);
+        const certified=recoverAuthenticatedRemoteExecution({
+          session:remoteSession,clientId,executionRow:recoveredRow,
+          visibleExecutions,
+          canonicalExecutions:(latestState.collections.m26Entities||[])
+            .filter(row=>String(row?.entityType||row?.entity_type||'')==='session_execution'),
+        });
+        sessionUi={draft:null,query:'',actionState:{
+          ...createActionState(),status:'success',
+          message:'Entrenamiento en curso recuperado del servidor. No se ha iniciado otra sesión.'},
+          session:certified.session,execution:certified.execution,
+          sessionRevision:certified.sessionRevision,appointmentId:null};
         store.navigate('sesion');render();return true;
       }
       const current=resolveCurrentSessionForEntry({state:store.getState(),requested,clientId});

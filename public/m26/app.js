@@ -701,19 +701,39 @@ function numericFieldValue(value){
   return Number.isFinite(number)?number:NaN;
 }
 
-export function validateLiveSetInput(values={}){
+export function validateLiveSetInput(values={},profile={}){
   const reps=numericFieldValue(values.reps);
   const seconds=numericFieldValue(values.seconds);
   const rpe=numericFieldValue(values.rpe);
   const rir=numericFieldValue(values.rir);
   const invalidFields=[];
-
-  if(reps===null&&seconds===null){
-    invalidFields.push('reps','seconds');
+  // Match the existing execution contract: cardio uses minutes/distance;
+  // carries use metres, and interval workouts may record completed intervals.
+  const metrics={};
+  const limits={durationMinutes:[0,1440],distanceKm:[0,1000],distanceM:[0,100000],intervalsCompleted:[1,1000]};
+  for(const [field,[min,max]] of Object.entries(limits)){
+    const raw=values[field];
+    const value=numericFieldValue(typeof raw==='string'?raw.replace(',','.'):raw);
+    metrics[field]=value;
+    if(value!==null&&(!Number.isFinite(value)||value<min||value>max||(field==='intervalsCompleted'&&!Number.isInteger(value)))){
+      return Object.freeze({valid:false,invalidFields:Object.freeze([field]),
+        message:field==='durationMinutes'?'Revisa el tiempo: debe estar entre 0 y 1.440 minutos.':
+          field==='intervalsCompleted'?'Indica un número entero de intervalos entre 1 y 1.000.':'Revisa la distancia realizada: debe estar dentro del rango permitido.'});
+    }
+  }
+  if(metrics.durationMinutes!==null&&seconds!==null&&Math.abs(seconds-metrics.durationMinutes*60)>0.01){
+    return Object.freeze({valid:false,invalidFields:Object.freeze(['durationMinutes','seconds']),message:'Los minutos y segundos realizados deben representar el mismo tiempo.'});
+  }
+  const cardio=profile.cardio===true,carry=profile.kind==='carry';
+  const hasDuration=cardio&&metrics.durationMinutes!==null;
+  const hasDistance=(cardio||carry)&&(metrics.distanceKm>0||metrics.distanceM>0);
+  const hasIntervals=profile.kind==='intervals'&&metrics.intervalsCompleted>0;
+  if(reps===null&&seconds===null&&!hasDuration&&!hasDistance&&!hasIntervals){
+    invalidFields.push(...(cardio?['durationMinutes','distanceKm','distanceM',...(profile.kind==='intervals'?['intervalsCompleted']:[])]:carry?['distanceM','seconds']:['reps','seconds']));
     return Object.freeze({
       valid:false,
       invalidFields:Object.freeze(invalidFields),
-      message:'Indica repeticiones o tiempo realizado antes de completar la serie.',
+      message:cardio?(profile.kind==='intervals'?'Indica tiempo, distancia o intervalos realizados antes de completar la serie.':'Indica tiempo o distancia realizados antes de completar la serie.'):carry?'Indica distancia o tiempo realizado antes de completar la serie.':'Indica repeticiones o tiempo realizado antes de completar la serie.',
     });
   }
   if(reps!==null&&(!Number.isFinite(reps)||reps<0||reps>10000)){
@@ -843,6 +863,14 @@ async function installSessionValueLoop({root,getState}={}){
       seconds:fields.seconds?.value,
       rpe:fields.rpe?.value,
       rir:fields.rir?.value,
+      durationMinutes:fields.durationMinutes?.value,
+      distanceKm:fields.distanceKm?.value,
+      distanceM:fields.distanceM?.value,
+      intervalsCompleted:fields.intervalsCompleted?.value,
+    },{
+      cardio:Boolean(panel.querySelector?.('[data-session-cardio-entry]')),
+      kind:panel.querySelector?.('[data-session-cardio-entry]')?.getAttribute('data-session-metric-kind')||
+        (panel.querySelector?.('[data-session-carry-entry]')?'carry':'strength'),
     });
 
     let message=panel.querySelector?.('[data-m28-set-validation]');
@@ -862,7 +890,7 @@ async function installSessionValueLoop({root,getState}={}){
       const isInvalid=invalid.has(name);
       if(isInvalid)node.setAttribute('aria-invalid','true');
       else node.removeAttribute('aria-invalid');
-      if(['reps','seconds','rpe','rir'].includes(name)){
+      if(['reps','seconds','rpe','rir','durationMinutes','distanceKm','distanceM','intervalsCompleted'].includes(name)){
         const existing=String(node.getAttribute('aria-describedby')||'').split(/\s+/u).filter(Boolean);
         const described=new Set(existing);
         described.add(message.id);

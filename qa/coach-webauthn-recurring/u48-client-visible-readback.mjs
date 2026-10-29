@@ -1,10 +1,8 @@
 import {expect} from '@playwright/test';
 import {openU56ClientReadOnly} from './u56-qa-publish.mjs';
 
-// U48 certification is deliberately READ ONLY. The completed U56 workout and
-// the available U47 running prescription are not published, started, reset or
-// mutated again. A server-authorised Client A must be able to reach its own
-// newly published training without discovering an invisible archive first.
+// U48 certification is READ ONLY. The pre-existing U47 workout is in progress,
+// and the Client must see its Continue action without a second server start.
 export async function certifyU48UniversalSessionVisibility({browser,installPolicy,evidence}){
  if(process.env.M26_QA_U48_READBACK!=='true'||
     process.env.M26_QA_U47_RUNNING==='true'||
@@ -26,9 +24,10 @@ export async function certifyU48UniversalSessionVisibility({browser,installPolic
    await expect(open,'Review must be accessible by pointer and keyboard').toBeVisible({timeout:12_000});
    // Direct CTA is always exposed; no summary expansion is a prerequisite.
    const start=card.locator('[data-workflow-action="start-published-session"]');
-   await expect(start,'The exact previously published workout has a ready CTA')
+   await expect(start,'The exact in-progress workout must have a continue CTA')
      .toBeVisible({timeout:12_000});
    await expect(start).toBeEnabled();
+   await expect(start).toContainText('Continuar entrenamiento');
    await expect(start).toHaveAttribute('data-entity-id',await card.getAttribute('data-rc39-session'));
    // A second route must preserve this exact identity and the same action.
    await page.locator('[data-m26-area="planificacion"]:visible').first().click();

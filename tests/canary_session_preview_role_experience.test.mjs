@@ -175,3 +175,16 @@ test('SIGNATURE stale client projection cannot re-enable a workout that has alre
   assert.doesNotMatch(value,/data-workflow-action="start-published-session"|Preparar entrenamiento/u);
   assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/u);
 });
+
+test('SIGNATURE U48 continue requires an independently verified active execution, not stale session status',()=>{
+ const stale=item('guiada','guided_in_app','full');
+ stale.session={...stale.session,status:'en_curso',deliveryOwnership:'guided_in_app',
+   deliveryModality:'guiada_en_app',visibleToClient:true,clientVisibilityLevel:'full'};
+ const forged={...stale,canClientResume:true,canClientStart:false};
+ const value=html('client',[forged]);
+ assert.match(value,/Continuar entrenamiento/u);
+ assert.match(value,/data-workflow-action="start-published-session"/u);
+ assert.doesNotMatch(value,/Preparar entrenamiento/u);
+ const denied=html('client',[{...forged,canClientResume:false}]);
+ assert.doesNotMatch(denied,/Continuar entrenamiento|data-workflow-action="start-published-session"/u);
+});

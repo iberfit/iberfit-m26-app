@@ -207,11 +207,40 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
     ?relevantAppointments.filter(isClientVisibleAppointment)
     :relevantAppointments;
   const changeRequestAvailable=state?.environment?.rc39?.appointmentChangeRequests===true;
-  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable})));
+  // An in-progress prescription is NOT proof that this authenticated Client
+  // owns a resumable execution. Require exactly one matching active row from
+  // both RLS-scoped bootstrap collections before rendering a Continue action.
+  const resumableSessionIds=new Set();
+  if(role==='client'&&routeClientId){
+    const scoped=state.collections?.sessionExecutions;
+    const canonical=state.collections?.m26Entities;
+    if(Array.isArray(scoped)&&Array.isArray(canonical)){
+      const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+      const active=(r)=>['activa','en_curso','active'].includes(
+        String(field(r,'executionStatus','execution_status','status')||'').toLowerCase());
+      const owner=String(routeClientId);
+      for(const session of relevantSessions){
+        const target=sessionId(session);
+        if(!uuid.test(target)||statusOf(session)!=='en_curso')continue;
+        const matches=(rows)=>rows.filter(r=>
+          String(field(r,'sessionId','session_id'))===target&&
+          String(field(r,'clientId','client_id'))===owner&&active(r));
+        const current=matches(scoped);
+        const remote=matches(canonical.filter(r=>r?.entityType==='session_execution'));
+        const currentId=String(field(current[0]||{},'id','executionId','execution_id')||'');
+        const remoteId=String(field(remote[0]||{},'entityId','entity_id','id')||'');
+        if(current.length===1&&remote.length===1&&uuid.test(currentId)&&currentId===remoteId)
+          resumableSessionIds.add(target);
+      }
+    }
+  }
+  const canResume=(id)=>role==='client'&&resumableSessionIds.has(String(id||''));
+  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable,canClientResume:canResume(item.id)})));
   const operationalAppointments=(role==='client'?scopedAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
   const sessionProjections=relevantSessions.map((session)=>Object.freeze({
     ...clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now),
     changeRequestAvailable,
+    canClientResume:canResume(sessionId(session)),
   }));
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;

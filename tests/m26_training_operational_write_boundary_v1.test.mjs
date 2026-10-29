@@ -36,11 +36,24 @@ test('modern app mutation path remains Command Bus RPC rather than direct traini
 
   for(const direct of [
     '/rest/v1/sessions',
-    '/rest/v1/session_executions',
     '/rest/v1/session_events',
     '/rest/v1/training_cycles',
   ]){
     assert.equal(transport.includes(direct),false,direct);
     assert.equal(application.includes(direct),false,direct);
   }
+  // One narrow authenticated RLS SELECT is permitted to restore an already
+  // acknowledged execution. Data mutation remains exclusively Command Bus.
+  assert.equal(application.includes('/rest/v1/session_executions'),false);
+  const begin=transport.indexOf('async function readExistingExecution(');
+  const end=transport.indexOf('async function commandRegistry(',begin);
+  assert.ok(begin>0&&end>begin,'recovery transport must be isolated');
+  const reader=transport.slice(begin,end);
+  assert.match(reader,/method:'GET',token/u);
+  assert.match(reader,/\/rest\/v1\/session_executions\?select=/u);
+  for(const filter of ['id=eq.','session_id=eq.','client_id=eq.','&limit=2']){
+    assert.ok(reader.includes(filter),filter);
+  }
+  assert.doesNotMatch(reader,/method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/u);
+  assert.doesNotMatch(reader,/body:\s*JSON\.stringify/u);
 });

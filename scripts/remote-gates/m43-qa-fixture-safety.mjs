@@ -164,3 +164,43 @@ export async function attestCompletedM43Run(previousRunId,{
       &&['success','failure','cancelled'].includes(String(record?.conclusion||''));
   }catch{return false;}
 }
+
+
+/**
+ * M43 shares synthetic QA identities with the one-shot U47 recovery.
+ * A deliberately active U47 MUST NOT be cancelled as an "M43 stale fixture".
+ * An independently authenticated, service-active QA Client B can run the
+ * FULL M43 writer and browser lifecycle while A remains locked. Every
+ * identity/lineage/fixture predicate is exact and fail-closed.
+ */
+export function selectM43QaFixtureForU47Isolation(primary,secondary,{runId}={}){
+  const original=Object.freeze({label:'A',reason:'PRIMARY_UNCHANGED'});
+  const recovery=assessM43StalePausedRecovery(primary,{runId});
+  if(recovery.kind!=='blocked'||recovery.reason!=='UNMARKED_SESSION')return original;
+  const a=String(primary?.user?.clientId||'');
+  const b=String(secondary?.user?.clientId||'');
+  if(!/^[0-9a-f]{8}-[0-9a-f-]{27}$/iu.test(a)||
+     !/^[0-9a-f]{8}-[0-9a-f-]{27}$/iu.test(b)||a===b)return original;
+  const entities=primary?.data?.m26Entities,other=secondary?.data?.m26Entities;
+  if(!Array.isArray(entities)||!Array.isArray(other))return original;
+  const actives=entities.filter(e=>e?.entityType==='session_execution'&&
+    ['en_curso','pausada'].includes(String(e.status||'')));
+  const execution=actives[0],body=execution?.body||{};
+  const session=entities.find(e=>e?.entityType==='session'&&
+    String(e.entityId)==='4d244c01-8966-40f1-8cc7-9e6ec46d1708');
+  if(actives.length!==1||execution.status!=='en_curso'||
+     String(execution.entityId)!=='16145839-2e7d-48e2-bf0c-e94325f5c54c'||
+     String(execution.clientId)!==a||String(body.id)!==String(execution.entityId)||
+     String(body.clientId)!==a||
+     String(body.sessionId)!=='4d244c01-8966-40f1-8cc7-9e6ec46d1708'||
+     session?.status!=='en_curso'||String(session?.clientId)!==a||
+     session?.body?.title!=='QA U47 · Running 40738135729-1')return original;
+  if(other.some(e=>e?.entityType==='session_execution'&&
+    ['en_curso','pausada'].includes(String(e.status||''))))return original;
+  const budget=assessM43SyntheticFixtureBudget(secondary);
+  if(budget.exhausted||!Number.isSafeInteger(budget.count)||
+     budget.count>budget.limit-2||
+     !secondary?.data?.clients?.some(c=>String(c?.id)===b&&
+       c.trainingServiceStatus==='active'))return original;
+  return Object.freeze({label:'B',reason:'EXACT_U47_LOCK_ISOLATION'});
+}

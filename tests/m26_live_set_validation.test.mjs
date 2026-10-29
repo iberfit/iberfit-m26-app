@@ -67,3 +67,50 @@ test('Client set validation is reconciled after saved observations hydrate on sh
   assert.match(app,/button\.disabled=!result\.valid/u);
   assert.match(app,/root\.addEventListener\('input',onInput\)/u);
 });
+
+test('U48: actual running observations unlock completion without hidden reps/seconds',()=>{
+  assert.equal(validateLiveSetInput({distanceKm:'6.5',durationMinutes:'35.8',rpe:'7'},
+    {cardio:true,kind:'endurance'}).valid,true);
+  assert.equal(validateLiveSetInput({durationMinutes:'35,8',rpe:'7'},
+    {cardio:true,kind:'endurance'}).valid,true);
+});
+
+test('U48: distance-only cardio/carry and interval results follow the execution contract',()=>{
+  for(const [values,profile] of [
+    [{distanceKm:'6.5',rpe:'7'},{cardio:true,kind:'endurance'}],
+    [{distanceM:'1000',rpe:'7'},{cardio:true,kind:'endurance'}],
+    [{distanceM:'20',rpe:'7'},{kind:'carry'}],
+    [{intervalsCompleted:'8',rpe:'7'},{cardio:true,kind:'intervals'}],
+  ])assert.equal(validateLiveSetInput(values,profile).valid,true);
+  assert.equal(validateLiveSetInput({distanceKm:'6.5',rpe:'7'},{kind:'strength'}).valid,false);
+  assert.equal(validateLiveSetInput({intervalsCompleted:'8',rpe:'7'},{cardio:true,kind:'endurance'}).valid,false);
+});
+
+test('U48: modality measurements do not bypass empty, invalid, conflicting or RPE guards',()=>{
+  const profile={cardio:true,kind:'intervals'};
+  for(const values of [
+    {rpe:'7'}, {distanceKm:'0',rpe:'7'}, {durationMinutes:'35.8',rpe:''},
+    {durationMinutes:'1441',rpe:'7'}, {durationMinutes:'-1',rpe:'7'},
+    {distanceKm:'1001',rpe:'7'}, {distanceM:'100001',rpe:'7'},
+    {durationMinutes:'no',rpe:'7'}, {durationMinutes:'Infinity',rpe:'7'},
+    {intervalsCompleted:'1.5',rpe:'7'}, {intervalsCompleted:'0',rpe:'7'},
+    {durationMinutes:'1',seconds:'30',rpe:'7'},
+  ])assert.equal(validateLiveSetInput(values,profile).valid,false,JSON.stringify(values));
+  assert.equal(validateLiveSetInput({durationMinutes:'1440',rpe:'10'},profile).valid,true);
+  assert.equal(validateLiveSetInput({durationMinutes:'1',seconds:'60',rpe:'7'},profile).valid,true);
+});
+
+test('U48: public input guard and real execution both accept recorded running metrics',async()=>{
+  const {createExecution,startExecution,recordSet}=await import('../src/m26/workflows/session-execution.js');
+  const session={id:'running',clientId:'qa',blocks:[{id:'b',type:'exercise',
+    exerciseId:'running',name:'Carrera suave',sets:1,measurementProfile:'endurance'}]};
+  const execution=createExecution({session,clientId:'qa',executionId:'qa-running'});
+  startExecution(execution);
+  const values={distanceKm:'6.5',durationMinutes:'35.8',rpe:'7'};
+  assert.equal(validateLiveSetInput(values,{cardio:true,kind:'endurance'}).valid,true);
+  recordSet(execution,session,values);
+  const saved=Object.values(execution.results)[0];
+  assert.equal(saved.seconds,2148);
+  assert.equal(saved.distanceKm,6.5);
+  assert.equal(saved.rpe,7);
+});

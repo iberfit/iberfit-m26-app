@@ -1,3 +1,34 @@
+## SIGNATURE U48 · QA Real Write completo y visual histórico legítimo · 29-10-2026
+
+- PR #1189 en `fix/u48-live-modality-validation`, base protegida Canary `3ae73dd26f5af420420c998a6564d346a99cafd8`. SHA anterior `fc15dee1e9398d5d96a27141118e6b8046ca72ff` comprobado: **QA Real Write Certification 5/5 jobs SUCCESS**, incluido M43 writer con Client B aislado y navegador Cliente con inicio, pausa, reanudación, series, cierre e historial real. Otros gates CI, Fast Lane, audit, Coach WebAuthn, Admin, Session QA, Client authenticated SUCCESS.
+- Fallo visual confirmado en cinco viewports: la sesión Cliente A puede estar en estado `empty` (ninguna acción nueva disponible) y conservar historial de entrenamientos completados. `renderCompletedSessionHistory({hideEmpty:true})` renderiza correctamente exclusivamente completados confirmados, sin CTA de iniciar. El antiguo test `toHaveCount(0)` sobre el contenedor de historial es contrario al producto. Revisión: validar filas confirmadas, no iniciar desde histórico ni exponer notas privadas, y permitir ausencia total cuando no existe historial.
+- Device Experience y Canary Policy sobre el HEAD anterior dieron FAIL por dependencia de esa misma prueba visual. No se rebajan gates. Reejecutar todos los checks sobre el nuevo SHA antes de merge.
+- QA U47 **inalterada** por este cambio: sesión `4d244c01-8966-40f1-8cc7-9e6ec46d1708` en curso rev3, ejecución `16145839-2e7d-48e2-bf0c-e94325f5c54c` activa rev1, exactamente un lock; sin segundo SESION_INICIAR ni ACK de finalización U47. Nada de SQL de reparación directa.
+- Condición salida: checks obligatorios SUCCESS en HEAD exacto, integración única `SIGNATURE U48:` solo con runner de primera ejecución, certificación ACK progreso/cierre/readback Cliente+Coach WebAuthn; comprobar Canary LIVE SHA, PROD por runbook separado. No declarar terminado prematuramente.
+
+---
+
+## SIGNATURE U48 · Recuperación segura U47 + validación cardio · WIP 28-10-2026
+
+- **Implementación preparada, NO desplegada:** PR #1189 `fix/u48-live-modality-validation`, HEAD comprobado `8925bab19b2598fda84669d306c7491a0d3386d8` antes del ajuste final de proyección; base Canary `3ae73dd26f5af420420c998a6564d346a99cafd8`. Validador cardio, transporte e intervalos; RPE y requisitos de fuerza intactos.
+- **Recuperación cross-device:** GET autenticado contra `session_executions` con filtro exacto de cliente, sesión y ejecución; RLS real; comprobación CAS, autorización de modalidad, prescripción, historial canónico y restauración de resultados previamente confirmados en `progressSnapshot`. No se envía un segundo `SESION_INICIAR`. UI Cliente ofrece «Continuar entrenamiento» sólo con evidencia de ejecución activa única; tests fuerza/running/natación, fraude de identidad y conflictos.
+- **Proyección QA estudiada:** `iberfit_m43_client_safe_execution_v1(to_jsonb(session_executions))` elimina deliberadamente cliente/sesión/estado de la colección bruta. `reconcileCanonicalTrainingCollections` restaura esos campos únicamente desde `m26Entities` autorizado. El runner E2E U48 se adapta a esa diferencia sin ampliar bootstrap ni RLS.
+- **Gates sobre HEAD anterior `8925bab...`:** 11/12 SUCCESS (CI, Session QA, Fast Lane, WebAuthn, Policy, Device, Audit, Client, Admin, Visual, M44). Único FAIL: QA Real Write M43 `M43_QA_FIXTURE_RECOVERY_UNMARKED_SESSION`, porque U47 conserva lock legítimo del Cliente A. No cancelar U47, no relajar gate ni afirmar GREEN total.
+- **DB QA READ ONLY:** sesión `4d244c01-8966-40f1-8cc7-9e6ec46d1708` `en_curso` rev3; ejecución `16145839-2e7d-48e2-bf0c-e94325f5c54c` `activa` rev1; 1 lock, sin `progressSnapshot`. Fixture congelado hasta certificación one-shot.
+- **Salida:** evaluar gate M43 temporalmente impedido por fixture; no merge si la política de integración requiere ese gate. Si todos los checks requeridos son conformes, fusionar con SHA protegido y título de integración `SIGNATURE U48:` para habilitar exclusivamente la primera ejecución real en QA. Verificar ACK de progreso/cierre, readback Cliente y Coach, y Canary versión exacta antes de PROD. Nunca usar SQL para simular ACK ni cerrar el lock.
+
+---
+
+## SIGNATURE U48 · Visibilidad resuelta; validación cardio pendiente · 28-10-2026
+
+- PR #1188 integrada: Canary source `3ae73dd26f5af420420c998a6564d346a99cafd8`. Canary Exact Deploy [40779051927](https://github.com/iberfit/iberfit-m26-app/actions/runs/40779051927) SUCCESS: regresión completa, identidad exacta, smoke escritorio/móvil y rollback disponible. CI, auditoría, dispositivos/PWA y evidencia visual SUCCESS sobre ese SHA.
+- QA autenticado [40779051887](https://github.com/iberfit/iberfit-m26-app/actions/runs/40779051887), job `123135772414`: el Cliente ya encuentra el running U47 y supera inicio con ACK. Falla después al completar serie: el enhancer público exige `reps/seconds`, ignorando `durationMinutes/distanceKm` que admite el motor. Distancia 6.5 km, duración 35.8 min y RPE 7 no habilitan el botón.
+- WIP `fix/u48-live-modality-validation`: validación del formulario acorde con las métricas de cardio, transporte e intervalos; conserva límites, RPE obligatorio y requisitos de fuerza. Regresión del input público y registro por motor real. Implementación candidata, NO desplegada.
+- **Estado QA con escritura parcial:** el entrenamiento sintético existente recibió inicio confirmado, pero no se alcanzó ACK de progreso/cierre ni lectura de historial. No repetir el ensayo de inicio ni borrar/resetear ejecución. Antes de nueva certificación, inspeccionar estado canónico y preparar recuperación explícita de esa misma ejecución.
+- **PROD no modificada en este bloque. NO-GO de promoción** hasta corregir, superar CI y certificar continuidad/cierre/historial autenticados. Health Connect y Android físico no se recertifican con este trabajo.
+
+---
+
 ## SIGNATURE U45 · Primera entrada de campaña sin waterfall · WIP 28-10-2026
 
 - **Base canónica comprobada:** `919b053df6c9ac24b8dc95b98dea90940d6314ce` en Canary y PROD, ambos dominios consultados y QA/PROD identificados correctamente. PR #1181 U44 ya fusionada; no reimplementar.

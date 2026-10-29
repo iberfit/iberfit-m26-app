@@ -28,6 +28,15 @@ const READ_ONLY_RPCS=new Set([
 // when GitHub reruns a failed browser job without recreating the fixture.
 // A GitHub Actions job without verified writer provenance must fail closed.
 const WRITER_ATTEMPT=process.env.M26_M43_WRITER_ATTEMPT;
+const OWNER_FIXTURE=process.env.M26_M43_FIXTURE_CLIENT_LABEL||'A';
+if(!['A','B'].includes(OWNER_FIXTURE)||
+   (process.env.GITHUB_ACTIONS==='true'&&!process.env.M26_M43_FIXTURE_CLIENT_LABEL))
+  throw Error('M43_BROWSER_FIXTURE_PROVENANCE_MISSING');
+const OTHER_FIXTURE=OWNER_FIXTURE==='A'?'B':'A';
+const ownerEmail=()=>process.env['M26_QA_CLIENT_'+OWNER_FIXTURE+'_EMAIL'];
+const ownerPassword=()=>process.env['M26_QA_CLIENT_'+OWNER_FIXTURE+'_PASSWORD'];
+const otherEmail=()=>process.env['M26_QA_CLIENT_'+OTHER_FIXTURE+'_EMAIL'];
+const otherPassword=()=>process.env['M26_QA_CLIENT_'+OTHER_FIXTURE+'_PASSWORD'];
 if(process.env.GITHUB_ACTIONS==='true'&&!WRITER_ATTEMPT)
   throw Error('M43_QA_WRITER_ATTESTATION_REQUIRED');
 const LIVE_MARKER=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT}).sessionTitle;
@@ -35,7 +44,7 @@ const SECRET_MARKER='IBERFIT QA M43 · ciclo no publicado';
 
 test('M43 authenticated Cliente sees published multideporte and completed history, never unpublished cycles',async({page,context},testInfo)=>{
   const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
-    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD'];
+    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_'+OWNER_FIXTURE+'_EMAIL','M26_QA_CLIENT_'+OWNER_FIXTURE+'_PASSWORD'];
   for(const name of required)expect(process.env[name],name+' must be provided').toBeTruthy();
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
   expect(process.env.M26_QA_ONLY).toBe('true');
@@ -50,8 +59,8 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
   });
   page.on('pageerror',e=>errors.push(String(e.message||'PAGE_ERROR').slice(0,180)));
   await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
-  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
-  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(ownerEmail());
+  await page.locator('#m26-login-password').fill(ownerPassword());
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
   await expect(shell).toBeVisible({timeout:35_000});
@@ -155,7 +164,7 @@ test('M43 authenticated Cliente sees published multideporte and completed histor
 // This browser is STRICTLY readonly; it never modifies the synthetic workout.
 test('M43 authenticated Cliente B never sees Cliente A workout in server bootstrap, sessions or planning',async({page,context},testInfo)=>{
   for(const name of ['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
-    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD']){
+    'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_'+OTHER_FIXTURE+'_EMAIL','M26_QA_CLIENT_'+OTHER_FIXTURE+'_PASSWORD']){
     expect(process.env[name],name+' is required').toBeTruthy();
   }
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
@@ -181,9 +190,9 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
   });
   await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
   await page.getByRole('textbox',{name:'Correo',exact:true})
-    .fill(process.env.M26_QA_CLIENT_B_EMAIL);
+    .fill(otherEmail());
   await page.locator('#m26-login-password')
-    .fill(process.env.M26_QA_CLIENT_B_PASSWORD);
+    .fill(otherPassword());
   const observedBootstrap=page.waitForResponse(response=>{
     try{return new URL(response.url()).origin===SUPABASE_ORIGIN
       &&new URL(response.url()).pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'

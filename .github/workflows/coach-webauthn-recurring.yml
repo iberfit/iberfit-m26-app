@@ -134,9 +134,11 @@ jobs:
           # U48: resume ONE existing U47 synthetic QA running; never
           # create a second prescription or allow reruns to mutate.
           M26_QA_U48_RUNNING: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U48:') }}
-          # Non-writing smoke first, then the independently guarded one-shot
-          # existing QA workout. No PR, dispatch or workflow rerun can write.
-          M26_QA_U48_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && startsWith(github.event.head_commit.message, 'SIGNATURE U48:') }}
+          # Non-writing preflight smoke first, then the independently guarded
+          # one-shot existing QA workout. After it completes, the same workout
+          # is no longer "en_curso", so a failed-only rerun must not incorrectly
+          # demand the now-consumed Continue CTA. No PR, dispatch or rerun writes.
+          M26_QA_U48_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && startsWith(github.event.head_commit.message, 'SIGNATURE U48:') }}
           # U59: one-shot read-only Coach+Client check of already ACKed U58S.
           # Pull requests, reruns and a second execution NEVER get this flag.
           M26_QA_U59_READBACK: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' && github.run_attempt == 1 && (startsWith(github.event.head_commit.message, 'SIGNATURE U59:') || startsWith(github.event.head_commit.message, 'SIGNATURE U59R:')) }}
