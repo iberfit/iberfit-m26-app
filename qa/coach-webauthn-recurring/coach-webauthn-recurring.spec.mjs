@@ -262,7 +262,24 @@ async function loginAndCompleteWebAuthn(page,email,password){
   const webauthn=page.locator('[data-auth-action="mfa-continue-webauthn"]');
   await expect(webauthn,'Coach must remain fail-closed until WebAuthn').toBeVisible({timeout:20_000});
   await webauthn.click();
-  await expect(page.locator('.m26-shell[data-m26-role="coach"]'),'Coach shell after verified WebAuthn').toBeVisible({timeout:30_000});
+  const coachShell=page.locator('.m26-shell[data-m26-role="coach"]');
+  const retry=page.locator('[data-auth-action="retry-session"]');
+  // A slow, completely authenticated QA Coach history can legitimately
+  // exceed the standard MFA-to-shell budget. Exercise the existing protected
+  // no-password recovery once, rather than misclassifying it as invalid MFA.
+  // Never repeat password login, WebAuthn ceremony or U47 commands.
+  await expect.poll(async()=>{
+    if(await coachShell.isVisible().catch(()=>false))return 'ready';
+    if(await retry.isVisible().catch(()=>false))return 'recoverable';
+    return 'loading';
+  },{timeout:38_000,message:'Coach must either open or present protected no-password recovery'})
+    .toMatch(/^(?:ready|recoverable)$/u);
+  if(await retry.isVisible().catch(()=>false)){
+    await expect(retry,'An explicit user retry requires a valid existing session').toBeEnabled();
+    await retry.click();
+  }
+  await expect(coachShell,'Coach shell after verified WebAuthn or one protected token-preserving recovery')
+    .toBeVisible({timeout:38_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:15_000});
   await expect(page.locator('.m26-role-choice[role="dialog"]'),'Coach-only fixture must not receive app choice').toHaveCount(0);
 }

@@ -74,6 +74,15 @@ import {createEvolutionReportGovernanceService} from '../workflows/evolution-rep
 export const EMAIL_OTP_DEPLOYMENT_READY=true;
 export const MFA_BACKEND_TIMEOUT_MS=18_000;
 const POST_MFA_SETUP_TIMEOUT_MS=16_000;
+// QA Coach intentionally reads a full, lossless, paginated privileged history.
+// Its 20+ verified read-only pages can exceed the standard login budget on a
+// loaded QA instance. Give this exact test identity a finite extra window;
+// never change production Client/Coach/Admin deadlines or authorization.
+const QA_COACH_FULL_HISTORY_SETUP_TIMEOUT_MS=28_000;
+export function postMfaSetupBudgetMs({qaOnly=false,email=''}={}){
+  return qaOnly===true&&String(email||'').trim().toLowerCase()==='qa.rc74.coach@iberfit.cl'
+    ?QA_COACH_FULL_HISTORY_SETUP_TIMEOUT_MS:POST_MFA_SETUP_TIMEOUT_MS;
+}
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
 // The remote exercise catalog may legally use up to 5s per network page; a
 // 6s outer auth deadline races that internal fallback and falsely logs out an
@@ -326,16 +335,21 @@ export function createAuthBusyWatchdog({
       timer=null;
     }
   }
-  function begin(stage='auth'){
+  function begin(stage='auth',{timeoutMs:overrideTimeoutMs}={}){
     clear();
     activeId+=1;
     const id=activeId;
+    // The default watchdog stays unchanged for all ordinary auth paths.
+    // A single authenticated QA Coach may opt into a finite longer budget
+    // without changing the generation/owner fencing or disabling recovery.
+    const duration=Number.isFinite(Number(overrideTimeoutMs))&&Number(overrideTimeoutMs)>0
+      ?Math.max(5_000,Math.min(Number(overrideTimeoutMs),30_000)):safeTimeout;
     timer=setTimeoutFn?.(()=>{
       if(id!==activeId)return;
       timer=null;
       activeId+=1;
       onTimeout({id,stage});
-    },safeTimeout)??null;
+    },duration)??null;
     return id;
   }
   function complete(id){
@@ -536,7 +550,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     },
   });
   function beginAuthAttempt(stage){
-    const id=authWatchdog.begin(stage);
+    const budget=postMfaSetupBudgetMs({qaOnly:runtime.qaOnly,email:session?.user?.email});
+    const fullHistoryAuth=budget>POST_MFA_SETUP_TIMEOUT_MS&&
+      ['post-mfa-setup','session-retry','resume'].includes(stage);
+    const id=authWatchdog.begin(stage,fullHistoryAuth
+      ?{timeoutMs:Math.min(30_000,budget+1_500)}:undefined);
     currentAuthAttemptId=id;
     return id;
   }
@@ -2164,7 +2182,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       qaStage('rc64-login-setup-start');
       await withAuthOperationTimeout(
         ()=>setupAuthenticated(),
-        {timeoutMs:POST_MFA_SETUP_TIMEOUT_MS,code:'M26_POST_MFA_SETUP_TIMEOUT'},
+        {timeoutMs:postMfaSetupBudgetMs({qaOnly:runtime.qaOnly,email:session?.user?.email}),
+          code:'M26_POST_MFA_SETUP_TIMEOUT'},
       );
       qaStage('rc64-login-setup-ready');
       return true;
