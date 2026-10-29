@@ -17,6 +17,7 @@ import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
+import {renderIberfitIcon} from '../design/icons.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -715,6 +716,24 @@ function renderClientHoyRoute(vm) {
     :nextActionArea==='planificacion'&&nextAction?.key!=='view_next_appointment'
       ?'Revisar mi planificación'
       :nextAction?.label||'Continuar';
+  // Real navigation only. Session start authorization remains in primary.markup.
+  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Tu estado de hoy" data-client-home-compass>
+    <div class="m26-client-home-compass-heading"><strong>Tu estado de hoy</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
+    <div class="m26-client-home-compass-actions">
+      <button type="button" data-m26-area="sesion">
+        ${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}
+        <span><strong>Entreno</strong><small>${runnable||standaloneGuided?'Sesión lista para empezar':projections.length?'Ver sesiones publicadas':serviceActive?'Consulta tus sesiones':'Historial disponible'}</small></span>
+      </button>
+      <button type="button" data-m26-area="progreso">
+        ${renderIberfitIcon('chart',{className:'m26-client-home-compass-icon'})}
+        <span><strong>Evolución</strong><small>Historial y progreso confirmado</small></span>
+      </button>
+      <button type="button" data-m26-area="actividad">
+        ${renderIberfitIcon('heart-pulse',{className:'m26-client-home-compass-icon'})}
+        <span><strong>Bienestar</strong><small>Energía, sueño y recuperación</small></span>
+      </button>
+    </div>
+  </nav>`:'';
   const nextActionMarkup=serviceActive&&nextAction&&nextActionAuthorized&&nextActionArea!==primary.area
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
         <span>Siguiente paso</span>
@@ -731,6 +750,7 @@ function renderClientHoyRoute(vm) {
       <div class="m26-client-home-greeting">
         <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
+        <span class="m26-client-home-avatar" data-iberfit-avatar-client="${escapeHtml(client?.id||'')}" aria-hidden="true">${escapeHtml(name.trim().slice(0,1).toUpperCase()||'I')}</span>
         <p>${escapeHtml(primary.detail)}</p>
       </div>
       <div class="m26-client-home-status">
@@ -743,6 +763,8 @@ function renderClientHoyRoute(vm) {
         ${primary.markup}
       </div>
     </section>
+
+    ${clientCompass}
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">

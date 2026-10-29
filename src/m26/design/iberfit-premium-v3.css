@@ -204,9 +204,8 @@
   right:-7rem;
   z-index:0;
   pointer-events:none;
-  opacity:.022;
+  opacity:.035;
   background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
-  filter:grayscale(1) brightness(2.4);
 }
 .m26-shell .m26-workspace>*:not(.m26-mobile-nav){position:relative;z-index:1}
 .m26-shell .m26-main{color:var(--iberfit-v3-text)!important;background:transparent!important}
@@ -1371,6 +1370,130 @@
 .m26-shell[data-m26-role="coach"] .m26-content-grid{align-items:start}
 @media(forced-colors:active){
   .m26-shell[data-m26-role] .m26-route-intro > .m26-badge{border:1px solid CanvasText}
+}
+
+/* SIGNATURE U50 · Athletic Editorial: approved real isotipo, warm paper accents,
+ * private M42 avatar, authentic destinations, no landscape/people hero imagery.
+ * Scoped to role, data and verified training state; one final component sheet.
+ */
+.m26-shell[data-m26-role] .m26-workspace{
+  --iberfit-u50-paper:#EEE8DC;
+  --iberfit-u50-paper-ink:#193025;
+  --iberfit-u50-paper-muted:#4D5A50;
+  --iberfit-u50-gold:#D8BA7E;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-hero,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-command,
+.m26-shell[data-m26-role="admin"] .m30-admin-command-route>.m26-admin-hero,
+.m26-shell[data-m26-role="client"] .m26-session-live-hero{
+  position:relative;isolation:isolate;overflow:hidden;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-hero::before,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-command::before,
+.m26-shell[data-m26-role="admin"] .m30-admin-command-route>.m26-admin-hero::before,
+.m26-shell[data-m26-role="client"] .m26-session-live-hero::before{
+  content:"";position:absolute;inset:auto -5% -37% auto;
+  width:clamp(13rem,35%,24rem);aspect-ratio:1;
+  background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
+  opacity:.075;pointer-events:none;z-index:0;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-hero>*,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-command>*,
+.m26-shell[data-m26-role="admin"] .m30-admin-command-route>.m26-admin-hero>*,
+.m26-shell[data-m26-role="client"] .m26-session-live-hero>*{position:relative;z-index:1}
+.m26-shell[data-m26-role="client"] .m26-client-home-greeting{
+  grid-template-columns:minmax(0,1fr) auto;column-gap:clamp(.65rem,2vw,1.4rem);align-items:start;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-greeting>:not(.m26-client-home-avatar){grid-column:1}
+.m26-shell[data-m26-role="client"] .m26-client-home-avatar{
+  grid-column:2;grid-row:1 / span 3;position:relative;display:grid;place-items:center;
+  inline-size:clamp(3rem,6vw,4.2rem);block-size:clamp(3rem,6vw,4.2rem);
+  overflow:hidden;flex-shrink:0;border:2px solid #D8BA7E;border-radius:50%;
+  background:#EEE8DC;color:#193025;
+  font:650 1.3rem/1 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-avatar img[data-iberfit-avatar-image]{
+  position:absolute;inset:0;inline-size:100%;block-size:100%;object-fit:cover;border-radius:inherit;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass{
+  display:grid;gap:.75rem;min-width:0;padding:clamp(.9rem,2vw,1.3rem);
+  border:1px solid rgba(27,48,38,.16);border-radius:1.15rem;
+  background:var(--iberfit-u50-paper);color:var(--iberfit-u50-paper-ink);
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-heading{
+  display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.25rem 1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-heading strong{
+  color:var(--iberfit-u50-paper-ink);
+  font:650 clamp(1.2rem,2.1vw,1.55rem)/1.2 var(--iberfit-font-family-editorial,'Source Serif 4 Variable',Georgia,serif);
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-heading small{
+  color:var(--iberfit-u50-paper-muted);font-size:.85rem;line-height:1.45;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button{
+  display:flex;align-items:center;gap:clamp(.5rem,1.5vw,.9rem);min-width:0;min-height:64px;
+  padding:.72rem .8rem;border:1px solid rgba(27,48,38,.15);border-radius:.85rem;
+  background:#F8F4EC;color:var(--iberfit-u50-paper-ink);
+  font:inherit;text-align:start;cursor:pointer;touch-action:manipulation;
+  transition:background-color 160ms ease,border-color 160ms ease,transform 160ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-icon{
+  flex:0 0 auto;inline-size:24px;block-size:24px;color:#6B5026;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button span{display:grid;min-width:0;gap:.2rem}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button strong{
+  color:var(--iberfit-u50-paper-ink);font-size:clamp(.92rem,1.25vw,1.05rem);font-weight:740;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button small{
+  color:var(--iberfit-u50-paper-muted);font-size:.79rem;line-height:1.36;overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button:hover{
+  background:#E2D8C7;border-color:#93734A;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button:active{transform:scale(.985)}
+.m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button:focus-visible{
+  outline:3px solid #77531F;outline-offset:2px;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick,
+.m26-shell[data-m26-role="admin"] .m30-admin-command-route>.m26-admin-stats{
+  padding:.5rem;border:1px solid rgba(27,48,38,.16);border-radius:1rem;background:var(--iberfit-u50-paper);
+}
+.m26-shell[data-m26-role="admin"] .m30-admin-command-route .m26-admin-stat strong,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-glance strong,
+.m26-shell[data-m26-role="client"] .m26-client-progress-route :is(.m26-stat strong,.m26-exercise-progress-current){
+  font-variant-numeric:tabular-nums;letter-spacing:-.025em;
+}
+.m26-shell[data-m26-role="client"] .m26-client-progress-route :is(.m26-progress-overview,.m26-exercise-progress-panel){
+  border-inline-start:3px solid var(--iberfit-u50-gold);
+}
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button{
+    flex-direction:column;align-items:flex-start;min-height:92px;
+  }
+}
+@media(max-width:360px){
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button{
+    flex-direction:row;min-height:48px;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-avatar{inline-size:48px;block-size:48px}
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button{transition:none}
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button:active{transform:none}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass,
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button{
+    background:Canvas;color:CanvasText;border-color:CanvasText;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass :is(strong,small),
+  .m26-shell[data-m26-role="client"] .m26-client-home-compass-icon{color:CanvasText}
 }
 
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.

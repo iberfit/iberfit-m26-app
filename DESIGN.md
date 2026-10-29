@@ -214,3 +214,12 @@ premium-v4, ni añadir `!important` como estrategia de convergencia.
 Los estados `ready/published/paused` de sesiones son de presentación y nunca
 autorizan por sí mismos `start-published-session`.
 
+
+## SIGNATURE U50 · Dirección visual aprobada (29-10-2026)
+
+- El isotipo **oficial** IBERFIT es el único arte ambiental en las superficies autenticadas: baja opacidad, sin recolor, sin montañas, paisajes, bosques ni retratos decorativos.
+- Fotos de usuarios: mostrar exclusivamente las imágenes subidas con el controlador privado M42; inicial cuando no haya imagen autorizada. No inventar perfiles ni reemplazar avatares.
+- Canvas verde profundo y superficies crema/warm gray selectivas, texto de alto contraste, dorado reservado a jerarquía y marca. Estética editorial deportiva, no SaaS ni landing fotográfica.
+- Cliente: Entreno, Evolución y Bienestar como accesos a rutas reales, sin simular sesión lista ni métricas. Preservar IRI de inicio separado del seguimiento longitudinal.
+- Coach: prioridad real de sesión/ejecución, decisión rápida y datos de carga; Admin: operación, trazabilidad, tablas legibles. Cada rol conserva densidad propia.
+- Microinteracciones discretas, 44px+ touch, foco visible, soporte reduced motion y forced colors. No introducir imágenes externas ni efectos que eleven el coste de render.
