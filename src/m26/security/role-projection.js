@@ -184,7 +184,28 @@ function projectGeneric(key,record){
   }
   return out;
 }
-function projectRecordForClient(key,record){return PUBLICATION_SCOPED.has(key)?projectPublication(key,record):projectGeneric(key,record);}
+function projectRecordForClient(key,record){
+  const projected=PUBLICATION_SCOPED.has(key)?projectPublication(key,record):projectGeneric(key,record);
+  // RLS-owned canonical execution metadata is needed to prove that a
+  // published prescription already has EXACTLY one active remote execution.
+  // Keep only checked opaque references, not body/results/Coach notes.
+  if(key==='m26Entities'&&record?.entityType==='session_execution'){
+    const body=bodyOf(record);
+    const id=String(record.entityId||'').trim();
+    const client=String(record.clientId||'').trim();
+    const session=String(body.sessionId||'').trim();
+    const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+    const revision=Number(record.revision);
+    if(uuid.test(id)&&uuid.test(client)&&uuid.test(session)&&
+       String(body.id||'')===id&&String(body.clientId||'')===client&&
+       Number.isSafeInteger(revision)&&revision>=0&&Number(body.revision)===revision&&
+       ['activa','en_curso','active'].includes(String(record.status||'').toLowerCase())){
+      projected.entityId=id;
+      projected.sessionId=session;
+    }
+  }
+  return projected;
+}
 function assertNoSensitiveKeys(value,path='root',depth=0){
   if(value===null||value===undefined||typeof value!=='object')return true;if(depth>MAX_NESTED_DEPTH)throw new Error(`M26_CLIENT_NESTED_DEPTH_EXCEEDED:${path}`);
   for(const [key,child] of Object.entries(value)){
