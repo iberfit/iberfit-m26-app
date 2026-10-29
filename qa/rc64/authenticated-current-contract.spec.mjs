@@ -131,21 +131,43 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
   await expect(visibleNavigationTarget,'Authenticated workspace must expose a visible enabled navigation target').toBeVisible({timeout:5_000});
   const targetArea=await visibleNavigationTarget.getAttribute('data-m26-area');
   expect(targetArea).toBeTruthy();
+  // On CPU-throttled mobile/tablet, Playwright locator.click can report
+  // TIMEOUT waiting for a scheduled navigation even though the real tap
+  // reached the app. Verify the USER-VISIBLE route within the original 5s
+  // budget instead of measuring Playwright's unrelated navigation waiter.
+  // These are genuine pointer events, NOT DOM-dispatched synthetic clicks.
   const navigationClickStart=Date.now();
+  const activeNavigation=page.locator(
+    `.m26-client-bottom-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`,
+  ).first();
+  let inputMode='mouse';
   try{
-    await visibleNavigationTarget.click({timeout:5_000});
+    await visibleNavigationTarget.scrollIntoViewIfNeeded({timeout:5_000});
+    const rect=await visibleNavigationTarget.boundingBox();
+    expect(rect,'The real visible navigation target must have physical hit area').toBeTruthy();
+    expect(rect.width,'A touch target must have positive physical width').toBeGreaterThan(0);
+    expect(rect.height,'A touch target must have positive physical height').toBeGreaterThan(0);
+    const x=rect.x+rect.width/2,y=rect.y+rect.height/2;
+    const hasTouch=await page.evaluate(()=>navigator.maxTouchPoints>0);
+    inputMode=hasTouch?'touch':'mouse';
+    if(hasTouch)await page.touchscreen.tap(x,y);
+    else await page.mouse.click(x,y);
+    await expect(activeNavigation,'The real pointer action must activate the requested route')
+      .toBeVisible({timeout:Math.max(100,5_000-(Date.now()-navigationClickStart))});
+    expect(Date.now()-navigationClickStart,
+      'Client navigation must become visible within the ORIGINAL 5s SLA')
+      .toBeLessThanOrEqual(5_000);
   }catch(error){
     console.error('RC64_CLIENT_NAV_CLICK_FAILURE:'+JSON.stringify({
-      project:projectName,area:targetArea,elapsedMs:Date.now()-navigationClickStart,
+      project:projectName,area:targetArea,inputMode,
+      elapsedMs:Date.now()-navigationClickStart,
     }));
     throw error;
   }
   console.log('RC64_CLIENT_NAV_CLICK_LATENCY:'+JSON.stringify({
-    project:projectName,area:targetArea,elapsedMs:Date.now()-navigationClickStart,
+    project:projectName,area:targetArea,inputMode,
+    elapsedMs:Date.now()-navigationClickStart,
   }));
-  await expect(
-    page.locator(`.m26-client-bottom-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
-  ).toBeVisible({timeout:5_000});
 
   const settingsSummary=page.locator('details.m26-settings-menu > summary').first();
   const settingsSummaryVisible=await settingsSummary.count()&&await settingsSummary.isVisible().catch(()=>false);

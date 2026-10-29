@@ -38,3 +38,13 @@ test('readback locks exact U47 completed client, legacy projection, and prevents
  'data-workflow-action="start-published-session"'])
    assert.ok(proof.includes(key),key);
 });
+
+test('Device gate uses genuine pointer actions and preserves original five-second navigation SLA',()=>{
+ const device=readFileSync('qa/rc64/authenticated-current-contract.spec.mjs','utf8');
+ assert.match(device,/await page\.touchscreen\.tap\(x,y\)/u);
+ assert.match(device,/await page\.mouse\.click\(x,y\)/u);
+ assert.match(device,/navigator\.maxTouchPoints>0/u);
+ assert.match(device,/toBeLessThanOrEqual\(5_000\)/u);
+ assert.match(device,/await expect\(activeNavigation/u);
+ assert.doesNotMatch(device,/visibleNavigationTarget\.click\(\{timeout:5_000\}\)/u);
+});
