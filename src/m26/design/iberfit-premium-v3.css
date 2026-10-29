@@ -1996,6 +1996,19 @@
   outline:3px solid #D8BA7E;outline-offset:2px;
 }
 
+
+/* U52: plan identifiers remain accessible in DOM, not dominant in visual rhythm. */
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    overflow-wrap:anywhere;
+    max-height:2.45em;
+  }
+}
+
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
  * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
  * distinct forest/cream hero. This is strictly presentational, scoped to the
