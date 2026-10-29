@@ -88,12 +88,26 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
           }catch{return []}
         }).slice(-30),
         diagnostics:Array.isArray(stages.diagnostics)?stages.diagnostics.slice(-12):[],
+        shellRouteTimings:Array.isArray(stages.shellRouteTimings)?stages.shellRouteTimings.slice(-15):[],
+        lastRecoverableFailure:stages.lastRecoverableFailure||null,
       };
     }).catch(()=>({unavailable:true}));
     console.error('RC64_CLIENT_SHELL_BOOTSTRAP_DIAGNOSTIC:'+JSON.stringify({...diagnostic,networkRpcTimings:rpcTimings.slice(-24)}));
     throw error;
   }
-  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  try{
+    await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>{
+      const q=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__||{};
+      return {interactiveReady:Boolean(document.querySelector('[data-m26-interactive="ready"]')),
+        shellRouteTimings:Array.isArray(q.shellRouteTimings)?q.shellRouteTimings.slice(-15):[],
+        lastRecoverableFailure:q.lastRecoverableFailure||null,
+        diagnostics:Array.isArray(q.diagnostics)?q.diagnostics.slice(-8):[]};
+    }).catch(()=>({unavailable:true}));
+    console.error('RC64_CLIENT_INTERACTIVE_DIAGNOSTIC:'+JSON.stringify(diagnostic));
+    throw error;
+  }
   // Always preserve coarse stage latency in CI, including passing runs.
   // This detects slow-but-eventually-successful loading without weakening
   // the 10-second shell assertion or exposing account/request details.
