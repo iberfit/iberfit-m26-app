@@ -68,6 +68,32 @@ test('tampered reference fails closed across owners, environments and revisions'
   assert.throws(()=>expandQaCanonicalExecutionSummaries(compact),/U48_QA_CANONICAL_SUMMARY_/);
  }
 });
+test('actual hydratePass environment object preserves exact QA Coach reconstruction and CAS',()=>{
+ const source=fixture();
+ const compact=compactQaCanonicalExecutionSummaries(source);
+ const enriched={...compact,environment:{mode:'QA',commandRegistry:[],rc39:{},backendV43:{}},
+  user:{...compact.user,authorizedRoles:['coach'],roleChoiceConfirmed:true}};
+ assert.deepEqual(expandQaCanonicalExecutionSummaries(enriched).data.sessionExecutions,
+  source.data.sessionExecutions);
+ const vm=stateFromBootstrap(enriched);
+ const execution=vm.collections.sessionExecutions.find(e=>e.id===ID);
+ assert.deepEqual(execution.body,source.data.sessionExecutions[0].summary);
+ assert.equal(vm.remoteRevisions['session_execution:'+ID],2);
+});
+test('object-shaped unauthorized environments fail closed despite valid reference',()=>{
+ for(const modify of [
+  s=>{s.environment={mode:'PROD'};},
+  s=>{s.environment={mode:'SYNTHETIC_ONLY'};},
+  s=>{s.environment={name:'QA'};},
+  s=>{s.environment={mode:'QA'};s.canary.scope='public';},
+  s=>{s.environment={mode:'QA'};s.user.role='client';},
+ ]){
+  const compact=compactQaCanonicalExecutionSummaries(fixture());
+  modify(compact);
+  assert.throws(()=>expandQaCanonicalExecutionSummaries(compact),
+   /U48_QA_CANONICAL_SUMMARY_REF_INVALID/);
+ }
+});
 test('no QA-specific compression in PROD or Client',()=>{
  for(const change of [
   x=>{x.environment='PROD';x.canary.active=false;},
