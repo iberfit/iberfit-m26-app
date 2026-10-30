@@ -2215,6 +2215,297 @@
  }
 }
 
+
+/* SIGNATURE U55 · Elevated athletic depth — real role layouts only.
+ * Deep forest canvas, copper/gold glints, clear data hierarchy. No fake
+ * imagery, neon, excessive gradients, blurred overlays or new functions.
+ * The role-specific markup and canonical M41/B6 contracts remain intact.
+ */
+.m26-shell[data-m26-role] .m26-workspace{
+  --u55-edge:rgba(218,194,142,.32);
+  --u55-raised:#1C392B;
+  --u55-matte:#10271E;
+  --u55-champagne:#E1C48A;
+  --u55-deep:#0A1C15;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage{
+  position:relative;isolation:isolate;
+  border-radius:1.35rem;
+  border:1px solid var(--u55-edge);
+  background:var(--u55-deep);
+  box-shadow:0 3px 0 rgba(255,255,255,.024) inset,0 17px 36px rgba(0,13,9,.19);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-feature{
+  min-width:0;overflow:hidden;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-hero{
+  position:relative;
+  padding:clamp(.95rem,2.1vw,1.35rem) clamp(1.05rem,2.1vw,1.5rem);
+  background:
+    radial-gradient(circle at 95% -40%,rgba(208,174,105,.12),transparent 56%),
+    linear-gradient(142deg,#214532,#10291F 78%);
+  border-bottom:1px solid rgba(218,194,142,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting{
+  gap:.38rem;align-content:center;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+  font:560 clamp(1.85rem,4vw,2.8rem)/1.08 var(--iberfit-font-family-editorial,'Source Serif 4 Variable',Georgia,serif);
+  color:#F2E5D1;max-width:28ch;
+  letter-spacing:-.043em;text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-kicker{
+  color:#E1C58C;font-size:.7rem;font-weight:780;letter-spacing:.13em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-avatar{
+  align-self:start;
+  border:2px solid #E2C891;
+  background:#EDE5D5;
+  box-shadow:0 0 0 4px rgba(12,31,22,.85),0 3px 12px rgba(0,0,0,.19);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone{
+  padding:.75rem clamp(.9rem,2vw,1.25rem);
+  background:#153225;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary{
+  min-height:76px;display:grid;grid-template-columns:auto minmax(0,1fr);
+  gap:.25rem .8rem;align-items:center;
+  padding:.7rem .9rem;
+  border:1px solid #F4DEB4;
+  border-radius:1rem;
+  background:linear-gradient(125deg,#E7C98B,#D2B275 85%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 7px 19px rgba(0,0,0,.21);
+  color:#193025;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary :is(strong,small){
+  color:#172D23;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary strong{
+  font-weight:790;font-size:clamp(1rem,2vw,1.17rem);letter-spacing:-.02em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary small{
+  line-height:1.28;font-size:.79rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary>span{
+  inline-size:44px;block-size:44px;min-width:44px;min-height:44px;
+  background:#15382A;color:#F4DDA7;
+  border:1px solid rgba(17,43,31,.25);
+  border-radius:.88rem;
+  font-weight:800;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass{
+  background:#10271D;
+  padding:.6rem .78rem .67rem;
+  gap:.25rem;
+  border-top:1px solid rgba(217,187,125,.2);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-heading{
+  padding:.14rem .25rem .1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-heading strong{
+  color:#E3C895;font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions{
+  gap:.3rem;grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+  min-width:0;min-height:90px;gap:.24rem;
+  padding:.45rem .28rem;
+  background:#173528;border:1px solid rgba(212,183,119,.16);
+  border-radius:.76rem;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  color:#F0E6D4;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button+button{
+  border-left:1px solid rgba(212,183,119,.16);
+  border-radius:.76rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-atlas-client-icon{
+  inline-size:37px;block-size:37px;
+  background:#203D2E;border:1px solid rgba(215,182,112,.36);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button strong{
+  font-size:.84rem;letter-spacing:-.013em;color:#F2E7D6;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button small{
+  color:#C5CFC2;font-size:.69rem;line-height:1.24;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button:hover{
+  border-color:rgba(229,200,139,.51);background:#234A37;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
+  border-color:rgba(217,190,129,.29);
+  background:linear-gradient(145deg,#152D23,#0D2119 72%);
+  box-shadow:0 12px 31px rgba(0,13,9,.17),inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
+  color:#F7EBDA;letter-spacing:-.047em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+  font-size:clamp(2.25rem,5.2vw,3.1rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+  border-color:rgba(214,190,137,.22);
+  background:#1C372A;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+  border:1px solid rgba(219,193,141,.35);
+  border-radius:1.25rem;
+  background:
+    radial-gradient(circle at 100% -20%,rgba(216,192,138,.12),transparent 58%),
+    #193729;
+  box-shadow:0 14px 34px rgba(1,15,8,.17),inset 0 1px 0 rgba(255,255,255,.045);
+  gap:.65rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy h2{
+  color:#F6E9D7;font-weight:610;
+  font-size:clamp(1.85rem,3vw,2.55rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy>p:not(.m26-eyebrow){
+  color:#D4DDCF;line-height:1.42;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-actions .m26-primary-action{
+  min-height:48px;border:1px solid #EBCF94;border-radius:.72rem;
+  background:#D9B879;color:#183024;font-weight:770;
+  box-shadow:0 6px 15px rgba(0,0,0,.14);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance{
+  display:grid;align-items:center;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:0;padding:.25rem;
+  border:1px solid rgba(210,188,139,.22);
+  border-radius:.85rem;
+  background:#E9E2D3;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span{
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:flex-start;
+  gap:.25rem;min-width:0;min-height:78px;
+  padding:.6rem;
+  background:transparent;border:0;border-inline-end:1px solid rgba(27,53,39,.16);
+  color:#47574D;line-height:1.26;font-size:.73rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span:last-child{
+  border:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span strong{
+  color:#183729;font-variant-numeric:tabular-nums;
+  font-size:clamp(.91rem,2vw,1.3rem);line-height:1.15;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-attention-meter progress{
+  width:100%;height:5px;max-width:100%;
+  accent-color:#6C7855;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  background:#11281D;border-color:rgba(220,191,130,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+  border-color:rgba(211,182,118,.24);
+  background:#1B3B2B;color:#F2E6D1;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:hover{
+  border-color:#D6BA80;background:#26513C;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.45rem;padding:.45rem;
+  border:1px solid rgba(216,192,138,.24);border-radius:1.05rem;
+  background:#142D21;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat{
+  min-height:85px;padding:.75rem;border-radius:.7rem;
+  border:1px solid rgba(216,192,138,.18);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat strong{
+  font-size:clamp(1.55rem,2.5vw,2rem);
+  letter-spacing:-.055em;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card{
+  border:1px solid rgba(213,190,140,.25);
+  border-radius:.9rem;
+  background:#1B3427;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary{
+  min-height:65px;gap:.45rem .7rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary-identity strong{
+  color:#F2E9D9;font-size:.96rem;line-height:1.25;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary:focus-visible{
+  outline:3px solid #EBCF94;outline-offset:-2px;
+}
+@media(max-width:960px){
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-hero{
+    padding:.9rem 1rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+    font-size:clamp(1.85rem,7.5vw,2.25rem);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone{
+    padding:.65rem .8rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass{
+    padding:.5rem .65rem .6rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+    min-height:86px;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button small{
+    font-size:.66rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+    padding:1rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span{
+    min-height:74px;padding:.45rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span strong{
+    font-size:.92rem;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    padding:.35rem;
+  }
+}
+@media(max-width:350px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+    min-height:78px;padding:.4rem .15rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span{
+    min-height:48px;border-inline-end:0;border-block-end:1px solid rgba(27,53,39,.16);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+    transition:none;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary,
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card{
+    background:Canvas;color:CanvasText;border-color:CanvasText;box-shadow:none;
+  }
+}
+
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
  * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
  * distinct forest/cream hero. This is strictly presentational, scoped to the

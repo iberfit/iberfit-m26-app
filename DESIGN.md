@@ -231,3 +231,12 @@ autorizan por sí mismos `start-published-session`.
 - Coach: preservar la guía funcional de puesta en marcha, reducir ruido y destacar cliente, próxima decisión, agenda y carga. Admin: compactar directorio sin esconder controles de permisos y mostrar únicamente barras de capacidad respaldadas por carga registrada.
 - Se reutilizan el isotipo oficial y el controlador de avatares privados M42. No se añaden assets ficticios, imágenes ambientales de personas ni paisajes.
 - 320px/móvil/tablet/escritorio, foco, touch, safe areas, accesibilidad, WebAuthn, PWA y tests de sesiones determinan la certificación.
+
+## U55 · Piloto Depth Athletic, sistema de producto (30-10-2026)
+
+- Profundidad no equivale a añadir sombras indiscriminadamente: se consigue mediante jerarquía de plano, contraste editorial y una sola dirección de luz suave, reservada a superficies principales; bordes y sombras están subordinados a la legibilidad.
+- Cliente: mayor espacio para próxima acción y datos auténticos, minimizando bienestar duplicado y tarjetas de explicación.
+- Coach: área de prioridad con decisiones visibles y resumen de cartera en franja estrecha, sin retirar el recorrido de activación ni acciones de sesión.
+- Admin: estadísticas verificadas y directorio centrado en jerarquía de identidades/roles, sin sacrificar los campos de auditoría.
+- Móvil 320–390px, tablet y escritorio; SVG vectorial y captura dPR 2/3 cuando haya evidencia; foco contrastado, forced-colors y reduced-motion.
+- La referencia visual aprobada es una exigencia de calidad de producto, no garantía de que el piloto esté terminado; no extender a todas las rutas sin aprobación real del usuario.

@@ -1,3 +1,13 @@
+## SIGNATURE U55 · Piloto de profundidad atlética, no publicado
+
+- Cambio visual en revisión: Cliente Hoy, Coach Hoy y directorio Admin; partiendo de las **capturas reales** del U54, que aún tienen excesiva altura, superficies planas y escasa jerarquía.
+- Dirección: superficies forest mates con diferenciación de planos, un único toque radial de iluminación ambiental de marca, control de sombras, borde oro y tipografía con contraste. Avatar: exclusivamente recurso privado real del usuario. Sin fotos decorativas.
+- El resumen Coach se hace compacto y proporcional, con accesos táctiles preservados. El directorio Admin sigue presentando datos reales y los detalles de permiso/auditoría quedan accesibles. Cliente conserva todas las rutas y el CTA autorizado.
+- Los gráficos son SVG y datos comparables confirmados: **no** fusionar IRI inicial con evolución ni inventar métricas.
+- Pilotaje exclusivo U55 en PR #1200. **No fusionar ni desplegar a Canary/PROD** mientras el Device Experience Gate / política Canary y evidencia visual de código SHA exacto no estén verdes. La aprobación visual del usuario determina el alcance posterior, no CI por sí sola.
+
+---
+
 ## SIGNATURE U51 · Producto visual auténtico · candidato (29-10-2026)
 
 - Base confirmada: `2d8eb0403755276932e2f554378ab8d31010faac` (U50 en Canary).
