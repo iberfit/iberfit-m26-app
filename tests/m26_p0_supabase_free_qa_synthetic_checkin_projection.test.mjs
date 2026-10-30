@@ -8,6 +8,8 @@ const filter="\n      AND NOT (\n        v_role in ('client','cliente')\n       
 test('Only QA may install or revert exact current function',()=>{
  assert.match(a,/IS DISTINCT FROM 'QA'/);assert.match(a,/md5\(pg_get_functiondef/);
  assert.match(b,/IS DISTINCT FROM 'QA'/);
+ assert.ok(a.includes('END; $qa_guard$;'));
+ assert.ok(b.includes('END; $qa_guard$;'));
 });
 test('Authenticated Client synthetic checkins only, QA author and marker both required',()=>{
  assert.ok(fn(a).includes(filter));

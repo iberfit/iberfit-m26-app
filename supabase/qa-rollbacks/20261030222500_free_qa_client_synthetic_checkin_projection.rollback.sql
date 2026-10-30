@@ -5,7 +5,7 @@ BEGIN
  RAISE EXCEPTION 'IBERFIT_FREE_QA_ONLY' USING ERRCODE='42501'; END IF;
  IF position('IBERFIT QA write certification %' in pg_get_functiondef('public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure))=0 THEN
  RAISE EXCEPTION 'IBERFIT_FREE_SOURCE_DRIFT' USING ERRCODE='42501'; END IF;
-END $qa_guard$;
+END; $qa_guard$;
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_pre_v65e()
  RETURNS jsonb
  LANGUAGE plpgsql
