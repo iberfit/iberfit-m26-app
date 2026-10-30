@@ -1,3 +1,12 @@
+## P0 #1209 · QA egress: coalescing de RPC públicos solo en tests de lectura · 30-10-2026
+
+- La fuente de tráfico dominante en QA son los navegadores automáticos de GitHub: 22k+ gateway requests/24h HeadlessChrome. El catálogo público registra 2309 llamadas/24h (2076 headless), perfiles públicos 1176 (1036 headless). NO inferir volumen facturado exacto a partir del contador.
+- Optimización aditiva sobre PR #1210: respuestas **reales** del catálogo y perfiles públicos de Supabase se reutilizan durante 120 s entre páginas/contexts del **mismo worker de QA read-only**, por origin+RPC+parámetros. Primer request SIEMPRE contra backend real; distinto offset/param recibe su propia respuesta. Exclusivamente apikey pública `Bearer apikey`; jamás sesión de usuario/JWT, bootstrap, datos privados o mutaciones. Suites con escrituras sintéticas tienen el memo desactivado. No altera el funcionamiento en Cliente/Coach/Admin/PROD; no desactiva QA.
+- Errores, 401/403, cargas grandes/no-JSON no se cachean; límite 1 MB/16 entradas, sin credenciales en el cache key; expiración + dedupe in-flight; pruebas unitarias específicas.
+- **Candidato, NO MERGE ni despliegue hasta gates exact SHA verdes.** Device Gate 5s táctil rojo en PR precedente: bloquear release y corregir aparte sin elevar SLA. Cuantificar resultado real en Dashboard (GB por org y servicio) tras promoción futura.
+
+---
+
 ## P0 #1209 · Bootstrap egress - candidata conservadora · 30-10-2026
 
 - Diagnóstico real: candidato cfd731dfe5ef5e266c97fc86113651b875853eed falló pruebas de navegador/Cliente/Coach/Admin por un render diferido que permitía reemplazar rutas después del clic; **revertido ANTES del merge**. No alterar el shell de navegación.
