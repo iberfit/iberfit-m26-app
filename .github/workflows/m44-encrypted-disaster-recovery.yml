@@ -1,5 +1,9 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# SIGNATURE 2026-10-30 PROD parity: refresh independent encrypted PROD DB + Storage
+# and prove isolated PG17 restore before certified Canary-to-production promotion.
+# Trigger-only comment: unchanged job logic, permissions, secrets and guardrails.
+
 # SIGNATURE U45 2026-10-28: production rollout requires fresh <=2h encrypted
 # PROD DB+Storage recovery, isolated PG17 restore and Storage byte integrity.
 # This comment-only, protected Canary push renews evidence; no job logic,
