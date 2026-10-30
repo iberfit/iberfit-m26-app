@@ -168,7 +168,6 @@ const QA_PUBLIC_READ_RPCS=new Set([
 const QA_PUBLIC_TTL_MS=120_000;
 const QA_PUBLIC_MAX_BYTES=1_000_000;
 const QA_PUBLIC_MAX_ENTRIES=16;
-const qaNoSyntheticWrites=()=>false;
 
 function isAnonPublishableKey(value){
   const key=String(value||'').trim();
@@ -255,7 +254,10 @@ export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
 }
 const qaPublicRpcMemo=createQaPublicRpcMemo();
 
-export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{},allowQaSyntheticWrite=qaNoSyntheticWrites}){
+export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{},allowQaSyntheticWrite=()=>false}){
+  // A caller that explicitly supplies a synthetic-write policy is never memoized.
+  // Preserve the exact canonical default write-denial contract and its tests.
+  const readOnlyContext=!Object.prototype.hasOwnProperty.call(arguments[1]||{},'allowQaSyntheticWrite');
   const safeReadOnlyRpcs=readOnlyRpcs instanceof Set?readOnlyRpcs:new Set(readOnlyRpcs||[]);
   await context.route('**/*',async(route)=>{
     const request=route.request();
@@ -273,8 +275,7 @@ export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,
       onQaRequest(qaRequestLabel(request));
       // Read-only suites share ONLY anonymous/public catalogue bytes. Synthetic
       // write suites, private reads and all authorization checks bypass memo.
-      if(allowQaSyntheticWrite===qaNoSyntheticWrites
-        &&await qaPublicRpcMemo.serve(route,request,url))return;
+      if(readOnlyContext&&await qaPublicRpcMemo.serve(route,request,url))return;
       await route.continue();
       return;
     }
