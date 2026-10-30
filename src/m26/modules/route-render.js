@@ -19,6 +19,7 @@ import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
 import {renderIberfitIcon} from '../design/icons.js';
 import {renderAthleticClientEvidence} from '../design/athletic-client-evidence.js';
+import {renderPosthogConsentPanel} from '../analytics/posthog-manual.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -4734,6 +4735,7 @@ export function renderSettingsRoute(vm){
         <a href="#m26-settings-experience">Experiencia</a>
         <a href="#m26-settings-notifications">Avisos</a>
         <a href="#m26-settings-privacy">Privacidad y datos</a>
+        <a href="#m26-settings-analytics">Analítica opcional</a>
         ${vm.role==='client'?'<a href="#m26-settings-devices">Dispositivos y salud</a>':''}
         <a href="#m26-settings-account">Cuenta y acceso</a>
       </nav>
@@ -4843,6 +4845,8 @@ export function renderSettingsRoute(vm){
             </div>
           </div>
         </section>
+
+        ${renderPosthogConsentPanel()}
 
         <section class="m26-settings-section m26-settings-account" id="m26-settings-account" data-settings-card="account">
           <header>

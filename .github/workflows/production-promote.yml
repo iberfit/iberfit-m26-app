@@ -239,6 +239,9 @@ jobs:
           NODE
 
       - name: Generate deterministic production runtime
+        env:
+          M26_POSTHOG_PUBLIC_KEY: ${{ vars.IBERFIT_POSTHOG_PROJECT_KEY }}
+          M26_POSTHOG_HOST: ${{ vars.IBERFIT_POSTHOG_API_HOST }}
         shell: bash
         run: |
           set -euo pipefail

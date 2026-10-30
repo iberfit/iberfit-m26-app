@@ -53,6 +53,16 @@ if(key.split('.').length===3){
   }
 }
 
+// The project token is public but must be supplied by a GitHub Actions variable.
+// If not configured, analytics is entirely disabled; no implicit fallbacks.
+const posthogToken=String(process.env.M26_POSTHOG_PUBLIC_KEY||'').trim();
+const posthogHost=String(process.env.M26_POSTHOG_HOST||'').trim();
+if(Boolean(posthogToken)!==Boolean(posthogHost))throw new Error('FINAL_PROD_POSTHOG_CONFIG_INCOMPLETE');
+if(posthogToken&&!/^phc_[A-Za-z0-9]{20,180}$/u.test(posthogToken))throw new Error('FINAL_PROD_POSTHOG_PUBLIC_KEY_INVALID');
+if(posthogHost&&!['https://us.i.posthog.com','https://eu.i.posthog.com'].includes(posthogHost))
+  throw new Error('FINAL_PROD_POSTHOG_HOST_FORBIDDEN');
+const posthogEnabled=Boolean(posthogToken&&posthogHost);
+
 const buildDir=path.resolve(process.env.M26_BUILD_DIR||path.join('.tmp','rc64-current-surface'));
 const m26Dir=path.join(buildDir,'m26');
 const target=path.join(m26Dir,'runtime-config.js');
@@ -91,6 +101,8 @@ for(const directive of [
 }
 
 const config={
+  production:true,
+  analytics:posthogEnabled?{enabled:true,provider:'posthog',publicKey:posthogToken,host:posthogHost}:{enabled:false},
   enabled:true,
   version:VERSION,
   projectRef:M26_PRODUCTION_PROJECT_REF,
@@ -131,6 +143,12 @@ function iberfitReleaseGuard(runtime){
   })();
 }
 
+if(posthogEnabled){
+  // Static CSP remains fail-closed unless the configured project is actually enabled.
+  const expected="connect-src 'self' "+M26_PRODUCTION_SUPABASE_ORIGIN+";";
+  if(headers.split(expected).length!==2)throw new Error('FINAL_PROD_POSTHOG_CSP_BASE_DRIFT');
+  headers=headers.replace(expected,"connect-src 'self' "+M26_PRODUCTION_SUPABASE_ORIGIN+" "+posthogHost+";");
+}
 const runtimeSource=`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(config,null,2)});\n`;
 const releaseGuard=`\n;(${iberfitReleaseGuard.toString()})(window.__IBERFIT_M26_RUNTIME__);\n`;
 fs.writeFileSync(target,runtimeSource+releaseGuard,'utf8');

@@ -28,6 +28,7 @@ import {recordsForClient} from '../modules/domain-selectors.js';
 import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-channel.js';
 import {createVerificationController,refreshVerificationState} from '../engagement/conflict-center.js';
 import {createShellController} from '../shell/shell-controller.js';
+import {createIberfitPosthogObserver} from '../analytics/posthog-manual.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
 import {createClientAvatarController} from '../profile/client-avatar.js';
 import {createWorkspaceEntryGate} from './workspace-entry-gate.js';
@@ -515,6 +516,11 @@ export function preserveLoginInputsDuringMount(root,render){
 export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
+  const posthogObserver=createIberfitPosthogObserver({
+    root,config:runtimeConfig?.analytics||{},
+    production:runtimeConfig?.production===true,qaOnly:runtime.qaOnly,
+    releaseSha:runtimeConfig?.sourceSha||'',
+  });
   const rc39Transport=runtime.enabled?createRc39Transport({runtime}):null;
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
@@ -2498,6 +2504,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Promise.resolve(false);
 }
   function destroy() {
+  posthogObserver.destroy();
   hydrationCoordinator.cancel();
   invalidateAuthAttempt();
   loginBusy=false;
