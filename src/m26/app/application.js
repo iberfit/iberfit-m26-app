@@ -733,7 +733,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     // Catalog and media have no data dependency. Start media while the remote
     // catalog pages load; retain the existing nullable/offline fallback.
     const mediaPending=mediaMap?null:loadExerciseMediaMap().catch(()=>null);
-    if(!catalog)catalog=await loadExerciseCatalog('/baseline_m25_2/exercise-catalog-m25.json');
+    if(!catalog)catalog=await loadExerciseCatalog('/baseline_m25_2/exercise-catalog-m25.json',{forceRemoteRefresh:force});
     qaStage('rc64-catalog-base-ready');
     if(!mediaMap)mediaMap=await mediaPending;
     qaStage('rc64-catalog-media-ready');

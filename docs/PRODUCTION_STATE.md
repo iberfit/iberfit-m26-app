@@ -1,3 +1,13 @@
+## P1 · Reducción conservadora Egress Supabase QA · CANDIDATO · 30-10-2026
+
+- Evidencia: organización Free con 6,96/5 GB Egress; QA registra ~28k solicitudes gateway/24h, ~22k desde HeadlessChrome. No confundir solicitudes con bytes por servicio.
+- Alcance: cachear durante 120 s únicamente catálogo público y perfiles públicos, aislados por origen/versión/pestaña; presupuesto 1,8M caracteres; forzar revalidación para edición del catálogo.
+- Nunca cachear bootstrap privado, identidad, JWT, RLS, MFA/WebAuthn, sesión ni contenido de clientes. QA y producción aislados.
+- Candidato basado en Canary 243627058fe58367726c62637613517188617471. NO desplegado. Exige CI/QA, revisión de seguridad, Canary exacto, comparación de Egress por servicio y rollback antes de promoción PROD.
+- No se elimina ni reduce ningún gate y no se borran evidencias ni datos de QA. La mitigación de catálogo es parcial; evaluar otras rutas si Egress sigue alto.
+
+---
+
 ## SIGNATURE P2 · PostHog opt-in anonymous analytics · WIP · 30-10-2026
 
 - Base certificada de Canary y Producción: `2d672f0aa06d451c6e91271da12428c79a8e0d1c` (U51–U56). PR #1200 cerrado y publicación SUCCESS; párrafos WIP antiguos conservados únicamente como historial.
