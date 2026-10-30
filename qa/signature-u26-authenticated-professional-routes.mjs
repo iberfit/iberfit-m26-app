@@ -48,8 +48,31 @@ async function navigateViaActualControl(page,role,area){
     return false; // Feature-gated or not exposed: remains explicitly unverified.
   }
   await expect(choice,'U26 navigation control '+role+'/'+area).toBeVisible();
-  await choice.click();
-  await expect.poll(()=>activeArea(page),{message:'U26 route transition '+role+'/'+area,timeout:12000}).toBe(area);
+  // Playwright locator.click() can wait on a completely unrelated navigation
+  // watchdog even after this SPA route has already committed. Use actual,
+  // trusted physical pointer input, then assert the app's route truth.
+  // All U26 route/content/role/overflow checks below remain mandatory.
+  await choice.scrollIntoViewIfNeeded({timeout:12000});
+  const rect=await choice.boundingBox();
+  expect(rect,'U26 navigation must be a physical hit target '+role+'/'+area).toBeTruthy();
+  expect(rect.width).toBeGreaterThan(0);
+  expect(rect.height).toBeGreaterThan(0);
+  const x=rect.x+rect.width/2,y=rect.y+rect.height/2;
+  const hit=await page.evaluate(({x,y})=>{
+    const node=document.elementFromPoint(x,y);
+    return {
+      area:node?.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area')||'',
+      disabled:Boolean(node?.closest?.('[disabled],[aria-disabled="true"]')),
+      coarse:matchMedia('(pointer:coarse)').matches,
+    };
+  },{x,y});
+  expect(hit.area,'U26 pointer must physically target selected route').toBe(area);
+  expect(hit.disabled,'U26 navigation target must remain enabled').toBe(false);
+  const pointerStart=Date.now();
+  if(hit.coarse)await page.touchscreen.tap(x,y);
+  else await page.mouse.click(x,y);
+  await expect.poll(()=>activeArea(page),{message:'U26 real-pointer route transition '+role+'/'+area,timeout:12000}).toBe(area);
+  console.log('SIGNATURE_U26_REAL_POINTER_ROUTE '+role+'/'+area+' '+(Date.now()-pointerStart)+'ms');
   await closeMore(page);
   return true;
 }

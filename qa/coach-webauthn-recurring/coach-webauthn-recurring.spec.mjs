@@ -353,7 +353,11 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       ?'QA U56 · Coach UI '+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT
       :'QA U55 · Autoría local sin publicación';
   await builder.locator('[data-session-draft-field="title"]').fill(title);
+  await expect(builder.locator('[data-session-draft-field="title"]'),
+    'Offline Coach title must remain after a genuine input event').toHaveValue(title,{timeout:12000});
   await builder.locator('[data-session-draft-field="deliveryModality"]').selectOption('guiada_en_app');
+  await expect(builder.locator('[data-session-draft-field="title"]'),
+    'Changing delivery must not discard the Coach draft title').toHaveValue(title,{timeout:12000});
   let candidates;
   if(u47){
     await builder.locator('[data-session-search]').fill('carrera');
@@ -396,6 +400,8 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       if(await field('plannedLoad').count())await field('plannedLoad').fill('10 kg');
     }
   }
+  await expect(builder.locator('[data-session-draft-field="title"]'),
+    'Adding/editing exercises must preserve the local Coach title before save').toHaveValue(title,{timeout:12000});
   await builder.locator('[data-session-action="save-draft"]').first().click();
   await expect(builder.locator('.m26-builder-editor')).toHaveCount(expectedBlocks);
   await expect(builder.locator('[data-session-draft-field="title"]')).toHaveValue(title);
