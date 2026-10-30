@@ -41,3 +41,15 @@ test('U59 explicitly covers native Admin routes, hero, tables, capacity and form
  for(const name of ['.m26-admin-route','.m26-admin-hero','.m26-admin-panel','.m26-admin-stats','.m26-admin-table','.m26-admin-form','forced-colors:active','max-width:680px','focus-visible'])assert.ok(native.includes(name),name);
  assert.doesNotMatch(native,/!important|position:fixed|z-index:\s*\d+|@import|display:none|pointer-events:none|url\(/);
 });
+
+test('U60 empty, error, pending and recovery affordances have distinct role-safe visual contracts',()=>{
+ const s=read(),block=s.split('U60 · Role-specific safe empty/error/recovery surfaces.')[1]||'';
+ assert.ok(block.length>2200);
+ for(const needle of [
+  '.m26-empty','.m26-admin-empty','.m26-notice',
+  '.m26-notice.is-danger','.m26-notice.is-warning','.m26-notice.is-success',
+  'data-m26-role="client"','data-m26-role="coach"','data-m26-role="admin"',
+  'min-block-size:44px','focus-visible','forced-colors:active','max-width:370px',
+ ])assert.ok(block.includes(needle),needle);
+ assert.doesNotMatch(block,/!important|position:fixed|pointer-events:none|display:none|visibility:hidden|@import/);
+});
