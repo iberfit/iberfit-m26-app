@@ -349,7 +349,7 @@ function renderCoachHoyRoute(vm) {
   // Client-scoped hero actions are different from global quick destinations.
   const quickActions=[
     {area:'clientes',label:'Clientes',glyph:'users'},
-    {area:'planificacion',label:'Programar entrenamiento',glyph:'dumbbell'},
+    {area:'planificacion',label:'Programar',glyph:'dumbbell'},
     {area:'agenda',label:'Agenda',glyph:'calendar-days'},
   ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
 
@@ -424,7 +424,7 @@ function renderCoachHoyRoute(vm) {
     <!-- m26-coach-launch-self-slot -->
 
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
-      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}"><span class="m26-atlas-coach-icon" aria-hidden="true">${renderIberfitIcon(glyph,{className:'m26-atlas-icon-svg'})}</span><strong>${label}</strong></button>`).join('')}
+      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}" aria-label="${escapeHtml(area==='planificacion'?'Programar entrenamiento':label)}"><span class="m26-atlas-coach-icon" aria-hidden="true">${renderIberfitIcon(glyph,{className:'m26-atlas-icon-svg'})}</span><strong>${label}</strong></button>`).join('')}
     </nav>
 
     <div class="m26-coach-home-grid">

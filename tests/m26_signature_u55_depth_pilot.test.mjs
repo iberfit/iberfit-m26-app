@@ -52,3 +52,16 @@ test('U55 authentic primary actions survive for Coach and Client',()=>{
  assert.ok(coach.includes('m26-coach-launch-self-slot'));
  assert.ok(coach.includes('m26-coach-home-quick'));
 });
+
+test('U55 final QA uses full-width lone Client stat and compact Admin filters',()=>{
+ assert.match(scope,/m26-athletic-facts:has\(>\.m26-athletic-fact:only-child\)/u);
+ assert.match(scope,/m26-athletic-fact:only-child\{/u);
+ assert.match(scope,/m26-admin-user-directory-tools\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/u);
+});
+test('U55 Coach quick actions stay accessible with compact on-screen labels',()=>{
+ const html=renderHoyRoute({role:'coach',clients:[{id:'coach-client',name:'Cliente QA'}],appointments:[],upcoming:[],operations:{},coachCockpit:{totalClients:1,attentionCount:0,items:[]}});
+ assert.ok(html.includes('aria-label="Programar entrenamiento"'));
+ assert.ok(html.includes('<strong>Programar</strong>'));
+ assert.ok(html.includes('data-m26-area="planificacion"'));
+ assert.match(scope,/m26-coach-home-quick button:first-child/u);
+});

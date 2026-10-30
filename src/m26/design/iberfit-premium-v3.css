@@ -2504,6 +2504,73 @@
   }
 }
 
+
+/* U55 compositional QA: no unearned empty stat cell; concise Coach/Admin.
+   These rules use genuine data/controls and preserve native disclosure. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts:has(>.m26-athletic-fact:only-child){
+  grid-template-columns:minmax(0,1fr);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child{
+  display:flex;align-items:center;justify-content:flex-start;
+  gap:clamp(.9rem,3vw,1.4rem);min-width:0;min-height:91px;
+  border:0;padding:.8rem 1.1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child strong{
+  flex:0 0 auto;font-size:clamp(2.8rem,6vw,4rem);
+  letter-spacing:-.06em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child span{
+  max-width:24ch;font-size:.88rem;line-height:1.35;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.42rem;padding:.35rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button,
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:first-child{
+  min-width:0;grid-column:auto;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:.3rem;min-height:83px;padding:.58rem .35rem;text-align:center;
+  border-radius:.78rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button strong{
+  font-size:.78rem;line-height:1.22;text-align:center;overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.65rem;align-items:end;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools>label{
+  display:grid;gap:.3rem;min-width:0;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools .m26-admin-user-search,
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools>label:nth-of-type(4){
+  grid-column:1/-1;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools :is(input,select){
+  width:100%;min-width:0;min-height:48px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-result-count{
+  grid-column:1/-1;
+}
+@media(max-width:350px){
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+   grid-template-columns:repeat(3,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+   min-height:76px;padding:.45rem .2rem;
+ }
+ .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools{
+   gap:.45rem;
+ }
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child,
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+   border:1px solid CanvasText;
+ }
+}
+
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
  * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
  * distinct forest/cream hero. This is strictly presentational, scoped to the
