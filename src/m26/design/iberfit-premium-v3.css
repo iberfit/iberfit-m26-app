@@ -2242,8 +2242,8 @@
   position:relative;
   padding:clamp(.95rem,2.1vw,1.35rem) clamp(1.05rem,2.1vw,1.5rem);
   background:
-    radial-gradient(circle at 95% -40%,rgba(208,174,105,.12),transparent 56%),
-    linear-gradient(142deg,#214532,#10291F 78%);
+    radial-gradient(circle at 95% -40%,rgba(208,174,105,.10),transparent 56%),
+    #17372A;
   border-bottom:1px solid rgba(218,194,142,.14);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting{
@@ -2337,7 +2337,7 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
   border-color:rgba(217,190,129,.29);
-  background:linear-gradient(145deg,#152D23,#0D2119 72%);
+  background:#142B21;
   box-shadow:0 12px 31px rgba(0,13,9,.17),inset 0 1px 0 rgba(255,255,255,.035);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
@@ -2353,9 +2353,7 @@
 .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
   border:1px solid rgba(219,193,141,.35);
   border-radius:1.25rem;
-  background:
-    radial-gradient(circle at 100% -20%,rgba(216,192,138,.12),transparent 58%),
-    #193729;
+  background:#193729;
   box-shadow:0 14px 34px rgba(1,15,8,.17),inset 0 1px 0 rgba(255,255,255,.045);
   gap:.65rem;
 }
