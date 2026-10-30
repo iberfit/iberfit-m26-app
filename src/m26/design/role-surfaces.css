@@ -5035,3 +5035,188 @@ m26-echart[data-density="compact"]{
 @media(prefers-reduced-motion:reduce){
   .m26-shell .m26-session-athlete-motion *{transition:none!important;animation:none!important}
 }
+
+
+
+/* SIGNATURE MASTER VISUAL U59 · Whole-app editorial foundation.
+ * Reuse existing tokens and real components; no new CSS import, script,
+ * overlay, route, state or placeholder metric. Different role densities.
+ * This is a cross-route foundation, not a claim of pixel parity to Stitch. */
+
+/* Shared reading architecture applies to every authenticated route. */
+.m26-shell[data-m26-role] .m26-workspace .m26-route{
+  min-inline-size:0;
+  row-gap:clamp(.8rem,1.5vw,1.4rem);
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route > :is(.m26-route-intro,.m26-panel,.m26-hero-panel,.m26-profile-hero){
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route .m26-route-intro{
+  padding-block:clamp(.45rem,1.2vw,.85rem) clamp(.75rem,1.8vw,1.25rem);
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-color-accent) 21%,transparent);
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route .m26-route-intro :is(h1,h2){
+  text-wrap:balance;
+  overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route .m26-route-intro :is(p,small){
+  max-inline-size:72ch;
+  line-height:1.55;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route .m26-panel-heading{
+  min-inline-size:0;
+  column-gap:clamp(.65rem,1.5vw,1.25rem);
+  row-gap:.45rem;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route .m26-panel-heading h2{
+  line-height:1.22;
+  text-wrap:balance;
+  overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route :is(.m26-eyebrow,.m26-panel-heading .m26-eyebrow){
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.09em;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-route :is(.m26-stat strong,.m26-admin-stat strong,.m26-client-progress-kpi strong,.m26-athletic-evidence strong){
+  font-variant-numeric:tabular-nums lining-nums;
+}
+
+/* Client: calm progression, editorial hierarchy and wide touch actions.
+ * The IRI baseline and training evolution continue as separate routes. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route{
+  --m26-signature-route-radius:var(--iberfit-radius-xl);
+  --m26-signature-route-frame:rgba(214,178,94,.2);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route .m26-route-intro :is(h1,h2){
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.8rem,3.8vw,3rem);
+  font-weight:550;
+  line-height:1.12;
+  letter-spacing:-.038em;
+  color:var(--iberfit-color-text-primary);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route > .m26-panel{
+  border-radius:var(--m26-signature-route-radius);
+  border-color:var(--m26-signature-route-frame);
+  background-color:var(--iberfit-color-surface-base);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route > .m26-panel > .m26-panel-heading{
+  margin-block-end:clamp(.55rem,1.5vw,.95rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route > .m26-panel .m26-panel-heading h2{
+  font-size:clamp(1.2rem,2.5vw,1.55rem);
+  letter-spacing:-.03em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route :is(.m26-primary-action,.m26-text-action){
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-route .m26-primary-action{
+  min-block-size:48px;
+  border-radius:var(--iberfit-radius-md);
+}
+
+/* Coach: high-information session workflow, crisp operational titles.
+ * Do not make session controls wider, taller, modal or sticky. */
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route{
+  --m26-signature-route-radius:var(--iberfit-radius-lg);
+  --m26-signature-route-frame:rgba(245,245,240,.12);
+  row-gap:clamp(.55rem,1.2vw,.95rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route .m26-route-intro :is(h1,h2){
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(1.55rem,2.5vw,2.15rem);
+  font-weight:750;
+  line-height:1.15;
+  letter-spacing:-.028em;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route > .m26-panel{
+  border-radius:var(--m26-signature-route-radius);
+  border-color:var(--m26-signature-route-frame);
+  background-color:var(--iberfit-color-surface-base);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route > .m26-panel > .m26-panel-heading{
+  margin-block-end:.5rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route .m26-panel-heading h2{
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(1.06rem,1.8vw,1.4rem);
+  font-weight:700;
+  letter-spacing:-.018em;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace :is(.m26-professional-client-context,.m26-coach-client-workspace){
+  border-inline-start:3px solid color-mix(in srgb,var(--iberfit-color-accent) 66%,transparent);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route :is(.m26-field-grid,.m26-form-grid){
+  column-gap:clamp(.6rem,1.2vw,.95rem);
+}
+
+/* Admin: traceability and scan-friendly tables rather than Client cards. */
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-route{
+  --m26-signature-route-radius:var(--iberfit-radius-md);
+  --m26-signature-route-frame:rgba(245,245,240,.14);
+  row-gap:clamp(.5rem,1.1vw,.85rem);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-route .m26-route-intro :is(h1,h2){
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(1.4rem,2.25vw,2.05rem);
+  font-weight:750;
+  line-height:1.18;
+  letter-spacing:-.025em;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-route > .m26-panel{
+  border-color:var(--m26-signature-route-frame);
+  border-radius:var(--m26-signature-route-radius);
+  background-color:var(--iberfit-color-surface-base);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-route .m26-panel-heading h2{
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(1rem,1.55vw,1.35rem);
+  font-weight:750;
+  letter-spacing:-.018em;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace :is(.m26-admin-table,.iberfit-table-shell){
+  max-inline-size:100%;
+  min-inline-size:0;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) :is(th,td){
+  vertical-align:middle;
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) th{
+  font-weight:750;
+  letter-spacing:.025em;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-color-accent) 32%,transparent);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) :is(button,select,a){
+  min-block-size:44px;
+}
+
+/* Responsive / focus: in-flow controls, no forced overflow or hidden actions. */
+@media(max-width:680px){
+  .m26-shell[data-m26-role] .m26-workspace .m26-route .m26-route-intro{
+    padding-block:.4rem .85rem;
+  }
+  .m26-shell[data-m26-role] .m26-workspace .m26-route .m26-panel-heading{
+    flex-wrap:wrap;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-route{
+    row-gap:clamp(.8rem,3vw,1.2rem);
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-route,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-route{
+    row-gap:.7rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role] .m26-workspace .m26-route .m26-route-intro{
+    border-bottom-color:CanvasText;
+  }
+  .m26-shell[data-m26-role] .m26-workspace .m26-route > .m26-panel{
+    border-color:CanvasText;
+  }
+}
