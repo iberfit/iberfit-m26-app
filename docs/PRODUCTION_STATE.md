@@ -1,3 +1,13 @@
+## SIGNATURE P2 · PostHog opt-in anonymous analytics · WIP · 30-10-2026
+
+- Base certificada de Canary y Producción: `2d672f0aa06d451c6e91271da12428c79a8e0d1c` (U51–U56). PR #1200 cerrado y publicación SUCCESS; párrafos WIP antiguos conservados únicamente como historial.
+- Candidato único de analítica Cliente/Coach/Admin: captura manual vía API PostHog de `workspace_viewed`, `navigation_requested`, `training_start_requested` (intento, no confirmación), sin SDK de autocaptura, pageviews ni replay. Jamás se incluyen identidad, ID, email, URLs, inputs, salud, IRI o carga de entrenamiento. `distinct_id` aleatorio efímero y sin cookies.
+- Consentimiento voluntario en Ajustes/Configuración, desactivado por defecto y revocable. Únicamente PRODUCTION con token público/host de GitHub Actions `vars.IBERFIT_POSTHOG_PROJECT_KEY` y `vars.IBERFIT_POSTHOG_API_HOST`; sin ambos, telemetría apagada. Canary QA no transmite eventos al proyecto de Producción.
+- CSP de PostHog solo se amplía en el artefacto PROD cuando configuración completa. Sin backend, Edge, SQL, RLS ni WebAuthn. No afirmar PostHog productivo hasta confirmar configuración, pruebas CI, Canary, promoción y primera ingestión consentida.
+- Pendiente: CI exacta del PR, QA, revisión de seguridad/CSP, integración y promoción oficial protegida con rollback. Seguir WIP=1; no comenzar SIGNATURE MASTER VISUAL sobre el mismo HEAD sin certificación.
+
+---
+
 ## SIGNATURE U51–U53 · Reconciliación HD premium · WIP · 30-10-2026
 
 - WIP exclusivo PR #1200: reconciliar diseño Cliente/Coach/Admin, evolución confirmada, gráficos SVG nítidos y corrección de `insertBefore` con Canary `d4ff328c1540a3dce2a39c16f6bc454f250abb40`.
