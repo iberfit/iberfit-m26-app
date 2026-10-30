@@ -34,3 +34,10 @@ test('U59 no change to real session authorization for Client, Coach or IRI-only'
  assert.match(coach,/m26-coach-home-command/);
  assert.doesNotMatch(coach,/data-workflow-action="start-published-session"/);
 });
+
+test('U59 explicitly covers native Admin routes, hero, tables, capacity and forms',()=>{
+ const stylesheet=read(),native=stylesheet.split('U59 Admin real route completion ·')[1]||'';
+ assert.ok(native.length>1800);
+ for(const name of ['.m26-admin-route','.m26-admin-hero','.m26-admin-panel','.m26-admin-stats','.m26-admin-table','.m26-admin-form','forced-colors:active','max-width:680px','focus-visible'])assert.ok(native.includes(name),name);
+ assert.doesNotMatch(native,/!important|position:fixed|z-index:\s*\d+|@import|display:none|pointer-events:none|url\(/);
+});

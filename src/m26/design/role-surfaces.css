@@ -5220,3 +5220,114 @@ m26-echart[data-density="compact"]{
     border-color:CanvasText;
   }
 }
+
+
+/* U59 Admin real route completion · native m26-admin-route is separate from
+ * the m26-route used by Coach/Client. Only presentation; no data changes. */
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route{
+  min-inline-size:0;
+  max-inline-size:100%;
+  row-gap:clamp(.55rem,1.1vw,.9rem);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > :is(.m26-admin-hero,.m26-admin-panel,.m26-admin-stats,.m26-admin-table){
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > .m26-admin-hero{
+  padding-block:clamp(.95rem,1.8vw,1.5rem);
+  padding-inline:clamp(1rem,2vw,1.65rem);
+  border:1px solid rgba(245,245,240,.14);
+  border-top:2px solid var(--iberfit-color-accent);
+  border-radius:var(--iberfit-radius-md);
+  background-color:var(--iberfit-color-surface-base);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > .m26-admin-hero :is(h1,h2){
+  max-inline-size:45ch;
+  font-family:var(--iberfit-font-family-ui);
+  font-size:clamp(1.45rem,2.5vw,2.2rem);
+  font-weight:750;
+  letter-spacing:-.026em;
+  line-height:1.15;
+  text-wrap:balance;
+  overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > .m26-admin-hero p:last-child{
+  max-inline-size:72ch;
+  line-height:1.55;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-panel{
+  min-inline-size:0;
+  max-inline-size:100%;
+  border-color:rgba(245,245,240,.13);
+  border-radius:var(--iberfit-radius-md);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-panel-header{
+  min-inline-size:0;
+  flex-wrap:wrap;
+  row-gap:.55rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-panel-header :is(h2,h3){
+  font-family:var(--iberfit-font-family-ui);
+  font-weight:730;
+  letter-spacing:-.018em;
+  line-height:1.25;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-stats{
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-stat{
+  min-inline-size:0;
+  border-color:rgba(245,245,240,.12);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-stat strong{
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table{
+  max-inline-size:100%;
+  min-inline-size:0;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table :is(th,td){
+  font-variant-numeric:tabular-nums;
+  vertical-align:middle;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table :is(button,a,select){
+  min-block-size:44px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table:focus-visible,
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form :is(input,textarea,select,button):focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:2px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form{
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form :is(input,textarea,select){
+  min-inline-size:0;
+  max-inline-size:100%;
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > .m26-admin-hero{
+    padding:clamp(.9rem,3vw,1.15rem);
+  }
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-panel{
+    max-inline-size:100%;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > .m26-admin-hero,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-panel,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-stat{
+    border-color:CanvasText;
+    background:Canvas;
+    color:CanvasText;
+  }
+}
