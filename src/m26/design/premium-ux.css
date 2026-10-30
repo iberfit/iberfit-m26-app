@@ -2206,6 +2206,17 @@ body {
   gap:.55rem;
   min-width:0;
 }
+
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions>.m26-session-live-quick-exit{
+  display:flex;
+  flex:1 1 9rem;
+  min-width:0;
+  margin:0;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions>.m26-session-live-quick-exit>button{
+  width:100%;
+  box-sizing:border-box;
+}
 .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-save{
   min-height:48px;
   margin-inline-start:0;
