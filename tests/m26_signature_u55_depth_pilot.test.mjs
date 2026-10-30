@@ -67,7 +67,9 @@ test('U55 Coach quick actions stay accessible with compact on-screen labels',()=
 });
 
 test('U56 role-specific editorial entrance stays bounded, tactile and accessible',()=>{
- const u56=css.slice(css.indexOf('/* SIGNATURE U56 · High-density editorial finish'),css.indexOf('/* SIGNATURE B6 · Atelier Cliente'));
+ const u56Start=css.indexOf('/* SIGNATURE U56 · High-density editorial finish');
+ assert.ok(u56Start>css.indexOf('/* SIGNATURE B6 · Atelier Cliente'),'U56 optical finish must follow the B6 canonical layout, not be overridden');
+ const u56=css.slice(u56Start);
  assert.ok(u56.length>1500,'U56 stays inside the canonical visual pilot');
  for(const marker of ['m26-client-home-greeting h2','m26-coach-home-command-copy h2','m26-admin-user360-overview','m26-athletic-chart-last-halo'])assert.ok(u56.includes(marker),marker);
  assert.match(u56,/@media\(prefers-reduced-motion:reduce\)/u);
