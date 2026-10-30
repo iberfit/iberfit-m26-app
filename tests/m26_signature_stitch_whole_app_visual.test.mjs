@@ -53,3 +53,28 @@ test('U60 empty, error, pending and recovery affordances have distinct role-safe
  ])assert.ok(block.includes(needle),needle);
  assert.doesNotMatch(block,/!important|position:fixed|pointer-events:none|display:none|visibility:hidden|@import/);
 });
+
+test('U61 Stitch Client next action remains editorial and truthful with no published session',()=>{
+  const base={
+    role:'client',serviceKind:'training',
+    clients:[{id:'u61',name:'Cliente QA',serviceActive:true}],
+    appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[]},
+  };
+  const html=renderHoyRoute(base);
+  assert.match(html,/data-client-home-training-state="preparing"/);
+  assert.match(html,/<div class="m26-client-home-status">\s*<span>Tu siguiente paso<\/span>\s*<strong>Actualiza cómo estás hoy<\/strong>/);
+  assert.match(html,/data-m26-area="actividad"/);
+  assert.doesNotMatch(html,/data-workflow-action="start-published-session"/);
+  const paused=renderHoyRoute({...base,clients:[{...base.clients[0],serviceActive:false}]});
+  assert.match(paused,/data-client-home-training-state="paused"/);
+  assert.match(paused,/Tu entrenamiento está en pausa/);
+  assert.doesNotMatch(paused,/data-workflow-action="start-published-session"/);
+});
+test('U61 Client context destinations have a decorative directional cue and visible focus',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const signature=css.split('Stitch V2.3 composition, adapted')[1]||'';
+  assert.match(signature,/m26-client-home-compass-actions button::after/);
+  assert.match(signature,/margin-inline-start:auto/);
+  assert.match(signature,/m26-client-home-compass-actions button:focus-visible/);
+  assert.match(signature,/@media\(forced-colors:active\)/);
+});

@@ -2821,6 +2821,27 @@
   min-height:72px;gap:.875rem;padding:1rem;border:1px solid var(--stitch-line);
   border-radius:.875rem;background:var(--stitch-surface);color:var(--stitch-text);
 }
+/* Consistent directional affordance for all three real destinations.
+ * Drawn with CSS, not an external icon or an extra focus target. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button::after{
+  content:"";
+  inline-size:.48rem;block-size:.48rem;
+  border-block-start:2px solid currentColor;
+  border-inline-end:2px solid currentColor;
+  transform:rotate(45deg);
+  margin-inline-start:auto;
+  flex:0 0 auto;
+  opacity:.72;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button:focus-visible{
+  outline:3px solid var(--stitch-action);
+  outline-offset:3px;
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button::after{
+    opacity:1;
+  }
+}
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button>span:last-child{
   display:grid;gap:.25rem;min-width:0;
 }
