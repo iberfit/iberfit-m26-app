@@ -207,7 +207,16 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     else await page.mouse.click(x,y);
     await expect(activeNavigation,'The real pointer action must activate the requested route')
       .toBeVisible({timeout:5_000});
-    const visual=await page.evaluate(()=>globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__?.read?.()||null);
+    // Only WebKit can resolve the real click before the next painted frame.
+    // Preserve Chromium's original measurement path and real 5s hard SLA.
+    const readVisual=()=>page.evaluate(()=>globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__?.read?.()||null);
+    if(browserName==='webkit'){
+      await expect.poll(async()=>Boolean((await readVisual())?.visiblePaint),{
+        message:'The target route must paint after the trusted pointerdown',
+        timeout:5_000,intervals:[16,32,64,100,200],
+      }).toBe(true);
+    }
+    const visual=await readVisual();
     expect(visual?.trustedPointer,'A genuine trusted pointerdown on the target must be observed').toBe(true);
     expect(visual?.visiblePaint,'The target route must paint after the trusted pointerdown').toBe(true);
     expect(visual?.elapsedMs,'Actual pointer-to-painted-route latency remains <=5s')
