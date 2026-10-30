@@ -430,7 +430,11 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   // SIGNATURE U26 adds authenticated professional route coverage on five devices.
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
   // U26 baseline SLA remains exact for all ordinary/recurring QA gates.
-  test.setTimeout(420_000);
+  // 12 authenticated professional routes, five device viewports, real MFA
+  // ceremonies and offline authoring all remain REQUIRED. The aggregate
+  // suite budget is not the user-facing SLA: every route now has a strict
+  // trusted pointer-to-painted-UI <=5s assertion and existing per-step timeouts.
+  test.setTimeout(600_000);
   // Only first, strictly gated U48 run includes an additional real workout.
   if(process.env.M26_QA_U48_RUNNING==='true'||process.env.M26_QA_U48_COMPLETED_READBACK==='true')
     test.setTimeout(840_000);

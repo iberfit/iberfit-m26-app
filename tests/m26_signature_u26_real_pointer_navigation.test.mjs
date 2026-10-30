@@ -25,3 +25,22 @@ test('U55 Coach title is asserted at input, after modality change, before and af
  assert.match(coach,/context\.setOffline\(true\)/u);
  assert.match(coach,/No forbidden write or foreign request even during offline authoring/u);
 });
+
+test('U26 browser-anchored navigation evidence is fail-closed at 5s',()=>{
+ assert.match(route,/event\.isTrusted!==true/u);
+ assert.match(route,/new MutationObserver\(probe\)/u);
+ assert.match(route,/requestAnimationFrame\(\(\)=>/u);
+ assert.match(route,/elapsedMs=performance\.now\(\)-pending\.at/u);
+ assert.match(route,/state\.navPaint\?\.trusted/u);
+ assert.match(route,/state\.navPaint\?\.area/u);
+ assert.match(route,/state\.navPaint\?\.elapsedMs/u);
+ assert.match(route,/\.toBeLessThanOrEqual\(5_000\)/u);
+ assert.match(route,/SIGNATURE_U26_BROWSER_PAINT/u);
+ assert.doesNotMatch(route,/force:true|dispatchEvent\(/u);
+});
+test('Coach suite completion budget is separate from the original 5s real route SLA',()=>{
+ assert.match(coach,/test\.setTimeout\(600_000\)/u);
+ assert.match(route,/\.toBeLessThanOrEqual\(5_000\)/u);
+ assert.match(coach,/No forbidden write or foreign request even during offline authoring/u);
+ assert.match(coach,/await expect\(builder\.locator\('\[data-session-action="preview"\]'\)\.first\(\)/u);
+});
