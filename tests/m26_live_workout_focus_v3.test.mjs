@@ -359,7 +359,7 @@ test('SIGNATURE U57 places the single real Client save/exit next to sticky Pause
   startExecution(active);
   const client=renderGuidedExecution({execution:active,session:s,catalog,role:'client'});
   const quick=client.indexOf('data-session-client-quick-controls');
-  const save=client.indexOf('class="m26-session-live-quick-save"');
+  const save=client.indexOf('class="m26-session-live-quick-save m26-session-live-exit-action"');
   const workbench=client.indexOf('m26-session-live-workbench');
   assert.ok(quick>=0&&save>quick&&workbench>save,'save and exit must precede the long workbench');
   assert.equal((client.match(/data-session-action="exit-session"/g)||[]).length,1,'never double-register save/exit');
