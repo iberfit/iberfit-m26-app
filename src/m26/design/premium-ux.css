@@ -961,9 +961,16 @@ body {
 
 /* LIVE_WORKOUT_FOCUS_V3_BEGIN */
 .m26-session-live-v3{
+  grid-template-columns:minmax(0,1fr);
   --m26-live-v3-gap:clamp(.68rem,1.2vw,.95rem);
   gap:var(--m26-live-v3-gap);
   min-width:0;
+}
+
+.m26-session-live-v3>*{
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
 }
 
 .m26-session-live-v3 .m26-session-live-hero{
@@ -976,6 +983,7 @@ body {
 
 .m26-session-live-v3 .m26-session-live-quick-actions{
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   justify-content:flex-start;
   min-height:2.8rem;
