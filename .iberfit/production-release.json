@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "2d672f0aa06d451c6e91271da12428c79a8e0d1c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "d4ff328c1540a3dce2a39c16f6bc454f250abb40",
+  "notes": "SIGNATURE U51-U56: 13/13 exact SHA workflow checks PASS, Canary exact deploy certified, M44 encrypted backup/restore; frontend-only premium authenticated Cliente/Coach/Admin, confirmed SVG progress and safe start fix; official Pages preview, live SHA verification and rollback, no PROD backend SQL/Auth/RLS mutations."
+}
