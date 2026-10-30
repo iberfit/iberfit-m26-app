@@ -2530,11 +2530,11 @@
 .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:first-child{
   min-width:0;grid-column:auto;
   flex-direction:column;align-items:center;justify-content:center;
-  gap:.3rem;min-height:83px;padding:.58rem .35rem;text-align:center;
+  gap:.26rem;min-height:91px;padding:.5rem .3rem;text-align:center;
   border-radius:.78rem;
 }
 .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button strong{
-  font-size:.78rem;line-height:1.22;text-align:center;overflow-wrap:anywhere;
+  font-size:.74rem;line-height:1.22;text-align:center;overflow-wrap:anywhere;
 }
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));

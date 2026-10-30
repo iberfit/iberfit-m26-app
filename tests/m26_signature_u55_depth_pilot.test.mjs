@@ -61,7 +61,7 @@ test('U55 final QA uses full-width lone Client stat and compact Admin filters',(
 test('U55 Coach quick actions stay accessible with compact on-screen labels',()=>{
  const html=renderHoyRoute({role:'coach',clients:[{id:'coach-client',name:'Cliente QA'}],appointments:[],upcoming:[],operations:{},coachCockpit:{totalClients:1,attentionCount:0,items:[]}});
  assert.ok(html.includes('aria-label="Programar entrenamiento"'));
- assert.ok(html.includes('<strong>Programar</strong>'));
+ assert.ok(html.includes('<strong>Programar entrenamiento</strong>'));
  assert.ok(html.includes('data-m26-area="planificacion"'));
  assert.match(scope,/m26-coach-home-quick button:first-child/u);
 });
