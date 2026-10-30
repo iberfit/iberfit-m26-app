@@ -7,6 +7,46 @@ const MEASUREMENT_PROFILE_RPC='iberfit_exercise_measurement_profiles_public_v1';
 const VALID_EXERCISE_PROFILES=new Set(['strength','isometric','endurance','intervals','carry','mobility','power']);
 const DYNAMIC_PAGE_SIZE=200;
 const DYNAMIC_MAX_ROWS=5_000;
+const PUBLIC_CATALOG_CACHE_SCHEMA='iberfit.public-catalog.v1';
+const PUBLIC_CATALOG_CACHE_TTL_MS=120_000;
+const PUBLIC_CATALOG_CACHE_MAX_CHARS=1_800_000;
+// Never cache private bootstraps, JWTs, role state or customer data.
+function publicCatalogStorage(){
+  try{return globalThis.sessionStorage||null;}catch{return null;}
+}
+function catalogCacheKey(runtime){
+  return 'iberfit-public-catalog-v1:'+runtime.origin+':'+runtime.version;
+}
+function getCachedPublicCatalog(runtime){
+  try{
+    const raw=publicCatalogStorage()?.getItem(catalogCacheKey(runtime));
+    if(!raw||raw.length>PUBLIC_CATALOG_CACHE_MAX_CHARS)return null;
+    const v=JSON.parse(raw),age=Date.now()-v?.createdAt;
+    if(v?.schema!==PUBLIC_CATALOG_CACHE_SCHEMA||v?.origin!==runtime.origin
+      ||v?.version!==runtime.version||!Number.isSafeInteger(v?.createdAt)
+      ||age<0||age>PUBLIC_CATALOG_CACHE_TTL_MS
+      ||!Array.isArray(v?.remoteRows)||v.remoteRows.length>DYNAMIC_MAX_ROWS
+      ||!Array.isArray(v?.measurementProfiles)||v.measurementProfiles.length>DYNAMIC_MAX_ROWS
+      ||v.remoteRows.some(x=>!x||typeof x!=='object'||Array.isArray(x))
+      ||v.measurementProfiles.some(x=>!x||typeof x!=='object'||Array.isArray(x)))return null;
+    return {remoteRows:v.remoteRows,measurementProfiles:v.measurementProfiles};
+  }catch{return null;}
+}
+function cachePublicCatalog(runtime,{remoteRows,measurementProfiles}){
+  try{
+    const store=publicCatalogStorage();
+    if(!store)return;
+    const raw=JSON.stringify({schema:PUBLIC_CATALOG_CACHE_SCHEMA,
+      origin:runtime.origin,version:runtime.version,createdAt:Date.now(),
+      remoteRows,measurementProfiles});
+    if(raw.length<=PUBLIC_CATALOG_CACHE_MAX_CHARS)
+      store.setItem(catalogCacheKey(runtime),raw);
+  }catch{} // Quota/private-mode failures must not block the product.
+}
+function clearCachedPublicCatalog(runtime){
+  try{publicCatalogStorage()?.removeItem(catalogCacheKey(runtime));}catch{}
+}
+
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
 function mergeAliasLists(baseAliases=[],remoteAliases=[]){
@@ -122,7 +162,7 @@ async function fetchDynamicMeasurementProfiles(fetchImpl=globalThis.fetch,runtim
   return rows;
  }catch{return [];}finally{clearTimeout(timer);}
 }
-export async function loadExerciseCatalog(source){
+export async function loadExerciseCatalog(source,{forceRemoteRefresh=false}={}){
  let records;const browser=typeof window!=='undefined'&&typeof fetch==='function';
  if(Array.isArray(source))records=source;
  else if(source instanceof URL&&source.protocol==='file:'){
@@ -135,7 +175,17 @@ export async function loadExerciseCatalog(source){
  const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);
  if(!browser)return catalog;
  try{
-  const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;const [remoteRows,measurementProfiles]=await Promise.all([fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{}),fetchDynamicMeasurementProfiles(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{})]);if(!remoteRows.length&&!measurementProfiles.length)return catalog;
+  const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;if(forceRemoteRefresh)clearCachedPublicCatalog(runtime);
+  let cached=forceRemoteRefresh?null:getCachedPublicCatalog(runtime);
+  if(!cached){
+    const [remoteRows,measurementProfiles]=await Promise.all([
+      fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{}),
+      fetchDynamicMeasurementProfiles(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{})
+    ]);
+    cached={remoteRows,measurementProfiles};
+    cachePublicCatalog(runtime,cached);
+  }
+  const {remoteRows,measurementProfiles}=cached;if(!remoteRows.length&&!measurementProfiles.length)return catalog;
   const merged=mergeExerciseCatalogRecords(catalog,remoteRows,{mediaOrigin:runtime.origin,measurementProfiles});return merged.count>=catalog.count?merged:catalog;
  }catch{return catalog;}
 }
