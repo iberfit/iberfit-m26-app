@@ -44,6 +44,11 @@ test('Only allowlisted role/area/event and strictly anonymous payload cross netw
   const data=JSON.stringify(entry);
   assert.equal(entry.properties.role,'client');assert.equal(entry.properties.device,'mobile');
   assert.equal(entry.properties.$process_person_profile,false);
+  assert.equal(entry.properties.$geoip_disable,true);
+  assert.deepEqual(Object.keys(entry.properties).sort(),
+    (entry.event==='iberfit_navigation_requested'
+      ?['schema','role','device','release','$process_person_profile','$geoip_disable','area']
+      :['schema','role','device','release','$process_person_profile','$geoip_disable']).sort());
   for(const forbidden of ['real-private-user-id','private-session-id','email','health','password','session_recording','http://app.iberfit','customerId','tokenValue']){
    assert.equal(data.includes(forbidden),false,forbidden);
   }
@@ -55,5 +60,7 @@ test('Only allowlisted role/area/event and strictly anonymous payload cross netw
 test('Never subscribes to DOM content, keystrokes, clicks without consent, or session recording',()=>{
  const a=setup();assert.equal(a.root.querySelector('.m26-shell[data-m26-role]')!==null,true);
  assert.match(renderPosthogConsentPanel({admin:true}),/m26-admin-notice/u);
+ assert.match(renderPosthogConsentPanel(),/ni rutas URL/u);
+ assert.match(renderPosthogConsentPanel(),/ubicaciones/u);
  a.watcher.destroy();
 });

@@ -24,7 +24,7 @@ export function renderPosthogConsentPanel({admin=false}={}){
   const css=admin?'m26-admin-notice m26-analytics-consent':'m26-settings-section m26-analytics-consent';
   return '<section class="'+css+'" id="m26-settings-analytics">'+
     '<header><p class="m26-eyebrow">Analítica opcional</p><h3>Ayúdanos a mejorar IBERFIT</h3>'+
-    '<p>Si lo autorizas, registramos únicamente la sección visitada y algunas acciones de navegación para mejorar la facilidad de uso. No enviamos nombres, correos, identificadores de clientes, entrenamientos, registros de salud, formularios ni rutas URL.</p></header>'+
+    '<p>Si lo autorizas, registramos únicamente la sección visitada y algunas acciones de navegación para mejorar la facilidad de uso. No enviamos nombres, correos, identificadores de clientes, entrenamientos, registros de salud, formularios, ubicaciones ni rutas URL.</p></header>'+
     '<label class="m26-consent"><input type="checkbox" data-iberfit-analytics-consent'+(consented?' checked':'')+(available?'':' disabled aria-disabled="true"')+'>'+
     '<span><strong>Permitir analítica anónima en esta sesión</strong><small>Desactivada por defecto; puedes revocarla aquí en cualquier momento. Sin cookies, perfiles personales ni grabaciones.</small></span></label>'+
     (!available?'<p class="m26-data-footnote">Esta función todavía no está habilitada en este entorno.</p>':'')+
@@ -52,6 +52,9 @@ export function createIberfitPosthogObserver({root,config={},production=false,qa
     const properties={
       schema:'iberfit.anonymous-ui.v1', role, device, release,
       $process_person_profile:false,
+      // Stop PostHog GeoIP enrichment for every explicitly consented event.
+      // IP anonymization alone does not prevent derived location properties.
+      $geoip_disable:true,
     };
     if(eventName==='iberfit_navigation_requested'){
       if(!area)return false;
