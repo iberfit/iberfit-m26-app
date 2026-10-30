@@ -2233,6 +2233,19 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     mfaState=null;
     authMode='recoverable-session';
     sessionRetryAvailable=true;
+    // Safe QA-only diagnostic: code/type and source location, never credentials or payloads.
+    // This is intentionally passive; fail-closed recovery and time budgets do not change.
+    const qaInput=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
+    if(qaInput&&Array.isArray(qaInput.appStages)){
+      const rawStack=String(error?.stack||'');
+      const safeSource=rawStack.match(/(?:src\/m26\/|\/src\/m26\/)[a-z0-9_./-]+\.(?:js|mjs):\d+(?::\d+)?/iu)?.[0]||null;
+      qaInput.lastRecoverableFailure={
+        type:String(error?.name||'Error').replace(/[^a-z]/giu,'').slice(0,24),
+        code:diagnosticCode(error,stage),
+        source:safeSource?.slice(0,160)||null,
+        stage:String(stage||'resume').slice(0,35),
+      };
+    }
     reportSoftDiagnostic(`auth-recoverable-${String(stage||'resume')}`,error);
     const contextMissing=/M26_ROLE_CONTEXT_MISSING/u.test(String(error?.message||error||''));
     authMessage(contextMissing?'M26_ROLE_CONTEXT_MISSING':'',contextMissing?'error':'status');

@@ -368,6 +368,14 @@
   background:#192B23!important;
 }
 
+/* Admin verified user counts use the same readable warm instrument surface. */
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview > .m26-admin-stat:nth-child(2){
+  background:#EEE6D8!important;
+  border-color:rgba(25,48,37,.2)!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview > .m26-admin-stat:nth-child(2) :is(span,strong,small){
+  color:#193025!important;
+}
 /* Coach: low cognitive load, priority first */
 .m26-shell[data-m26-role="coach"] .m26-coach-home-command{
   border-color:rgba(197,160,89,.18)!important;
@@ -375,7 +383,13 @@
   background:#1C3529!important;
   box-shadow:0 8px 22px rgba(0,0,0,.14)!important;
 }
-.m26-shell[data-m26-role="coach"] .m26-coach-home-glance,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-glance{
+  border-color:rgba(197,160,89,.28)!important;
+  background:#EEE6D8!important;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-glance :is(span,strong,small){
+  color:#193025!important;
+}
 .m26-shell[data-m26-role="coach"] .m26-coach-home-quick button{
   border-color:rgba(197,160,89,.28)!important;
   background:#1A3026!important;
@@ -697,13 +711,13 @@
     linear-gradient(150deg,#14251D,#0F1C17)!important;
   box-shadow:var(--iberfit-v3-shadow)!important;
 }
-.m26-shell .m26-workspace .m26-hoy-route .m26-today-action{
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:not(.m26-client-home-stage .m26-today-action){
   color:var(--iberfit-v3-text)!important;
   border-color:rgba(197,160,89,.12)!important;
   background:#13221C!important;
   box-shadow:none!important;
 }
-.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:hover:not(:disabled){
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:not(.m26-client-home-stage .m26-today-action):hover:not(:disabled){
   border-color:rgba(197,160,89,.28)!important;
   background:#182B23!important;
 }
@@ -1395,7 +1409,7 @@
   content:"";position:absolute;inset:auto -5% -37% auto;
   width:clamp(13rem,35%,24rem);aspect-ratio:1;
   background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
-  opacity:.075;pointer-events:none;z-index:0;
+  opacity:.04;pointer-events:none;z-index:0;
 }
 .m26-shell[data-m26-role="client"] .m26-client-home-hero>*,
 .m26-shell[data-m26-role="coach"] .m26-coach-home-command>*,
@@ -1494,6 +1508,1253 @@
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-compass :is(strong,small),
   .m26-shell[data-m26-role="client"] .m26-client-home-compass-icon{color:CanvasText}
+}
+
+
+/* SIGNATURE U51 · Authentic product composition, not a promotional landing.
+ * Change information hierarchy with the existing authenticated routes and
+ * original brand asset. This rule set precedes the B6 Client-only suffix.
+ * One visual source, no new external images, invented metrics or permissions.
+ */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage{
+  display:grid;
+  min-width:0;
+  overflow:hidden;
+  border:1px solid rgba(216,192,138,.31);
+  border-radius:1.45rem;
+  background:#193429;
+  box-shadow:0 12px 36px rgba(2,13,8,.2);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-feature{
+  display:grid;
+  grid-template-columns:minmax(0,1.12fr) minmax(14rem,.88fr);
+  border:0;border-radius:0;box-shadow:none;background:transparent;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-hero{
+  min-width:0;gap:.65rem;align-content:center;
+  padding:clamp(1.05rem,2.2vw,1.65rem);
+  background:#193429;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-greeting{
+  gap:.36rem;align-content:center;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-greeting h2{
+  max-width:24ch;min-width:0;
+  font-size:clamp(1.7rem,3.3vw,2.6rem);
+  line-height:1.08;letter-spacing:-.035em;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-greeting>p{
+  margin:.16rem 0 0;
+  max-width:55ch;font-size:.86rem;line-height:1.48;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-status{
+  align-content:start;gap:.2rem;
+  padding:.15rem 0 .15rem .8rem;
+  border-inline-start:2px solid #CBAC71;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-status span{
+  font-size:.7rem;letter-spacing:.1em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-status strong{
+  font-size:clamp(.95rem,1.32vw,1.13rem);line-height:1.3;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone{
+  border:0;min-width:0;padding:clamp(.65rem,1.6vw,.95rem);
+  background:#173429;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary{
+  min-height:5.3rem;gap:.4rem .75rem;
+  padding:.82rem .9rem;
+  border:1px solid #F0D4A0;border-radius:.8rem;
+  background:#D9B979;color:#173025;
+  box-shadow:0 4px 13px rgba(0,0,0,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary :is(strong,small){
+  color:#173025;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary:focus-visible{
+  outline:3px solid #F6DFA8;outline-offset:2px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary > span{
+  width:2.6rem;height:2.6rem;min-width:42px;min-height:42px;
+  border-radius:.85rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary strong{
+  font-size:clamp(1.05rem,1.55vw,1.2rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary small{
+  font-size:.82rem;line-height:1.4;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass{
+  padding:.6rem .75rem .7rem;gap:.35rem;
+  border:0;border-top:1px solid rgba(212,184,119,.22);
+  border-radius:0;background:#10271D;box-shadow:none;
+  color:#F4EAD8;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-heading{
+  padding:.15rem .55rem .35rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-heading strong{
+  font-family:var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+  font-weight:760;font-size:.82rem;line-height:1.2;
+  color:#D8BA7E;letter-spacing:.055em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-heading small{
+  font-size:.72rem;color:#CED7CB;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions{
+  gap:0;grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:90px;gap:.35rem;padding:.5rem .32rem;
+  border:1px solid transparent;border-radius:.75rem;background:transparent;
+  text-align:center;box-shadow:none;color:#F2E7D6;
+  transition:background-color 160ms ease,border-color 160ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button+button{
+  border-left:1px solid rgba(222,197,142,.13);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button span{
+  display:grid;gap:.14rem;align-items:center;justify-items:center;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button small{
+  font-size:.7rem;line-height:1.24;color:#BCCABC;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button strong{
+  color:#F1E8D7;letter-spacing:-.015em;font-size:.93rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-atlas-client-icon{
+  display:grid;place-items:center;inline-size:42px;block-size:42px;
+  border:1px solid rgba(214,183,119,.34);border-radius:50%;
+  color:#D6B777;background:#1A3428;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-icon{
+  inline-size:21px;block-size:21px;color:inherit;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button:hover{
+  background:#1B3B2C;border-color:rgba(214,183,119,.22);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button:focus-visible{
+  outline:3px solid #E7C88A;outline-offset:2px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-method-disclosure{
+  min-width:0;border-top:1px solid rgba(216,192,138,.2);
+  color:#D2DACF;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-method-disclosure>summary{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:1rem;min-height:48px;padding:.78rem .85rem;
+  color:#DCD2BE;font-size:.91rem;font-weight:640;
+  cursor:pointer;touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-method-disclosure>summary:focus-visible{
+  outline:3px solid #E9CB8F;outline-offset:2px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-method-disclosure .m26-client-home-journey{
+  margin-top:.45rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-health{
+  min-width:0;gap:.55rem;
+  border-radius:1.05rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-health-metrics{
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+  display:grid;
+  grid-template-columns:minmax(0,1.3fr) minmax(13rem,.7fr);
+  gap:clamp(.8rem,2vw,1.5rem);
+  align-items:center;
+  padding:clamp(1rem,2vw,1.65rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy h2{
+  font-size:clamp(1.65rem,2.6vw,2.7rem);
+  line-height:1.05;letter-spacing:-.03em;max-width:29ch;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy>p:not(.m26-eyebrow){
+  max-width:55ch;line-height:1.5;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  margin:.7rem 0;padding:.35rem;gap:.32rem;
+  border-radius:.95rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+  min-height:48px;border-radius:.65rem;box-shadow:none;
+  gap:.55rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-atlas-coach-icon{
+  display:grid;place-items:center;flex:0 0 auto;
+  inline-size:40px;block-size:40px;border:1px solid rgba(215,185,121,.28);
+  border-radius:.72rem;background:#1A382B;color:#DABF88;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-atlas-icon-svg{
+  inline-size:21px;block-size:21px;color:inherit;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-grid{
+  align-items:start;gap:.8rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-section{
+  min-width:0;box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-cards{
+  gap:.55rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card{
+  margin:0;overflow:hidden;border-radius:.85rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary{
+  display:grid;
+  grid-template-columns:minmax(12rem,2fr) minmax(5rem,.7fr) minmax(9rem,1fr) minmax(6rem,.7fr) auto;
+  align-items:center;gap:.65rem;min-height:72px;
+  padding:.7rem 1rem;list-style:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary-identity{
+  min-width:0;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary-identity strong{
+  font-size:1rem;line-height:1.25;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary:focus-visible{
+  outline:3px solid #E9CB8F;outline-offset:-3px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:.55rem 1rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load>div{
+  display:grid;gap:.32rem;min-width:0;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load progress{
+  display:block;appearance:none;width:100%;height:6px;
+  border:0;border-radius:99px;overflow:hidden;
+  background:#344F40;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load progress::-webkit-progress-bar{
+  background:#344F40;border-radius:99px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load progress::-webkit-progress-value{
+  background:#D6B777;border-radius:99px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load progress::-moz-progress-bar{
+  background:#D6B777;border-radius:99px;
+}
+@media(max-width:900px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-feature{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-hero{
+    padding:1.05rem 1.05rem .5rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone{
+    padding:.4rem .8rem .8rem;
+    background:#193429;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary{
+    min-height:5.2rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-greeting h2{
+    font-size:clamp(1.7rem,8vw,2.1rem);
+    line-height:1.08;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-greeting>p{
+    font-size:.81rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-status{
+    margin-top:.45rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-primary-zone{
+    background:#173429;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-heading small{
+    display:none;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button{
+    min-height:74px;
+    flex-direction:column;align-items:center;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary{
+    grid-template-columns:minmax(0,1fr) auto;gap:.35rem .75rem;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-summary-roles,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-summary-access{
+    grid-column:1;
+  }
+}
+@media(max-width:360px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button{
+    min-width:0;padding:.45rem .1rem;min-height:70px;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button small{
+    font-size:.65rem;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass-actions button{
+    transition:none;transform:none;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stage .m26-client-home-compass{
+    color:CanvasText;background:Canvas;border-color:CanvasText;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-coach-load progress{
+    border:1px solid CanvasText;
+  }
+}
+
+
+/* U51 verified correction: one activity CTA, one truthful attention meter. */
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter{
+  display:grid;gap:.5rem;min-width:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress{
+  appearance:none;display:block;inline-size:100%;block-size:6px;
+  overflow:hidden;border:0;border-radius:99px;
+  background:#425D4B;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress::-webkit-progress-bar{
+  border-radius:99px;background:#425D4B;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress::-webkit-progress-value{
+  border-radius:99px;background:#D2B474;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress::-moz-progress-bar{
+  border-radius:99px;background:#D2B474;
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-attention-meter progress{
+    border:1px solid CanvasText;
+  }
+}
+
+
+/* U52 · Confirmed athletic performance is the hero data, never fake imagery. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
+ display:grid;gap:1rem;min-width:0;overflow:hidden;
+ padding:clamp(1rem,2.1vw,1.45rem);
+ border:1px solid rgba(216,192,138,.25);
+ border-radius:1.15rem;
+ background:#10251C;color:#F3E8D7;
+ box-shadow:0 10px 28px rgba(1,14,8,.13);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head{
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+ gap:.75rem 1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
+ margin:.15rem 0;color:#F3E8D7;letter-spacing:-.025em;
+ font:600 clamp(1.45rem,2.5vw,1.9rem)/1.12 var(--iberfit-font-family-editorial,Georgia,serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head small{
+ color:#CBD4CA;font-size:.82rem;line-height:1.45;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button{
+ min-height:48px;padding:.55rem .85rem;flex:0 0 auto;
+ border:1px solid rgba(216,192,138,.35);border-radius:.7rem;
+ background:transparent;color:#F0D6A2;cursor:pointer;
+ font:700 .89rem/1.3 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+ transition:background-color 180ms ease,border-color 180ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button:hover{
+ background:rgba(216,192,138,.09);border-color:#D8BA7E;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button:focus-visible{
+ outline:3px solid #EBD3A3;outline-offset:2px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));
+ padding:.85rem 0;gap:0;
+ border-block:1px solid rgba(216,192,138,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{
+ display:grid;align-content:start;gap:.3rem;min-width:0;
+ padding:.5rem clamp(.55rem,1.5vw,1.1rem);
+ border-inline-start:1px solid rgba(216,192,138,.16);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:first-child{border-inline-start:0}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+ color:#F5E6C9;font-size:clamp(1.6rem,3vw,2.2rem);font-weight:760;
+ letter-spacing:-.05em;font-variant-numeric:tabular-nums;line-height:1.05;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact span{color:#D0D5CB;font-size:.78rem;line-height:1.35}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact[data-trend="up"] strong{color:#A9D4AC}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact[data-trend="down"] strong{color:#EBC8A8}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact meter{
+ width:100%;height:.48rem;accent-color:#D4B878;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing{display:grid;gap:.65rem}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing-head{
+ display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.35rem .8rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing-head strong{font-size:.87rem;color:#F0E4D0}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing-head small{color:#C5CDC0;font-size:.77rem}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dials{
+ list-style:none;padding:0;margin:0;display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial{
+ min-width:0;display:grid;justify-items:center;align-content:start;gap:.18rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial svg{width:min(100%,84px);height:auto}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track{
+ fill:none;stroke:#3C5548;stroke-width:7;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-value{
+ fill:none;stroke:#D6B676;stroke-width:7;stroke-linecap:round;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial text{
+ fill:#F6E6C8;font:750 19px/1 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial strong{
+ font-size:.76rem;line-height:1.24;text-align:center;color:#F0E4D0;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-grid{
+ grid-template-columns:minmax(0,1.6fr) minmax(15rem,.85fr);
+ gap:1rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-agenda{
+ border-color:rgba(216,192,138,.27);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:.35rem;padding:.3rem;border-radius:.85rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+ min-height:56px;justify-content:center;align-items:center;
+ padding:.5rem .7rem;border-radius:.7rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis .m26-admin-stat{
+ min-height:84px;padding:.95rem;border-radius:.85rem;display:grid;align-content:start;gap:.3rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis .m26-admin-stat strong{
+ font-size:clamp(1.65rem,2.1vw,2.15rem);font-weight:800;font-variant-numeric:tabular-nums;
+ letter-spacing:-.045em;line-height:1;
+}
+@media(max-width:950px){
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:680px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{padding:1rem;gap:.75rem}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:nth-child(odd){border-inline-start:0}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{border-block-end:1px solid rgba(216,192,138,.1)}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dials{gap:.2rem}
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{min-height:64px;flex-direction:column}
+ .m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route .m30-admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:360px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dials{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{font-size:1.5rem}
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{grid-template-columns:minmax(0,1fr)}
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{min-height:48px;flex-direction:row}
+}
+@media(prefers-reduced-motion:reduce){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence button{transition:none}
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{background:Canvas;color:CanvasText;border-color:CanvasText}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-value{stroke:Highlight}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track{stroke:CanvasText}
+}
+
+
+/* U52 visual QA refinement — compact honest context, lighter visual rhythm. */
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    min-width:0;gap:0;overflow:hidden;
+    border:1px solid rgba(216,192,138,.24);
+    border-radius:1rem;
+    background:#173125;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+    min-height:92px;
+    padding:.65rem .78rem;
+    gap:.18rem;
+    border:0;
+    border-inline-start:1px solid rgba(216,192,138,.18);
+    border-radius:0;
+    box-shadow:none;
+    background:transparent;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:first-child{
+    border-inline-start:0;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button span{
+    font-size:.71rem;letter-spacing:.055em;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
+    font-size:.94rem;line-height:1.22;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button small{
+    font-size:.73rem;line-height:1.32;
+  }
+}
+@media(max-width:359px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+    min-height:56px;border-inline-start:0;border-block-start:1px solid rgba(216,192,138,.18);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:first-child{border-block-start:0}
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  border:1px solid rgba(216,192,138,.26);
+  background:#12281E;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+  border:1px solid rgba(216,192,138,.14);
+  color:#F4E7D1;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:focus-visible{
+  outline:3px solid #D8BA7E;outline-offset:2px;
+}
+
+
+/* U52: plan identifiers remain accessible in DOM, not dominant in visual rhythm. */
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    overflow-wrap:anywhere;
+    max-height:2.45em;
+  }
+}
+
+/* SIGNATURE U53 — retinal/vector instrument: visual fidelity without raster
+   scaling, fabricated chart data, decorative effects or extra UI route logic. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
+  position:relative;
+  border-radius:1.2rem;
+  background:#0E241A;
+  border-color:rgba(204,176,118,.32);
+  padding:clamp(1.1rem,2.4vw,1.75rem);
+  gap:clamp(1rem,2vw,1.4rem);
+  font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence::before{
+  content:"";display:block;position:absolute;inset:0 auto auto 1.25rem;
+  width:3.1rem;height:3px;border-radius:0 0 3px 3px;background:#D5B775;
+  pointer-events:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head{
+  align-items:start;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
+  font-size:clamp(1.9rem,3vw,2.7rem);
+  line-height:1.06;
+  font-weight:600;
+  letter-spacing:-.034em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head .m26-eyebrow{
+  color:#D6B777;letter-spacing:.15em;font-size:.72rem;font-weight:750;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+  padding:0;gap:0;
+  border:1px solid rgba(210,191,146,.18);border-radius:.88rem;
+  overflow:hidden;
+  background:rgba(255,255,255,.018);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{
+  min-height:105px;padding:1rem 1.05rem;gap:.45rem;
+  border:0;border-inline-end:1px solid rgba(210,191,146,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+  font-family:var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+  font-size:clamp(2.3rem,5vw,3.4rem);font-weight:660;line-height:1;
+  letter-spacing:-.065em;color:#F3E6CD;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact span{
+  color:#CFD8CB;font-size:.83rem;line-height:1.35;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+  margin:0;min-width:0;
+  padding:1rem clamp(.75rem,2vw,1.25rem) .8rem;
+  border:1px solid rgba(211,185,126,.17);
+  border-radius:.9rem;
+  background:#142D22;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:.5rem 1rem;flex-wrap:wrap;margin-bottom:.35rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption>div{
+  display:grid;gap:.3rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption strong{
+  color:#F3E8D7;font-size:1.09rem;line-height:1.25;letter-spacing:-.015em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption small{
+  color:#B8C5BA;font-size:.74rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-kicker{
+  color:#D7BA7C;font-size:.64rem;letter-spacing:.13em;font-weight:700;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart svg{
+  display:block;width:100%;max-width:100%;height:auto;
+  overflow:visible;
+  shape-rendering:geometricPrecision;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-grid{
+  stroke:rgba(218,211,182,.22);stroke-width:1;
+  stroke-dasharray:3 6;fill:none;vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-area{
+  fill:rgba(204,173,106,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-line{
+  fill:none;stroke:#E5C484;stroke-width:3;
+  stroke-linecap:round;stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-dot{
+  fill:#F2DBA7;stroke:#142D22;stroke-width:2;vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-tick,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-date{
+  fill:#C6D2C6;font:600 11px/1 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-source{
+  display:block;color:#B8C7B8;font-size:.73rem;line-height:1.48;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-wellbeing{
+  border-top:1px solid rgba(210,191,146,.18);padding-top:.85rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial svg{
+  shape-rendering:geometricPrecision;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-dial strong{
+  font-size:.82rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-track,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-value{
+  vector-effect:non-scaling-stroke;stroke-width:6;
+}
+/* Readability and touch: the hero is a true editorial hierarchy, not an
+   enlarged low-resolution raster background. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+  max-width:100%;overflow-wrap:break-word;
+  font-kerning:normal;
+  font-variant-ligatures:common-ligatures;
+  letter-spacing:-.035em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-feature{
+  overflow:hidden;
+}
+@media(min-width:790px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart){
+   grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
+   align-items:start;gap:1.25rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-evidence-head{
+   grid-column:1/-1;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-facts{
+   grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-chart{
+   align-self:stretch;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence:has(.m26-athletic-chart) .m26-athletic-wellbeing{
+   grid-column:1/-1;
+ }
+}
+@media(max-width:680px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head button{
+   min-height:48px;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+   grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact{
+   min-height:95px;padding:.9rem;
+   border:0;border-block-end:1px solid rgba(210,191,146,.15);
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:nth-child(odd){
+   border-inline-end:1px solid rgba(210,191,146,.14);
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+   font-size:clamp(2.05rem,10vw,2.65rem);
+ }
+}
+@media(max-width:359px){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{padding:.9rem;}
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+   padding:.85rem .55rem;
+ }
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+   background:Canvas;border-color:CanvasText;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart :is(.m26-athletic-chart-area,.m26-athletic-chart-grid,.m26-athletic-chart-line,.m26-athletic-chart-dot){
+   fill:none;stroke:CanvasText;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart .m26-athletic-chart-line{
+   stroke:Highlight;
+ }
+}
+
+
+/* SIGNATURE U55 · Elevated athletic depth — real role layouts only.
+ * Deep forest canvas, copper/gold glints, clear data hierarchy. No fake
+ * imagery, neon, excessive gradients, blurred overlays or new functions.
+ * The role-specific markup and canonical M41/B6 contracts remain intact.
+ */
+.m26-shell[data-m26-role] .m26-workspace{
+  --u55-edge:rgba(218,194,142,.32);
+  --u55-raised:#1C392B;
+  --u55-matte:#10271E;
+  --u55-champagne:#E1C48A;
+  --u55-deep:#0A1C15;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage{
+  position:relative;isolation:isolate;
+  border-radius:1.35rem;
+  border:1px solid var(--u55-edge);
+  background:var(--u55-deep);
+  box-shadow:0 3px 0 rgba(255,255,255,.024) inset,0 17px 36px rgba(0,13,9,.19);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-feature{
+  min-width:0;overflow:hidden;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-hero{
+  position:relative;
+  padding:clamp(.95rem,2.1vw,1.35rem) clamp(1.05rem,2.1vw,1.5rem);
+  background:
+    radial-gradient(circle at 95% -40%,rgba(208,174,105,.10),transparent 56%),
+    #17372A;
+  border-bottom:1px solid rgba(218,194,142,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting{
+  gap:.38rem;align-content:center;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+  font:560 clamp(1.85rem,4vw,2.8rem)/1.08 var(--iberfit-font-family-editorial,'Source Serif 4 Variable',Georgia,serif);
+  color:#F2E5D1;max-width:28ch;
+  letter-spacing:-.043em;text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-kicker{
+  color:#E1C58C;font-size:.7rem;font-weight:780;letter-spacing:.13em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-avatar{
+  align-self:start;
+  border:2px solid #E2C891;
+  background:#EDE5D5;
+  box-shadow:0 0 0 4px rgba(12,31,22,.85),0 3px 12px rgba(0,0,0,.19);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone{
+  padding:.75rem clamp(.9rem,2vw,1.25rem);
+  background:#153225;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary{
+  min-height:76px;display:grid;grid-template-columns:auto minmax(0,1fr);
+  gap:.25rem .8rem;align-items:center;
+  padding:.7rem .9rem;
+  border:1px solid #F4DEB4;
+  border-radius:1rem;
+  background:linear-gradient(125deg,#E7C98B,#D2B275 85%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 7px 19px rgba(0,0,0,.21);
+  color:#193025;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary :is(strong,small){
+  color:#172D23;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary strong{
+  font-weight:790;font-size:clamp(1rem,2vw,1.17rem);letter-spacing:-.02em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary small{
+  line-height:1.28;font-size:.79rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary>span{
+  inline-size:44px;block-size:44px;min-width:44px;min-height:44px;
+  background:#15382A;color:#F4DDA7;
+  border:1px solid rgba(17,43,31,.25);
+  border-radius:.88rem;
+  font-weight:800;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass{
+  background:#10271D;
+  padding:.6rem .78rem .67rem;
+  gap:.25rem;
+  border-top:1px solid rgba(217,187,125,.2);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-heading{
+  padding:.14rem .25rem .1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-heading strong{
+  color:#E3C895;font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions{
+  gap:.3rem;grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+  min-width:0;min-height:90px;gap:.24rem;
+  padding:.45rem .28rem;
+  background:#173528;border:1px solid rgba(212,183,119,.16);
+  border-radius:.76rem;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  color:#F0E6D4;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button+button{
+  border-left:1px solid rgba(212,183,119,.16);
+  border-radius:.76rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-atlas-client-icon{
+  inline-size:37px;block-size:37px;
+  background:#203D2E;border:1px solid rgba(215,182,112,.36);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button strong{
+  font-size:.84rem;letter-spacing:-.013em;color:#F2E7D6;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button small{
+  color:#C5CFC2;font-size:.69rem;line-height:1.24;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button:hover{
+  border-color:rgba(229,200,139,.51);background:#234A37;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence{
+  border-color:rgba(217,190,129,.29);
+  background:#142B21;
+  box-shadow:0 12px 31px rgba(0,13,9,.17),inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-evidence-head h2{
+  color:#F7EBDA;letter-spacing:-.047em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact strong{
+  font-size:clamp(2.25rem,5.2vw,3.1rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts{
+  border-color:rgba(214,190,137,.22);
+  background:#1C372A;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+  border:1px solid rgba(219,193,141,.35);
+  border-radius:1.25rem;
+  background:#193729;
+  box-shadow:0 14px 34px rgba(1,15,8,.17),inset 0 1px 0 rgba(255,255,255,.045);
+  gap:.65rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy h2{
+  color:#F6E9D7;font-weight:610;
+  font-size:clamp(1.85rem,3vw,2.55rem);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy>p:not(.m26-eyebrow){
+  color:#D4DDCF;line-height:1.42;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-actions .m26-primary-action{
+  min-height:48px;border:1px solid #EBCF94;border-radius:.72rem;
+  background:#D9B879;color:#183024;font-weight:770;
+  box-shadow:0 6px 15px rgba(0,0,0,.14);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance{
+  display:grid;align-items:center;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:0;padding:.25rem;
+  border:1px solid rgba(210,188,139,.22);
+  border-radius:.85rem;
+  background:#E9E2D3;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span{
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:flex-start;
+  gap:.25rem;min-width:0;min-height:78px;
+  padding:.6rem;
+  background:transparent;border:0;border-inline-end:1px solid rgba(27,53,39,.16);
+  color:#47574D;line-height:1.26;font-size:.73rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span:last-child{
+  border:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span strong{
+  color:#183729;font-variant-numeric:tabular-nums;
+  font-size:clamp(.91rem,2vw,1.3rem);line-height:1.15;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-attention-meter progress{
+  width:100%;height:5px;max-width:100%;
+  accent-color:#6C7855;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  background:#11281D;border-color:rgba(220,191,130,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+  border-color:rgba(211,182,118,.24);
+  background:#1B3B2B;color:#F2E6D1;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:hover{
+  border-color:#D6BA80;background:#26513C;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.45rem;padding:.45rem;
+  border:1px solid rgba(216,192,138,.24);border-radius:1.05rem;
+  background:#142D21;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat{
+  min-height:85px;padding:.75rem;border-radius:.7rem;
+  border:1px solid rgba(216,192,138,.18);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat strong{
+  font-size:clamp(1.55rem,2.5vw,2rem);
+  letter-spacing:-.055em;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card{
+  border:1px solid rgba(213,190,140,.25);
+  border-radius:.9rem;
+  background:#1B3427;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary{
+  min-height:65px;gap:.45rem .7rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary-identity strong{
+  color:#F2E9D9;font-size:.96rem;line-height:1.25;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card .m26-admin-user360-summary:focus-visible{
+  outline:3px solid #EBCF94;outline-offset:-2px;
+}
+@media(max-width:960px){
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-hero{
+    padding:.9rem 1rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+    font-size:clamp(1.85rem,7.5vw,2.25rem);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone{
+    padding:.65rem .8rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass{
+    padding:.5rem .65rem .6rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+    min-height:86px;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button small{
+    font-size:.66rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+    padding:1rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span{
+    min-height:74px;padding:.45rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span strong{
+    font-size:.92rem;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    padding:.35rem;
+  }
+}
+@media(max-width:350px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+    min-height:78px;padding:.4rem .15rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span{
+    min-height:48px;border-inline-end:0;border-block-end:1px solid rgba(27,53,39,.16);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+    transition:none;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary,
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card{
+    background:Canvas;color:CanvasText;border-color:CanvasText;box-shadow:none;
+  }
+}
+
+
+/* U55 compositional QA: no unearned empty stat cell; concise Coach/Admin.
+   These rules use genuine data/controls and preserve native disclosure. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-facts:has(>.m26-athletic-fact:only-child){
+  grid-template-columns:minmax(0,1fr);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child{
+  display:flex;align-items:center;justify-content:flex-start;
+  gap:clamp(.9rem,3vw,1.4rem);min-width:0;min-height:91px;
+  border:0;padding:.8rem 1.1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child strong{
+  flex:0 0 auto;font-size:clamp(2.8rem,6vw,4rem);
+  letter-spacing:-.06em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child span{
+  max-width:24ch;font-size:.88rem;line-height:1.35;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.42rem;padding:.35rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button,
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:first-child{
+  min-width:0;grid-column:auto;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:.26rem;min-height:91px;padding:.5rem .3rem;text-align:center;
+  border-radius:.78rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button strong{
+  font-size:.74rem;line-height:1.22;text-align:center;overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.65rem;align-items:end;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools>label{
+  display:grid;gap:.3rem;min-width:0;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools .m26-admin-user-search,
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools>label:nth-of-type(4){
+  grid-column:1/-1;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools :is(input,select){
+  width:100%;min-width:0;min-height:48px;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-result-count{
+  grid-column:1/-1;
+}
+@media(max-width:350px){
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick{
+   grid-template-columns:repeat(3,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+   min-height:76px;padding:.45rem .2rem;
+ }
+ .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-user-directory-tools{
+   gap:.45rem;
+ }
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child,
+ .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+   border:1px solid CanvasText;
+ }
+}
+
+/* SIGNATURE U56 · High-density editorial finish.
+ * Optical depth, restrained first-entrance feedback and truthful charts;
+ * entirely scoped to existing role compositions. No new routes or assets. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage{
+  overflow:hidden;
+  box-shadow:0 25px 56px rgba(1,14,8,.27),0 1px 0 rgba(255,245,221,.11) inset;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-hero{
+  isolation:isolate;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 92% 5%,rgba(219,185,119,.15),transparent 42%),
+    #153125;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-hero::after{
+  content:'';position:absolute;inset:auto 1.1rem 0;
+  height:1px;
+  background:rgba(240,210,153,.28);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+  font-size:clamp(2.05rem,5vw,3.35rem);line-height:1.025;
+  letter-spacing:-.052em;font-weight:570;
+  text-shadow:0 2px 8px rgba(0,0,0,.07);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2::first-letter{
+  color:#E8CB93;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-status strong{
+  font-size:clamp(1.02rem,1.6vw,1.2rem);letter-spacing:-.025em;color:#F3E5D1;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-primary-zone{
+  background:#17382A;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-primary-zone .m26-today-action.is-primary{
+  border-radius:1.05rem;
+  box-shadow:0 11px 25px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.53);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart{
+  background:#10281E;border-color:rgba(224,195,135,.34);
+  box-shadow:inset 0 1px 0 rgba(255,246,225,.045),0 13px 30px rgba(0,14,7,.16);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption strong{
+  font-size:clamp(1.15rem,2.5vw,1.5rem);letter-spacing:-.035em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption .m26-athletic-chart-last{
+  font-size:.75rem;color:#C5D5C7;display:flex;align-items:baseline;gap:.4rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption .m26-athletic-chart-last strong{
+  color:#F4D9A0;font:760 clamp(1.2rem,3vw,1.8rem)/1 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);
+  font-variant-numeric:tabular-nums;letter-spacing:-.035em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-grid{
+  stroke:rgba(220,203,158,.14);stroke-dasharray:2 6;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-midline{
+  stroke:rgba(226,205,160,.36);stroke-dasharray:4 4;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-last-halo{
+  fill:rgba(226,188,112,.16);stroke:rgba(239,211,155,.65);stroke-width:1;
+  vector-effect:non-scaling-stroke;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-dot:last-of-type{
+  fill:#FFF0C8;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command{
+  position:relative;overflow:hidden;
+  border-color:rgba(238,205,140,.43);
+  background:#1D4030;
+  box-shadow:0 18px 43px rgba(0,13,6,.23),inset 0 1px 0 rgba(253,228,176,.10);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command::before{
+  content:'';position:absolute;inset:0 auto 0 0;width:3px;
+  background:#D6B77B;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy h2{
+  font-family:var(--iberfit-font-family-editorial,'Source Serif 4 Variable',Georgia,serif);
+  font-weight:600;font-size:clamp(2rem,3.5vw,2.8rem);line-height:1.07;
+  letter-spacing:-.043em;text-wrap:balance;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance{
+  border-color:rgba(229,208,163,.52);
+  box-shadow:0 9px 19px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.5);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-glance>span strong{
+  font-size:clamp(1.08rem,2.2vw,1.5rem);letter-spacing:-.045em;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-agenda{
+  border-color:rgba(231,198,133,.35);
+  box-shadow:0 12px 30px rgba(1,14,8,.12);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button{
+  transition:transform .2s ease,border-color .2s ease,background-color .2s ease;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-hero h2{
+  font-family:var(--iberfit-font-family-editorial,'Source Serif 4 Variable',Georgia,serif);
+  font-size:clamp(1.8rem,3vw,2.6rem);line-height:1.1;letter-spacing:-.042em;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview{
+  border-color:rgba(224,198,143,.43);
+  box-shadow:inset 0 1px 0 rgba(250,232,194,.06),0 11px 30px rgba(2,15,7,.13);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview .m26-admin-stat strong{
+  color:#F6E7CF;font-weight:780;font-variant-numeric:tabular-nums;
+  font-size:clamp(1.75rem,3vw,2.45rem);line-height:1.05;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-card{
+  border-color:rgba(220,198,151,.31);
+  box-shadow:0 7px 19px rgba(0,12,7,.13),inset 0 1px 0 rgba(255,247,222,.035);
+}
+.m26-shell[data-m26-role] .m26-workspace :is(.m26-client-home-stage,.m26-coach-home-command,.m26-admin-user360-card) :is(button,summary):focus-visible{
+  outline:3px solid #EBCF94;outline-offset:3px;
+}
+@media(hover:hover) and (pointer:fine){
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-quick button:hover:not(:disabled){
+    transform:translateY(-2px);
+  }
+}
+@keyframes m26-u56-editorial-enter{
+  from{opacity:.65;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@media(prefers-reduced-motion:no-preference){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2,
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy h2,
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360 .m26-admin-hero h2{
+    animation:m26-u56-editorial-enter .42s cubic-bezier(.2,.7,.2,1) both;
+  }
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-greeting h2{
+    font-size:clamp(1.9rem,8vw,2.65rem);
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-v1 .m26-coach-home-command-copy h2{
+    font-size:clamp(1.8rem,7vw,2.35rem);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart figcaption .m26-athletic-chart-last{
+    width:100%;justify-content:flex-end;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role] .m26-workspace :is(
+    .m26-client-home-greeting h2,.m26-coach-home-command-copy h2,.m26-admin-hero h2,
+    .m26-coach-home-quick button
+  ){animation:none;transition:none;transform:none}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-chart-last-halo{
+    fill:Canvas;stroke:CanvasText;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command::before{
+    background:CanvasText;
+  }
+}
+
+/* U56 evidence-first composition: give a true lone session count a large
+ * editorial data surface rather than nesting another dark card. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+  background:transparent;border-color:transparent;box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child{
+  min-height:110px;background:#E9E2D3;color:#17372A;
+  border:1px solid rgba(224,197,143,.45);
+  border-radius:.9rem;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child strong{
+  color:#17372A;font-size:clamp(3.8rem,9vw,5.25rem);
+  line-height:1;letter-spacing:-.075em;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child span{
+  color:#395345;font-weight:650;font-size:clamp(.86rem,1.8vw,1.05rem);
+}
+@media(max-width:350px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child{
+    min-height:95px;padding:.7rem .9rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child strong{
+    font-size:3.5rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child :is(strong,span){
+    background:Canvas;color:CanvasText;border-color:CanvasText;
+  }
 }
 
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
@@ -1613,3 +2874,4 @@
     outline-color:Highlight;
   }
 }
+

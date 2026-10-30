@@ -5,6 +5,16 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // U52 verified athletic progress and wellbeing copy.
+  ["Evolución real","Confirmed progress","Évolution réelle","Evolução real"],
+  ["Tu progreso","Your progress","Votre progression","O seu progresso"],
+  ["Registros confirmados · últimos 28 días","Confirmed records · last 28 days","Données confirmées · 28 derniers jours","Registos confirmados · últimos 28 dias"],
+  ["Adherencia confirmada","Confirmed adherence","Adhérence confirmée","Adesão confirmada"],
+  ["Volumen comparable","Comparable volume","Volume comparable","Volume comparável"],
+  ["Registros de bienestar","Wellbeing check-ins","Bilans de bien-être","Registos de bem-estar"],
+  ["Bienestar registrado","Recorded wellbeing","Bien-être enregistré","Bem-estar registado"],
+  ["Último registro","Last check-in","Dernier bilan","Último registo"],
+  ["Tu progreso confirmado","Your confirmed progress","Votre progression confirmée","O seu progresso confirmado"],
   // SIGNATURE U50: real Client wellbeing navigation copy in all UI locales.
   ["Energía, sueño y recuperación","Energy, sleep and recovery","Énergie, sommeil et récupération","Energia, sono e recuperação"],
   // SIGNATURE B35: recoverable session expiry must work in all supported locales.

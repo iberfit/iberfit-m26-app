@@ -1,3 +1,12 @@
+## SIGNATURE U51–U53 · Reconciliación HD premium · WIP · 30-10-2026
+
+- WIP exclusivo PR #1200: reconciliar diseño Cliente/Coach/Admin, evolución confirmada, gráficos SVG nítidos y corrección de `insertBefore` con Canary `d4ff328c1540a3dce2a39c16f6bc454f250abb40`.
+- Integración candidata conserva la base de seguridad/WebAuthn, QA, rendimiento, M44 y release posterior de Canary; no se sobrescriben los QA gates con las versiones antiguas del PR.
+- Esta revisión NO es merge de Canary, NO es Canary LIVE y NO es PROD. Requiere nueva CI, auditoría, Device, WebAuthn, pruebas autenticadas y visuales sobre SHA de merge candidato.
+- Promoción oficial únicamente tras certificación exacta, comparación de capturas reales y rollback. PostHog permanece pendiente hasta cierre del WIP.
+
+---
+
 ## SIGNATURE U50 · Rediseño Athletic Editorial / isotipo oficial · WIP · 29-10-2026
 
 - Visual aprobado: verde oscuro, alto contraste, crema/warm gray; sin fondos paisajísticos ni personas decorativas. Isotipo oficial sin recolor y con baja opacidad.

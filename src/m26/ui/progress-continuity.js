@@ -460,10 +460,17 @@ function enhanceClientHome({root,viewModel,state,now}){
   if(!section)return false;
   // The editorial Hoy feature contains its primary CTA. Insert useful context
   // after the entire feature rather than detaching it from the reading order.
-  const primary=host.querySelector?.('.m26-client-home-primary-zone');
-  const anchor=host.querySelector?.('.m26-client-home-feature')||primary;
-  if(anchor?.nextSibling)host.insertBefore(section,anchor.nextSibling);
-  else if(anchor)host.append(section);
+  // Only a direct child of host is a valid insertBefore reference. U52's
+  // feature is nested under .m26-client-home-stage; passing its nextSibling
+  // to host.insertBefore throws NotFoundError and aborts the whole login.
+  // Keep confirmed progress ahead of secondary continuity information.
+  const directCandidates=[
+    host.querySelector?.(':scope > .m26-athletic-evidence'),
+    host.querySelector?.(':scope > .m26-client-home-stage'),
+    host.querySelector?.(':scope > .m26-client-home-feature'),
+  ];
+  const anchor=directCandidates.find((node)=>node?.parentNode===host);
+  if(anchor)host.insertBefore(section,anchor.nextSibling);
   else host.prepend(section);
   return true;
 }

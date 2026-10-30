@@ -223,3 +223,28 @@ autorizan por sí mismos `start-published-session`.
 - Cliente: Entreno, Evolución y Bienestar como accesos a rutas reales, sin simular sesión lista ni métricas. Preservar IRI de inicio separado del seguimiento longitudinal.
 - Coach: prioridad real de sesión/ejecución, decisión rápida y datos de carga; Admin: operación, trazabilidad, tablas legibles. Cada rol conserva densidad propia.
 - Microinteracciones discretas, 44px+ touch, foco visible, soporte reduced motion y forced colors. No introducir imágenes externas ni efectos que eleven el coste de render.
+
+## SIGNATURE U51 · Composición real de producto (29-10-2026)
+
+- El estándar de referencia visual se valida **sobre el mismo DOM, estado y datos de IBERFIT**. Las imágenes conceptuales no son evidencia de implementación.
+- Cliente Hoy: la acción principal y las rutas Entreno / Evolución / Bienestar forman una sola composición compacta. Las métricas o sesiones se muestran sólo con registros confirmados. El método sigue disponible mediante un disclosure accesible; la prioridad visual es la acción real.
+- Coach: preservar la guía funcional de puesta en marcha, reducir ruido y destacar cliente, próxima decisión, agenda y carga. Admin: compactar directorio sin esconder controles de permisos y mostrar únicamente barras de capacidad respaldadas por carga registrada.
+- Se reutilizan el isotipo oficial y el controlador de avatares privados M42. No se añaden assets ficticios, imágenes ambientales de personas ni paisajes.
+- 320px/móvil/tablet/escritorio, foco, touch, safe areas, accesibilidad, WebAuthn, PWA y tests de sesiones determinan la certificación.
+
+## U55 · Piloto Depth Athletic, sistema de producto (30-10-2026)
+
+- Profundidad no equivale a añadir sombras indiscriminadamente: se consigue mediante jerarquía de plano, contraste editorial y una sola dirección de luz suave, reservada a superficies principales; bordes y sombras están subordinados a la legibilidad.
+- Cliente: mayor espacio para próxima acción y datos auténticos, minimizando bienestar duplicado y tarjetas de explicación.
+- Coach: área de prioridad con decisiones visibles y resumen de cartera en franja estrecha, sin retirar el recorrido de activación ni acciones de sesión.
+- Admin: estadísticas verificadas y directorio centrado en jerarquía de identidades/roles, sin sacrificar los campos de auditoría.
+- Móvil 320–390px, tablet y escritorio; SVG vectorial y captura dPR 2/3 cuando haya evidencia; foco contrastado, forced-colors y reduced-motion.
+- La referencia visual aprobada es una exigencia de calidad de producto, no garantía de que el piloto esté terminado; no extender a todas las rutas sin aprobación real del usuario.
+
+## U56 · Acabado editorial de alta densidad, sin falsificar datos
+
+- Cliente/Coach/Admin comparten materiales de marca, **no el mismo layout**: primer impacto emocional y próxima acción real en Cliente; decisión y agenda inmediata en Coach; densidad y trazabilidad en Admin.
+- Acabado nítido mediante vector SVG, números tabulares, tipografía editorial controlada y capas mate; una sola iluminación suave por portada. No utilizar ilustraciones humanas, imágenes externas ni métricas de muestra.
+- Entrada breve solo para títulos principales y solo si no está activado movimiento reducido; sin loops, parallax, componentes que dependan de animación, ni bloqueos de controles.
+- El gráfico fuerza enseña exclusivamente serie confirmada y comparable, retícula 0–100%, marcador final real y unidades kg·rep. La maqueta conceptual **no** es un origen de datos ni una captura autenticada.
+- Mantener el piloto como WIP del PR #1200. Exigir evidencia 320/390 px dPR2/3, tablet, escritorio, y QA real antes de merge / Canary / PROD.

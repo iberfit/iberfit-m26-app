@@ -18,6 +18,7 @@ import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTru
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
 import {renderIberfitIcon} from '../design/icons.js';
+import {renderAthleticClientEvidence} from '../design/athletic-client-evidence.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -347,15 +348,19 @@ function renderCoachHoyRoute(vm) {
   // discoverable, but do not render its identical global destination twice.
   // Client-scoped hero actions are different from global quick destinations.
   const quickActions=[
-    {area:'clientes',label:'Clientes',glyph:'＋'},
-    {area:'planificacion',label:'Programar entrenamiento',glyph:'◇'},
-    {area:'agenda',label:'Agenda',glyph:'□'},
+    {area:'clientes',label:'Clientes',glyph:'users'},
+    {area:'planificacion',label:'Programar entrenamiento',glyph:'dumbbell'},
+    {area:'agenda',label:'Agenda',glyph:'calendar-days'},
   ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
 
   const attentionCount=Number(cockpit?.attentionCount||0);
   const attentionStatus=attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
     :'Cartera al día';
+  const portfolioCount=Number(cockpit?.totalClients??clients.length);
+  const attentionMeter=Number.isFinite(portfolioCount)&&portfolioCount>0&&Number.isFinite(attentionCount)&&attentionCount>=0
+    ?`<progress max="${escapeHtml(portfolioCount)}" value="${escapeHtml(Math.min(attentionCount,portfolioCount))}" aria-label="${escapeHtml(attentionStatus)}">${escapeHtml(attentionStatus)}</progress>`
+    :'';
   const operationStatus=vm.operations?.pending
     ?'Sincronizando cambios'
     :vm.operations?.rejected
@@ -412,14 +417,14 @@ function renderCoachHoyRoute(vm) {
       <div class="m26-coach-home-glance" aria-label="Resumen de hoy">
         <span><strong>${escapeHtml((cockpit?.totalClients||clients.length)||'Sin clientes')}</strong>${(cockpit?.totalClients||clients.length)?' clientes en cartera':''}</span>
         <span><strong>${escapeHtml(appointments.length||'Agenda libre')}</strong>${appointments.length?' sesiones hoy':''}</span>
-        <span><strong>${escapeHtml(attentionStatus)}</strong></span>
+        <span class="m26-coach-home-attention-meter"><strong>${escapeHtml(attentionStatus)}</strong>${attentionMeter}</span>
         ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
     </section>
     <!-- m26-coach-launch-self-slot -->
 
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
-      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}"><span aria-hidden="true">${glyph}</span><strong>${label}</strong></button>`).join('')}
+      ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}" aria-label="${escapeHtml(area==='planificacion'?'Programar entrenamiento':label)}"><span class="m26-atlas-coach-icon" aria-hidden="true">${renderIberfitIcon(glyph,{className:'m26-atlas-icon-svg'})}</span><strong>${label}</strong></button>`).join('')}
     </nav>
 
     <div class="m26-coach-home-grid">
@@ -721,15 +726,15 @@ function renderClientHoyRoute(vm) {
     <div class="m26-client-home-compass-heading"><strong>Tu estado de hoy</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
     <div class="m26-client-home-compass-actions">
       <button type="button" data-m26-area="sesion">
-        ${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}
+        <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}</span>
         <span><strong>Entreno</strong><small>${runnable||standaloneGuided?'Sesión lista para empezar':projections.length?'Ver sesiones publicadas':serviceActive?'Consulta tus sesiones':'Historial disponible'}</small></span>
       </button>
       <button type="button" data-m26-area="progreso">
-        ${renderIberfitIcon('chart',{className:'m26-client-home-compass-icon'})}
+        <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('chart',{className:'m26-client-home-compass-icon'})}</span>
         <span><strong>Evolución</strong><small>Historial y progreso confirmado</small></span>
       </button>
       <button type="button" data-m26-area="actividad">
-        ${renderIberfitIcon('heart-pulse',{className:'m26-client-home-compass-icon'})}
+        <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('heart-pulse',{className:'m26-client-home-compass-icon'})}</span>
         <span><strong>Bienestar</strong><small>Energía, sueño y recuperación</small></span>
       </button>
     </div>
@@ -745,18 +750,19 @@ function renderClientHoyRoute(vm) {
   return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
     ${operationBanner(vm.operations||{})}
 
+    <section class="m26-client-home-stage" aria-label="Inicio y actividad de hoy">
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
       <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
         <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <span class="m26-client-home-avatar" data-iberfit-avatar-client="${escapeHtml(client?.id||'')}" aria-hidden="true">${escapeHtml(name.trim().slice(0,1).toUpperCase()||'I')}</span>
-        <p>${escapeHtml(primary.detail)}</p>
+        ${primary.area==='actividad'?'':`<p>${escapeHtml(primary.detail)}</p>`}
       </div>
-      <div class="m26-client-home-status">
+      ${primary.area==='actividad'?'':`<div class="m26-client-home-status">
         <span>${escapeHtml(primary.eyebrow)}</span>
         <strong>${escapeHtml(primary.title)}</strong>
-      </div>
+      </div>`}
       </div>
 
       <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
@@ -765,6 +771,9 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${clientCompass}
+    </section>
+
+    ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">
@@ -784,9 +793,9 @@ function renderClientHoyRoute(vm) {
       ${iriGlanceMarkup}
     </section>`:nextAppointment?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy"><div class="m26-client-home-appointment"><span>Próxima cita</span><strong>${escapeHtml(nextAppointment.dateLabel||'Por confirmar')}</strong><small>${escapeHtml(nextAppointment.title||'Tu cita IBERFIT')}</small></div></section>`:''}
 
-    ${trainingSurface?renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided}):''}
     ${renderClientTodayHealth(vm.wearables)}
     ${healthActivationMarkup}
+    ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided})}</details>`:''}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">

@@ -369,6 +369,17 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const olderVolume=comparableVolumes?average(volumes.slice(0,split)):null;
   const recentVolume=comparableVolumes?average(volumes.slice(split)):null;
   const volumeDelta=Number.isFinite(olderVolume)&&olderVolume>0&&Number.isFinite(recentVolume)?((recentVolume-olderVolume)/olderVolume)*100:null;
+  // Only same-composition, confirmed execution volumes can form a real trend.
+  // Keep the last 16 points to protect large histories and mobile rendering;
+  // no interpolated, missing, draft or cross-exercise values.
+  const comparableVolumeSeries=comparableVolumes
+    ?Object.freeze(volumeSeries.slice(-16)
+      .filter((item)=>item.date>0&&Number.isFinite(item.volume)&&item.volume>0)
+      .map((item)=>Object.freeze({
+        date:new Date(item.date).toISOString(),
+        volume:round(item.volume,1),
+      })))
+    :Object.freeze([]);
   const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end)).sort(byDateDesc);
   const wearable=summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
@@ -392,6 +403,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     standaloneCompletedSessions:adherenceEvidence.standaloneExecutions,
     adherenceEvidence,
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
+    comparableVolumeSeries,
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     iriBaseline,
     evolution,
