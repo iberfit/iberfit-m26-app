@@ -65,3 +65,15 @@ test('U54 authenticated atlas actions use genuine vector icons for Coach and Cli
  const client=renderHoyRoute(vm());
  assert.equal((client.match(/class="m26-atlas-client-icon"/gu)||[]).length,3);
 });
+
+test('U54 legacy dark CTA override excludes the gold Client hero',()=>{
+ const css=read('../src/m26/design/iberfit-premium-v3.css');
+ const general='.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:not(.m26-client-home-stage .m26-today-action)';
+ assert.ok(css.includes(general+'{'));
+ assert.ok(css.includes(general+':hover:not(:disabled){'));
+ assert.ok(!css.includes('.m26-hoy-route .m26-today-action{'));
+ const hero='.m26-client-home-stage .m26-client-home-primary-zone .m26-today-action.is-primary';
+ assert.ok(css.includes(hero+'{'));
+ assert.ok(css.includes('background:#D9B979;color:#173025'));
+ assert.ok(css.includes(hero+' :is(strong,small){'));
+});
