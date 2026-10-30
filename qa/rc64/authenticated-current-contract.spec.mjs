@@ -11,6 +11,7 @@ import {
   unexpectedQaResourceErrors,
 } from './secure-current-source-auth.mjs';
 import {evaluateRecoveredFirstFactor,mayRetryUserLoginAfterNetworkError} from './recovered-first-factor-contract.mjs';
+import {createQaSupabasePayloadFootprint} from './supabase-payload-footprint.mjs';
 
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
 const OPTIONAL_READ_PATHS=new Set([
@@ -364,6 +365,8 @@ test('current authenticated contract separates privileged fail-closed identities
       hasTouch:Boolean(projectUse.hasTouch),
       isMobile:Boolean(projectUse.isMobile),
     });
+    const payloadFootprint=createQaSupabasePayloadFootprint();
+    payloadFootprint.attach(context);
     const blocked=[];
     const externalFailures=[];
     const optionalReadFailures=[];
@@ -632,6 +635,10 @@ test('current authenticated contract separates privileged fail-closed identities
       });
       console.log(`RC64_CURRENT_AUTH_ACCOUNT_PASS:${account.name}`);
     }finally{
+      const sizes=await payloadFootprint.flush();
+      console.log('M26_QA_SUPABASE_PAYLOAD_FOOTPRINT:'+JSON.stringify({
+        project:projectName,role:account.role,...sizes,
+      }));
       await context.close().catch(()=>{});
     }
   }
