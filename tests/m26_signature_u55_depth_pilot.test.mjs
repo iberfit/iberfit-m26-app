@@ -68,10 +68,11 @@ test('U55 Coach quick actions stay accessible with compact on-screen labels',()=
 
 test('U56 role-specific editorial entrance stays bounded, tactile and accessible',()=>{
  const u56Start=css.indexOf('/* SIGNATURE U56 · High-density editorial finish');
- assert.ok(u56Start>css.indexOf('/* SIGNATURE B6 · Atelier Cliente'),'U56 optical finish must follow the B6 canonical layout, not be overridden');
- const u56=css.slice(u56Start);
+ const b6Start=css.indexOf('/* SIGNATURE B6 · Atelier Cliente');
+ assert.ok(u56Start>0&&b6Start>u56Start,'B6 must remain the terminal client-only material contract');
+ const u56=css.slice(u56Start,b6Start);
  assert.ok(u56.length>1500,'U56 stays inside the canonical visual pilot');
- for(const marker of ['m26-client-home-greeting h2','m26-coach-home-command-copy h2','m26-admin-user360-overview','m26-athletic-chart-last-halo'])assert.ok(u56.includes(marker),marker);
+ for(const marker of ['m26-client-home-greeting h2','m26-coach-home-command-copy h2','m26-admin-user360-overview','m26-athletic-chart-last-halo','m26-athletic-fact:only-child'])assert.ok(u56.includes(marker),marker);
  assert.match(u56,/@media\(prefers-reduced-motion:reduce\)/u);
  assert.match(u56,/@media\(forced-colors:active\)/u);
  assert.match(u56,/@media\(max-width:680px\)/u);

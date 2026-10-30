@@ -2571,125 +2571,6 @@
  }
 }
 
-
-/* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
- * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
- * distinct forest/cream hero. This is strictly presentational, scoped to the
- * authenticated Client Today route. Never infer actionability from color.
- * No new stylesheet, overlay, extra card or animation.
- */
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
-  color-scheme:light;
-  color:#173629;
-  border-color:rgba(23,54,41,.16);
-  background:#DDC091;
-  box-shadow:0 10px 28px rgba(4,22,15,.09);
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-kicker{
-  color:#6B4B1E;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-heading h3,
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps strong{
-  color:#173629;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-heading p,
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps small{
-  color:#304736;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-number{
-  color:#304736;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li{
-  border-left-color:rgba(23,54,41,.16);
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li:first-child{
-  border-left-color:transparent;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="available"],
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="published"]{
-  background:rgba(121,88,23,.055);
-  border-radius:.45rem;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="available"] .m26-client-home-journey-number,
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="published"] .m26-client-home-journey-number{
-  color:#5D4316;
-}
-/* Secondary discovery remains secondary, but must be tactile and discoverable. */
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary{
-  min-height:48px;
-  padding:.7rem .75rem;
-  border-radius:.65rem;
-  transition:background-color 140ms ease,color 140ms ease;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure[open]>summary{
-  background:rgba(197,160,89,.075);
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary:focus-visible{
-  outline:3px solid #D7BA7C;
-  outline-offset:2px;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-actions button{
-  min-height:48px;
-  touch-action:manipulation;
-}
-/* SIGNATURE contrast: navigation remains forest-dark; actual Hoy quick links
- * have stronger actionable edges, without implying that pending data exists. */
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
-  border-color:rgba(217,183,117,.34);
-  box-shadow:0 3px 12px rgba(0,0,0,.14);
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
-  color:#F7EAD2;
-  font-size:clamp(1.05rem,1.35vw,1.2rem);
-  font-weight:740;
-  line-height:1.25;
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button small{
-  color:#D2D5C7;
-  font-size:.9rem;
-  line-height:1.5;
-}
-@media(hover:hover) and (pointer:fine){
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:hover{
-    border-color:#C6AA72;
-    background:#234436;
-  }
-}
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:focus-visible{
-  outline:3px solid #E9CB8F;
-  outline-offset:3px;
-}
-@media(max-width:680px){
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
-    padding:1.1rem;
-  }
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li{
-    border-left-color:rgba(23,54,41,.16);
-  }
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li:first-child{
-    border-left-color:rgba(23,54,41,.16);
-  }
-}
-@media(prefers-reduced-motion:reduce){
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary{
-    transition:none;
-  }
-}
-@media(forced-colors:active){
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
-    color:CanvasText;
-    background:Canvas;
-    border-color:CanvasText;
-    box-shadow:none;
-  }
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey :is(h3,p,strong,small,span){
-    color:CanvasText;
-  }
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary:focus-visible{
-    outline-color:Highlight;
-  }
-}
-
 /* SIGNATURE U56 · High-density editorial finish.
  * Optical depth, restrained first-entrance feedback and truthful charts;
  * entirely scoped to existing role compositions. No new routes or assets. */
@@ -2840,6 +2721,157 @@
   }
   .m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command::before{
     background:CanvasText;
+  }
+}
+
+/* U56 evidence-first composition: give a true lone session count a large
+ * editorial data surface rather than nesting another dark card. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-stage .m26-client-home-compass-actions button{
+  background:transparent;border-color:transparent;box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child{
+  min-height:110px;background:#E9E2D3;color:#17372A;
+  border:1px solid rgba(224,197,143,.45);
+  border-radius:.9rem;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child strong{
+  color:#17372A;font-size:clamp(3.8rem,9vw,5.25rem);
+  line-height:1;letter-spacing:-.075em;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child span{
+  color:#395345;font-weight:650;font-size:clamp(.86rem,1.8vw,1.05rem);
+}
+@media(max-width:350px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child{
+    min-height:95px;padding:.7rem .9rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child strong{
+    font-size:3.5rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-athletic-fact:only-child :is(strong,span){
+    background:Canvas;color:CanvasText;border-color:CanvasText;
+  }
+}
+
+/* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
+ * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
+ * distinct forest/cream hero. This is strictly presentational, scoped to the
+ * authenticated Client Today route. Never infer actionability from color.
+ * No new stylesheet, overlay, extra card or animation.
+ */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
+  color-scheme:light;
+  color:#173629;
+  border-color:rgba(23,54,41,.16);
+  background:#DDC091;
+  box-shadow:0 10px 28px rgba(4,22,15,.09);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-kicker{
+  color:#6B4B1E;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-heading h3,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps strong{
+  color:#173629;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-heading p,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps small{
+  color:#304736;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-number{
+  color:#304736;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li{
+  border-left-color:rgba(23,54,41,.16);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li:first-child{
+  border-left-color:transparent;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="available"],
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="published"]{
+  background:rgba(121,88,23,.055);
+  border-radius:.45rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="available"] .m26-client-home-journey-number,
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li[data-journey-state="published"] .m26-client-home-journey-number{
+  color:#5D4316;
+}
+/* Secondary discovery remains secondary, but must be tactile and discoverable. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary{
+  min-height:48px;
+  padding:.7rem .75rem;
+  border-radius:.65rem;
+  transition:background-color 140ms ease,color 140ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure[open]>summary{
+  background:rgba(197,160,89,.075);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary:focus-visible{
+  outline:3px solid #D7BA7C;
+  outline-offset:2px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-actions button{
+  min-height:48px;
+  touch-action:manipulation;
+}
+/* SIGNATURE contrast: navigation remains forest-dark; actual Hoy quick links
+ * have stronger actionable edges, without implying that pending data exists. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button{
+  border-color:rgba(217,183,117,.34);
+  box-shadow:0 3px 12px rgba(0,0,0,.14);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button strong{
+  color:#F7EAD2;
+  font-size:clamp(1.05rem,1.35vw,1.2rem);
+  font-weight:740;
+  line-height:1.25;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button small{
+  color:#D2D5C7;
+  font-size:.9rem;
+  line-height:1.5;
+}
+@media(hover:hover) and (pointer:fine){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:hover{
+    border-color:#C6AA72;
+    background:#234436;
+  }
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-glance>button:focus-visible{
+  outline:3px solid #E9CB8F;
+  outline-offset:3px;
+}
+@media(max-width:680px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
+    padding:1.1rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li{
+    border-left-color:rgba(23,54,41,.16);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey-steps li:first-child{
+    border-left-color:rgba(23,54,41,.16);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary{
+    transition:none;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey{
+    color:CanvasText;
+    background:Canvas;
+    border-color:CanvasText;
+    box-shadow:none;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-journey :is(h3,p,strong,small,span){
+    color:CanvasText;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3 .m26-client-home-secondary-disclosure>summary:focus-visible{
+    outline-color:Highlight;
   }
 }
 
