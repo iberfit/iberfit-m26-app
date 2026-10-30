@@ -13,6 +13,7 @@ test('WebKit observer waits for actual paint without inventing DOM events',()=>{
 test('the REAL pointer-to-painted-route latency SLA stays at 5000ms',()=>{
  assert.ok(src.includes("expect(visual?.elapsedMs,'Actual pointer-to-painted-route latency remains <=5s')"));
  assert.ok(src.includes(".toBeLessThanOrEqual(5_000)"));
- assert.ok(src.includes("expect(pointer?.trustedPointer,'A genuine trusted pointerdown on the target must be observed')"));
+ assert.ok(src.includes("expect(visual?.trustedPointer,'A genuine trusted pointerdown on the target must be observed')"));
+ assert.ok(src.includes("if(browserName==='webkit'){"));
  assert.ok(!src.includes("dispatchEvent(new PointerEvent"));
 });
