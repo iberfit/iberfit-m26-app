@@ -40,12 +40,16 @@ function comparableVolumeChart(summary){
  }));
  const line=points.map(p=>`${p.x},${p.y}`).join(' ');
  const area=`${x0},${y0} ${line} ${points[points.length-1].x},${y0}`;
- const dots=points.map(p=>`<circle class="m26-athletic-chart-dot" cx="${p.x}" cy="${p.y}" r="3"><title>${esc(p.date)}: ${esc(p.volume)} kg × repeticiones</title></circle>`).join('');
+ const dots=points.map((p,i)=>`${i===points.length-1?`<circle class="m26-athletic-chart-last-halo" cx="${p.x}" cy="${p.y}" r="8"/>`:''}<circle class="m26-athletic-chart-dot" cx="${p.x}" cy="${p.y}" r="${i===points.length-1?4.5:3}"><title>${esc(p.date)}: ${esc(p.volume)} kg × repeticiones</title></circle>`).join('');
  return `<figure class="m26-athletic-chart" data-verified-volume-chart>
-   <figcaption><div><span class="m26-athletic-chart-kicker">FUERZA · REGISTROS COMPARABLES</span><strong>Volumen por sesión</strong></div><small>${series.length} ejecuciones confirmadas</small></figcaption>
+   <figcaption><div><span class="m26-athletic-chart-kicker">FUERZA · REGISTROS COMPARABLES</span><strong>Volumen por sesión</strong></div><span class="m26-athletic-chart-last">Último <strong>${esc(Number(points[points.length-1].volume.toFixed(1)))}</strong> kg·rep</span><small>${series.length} ejecuciones confirmadas</small></figcaption>
    <svg viewBox="0 0 370 180" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Volumen confirmado, de ${esc(points[0].volume)} a ${esc(points[points.length-1].volume)} kg por repeticiones, con ${series.length} sesiones comparables" focusable="false">
     <line class="m26-athletic-chart-grid" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/>
     <line class="m26-athletic-chart-grid" x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}"/>
+    <line class="m26-athletic-chart-grid" x1="${x0}" y1="${Number((y0-(y0-y1)*.25).toFixed(2))}" x2="${x1}" y2="${Number((y0-(y0-y1)*.25).toFixed(2))}"/>
+    <line class="m26-athletic-chart-grid m26-athletic-chart-midline" x1="${x0}" y1="${Number((y0-(y0-y1)*.5).toFixed(2))}" x2="${x1}" y2="${Number((y0-(y0-y1)*.5).toFixed(2))}"/>
+    <line class="m26-athletic-chart-grid" x1="${x0}" y1="${Number((y0-(y0-y1)*.75).toFixed(2))}" x2="${x1}" y2="${Number((y0-(y0-y1)*.75).toFixed(2))}"/>
+    <text class="m26-athletic-chart-tick" x="33" y="${Number((y0-(y0-y1)*.5+4).toFixed(2))}" text-anchor="end">${esc(Number((max*.5).toFixed(1)))}</text>
     <text class="m26-athletic-chart-tick" x="33" y="${y1+4}" text-anchor="end">${esc(Number(max.toFixed(1)))}</text>
     <text class="m26-athletic-chart-tick" x="33" y="${y0+4}" text-anchor="end">0</text>
     <polygon class="m26-athletic-chart-area" points="${area}"/>

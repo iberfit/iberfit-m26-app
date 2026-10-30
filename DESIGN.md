@@ -240,3 +240,11 @@ autorizan por sí mismos `start-published-session`.
 - Admin: estadísticas verificadas y directorio centrado en jerarquía de identidades/roles, sin sacrificar los campos de auditoría.
 - Móvil 320–390px, tablet y escritorio; SVG vectorial y captura dPR 2/3 cuando haya evidencia; foco contrastado, forced-colors y reduced-motion.
 - La referencia visual aprobada es una exigencia de calidad de producto, no garantía de que el piloto esté terminado; no extender a todas las rutas sin aprobación real del usuario.
+
+## U56 · Acabado editorial de alta densidad, sin falsificar datos
+
+- Cliente/Coach/Admin comparten materiales de marca, **no el mismo layout**: primer impacto emocional y próxima acción real en Cliente; decisión y agenda inmediata en Coach; densidad y trazabilidad en Admin.
+- Acabado nítido mediante vector SVG, números tabulares, tipografía editorial controlada y capas mate; una sola iluminación suave por portada. No utilizar ilustraciones humanas, imágenes externas ni métricas de muestra.
+- Entrada breve solo para títulos principales y solo si no está activado movimiento reducido; sin loops, parallax, componentes que dependan de animación, ni bloqueos de controles.
+- El gráfico fuerza enseña exclusivamente serie confirmada y comparable, retícula 0–100%, marcador final real y unidades kg·rep. La maqueta conceptual **no** es un origen de datos ni una captura autenticada.
+- Mantener el piloto como WIP del PR #1200. Exigir evidencia 320/390 px dPR2/3, tablet, escritorio, y QA real antes de merge / Canary / PROD.

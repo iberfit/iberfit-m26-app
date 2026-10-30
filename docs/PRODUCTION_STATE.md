@@ -1,3 +1,12 @@
+## SIGNATURE U56 · Acabado gráfico editorial HD, candidato del mismo PR #1200
+
+- Continuación de U55, sin PR adicional. Se refina la **composición real** de Cliente/Coach/Admin y un gráfico SVG de volumen con cinco guías, escala cero, última observación confirmada y trazado vectorial nítido. Sin recursos externos, datos inventados, backend, Auth, RLS, SQL ni nuevas rutas.
+- Movimiento de entrada corto solo en títulos, condicionado a `prefers-reduced-motion`; accesibilidad `forced-colors`, foco y responsive preservados.
+- La composición gráfica de referencia es **conceptual**, con cifras ficticias que NUNCA pasan al producto; las capturas reales siguen pendientes de evaluación humana a dPR alto.
+- NO promover a Canary/PROD por éxito de tests únicamente. El SHA candidato requiere CI completo + Device Experience + Admin WebAuthn + Daily Visual + screenshot autenticada real por rol/dispositivo y aprobación visual.
+
+---
+
 ## SIGNATURE U55 · Piloto de profundidad atlética, no publicado
 
 - Cambio visual en revisión: Cliente Hoy, Coach Hoy y directorio Admin; partiendo de las **capturas reales** del U54, que aún tienen excesiva altura, superficies planas y escasa jerarquía.

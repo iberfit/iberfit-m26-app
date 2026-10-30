@@ -63,3 +63,15 @@ test('U53 home continuity never inserts using a nested node from the new editori
  assert.match(css,/shape-rendering:geometricPrecision/u);
  assert.match(css,/vector-effect:non-scaling-stroke/u);
 });
+
+test('U56 high-density SVG keeps five honest grid lines and last confirmed observation',()=>{
+ const h=renderAthleticClientEvidence({
+  completedSessions:2,plannedSessions:2,adherence:1,volumeDelta:12.5,checkins:0,
+  comparableVolumeSeries:[{date:'2026-10-21T12:00:00.000Z',volume:320},{date:'2026-10-28T12:00:00.000Z',volume:360}],
+ });
+ assert.equal((h.match(/<line class="m26-athletic-chart-grid/g)||[]).length,5);
+ assert.match(h,/class="m26-athletic-chart-last-halo"/u);
+ assert.match(h,/Último <strong>360<\/strong> kg·rep/u);
+ assert.match(h,/text-anchor="end">180<\/text>/u);
+ assert.doesNotMatch(h,/linearGradient|filter="url|iriBaseline/u);
+});
