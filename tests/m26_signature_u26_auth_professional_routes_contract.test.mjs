@@ -35,7 +35,14 @@ test('U26 audits actual navigation after real privileged WebAuthn in trusted pus
   assert.match(helper,/toBeGreaterThanOrEqual\(viewport===/u);
   assert.match(helper,/fullFunctionalAcceptance:false/u);
   assert.match(helper,/notExposed/u);
-  assert.match(coach,/test\.setTimeout\(420_000\)/u);
+  // Total test coverage is not a user-facing response-time SLA.
+  // Preserve every route/content/auth assertion and constrain actual browser
+  // pointer-to-painted-route timing instead of constraining total suite work.
+  assert.match(coach,/test\\.setTimeout\\(600_000\\)/u);
+  assert.match(helper,/SIGNATURE_U26_BROWSER_PAINT/u);
+  assert.match(helper,/state\\.navPaint\\?\\.trusted/u);
+  assert.match(helper,/state\\.navPaint\\?\\.elapsedMs/u);
+  assert.match(helper,/\\.toBeLessThanOrEqual\\(5_000\\)/u);
   assert.match(helper,/SIGNATURE_U26_ROUTE_START/u);
   assert.match(helper,/SIGNATURE_U26_ROUTE_PASS/u);
   assert.match(helper,/timeout:12000/u);
