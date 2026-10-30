@@ -14,12 +14,19 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
     const requestedReason=safeReason(reason);
     const owner=getOwner();
     if(inFlight&&inFlight.owner===owner){
+      // A second initialization of the SAME login is not a server-side
+      // change. Never schedule another full privileged bootstrap for it.
+      // Mutation-triggered reasons (including identical ones) still queue a
+      // fresh pass so post-ACK readbacks cannot be lost.
+      if(requestedReason==='login'&&
+         (inFlight.runningReason==='login'||inFlight.queuedReason==='login'))
+        return inFlight.promise;
       inFlight.queued=true;
       inFlight.queuedReason=requestedReason;
       return inFlight.promise;
     }
 
-    const job={owner,queued:false,queuedReason:requestedReason,promise:null,controller:new AbortController()};
+    const job={owner,queued:false,queuedReason:requestedReason,runningReason:requestedReason,promise:null,controller:new AbortController()};
     const pending=Promise.resolve().then(async()=>{
       let result=null;
       let currentReason=requestedReason;
@@ -32,6 +39,7 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
         const queuedBeforeStart=firstPass&&job.queued;
         firstPass=false;
         job.queued=false;
+        job.runningReason=currentReason;
         result=await run({reason:currentReason,ownerSession:owner,signal:job.controller.signal});
         if(job.controller.signal.aborted)throw new Error('M26_HYDRATION_CANCELLED');
         if(queuedBeforeStart)job.queued=true;

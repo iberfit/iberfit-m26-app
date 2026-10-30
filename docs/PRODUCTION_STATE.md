@@ -1,9 +1,19 @@
-## P1 · Reducción conservadora Egress Supabase QA · CANDIDATO · 30-10-2026
+## P0 #1209 · Bootstrap/egress · QA performance macrobloque · candidato · 30-10-2026
+
+- Baseline verificada: PROD fuente 243627058fe58367726c62637613517188617471; Canary 7b991762117f9db444ef2c1a1145efd49a11c6a4 (PR #1208 y Canary exact desplegados), PROD NO contiene aún la caché pública. CI/Device/Coach/Admin verdes, remote gate falló dos ejecuciones (rutas lentas + una recuperación de Cliente).
+- Cambio de este candidato: coalescing limitado de renders store al siguiente fotograma (con fallback 96ms si pestaña suspendida), cancelación por generación y render explícito; eliminar solo la lectura duplicada *simultánea* de bootstrap causada por dos solicitudes idénticas de razón «login» y misma generación. Los readbacks de mutaciones, ACKs y razones distintas **no** se deduplican.
+- Tests: coalescing, último estado, fallback, página oculta, interacción, navegación/limpieza y lectura fresca tras ACK. No modificar los SLA 10s shell/5s touch, RLS, JWT, WebAuthn, flujos por rol, tests o seguridad.
+- NO-GO producción hasta todas las pruebas exact-SHA GREEN, deploy Canary y medición en Supabase. Una mejora de CPU/solicitudes no equivale automáticamente a una reducción de GB.
+- Evidencia P0: https://github.com/iberfit/iberfit-m26-app/issues/1209
+
+---
+
+## P1 · Reducción conservadora Egress Supabase QA · CANARY DESPLEGADO, PROD PENDIENTE · 30-10-2026
 
 - Evidencia: organización Free con 6,96/5 GB Egress; QA registra ~28k solicitudes gateway/24h, ~22k desde HeadlessChrome. No confundir solicitudes con bytes por servicio.
 - Alcance: cachear durante 120 s únicamente catálogo público y perfiles públicos, aislados por origen/versión/pestaña; presupuesto 1,8M caracteres; forzar revalidación para edición del catálogo.
 - Nunca cachear bootstrap privado, identidad, JWT, RLS, MFA/WebAuthn, sesión ni contenido de clientes. QA y producción aislados.
-- Candidato basado en Canary 243627058fe58367726c62637613517188617471. NO desplegado. Exige CI/QA, revisión de seguridad, Canary exacto, comparación de Egress por servicio y rollback antes de promoción PROD.
+- PR #1208 fusionada: SHA 7b991762117f9db444ef2c1a1145efd49a11c6a4, Canary desplegado y certificado en CI/Device; remoto falló 2 veces; PROD sigue 243627058fe58367726c62637613517188617471. Exige CI/QA, revisión de seguridad, Canary exacto, comparación de Egress por servicio y rollback antes de promoción PROD.
 - No se elimina ni reduce ningún gate y no se borran evidencias ni datos de QA. La mitigación de catálogo es parcial; evaluar otras rutas si Egress sigue alto.
 
 ---

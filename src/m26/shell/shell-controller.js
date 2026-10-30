@@ -502,29 +502,65 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return true;
   }
 
+  // Coalesce non-urgent store emissions into one browser paint instead of
+  // doing multiple costly full-route DOM reconstructions in one frame.
+  // The fallback keeps background/suspended tabs progressing. Neither
+  // changes the authenticated data, owner lease, click path or SLA budgets.
+  let scheduledRenderFrame=null;
+  let scheduledRenderFallback=null;
+  let scheduledRenderHost=null;
+  function clearScheduledRender(){
+    if(scheduledRenderFrame!==null){
+      scheduledRenderHost?.cancelAnimationFrame?.(scheduledRenderFrame);
+    }
+    if(scheduledRenderFallback!==null){
+      scheduledRenderHost?.clearTimeout?.(scheduledRenderFallback);
+    }
+    scheduledRenderFrame=null;
+    scheduledRenderFallback=null;
+    scheduledRenderHost=null;
+  }
+
   function renderSafely(state=store.getState()){
     if(shellInteractionActive()){
       queuedState=state;
       return false;
     }
+    // An explicit render owns the newest state; its previously scheduled
+    // frame must not repaint an older route or steal focus after the click.
+    clearScheduledRender();
+    renderQueued=false;
     queuedState=null;
     return renderNow(state);
   }
 
   function scheduleRender(state=store.getState()){
     queuedState=state;
-    if(shellInteractionActive())return;
-    if(renderQueued)return;
+    if(shellInteractionActive()||renderQueued)return;
     renderQueued=true;
     const token=generation;
-    queueMicrotask(()=>{
+    const flush=()=>{
+      if(!renderQueued||token!==generation)return;
+      clearScheduledRender();
       renderQueued=false;
-      if(token!==generation)return;
       if(shellInteractionActive())return;
       const next=queuedState;
       queuedState=null;
       renderNow(next);
-    });
+    };
+    const host=adaptiveWindow;
+    if(typeof host?.requestAnimationFrame==='function'
+      &&root.ownerDocument?.visibilityState!=='hidden'){
+      scheduledRenderHost=host;
+      scheduledRenderFrame=host.requestAnimationFrame(flush);
+      // A suspended frame callback must never strand hydration/route state.
+      if(typeof host.setTimeout==='function')
+        scheduledRenderFallback=host.setTimeout(flush,96);
+    }else{
+      // Visibility-hidden and non-browser environments preserve the existing
+      // microtask behavior rather than wait for an absent animation frame.
+      queueMicrotask(flush);
+    }
   }
 
   function onPointerDown(event){
@@ -1041,6 +1077,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const openMobileMore=root.querySelector?.('details.m26-mobile-more[open]');
     if(openMobileMore)setMobileMoreOpen(openMobileMore,false);
     generation+=1;
+    clearScheduledRender();
     renderQueued=false;
     queuedState=null;
     pendingI18nContinuitySnapshot=null;
