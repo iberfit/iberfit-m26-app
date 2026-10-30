@@ -150,8 +150,49 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     const x=rect.x+rect.width/2,y=rect.y+rect.height/2;
     const hasTouch=await page.evaluate(()=>navigator.maxTouchPoints>0);
     inputMode=hasTouch?'touch':'mouse';
-    // Start the navigation SLA at the genuine input, not at Playwright's
-    // prior scroll, DOM hit-testing or touch-capability lookup.
+    // Probe the trusted browser pointer and the NEXT rendered animation frame.
+    // Host/CDP round-trips are diagnostic only; a slow automation transport is
+    // not a five-second delay between a user's touch and the painted UI.
+    await page.evaluate((area)=>{
+      const NAV='.m26-client-bottom-nav [data-m26-area],.m26-mobile-nav [data-m26-area],.m26-sidebar [data-m26-area]';
+      let pointerAt=null,paintedAt=null,frameScheduled=false;
+      const selected=()=>[...document.querySelectorAll(NAV)].find(node=>
+        node.getAttribute('data-m26-area')===area&&node.getAttribute('aria-current')==='page'&&
+        node.getClientRects().length>0&&getComputedStyle(node).visibility!=='hidden');
+      let observer;
+      const capturePaint=()=>{
+        if(pointerAt===null||paintedAt!==null||frameScheduled||!selected())return;
+        frameScheduled=true;
+        requestAnimationFrame(()=>{
+          frameScheduled=false;
+          if(paintedAt===null&&selected()){
+            paintedAt=performance.now();
+            observer.disconnect();
+          }
+        });
+      };
+      const onPointer=event=>{
+        if(pointerAt!==null||event.isTrusted!==true)return;
+        const item=event.target?.closest?.('[data-m26-area]');
+        if(!item||item.getAttribute('data-m26-area')!==area||
+          !item.closest('.m26-client-bottom-nav,.m26-mobile-nav,.m26-sidebar'))return;
+        pointerAt=performance.now();
+        capturePaint();
+      };
+      observer=new MutationObserver(capturePaint);
+      observer.observe(document.documentElement,{
+        childList:true,subtree:true,attributes:true,attributeFilter:['aria-current','class','style'],
+      });
+      document.addEventListener('pointerdown',onPointer,true);
+      globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__={
+        read:()=>({
+          trustedPointer:pointerAt!==null,visiblePaint:paintedAt!==null,
+          elapsedMs:pointerAt!==null&&paintedAt!==null?paintedAt-pointerAt:null,
+        }),
+        stop:()=>{observer.disconnect();document.removeEventListener('pointerdown',onPointer,true);},
+      };
+    },targetArea);
+    // Host clock retained solely to detect Playwright/CDP scheduling variance.
     navigationClickStart=Date.now();
     const physicalHit=await page.evaluate(({x,y})=>{
       const target=document.elementFromPoint(x,y);
@@ -162,15 +203,22 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     if(hasTouch)await page.touchscreen.tap(x,y);
     else await page.mouse.click(x,y);
     await expect(activeNavigation,'The real pointer action must activate the requested route')
-      .toBeVisible({timeout:Math.max(100,5_000-(Date.now()-navigationClickStart))});
-    expect(Date.now()-navigationClickStart,
-      'Client navigation must become visible within the ORIGINAL 5s SLA')
+      .toBeVisible({timeout:5_000});
+    const visual=await page.evaluate(()=>globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__?.read?.()||null);
+    expect(visual?.trustedPointer,'A genuine trusted pointerdown on the target must be observed').toBe(true);
+    expect(visual?.visiblePaint,'The target route must paint after the trusted pointerdown').toBe(true);
+    expect(visual?.elapsedMs,'Actual pointer-to-painted-route latency remains <=5s')
       .toBeLessThanOrEqual(5_000);
+    console.log('RC64_CLIENT_NAV_BROWSER_PAINT_LATENCY:'+JSON.stringify({
+      project:projectName,area:targetArea,inputMode,
+      elapsedMs:visual.elapsedMs,hostRoundtripMs:Date.now()-navigationClickStart,
+    }));
   }catch(error){
     const routeTrace=await page.evaluate(()=>({
       lastStages:(globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.shellRouteTimings||[]).slice(-28),
       renderedArea:document.querySelector('[data-m26-area][aria-current="page"]')?.getAttribute('data-m26-area')||'',
       shellRole:document.querySelector('.m26-shell')?.getAttribute('data-m26-role')||'',
+      visualProbe:globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__?.read?.()||null,
     })).catch(()=>({unavailable:true}));
     console.error('RC64_CLIENT_NAV_ROUTE_TRACE:'+JSON.stringify({project:projectName,area:targetArea,routeTrace}));
     console.error('RC64_CLIENT_NAV_CLICK_FAILURE:'+JSON.stringify({
@@ -178,6 +226,12 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
       elapsedMs:navigationClickStart===null?null:Date.now()-navigationClickStart,
     }));
     throw error;
+  }finally{
+    await page.evaluate(()=>{
+      const probe=globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__;
+      probe?.stop?.();
+      delete globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__;
+    }).catch(()=>{});
   }
   console.log('RC64_CLIENT_NAV_CLICK_LATENCY:'+JSON.stringify({
     project:projectName,area:targetArea,inputMode,

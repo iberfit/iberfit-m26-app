@@ -2,6 +2,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
+import {isAuthorizedQaAvatarRead} from './avatar-read-policy.js';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -46,6 +47,8 @@ function allowedQaRequest(request){
   if(method==='POST'&&url.pathname==='/auth/v1/logout')return true;
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
   if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
+  // M42 authenticated avatar access: only one QA-scoped read, no write/foreign origin.
+  if(isAuthorizedQaAvatarRead(request,{origin:SUPABASE_ORIGIN}))return true;
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   if(method==='POST'&&url.pathname===WEBAUTHN_PATH)return true;
   if(isReadOnlyPushConfig(request,url,method))return true;
