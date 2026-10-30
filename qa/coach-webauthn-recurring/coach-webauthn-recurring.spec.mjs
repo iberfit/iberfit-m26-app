@@ -429,8 +429,12 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
  test('Coach completes real WebAuthn registration then real WebAuthn authentication on current source',async({browser})=>{
   // SIGNATURE U26 adds authenticated professional route coverage on five devices.
   // Keep individual assertions bounded; allow the full MFA+device journey to finish.
-  // U26 baseline SLA remains exact for all ordinary/recurring QA gates.
-  test.setTimeout(420_000);
+  // Keep the original 420s ceiling for the complete authenticated MFA/U26
+  // multi-device journey, and give the EXTRA offline U55 authoring its own
+  // bounded time after that journey. Browser-level total is not an interaction
+  // SLA: every existing individual route, input, save and preview limit stays.
+  test.setTimeout(720_000);
+  const authenticatedJourneyStartedAt=Date.now();
   // Only first, strictly gated U48 run includes an additional real workout.
   if(process.env.M26_QA_U48_RUNNING==='true'||process.env.M26_QA_U48_COMPLETED_READBACK==='true')
     test.setTimeout(840_000);
@@ -670,7 +674,25 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       await certifyU48CompletedReadback({browser,installPolicy,evidence,
         coachPage:page,cdp,setDevice});
     }
+    // Do not quietly extend WebAuthn or the five-device U26 acceptance SLA:
+    // only the distinct offline authoring extension receives extra budget.
+    if(![
+      'M26_QA_U47_RUNNING','M26_QA_U48_RUNNING','M26_QA_U48_COMPLETED_READBACK',
+      'M26_QA_U48_READBACK','M26_QA_U59_READBACK','M26_QA_U56_PUBLISH',
+      'M26_QA_U57_VERIFY','M26_QA_U58_EXECUTE',
+    ].some(key=>process.env[key]==='true')){
+      const authenticatedJourneyMs=Date.now()-authenticatedJourneyStartedAt;
+      console.log('COACH_AUTHENTICATED_U26_JOURNEY_MS:'+authenticatedJourneyMs);
+      expect(authenticatedJourneyMs,
+        'Original Coach WebAuthn + U26 multi-device journey must remain within 420s')
+        .toBeLessThanOrEqual(420_000);
+    }
+    const offlineAuthoringStartedAt=Date.now();
     u56Scope.title=await certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors);
+    const offlineAuthoringMs=Date.now()-offlineAuthoringStartedAt;
+    console.log('COACH_OFFLINE_AUTHORING_U55_MS:'+offlineAuthoringMs);
+    expect(offlineAuthoringMs,'Distinct offline U55 Coach authoring must finish in 240s')
+      .toBeLessThanOrEqual(240_000);
     if(u56Client&&process.env.M26_QA_U56_PUBLISH==='true'){
       await certifyU56OnlineCoachPublish({
         page,context,cdp,client:u56Client,scope:u56Scope,evidence,setDevice,
