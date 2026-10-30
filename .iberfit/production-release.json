@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "243627058fe58367726c62637613517188617471",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "013ba502af51dde98fd97dbd28cb3920f11d5117",
+  "notes": "IBERFIT P2 privacy GeoIP disable for all opt-in anonymous analytics events. PR 1207; 9/9 exact-SHA Canary post-merge workflows GREEN, M44 encrypted PROD DB+Storage restore proof run 41074198387; frontend-only; zero Supabase, Auth, RLS, Edge or DB mutations. Mandatory Cloudflare rollback and exact live SHA."
+}
