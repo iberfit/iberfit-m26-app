@@ -60,3 +60,40 @@ test('body API errors never turn QA to pass and HTTP errors stay accounted',asyn
  assert.equal(out.endpoints[0].unreadableSamples,1);
  assert.equal(out.endpoints[0].sampledResponses,0);
 });
+
+test('bootstrap reports only fixed section counts and approximate JSON bytes from already received body',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ const secret='PRIVATE_QA_VALUE_NEVER_LOG';
+ const doc={user:{id:secret,role:'client'},data:{
+  sessions:[{id:secret,title:secret},{id:'another'}],
+  checkins:[{comment:secret}],m26Entities:[{body:{secret}}],
+  unknownPrivateSection:[{sensitive:secret}],
+ }};
+ const buf=Buffer.from(JSON.stringify(doc));
+ let calls=0;
+ ctx.emit('response',{url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26?token='+secret,
+  status:()=>200,body:async()=>{calls++;return buf;}});
+ const out=await m.flush();
+ const row=out.endpoints[0];
+ assert.equal(calls,1);
+ assert.equal(out.requestsIssuedByObserver,0);
+ assert.equal(row.sampledDecodedBytes,buf.byteLength);
+ assert.equal(row.bootstrapParsedSamples,1);
+ assert.deepEqual(row.bootstrapSections.map(x=>x.section).sort(),['checkins','m26Entities','sessions']);
+ assert.equal(row.bootstrapSections.find(x=>x.section==='sessions').totalRecords,2);
+ assert.equal(row.bootstrapSections.find(x=>x.section==='sessions').sampledJsonBytes,
+  Buffer.byteLength(JSON.stringify(doc.data.sessions)));
+ assert.ok(!JSON.stringify(out).includes(secret));
+ assert.ok(!JSON.stringify(out).includes('unknownPrivateSection'));
+});
+test('invalid bootstrap body does not leak or fail a size measurement',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ const bad=Buffer.from('PRIVATE_NOT_JSON');
+ ctx.emit('response',{url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26',
+  status:()=>200,body:async()=>bad});
+ const out=await m.flush();
+ assert.equal(out.endpoints[0].sampledResponses,1);
+ assert.equal(out.endpoints[0].sampledDecodedBytes,bad.byteLength);
+ assert.equal(out.endpoints[0].bootstrapSections,undefined);
+ assert.ok(!JSON.stringify(out).includes('PRIVATE_NOT_JSON'));
+});
