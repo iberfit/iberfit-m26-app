@@ -349,7 +349,7 @@ function renderCoachHoyRoute(vm) {
   // Client-scoped hero actions are different from global quick destinations.
   const quickActions=[
     {area:'clientes',label:'Clientes',glyph:'users'},
-    {area:'planificacion',label:'Programar',glyph:'dumbbell'},
+    {area:'planificacion',label:'Programar entrenamiento',glyph:'dumbbell'},
     {area:'agenda',label:'Agenda',glyph:'calendar-days'},
   ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
 
