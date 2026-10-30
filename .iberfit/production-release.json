@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d4ff328c1540a3dce2a39c16f6bc454f250abb40",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "986974b710cce6f7c908e235790a6783ad952d79",
+  "notes": "SIGNATURE Production-Canary parity 2026-10-30: exact Canary U48-U50 with M43 full Client/Coach workflow, WebAuthn Coach/Admin, remote gates and Device QA certified; M44 encrypted PROD DB+Storage isolated PG17 restore and external private backup; no PROD SQL/Edge/Hosted Auth modifications; protected rollback + production smoke."
+}
