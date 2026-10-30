@@ -1,3 +1,11 @@
+## P0 #1209 · QA medición de payload por RPC sin solicitudes adicionales · 30-10-2026
+
+- Canary exact `5a7088fb503169816212283ae3f349c9fd01610c` desplegado OK (run #41118749983). El Remote Gate A/B falla por HTTP 401 durante captura visual; restantes flujos post-merge verdes. PROD no tocada.
+- Nuevo observador **solo QA** integrado en prueba autenticada existente, sin pruebas extra de navegador: agrupa respuestas reales hasta 3 muestras por endpoint en categorías fijas, sin registrar URLs, IDs, headers, JWT o cuerpos; no crea HTTP. `response.body()` devuelve tamaño observado por Playwright **posiblemente descomprimido** y NO representa GB facturados. Marcador `M26_QA_SUPABASE_PAYLOAD_FOOTPRINT` en logs.
+- Objetivo: identificar principales RPC por tamaño medio * frecuencia; priorizar reducciones de payload/frecuencia sin cachear RLS ni saltear Auth/MFA. No interpretar requests o `decodedBytes` como cuota facturada.
+
+---
+
 ## P0 #1209 · QA egress: coalescing de RPC públicos solo en tests de lectura · 30-10-2026
 
 - La fuente de tráfico dominante en QA son los navegadores automáticos de GitHub: 22k+ gateway requests/24h HeadlessChrome. El catálogo público registra 2309 llamadas/24h (2076 headless), perfiles públicos 1176 (1036 headless). NO inferir volumen facturado exacto a partir del contador.
