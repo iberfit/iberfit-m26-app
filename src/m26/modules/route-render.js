@@ -748,7 +748,7 @@ function renderClientHoyRoute(vm) {
       </button>`
     :'';
 
-  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
+  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3 m26-client-home-stitch-v23" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
     ${operationBanner(vm.operations||{})}
 
     <section class="m26-client-home-stage" aria-label="Inicio y actividad de hoy">
@@ -758,15 +758,16 @@ function renderClientHoyRoute(vm) {
         <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <span class="m26-client-home-avatar" data-iberfit-avatar-client="${escapeHtml(client?.id||'')}" aria-hidden="true">${escapeHtml(name.trim().slice(0,1).toUpperCase()||'I')}</span>
-        ${primary.area==='actividad'?'':`<p>${escapeHtml(primary.detail)}</p>`}
       </div>
-      ${primary.area==='actividad'?'':`<div class="m26-client-home-status">
-        <span>${escapeHtml(primary.eyebrow)}</span>
-        <strong>${escapeHtml(primary.title)}</strong>
-      </div>`}
+      ${!trainingSurface?`<div class="m26-client-home-status"><span>${escapeHtml(primary.eyebrow)}</span><strong>${escapeHtml(primary.title)}</strong><p>${escapeHtml(primary.detail)}</p></div>`:''}
       </div>
 
       <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+        ${trainingSurface&&primary.area!=='actividad'?`<div class="m26-client-home-status">
+          <span>${escapeHtml(primary.eyebrow)}</span>
+          <strong>${escapeHtml(primary.title)}</strong>
+          <p>${escapeHtml(primary.detail)}</p>
+        </div>`:''}
         ${primary.markup}
       </div>
     </section>
