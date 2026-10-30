@@ -1,3 +1,10 @@
+## P0 Supabase Free: QA consent bootstrap capped candidate — 2026-10-30
+- Canary latest deployed SHA 67299e98892b95427cef0e687d920d2a99a1b808. Decoded Playwright response 290956 bytes of wearable bootstrap; 2630143 bytes in Client main bootstrap. These are not billing bytes.
+- QA: 1340 Health Connect consent events for one client, 2026-10-11 through 2026-10-30. Preserving full events and revocation fences in database is non-negotiable.
+- Candidate QA-only SQL replacement returns latest 3 consent events by client/provider with same JSON shape, retaining all permissions/invoker RLS and other response fields. Rollback restores full history response; environment guard forbids PROD.
+- This SQL is not yet applied or deployed. After pre-merge tests, apply QA only, verify with aggregates, and measure reduction and privacy; do not declare Free quota solved without Usage GB.
+
+---
 ## P0 #1209 · QA medición de payload por RPC sin solicitudes adicionales · 30-10-2026
 
 - Canary exact `5a7088fb503169816212283ae3f349c9fd01610c` desplegado OK (run #41118749983). El Remote Gate A/B falla por HTTP 401 durante captura visual; restantes flujos post-merge verdes. PROD no tocada.
