@@ -35,3 +35,26 @@ test('Shell clock is QA-only and uses monotonic performance.now for pointer-to-c
   assert.match(source,/route-click/u);
   assert.match(source,/route-commit/u);
 });
+
+test('Login mounts all critical session actions before interactive without forcing idle full-page layout',()=>{
+  const session=readFileSync('src/m26/workflows/session-controller.js','utf8');
+  const start=session.indexOf('return Object.freeze({mount(){if(mounted)return;');
+  const end=session.indexOf('},destroy(){if(!mounted)return;',start);
+  assert.ok(start>=0&&end>start);
+  const mount=session.slice(start,end);
+  for(const token of [
+    "root.addEventListener('click',captureSessionEntryIntent,true)",
+    "root.addEventListener('click',click)",
+    "root.addEventListener('input',input)",
+    "root.addEventListener('change',change)",
+    "root.addEventListener('keydown',keydown)",
+    "root.addEventListener('m26:shell-rendered',onShellRendered)",
+  ])assert.ok(mount.includes(token),token);
+  assert.match(mount,/if\(active\?\.draft\|\|active\?\.execution\)/u);
+  assert.ok(mount.indexOf('mounted=true')<mount.indexOf('if(active?.draft||active?.execution)'));
+  const rendered=session.slice(session.indexOf('function onShellRendered()'),session.indexOf('function focusSessionRecoveryField',session.indexOf('function onShellRendered()')));
+  for(const token of ['bindSessionStickyTop()','hydrateActiveSetDraft(getContext())','syncLiveAddExerciseControl(getContext())','syncFinishControl(getContext())','ensureSessionClockTicker(getContext())'])assert.ok(rendered.includes(token),token);
+  const app=readFileSync('src/m26/app/application.js','utf8');
+  assert.ok(app.indexOf('sessionController.mount()')<app.indexOf("root.dataset.m26SessionEntryReady='ready'"));
+  assert.ok(app.indexOf("root.dataset.m26SessionEntryReady='ready'")<app.indexOf("root.dataset.m26Interactive='ready'"));
+});
