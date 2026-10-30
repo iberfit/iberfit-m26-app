@@ -22,5 +22,16 @@ test('Client route SLA stays five seconds and failure captures bounded shell ren
   assert.match(client,/shellRouteTimings\.slice\(-24\)/u);
   assert.match(client,/phase:String\(x\.phase/u);
   assert.match(client,/elapsedMs:Number\.isFinite\(x\.elapsedMs\)/u);
+  assert.match(client,/atMs:Number\.isFinite\(x\.atMs\)/u);
+  assert.match(client,/pointerAtMs:pointerAt===null/u);
   assert.doesNotMatch(client,/toBeLessThanOrEqual\(6_000\)/u);
+});
+
+test('Shell clock is QA-only and uses monotonic performance.now for pointer-to-commit breakdown',()=>{
+  const source=readFileSync('src/m26/shell/shell-controller.js','utf8');
+  assert.match(source,/if\(!qa\|\|!Array\.isArray\(qa\.appStageTimes\)\)return/u);
+  assert.match(source,/performance\?\.now\?\.\(\)/u);
+  assert.match(source,/atMs:Math\.round/u);
+  assert.match(source,/route-click/u);
+  assert.match(source,/route-commit/u);
 });
