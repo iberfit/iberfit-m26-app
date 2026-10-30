@@ -187,7 +187,7 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
       globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__={
         read:()=>({
           trustedPointer:pointerAt!==null,visiblePaint:paintedAt!==null,
-          elapsedMs:pointerAt!==null&&paintedAt!==null?Math.round(paintedAt-pointerAt):null,
+          elapsedMs:pointerAt!==null&&paintedAt!==null?paintedAt-pointerAt:null,
         }),
         stop:()=>{observer.disconnect();document.removeEventListener('pointerdown',onPointer,true);},
       };
