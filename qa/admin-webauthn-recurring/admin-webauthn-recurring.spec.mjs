@@ -3,6 +3,7 @@ import path from 'node:path';
 import {test,expect} from '@playwright/test';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 import {isAuthorizedQaAvatarRead} from './avatar-read-policy.js';
+import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -47,7 +48,7 @@ function allowedQaRequest(request){
   if(method==='POST'&&url.pathname==='/auth/v1/logout')return true;
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
   if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
-  // Owner/role-scoped profile photo reads are not business writes; RLS still enforces access.
+  // M42 authenticated avatar access: only one QA-scoped read, no write/foreign origin.
   if(isAuthorizedQaAvatarRead(request,{origin:SUPABASE_ORIGIN}))return true;
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   if(method==='POST'&&url.pathname===WEBAUTHN_PATH)return true;
@@ -281,6 +282,18 @@ test('Admin completes real WebAuthn registration and authentication before expli
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   await installPolicy(context,evidence);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
+  // Exactly the same missing-private-avatar contract as Client authenticated QA.
+  // Only a genuine, owner/RLS-scoped GET with NoSuchKey/not_found may be excluded;
+  // 400 authentication failures, writes and all other HTTP errors stay red.
+  const avatarChecks=[],missingAvatar=[],unexpectedAvatar=[];
+  page.on('response',(response)=>{
+    if(isAuthorizedQaAvatarRead(response.request(),{origin:SUPABASE_ORIGIN})&&response.status()>=400){
+      avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
+        if(ok)missingAvatar.push(true);
+        else unexpectedAvatar.push('QA_ADMIN_PRIVATE_AVATAR_UNEXPECTED_HTTP_'+String(response.status()));
+      }).catch(()=>unexpectedAvatar.push('QA_ADMIN_PRIVATE_AVATAR_RESPONSE_UNREADABLE')));
+    }
+  });
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
   const {cdp,authenticatorId}=await addVirtualAuthenticator(page);
@@ -322,8 +335,12 @@ test('Admin completes real WebAuthn registration and authentication before expli
     }
 
     expect(evidence.signatureU26Audits.map(x=>x.viewport)).toEqual(['desktop','mobile']);
+    await Promise.all(avatarChecks);
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
-    expect(consoleErrors,'Authenticated Admin console must remain clean').toEqual([]);
+    expect(unexpectedAvatar,'Admin private profile image must never fail with unauthorized or unknown error').toEqual([]);
+    expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length),
+      'Authenticated Admin console must remain clean except verified missing private avatar').toEqual([]);
+    evidence.missingPrivateAvatarReads=missingAvatar.length;
     expect(pageErrors,'Authenticated Admin page must remain clean').toEqual([]);
     expect(evidence.qaRequests.some((label)=>label.includes('/rest/v1/rpc/iberfit_admin_bootstrap_v14')),'Real Admin bootstrap must be observed').toBe(true);
     await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');

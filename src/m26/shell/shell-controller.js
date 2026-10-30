@@ -435,7 +435,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const rows=Array.isArray(qa.shellRouteTimings)?qa.shellRouteTimings:(qa.shellRouteTimings=[]);
     rows.push({phase:String(phase).slice(0,40),
       area:String(area).slice(0,30),
-      elapsedMs:Number.isFinite(elapsedMs)?Math.round(elapsedMs):null});
+      elapsedMs:Number.isFinite(elapsedMs)?Math.round(elapsedMs):null,
+      // Monotonic QA-only clock to compare click/commit/paint. No PII or body.
+      atMs:Math.round(root.ownerDocument?.defaultView?.performance?.now?.()||0)});
     if(rows.length>60)rows.splice(0,rows.length-60);
   }
 

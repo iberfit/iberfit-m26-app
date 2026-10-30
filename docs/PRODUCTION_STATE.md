@@ -1,29 +1,9 @@
-## SIGNATURE U56 · Acabado gráfico editorial HD, candidato del mismo PR #1200
+## SIGNATURE U51–U53 · Reconciliación HD premium · WIP · 30-10-2026
 
-- Continuación de U55, sin PR adicional. Se refina la **composición real** de Cliente/Coach/Admin y un gráfico SVG de volumen con cinco guías, escala cero, última observación confirmada y trazado vectorial nítido. Sin recursos externos, datos inventados, backend, Auth, RLS, SQL ni nuevas rutas.
-- Movimiento de entrada corto solo en títulos, condicionado a `prefers-reduced-motion`; accesibilidad `forced-colors`, foco y responsive preservados.
-- La composición gráfica de referencia es **conceptual**, con cifras ficticias que NUNCA pasan al producto; las capturas reales siguen pendientes de evaluación humana a dPR alto.
-- NO promover a Canary/PROD por éxito de tests únicamente. El SHA candidato requiere CI completo + Device Experience + Admin WebAuthn + Daily Visual + screenshot autenticada real por rol/dispositivo y aprobación visual.
-
----
-
-## SIGNATURE U55 · Piloto de profundidad atlética, no publicado
-
-- Cambio visual en revisión: Cliente Hoy, Coach Hoy y directorio Admin; partiendo de las **capturas reales** del U54, que aún tienen excesiva altura, superficies planas y escasa jerarquía.
-- Dirección: superficies forest mates con diferenciación de planos, un único toque radial de iluminación ambiental de marca, control de sombras, borde oro y tipografía con contraste. Avatar: exclusivamente recurso privado real del usuario. Sin fotos decorativas.
-- El resumen Coach se hace compacto y proporcional, con accesos táctiles preservados. El directorio Admin sigue presentando datos reales y los detalles de permiso/auditoría quedan accesibles. Cliente conserva todas las rutas y el CTA autorizado.
-- Los gráficos son SVG y datos comparables confirmados: **no** fusionar IRI inicial con evolución ni inventar métricas.
-- Pilotaje exclusivo U55 en PR #1200. **No fusionar ni desplegar a Canary/PROD** mientras el Device Experience Gate / política Canary y evidencia visual de código SHA exacto no estén verdes. La aprobación visual del usuario determina el alcance posterior, no CI por sí sola.
-
----
-
-## SIGNATURE U51 · Producto visual auténtico · candidato (29-10-2026)
-
-- Base confirmada: `2d8eb0403755276932e2f554378ab8d31010faac` (U50 en Canary).
-- Problema observado: Cliente Hoy consume el primer viewport en explicación y contenedores; Coach repite onboarding antes del trabajo; Admin usa filas demasiado altas y no grafica carga existente.
-- Candidato: una única composición Cliente con acción y triada, datos reales de actividad adelantados, proceso en disclosure; Coach Hero/agenda con densidad operativa; Admin directorio comprimido y barras de capacidad realmente confirmada.
-- **NO certificar / NO promover** hasta 9 workflows, QA visual real, verificación Mobile Safari/Chromium, privacidad avatar y WebAuthn Admin. Último WebAuthn Admin push U50 tuvo un GET de avatar privado bloqueado por la política de requests del test: se investiga por separado, sin relajar seguridad.
-- No se modifican Auth, RLS, Supabase, contratos de publicación ni backend. QA y PROD siguen separados.
+- WIP exclusivo PR #1200: reconciliar diseño Cliente/Coach/Admin, evolución confirmada, gráficos SVG nítidos y corrección de `insertBefore` con Canary `d4ff328c1540a3dce2a39c16f6bc454f250abb40`.
+- Integración candidata conserva la base de seguridad/WebAuthn, QA, rendimiento, M44 y release posterior de Canary; no se sobrescriben los QA gates con las versiones antiguas del PR.
+- Esta revisión NO es merge de Canary, NO es Canary LIVE y NO es PROD. Requiere nueva CI, auditoría, Device, WebAuthn, pruebas autenticadas y visuales sobre SHA de merge candidato.
+- Promoción oficial únicamente tras certificación exacta, comparación de capturas reales y rollback. PostHog permanece pendiente hasta cierre del WIP.
 
 ---
 

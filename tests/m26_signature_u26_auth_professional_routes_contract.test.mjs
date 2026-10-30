@@ -35,7 +35,15 @@ test('U26 audits actual navigation after real privileged WebAuthn in trusted pus
   assert.match(helper,/toBeGreaterThanOrEqual\(viewport===/u);
   assert.match(helper,/fullFunctionalAcceptance:false/u);
   assert.match(helper,/notExposed/u);
-  assert.match(coach,/test\.setTimeout\(420_000\)/u);
+  // U26 remains capped at 420s, even when an EXTRA separately bounded U55
+  // authoring scenario shares the same Playwright test. The stronger phase
+  // guard must be checked rather than confusing total test duration with U26.
+  assert.match(coach,/authenticatedJourneyStartedAt=Date\.now\(\)/u);
+  assert.match(coach,/authenticatedJourneyMs=Date\.now\(\)-authenticatedJourneyStartedAt/u);
+  assert.match(coach,/Original Coach WebAuthn \+ U26 multi-device journey must remain within 420s/u);
+  assert.match(coach,/toBeLessThanOrEqual\(420_000\)/u);
+  assert.match(coach,/offlineAuthoringMs=Date\.now\(\)-offlineAuthoringStartedAt/u);
+  assert.match(coach,/toBeLessThanOrEqual\(240_000\)/u);
   assert.match(helper,/SIGNATURE_U26_ROUTE_START/u);
   assert.match(helper,/SIGNATURE_U26_ROUTE_PASS/u);
   assert.match(helper,/timeout:12000/u);
