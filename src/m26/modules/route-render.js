@@ -506,6 +506,50 @@ function renderClientTrainingJourney({planReady=false,projections=[],serviceActi
   </section>`;
 }
 
+// Stitch V2.3 · confirmed weekly appointment preview (never inferred training results).
+export function renderClientWeekRail(upcoming,now=new Date()){
+  // Owner-scoped upcoming appointments are limited by the VM; never infer all
+  // planned days, training completion, rest days or weekly load from them.
+  const timeZone='America/Santiago', clock=new Date(now);
+  if(!Number.isFinite(clock.getTime()))return '';
+  const fmt=(date)=>new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+  const part=(list,key)=>list.find(x=>x.type===key)?.value;
+  const fields=fmt(clock),year=Number(part(fields,'year')),month=Number(part(fields,'month')),date=Number(part(fields,'day'));
+  const today=new Date(Date.UTC(year,month-1,date,12));
+  if(!Number.isFinite(today.getTime()))return '';
+  const dateKey=x=>`${x.getUTCFullYear()}-${String(x.getUTCMonth()+1).padStart(2,'0')}-${String(x.getUTCDate()).padStart(2,'0')}`;
+  const localKey=value=>{
+    if(typeof value!=='string'||!value.trim())return '';
+    if(/^\d{4}-\d{2}-\d{2}$/.test(value)){
+      const probe=new Date(value+'T12:00:00Z');
+      return Number.isFinite(probe.getTime())&&dateKey(probe)===value?value:'';
+    }
+    const parsed=new Date(value);
+    if(!Number.isFinite(parsed.getTime()))return '';
+    const local=fmt(parsed);
+    return `${part(local,'year')}-${part(local,'month')}-${part(local,'day')}`;
+  };
+  const known=new Set((Array.isArray(upcoming)?upcoming:[])
+    .filter(item=>['confirmada','confirmado','confirmed'].includes(String(item?.statusRaw||'').trim().toLowerCase()))
+    .map(item=>localKey(item?.date)).filter(Boolean));
+  const monday=new Date(today.getTime()-((today.getUTCDay()+6)%7)*86400000);
+  const week=Array.from({length:7},(_,i)=>new Date(monday.getTime()+i*86400000));
+  const short=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',timeZone:'UTC'});
+  const title=`${short.format(week[0])} – ${short.format(week[6])}`;
+  const initials=['L','M','X','J','V','S','D'];
+  const cells=week.map((item,i)=>{
+    const key=dateKey(item),current=key===dateKey(today),confirmed=known.has(key);
+    const dateLabel=new Intl.DateTimeFormat('es-CL',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(item);
+    const aria=`${current?'Hoy, ':''}${dateLabel}${confirmed?', cita confirmada próxima':''}`;
+    return `<li class="m26-client-week-day${current?' is-today':''}${confirmed?' has-confirmed':''}" data-day="${key}" data-date-status="${confirmed?'confirmed':'not-shown'}"${current?' aria-current="date"':''} aria-label="${escapeHtml(aria)}"><span>${initials[i]}</span><strong>${item.getUTCDate()}</strong><i aria-hidden="true"></i></li>`;
+  }).join('');
+  return `<section class="m26-client-week-rail" data-client-week-rail aria-labelledby="m26-client-week-heading">
+    <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion">Ver planificación <span aria-hidden="true">↗</span></button></header>
+    <ol class="m26-client-week-days" aria-label="Semana de lunes a domingo">${cells}</ol>
+    <div class="m26-client-week-note"><span><i aria-hidden="true"></i>Citas confirmadas próximas</span><small>La planificación completa está en tu plan.</small></div>
+  </section>`;
+}
+
 function renderClientHoyRoute(vm) {
   const client=vm.clients?.[0]||null;
   const trainingSurface=hasTrainingSurface(vm.serviceKind);
@@ -774,6 +818,8 @@ function renderClientHoyRoute(vm) {
 
     ${clientCompass}
     </section>
+
+    ${trainingSurface?renderClientWeekRail(upcoming):''}
 
     ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
 

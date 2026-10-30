@@ -2842,6 +2842,79 @@
   }
 }
 
+
+/* Stitch V2.3 · 7-day editorial rhythm. Only next confirmed owner-visible
+ * appointments are marked. The empty days do not imply rest or adherence. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail{
+  min-width:0;display:grid;gap:.9rem;padding:clamp(.85rem,2.3vw,1.25rem);
+  border:1px solid rgba(250,247,238,.12);border-radius:1.05rem;background:#13251c;color:#FAF7EE;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head{
+  display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.55rem 1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head p{
+  margin:0 0 .35rem;color:#D6B25E;font-size:.68rem;font-weight:740;letter-spacing:.10em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head h2{
+  margin:0;color:#FAF7EE;font:550 clamp(1.1rem,2.2vw,1.5rem)/1.3 var(--iberfit-font-family-editorial,Georgia,serif);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head button{
+  min-height:44px;display:inline-flex;align-items:center;gap:.4rem;padding:.35rem;
+  border:0;background:transparent;color:#E5C87E;cursor:pointer;
+  font:650 .82rem/1.35 var(--iberfit-font-family-ui,Inter,system-ui,sans-serif);touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head button:focus-visible{
+  outline:3px solid #E5C87E;outline-offset:2px;border-radius:.35rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-days{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:clamp(.15rem,.65vw,.45rem);
+  padding:0;margin:0;list-style:none;min-width:0;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day{
+  min-width:0;display:grid;grid-template-rows:1rem minmax(2.2rem,auto) .55rem;
+  justify-items:center;align-items:center;gap:.25rem;padding:.5rem .1rem;
+  background:rgba(10,22,16,.62);border:1px solid rgba(250,247,238,.10);border-radius:.72rem;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>span{
+  font-size:.69rem;font-weight:700;color:#C5CCC6;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>strong{
+  display:grid;place-items:center;inline-size:clamp(1.55rem,5vw,2.1rem);aspect-ratio:1;
+  border-radius:100%;font-size:.85rem;font-weight:650;color:#FAF7EE;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>i{
+  width:5px;height:5px;border-radius:100%;background:transparent;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.is-today{
+  border-color:rgba(214,178,94,.75);background:rgba(214,178,94,.1);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.is-today>strong{
+  background:#D6B25E;color:#09140E;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.has-confirmed>i{background:#E5C87E;}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-note{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.35rem .8rem;
+  color:#C5CCC6;font-size:.76rem;line-height:1.45;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-note>span{
+  display:inline-flex;align-items:center;gap:.4rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-note i{
+  display:inline-block;width:6px;height:6px;border-radius:100%;background:#E5C87E;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-note small{font-size:inherit;color:inherit;}
+@media(max-width:370px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail{padding:.85rem .6rem;}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-days{gap:.16rem;}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day{padding:.35rem 0;border-radius:.55rem;}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>strong{inline-size:1.55rem;font-size:.78rem;}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail,
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day{background:Canvas;color:CanvasText;border-color:CanvasText;}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.is-today>strong{background:Highlight;color:HighlightText;}
+}
+
 /* SIGNATURE B6 · Atelier Cliente / one editorial breathing surface.
  * QA evidence 40106159797: Hoy had multiple same-tone dark bands despite the
  * distinct forest/cream hero. This is strictly presentational, scoped to the
