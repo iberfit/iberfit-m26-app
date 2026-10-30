@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {renderHoyRoute,renderRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute} from '../src/m26/modules/route-render.js';
 
 const read=()=>fs.readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
 const visualPart=()=>read().split('SIGNATURE MASTER VISUAL U59 ·')[1]||'';
