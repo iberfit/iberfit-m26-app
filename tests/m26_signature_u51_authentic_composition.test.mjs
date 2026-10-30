@@ -62,6 +62,6 @@ test('U54 authenticated atlas actions use genuine vector icons for Coach and Cli
  assert.match(coach,/m26-atlas-coach-icon/u);
  assert.match(coach,/m26-atlas-icon-svg/u);
  assert.doesNotMatch(coach,/aria-hidden="true">◇/u);
- const client=renderHoyRoute(base());
+ const client=renderHoyRoute(vm());
  assert.equal((client.match(/class="m26-atlas-client-icon"/gu)||[]).length,3);
 });
