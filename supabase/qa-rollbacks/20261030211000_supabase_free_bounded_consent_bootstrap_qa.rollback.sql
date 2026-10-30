@@ -5,8 +5,8 @@ BEGIN
  IF (SELECT value #>> '{}' FROM public.iberfit_system_settings WHERE key='environment') IS DISTINCT FROM 'QA' THEN
    RAISE EXCEPTION 'IBERFIT_EGRESS_QA_ONLY' USING ERRCODE='42501';
  END IF;
- IF pg_catalog.position('m26_wearable_consents_v44' in
-    pg_catalog.pg_get_functiondef('public.m26_wearable_bootstrap_v44()'::pg_catalog.regprocedure))=0 THEN
+ IF pg_catalog.strpos(pg_catalog.pg_get_functiondef('public.m26_wearable_bootstrap_v44()'::pg_catalog.regprocedure),
+    'm26_wearable_consents_v44')=0 THEN
    RAISE EXCEPTION 'IBERFIT_WEARABLE_SOURCE_CHANGED' USING ERRCODE='42501';
  END IF;
 END; $qa_guard$;
