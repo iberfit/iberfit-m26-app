@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import axe from 'axe-core';
 import {readFileSync} from 'node:fs';
 
 // Actual production route renderer + synthetic role/empty state, NEVER authenticated acceptance.
@@ -14,6 +15,16 @@ for(const role of ['client','coach','admin']){
     await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real');
     await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode)).toBe('real-synthetic');
     const entries=inventory.roles[role];
+
+    // U60: exercise the genuine route renderer, not mock page markup. Only two
+    // canonical device projects attach retina visual evidence and run axe;
+    // all projects still sweep the full 43-route responsive matrix.
+    const visualEvidenceProject=['device-mobile-chromium','device-desktop-chromium'].includes(testInfo.project.name);
+    const priorityAreas=role==='client'?new Set(['hoy','sesion'])
+      :role==='coach'?new Set(['hoy','sesion'])
+      :new Set(['admin-inicio','admin-usuarios','admin-clientes','admin-operaciones']);
+    if(visualEvidenceProject)await page.addScriptTag({content:axe.source});
+
     expect(entries.length).toBe(role==='client'?9:17);
     for(const {area} of entries){
       const errorsBefore=pageErrors.length;
@@ -43,6 +54,48 @@ for(const role of ['client','coach','admin']){
       expect(actual.chars,role+' '+area+' substantive content').toBeGreaterThan(35);
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
+
+      if(visualEvidenceProject&&priorityAreas.has(area)){
+        const checked=await page.evaluate(async()=>{
+          const main=document.querySelector('.m26-main');
+          if(!main)return [{id:'no-main',impact:'critical',nodes:1}];
+          const result=await window.axe.run(main,{
+            runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']},
+          });
+          return result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length}));
+        });
+        expect(checked,role+' '+area+' P0 visual accessibility').toEqual([]);
+        const isMobile=width<=390;
+        const geometry=await page.evaluate(()=>{
+          const root=document.querySelector('.m26-shell'),main=document.querySelector('.m26-main');
+          const route=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-admin-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions');
+          const h=route?.querySelector('h1,h2,h3');
+          if(!route||!h)return null;
+          const title=getComputedStyle(h),surface=getComputedStyle(route);
+          const rect=route.getBoundingClientRect();
+          return {
+            titleFont:title.fontFamily,
+            titleSize:parseFloat(title.fontSize),
+            titleVisible:h.getBoundingClientRect().width>0,
+            routeMinWidth:surface.minWidth,
+            routeWidth:rect.width,
+            viewport:document.documentElement.clientWidth,
+            role:root?.dataset.m26Role,
+          };
+        });
+        expect(geometry,role+' '+area+' layout evidence').not.toBeNull();
+        expect(geometry?.titleVisible).toBe(true);
+        expect(geometry?.titleSize).toBeGreaterThanOrEqual(14);
+        expect(geometry?.routeWidth).toBeGreaterThan(50);
+        expect(geometry?.routeWidth).toBeLessThanOrEqual(geometry?.viewport+2);
+        expect(geometry?.role).toBe(role);
+        if(isMobile)expect(geometry?.routeWidth).toBeGreaterThan(250);
+        const image=await page.screenshot({fullPage:true,animations:'disabled',caret:'hide'});
+        await testInfo.attach('signature-u60-'+role+'-'+area+'-'+testInfo.project.name+'.png',{
+          body:image,contentType:'image/png'
+        });
+      }
+
       if(actual.width>actual.viewport+2){
         const offenders=await page.evaluate(()=>[...document.querySelectorAll('.m26-shell,.m26-workspace,.m26-main,.m26-main *')]
           .map(el=>({el,rect:el.getBoundingClientRect()}))
