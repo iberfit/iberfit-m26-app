@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "013ba502af51dde98fd97dbd28cb3920f11d5117",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "2d672f0aa06d451c6e91271da12428c79a8e0d1c",
+  "notes": "SIGNATURE P2 PostHog: 13/13 exact SHA Canary CI/Auth/WebAuthn/Device/ReadOnly gates PASS; official guarded frontend-only release of opt-in anonymous allowlisted UI analytics, consent off by default, QA no ingestion, production project vars configured by user, CSP restricted; no database/Edge/Auth/RLS changes; Cloudflare rollback and live SHA proof mandatory."
+}
