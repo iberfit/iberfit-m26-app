@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const a=readFileSync('supabase/qa-migrations/20261030222500_free_qa_client_synthetic_checkin_projection.sql','utf8');
 const b=readFileSync('supabase/qa-rollbacks/20261030222500_free_qa_client_synthetic_checkin_projection.rollback.sql','utf8');
 const fn=s=>s.slice(s.indexOf('CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_pre_v65e()'));
-const filter="\n      AND NOT (\n        v_role in ('client','cliente')\n        AND (SELECT value #>> '{}' FROM public.iberfit_system_settings WHERE key='environment')='QA'\n        AND c.status='confirmado'\n        AND c.notes LIKE 'IBERFIT QA write certification %'\n        AND c.created_by=(SELECT id FROM auth.users WHERE email='qa.rc74.client-a@iberfit.cl')\n      )";
+const filter="\n      AND NOT COALESCE((\n        v_role in ('client','cliente')\n        AND (SELECT value #>> '{}' FROM public.iberfit_system_settings WHERE key='environment')='QA'\n        AND c.status='confirmado'\n        AND c.notes LIKE 'IBERFIT QA write certification %'\n        AND c.created_by=(SELECT id FROM auth.users WHERE email='qa.rc74.client-a@iberfit.cl')\n      ), FALSE)";
 test('Only QA may install or revert exact current function',()=>{
  assert.match(a,/IS DISTINCT FROM 'QA'/);assert.match(a,/md5\(pg_get_functiondef/);
  assert.match(b,/IS DISTINCT FROM 'QA'/);
@@ -13,6 +13,7 @@ test('Only QA may install or revert exact current function',()=>{
 });
 test('Authenticated Client synthetic checkins only, QA author and marker both required',()=>{
  assert.ok(fn(a).includes(filter));
+ assert.ok(fn(a).includes('AND NOT COALESCE(('));
  for(const part of ["v_role in ('client','cliente')","c.status='confirmado'","c.notes LIKE 'IBERFIT QA write certification %'","c.created_by=(SELECT id FROM auth.users"]){assert.ok(fn(a).includes(part),part);}
 });
 test('Rollback restores full original SQL with every other permission and collection untouched',()=>{

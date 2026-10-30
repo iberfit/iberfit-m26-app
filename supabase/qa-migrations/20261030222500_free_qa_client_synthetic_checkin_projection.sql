@@ -68,13 +68,13 @@ begin
     select jsonb_agg(to_jsonb(c) order by c.recorded_at desc)
     from public.client_checkins_v26 c
     where exists (select 1 from visible v where v.client_id is not distinct from c.client_id)
-      AND NOT (
+      AND NOT COALESCE((
         v_role in ('client','cliente')
         AND (SELECT value #>> '{}' FROM public.iberfit_system_settings WHERE key='environment')='QA'
         AND c.status='confirmado'
         AND c.notes LIKE 'IBERFIT QA write certification %'
         AND c.created_by=(SELECT id FROM auth.users WHERE email='qa.rc74.client-a@iberfit.cl')
-      )
+      ), FALSE)
   ),'[]'::jsonb));
 
   v_updates:=v_updates || jsonb_build_object('habits',coalesce((
