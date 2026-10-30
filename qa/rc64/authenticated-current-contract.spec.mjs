@@ -215,6 +215,14 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     }));
   }catch(error){
     const routeTrace=await page.evaluate(()=>({
+      // Instrumented only when QA installs the bounded stage observer; labels,
+      // durations and area codes only, never personal identifiers or payloads.
+      shellRouteTimings:Array.isArray(globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.shellRouteTimings)
+        ?globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__.shellRouteTimings.slice(-24)
+          .map(x=>({phase:String(x.phase||'').slice(0,40),
+            area:String(x.area||'').slice(0,30),
+            elapsedMs:Number.isFinite(x.elapsedMs)?Math.round(x.elapsedMs):null}))
+        :[],
       lastStages:(globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.shellRouteTimings||[]).slice(-28),
       renderedArea:document.querySelector('[data-m26-area][aria-current="page"]')?.getAttribute('data-m26-area')||'',
       shellRole:document.querySelector('.m26-shell')?.getAttribute('data-m26-role')||'',
