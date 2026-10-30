@@ -156,7 +156,108 @@ async function fulfillCurrentSource(route,url){
   await route.fulfill({status:404,body:'Not found'});
 }
 
+
+// P0 Supabase Free: Only anonymous/public exercise-catalog reads are reusable
+// between isolated read-only QA browser contexts in the SAME test worker.
+// All authenticated RPCs, avatars, WebAuthn, user/tenant reads and writes
+// still reach the real QA backend on EVERY test. No identity is retained.
+const QA_PUBLIC_READ_RPCS=new Set([
+  '/rest/v1/rpc/iberfit_exercise_catalog_public_v1',
+  '/rest/v1/rpc/iberfit_exercise_measurement_profiles_public_v1',
+]);
+const QA_PUBLIC_TTL_MS=120_000;
+const QA_PUBLIC_MAX_BYTES=1_000_000;
+const QA_PUBLIC_MAX_ENTRIES=16;
+
+function isAnonPublishableKey(value){
+  const key=String(value||'').trim();
+  if(/^sb_publishable_[A-Za-z0-9_-]{8,}$/u.test(key))return true;
+  const parts=key.split('.');
+  if(parts.length!==3)return false;
+  try{
+    const claim=JSON.parse(Buffer.from(parts[1],'base64url').toString('utf8'));
+    return claim?.role==='anon';
+  }catch{return false;}
+}
+
+function publicRpcMemoKey(request,url){
+  try{
+    if(url.origin!==SUPABASE_ORIGIN||url.search||url.hash
+      ||request.method().toUpperCase()!=='POST'||!QA_PUBLIC_READ_RPCS.has(url.pathname))return null;
+    const h=request.headers?.()||{};
+    const apiKey=String(h.apikey||'');
+    if(!isAnonPublishableKey(apiKey)||String(h.authorization||'')!=='Bearer '+apiKey)return null;
+    const raw=String(request.postData?.()||'');
+    if(raw.length>200)return null;
+    const params=JSON.parse(raw);
+    if(!params||typeof params!=='object'||Array.isArray(params))return null;
+    if(url.pathname.endsWith('/iberfit_exercise_catalog_public_v1')){
+      if(Object.keys(params).sort().join(',')!=='p_limit,p_offset'
+        ||!Number.isInteger(params.p_limit)||params.p_limit<1||params.p_limit>200
+        ||!Number.isInteger(params.p_offset)||params.p_offset<0||params.p_offset>5000)return null;
+    }else if(Object.keys(params).length!==0)return null;
+    // No credentials or identifiers in this process-local key.
+    return url.pathname+'|'+raw;
+  }catch{return null;}
+}
+
+// Injectable clock and isolated maps make security/expiry assertions deterministic.
+export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
+  const cache=new Map(),pending=new Map();
+  let networkReads=0,cacheHits=0;
+  async function serve(route,request,url){
+    const key=publicRpcMemoKey(request,url);
+    if(!key)return false;
+    const t=now(),found=cache.get(key);
+    if(found&&(t<found.createdAt||t-found.createdAt>QA_PUBLIC_TTL_MS))cache.delete(key);
+    const live=cache.get(key);
+    if(live){
+      cacheHits++;
+      await route.fulfill({status:200,body:live.body,headers:live.headers});
+      return true;
+    }
+    let work=pending.get(key);
+    if(!work){
+      work=(async()=>{
+        networkReads++;
+        // No redirects, no privilege: fetch the ACTUAL QA public RPC once.
+        const response=await route.fetch({maxRedirects:0,maxRetries:0});
+        const status=response.status(),body=await response.body();
+        const headers={
+          'content-type':String(response.headers()['content-type']||'application/json'),
+          'access-control-allow-origin':'*',
+          'x-content-type-options':'nosniff',
+        };
+        if(status===200&&body.length<=QA_PUBLIC_MAX_BYTES){
+          try{
+            const rows=JSON.parse(body.toString('utf8'));
+            if(Array.isArray(rows)&&rows.length<=5000){
+              if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
+              cache.set(key,{createdAt:now(),body,headers});
+            }
+          }catch{} // Bad/malformed responses always flow through; never cached.
+        }
+        return {status,body,headers};
+      })().finally(()=>pending.delete(key));
+      pending.set(key,work);
+    }else cacheHits++;
+    try{
+      const result=await work;
+      await route.fulfill(result);
+    }catch{
+      // Network failure remains a visible QA error, not a fabricated success.
+      await route.abort('failed');
+    }
+    return true;
+  }
+  return Object.freeze({serve,stats:()=>Object.freeze({networkReads,cacheHits,entries:cache.size})});
+}
+const qaPublicRpcMemo=createQaPublicRpcMemo();
+
 export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{},allowQaSyntheticWrite=()=>false}){
+  // A caller that explicitly supplies a synthetic-write policy is never memoized.
+  // Preserve the exact canonical default write-denial contract and its tests.
+  const readOnlyContext=!Object.prototype.hasOwnProperty.call(arguments[1]||{},'allowQaSyntheticWrite');
   const safeReadOnlyRpcs=readOnlyRpcs instanceof Set?readOnlyRpcs:new Set(readOnlyRpcs||[]);
   await context.route('**/*',async(route)=>{
     const request=route.request();
@@ -172,6 +273,9 @@ export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,
     }
     if(allowedQaRequest(request,safeReadOnlyRpcs,allowQaSyntheticWrite)){
       onQaRequest(qaRequestLabel(request));
+      // Read-only suites share ONLY anonymous/public catalogue bytes. Synthetic
+      // write suites, private reads and all authorization checks bypass memo.
+      if(readOnlyContext&&await qaPublicRpcMemo.serve(route,request,url))return;
       await route.continue();
       return;
     }

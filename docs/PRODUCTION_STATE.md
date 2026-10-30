@@ -1,9 +1,28 @@
-## P1 · Reducción conservadora Egress Supabase QA · CANDIDATO · 30-10-2026
+## P0 #1209 · QA egress: coalescing de RPC públicos solo en tests de lectura · 30-10-2026
+
+- La fuente de tráfico dominante en QA son los navegadores automáticos de GitHub: 22k+ gateway requests/24h HeadlessChrome. El catálogo público registra 2309 llamadas/24h (2076 headless), perfiles públicos 1176 (1036 headless). NO inferir volumen facturado exacto a partir del contador.
+- Optimización aditiva sobre PR #1210: respuestas **reales** del catálogo y perfiles públicos de Supabase se reutilizan durante 120 s entre páginas/contexts del **mismo worker de QA read-only**, por origin+RPC+parámetros. Primer request SIEMPRE contra backend real; distinto offset/param recibe su propia respuesta. Exclusivamente apikey pública `Bearer apikey`; jamás sesión de usuario/JWT, bootstrap, datos privados o mutaciones. Suites con escrituras sintéticas tienen el memo desactivado. No altera el funcionamiento en Cliente/Coach/Admin/PROD; no desactiva QA.
+- Errores, 401/403, cargas grandes/no-JSON no se cachean; límite 1 MB/16 entradas, sin credenciales en el cache key; expiración + dedupe in-flight; pruebas unitarias específicas.
+- **Candidato, NO MERGE ni despliegue hasta gates exact SHA verdes.** Device Gate 5s táctil rojo en PR precedente: bloquear release y corregir aparte sin elevar SLA. Cuantificar resultado real en Dashboard (GB por org y servicio) tras promoción futura.
+
+---
+
+## P0 #1209 · Bootstrap egress - candidata conservadora · 30-10-2026
+
+- Diagnóstico real: candidato cfd731dfe5ef5e266c97fc86113651b875853eed falló pruebas de navegador/Cliente/Coach/Admin por un render diferido que permitía reemplazar rutas después del clic; **revertido ANTES del merge**. No alterar el shell de navegación.
+- Nuevo alcance único: eliminar exclusivamente solicitudes `login` idénticas durante la misma carga del mismo owner/lease; las lecturas post-ACK, motivos diferentes y cambio de identidad mantienen la consulta remota autorizada y fail-closed.
+- Pruebas específicas: login duplicado antes/durante petición; lecturas post-ACK sin pérdida, mismo motivo no-login repetido, cambio de owner, orden de microtarea y ruta clic sin rAF.
+- Este cambio NO basta para resolver 6.96/5 GB Egress; no hacer afirmaciones de reducción hasta comparar bytes en Dashboard con intervalos equivalentes. No tocar SQL, RLS, MFA/WebAuthn, workflows ni límites 10s shell/5s touch.
+- PR #1210 abierta; no desplegado. Solo avanzar tras CI, todos los controles browser y Gate remoto GREEN exact-SHA, Canary y promoción segura.
+
+---
+
+## P1 · Reducción conservadora Egress Supabase QA · CANARY DESPLEGADO, PROD PENDIENTE · 30-10-2026
 
 - Evidencia: organización Free con 6,96/5 GB Egress; QA registra ~28k solicitudes gateway/24h, ~22k desde HeadlessChrome. No confundir solicitudes con bytes por servicio.
 - Alcance: cachear durante 120 s únicamente catálogo público y perfiles públicos, aislados por origen/versión/pestaña; presupuesto 1,8M caracteres; forzar revalidación para edición del catálogo.
 - Nunca cachear bootstrap privado, identidad, JWT, RLS, MFA/WebAuthn, sesión ni contenido de clientes. QA y producción aislados.
-- Candidato basado en Canary 243627058fe58367726c62637613517188617471. NO desplegado. Exige CI/QA, revisión de seguridad, Canary exacto, comparación de Egress por servicio y rollback antes de promoción PROD.
+- PR #1208 fusionada: SHA 7b991762117f9db444ef2c1a1145efd49a11c6a4, Canary desplegado y certificado en CI/Device; remoto falló 2 veces; PROD sigue 243627058fe58367726c62637613517188617471. Exige CI/QA, revisión de seguridad, Canary exacto, comparación de Egress por servicio y rollback antes de promoción PROD.
 - No se elimina ni reduce ningún gate y no se borran evidencias ni datos de QA. La mitigación de catálogo es parcial; evaluar otras rutas si Egress sigue alto.
 
 ---
