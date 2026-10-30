@@ -711,13 +711,13 @@
     linear-gradient(150deg,#14251D,#0F1C17)!important;
   box-shadow:var(--iberfit-v3-shadow)!important;
 }
-.m26-shell .m26-workspace .m26-hoy-route .m26-today-action{
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:not(.m26-client-home-stage .m26-today-action){
   color:var(--iberfit-v3-text)!important;
   border-color:rgba(197,160,89,.12)!important;
   background:#13221C!important;
   box-shadow:none!important;
 }
-.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:hover:not(:disabled){
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:not(.m26-client-home-stage .m26-today-action):hover:not(:disabled){
   border-color:rgba(197,160,89,.28)!important;
   background:#182B23!important;
 }
