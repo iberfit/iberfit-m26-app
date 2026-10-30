@@ -352,3 +352,27 @@ test('Live Workout V3 añade geometría responsive sin ocultar capacidades',()=>
   assert.doesNotMatch(added,/display\s*:\s*none|visibility\s*:\s*hidden/iu);
   assert.doesNotMatch(added,/pointer-events\s*:\s*none/iu);
 });
+
+test('SIGNATURE U57 places the single real Client save/exit next to sticky Pause without touching Coach controls',()=>{
+  const s=session();
+  const active=createExecution({session:s,clientId:s.clientId});
+  startExecution(active);
+  const client=renderGuidedExecution({execution:active,session:s,catalog,role:'client'});
+  const quick=client.indexOf('data-session-client-quick-controls');
+  const save=client.indexOf('class="m26-session-live-quick-save"');
+  const workbench=client.indexOf('m26-session-live-workbench');
+  assert.ok(quick>=0&&save>quick&&workbench>save,'save and exit must precede the long workbench');
+  assert.equal((client.match(/data-session-action="exit-session"/g)||[]).length,1,'never double-register save/exit');
+  assert.match(client,/data-session-action="pause"/);
+  assert.doesNotMatch(client,/data-session-action="finish"/,'do not offer premature completion');
+  const coach=renderGuidedExecution({execution:active,session:s,catalog,role:'coach'});
+  assert.match(coach,/m26-session-live-quick-exit/,'coach keeps existing desktop affordance');
+  assert.doesNotMatch(coach,/m26-session-live-quick-save/,'no duplicate Coach command');
+  const css=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
+  const block=css.slice(css.indexOf('SIGNATURE U57 · Cliente guided execution'));
+  assert.match(block,/position:sticky/);
+  assert.match(block,/max-width:900px/);
+  assert.match(block,/min-height:48px/);
+  assert.match(block,/forced-colors:active/);
+  assert.doesNotMatch(block,/display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/i);
+});

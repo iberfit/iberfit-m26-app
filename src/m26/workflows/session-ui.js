@@ -1969,7 +1969,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <small data-session-progress-label>${e(progressLabel)}</small>
         </div>
       </div>
-      <div class="m26-session-live-quick-exit"><button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button></div>
+      ${isCoach?`<div class="m26-session-live-quick-exit"><button type="button" class="m26-session-live-exit-action" data-session-action="exit-session">Guardar y salir</button></div>`:''}
       ${timerStrip(execution)}
       <progress class="m26-progress" max="100" value="${progress}" aria-label="Progreso ${progress}%">${progress}%</progress>
       ${goal}
@@ -1978,6 +1978,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
     <div role="group" class="m26-session-live-quick-actions" data-session-quick-controls ${isCoach?'data-session-coach-quick-controls':'data-session-client-quick-controls'} aria-label="${isCoach?'Acciones rápidas del Coach':'Acciones rápidas del entrenamiento'}">
       <button type="button" class="m26-session-live-quick-pause" data-session-action="pause" aria-label="Pausar el entrenamiento">${isCoach?'Pausar sesión':'Pausar entrenamiento'}</button>
+      ${!isCoach?'<button type="button" class="m26-session-live-quick-save" data-session-action="exit-session">Guardar y salir</button>':''}
       ${(Number(execution.index)>0||Number(execution.setIndex)>0)?'<button type="button" data-session-action="previous">Anterior</button>':''}
       ${isCoach?'<button type="button" data-session-open-substitution>Ajustar ejercicio</button>':''}
     </div>
