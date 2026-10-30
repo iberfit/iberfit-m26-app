@@ -1,10 +1,10 @@
-## P0 #1209 · Bootstrap/egress · QA performance macrobloque · candidato · 30-10-2026
+## P0 #1209 · Bootstrap egress - candidata conservadora · 30-10-2026
 
-- Baseline verificada: PROD fuente 243627058fe58367726c62637613517188617471; Canary 7b991762117f9db444ef2c1a1145efd49a11c6a4 (PR #1208 y Canary exact desplegados), PROD NO contiene aún la caché pública. CI/Device/Coach/Admin verdes, remote gate falló dos ejecuciones (rutas lentas + una recuperación de Cliente).
-- Cambio de este candidato: coalescing limitado de renders store al siguiente fotograma (con fallback 96ms si pestaña suspendida), cancelación por generación y render explícito; eliminar solo la lectura duplicada *simultánea* de bootstrap causada por dos solicitudes idénticas de razón «login» y misma generación. Los readbacks de mutaciones, ACKs y razones distintas **no** se deduplican.
-- Tests: coalescing, último estado, fallback, página oculta, interacción, navegación/limpieza y lectura fresca tras ACK. No modificar los SLA 10s shell/5s touch, RLS, JWT, WebAuthn, flujos por rol, tests o seguridad.
-- NO-GO producción hasta todas las pruebas exact-SHA GREEN, deploy Canary y medición en Supabase. Una mejora de CPU/solicitudes no equivale automáticamente a una reducción de GB.
-- Evidencia P0: https://github.com/iberfit/iberfit-m26-app/issues/1209
+- Diagnóstico real: candidato cfd731dfe5ef5e266c97fc86113651b875853eed falló pruebas de navegador/Cliente/Coach/Admin por un render diferido que permitía reemplazar rutas después del clic; **revertido ANTES del merge**. No alterar el shell de navegación.
+- Nuevo alcance único: eliminar exclusivamente solicitudes `login` idénticas durante la misma carga del mismo owner/lease; las lecturas post-ACK, motivos diferentes y cambio de identidad mantienen la consulta remota autorizada y fail-closed.
+- Pruebas específicas: login duplicado antes/durante petición; lecturas post-ACK sin pérdida, mismo motivo no-login repetido, cambio de owner, orden de microtarea y ruta clic sin rAF.
+- Este cambio NO basta para resolver 6.96/5 GB Egress; no hacer afirmaciones de reducción hasta comparar bytes en Dashboard con intervalos equivalentes. No tocar SQL, RLS, MFA/WebAuthn, workflows ni límites 10s shell/5s touch.
+- PR #1210 abierta; no desplegado. Solo avanzar tras CI, todos los controles browser y Gate remoto GREEN exact-SHA, Canary y promoción segura.
 
 ---
 

@@ -1,118 +1,98 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {runInNewContext} from 'node:vm';
 import {createHydrationCoordinator} from '../src/m26/app/hydration-coordinator.js';
 
-const source=readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
-const begin=source.indexOf('  let scheduledRenderFrame=null;');
-const end=source.indexOf('  function onPointerDown(',begin);
-assert.ok(begin>=0&&end>begin,'real shell frame scheduler must be present');
-const schedulingSource=source.slice(begin,end);
-const drain=async()=>{await Promise.resolve();await Promise.resolve();};
+const deferred=()=>{
+  let resolve,reject;
+  const promise=new Promise((ok,no)=>{resolve=ok;reject=no;});
+  return {resolve,reject,promise};
+};
+const tick=async()=>{await Promise.resolve();await Promise.resolve();await Promise.resolve();};
 
-function frameFixture({visible=true}={}){
-  const frames=new Map(),timers=new Map(),calls=[],microtasks=[];
-  let nextId=1,generation=1,busy=false;
-  const host={
-    requestAnimationFrame:(fn)=>{const id=nextId++;frames.set(id,fn);return id;},
-    cancelAnimationFrame:(id)=>frames.delete(id),
-    setTimeout:(fn)=>{const id=nextId++;timers.set(id,fn);return id;},
-    clearTimeout:(id)=>timers.delete(id),
-  };
-  const store={getState:()=>({v:'from-store'})};
-  const state={
-    root:{ownerDocument:{visibilityState:visible?'visible':'hidden'}},
-    store,adaptiveWindow:host,generation,renderQueued:false,queuedState:null,
-    shellInteractionActive:()=>busy,
-    renderNow:(v)=>{calls.push(v);return true;},
-    queueMicrotask:(fn)=>microtasks.push(fn),
-  };
-  const api=runInNewContext(schedulingSource+'\n({scheduleRender,renderSafely,clearScheduledRender})',state);
-  return {api,state,frames,timers,calls,microtasks,setBusy:v=>busy=v,
-    setGeneration:v=>{state.generation=v;},
-    tickFrame(){const fn=[...frames.values()][0];assert.ok(fn);fn();},
-    tickTimer(){const fn=[...timers.values()][0];assert.ok(fn);fn();},
-    tickMicrotask(){const fn=microtasks.shift();assert.ok(fn);fn();},
-  };
-}
-test('coalesces multiple store emissions in one visible frame, newest state wins',()=>{
-  const f=frameFixture();
-  f.api.scheduleRender({v:1});
-  f.api.scheduleRender({v:2});
-  f.api.scheduleRender({v:3});
-  assert.equal(f.frames.size,1);
-  assert.equal(f.timers.size,1);
-  assert.equal(f.calls.length,0);
-  f.tickFrame();
-  assert.deepEqual(f.calls,[{v:3}]);
-  assert.equal(f.frames.size,0);
-  assert.equal(f.timers.size,0);
-});
-test('fallback timer makes progress if browser animation frame is suspended',()=>{
-  const f=frameFixture();
-  f.api.scheduleRender({v:4});
-  f.tickTimer();
-  assert.deepEqual(f.calls,[{v:4}]);
-  assert.equal(f.frames.size,0);
-  assert.equal(f.timers.size,0);
-});
-test('hidden document retains safe microtask semantics',()=>{
-  const f=frameFixture({visible:false});
-  f.api.scheduleRender({v:5});
-  f.api.scheduleRender({v:6});
-  assert.equal(f.frames.size,0);
-  assert.equal(f.microtasks.length,1);
-  f.tickMicrotask();
-  assert.deepEqual(f.calls,[{v:6}]);
-});
-test('interaction and stale generation must not repaint old state',()=>{
-  const f=frameFixture();
-  f.api.scheduleRender({v:'old'});
-  f.setBusy(true);
-  f.tickFrame();
-  assert.equal(f.calls.length,0);
-  f.setBusy(false);
-  f.api.scheduleRender({v:'new'});
-  f.tickFrame();
-  assert.deepEqual(f.calls,[{v:'new'}]);
-  f.api.scheduleRender({v:'stale'});
-  f.setGeneration(2);
-  f.api.clearScheduledRender();
-  assert.equal(f.frames.size,0);
-  assert.equal(f.timers.size,0);
-});
-test('explicit render cancels queued frame and prevents stale post-click repaint',()=>{
-  const f=frameFixture();
-  f.api.scheduleRender({v:'queued'});
-  f.api.renderSafely({v:'clicked'});
-  assert.deepEqual(f.calls,[{v:'clicked'}]);
-  assert.equal(f.frames.size,0);
-  assert.equal(f.timers.size,0);
-});
-const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {resolve,promise};};
-test('duplicate login coalesces without extra privileged bootstrap; post-ACK reasons still replay',async()=>{
-  let owner={id:'A'},calls=[];
-  const p1=deferred(),p2=deferred(),p3=deferred();
-  const co=createHydrationCoordinator(({reason})=>{
-    calls.push(reason);
-    return [p1,p2,p3][calls.length-1].promise;
+test('simultaneous same-owner login bootstrap is coalesced before and during request',async()=>{
+  const owner={id:'A'},first=deferred(),calls=[];
+  const c=createHydrationCoordinator(({reason,ownerSession})=>{
+    calls.push({reason,ownerSession});
+    return first.promise;
   },{getOwner:()=>owner});
-  const one=co.request({reason:'login'});
-  await drain();
-  const two=co.request({reason:'login'});
-  assert.strictEqual(one,two);
-  assert.deepEqual(calls,['login']);
-  co.request({reason:'training-ACK'});
-  p1.resolve('first');
-  await drain();
-  assert.deepEqual(calls,['login','training-ACK']);
-  const third=co.request({reason:'training-ACK'});
-  p2.resolve('second');
-  await drain();
-  assert.deepEqual(calls,['login','training-ACK','training-ACK']);
-  p3.resolve('third');
-  assert.equal(await one,'third');
-  assert.equal(await two,'third');
-  assert.equal(await third,'third');
+  const a=c.request({reason:'login'});
+  const b=c.request({reason:'login'});
+  await tick();
+  const d=c.request({reason:'login'});
+  assert.strictEqual(a,b);
+  assert.strictEqual(b,d);
+  assert.equal(calls.length,1,'one privileged bootstrap per initial login');
+  first.resolve('fresh-login');
+  assert.equal(await a,'fresh-login');
+  assert.equal(await b,'fresh-login');
+  assert.equal(await d,'fresh-login');
+  assert.equal(calls.length,1,'identical login must not run a second pass');
+});
+test('post-ACK reads are never dropped even when an initial login is loading',async()=>{
+  const owner={id:'A'},first=deferred(),second=deferred(),third=deferred(),calls=[];
+  const steps=[first,second,third];
+  const c=createHydrationCoordinator(({reason})=>{
+    calls.push(reason);
+    return steps[calls.length-1].promise;
+  },{getOwner:()=>owner});
+  const login=c.request({reason:'login'});
+  await tick();
+  const ack1=c.request({reason:'session-published-verify'});
+  first.resolve('initial');
+  await tick();
+  assert.deepEqual(calls,['login','session-published-verify']);
+  const ack2=c.request({reason:'session-published-verify'});
+  second.resolve('post-ack-1');
+  await tick();
+  assert.deepEqual(calls,['login','session-published-verify','session-published-verify']);
+  third.resolve('post-ack-2');
+  assert.equal(await login,'post-ack-2');
+  assert.equal(await ack1,'post-ack-2');
+  assert.equal(await ack2,'post-ack-2');
+});
+test('same reason other than login still queues, never removes post-command readback',async()=>{
+  const owner={id:'A'},a=deferred(),b=deferred(),calls=[];
+  const c=createHydrationCoordinator(({reason})=>{
+    calls.push(reason);return calls.length===1?a.promise:b.promise;
+  },{getOwner:()=>owner});
+  const one=c.request({reason:'readback'});
+  await tick();
+  const two=c.request({reason:'readback'});
+  a.resolve('old');
+  await tick();
+  assert.deepEqual(calls,['readback','readback']);
+  b.resolve('new');
+  assert.equal(await one,'new');
+  assert.equal(await two,'new');
+});
+test('identity switch never coalesces with an earlier owner even with identical login reason',async()=>{
+  const a={id:'A'},b={id:'B'},pA=deferred(),pB=deferred(),calls=[];
+  let owner=a;
+  const c=createHydrationCoordinator(({ownerSession})=>{
+    calls.push(ownerSession.id);
+    return ownerSession===a?pA.promise:pB.promise;
+  },{getOwner:()=>owner});
+  const old=c.request({reason:'login'});
+  await tick();
+  owner=b;
+  const next=c.request({reason:'login'});
+  await tick();
+  assert.deepEqual(calls,['A','B']);
+  pA.resolve('A');
+  assert.equal(await old,'A');
+  pB.resolve('B');
+  assert.equal(await next,'B');
+});
+test('rendering remains microtask-ordered with synchronous navigation; no rAF delay on clicks',()=>{
+  const shell=readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
+  const start=shell.indexOf('  function renderSafely(state=store.getState())');
+  const end=shell.indexOf('  function onPointerDown(',start);
+  assert.ok(start>0&&end>start);
+  const scheduler=shell.slice(start,end);
+  assert.match(scheduler,/queueMicrotask\(\(\)=>\{/u);
+  assert.match(scheduler,/renderNow\(next\);/u);
+  assert.doesNotMatch(scheduler,/requestAnimationFrame|scheduledRenderFrame|scheduledRenderFallback/u);
+  assert.match(shell,/reconcileRouteRender\(decision\.area\);/u);
+  assert.match(shell,/store\.navigate\(decision\.area\);/u);
 });
