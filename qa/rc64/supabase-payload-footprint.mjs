@@ -31,6 +31,27 @@ function fixedGroup(input){
   }catch{return null;}
 }
 
+// Known collection labels only, never contents, account identifiers or arbitrary keys.
+const BOOTSTRAP_SECTIONS=Object.freeze([
+ 'sessions','sessionExecutions','m26Entities','checkins','reports',
+ 'trainingCycles','iriAssessments','clientProfiles','domainEvents',
+ 'appointments','clients','habits','habitLogs','privateNotes',
+]);
+// Sample bytes already present in memory; never initiate HTTP or store payloads.
+function bootstrapSectionSizes(bytes){
+ try{
+  if(!bytes||bytes.byteLength>8_000_000)return null;
+  const parsed=JSON.parse(new TextDecoder().decode(bytes));
+  const data=parsed?.data;
+  if(!data||typeof data!=='object'||Array.isArray(data))return null;
+  return BOOTSTRAP_SECTIONS.flatMap(section=>{
+   const rows=data[section];
+   return Array.isArray(rows)?[{section,records:rows.length,
+     jsonBytes:Buffer.byteLength(JSON.stringify(rows),'utf8')}]:[];
+  });
+ }catch{return null;}
+}
+
 export function createQaSupabasePayloadFootprint(){
   const groups=new Map(),pending=new Set(),contexts=[];
   let closed=false;
@@ -54,6 +75,22 @@ export function createQaSupabasePayloadFootprint(){
       row.sampledDecodedBytes+=count;
       row.maxDecodedBytes=Math.max(row.maxDecodedBytes,count);
       row.sampledResponses++;
+      if(group==='rpc:iberfit_bootstrap_v26'&&Number(response.status?.())===200){
+        const samples=bootstrapSectionSizes(bytes);
+        if(samples){
+          row.bootstrapParsedSamples=(row.bootstrapParsedSamples||0)+1;
+          const totals=row.bootstrapSectionTotals??(row.bootstrapSectionTotals=Object.create(null));
+          for(const {section,records,jsonBytes} of samples){
+            const value=totals[section]??(totals[section]={
+              sampledArrays:0,totalRecords:0,sampledJsonBytes:0,maxJsonBytes:0,
+            });
+            value.sampledArrays++;
+            value.totalRecords+=records;
+            value.sampledJsonBytes+=jsonBytes;
+            value.maxJsonBytes=Math.max(value.maxJsonBytes,jsonBytes);
+          }
+        }
+      }
     }).catch(()=>{row.unreadableSamples++;}).finally(()=>{
       row.inFlightSamples--;pending.delete(work);
     });
@@ -69,8 +106,11 @@ export function createQaSupabasePayloadFootprint(){
       closed=true;
       for(const context of contexts)context.off?.('response',onResponse);
       await Promise.allSettled([...pending]);
-      const endpoints=[...groups.values()].map(({inFlightSamples,...row})=>({
+      const endpoints=[...groups.values()].map(({inFlightSamples,bootstrapSectionTotals,...row})=>({
         ...row,
+        ...(bootstrapSectionTotals?{bootstrapSections:Object.entries(bootstrapSectionTotals)
+          .map(([section,stats])=>({section,...stats}))
+          .sort((a,b)=>b.sampledJsonBytes-a.sampledJsonBytes)}:{}),
         meanSampledDecodedBytes:row.sampledResponses
           ?Math.round(row.sampledDecodedBytes/row.sampledResponses):null,
       })).sort((a,b)=>b.sampledDecodedBytes-a.sampledDecodedBytes||b.requests-a.requests);
