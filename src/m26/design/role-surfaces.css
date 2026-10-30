@@ -5331,3 +5331,107 @@ m26-echart[data-density="compact"]{
     color:CanvasText;
   }
 }
+
+
+/* U60 · Role-specific safe empty/error/recovery surfaces.
+ * Purely cosmetic: do not infer loading/success, block pointers, add
+ * fake recovery actions or change the canonical operational state.
+ * The semantic border indicates type; labels always remain in the DOM. */
+.m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty){
+  min-inline-size:0;
+  max-inline-size:100%;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent) 19%,transparent);
+  border-radius:var(--iberfit-role-radius);
+  background:var(--iberfit-color-surface-base);
+  color:var(--iberfit-color-text-primary);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty) :is(h2,h3){
+  max-inline-size:38ch;
+  font-family:var(--iberfit-font-family-ui);
+  line-height:1.2;
+  letter-spacing:-.025em;
+  text-wrap:balance;
+  overflow-wrap:break-word;
+  color:var(--iberfit-color-text-primary);
+}
+.m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty) p{
+  max-inline-size:65ch;
+  line-height:1.6;
+  overflow-wrap:break-word;
+  color:var(--iberfit-color-text-secondary);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-empty{
+  border-radius:var(--iberfit-radius-xl);
+  padding:clamp(1.1rem,3.8vw,1.8rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-empty :is(h2,h3){
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.35rem,2.8vw,1.9rem);
+  font-weight:550;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-empty{
+  border-radius:var(--iberfit-radius-lg);
+  padding:clamp(.85rem,2vw,1.3rem);
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-empty{
+  border-radius:var(--iberfit-radius-md);
+  padding:clamp(.8rem,1.5vw,1.25rem);
+}
+
+/* Existing status notices retain error/pending/warning semantics. Avoid a
+ * misleading gold-only signal; the recorded message supplies the meaning. */
+.m26-shell[data-m26-role] .m26-workspace .m26-notice{
+  min-inline-size:0;
+  max-inline-size:100%;
+  border-inline-start:3px solid var(--iberfit-color-border-strong,var(--iberfit-color-accent));
+  border-radius:var(--iberfit-radius-md);
+  padding:clamp(.75rem,1.6vw,1.15rem);
+  background:var(--iberfit-color-surface-base);
+  color:var(--iberfit-color-text-primary);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-notice.is-danger{
+  border-inline-start-color:var(--iberfit-color-danger);
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-notice.is-warning{
+  border-inline-start-color:var(--iberfit-color-warning);
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-notice.is-success{
+  border-inline-start-color:var(--iberfit-color-success);
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-notice :is(strong,h2,h3){
+  max-inline-size:100%;
+  overflow-wrap:break-word;
+  line-height:1.35;
+  color:var(--iberfit-color-text-primary);
+}
+.m26-shell[data-m26-role] .m26-workspace .m26-notice p{
+  max-inline-size:75ch;
+  line-height:1.55;
+  overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty,.m26-notice) :is(button,a){
+  min-block-size:44px;
+  max-inline-size:100%;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty,.m26-notice) :is(button,a):focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:2px;
+}
+@media(max-width:370px){
+  .m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty,.m26-notice){
+    padding:.85rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role] .m26-workspace :is(.m26-empty,.m26-admin-empty,.m26-notice){
+    border-color:CanvasText;
+    background:Canvas;
+    color:CanvasText;
+  }
+  .m26-shell[data-m26-role] .m26-workspace .m26-notice.is-danger{
+    border-inline-start-color:Highlight;
+  }
+}
