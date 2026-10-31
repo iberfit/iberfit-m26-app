@@ -78,6 +78,7 @@ test('Client A atomically restores full completed sessions AND execution results
  await expect(page.locator('[data-m26-free-history-status]')).toHaveCount(0,{timeout:160000});
  await Promise.all(jobs);
  expect(fail).toEqual([]);
+ expect(blocked,'QA current-source perimeter must reject no required operation').toEqual([]);
  expect(pageErrors).toEqual([]);
  expect(pages.length).toBeGreaterThanOrEqual(34);
  expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=24)).toBe(true);
