@@ -164,8 +164,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Determine whether immutable QA IRI PDF emission needs recertification
+        id: iri-impact
+        env:
+          QA_IRI_EVENT_NAME: ${{ github.event_name }}
+          QA_IRI_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/remote-gates/qa_iri_emission_impact_gate.mjs
 
       - name: Deploy exact QA IRI report brokers
+        if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -194,6 +201,7 @@ jobs:
         run: node scripts/remote-gates/run_qa_real_write_gate.mjs
 
       - name: Prepare synthetic private IRI document fixture
+        if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
         env:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
@@ -202,6 +210,7 @@ jobs:
         run: node scripts/remote-gates/prepare_qa_iri_document_fixture.mjs
 
       - name: Seed synthetic bioimpedance annex through QA OIDC boundary
+        if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
         shell: bash
         env:
           OIDC_AUDIENCE: iberfit-iri-document-qa-fixture
@@ -225,6 +234,7 @@ jobs:
             recovery/iri-report-emission/qa-bioimpedance-fixture-evidence.json >/dev/null
 
       - name: Certify immutable IRI PDF emission end to end in QA
+        if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
         env:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
