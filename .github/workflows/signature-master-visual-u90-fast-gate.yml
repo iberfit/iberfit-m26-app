@@ -8,6 +8,7 @@ on:
       - 'src/m26/design/iberfit-premium-v3.css'
       - 'tests/m26_signature_master_visual_u90.test.mjs'
       - 'qa/device-experience/signature-u25-real-route-bodies.spec.mjs'
+      - 'tests/m26_signature_stitch_whole_app_visual.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read
