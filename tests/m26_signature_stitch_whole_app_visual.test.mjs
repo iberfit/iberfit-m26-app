@@ -219,5 +219,5 @@ test('U69 isolated published-session desktop fixture preserves a full content co
   assert.match(html,/#qa-root\.m26-shell\{display:block;width:100%;max-width:1180px/);
   assert.match(html,/#qa-root > \.m26-workspace\{display:block;width:100%;/);
   assert.match(browser,/Desktop preview must occupy its actual reading column/);
-  assert.match(browser,/dimensions\.width\)\.toBeGreaterThanOrEqual\(650\)/);
+  assert.match(browser,/dimensions\.width,'Desktop preview must occupy its actual reading column'\)\.toBeGreaterThanOrEqual\(650\)/);
 });
