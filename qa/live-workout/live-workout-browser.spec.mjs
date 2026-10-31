@@ -1000,3 +1000,73 @@ for(const role of ['client','coach','admin']){
     }
   });
 }
+
+\n// U83 · Native-resolution visual evidence for the single approved Stitch
+// reference. The 43-route JPEG geometry survey remains 1x intentionally.
+// This test creates one isolated dPR3 browser context, no Supabase calls.
+test('SIGNATURE U83 · Cliente Hoy Retina 390 CSS px at dPR 3 produces native PNG evidence',async({browser},testInfo)=>{
+  test.skip(testInfo.project.name!=='live-workout-mobile-chromium',
+    'One isolated 3x master frame only; do not multiply CI image costs.');
+  const context=await browser.newContext({
+    viewport:{width:390,height:844},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true,locale:'es-ES',timezoneId:'America/Santiago',
+    serviceWorkers:'block',reducedMotion:'reduce',
+    baseURL:'http://127.0.0.1:4211',
+  });
+  try{
+    const page=await context.newPage();
+    const mutations=[],errors=[];
+    page.on('request',request=>{
+      if(!['GET','HEAD'].includes(request.method()))mutations.push(request.method());
+    });
+    page.on('pageerror',error=>errors.push(String(error.message||error)));
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real',
+      {waitUntil:'domcontentloaded'});
+    await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode))
+      .toBe('real-synthetic');
+    await expect(page.locator('.m26-client-home-stitch-v23')).toBeVisible();
+    await page.evaluate(()=>document.fonts.ready);
+    const dpr=await page.evaluate(()=>window.devicePixelRatio);
+    expect(dpr).toBe(3);
+    const png=await page.screenshot({
+      type:'png',scale:'device',fullPage:false,animations:'disabled',caret:'hide'
+    });
+    expect(png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))).toBe(true);
+    expect(png.readUInt32BE(16),'Native 390 CSS px * dPR 3 = 1170 physical pixels').toBe(1170);
+    expect(png.readUInt32BE(20),'Native 844 CSS px * dPR 3 = 2532 physical pixels').toBe(2532);
+    const dir='recovery/signature-published-sessions/u83';
+    const {mkdir,writeFile}=await import('node:fs/promises');
+    await mkdir(dir,{recursive:true});
+    await writeFile(dir+'/cliente-hoy-390-dpr3.png',png);
+    const scroll=await page.evaluate(()=>{
+      const root=document.querySelector(
+        '.m26-shell[data-m26-role="client"] .m26-client-route-shell > :not(.m26-client-bottom-nav-layer)'
+      );
+      if(!root)return {present:false,range:0,moved:0};
+      const range=Math.max(0,root.scrollHeight-root.clientHeight);
+      const prior=root.scrollTop;
+      root.scrollTop=root.scrollHeight;
+      return {present:true,range,moved:root.scrollTop-prior};
+    });
+    if(scroll.moved>12){
+      const lower=await page.screenshot({
+        type:'png',scale:'device',fullPage:false,animations:'disabled',caret:'hide'
+      });
+      expect(lower.readUInt32BE(16)).toBe(1170);
+      expect(lower.readUInt32BE(20)).toBe(2532);
+      await writeFile(dir+'/cliente-hoy-390-dpr3-scrolled.png',lower);
+    }
+    await writeFile(dir+'/manifest.json',JSON.stringify({
+      schema:'iberfit.signature.retina-evidence.v1',
+      role:'client',route:'hoy',viewportCss:{width:390,height:844},
+      deviceScaleFactor:dpr,pngPhysical:{width:1170,height:2532},
+      renderer:'real-route-renderer',identity:'synthetic',authenticated:false,
+      stitchParityCertified:false,scroll,
+      scope:'native-resolution QA evidence; not authenticated or visual acceptance'
+    },null,2),'utf8');
+    expect(mutations,'No remote writes for retina visual QA').toEqual([]);
+    expect(errors,'Retina route must not produce runtime errors').toEqual([]);
+  }finally{
+    await context.close();
+  }
+});

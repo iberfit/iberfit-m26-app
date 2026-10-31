@@ -264,3 +264,13 @@ autorizan por sí mismos `start-published-session`.
 - No declarar paridad por CI ni capturas sintéticas; contrastar capturas autenticadas y tareas reales en móvil/tablet/desktop. Mantener la PR SIGNATURE visual en Draft hasta completar la fase de diseño y los gates, no publicar una versión inferior al original Stitch.
 - Las referencias Stitch **no sustituyen** exigencias del contrato de seguridad, estabilidad, integridad, accesibilidad WCAG 2.2 AA ni rendimiento. Implementar sólo con rollouts reversibles y conservar la funcionalidad.
 
+## SIGNATURE U83 · Resolución y nitidez Retina exigibles
+
+**La calidad visual no es sólo composición; la nitidez física es criterio de aceptación.** Las referencias de Stitch se evalúan en su resolución original sin inferir que un PNG de demostración certifica la aplicación.
+
+- Separar geometría en CSS px y píxeles físicos. Referencia Cliente móvil 390×844 CSS px a dPR 3 = **1170×2532 píxeles físicos** para captura de viewport, sin escalar después el fichero.
+- Tipografía real, isotipo oficial e iconos preferentemente vectoriales (SVG); gráficos nítidos con SVG o Canvas escalado correctamente al devicePixelRatio; líneas finas alineadas para evitar borrosidad.
+- Imágenes raster visibles: dimensiones intrínsecas/source-set apropiadas para su tamaño efectivo a dPR 2/3, sin ampliar recursos de baja resolución ni añadir peso innecesario. Fotos privadas del usuario permanecen privadas y nunca se sustituyen por imágenes inventadas.
+- **Dos niveles de evidencia:** JPEG ligero CSS 1× para las 43 rutas sintéticas y cobertura operativa; **PNG sin pérdida a escala de dispositivo** para referencias artísticas aprobadas, capturando zona superior y scrollport cuando aplique. El JPEG QA con calidad 68/100 no puede utilizarse como patrón de nitidez HD.
+- La prueba U83 de Client Hoy 390px dPR3 verifica anchura/altura físicas exactas y deja evidencia protegida en el artefacto existente; **no** equivale a homologación con Stitch, a una prueba autenticada ni a un certificado de legibilidad óptica de todos los assets.
+- Homologación final por rol/estado/dispositivo: comparación original Stitch ↔ captura auténtica del mismo estado/datos; geometría, tipografía, densidad, gráficos, navegación, foco y suavidad visual. No forzar todas las 43 rutas a 3× en CI ni inflar Supabase, bundles o QA por una métrica decorativa.

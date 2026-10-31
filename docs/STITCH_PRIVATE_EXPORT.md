@@ -77,3 +77,10 @@ ni 43 pantallas equivalentes a Stitch basándose en estos fixtures.
   Es un contenedor deliberado para no desplazar el dock inferior.
   La captura `fullPage` de 390×844 no demostraba por sí sola un
   bloqueo de producto.
+
+## SIGNATURE U83 · Evidencia Retina sin engaños de resolución
+
+- **U80:** sus 86 JPG sintéticos se guardan con `scale:'css'`, `quality:68` y ancho lógico: sirven para detectar roturas y comparar composición general, **no** para juzgar nitidez de nivel Stitch.
+- **U83:** el navegador aislado incorpora **una captura PNG maestra** de Cliente Hoy a viewport lógico 390×844 y `deviceScaleFactor:3`, `scale:'device'`: píxeles esperados **1170×2532**. Además recoge el tramo inferior del scrollport auténtico cuando exista. El manifiesto registra escala, resolución, naturaleza sintética y ausencia de homologación.
+- Guardar estos PNG únicamente en el artefacto QA ya existente, sin original privado Stitch, imágenes de identidad real ni nuevas llamadas a Supabase. Conservar JPG 1× para el inventario completo y evitar multiplicar por nueve el coste de 43 capturas.
+- Mantener la PR en Draft hasta que las capturas HD se comparen con el original privado aprobado en la misma escala y contexto, y se complete QA autenticada. La nitidez de PNG no garantiza por sí sola fidelidad artística, seguridad ni calidad de las imágenes de origen.
