@@ -69,3 +69,11 @@ ni 43 pantallas equivalentes a Stitch basándose en estos fixtures.
   constituye validación artística o autenticada.
 - Todo se ejecuta con el fixture existente, sin peticiones adicionales a
   Supabase, escrituras remotas, cambio de autorización o publicación.
+
+- **U82.1:** evidencia inspeccionada del CSS real: el scroll de
+  Cliente móvil vive en el hijo directo de
+  `.m26-client-route-shell`, no en `document` o `.m26-main`.
+  El manifiesto ahora inspecciona y captura expresamente ese scrollport.
+  Es un contenedor deliberado para no desplazar el dock inferior.
+  La captura `fullPage` de 390×844 no demostraba por sí sola un
+  bloqueo de producto.

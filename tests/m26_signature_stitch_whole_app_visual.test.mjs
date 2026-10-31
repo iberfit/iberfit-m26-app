@@ -363,6 +363,9 @@ test('U82 43-route synthetic visual evidence records nested scroll and lower fol
   const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
   const workflow=fs.readFileSync(new URL('../.github/workflows/session-qa-isolated.yml',import.meta.url),'utf8');
   assert.match(browser,/const scrollEvidence=\{\}/);
+  const dockCss=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  assert.match(dockCss,/m26-client-route-shell > :not\(\.m26-client-bottom-nav-layer\)/);
+  assert.match(browser,/client-route-scrollport/);
   assert.match(browser,/scrollTarget:target/);
   assert.match(browser,/routeHeight:Math\.round/);
   assert.match(browser,/candidateRanges:/);

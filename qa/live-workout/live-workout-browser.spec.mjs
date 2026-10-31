@@ -921,6 +921,9 @@ for(const role of ['client','coach','admin']){
         const scroll=await page.evaluate(()=>{
           const route=document.querySelector('.m26-main .m26-client-route-shell,.m26-main .m26-route,.m26-main .m26-admin-route');
           const candidates=[
+            ['client-route-scrollport',document.querySelector(
+              '.m26-shell[data-m26-role="client"] .m26-client-route-shell > :not(.m26-client-bottom-nav-layer)'
+            )],
             ['document',document.scrollingElement],
             ['main',document.querySelector('.m26-main')],
             ['workspace',document.querySelector('.m26-workspace')],
