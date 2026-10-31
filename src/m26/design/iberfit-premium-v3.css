@@ -1232,6 +1232,8 @@
   font-weight:680;
   line-height:1.2;
   text-wrap:balance;
+  min-inline-size:0;
+  overflow-wrap:anywhere;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-sessions-brief>p{
   margin:0;

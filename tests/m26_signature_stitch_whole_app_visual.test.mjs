@@ -201,3 +201,14 @@ test('U67 published session screenshot fixture mirrors real CSS ancestry',()=>{
   assert.match(premium,/\.m26-client-sessions-brief\{[\s\S]*?display:grid;/);
   assert.match(premium,/\.m26-client-sessions-brief>strong\{/);
 });
+
+test('U68 standalone real-session QA uses the same role CSS scope as the app',()=>{
+  const html=fs.readFileSync(new URL('../qa/live-workout/fixture.html',import.meta.url),'utf8');
+  const js=fs.readFileSync(new URL('../qa/live-workout/fixture.mjs',import.meta.url),'utf8');
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  assert.match(html,/<section id="qa-shell" class="m26-shell" data-m26-role="client">[\s\S]*?<div class="m26-workspace">[\s\S]*?<main id="qa-root" class="m26-main">/);
+  assert.match(html,/href="\/src\/m26\/shell\/shell.css"/);
+  assert.match(html,/href="\/src\/m26\/rc39\/rc39.css"/);
+  assert.match(js,/qaShell\.dataset\.m26Role=role/);
+  assert.match(css,/\.m26-client-sessions-brief>strong\{[\s\S]*?overflow-wrap:anywhere/);
+});

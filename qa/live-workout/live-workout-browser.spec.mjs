@@ -29,6 +29,8 @@ async function fillCurrentSet(page,{reps='9',load='20 kg',rpe='7',rir='3'}={}){
 test('SIGNATURE U21: Cliente pausa, reanuda y mantiene el borrador en 320 px',async({page})=>{
   await page.setViewportSize({width:320,height:740});
   await open(page,'client');
+  await expect(page.locator('#qa-shell')).toHaveAttribute('data-m26-role','client');
+  expect(await page.locator('#qa-root').evaluate(el=>Boolean(el.closest('.m26-shell > .m26-workspace .m26-main')))).toBe(true);
   await page.locator('[data-session-action="start"]').click();
   const quick=page.locator('[data-session-client-quick-controls]');
   await expect(quick).toBeVisible();
@@ -76,6 +78,8 @@ test('SIGNATURE U21: Cliente pausa, reanuda y mantiene el borrador en 320 px',as
 test('SIGNATURE U21: Coach conserva controles rápidos operativos con teclado',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await open(page,'coach');
+  await expect(page.locator('#qa-shell')).toHaveAttribute('data-m26-role','coach');
+  expect(await page.locator('#qa-root').evaluate(el=>Boolean(el.closest('.m26-shell > .m26-workspace .m26-main')))).toBe(true);
   await page.locator('[data-session-action="start"]').click();
   const actions=page.locator('[data-session-coach-quick-controls]');
   await expect(actions).toBeVisible();
