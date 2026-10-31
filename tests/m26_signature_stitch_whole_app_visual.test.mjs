@@ -62,7 +62,10 @@ test('U61 Stitch Client next action remains editorial and truthful with no publi
   };
   const html=renderHoyRoute(base);
   assert.match(html,/data-client-home-training-state="preparing"/);
-  assert.match(html,/<div class="m26-client-home-status">\s*<span>Tu siguiente paso<\/span>\s*<strong>Actualiza cómo estás hoy<\/strong>/);
+  // U51 keeps the wellbeing fallback visually self-sufficient, not duplicated
+  // by an extra status/title container.
+  assert.doesNotMatch(html,/class="m26-client-home-status"/);
+  assert.match(html,/<strong>Registrar cómo estoy<\/strong>/);
   assert.match(html,/data-m26-area="actividad"/);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"/);
   const paused=renderHoyRoute({...base,clients:[{...base.clients[0],serviceActive:false}]});
@@ -77,4 +80,13 @@ test('U61 Client context destinations have a decorative directional cue and visi
   assert.match(signature,/margin-inline-start:auto/);
   assert.match(signature,/m26-client-home-compass-actions button:focus-visible/);
   assert.match(signature,/@media\(forced-colors:active\)/);
+});
+
+test('U62 original Stitch hierarchy improves client/coach/admin legibility without changing data',()=>{
+  const s=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const role=read().split('SIGNATURE MASTER VISUAL U59 ·')[1]||'';
+  const focus=s.split('Stitch V2.3 composition, adapted')[1]||'';
+  for(const marker of ['border-top-color:rgba(214,178,94,.42)','overflow-wrap:anywhere','text-transform:uppercase','@media(hover:hover) and (pointer:fine)'])assert.ok(focus.includes(marker),marker);
+  for(const marker of ['data-m26-role="coach"','data-m26-role="admin"',':focus-within','text-wrap:balance','overflow-wrap:break-word'])assert.ok(role.includes(marker),marker);
+  assert.doesNotMatch(role,/pointer-events:none|visibility:hidden|display:none/);
 });

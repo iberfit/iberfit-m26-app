@@ -2788,9 +2788,12 @@
   color:inherit;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-primary-zone{
-  display:grid;align-content:start;gap:1rem;padding:1.25rem;
-  background:var(--stitch-surface);border:1px solid var(--stitch-line);border-radius:1rem;
-  box-shadow:0 12px 36px rgba(0,0,0,.35),inset 0 1px 0 rgba(214,178,94,.25);
+  display:grid;align-content:start;gap:1rem;
+  min-inline-size:0;
+  padding:clamp(1.15rem,3.2vw,1.6rem);
+  background:var(--stitch-surface);border:1px solid var(--stitch-line);border-top-color:rgba(214,178,94,.42);
+  border-radius:1rem;
+  box-shadow:0 12px 36px rgba(0,0,0,.27),inset 0 1px 0 rgba(214,178,94,.22);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-status{
   display:grid;gap:.5rem;min-width:0;padding:0;border:0;
@@ -2799,14 +2802,15 @@
   color:var(--stitch-action);font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-status>strong{
-  font:600 clamp(1.5rem,2.3vw,2rem)/1.3 var(--iberfit-font-family-editorial);
-  color:var(--stitch-text);letter-spacing:-.025em;text-wrap:balance;
+  font:600 clamp(1.5rem,3.7vw,2.15rem)/1.22 var(--iberfit-font-family-editorial);
+  color:var(--stitch-text);letter-spacing:-.035em;text-wrap:balance;overflow-wrap:anywhere;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-status>p{
   margin:0;color:var(--stitch-muted);font-size:.875rem;line-height:1.55;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-primary-zone .m26-today-action.is-primary{
-  min-height:52px;border-radius:.75rem;grid-template-columns:auto minmax(0,1fr);
+  min-height:52px;min-inline-size:0;border-radius:.75rem;grid-template-columns:auto minmax(0,1fr);
+  padding-block:.85rem;
   background:var(--stitch-action);
   color:#09140E;border-color:var(--stitch-action);box-shadow:0 6px 20px rgba(214,178,94,.22);
 }
@@ -2814,12 +2818,18 @@
   padding:0;background:transparent;border:0;gap:.75rem;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions{
-  display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem;
+  display:grid;grid-template-columns:minmax(0,1fr);gap:.65rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-heading strong{
+  color:var(--stitch-muted);font:700 .73rem/1.4 var(--iberfit-font-family-ui);
+  letter-spacing:.1em;text-transform:uppercase;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button{
   display:flex;flex-direction:row;align-items:center;justify-content:flex-start;text-align:left;
-  min-height:72px;gap:.875rem;padding:1rem;border:1px solid var(--stitch-line);
+  min-height:72px;min-inline-size:0;gap:.875rem;
+  padding:clamp(.85rem,2.8vw,1rem);border:1px solid var(--stitch-line);
   border-radius:.875rem;background:var(--stitch-surface);color:var(--stitch-text);
+  box-shadow:inset 0 1px 0 rgba(250,247,238,.035);
 }
 /* Consistent directional affordance for all three real destinations.
  * Drawn with CSS, not an external icon or an extra focus target. */
@@ -2850,6 +2860,13 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button small{
   font-size:.8125rem;line-height:1.5;color:var(--stitch-muted);
+  overflow-wrap:break-word;
+}
+@media(hover:hover) and (pointer:fine){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass-actions button:hover{
+    border-color:rgba(214,178,94,.45);
+    background:#1A3024;
+  }
 }
 @media(min-width:1000px){
   .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-stage{
@@ -2908,6 +2925,7 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.is-today{
   border-color:rgba(214,178,94,.75);background:rgba(214,178,94,.1);
+  box-shadow:inset 0 0 0 1px rgba(214,178,94,.16);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.is-today>strong{
   background:#D6B25E;color:#09140E;

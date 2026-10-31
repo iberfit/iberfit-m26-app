@@ -5143,6 +5143,14 @@ m26-echart[data-density="compact"]{
   font-size:clamp(1.06rem,1.8vw,1.4rem);
   font-weight:700;
   letter-spacing:-.018em;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route > .m26-panel:focus-within{
+  border-color:color-mix(in srgb,var(--iberfit-color-accent) 45%,var(--iberfit-color-border));
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-route .m26-panel-heading :is(p,small){
+  color:var(--iberfit-color-text-secondary);
+  line-height:1.5;
 }
 .m26-shell[data-m26-role="coach"] .m26-workspace :is(.m26-professional-client-context,.m26-coach-client-workspace){
   border-inline-start:3px solid color-mix(in srgb,var(--iberfit-color-accent) 66%,transparent);
@@ -5297,6 +5305,10 @@ m26-echart[data-density="compact"]{
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table :is(th,td){
   font-variant-numeric:tabular-nums;
   vertical-align:middle;
+  overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table :is(tbody tr):focus-within{
+  background:color-mix(in srgb,var(--iberfit-color-accent) 7%,var(--iberfit-color-surface-base));
 }
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-table :is(button,a,select){
   min-block-size:44px;

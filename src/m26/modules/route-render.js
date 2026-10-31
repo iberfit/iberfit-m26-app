@@ -807,7 +807,7 @@ function renderClientHoyRoute(vm) {
       </div>
 
       <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
-        ${trainingSurface?`<div class="m26-client-home-status">
+        ${trainingSurface&&primary.area!=='actividad'?`<div class="m26-client-home-status">
           <span>${escapeHtml(primary.eyebrow)}</span>
           <strong>${escapeHtml(primary.title)}</strong>
           <p>${escapeHtml(primary.detail)}</p>
