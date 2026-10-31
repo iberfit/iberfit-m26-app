@@ -71,7 +71,9 @@ export function createClientHistoryDemandController({
       &&canOfferClientHistory(store.getState(),activeArea,enabled)
       &&getOwner()===owner&&fingerprint(store.getState())===key;
     try{
-      const sections=await loader.load({owner,clientId,sections:['session']});
+      // Both canonical sections must be complete before an atomic Client store commit.
+      // This is exclusively user-triggered; no execution-history prefetch on route entry.
+      const sections=await loader.load({owner,clientId,sections:['session','session_execution']});
       if(!current())return;
       store.incorporateClientCompletedHistory({
         ownerId:identityId,clientId,confirmedAt,lastAck,sections,
