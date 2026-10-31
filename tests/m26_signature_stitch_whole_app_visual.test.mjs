@@ -130,3 +130,20 @@ test('U63 Coach priority colour preserves text and permissions and Admin hierarc
   assert.match(coach,/class="m26-coach-home-command" data-priority-tone="danger"/);
   assert.doesNotMatch(coach,/data-client-session-preview/);
 });
+
+test('U64 Stitch published structure is localized in all four supported languages',async()=>{
+  const {iberfitSurfaceTranslate}=await import('../src/m26/ui/i18n-surface.js');
+  const expected={
+    en:['Published prescription','Prescription available','View published structure','2 blocks','Block 7'],
+    fr:['Prescription publiée','Prescription disponible','Voir la structure publiée','2 blocs','Bloc 7'],
+    pt:['Prescrição publicada','Prescrição disponível','Ver estrutura publicada','2 blocos','Bloco 7'],
+  };
+  const source=['Prescripción publicada','Prescripción disponible','Ver estructura publicada','2 bloques','Bloque 7'];
+  for(const [language,translations] of Object.entries(expected)){
+    assert.deepEqual(source.map(value=>iberfitSurfaceTranslate(value,{language})),translations);
+    assert.notEqual(iberfitSurfaceTranslate('Y 3 bloques más en la sesión completa.',{language}),
+      'Y 3 bloques más en la sesión completa.');
+  }
+  const js=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(js,/data-client-session-preview role="group" aria-label="Prescripción publicada"/);
+});

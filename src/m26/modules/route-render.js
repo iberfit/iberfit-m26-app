@@ -581,7 +581,7 @@ function renderClientPublishedStructure(projection){
   const more=blocks.length>12
     ?'<p class="m26-client-stitch-session-overflow">Y '+escapeHtml(blocks.length-12)+' bloques más en la sesión completa.</p>'
     :'';
-  return '<div class="m26-client-stitch-session-structure" data-client-session-preview aria-label="Prescripción publicada">'+
+  return '<div class="m26-client-stitch-session-structure" data-client-session-preview role="group" aria-label="Prescripción publicada">'+
     '<div class="m26-client-stitch-session-facts"><span>Prescripción disponible</span><strong>'+
     escapeHtml(blocks.length)+' '+(blocks.length===1?'bloque':'bloques')+'</strong></div>'+
     '<details class="m26-client-stitch-session-details">'+
