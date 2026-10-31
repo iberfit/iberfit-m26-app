@@ -155,3 +155,30 @@ test('QA historical retention fingerprint preserves rows, rejects stale CAS and 
   assert.match(writer,/budget.count<=budget.limit-2/u);
   assert.doesNotMatch(writer,/delete\s+from\s+.*domain_entities_v26/iu);
 });
+
+
+test('M43 completed run-tagged interactive QA history is archived only by immutable fingerprint',async()=>{
+  const {createHash}=await import('node:crypto');
+  const {retainedM43HistoricalFingerprint,assessM43SyntheticFixtureBudget}=await import('../scripts/remote-gates/m43-qa-fixture-safety.mjs');
+  const id='20000000-0000-4000-8000-000000000111',owner='30000000-0000-4000-8000-000000000222';
+  const record={entityType:'session',entityId:id,clientId:owner,status:'completada',revision:4,
+    body:{title:'IBERFIT QA M43 · sesión interactiva · run-41160220476-a1',clientId:owner,revision:4}};
+  const digest=createHash('sha256').update([owner,id,record.status,4,record.body.title].join(':')).digest('hex');
+  const only=new Set([digest]);
+  assert.equal(retainedM43HistoricalFingerprint(record,only),true);
+  assert.equal(retainedM43HistoricalFingerprint({...record,status:'en_curso'},only),false);
+  assert.equal(retainedM43HistoricalFingerprint({...record,status:'cancelada'},only),false);
+  assert.equal(retainedM43HistoricalFingerprint({...record,revision:5},only),false);
+  assert.equal(retainedM43HistoricalFingerprint({...record,clientId:'foreign'},only),false);
+  assert.equal(retainedM43HistoricalFingerprint({...record,body:{...record.body,revision:5}},only),false);
+  assert.equal(retainedM43HistoricalFingerprint({...record,body:{...record.body,title:'IBERFIT QA M43 · sesión interactiva'}},only),false);
+  assert.equal(retainedM43HistoricalFingerprint(record,new Set()),false);
+  // Verify the actual persisted ledger represents historical terminal entries;
+  // its fixed fingerprints never match an unmarked or changed live session.
+  const ledger=JSON.parse(readFileSync(new URL('../scripts/remote-gates/m43-qa-retained-history-v1.json',import.meta.url),'utf8'));
+  assert.equal(ledger.sha256EntityScopeRevisionAndTitle.length,412);
+  assert.equal(new Set(ledger.sha256EntityScopeRevisionAndTitle).size,412);
+  assert.equal(ledger.mode,'logical_retention_only_no_database_mutation');
+  const snapshot={data:{m26Entities:[record,{...record,status:'en_curso'}]}};
+  assert.equal(assessM43SyntheticFixtureBudget(snapshot).total,2);
+});

@@ -24,7 +24,8 @@ export function retainedM43HistoricalFingerprint(item,digests=RETAINED_HISTORY_D
   const title=String(item.body?.title||''),id=String(item.entityId||''),
     clientId=String(item.clientId||''),revision=Number(item.revision);
   if(!(/^IBERFIT QA M43 · multideporte · run-[1-9][0-9]{0,19}-a[1-9][0-9]{0,3}$/u.test(title)
-       ||title==='IBERFIT QA M43 · multideporte')
+       ||title==='IBERFIT QA M43 · multideporte'
+       ||/^IBERFIT QA M43 · sesión interactiva · run-[1-9][0-9]{0,19}-a[1-9][0-9]{0,3}$/u.test(title))
     ||!/^[a-f0-9-]{36}$/iu.test(id)||!/^[a-f0-9-]{36}$/iu.test(clientId)
     ||!Number.isSafeInteger(revision)||revision<2
     ||String(item.body?.clientId||'')!==clientId
