@@ -1,3 +1,39 @@
+## P0 Supabase Free · estado CANARY y siguiente macrobloque QA · 31/10/2026
+
+- **Canary LIVE certificado**: PR #1226 fusionada; SHA `baee0beee3c52478f64c92049ccf7e97a0096fec`, desplegado en `m26-canary.iberfit.cl` por workflow #41215846674 (SUCCESS). 13/13 workflows del SHA postmerge SUCCESS, incluidos Remote Gate recuperado #41215846606, Device y QA Real Write. PROD no tocada.
+- **Candidato actual, NO FUSIONADO**: rama `feat/p0-1209-qa-completed-execution-lossless-20261031`, base Canary exacto anterior. En Cliente A sintético QA-only, completar la carga explícita de historial con secciones `session` y `session_execution` en un solo commit atómico al estado. Nada se consulta al navegar; el histórico descargado ha de mantener dueño, resultado, métricas, revisión, ACK y privacidad. Se amplían pruebas SQL/Playwright y de proyección para probar ambos tipos. Ninguna alteración de base de datos, RLS, cuota o producción en esta fase.
+- **No eliminar `results` de ejecuciones completadas** hasta certificar restitución y paridad de Progreso/estadísticas, incluso antes del clic. Una proyección mínima de `id+revision` no es equivalente (0/423 ejecuciones en QA), por tanto no se aplica. El plan Free no está certificado por cuota: sin lectura de Billing uncached GB a través del conector.
+- Decisión: mantener #1209 OPEN hasta demostrar Egress real inferior al umbral, no sólo reducción de bytes JSON descomprimidos.
+
+---
+
+## P0 #1209 · Cliente historial completado bajo demanda, fase de contrato (WIP NO DESPLEGADO)
+
+Candidato QA-only `iberfit_client_completed_history_page_free_v1`: no acepta clientId; derives `auth.uid()` y `iberfit_client_id()` server-side, exige rol `cliente`, entorno QA y EXECUTE únicamente para `authenticated`; no emite contenido sin `m43_client_safe_session_v2` / `m43_client_safe_execution_v1`. Páginas ≤32, JSON ≤300 KB, snapshot ≤30 minutos, cursor estable `updated_at + entity_id`, control `expected_count` con fail-closed ante revisiones.
+
+**WIP y sin reducir bootstrap todavía:** la RPC SQL y los tests estáticos solo preparan el contrato; antes de aplicar, integrar la hidratación bajo demanda en Cliente, estados de cargando/reintento/error, la restitución íntegra de historiales, estadística y ejercicios, permisos/IDOR, offline, cuenta nueva, invalidación por ACK, tests reales Coach/Cliente A/B y rollback. No desplegar función, no reducir datos, no fusionar PR hasta certificar el macrobloque vertical entero. Objetivo: evitar ~1,54MB de JSON histórico en la carga inicial del Cliente A QA sin pérdida de historial ni funcionalidad. No es ahorro wire confirmado.
+
+---
+## P0 Supabase Free · Proyección segura de ejecuciones legacy QA (CANDIDATO; 31/10/2026)
+
+- SQL de QA `iberfit_bootstrap_v26_rc29()`: para Cliente, la proyección M43 descarta `summary` legacy. En las 421 ejecuciones actuales, `m43_client_safe_execution_v1(to_jsonb(e))` es exactamente igual a `m43_client_safe_execution_v1(jsonb_build_object('id',e.id,'revision',e.revision))` (421/421 comprobadas READ-ONLY). Los inputs pasan de 6.555.697 bytes de JSON total a 25.681 bytes; no inferir directamente ahorro facturable de Egress ni latencia hasta A/B.
+- Preparada migración reversible `20261031024500_p0_qa_client_legacy_execution_projection` bajo `supabase/qa-migrations/` con guard QA y hash fuente exacto; rollback bajo `supabase/qa-rollbacks/` con hash de destino exacto. No cambia salida Cliente, Coach/Admin, datos, RLS, sesiones o revisión; el cambio no es PROD y está **NO APLICADO**.
+- PR #1220 acumuló Fast Lane, CI, Write, interacción Cliente etc SUCCESS, pero Device Gate (Cliente A tablet Bootstrap 8.411 ms / entorno completo 11.677 ms frente a SLA 10s) y Canary Policy FAIL. No fusionar antes de completar verificación del SHA nuevo.
+- La parte pública del PR cachea catálogo en QA-only read-only por 10 minutos y añade manifiesto público; manifiesto observado QA 303 bytes (beneficio marginal). El **siguiente P0** a trabajar es historial canónico Cliente A por demanda con dueño/ACK/rollback íntegro, sin truncar ni borrar historia.
+- Organización 7,352/5GB uncached, Egress QA 7,128 GB en capturas, Free aún excedido. Ahorro en cuota NO DEMOSTRADO; medir siguiente ventana comparable. No mutación de Supabase ni PROD en fase de PR.
+
+---
+
+## P0 Supabase Free · QA public payload reuse (candidato pendiente de CI, 30/10/2026)
+
+- Objetivo: reducir llamadas repetidas de catálogo y manifiesto público durante una certificación QA read-only multidispositivo sin saltar permisos ni pruebas de backend. Canary base exacta `d7562b28699e27f97bb4c497a0436ca9517da0ce`.
+- Ampliación de memo **solo en el proceso Playwright QA** de 120 s a 600 s, sin persistencia y siempre con primera lectura real por endpoint/parámetros/origen; se incorpora exclusivamente `iberfit_exercise_media_manifest_v1` (RPC anónimo ya autorizado por PostgreSQL) con validación estricta del JSON público; mantiene límites 1 MB y 16 entradas.
+- Prohibido cachear JWT, bootstrap, roles, RLS, WebAuthn, Auth, avatares, Storage o escrituras. Otros workflows y aplicación Cliente/Coach/Admin (QA y PROD) no se modifican; ningún SQL, DDL, dataset, secret ni migración.
+- Pruebas focales: expiración 10 minutos, 7 contexts, error y cuerpo inválido, manifest público frente a identidad privada y regresión de RPC existente. **No declarar ahorro en GB** sin medir Egress de la organización en ventana comparable.
+- Estado: **candidato**; no equivale a merge, Canary LIVE ni PROD. WIP exclusivo #1209. Siguiente paso: CI exacto, auditoría, merge y Canary Exact, luego tasa de Egress.
+
+---
+
 ## Stitch privado recuperado · SIGNATURE PR #1213 sigue WIP · 30-10-2026
 
 - Reparación privada `d774edd2cfbac796898aa68384104ccf18e6fe93`; Actions [41141452399](https://github.com/iberfit/Iberfit-platform/actions/runs/41141452399) SUCCESS, Node 22.23.4, 12/12 tests. Exportación original en commit privado `6fb51f85a8285a7677c56372110a3d5910324e80`: HTML, PNG y manifiesto; hashes verificados sobre bytes Git, PNG CRC y píxeles decodificados. Sin transferir secretos ni HTML a este repo público.

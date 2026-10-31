@@ -1,4 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises';
+// P0 #1209: existing read-only QA Client A/B runner. No writes or new secrets.
+import {registerQaLiveHistoryTestSuite} from '../p0-free-history/live-client-a-cases.mjs';
 import {test,expect} from '@playwright/test';
 import {
   CANARY_ORIGIN,
@@ -669,3 +671,6 @@ test('current authenticated contract separates privileged fail-closed identities
   await mkdir('recovery',{recursive:true});
   await writeFile('recovery/RC64_2B_AUTHENTICATED_SMOKE.json',`${JSON.stringify(evidence,null,2)}\n`,'utf8');
 });
+
+// Synthetic QA historical paging: one read-only Chromium run only.
+registerQaLiveHistoryTestSuite();

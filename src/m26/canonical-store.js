@@ -1,5 +1,6 @@
 import { createProductionState, stateFromBootstrap } from './production-state.js';
 import { sanitizeOperation } from './command-bus.js';
+import {projectCompletedHistoryForClient} from './domain/client-completed-history-merge.js';
 
 function clone(value) { return value == null ? value : structuredClone(value); }
 function errorText(error){return error?String(error.message||error):null;}
@@ -43,6 +44,19 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     state = next;
     emit();
     return getState();
+  }
+
+  // Stage a complete, server-owner-verified archive atomically. No partially
+  // received page may update the Client UI or overwrite an active draft/ACK.
+  function incorporateClientCompletedHistory({ownerId,clientId,confirmedAt,lastAck,sections}={}){
+    const projected=projectCompletedHistoryForClient({
+      state,ownerId,clientId,confirmedAt,lastAck,sections,
+    });
+    if(sameJson(state.collections.sessions,projected.sessions)
+       &&sameJson(state.collections.sessionExecutions,projected.sessionExecutions))
+      return getState();
+    state={...state,collections:{...state.collections,...projected}};
+    emit();return getState();
   }
 
   function reset(next=createProductionState()) {
@@ -101,5 +115,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return () => listeners.delete(listener);
   }
 
-  return Object.freeze({ getState, setHydration, hydrate, reset, selectClient, selectIriAssessment, navigate, projectOperations, acknowledge, subscribe });
+  return Object.freeze({ getState, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, projectOperations, acknowledge, subscribe });
 }

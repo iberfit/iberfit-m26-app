@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {createQaPublicRpcRunCache} from './qa-public-rpc-run-cache.mjs';
 
 export const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 export const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -157,15 +158,18 @@ async function fulfillCurrentSource(route,url){
 }
 
 
-// P0 Supabase Free: Only anonymous/public exercise-catalog reads are reusable
+// P0 Supabase Free: Only allowlisted anonymous/public exercise-data reads are reusable
 // between isolated read-only QA browser contexts in the SAME test worker.
+// A run's first read hits the real backend; 10-minute in-process reuse is bounded
+// by source process lifetime, 1 MB/entry and 16 entries. No persisted cache.
 // All authenticated RPCs, avatars, WebAuthn, user/tenant reads and writes
 // still reach the real QA backend on EVERY test. No identity is retained.
 const QA_PUBLIC_READ_RPCS=new Set([
   '/rest/v1/rpc/iberfit_exercise_catalog_public_v1',
   '/rest/v1/rpc/iberfit_exercise_measurement_profiles_public_v1',
+  '/rest/v1/rpc/iberfit_exercise_media_manifest_v1',
 ]);
-const QA_PUBLIC_TTL_MS=120_000;
+const QA_PUBLIC_TTL_MS=600_000; // QA read-only worker; first real read per source SHA
 const QA_PUBLIC_MAX_BYTES=1_000_000;
 const QA_PUBLIC_MAX_ENTRIES=16;
 
@@ -201,10 +205,25 @@ function publicRpcMemoKey(request,url){
   }catch{return null;}
 }
 
+function validQaPublicRpcBody(url,body){
+  if(!Buffer.isBuffer(body)||body.length>QA_PUBLIC_MAX_BYTES)return false;
+  try{
+    const rows=JSON.parse(body.toString('utf8'));
+    const isMediaManifest=url.pathname==='/rest/v1/rpc/iberfit_exercise_media_manifest_v1';
+    return isMediaManifest
+      ? rows!==null&&typeof rows==='object'&&!Array.isArray(rows)
+        &&rows.schemaVersion===1&&rows.source?.provider==='IBERFIT'
+        &&Array.isArray(rows.items)&&rows.items.length<=5000
+      : Array.isArray(rows)&&rows.length<=5000;
+  }catch{return false;}
+}
+
 // Injectable clock and isolated maps make security/expiry assertions deterministic.
-export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
+export function createQaPublicRpcMemo({now=()=>Date.now(),sharedCacheRoot}={}){
   const cache=new Map(),pending=new Map();
-  let networkReads=0,cacheHits=0;
+  const shared=createQaPublicRpcRunCache({now,root:sharedCacheRoot,
+    ttlMs:QA_PUBLIC_TTL_MS,maxBytes:QA_PUBLIC_MAX_BYTES,maxEntries:QA_PUBLIC_MAX_ENTRIES});
+  let networkReads=0,cacheHits=0,sharedHits=0;
   async function serve(route,request,url){
     const key=publicRpcMemoKey(request,url);
     if(!key)return false;
@@ -214,6 +233,19 @@ export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
     if(live){
       cacheHits++;
       await route.fulfill({status:200,body:live.body,headers:live.headers});
+      return true;
+    }
+    // QA-only, anonymous PUBLIC bytes can be reused by another Playwright worker
+    // from this exact GitHub run/SHA. No private/auth request is eligible above.
+    // Invalid, stale and corrupt files are ignored and must hit real QA.
+    const publicCopy=await shared.read(key);
+    if(publicCopy&&validQaPublicRpcBody(url,publicCopy.body)){
+      if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
+      const headers={'content-type':'application/json; charset=utf-8',
+        'access-control-allow-origin':'*','x-content-type-options':'nosniff'};
+      cache.set(key,{createdAt:publicCopy.createdAt,body:publicCopy.body,headers});
+      cacheHits++;sharedHits++;
+      await route.fulfill({status:200,body:publicCopy.body,headers});
       return true;
     }
     let work=pending.get(key);
@@ -228,14 +260,12 @@ export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
           'access-control-allow-origin':'*',
           'x-content-type-options':'nosniff',
         };
-        if(status===200&&body.length<=QA_PUBLIC_MAX_BYTES){
-          try{
-            const rows=JSON.parse(body.toString('utf8'));
-            if(Array.isArray(rows)&&rows.length<=5000){
-              if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
-              cache.set(key,{createdAt:now(),body,headers});
-            }
-          }catch{} // Bad/malformed responses always flow through; never cached.
+        if(status===200&&validQaPublicRpcBody(url,body)){
+          if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
+          cache.set(key,{createdAt:now(),body,headers});
+          // Fail-open for caching only: the live backend response remains
+          // authoritative even if the ephemeral public cache cannot be written.
+          await shared.write(key,body);
         }
         return {status,body,headers};
       })().finally(()=>pending.delete(key));
@@ -250,7 +280,7 @@ export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
     }
     return true;
   }
-  return Object.freeze({serve,stats:()=>Object.freeze({networkReads,cacheHits,entries:cache.size})});
+  return Object.freeze({serve,stats:()=>Object.freeze({networkReads,cacheHits,sharedHits,entries:cache.size})});
 }
 const qaPublicRpcMemo=createQaPublicRpcMemo();
 
