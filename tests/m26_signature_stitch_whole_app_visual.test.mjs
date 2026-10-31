@@ -298,3 +298,21 @@ test('U77 complete visual route inventory remains 9 Cliente / 17 Coach / 17 Admi
   assert.match(browser,/must never write to a remote backend in static visual QA/);
   assert.match(browser,/real-synthetic/);
 });
+
+
+test('U78 single-surface Client prescription keeps full data and readable missing-media state',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const test=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const section=css.split('U78 · Editorial published prescription')[1]||'';
+  assert.match(section,/m26-session-preview-blocks\{/);
+  assert.match(section,/m26-session-preview-block\{/);
+  assert.match(section,/background:transparent/);
+  assert.match(section,/m26-session-preview-block\+\.m26-session-preview-block\{/);
+  assert.match(section,/m26-exercise-media-fallback\{/);
+  assert.match(section,/background:#152c20/);
+  assert.match(section,/color:#f5f0e6/);
+  assert.match(section,/forced-colors:active/);
+  assert.doesNotMatch(section,/display:none|pointer-events:none|!important|content:url\(/);
+  assert.match(test,/Exercise media fallback needs WCAG AA contrast/);
+  assert.match(test,/The exercise list should not nest another decorative panel/);
+});

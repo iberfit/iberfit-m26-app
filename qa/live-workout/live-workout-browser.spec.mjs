@@ -412,6 +412,38 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await expect(guided.locator('.m26-session-preview-exercise h5')).toHaveText('Press de pecho');
+
+  // U78 · Native prescription, not nested decorative cards. The missing
+  // exercise media remains explicitly labelled and legible; no fake photo.
+  const surface=await guided.locator('.m26-session-preview-block').first().evaluate(el=>{
+    const block=getComputedStyle(el);
+    const label=el.querySelector('h4');
+    const fallback=el.querySelector('.m26-exercise-media-fallback');
+    const fallbackText=fallback?.querySelector('span,small');
+    const f=fallback?getComputedStyle(fallback):null;
+    const ink=fallbackText?getComputedStyle(fallbackText):null;
+    const rgb=(value)=>String(value).match(/\d+/g)?.slice(0,3).map(Number)||[];
+    const luminance=(value)=>{
+      const triplet=rgb(value);
+      if(triplet.length<3)return 0;
+      const linear=triplet.map(n=>{
+        const v=n/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;
+      });
+      return linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;
+    };
+    const bg=luminance(f?.backgroundColor),fg=luminance(ink?.color);
+    return {background:block.backgroundColor,borderRadius:block.borderRadius,
+      label:label?.textContent?.trim(),fallback:Boolean(fallback),
+      mediaText:fallbackText?.textContent?.trim(),
+      contrast:(Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05)};
+  });
+  expect(surface.background,'The exercise list should not nest another decorative panel')
+    .toBe('rgba(0, 0, 0, 0)');
+  expect(surface.borderRadius).toBe('0px');
+  expect(surface.fallback,'Keep the honest missing-media state').toBe(true);
+  expect(surface.mediaText).toContain('Sin referencia visual');
+  expect(surface.contrast,'Exercise media fallback needs WCAG AA contrast').toBeGreaterThanOrEqual(4.5);
+
   await expect(guided).toContainText('8-10');
   await expect(guided).toContainText('Sin referencia visual');
   await expect(readyCta).toHaveText('Preparar entrenamiento');
