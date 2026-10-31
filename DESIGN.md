@@ -250,3 +250,17 @@ autorizan por sí mismos `start-published-session`.
 - Entrada breve solo para títulos principales y solo si no está activado movimiento reducido; sin loops, parallax, componentes que dependan de animación, ni bloqueos de controles.
 - El gráfico fuerza enseña exclusivamente serie confirmada y comparable, retícula 0–100%, marcador final real y unidades kg·rep. La maqueta conceptual **no** es un origen de datos ni una captura autenticada.
 - Mantener el piloto como WIP del PR #1200. Exigir evidencia 320/390 px dPR2/3, tablet, escritorio, y QA real antes de merge / Canary / PROD.
+
+## Regla permanente · PRODUCT-FIRST · Stitch como director de producto y diseño (31-10-2026)
+
+**Decisión expresa de producto aprobada:** no continuaremos añadiendo cosmética sobre pantallas antiguas como estrategia de transformación visual. El proceso obligatorio es **Stitch define experiencia y sistema visual premium → IBERFIT integra datos, reglas y acciones reales → QA homologa fidelidad y funcionalidad → Canary → producción certificada**.
+
+- Diseño **antes** de implementación: arquitectura de información, decisiones, journeys Cliente/Coach/Admin, pantallas completas y estados, navegación, microinteracciones, responsive, materiales tipográficos/gráficos y sistema de componentes. No 43 ilustraciones sueltas.
+- Stitch usa el proyecto existente `1399435845853535416`. La única referencia formalmente aprobada hoy es Cliente Hoy V2.3 390px. La extensión a otros flujos/roles requiere evidencia de nuevas pantallas y aprobación, no inferencia.
+- Contrato privado y fuentes: `iberfit/Iberfit-platform/design-stitch/IBERFIT_STITCH_PRODUCT_FIRST_MASTER_2026-10-31.md`. No copiar las exportaciones privadas ni demos al repositorio público.
+- La fuente de verdad de permisos, sesiones, clientes, datos, RLS, Auth, ACK, errores/reintentos y persistencia **siempre** es la aplicación real, no un prototipo de Stitch. Si propone nuevas funciones, se revisa su impacto antes de incorporarlas.
+- Handoff por ruta/estado: referencia aprobada, datos autorizados, acción canónica, componente, estados, responsive, accesibilidad, error, recuperación y prueba. Transformación visual a nivel de arquitectura, no cascadas de CSS.
+- Prioridad de diseño: **viaje Cliente completo → flujo operativo Coach completo → control y auditoría Admin**; extender sistemáticamente a las 43 rutas con densidad distinta por rol.
+- No declarar paridad por CI ni capturas sintéticas; contrastar capturas autenticadas y tareas reales en móvil/tablet/desktop. Mantener la PR SIGNATURE visual en Draft hasta completar la fase de diseño y los gates, no publicar una versión inferior al original Stitch.
+- Las referencias Stitch **no sustituyen** exigencias del contrato de seguridad, estabilidad, integridad, accesibilidad WCAG 2.2 AA ni rendimiento. Implementar sólo con rollouts reversibles y conservar la funcionalidad.
+
