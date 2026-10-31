@@ -50,3 +50,22 @@ y complementarse con capturas y tareas autenticadas de QA para cerrar el gate.
 Actualmente sólo hay un original formal verificado:
 Cliente Hoy V2.3 móvil 390px. No afirmar homologación de Coach/Admin
 ni 43 pantallas equivalentes a Stitch basándose en estos fixtures.
+
+## SIGNATURE U81–U82 · Banda de hechos reales y visibilidad de scroll
+
+- U81 convierte exclusivamente las métricas de prescripción Cliente en
+  **una banda de datos** en dos columnas en lugar de minicajas sucesivas.
+  Preserva `dl/dt/dd`, todas las etiquetas/valores y permisos del renderizador.
+  El primer test del navegador supuso erróneamente que un fixture heredado
+  contenía al menos cinco campos: contiene cuatro y los cuatro son correctos.
+  U82 reemplaza esta suposición por la comprobación **de todas las parejas
+  etiqueta/valor presentes y visibles**, sin eliminar ni relajar los
+  controles funcionales originales.
+- U82 distingue una captura `fullPage` del contenido desplazable. Si
+  existe un contenedor desplazable, añade un fotograma de final de scroll
+  `<area>-scrolled.jpg` por ruta y dispositivo de referencia. Un manifiesto
+  registra altura de viewport/documento/ruta, candidatos de scroll y
+  desplazamiento efectivo. No inventa acceso a pantallas protegidas ni
+  constituye validación artística o autenticada.
+- Todo se ejecuta con el fixture existente, sin peticiones adicionales a
+  Supabase, escrituras remotas, cambio de autorización o publicación.

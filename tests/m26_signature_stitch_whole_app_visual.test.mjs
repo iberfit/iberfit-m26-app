@@ -350,7 +350,25 @@ test('U81 Client prescription facts use a single accessible data band without lo
   assert.doesNotMatch(u81,/display:none|visibility:hidden|pointer-events:none|!important/);
   assert.match(browser,/const factStrip=await guided.locator/);
   assert.match(browser,/No prescribed fields can disappear/);
+  assert.match(browser,/completeEntries:/);
+  assert.match(browser,/expect\(factStrip\.completeEntries/);
+  assert.doesNotMatch(browser,/factStrip\.allFacts[^\n]*GreaterThanOrEqual\(5\)/);
   const renderer=fs.readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
   assert.match(renderer,/<dl class="m26-session-preview-facts">/);
   assert.match(renderer,/<dt>\$\{escape\(label\)\}<\/dt><dd>\$\{escape\(value\)\}<\/dd>/);
+});
+
+
+test('U82 43-route synthetic visual evidence records nested scroll and lower folds faithfully',()=>{
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const workflow=fs.readFileSync(new URL('../.github/workflows/session-qa-isolated.yml',import.meta.url),'utf8');
+  assert.match(browser,/const scrollEvidence=\{\}/);
+  assert.match(browser,/scrollTarget:target/);
+  assert.match(browser,/routeHeight:Math\.round/);
+  assert.match(browser,/candidateRanges:/);
+  assert.match(browser,/area\+'-scrolled\.jpg'/);
+  assert.match(browser,/scrollEvidence\[area\]=scroll/);
+  assert.match(browser,/scrollEvidence,/);
+  assert.match(browser,/authentication.*never|never authenticated/);
+  assert.match(workflow,/path: recovery\/signature-published-sessions\//);
 });

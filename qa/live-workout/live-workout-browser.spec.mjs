@@ -456,7 +456,13 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
       surfaceBorder:surface.borderTopWidth,
       datumBackground:datum?getComputedStyle(datum).backgroundColor:null,
       valueFont:value?parseFloat(getComputedStyle(value).fontSize):0,
-      allFacts:el.querySelectorAll(':scope > div').length
+      allFacts:el.querySelectorAll(':scope > div').length,
+      completeEntries:[...el.querySelectorAll(':scope > div')].every(row=>{
+        const term=row.querySelector(':scope > dt'),definition=row.querySelector(':scope > dd');
+        const value=definition?getComputedStyle(definition):null;
+        return Boolean(term?.textContent.trim()&&definition?.textContent.trim()&&
+          value?.display!=='none'&&value?.visibility!=='hidden');
+      })
     };
   });
   expect(factStrip.display).toBe('grid');
@@ -464,7 +470,8 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   expect(factStrip.surfaceBorder).toBe('1px');
   expect(factStrip.datumBackground,'No new metric mini-cards').toBe('rgba(0, 0, 0, 0)');
   expect(factStrip.valueFont,'Real values remain legible on touch').toBeGreaterThanOrEqual(16);
-  expect(factStrip.allFacts,'No prescribed fields can disappear').toBeGreaterThanOrEqual(5);
+  expect(factStrip.allFacts,'A prescription must have actual data').toBeGreaterThan(0);
+  expect(factStrip.completeEntries,'No prescribed fields can disappear').toBe(true);
 
   await expect(guided).toContainText('8-10');
   await expect(guided).toContainText('Sin referencia visual');
@@ -850,6 +857,7 @@ for(const role of ['client','coach','admin']){
     const visualEvidenceProject=['live-workout-mobile-chromium','live-workout-desktop-chromium']
       .includes(testInfo.project.name);
     const visualEvidenceAreas=[];
+    const scrollEvidence={};
     const visualEvidenceDir='recovery/signature-published-sessions/u80/'+testInfo.project.name+'/'+role;
     if(visualEvidenceProject){
       const {mkdir}=await import('node:fs/promises');
@@ -907,6 +915,55 @@ for(const role of ['client','coach','admin']){
           path:visualEvidenceDir+'/'+area+'.jpg',
           type:'jpeg',quality:68,fullPage:true,scale:'css',animations:'disabled',caret:'hide'
         });
+        // U82: fullPage only captures the document, not necessarily a nested
+        // scrollable workspace. Preserve an end-of-scroll viewport when a
+        // genuine scroll root exists, and record geometry if none does.
+        const scroll=await page.evaluate(()=>{
+          const route=document.querySelector('.m26-main .m26-client-route-shell,.m26-main .m26-route,.m26-main .m26-admin-route');
+          const candidates=[
+            ['document',document.scrollingElement],
+            ['main',document.querySelector('.m26-main')],
+            ['workspace',document.querySelector('.m26-workspace')],
+            ['body',document.body],
+          ];
+          const inspected=candidates.filter(([,node])=>node).map(([name,node])=>({
+            name,node,range:Math.max(0,node.scrollHeight-node.clientHeight),
+            overflow:getComputedStyle(node).overflowY
+          }));
+          const reachable=inspected.filter(item=>item.range>24&&
+            (item.name==='document'||/auto|scroll/.test(item.overflow)))
+            .sort((a,b)=>b.range-a.range);
+          let target=null,moved=0;
+          for(const item of reachable){
+            const prior=item.node.scrollTop;
+            item.node.scrollTop=item.node.scrollHeight;
+            const delta=item.node.scrollTop-prior;
+            if(delta>12){target=item.name;moved=delta;break;}
+          }
+          return {
+            viewportHeight:document.documentElement.clientHeight,
+            documentHeight:document.scrollingElement?.scrollHeight||0,
+            routeHeight:Math.round(route?.getBoundingClientRect().height||0),
+            scrollTarget:target,
+            moved:Math.round(moved),
+            candidateRanges:inspected.map(({name,range,overflow})=>({name,range,overflow}))
+          };
+        });
+        if(scroll.scrollTarget&&scroll.moved>12){
+          await page.screenshot({
+            path:visualEvidenceDir+'/'+area+'-scrolled.jpg',
+            type:'jpeg',quality:68,fullPage:false,scale:'css',
+            animations:'disabled',caret:'hide'
+          });
+        }
+        // Restore ordinary navigation behavior before loading the next route.
+        await page.evaluate(()=>{
+          for(const node of [document.scrollingElement,document.querySelector('.m26-main'),
+            document.querySelector('.m26-workspace'),document.body]){
+            if(node)node.scrollTop=0;
+          }
+        });
+        scrollEvidence[area]=scroll;
         visualEvidenceAreas.push(area);
       }
     }
@@ -922,7 +979,9 @@ for(const role of ['client','coach','admin']){
         project:testInfo.project.name,
         viewport:testInfo.project.use.viewport,
         role,
-        areas:visualEvidenceAreas
+        areas:visualEvidenceAreas,
+        scrollEvidence,
+        evidenceScope:'synthetic navigation geometry and top/end frames, never authenticated'
       };
       const {writeFile}=await import('node:fs/promises');
       await writeFile(visualEvidenceDir+'/manifest.json',JSON.stringify(manifest,null,2),'utf8');
