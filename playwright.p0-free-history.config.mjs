@@ -5,6 +5,6 @@ export default defineConfig({
  timeout:200000,expect:{timeout:20000},
  use:{baseURL:'https://m26-canary.iberfit.cl',locale:'es-ES',
  timezoneId:'America/Santiago',serviceWorkers:'block',
- trace:'retain-on-failure',screenshot:'only-on-failure',video:'off',reducedMotion:'reduce'},
+ trace:'off',screenshot:'off',video:'off',reducedMotion:'reduce'},
  projects:[{name:'qa-client-history-live-chromium',use:{browserName:'chromium',viewport:{width:1440,height:960}}}]
 });

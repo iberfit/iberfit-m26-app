@@ -52,7 +52,8 @@ async function login(page,email,password){
 }
 test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context})=>{
  environment();
- const blocked=await perimeter(context),pages=[],measured=[],jobs=[],fail=[];
+ const blocked=await perimeter(context),pages=[],measured=[],jobs=[],fail=[],pageErrors=[];
+ page.on('pageerror',err=>pageErrors.push(String(err?.name||'Error').slice(0,30)));
  page.on('requestfailed',r=>{if(pathOf(r.url())?.pathname===PAGED)fail.push('transport')});
  page.on('response',res=>{
   const u=pathOf(res.url());if(u?.origin!==QA||![PAGED,'/rest/v1/rpc/iberfit_bootstrap_v26'].includes(u.pathname))return;
@@ -83,6 +84,7 @@ test('Client A requests full archive only after a click and receives all 396+ se
  await expect(page.locator('[data-m26-free-history-status]')).toHaveCount(0,{timeout:160000});
  await Promise.all(jobs);
  expect(fail).toEqual([]);
+ expect(pageErrors).toEqual([]);
  expect(pages.length).toBeGreaterThanOrEqual(17);
  expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=24)).toBe(true);
  expect(new Set(pages.map(p=>p.fingerprint)).size).toBe(1);
