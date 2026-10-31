@@ -820,6 +820,14 @@ for(const role of ['client','coach','admin']){
       .toBe('real-synthetic');
     const entries=u77Inventory.roles[role];
     expect(entries.length).toBe(role==='client'?9:17);
+    // U80: all 43 canonical route bodies need individual evidence, not only
+    // the final route left on-screen at the end of a test. Reuse the existing
+    // read-only synthetic fixture and browser project, with zero extra HTTP.
+    // JPEG at CSS resolution bounds artifact size without hiding long pages.
+    // These are NOT authenticated screenshots or Stitch fidelity approvals.
+    const visualEvidenceProject=['live-workout-mobile-chromium','live-workout-desktop-chromium']
+      .includes(testInfo.project.name);
+    const visualEvidenceAreas=[];
     for(const {area} of entries){
       const previousErrorCount=errors.length;
       await page.evaluate(target=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(target),area);
@@ -865,13 +873,42 @@ for(const role of ['client','coach','admin']){
         expect(metrics.headingLines,role+' '+area+' no letter-by-letter vertical headings')
           .toBeLessThanOrEqual(Math.max(5,Math.ceil(metrics.heading.length/5)));
       }
+      if(visualEvidenceProject){
+        const name='signature-u80-'+role+'-'+area+'-'+testInfo.project.name+'.jpg';
+        const image=await page.screenshot({
+          type:'jpeg',quality:68,fullPage:true,scale:'css',animations:'disabled',caret:'hide'
+        });
+        await testInfo.attach(name,{body:image,contentType:'image/jpeg'});
+        visualEvidenceAreas.push(area);
+      }
+    }
+    if(visualEvidenceProject){
+      expect(visualEvidenceAreas,role+' all canonical areas must have evidence')
+        .toEqual(entries.map(item=>item.area));
+      const manifest={
+        schema:'iberfit.signature.visual-evidence.v1',
+        renderer:'real-route-renderer',
+        identity:'synthetic',
+        authenticated:false,
+        stitchParityCertified:false,
+        project:testInfo.project.name,
+        viewport:testInfo.project.use.viewport,
+        role,
+        areas:visualEvidenceAreas
+      };
+      await testInfo.attach('signature-u80-'+role+'-'+testInfo.project.name+'-manifest.json',{
+        body:Buffer.from(JSON.stringify(manifest,null,2),'utf8'),
+        contentType:'application/json'
+      });
     }
     expect(mutations,role+' must never write to a remote backend in static visual QA').toEqual([]);
     expect(errors,role+' must be free of page errors').toEqual([]);
-    // Three evidence frames per role, one visual sample per browser project:
-    // no invented imagery or false claims of authenticated Client/Coach/Admin.
-    const image=await page.screenshot({fullPage:false,animations:'disabled',caret:'hide'});
-    await testInfo.attach('signature-u77-'+role+'-'+testInfo.project.name+'.png',
-      {body:image,contentType:'image/png'});
+    // Tablet/WebKit keep their original final frame. Mobile/desktop now have
+    // complete, individually named per-route evidence plus a truthful manifest.
+    if(!visualEvidenceProject){
+      const image=await page.screenshot({fullPage:false,animations:'disabled',caret:'hide'});
+      await testInfo.attach('signature-u77-'+role+'-'+testInfo.project.name+'.png',
+        {body:image,contentType:'image/png'});
+    }
   });
 }

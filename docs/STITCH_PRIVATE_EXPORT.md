@@ -32,3 +32,21 @@ El HTML de Stitch se inspecciona como referencia de presentación. Se adaptan su
 QA de aceptación: capturas Stitch y app autenticada a 320/390/430, 834/1024, 1440; keyboard, scroll, safe area, PWA, zoom, contraste WCAG 2.2 AA, estados empty/offline/error/confirmed y pruebas de sesiones. Mantener único PR principal de visual SIGNATURE, Canary certificado y promoción PROD por runbook separado.
 
 **Estado:** herramienta preparada y test local simulado; falta ejecución autenticada contra la API desde un entorno con su secreto seguro, exportación real y homologación de pantallas.
+
+## SIGNATURE U80 · Evidencia visual sintética completa, sin fingir homologación
+
+La prueba `SIGNATURE U77` del navegador aislado mantiene sus verificaciones
+de las 43 rutas canónicas con renderizador real e identidad **sintética**.
+Como complemento, `U80` adjunta una captura JPEG de página completa para
+**cada ruta** en móvil Chromium 390px y escritorio Chromium 1440px,
+más un manifiesto JSON por rol/proyecto que declara
+`authenticated: false` y `stitchParityCertified: false`.
+Los demás proyectos preservan su evidencia existente. No hay peticiones
+nuevas al backend ni incorporación de identidades o métricas DEMO a producto.
+
+Estas 86 capturas son una **base de revisión artística**, no certificación
+automática. Deben compararse manualmente con originales aprobados de Stitch
+y complementarse con capturas y tareas autenticadas de QA para cerrar el gate.
+Actualmente sólo hay un original formal verificado:
+Cliente Hoy V2.3 móvil 390px. No afirmar homologación de Coach/Admin
+ni 43 pantallas equivalentes a Stitch basándose en estos fixtures.

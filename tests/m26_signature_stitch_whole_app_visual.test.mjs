@@ -300,6 +300,19 @@ test('U77 complete visual route inventory remains 9 Cliente / 17 Coach / 17 Admi
 });
 
 
+test('U80 visual evidence covers every canonical role route on both reference widths without claiming authentication',()=>{
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  assert.match(browser,/visualEvidenceProject=\['live-workout-mobile-chromium','live-workout-desktop-chromium'\]/);
+  assert.match(browser,/for\(const \{area\} of entries\)\{/);
+  assert.match(browser,/fullPage:true,scale:'css',animations:'disabled'/);
+  assert.match(browser,/visualEvidenceAreas\.push\(area\)/);
+  assert.match(browser,/toEqual\(entries\.map\(item=>item\.area\)\)/);
+  assert.match(browser,/authenticated:false/);
+  assert.match(browser,/stitchParityCertified:false/);
+  assert.match(browser,/must never write to a remote backend in static visual QA/);
+  assert.doesNotMatch(browser,/page\.route\([^\n]*\bPOST\b/);
+});
+
 test('U78 single-surface Client prescription keeps full data and readable missing-media state',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const test=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
