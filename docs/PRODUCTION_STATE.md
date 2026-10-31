@@ -1,3 +1,10 @@
+## P0 #1209 · Cliente historial completado bajo demanda, fase de contrato (WIP NO DESPLEGADO)
+
+Candidato QA-only `iberfit_client_completed_history_page_free_v1`: no acepta clientId; derives `auth.uid()` y `iberfit_client_id()` server-side, exige rol `cliente`, entorno QA y EXECUTE únicamente para `authenticated`; no emite contenido sin `m43_client_safe_session_v2` / `m43_client_safe_execution_v1`. Páginas ≤32, JSON ≤300 KB, snapshot ≤30 minutos, cursor estable `updated_at + entity_id`, control `expected_count` con fail-closed ante revisiones.
+
+**WIP y sin reducir bootstrap todavía:** la RPC SQL y los tests estáticos solo preparan el contrato; antes de aplicar, integrar la hidratación bajo demanda en Cliente, estados de cargando/reintento/error, la restitución íntegra de historiales, estadística y ejercicios, permisos/IDOR, offline, cuenta nueva, invalidación por ACK, tests reales Coach/Cliente A/B y rollback. No desplegar función, no reducir datos, no fusionar PR hasta certificar el macrobloque vertical entero. Objetivo: evitar ~1,54MB de JSON histórico en la carga inicial del Cliente A QA sin pérdida de historial ni funcionalidad. No es ahorro wire confirmado.
+
+---
 ## P0 Supabase Free · Proyección segura de ejecuciones legacy QA (CANDIDATO; 31/10/2026)
 
 - SQL de QA `iberfit_bootstrap_v26_rc29()`: para Cliente, la proyección M43 descarta `summary` legacy. En las 421 ejecuciones actuales, `m43_client_safe_execution_v1(to_jsonb(e))` es exactamente igual a `m43_client_safe_execution_v1(jsonb_build_object('id',e.id,'revision',e.revision))` (421/421 comprobadas READ-ONLY). Los inputs pasan de 6.555.697 bytes de JSON total a 25.681 bytes; no inferir directamente ahorro facturable de Egress ni latencia hasta A/B.

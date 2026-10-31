@@ -931,6 +931,30 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     }
   }
 
+  // P0 #1209: caller must have a real authenticated QA Client session.
+  // This endpoint has no clientId parameter: the database resolves ownership
+  // from auth.uid() and its own trusted client assignment. Never use PROD.
+  async function clientCompletedHistoryPage(token,params={}, {signal}={}){
+    if(runtime.qaOnly!==true||runtime.canary!==true
+       ||runtime.projectRef!==M26_QA_PROJECT_REF)
+      throw new Error('M26_FREE_HISTORY_QA_ONLY');
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!params||typeof params!=='object'||Array.isArray(params)
+       ||Object.keys(params).some(key=>![
+         'p_section','p_snapshot_at','p_cursor','p_expected_count','p_expected_fingerprint','p_limit',
+       ].includes(key)))
+      throw new Error('M26_FREE_HISTORY_ARGUMENTS_INVALID');
+    if(!['session','session_execution'].includes(params.p_section)
+       ||!Number.isInteger(params.p_limit)||params.p_limit<1||params.p_limit>32
+       ||(params.p_cursor!==null&&params.p_cursor!==undefined
+         &&(!params.p_cursor||typeof params.p_cursor!=='object'||Array.isArray(params.p_cursor))))
+      throw new Error('M26_FREE_HISTORY_ARGUMENTS_INVALID');
+    // HTTP 401/403 and expired sessions are errors, never empty history.
+    return request('/rest/v1/rpc/iberfit_client_completed_history_page_free_v1',{
+      method:'POST',token,body:JSON.stringify(params),signal,
+    });
+  }
+
   async function rpc(name, token, params = {}, {signal} = {}) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     if(!Object.values(CANONICAL_RPC).includes(name))throw new Error('M26_RPC_NOT_ALLOWED');
@@ -1922,6 +1946,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     verifyWebAuthn,
     bootstrap: bootstrapWithBoundedStatementTimeoutRecovery,
     bootstrapQaCoachWithHistory,
+    clientCompletedHistoryPage,
     backendHealth,
     backendBootstrap,
     draftBackendHealth,
