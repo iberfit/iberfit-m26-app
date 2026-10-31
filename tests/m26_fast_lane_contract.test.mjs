@@ -32,8 +32,12 @@ test('workflow Fast Lane es PR-only hacia integración, cancelable y conserva di
 
 test('gates remotos solo corren para cambios relevantes y reutilizan caché npm',()=>{
   assert.match(remoteGates,/branches:\s*\n\s*- canary\/rc74-4\s*\n\s*paths:/u);
-  for(const path of ["'src/**'","'public/**'","'scripts/**'","'qa/**'","'tests/**'","'package.json'","'package-lock.json'"]){
-    assert.ok(remoteGates.includes(path),`remote gate path missing: ${path}`);
+  for(const path of ["'src/m26/app/**'","'src/m26/security/**'","'src/m26/supabase-transport.js'","'scripts/remote-gates/**'","'qa/rc64/**'","'supabase/migrations/**'","'supabase/qa-migrations/**'","'.github/workflows/m44-encrypted-disaster-recovery.yml'"]){
+    assert.ok(remoteGates.includes(path),`security-relevant remote gate path missing: ${path}`);
+  }
+  const push=remoteGates.split('  push:')[1]?.split('  workflow_dispatch:')[0]||'';
+  for(const broad of ["'src/**'","'public/**'","'scripts/**'","'qa/**'","'tests/**'","'package.json'","'package-lock.json'"]){
+    assert.ok(!push.includes(broad),`remote gate wildcard still produces redundant Supabase QA traffic: ${broad}`);
   }
   assert.match(remoteGates,/persist-credentials:\s*false/u);
   assert.match(remoteGates,/cache:\s*'npm'/u);
