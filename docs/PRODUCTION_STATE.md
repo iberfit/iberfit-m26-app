@@ -1,3 +1,12 @@
+## P0 Supabase Free · estado CANARY y siguiente macrobloque QA · 31/10/2026
+
+- **Canary LIVE certificado**: PR #1226 fusionada; SHA `baee0beee3c52478f64c92049ccf7e97a0096fec`, desplegado en `m26-canary.iberfit.cl` por workflow #41215846674 (SUCCESS). 13/13 workflows del SHA postmerge SUCCESS, incluidos Remote Gate recuperado #41215846606, Device y QA Real Write. PROD no tocada.
+- **Candidato actual, NO FUSIONADO**: rama `feat/p0-1209-qa-completed-execution-lossless-20261031`, base Canary exacto anterior. En Cliente A sintético QA-only, completar la carga explícita de historial con secciones `session` y `session_execution` en un solo commit atómico al estado. Nada se consulta al navegar; el histórico descargado ha de mantener dueño, resultado, métricas, revisión, ACK y privacidad. Se amplían pruebas SQL/Playwright y de proyección para probar ambos tipos. Ninguna alteración de base de datos, RLS, cuota o producción en esta fase.
+- **No eliminar `results` de ejecuciones completadas** hasta certificar restitución y paridad de Progreso/estadísticas, incluso antes del clic. Una proyección mínima de `id+revision` no es equivalente (0/423 ejecuciones en QA), por tanto no se aplica. El plan Free no está certificado por cuota: sin lectura de Billing uncached GB a través del conector.
+- Decisión: mantener #1209 OPEN hasta demostrar Egress real inferior al umbral, no sólo reducción de bytes JSON descomprimidos.
+
+---
+
 ## P0 #1209 · Cliente historial completado bajo demanda, fase de contrato (WIP NO DESPLEGADO)
 
 Candidato QA-only `iberfit_client_completed_history_page_free_v1`: no acepta clientId; derives `auth.uid()` y `iberfit_client_id()` server-side, exige rol `cliente`, entorno QA y EXECUTE únicamente para `authenticated`; no emite contenido sin `m43_client_safe_session_v2` / `m43_client_safe_execution_v1`. Páginas ≤32, JSON ≤300 KB, snapshot ≤30 minutos, cursor estable `updated_at + entity_id`, control `expected_count` con fail-closed ante revisiones.

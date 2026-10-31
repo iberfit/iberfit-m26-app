@@ -23,6 +23,10 @@ const runtime=[
   `  url: ${JSON.stringify(expectedOrigin)},`,
   `  publishableKey: ${JSON.stringify(key)},`,
   '  qaOnly: true,',
+  // A current-source QA surface, not PROD. The application additionally
+  // restricts this opt-in to the exact synthetic Client A account.
+  '  canary: true,',
+  '  freeClientCompletedHistoryDemand: true,',
   '  timeoutMs: 12000,',
   '  rpc: Object.freeze({',
   "    bootstrap: 'iberfit_bootstrap_v26',",

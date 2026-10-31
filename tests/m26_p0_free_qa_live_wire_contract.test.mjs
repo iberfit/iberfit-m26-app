@@ -16,18 +16,20 @@ test('QA only synthetic identities and read-only RPC allowlist',()=>{
   for(const s of [
    'qa.rc74.client-a@iberfit.cl','qa.rc74.client-b@iberfit.cl',
    'gjztkdwfmunnzhtvxrsu','ibERfit_client_completed_history_page_free_v1'.toLowerCase(),
-   "method==='POST'","safe(req)","page.on('requestfailed'"]){
-    if(s==="method==='POST'")continue;
+   "installCurrentSourceQaNetworkPolicy","readOnlyRpcs:R","page.on('requestfailed'"]){
     assert.ok(source.includes(s),s);
   }
-  assert.ok(source.includes("return m==='POST'&&u.pathname.startsWith('/rest/v1/rpc/')"));
-  assert.ok(source.includes("return route.abort('blockedbyclient')"));
+  assert.match(source,/from '\.\.\/rc64\/secure-current-source-auth\.mjs'/u);
+  assert.match(source,/onBlocked:label=>violations\.push\('blocked:'/u);
+  assert.doesNotMatch(source,/context\.route\('\*\*\/\*'/u);
+  assert.match(source,/LIVE=CANARY_ORIGIN/u);
   assert.ok(source.includes("bodyOrJWTRecorded:false"));
   assert.doesNotMatch(source,/\b(?:POST|PATCH|PUT|DELETE) (?:\/rest\/v1\/domain_entities|\/storage\/v1\/object\/)/u);
 });
 test('no automatic pages, complete cursor invariant and decoded vs network measurements',()=>{
   for(const s of ['navigation must issue zero page RPCs','[data-m26-free-history-open]',
-    'new Set(pages.flatMap(p=>p.ids)).size','new Set(pages.map(p=>p.fingerprint)).size',
+    'new Set(group.flatMap(p=>p.ids)).size','new Set(group.map(p=>p.fingerprint)).size',
+    "['session','session_execution']",
     'request().sizes()', 'chromiumNetworkBodyBytes','decodedHistoryBytes',
     'notBillingEgress:true'])assert.ok(source.includes(s),s);
   assert.ok(source.includes("bodyOrJWTRecorded:false"));
@@ -63,4 +65,19 @@ test('recording safety is in both runner configs, never overridden at nested des
  assert.ok(live.includes("trace:'off',screenshot:'off',video:'off'"));
  assert.ok(authenticated.includes("trace:'off',screenshot:'off',video:'off'"));
  assert.doesNotMatch(source,/test\.use\(\{trace:/u);
+});
+
+test('authenticated current-source QA build enables archive only behind synthetic Client A and QA-only fences',()=>{
+ const builder=readFileSync('qa/rc64/build-authenticated-surface.mjs','utf8');
+ const application=readFileSync('src/m26/app/application.js','utf8');
+ assert.match(builder,/PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
+ assert.match(builder,/RC64_2B_AUTH_QA_ONLY_REQUIRED/u);
+ assert.match(builder,/'  qaOnly: true,'/u);
+ assert.match(builder,/'  canary: true,'/u);
+ assert.match(builder,/'  freeClientCompletedHistoryDemand: true,'/u);
+ assert.match(application,/runtime\.qaOnly===true&&runtime\.canary===true/u);
+ assert.match(application,/runtimeConfig\?\.freeClientCompletedHistoryDemand===true/u);
+ assert.match(application,/qa\.rc74\.client-a@iberfit\.cl/u);
+ assert.match(source,/installCurrentSourceQaNetworkPolicy/u);
+ assert.match(source,/expect\(blocked,'QA current-source perimeter must reject no required operation'\)/u);
 });

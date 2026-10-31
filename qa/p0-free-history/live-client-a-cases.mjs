@@ -1,31 +1,18 @@
 import {test,expect} from '@playwright/test';
+import {CANARY_ORIGIN,installCurrentSourceQaNetworkPolicy} from '../rc64/secure-current-source-auth.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
-const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co',LIVE='https://m26-canary.iberfit.cl';
+const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co',LIVE=CANARY_ORIGIN;
 const PAGED='/rest/v1/rpc/iberfit_client_completed_history_page_free_v1';
 const R=new Set(['iberfit_bootstrap_v26','iberfit_authorized_application_roles_v13','iberfit_appointment_change_requests_v13','iberfit_application_context_v14','iberfit_privileged_assurance_context_v65d','iberfit_communication_bootstrap_v14','m26_backend_bootstrap_v43','m26_wearable_bootstrap_v44','iberfit_exercise_catalog_public_v1','iberfit_exercise_measurement_profiles_public_v1','iberfit_exercise_media_manifest_v1','iberfit_notification_preferences_status_v1','iberfit_client_completed_history_page_free_v1']);
 function pathOf(raw){try{return new URL(raw)}catch{return null}}
-function safe(req){
- const u=pathOf(req.url()),m=req.method().toUpperCase();
- if(!u)return false;
- if(u.origin===LIVE)return m==='GET';
- if(u.origin!==QA)return false;
- if(u.pathname==='/auth/v1/token'&&m==='POST')return ['password','refresh_token'].includes(u.searchParams.get('grant_type'));
- if(u.pathname==='/auth/v1/user'&&m==='GET')return true;
- if(u.pathname==='/auth/v1/logout'&&m==='POST')return true;
- if(u.pathname==='/rest/v1/domain_command_registry_v26'&&m==='GET')return true;
- if(u.pathname.startsWith('/storage/v1/object/authenticated/iberfit-profile-avatars/')&&u.pathname.endsWith('/avatar.webp')&&m==='GET')return true;
- if(u.pathname==='/functions/v1/iberfit-web-push-sender-v1'&&m==='POST'){
-  try{const b=req.postDataJSON();return b?.action==='config'&&Object.keys(b).length===1}catch{return false}
- }
- return m==='POST'&&u.pathname.startsWith('/rest/v1/rpc/')&&R.has(u.pathname.slice(13));
-}
+// The candidate must be exercised against the exact local authenticated QA
+// surface, never the previous LIVE Canary SHA. Canonical network policy still
+// blocks any foreign request or business mutation; all private RPCs hit REAL QA.
 async function perimeter(context){
  const violations=[];
- await context.route('**/*',async route=>{
-  const req=route.request();
-  if(safe(req))return route.continue();
-  violations.push('blocked:'+String(pathOf(req.url())?.pathname||'unknown').slice(0,72));
-  return route.abort('blockedbyclient');
+ await installCurrentSourceQaNetworkPolicy(context,{
+  readOnlyRpcs:R,
+  onBlocked:label=>violations.push('blocked:'+String(label).slice(0,72)),
  });
  return violations;
 }
@@ -55,7 +42,7 @@ async function login(page,email,password){
 export function registerQaLiveHistoryTestSuite(){
 test.describe('P0 QA free completed history live browser',()=>{
 // Recording disabled in both Playwright configs. Test scope cannot change worker options.
-test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context},testInfo)=>{
+test('Client A atomically restores full completed sessions AND execution results after explicit click',async({page,context},testInfo)=>{
  test.skip(testInfo.project.name!=='authenticated-readonly-chromium','Only the single read-only Chromium QA account A/browser probe');
  test.setTimeout(220000);
  environment();
@@ -72,7 +59,7 @@ test('Client A requests full archive only after a click and receives all 396+ se
    measured.push({group:archive?'history':'bootstrap',status:res.status(),decoded:bytes.byteLength,
     wireBody:sizes?.responseBodySize??null,wireHeaders:sizes?.responseHeadersSize??null});
    if(archive){const p=JSON.parse(bytes.toString('utf8'));
-    pages.push({schema:p.schema,total:p.total,ids:p.rows?.map(x=>x.entityId)||[],
+    pages.push({schema:p.schema,section:p.section,total:p.total,ids:p.rows?.map(x=>x.entityId)||[],
      fingerprint:p.fingerprint,hasMore:p.hasMore,status:res.status()});
    }
   })();
@@ -91,19 +78,29 @@ test('Client A requests full archive only after a click and receives all 396+ se
  await expect(page.locator('[data-m26-free-history-status]')).toHaveCount(0,{timeout:160000});
  await Promise.all(jobs);
  expect(fail).toEqual([]);
+ expect(blocked,'QA current-source perimeter must reject no required operation').toEqual([]);
  expect(pageErrors).toEqual([]);
- expect(pages.length).toBeGreaterThanOrEqual(17);
+ expect(pages.length).toBeGreaterThanOrEqual(34);
  expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=24)).toBe(true);
- expect(new Set(pages.map(p=>p.fingerprint)).size).toBe(1);
- expect(new Set(pages.map(p=>p.total)).size).toBe(1);
- const total=pages[0].total;
- expect(total).toBeGreaterThanOrEqual(396);
- expect(pages.reduce((a,p)=>a+p.ids.length,0)).toBe(total);
- expect(new Set(pages.flatMap(p=>p.ids)).size).toBe(total);
- expect(pages.filter(p=>p.hasMore===false)).toHaveLength(1);
+ const totals={};
+ for(const section of ['session','session_execution']){
+  const group=pages.filter(p=>p.section===section);
+  expect(group.length,section+' must be paged by an explicit request').toBeGreaterThanOrEqual(17);
+  expect(new Set(group.map(p=>p.fingerprint)).size,section+' fingerprint stable').toBe(1);
+  expect(new Set(group.map(p=>p.total)).size,section+' total stable').toBe(1);
+  const total=group[0].total;
+  expect(total,section+' historical count').toBeGreaterThanOrEqual(396);
+  expect(group.reduce((a,p)=>a+p.ids.length,0),section+' no partial history').toBe(total);
+  expect(new Set(group.flatMap(p=>p.ids)).size,section+' no duplicate records').toBe(total);
+  expect(group.filter(p=>p.hasMore===false),section+' exactly one terminal page').toHaveLength(1);
+  totals[section]=total;
+ }
+ expect(totals.session_execution,'complete execution results must accompany sessions').toBe(totals.session);
  const h=measured.filter(x=>x.group==='history');
  const evidence={schema:'iberfit.qa.free.history.live.v1',client:'synthetic-A',
-  pages:pages.length,uniqueSessions:total,httpErrors:measured.filter(x=>x.status>=400).length,
+  pages:pages.length,uniqueSessions:totals.session,uniqueExecutions:totals.session_execution,
+  sectionPages:{session:pages.filter(p=>p.section==='session').length,
+   session_execution:pages.filter(p=>p.section==='session_execution').length},httpErrors:measured.filter(x=>x.status>=400).length,
   decodedHistoryBytes:h.reduce((a,x)=>a+x.decoded,0),
   chromiumNetworkBodyBytes:h.reduce((a,x)=>a+(x.wireBody||0),0),
   chromiumNetworkHeadersBytes:h.reduce((a,x)=>a+(x.wireHeaders||0),0),
