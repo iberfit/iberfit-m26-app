@@ -62,7 +62,9 @@ for(const role of ['client','coach','admin']){
           const result=await window.axe.run(main,{
             runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']},
           });
-          return result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length}));
+          return result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length,
+            targets:v.nodes.slice(0,8).map(n=>({selector:n.target,html:n.html?.slice(0,160),
+              failure:n.failureSummary?.slice(0,260)}))}));
         });
         expect(checked,role+' '+area+' P0 visual accessibility').toEqual([]);
         const isMobile=width<=390;
