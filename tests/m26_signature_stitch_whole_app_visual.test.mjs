@@ -212,3 +212,12 @@ test('U68 standalone real-session QA uses the same role CSS scope as the app',()
   assert.match(js,/qaShell\.dataset\.m26Role=role/);
   assert.match(css,/\.m26-client-sessions-brief>strong\{[\s\S]*?overflow-wrap:anywhere/);
 });
+
+test('U69 isolated published-session desktop fixture preserves a full content column',()=>{
+  const html=fs.readFileSync(new URL('../qa/live-workout/published-sessions.fixture.html',import.meta.url),'utf8');
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  assert.match(html,/#qa-root\.m26-shell\{display:block;width:100%;max-width:1180px/);
+  assert.match(html,/#qa-root > \.m26-workspace\{display:block;width:100%;/);
+  assert.match(browser,/Desktop preview must occupy its actual reading column/);
+  assert.match(browser,/dimensions\.width\)\.toBeGreaterThanOrEqual\(650\)/);
+});

@@ -20,11 +20,13 @@
   <style>
     html,body{margin:0;min-height:100%;width:100%;background:#071b13;color:#f6f1e4}
     body{box-sizing:border-box;padding:clamp(.6rem,2.5vw,1.5rem)}
-    #qa-root{max-width:1180px;margin-inline:auto;min-height:100dvh}
+    /* Isolated QA omits the sidebar, so neutralize production's two-column
+       shell grid while keeping its real role/workspace CSS selectors. */
+    #qa-root.m26-shell{display:block;width:100%;max-width:1180px;margin-inline:auto;min-height:100dvh;min-width:0}
     /* Match production .m26-shell > .m26-workspace > .m26-main,
        but omit sidebar/topbar controls from this isolated test. */
-    #qa-root > .m26-workspace{display:block;min-inline-size:0;max-inline-size:100%}
-    #qa-root .m26-workspace > .m26-main{min-inline-size:0;max-inline-size:100%}
+    #qa-root > .m26-workspace{display:block;width:100%;min-inline-size:0;max-inline-size:100%}
+    #qa-root .m26-workspace > .m26-main{width:100%;box-sizing:border-box;min-inline-size:0;max-inline-size:100%}
     #qa-workout:not(:empty){margin-top:1.25rem}
     [data-signature-qa-status]{font-size:.8rem}
   </style>

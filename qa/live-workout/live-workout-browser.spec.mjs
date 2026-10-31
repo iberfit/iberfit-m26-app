@@ -418,6 +418,22 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const screen=page.locator('.m26-rc39-sessions');
   await expect(screen).toHaveAttribute('data-client-session-state','ready');
+
+  // U69 desktop evidence: production .m26-shell uses sidebar + content grid,
+  // but this isolated fixture has no sidebar. Never certify a 70px column.
+  if((testInfo.project.use.viewport?.width||0)>=1024){
+    const dimensions=await screen.evaluate(el=>{
+      const rect=el.getBoundingClientRect();
+      const parent=el.closest('.m26-shell');
+      return {width:rect.width,viewport:document.documentElement.clientWidth,
+        shellDisplay:getComputedStyle(parent).display,workspace:Boolean(el.closest('.m26-workspace'))};
+    });
+    expect(dimensions.workspace).toBe(true);
+    expect(dimensions.shellDisplay).toBe('block');
+    expect(dimensions.width,'Desktop preview must occupy its actual reading column').toBeGreaterThanOrEqual(650);
+    expect(dimensions.width).toBeLessThanOrEqual(dimensions.viewport);
+  }
+
   // U67: this isolated QA must use the same CSS scoping hierarchy as
   // production. Previously it omitted .m26-workspace, so the screenshots
   // showed inline eyebrow/title and missed premium surface declarations.
