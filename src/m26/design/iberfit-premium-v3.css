@@ -3705,6 +3705,8 @@
 .m26-shell[data-m26-role="client"] .m26-main .m26-client-home-secondary-disclosure{
   opacity:1;
   filter:none;
+  animation:none;
+  transition:none;
 }
 .m26-shell[data-m26-role="client"] .m26-main
   .m26-client-home-secondary-disclosure > summary{
