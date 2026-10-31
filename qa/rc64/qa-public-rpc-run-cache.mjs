@@ -9,6 +9,9 @@ const hex=value=>createHash('sha256').update(value).digest('hex');
 function defaultRoot(){
   const env=process.env;
   if(env.GITHUB_ACTIONS!=='true'||env.M26_QA_ONLY!=='true'
+    // Node test:offline runs under QA env too. Only real Playwright workers
+    // have this per-worker index; never memoize independent Node unit tests.
+    ||!(/^[0-9]{1,6}$/u.test(String(env.TEST_WORKER_INDEX??'')))
     ||!(/^[0-9]{1,24}$/u.test(String(env.GITHUB_RUN_ID||'')))
     ||!(/^[a-f0-9]{40}$/iu.test(String(env.GITHUB_SHA||''))))return null;
   return path.resolve('.tmp/qa-public-rpc-run-cache',
