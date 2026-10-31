@@ -54,7 +54,7 @@ export function createClientHistoryDemandController({
   }
   async function loadOnce({owner,key,clientId,identityId,confirmedAt,lastAck}){
     try{
-      const sections=await loader.load({owner,clientId,sections:['session','session_execution']});
+      const sections=await loader.load({owner,clientId,sections:['session']});
       if(getOwner()!==owner||fingerprint(store.getState())!==key)
         throw new Error('M26_CLIENT_HISTORY_OWNER_STALE');
       store.incorporateClientCompletedHistory({

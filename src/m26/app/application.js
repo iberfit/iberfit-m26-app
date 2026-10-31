@@ -1313,7 +1313,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     // pagination, device history UI and Egress benchmark are certified.
     const freeHistoryDemandEnabled=runtime.qaOnly===true&&runtime.canary===true
       &&runtimeConfig?.freeClientCompletedHistoryDemand===true
-      &&store.getState().identity?.role==='client';
+      &&store.getState().identity?.role==='client'
+      &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.client-a@iberfit.cl';
     if(freeHistoryDemandEnabled){
       clientHistoryDemand=createClientHistoryDemandController({
         root,store,transport,enabled:true,
