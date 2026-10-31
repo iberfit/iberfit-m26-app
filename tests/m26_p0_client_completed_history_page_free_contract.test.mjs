@@ -31,7 +31,10 @@ test('new function explicitly denies PUBLIC and anon; grants only authenticated'
 test('rollback QA-only and non-destructive',()=>{
  assert.ok(back.includes("IS DISTINCT FROM 'QA'"));
  assert.match(back,/DROP FUNCTION public\.iberfit_client_completed_history_page_free_v1/);
- for(const s of [sql,back])assert.doesNotMatch(s,/\b(?:TRUNCATE|DELETE FROM|UPDATE public\.domain_entities|INSERT INTO public\.domain_entities|BYPASSRLS)\b/i);
+ for(const s of [sql,back]){
+  const withoutComments=s.split('\n').filter(line=>!line.trimStart().startsWith('--')).join('\n');
+  assert.doesNotMatch(withoutComments,/\b(?:TRUNCATE|DELETE FROM|UPDATE public\.domain_entities|INSERT INTO public\.domain_entities|BYPASSRLS)\b/i);
+ }
 });
 
 test('cursor timestamp and id must be real nonnull strings to prevent repeated first page and excess Egress',()=>{

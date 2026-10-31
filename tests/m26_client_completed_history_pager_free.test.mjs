@@ -41,7 +41,7 @@ test('no phantom empty history when total indicates unseen records',()=>{
 });
 
 test('bad second record leaves page atomic and supports safe retry',()=>{
- const {owner,pager}=start();
+ const owner={},pager=createClientCompletedHistoryPager({owner,clientId:ID,section:'session',limit:2});
  const first=row(a,'2026-10-31T02:59:00+00:00'),second=row(b,'2026-10-31T02:58:00+00:00');
  assert.throws(()=>pager.accept({requestOwner:owner,page:page([first,{...second,clientId:OTHER}],false,null)}),/RECORD_INVALID/);
  assert.equal(pager.status().received,0);
