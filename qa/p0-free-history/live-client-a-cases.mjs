@@ -55,7 +55,7 @@ async function login(page,email,password){
 export function registerQaLiveHistoryTestSuite(){
 test.describe('P0 QA free completed history live browser',()=>{
 // Recording disabled in both Playwright configs. Test scope cannot change worker options.
-test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context},testInfo)=>{
+test('Client A atomically restores full completed sessions AND execution results after explicit click',async({page,context},testInfo)=>{
  test.skip(testInfo.project.name!=='authenticated-readonly-chromium','Only the single read-only Chromium QA account A/browser probe');
  test.setTimeout(220000);
  environment();
@@ -72,7 +72,7 @@ test('Client A requests full archive only after a click and receives all 396+ se
    measured.push({group:archive?'history':'bootstrap',status:res.status(),decoded:bytes.byteLength,
     wireBody:sizes?.responseBodySize??null,wireHeaders:sizes?.responseHeadersSize??null});
    if(archive){const p=JSON.parse(bytes.toString('utf8'));
-    pages.push({schema:p.schema,total:p.total,ids:p.rows?.map(x=>x.entityId)||[],
+    pages.push({schema:p.schema,section:p.section,total:p.total,ids:p.rows?.map(x=>x.entityId)||[],
      fingerprint:p.fingerprint,hasMore:p.hasMore,status:res.status()});
    }
   })();
@@ -92,18 +92,27 @@ test('Client A requests full archive only after a click and receives all 396+ se
  await Promise.all(jobs);
  expect(fail).toEqual([]);
  expect(pageErrors).toEqual([]);
- expect(pages.length).toBeGreaterThanOrEqual(17);
+ expect(pages.length).toBeGreaterThanOrEqual(34);
  expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=24)).toBe(true);
- expect(new Set(pages.map(p=>p.fingerprint)).size).toBe(1);
- expect(new Set(pages.map(p=>p.total)).size).toBe(1);
- const total=pages[0].total;
- expect(total).toBeGreaterThanOrEqual(396);
- expect(pages.reduce((a,p)=>a+p.ids.length,0)).toBe(total);
- expect(new Set(pages.flatMap(p=>p.ids)).size).toBe(total);
- expect(pages.filter(p=>p.hasMore===false)).toHaveLength(1);
+ const totals={};
+ for(const section of ['session','session_execution']){
+  const group=pages.filter(p=>p.section===section);
+  expect(group.length,section+' must be paged by an explicit request').toBeGreaterThanOrEqual(17);
+  expect(new Set(group.map(p=>p.fingerprint)).size,section+' fingerprint stable').toBe(1);
+  expect(new Set(group.map(p=>p.total)).size,section+' total stable').toBe(1);
+  const total=group[0].total;
+  expect(total,section+' historical count').toBeGreaterThanOrEqual(396);
+  expect(group.reduce((a,p)=>a+p.ids.length,0),section+' no partial history').toBe(total);
+  expect(new Set(group.flatMap(p=>p.ids)).size,section+' no duplicate records').toBe(total);
+  expect(group.filter(p=>p.hasMore===false),section+' exactly one terminal page').toHaveLength(1);
+  totals[section]=total;
+ }
+ expect(totals.session_execution,'complete execution results must accompany sessions').toBe(totals.session);
  const h=measured.filter(x=>x.group==='history');
  const evidence={schema:'iberfit.qa.free.history.live.v1',client:'synthetic-A',
-  pages:pages.length,uniqueSessions:total,httpErrors:measured.filter(x=>x.status>=400).length,
+  pages:pages.length,uniqueSessions:totals.session,uniqueExecutions:totals.session_execution,
+  sectionPages:{session:pages.filter(p=>p.section==='session').length,
+   session_execution:pages.filter(p=>p.section==='session_execution').length},httpErrors:measured.filter(x=>x.status>=400).length,
   decodedHistoryBytes:h.reduce((a,x)=>a+x.decoded,0),
   chromiumNetworkBodyBytes:h.reduce((a,x)=>a+(x.wireBody||0),0),
   chromiumNetworkHeadersBytes:h.reduce((a,x)=>a+(x.wireHeaders||0),0),
