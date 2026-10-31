@@ -37,7 +37,9 @@ export function detectIriImpact({env=process.env,git=execFileSync}={}){
  const head=String(env.GITHUB_SHA||'');
  if(!SHA.test(base)||!SHA.test(head)||base===head)return {run:true,reason:'invalid-sha'};
  try{
-  git('git',['fetch','--no-tags','--depth=1','origin',base],{timeout:30000,stdio:'pipe'});
+  // PR merge and Canary squash both include their before/base SHA at depth 2.
+  // No authenticated network fetch after checkout (credentials are intentionally erased).
+  git('git',['cat-file','-e',base+'^{commit}'],{timeout:5000,stdio:'pipe'});
   const raw=git('git',['diff','--name-only','-z',base,'HEAD'],{timeout:15000,maxBuffer:1024*1024});
   const files=Buffer.from(raw).toString('utf8').split('\0').filter(Boolean);
   return {run:shouldCertifyIriReport(files,eventName),reason:'scoped-git-diff',filesCount:files.length};

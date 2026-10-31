@@ -35,11 +35,24 @@ test('Unknown environment or failed git diff forces a real IRI certification',()
  assert.equal(detectIriImpact({env:{QA_IRI_EVENT_NAME:'push',QA_IRI_BASE_SHA:'1'.repeat(40),GITHUB_SHA:'2'.repeat(40)},git:()=>{throw Error('network');}}).run,true);
  assert.equal(detectIriImpact({env:{QA_IRI_EVENT_NAME:'workflow_dispatch'},git:()=>{throw Error('manual');}}).run,true);
 });
+test('Local exact-sha diff controls emission without extra GitHub or Supabase requests',()=>{
+ const base='1'.repeat(40),head='2'.repeat(40),env={QA_IRI_EVENT_NAME:'push',QA_IRI_BASE_SHA:base,GITHUB_SHA:head};
+ const seen=[];
+ const git=(_command,args)=>{seen.push(args);return args[0]==='diff'?Buffer.from('src/m26/command-bus.js\\0'):Buffer.alloc(0);};
+ const result=detectIriImpact({env,git});
+ assert.equal(result.run,false);
+ assert.equal(result.reason,'scoped-git-diff');
+ assert.deepEqual(seen.map(a=>a[0]),['cat-file','diff']);
+ assert.ok(!seen.some(a=>a.includes('fetch')));
+ const other=detectIriImpact({env,git:(_command,args)=>args[0]==='diff'?Buffer.from('supabase/migrations/new.sql\\0'):Buffer.alloc(0)});
+ assert.equal(other.run,true);
+});
 test('QA write/persist gate unconditionally runs, but report emission has exactly four guarded steps',()=>{
  assert.match(job,/name: Execute controlled QA write and certify persistence isolation and role boundaries\s*\n\s*env:/u);
  assert.match(job,/run: node scripts\/remote-gates\/run_qa_real_write_gate\.mjs/u);
  assert.match(impact,/id: iri-impact/u);
  assert.match(impact,/QA_IRI_BASE_SHA:/u);
+ assert.match(job,/fetch-depth: 2/u);
  assert.match(impact,/run: node scripts\/remote-gates\/qa_iri_emission_impact_gate\.mjs/u);
  for(const name of [
   'Deploy exact QA IRI report brokers',
