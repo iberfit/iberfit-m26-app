@@ -67,3 +67,31 @@ test('logout cancels in-flight request and rejects even a late success',async()=
  ac.abort();release();
  await assert.rejects(task,/CANCELLED/);
 });
+
+test('second history section failure does not publish a partial session or conceal missing results',async()=>{
+ const owner={},calls=[];let permitExecution=false;
+ const loader=createClientCompletedHistoryLoader({
+  transport:{clientCompletedHistoryPage:async(_token,params)=>{
+   calls.push(params.p_section);
+   if(params.p_section==='session_execution'&&!permitExecution)throw Error('TRANSIENT_401');
+   return data(params.p_section);
+  }},
+  getToken:async()=> 'token',getOwner:()=>owner,getClientId:()=>id,
+ });
+ await assert.rejects(loader.load({owner,clientId:id,sections:['session','session_execution']}),/TRANSIENT_401/);
+ assert.deepEqual(calls,['session','session_execution']);
+ permitExecution=true;
+ const complete=await loader.load({owner,clientId:id,sections:['session','session_execution']});
+ assert.equal(complete.session.length,1);
+ assert.equal(complete.session_execution.length,1);
+ assert.deepEqual(calls,['session','session_execution','session','session_execution'],
+  'retry must rebuild both complete sections rather than accept stale partial pages');
+});
+test('QA Client must demand both history sections, and navigation alone never downloads either',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const code=readFileSync('src/m26/app/client-history-demand-controller.js','utf8');
+ assert.match(code,/loader\.load\(\{owner,clientId,sections:\['session','session_execution'\]\}\)/u);
+ assert.match(code,/if\(explicit!==true\)\{/u);
+ assert.match(code,/maybeLoad\(activeArea\); \/\/ No RPC on navigation/u);
+ assert.match(code,/if\(!current\(\)\)return;\s*store\.incorporateClientCompletedHistory/u);
+});
