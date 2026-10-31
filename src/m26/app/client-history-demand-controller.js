@@ -23,7 +23,7 @@ export function createClientHistoryDemandController({
     transport,getToken,getOwner,getClientId:()=>String(store.getState().identity?.clientId||''),
     isOnline,
   });
-  let mounted=false,status='idle',loadedKey='',activeKey='',request=null;
+  let mounted=false,status='idle',loadedKey='',failedKey='',request=null;
   function notice(){
     const previous=root.querySelector?.('[data-m26-free-history-status]');
     if(status==='ready'||status==='idle'||enabled!==true){
@@ -62,10 +62,10 @@ export function createClientHistoryDemandController({
       });
       if(getOwner()!==owner||fingerprint(store.getState())!==key)
         throw new Error('M26_CLIENT_HISTORY_OWNER_STALE');
-      loadedKey=key;status='ready';notice();render();
+      loadedKey=key;failedKey='';status='ready';notice();render();
     }catch(error){
       if(getOwner()!==owner||fingerprint(store.getState())!==key)return;
-      status=isOnline()?'error':'offline';
+      failedKey=key;status=isOnline()?'error':'offline';
       // Do not log token, payload, URLs, identifiers or private server messages.
       notice();render();
     }finally{
@@ -74,16 +74,21 @@ export function createClientHistoryDemandController({
   }
   function maybeLoad(area){
     const state=store.getState();
-    if(!shouldLoadClientHistory(state,area,enabled)){notice();return;}
+    if(!shouldLoadClientHistory(state,area,enabled)){
+      loader.cancel();request=null;status='idle';notice();return;
+    }
     const key=fingerprint(state);
     if(loadedKey===key){status='ready';notice();return;}
+    // A failed page load is retryable ONLY by explicit user action. Never
+    // create an automatic render -> request -> error -> render Egress loop.
+    if(failedKey===key){notice();return;}
     if(request&&request.key===key){notice();return;}
     if(request)loader.cancel();
     const owner=getOwner();
     if(!owner||typeof owner!=='object')return;
     const {clientId,id:identityId}=state.identity,{confirmedAt}=state.hydration;
     const lastAck=structuredClone(state.lastAck??null);
-    activeKey=key;status=isOnline()?'loading':'offline';
+    status=isOnline()?'loading':'offline';
     if(status==='offline'){notice();return;}
     request={owner,key};
     notice();
@@ -95,7 +100,7 @@ export function createClientHistoryDemandController({
   }
   function onClick(event){
     if(!event.target?.closest?.('[data-m26-free-history-retry]'))return;
-    event.preventDefault();status='idle';request=null;
+    event.preventDefault();failedKey='';status='idle';request=null;
     maybeLoad(store.getState().activeArea);
   }
   function mount(){
@@ -106,7 +111,7 @@ export function createClientHistoryDemandController({
     maybeLoad(store.getState().activeArea);
   }
   function destroy(){
-    loader.cancel();mounted=false;status='idle';loadedKey='';activeKey='';request=null;
+    loader.cancel();mounted=false;status='idle';loadedKey='';failedKey='';request=null;
     root.removeEventListener?.('m26:shell-rendered',onShellRendered);
     root.removeEventListener?.('click',onClick);
     notice();
