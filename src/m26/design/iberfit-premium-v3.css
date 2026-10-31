@@ -3679,4 +3679,25 @@
   .m26-text-action[data-m26-area="clientes"]{
   color:#dfc98f;
 }
+/* Source-verified WCAG correction for exact existing Client/Coach content.
+ * The main hierarchy is real; never recolor only a fake Stitch prototype.
+ * Maintain >4.5:1 for 12-16px captions on the real dark surfaces. */
+.m26-shell[data-m26-role="client"] .m26-main .m26-client-health-heading .m26-eyebrow{
+  color:#e8c887;
+}
+.m26-shell[data-m26-role="client"] .m26-main .m26-client-home-method-disclosure > summary{
+  color:#d5decf;
+  opacity:1;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-priority-card small,
+.m26-shell[data-m26-role="coach"] .m26-main p[data-m26-action-why="true"]{
+  color:#d2dcd2;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-badge.is-warning{
+  color:#e8c681;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-panel-heading button.m26-text-action[data-m26-area="clientes"]{
+  color:#f5dc9d;
+  opacity:1;
+}
 /* END SIGNATURE MASTER U90 */
