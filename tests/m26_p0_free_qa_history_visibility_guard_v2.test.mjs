@@ -39,6 +39,29 @@ test('the exact same role visibility predicate applies to counts and pages',()=>
   assert.match(functionBody,/p_limit NOT BETWEEN 1 AND 32/u);
   assert.match(functionBody,/FREE_HISTORY_REVISION_CHANGED/u);
   assert.match(functionBody,/FREE_HISTORY_PAGE_TOO_LARGE/u);
+  // Guard against JavaScript replacement-string 
+});
+test('function permissions are strictly authenticated; source never grants anon or changes RLS',()=>{
+  for(const item of [sql,rollback]){
+    assert.match(item,/FROM PUBLIC,anon;/u);
+    assert.match(item,/TO authenticated;/u);
+    assert.doesNotMatch(item,/GRANT EXECUTE.*TO anon/iu);
+  }
+  assert.doesNotMatch(sql,/DISABLE ROW LEVEL SECURITY|DROP POLICY/iu);
+});
+ expansion breaking PostgreSQL regexes.
+  assert.equal(functionBody.split("WHEN e.body->>'sessionId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+});
+test('function permissions are strictly authenticated; source never grants anon or changes RLS',()=>{
+  for(const item of [sql,rollback]){
+    assert.match(item,/FROM PUBLIC,anon;/u);
+    assert.match(item,/TO authenticated;/u);
+    assert.doesNotMatch(item,/GRANT EXECUTE.*TO anon/iu);
+  }
+  assert.doesNotMatch(sql,/DISABLE ROW LEVEL SECURITY|DROP POLICY/iu);
+});
+").length-1,2);
+  assert.equal(functionBody.split("THEN (e.body->>'sessionId')::uuid ELSE NULL::uuid END)").length-1,2);
 });
 test('function permissions are strictly authenticated; source never grants anon or changes RLS',()=>{
   for(const item of [sql,rollback]){
