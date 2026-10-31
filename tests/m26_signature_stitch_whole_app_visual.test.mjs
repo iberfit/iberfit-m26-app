@@ -375,3 +375,21 @@ test('U82 43-route synthetic visual evidence records nested scroll and lower fol
   assert.match(browser,/authentication.*never|never authenticated/);
   assert.match(workflow,/path: recovery\/signature-published-sessions\//);
 });
+
+
+test('U83/U84 native Retina evidence is full device resolution and audits visible optical assets without URLs',()=>{
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const retina=browser.split('// U83 · Native-resolution visual evidence')[1]||'';
+  assert.match(retina,/deviceScaleFactor:3/);
+  assert.match(retina,/scale:'device',fullPage:false/);
+  assert.match(retina,/readUInt32BE\\(16\\).*toBe\\(1170\\)/);
+  assert.match(retina,/readUInt32BE\\(20\\).*toBe\\(2532\\)/);
+  assert.match(retina,/opticalAudit=await page\\.evaluate/);
+  assert.match(retina,/document\\.fonts\\.status/);
+  assert.match(retina,/naturalWidth:img\\.naturalWidth/);
+  assert.match(retina,/usesSrcset:Boolean/);
+  assert.match(retina,/canvasCount:canvases\\.length/);
+  assert.match(retina,/stitchParityCertified:false,scroll,opticalAudit/);
+  assert.match(retina,/identity:'synthetic',authenticated:false/);
+  assert.doesNotMatch(retina,/currentSrc:|src:img\\.src|outerHTML|innerHTML/);
+});

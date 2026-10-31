@@ -1056,13 +1056,61 @@ test('SIGNATURE U83 · Cliente Hoy Retina 390 CSS px at dPR 3 produces native PN
       expect(lower.readUInt32BE(20)).toBe(2532);
       await writeFile(dir+'/cliente-hoy-390-dpr3-scrolled.png',lower);
     }
+    // U84: native pixel dimensions alone cannot establish optical sharpness.
+    // Inventory rendered fonts, vectors and raster sampling WITHOUT persisting
+    // image URLs, profile identities, screenshot HTML or personal data. Raster
+    // intrinsic dimensions are only diagnostic (srcset may be density-corrected).
+    const opticalAudit=await page.evaluate(()=>{
+      const root=document.querySelector('.m26-client-home-stitch-v23');
+      const isVisible=el=>{
+        const rect=el.getBoundingClientRect();
+        const css=getComputedStyle(el);
+        return rect.width>0&&rect.height>0&&css.display!=='none'&&
+          css.visibility!=='hidden'&&Number(css.opacity)>0;
+      };
+      const raster=Array.from(root?.querySelectorAll('img')||[])
+        .filter(isVisible).slice(0,40).map(img=>{
+          const rect=img.getBoundingClientRect();
+          return {
+            widthCss:Math.round(rect.width*10)/10,
+            heightCss:Math.round(rect.height*10)/10,
+            naturalWidth:img.naturalWidth,
+            naturalHeight:img.naturalHeight,
+            decoded:img.complete&&img.naturalWidth>0,
+            usesSrcset:Boolean(img.getAttribute('srcset'))
+          };
+        });
+      const canvases=Array.from(root?.querySelectorAll('canvas')||[])
+        .filter(isVisible).slice(0,20).map(canvas=>{
+          const rect=canvas.getBoundingClientRect();
+          return {
+            widthCss:Math.round(rect.width*10)/10,
+            heightCss:Math.round(rect.height*10)/10,
+            bitmapWidth:canvas.width,
+            bitmapHeight:canvas.height
+          };
+        });
+      const title=root?.querySelector('h1,h2,h3');
+      return {
+        fontsStatus:document.fonts.status,
+        titleFontFamily:title?getComputedStyle(title).fontFamily:null,
+        svgCount:Array.from(root?.querySelectorAll('svg')||[]).filter(isVisible).length,
+        rasterCount:raster.length,
+        raster,
+        canvasCount:canvases.length,
+        canvases,
+        inventoryScope:'displayed DOM only; no URLs, identity or image contents'
+      };
+    });
+    expect(opticalAudit.fontsStatus,'Web fonts must finish resolving before Retina evidence')
+      .toBe('loaded');
     await writeFile(dir+'/manifest.json',JSON.stringify({
       schema:'iberfit.signature.retina-evidence.v1',
       role:'client',route:'hoy',viewportCss:{width:390,height:844},
       deviceScaleFactor:dpr,pngPhysical:{width:1170,height:2532},
       renderer:'real-route-renderer',identity:'synthetic',authenticated:false,
-      stitchParityCertified:false,scroll,
-      scope:'native-resolution QA evidence; not authenticated or visual acceptance'
+      stitchParityCertified:false,scroll,opticalAudit,
+      scope:'native-resolution and optical diagnostics; neither authenticated nor Stitch parity'
     },null,2),'utf8');
     expect(mutations,'No remote writes for retina visual QA').toEqual([]);
     expect(errors,'Retina route must not produce runtime errors').toEqual([]);
