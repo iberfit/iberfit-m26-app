@@ -16,12 +16,13 @@ test('QA only synthetic identities and read-only RPC allowlist',()=>{
   for(const s of [
    'qa.rc74.client-a@iberfit.cl','qa.rc74.client-b@iberfit.cl',
    'gjztkdwfmunnzhtvxrsu','ibERfit_client_completed_history_page_free_v1'.toLowerCase(),
-   "method==='POST'","safe(req)","page.on('requestfailed'"]){
-    if(s==="method==='POST'")continue;
+   "installCurrentSourceQaNetworkPolicy","readOnlyRpcs:R","page.on('requestfailed'"]){
     assert.ok(source.includes(s),s);
   }
-  assert.ok(source.includes("return m==='POST'&&u.pathname.startsWith('/rest/v1/rpc/')"));
-  assert.ok(source.includes("return route.abort('blockedbyclient')"));
+  assert.match(source,/from '\.\.\/rc64\/secure-current-source-auth\.mjs'/u);
+  assert.match(source,/onBlocked:label=>violations\.push\('blocked:'/u);
+  assert.doesNotMatch(source,/context\.route\('\*\*\/\*'/u);
+  assert.match(source,/LIVE=CANARY_ORIGIN/u);
   assert.ok(source.includes("bodyOrJWTRecorded:false"));
   assert.doesNotMatch(source,/\b(?:POST|PATCH|PUT|DELETE) (?:\/rest\/v1\/domain_entities|\/storage\/v1\/object\/)/u);
 });
