@@ -2255,6 +2255,13 @@ body {
     background:rgba(11,19,16,.97);
     box-shadow:0 10px 24px rgba(0,0,0,.19);
   }
+  /* U75 · A real touch scroll or browser scrollIntoView must never place the
+     rest Continue action underneath the sticky pause/save dock (WebKit P0).
+     The dock and its permissions remain intact, no overlay is disabled. */
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"][data-session-live-state="rest"] [data-session-action="next"]{
+    scroll-margin-block-start:calc(var(--m26-session-sticky-top,.4rem) + 9rem);
+    scroll-margin-block-end:1rem;
+  }
   .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions :is(.m26-session-live-quick-save,.m26-session-live-quick-pause){
     flex:1 1 9rem;
     margin-inline-start:0;

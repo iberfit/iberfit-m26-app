@@ -488,6 +488,11 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
     .toBeGreaterThanOrEqual(captionGeometry.gridWidth*.93);
   expect(captionGeometry.captionBottom,'Session cards must start below the caption row')
     .toBeLessThanOrEqual(captionGeometry.firstCardTop+1);
+  if((testInfo.project.use.viewport?.width||0)>=1200){
+    const gridColumns=await screen.locator('.m26-rc39-week').evaluate(el=>
+      getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length);
+    expect(gridColumns,'Two published sessions must not leave a third blank desktop column').toBe(2);
+  }
   expect(Math.abs(captionGeometry.captionLeft-captionGeometry.gridLeft))
     .toBeLessThanOrEqual(2);
 
@@ -687,7 +692,21 @@ test('SIGNATURE published guided Client finishes both real recorded sets, feedba
       const snapshot=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
       return Object.keys(snapshot.results).length;
     }).toBe(index+1);
-    await page.locator('#qa-workout [data-session-action="next"]').click();
+    // U75 · The controller serializes writes. A Client must never race the
+    // acknowledgement or activate a control blocked by the sticky dock.
+    await expect.poll(()=>page.locator('#qa-workout').getAttribute('data-m26-session-action-pending'))
+      .toBeNull();
+    const continueNow=page.locator('#qa-workout [data-session-action="next"]');
+    await expect(continueNow).toBeEnabled();
+    await continueNow.scrollIntoViewIfNeeded();
+    const exposed=await continueNow.evaluate(button=>{
+      const rect=button.getBoundingClientRect();
+      const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+      const atPoint=document.elementFromPoint(x,y);
+      return atPoint===button||button.contains(atPoint);
+    });
+    expect(exposed,'Continue now must not sit beneath the sticky session control dock').toBe(true);
+    await continueNow.click();
   }
   await expect(page.locator('#qa-workout [data-session-live-state="feedback"]')).toBeVisible();
   await page.locator('#qa-workout [data-session-feedback-rpe]').fill('8');

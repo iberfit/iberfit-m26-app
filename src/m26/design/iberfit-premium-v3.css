@@ -1244,7 +1244,9 @@
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-week{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));
+  /* Two real Client session columns, not a third empty caption-created
+     track on desktop. 27rem preserves readable exercise details. */
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,27rem),1fr));
   align-items:start;
   gap:clamp(.8rem,2vw,1.25rem);
   min-width:0;

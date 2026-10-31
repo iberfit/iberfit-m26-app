@@ -255,3 +255,16 @@ test('U73 availability caption uses a full grid row instead of stealing a sessio
   assert.match(qa,/Ready-session caption must span the full session grid/);
   assert.match(qa,/Session cards must start below the caption row/);
 });
+
+test('U75 Client layout uses readable desktop tracks and WebKit-safe sticky scroll offset',()=>{
+  const design=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const ux=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  assert.match(design,/grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,27rem\),1fr\)\)/);
+  assert.match(ux,/U75 · A real touch scroll/);
+  assert.match(ux,/data-session-live-state="rest"\] \[data-session-action="next"\]\{/);
+  assert.match(ux,/scroll-margin-block-start:calc\(var\(--m26-session-sticky-top,\.4rem\) \+ 9rem\)/);
+  assert.match(browser,/Continue now must not sit beneath the sticky session control dock/);
+  assert.match(browser,/data-m26-session-action-pending/);
+  assert.match(browser,/Two published sessions must not leave a third blank desktop column/);
+});
