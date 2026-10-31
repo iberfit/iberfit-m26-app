@@ -56,3 +56,12 @@ test('M44 A4 report copy is classified as a document template, not an unlocalize
  assert.ok(EXCLUDES.some(pattern=>pattern.test('src/m26/workflows/evolution-report-document.js')));
  assert.notEqual(iberfitSurfaceTranslate('Indica por qué se retira esta versión',{language:'en'}),'Indica por qué se retira esta versión');
 });
+
+test('P0 Free historical loading, offline, failed and retry UI are localized in all supported languages',()=>{
+ for(const text of ["Actualizando el expediente histórico completo. Los entrenamientos disponibles siguen accesibles.","El historial antiguo requiere conexión. Tus sesiones disponibles permanecen visibles.","No se ha podido recuperar el historial completo. No se ha perdido ningún registro.","Reintentar historial"]){
+  for(const language of ['en','fr','pt']){
+   const translated=iberfitSurfaceTranslate(text,{language});
+   assert.notEqual(translated,text,`Missing ${language}: ${text}`);
+  }
+ }
+});
