@@ -13,6 +13,7 @@ import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_L
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
+import {createClientHistoryDemandController} from './client-history-demand-controller.js';
 import {createCommandBus} from '../command-bus.js';
 import {validatedRuntimeRegistry,M26_COMMAND_REGISTRY} from '../command-catalog.js';
 import {createKeyValueOperationRepository} from '../platform/offline-command-repository.js';
@@ -525,7 +526,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,evolutionReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,clientHistoryDemand=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,evolutionReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
   let roleSwitchBusy=false;
@@ -1307,6 +1308,22 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-hydrate-ready');
 
     shell=createShellController({root,store,renderRoute});
+    // New history transport is NEVER issued in the default app path.
+    // It requires an explicit QA-only opt-in after SQL/core role contracts,
+    // pagination, device history UI and Egress benchmark are certified.
+    const freeHistoryDemandEnabled=runtime.qaOnly===true&&runtime.canary===true
+      &&runtimeConfig?.freeClientCompletedHistoryDemand===true
+      &&store.getState().identity?.role==='client';
+    if(freeHistoryDemandEnabled){
+      clientHistoryDemand=createClientHistoryDemandController({
+        root,store,transport,enabled:true,
+        getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},
+        getOwner:()=>hydrationLeaseFor(session),
+        isOnline:()=>globalThis.navigator?.onLine!==false,
+        render,
+      });
+      clientHistoryDemand.mount();
+    }
     // The multiapp gateway is visible during progressive shell paint, so its handler must exist first.
     root.addEventListener('m26:switch-role',onSwitchRole);
     qaStage('rc64-shell-mount-start');
@@ -1765,7 +1782,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers({preserveWorkflowDrafts=true}={}){workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers({preserveWorkflowDrafts=true}={}){clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;
