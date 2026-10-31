@@ -66,3 +66,18 @@ test('recording safety is in both runner configs, never overridden at nested des
  assert.ok(authenticated.includes("trace:'off',screenshot:'off',video:'off'"));
  assert.doesNotMatch(source,/test\.use\(\{trace:/u);
 });
+
+test('authenticated current-source QA build enables archive only behind synthetic Client A and QA-only fences',()=>{
+ const builder=readFileSync('qa/rc64/build-authenticated-surface.mjs','utf8');
+ const application=readFileSync('src/m26/app/application.js','utf8');
+ assert.match(builder,/PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
+ assert.match(builder,/RC64_2B_AUTH_QA_ONLY_REQUIRED/u);
+ assert.match(builder,/'  qaOnly: true,'/u);
+ assert.match(builder,/'  canary: true,'/u);
+ assert.match(builder,/'  freeClientCompletedHistoryDemand: true,'/u);
+ assert.match(application,/runtime\.qaOnly===true&&runtime\.canary===true/u);
+ assert.match(application,/runtimeConfig\?\.freeClientCompletedHistoryDemand===true/u);
+ assert.match(application,/qa\.rc74\.client-a@iberfit\.cl/u);
+ assert.match(source,/installCurrentSourceQaNetworkPolicy/u);
+ assert.match(source,/expect\(blocked,'QA current-source perimeter must reject no required operation'\)/u);
+});
