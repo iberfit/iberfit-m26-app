@@ -444,6 +444,28 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   expect(surface.mediaText).toContain('Sin referencia visual');
   expect(surface.contrast,'Exercise media fallback needs WCAG AA contrast').toBeGreaterThanOrEqual(4.5);
 
+  // U81: genuine values in the existing description list, visually grouped
+  // into one editorial band rather than decorative per-value mini-cards.
+  const factStrip=await guided.locator('.m26-session-preview-facts').first().evaluate(el=>{
+    const surface=getComputedStyle(el);
+    const datum=el.querySelector(':scope > div');
+    const value=el.querySelector(':scope > div dd');
+    return {
+      display:surface.display,
+      columns:surface.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length,
+      surfaceBorder:surface.borderTopWidth,
+      datumBackground:datum?getComputedStyle(datum).backgroundColor:null,
+      valueFont:value?parseFloat(getComputedStyle(value).fontSize):0,
+      allFacts:el.querySelectorAll(':scope > div').length
+    };
+  });
+  expect(factStrip.display).toBe('grid');
+  expect(factStrip.columns,'Stitch-style two-column compact Client facts').toBe(2);
+  expect(factStrip.surfaceBorder).toBe('1px');
+  expect(factStrip.datumBackground,'No new metric mini-cards').toBe('rgba(0, 0, 0, 0)');
+  expect(factStrip.valueFont,'Real values remain legible on touch').toBeGreaterThanOrEqual(16);
+  expect(factStrip.allFacts,'No prescribed fields can disappear').toBeGreaterThanOrEqual(5);
+
   await expect(guided).toContainText('8-10');
   await expect(guided).toContainText('Sin referencia visual');
   await expect(readyCta).toHaveText('Preparar entrenamiento');

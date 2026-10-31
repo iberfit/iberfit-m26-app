@@ -334,3 +334,23 @@ test('U78 single-surface Client prescription keeps full data and readable missin
   assert.match(test,/Exercise media fallback needs WCAG AA contrast/);
   assert.match(test,/The exercise list should not nest another decorative panel/);
 });
+
+
+test('U81 Client prescription facts use a single accessible data band without losing the real values',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const u81=css.split('U81 · Stitch-inspired factual band')[1]||'';
+  assert.match(u81,/m26-session-preview-facts\{/);
+  assert.match(u81,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(u81,/m26-session-preview-facts>div\{/);
+  assert.match(u81,/background:transparent/);
+  assert.match(u81,/m26-session-preview-facts dd\{/);
+  assert.match(u81,/font-variant-numeric:tabular-nums/);
+  assert.match(u81,/forced-colors:active/);
+  assert.doesNotMatch(u81,/display:none|visibility:hidden|pointer-events:none|!important/);
+  assert.match(browser,/const factStrip=await guided.locator/);
+  assert.match(browser,/No prescribed fields can disappear/);
+  const renderer=fs.readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
+  assert.match(renderer,/<dl class="m26-session-preview-facts">/);
+  assert.match(renderer,/<dt>\$\{escape\(label\)\}<\/dt><dd>\$\{escape\(value\)\}<\/dd>/);
+});
