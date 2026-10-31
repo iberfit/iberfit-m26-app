@@ -166,3 +166,27 @@ test('U65 published details remain owner-bound despite stale or foreign projecti
   assert.match(matched,/Detalle privado/);
   assert.doesNotMatch(renderHoyRoute({...vm,clients:[{...vm.clients[0],id:''}]}),/data-client-session-preview/);
 });
+
+test('U66 Stitch authentic context landmark is not a wellbeing metric or duplicate title',async()=>{
+  const base={role:'client',serviceKind:'training',
+    clients:[{id:'u66',name:'Cliente QA',serviceActive:true}],
+    appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[]}};
+  const html=renderHoyRoute(base);
+  assert.match(html,/<nav class="m26-client-home-compass" aria-label="Contexto del atleta"/);
+  assert.match(html,/<strong>Contexto del atleta<\/strong>/);
+  assert.match(html,/<div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"/);
+  assert.equal((html.match(/data-client-home-compass/g)||[]).length,1);
+  assert.equal((html.match(/m26-client-home-compass-actions"/g)||[]).length,1);
+  for(const destination of ['sesion','progreso','actividad'])
+    assert.match(html,new RegExp('data-m26-area="'+destination+'"'));
+  assert.doesNotMatch(html,/data-client-session-preview|data-workflow-action="start-published-session"/);
+  const {iberfitSurfaceTranslate}=await import('../src/m26/ui/i18n-surface.js');
+  assert.equal(iberfitSurfaceTranslate('Contexto del atleta',{language:'en'}),'Athlete context');
+  assert.equal(iberfitSurfaceTranslate('Contexto del atleta',{language:'fr'}),'Contexte de l’athlète');
+  assert.equal(iberfitSurfaceTranslate('Contexto del atleta',{language:'pt'}),'Contexto do atleta');
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const signature=css.split('U66 · Fidelity to the original Stitch contextual hierarchy')[1]||'';
+  assert.match(signature,/max-width:370px/);
+  assert.match(signature,/forced-colors:active/);
+  assert.doesNotMatch(signature,/pointer-events:none|visibility:hidden|position:fixed/);
+});

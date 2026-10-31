@@ -814,8 +814,8 @@ function renderClientHoyRoute(vm) {
       ?'Revisar mi planificación'
       :nextAction?.label||'Continuar';
   // Real navigation only. Session start authorization remains in primary.markup.
-  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Tu estado de hoy" data-client-home-compass>
-    <div class="m26-client-home-compass-heading"><strong>Tu estado de hoy</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
+  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Contexto del atleta" data-client-home-compass>
+    <div class="m26-client-home-compass-heading"><strong>Contexto del atleta</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
     <div class="m26-client-home-compass-actions">
       <button type="button" data-m26-area="sesion">
         <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}</span>
@@ -853,7 +853,7 @@ function renderClientHoyRoute(vm) {
       ${!trainingSurface?`<div class="m26-client-home-status"><span>${escapeHtml(primary.eyebrow)}</span><strong>${escapeHtml(primary.title)}</strong><p>${escapeHtml(primary.detail)}</p></div>`:''}
       </div>
 
-      <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+      <div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
         ${trainingSurface&&primary.area!=='actividad'?`<div class="m26-client-home-status">
           <span>${escapeHtml(primary.eyebrow)}</span>
           <strong>${escapeHtml(primary.title)}</strong>

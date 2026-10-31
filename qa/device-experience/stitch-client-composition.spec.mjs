@@ -73,3 +73,30 @@ test('Stitch published session shows honest technical depth and native touch dis
   const image=await page.screenshot({fullPage:true,animations:'disabled',caret:'hide'});
   await testInfo.attach('stitch-u65-real-render-synthetic-'+testInfo.project.name+'.png',{body:image,contentType:'image/png'});
 });
+
+test('U66 real renderer keeps labelled navigation, focus and zero overflow',async({page},testInfo)=>{
+  const width=testInfo.project.use.viewport?.width;
+  test.skip(![320,390,768,1024,1440].includes(width),'Canonical responsive fidelity sample only.');
+  await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real');
+  const route=page.locator('.m26-client-home-stitch-v23');
+  await expect(route).toBeVisible();
+  const nav=route.getByRole('navigation',{name:'Contexto del atleta'});
+  await expect(nav).toBeVisible();
+  await expect(nav.locator('button')).toHaveCount(3);
+  await expect(route.getByRole('group',{name:'Acción principal de hoy'})).toBeVisible();
+  await nav.locator('button').first().focus();
+  const state=await nav.locator('button').first().evaluate(el=>{
+    const x=el.getBoundingClientRect(),s=getComputedStyle(el);
+    const a=el.querySelector('strong');
+    return {height:x.height,width:x.width,focus:el===document.activeElement,
+      label:a?.textContent?.trim(),overflow:s.overflow};
+  });
+  expect(state.focus).toBe(true);
+  expect(state.height).toBeGreaterThanOrEqual(44);
+  expect(state.width).toBeGreaterThan(100);
+  expect(state.label).toBe('Entreno');
+  expect(await page.evaluate(()=>Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)-document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  await page.keyboard.press('Enter');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.area())).toBe('sesion');
+  expect(await page.evaluate(()=>Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)-document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+});

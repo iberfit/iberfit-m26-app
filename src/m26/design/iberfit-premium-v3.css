@@ -2940,6 +2940,35 @@
 }
 
 
+
+/* U66 · Fidelity to the original Stitch contextual hierarchy at narrow widths.
+ * The genuine three destinations and their semantic navigation never change. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-compass{
+  min-inline-size:0;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-compass-heading{
+  display:grid;gap:.3rem;min-inline-size:0;padding-inline:.15rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-compass-heading small{
+  color:var(--stitch-muted);font-size:.8rem;line-height:1.5;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-compass-actions button{
+  touch-action:manipulation;overflow-wrap:anywhere;
+}
+@media(max-width:370px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-greeting h2{
+    font-size:clamp(1.8rem,7.5vw,2.15rem);line-height:1.16;overflow-wrap:anywhere;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-compass-actions button{
+    gap:.65rem;padding:.8rem .7rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-home-compass-actions button{
+    border-color:CanvasText;
+  }
+}
+
 /* Stitch V2.3 · 7-day editorial rhythm. Only next confirmed owner-visible
  * appointments are marked. The empty days do not imply rest or adherence. */
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail{

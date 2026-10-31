@@ -5,6 +5,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // U66 · Exact Stitch V2.3 context label, real client destinations.
+  ["Contexto del atleta","Athlete context","Contexte de l’athlète","Contexto do atleta"],
   // U63 · Published prescription preview, four supported UI languages.
   ["Prescripción publicada","Published prescription","Prescription publiée","Prescrição publicada"],
   ["Prescripción disponible","Prescription available","Prescription disponible","Prescrição disponível"],
