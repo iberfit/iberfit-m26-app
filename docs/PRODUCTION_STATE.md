@@ -1,3 +1,13 @@
+## P0 Supabase Free · QA public payload reuse (candidato pendiente de CI, 30/10/2026)
+
+- Objetivo: reducir llamadas repetidas de catálogo y manifiesto público durante una certificación QA read-only multidispositivo sin saltar permisos ni pruebas de backend. Canary base exacta `d7562b28699e27f97bb4c497a0436ca9517da0ce`.
+- Ampliación de memo **solo en el proceso Playwright QA** de 120 s a 600 s, sin persistencia y siempre con primera lectura real por endpoint/parámetros/origen; se incorpora exclusivamente `iberfit_exercise_media_manifest_v1` (RPC anónimo ya autorizado por PostgreSQL) con validación estricta del JSON público; mantiene límites 1 MB y 16 entradas.
+- Prohibido cachear JWT, bootstrap, roles, RLS, WebAuthn, Auth, avatares, Storage o escrituras. Otros workflows y aplicación Cliente/Coach/Admin (QA y PROD) no se modifican; ningún SQL, DDL, dataset, secret ni migración.
+- Pruebas focales: expiración 10 minutos, 7 contexts, error y cuerpo inválido, manifest público frente a identidad privada y regresión de RPC existente. **No declarar ahorro en GB** sin medir Egress de la organización en ventana comparable.
+- Estado: **candidato**; no equivale a merge, Canary LIVE ni PROD. WIP exclusivo #1209. Siguiente paso: CI exacto, auditoría, merge y Canary Exact, luego tasa de Egress.
+
+---
+
 ## P0 Supabase Free: QA consent bootstrap capped candidate — 2026-10-30
 - Canary latest deployed SHA 67299e98892b95427cef0e687d920d2a99a1b808. Decoded Playwright response 290956 bytes of wearable bootstrap; 2630143 bytes in Client main bootstrap. These are not billing bytes.
 - QA: 1340 Health Connect consent events for one client, 2026-10-11 through 2026-10-30. Preserving full events and revocation fences in database is non-negotiable.

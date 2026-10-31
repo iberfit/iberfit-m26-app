@@ -157,15 +157,18 @@ async function fulfillCurrentSource(route,url){
 }
 
 
-// P0 Supabase Free: Only anonymous/public exercise-catalog reads are reusable
+// P0 Supabase Free: Only allowlisted anonymous/public exercise-data reads are reusable
 // between isolated read-only QA browser contexts in the SAME test worker.
+// A run's first read hits the real backend; 10-minute in-process reuse is bounded
+// by source process lifetime, 1 MB/entry and 16 entries. No persisted cache.
 // All authenticated RPCs, avatars, WebAuthn, user/tenant reads and writes
 // still reach the real QA backend on EVERY test. No identity is retained.
 const QA_PUBLIC_READ_RPCS=new Set([
   '/rest/v1/rpc/iberfit_exercise_catalog_public_v1',
   '/rest/v1/rpc/iberfit_exercise_measurement_profiles_public_v1',
+  '/rest/v1/rpc/iberfit_exercise_media_manifest_v1',
 ]);
-const QA_PUBLIC_TTL_MS=120_000;
+const QA_PUBLIC_TTL_MS=600_000; // QA read-only worker; first real read per source SHA
 const QA_PUBLIC_MAX_BYTES=1_000_000;
 const QA_PUBLIC_MAX_ENTRIES=16;
 
@@ -231,7 +234,13 @@ export function createQaPublicRpcMemo({now=()=>Date.now()}={}){
         if(status===200&&body.length<=QA_PUBLIC_MAX_BYTES){
           try{
             const rows=JSON.parse(body.toString('utf8'));
-            if(Array.isArray(rows)&&rows.length<=5000){
+            const isMediaManifest=url.pathname==='/rest/v1/rpc/iberfit_exercise_media_manifest_v1';
+            const validPublicResponse=isMediaManifest
+              ? rows!==null&&typeof rows==='object'&&!Array.isArray(rows)
+                &&rows.schemaVersion===1&&rows.source?.provider==='IBERFIT'
+                &&Array.isArray(rows.items)&&rows.items.length<=5000
+              : Array.isArray(rows)&&rows.length<=5000;
+            if(validPublicResponse){
               if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
               cache.set(key,{createdAt:now(),body,headers});
             }
