@@ -3,7 +3,7 @@ import {areaAllowedForRole} from '../shell/navigation.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
-import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession} from '../rc39/session-policy.js';
+import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession,sessionIdOf} from '../rc39/session-policy.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
@@ -405,7 +405,7 @@ function renderCoachHoyRoute(vm) {
 
   return `<div class="m26-route m26-hoy-route m26-coach-home-v1">
     ${operationBanner(vm.operations||{})}
-    <section class="m26-coach-home-command" aria-labelledby="m26-coach-priority-title">
+    <section class="m26-coach-home-command" data-priority-tone="${escapeHtml(primary.tone)}" aria-labelledby="m26-coach-priority-title">
       <div class="m26-coach-home-command-copy">
         <p class="m26-eyebrow">${escapeHtml(primary.eyebrow)}</p>
         <h2 id="m26-coach-priority-title">${escapeHtml(primary.title)}</h2>
@@ -548,6 +548,45 @@ export function renderClientWeekRail(upcoming,now=new Date()){
     <ol class="m26-client-week-days" aria-label="Semana de lunes a domingo">${cells}</ol>
     <div class="m26-client-week-note"><span><i aria-hidden="true"></i>Citas confirmadas próximas</span><small>La planificación completa está en tu plan.</small></div>
   </section>`;
+}
+
+// Stitch V2.3: a verified editorial preview, not a second session entry.
+function renderClientPublishedStructure(projection){
+  const session=projection?.session;
+  const id=String(projection?.id||'').trim();
+  if(!id||projection?.visible!==true||projection?.visibility!=='full'||
+     projection?.canClientStart!==true||sessionIdOf(session)!==id||
+     !actorCanExecuteSession({role:'client',session,appointment:projection.appointment||null})||
+     !sessionReadyToStart(session))return '';
+  const body=session?.body&&typeof session.body==='object'&&!Array.isArray(session.body)?session.body:{};
+  const raw=Array.isArray(session?.blocks)?session.blocks:body.blocks;
+  if(!Array.isArray(raw)||!raw.length)return '';
+  const blocks=raw.filter(block=>block&&typeof block==='object'&&!Array.isArray(block));
+  if(!blocks.length)return '';
+  // Display known plan structure only: no invented duration, load, RPE or progress.
+  const labelFor=(block,index)=>{
+    const title=[block.title,block.name,block.exerciseName,block.exercise_name]
+      .find(value=>typeof value==='string'&&value.trim().length>0);
+    if(title)return title.trim();
+    const type=String(block.type||'').toLowerCase();
+    const labels={circuit:'Circuito',circuito:'Circuito',superset:'Biserie',
+      triset:'Triserie',amrap:'AMRAP',tabata:'Tabata',warmup:'Calentamiento',
+      cooldown:'Vuelta a la calma',exercise:'Ejercicio'};
+    return labels[type]||'Bloque '+(index+1);
+  };
+  const items=blocks.slice(0,12).map((block,index)=>
+    '<li><span>'+String(index+1).padStart(2,'0')+'</span><strong>'+
+    escapeHtml(labelFor(block,index))+'</strong></li>'
+  ).join('');
+  const more=blocks.length>12
+    ?'<p class="m26-client-stitch-session-overflow">Y '+escapeHtml(blocks.length-12)+' bloques más en la sesión completa.</p>'
+    :'';
+  return '<div class="m26-client-stitch-session-structure" data-client-session-preview aria-label="Prescripción publicada">'+
+    '<div class="m26-client-stitch-session-facts"><span>Prescripción disponible</span><strong>'+
+    escapeHtml(blocks.length)+' '+(blocks.length===1?'bloque':'bloques')+'</strong></div>'+
+    '<details class="m26-client-stitch-session-details">'+
+    '<summary>Ver estructura publicada <span aria-hidden="true">⌄</span></summary>'+
+    '<ol>'+items+'</ol>'+more+'</details></div>';
 }
 
 function renderClientHoyRoute(vm) {
@@ -731,6 +770,12 @@ function renderClientHoyRoute(vm) {
     };
   }
 
+  // Reuse only an authorized full-visibility published session snapshot.
+  const structureId=String(runnable?.sessionId||standaloneGuided?.id||'').trim();
+  const publishedStructure=structureId
+    ?renderClientPublishedStructure(projections.find(item=>String(item?.id||'').trim()===structureId))
+    :'';
+
   const agendaItems=appointments
     .filter((item)=>!runnable||String(item?.id||'').trim()!==String(runnable?.id||'').trim())
     .slice(0,2);
@@ -813,6 +858,7 @@ function renderClientHoyRoute(vm) {
           <p>${escapeHtml(primary.detail)}</p>
         </div>`:''}
         ${primary.markup}
+        ${publishedStructure}
       </div>
     </section>
 

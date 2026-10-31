@@ -2814,6 +2814,65 @@
   background:var(--stitch-action);
   color:#09140E;border-color:var(--stitch-action);box-shadow:0 6px 20px rgba(214,178,94,.22);
 }
+/* U63 · Stitch technical depth: only real authorized prescription blocks.
+ * Native disclosure, no extra session CTA, fake KPI, remote image or script. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-structure{
+  min-inline-size:0;border-top:1px solid rgba(250,247,238,.12);
+  padding-block-start:.8rem;color:var(--stitch-text);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-facts{
+  display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.35rem .8rem;
+  padding:.65rem .8rem;background:rgba(10,22,16,.7);
+  border:1px solid rgba(250,247,238,.09);border-radius:.65rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-facts>span{
+  color:var(--stitch-muted);font-size:.76rem;line-height:1.4;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-facts>strong{
+  color:var(--stitch-action);font-weight:700;font-size:.88rem;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details{
+  min-inline-size:0;margin-block-start:.3rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details>summary{
+  display:flex;align-items:center;justify-content:space-between;gap:.65rem;
+  padding:.6rem .35rem;min-block-size:44px;cursor:pointer;touch-action:manipulation;
+  color:var(--stitch-muted);font-size:.82rem;font-weight:650;list-style:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details>summary::-webkit-details-marker{display:none}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details>summary>span{
+  font-size:1.2rem;line-height:1;color:var(--stitch-action);transition:transform 140ms ease;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details[open]>summary>span{transform:rotate(180deg)}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details>summary:focus-visible{
+  outline:3px solid var(--stitch-action);outline-offset:2px;border-radius:.3rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details ol{
+  list-style:none;padding:0;margin:.3rem 0 .2rem;display:grid;gap:.35rem;max-inline-size:100%;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details li{
+  display:grid;grid-template-columns:2rem minmax(0,1fr);align-items:baseline;gap:.6rem;
+  padding:.7rem .75rem;border-radius:.6rem;
+  background:rgba(10,22,16,.72);border:1px solid rgba(250,247,238,.08);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details li>span{
+  color:var(--stitch-action);font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details li>strong{
+  min-inline-size:0;overflow-wrap:anywhere;font-size:.84rem;line-height:1.45;font-weight:550;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-overflow{
+  margin:.5rem .25rem;color:var(--stitch-muted);font-size:.76rem;
+}
+@media(prefers-reduced-motion:reduce){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-stitch-session-details>summary>span{transition:none}
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 :is(.m26-client-stitch-session-facts,.m26-client-stitch-session-details li){
+    border-color:CanvasText;background:Canvas;color:CanvasText;
+  }
+}
+
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-compass{
   padding:0;background:transparent;border:0;gap:.75rem;
 }

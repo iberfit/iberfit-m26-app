@@ -90,3 +90,43 @@ test('U62 original Stitch hierarchy improves client/coach/admin legibility witho
   for(const marker of ['data-m26-role="coach"','data-m26-role="admin"',':focus-within','text-wrap:balance','overflow-wrap:break-word'])assert.ok(role.includes(marker),marker);
   assert.doesNotMatch(role,/pointer-events:none|visibility:hidden|display:none/);
 });
+
+test('U63 Stitch shows authorized published structure only, never a DEMO metric',()=>{
+  const id='10000000-0000-4000-8000-000000006363',clientId='10000000-0000-4000-8000-000000006364';
+  const session={id,clientId,status:'disponible',deliveryModality:'guiada_en_app',
+    deliveryOwnership:'guided_in_app',clientVisibilityLevel:'full',
+    body:{id,clientId,blocks:[
+      {id:'b1',type:'exercise',exerciseId:'e1',name:'Peso muerto <script>alert(1)</script>'},
+      {id:'b2',type:'circuit',exerciseIds:['e2','e3'],title:'Circuito general'},
+    ]}};
+  const projection={id,visible:true,visibility:'full',canClientStart:true,session,appointmentId:null};
+  const vm={role:'client',serviceKind:'training',clients:[{id:clientId,name:'Cliente QA',serviceActive:true}],
+    appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[projection]}};
+  const html=renderHoyRoute(vm);
+  assert.match(html,/data-client-session-preview/);
+  assert.match(html,/Prescripción disponible/);
+  assert.match(html,/2 bloques/);
+  assert.match(html,/Peso muerto &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(html,/Circuito general/);
+  assert.doesNotMatch(html,/<script>|Volumen Obj\.|RPE Medio|18,500 kg/);
+  assert.equal((html.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
+  const hidden=renderHoyRoute({...vm,rc39:{sessionProjections:[{...projection,visibility:'summary_only'}]}});
+  assert.doesNotMatch(hidden,/data-client-session-preview/);
+  const conflicting=renderHoyRoute({...vm,rc39:{sessionProjections:[{...projection,session:{...session,clientVisibilityLevel:'hidden'}}]}});
+  assert.doesNotMatch(conflicting,/data-client-session-preview/);
+  const paused=renderHoyRoute({...vm,clients:[{...vm.clients[0],serviceActive:false}]});
+  assert.doesNotMatch(paused,/data-client-session-preview|data-workflow-action="start-published-session"/);
+  assert.doesNotMatch(renderHoyRoute({...vm,serviceKind:'iri_only'}),/data-client-session-preview/);
+});
+test('U63 Coach priority colour preserves text and permissions and Admin hierarchy is editorial',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const roles=read();
+  assert.match(css,/m26-client-stitch-session-details>summary:focus-visible/);
+  assert.match(css,/m26-client-stitch-session-details li>strong/);
+  assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(roles,/data-priority-tone="danger"/);
+  assert.match(roles,/m26-admin-route > \.m26-admin-hero \.m26-eyebrow/);
+  const coach=renderHoyRoute({role:'coach',clients:[],appointments:[],upcoming:[],operations:{conflicts:1}});
+  assert.match(coach,/class="m26-coach-home-command" data-priority-tone="danger"/);
+  assert.doesNotMatch(coach,/data-client-session-preview/);
+});

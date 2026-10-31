@@ -5345,6 +5345,28 @@ m26-echart[data-density="compact"]{
 }
 
 
+/* U63 · Role-specific editorial emphasis from genuine operational states. */
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command[data-priority-tone]{
+  border-inline-start:3px solid var(--iberfit-color-accent);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command[data-priority-tone="danger"]{
+  border-inline-start-color:var(--iberfit-color-danger);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command[data-priority-tone="warning"]{
+  border-inline-start-color:var(--iberfit-color-warning);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command[data-priority-tone="success"]{
+  border-inline-start-color:var(--iberfit-color-success);
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace .m26-coach-home-command-copy>p:not(.m26-eyebrow){
+  max-inline-size:62ch;line-height:1.55;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route > .m26-admin-hero .m26-eyebrow{
+  margin-block-end:clamp(.45rem,1.2vw,.75rem);
+  font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--iberfit-color-accent);
+}
+
 /* U60 · Role-specific safe empty/error/recovery surfaces.
  * Purely cosmetic: do not infer loading/success, block pointers, add
  * fake recovery actions or change the canonical operational state.
