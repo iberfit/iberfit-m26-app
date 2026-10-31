@@ -1,3 +1,5 @@
+// P0 #1209: same already-authorized synthetic QA M43 browser job; no new secrets.
+import '../p0-free-history/live-client-a.spec.mjs';
 import {test,expect} from '@playwright/test';
 import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 import {mkdir} from 'node:fs/promises';

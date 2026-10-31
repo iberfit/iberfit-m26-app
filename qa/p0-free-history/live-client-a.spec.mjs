@@ -50,7 +50,12 @@ async function login(page,email,password){
   const close=page.locator(s).first();if(await close.count())await close.click();
  }
 }
-test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context})=>{
+// A dedicated test scope overrides the parent M43 screenshot-on-failure default.
+// Do NOT persist traces, screenshots, videos, headers, JWTs or response bodies.
+test.describe('P0 QA free completed history live browser',()=>{
+test.use({trace:'off',screenshot:'off',video:'off'});
+test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context},testInfo)=>{
+ test.skip(testInfo.project.name.startsWith('m43-')&&testInfo.project.name!=='m43-desktop-chromium','One read-only QA Client A probe per CI event');
  environment();
  const blocked=await perimeter(context),pages=[],measured=[],jobs=[],fail=[],pageErrors=[];
  page.on('pageerror',err=>pageErrors.push(String(err?.name||'Error').slice(0,30)));
@@ -109,7 +114,8 @@ test('Client A requests full archive only after a click and receives all 396+ se
  await writeFile('recovery/p0-free-history/live-qa-wire.json',JSON.stringify(evidence,null,2)+'\n');
  console.log('P0_QA_FREE_HISTORY_WIRE:'+JSON.stringify(evidence));
 });
-test('Client B never receives the history CTA or page RPCs',async({page,context})=>{
+test('Client B never receives the history CTA or page RPCs',async({page,context},testInfo)=>{
+ test.skip(testInfo.project.name.startsWith('m43-')&&testInfo.project.name!=='m43-desktop-chromium','One read-only QA Client B probe per CI event');
  environment();await perimeter(context);let paged=0;
  page.on('request',r=>{if(pathOf(r.url())?.pathname===PAGED)paged++});
  await login(page,process.env.M26_QA_CLIENT_B_EMAIL,process.env.M26_QA_CLIENT_B_PASSWORD);
@@ -118,4 +124,5 @@ test('Client B never receives the history CTA or page RPCs',async({page,context}
  await page.locator('[data-m26-area="planificacion"]:visible').first().click();
  await expect(page.locator('[data-m26-free-history-open]')).toHaveCount(0);
  expect(paged).toBe(0);
+});
 });
