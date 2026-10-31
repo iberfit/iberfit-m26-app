@@ -54,7 +54,7 @@ async function login(page,email,password){
 // Do NOT persist traces, screenshots, videos, headers, JWTs or response bodies.
 export function registerQaLiveHistoryTestSuite(){
 test.describe('P0 QA free completed history live browser',()=>{
-test.use({trace:'off',screenshot:'off',video:'off'});
+// Recording disabled in both Playwright configs. Test scope cannot change worker options.
 test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context},testInfo)=>{
  test.skip(testInfo.project.name!=='authenticated-readonly-chromium','Only the single read-only Chromium QA account A/browser probe');
  test.setTimeout(220000);

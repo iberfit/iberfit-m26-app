@@ -43,7 +43,9 @@ test('QA E2E runs as an imported registration module, not a second test file imp
  const m43=readFileSync('qa/rc64/m43-client-real-history.spec.mjs','utf8');
  assert.doesNotMatch(m43,/registerQaLiveHistoryTestSuite/u);
  assert.match(source,/test\.setTimeout\(220000\)/u);
- assert.match(source,/test\.use\(\{trace:'off',screenshot:'off',video:'off'\}\)/u);
+ const authConfig=readFileSync('playwright.authenticated.config.mjs','utf8');
+ assert.ok(authConfig.includes("trace:'off',screenshot:'off',video:'off'"));
+ assert.doesNotMatch(source,/test\\.use\\(\\{trace:/u);
 });
 
 test('single-user read-only QA browser only: synthetic M43 fixture budget is not touched',()=>{
@@ -53,4 +55,12 @@ test('single-user read-only QA browser only: synthetic M43 fixture budget is not
  assert.doesNotMatch(m43,/registerQaLiveHistoryTestSuite/u);
  assert.match(source,/testInfo\.project\.name!=='authenticated-readonly-chromium'/u);
  assert.doesNotMatch(source,/M43_QA_INTERACTIVE_FIXTURE|execute_command|run_qa_m43_coach_client_write_gate/u);
+});
+
+test('recording safety is in both runner configs, never overridden at nested describe scope',()=>{
+ const live=readFileSync('playwright.p0-free-history.config.mjs','utf8');
+ const authenticated=readFileSync('playwright.authenticated.config.mjs','utf8');
+ assert.ok(live.includes("trace:'off',screenshot:'off',video:'off'"));
+ assert.ok(authenticated.includes("trace:'off',screenshot:'off',video:'off'"));
+ assert.doesNotMatch(source,/test\.use\(\{trace:/u);
 });
