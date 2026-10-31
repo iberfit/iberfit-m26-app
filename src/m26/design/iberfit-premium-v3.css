@@ -1249,6 +1249,15 @@
   gap:clamp(.8rem,2vw,1.25rem);
   min-width:0;
 }
+/* U73 · Session availability is a section caption, never an accidental
+ * extra grid column that compresses the ready and supervised sessions. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-week > .m26-session-available-summary{
+  grid-column:1 / -1;
+  align-self:end;
+  margin:0;
+  min-width:0;
+  max-width:100%;
+}
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-session-card{
   display:grid;
   align-content:start;

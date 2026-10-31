@@ -475,6 +475,22 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   expect(surface.textWrap).not.toBe('normal');
 
   await expect(screen.locator('[data-rc39-session]')).toHaveCount(2);
+  // U73 · Count is editorial metadata for the entire session grid, not
+  // a third desktop column that squeezes both session cards.
+  const captionGeometry=await screen.locator('.m26-rc39-week').evaluate(el=>{
+    const count=el.querySelector(':scope > .m26-session-available-summary');
+    const card=el.querySelector(':scope > .m26-rc39-session-card');
+    const r=el.getBoundingClientRect(),c=count?.getBoundingClientRect(),b=card?.getBoundingClientRect();
+    return {gridWidth:r.width,captionWidth:c?.width||0,captionBottom:c?.bottom||0,
+      firstCardTop:b?.top||0,captionLeft:c?.left||0,gridLeft:r.left};
+  });
+  expect(captionGeometry.captionWidth,'Ready-session caption must span the full session grid')
+    .toBeGreaterThanOrEqual(captionGeometry.gridWidth*.93);
+  expect(captionGeometry.captionBottom,'Session cards must start below the caption row')
+    .toBeLessThanOrEqual(captionGeometry.firstCardTop+1);
+  expect(Math.abs(captionGeometry.captionLeft-captionGeometry.gridLeft))
+    .toBeLessThanOrEqual(2);
+
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SUPERVISED_NEVER_CLIENT');
   const led=screen.locator('[data-rc39-session="qa-published-supervised"]');

@@ -237,11 +237,21 @@ test('U71 legacy published session browser test uses the actual role workspace',
 test('U72 real session context adapts to CARD width, never viewport-only columns',()=>{
   const css=fs.readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
   const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
-  const u72=css.split('U72 · The context belongs to a CARD')[1]||'';
+  const u72=css.split('U72 · The context belongs to a CARD')[1]?.split('@media (max-width:719px)')[0]||'';
   assert.match(u72,/grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,20rem\),1fr\)\)/);
   assert.match(u72,/justify-content:flex-start/);
   assert.doesNotMatch(u72,/grid-template-columns:minmax\(0,1fr\) auto/);
   assert.match(browser,/Session context may not collapse into vertical letters/);
   assert.match(browser,/headingHeight,'The context heading must remain a readable three-line maximum'/);
   assert.match(browser,/experienceGeometry\.overflow\)\.toBe\(false\)/);
+});
+
+test('U73 availability caption uses a full grid row instead of stealing a session column',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  const qa=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const block=css.split('U73 · Session availability is a section caption')[1]?.split('.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-session-card{')[0]||'';
+  assert.match(block,/\.m26-rc39-week > \.m26-session-available-summary\{/);
+  assert.match(block,/grid-column:1 \/ -1/);
+  assert.match(qa,/Ready-session caption must span the full session grid/);
+  assert.match(qa,/Session cards must start below the caption row/);
 });
