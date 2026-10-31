@@ -33,3 +33,10 @@ test('rollback QA-only and non-destructive',()=>{
  assert.match(back,/DROP FUNCTION public\.iberfit_client_completed_history_page_free_v1/);
  for(const s of [sql,back])assert.doesNotMatch(s,/\b(?:TRUNCATE|DELETE FROM|UPDATE public\.domain_entities|INSERT INTO public\.domain_entities|BYPASSRLS)\b/i);
 });
+
+test('cursor timestamp and id must be real nonnull strings to prevent repeated first page and excess Egress',()=>{
+ for(const term of ["jsonb_typeof(p_cursor->'at') IS DISTINCT FROM 'string'",
+   "jsonb_typeof(p_cursor->'id') IS DISTINCT FROM 'string'",
+   "v_cursor_at IS NULL OR v_cursor_id IS NULL"])
+  assert.ok(sql.includes(term),term);
+});

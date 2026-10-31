@@ -68,6 +68,8 @@ BEGIN
        OR p_expected_fingerprint IS NULL OR p_expected_fingerprint !~ '^[0-9a-f]{32}$'
        OR jsonb_typeof(p_cursor)<>'object'
        OR NOT (p_cursor ? 'at' AND p_cursor ? 'id')
+       OR jsonb_typeof(p_cursor->'at') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(p_cursor->'id') IS DISTINCT FROM 'string'
        OR (SELECT COUNT(*) FROM jsonb_object_keys(p_cursor))<>2
        OR p_cursor->>'id' !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
        OR length(COALESCE(p_cursor->>'at',''))>45 THEN
@@ -79,7 +81,7 @@ BEGIN
     EXCEPTION WHEN invalid_datetime_format OR invalid_text_representation OR datetime_field_overflow THEN
       RAISE EXCEPTION 'FREE_HISTORY_CURSOR_INVALID' USING ERRCODE='22023';
     END;
-    IF v_cursor_at>v_snapshot THEN
+    IF v_cursor_at IS NULL OR v_cursor_id IS NULL OR v_cursor_at>v_snapshot THEN
       RAISE EXCEPTION 'FREE_HISTORY_CURSOR_INVALID' USING ERRCODE='22023';
     END IF;
   END IF;
