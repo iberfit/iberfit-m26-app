@@ -21,7 +21,7 @@ test('different owner cannot load or consume an old account',async()=>{
  const owner={};let current=owner,cid=id;
  const loader=createClientCompletedHistoryLoader({transport:{clientCompletedHistoryPage:async()=>data()},
   getToken:async()=> 'token',getOwner:()=>current,getClientId:()=>cid});
- await assert.rejects(loader.load({owner:{},clientId:id}),/OWNER_STALE/);
+ assert.throws(()=>loader.load({owner:{},clientId:id}),/OWNER_STALE/);
  current=owner;cid=other;
  assert.throws(()=>loader.load({owner,clientId:id}),/OWNER_STALE/);
 });
@@ -43,4 +43,27 @@ test('reject duplicate sections and unbounded pages before networking',()=>{
   getOwner:()=>owner,getClientId:()=>id});
  assert.throws(()=>loader.load({owner,clientId:id,sections:['session','session']}),/ARGUMENTS_INVALID/);
  assert.throws(()=>loader.load({owner,clientId:id,limit:33}),/ARGUMENTS_INVALID/);
+});
+
+test('same-owner concurrent requests share one live RPC without parallel Egress',async()=>{
+ const owner={};let requests=0,release;
+ const gate=new Promise(res=>release=res);
+ const loader=createClientCompletedHistoryLoader({transport:{clientCompletedHistoryPage:async()=>{
+  requests++;await gate;return data();
+ }},getToken:async()=> 'token',getOwner:()=>owner,getClientId:()=>id});
+ const a=loader.load({owner,clientId:id});
+ const b=loader.load({owner,clientId:id});
+ assert.equal(a,b);
+ release();
+ const out=await Promise.all([a,b]);
+ assert.equal(requests,1);assert.equal(out[0].session.length,1);
+});
+test('logout cancels in-flight request and rejects even a late success',async()=>{
+ const owner={},ac=new AbortController();let release;
+ const gate=new Promise(res=>release=res);
+ const loader=createClientCompletedHistoryLoader({transport:{clientCompletedHistoryPage:async()=>{await gate;return data();}},
+ getToken:async()=> 'token',getOwner:()=>owner,getClientId:()=>id});
+ const task=loader.load({owner,clientId:id,signal:ac.signal});
+ ac.abort();release();
+ await assert.rejects(task,/CANCELLED/);
 });
