@@ -66,6 +66,22 @@ for(const role of ['client','coach','admin']){
             targets:v.nodes.slice(0,8).map(n=>({selector:n.target,html:n.html?.slice(0,160),
               failure:n.failureSummary?.slice(0,260)}))}));
         });
+        if(checked.length&&role==='client'&&area==='hoy'){
+          const tree=await page.evaluate(()=>{
+            const el=document.querySelector('summary[data-m26-client-guide="secondary-actions"] > span');
+            if(!el)return {error:'MISSING_GUIDE'};
+            const a=[];let x=el;
+            while(x&&a.length<9){
+              const c=getComputedStyle(x);
+              a.push({tag:x.tagName,cls:x.className,opacity:c.opacity,filter:c.filter,
+                visibility:c.visibility,display:c.display,color:c.color,background:c.backgroundColor,
+                pointerEvents:c.pointerEvents,ariaHidden:x.getAttribute('aria-hidden')});
+              x=x.parentElement;
+            }
+            return a;
+          });
+          console.log('SIGNATURE_U90_GUIDE_OPACITY_TREE:'+JSON.stringify(tree));
+        }
         expect(checked,role+' '+area+' P0 visual accessibility').toEqual([]);
         const isMobile=width<=390;
         const geometry=await page.evaluate(()=>{
