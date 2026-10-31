@@ -382,11 +382,18 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
       rc39:{sessionProjections:[projection('coach','coach_led','summary_only'),projection('guided','guided_in_app','full')],appointments:[]},
       sessionPreviewAssets:{catalog:[{id:'qa-press',name_es:'Press de pecho',equipment:'Mancuernas',
         cues:['Escápulas estables'],instructions_es:['Descenso controlado']}],mediaMap:null}};
+    // U71 · The published session must live in the same real role workspace
+    // as the live workout, not outside it in document.body. The production
+    // controller remains mounted only on #qa-root (separate sibling).
     const area=document.createElement('section');area.id='qa-client-session-previews';
-    area.innerHTML=renderRc39Route(vm);document.body.appendChild(area);
+    area.innerHTML=renderRc39Route(vm);
+    const workspace=document.querySelector('#qa-shell > .m26-workspace');
+    if(!workspace)throw new Error('U71_CLIENT_SESSION_WORKSPACE_MISSING');
+    workspace.appendChild(area);
   });
   const direct=page.locator('#qa-client-session-previews [data-rc39-session="coach"]');
   const guided=page.locator('#qa-client-session-previews [data-rc39-session="guided"]');
+  await expect(page.locator('#qa-shell > .m26-workspace > #qa-client-session-previews')).toHaveCount(1);
   await expect(direct).toContainText('Fuerza con Coach');
   await expect(direct).toContainText('50 min');
   await expect(direct).not.toContainText('Press de pecho');
@@ -397,6 +404,9 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   await expect(readyCta).toBeEnabled();
   await expect(readyCta).toHaveCount(1);
   await expect(readyCta).toHaveAttribute('data-entity-id','guided');
+  // Strictly verify the native closed -> open transition by real pointer/touch.
+  const disclosure=guided.locator('details.m26-session-preview-disclosure');
+  await expect(disclosure).not.toHaveAttribute('open','');
   await activatePublishedPreview(guided,testInfo);
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');

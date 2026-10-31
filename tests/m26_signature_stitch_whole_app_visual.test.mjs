@@ -221,3 +221,15 @@ test('U69 isolated published-session desktop fixture preserves a full content co
   assert.match(browser,/Desktop preview must occupy its actual reading column/);
   assert.match(browser,/dimensions\.width,'Desktop preview must occupy its actual reading column'\)\.toBeGreaterThanOrEqual\(650\)/);
 });
+
+test('U71 legacy published session browser test uses the actual role workspace',()=>{
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const test=browser.split("test('Canary sesión programada y guiada: previa completa")[1]
+    ?.split("test('SIGNATURE published mixed Client route")[0]||'';
+  assert.match(test,/document\.querySelector\('#qa-shell > \.m26-workspace'\)/);
+  assert.match(test,/workspace\.appendChild\(area\)/);
+  assert.doesNotMatch(test,/document\.body\.appendChild\(area\)/);
+  assert.match(test,/await expect\(disclosure\)\.not\.toHaveAttribute\('open',''\)/);
+  assert.match(test,/await activatePublishedPreview\(guided,testInfo\)/);
+  assert.match(test,/Actual pointer interaction must open the native preview before any launch/);
+});
