@@ -5,7 +5,7 @@ import {createClientCompletedHistoryLoader} from '../domain/client-completed-his
 
 const HISTORY_AREAS=new Set(['sesion','planificacion','progreso']);
 function fingerprint(state){
-  return [state?.identity?.id,state?.identity?.clientId,state?.hydration?.confirmedAt,
+  return [state?.identity?.id,state?.identity?.clientId,state?.identity?.role,state?.hydration?.confirmedAt,
     JSON.stringify(state?.lastAck??null)].join('|');
 }
 export function shouldLoadClientHistory(state,area,enabled){
@@ -95,7 +95,10 @@ export function createClientHistoryDemandController({
     void loadOnce({owner,key,clientId,identityId,confirmedAt,lastAck});
   }
   function onShellRendered(event){
-    if(event?.detail?.role!=='client'){notice();return;}
+    if(event?.detail?.role!=='client'){
+      loader.cancel();request=null;status='idle';loadedKey='';failedKey='';
+      notice();return;
+    }
     maybeLoad(event.detail.area);
   }
   function onClick(event){
