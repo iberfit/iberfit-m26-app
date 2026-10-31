@@ -1001,7 +1001,7 @@ for(const role of ['client','coach','admin']){
   });
 }
 
-\n// U83 · Native-resolution visual evidence for the single approved Stitch
+// U83 · Native-resolution visual evidence for the single approved Stitch
 // reference. The 43-route JPEG geometry survey remains 1x intentionally.
 // This test creates one isolated dPR3 browser context, no Supabase calls.
 test('SIGNATURE U83 · Cliente Hoy Retina 390 CSS px at dPR 3 produces native PNG evidence',async({browser},testInfo)=>{
