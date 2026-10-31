@@ -27,7 +27,7 @@ jobs:
       - name: Proof of one 43-route visual system without new dependencies
         run: |
           node --check src/m26/modules/route-render.js
-          node --test tests/m26_signature_master_visual_u90.test.mjs tests/m26_signature_stitch_whole_app_visual.test.mjs tests/m26_signature_b6_client_editorial_contrast.test.mjs
+          node --test tests/m26_signature_master_visual_u90.test.mjs tests/m26_signature_stitch_whole_app_visual.test.mjs tests/m26_signature_b6_client_editorial_contrast.test.mjs tests/m26_signature_u23_mobile_journeys.test.mjs
       - name: Ensure no private Stitch exports or server logic entered public app
         run: |
           test ! -d public/stitch
