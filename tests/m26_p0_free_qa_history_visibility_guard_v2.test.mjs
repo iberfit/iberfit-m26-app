@@ -25,9 +25,11 @@ test('the exact same role visibility predicate applies to counts and pages',()=>
     "s.body->>'visibilityLevel'","s.body->>'visibility_level'",
     "s.body->>'visibleToClient'","s.body->>'clientVisible'","s.body->>'client_visible'",
     's.client_id=e.client_id','s.entity_type=\'session\'',
-    's.entity_id = (CASE','ELSE NULL::uuid END)',"IN ('completado','completada','completed')"]){
+    's.entity_id = (CASE','ELSE NULL::uuid END)']){
     assert.equal(functionBody.split(term).length-1,2,term);
   }
+  assert.equal(functionBody.split("IN ('completado','completada','completed')").length-1,4,
+    'both count/page predicates must check each completed row and linked session');
   for(const term of ["('hidden','oculta','oculto','private')","('false','0','no')"]){
     assert.ok(functionBody.includes(term));
   }
