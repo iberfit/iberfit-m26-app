@@ -79,6 +79,10 @@ for(const requiredDirective of [
   if(!cspLine.includes(requiredDirective))throw new Error(`RC74_4_HEADERS_QA_DIRECTIVE_MISSING:${requiredDirective.split(' ')[0]}`);
 }
 
+// P0 #1209. No runtime pilot in PROD or in any generic QA build.
+const pilotValue=String(process.env.M26_QA_CLIENT_A_FREE_HISTORY_PILOT??'false').trim().toLowerCase();
+if(!['true','false'].includes(pilotValue))throw new Error('RC74_4_FREE_HISTORY_PILOT_INVALID');
+const freeClientCompletedHistoryDemand=pilotValue==='true';
 const validationOnly=String(process.env.M26_RUNTIME_VALIDATION_ONLY||'').toLowerCase()==='true';
 const config={
   enabled:true,
@@ -87,6 +91,7 @@ const config={
   url:QA_ORIGIN,
   publishableKey:key,
   qaOnly:true,
+  freeClientCompletedHistoryDemand,
   timeoutMs:12000,
   rpc:{
     bootstrap:'iberfit_bootstrap_v26',
@@ -105,6 +110,7 @@ console.log(JSON.stringify({
   headersTargets:headersTargets.map((headersTarget)=>path.relative(process.cwd(),headersTarget).replaceAll(path.sep,'/')),
   projectRef:QA_PROJECT_REF,
   qaOnly:true,
+  freeClientCompletedHistoryDemand,
   validationOnly,
   productionModified:false,
   productionDeployed:false,

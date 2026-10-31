@@ -161,6 +161,8 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_PROJECT_REF: ${{ env.QA_SUPABASE_REF }}
           M26_QA_ONLY: 'true'
+          # Only visible to QA synthetic Client A; SQL backend flag remains independently OFF.
+          M26_QA_CLIENT_A_FREE_HISTORY_PILOT: 'true'
         run: node scripts/generate_rc74_4_runtime_config.mjs
 
       - name: Seal exact Canary surface
@@ -193,6 +195,7 @@ jobs:
           grep -Fq "\"projectRef\": \"$QA_SUPABASE_REF\"" "$ROOT/version.json"
           grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true' "$ROOT/m26/runtime-config.js"
           grep -Eq '"qaOnly"[[:space:]]*:[[:space:]]*true' "$ROOT/m26/runtime-config.js"
+          grep -Eq '"freeClientCompletedHistoryDemand"[[:space:]]*:[[:space:]]*true' "$ROOT/m26/runtime-config.js"
           grep -Fq "$QA_SUPABASE_URL" "$ROOT/m26/runtime-config.js"
           grep -Fq "$QA_SUPABASE_URL" "$ROOT/_headers"
           grep -Fq "const VERSION='m26-canary-$SHORT_SHA';" "$ROOT/m26/sw.js"
