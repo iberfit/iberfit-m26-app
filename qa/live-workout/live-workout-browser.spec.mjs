@@ -483,6 +483,28 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(led.locator('.m26-session-preview-disclosure')).toHaveCount(0);
   await expect(led.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
   await expect(self).toContainText('Fuerza autónoma');
+  // U72: a narrow card on a wide viewport must remain readable.
+  // Unlike document-overflow checks, this catches copy squeezed to a
+  // single-character column by a viewport-scoped two-column CSS rule.
+  const experienceGeometry=await self.locator('.m26-session-experience').evaluate(el=>{
+    const copy=el.querySelector('.m26-session-experience__copy');
+    const heading=copy?.querySelector('h4');
+    const e=el.getBoundingClientRect(),c=copy?.getBoundingClientRect();
+    const h=heading?.getBoundingClientRect();
+    return {
+      cardWidth:e.width,copyWidth:c?.width||0,headingHeight:h?.height||0,
+      lineHeight:heading?Number.parseFloat(getComputedStyle(heading).lineHeight):0,
+      overflow:el.scrollWidth>el.clientWidth+1,
+      heading:heading?.textContent?.trim()||'',
+    };
+  });
+  expect(experienceGeometry.copyWidth,'Session context may not collapse into vertical letters')
+    .toBeGreaterThanOrEqual(Math.min(170,experienceGeometry.cardWidth*.65));
+  expect(experienceGeometry.lineHeight).toBeGreaterThan(0);
+  expect(experienceGeometry.headingHeight,'The context heading must remain a readable three-line maximum')
+    .toBeLessThanOrEqual(experienceGeometry.lineHeight*3.5);
+  expect(experienceGeometry.overflow).toBe(false);
+  expect(experienceGeometry.heading).toContain('IBERFIT');
   const directStart=self.locator('[data-workflow-action="start-published-session"]');
   await expect(directStart,'U48 guided Client Play must be available without disclosure').toBeVisible();
   await expect(directStart).toBeEnabled();

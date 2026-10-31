@@ -233,3 +233,15 @@ test('U71 legacy published session browser test uses the actual role workspace',
   assert.match(test,/await activatePublishedPreview\(guided,testInfo\)/);
   assert.match(test,/Actual pointer interaction must open the native preview before any launch/);
 });
+
+test('U72 real session context adapts to CARD width, never viewport-only columns',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  const u72=css.split('U72 · The context belongs to a CARD')[1]||'';
+  assert.match(u72,/grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,20rem\),1fr\)\)/);
+  assert.match(u72,/justify-content:flex-start/);
+  assert.doesNotMatch(u72,/grid-template-columns:minmax\(0,1fr\) auto/);
+  assert.match(browser,/Session context may not collapse into vertical letters/);
+  assert.match(browser,/headingHeight,'The context heading must remain a readable three-line maximum'/);
+  assert.match(browser,/experienceGeometry\.overflow\)\.toBe\(false\)/);
+});
