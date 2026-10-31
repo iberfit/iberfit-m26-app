@@ -362,12 +362,20 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   font-size:.82rem;
   font-weight:750;
 }
+/* U72 · The context belongs to a CARD, not the full viewport.
+ * A 350px card can sit inside a 1440px screen. Never let "auto" capability
+ * pills squeeze the descriptive text into a 1-character column.
+ * auto-fit responds to the actual card content box, never viewport size. */
 @media (min-width:900px){
   .m26-session-experience{
-    grid-template-columns:minmax(0,1fr) auto;
-    align-items:center;
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));
+    align-items:start;
   }
-  .m26-session-experience__capabilities{justify-content:flex-end;max-width:27rem}
+  .m26-session-experience__capabilities{
+    min-width:0;
+    max-width:100%;
+    justify-content:flex-start;
+  }
 }
 @media (max-width:719px){
   .m26-session-experience{padding:.82rem}

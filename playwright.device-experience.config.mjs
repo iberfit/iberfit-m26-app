@@ -12,6 +12,7 @@ export default defineConfig({
     'signature-route-shell.spec.mjs',
     'signature-u23-interactive-routes.spec.mjs',
     'signature-u25-real-route-bodies.spec.mjs',
+    'stitch-client-composition.spec.mjs',
   ],
   fullyParallel:false,
   forbidOnly:true,

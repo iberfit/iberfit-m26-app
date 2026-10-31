@@ -38,6 +38,8 @@ Usar siempre el logo/isotipo real de IBERFIT. No inventar variantes de marca.
 
 ## Fuente de verdad visual
 
+La referencia aprobada Cliente Hoy Dark Signature V2.3 de Stitch es el nivel mínimo de calidad para Cliente, Coach y Admin: composición, tipografía, profundidad, gráficos y adaptación por tarea/dispositivo. Los originales permanecen exclusivamente en `iberfit/Iberfit-platform` privado. Reutilizar comandos, permisos, calendario, datos y persistencia reales; nunca trasladar identidades o métricas DEMO. La adaptación inicial de Cliente en PR #1213 no certifica todavía paridad visual ni los otros roles.
+
 - tokens semánticos: fuente canónica existente del sistema de diseño;
 - CSS generado/derivado, no valores de marca duplicados manualmente;
 - `docs/RC58_DESIGN_SYSTEM_SCOPE.md` y subfases RC58 documentan la implementación;

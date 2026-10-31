@@ -38,6 +38,20 @@ function lang(value){
 function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en;}
 function applyRules(value,language,translatePart){
   let m;
+  // U63 · Real published block counts and editorial disclosure labels.
+  if((m=value.match(/^(\d+) bloque(?:s)?$/u))){
+    const n=m[1],plural=n!=='1';
+    return pick(language,n+' '+(plural?'blocks':'block'),n+' '+(plural?'blocs':'bloc'),n+' '+(plural?'blocos':'bloco'));
+  }
+  if((m=value.match(/^Bloque (\d+)$/u)))
+    return pick(language,'Block '+m[1],'Bloc '+m[1],'Bloco '+m[1]);
+  if((m=value.match(/^Y (\d+) bloques más en la sesión completa\.$/u))){
+    const n=m[1];
+    return pick(language,'And '+n+' more blocks in the full session.',
+      'Et '+n+' blocs supplémentaires dans la séance complète.',
+      'E mais '+n+' blocos na sessão completa.');
+  }
+
   // Connected360 recent daily summaries remain context only (never a live watch).
   if((m=value.match(/^(\d+) día(?:s)? con registros recientes de una sola fuente\. Valores medios de esos días\.$/u))){
     const n=m[1],singular=n==='1';
