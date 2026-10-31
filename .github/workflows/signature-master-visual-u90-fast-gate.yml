@@ -35,3 +35,35 @@ jobs:
             echo "U90_SHARED_VISUAL_GATE_UNEXPECTED_BACKEND_CHANGE"
             exit 1
           fi
+
+  browser-matrix:
+    needs: source-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked browser-test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install one browser without downloading application data
+        run: npx playwright install --with-deps chromium
+      - name: Real 43-route render matrix with synthetic state, mobile tablet desktop
+        run: |
+          npx playwright test qa/device-experience/signature-u25-real-route-bodies.spec.mjs \
+            --config=playwright.device-experience.config.mjs \
+            --project=device-mobile-320-chromium \
+            --project=device-mobile-chromium \
+            --project=device-tablet-820-portrait-chromium \
+            --project=device-desktop-chromium
+      - name: Preserve failure evidence only, never private accounts or tokens
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signature-u90-synthetic-browser-failures-${{ github.run_id }}
+          path: |
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 5
