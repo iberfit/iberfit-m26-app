@@ -45,7 +45,7 @@ test('QA E2E runs as an imported registration module, not a second test file imp
  assert.match(source,/test\.setTimeout\(220000\)/u);
  const authConfig=readFileSync('playwright.authenticated.config.mjs','utf8');
  assert.ok(authConfig.includes("trace:'off',screenshot:'off',video:'off'"));
- assert.doesNotMatch(source,/test\\.use\\(\\{trace:/u);
+ assert.doesNotMatch(source,/test\.use\(\{trace:/u);
 });
 
 test('single-user read-only QA browser only: synthetic M43 fixture budget is not touched',()=>{
