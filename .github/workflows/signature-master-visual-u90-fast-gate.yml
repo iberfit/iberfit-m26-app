@@ -1,0 +1,37 @@
+name: SIGNATURE MASTER U90 · Fast visual integration gate
+on:
+  push:
+    branches:
+      - feat/signature-u57-client-session-persistent-actions-20261030
+    paths:
+      - '.github/workflows/signature-master-visual-u90-fast-gate.yml'
+      - 'src/m26/design/iberfit-premium-v3.css'
+      - 'tests/m26_signature_master_visual_u90.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: signature-master-u90-fast-gate
+  cancel-in-progress: true
+jobs:
+  source-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Proof of one 43-route visual system without new dependencies
+        run: |
+          node --check src/m26/modules/route-render.js
+          node --test tests/m26_signature_master_visual_u90.test.mjs tests/m26_signature_stitch_whole_app_visual.test.mjs tests/m26_signature_b6_client_editorial_contrast.test.mjs
+      - name: Ensure no private Stitch exports or server logic entered public app
+        run: |
+          test ! -d public/stitch
+          test ! -d public/m26/stitch-private
+          test ! -e .tmp/stitch-private/1399435845853535416/manifest.json
+          if git diff HEAD^ HEAD --name-only | grep -E '^(supabase/|src/m26/auth/|src/m26/data/|public/m26/app\.js)'; then
+            echo "U90_SHARED_VISUAL_GATE_UNEXPECTED_BACKEND_CHANGE"
+            exit 1
+          fi
