@@ -36,6 +36,7 @@ on:
       - '.github/workflows/production-promote.yml'
       - '.github/workflows/remote-gates.yml'
       - '.github/workflows/canary-exact-deploy.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'tests/m26_remote_gate_client_role_contract.test.mjs'
       - 'tests/m26_remote_gate_webauthn_origin.test.mjs'
       - 'tests/m26_shared_qa_auth_concurrency_contract.test.mjs'
