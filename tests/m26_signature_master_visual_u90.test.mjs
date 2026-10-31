@@ -9,6 +9,8 @@ const catalog=JSON.parse(readFileSync(new URL('../qa/visual/signature-360-covera
 
 test('U90 uses a single existing canonical visual sheet for all 43 routes',()=>{
  assert.ok(s.length>9000);
+ assert.ok((s.match(/\.m26-main/g)||[]).length>25,'real authenticated route container');
+ assert.doesNotMatch(s,/\.m26-workspace(?![-\w])/,'do not target a nonexistent route wrapper');
  assert.deepEqual(Object.fromEntries(Object.entries(catalog.roles).map(([role,areas])=>[role,areas.length])),{client:9,coach:17,admin:17});
  for(const role of ['client','coach','admin'])assert.ok(s.includes('data-m26-role="'+role+'"'),role);
  for(const element of ['.m26-route-intro','.m26-panel','.m26-stat','.m26-admin-table','.m26-session-builder-v2','.m26-client-bottom-nav'])
