@@ -38,3 +38,17 @@ test('no phantom empty history when total indicates unseen records',()=>{
  const {owner,pager}=start();
  assert.throws(()=>pager.accept({requestOwner:owner,page:page([],false,null,2)}),/HISTORY_INCOMPLETE/);
 });
+
+test('bad second record leaves page atomic and supports safe retry',()=>{
+ const {owner,pager}=start();
+ const first=row(a,'2026-10-31T02:59:00+00:00'),second=row(b,'2026-10-31T02:58:00+00:00');
+ assert.throws(()=>pager.accept({requestOwner:owner,page:page([first,{...second,clientId:OTHER}],false,null)}),/RECORD_INVALID/);
+ assert.equal(pager.status().received,0);
+ assert.equal(pager.accept({requestOwner:owner,page:page([first,second],false,null)}).ready,true);
+});
+test('microsecond-precision cursor and descending order',()=>{
+ const {owner,pager}=start();
+ const x=row(a,'2026-10-31T02:59:00.123457+00:00'),y=row(b,'2026-10-31T02:59:00.123456+00:00');
+ pager.accept({requestOwner:owner,page:page([x],true,{at:x.updatedAt,id:a})});
+ assert.equal(pager.accept({requestOwner:owner,page:page([y],false,null)}).ready,true);
+});
