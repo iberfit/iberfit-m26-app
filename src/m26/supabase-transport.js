@@ -941,7 +941,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     if(!params||typeof params!=='object'||Array.isArray(params)
        ||Object.keys(params).some(key=>![
-         'p_section','p_snapshot_at','p_cursor','p_expected_count','p_limit',
+         'p_section','p_snapshot_at','p_cursor','p_expected_count','p_expected_fingerprint','p_limit',
        ].includes(key)))
       throw new Error('M26_FREE_HISTORY_ARGUMENTS_INVALID');
     if(!['session','session_execution'].includes(params.p_section)

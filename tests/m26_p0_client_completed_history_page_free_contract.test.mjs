@@ -16,10 +16,10 @@ test('history page fail-closed QA owner-only authenticated role',()=>{
 });
 test('strict cursor bounded snapshot 30min, max page 32 and 300KB',()=>{
  for(const term of ["p_limit NOT BETWEEN 1 AND 32","INTERVAL '30 minutes'",
-   "p_expected_count<>v_total","updated_at<=v_snapshot",
+   "p_expected_count<>v_total","p_expected_fingerprint IS DISTINCT FROM v_fingerprint","updated_at<=v_snapshot",
    "ORDER BY e.updated_at DESC,e.entity_id DESC","LIMIT p_limit+1",
    "FREE_HISTORY_REVISION_CHANGED","FREE_HISTORY_PAGE_TOO_LARGE","octet_length(v_rows::text)>300000",
-   "'hasMore'","'nextCursor'","'snapshotAt'"])
+   "'hasMore'","'nextCursor'","'snapshotAt'","'fingerprint'"])
    assert.ok(sql.includes(term),term);
 });
 test('new function explicitly denies PUBLIC and anon; grants only authenticated',()=>{

@@ -7,7 +7,7 @@ const row=(type='session')=>({entityType:type,entityId:'00000000-0000-4000-8000-
   body:{id:'00000000-0000-4000-8000-000000000003',clientId:id,status:'completada',blocks:[]}});
 const data=(section='session')=>({schema:'iberfit.client.completed-history.page.qa.v1',
  section,snapshotAt:'2026-10-31T03:00:00+00:00',
- total:1,rows:[row(section)],hasMore:false,nextCursor:null});
+ total:1,fingerprint:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',rows:[row(section)],hasMore:false,nextCursor:null});
 test('one owner, two sections: complete independent snapshots atomically',async()=>{
  const owner={},calls=[];
  const loader=createClientCompletedHistoryLoader({transport:{clientCompletedHistoryPage:async(t,p)=>{

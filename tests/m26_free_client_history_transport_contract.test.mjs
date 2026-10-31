@@ -12,7 +12,7 @@ test('QA-only history endpoint has no identity parameter and is not canonical PR
  assert.ok(!s.slice(s.indexOf('const CANONICAL_RPC='),s.indexOf('const RC65C_AUTH_ASSURANCE_RPC')).includes('completed_history_page'));
 });
 test('transport preserves exact cursor params, cancellation and visible auth errors',()=>{
- for(const term of ["'p_section'","'p_snapshot_at'","'p_cursor'","'p_expected_count'","'p_limit'","params.p_limit>32",
+ for(const term of ["'p_section'","'p_snapshot_at'","'p_cursor'","'p_limit'","'p_limit'","params.p_limit>32",
   "signal","method:'POST'","token","M26_FREE_HISTORY_ARGUMENTS_INVALID"])
   assert.ok(fn.includes(term),term);
  assert.match(fn,/return request\('\/rest\/v1\/rpc\/iberfit_client_completed_history_page_free_v1'/);

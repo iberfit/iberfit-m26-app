@@ -7,7 +7,7 @@ BEGIN
       WHERE key='environment') IS DISTINCT FROM 'QA' THEN
     RAISE EXCEPTION 'FREE_HISTORY_QA_ONLY' USING ERRCODE='42501';
   END IF;
-  IF to_regprocedure('public.iberfit_client_completed_history_page_free_v1(text,timestamp with time zone,jsonb,bigint,integer)') IS NOT NULL THEN
+  IF to_regprocedure('public.iberfit_client_completed_history_page_free_v1(text,timestamp with time zone,jsonb,bigint,text,integer)') IS NOT NULL THEN
     RAISE EXCEPTION 'FREE_HISTORY_ALREADY_EXISTS' USING ERRCODE='42501';
   END IF;
 END $preflight$;
@@ -17,6 +17,7 @@ CREATE FUNCTION public.iberfit_client_completed_history_page_free_v1(
   p_snapshot_at timestamp with time zone DEFAULT NULL,
   p_cursor jsonb DEFAULT NULL,
   p_expected_count bigint DEFAULT NULL,
+  p_expected_fingerprint text DEFAULT NULL,
   p_limit integer DEFAULT 24
 )
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO ''
@@ -28,6 +29,7 @@ DECLARE
   v_cursor_at timestamp with time zone;
   v_cursor_id uuid;
   v_total bigint;
+  v_fingerprint text;
   v_rows jsonb;
   v_has_more boolean;
   v_next jsonb;
@@ -57,8 +59,13 @@ BEGIN
      OR v_snapshot<statement_timestamp()-INTERVAL '30 minutes' THEN
     RAISE EXCEPTION 'FREE_HISTORY_SNAPSHOT_STALE' USING ERRCODE='22023';
   END IF;
+  IF p_cursor IS NULL AND (p_snapshot_at IS NOT NULL OR p_expected_count IS NOT NULL
+     OR p_expected_fingerprint IS NOT NULL) THEN
+    RAISE EXCEPTION 'FREE_HISTORY_CURSOR_INVALID' USING ERRCODE='22023';
+  END IF;
   IF p_cursor IS NOT NULL THEN
     IF p_snapshot_at IS NULL OR p_expected_count IS NULL OR p_expected_count<0
+       OR p_expected_fingerprint IS NULL OR p_expected_fingerprint !~ '^[0-9a-f]{32}$'
        OR jsonb_typeof(p_cursor)<>'object'
        OR NOT (p_cursor ? 'at' AND p_cursor ? 'id')
        OR (SELECT COUNT(*) FROM jsonb_object_keys(p_cursor))<>2
@@ -77,7 +84,11 @@ BEGIN
     END IF;
   END IF;
 
-  SELECT COUNT(*) INTO v_total
+  SELECT COUNT(*),md5(COALESCE(string_agg(
+    e.entity_id::text||':'||COALESCE(e.revision::text,'')||':'||e.updated_at::text||':'||
+    COALESCE(e.status,'')||':'||COALESCE(e.body->>'visibleToClient',''),
+    ',' ORDER BY e.updated_at DESC,e.entity_id DESC),'empty'))
+  INTO v_total,v_fingerprint
   FROM public.domain_entities_v26 e
   WHERE e.client_id=v_client_id
     AND e.entity_type=p_section
@@ -85,7 +96,8 @@ BEGIN
     AND lower(COALESCE(e.status,e.body->>'status','')) IN ('completado','completada','completed')
     AND lower(COALESCE(e.body->>'visibleToClient','true')) NOT IN ('false','0','no');
 
-  IF p_expected_count IS NOT NULL AND p_expected_count<>v_total THEN
+  IF p_expected_count IS NOT NULL AND (p_expected_count<>v_total
+     OR p_expected_fingerprint IS DISTINCT FROM v_fingerprint) THEN
     RAISE EXCEPTION 'FREE_HISTORY_REVISION_CHANGED' USING ERRCODE='40001';
   END IF;
 
@@ -126,6 +138,7 @@ BEGIN
     'section',p_section,
     'snapshotAt',v_snapshot,
     'total',v_total,
+    'fingerprint',v_fingerprint,
     'rows',v_rows,
     'hasMore',COALESCE(v_has_more,false),
     'nextCursor',v_next
@@ -136,6 +149,6 @@ $function$;
 
 -- Never leave a new SECURITY DEFINER RPC executable by PUBLIC/anon.
 REVOKE ALL ON FUNCTION public.iberfit_client_completed_history_page_free_v1(
-  text,timestamp with time zone,jsonb,bigint,integer) FROM PUBLIC,anon;
+  text,timestamp with time zone,jsonb,bigint,text,integer) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.iberfit_client_completed_history_page_free_v1(
-  text,timestamp with time zone,jsonb,bigint,integer) TO authenticated;
+  text,timestamp with time zone,jsonb,bigint,text,integer) TO authenticated;

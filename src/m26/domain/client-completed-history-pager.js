@@ -24,7 +24,7 @@ export function createClientCompletedHistoryPager({owner,clientId,section,limit=
   if(!UUID.test(String(clientId||'')))fail('CLIENT_REQUIRED');
   if(!TYPES.has(section))fail('SECTION_REQUIRED');
   if(!Number.isInteger(limit)||limit<1||limit>MAX_ITEMS)fail('LIMIT_INVALID');
-  let snapshot=null,total=null,cursor=null,complete=false,cancelled=false;
+  let snapshot=null,total=null,fingerprint=null,cursor=null,complete=false,cancelled=false;
   const records=[],known=new Set();
   function checkOwner(value){
     if(value!==owner||cancelled)fail('OWNER_STALE');
@@ -34,7 +34,7 @@ export function createClientCompletedHistoryPager({owner,clientId,section,limit=
     if(complete)return null;
     return Object.freeze({
       p_section:section,p_snapshot_at:snapshot,p_cursor:cursor,
-      p_expected_count:total,p_limit:limit,
+      p_expected_count:total,p_expected_fingerprint:fingerprint,p_limit:limit,
     });
   }
   function accept({requestOwner,page}={}){
@@ -43,11 +43,14 @@ export function createClientCompletedHistoryPager({owner,clientId,section,limit=
     if(!page||typeof page!=='object'||Array.isArray(page)||page.schema!==SCHEMA
       ||page.section!==section||!validDate(page.snapshotAt)
       ||!Number.isSafeInteger(page.total)||page.total<0||page.total>MAX_TOTAL
+      ||typeof page.fingerprint!=='string'||!/^[a-f0-9]{32}$/u.test(page.fingerprint)
       ||!Array.isArray(page.rows)||page.rows.length>limit
       ||typeof page.hasMore!=='boolean')fail('PAGE_INVALID');
     if(JSON.stringify(page).length>MAX_BYTES+10_000)fail('PAGE_OVERSIZE');
     const targetSnapshot=snapshot??page.snapshotAt,targetTotal=total??page.total;
-    if(snapshot!==null&&(micros(page.snapshotAt)!==micros(snapshot)||page.total!==total))
+    const targetFingerprint=fingerprint??page.fingerprint;
+    if(snapshot!==null&&(micros(page.snapshotAt)!==micros(snapshot)||page.total!==total
+       ||page.fingerprint!==fingerprint))
       fail('SNAPSHOT_OR_COUNT_CHANGED');
     const added=[],newKeys=new Set();
     let previous=records.length?records[records.length-1]:null;
@@ -77,7 +80,7 @@ export function createClientCompletedHistoryPager({owner,clientId,section,limit=
       nextCursor=structuredClone(page.nextCursor);
     }else if(page.nextCursor!==null||nextCount!==targetTotal)fail('HISTORY_INCOMPLETE');
     // Commit atomically. Rejected pages never contaminate the next retry.
-    snapshot=targetSnapshot;total=targetTotal;cursor=nextCursor;
+    snapshot=targetSnapshot;total=targetTotal;fingerprint=targetFingerprint;cursor=nextCursor;
     records.push(...added);for(const key of newKeys)known.add(key);
     if(!page.hasMore)complete=true;
     return status();
