@@ -3700,4 +3700,20 @@
   color:#f5dc9d;
   opacity:1;
 }
+/* Client secondary discovery is a real navigation control: never fade its
+ * parent to decorative-annotation contrast in a collapsed state. */
+.m26-shell[data-m26-role="client"] .m26-main .m26-client-home-secondary-disclosure{
+  opacity:1;
+  filter:none;
+}
+.m26-shell[data-m26-role="client"] .m26-main
+  .m26-client-home-secondary-disclosure > summary{
+  opacity:1;
+  color:#d9e2d8;
+}
+.m26-shell[data-m26-role="client"] .m26-main
+  .m26-client-home-secondary-disclosure > summary > :is(span,small){
+  opacity:1;
+  color:#e0e8dd;
+}
 /* END SIGNATURE MASTER U90 */
