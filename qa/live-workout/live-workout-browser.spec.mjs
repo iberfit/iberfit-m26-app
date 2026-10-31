@@ -414,6 +414,36 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const screen=page.locator('.m26-rc39-sessions');
   await expect(screen).toHaveAttribute('data-client-session-state','ready');
+  // U67: this isolated QA must use the same CSS scoping hierarchy as
+  // production. Previously it omitted .m26-workspace, so the screenshots
+  // showed inline eyebrow/title and missed premium surface declarations.
+  const surface=await screen.locator('.m26-client-sessions-brief').evaluate(el=>{
+    const eyebrow=el.querySelector(':scope > .m26-eyebrow');
+    const title=el.querySelector(':scope > strong');
+    const copy=el.querySelector(':scope > p');
+    const a=eyebrow?.getBoundingClientRect();
+    const b=title?.getBoundingClientRect();
+    const c=copy?.getBoundingClientRect();
+    const box=el.getBoundingClientRect();
+    const css=getComputedStyle(el);
+    return {
+      hasWorkspace:Boolean(el.closest('.m26-shell > .m26-workspace')),
+      display:css.display,
+      columns:css.gridTemplateColumns,
+      text:el.textContent?.trim(),
+      outerWidth:box.width,
+      labelEnds:a?.bottom||0,titleStarts:b?.top||0,
+      titleEnds:b?.bottom||0,copyStarts:c?.top||0,
+      textWrap:getComputedStyle(title).overflowWrap,
+    };
+  });
+  expect(surface.hasWorkspace,'QA must match the production shell CSS ancestry').toBe(true);
+  expect(surface.display,'Client status must use the actual premium grid').toBe('grid');
+  expect(surface.labelEnds,'Eyebrow must appear above the title').toBeLessThan(surface.titleStarts);
+  expect(surface.titleEnds,'Title must appear above explanation').toBeLessThan(surface.copyStarts);
+  expect(surface.outerWidth).toBeGreaterThan(180);
+  expect(surface.textWrap).not.toBe('normal');
+
   await expect(screen.locator('[data-rc39-session]')).toHaveCount(2);
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SUPERVISED_NEVER_CLIENT');
@@ -495,6 +525,24 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
         };
       });
       expect(compact.horizontalOverflow,'320 px must never hide a published-session action sideways').toBe(false);
+      const compactBrief=await screen.locator('.m26-client-sessions-brief').evaluate(el=>{
+        const eyebrow=el.querySelector(':scope > .m26-eyebrow').getBoundingClientRect();
+        const title=el.querySelector(':scope > strong').getBoundingClientRect();
+        const copy=el.querySelector(':scope > p').getBoundingClientRect();
+        const boundary=el.getBoundingClientRect();
+        return {
+          display:getComputedStyle(el).display,
+          eyebrowBottom:eyebrow.bottom,titleTop:title.top,
+          titleBottom:title.bottom,copyTop:copy.top,
+          left:boundary.left,right:boundary.right,viewport:document.documentElement.clientWidth,
+        };
+      });
+      expect(compactBrief.display).toBe('grid');
+      expect(compactBrief.titleTop).toBeGreaterThan(compactBrief.eyebrowBottom);
+      expect(compactBrief.copyTop).toBeGreaterThan(compactBrief.titleBottom);
+      expect(compactBrief.left).toBeGreaterThanOrEqual(-1);
+      expect(compactBrief.right).toBeLessThanOrEqual(compactBrief.viewport+1);
+
       expect(compact.startHeight).toBeGreaterThanOrEqual(44);
       expect(compact.startWidth).toBeGreaterThanOrEqual(44);
       await page.screenshot({path:out+'/live-workout-mobile-320-chromium-mixed-preview.png',fullPage:true,animations:'disabled'});

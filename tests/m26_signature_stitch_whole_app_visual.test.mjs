@@ -190,3 +190,14 @@ test('U66 Stitch authentic context landmark is not a wellbeing metric or duplica
   assert.match(signature,/forced-colors:active/);
   assert.doesNotMatch(signature,/pointer-events:none|visibility:hidden|position:fixed/);
 });
+
+test('U67 published session screenshot fixture mirrors real CSS ancestry',()=>{
+  const html=fs.readFileSync(new URL('../qa/live-workout/published-sessions.fixture.html',import.meta.url),'utf8');
+  assert.match(html,/<main id="qa-root" class="m26-shell" data-m26-role="client">[\s\S]*?<section class="m26-workspace"/);
+  assert.match(html,/<div class="m26-main" id="qa-published-route"><\/div>/);
+  assert.match(html,/<div id="qa-workout"><\/div>/);
+  const premium=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+  assert.match(premium,/\.m26-shell\[data-m26-role="client"\] \.m26-workspace \.m26-client-sessions-brief\{/);
+  assert.match(premium,/\.m26-client-sessions-brief\{[\s\S]*?display:grid;/);
+  assert.match(premium,/\.m26-client-sessions-brief>strong\{/);
+});
