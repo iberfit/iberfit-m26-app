@@ -1,31 +1,18 @@
 import {test,expect} from '@playwright/test';
+import {CANARY_ORIGIN,installCurrentSourceQaNetworkPolicy} from '../rc64/secure-current-source-auth.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
-const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co',LIVE='https://m26-canary.iberfit.cl';
+const QA='https://gjztkdwfmunnzhtvxrsu.supabase.co',LIVE=CANARY_ORIGIN;
 const PAGED='/rest/v1/rpc/iberfit_client_completed_history_page_free_v1';
 const R=new Set(['iberfit_bootstrap_v26','iberfit_authorized_application_roles_v13','iberfit_appointment_change_requests_v13','iberfit_application_context_v14','iberfit_privileged_assurance_context_v65d','iberfit_communication_bootstrap_v14','m26_backend_bootstrap_v43','m26_wearable_bootstrap_v44','iberfit_exercise_catalog_public_v1','iberfit_exercise_measurement_profiles_public_v1','iberfit_exercise_media_manifest_v1','iberfit_notification_preferences_status_v1','iberfit_client_completed_history_page_free_v1']);
 function pathOf(raw){try{return new URL(raw)}catch{return null}}
-function safe(req){
- const u=pathOf(req.url()),m=req.method().toUpperCase();
- if(!u)return false;
- if(u.origin===LIVE)return m==='GET';
- if(u.origin!==QA)return false;
- if(u.pathname==='/auth/v1/token'&&m==='POST')return ['password','refresh_token'].includes(u.searchParams.get('grant_type'));
- if(u.pathname==='/auth/v1/user'&&m==='GET')return true;
- if(u.pathname==='/auth/v1/logout'&&m==='POST')return true;
- if(u.pathname==='/rest/v1/domain_command_registry_v26'&&m==='GET')return true;
- if(u.pathname.startsWith('/storage/v1/object/authenticated/iberfit-profile-avatars/')&&u.pathname.endsWith('/avatar.webp')&&m==='GET')return true;
- if(u.pathname==='/functions/v1/iberfit-web-push-sender-v1'&&m==='POST'){
-  try{const b=req.postDataJSON();return b?.action==='config'&&Object.keys(b).length===1}catch{return false}
- }
- return m==='POST'&&u.pathname.startsWith('/rest/v1/rpc/')&&R.has(u.pathname.slice(13));
-}
+// The candidate must be exercised against the exact local authenticated QA
+// surface, never the previous LIVE Canary SHA. Canonical network policy still
+// blocks any foreign request or business mutation; all private RPCs hit REAL QA.
 async function perimeter(context){
  const violations=[];
- await context.route('**/*',async route=>{
-  const req=route.request();
-  if(safe(req))return route.continue();
-  violations.push('blocked:'+String(pathOf(req.url())?.pathname||'unknown').slice(0,72));
-  return route.abort('blockedbyclient');
+ await installCurrentSourceQaNetworkPolicy(context,{
+  readOnlyRpcs:R,
+  onBlocked:label=>violations.push('blocked:'+String(label).slice(0,72)),
  });
  return violations;
 }
