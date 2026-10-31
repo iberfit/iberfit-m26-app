@@ -2262,6 +2262,15 @@ body {
     scroll-margin-block-start:calc(var(--m26-session-sticky-top,.4rem) + 9rem);
     scroll-margin-block-end:1rem;
   }
+  /* U76 · WebKit cannot always hit the primary rest "Continue now" while
+     Pause/Save is sticky above it. In REST only, release stickiness; retain
+     both authorised actions in normal flow. ACTIVE keeps the sticky dock.
+     Never make an overlay non-interactive or force an artificial tap. */
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"][data-session-live-state="rest"] .m26-session-live-quick-actions{
+    position:static;
+    top:auto;
+    z-index:auto;
+  }
   .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions :is(.m26-session-live-quick-save,.m26-session-live-quick-pause){
     flex:1 1 9rem;
     margin-inline-start:0;

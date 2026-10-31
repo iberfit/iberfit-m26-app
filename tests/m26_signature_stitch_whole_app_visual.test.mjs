@@ -268,3 +268,14 @@ test('U75 Client layout uses readable desktop tracks and WebKit-safe sticky scro
   assert.match(browser,/data-m26-session-action-pending/);
   assert.match(browser,/Two published sessions must not leave a third blank desktop column/);
 });
+
+test('U76 Client rest releases sticky dock without removing pause/save, active remains sticky',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
+  const block=css.split('U76 · WebKit cannot always hit the primary rest')[1]
+    ?.split('.m26-session-live-quick-actions :is(.m26-session-live-quick-save')[0]||'';
+  assert.match(block,/data-session-live-state="rest"\] \.m26-session-live-quick-actions\{/);
+  assert.match(block,/position:static/);
+  assert.match(block,/top:auto/);
+  assert.doesNotMatch(block,/pointer-events:none|visibility:hidden|display:none/);
+  assert.match(css,/\.m26-session-live-quick-actions\{\s*position:sticky;/);
+});
