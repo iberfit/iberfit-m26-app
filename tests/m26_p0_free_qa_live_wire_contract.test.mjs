@@ -27,7 +27,8 @@ test('QA only synthetic identities and read-only RPC allowlist',()=>{
 });
 test('no automatic pages, complete cursor invariant and decoded vs network measurements',()=>{
   for(const s of ['navigation must issue zero page RPCs','[data-m26-free-history-open]',
-    'new Set(pages.flatMap(p=>p.ids)).size','new Set(pages.map(p=>p.fingerprint)).size',
+    'new Set(group.flatMap(p=>p.ids)).size','new Set(group.map(p=>p.fingerprint)).size',
+    "['session','session_execution']",
     'request().sizes()', 'chromiumNetworkBodyBytes','decodedHistoryBytes',
     'notBillingEgress:true'])assert.ok(source.includes(s),s);
   assert.ok(source.includes("bodyOrJWTRecorded:false"));
