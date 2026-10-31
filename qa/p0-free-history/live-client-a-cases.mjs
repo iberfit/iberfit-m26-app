@@ -56,7 +56,7 @@ export function registerQaLiveHistoryTestSuite(){
 test.describe('P0 QA free completed history live browser',()=>{
 test.use({trace:'off',screenshot:'off',video:'off'});
 test('Client A requests full archive only after a click and receives all 396+ sessions',async({page,context},testInfo)=>{
- test.skip(testInfo.project.name.startsWith('m43-')&&testInfo.project.name!=='m43-desktop-chromium','One read-only QA Client A probe per CI event');
+ test.skip(testInfo.project.name!=='authenticated-readonly-chromium','Only the single read-only Chromium QA account A/browser probe');
  test.setTimeout(220000);
  environment();
  const blocked=await perimeter(context),pages=[],measured=[],jobs=[],fail=[],pageErrors=[];
@@ -117,7 +117,7 @@ test('Client A requests full archive only after a click and receives all 396+ se
  console.log('P0_QA_FREE_HISTORY_WIRE:'+JSON.stringify(evidence));
 });
 test('Client B never receives the history CTA or page RPCs',async({page,context},testInfo)=>{
- test.skip(testInfo.project.name.startsWith('m43-')&&testInfo.project.name!=='m43-desktop-chromium','One read-only QA Client B probe per CI event');
+ test.skip(testInfo.project.name!=='authenticated-readonly-chromium','Only the single read-only Chromium QA account B/browser probe');
  environment();await perimeter(context);let paged=0;
  page.on('request',r=>{if(pathOf(r.url())?.pathname===PAGED)paged++});
  await login(page,process.env.M26_QA_CLIENT_B_EMAIL,process.env.M26_QA_CLIENT_B_PASSWORD);

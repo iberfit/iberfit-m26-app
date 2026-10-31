@@ -36,10 +36,21 @@ test('no automatic pages, complete cursor invariant and decoded vs network measu
 
 test('QA E2E runs as an imported registration module, not a second test file import',()=>{
  const entry=readFileSync('qa/p0-free-history/live-client-a.spec.mjs','utf8');
- const m43=readFileSync('qa/rc64/m43-client-real-history.spec.mjs','utf8');
+ const auth=readFileSync('qa/rc64/authenticated-current-contract.spec.mjs','utf8');
  assert.match(entry,/registerQaLiveHistoryTestSuite\(\)/u);
- assert.match(m43,/registerQaLiveHistoryTestSuite\(\)/u);
- assert.doesNotMatch(m43,/import ['"]\.\.\/p0-free-history\/live-client-a\.spec\.mjs/u);
+ assert.match(auth,/registerQaLiveHistoryTestSuite\(\)/u);
+ assert.doesNotMatch(auth,/import ['"]\.\.\/p0-free-history\/live-client-a\.spec\.mjs/u);
+ const m43=readFileSync('qa/rc64/m43-client-real-history.spec.mjs','utf8');
+ assert.doesNotMatch(m43,/registerQaLiveHistoryTestSuite/u);
  assert.match(source,/test\.setTimeout\(220000\)/u);
  assert.match(source,/test\.use\(\{trace:'off',screenshot:'off',video:'off'\}\)/u);
+});
+
+test('single-user read-only QA browser only: synthetic M43 fixture budget is not touched',()=>{
+ const auth=readFileSync('qa/rc64/authenticated-current-contract.spec.mjs','utf8');
+ const m43=readFileSync('qa/rc64/m43-client-real-history.spec.mjs','utf8');
+ assert.match(auth,/registerQaLiveHistoryTestSuite/u);
+ assert.doesNotMatch(m43,/registerQaLiveHistoryTestSuite/u);
+ assert.match(source,/testInfo\.project\.name!=='authenticated-readonly-chromium'/u);
+ assert.doesNotMatch(source,/M43_QA_INTERACTIVE_FIXTURE|execute_command|run_qa_m43_coach_client_write_gate/u);
 });

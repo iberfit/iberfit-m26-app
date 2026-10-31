@@ -1,5 +1,3 @@
-// P0 #1209: reuse the existing authorized QA test runner; no additional secrets.
-import {registerQaLiveHistoryTestSuite} from '../p0-free-history/live-client-a-cases.mjs';
 import {test,expect} from '@playwright/test';
 import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 import {mkdir} from 'node:fs/promises';
@@ -275,6 +273,3 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
     })),
   });
 });
-
-// Register once; only the desktop project exercises two synthetic QA identities.
-registerQaLiveHistoryTestSuite();
