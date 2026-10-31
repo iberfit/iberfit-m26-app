@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const cfg=readFileSync('playwright.p0-free-history.config.mjs','utf8');
-const source=readFileSync('qa/p0-free-history/live-client-a.spec.mjs','utf8');
+const source=readFileSync('qa/p0-free-history/live-client-a-cases.mjs','utf8');
 
 test('live QA client test never saves tracing, screenshots or video',()=>{
   for(const s of ["trace:'off'","screenshot:'off'","video:'off'","workers:1","retries:0"]){
@@ -32,4 +32,14 @@ test('no automatic pages, complete cursor invariant and decoded vs network measu
     'notBillingEgress:true'])assert.ok(source.includes(s),s);
   assert.ok(source.includes("bodyOrJWTRecorded:false"));
   assert.ok(source.includes("expect(pageErrors).toEqual([])"));
+});
+
+test('QA E2E runs as an imported registration module, not a second test file import',()=>{
+ const entry=readFileSync('qa/p0-free-history/live-client-a.spec.mjs','utf8');
+ const m43=readFileSync('qa/rc64/m43-client-real-history.spec.mjs','utf8');
+ assert.match(entry,/registerQaLiveHistoryTestSuite\(\)/u);
+ assert.match(m43,/registerQaLiveHistoryTestSuite\(\)/u);
+ assert.doesNotMatch(m43,/import ['"]\.\.\/p0-free-history\/live-client-a\.spec\.mjs/u);
+ assert.match(source,/test\.setTimeout\(220000\)/u);
+ assert.match(source,/test\.use\(\{trace:'off',screenshot:'off',video:'off'\}\)/u);
 });
