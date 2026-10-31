@@ -30,3 +30,34 @@ test('raw cross-client record is never introduced into hydrated collection',()=>
  assert.throws(()=>projectCompletedHistoryForClient({state:s,ownerId:userId,clientId,
  confirmedAt:s.hydration.confirmedAt,sections:{session:[foreign]}}),/ROW_OWNER_INVALID/);
 });
+
+test('explicit completed-history commit restores execution results and preserves Client privacy',()=>{
+ const s=state(),executionId='00000000-0000-4000-8000-000000000004';
+ const execution={entityType:'session_execution',entityId:executionId,clientId,
+  status:'completada',revision:4,updatedAt:'2026-10-31T02:59:01Z',
+  body:{id:executionId,clientId,sessionId:record,revision:4,status:'completada',
+   results:[{setIndex:1,reps:8,loadKg:22,rpe:7,coachPrivateNote:'DO_NOT_EXPOSE'}],
+   feedback:{sessionRpe:7,coachPrivateNote:'DO_NOT_EXPOSE'}}};
+ const before=JSON.stringify(s.collections);
+ const projected=projectCompletedHistoryForClient({state:s,ownerId:userId,clientId,
+  confirmedAt:s.hydration.confirmedAt,lastAck:null,
+  sections:{session:[session()],session_execution:[execution]}});
+ assert.equal(JSON.stringify(s.collections),before,'pure projection until final atomic commit');
+ assert.equal(projected.sessions.length,1);
+ assert.equal(projected.sessionExecutions.length,1);
+ assert.equal(projected.sessionExecutions[0].sessionId,record);
+ assert.equal(projected.sessionExecutions[0].results[0].reps,8);
+ assert.equal(projected.sessionExecutions[0].results[0].loadKg,22);
+ assert.equal(projected.sessionExecutions[0].feedback.sessionRpe,7);
+ assert.doesNotMatch(JSON.stringify(projected),/DO_NOT_EXPOSE|coachPrivateNote/);
+});
+test('execution history from another Client cannot be committed even if the session belongs to the owner',()=>{
+ const s=state(),foreign='00000000-0000-4000-8000-000000000005';
+ const execution={entityType:'session_execution',entityId:'00000000-0000-4000-8000-000000000004',
+  clientId:foreign,status:'completada',revision:4,updatedAt:'2026-10-31T02:59:01Z',
+  body:{id:'00000000-0000-4000-8000-000000000004',clientId:foreign,revision:4,status:'completada',results:[]}};
+ assert.throws(()=>projectCompletedHistoryForClient({state:s,ownerId:userId,clientId,
+  confirmedAt:s.hydration.confirmedAt,lastAck:null,
+  sections:{session:[session()],session_execution:[execution]}}),/ROW_OWNER_INVALID/);
+ assert.equal(s.collections.sessionExecutions.length,0);
+});
