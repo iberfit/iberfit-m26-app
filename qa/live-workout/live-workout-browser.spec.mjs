@@ -828,6 +828,11 @@ for(const role of ['client','coach','admin']){
     const visualEvidenceProject=['live-workout-mobile-chromium','live-workout-desktop-chromium']
       .includes(testInfo.project.name);
     const visualEvidenceAreas=[];
+    const visualEvidenceDir='recovery/signature-published-sessions/u80/'+testInfo.project.name+'/'+role;
+    if(visualEvidenceProject){
+      const {mkdir}=await import('node:fs/promises');
+      await mkdir(visualEvidenceDir,{recursive:true});
+    }
     for(const {area} of entries){
       const previousErrorCount=errors.length;
       await page.evaluate(target=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(target),area);
@@ -874,11 +879,12 @@ for(const role of ['client','coach','admin']){
           .toBeLessThanOrEqual(Math.max(5,Math.ceil(metrics.heading.length/5)));
       }
       if(visualEvidenceProject){
-        const name='signature-u80-'+role+'-'+area+'-'+testInfo.project.name+'.jpg';
-        const image=await page.screenshot({
+        // Persist to the already-uploaded synthetic QA artifact directory.
+        // testInfo.attach alone would be discarded on a SUCCESS workflow run.
+        await page.screenshot({
+          path:visualEvidenceDir+'/'+area+'.jpg',
           type:'jpeg',quality:68,fullPage:true,scale:'css',animations:'disabled',caret:'hide'
         });
-        await testInfo.attach(name,{body:image,contentType:'image/jpeg'});
         visualEvidenceAreas.push(area);
       }
     }
@@ -896,10 +902,8 @@ for(const role of ['client','coach','admin']){
         role,
         areas:visualEvidenceAreas
       };
-      await testInfo.attach('signature-u80-'+role+'-'+testInfo.project.name+'-manifest.json',{
-        body:Buffer.from(JSON.stringify(manifest,null,2),'utf8'),
-        contentType:'application/json'
-      });
+      const {writeFile}=await import('node:fs/promises');
+      await writeFile(visualEvidenceDir+'/manifest.json',JSON.stringify(manifest,null,2),'utf8');
     }
     expect(mutations,role+' must never write to a remote backend in static visual QA').toEqual([]);
     expect(errors,role+' must be free of page errors').toEqual([]);

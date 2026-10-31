@@ -39,7 +39,7 @@ La prueba `SIGNATURE U77` del navegador aislado mantiene sus verificaciones
 de las 43 rutas canónicas con renderizador real e identidad **sintética**.
 Como complemento, `U80` adjunta una captura JPEG de página completa para
 **cada ruta** en móvil Chromium 390px y escritorio Chromium 1440px,
-más un manifiesto JSON por rol/proyecto que declara
+más un manifiesto JSON por rol/proyecto, preservados en el artefacto GitHub Actions ya existente bajo `recovery/signature-published-sessions/u80/`, que declara
 `authenticated: false` y `stitchParityCertified: false`.
 Los demás proyectos preservan su evidencia existente. No hay peticiones
 nuevas al backend ni incorporación de identidades o métricas DEMO a producto.

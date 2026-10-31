@@ -305,6 +305,11 @@ test('U80 visual evidence covers every canonical role route on both reference wi
   assert.match(browser,/visualEvidenceProject=\['live-workout-mobile-chromium','live-workout-desktop-chromium'\]/);
   assert.match(browser,/for\(const \{area\} of entries\)\{/);
   assert.match(browser,/fullPage:true,scale:'css',animations:'disabled'/);
+  assert.match(browser,/recovery\/signature-published-sessions\/u80/);
+  assert.match(browser,/path:visualEvidenceDir\+'\/'\+area\+'\.jpg'/);
+  assert.match(browser,/writeFile\(visualEvidenceDir\+'\/manifest\.json'/);
+  const workflow=fs.readFileSync(new URL('../.github/workflows/session-qa-isolated.yml',import.meta.url),'utf8');
+  assert.match(workflow,/path: recovery\/signature-published-sessions\//);
   assert.match(browser,/visualEvidenceAreas\.push\(area\)/);
   assert.match(browser,/toEqual\(entries\.map\(item=>item\.area\)\)/);
   assert.match(browser,/authenticated:false/);
