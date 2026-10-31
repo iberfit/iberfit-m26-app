@@ -147,3 +147,22 @@ test('U64 Stitch published structure is localized in all four supported language
   const js=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(js,/data-client-session-preview role="group" aria-label="Prescripción publicada"/);
 });
+
+test('U65 published details remain owner-bound despite stale or foreign projections',()=>{
+  const a='10000000-0000-4000-8000-000000006501';
+  const b='10000000-0000-4000-8000-000000006502';
+  const id='10000000-0000-4000-8000-000000006503';
+  const session={id,clientId:b,status:'disponible',deliveryModality:'guiada_en_app',
+    deliveryOwnership:'guided_in_app',clientVisibilityLevel:'full',
+    body:{id,clientId:b,blocks:[{type:'exercise',exerciseId:'e1',name:'Detalle privado'}]}};
+  const projection={id,visible:true,visibility:'full',canClientStart:true,session};
+  const vm={role:'client',serviceKind:'training',
+    clients:[{id:a,name:'Cliente A',serviceActive:true}],
+    appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[projection]}};
+  const mismatched=renderHoyRoute(vm);
+  assert.doesNotMatch(mismatched,/data-client-session-preview|Detalle privado/);
+  const matched=renderHoyRoute({...vm,clients:[{...vm.clients[0],id:b}]});
+  assert.match(matched,/data-client-session-preview/);
+  assert.match(matched,/Detalle privado/);
+  assert.doesNotMatch(renderHoyRoute({...vm,clients:[{...vm.clients[0],id:''}]}),/data-client-session-preview/);
+});

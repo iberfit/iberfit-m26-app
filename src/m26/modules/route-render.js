@@ -3,7 +3,7 @@ import {areaAllowedForRole} from '../shell/navigation.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
-import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession,sessionIdOf} from '../rc39/session-policy.js';
+import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession,sessionIdOf,clientIdOf} from '../rc39/session-policy.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
@@ -551,10 +551,12 @@ export function renderClientWeekRail(upcoming,now=new Date()){
 }
 
 // Stitch V2.3: a verified editorial preview, not a second session entry.
-function renderClientPublishedStructure(projection){
+function renderClientPublishedStructure(projection,expectedClientId){
   const session=projection?.session;
   const id=String(projection?.id||'').trim();
-  if(!id||projection?.visible!==true||projection?.visibility!=='full'||
+  const owner=String(clientIdOf(session)||'').trim();
+  const expectedOwner=String(expectedClientId||'').trim();
+  if(!id||!expectedOwner||owner!==expectedOwner||projection?.visible!==true||projection?.visibility!=='full'||
      projection?.canClientStart!==true||sessionIdOf(session)!==id||
      !actorCanExecuteSession({role:'client',session,appointment:projection.appointment||null})||
      !sessionReadyToStart(session))return '';
@@ -773,7 +775,7 @@ function renderClientHoyRoute(vm) {
   // Reuse only an authorized full-visibility published session snapshot.
   const structureId=String(runnable?.sessionId||standaloneGuided?.id||'').trim();
   const publishedStructure=structureId
-    ?renderClientPublishedStructure(projections.find(item=>String(item?.id||'').trim()===structureId))
+    ?renderClientPublishedStructure(projections.find(item=>String(item?.id||'').trim()===structureId),client?.id)
     :'';
 
   const agendaItems=appointments
