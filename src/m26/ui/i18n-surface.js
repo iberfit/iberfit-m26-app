@@ -6,6 +6,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
   // P0 #1209 · historical session recovery: locale parity for all status and retry messages.
+  ["Los detalles de sesiones antiguas se consultan sólo cuando los solicitas.","Older session details are retrieved only when you request them.","Les détails des séances anciennes ne sont récupérés que sur demande.","Os detalhes das sessões antigas são consultados apenas quando os solicitas."],
+  ["Consultar historial completo","View full history","Consulter l'historique complet","Consultar histórico completo"],
   ["Actualizando el expediente histórico completo. Los entrenamientos disponibles siguen accesibles.","Updating your complete training history. Available workouts remain accessible.","Mise à jour de votre historique complet. Les entraînements disponibles restent accessibles.","A atualizar o histórico completo. Os treinos disponíveis continuam acessíveis."],
   ["El historial antiguo requiere conexión. Tus sesiones disponibles permanecen visibles.","Older training history requires an internet connection. Your available sessions remain visible.","L'ancien historique nécessite une connexion. Vos séances disponibles restent visibles.","O histórico antigo requer ligação à Internet. As sessões disponíveis continuam visíveis."],
   ["No se ha podido recuperar el historial completo. No se ha perdido ningún registro.","Unable to retrieve the complete history. No records have been lost.","Impossible de récupérer l'historique complet. Aucun enregistrement n'a été perdu.","Não foi possível recuperar o histórico completo. Nenhum registo foi perdido."],
