@@ -3667,4 +3667,16 @@
     outline-color:Highlight;
   }
 }
+
+/* U90 WCAG regression gate: meaningful secondary actions must remain legible
+ * against the actual dark surface across desktop and touch. These selectors
+ * target real controls; do not lighten disabled actions or alter permissions. */
+.m26-shell[data-m26-role="client"] .m26-workspace
+  summary[data-m26-client-guide="secondary-actions"] > small{
+  color:#c6d0c8;
+}
+.m26-shell[data-m26-role="coach"] .m26-workspace
+  .m26-text-action[data-m26-area="clientes"]{
+  color:#dfc98f;
+}
 /* END SIGNATURE MASTER U90 */

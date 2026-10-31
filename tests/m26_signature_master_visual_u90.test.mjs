@@ -20,6 +20,8 @@ test('U90 provides 320/390 mobile, 768–1150 tablet, desktop and Retina-safe ve
  assert.match(s,/@media \(max-width:600px\)/);
  assert.match(s,/@media \(min-width:768px\) and \(max-width:1150px\)/);
  assert.match(s,/shape-rendering:geometricPrecision/);
+ assert.match(s,/data-m26-client-guide="secondary-actions"/);
+ assert.match(s,/m26-text-action\[data-m26-area="clientes"\]/);
  assert.match(s,/min-inline-size:0/);
  assert.match(s,/overflow-x:auto/);
  assert.match(s,/prefers-reduced-motion:reduce/);
