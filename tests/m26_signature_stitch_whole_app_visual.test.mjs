@@ -279,3 +279,22 @@ test('U76 Client rest releases sticky dock without removing pause/save, active r
   assert.doesNotMatch(block,/pointer-events:none|visibility:hidden|display:none/);
   assert.match(css,/\.m26-session-live-quick-actions\{\s*position:sticky;/);
 });
+
+
+test('U77 complete visual route inventory remains 9 Cliente / 17 Coach / 17 Admin',()=>{
+  const json=JSON.parse(fs.readFileSync(new URL('../qa/visual/signature-360-coverage.json',import.meta.url),'utf8'));
+  const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
+  assert.equal(json.roles.client.length,9);
+  assert.equal(json.roles.coach.length,17);
+  assert.equal(json.roles.admin.length,17);
+  assert.equal(Object.values(json.roles).reduce((n,items)=>n+items.length,0),43);
+  for(const role of ['client','coach','admin']){
+    const areas=json.roles[role].map(item=>item.area);
+    assert.equal(new Set(areas).size,areas.length);
+  }
+  assert.match(browser,/SIGNATURE U77 · Canonical 43-route readability and role safety/);
+  assert.match(browser,/__IBERFIT_SIGNATURE_ROUTE_QA__\.navigate\(target\)/);
+  assert.match(browser,/no letter-by-letter vertical headings/);
+  assert.match(browser,/must never write to a remote backend in static visual QA/);
+  assert.match(browser,/real-synthetic/);
+});

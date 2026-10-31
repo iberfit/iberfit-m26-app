@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
 
 async function open(page,role,scenario='strength'){
   await page.goto('/qa/live-workout/fixture.html?role='+role+'&scenario='+scenario,{waitUntil:'domcontentloaded'});
@@ -767,3 +768,78 @@ test('SIGNATURE Coach-led appointment never converts into a Client start through
   const state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
   expect(state.launchCount).toBe(0);
 });
+
+
+// U77 · Canonical 43-route visual geometry certification in the already-running
+// isolated browser matrix. Uses the real route renderer + synthetic identity,
+// performs no network writes, and MUST NOT be described as authenticated QA.
+// A route can fit the viewport and still be unreadable (one-letter columns).
+const u77Inventory=JSON.parse(readFileSync(new URL('../visual/signature-360-coverage.json',import.meta.url),'utf8'));
+for(const role of ['client','coach','admin']){
+  test('SIGNATURE U77 · Canonical 43-route readability and role safety · '+role,async({page},testInfo)=>{
+    const errors=[],mutations=[];
+    page.on('pageerror',error=>errors.push(String(error.message||error).slice(0,240)));
+    page.on('request',request=>{
+      if(!['GET','HEAD'].includes(request.method()))mutations.push(request.method());
+    });
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real',
+      {waitUntil:'domcontentloaded'});
+    await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode))
+      .toBe('real-synthetic');
+    const entries=u77Inventory.roles[role];
+    expect(entries.length).toBe(role==='client'?9:17);
+    for(const {area} of entries){
+      const previousErrorCount=errors.length;
+      await page.evaluate(target=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(target),area);
+      await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.area()),
+        {message:role+' '+area+' route switch'}).toBe(area);
+      if(area==='admin-media-review'){
+        await expect.poll(()=>page.evaluate(()=>Boolean(
+          document.querySelector('link[data-m26-media-review-style]')?.sheet
+        )),{message:'Use actual admin media-review stylesheet'}).toBe(true);
+      }
+      const metrics=await page.evaluate(()=>{
+        const root=document.querySelector('.m26-shell');
+        const main=document.querySelector('.m26-main');
+        const body=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-admin-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions,[data-admin-media-review-route]');
+        const heading=body?.querySelector('h1,h2,h3')||main?.querySelector('h1,h2,h3');
+        const bodyRect=body?.getBoundingClientRect(),hRect=heading?.getBoundingClientRect();
+        const style=heading?getComputedStyle(heading):null;
+        const fontSize=Number.parseFloat(style?.fontSize)||16;
+        const lineHeight=Number.parseFloat(style?.lineHeight)||fontSize*1.25;
+        return {
+          role:root?.dataset.m26Role,
+          body:Boolean(bodyRect&&bodyRect.width>10&&bodyRect.height>10),
+          heading:String(heading?.textContent||'').trim(),
+          headingWidth:hRect?.width||0,
+          headingLines:hRect&&lineHeight>0?hRect.height/lineHeight:0,
+          bodyWidth:bodyRect?.width||0,
+          pageWidth:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth),
+          viewport:document.documentElement.clientWidth,
+          inert:main?.inert||false,
+          placeholder:Boolean(main?.querySelector('.m26-route-placeholder')),
+        };
+      });
+      expect(errors.slice(previousErrorCount),role+' '+area+' runtime errors').toEqual([]);
+      expect(metrics.role,role+' '+area+' never cross a role boundary').toBe(role);
+      expect(metrics.body,role+' '+area+' genuine route must be visible').toBe(true);
+      expect(metrics.placeholder,role+' '+area+' must not substitute fake route markup').toBe(false);
+      expect(metrics.inert,role+' '+area+' main must not freeze').toBe(false);
+      expect(metrics.heading.length,role+' '+area+' title required').toBeGreaterThan(0);
+      expect(metrics.pageWidth,role+' '+area+' zero horizontal overflow').toBeLessThanOrEqual(metrics.viewport+2);
+      if(metrics.heading.length>=12){
+        expect(metrics.headingWidth,role+' '+area+' text column must remain readable')
+          .toBeGreaterThanOrEqual(Math.min(135,Math.max(90,metrics.viewport*.28)));
+        expect(metrics.headingLines,role+' '+area+' no letter-by-letter vertical headings')
+          .toBeLessThanOrEqual(Math.max(5,Math.ceil(metrics.heading.length/5)));
+      }
+    }
+    expect(mutations,role+' must never write to a remote backend in static visual QA').toEqual([]);
+    expect(errors,role+' must be free of page errors').toEqual([]);
+    // Three evidence frames per role, one visual sample per browser project:
+    // no invented imagery or false claims of authenticated Client/Coach/Admin.
+    const image=await page.screenshot({fullPage:false,animations:'disabled',caret:'hide'});
+    await testInfo.attach('signature-u77-'+role+'-'+testInfo.project.name+'.png',
+      {body:image,contentType:'image/png'});
+  });
+}
