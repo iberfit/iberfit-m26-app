@@ -95,3 +95,44 @@ test('QA Client must demand both history sections, and navigation alone never do
  assert.match(code,/maybeLoad\(activeArea\); \/\/ No RPC on navigation/u);
  assert.match(code,/if\(!current\(\)\)return;\s*store\.incorporateClientCompletedHistory/u);
 });
+
+
+test('32-record pages complete both 416-record QA sections in 26 reads without losing one item',async()=>{
+ const owner={};
+ const sectionData=(section)=>Array.from({length:416},(_,i)=>{
+  const index=i+1;
+  const uid='00000000-0000-4000-8000-'+(section==='session'?'1':'2')+index.toString(16).padStart(11,'0');
+  const updatedAt=new Date(Date.parse('2026-11-01T12:00:00Z')-(i+1)*1000).toISOString();
+  return {entityType:section,entityId:uid,clientId:id,status:'completada',revision:1,
+   updatedAt,body:{id:uid,clientId:id,status:'completada',results:[],blocks:[]}};
+ });
+ const sections={session:sectionData('session'),session_execution:sectionData('session_execution')};
+ const calls=[];
+ const transport={clientCompletedHistoryPage:async(_token,req)=>{
+  assert.equal(req.p_limit,32);
+  const items=sections[req.p_section],cursor=req.p_cursor;
+  const start=cursor?items.findIndex(item=>item.entityId===cursor.id)+1:0;
+  assert.ok(start>=0);
+  if(start)assert.equal(cursor.at,items[start-1].updatedAt);
+  const rows=items.slice(start,start+req.p_limit);
+  const hasMore=start+rows.length<items.length;
+  calls.push({section:req.p_section,limit:req.p_limit,first:start,rows:rows.length});
+  return {schema:'iberfit.client.completed-history.page.qa.v1',section:req.p_section,
+   snapshotAt:'2026-11-01T12:00:00Z',total:items.length,
+   fingerprint:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',rows,hasMore,
+   nextCursor:hasMore?{at:rows.at(-1).updatedAt,id:rows.at(-1).entityId}:null};
+ }};
+ const loader=createClientCompletedHistoryLoader({transport,getToken:async()=> 'token',getOwner:()=>owner,getClientId:()=>id});
+ const result=await loader.load({owner,clientId:id,sections:['session','session_execution'],limit:32});
+ assert.equal(result.session.length,416);
+ assert.equal(result.session_execution.length,416);
+ assert.equal(new Set(result.session.map(x=>x.entityId)).size,416);
+ assert.equal(new Set(result.session_execution.map(x=>x.entityId)).size,416);
+ assert.equal(calls.length,26);
+ for(const section of ['session','session_execution']){
+  const matching=calls.filter(x=>x.section===section);
+  assert.equal(matching.length,13);
+  assert.deepEqual(matching.map(x=>x.rows),Array(13).fill(32));
+  assert.deepEqual(matching.map(x=>x.first),Array.from({length:13},(_,i)=>i*32));
+ }
+});
