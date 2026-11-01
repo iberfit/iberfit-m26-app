@@ -7,6 +7,13 @@ test('Stitch Client composition keeps the primary decision and vertical working 
   const route=page.locator('.m26-client-home-stitch-v23');
   await expect(route).toBeVisible();
   await expect(route.locator('.m26-client-home-primary-zone')).toBeVisible();
+  // R39 · Editorial calendar is real product content, not a raster screenshot.
+  // All 7 dates retain semantic calendar days in mobile, tablet and desktop.
+  const week=route.locator('[data-client-week-rail]');
+  await expect(week).toBeVisible();
+  await expect(week.locator('li time[datetime]')).toHaveCount(7);
+  await expect(week.locator('button[data-m26-area="planificacion"]')).toHaveCount(1);
+
   await expect(route.locator('.m26-client-home-hero .m26-client-home-status')).toHaveCount(0);
   await expect(route.locator('.m26-today-action.is-primary')).toHaveCount(1);
   const buttons=route.locator('.m26-client-home-compass-actions button');

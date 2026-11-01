@@ -541,7 +541,7 @@ export function renderClientWeekRail(upcoming,now=new Date()){
     const key=dateKey(item),current=key===dateKey(today),confirmed=known.has(key);
     const dateLabel=new Intl.DateTimeFormat('es-CL',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(item);
     const aria=`${current?'Hoy, ':''}${dateLabel}${confirmed?', cita confirmada próxima':''}`;
-    return `<li class="m26-client-week-day${current?' is-today':''}${confirmed?' has-confirmed':''}" data-day="${key}" data-date-status="${confirmed?'confirmed':'not-shown'}"${current?' aria-current="date"':''} aria-label="${escapeHtml(aria)}"><span>${initials[i]}</span><strong>${item.getUTCDate()}</strong><i aria-hidden="true"></i></li>`;
+    return `<li class="m26-client-week-day${current?' is-today':''}${confirmed?' has-confirmed':''}" data-day="${key}" data-date-status="${confirmed?'confirmed':'not-shown'}"${current?' aria-current="date"':''} aria-label="${escapeHtml(aria)}"><span>${initials[i]}</span><strong><time datetime="${key}">${item.getUTCDate()}</time></strong><i aria-hidden="true"></i></li>`;
   }).join('');
   return `<section class="m26-client-week-rail" data-client-week-rail aria-labelledby="m26-client-week-heading">
     <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion">Ver planificación <span aria-hidden="true">↗</span></button></header>

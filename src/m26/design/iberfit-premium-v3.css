@@ -3013,6 +3013,7 @@
   min-width:0;display:grid;grid-template-rows:1rem minmax(2.2rem,auto) .55rem;
   justify-items:center;align-items:center;gap:.25rem;padding:.5rem .1rem;
   background:rgba(10,22,16,.62);border:1px solid rgba(250,247,238,.10);border-radius:.72rem;font-variant-numeric:tabular-nums;
+  box-shadow:inset 0 1px 0 rgba(250,247,238,.035);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>span{
   font-size:.69rem;font-weight:700;color:#C5CCC6;
@@ -3021,8 +3022,14 @@
   display:grid;place-items:center;inline-size:clamp(1.55rem,5vw,2.1rem);aspect-ratio:1;
   border-radius:100%;font-size:.85rem;font-weight:650;color:#FAF7EE;
 }
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>strong>time{
+  display:grid;place-items:center;inline-size:100%;block-size:100%;font-variant-numeric:tabular-nums;
+}
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day>i{
-  width:5px;height:5px;border-radius:100%;background:transparent;
+  width:6px;height:6px;border-radius:100%;background:transparent;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.has-confirmed:not(.is-today){
+  background:#193327;border-color:rgba(229,200,126,.23);
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day.is-today{
   border-color:rgba(214,178,94,.75);background:rgba(214,178,94,.1);
@@ -3043,6 +3050,10 @@
   display:inline-block;width:6px;height:6px;border-radius:100%;background:#E5C87E;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-note small{font-size:inherit;color:inherit;}
+@media(min-width:768px) and (max-width:1150px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-days{gap:.45rem;}
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day{min-block-size:78px;}
+}
 @media(max-width:370px){
   .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail{padding:.85rem .6rem;}
   .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-days{gap:.16rem;}

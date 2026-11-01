@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {renderHoyRoute,renderClientsRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,renderClientsRoute,renderClientWeekRail} from '../src/m26/modules/route-render.js';
 
 const css=readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
 const s=css.split('SIGNATURE MASTER U90')[1]?.split('END SIGNATURE MASTER U90')[0]||'';
@@ -81,4 +81,38 @@ test('U91 Coach search precedes the priority queue without losing either',()=>{
  assert.match(html,/data-m26-select-client/);
  assert.ok(s.includes('input[data-client-search]'));
  assert.ok(s.includes('grid-column:1/-1'));
+});
+
+
+test('U94 date rail uses Santiago civil dates and confirmed appointments only',()=>{
+ const upcoming=[
+  {date:'2026-11-01',statusRaw:'confirmada'},
+  {date:'2026-10-30',statusRaw:'pendiente'},
+  {date:'2026-11-02',statusRaw:'confirmada'}
+ ];
+ // 02:30 UTC is still Sunday 1 November in Santiago (UTC-3).
+ const sunday=renderClientWeekRail(upcoming,new Date('2026-11-02T02:30:00.000Z'));
+ assert.equal((sunday.match(/<time datetime=/g)||[]).length,7);
+ assert.match(sunday,/data-day="2026-11-01" data-date-status="confirmed" aria-current="date"/);
+ assert.match(sunday,/<time datetime="2026-11-01">1<\/time>/);
+ assert.match(sunday,/data-day="2026-10-30" data-date-status="not-shown"/);
+ assert.doesNotMatch(sunday,/data-day="2026-11-02"/);
+ assert.match(sunday,/data-m26-area="planificacion"/);
+ assert.doesNotMatch(sunday,/sesiones completadas|descanso programado/i);
+ // 03:30 UTC is Monday 2 November; week rolls over without a local-date drift.
+ const monday=renderClientWeekRail(upcoming,new Date('2026-11-02T03:30:00.000Z'));
+ assert.match(monday,/data-day="2026-11-02" data-date-status="confirmed" aria-current="date"/);
+ assert.match(monday,/<time datetime="2026-11-02">2<\/time>/);
+ assert.equal((monday.match(/<time datetime=/g)||[]).length,7);
+ assert.match(css,/\.m26-client-week-day>strong>time/);
+ assert.match(css,/@media\(min-width:768px\) and \(max-width:1150px\)/);
+});
+test('U94 original brand PNG and profile visual resolve in packaged app without fallback imitation',()=>{
+ const shellCss=readFileSync(new URL('../src/m26/shell/shell.css',import.meta.url),'utf8');
+ const image=readFileSync(new URL('../public/isotipo-iberfit.png',import.meta.url));
+ assert.equal(image.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+ assert.equal(image.readUInt32BE(16),173);
+ assert.equal(image.readUInt32BE(20),192);
+ assert.ok(shellCss.includes("url('/public/isotipo-iberfit.png')"));
+ assert.doesNotMatch(shellCss,/url\(['"]\/isotipo-iberfit\.png['"]\)/);
 });
