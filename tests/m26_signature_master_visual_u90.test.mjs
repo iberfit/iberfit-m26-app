@@ -52,9 +52,12 @@ test('official isotipo resolves through the packaged deployment path across all 
  const html=readFileSync(new URL('../public/m26/index.html',import.meta.url),'utf8');
  const build=readFileSync(new URL('../scripts/build_rc15_launch_candidate.mjs',import.meta.url),'utf8');
  const canonical='/public/isotipo-iberfit.png';
- assert.match(html,/src="\\/public\\/isotipo-iberfit\\.png"/);
+ assert.ok(html.includes('src="/public/isotipo-iberfit.png"'));
  assert.ok(build.includes("copy('public/isotipo-iberfit.png','public/isotipo-iberfit.png')"));
- const stylesheetRefs=[...css.matchAll(/url\\(['"]?(\\/(?:public\\/)?isotipo-iberfit\\.png)/g),...roleCss.matchAll(/url\\(['"]?(\\/(?:public\\/)?isotipo-iberfit\\.png)/g)].map(match=>match[1]);
+ const stylesheetRefs=[css,roleCss].flatMap(sheet=>
+  sheet.split('url(').slice(1).map(part=>part.split(')')[0].replaceAll(/['"]/g,'').trim())
+   .filter(path=>path.endsWith('isotipo-iberfit.png'))
+ );
  assert.ok(stylesheetRefs.length>=4,'branded auth, shells and client/coach/admin hero regions');
  assert.ok(stylesheetRefs.every(ref=>ref===canonical),'all visible marks must use the same packaged original');
 });
