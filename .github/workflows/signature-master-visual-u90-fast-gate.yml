@@ -72,7 +72,7 @@ jobs:
           npx playwright test qa/device-experience/signature-u96-retina4k.spec.mjs \
             --config=playwright.device-experience.config.mjs \
             --project=device-desktop-4k-chromium
-      - name: Preserve 9 native PNG previews and measurement manifest (synthetic only)
+      - name: Preserve native Retina/4K and Coach day/week calendar screenshots (synthetic only)
         if: always()
         uses: actions/upload-artifact@v4
         with:

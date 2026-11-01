@@ -136,3 +136,73 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
     designParityCertified:false,realRenderer:true,roles,devices:devices.map(({key,width,height,dpr})=>({key,width,height,dpr})),rows};
   await writeFile(path.join(root,'manifest.json'),JSON.stringify(summary,null,2)+'\n','utf8');
 });
+
+
+// U101 · The genuine pinned FullCalendar draws Coach Agenda at native
+// tablet/desktop resolution. This is isolated visual evidence: events are
+// synthetic and do not emulate or claim any authenticated booking/publishing.
+test('SIGNATURE U101 · genuine Coach day and week calendar at 820 tablet / 1440 desktop',async({browser},testInfo)=>{
+  test.skip(testInfo.project.name!=='device-desktop-4k-chromium','one isolated CI screenshot batch');
+  for(const device of [{name:'tablet820',width:820,height:1180,dpr:2,touch:true},{name:'desktop1440',width:1440,height:900,dpr:2,touch:false}]){
+    const context=await browser.newContext({
+      baseURL:'http://127.0.0.1:4216',
+      viewport:{width:device.width,height:device.height},
+      deviceScaleFactor:device.dpr,hasTouch:device.touch,isMobile:device.touch,
+      locale:'es-CL',timezoneId:'America/Santiago',reducedMotion:'reduce',
+      serviceWorkers:'block',
+    });
+    try{
+      const page=await context.newPage();
+      const writes=[],errors=[];
+      page.on('request',req=>{if(!['GET','HEAD'].includes(req.method()))writes.push(req.method());});
+      page.on('pageerror',e=>errors.push(String(e?.message||e)));
+      await page.goto('/qa/visual/signature-route-shell.fixture.html?role=coach&body=real');
+      await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode)).toBe('real-synthetic');
+      await page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate('agenda'));
+      await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.area())).toBe('agenda');
+      const host=page.locator('[data-rc62-agenda-calendar]');
+      await expect(host).toBeVisible();
+      const ready=await page.evaluate(async()=>{
+        const {loadFullCalendarStandard,fullCalendarCoachOptions}=await import('/src/m26/agenda/fullcalendar-agenda.js');
+        const FullCalendar=await loadFullCalendarStandard();
+        const el=document.querySelector('[data-rc62-agenda-calendar]');
+        if(!el||!FullCalendar?.Calendar)throw new Error('U101_REAL_COACH_CALENDAR_MISSING');
+        const events=[
+          {id:'synthetic-a',title:'Sesión · ejemplo A',start:'2026-11-02T14:00:00Z',end:'2026-11-02T15:00:00Z'},
+          {id:'synthetic-b',title:'Sesión · ejemplo B',start:'2026-11-03T16:00:00Z',end:'2026-11-03T17:00:00Z'},
+        ];
+        const options=fullCalendarCoachOptions({events,compact:false,initialDate:'2026-11-02T12:00:00Z'});
+        const calendar=new FullCalendar.Calendar(el,options);
+        calendar.render();
+        return {view:calendar.view.type,timeZone:options.timeZone,editable:options.editable,selectable:options.selectable};
+      });
+      expect(ready).toEqual({view:'timeGridWeek',timeZone:'America/Santiago',editable:false,selectable:false});
+      await expect(host.locator('.fc-toolbar-title')).toBeVisible();
+      await expect(host.locator('.fc-timegrid-event')).toHaveCount(2);
+      const palette=await host.evaluate(el=>{
+        const root=getComputedStyle(el),toolbar=getComputedStyle(el.querySelector('.fc-toolbar-title'));
+        return {background:root.getPropertyValue('--fc-page-bg-color').trim(),titleFamily:toolbar.fontFamily};
+      });
+      expect(palette.background).toBe('#101E17');
+      expect(palette.titleFamily).toMatch(/Source Serif 4|Georgia/);
+      for(const view of ['week','day']){
+        if(view==='day'){
+          await host.locator('.fc-timeGridDay-button').click();
+          await expect(host.locator('.fc-view')).toHaveAttribute('class',/fc-timegrid-day-view/);
+        }else{
+          await expect(host.locator('.fc-view')).toHaveAttribute('class',/fc-timegrid-week-view/);
+        }
+        const box=await host.boundingBox();
+        expect(box?.width).toBeGreaterThan(350);
+        const buffer=await host.screenshot({type:'png',scale:'device',animations:'disabled',caret:'hide'});
+        const physical=buffer.readUInt32BE(16);
+        expect(Math.abs(physical-box.width*device.dpr)).toBeLessThanOrEqual(3);
+        const filename='coach-agenda-'+device.name+'-'+view+'-DPR2-SYNTHETIC.png';
+        await writeFile(path.join(root,filename),buffer);
+      }
+      expect(errors).toEqual([]);
+      expect(writes).toEqual([]);
+      await page.close();
+    }finally{await context.close();}
+  }
+});
