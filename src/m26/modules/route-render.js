@@ -422,11 +422,10 @@ function renderCoachHoyRoute(vm) {
         ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
     </section>
-    <!-- m26-coach-launch-self-slot -->
-
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
       ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}" aria-label="${escapeHtml(area==='planificacion'?'Programar entrenamiento':label)}"><span class="m26-atlas-coach-icon" aria-hidden="true">${renderIberfitIcon(glyph,{className:'m26-atlas-icon-svg'})}</span><strong>${label}</strong></button>`).join('')}
     </nav>
+    <!-- m26-coach-launch-self-slot -->
 
     <div class="m26-coach-home-grid">
       <section class="m26-panel m26-coach-home-section m26-coach-home-agenda">

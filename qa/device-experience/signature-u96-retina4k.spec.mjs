@@ -93,6 +93,17 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
           expect(status.fontFaces.some(f=>f.family.includes(family)&&f.status==='loaded'),
             role+' '+device.key+' actual '+family+' webfont').toBe(true);
         }
+        if(role==='coach'&&device.key==='mobile'){
+          const actions=page.getByRole('navigation',{name:'Acciones rápidas'});
+          await expect(actions).toBeVisible();
+          for(const area of ['clientes','planificacion','agenda'])
+            await expect(actions.locator('[data-m26-area="'+area+'"]')).toBeVisible();
+          const first=await actions.boundingBox();
+          const onboarding=page.getByText('Tu recorrido como Coach');
+          await expect(onboarding).toBeVisible();
+          const last=await onboarding.boundingBox();
+          expect(first?.y,'Coach actions must precede onboarding for real session speed').toBeLessThan(last?.y);
+        }
         if(role==='client'){
           const week=page.locator('[data-client-week-rail]');
           const compass=page.locator('[data-client-home-compass]');

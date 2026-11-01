@@ -186,3 +186,17 @@ test('U103 actual Coach appointment labels remain cream on dark Monarch 7 event 
  assert.match(section,/@media\(forced-colors:active\)/);
  assert.doesNotMatch(section,/opacity:0|display:none|pointer-events:none/);
 });
+
+test('U105 Coach mobile quick actions precede nonblocking launch journey without losing either',()=>{
+ const src=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+ const coach=src.slice(src.indexOf('function renderCoachHoyRoute('),src.indexOf('// The IRI assessment is an initial diagnosis'));
+ const priority=coach.indexOf('m26-coach-home-command');
+ const quick=coach.indexOf('m26-coach-home-quick');
+ const slot=coach.indexOf('<!-- m26-coach-launch-self-slot -->');
+ const agenda=coach.indexOf('m26-coach-home-grid');
+ assert.ok(priority>=0&&quick>priority&&slot>quick&&agenda>slot,'priority → fast actions → onboarding → agenda');
+ assert.ok(coach.includes("area:'planificacion',label:'Programar entrenamiento'"));
+ for(const area of ['clientes','planificacion','agenda'])assert.ok(coach.includes(area));
+ assert.equal((coach.match(/m26-coach-launch-self-slot/g)||[]).length,1);
+ assert.match(coach,/data-m26-area="\$\{area\}"/);
+});
