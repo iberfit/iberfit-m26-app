@@ -167,6 +167,8 @@ jobs:
           jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-coach-reset-before.json >/dev/null
       - name: Certify Coach WebAuthn registration and authentication
         env:
+          # Same opt-in as build; only the first registration login may use it.
+          M26_QA_COACH_CORE_AUTH_SMOKE: 'true'
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co

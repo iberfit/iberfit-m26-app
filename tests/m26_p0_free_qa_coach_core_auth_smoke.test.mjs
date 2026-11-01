@@ -74,7 +74,8 @@ test('auth-only probe is wired only into Coach recurring first login; second rem
  const fs=requireSource('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
  const workflow=requireSource('.github/workflows/coach-webauthn-recurring.yml');
  const build=requireSource('qa/rc64/build-authenticated-surface.mjs');
- assert.match(workflow,/M26_QA_COACH_CORE_AUTH_SMOKE: 'true'/u);
+ assert.equal((workflow.match(/M26_QA_COACH_CORE_AUTH_SMOKE: 'true'/gu)||[]).length,2,
+   'both the build and the Playwright steps must receive the exact opt-in');
  assert.match(build,/process\.env\.M26_QA_COACH_CORE_AUTH_SMOKE==='true'/u);
  assert.match(build,/freeQaCoachCoreAuthSmoke: true/u);
  const trigger=fs.indexOf('__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__=true;');
@@ -85,7 +86,7 @@ test('auth-only probe is wired only into Coach recurring first login; second rem
  assert.match(fs,/First WebAuthn registration must not prefetch U38/u);
  assert.match(fs,/Second Coach MFA must restore full U38 history/u);
  assert.match(fs,/auditAuthenticatedProfessionalRoutes/u);
- assert.match(fs,/allCards,entity\+'\: no historical Coach publication removed'/u);
+ assert.ok(fs.includes("expect(allCards,entity+': no historical Coach publication removed')"));
  assert.doesNotMatch(fs,/addInitScript\(\(\)=>\{globalThis\.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__/u);
 });
 function requireSource(path){return readFileSync(path,'utf8');}
