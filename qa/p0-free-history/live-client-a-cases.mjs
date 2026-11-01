@@ -64,7 +64,8 @@ test('Client A atomically restores full completed sessions AND execution results
    }else if(res.status()===200){
     // P0_FREE_QA_COMPACT_REF_V1: use the same authenticated bootstrap already
     // captured for wire measurement. No extra RPC and never persist response.
-    const data=JSON.parse(bytes.toString('utf8'))?.data;
+    const payload=JSON.parse(bytes.toString('utf8'));
+    const data=payload?.data;
     if(Array.isArray(data?.sessions)&&Array.isArray(data?.sessionExecutions)
        &&Array.isArray(data?.m26Entities)){
       const canon=new Set(data.m26Entities.map(e=>String(e?.entityType)+':'+String(e?.entityId)));
@@ -85,8 +86,18 @@ test('Client A atomically restores full completed sessions AND execution results
         return {total:rows.length,compact:compact.length,
           resolved:compact.filter(x=>canon.has(type+':'+x.id)).length};
       };
+      // The source function already removes these synthetic QA write-fixtures
+      // from data.checkins. The revisions map must agree with visible rows.
+      // Log aggregates only, never identities/IDs/notes/response contents.
+      const revisionKeys=new Set(Object.keys(payload.remoteRevisions||{})
+        .filter(key=>key.startsWith('checkin:')));
+      const visibleCheckinIds=new Set((Array.isArray(data.checkins)?data.checkins:[])
+        .map(row=>String(row?.id||'')).filter(Boolean));
       compactBootstraps.push({sessions:summarize(data.sessions,'session'),
-        executions:summarize(data.sessionExecutions,'session_execution')});
+        executions:summarize(data.sessionExecutions,'session_execution'),
+        checkinRevisions:{visible:visibleCheckinIds.size,
+          mapped:revisionKeys.size,
+          everyVisibleMapped:[...visibleCheckinIds].every(id=>revisionKeys.has('checkin:'+id))}});
     }
    }
   })();
@@ -146,6 +157,12 @@ test('Client A atomically restores full completed sessions AND execution results
  expect(compact.executions.compact).toBeGreaterThanOrEqual(396);
  expect(compact.sessions.resolved).toBe(compact.sessions.compact);
  expect(compact.executions.resolved).toBe(compact.executions.compact);
+ // Full-API test: hidden QA certification check-in revisions are omitted;
+ // real visible check-ins keep their conflict/revision metadata unchanged.
+ expect(compact.checkinRevisions.visible,'QA Client A visible check-ins').toBeGreaterThan(0);
+ expect(compact.checkinRevisions.mapped).toBe(compact.checkinRevisions.visible);
+ expect(compact.checkinRevisions.everyVisibleMapped).toBe(true);
+ evidence.checkinRevisions=compact.checkinRevisions;
  evidence.compactLegacyRefs={sessions:compact.sessions,executions:compact.executions};
  expect(evidence.notBillingEgress).toBe(true);
  await mkdir('recovery/p0-free-history',{recursive:true});
