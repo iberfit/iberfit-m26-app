@@ -118,16 +118,17 @@ test('Client A atomically restores full completed sessions AND execution results
  expect(fail).toEqual([]);
  expect(blocked,'QA current-source perimeter must reject no required operation').toEqual([]);
  expect(pageErrors).toEqual([]);
- expect(pages.length).toBeGreaterThanOrEqual(34);
- expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=24)).toBe(true);
+ expect(pages.length).toBeGreaterThanOrEqual(26);
+ expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=32)).toBe(true);
  const totals={};
  for(const section of ['session','session_execution']){
   const group=pages.filter(p=>p.section===section);
-  expect(group.length,section+' must be paged by an explicit request').toBeGreaterThanOrEqual(17);
+  expect(group.length,section+' must be paged by an explicit request').toBeGreaterThanOrEqual(13);
   expect(new Set(group.map(p=>p.fingerprint)).size,section+' fingerprint stable').toBe(1);
   expect(new Set(group.map(p=>p.total)).size,section+' total stable').toBe(1);
   const total=group[0].total;
   expect(total,section+' historical count').toBeGreaterThanOrEqual(396);
+  expect(group.length,section+' no extra cursor requests').toBe(Math.ceil(total/32));
   expect(group.reduce((a,p)=>a+p.ids.length,0),section+' no partial history').toBe(total);
   expect(new Set(group.flatMap(p=>p.ids)).size,section+' no duplicate records').toBe(total);
   expect(group.filter(p=>p.hasMore===false),section+' exactly one terminal page').toHaveLength(1);
