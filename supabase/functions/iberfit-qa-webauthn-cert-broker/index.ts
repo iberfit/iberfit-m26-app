@@ -64,12 +64,30 @@ async function validateTarget(db:any,target:{name:string;userId:string;email:str
   const {data:userData,error:userError}=await db.auth.admin.getUserById(target.userId);
   if(userError)fail("IBERFIT_QA_CERT_TARGET_AUTH_READ_FAILED",502);
   if(String(userData?.user?.email||"").toLowerCase()!==target.email)fail("IBERFIT_QA_CERT_TARGET_INVALID",409);
-  const [{data:profile,error:profileError},{data:membership,error:membershipError}]=await Promise.all([
+  const [initialProfile,initialMembership]=await Promise.all([
     db.from("user_profiles").select("role").eq("user_id",target.userId).maybeSingle(),
     db.from("iberfit_organization_memberships").select("status").eq("organization_id",ORG_ID).eq("user_id",target.userId).maybeSingle(),
   ]);
+  let {data:profile,error:profileError}=initialProfile;
+  // Only the read-only profile lookup may recover once from a transient 401.
+  // OIDC, user identity, role, membership, assignments and MFA remain mandatory.
+  // The same verified service-role client is reused; no credential renewal or bypass.
+  if(profileError&&initialProfile.status===401){
+    await new Promise(resolve=>setTimeout(resolve,150));
+    ({data:profile,error:profileError}=await db.from("user_profiles")
+      .select("role").eq("user_id",target.userId).maybeSingle());
+  }
   if(profileError)fail("IBERFIT_QA_CERT_TARGET_PROFILE_READ_FAILED",502);
   if(String(profile?.role||"").toLowerCase()!==target.profileRole)fail("IBERFIT_QA_CERT_TARGET_ROLE_INVALID",409);
+  let {data:membership,error:membershipError}=initialMembership;
+  // Recover at most once from the QA Gateway's observed transient 401,
+  // BEFORE making any changes to WebAuthn credentials or MFA assurance.
+  // An empty/inactive membership, repeated 401, or any other error still fails closed.
+  if(membershipError&&initialMembership.status===401){
+    await new Promise(resolve=>setTimeout(resolve,150));
+    ({data:membership,error:membershipError}=await db.from("iberfit_organization_memberships")
+      .select("status").eq("organization_id",ORG_ID).eq("user_id",target.userId).maybeSingle());
+  }
   if(membershipError)fail("IBERFIT_QA_CERT_TARGET_MEMBERSHIP_READ_FAILED",502);
   if(String(membership?.status||"")!=="active")fail("IBERFIT_QA_CERT_TARGET_MEMBERSHIP_INVALID",409);
   if(target.name==="coach"){
