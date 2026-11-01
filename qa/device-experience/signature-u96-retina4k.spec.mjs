@@ -51,6 +51,7 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         const status=await page.evaluate(()=>{
           const fontFaces=[...document.fonts].map(f=>({family:f.family,status:f.status}));
           const mark=document.querySelector('img[src="/public/isotipo-iberfit.png"]');
+          const mobileBrand=document.querySelector('.m26-topbar-brand-mark');
           const shell=document.querySelector('.m26-shell');
           const heading=document.querySelector('.m26-main h1,.m26-main h2,.m26-main h3');
           return {
@@ -61,6 +62,7 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
             headingFont:heading?getComputedStyle(heading).fontFamily:'',
             svgIcons:document.querySelectorAll('svg[viewBox]').length,
             mark:mark?{loaded:mark.complete&&mark.naturalWidth>0,width:mark.naturalWidth,height:mark.naturalHeight,css:mark.getBoundingClientRect().width}:null,
+            mobileBrand:mobileBrand?{visible:getComputedStyle(mobileBrand).display!=='none',width:mobileBrand.getBoundingClientRect().width,height:mobileBrand.getBoundingClientRect().height,loaded:mobileBrand.complete&&mobileBrand.naturalWidth===173&&mobileBrand.naturalHeight===192}:null,
             fontFaces,
           };
         });
@@ -74,6 +76,15 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         expect(status.mark.width).toBe(173);
         expect(status.mark.height).toBe(192);
         expect(status.mark.css).toBeLessThanOrEqual(device.dpr===3?57:86);
+        expect(status.mobileBrand).not.toBeNull();
+        if(device.key==='mobile'){
+          expect(status.mobileBrand.visible,role+' mobile official mark visible').toBe(true);
+          expect(status.mobileBrand.loaded).toBe(true);
+          expect(status.mobileBrand.width).toBe(34);
+          expect(status.mobileBrand.height).toBe(38);
+        }else{
+          expect(status.mobileBrand.visible,role+' no duplicate brand outside compact mobile').toBe(false);
+        }
         for(const family of ['Inter Variable','Source Serif 4 Variable']){
           expect(status.fontFaces.some(f=>f.family.includes(family)&&f.status==='loaded'),
             role+' '+device.key+' actual '+family+' webfont').toBe(true);

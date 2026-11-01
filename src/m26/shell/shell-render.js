@@ -237,7 +237,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
     </aside>
     <section class="m26-workspace">
       <header class="m26-topbar">
-        <div class="m26-topbar-heading"><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
+        <div class="m26-topbar-heading"><img class="m26-topbar-brand-mark" src="/public/isotipo-iberfit.png" width="34" height="38" alt="" aria-hidden="true" decoding="async"><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
         <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}</div>
       </header>
       <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${guidedMainContent}</main>
