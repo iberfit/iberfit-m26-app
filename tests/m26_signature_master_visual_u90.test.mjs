@@ -127,7 +127,7 @@ test('U95 authenticated route blocks never fade to invisible while rendering or 
 test('U97 official branding remains visible in compact topbar and native on Retina',()=>{
  const shell=readFileSync(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
  assert.match(shell,/class="m26-topbar-brand-mark" src="\/public\/isotipo-iberfit\.png"/);
- const styles=css.split('U97 · Mobile IBERFIT identity')[1]||'';
+ const styles=readFileSync(new URL('../src/m26/design/adaptive-layout.css',import.meta.url),'utf8').split('U97 · Mobile IBERFIT identity')[1]||'';
  assert.match(styles,/\[data-m26-layout="compact-touch"\]/);
  assert.match(styles,/inline-size:34px;block-size:38px/);
  assert.match(styles,/object-fit:contain/);
