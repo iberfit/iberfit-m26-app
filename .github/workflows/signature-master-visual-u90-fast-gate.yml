@@ -63,7 +63,7 @@ jobs:
             --project=device-mobile-chromium \
             --project=device-tablet-820-portrait-chromium \
             --project=device-desktop-chromium
-      - name: U96 real app retina 4K native capture: 3 roles × mobile tablet desktop
+      - name: "U96 native Retina 4K capture — client, coach, admin across 3 devices"
         run: |
           npx playwright test qa/device-experience/signature-u96-retina4k.spec.mjs \
             --config=playwright.device-experience.config.mjs \
