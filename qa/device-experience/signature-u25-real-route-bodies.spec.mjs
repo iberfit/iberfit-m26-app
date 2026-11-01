@@ -54,6 +54,15 @@ for(const role of ['client','coach','admin']){
       expect(actual.chars,role+' '+area+' substantive content').toBeGreaterThan(35);
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
+      // U94: real calendar date semantics must survive all device widths
+      // without implying unverified sessions, health outcomes or writes.
+      if(role==='client'&&area==='hoy'){
+        const week=page.locator('[data-client-week-rail]');
+        await expect(week).toBeVisible();
+        await expect(week.locator('li time[datetime]')).toHaveCount(7);
+        await expect(week.locator('button[data-m26-area="planificacion"]')).toHaveCount(1);
+        expect(await week.locator('li.has-confirmed').count()).toBe(0);
+      }
 
       if(visualEvidenceProject&&priorityAreas.has(area)){
         const checked=await page.evaluate(async()=>{
