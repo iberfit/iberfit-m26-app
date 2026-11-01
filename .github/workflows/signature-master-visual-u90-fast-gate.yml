@@ -11,6 +11,7 @@ on:
       - 'tests/m26_signature_stitch_whole_app_visual.test.mjs'
       - 'qa/device-experience/signature-u96-retina4k.spec.mjs'
       - 'playwright.device-experience.config.mjs'
+      - 'src/m26/design/adaptive-layout.css'
   workflow_dispatch:
 permissions:
   contents: read

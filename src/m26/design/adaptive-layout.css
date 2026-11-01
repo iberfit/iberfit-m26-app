@@ -3540,7 +3540,7 @@ button[aria-selected="true"]::after {
  * Desktop/tablet keep the already-visible sidebar logo; no duplicated brand.
  * All roles share this harmless visual element without changing permissions. */
 .m26-shell .m26-topbar-heading > .m26-topbar-brand-mark{display:none;}
-[data-m26-layout="compact-touch"] .m26-shell .m26-topbar-heading{
+[data-m26-layout="compact-touch"] .m26-shell .m26-workspace .m26-topbar > .m26-topbar-heading{
   display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;
   justify-content:flex-start;gap:.65rem;min-inline-size:0;
 }
