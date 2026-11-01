@@ -177,20 +177,21 @@ test('SIGNATURE U101 · genuine Coach day and week calendar at 820 tablet / 1440
         return {view:calendar.view.type,timeZone:options.timeZone,editable:options.editable,selectable:options.selectable};
       });
       expect(ready).toEqual({view:'timeGridWeek',timeZone:'America/Santiago',editable:false,selectable:false});
-      await expect(host.locator('.fc-toolbar-title')).toBeVisible();
-      await expect(host.locator('.fc-timegrid-event')).toHaveCount(2);
+      await expect(host.getByRole('heading',{name:/noviembre de 2026/i})).toBeVisible();
+      await expect(host.getByRole('button',{name:/Sesión · ejemplo A/})).toBeVisible();
+      await expect(host.getByRole('button',{name:/Sesión · ejemplo B/})).toBeVisible();
       const palette=await host.evaluate(el=>{
-        const root=getComputedStyle(el),toolbar=getComputedStyle(el.querySelector('.fc-toolbar-title'));
-        return {background:root.getPropertyValue('--fc-page-bg-color').trim(),titleFamily:toolbar.fontFamily};
+        const theme=getComputedStyle(el),heading=getComputedStyle(el.querySelector('[role="heading"]'));
+        return {background:theme.getPropertyValue('--fc-monarch-background').trim(),titleFamily:heading.fontFamily};
       });
       expect(palette.background).toBe('#101E17');
       expect(palette.titleFamily).toMatch(/Source Serif 4|Georgia/);
       for(const view of ['week','day']){
         if(view==='day'){
-          await host.locator('.fc-timeGridDay-button').click();
-          await expect(host.locator('.fc-view')).toHaveAttribute('class',/fc-timegrid-day-view/);
+          await host.getByRole('tab',{name:/Vista del día/i}).click();
+          await expect(host.getByRole('tab',{name:/Vista del día/i})).toHaveAttribute('aria-selected','true');
         }else{
-          await expect(host.locator('.fc-view')).toHaveAttribute('class',/fc-timegrid-week-view/);
+          await expect(host.getByRole('tab',{name:/Vista del semana|Vista de la semana/i})).toHaveAttribute('aria-selected','true');
         }
         const box=await host.boundingBox();
         expect(box?.width).toBeGreaterThan(350);

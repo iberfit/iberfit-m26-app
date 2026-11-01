@@ -160,3 +160,18 @@ test('U99 Coach calendar retains genuine day/week navigation and role boundary',
  assert.ok(fullcalendar.includes('editable:false'));
  assert.ok(fullcalendar.includes('selectable:false'));
 });
+
+test('U102 FullCalendar v7 Monarch vars are scoped to Coach instead of purple/white global theme',()=>{
+ const css=readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+ const block=css.split('U102 · Actual FullCalendar 7 Monarch runtime contract')[1]?.split('/* IBERFIT M27')[0]||'';
+ for(const token of ['--fc-monarch-background:#101E17','--fc-monarch-foreground:#F5F5F0',
+  '--fc-monarch-primary:#D7BA7C','--fc-monarch-event:#C5A059',
+  '--fc-monarch-selected:#D7BA7C','--fc-monarch-border:rgba(245,245,240,.16)'])
+  assert.ok(block.includes(token),token);
+ assert.ok(block.includes('[role="heading"]'));
+ assert.ok(block.includes('[role="tab"][aria-selected="true"]'));
+ assert.ok(block.includes('@media(forced-colors:active)'));
+ assert.doesNotMatch(block,/display:none|pointer-events:none|position:fixed|content:url/);
+ const vendor=readFileSync(new URL('../src/m26/vendor/fullcalendar-7.0.2/monarch.purple.css',import.meta.url),'utf8');
+ assert.ok(vendor.includes('--fc-monarch-background: #ffffff'));
+});
