@@ -3355,9 +3355,6 @@
 /* SIGNATURE U104 · Calendario editorial Client 320–430: real status first.
  * Keep seven date cells, entire planning action, native time labels, keyboard
  * contrast and the static noninteractive dates. More space for real wellbeing. */
-.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-link-short{
-  display:none;
-}
 .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail[data-week-confirmed-count="0"] .m26-client-week-note > span{
   color:#D2D9CE;
 }
@@ -3393,12 +3390,6 @@
     padding:.35rem .2rem;
     font-size:.78rem;
     white-space:nowrap;
-  }
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-link-long{
-    display:none;
-  }
-  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-link-short{
-    display:inline;
   }
   .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-days{
     gap:clamp(.13rem,.7vw,.25rem);
