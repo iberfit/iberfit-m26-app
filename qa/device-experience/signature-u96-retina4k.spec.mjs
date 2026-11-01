@@ -62,7 +62,7 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
             headingFont:heading?getComputedStyle(heading).fontFamily:'',
             svgIcons:document.querySelectorAll('svg[viewBox]').length,
             mark:mark?{loaded:mark.complete&&mark.naturalWidth>0,width:mark.naturalWidth,height:mark.naturalHeight,css:mark.getBoundingClientRect().width}:null,
-            mobileBrand:mobileBrand?{visible:getComputedStyle(mobileBrand).display!=='none',width:mobileBrand.getBoundingClientRect().width,height:mobileBrand.getBoundingClientRect().height,loaded:mobileBrand.complete&&mobileBrand.naturalWidth===173&&mobileBrand.naturalHeight===192}:null,
+            mobileBrand:mobileBrand?{visible:getComputedStyle(mobileBrand).display!=='none',width:mobileBrand.getBoundingClientRect().width,height:mobileBrand.getBoundingClientRect().height,loaded:mobileBrand.complete&&mobileBrand.naturalWidth===173&&mobileBrand.naturalHeight===192,top:mobileBrand.getBoundingClientRect().top,left:mobileBrand.getBoundingClientRect().left,right:mobileBrand.getBoundingClientRect().right,centerY:mobileBrand.getBoundingClientRect().top+mobileBrand.getBoundingClientRect().height/2,titleLeft:mobileBrand.nextElementSibling?.getBoundingClientRect().left,titleCenterY:(mobileBrand.nextElementSibling?.getBoundingClientRect().top||0)+(mobileBrand.nextElementSibling?.getBoundingClientRect().height||0)/2,headingDisplay:getComputedStyle(mobileBrand.parentElement).display,headingDirection:getComputedStyle(mobileBrand.parentElement).flexDirection}:null,
             fontFaces,
           };
         });
@@ -82,6 +82,10 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
           expect(status.mobileBrand.loaded).toBe(true);
           expect(status.mobileBrand.width).toBe(34);
           expect(status.mobileBrand.height).toBe(38);
+          expect(status.mobileBrand.headingDisplay).toBe('flex');
+          expect(status.mobileBrand.headingDirection).toBe('row');
+          expect(status.mobileBrand.titleLeft,'brand must precede mobile heading in the same row').toBeGreaterThanOrEqual(status.mobileBrand.right+5);
+          expect(Math.abs(status.mobileBrand.centerY-status.mobileBrand.titleCenterY),'brand and title must share one visual baseline').toBeLessThanOrEqual(10);
         }else{
           expect(status.mobileBrand.visible,role+' no duplicate brand outside compact mobile').toBe(false);
         }

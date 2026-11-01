@@ -3541,7 +3541,8 @@ button[aria-selected="true"]::after {
  * All roles share this harmless visual element without changing permissions. */
 .m26-shell .m26-topbar-heading > .m26-topbar-brand-mark{display:none;}
 [data-m26-layout="compact-touch"] .m26-shell .m26-topbar-heading{
-  display:flex;align-items:center;gap:.65rem;min-inline-size:0;
+  display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;
+  justify-content:flex-start;gap:.65rem;min-inline-size:0;
 }
 [data-m26-layout="compact-touch"] .m26-shell .m26-topbar-heading > .m26-topbar-brand-mark{
   display:block;inline-size:34px;block-size:38px;flex:0 0 34px;object-fit:contain;
