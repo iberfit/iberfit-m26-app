@@ -90,7 +90,7 @@ test('second history section failure does not publish a partial session or conce
 test('QA Client must demand both history sections, and navigation alone never downloads either',async()=>{
  const {readFileSync}=await import('node:fs');
  const code=readFileSync('src/m26/app/client-history-demand-controller.js','utf8');
- assert.match(code,/loader\.load\(\{owner,clientId,sections:\['session','session_execution'\]\}\)/u);
+ assert.match(code,/loader\.load\(\{owner,clientId,sections:\['session','session_execution'\],limit:32\}\)/u);
  assert.match(code,/if\(explicit!==true\)\{/u);
  assert.match(code,/maybeLoad\(activeArea\); \/\/ No RPC on navigation/u);
  assert.match(code,/if\(!current\(\)\)return;\s*store\.incorporateClientCompletedHistory/u);
