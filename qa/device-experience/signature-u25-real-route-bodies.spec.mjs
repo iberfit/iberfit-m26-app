@@ -58,6 +58,14 @@ for(const role of ['client','coach','admin']){
       // without implying unverified sessions, health outcomes or writes.
       if(role==='client'&&area==='hoy'){
         const week=page.locator('[data-client-week-rail]');
+        const primary=page.locator('.m26-client-home-primary-zone');
+        const compass=page.locator('[data-client-home-compass]');
+        await expect(primary).toBeVisible();
+        await expect(compass).toBeVisible();
+        const positions=await Promise.all([primary,week,compass].map(x=>x.boundingBox()));
+        expect(positions.every(Boolean)).toBe(true);
+        expect(positions[1].y,'week follows action').toBeGreaterThan(positions[0].y);
+        expect(positions[2].y,'destinations follow week').toBeGreaterThan(positions[1].y);
         await expect(week).toBeVisible();
         await expect(week.locator('li time[datetime]')).toHaveCount(7);
         await expect(week.locator('button[data-m26-area="planificacion"]')).toHaveCount(1);

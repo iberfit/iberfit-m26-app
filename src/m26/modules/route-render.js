@@ -864,10 +864,9 @@ function renderClientHoyRoute(vm) {
       </div>
     </section>
 
+    ${trainingSurface?renderClientWeekRail(upcoming):''}
     ${clientCompass}
     </section>
-
-    ${trainingSurface?renderClientWeekRail(upcoming):''}
 
     ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
 

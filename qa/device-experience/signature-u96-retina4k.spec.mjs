@@ -95,6 +95,11 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         }
         if(role==='client'){
           const week=page.locator('[data-client-week-rail]');
+          const compass=page.locator('[data-client-home-compass]');
+          await expect(compass).toBeVisible();
+          const weekBox=await week.boundingBox();
+          const contextBox=await compass.boundingBox();
+          expect(weekBox?.y).toBeLessThan(contextBox?.y);
           await expect(week).toBeVisible();
           await expect(week.locator('li time[datetime]')).toHaveCount(7);
         }

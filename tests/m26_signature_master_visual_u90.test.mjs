@@ -133,3 +133,30 @@ test('U97 official branding remains visible in compact topbar and native on Reti
  assert.match(styles,/object-fit:contain/);
  assert.doesNotMatch(styles,/scale\(|filter:|opacity:0/);
 });
+
+test('U99 Client primary action precedes real 7-day plan, then Entreno/Evolución/Bienestar',()=>{
+ const html=renderHoyRoute({role:'client',serviceKind:'training',
+  clients:[{id:'qa-u99',name:'Atleta sintético',serviceActive:true}],
+  appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[]}});
+ const primary=html.indexOf('class="m26-client-home-primary-zone"');
+ const week=html.indexOf('data-client-week-rail');
+ const context=html.indexOf('data-client-home-compass');
+ assert.ok(primary>=0&&week>primary&&context>week,'semantic order');
+ for(const area of ['sesion','progreso','actividad','planificacion'])
+  assert.ok(html.includes('data-m26-area="'+area+'"'),area);
+ assert.equal((html.match(/<time datetime=/g)||[]).length,7);
+});
+test('U99 Coach calendar retains genuine day/week navigation and role boundary',()=>{
+ const fullcalendar=readFileSync(new URL('../src/m26/agenda/fullcalendar-agenda.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+ const block=css.split('U99 · Stitch-informed Coach calendar')[1]?.split('/* IBERFIT M27')[0]||'';
+ for(const name of ['.fc-toolbar-title','.fc-col-header-cell-cushion','.fc-day-today','.fc-timegrid-event','.fc-button-active'])
+  assert.ok(block.includes(name),'missing '+name);
+ assert.ok(block.includes('@media (min-width:720px) and (max-width:1050px)'));
+ assert.ok(block.includes('@media (forced-colors:active)'));
+ assert.doesNotMatch(block,/display:none|pointer-events:none|position:fixed|content:url|!important/);
+ assert.ok(fullcalendar.includes("initialView:compact?'timeGridDay':'timeGridWeek'"));
+ assert.ok(fullcalendar.includes('timeZone:RC62_AGENDA_TIME_ZONE'));
+ assert.ok(fullcalendar.includes('editable:false'));
+ assert.ok(fullcalendar.includes('selectable:false'));
+});
