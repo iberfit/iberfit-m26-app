@@ -379,7 +379,7 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   --fc-monarch-tertiary:#172D22;
   --fc-monarch-tertiary-foreground:#F5F5F0;
   --fc-monarch-event:#C5A059;
-  --fc-monarch-event-contrast:#101C15;
+  --fc-monarch-event-contrast:#F5F5F0;
   --fc-monarch-highlight:rgba(215,186,124,.13);
   --fc-monarch-now:#F0CC82;
   --fc-monarch-selected:#D7BA7C;
@@ -417,6 +417,14 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   color:#13221C;
   background:#D7BA7C;
 }
+/* U103 · The v7 Monarch 15%-tinted event background is dark on the IBERFIT
+ * calendar. Override only genuine interactive appointment labels, not status
+ * semantics, so the event copy retains accessible contrast in week and day. */
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button,
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button :is(span,small,strong){
+  color:#F5F5F0;
+  font-weight:650;
+}
 .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="columnheader"]{
   color:#DEE4D8;
   font-size:.78rem;
@@ -432,6 +440,10 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   }
 }
 @media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button,
+  .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button :is(span,small,strong){
+    color:ButtonText;
+  }
   .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="tab"][aria-selected="true"]{
     background:Highlight;
     color:HighlightText;

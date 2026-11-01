@@ -186,6 +186,14 @@ test('SIGNATURE U101 · genuine Coach day and week calendar at 820 tablet / 1440
       });
       expect(palette.background).toBe('#101E17');
       expect(palette.titleFamily).toMatch(/Source Serif 4|Georgia/);
+      // Native Monarch v7 uses a translucent dark event fill. Its appointment
+      // title must remain readable, not inherit the dark ink of a solid event.
+      const readable=await host.getByRole('button',{name:/Sesión · ejemplo A/}).evaluate(el=>({
+        main:getComputedStyle(el).color,
+        parts:[...el.querySelectorAll('span,small,strong')].map(n=>getComputedStyle(n).color),
+      }));
+      expect(readable.main).toBe('rgb(245, 245, 240)');
+      expect(readable.parts.every(c=>c==='rgb(245, 245, 240)')).toBe(true);
       for(const view of ['week','day']){
         if(view==='day'){
           await host.getByRole('tab',{name:/Vista del día/i}).click();

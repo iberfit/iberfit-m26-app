@@ -175,3 +175,14 @@ test('U102 FullCalendar v7 Monarch vars are scoped to Coach instead of purple/wh
  const vendor=readFileSync(new URL('../src/m26/vendor/fullcalendar-7.0.2/monarch.purple.css',import.meta.url),'utf8');
  assert.ok(vendor.includes('--fc-monarch-background: #ffffff'));
 });
+
+test('U103 actual Coach appointment labels remain cream on dark Monarch 7 event surfaces',()=>{
+ const s=readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+ const section=s.split('U102 · Actual FullCalendar 7 Monarch runtime contract')[1]?.split('/* IBERFIT M27')[0]||'';
+ assert.ok(section.includes('--fc-monarch-event-contrast:#F5F5F0'));
+ assert.match(section,/\[role="gridcell"\] button\s*,/);
+ assert.match(section,/\[role="gridcell"\] button :is\(span,small,strong\)/);
+ assert.match(section,/color:#F5F5F0/);
+ assert.match(section,/@media\(forced-colors:active\)/);
+ assert.doesNotMatch(section,/opacity:0|display:none|pointer-events:none/);
+});
