@@ -65,3 +65,16 @@ test('P0 Free historical loading, offline, failed and retry UI are localized in 
   }
  }
 });
+
+test('SIGNATURE U104 truthful Client calendar remains localized EN/FR/PT including screen-reader link',()=>{
+ for(const label of [
+  'Sin citas confirmadas esta semana','Citas confirmadas esta semana',
+  'La planificación completa está en tu plan.','Ver mi plan','Ver planificación semanal'
+ ]){
+  for(const language of ['en','fr','pt']){
+   const copy=iberfitSurfaceTranslate(label,{language});
+   assert.notEqual(copy,label,language+' '+label);
+   assert.ok(copy.length>=3);
+  }
+ }
+});

@@ -5,6 +5,12 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE U104: true local-week status and compact planning CTA, EN/FR/PT parity.
+  ["Sin citas confirmadas esta semana","No confirmed appointments this week","Aucun rendez-vous confirmé cette semaine","Sem marcações confirmadas esta semana"],
+  ["Citas confirmadas esta semana","Confirmed appointments this week","Rendez-vous confirmés cette semaine","Marcações confirmadas esta semana"],
+  ["La planificación completa está en tu plan.","Your full schedule is in your plan.","Votre planning complet figure dans votre programme.","O planeamento completo está no seu plano."],
+  ["Ver mi plan","View my plan","Voir mon programme","Ver o meu plano"],
+  ["Ver planificación semanal","View weekly schedule","Voir le planning hebdomadaire","Ver planeamento semanal"],
   // P0 #1209 · historical session recovery: locale parity for all status and retry messages.
   ["Los detalles de sesiones antiguas se consultan sólo cuando los solicitas.","Older session details are retrieved only when you request them.","Les détails des séances anciennes ne sont récupérés que sur demande.","Os detalhes das sessões antigas são consultados apenas quando os solicitas."],
   ["Consultar historial completo","View full history","Consulter l'historique complet","Consultar histórico completo"],
