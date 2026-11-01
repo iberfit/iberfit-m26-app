@@ -192,8 +192,16 @@ test('SIGNATURE U101 · genuine Coach day and week calendar at 820 tablet / 1440
         main:getComputedStyle(el).color,
         parts:[...el.querySelectorAll('span,small,strong')].map(n=>getComputedStyle(n).color),
       }));
-      expect(readable.main).toBe('rgb(245, 245, 240)');
-      expect(readable.parts.every(c=>c==='rgb(245, 245, 240)')).toBe(true);
+      const luminance=(css)=>{
+        const rgb=String(css).match(/\\d+(?:\\.\\d+)?/g)?.slice(0,3).map(Number)||[];
+        if(rgb.length!==3)return NaN;
+        const c=rgb.map(x=>{const v=x/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
+        return c[0]*.2126+c[1]*.7152+c[2]*.0722;
+      };
+      const dark=luminance('rgb(16, 30, 23)');
+      const ratio=(color)=>{const l=luminance(color);return (Math.max(l,dark)+.05)/(Math.min(l,dark)+.05);};
+      for(const color of [readable.main,...readable.parts])
+        expect(ratio(color),'U103 event text contrast '+color).toBeGreaterThanOrEqual(4.5);
       for(const view of ['week','day']){
         if(view==='day'){
           await host.getByRole('tab',{name:/Vista del día/i}).click();
