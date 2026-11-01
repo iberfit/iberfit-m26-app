@@ -478,6 +478,14 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   // from an unexpected HTTP error. Never ignore an unverified 400/404.
   const errorResponseChecks=[];
   const bootstrapChecks=[];
+  // Count only the exact QA U38 history RPC; never log JWT, bodies or client IDs.
+  // First registration login is auth-only, second login proves lossless history.
+  let u38HistoryRequests=0;
+  page.on('request',(request)=>{
+    if(isU39QaBootstrapOrHistory(request)
+      &&new URL(request.url()).pathname==='/rest/v1/rpc/iberfit_privileged_history_page_u38_qa')
+      u38HistoryRequests++;
+  });
   let bootstrapPayloadSample=null;
   page.on('requestfinished',(request)=>{
     if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN)
@@ -520,7 +528,19 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   try{
     await setDevice(page,cdp,{name:'desktop',width:1440,height:1000,mobile:false,touch:false});
     const response=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});expect(response?.status()).toBe(200);
+    const coreSmokeEnabled=process.env.M26_QA_COACH_CORE_AUTH_SMOKE==='true';
+    if(coreSmokeEnabled){
+      // In-memory, one-login-only opt-in. Never use initScript here: logout
+      // or a navigation must NOT automatically re-enable the core-only mode.
+      await page.evaluate(()=>{globalThis.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__=true;});
+    }
     await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
+    if(coreSmokeEnabled){
+      // A core-only first login MUST NOT call historical pages.
+      expect(u38HistoryRequests,'First WebAuthn registration must not prefetch U38').toBe(0);
+      await page.evaluate(()=>{globalThis.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__=false;});
+      evidence.firstWebAuthnAuthOnlyHistoryPages=0;
+    }
     expect(evidence.webauthnActions).toContain('registration-options');expect(evidence.webauthnActions).toContain('registration-verify');
     evidence.registrationVerified=true;
     if(process.env.M26_QA_U37_VERIFY==='true'){
@@ -540,6 +560,12 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
 
     const secondStart=evidence.webauthnActions.length;
     await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
+    if(coreSmokeEnabled){
+      // The real Coach planning/archival test starts ONLY after a complete
+      // second WebAuthn login. This check must fail if mode leaked across logout.
+      expect(u38HistoryRequests,'Second Coach MFA must restore full U38 history').toBeGreaterThan(0);
+      evidence.secondWebAuthnFullHistoryPages=u38HistoryRequests;
+    }
     const secondActions=evidence.webauthnActions.slice(secondStart);
     expect(secondActions,'Second ceremony must authenticate existing credential').toContain('authentication-options');
     expect(secondActions,'Second ceremony must verify existing credential').toContain('authentication-verify');

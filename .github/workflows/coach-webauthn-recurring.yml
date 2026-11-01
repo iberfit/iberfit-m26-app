@@ -141,6 +141,9 @@ jobs:
         run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
       - name: Build authenticated QA surface
         env:
+          # P0 Free: this workflow alone can opt into FIRST auth-only core read;
+          # all functional paths and second WebAuthn login retain full U39 history.
+          M26_QA_COACH_CORE_AUTH_SMOKE: 'true'
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co

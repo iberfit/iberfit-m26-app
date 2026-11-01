@@ -27,6 +27,11 @@ const runtime=[
   // restricts this opt-in to the exact synthetic Client A account.
   '  canary: true,',
   '  freeClientCompletedHistoryDemand: true,',
+  // Explicitly enabled ONLY by the Coach WebAuthn recurring workflow build.
+  // Never ship a live app-wide runtime option or enable other QA suites.
+  ...(process.env.M26_QA_COACH_CORE_AUTH_SMOKE==='true'
+    ? ['  freeQaCoachCoreAuthSmoke: true,']
+    : []),
   '  timeoutMs: 12000,',
   '  rpc: Object.freeze({',
   "    bootstrap: 'iberfit_bootstrap_v26',",

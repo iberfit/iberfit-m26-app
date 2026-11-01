@@ -66,3 +66,26 @@ test('original complete U39 history remains default and post-write readback stay
  assert.match(tr,/iberfit_privileged_history_page_u38_qa/u);
  assert.match(tr,/U39_HISTORY_NOT_COMPLETE/u);
 });
+
+
+// Integration contract: enable the core-only path just for the FIRST
+// WebAuthn registration login. All functional tests retain U39 history.
+test('auth-only probe is wired only into Coach recurring first login; second remains full',()=>{
+ const fs=requireSource('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
+ const workflow=requireSource('.github/workflows/coach-webauthn-recurring.yml');
+ const build=requireSource('qa/rc64/build-authenticated-surface.mjs');
+ assert.match(workflow,/M26_QA_COACH_CORE_AUTH_SMOKE: 'true'/u);
+ assert.match(build,/process\.env\.M26_QA_COACH_CORE_AUTH_SMOKE==='true'/u);
+ assert.match(build,/freeQaCoachCoreAuthSmoke: true/u);
+ const trigger=fs.indexOf('__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__=true;');
+ const first=fs.indexOf("await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD)",trigger);
+ const restored=fs.indexOf('__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__=false;',first);
+ const second=fs.indexOf("await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD)",restored);
+ assert.ok(trigger>=0&&first>trigger&&restored>first&&second>restored);
+ assert.match(fs,/First WebAuthn registration must not prefetch U38/u);
+ assert.match(fs,/Second Coach MFA must restore full U38 history/u);
+ assert.match(fs,/auditAuthenticatedProfessionalRoutes/u);
+ assert.match(fs,/allCards,entity\+'\: no historical Coach publication removed'/u);
+ assert.doesNotMatch(fs,/addInitScript\(\(\)=>\{globalThis\.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__/u);
+});
+function requireSource(path){return readFileSync(path,'utf8');}
