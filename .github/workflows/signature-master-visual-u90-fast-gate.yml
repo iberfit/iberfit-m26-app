@@ -9,6 +9,8 @@ on:
       - 'tests/m26_signature_master_visual_u90.test.mjs'
       - 'qa/device-experience/signature-u25-real-route-bodies.spec.mjs'
       - 'tests/m26_signature_stitch_whole_app_visual.test.mjs'
+      - 'qa/device-experience/signature-u96-retina4k.spec.mjs'
+      - 'playwright.device-experience.config.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -61,6 +63,19 @@ jobs:
             --project=device-mobile-chromium \
             --project=device-tablet-820-portrait-chromium \
             --project=device-desktop-chromium
+      - name: U96 real app retina 4K native capture: 3 roles × mobile tablet desktop
+        run: |
+          npx playwright test qa/device-experience/signature-u96-retina4k.spec.mjs \
+            --config=playwright.device-experience.config.mjs \
+            --project=device-desktop-4k-chromium
+      - name: Preserve 9 native PNG previews and measurement manifest (synthetic only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-signature-u96-retina4k-synthetic-${{ github.run_id }}
+          path: qa-evidence/signature-u96-retina4k/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve failure evidence only, never private accounts or tokens
         if: failure()
         uses: actions/upload-artifact@v4
