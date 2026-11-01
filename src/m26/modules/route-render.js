@@ -536,6 +536,7 @@ export function renderClientWeekRail(upcoming,now=new Date()){
   const week=Array.from({length:7},(_,i)=>new Date(monday.getTime()+i*86400000));
   const short=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',timeZone:'UTC'});
   const title=`${short.format(week[0])} – ${short.format(week[6])}`;
+  const confirmedDays=week.reduce((total,item)=>total+(known.has(dateKey(item))?1:0),0);
   const initials=['L','M','X','J','V','S','D'];
   const cells=week.map((item,i)=>{
     const key=dateKey(item),current=key===dateKey(today),confirmed=known.has(key);
@@ -543,10 +544,10 @@ export function renderClientWeekRail(upcoming,now=new Date()){
     const aria=`${current?'Hoy, ':''}${dateLabel}${confirmed?', cita confirmada próxima':''}`;
     return `<li class="m26-client-week-day${current?' is-today':''}${confirmed?' has-confirmed':''}" data-day="${key}" data-date-status="${confirmed?'confirmed':'not-shown'}"${current?' aria-current="date"':''} aria-label="${escapeHtml(aria)}"><span>${initials[i]}</span><strong><time datetime="${key}">${item.getUTCDate()}</time></strong><i aria-hidden="true"></i></li>`;
   }).join('');
-  return `<section class="m26-client-week-rail" data-client-week-rail aria-labelledby="m26-client-week-heading">
-    <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion">Ver planificación <span aria-hidden="true">↗</span></button></header>
+  return `<section class="m26-client-week-rail" data-client-week-rail data-week-confirmed-count="${confirmedDays}" aria-labelledby="m26-client-week-heading">
+    <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion" aria-label="Ver planificación semanal"><span class="m26-client-week-link-long">Ver planificación</span><span class="m26-client-week-link-short" aria-hidden="true">Ver plan</span><span aria-hidden="true">↗</span></button></header>
     <ol class="m26-client-week-days" aria-label="Semana de lunes a domingo">${cells}</ol>
-    <div class="m26-client-week-note"><span><i aria-hidden="true"></i>Citas confirmadas próximas</span><small>La planificación completa está en tu plan.</small></div>
+    <div class="m26-client-week-note"><span>${confirmedDays?`<i aria-hidden="true"></i>Citas confirmadas esta semana`:'Sin citas confirmadas esta semana'}</span><small>La planificación completa está en tu plan.</small></div>
   </section>`;
 }
 

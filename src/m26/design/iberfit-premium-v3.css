@@ -3352,6 +3352,95 @@
   }
 }
 
+/* SIGNATURE U104 · Calendario editorial Client 320–430: real status first.
+ * Keep seven date cells, entire planning action, native time labels, keyboard
+ * contrast and the static noninteractive dates. More space for real wellbeing. */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-link-short{
+  display:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail[data-week-confirmed-count="0"] .m26-client-week-note > span{
+  color:#D2D9CE;
+}
+@media(max-width:480px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail{
+    gap:clamp(.55rem,1.7vw,.75rem);
+    padding:clamp(.65rem,2.7vw,.85rem);
+    border-radius:.95rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    gap:.5rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head > div{
+    min-width:0;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head p{
+    margin:0 0 .16rem;
+    font-size:.64rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head h2{
+    font-size:clamp(.95rem,4.15vw,1.14rem);
+    line-height:1.23;
+    text-wrap:balance;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-head button{
+    min-width:0;
+    min-height:44px;
+    align-self:center;
+    gap:.25rem;
+    padding:.35rem .2rem;
+    font-size:.78rem;
+    white-space:nowrap;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-link-long{
+    display:none;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-link-short{
+    display:inline;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-days{
+    gap:clamp(.13rem,.7vw,.25rem);
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day{
+    grid-template-rows:.85rem minmax(1.85rem,auto) .35rem;
+    gap:.16rem;
+    padding:.33rem .05rem;
+    border-radius:.62rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day > span{
+    font-size:.66rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day > strong{
+    inline-size:clamp(1.45rem,6vw,1.8rem);
+    font-size:.81rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-note{
+    display:grid;
+    gap:.22rem;
+    font-size:.73rem;
+    line-height:1.38;
+  }
+}
+@media(max-width:340px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail{
+    padding:.62rem .48rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day{
+    padding:.3rem 0;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-day > strong{
+    inline-size:1.4rem;
+    font-size:.76rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-stitch-v23 .m26-client-week-rail[data-week-confirmed-count="0"] .m26-client-week-note > span{
+    color:CanvasText;
+  }
+}
+
 /* SIGNATURE MASTER U90 · Stitch art direction → existing authenticated product.
  * One source-level, role-aware composition pass across all 43 existing routes.
  * Layout and presentation only: no demo data, no new remote actions, no permissions.

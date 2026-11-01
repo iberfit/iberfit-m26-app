@@ -56,3 +56,27 @@ test('Stitch weekly calendar is visible only in Client training context and rema
   assert.doesNotMatch(rules,/!important|position:fixed|pointer-events:none/);
   assert.match(renderClientWeekRail([{date:'2026-10-31',statusRaw:'confirmada'}],new Date('2026-11-01T12:00:00Z')),/data-day="2026-10-31" data-date-status="confirmed"/);
 });
+
+test('U104 Client weekly calendar tells the truth about empty/confirmed dates',async()=>{
+ const {renderClientWeekRail}=await import('../src/m26/modules/route-render.js');
+ const clock=new Date('2026-11-01T12:00:00Z');
+ const empty=renderClientWeekRail([],clock);
+ assert.match(empty,/data-week-confirmed-count="0"/);
+ assert.match(empty,/Sin citas confirmadas esta semana/);
+ assert.doesNotMatch(empty,/Citas confirmadas próximas/);
+ assert.equal((empty.match(/<li class="m26-client-week-day/g)||[]).length,7);
+ assert.match(empty,/aria-label="Ver planificación semanal"/);
+ const withConfirmed=renderClientWeekRail([
+  {date:'2026-10-30T21:00:00Z',statusRaw:'confirmada'},
+  {date:'2026-11-01T13:00:00Z',statusRaw:'confirmed'},
+  {date:'2026-10-31T14:00:00Z',statusRaw:'propuesta'},
+  {date:'2026-11-09T13:00:00Z',statusRaw:'confirmed'},
+ ],clock);
+ assert.match(withConfirmed,/data-week-confirmed-count="2"/);
+ assert.match(withConfirmed,/Citas confirmadas esta semana/);
+ assert.equal((withConfirmed.match(/data-date-status="confirmed"/g)||[]).length,2);
+ const futureOnly=renderClientWeekRail([{date:'2026-11-09T13:00:00Z',statusRaw:'confirmed'}],clock);
+ assert.match(futureOnly,/data-week-confirmed-count="0"/);
+ assert.match(futureOnly,/Sin citas confirmadas esta semana/);
+ assert.doesNotMatch(withConfirmed,/4\s*\/\s*5|Sesiones cumplidas|start-published-session/i);
+});

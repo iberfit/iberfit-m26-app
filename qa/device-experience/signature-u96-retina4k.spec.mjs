@@ -223,3 +223,66 @@ test('SIGNATURE U101 · genuine Coach day and week calendar at 820 tablet / 1440
     }finally{await context.close();}
   }
 });
+
+
+// U104 · Restore usable Client week on narrow phones without downsizing
+// vector icons or turning a real day into a fake recorded session.
+test('SIGNATURE U104 · Client mobile week 320/360/430 px, truthful empty state and readable plan action',async({browser},testInfo)=>{
+  test.skip(testInfo.project.name!=='device-desktop-4k-chromium','one isolated narrow-width sampling');
+  await mkdir(root,{recursive:true});
+  for(const width of [320,360,430]){
+    const context=await browser.newContext({
+      viewport:{width,height:780},deviceScaleFactor:3,
+      isMobile:true,hasTouch:true,locale:'es-CL',timezoneId:'America/Santiago',
+      reducedMotion:'reduce',serviceWorkers:'block',
+      baseURL:'http://127.0.0.1:4216',
+    });
+    try{
+      const page=await context.newPage(),errors=[],writes=[];
+      page.on('pageerror',e=>errors.push(String(e.message||e)));
+      page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push(r.method());});
+      await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real');
+      await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode)).toBe('real-synthetic');
+      const rail=page.locator('[data-client-week-rail]');
+      await expect(rail).toBeVisible();
+      await expect(rail).toHaveAttribute('data-week-confirmed-count','0');
+      await expect(rail.getByText('Sin citas confirmadas esta semana')).toBeVisible();
+      const plan=rail.getByRole('button',{name:'Ver planificación semanal'});
+      await expect(plan).toBeVisible();
+      await expect(rail.locator('li time[datetime]')).toHaveCount(7);
+      const measured=await page.evaluate(()=>{
+        const rail=document.querySelector('[data-client-week-rail]'),
+        days=[...rail.querySelectorAll('.m26-client-week-day')],
+        head=rail.querySelector('.m26-client-week-head'),
+        button=rail.querySelector('[data-m26-area="planificacion"]'),
+        doc=document.documentElement,
+        last=rail.querySelector('.m26-client-week-note'),
+        compass=document.querySelector('[data-client-home-compass]');
+        return {overflow:Math.max(0,doc.scrollWidth-innerWidth,document.body.scrollWidth-innerWidth),
+          railHeight:rail.getBoundingClientRect().height,
+          dayWidths:days.map(day=>day.getBoundingClientRect().width),
+          buttonHeight:button.getBoundingClientRect().height,
+          headHeight:head.getBoundingClientRect().height,
+          noteVisible:getComputedStyle(last).display!=='none',
+          contextualVisible:Boolean(compass&&getComputedStyle(compass).display!=='none'),
+          weekOrder:rail.compareDocumentPosition(compass)&Node.DOCUMENT_POSITION_FOLLOWING,
+          shortCopy:getComputedStyle(rail.querySelector('.m26-client-week-link-short')).display,
+        };
+      });
+      expect(measured.overflow,'320–430 viewport overflow').toBeLessThanOrEqual(2);
+      expect(measured.dayWidths.length).toBe(7);
+      expect(Math.min(...measured.dayWidths),'seven readable calendar dates').toBeGreaterThanOrEqual(27);
+      expect(measured.buttonHeight,'accessible plan navigation').toBeGreaterThanOrEqual(44);
+      expect(measured.railHeight,'calendar must not displace all wellness context').toBeLessThan(270);
+      expect(measured.noteVisible).toBe(true);
+      expect(measured.contextualVisible).toBe(true);
+      expect(measured.weekOrder).toBeTruthy();
+      expect(measured.shortCopy).not.toBe('none');
+      const png=await page.screenshot({type:'png',scale:'device',fullPage:false,animations:'disabled'});
+      expect(png.readUInt32BE(16)).toBe(width*3);
+      await writeFile(path.join(root,'client-mobile-'+width+'-DPR3-U104-SYNTHETIC.png'),png);
+      expect(errors).toEqual([]);expect(writes).toEqual([]);
+      await page.close();
+    }finally{await context.close();}
+  }
+});
