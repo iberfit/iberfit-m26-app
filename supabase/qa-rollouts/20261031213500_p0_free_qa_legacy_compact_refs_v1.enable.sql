@@ -6,7 +6,7 @@ BEGIN
    RAISE EXCEPTION 'P0_FREE_COMPACT_QA_ONLY' USING ERRCODE='42501';
  END IF;
  IF md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))
-    <> '1c7dc6b4f8b79cba0c072323412de9bb' THEN
+    <> 'a8bf53fd05478bb2face12edc642dccc' THEN
    RAISE EXCEPTION 'P0_FREE_COMPACT_ACTIVATION_SOURCE_DRIFT' USING ERRCODE='42501';
  END IF;
  IF (SELECT value#>>'{}' FROM public.iberfit_system_settings
