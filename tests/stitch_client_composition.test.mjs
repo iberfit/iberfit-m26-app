@@ -39,7 +39,8 @@ test('Stitch weekly calendar is visible only in Client training context and rema
   const {renderClientWeekRail}=await import('../src/m26/modules/route-render.js');
   const doc=renderHoyRoute({...vm,upcoming:[{date:'2026-10-31T17:00:00Z',statusRaw:'confirmada',id:'synthetic'}]});
   assert.match(doc,/data-client-week-rail/);
-  assert.ok(doc.indexOf('data-client-week-rail')>doc.indexOf('data-client-home-compass'));
+  assert.ok(doc.indexOf('data-client-week-rail')>doc.indexOf('class="m26-client-home-primary-zone"'));
+  assert.ok(doc.indexOf('data-client-week-rail')<doc.indexOf('data-client-home-compass'));
   assert.ok(doc.indexOf('data-client-week-rail')<doc.indexOf('class="m26-client-home-glance"'));
   assert.doesNotMatch(renderHoyRoute({...vm,serviceKind:'iri_only'}),/data-client-week-rail/);
   const fs=await import('node:fs');

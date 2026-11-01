@@ -3754,4 +3754,31 @@
     grid-column:1/-1;
   }
 }
+/* U100 · Desktop editorial two-row hierarchy, no fake cards or actions.
+ * Row 1: verified greeting + primary action; row 2: actual week + real
+ * Entreno/Evolución/Bienestar. Reading and tab order remain left → right. */
+@media(min-width:1000px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-stage{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:start;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-stage > .m26-client-home-feature{
+    grid-column:1/-1;
+    display:grid;
+    grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);
+    gap:clamp(.9rem,2vw,1.5rem);
+    align-items:stretch;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-stage > .m26-client-week-rail{
+    grid-column:1;
+    grid-row:2;
+    min-width:0;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-client-home-editorial-v3.m26-client-home-stitch-v23 .m26-client-home-stage > .m26-client-home-compass{
+    grid-column:2;
+    grid-row:2;
+    min-width:0;
+  }
+}
+
 /* END SIGNATURE MASTER U90 */

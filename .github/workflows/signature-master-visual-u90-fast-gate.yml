@@ -12,6 +12,9 @@ on:
       - 'qa/device-experience/signature-u96-retina4k.spec.mjs'
       - 'playwright.device-experience.config.mjs'
       - 'src/m26/design/adaptive-layout.css'
+      - 'src/m26/rc39/rc39.css'
+      - 'src/m26/modules/route-render.js'
+      - 'tests/stitch_client_composition.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read

@@ -65,7 +65,12 @@ for(const role of ['client','coach','admin']){
         const positions=await Promise.all([primary,week,compass].map(x=>x.boundingBox()));
         expect(positions.every(Boolean)).toBe(true);
         expect(positions[1].y,'week follows action').toBeGreaterThan(positions[0].y);
-        expect(positions[2].y,'destinations follow week').toBeGreaterThan(positions[1].y);
+        if(width>=1000){
+          expect(positions[2].x,'desktop context right of week').toBeGreaterThan(positions[1].x+positions[1].width-2);
+          expect(Math.abs(positions[2].y-positions[1].y),'desktop week and context share a row').toBeLessThanOrEqual(2);
+        }else{
+          expect(positions[2].y,'touch context follows week').toBeGreaterThan(positions[1].y);
+        }
         await expect(week).toBeVisible();
         await expect(week.locator('li time[datetime]')).toHaveCount(7);
         await expect(week.locator('button[data-m26-area="planificacion"]')).toHaveCount(1);

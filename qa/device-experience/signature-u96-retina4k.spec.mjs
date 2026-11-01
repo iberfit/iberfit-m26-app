@@ -99,7 +99,12 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
           await expect(compass).toBeVisible();
           const weekBox=await week.boundingBox();
           const contextBox=await compass.boundingBox();
-          expect(weekBox?.y).toBeLessThan(contextBox?.y);
+          if(device.width>=1000){
+            expect(contextBox?.x).toBeGreaterThanOrEqual((weekBox?.x||0)+(weekBox?.width||0)-2);
+            expect(Math.abs((weekBox?.y||0)-(contextBox?.y||0))).toBeLessThanOrEqual(2);
+          }else{
+            expect(weekBox?.y).toBeLessThan(contextBox?.y);
+          }
           await expect(week).toBeVisible();
           await expect(week.locator('li time[datetime]')).toHaveCount(7);
         }
