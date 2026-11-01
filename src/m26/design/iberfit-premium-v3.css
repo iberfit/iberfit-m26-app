@@ -3718,4 +3718,20 @@
   opacity:1;
   color:#e0e8dd;
 }
+/* U91 · Stitch R37 Coach cartera: search must precede priority insights.
+   Keep every existing filter, priority item and client action operational.
+   Tablet and mobile prioritise one full-width search field, no floating layers. */
+.m26-shell[data-m26-role="coach"] .m26-main .m26-client-controls > label:first-child{
+  min-inline-size:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-client-controls input[data-client-search]{
+  inline-size:100%;
+  min-inline-size:0;
+  min-block-size:48px;
+}
+@media (max-width:1150px){
+  .m26-shell[data-m26-role="coach"] .m26-main .m26-client-controls > label:first-child{
+    grid-column:1/-1;
+  }
+}
 /* END SIGNATURE MASTER U90 */

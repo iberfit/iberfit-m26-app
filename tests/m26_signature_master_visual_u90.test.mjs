@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,renderClientsRoute} from '../src/m26/modules/route-render.js';
 
 const css=readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
 const s=css.split('SIGNATURE MASTER U90')[1]?.split('END SIGNATURE MASTER U90')[0]||'';
@@ -60,4 +60,25 @@ test('official isotipo resolves through the packaged deployment path across all 
  );
  assert.ok(stylesheetRefs.length>=4,'branded auth, shells and client/coach/admin hero regions');
  assert.ok(stylesheetRefs.every(ref=>ref===canonical),'all visible marks must use the same packaged original');
+});
+
+// R37/R39 art critique: on a phone or narrow tablet, the Coach's own search
+// must not sit below a tall priority queue. Preserve every queue entry and action.
+test('U91 Coach search precedes the priority queue without losing either',()=>{
+ const html=renderClientsRoute({role:'coach',canCreate:false,clients:[{
+  id:'qa-coach-client',name:'Cliente QA',modality:'Online',status:'Activo',
+  experience:{serviceKind:'training'},
+  followUp:{signal:{level:'warning',label:'Necesita contexto'},plannedSessions:0}
+ }]});
+ const search=html.indexOf('data-client-search');
+ const priority=html.indexOf('class="m26-followup-panel"');
+ const directory=html.indexOf('data-client-grid');
+ assert.ok(search>=0&&priority>search&&directory>priority,'search, priorities and full directory must remain available in that order');
+ assert.match(html,/data-client-filter="iri"/);
+ assert.match(html,/data-client-filter="modality"/);
+ assert.match(html,/data-client-filter="stage"/);
+ assert.match(html,/data-client-sort/);
+ assert.match(html,/data-m26-select-client/);
+ assert.match(s,/input\\[data-client-search\\]/);
+ assert.match(s,/grid-column:1\\/-1/);
 });
