@@ -116,3 +116,10 @@ test('U94 original brand PNG and profile visual resolve in packaged app without 
  assert.ok(shellCss.includes("url('/public/isotipo-iberfit.png')"));
  assert.doesNotMatch(shellCss,/url\(['"]\/isotipo-iberfit\.png['"]\)/);
 });
+
+test('U95 authenticated route blocks never fade to invisible while rendering or navigating',()=>{
+ const main=css.split('U95 · No false low-contrast transitions')[1]?.split('U90 WCAG regression gate:')[0]||'';
+ assert.match(main,/\.m26-shell\[data-m26-role\] \.m26-main \.m26-route > \*/);
+ assert.match(main,/animation:none/);
+ assert.doesNotMatch(main,/display:none|visibility:hidden|opacity:0|pointer-events:none/);
+});
