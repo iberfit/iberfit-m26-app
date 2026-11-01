@@ -79,6 +79,6 @@ test('U91 Coach search precedes the priority queue without losing either',()=>{
  assert.match(html,/data-client-filter="stage"/);
  assert.match(html,/data-client-sort/);
  assert.match(html,/data-m26-select-client/);
- assert.match(s,/input\\[data-client-search\\]/);
- assert.match(s,/grid-column:1\\/-1/);
+ assert.ok(s.includes('input[data-client-search]'));
+ assert.ok(s.includes('grid-column:1/-1'));
 });
