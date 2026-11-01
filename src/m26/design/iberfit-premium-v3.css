@@ -3679,6 +3679,15 @@
   }
 }
 
+/* U95 · No false low-contrast transitions during authenticated route updates.
+ * The legacy .m26-route > * staggered entrance starts entire panels at zero
+ * opacity on each real rerender, dimming labels and actions during navigation.
+ * Restore immediate semantic visibility; preserve button/focus feedback and
+ * deliberate heading-only motion, without changing state or permissions. */
+.m26-shell[data-m26-role] .m26-main .m26-route > *{
+  animation:none;
+}
+
 /* U90 WCAG regression gate: meaningful secondary actions must remain legible
  * against the actual dark surface across desktop and touch. These selectors
  * target real controls; do not lighten disabled actions or alter permissions. */
