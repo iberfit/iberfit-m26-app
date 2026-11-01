@@ -69,8 +69,19 @@ test('Client A atomically restores full completed sessions AND execution results
        &&Array.isArray(data?.m26Entities)){
       const canon=new Set(data.m26Entities.map(e=>String(e?.entityType)+':'+String(e?.entityId)));
       const summarize=(rows,type)=>{
-        const compact=rows.filter(x=>x&&typeof x.id==='string'
-          &&Object.keys(x).length===1);
+        // Inspect the FINAL browser RPC after outer role/privacy projection.
+        // Sessions carry id+status+empty blocks so the outer publication
+        // filter retains them. Executions have id+empty safe projection.
+        const compact=rows.filter(x=>{
+          if(!x||typeof x.id!=='string')return false;
+          const keys=Object.keys(x);
+          if(type==='session')return keys.every(k=>['id','status','blocks'].includes(k))
+            &&keys.includes('status')&&x.status==='publicado'
+            &&Array.isArray(x.blocks)&&x.blocks.length===0;
+          return keys.every(k=>['id','results','feedback','planSnapshot','sourceSnapshot'].includes(k))
+            &&Array.isArray(x.results)&&x.results.length===0
+            &&!('revision' in x);
+        });
         return {total:rows.length,compact:compact.length,
           resolved:compact.filter(x=>canon.has(type+':'+x.id)).length};
       };
