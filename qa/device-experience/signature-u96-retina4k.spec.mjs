@@ -193,7 +193,7 @@ test('SIGNATURE U101 · genuine Coach day and week calendar at 820 tablet / 1440
         parts:[...el.querySelectorAll('span,small,strong')].map(n=>getComputedStyle(n).color),
       }));
       const luminance=(css)=>{
-        const rgb=String(css).match(/\\d+(?:\\.\\d+)?/g)?.slice(0,3).map(Number)||[];
+        const rgb=String(css).match(/\d+(?:\.\d+)?/g)?.slice(0,3).map(Number)||[];
         if(rgb.length!==3)return NaN;
         const c=rgb.map(x=>{const v=x/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
         return c[0]*.2126+c[1]*.7152+c[2]*.0722;
