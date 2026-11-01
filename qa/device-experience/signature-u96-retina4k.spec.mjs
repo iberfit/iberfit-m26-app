@@ -266,7 +266,7 @@ test('SIGNATURE U104 · Client mobile week 320/360/430 px, truthful empty state 
           noteVisible:getComputedStyle(last).display!=='none',
           contextualVisible:Boolean(compass&&getComputedStyle(compass).display!=='none'),
           weekOrder:rail.compareDocumentPosition(compass)&Node.DOCUMENT_POSITION_FOLLOWING,
-          shortCopy:getComputedStyle(rail.querySelector('.m26-client-week-link-short')).display,
+          planCopy:button.textContent.trim(),
         };
       });
       expect(measured.overflow,'320–430 viewport overflow').toBeLessThanOrEqual(2);
@@ -277,7 +277,7 @@ test('SIGNATURE U104 · Client mobile week 320/360/430 px, truthful empty state 
       expect(measured.noteVisible).toBe(true);
       expect(measured.contextualVisible).toBe(true);
       expect(measured.weekOrder).toBeTruthy();
-      expect(measured.shortCopy).not.toBe('none');
+      expect(measured.planCopy).toContain('Ver mi plan');
       const png=await page.screenshot({type:'png',scale:'device',fullPage:false,animations:'disabled'});
       expect(png.readUInt32BE(16)).toBe(width*3);
       await writeFile(path.join(root,'client-mobile-'+width+'-DPR3-U104-SYNTHETIC.png'),png);
