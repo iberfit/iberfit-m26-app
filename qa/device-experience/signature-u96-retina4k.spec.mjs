@@ -96,6 +96,11 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         if(role==='client'){
           const week=page.locator('[data-client-week-rail]');
           const compass=page.locator('[data-client-home-compass]');
+          if(device.width>=1000){
+            const actionBox=await page.locator('.m26-client-home-primary-zone').boundingBox();
+            expect(actionBox,'visible Client primary card').not.toBeNull();
+            expect(actionBox.height,'desktop CTA should hug its actual content').toBeLessThan(260);
+          }
           await expect(compass).toBeVisible();
           const weekBox=await week.boundingBox();
           const contextBox=await compass.boundingBox();
