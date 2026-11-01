@@ -12,6 +12,9 @@ BEGIN
    RAISE EXCEPTION 'P0_FREE_COMPACT_FLAG_MUST_BE_OFF' USING ERRCODE='42501';
  END IF;
  current_definition:=pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure);
+ IF md5(current_definition) <> '1c7dc6b4f8b79cba0c072323412de9bb' THEN
+   RAISE EXCEPTION 'P0_FREE_COMPACT_ROLLBACK_HASH_DRIFT' USING ERRCODE='42501';
+ END IF;
  IF position('P0_FREE_QA_COMPACT_REF_V1' IN current_definition)=0
     OR position('v_compact_legacy_refs := v_defer_completed_blocks' IN current_definition)=0 THEN
    RAISE EXCEPTION 'P0_FREE_COMPACT_ROLLBACK_SOURCE_DRIFT' USING ERRCODE='42501';
