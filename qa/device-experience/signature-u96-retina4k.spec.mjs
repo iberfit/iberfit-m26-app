@@ -297,3 +297,73 @@ test('SIGNATURE U104 · Client mobile week 320/360/430 px, truthful empty state 
     }finally{await context.close();}
   }
 });
+
+
+// U106 · Genuine Admin Command Center was invisible in prior synthetic 4K
+// evidence because the honest fixture was permission-denied. Keep that
+// fail-closed default; use a separately opted-in fictitious Admin to examine
+// layouts and real route bodies, never authentication/authorization acceptance.
+test('SIGNATURE U106 · Admin permission denied by default, authorized synthetic Command Center on Retina',async({browser},testInfo)=>{
+  test.skip(testInfo.project.name!=='device-desktop-4k-chromium','isolated three-width visual certification');
+  await mkdir(root,{recursive:true});
+  for(const device of [
+    {key:'mobile320',width:320,height:780,dpr:3,touch:true},
+    {key:'mobile390',width:390,height:844,dpr:3,touch:true},
+    {key:'tablet820',width:820,height:1180,dpr:2,touch:true},
+    {key:'desktop1920',width:1920,height:1080,dpr:2,touch:false},
+  ]){
+    const context=await browser.newContext({
+      baseURL:'http://127.0.0.1:4216',viewport:{width:device.width,height:device.height},
+      deviceScaleFactor:device.dpr,isMobile:device.touch,hasTouch:device.touch,
+      locale:'es-CL',timezoneId:'America/Santiago',serviceWorkers:'block',reducedMotion:'reduce',
+    });
+    try{
+      const denied=await context.newPage(),auth=await context.newPage();
+      const errors=[],writes=[];
+      for(const page of [denied,auth]){
+        page.on('pageerror',e=>errors.push(String(e.message||e)));
+        page.on('request',req=>{if(!['GET','HEAD'].includes(req.method()))writes.push(req.method());});
+      }
+      await denied.goto('/qa/visual/signature-route-shell.fixture.html?role=admin&body=real');
+      await expect.poll(()=>denied.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface)).toBe('permission-denied');
+      await expect(denied.getByText('Permiso insuficiente')).toBeVisible();
+      await expect(denied.locator('[data-admin-priority-center]')).toHaveCount(0);
+
+      await auth.goto('/qa/visual/signature-route-shell.fixture.html?role=admin&body=real&adminSurface=authorized-synthetic');
+      await expect.poll(()=>auth.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface)).toBe('authorized-synthetic');
+      const main=auth.locator('.m26-main');
+      await expect(main.locator('[data-admin-surface="command-center"]')).toBeVisible();
+      await expect(main.locator('[data-admin-primary-action]')).toBeVisible();
+      await expect(main.locator('[data-admin-priority-center]')).toBeVisible();
+      await expect(main.locator('.m30-admin-kpis .m26-admin-stat')).toHaveCount(6);
+      await expect(main.getByRole('heading',{name:'IBERFIT Command Center'})).toBeVisible();
+      await expect(main.getByText('Permiso insuficiente')).toHaveCount(0);
+      const columns=await auth.evaluate(()=>{
+        const doc=document.documentElement;
+        const node=document.querySelector('.m30-admin-command-route');
+        const call=document.querySelector('[data-admin-primary-action] button');
+        const s=document.querySelector('[data-admin-priority-center]');
+        const kpis=[...document.querySelectorAll('.m30-admin-kpis .m26-admin-stat')];
+        return {
+          overflowPx:Math.max(0,doc.scrollWidth-innerWidth,document.body.scrollWidth-innerWidth),
+          realHeight:node?.getBoundingClientRect().height||0,
+          callHeight:call?.getBoundingClientRect().height||0,
+          priorityVisible:s&&getComputedStyle(s).display!=='none',
+          kpiLabels:kpis.map(el=>el.textContent.trim()),
+        };
+      });
+      expect(columns.overflowPx,'Admin '+device.key+' no horizontal body overflow').toBeLessThanOrEqual(2);
+      expect(columns.realHeight).toBeGreaterThan(400);
+      expect(columns.callHeight,'Admin primary touch target').toBeGreaterThanOrEqual(44);
+      expect(columns.priorityVisible).toBe(true);
+      expect(columns.kpiLabels.length).toBe(6);
+      // Zeroes are synthetic empty data, NOT made-up operational KPIs.
+      const png=await auth.screenshot({type:'png',scale:'device',fullPage:false,animations:'disabled',caret:'hide'});
+      expect(png.readUInt32BE(16)).toBe(device.width*device.dpr);
+      await writeFile(path.join(root,'admin-command-'+device.key+'-DPR'+device.dpr+'-SYNTHETIC.png'),png);
+      expect(errors,'synthetic Admin renderer errors').toEqual([]);
+      expect(writes,'never mutate backend in visual fixture').toEqual([]);
+      await denied.close();await auth.close();
+    }finally{await context.close();}
+  }
+});

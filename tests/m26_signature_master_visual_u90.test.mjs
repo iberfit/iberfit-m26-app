@@ -200,3 +200,14 @@ test('U105 Coach mobile quick actions precede nonblocking launch journey without
  assert.equal((coach.match(/m26-coach-launch-self-slot/g)||[]).length,1);
  assert.match(coach,/data-m26-area="\$\{area\}"/);
 });
+
+test('U106 Admin route visual fixture does not weaken default permission-denied mode',()=>{
+ const fixture=readFileSync(new URL('../qa/visual/signature-route-shell.fixture.mjs',import.meta.url),'utf8');
+ const permissions=readFileSync(new URL('../src/m26/admin/permission-policy.js',import.meta.url),'utf8');
+ assert.match(fixture,/authorizedAdminSynthetic=role==='admin'&&realBodies&&params\.get\('adminSurface'\)==='authorized-synthetic'/);
+ assert.match(fixture,/permissions:authorizedAdminSynthetic/);
+ assert.match(fixture,/:baseline\.admin\.permissions/);
+ assert.match(fixture,/normalizeAdminPermissions\(/);
+ assert.match(permissions,/adminCan\(state,capability\)/);
+ assert.match(permissions,/state\?\.available===true&&hasCapability\(state\.permissions,capability\)/);
+});
