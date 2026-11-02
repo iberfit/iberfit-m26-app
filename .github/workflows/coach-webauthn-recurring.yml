@@ -32,6 +32,7 @@ on:
       - 'playwright.authenticated-visual.config.mjs'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/production-promote.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -63,6 +64,7 @@ on:
       - 'playwright.authenticated-visual.config.mjs'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/production-promote.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
   workflow_dispatch:
 
 permissions:
