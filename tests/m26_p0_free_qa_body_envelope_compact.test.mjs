@@ -75,11 +75,11 @@ test('wire must be expanded only after size and identity verification and before
 test('migration and rollback must be QA-only, hash guarded and default-off',()=>{
  const m=readFileSync('supabase/qa-migrations/20261102015500_p0_free_qa_client_body_envelope_dedup_v1.sql','utf8');
  const r=readFileSync('supabase/qa-rollbacks/20261102015500_p0_free_qa_client_body_envelope_dedup_v1.rollback.sql','utf8');
- assert.ok(m.includes("md5(v_source) <> 'a8bf53fd05478bb2face12edc642dccc'"));
+ assert.ok(m.includes("md5(v_source) <> 'aedea9df3d4986496626e10318628c41'"));
  assert.ok(m.includes('P0_BODY_META_FLAG_MUST_BE_OFF'));
  assert.ok(m.includes("qa.rc74.client-a@iberfit.cl"));
  assert.ok(m.includes("WITH ORDINALITY"));
- assert.ok(r.includes("md5(v_previous)<>'a8bf53fd05478bb2face12edc642dccc'"));
+ assert.ok(r.includes("md5(v_previous)<>'aedea9df3d4986496626e10318628c41'"));
  assert.ok(r.includes('P0_BODY_META_DISABLE_FLAG_FIRST'));
  assert.doesNotMatch(m,/GRANT\s+|ALTER\s+TABLE|DROP\s+TABLE/iu);
 });
