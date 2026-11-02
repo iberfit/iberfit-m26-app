@@ -104,7 +104,7 @@ test('U63 Stitch shows authorized published structure only, never a DEMO metric'
     appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[projection]}};
   const html=renderHoyRoute(vm);
   assert.match(html,/data-client-session-preview/);
-  assert.match(html,/Prescripción disponible/);
+  assert.match(html,/Entrenamiento preparado/);
   assert.match(html,/2 bloques/);
   assert.match(html,/Peso muerto &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html,/Circuito general/);
@@ -134,18 +134,18 @@ test('U63 Coach priority colour preserves text and permissions and Admin hierarc
 test('U64 Stitch published structure is localized in all four supported languages',async()=>{
   const {iberfitSurfaceTranslate}=await import('../src/m26/ui/i18n-surface.js');
   const expected={
-    en:['Published prescription','Prescription available','View published structure','2 blocks','Block 7'],
-    fr:['Prescription publiée','Prescription disponible','Voir la structure publiée','2 blocs','Bloc 7'],
-    pt:['Prescrição publicada','Prescrição disponível','Ver estrutura publicada','2 blocos','Bloco 7'],
+    en:['Exercises in your workout','Workout ready','View exercises','2 blocks','Block 7'],
+    fr:['Exercices de votre entraînement','Entraînement prêt','Voir les exercices','2 blocs','Bloc 7'],
+    pt:['Exercícios do seu treino','Treino preparado','Ver exercícios','2 blocos','Bloco 7'],
   };
-  const source=['Prescripción publicada','Prescripción disponible','Ver estructura publicada','2 bloques','Bloque 7'];
+  const source=['Ejercicios de tu entrenamiento','Entrenamiento preparado','Ver ejercicios','2 bloques','Bloque 7'];
   for(const [language,translations] of Object.entries(expected)){
     assert.deepEqual(source.map(value=>iberfitSurfaceTranslate(value,{language})),translations);
     assert.notEqual(iberfitSurfaceTranslate('Y 3 bloques más en la sesión completa.',{language}),
       'Y 3 bloques más en la sesión completa.');
   }
   const js=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
-  assert.match(js,/data-client-session-preview role="group" aria-label="Prescripción publicada"/);
+  assert.match(js,/data-client-session-preview role="group" aria-label="Ejercicios de tu entrenamiento"/);
 });
 
 test('U65 published details remain owner-bound despite stale or foreign projections',()=>{
@@ -172,8 +172,8 @@ test('U66 Stitch authentic context landmark is not a wellbeing metric or duplica
     clients:[{id:'u66',name:'Cliente QA',serviceActive:true}],
     appointments:[],upcoming:[],operations:{},rc39:{sessionProjections:[]}};
   const html=renderHoyRoute(base);
-  assert.match(html,/<nav class="m26-client-home-compass" aria-label="Contexto del atleta"/);
-  assert.match(html,/<strong>Contexto del atleta<\/strong>/);
+  assert.match(html,/<nav class="m26-client-home-compass" aria-label="Tu espacio de entrenamiento"/);
+  assert.match(html,/<strong>Tu espacio de entrenamiento<\/strong>/);
   assert.match(html,/<div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"/);
   assert.equal((html.match(/data-client-home-compass/g)||[]).length,1);
   assert.equal((html.match(/m26-client-home-compass-actions"/g)||[]).length,1);
@@ -181,9 +181,9 @@ test('U66 Stitch authentic context landmark is not a wellbeing metric or duplica
     assert.match(html,new RegExp('data-m26-area="'+destination+'"'));
   assert.doesNotMatch(html,/data-client-session-preview|data-workflow-action="start-published-session"/);
   const {iberfitSurfaceTranslate}=await import('../src/m26/ui/i18n-surface.js');
-  assert.equal(iberfitSurfaceTranslate('Contexto del atleta',{language:'en'}),'Athlete context');
-  assert.equal(iberfitSurfaceTranslate('Contexto del atleta',{language:'fr'}),'Contexte de l’athlète');
-  assert.equal(iberfitSurfaceTranslate('Contexto del atleta',{language:'pt'}),'Contexto do atleta');
+  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'en'}),'Athlete context');
+  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'fr'}),'Contexte de l’athlète');
+  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'pt'}),'Contexto do atleta');
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const signature=css.split('U66 · Fidelity to the original Stitch contextual hierarchy')[1]||'';
   assert.match(signature,/max-width:370px/);
