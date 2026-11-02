@@ -333,6 +333,23 @@ test('SIGNATURE U106 · Admin permission denied by default, authorized synthetic
       await expect.poll(()=>auth.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface)).toBe('authorized-synthetic');
       const main=auth.locator('.m26-main');
       await expect(main.locator('[data-admin-surface="command-center"]')).toBeVisible();
+      // One real Admin command experience, not a generic second landing page.
+      await expect(main.locator('.m26-workspace-hero')).toHaveCount(0);
+      await expect(main.locator('.m26-workspace-home')).toHaveCount(0);
+      const shortcuts=main.locator('details[data-admin-quick-access]');
+      await expect(shortcuts).toBeVisible();
+      await expect(shortcuts).not.toHaveAttribute('open',/.+/);
+      const shortcutSummary=shortcuts.locator('summary');
+      await expect(shortcutSummary).toBeVisible();
+      const summaryBounds=await shortcutSummary.boundingBox();
+      const commandBounds=await main.locator('[data-admin-surface="command-center"]').boundingBox();
+      expect((commandBounds?.y||0)-(summaryBounds?.y||0),'real Admin command appears immediately after shortcuts').toBeLessThan(115);
+      await shortcutSummary.click();
+      await expect(shortcuts.locator('.m26-workspace-action')).toHaveCount(4);
+      for(const area of ['admin-clientes','admin-agenda','admin-equipo','admin-analitica'])
+        await expect(shortcuts.locator('[data-m26-area="'+area+'"]')).toBeVisible();
+      await shortcutSummary.click();
+      await expect(shortcuts).not.toHaveAttribute('open',/.+/);
       await expect(main.locator('[data-admin-primary-action]')).toBeVisible();
       await expect(main.locator('[data-admin-priority-center]')).toBeVisible();
       await expect(main.locator('.m30-admin-kpis .m26-admin-stat')).toHaveCount(6);

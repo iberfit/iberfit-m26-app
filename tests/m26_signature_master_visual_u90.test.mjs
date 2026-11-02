@@ -211,3 +211,20 @@ test('U106 Admin route visual fixture does not weaken default permission-denied 
  assert.match(permissions,/adminCan\(state,capability\)/);
  assert.match(permissions,/state\?\.available===true&&hasCapability\(state\.permissions,capability\)/);
 });
+
+test('U107 authorized Admin command center is not preceded by a duplicate generic landing',()=>{
+ const src=readFileSync(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../src/m26/design/adaptive-layout.css',import.meta.url),'utf8');
+ assert.match(src,/realAdminCommandCenter=vm\.identity\.role==='admin'/);
+ assert.match(src,/routeContent\.includes\('data-admin-surface="command-center"'\)/);
+ assert.match(src,/workspaceHome\(vm,\{compactAdmin:realAdminCommandCenter\}\)/);
+ assert.match(src,/if\(isAdmin&&compactAdmin\)return shortcuts/);
+ assert.match(src,/data-admin-quick-access/);
+ for(const destination of ['admin-clientes','admin-agenda','admin-equipo','admin-analitica'])
+  assert.match(src,new RegExp("area:'"+destination+"'"));
+ const rules=css.split('SIGNATURE U107 · Admin: one operational homepage')[1]||'';
+ assert.match(rules,/\[data-m26-role="admin"\]/);
+ assert.match(rules,/min-height:46px/);
+ assert.match(rules,/@media\(max-width:480px\)/);
+ assert.doesNotMatch(rules,/pointer-events:none|display:none!important|visibility:hidden/);
+});
