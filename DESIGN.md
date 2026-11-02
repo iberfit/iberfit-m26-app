@@ -130,6 +130,15 @@ Contrato crítico histórico:
 
 Todo cambio de formularios debe proteger este comportamiento con tests proporcionales.
 
+## Sesión Cliente · objetivos humanos y primera acción visible (SIGNATURE R48)
+
+- Para sesiones publicadas que el Cliente **puede realmente iniciar o recuperar**, mostrar título y CTA autorizado sin tres paneles de explicación repetida. Los estados en pausa o supervisados siguen comunicando claramente la limitación; el vacío conserva alternativas reales y mensajes de recuperación.
+- La vista previa de ejercicios distingue **objetivos previstos** de resultados registrados: «Tiempo de trabajo», «Ritmo orientativo», «Esfuerzo orientativo» y unidades según el dato original. Por ejemplo, si la prescripción registra 35 min, 5:30 min/km y esfuerzo 6/10, se muestran esos valores; **no** crear distancia, calorías, carga ni inicio confirmado.
+- Para natación, el ritmo por 100 m nunca se convierte en ritmo por km. Si no hay distancia prescrita, no mostrar «-- km» ni una distancia deducida. El Coach y Admin conservan la ficha técnica original con RPE, RIR y parámetros de prescripción.
+- Los textos estáticos y valores dinámicos del Cliente deben conservar equivalentes en castellano, inglés, francés y portugués. No sustituir la terminología técnica profesional allí donde hace falta.
+- Evitar introducir nuevos paneles, overlays, SVG decorativos o imágenes raster que reduzcan nitidez Retina. Conservar la línea editorial Stitch R46, los estilos de la app, el mismo compositor de permisos y la navegación inferior reservada.
+- QA proporcional: renderizador y privacidad de roles, running/fuerza/natación, sesión en curso, condiciones paused/supervised/hidden, accesibilidad, foco, CTA en primer viewport cuando sea viable, 320/390/768/820/1440 px, sin scroll horizontal o CTA oculto.
+
 ## Sesión Cliente · acción primero, indicaciones accesibles (SIGNATURE R47)
 
 La pantalla de sesiones Cliente conserva el renderizador y los permisos reales (sesiones guiadas, supervisadas y recuperables), pero **prioriza la única acción autorizada** delante de la vista previa opcional de ejercicios. Esto responde a la dirección editorial de Stitch R46 sin importar HTML/JS prototipo ni simular ACK.
