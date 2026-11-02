@@ -141,7 +141,7 @@ test('R47 Client session offers one reachable authorized action before optional 
   const route=page.locator('.m26-rc39-sessions');
   const card=route.locator('.m26-rc39-session-card').first();
   await expect(card).toBeVisible();
-  const action=card.locator('> .m26-session-preview-actions[data-client-session-primary] > button');
+  const action=card.locator(':scope > .m26-session-preview-actions[data-client-session-primary] > button');
   await expect(action).toBeVisible();
   await expect(action).toContainText('Preparar entrenamiento');
   await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
