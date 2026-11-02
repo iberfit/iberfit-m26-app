@@ -52,7 +52,7 @@ test('P0 Supabase Free: M44 real negative HTTP gates reject only stale or draft 
   assert.match(guard,/P0_QA_SUPERSEDED_PR_SKIP/u);
   assert.doesNotMatch(guard,/SUPABASE_(SERVICE_ROLE|PUBLISHABLE_KEY)|M26_QA_.*PASSWORD/u);
   for(const name of ['qa-edge-anonymous-denial','qa-authenticated-assurance-denial']){
-    const job=m44.split('  '+name+':')[1]?.split('\n  ')[0]||'';
+    const job=m44.split('  '+name+':')[1]?.split(/\n  (?=[a-z][\w-]*:)/u)[0]||'';
     assert.match(job,/needs: pr-current-head/u);
     assert.match(job,/needs\.pr-current-head\.outputs\.current == 'true'/u);
   }
