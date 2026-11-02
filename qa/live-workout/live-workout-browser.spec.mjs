@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
 
 async function open(page,role,scenario='strength'){
   await page.goto('/qa/live-workout/fixture.html?role='+role+'&scenario='+scenario,{waitUntil:'domcontentloaded'});
@@ -29,6 +30,8 @@ async function fillCurrentSet(page,{reps='9',load='20 kg',rpe='7',rir='3'}={}){
 test('SIGNATURE U21: Cliente pausa, reanuda y mantiene el borrador en 320 px',async({page})=>{
   await page.setViewportSize({width:320,height:740});
   await open(page,'client');
+  await expect(page.locator('#qa-shell')).toHaveAttribute('data-m26-role','client');
+  expect(await page.locator('#qa-root').evaluate(el=>Boolean(el.closest('.m26-shell > .m26-workspace .m26-main')))).toBe(true);
   await page.locator('[data-session-action="start"]').click();
   const quick=page.locator('[data-session-client-quick-controls]');
   await expect(quick).toBeVisible();
@@ -76,6 +79,8 @@ test('SIGNATURE U21: Cliente pausa, reanuda y mantiene el borrador en 320 px',as
 test('SIGNATURE U21: Coach conserva controles rápidos operativos con teclado',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await open(page,'coach');
+  await expect(page.locator('#qa-shell')).toHaveAttribute('data-m26-role','coach');
+  expect(await page.locator('#qa-root').evaluate(el=>Boolean(el.closest('.m26-shell > .m26-workspace .m26-main')))).toBe(true);
   await page.locator('[data-session-action="start"]').click();
   const actions=page.locator('[data-session-coach-quick-controls]');
   await expect(actions).toBeVisible();
@@ -378,11 +383,18 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
       rc39:{sessionProjections:[projection('coach','coach_led','summary_only'),projection('guided','guided_in_app','full')],appointments:[]},
       sessionPreviewAssets:{catalog:[{id:'qa-press',name_es:'Press de pecho',equipment:'Mancuernas',
         cues:['Escápulas estables'],instructions_es:['Descenso controlado']}],mediaMap:null}};
+    // U71 · The published session must live in the same real role workspace
+    // as the live workout, not outside it in document.body. The production
+    // controller remains mounted only on #qa-root (separate sibling).
     const area=document.createElement('section');area.id='qa-client-session-previews';
-    area.innerHTML=renderRc39Route(vm);document.body.appendChild(area);
+    area.innerHTML=renderRc39Route(vm);
+    const workspace=document.querySelector('#qa-shell > .m26-workspace');
+    if(!workspace)throw new Error('U71_CLIENT_SESSION_WORKSPACE_MISSING');
+    workspace.appendChild(area);
   });
   const direct=page.locator('#qa-client-session-previews [data-rc39-session="coach"]');
   const guided=page.locator('#qa-client-session-previews [data-rc39-session="guided"]');
+  await expect(page.locator('#qa-shell > .m26-workspace > #qa-client-session-previews')).toHaveCount(1);
   await expect(direct).toContainText('Fuerza con Coach');
   await expect(direct).toContainText('50 min');
   await expect(direct).not.toContainText('Press de pecho');
@@ -393,10 +405,74 @@ test('Canary sesión programada y guiada: previa completa sin fuga privada ni ov
   await expect(readyCta).toBeEnabled();
   await expect(readyCta).toHaveCount(1);
   await expect(readyCta).toHaveAttribute('data-entity-id','guided');
+  // Strictly verify the native closed -> open transition by real pointer/touch.
+  const disclosure=guided.locator('details.m26-session-preview-disclosure');
+  await expect(disclosure).not.toHaveAttribute('open','');
   await activatePublishedPreview(guided,testInfo);
   await expect(guided.locator('details.m26-session-preview-disclosure'),
     'Actual pointer interaction must open the native preview before any launch').toHaveAttribute('open','');
   await expect(guided.locator('.m26-session-preview-exercise h5')).toHaveText('Press de pecho');
+
+  // U78 · Native prescription, not nested decorative cards. The missing
+  // exercise media remains explicitly labelled and legible; no fake photo.
+  const surface=await guided.locator('.m26-session-preview-block').first().evaluate(el=>{
+    const block=getComputedStyle(el);
+    const label=el.querySelector('h4');
+    const fallback=el.querySelector('.m26-exercise-media-fallback');
+    const fallbackText=fallback?.querySelector('span,small');
+    const f=fallback?getComputedStyle(fallback):null;
+    const ink=fallbackText?getComputedStyle(fallbackText):null;
+    const rgb=(value)=>String(value).match(/\d+/g)?.slice(0,3).map(Number)||[];
+    const luminance=(value)=>{
+      const triplet=rgb(value);
+      if(triplet.length<3)return 0;
+      const linear=triplet.map(n=>{
+        const v=n/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;
+      });
+      return linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;
+    };
+    const bg=luminance(f?.backgroundColor),fg=luminance(ink?.color);
+    return {background:block.backgroundColor,borderRadius:block.borderRadius,
+      label:label?.textContent?.trim(),fallback:Boolean(fallback),
+      mediaText:fallbackText?.textContent?.trim(),
+      contrast:(Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05)};
+  });
+  expect(surface.background,'The exercise list should not nest another decorative panel')
+    .toBe('rgba(0, 0, 0, 0)');
+  expect(surface.borderRadius).toBe('0px');
+  expect(surface.fallback,'Keep the honest missing-media state').toBe(true);
+  expect(surface.mediaText).toContain('Sin referencia visual');
+  expect(surface.contrast,'Exercise media fallback needs WCAG AA contrast').toBeGreaterThanOrEqual(4.5);
+
+  // U81: genuine values in the existing description list, visually grouped
+  // into one editorial band rather than decorative per-value mini-cards.
+  const factStrip=await guided.locator('.m26-session-preview-facts').first().evaluate(el=>{
+    const surface=getComputedStyle(el);
+    const datum=el.querySelector(':scope > div');
+    const value=el.querySelector(':scope > div dd');
+    return {
+      display:surface.display,
+      columns:surface.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length,
+      surfaceBorder:surface.borderTopWidth,
+      datumBackground:datum?getComputedStyle(datum).backgroundColor:null,
+      valueFont:value?parseFloat(getComputedStyle(value).fontSize):0,
+      allFacts:el.querySelectorAll(':scope > div').length,
+      completeEntries:[...el.querySelectorAll(':scope > div')].every(row=>{
+        const term=row.querySelector(':scope > dt'),definition=row.querySelector(':scope > dd');
+        const value=definition?getComputedStyle(definition):null;
+        return Boolean(term?.textContent.trim()&&definition?.textContent.trim()&&
+          value?.display!=='none'&&value?.visibility!=='hidden');
+      })
+    };
+  });
+  expect(factStrip.display).toBe('grid');
+  expect(factStrip.columns,'Stitch-style two-column compact Client facts').toBe(2);
+  expect(factStrip.surfaceBorder).toBe('1px');
+  expect(factStrip.datumBackground,'No new metric mini-cards').toBe('rgba(0, 0, 0, 0)');
+  expect(factStrip.valueFont,'Real values remain legible on touch').toBeGreaterThanOrEqual(16);
+  expect(factStrip.allFacts,'A prescription must have actual data').toBeGreaterThan(0);
+  expect(factStrip.completeEntries,'No prescribed fields can disappear').toBe(true);
+
   await expect(guided).toContainText('8-10');
   await expect(guided).toContainText('Sin referencia visual');
   await expect(readyCta).toHaveText('Preparar entrenamiento');
@@ -414,7 +490,74 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__?.mounted)).toBe(true);
   const screen=page.locator('.m26-rc39-sessions');
   await expect(screen).toHaveAttribute('data-client-session-state','ready');
+
+  // U69 desktop evidence: production .m26-shell uses sidebar + content grid,
+  // but this isolated fixture has no sidebar. Never certify a 70px column.
+  if((testInfo.project.use.viewport?.width||0)>=1024){
+    const dimensions=await screen.evaluate(el=>{
+      const rect=el.getBoundingClientRect();
+      const parent=el.closest('.m26-shell');
+      return {width:rect.width,viewport:document.documentElement.clientWidth,
+        shellDisplay:getComputedStyle(parent).display,workspace:Boolean(el.closest('.m26-workspace'))};
+    });
+    expect(dimensions.workspace).toBe(true);
+    expect(dimensions.shellDisplay).toBe('block');
+    expect(dimensions.width,'Desktop preview must occupy its actual reading column').toBeGreaterThanOrEqual(650);
+    expect(dimensions.width).toBeLessThanOrEqual(dimensions.viewport);
+  }
+
+  // U67: this isolated QA must use the same CSS scoping hierarchy as
+  // production. Previously it omitted .m26-workspace, so the screenshots
+  // showed inline eyebrow/title and missed premium surface declarations.
+  const surface=await screen.locator('.m26-client-sessions-brief').evaluate(el=>{
+    const eyebrow=el.querySelector(':scope > .m26-eyebrow');
+    const title=el.querySelector(':scope > strong');
+    const copy=el.querySelector(':scope > p');
+    const a=eyebrow?.getBoundingClientRect();
+    const b=title?.getBoundingClientRect();
+    const c=copy?.getBoundingClientRect();
+    const box=el.getBoundingClientRect();
+    const css=getComputedStyle(el);
+    return {
+      hasWorkspace:Boolean(el.closest('.m26-shell > .m26-workspace')),
+      display:css.display,
+      columns:css.gridTemplateColumns,
+      text:el.textContent?.trim(),
+      outerWidth:box.width,
+      labelEnds:a?.bottom||0,titleStarts:b?.top||0,
+      titleEnds:b?.bottom||0,copyStarts:c?.top||0,
+      textWrap:getComputedStyle(title).overflowWrap,
+    };
+  });
+  expect(surface.hasWorkspace,'QA must match the production shell CSS ancestry').toBe(true);
+  expect(surface.display,'Client status must use the actual premium grid').toBe('grid');
+  expect(surface.labelEnds,'Eyebrow must appear above the title').toBeLessThan(surface.titleStarts);
+  expect(surface.titleEnds,'Title must appear above explanation').toBeLessThan(surface.copyStarts);
+  expect(surface.outerWidth).toBeGreaterThan(180);
+  expect(surface.textWrap).not.toBe('normal');
+
   await expect(screen.locator('[data-rc39-session]')).toHaveCount(2);
+  // U73 · Count is editorial metadata for the entire session grid, not
+  // a third desktop column that squeezes both session cards.
+  const captionGeometry=await screen.locator('.m26-rc39-week').evaluate(el=>{
+    const count=el.querySelector(':scope > .m26-session-available-summary');
+    const card=el.querySelector(':scope > .m26-rc39-session-card');
+    const r=el.getBoundingClientRect(),c=count?.getBoundingClientRect(),b=card?.getBoundingClientRect();
+    return {gridWidth:r.width,captionWidth:c?.width||0,captionBottom:c?.bottom||0,
+      firstCardTop:b?.top||0,captionLeft:c?.left||0,gridLeft:r.left};
+  });
+  expect(captionGeometry.captionWidth,'Ready-session caption must span the full session grid')
+    .toBeGreaterThanOrEqual(captionGeometry.gridWidth*.93);
+  expect(captionGeometry.captionBottom,'Session cards must start below the caption row')
+    .toBeLessThanOrEqual(captionGeometry.firstCardTop+1);
+  if((testInfo.project.use.viewport?.width||0)>=1200){
+    const gridColumns=await screen.locator('.m26-rc39-week').evaluate(el=>
+      getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length);
+    expect(gridColumns,'Two published sessions must not leave a third blank desktop column').toBe(2);
+  }
+  expect(Math.abs(captionGeometry.captionLeft-captionGeometry.gridLeft))
+    .toBeLessThanOrEqual(2);
+
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SUPERVISED_NEVER_CLIENT');
   const led=screen.locator('[data-rc39-session="qa-published-supervised"]');
@@ -423,6 +566,28 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(led.locator('.m26-session-preview-disclosure')).toHaveCount(0);
   await expect(led.locator('[data-workflow-action="start-published-session"]')).toHaveCount(0);
   await expect(self).toContainText('Fuerza autónoma');
+  // U72: a narrow card on a wide viewport must remain readable.
+  // Unlike document-overflow checks, this catches copy squeezed to a
+  // single-character column by a viewport-scoped two-column CSS rule.
+  const experienceGeometry=await self.locator('.m26-session-experience').evaluate(el=>{
+    const copy=el.querySelector('.m26-session-experience__copy');
+    const heading=copy?.querySelector('h4');
+    const e=el.getBoundingClientRect(),c=copy?.getBoundingClientRect();
+    const h=heading?.getBoundingClientRect();
+    return {
+      cardWidth:e.width,copyWidth:c?.width||0,headingHeight:h?.height||0,
+      lineHeight:heading?Number.parseFloat(getComputedStyle(heading).lineHeight):0,
+      overflow:el.scrollWidth>el.clientWidth+1,
+      heading:heading?.textContent?.trim()||'',
+    };
+  });
+  expect(experienceGeometry.copyWidth,'Session context may not collapse into vertical letters')
+    .toBeGreaterThanOrEqual(Math.min(170,experienceGeometry.cardWidth*.65));
+  expect(experienceGeometry.lineHeight).toBeGreaterThan(0);
+  expect(experienceGeometry.headingHeight,'The context heading must remain a readable three-line maximum')
+    .toBeLessThanOrEqual(experienceGeometry.lineHeight*3.5);
+  expect(experienceGeometry.overflow).toBe(false);
+  expect(experienceGeometry.heading).toContain('IBERFIT');
   const directStart=self.locator('[data-workflow-action="start-published-session"]');
   await expect(directStart,'U48 guided Client Play must be available without disclosure').toBeVisible();
   await expect(directStart).toBeEnabled();
@@ -495,6 +660,24 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
         };
       });
       expect(compact.horizontalOverflow,'320 px must never hide a published-session action sideways').toBe(false);
+      const compactBrief=await screen.locator('.m26-client-sessions-brief').evaluate(el=>{
+        const eyebrow=el.querySelector(':scope > .m26-eyebrow').getBoundingClientRect();
+        const title=el.querySelector(':scope > strong').getBoundingClientRect();
+        const copy=el.querySelector(':scope > p').getBoundingClientRect();
+        const boundary=el.getBoundingClientRect();
+        return {
+          display:getComputedStyle(el).display,
+          eyebrowBottom:eyebrow.bottom,titleTop:title.top,
+          titleBottom:title.bottom,copyTop:copy.top,
+          left:boundary.left,right:boundary.right,viewport:document.documentElement.clientWidth,
+        };
+      });
+      expect(compactBrief.display).toBe('grid');
+      expect(compactBrief.titleTop).toBeGreaterThan(compactBrief.eyebrowBottom);
+      expect(compactBrief.copyTop).toBeGreaterThan(compactBrief.titleBottom);
+      expect(compactBrief.left).toBeGreaterThanOrEqual(-1);
+      expect(compactBrief.right).toBeLessThanOrEqual(compactBrief.viewport+1);
+
       expect(compact.startHeight).toBeGreaterThanOrEqual(44);
       expect(compact.startWidth).toBeGreaterThanOrEqual(44);
       await page.screenshot({path:out+'/live-workout-mobile-320-chromium-mixed-preview.png',fullPage:true,animations:'disabled'});
@@ -571,7 +754,21 @@ test('SIGNATURE published guided Client finishes both real recorded sets, feedba
       const snapshot=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
       return Object.keys(snapshot.results).length;
     }).toBe(index+1);
-    await page.locator('#qa-workout [data-session-action="next"]').click();
+    // U75 · The controller serializes writes. A Client must never race the
+    // acknowledgement or activate a control blocked by the sticky dock.
+    await expect.poll(()=>page.locator('#qa-workout').getAttribute('data-m26-session-action-pending'))
+      .toBeNull();
+    const continueNow=page.locator('#qa-workout [data-session-action="next"]');
+    await expect(continueNow).toBeEnabled();
+    await continueNow.scrollIntoViewIfNeeded();
+    const exposed=await continueNow.evaluate(button=>{
+      const rect=button.getBoundingClientRect();
+      const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+      const atPoint=document.elementFromPoint(x,y);
+      return atPoint===button||button.contains(atPoint);
+    });
+    expect(exposed,'Continue now must not sit beneath the sticky session control dock').toBe(true);
+    await continueNow.click();
   }
   await expect(page.locator('#qa-workout [data-session-live-state="feedback"]')).toBeVisible();
   await page.locator('#qa-workout [data-session-feedback-rpe]').fill('8');
@@ -631,4 +828,301 @@ test('SIGNATURE Coach-led appointment never converts into a Client start through
   await expect(route.locator('[data-workflow-action="open-session-builder"]')).toHaveCount(1);
   const state=await page.evaluate(()=>globalThis.__IBERFIT_PUBLISHED_SESSIONS_QA__.state());
   expect(state.launchCount).toBe(0);
+});
+
+
+// U77 · Canonical 43-route visual geometry certification in the already-running
+// isolated browser matrix. Uses the real route renderer + synthetic identity,
+// performs no network writes, and MUST NOT be described as authenticated QA.
+// A route can fit the viewport and still be unreadable (one-letter columns).
+const u77Inventory=JSON.parse(readFileSync(new URL('../visual/signature-360-coverage.json',import.meta.url),'utf8'));
+for(const role of ['client','coach','admin']){
+  test('SIGNATURE U77 · Canonical 43-route readability and role safety · '+role,async({page},testInfo)=>{
+    const errors=[],mutations=[];
+    page.on('pageerror',error=>errors.push(String(error.message||error).slice(0,240)));
+    page.on('request',request=>{
+      if(!['GET','HEAD'].includes(request.method()))mutations.push(request.method());
+    });
+    // U112: the default Admin fixture denies access. For true ART coverage
+    // only, opt into fictitious capabilities; this is not authentication QA.
+    const artAdmin=role==='admin'?'&adminSurface=authorized-synthetic':'';
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real'+artAdmin,
+      {waitUntil:'domcontentloaded'});
+    await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode))
+      .toBe('real-synthetic');
+    if(role==='admin')await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface))
+      .toBe('authorized-synthetic');
+    const entries=u77Inventory.roles[role];
+    expect(entries.length).toBe(role==='client'?9:17);
+    // U80: all 43 canonical route bodies need individual evidence, not only
+    // the final route left on-screen at the end of a test. Reuse the existing
+    // read-only synthetic fixture and browser project, with zero extra HTTP.
+    // JPEG at CSS resolution bounds artifact size without hiding long pages.
+    // These are NOT authenticated screenshots or Stitch fidelity approvals.
+    const visualEvidenceProject=['live-workout-mobile-chromium','live-workout-desktop-chromium']
+      .includes(testInfo.project.name);
+    const visualEvidenceAreas=[];
+    const scrollEvidence={};
+    const visualEvidenceDir='recovery/signature-published-sessions/u80/'+testInfo.project.name+'/'+role;
+    if(visualEvidenceProject){
+      const {mkdir}=await import('node:fs/promises');
+      await mkdir(visualEvidenceDir,{recursive:true});
+    }
+    for(const {area} of entries){
+      const previousErrorCount=errors.length;
+      await page.evaluate(target=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(target),area);
+      await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.area()),
+        {message:role+' '+area+' route switch'}).toBe(area);
+      if(area==='admin-media-review'){
+        await expect.poll(()=>page.evaluate(()=>Boolean(
+          document.querySelector('link[data-m26-media-review-style]')?.sheet
+        )),{message:'Use actual admin media-review stylesheet'}).toBe(true);
+      }
+      const metrics=await page.evaluate(()=>{
+        const root=document.querySelector('.m26-shell');
+        const main=document.querySelector('.m26-main');
+        const body=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-admin-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions,[data-admin-media-review-route]');
+        const heading=body?.querySelector('h1,h2,h3')||main?.querySelector('h1,h2,h3');
+        const bodyRect=body?.getBoundingClientRect(),hRect=heading?.getBoundingClientRect();
+        const style=heading?getComputedStyle(heading):null;
+        const fontSize=Number.parseFloat(style?.fontSize)||16;
+        const lineHeight=Number.parseFloat(style?.lineHeight)||fontSize*1.25;
+        return {
+          role:root?.dataset.m26Role,
+          body:Boolean(bodyRect&&bodyRect.width>10&&bodyRect.height>10),
+          heading:String(heading?.textContent||'').trim(),
+          headingWidth:hRect?.width||0,
+          headingLines:hRect&&lineHeight>0?hRect.height/lineHeight:0,
+          bodyWidth:bodyRect?.width||0,
+          pageWidth:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth),
+          viewport:document.documentElement.clientWidth,
+          inert:main?.inert||false,
+          placeholder:Boolean(main?.querySelector('.m26-route-placeholder')),
+          permissionDenied:Boolean(main?.querySelector('.m26-admin-hero h2')?.textContent?.trim()==='Permiso insuficiente'),
+        };
+      });
+      expect(errors.slice(previousErrorCount),role+' '+area+' runtime errors').toEqual([]);
+      expect(metrics.role,role+' '+area+' never cross a role boundary').toBe(role);
+      expect(metrics.body,role+' '+area+' genuine route must be visible').toBe(true);
+      expect(metrics.placeholder,role+' '+area+' must not substitute fake route markup').toBe(false);
+      if(role==='admin')expect(metrics.permissionDenied,role+' '+area+' must expose actual permitted synthetic Admin body').toBe(false);
+      expect(metrics.inert,role+' '+area+' main must not freeze').toBe(false);
+      expect(metrics.heading.length,role+' '+area+' title required').toBeGreaterThan(0);
+      expect(metrics.pageWidth,role+' '+area+' zero horizontal overflow').toBeLessThanOrEqual(metrics.viewport+2);
+      if(metrics.heading.length>=12){
+        expect(metrics.headingWidth,role+' '+area+' text column must remain readable')
+          .toBeGreaterThanOrEqual(Math.min(135,Math.max(90,metrics.viewport*.28)));
+        expect(metrics.headingLines,role+' '+area+' no letter-by-letter vertical headings')
+          .toBeLessThanOrEqual(Math.max(5,Math.ceil(metrics.heading.length/5)));
+      }
+      if(visualEvidenceProject){
+        // Persist to the already-uploaded synthetic QA artifact directory.
+        // testInfo.attach alone would be discarded on a SUCCESS workflow run.
+        await page.screenshot({
+          path:visualEvidenceDir+'/'+area+'.jpg',
+          type:'jpeg',quality:68,fullPage:true,scale:'css',animations:'disabled',caret:'hide'
+        });
+        // U82: fullPage only captures the document, not necessarily a nested
+        // scrollable workspace. Preserve an end-of-scroll viewport when a
+        // genuine scroll root exists, and record geometry if none does.
+        const scroll=await page.evaluate(()=>{
+          const route=document.querySelector('.m26-main .m26-client-route-shell,.m26-main .m26-route,.m26-main .m26-admin-route');
+          const candidates=[
+            ['client-route-scrollport',document.querySelector(
+              '.m26-shell[data-m26-role="client"] .m26-client-route-shell > :not(.m26-client-bottom-nav-layer)'
+            )],
+            ['document',document.scrollingElement],
+            ['main',document.querySelector('.m26-main')],
+            ['workspace',document.querySelector('.m26-workspace')],
+            ['body',document.body],
+          ];
+          const inspected=candidates.filter(([,node])=>node).map(([name,node])=>({
+            name,node,range:Math.max(0,node.scrollHeight-node.clientHeight),
+            overflow:getComputedStyle(node).overflowY
+          }));
+          const reachable=inspected.filter(item=>item.range>24&&
+            (item.name==='document'||/auto|scroll/.test(item.overflow)))
+            .sort((a,b)=>b.range-a.range);
+          let target=null,moved=0;
+          for(const item of reachable){
+            const prior=item.node.scrollTop;
+            item.node.scrollTop=item.node.scrollHeight;
+            const delta=item.node.scrollTop-prior;
+            if(delta>12){target=item.name;moved=delta;break;}
+          }
+          return {
+            viewportHeight:document.documentElement.clientHeight,
+            documentHeight:document.scrollingElement?.scrollHeight||0,
+            routeHeight:Math.round(route?.getBoundingClientRect().height||0),
+            scrollTarget:target,
+            moved:Math.round(moved),
+            candidateRanges:inspected.map(({name,range,overflow})=>({name,range,overflow}))
+          };
+        });
+        if(scroll.scrollTarget&&scroll.moved>12){
+          await page.screenshot({
+            path:visualEvidenceDir+'/'+area+'-scrolled.jpg',
+            type:'jpeg',quality:68,fullPage:false,scale:'css',
+            animations:'disabled',caret:'hide'
+          });
+        }
+        // Restore ordinary navigation behavior before loading the next route.
+        await page.evaluate(()=>{
+          for(const node of [document.scrollingElement,document.querySelector('.m26-main'),
+            document.querySelector('.m26-workspace'),document.body]){
+            if(node)node.scrollTop=0;
+          }
+        });
+        scrollEvidence[area]=scroll;
+        visualEvidenceAreas.push(area);
+      }
+    }
+    if(visualEvidenceProject){
+      expect(visualEvidenceAreas,role+' all canonical areas must have evidence')
+        .toEqual(entries.map(item=>item.area));
+      const manifest={
+        schema:'iberfit.signature.visual-evidence.v1',
+        renderer:'real-route-renderer',
+        identity:'synthetic',
+        authenticated:false,
+        stitchParityCertified:false,
+        adminView:role==='admin'?'explicit-authorized-synthetic':'not-admin',
+        project:testInfo.project.name,
+        viewport:testInfo.project.use.viewport,
+        role,
+        areas:visualEvidenceAreas,
+        scrollEvidence,
+        evidenceScope:'genuine authorized synthetic role bodies, navigation geometry and scroll frames; never authenticated'
+      };
+      const {writeFile}=await import('node:fs/promises');
+      await writeFile(visualEvidenceDir+'/manifest.json',JSON.stringify(manifest,null,2),'utf8');
+    }
+    expect(mutations,role+' must never write to a remote backend in static visual QA').toEqual([]);
+    expect(errors,role+' must be free of page errors').toEqual([]);
+    // Tablet/WebKit keep their original final frame. Mobile/desktop now have
+    // complete, individually named per-route evidence plus a truthful manifest.
+    if(!visualEvidenceProject){
+      const image=await page.screenshot({fullPage:false,animations:'disabled',caret:'hide'});
+      await testInfo.attach('signature-u77-'+role+'-'+testInfo.project.name+'.png',
+        {body:image,contentType:'image/png'});
+    }
+  });
+}
+
+// U83 · Native-resolution visual evidence for the single approved Stitch
+// reference. The 43-route JPEG geometry survey remains 1x intentionally.
+// This test creates one isolated dPR3 browser context, no Supabase calls.
+test('SIGNATURE U83 · Cliente Hoy Retina 390 CSS px at dPR 3 produces native PNG evidence',async({browser},testInfo)=>{
+  test.skip(testInfo.project.name!=='live-workout-mobile-chromium',
+    'One isolated 3x master frame only; do not multiply CI image costs.');
+  const context=await browser.newContext({
+    viewport:{width:390,height:844},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true,locale:'es-ES',timezoneId:'America/Santiago',
+    serviceWorkers:'block',reducedMotion:'reduce',
+    baseURL:'http://127.0.0.1:4211',
+  });
+  try{
+    const page=await context.newPage();
+    const mutations=[],errors=[];
+    page.on('request',request=>{
+      if(!['GET','HEAD'].includes(request.method()))mutations.push(request.method());
+    });
+    page.on('pageerror',error=>errors.push(String(error.message||error)));
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real',
+      {waitUntil:'domcontentloaded'});
+    await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode))
+      .toBe('real-synthetic');
+    await expect(page.locator('.m26-client-home-stitch-v23')).toBeVisible();
+    await page.evaluate(()=>document.fonts.ready);
+    const dpr=await page.evaluate(()=>window.devicePixelRatio);
+    expect(dpr).toBe(3);
+    const png=await page.screenshot({
+      type:'png',scale:'device',fullPage:false,animations:'disabled',caret:'hide'
+    });
+    expect(png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))).toBe(true);
+    expect(png.readUInt32BE(16),'Native 390 CSS px * dPR 3 = 1170 physical pixels').toBe(1170);
+    expect(png.readUInt32BE(20),'Native 844 CSS px * dPR 3 = 2532 physical pixels').toBe(2532);
+    const dir='recovery/signature-published-sessions/u83';
+    const {mkdir,writeFile}=await import('node:fs/promises');
+    await mkdir(dir,{recursive:true});
+    await writeFile(dir+'/cliente-hoy-390-dpr3.png',png);
+    const scroll=await page.evaluate(()=>{
+      const root=document.querySelector(
+        '.m26-shell[data-m26-role="client"] .m26-client-route-shell > :not(.m26-client-bottom-nav-layer)'
+      );
+      if(!root)return {present:false,range:0,moved:0};
+      const range=Math.max(0,root.scrollHeight-root.clientHeight);
+      const prior=root.scrollTop;
+      root.scrollTop=root.scrollHeight;
+      return {present:true,range,moved:root.scrollTop-prior};
+    });
+    if(scroll.moved>12){
+      const lower=await page.screenshot({
+        type:'png',scale:'device',fullPage:false,animations:'disabled',caret:'hide'
+      });
+      expect(lower.readUInt32BE(16)).toBe(1170);
+      expect(lower.readUInt32BE(20)).toBe(2532);
+      await writeFile(dir+'/cliente-hoy-390-dpr3-scrolled.png',lower);
+    }
+    // U84: native pixel dimensions alone cannot establish optical sharpness.
+    // Inventory rendered fonts, vectors and raster sampling WITHOUT persisting
+    // image URLs, profile identities, screenshot HTML or personal data. Raster
+    // intrinsic dimensions are only diagnostic (srcset may be density-corrected).
+    const opticalAudit=await page.evaluate(()=>{
+      const root=document.querySelector('.m26-client-home-stitch-v23');
+      const isVisible=el=>{
+        const rect=el.getBoundingClientRect();
+        const css=getComputedStyle(el);
+        return rect.width>0&&rect.height>0&&css.display!=='none'&&
+          css.visibility!=='hidden'&&Number(css.opacity)>0;
+      };
+      const raster=Array.from(root?.querySelectorAll('img')||[])
+        .filter(isVisible).slice(0,40).map(img=>{
+          const rect=img.getBoundingClientRect();
+          return {
+            widthCss:Math.round(rect.width*10)/10,
+            heightCss:Math.round(rect.height*10)/10,
+            naturalWidth:img.naturalWidth,
+            naturalHeight:img.naturalHeight,
+            decoded:img.complete&&img.naturalWidth>0,
+            usesSrcset:Boolean(img.getAttribute('srcset'))
+          };
+        });
+      const canvases=Array.from(root?.querySelectorAll('canvas')||[])
+        .filter(isVisible).slice(0,20).map(canvas=>{
+          const rect=canvas.getBoundingClientRect();
+          return {
+            widthCss:Math.round(rect.width*10)/10,
+            heightCss:Math.round(rect.height*10)/10,
+            bitmapWidth:canvas.width,
+            bitmapHeight:canvas.height
+          };
+        });
+      const title=root?.querySelector('h1,h2,h3');
+      return {
+        fontsStatus:document.fonts.status,
+        titleFontFamily:title?getComputedStyle(title).fontFamily:null,
+        svgCount:Array.from(root?.querySelectorAll('svg')||[]).filter(isVisible).length,
+        rasterCount:raster.length,
+        raster,
+        canvasCount:canvases.length,
+        canvases,
+        inventoryScope:'displayed DOM only; no URLs, identity or image contents'
+      };
+    });
+    expect(opticalAudit.fontsStatus,'Web fonts must finish resolving before Retina evidence')
+      .toBe('loaded');
+    await writeFile(dir+'/manifest.json',JSON.stringify({
+      schema:'iberfit.signature.retina-evidence.v1',
+      role:'client',route:'hoy',viewportCss:{width:390,height:844},
+      deviceScaleFactor:dpr,pngPhysical:{width:1170,height:2532},
+      renderer:'real-route-renderer',identity:'synthetic',authenticated:false,
+      stitchParityCertified:false,scroll,opticalAudit,
+      scope:'native-resolution and optical diagnostics; neither authenticated nor Stitch parity'
+    },null,2),'utf8');
+    expect(mutations,'No remote writes for retina visual QA').toEqual([]);
+    expect(errors,'Retina route must not produce runtime errors').toEqual([]);
+  }finally{
+    await context.close();
+  }
 });

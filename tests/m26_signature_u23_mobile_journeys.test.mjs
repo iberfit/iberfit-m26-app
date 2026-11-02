@@ -54,7 +54,10 @@ test('U23 tablet Client dock remains inside the workspace without double rail of
 
 test('U23 compact dock does not rely on horizontal scrolling or clipping the Más overlay',()=>{
   const styles=read('src/m26/design/iberfit-premium-v3.css');
-  const block=styles.slice(styles.lastIndexOf('SIGNATURE U23 · compact navigation'));
+  const begin=styles.lastIndexOf('SIGNATURE U23 · compact navigation');
+  const end=styles.indexOf('/* SIGNATURE B2:',begin);
+  assert.ok(begin>=0&&end>begin,'U23 navigation scope must remain explicitly bounded');
+  const block=styles.slice(begin,end);
   assert.match(block,/max-width:420px/u);
   assert.match(block,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/u);
   assert.match(block,/overflow-x:visible/u);

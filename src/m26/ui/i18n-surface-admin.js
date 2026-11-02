@@ -1,4 +1,7 @@
 export const ADMIN_SURFACE_ROWS=Object.freeze([
+// U108 · Singular administrative decision badge: verified client count, no fake statuses.
+['1 cliente por revisar','1 client to review','1 client à examiner','1 cliente por rever'],
+
 ['Cliente activo','Active client','Client actif','Cliente ativo'],
 ['Este Coach no tiene clientes activos asignados.','This Coach has no active clients assigned.','Ce Coach n’a aucun client actif attribué.','Este Coach não tem clientes ativos atribuídos.'],
 ['La agenda del Coach no contiene sesiones visibles en este periodo.','The Coach schedule has no visible sessions in this period.','L’agenda du Coach ne contient aucune séance visible sur cette période.','A agenda do Coach não contém sessões visíveis neste período.'],

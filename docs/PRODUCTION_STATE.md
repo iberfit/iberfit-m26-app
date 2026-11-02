@@ -34,6 +34,14 @@ Candidato QA-only `iberfit_client_completed_history_page_free_v1`: no acepta cli
 
 ---
 
+## Stitch privado recuperado · SIGNATURE PR #1213 sigue WIP · 30-10-2026
+
+- Reparación privada `d774edd2cfbac796898aa68384104ccf18e6fe93`; Actions [41141452399](https://github.com/iberfit/Iberfit-platform/actions/runs/41141452399) SUCCESS, Node 22.23.4, 12/12 tests. Exportación original en commit privado `6fb51f85a8285a7677c56372110a3d5910324e80`: HTML, PNG y manifiesto; hashes verificados sobre bytes Git, PNG CRC y píxeles decodificados. Sin transferir secretos ni HTML a este repo público.
+- El canvas aprobado es 390×1543; el PNG original es 780×3390. El título interno HTML conserva V2.2 aunque la etiqueta del canvas dice V2.3; se preserva la fuente sin corregirla artificialmente.
+- PR #1213 reconciliado localmente con Canary source `b3accc0c93cbece0c33863524754220733217dc0`, sin aplicar sus SQL. Adaptación inicial Cliente: saludo separado de decisión, contexto vertical, tipografía y profundidad del original; mismos comandos y permisos, sin datos DEMO. Coach/Admin mantienen sus composiciones.
+- QA local: 573/573 contratos Signature/Cliente, 16/16 navegador de cuerpos reales de tres roles (identidades sintéticas); 10/10 responsive 320/390/834/1024/1440 px dPR2/3 con axe WCAG A/AA. No equivale a autenticación real ni fidelidad visual completa.
+- Batería general Windows: 5606 tests, 5548 pass, 57 fallos, 1 skip antes de corregir tres regresiones de composición. Esas regresiones se corrigen sin relajar tests; los otros 54 fallos se reproducen en checkout base sin la adaptación. CI Linux y gates autenticados del HEAD final pendientes. No merge ni despliegue, sin cambios a Supabase/Auth/PROD. Pendiente completar calendario/gráficos y homologación visual de Cliente/Coach/Admin.
+
 ## P0 Supabase Free: QA consent bootstrap capped candidate — 2026-10-30
 - Canary latest deployed SHA 67299e98892b95427cef0e687d920d2a99a1b808. Decoded Playwright response 290956 bytes of wearable bootstrap; 2630143 bytes in Client main bootstrap. These are not billing bytes.
 - QA: 1340 Health Connect consent events for one client, 2026-10-11 through 2026-10-30. Preserving full events and revocation fences in database is non-negotiable.

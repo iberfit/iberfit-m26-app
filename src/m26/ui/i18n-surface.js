@@ -5,6 +5,12 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // SIGNATURE U104: true local-week status and compact planning CTA, EN/FR/PT parity.
+  ["Sin citas confirmadas esta semana","No confirmed appointments this week","Aucun rendez-vous confirmé cette semaine","Sem marcações confirmadas esta semana"],
+  ["Citas confirmadas esta semana","Confirmed appointments this week","Rendez-vous confirmés cette semaine","Marcações confirmadas esta semana"],
+  ["La planificación completa está en tu plan.","Your full schedule is in your plan.","Votre planning complet figure dans votre programme.","O planeamento completo está no seu plano."],
+  ["Ver mi plan","View my plan","Voir mon programme","Ver o meu plano"],
+  ["Ver planificación semanal","View weekly schedule","Voir le planning hebdomadaire","Ver planeamento semanal"],
   // P0 #1209 · historical session recovery: locale parity for all status and retry messages.
   ["Los detalles de sesiones antiguas se consultan sólo cuando los solicitas.","Older session details are retrieved only when you request them.","Les détails des séances anciennes ne sont récupérés que sur demande.","Os detalhes das sessões antigas são consultados apenas quando os solicitas."],
   ["Consultar historial completo","View full history","Consulter l'historique complet","Consultar histórico completo"],
@@ -12,6 +18,19 @@ const ROWS=Object.freeze([
   ["El historial antiguo requiere conexión. Tus sesiones disponibles permanecen visibles.","Older training history requires an internet connection. Your available sessions remain visible.","L'ancien historique nécessite une connexion. Vos séances disponibles restent visibles.","O histórico antigo requer ligação à Internet. As sessões disponíveis continuam visíveis."],
   ["No se ha podido recuperar el historial completo. No se ha perdido ningún registro.","Unable to retrieve the complete history. No records have been lost.","Impossible de récupérer l'historique complet. Aucun enregistrement n'a été perdu.","Não foi possível recuperar o histórico completo. Nenhum registo foi perdido."],
   ["Reintentar historial","Retry history","Réessayer l'historique","Tentar novamente o histórico"],
+  // U66 · Exact Stitch V2.3 context label, real client destinations.
+  ["Contexto del atleta","Athlete context","Contexte de l’athlète","Contexto do atleta"],
+  // U63 · Published prescription preview, four supported UI languages.
+  ["Prescripción publicada","Published prescription","Prescription publiée","Prescrição publicada"],
+  ["Prescripción disponible","Prescription available","Prescription disponible","Prescrição disponível"],
+  ["Ver estructura publicada","View published structure","Voir la structure publiée","Ver estrutura publicada"],
+  ["Circuito","Circuit","Circuit","Circuito"],
+  ["Biserie","Superset","Supersérie","Bissérie"],
+  ["Triserie","Triset","Trisérie","Trissérie"],
+  ["AMRAP","AMRAP","AMRAP","AMRAP"],
+  ["Tabata","Tabata","Tabata","Tabata"],
+  ["Calentamiento","Warm-up","Échauffement","Aquecimento"],
+  ["Vuelta a la calma","Cool-down","Retour au calme","Regresso à calma"],
   // U52 verified athletic progress and wellbeing copy.
   ["Evolución real","Confirmed progress","Évolution réelle","Evolução real"],
   ["Tu progreso","Your progress","Votre progression","O seu progresso"],

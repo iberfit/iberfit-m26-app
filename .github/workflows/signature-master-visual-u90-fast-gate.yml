@@ -1,0 +1,95 @@
+name: SIGNATURE MASTER U90 · Fast visual integration gate
+on:
+  push:
+    branches:
+      - feat/signature-u57-client-session-persistent-actions-20261030
+    paths:
+      - '.github/workflows/signature-master-visual-u90-fast-gate.yml'
+      - 'src/m26/design/iberfit-premium-v3.css'
+      - 'tests/m26_signature_master_visual_u90.test.mjs'
+      - 'qa/device-experience/signature-u25-real-route-bodies.spec.mjs'
+      - 'tests/m26_signature_stitch_whole_app_visual.test.mjs'
+      - 'qa/device-experience/signature-u96-retina4k.spec.mjs'
+      - 'playwright.device-experience.config.mjs'
+      - 'src/m26/design/adaptive-layout.css'
+      - 'src/m26/rc39/rc39.css'
+      - 'src/m26/modules/route-render.js'
+      - 'tests/stitch_client_composition.test.mjs'
+      - 'src/m26/shell/shell-render.js'
+      - 'src/m26/admin/route-render.js'
+      - 'src/m26/ui/i18n-surface-admin.js'
+      - 'qa/visual/signature-route-shell.fixture.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: signature-master-u90-fast-gate
+  cancel-in-progress: true
+jobs:
+  source-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Proof of one 43-route visual system without new dependencies
+        run: |
+          node --check src/m26/modules/route-render.js
+          node --check qa/live-workout/live-workout-browser.spec.mjs
+          node --test tests/m26_signature_master_visual_u90.test.mjs tests/m26_signature_stitch_whole_app_visual.test.mjs tests/m26_signature_b6_client_editorial_contrast.test.mjs tests/m26_signature_u23_mobile_journeys.test.mjs
+      - name: Ensure no private Stitch exports or server logic entered public app
+        run: |
+          test ! -d public/stitch
+          test ! -d public/m26/stitch-private
+          test ! -e .tmp/stitch-private/1399435845853535416/manifest.json
+          if git diff HEAD^ HEAD --name-only | grep -E '^(supabase/|src/m26/auth/|src/m26/data/|public/m26/app\.js)'; then
+            echo "U90_SHARED_VISUAL_GATE_UNEXPECTED_BACKEND_CHANGE"
+            exit 1
+          fi
+
+  browser-matrix:
+    needs: source-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked browser-test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install one browser without downloading application data
+        run: npx playwright install --with-deps chromium
+      - name: Real 43-route render matrix with synthetic state, mobile tablet desktop
+        run: |
+          npx playwright test qa/device-experience/signature-u25-real-route-bodies.spec.mjs \
+            --config=playwright.device-experience.config.mjs \
+            --project=device-mobile-320-chromium \
+            --project=device-mobile-chromium \
+            --project=device-tablet-820-portrait-chromium \
+            --project=device-desktop-chromium
+      - name: "U96 native Retina 4K capture — client, coach, admin across 3 devices"
+        run: |
+          npx playwright test qa/device-experience/signature-u96-retina4k.spec.mjs \
+            --config=playwright.device-experience.config.mjs \
+            --project=device-desktop-4k-chromium
+      - name: Preserve native Retina/4K and Coach day/week calendar screenshots (synthetic only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-signature-u96-retina4k-synthetic-${{ github.run_id }}
+          path: qa-evidence/signature-u96-retina4k/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve failure evidence only, never private accounts or tokens
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signature-u90-synthetic-browser-failures-${{ github.run_id }}
+          path: |
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 5

@@ -38,6 +38,8 @@ Usar siempre el logo/isotipo real de IBERFIT. No inventar variantes de marca.
 
 ## Fuente de verdad visual
 
+La referencia aprobada Cliente Hoy Dark Signature V2.3 de Stitch es el nivel mínimo de calidad para Cliente, Coach y Admin: composición, tipografía, profundidad, gráficos y adaptación por tarea/dispositivo. Los originales permanecen exclusivamente en `iberfit/Iberfit-platform` privado. Reutilizar comandos, permisos, calendario, datos y persistencia reales; nunca trasladar identidades o métricas DEMO. La adaptación inicial de Cliente en PR #1213 no certifica todavía paridad visual ni los otros roles.
+
 - tokens semánticos: fuente canónica existente del sistema de diseño;
 - CSS generado/derivado, no valores de marca duplicados manualmente;
 - `docs/RC58_DESIGN_SYSTEM_SCOPE.md` y subfases RC58 documentan la implementación;
@@ -248,3 +250,37 @@ autorizan por sí mismos `start-published-session`.
 - Entrada breve solo para títulos principales y solo si no está activado movimiento reducido; sin loops, parallax, componentes que dependan de animación, ni bloqueos de controles.
 - El gráfico fuerza enseña exclusivamente serie confirmada y comparable, retícula 0–100%, marcador final real y unidades kg·rep. La maqueta conceptual **no** es un origen de datos ni una captura autenticada.
 - Mantener el piloto como WIP del PR #1200. Exigir evidencia 320/390 px dPR2/3, tablet, escritorio, y QA real antes de merge / Canary / PROD.
+
+## Regla permanente · PRODUCT-FIRST · Stitch como director de producto y diseño (31-10-2026)
+
+**Decisión expresa de producto aprobada:** no continuaremos añadiendo cosmética sobre pantallas antiguas como estrategia de transformación visual. El proceso obligatorio es **Stitch define experiencia y sistema visual premium → IBERFIT integra datos, reglas y acciones reales → QA homologa fidelidad y funcionalidad → Canary → producción certificada**.
+
+- Diseño **antes** de implementación: arquitectura de información, decisiones, journeys Cliente/Coach/Admin, pantallas completas y estados, navegación, microinteracciones, responsive, materiales tipográficos/gráficos y sistema de componentes. No 43 ilustraciones sueltas.
+- Stitch usa el proyecto existente `1399435845853535416`. La única referencia formalmente aprobada hoy es Cliente Hoy V2.3 390px. La extensión a otros flujos/roles requiere evidencia de nuevas pantallas y aprobación, no inferencia.
+- Contrato privado y fuentes: `iberfit/Iberfit-platform/design-stitch/IBERFIT_STITCH_PRODUCT_FIRST_MASTER_2026-10-31.md`. No copiar las exportaciones privadas ni demos al repositorio público.
+- La fuente de verdad de permisos, sesiones, clientes, datos, RLS, Auth, ACK, errores/reintentos y persistencia **siempre** es la aplicación real, no un prototipo de Stitch. Si propone nuevas funciones, se revisa su impacto antes de incorporarlas.
+- Handoff por ruta/estado: referencia aprobada, datos autorizados, acción canónica, componente, estados, responsive, accesibilidad, error, recuperación y prueba. Transformación visual a nivel de arquitectura, no cascadas de CSS.
+- Prioridad de diseño: **viaje Cliente completo → flujo operativo Coach completo → control y auditoría Admin**; extender sistemáticamente a las 43 rutas con densidad distinta por rol.
+- No declarar paridad por CI ni capturas sintéticas; contrastar capturas autenticadas y tareas reales en móvil/tablet/desktop. Mantener la PR SIGNATURE visual en Draft hasta completar la fase de diseño y los gates, no publicar una versión inferior al original Stitch.
+- Las referencias Stitch **no sustituyen** exigencias del contrato de seguridad, estabilidad, integridad, accesibilidad WCAG 2.2 AA ni rendimiento. Implementar sólo con rollouts reversibles y conservar la funcionalidad.
+
+## SIGNATURE U83 · Resolución y nitidez Retina exigibles
+
+**La calidad visual no es sólo composición; la nitidez física es criterio de aceptación.** Las referencias de Stitch se evalúan en su resolución original sin inferir que un PNG de demostración certifica la aplicación.
+
+- Separar geometría en CSS px y píxeles físicos. Referencia Cliente móvil 390×844 CSS px a dPR 3 = **1170×2532 píxeles físicos** para captura de viewport, sin escalar después el fichero.
+- Tipografía real, isotipo oficial e iconos preferentemente vectoriales (SVG); gráficos nítidos con SVG o Canvas escalado correctamente al devicePixelRatio; líneas finas alineadas para evitar borrosidad.
+- Imágenes raster visibles: dimensiones intrínsecas/source-set apropiadas para su tamaño efectivo a dPR 2/3, sin ampliar recursos de baja resolución ni añadir peso innecesario. Fotos privadas del usuario permanecen privadas y nunca se sustituyen por imágenes inventadas.
+- **Dos niveles de evidencia:** JPEG ligero CSS 1× para las 43 rutas sintéticas y cobertura operativa; **PNG sin pérdida a escala de dispositivo** para referencias artísticas aprobadas, capturando zona superior y scrollport cuando aplique. El JPEG QA con calidad 68/100 no puede utilizarse como patrón de nitidez HD.
+- La prueba U83 de Client Hoy 390px dPR3 verifica anchura/altura físicas exactas y deja evidencia protegida en el artefacto existente; **no** equivale a homologación con Stitch, a una prueba autenticada ni a un certificado de legibilidad óptica de todos los assets.
+- Homologación final por rol/estado/dispositivo: comparación original Stitch ↔ captura auténtica del mismo estado/datos; geometría, tipografía, densidad, gráficos, navegación, foco y suavidad visual. No forzar todas las 43 rutas a 3× en CI ni inflar Supabase, bundles o QA por una métrica decorativa.
+
+## SIGNATURE U92 · Criterio experto, interacción Stitch y los tres dispositivos · 01/11/2026
+
+- **Stitch es una fuente de diseño de producto e interacción**, no sólo una referencia estética: estudiar y adoptar los viajes, controles, decisiones, navegación, transiciones, estados y densidad que mejoren IBERFIT. La autoridad final es el criterio experto de IBERFIT, con verificaciones de comportamiento real, privacidad y seguridad. No copiar prototipos ni alterar motores de autenticación, autorización, escritura, sesión, ACK o recuperación sin implementar y probar la semántica real.
+- **Cliente = aplicación personal de entrenamiento, evolución y bienestar**, donde pueda entender «cómo estoy», «qué ha cambiado», «qué hago ahora» y «qué consulto con mi Coach». Entreno / Evolución / Bienestar son destinos reales, con datos de origen reconocido, periodos, unidades y ausencia explícita de medición. Datos de actividad, autocuestionarios y wearables no son diagnósticos médicos; evitar puntuaciones globales inventadas, etiquetas clínicas y garantías sanitarias. Diagnóstico IRI inicial sigue separado de evolución longitudinal.
+- **Coach = tiempo y precisión operativa**. Buscar y seleccionar cliente antes de grandes colas informativas en móvil/tablet, sin perder filtros, seguimiento, notas, sesiones, planificación, publicación ni corrección. La tablet es dispositivo de trabajo prioritario en entrenamiento.
+- **Admin = control con trazabilidad**. Móvil para priorizar y resolver, tablet para revisar/editar con seguridad y escritorio para comparar y administrar listas/tablas densas.
+- **Tres familias obligatorias por cada ruta/estado:** móvil 320/360/390/430, tablet 768/820/1024 y ordenador 1280/1440/1920 CSS px. Diferenciar disposición y comportamiento (no sólo escalar), probar touch, teclado, scroll, orientación, safe areas, zoom, WCAG 2.2 AA, DPR2/3, imágenes autorizadas y original isotipo. Probar carga, vacío, permisos, offline, error, conflicto, caducidad y recuperación según operación.
+- **Herencia para funcionalidades futuras:** primero emplear primitives y tokens semánticos de la app autenticada por rol, preservando las acciones reales. Las experiencias nuevas o cambios de interacción mayores regresan al Stitch existente, se evalúan con matriz de acciones/estados y se integran vía pruebas y despliegue reversible. No introducir CSS paralelo ni HTML DEMO como atajo.
+- Referencia privada versionada: `iberfit/Iberfit-platform`, contrato R40 del 01/11/2026. La aprobación artística completa de las 43 rutas sigue pendiente; documentación y tests sintéticos no sustituyen QA auténtica de la app.

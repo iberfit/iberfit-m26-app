@@ -141,13 +141,13 @@ test('Coach shell carries launch evidence and injects it into canonical Today wi
   const commandIndex=canonical.indexOf('m26-coach-home-command');
   const slotIndex=canonical.indexOf('m26-coach-launch-self-slot');
   const quickIndex=canonical.indexOf('m26-coach-home-quick');
-  assert.ok(commandIndex>=0&&slotIndex>commandIndex&&quickIndex>slotIndex);
+  assert.ok(commandIndex>=0&&quickIndex>commandIndex&&slotIndex>quickIndex);
   const markup=enhanceRc39ShellMarkup(canonical,shellVm);
   assert.match(markup,/data-coach-launch-self=/u);
   const renderedCommandIndex=markup.indexOf('m26-coach-home-command');
   const renderedLaunchIndex=markup.indexOf('data-coach-launch-self=');
   const renderedQuickIndex=markup.indexOf('m26-coach-home-quick');
-  assert.ok(renderedCommandIndex>=0&&renderedLaunchIndex>renderedCommandIndex&&renderedQuickIndex>renderedLaunchIndex);
+  assert.ok(renderedCommandIndex>=0&&renderedQuickIndex>renderedCommandIndex&&renderedLaunchIndex>renderedQuickIndex);
   assert.match(markup,/Tu recorrido como Coach/u);
   assert.match(markup,/m26-coach-home-v1/u);
   assert.match(markup,/Acciones rápidas/u);
