@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "00bbf7c28bbdefc0c7ecfbe818ad1ac3637b7b0a",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "243627058fe58367726c62637613517188617471",
+  "notes": "IBERFIT Signature Master Visual Cliente Coach Admin — exact certified frontend-only release; keep Supabase PROD database, Edge Functions and Hosted Auth unchanged."
+}
