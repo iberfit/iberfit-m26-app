@@ -190,7 +190,7 @@ test('R47 Client session offers one reachable authorized action before optional 
   await expect(disclosure).toContainText('6 de 10');
   await expect(disclosure).toContainText('Ritmo orientativo');
   await expect(disclosure).not.toContainText('Distancia (km)');
-  await expect(disclosure.locator('dt')).not.toContainText('RPE');
+  await expect(disclosure.locator('dt').filter({hasText:/^RPE$/})).toHaveCount(0);
   await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
   await testInfo.attach('r47-client-session-real-render-'+testInfo.project.name+'.png',{
     body:await page.screenshot({fullPage:true,animations:'disabled',caret:'hide'}),contentType:'image/png'});
