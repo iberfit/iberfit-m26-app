@@ -108,6 +108,9 @@ test('P0 Free: stale PR revisions cannot start authenticated QA real-write suite
   assert.match(guard,/PR_SHA/u);
   assert.match(guard,/live_sha.*PR_SHA.*live_state.*open.*live_draft.*false/u);
   assert.match(guard,/current=false/u);
+  // jq -e treats JSON false as an error; an open non-draft PR must not fail here.
+  assert.match(guard,/jq -r '\.draft \| tostring'/u);
+  assert.doesNotMatch(guard,/jq -er '\.draft'/u);
   assert.match(guard,/curl --fail --silent --show-error/u);
   assert.doesNotMatch(guard,/supabase\.co|M26_QA_.*PASSWORD|M26_SUPABASE_PUBLISHABLE_KEY/u);
   assert.match(realWrite,/pull-requests: read/u);
