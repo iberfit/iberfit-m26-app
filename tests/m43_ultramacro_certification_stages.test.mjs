@@ -46,13 +46,13 @@ test('M43 ultramacro: QA write concurrency never interrupts an actual mutation',
   assert.ok(qa.includes('group: iberfit-qa-real-write-cert'));
   assert.ok(qa.includes('cancel-in-progress: false'));
   assert.ok(qa.includes('queue: max'));
-  assert.ok(qa.includes('m43-real-client-browser:\n    if:'));
+  assert.match(qa,/m43-real-client-browser:\\n    needs: \\[pr-current-head, m43-real-coach-client-qa\\]\\n    if: .*needs\\.pr-current-head\\.outputs\\.current == 'true'/u);
 });
 
 test('M43 ultramacro: conditional tests do not replace existing live-safety responsibilities',()=>{
   const qa=workflow('qa-real-write-cert');
   const device=workflow('device-experience-gate');
-  assert.ok(qa.includes('    needs: [m43-real-coach-client-qa]'));
+  assert.match(qa,/m43-real-client-browser:\\n    needs: \\[pr-current-head, m43-real-coach-client-qa\\]/u);
   assert.ok(device.includes('needs: [contract,workflow-matrix,client-coach-qa,admin-task-matrix,pwa-upgrade]'));
   assert.ok(workflow('ci').includes('    timeout-minutes: 35'));
 });
