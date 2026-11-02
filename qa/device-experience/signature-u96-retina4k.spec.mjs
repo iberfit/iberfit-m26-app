@@ -36,8 +36,17 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         page.on('request',r=>{
           if(!['GET','HEAD'].includes(r.method()))writes.push(r.method());
         });
-        await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real');
+        // U116: 4K art proof must show the true Admin command center under
+        // explicit fictitious capabilities, not a permission-denied placeholder.
+        const surface=role==='admin'?'&adminSurface=authorized-synthetic':'';
+        await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real'+surface);
         await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode)).toBe('real-synthetic');
+        if(role==='admin'){
+          await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface))
+            .toBe('authorized-synthetic');
+          await expect(page.locator('[data-admin-surface="command-center"]')).toBeVisible();
+          await expect(page.getByText('Permiso insuficiente')).toHaveCount(0);
+        }
         const main=page.locator('.m26-main');
         await expect(main).toBeVisible();
         // Load the actual bundled variable fonts (not system-fallback screenshots).
@@ -133,7 +142,8 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         await writeFile(path.join(root,filename),png);
         rows.push({role,device:device.key,css:{width:device.width,height:device.height},dpr:device.dpr,
           physical,vectorIcons:status.svgIcons,fontsLoaded:true,officialIsotipo:true,
-          overflowPx:status.overflow,screenshot:filename,authenticated:false,stitchParityCertified:false});
+          overflowPx:status.overflow,screenshot:filename,authenticated:false,stitchParityCertified:false,
+          adminSurface:role==='admin'?'authorized-synthetic':'not-applicable'});
         expect(errors,role+' '+device.key+' JS errors').toEqual([]);
         expect(writes,role+' '+device.key+' no network writes').toEqual([]);
         await page.close();

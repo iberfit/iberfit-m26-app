@@ -283,3 +283,11 @@ test('U114 Admin Users 360 has four sober KPI tiles without a false ivory accent
  for(const label of ['Usuarios','Activos','Invitaciones pendientes','Vínculos a revisar'])
    assert.ok(admin.includes("stat('"+label+"'"),'KPI retained: '+label);
 });
+
+test('U116 Retina 4K gallery shows authorized fictitious Admin body, not a denial screen',()=>{
+ const suite=readFileSync(new URL('../qa/device-experience/signature-u96-retina4k.spec.mjs',import.meta.url),'utf8');
+ const block=suite.split('SIGNATURE U96 · 3 roles × 3 devices')[1]?.split('// U101')[0]||'';
+ for(const token of ['adminSurface=authorized-synthetic','authorized-synthetic','[data-admin-surface="command-center"]','Permiso insuficiente','authenticated:false'])
+   assert.ok(block.includes(token),'U116 source contract '+token);
+ assert.match(suite,/adminSurface:role==='admin'\?'authorized-synthetic':'not-applicable'/);
+});
