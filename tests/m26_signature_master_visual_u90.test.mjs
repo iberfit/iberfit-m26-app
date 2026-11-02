@@ -261,3 +261,13 @@ test('U111 Coach priority action never becomes a vertical letter stack',()=>{
    assert.ok(section.includes(token),'Coach priority layout '+token);
  assert.doesNotMatch(section,/display:none|visibility:hidden|pointer-events:none|!important/);
 });
+
+test('U113 Admin six-KPI backdrop is premium dark, not inherited ivory',()=>{
+ const target=css.split('U113: Admin oversight remains forest-dark')[1]?.split('/* SIGNATURE U111')[0]||'';
+ assert.match(target,/\.m26-shell\[data-m26-role="admin"\] \.m30-admin-command-route>\.m26-admin-stats/);
+ assert.match(target,/background:#102019/);
+ assert.match(target,/rgba\(197,160,89,\.22\)/);
+ assert.doesNotMatch(target,/background:var\(--iberfit-u50-paper\)/);
+ const coach=css.split('.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{')[1]?.split('}')[0]||'';
+ assert.match(coach,/background:var\(--iberfit-u50-paper\)/);
+});

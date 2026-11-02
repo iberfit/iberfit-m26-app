@@ -1484,9 +1484,13 @@
 .m26-shell[data-m26-role="client"] .m26-client-home-compass-actions button:focus-visible{
   outline:3px solid #77531F;outline-offset:2px;
 }
-.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick,
-.m26-shell[data-m26-role="admin"] .m30-admin-command-route>.m26-admin-stats{
+.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{
   padding:.5rem;border:1px solid rgba(27,48,38,.16);border-radius:1rem;background:var(--iberfit-u50-paper);
+}
+/* U113: Admin oversight remains forest-dark. Light-paper belongs to Client
+ * and Coach accents, never to the operational KPI frame. */
+.m26-shell[data-m26-role="admin"] .m30-admin-command-route>.m26-admin-stats{
+  padding:.5rem;border:1px solid rgba(197,160,89,.22);border-radius:.8rem;background:#102019;
 }
 .m26-shell[data-m26-role="admin"] .m30-admin-command-route .m26-admin-stat strong,
 .m26-shell[data-m26-role="coach"] .m26-coach-home-glance strong,

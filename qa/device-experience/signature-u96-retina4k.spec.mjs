@@ -369,6 +369,8 @@ test('SIGNATURE U106 · Admin permission denied by default, authorized synthetic
           callHeight:call?.getBoundingClientRect().height||0,
           priorityVisible:s&&getComputedStyle(s).display!=='none',
           kpiLabels:kpis.map(el=>el.textContent.trim()),
+          kpiPanelRgb:(getComputedStyle(document.querySelector('.m30-admin-kpis')).backgroundColor
+            .match(/\d+(?:\.\d+)?/g)||[]).slice(0,3).map(Number),
         };
       });
       expect(columns.overflowPx,'Admin '+device.key+' no horizontal body overflow').toBeLessThanOrEqual(2);
@@ -376,6 +378,9 @@ test('SIGNATURE U106 · Admin permission denied by default, authorized synthetic
       expect(columns.callHeight,'Admin primary touch target').toBeGreaterThanOrEqual(44);
       expect(columns.priorityVisible).toBe(true);
       expect(columns.kpiLabels.length).toBe(6);
+      expect(columns.kpiPanelRgb.length,'Admin KPI surface must be opaque RGB').toBe(3);
+      expect(columns.kpiPanelRgb.every((v,i)=>v<([75,95,80][i])),
+        'Admin KPI frame must remain dark green, never a bright paper band').toBe(true);
       // Zeroes are synthetic empty data, NOT made-up operational KPIs.
       const png=await auth.screenshot({type:'png',scale:'device',fullPage:false,animations:'disabled',caret:'hide'});
       expect(png.readUInt32BE(16)).toBe(device.width*device.dpr);
