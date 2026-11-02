@@ -238,3 +238,16 @@ test('U108 Admin decision count remains grammatical and translatable without inv
  assert.match(catalog,/\['1 cliente por revisar','1 client to review'/);
  assert.ok(!source.includes("badge(clientCount?String(clientCount)+' clientes por revisar'"));
 });
+
+test('U110 Admin tabular data remains horizontally inspectable on touch and keyboard',()=>{
+ const cssSection=s.split('SIGNATURE U110 · Admin factual tables:')[1]||'';
+ for(const rule of ['.m26-admin-table[role="region"]','overflow-x:auto','inline-size:max-content',
+   'min-inline-size:100%','scrollbar-width:thin',':focus-visible','forced-colors:active'])
+   assert.ok(cssSection.includes(rule),'required Admin table invariant '+rule);
+ assert.doesNotMatch(cssSection,/display:none|visibility:hidden|pointer-events:none|transform:scale/);
+ const source=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
+ assert.match(source,/role="region" aria-label="\$\{e\(scrollLabel\)\}" tabindex="0"/);
+ assert.match(source,/scope="col"/);
+ assert.match(source,/Desplaza la tabla lateralmente para consultar fechas/);
+ assert.match(source,/Desplaza la tabla lateralmente para ver todas las columnas y acciones/);
+});

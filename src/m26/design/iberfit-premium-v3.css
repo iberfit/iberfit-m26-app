@@ -3861,4 +3861,54 @@
     grid-column:1/-1;
   }
 }
+
+/* SIGNATURE U110 · Admin factual tables: inspect all columns without clipping.
+ * The original Stitch R38 showed partially cut-off actions on narrow layouts.
+ * Keep genuine route tables as keyboard/touch scroll regions, not compressed
+ * columns or hidden controls. All operational cells and forms remain intact. */
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"]{
+  display:block;
+  min-inline-size:0;
+  max-inline-size:100%;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scroll-padding-inline:1rem;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:#C5A059 #102019;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] table{
+  inline-size:max-content;
+  min-inline-size:100%;
+  border-collapse:separate;
+  border-spacing:0;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] :is(th,td){
+  min-inline-size:8.25rem;
+  white-space:normal;
+  overflow-wrap:break-word;
+  vertical-align:middle;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] :is(th,td):first-child{
+  min-inline-size:10rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] :is(th,td):last-child{
+  min-inline-size:11.25rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"]:focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:2px;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table-scroll-hint{
+  color:#d6ded6;
+  font-size:.8rem;
+  line-height:1.45;
+  margin-block:.35rem .65rem;
+}
+@media (forced-colors:active){
+  .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"]{
+    scrollbar-color:auto;
+    border-color:CanvasText;
+  }
+}
 /* END SIGNATURE MASTER U90 */

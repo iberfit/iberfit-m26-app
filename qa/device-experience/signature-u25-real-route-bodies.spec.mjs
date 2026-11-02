@@ -64,6 +64,36 @@ for(const role of ['client','coach','admin']){
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
       if(role==='admin')expect(actual.permissionDenied,'Admin '+area+' must be the real authorized synthetic body, not a denial screen').toBe(false);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
+      // U110: authorized Admin data must expose the final action column on touch.
+      if(role==='admin'&&area==='admin-clientes'){
+        const region=page.locator('.m26-admin-table[role="region"]').first();
+        await expect(region).toBeVisible();
+        const table=await region.evaluate(el=>{
+          const headings=[...el.querySelectorAll('thead th')],last=headings.at(-1);
+          const before=el.scrollLeft;
+          el.scrollLeft=el.scrollWidth;
+          const after=el.scrollLeft,scrollRect=el.getBoundingClientRect();
+          const lastRect=last?.getBoundingClientRect();
+          const result={label:el.getAttribute('aria-label'),tabindex:el.tabIndex,
+            headings:headings.map(h=>h.textContent.trim()),
+            columnScopes:headings.every(h=>h.scope==='col'),
+            scrollable:el.scrollWidth>el.clientWidth+2,
+            scrolled:after>before,
+            finalColumnVisible:Boolean(lastRect&&lastRect.right<=scrollRect.right+2&&lastRect.left>=scrollRect.left-2)};
+          el.scrollLeft=before;
+          return result;
+        });
+        expect(table.tabindex,'Admin table keyboard focus').toBe(0);
+        expect(table.label).toBeTruthy();
+        expect(table.columnScopes).toBe(true);
+        expect(table.headings.at(-1)).toBe('Gestión');
+        if(width<=390){
+          expect(table.scrollable,'Admin table should scroll rather than squash columns').toBe(true);
+          expect(table.scrolled,'Admin table must scroll sideways').toBe(true);
+          expect(table.finalColumnVisible,'Admin final action column fully inspectable').toBe(true);
+        }
+      }
+
       // U94: real calendar date semantics must survive all device widths
       // without implying unverified sessions, health outcomes or writes.
       if(role==='client'&&area==='hoy'){
