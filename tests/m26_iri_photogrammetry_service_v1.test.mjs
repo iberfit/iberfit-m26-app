@@ -215,3 +215,34 @@ test('service enforces prepare -> immutable upload -> finalize and private state
   const finalizeIndex=calls.findIndex((call)=>new URL(call.url).pathname==='/rest/v1/rpc/iberfit_finalize_iri_photo_v1');
   assert.ok(prepareIndex>=0&&prepareIndex<uploadIndex&&uploadIndex<finalizeIndex);
 });
+
+
+test('photogrammetry state accepts PostgREST vendor JSON but rejects non-array payloads',async()=>{
+  const calls=[];
+  const fetchImpl=async(url)=>{
+    calls.push(new URL(url).pathname);
+    return {
+      ok:true,status:200,
+      headers:{get:(name)=>String(name).toLowerCase()==='content-type'?'application/vnd.pgrst.array+json; charset=utf-8':null},
+      json:async()=>[],
+      text:async()=> '[]',
+    };
+  };
+  const state=await createIriPhotogrammetryService({runtime:runtime(),fetchImpl})
+    .state('jwt-test',{assessmentId:ASSESSMENT});
+  assert.equal(calls.length,5);
+  assert.deepEqual(state.consents,[]);
+  assert.deepEqual(state.captures,[]);
+  assert.equal(state.analysis,null);
+  const malformed=createIriPhotogrammetryService({
+    runtime:runtime(),
+    fetchImpl:async()=>({
+      ok:true,status:200,
+      headers:{get:(name)=>String(name).toLowerCase()==='content-type'?'application/vnd.pgrst.array+json':null},
+      json:async()=>({unexpected:'object'}),
+      text:async()=>'{"unexpected":"object"}',
+    }),
+  });
+  await assert.rejects(()=>malformed.state('jwt-test',{assessmentId:ASSESSMENT}),
+    /M26_IRI_PHOTO_STATE_INVALID_RESPONSE/u);
+});

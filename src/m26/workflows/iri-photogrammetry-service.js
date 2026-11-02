@@ -340,7 +340,12 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
         headers:{...headers,apikey:config.publishableKey,authorization:`Bearer ${accessToken}`,'x-client-info':`iberfit-m26-web/${config.version}`},
       });
       const contentType=response.headers?.get?.('content-type')||'';
-      const payload=response.status===204?null:contentType.includes('application/json')
+      // PostgREST may return vendor JSON (application/*+json). Treat it as
+      // JSON without relaxing the separate required-array state contract.
+      const mediaType=String(contentType).split(';',1)[0].trim().toLowerCase();
+      const isJson=mediaType==='application/json'||
+        (mediaType.startsWith('application/')&&mediaType.endsWith('+json'));
+      const payload=response.status===204?null:isJson
         ?await response.json().catch(()=>({}))
         :await response.text().catch(()=>'');
       if(!response.ok){
