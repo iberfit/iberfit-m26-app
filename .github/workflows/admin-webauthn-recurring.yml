@@ -31,6 +31,7 @@ on:
       - 'playwright.authenticated-visual.config.mjs'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/production-promote.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
       - 'src/m26/admin/**'
   push:
     branches: [canary/rc74-4]
@@ -62,6 +63,7 @@ on:
       - 'playwright.authenticated-visual.config.mjs'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/production-promote.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
       - 'src/m26/admin/**'
   workflow_dispatch:
 

@@ -158,3 +158,26 @@ test('U52 release scope accepts exactly inert QA SQL source and never marks it a
   assert.equal(result.hostedAuthMutated,false);
   assert.equal(result.unappliedMigrationFileCount,qaSql.length);
 });
+
+test('U121 release verifier changes require exact-source authenticated and Device QA push gates',()=>{
+ const workflows=[
+  ['admin-webauthn-recurring',2],
+  ['coach-webauthn-recurring',2],
+  ['device-experience-gate',2],
+  ['remote-gates',1],
+ ];
+ for(const [name,count] of workflows){
+  const yaml=fs.readFileSync(new URL('../.github/workflows/'+name+'.yml',import.meta.url),'utf8');
+  const marker="'scripts/release/verify_frontend_only_promotion.mjs'";
+  assert.equal(yaml.split(marker).length-1,count,name+' must respond to release guard changes');
+  assert.match(yaml,/\bpush:\s*\n/u,name+' must run on immutable Canary push SHA');
+  assert.match(yaml,/\bworkflow_dispatch:/u,name+' must preserve explicit reruns');
+  assert.match(yaml,/\bbranches:[^\n]*(?:canary\/rc74-4)?/u,name+' must declare branches');
+  assert.ok(yaml.includes('canary/rc74-4'),name+' must stay within Canary');
+ }
+ const authority=fs.readFileSync(new URL('../scripts/release/verify_source_qa_gates.mjs',import.meta.url),'utf8');
+ for(const name of [
+  'IBERFIT Admin WebAuthn Recurring','IBERFIT Coach WebAuthn Recurring',
+  'IBERFIT Device Experience Gate','IBERFIT M26 Gates remotos de solo lectura',
+ ])assert.ok(authority.includes(name),'Release gate must retain '+name);
+});

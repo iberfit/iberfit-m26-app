@@ -34,6 +34,7 @@ on:
       - '.github/workflows/continuous-app-audit.yml'
       - '.github/workflows/hosted-auth-security-hardening.yml'
       - '.github/workflows/production-promote.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
       - '.github/workflows/remote-gates.yml'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
