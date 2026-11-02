@@ -66,6 +66,9 @@ test('Stitch published session shows honest technical depth and native touch dis
   const detail=route.locator('.m26-client-stitch-session-details');
   await expect(route.locator('[data-client-session-preview]')).toBeVisible();
   await expect(route.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
+  await expect(detail.locator('summary')).toContainText('Ver ejercicios');
+  await expect(route.locator('[data-client-session-preview]')).toHaveAttribute('aria-label','Ejercicios de tu entrenamiento');
+  await expect(route.locator('.m26-client-stitch-session-facts')).toContainText('Entrenamiento preparado');
   await expect(detail).not.toHaveAttribute('open', '');
   await detail.locator('summary').click();
   await expect(detail).toHaveAttribute('open','');
@@ -87,7 +90,7 @@ test('U66 real renderer keeps labelled navigation, focus and zero overflow',asyn
   await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real');
   const route=page.locator('.m26-client-home-stitch-v23');
   await expect(route).toBeVisible();
-  const nav=route.getByRole('navigation',{name:'Contexto del atleta'});
+  const nav=route.getByRole('navigation',{name:'Tu espacio de entrenamiento'});
   await expect(nav).toBeVisible();
   await expect(nav.locator('button')).toHaveCount(3);
   await expect(route.getByRole('group',{name:'Acción principal de hoy'})).toBeVisible();
