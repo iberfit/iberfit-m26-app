@@ -100,3 +100,31 @@ test('authenticated remote preflight runs as unprivileged Playwright user withou
   assert.match(proof,/QA_NONROOT_BROWSER_OK/u);
   assert.doesNotMatch(proof,/M26_QA_.*(?:EMAIL|PASSWORD)|secrets\.|service_role/u);
 });
+
+
+test('P0 Free: stale PR revisions cannot start authenticated QA real-write suites',()=>{
+  const guard=jobBlock(realWrite,'  pr-current-head:','\n  m42-avatar-private-real-qa:');
+  assert.match(guard,/GITHUB_API_URL.*GITHUB_REPOSITORY.*pulls.*PR_NUMBER/u);
+  assert.match(guard,/PR_SHA/u);
+  assert.match(guard,/live_sha.*PR_SHA.*live_state.*open.*live_draft.*false/u);
+  assert.match(guard,/current=false/u);
+  assert.match(guard,/curl --fail --silent --show-error/u);
+  assert.doesNotMatch(guard,/supabase\.co|M26_QA_.*PASSWORD|M26_SUPABASE_PUBLISHABLE_KEY/u);
+  assert.match(realWrite,/pull-requests: read/u);
+  for(const [job,next] of [
+    ['m42-avatar-private-real-qa','connected360-v45-synthetic-write'],
+    ['connected360-v45-synthetic-write','qa-real-write'],
+    ['qa-real-write','m43-real-coach-client-qa'],
+    ['m43-real-coach-client-qa','m43-real-client-browser'],
+    ['m43-real-client-browser',null],
+  ]){
+    const block=jobBlock(realWrite,'  '+job+':',next?'\n  '+next+':':undefined);
+    assert.match(block,/needs: .*pr-current-head/u,job+' must wait for current PR verification');
+    assert.match(block,/needs\.pr-current-head\.outputs\.current == 'true'/u,job+' must skip stale PR');
+    assert.match(block,/github\.event_name != 'pull_request' \|\| !github\.event\.pull_request\.draft/u);
+    assert.match(block,/group: iberfit-qa-shared-auth-readonly\s+queue: max\s+cancel-in-progress: false/u);
+  }
+  const browser=jobBlock(realWrite,'  m43-real-client-browser:');
+  assert.match(browser,/needs: \[pr-current-head, m43-real-coach-client-qa\]/u,
+    'Do not bypass the real writer before authenticated Client browser tests');
+});
