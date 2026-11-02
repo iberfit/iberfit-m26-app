@@ -18,6 +18,11 @@ const ROWS=Object.freeze([
   ["El historial antiguo requiere conexión. Tus sesiones disponibles permanecen visibles.","Older training history requires an internet connection. Your available sessions remain visible.","L'ancien historique nécessite une connexion. Vos séances disponibles restent visibles.","O histórico antigo requer ligação à Internet. As sessões disponíveis continuam visíveis."],
   ["No se ha podido recuperar el historial completo. No se ha perdido ningún registro.","Unable to retrieve the complete history. No records have been lost.","Impossible de récupérer l'historique complet. Aucun enregistrement n'a été perdu.","Não foi possível recuperar o histórico completo. Nenhum registo foi perdido."],
   ["Reintentar historial","Retry history","Réessayer l'historique","Tentar novamente o histórico"],
+  // SIGNATURE R46 · Human-first Client labels, translations remain explicit and deterministic.
+  ["Tu espacio de entrenamiento","Your training space","Votre espace d’entraînement","O seu espaço de treino"],
+  ["Ejercicios de tu entrenamiento","Exercises in your workout","Exercices de votre entraînement","Exercícios do seu treino"],
+  ["Entrenamiento preparado","Workout ready","Entraînement prêt","Treino preparado"],
+  ["Ver ejercicios","View exercises","Voir les exercices","Ver exercícios"],
   // U66 · Exact Stitch V2.3 context label, real client destinations.
   ["Contexto del atleta","Athlete context","Contexte de l’athlète","Contexto do atleta"],
   // U63 · Published prescription preview, four supported UI languages.

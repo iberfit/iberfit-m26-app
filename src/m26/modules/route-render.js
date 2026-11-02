@@ -583,11 +583,11 @@ function renderClientPublishedStructure(projection,expectedClientId){
   const more=blocks.length>12
     ?'<p class="m26-client-stitch-session-overflow">Y '+escapeHtml(blocks.length-12)+' bloques más en la sesión completa.</p>'
     :'';
-  return '<div class="m26-client-stitch-session-structure" data-client-session-preview role="group" aria-label="Prescripción publicada">'+
-    '<div class="m26-client-stitch-session-facts"><span>Prescripción disponible</span><strong>'+
+  return '<div class="m26-client-stitch-session-structure" data-client-session-preview role="group" aria-label="Ejercicios de tu entrenamiento">'+
+    '<div class="m26-client-stitch-session-facts"><span>Entrenamiento preparado</span><strong>'+
     escapeHtml(blocks.length)+' '+(blocks.length===1?'bloque':'bloques')+'</strong></div>'+
     '<details class="m26-client-stitch-session-details">'+
-    '<summary>Ver estructura publicada <span aria-hidden="true">⌄</span></summary>'+
+    '<summary>Ver ejercicios <span aria-hidden="true">⌄</span></summary>'+
     '<ol>'+items+'</ol>'+more+'</details></div>';
 }
 
@@ -814,8 +814,8 @@ function renderClientHoyRoute(vm) {
       ?'Revisar mi planificación'
       :nextAction?.label||'Continuar';
   // Real navigation only. Session start authorization remains in primary.markup.
-  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Contexto del atleta" data-client-home-compass>
-    <div class="m26-client-home-compass-heading"><strong>Contexto del atleta</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
+  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Tu espacio de entrenamiento" data-client-home-compass>
+    <div class="m26-client-home-compass-heading"><strong>Tu espacio de entrenamiento</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
     <div class="m26-client-home-compass-actions">
       <button type="button" data-m26-area="sesion">
         <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}</span>
