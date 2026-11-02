@@ -10,6 +10,9 @@ if(!root)throw new Error('QA_LIVE_WORKOUT_ROOT_MISSING');
 const params=new URLSearchParams(location.search);
 const role=params.get('role')==='client'?'client':'coach';
 const scenario=params.get('scenario')==='sports'?'sports':'strength';
+const qaShell=root.closest('.m26-shell');
+if(!qaShell||!root.closest('.m26-workspace'))throw new Error('QA_LIVE_WORKOUT_CSS_SCOPE_MISSING');
+qaShell.dataset.m26Role=role;
 const CLIENT='22222222-2222-4222-8222-222222222222';
 
 const exercises=Object.freeze([

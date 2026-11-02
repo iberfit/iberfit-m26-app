@@ -3,7 +3,7 @@ import {areaAllowedForRole} from '../shell/navigation.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
-import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession} from '../rc39/session-policy.js';
+import {sessionHasExecutableBlocks,sessionReadyToStart,actorCanExecuteSession,sessionIdOf,clientIdOf} from '../rc39/session-policy.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
@@ -405,7 +405,7 @@ function renderCoachHoyRoute(vm) {
 
   return `<div class="m26-route m26-hoy-route m26-coach-home-v1">
     ${operationBanner(vm.operations||{})}
-    <section class="m26-coach-home-command" aria-labelledby="m26-coach-priority-title">
+    <section class="m26-coach-home-command" data-priority-tone="${escapeHtml(primary.tone)}" aria-labelledby="m26-coach-priority-title">
       <div class="m26-coach-home-command-copy">
         <p class="m26-eyebrow">${escapeHtml(primary.eyebrow)}</p>
         <h2 id="m26-coach-priority-title">${escapeHtml(primary.title)}</h2>
@@ -422,11 +422,10 @@ function renderCoachHoyRoute(vm) {
         ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
     </section>
-    <!-- m26-coach-launch-self-slot -->
-
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
       ${quickActions.map(({area,label,glyph})=>`<button type="button" data-m26-area="${area}" aria-label="${escapeHtml(area==='planificacion'?'Programar entrenamiento':label)}"><span class="m26-atlas-coach-icon" aria-hidden="true">${renderIberfitIcon(glyph,{className:'m26-atlas-icon-svg'})}</span><strong>${label}</strong></button>`).join('')}
     </nav>
+    <!-- m26-coach-launch-self-slot -->
 
     <div class="m26-coach-home-grid">
       <section class="m26-panel m26-coach-home-section m26-coach-home-agenda">
@@ -504,6 +503,92 @@ function renderClientTrainingJourney({planReady=false,projections=[],serviceActi
       <div><strong>${escapeHtml(step.title)}</strong><small>${escapeHtml(step.detail)}</small></div>
     </li>`).join('')}</ol>
   </section>`;
+}
+
+// Stitch V2.3 · confirmed weekly appointment preview (never inferred training results).
+export function renderClientWeekRail(upcoming,now=new Date()){
+  // Owner-scoped upcoming appointments are limited by the VM; never infer all
+  // planned days, training completion, rest days or weekly load from them.
+  const timeZone='America/Santiago', clock=new Date(now);
+  if(!Number.isFinite(clock.getTime()))return '';
+  const fmt=(date)=>new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+  const part=(list,key)=>list.find(x=>x.type===key)?.value;
+  const fields=fmt(clock),year=Number(part(fields,'year')),month=Number(part(fields,'month')),date=Number(part(fields,'day'));
+  const today=new Date(Date.UTC(year,month-1,date,12));
+  if(!Number.isFinite(today.getTime()))return '';
+  const dateKey=x=>`${x.getUTCFullYear()}-${String(x.getUTCMonth()+1).padStart(2,'0')}-${String(x.getUTCDate()).padStart(2,'0')}`;
+  const localKey=value=>{
+    if(typeof value!=='string'||!value.trim())return '';
+    if(/^\d{4}-\d{2}-\d{2}$/.test(value)){
+      const probe=new Date(value+'T12:00:00Z');
+      return Number.isFinite(probe.getTime())&&dateKey(probe)===value?value:'';
+    }
+    const parsed=new Date(value);
+    if(!Number.isFinite(parsed.getTime()))return '';
+    const local=fmt(parsed);
+    return `${part(local,'year')}-${part(local,'month')}-${part(local,'day')}`;
+  };
+  const known=new Set((Array.isArray(upcoming)?upcoming:[])
+    .filter(item=>['confirmada','confirmado','confirmed'].includes(String(item?.statusRaw||'').trim().toLowerCase()))
+    .map(item=>localKey(item?.date)).filter(Boolean));
+  const monday=new Date(today.getTime()-((today.getUTCDay()+6)%7)*86400000);
+  const week=Array.from({length:7},(_,i)=>new Date(monday.getTime()+i*86400000));
+  const short=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',timeZone:'UTC'});
+  const title=`${short.format(week[0])} – ${short.format(week[6])}`;
+  const confirmedDays=week.reduce((total,item)=>total+(known.has(dateKey(item))?1:0),0);
+  const initials=['L','M','X','J','V','S','D'];
+  const cells=week.map((item,i)=>{
+    const key=dateKey(item),current=key===dateKey(today),confirmed=known.has(key);
+    const dateLabel=new Intl.DateTimeFormat('es-CL',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(item);
+    const aria=`${current?'Hoy, ':''}${dateLabel}${confirmed?', cita confirmada próxima':''}`;
+    return `<li class="m26-client-week-day${current?' is-today':''}${confirmed?' has-confirmed':''}" data-day="${key}" data-date-status="${confirmed?'confirmed':'not-shown'}"${current?' aria-current="date"':''} aria-label="${escapeHtml(aria)}"><span>${initials[i]}</span><strong><time datetime="${key}">${item.getUTCDate()}</time></strong><i aria-hidden="true"></i></li>`;
+  }).join('');
+  return `<section class="m26-client-week-rail" data-client-week-rail data-week-confirmed-count="${confirmedDays}" aria-labelledby="m26-client-week-heading">
+    <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion" aria-label="Ver planificación semanal">Ver mi plan<span aria-hidden="true">↗</span></button></header>
+    <ol class="m26-client-week-days" aria-label="Semana de lunes a domingo">${cells}</ol>
+    <div class="m26-client-week-note"><span>${confirmedDays?`<i aria-hidden="true"></i>Citas confirmadas esta semana`:'Sin citas confirmadas esta semana'}</span><small>La planificación completa está en tu plan.</small></div>
+  </section>`;
+}
+
+// Stitch V2.3: a verified editorial preview, not a second session entry.
+function renderClientPublishedStructure(projection,expectedClientId){
+  const session=projection?.session;
+  const id=String(projection?.id||'').trim();
+  const owner=String(clientIdOf(session)||'').trim();
+  const expectedOwner=String(expectedClientId||'').trim();
+  if(!id||!expectedOwner||owner!==expectedOwner||projection?.visible!==true||projection?.visibility!=='full'||
+     projection?.canClientStart!==true||sessionIdOf(session)!==id||
+     !actorCanExecuteSession({role:'client',session,appointment:projection.appointment||null})||
+     !sessionReadyToStart(session))return '';
+  const body=session?.body&&typeof session.body==='object'&&!Array.isArray(session.body)?session.body:{};
+  const raw=Array.isArray(session?.blocks)?session.blocks:body.blocks;
+  if(!Array.isArray(raw)||!raw.length)return '';
+  const blocks=raw.filter(block=>block&&typeof block==='object'&&!Array.isArray(block));
+  if(!blocks.length)return '';
+  // Display known plan structure only: no invented duration, load, RPE or progress.
+  const labelFor=(block,index)=>{
+    const title=[block.title,block.name,block.exerciseName,block.exercise_name]
+      .find(value=>typeof value==='string'&&value.trim().length>0);
+    if(title)return title.trim();
+    const type=String(block.type||'').toLowerCase();
+    const labels={circuit:'Circuito',circuito:'Circuito',superset:'Biserie',
+      triset:'Triserie',amrap:'AMRAP',tabata:'Tabata',warmup:'Calentamiento',
+      cooldown:'Vuelta a la calma',exercise:'Ejercicio'};
+    return labels[type]||'Bloque '+(index+1);
+  };
+  const items=blocks.slice(0,12).map((block,index)=>
+    '<li><span>'+String(index+1).padStart(2,'0')+'</span><strong>'+
+    escapeHtml(labelFor(block,index))+'</strong></li>'
+  ).join('');
+  const more=blocks.length>12
+    ?'<p class="m26-client-stitch-session-overflow">Y '+escapeHtml(blocks.length-12)+' bloques más en la sesión completa.</p>'
+    :'';
+  return '<div class="m26-client-stitch-session-structure" data-client-session-preview role="group" aria-label="Prescripción publicada">'+
+    '<div class="m26-client-stitch-session-facts"><span>Prescripción disponible</span><strong>'+
+    escapeHtml(blocks.length)+' '+(blocks.length===1?'bloque':'bloques')+'</strong></div>'+
+    '<details class="m26-client-stitch-session-details">'+
+    '<summary>Ver estructura publicada <span aria-hidden="true">⌄</span></summary>'+
+    '<ol>'+items+'</ol>'+more+'</details></div>';
 }
 
 function renderClientHoyRoute(vm) {
@@ -687,6 +772,12 @@ function renderClientHoyRoute(vm) {
     };
   }
 
+  // Reuse only an authorized full-visibility published session snapshot.
+  const structureId=String(runnable?.sessionId||standaloneGuided?.id||'').trim();
+  const publishedStructure=structureId
+    ?renderClientPublishedStructure(projections.find(item=>String(item?.id||'').trim()===structureId),client?.id)
+    :'';
+
   const agendaItems=appointments
     .filter((item)=>!runnable||String(item?.id||'').trim()!==String(runnable?.id||'').trim())
     .slice(0,2);
@@ -723,8 +814,8 @@ function renderClientHoyRoute(vm) {
       ?'Revisar mi planificación'
       :nextAction?.label||'Continuar';
   // Real navigation only. Session start authorization remains in primary.markup.
-  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Tu estado de hoy" data-client-home-compass>
-    <div class="m26-client-home-compass-heading"><strong>Tu estado de hoy</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
+  const clientCompass=trainingSurface?`<nav class="m26-client-home-compass" aria-label="Contexto del atleta" data-client-home-compass>
+    <div class="m26-client-home-compass-heading"><strong>Contexto del atleta</strong><small>Entrena, comprueba tu progreso y registra cómo estás.</small></div>
     <div class="m26-client-home-compass-actions">
       <button type="button" data-m26-area="sesion">
         <span class="m26-atlas-client-icon" aria-hidden="true">${renderIberfitIcon('dumbbell',{className:'m26-client-home-compass-icon'})}</span>
@@ -748,7 +839,7 @@ function renderClientHoyRoute(vm) {
       </button>`
     :'';
 
-  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
+  return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3 m26-client-home-stitch-v23" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
     ${operationBanner(vm.operations||{})}
 
     <section class="m26-client-home-stage" aria-label="Inicio y actividad de hoy">
@@ -758,19 +849,22 @@ function renderClientHoyRoute(vm) {
         <span class="m26-client-home-kicker">Hoy · IBERFIT</span>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <span class="m26-client-home-avatar" data-iberfit-avatar-client="${escapeHtml(client?.id||'')}" aria-hidden="true">${escapeHtml(name.trim().slice(0,1).toUpperCase()||'I')}</span>
-        ${primary.area==='actividad'?'':`<p>${escapeHtml(primary.detail)}</p>`}
       </div>
-      ${primary.area==='actividad'?'':`<div class="m26-client-home-status">
-        <span>${escapeHtml(primary.eyebrow)}</span>
-        <strong>${escapeHtml(primary.title)}</strong>
-      </div>`}
+      ${!trainingSurface?`<div class="m26-client-home-status"><span>${escapeHtml(primary.eyebrow)}</span><strong>${escapeHtml(primary.title)}</strong><p>${escapeHtml(primary.detail)}</p></div>`:''}
       </div>
 
-      <div class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+      <div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+        ${trainingSurface&&primary.area!=='actividad'?`<div class="m26-client-home-status">
+          <span>${escapeHtml(primary.eyebrow)}</span>
+          <strong>${escapeHtml(primary.title)}</strong>
+          <p>${escapeHtml(primary.detail)}</p>
+        </div>`:''}
         ${primary.markup}
+        ${publishedStructure}
       </div>
     </section>
 
+    ${trainingSurface?renderClientWeekRail(upcoming):''}
     ${clientCompass}
     </section>
 
@@ -1253,7 +1347,7 @@ export function renderClientsRoute(vm) {
   const productivity=['coach','admin'].includes(String(vm.role||''))
     ? `<section class="m26-coach-productivity-toolbar" data-coach-productivity-toolbar><div><p class="m26-eyebrow">Productividad Coach</p><h3>Vistas y recientes</h3><p>Guarda combinaciones de búsqueda y filtros en este dispositivo. No se guardan datos de salud.</p></div><div class="m26-coach-productivity-controls"><label>Nombre de la vista<input data-coach-view-name maxlength="60" placeholder="Ej. Seguimiento activo"></label><label>Vistas guardadas<select data-coach-saved-view><option value="">Seleccionar vista…</option></select></label><button type="button" data-coach-save-view>Guardar vista actual</button><button type="button" data-coach-delete-view>Eliminar vista</button></div><div class="m26-coach-recents" data-coach-recents><span>Recientes</span><small>Aparecerán al abrir expedientes.</small></div><p class="m26-coach-productivity-status" data-coach-productivity-status role="status" aria-live="polite"></p></section>`
     : '';
-  return `<div class="m26-route">${followUpQueue}<section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${followUpQueue}${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
 }
 
 function field(label, value) {

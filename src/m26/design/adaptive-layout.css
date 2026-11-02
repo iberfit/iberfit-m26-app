@@ -3534,3 +3534,94 @@ button[aria-selected="true"]::after {
     display:block!important;
   }
 }
+
+/* U97 · Mobile IBERFIT identity, verified official 173×192 raster master.
+ * At 34 CSS px even 3× Retina samples use fewer than the 173 source pixels.
+ * Desktop/tablet keep the already-visible sidebar logo; no duplicated brand.
+ * All roles share this harmless visual element without changing permissions. */
+.m26-shell .m26-topbar-heading > .m26-topbar-brand-mark{display:none;}
+[data-m26-layout="compact-touch"] .m26-shell .m26-workspace .m26-topbar > .m26-topbar-heading{
+  display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;
+  justify-content:flex-start;gap:.65rem;min-inline-size:0;
+}
+[data-m26-layout="compact-touch"] .m26-shell .m26-topbar-heading > .m26-topbar-brand-mark{
+  display:block;inline-size:34px;block-size:38px;flex:0 0 34px;object-fit:contain;
+}
+[data-m26-layout="compact-touch"] .m26-shell .m26-topbar-heading > h1{
+  min-inline-size:0;margin:0;overflow-wrap:anywhere;
+}
+
+/* SIGNATURE U107 · Admin: one operational homepage, not two stacked dashboards.
+ * Existing four shortcuts remain available on demand. The genuine Command
+ * Center stays the decision source; permission-denied mode remains unchanged. */
+.m26-shell[data-m26-role="admin"] .m26-main > .m26-admin-quick-access{
+  display:block;
+  min-inline-size:0;
+  margin:0 0 clamp(.65rem,1.35vw,.95rem);
+  border:1px solid rgba(215,186,124,.22);
+  border-radius:.78rem;
+  background:#12241b;
+  color:#F5F5F0;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access > summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.65rem;
+  min-height:46px;
+  padding:.58rem clamp(.75rem,1.6vw,1.05rem);
+  cursor:pointer;
+  color:#E8CB8A;
+  font:680 .81rem/1.35 var(--iberfit-font-family-ui,system-ui,sans-serif);
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access > summary::-webkit-details-marker{
+  display:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access > summary:focus-visible{
+  outline:3px solid #F0DDAF;
+  outline-offset:2px;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access[open] > summary > span{
+  transform:rotate(45deg);
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access > .m26-workspace-actions{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.6rem;
+  margin:0;
+  padding:.25rem .75rem .85rem;
+  background:transparent;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access .m26-workspace-action{
+  min-width:0;
+  min-height:54px;
+  border:1px solid rgba(215,186,124,.18);
+  border-radius:.65rem;
+  background:#1C3428;
+  color:#F5F5F0;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="admin"] .m26-admin-quick-access .m26-workspace-action :is(strong,small){
+  color:#F5F5F0;
+}
+@media(max-width:1050px){
+  .m26-shell[data-m26-role="admin"] .m26-admin-quick-access > .m26-workspace-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:480px){
+  .m26-shell[data-m26-role="admin"] .m26-admin-quick-access > .m26-workspace-actions{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="admin"] .m26-main > .m26-admin-quick-access,
+  .m26-shell[data-m26-role="admin"] .m26-admin-quick-access .m26-workspace-action{
+    color:CanvasText;background:Canvas;border-color:CanvasText;
+  }
+  .m26-shell[data-m26-role="admin"] .m26-admin-quick-access > summary,
+  .m26-shell[data-m26-role="admin"] .m26-admin-quick-access .m26-workspace-action :is(strong,small){
+    color:CanvasText;
+  }
+}
+

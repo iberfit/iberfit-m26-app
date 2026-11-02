@@ -134,7 +134,14 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await page.waitForTimeout(180);
   await expectSameNode(search,'clientSearch');
   await expect(search).toBeFocused();
-  await search.pressSequentially('María');
+  // Touch browsers commit virtual-keyboard / IME text via insertText.
+  // Chromium tablet synthetic hardware keydowns can arrive without beforeinput;
+  // that is a browser-harness artifact, not an app input handler.
+  // Desktop still verifies sequential physical keydown/keyup events. Every
+  // mode must preserve the same native node, focus and exact accented value.
+  await expect(search).toBeEditable();
+  if(touch)await page.keyboard.insertText('María');
+  else await search.pressSequentially('María');
   await expectSameNode(search,'clientSearch');
   await expect(search).toHaveValue('María');
 

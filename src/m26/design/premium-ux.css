@@ -961,9 +961,16 @@ body {
 
 /* LIVE_WORKOUT_FOCUS_V3_BEGIN */
 .m26-session-live-v3{
+  grid-template-columns:minmax(0,1fr);
   --m26-live-v3-gap:clamp(.68rem,1.2vw,.95rem);
   gap:var(--m26-live-v3-gap);
   min-width:0;
+}
+
+.m26-session-live-v3>*{
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
 }
 
 .m26-session-live-v3 .m26-session-live-hero{
@@ -976,6 +983,7 @@ body {
 
 .m26-session-live-v3 .m26-session-live-quick-actions{
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   justify-content:flex-start;
   min-height:2.8rem;
@@ -2194,3 +2202,89 @@ body {
 .m26-session-live-exit-action[aria-busy="true"]{opacity:.7;cursor:progress}
 @media(max-width:560px){.m26-session-live-quick-exit>.m26-session-live-exit-action{width:100%}.m26-session-live-actions>.m26-session-live-exit-action{flex:1 1 100%}}
 
+
+/* SIGNATURE U57 · Cliente guided execution: keep the existing authorised
+ * 'Guardar y salir' action beside Pause, rather than at the far edge of a
+ * long scroll. No duplicate command, overlay, fake sync status or new route.
+ * The Coach retains its separate dense operational controls. */
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions{
+  display:flex;
+  align-items:stretch;
+  flex-wrap:wrap;
+  gap:.55rem;
+  min-width:0;
+}
+
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions>.m26-session-live-quick-exit{
+  display:flex;
+  flex:1 1 9rem;
+  min-width:0;
+  margin:0;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions>.m26-session-live-quick-exit>button{
+  width:100%;
+  box-sizing:border-box;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-save{
+  min-height:48px;
+  margin-inline-start:0;
+  padding:.65rem 1rem;
+  color:var(--iberfit-color-text-primary,#f5f5f0);
+  font-weight:700;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#c5a059) 48%,transparent);
+  border-radius:var(--iberfit-radius-md,.75rem);
+  background:color-mix(in srgb,var(--iberfit-color-accent,#c5a059) 12%,var(--iberfit-color-surface-raised,#1a2e26));
+  white-space:normal;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-save:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#d7ba7c);
+  outline-offset:2px;
+}
+@media (max-width:900px){
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions{
+    position:sticky;
+    top:var(--m26-session-sticky-top,.4rem);
+    z-index:20;
+    box-sizing:border-box;
+    width:100%;
+    max-width:100%;
+    padding:.5rem;
+    border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#c5a059) 24%,transparent);
+    border-radius:var(--iberfit-radius-lg,1rem);
+    background:rgba(11,19,16,.97);
+    box-shadow:0 10px 24px rgba(0,0,0,.19);
+  }
+  /* U75 · A real touch scroll or browser scrollIntoView must never place the
+     rest Continue action underneath the sticky pause/save dock (WebKit P0).
+     The dock and its permissions remain intact, no overlay is disabled. */
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"][data-session-live-state="rest"] [data-session-action="next"]{
+    scroll-margin-block-start:calc(var(--m26-session-sticky-top,.4rem) + 9rem);
+    scroll-margin-block-end:1rem;
+  }
+  /* U76 · WebKit cannot always hit the primary rest "Continue now" while
+     Pause/Save is sticky above it. In REST only, release stickiness; retain
+     both authorised actions in normal flow. ACTIVE keeps the sticky dock.
+     Never make an overlay non-interactive or force an artificial tap. */
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"][data-session-live-state="rest"] .m26-session-live-quick-actions{
+    position:static;
+    top:auto;
+    z-index:auto;
+  }
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions :is(.m26-session-live-quick-save,.m26-session-live-quick-pause){
+    flex:1 1 9rem;
+    margin-inline-start:0;
+    min-width:0;
+    min-height:48px;
+    text-align:center;
+    overflow-wrap:anywhere;
+  }
+}
+@media (forced-colors:active){
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-actions,
+  .m26-shell[data-m26-role="client"] .m26-session-live-v3[data-session-role="client"] .m26-session-live-quick-save{
+    border-color:CanvasText;
+    background:Canvas;
+    color:CanvasText;
+  }
+}

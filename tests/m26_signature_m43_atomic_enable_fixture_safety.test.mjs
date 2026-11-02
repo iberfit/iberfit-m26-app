@@ -182,3 +182,30 @@ test('M43 completed run-tagged interactive QA history is archived only by immuta
   const snapshot={data:{m26Entities:[record,{...record,status:'en_curso'}]}};
   assert.equal(assessM43SyntheticFixtureBudget(snapshot).total,2);
 });
+
+test('M43 real write gate restores the guarded QA body envelope before synthetic budget',async()=>{
+ const gate=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
+ assert.match(gate,/import \{expandQaClientCanonicalBodyEnvelope\} from '\.\.\/\.\.\/src\/m26\/production-state\.js'/u);
+ const boot=gate.indexOf('const bootstrap=async session=>expandQaClientCanonicalBodyEnvelope(');
+ const budget=gate.indexOf('const budget=assessM43SyntheticFixtureBudget(a)');
+ assert.ok(boot>0&&budget>boot,'QA envelope is verified before any write budget or data mutation');
+ const {expandQaClientCanonicalBodyEnvelope}=await import('../src/m26/production-state.js');
+ const clientId='30000000-0000-4000-8000-000000000222';
+ const id='20000000-0000-4000-8000-000000000111';
+ const meta={entityType:'session',entityId:id,clientId,status:'completada',revision:4,
+   updatedAt:'2026-10-31T12:00:00Z',body:{title:'IBERFIT QA M43 · multideporte'},
+   __iberfitQaClientBodyMetaV1:1};
+ const compact={environment:'QA',user:{role:'cliente',clientId},
+   canary:{active:true,scope:'allowlist'},data:{m26Entities:[meta]}};
+ const restored=expandQaClientCanonicalBodyEnvelope(compact);
+ const item=restored.data.m26Entities[0];
+ assert.deepEqual([item.body.id,item.body.clientId,item.body.status,item.body.revision,item.body.updatedAt],
+   [id,clientId,'completada',4,'2026-10-31T12:00:00Z']);
+ assert.equal(item.body.title,'IBERFIT QA M43 · multideporte');
+ assert.equal(Object.hasOwn(item,'__iberfitQaClientBodyMetaV1'),false);
+ assert.equal(Object.hasOwn(compact.data.m26Entities[0].body,'revision'),false);
+ assert.throws(()=>expandQaClientCanonicalBodyEnvelope({...compact,user:{role:'admin',clientId}}),
+   /M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+ assert.throws(()=>expandQaClientCanonicalBodyEnvelope({...compact,user:{role:'cliente',clientId:id}}),
+   /M26_QA_BODY_META_INVALID/u);
+});
