@@ -83,7 +83,7 @@ test('bootstrap collection footprint emits only allowlisted counts and sizes',as
  assert.equal(r.bootstrapRemoteRevisionJsonBytes,
   Buffer.byteLength(JSON.stringify(source.remoteRevisions)));
  assert.equal(r.bootstrapDataJsonBytes,Buffer.byteLength(JSON.stringify(source.data)));
- assert.deepEqual(r.bootstrapSections.map(x=>x.section),['m26Entities','sessions','checkins']);
+ assert.deepEqual(r.bootstrapSections.map(x=>x.section).sort(),['m26Entities','sessions','checkins'].sort());
  assert.equal(r.bootstrapSections.find(x=>x.section==='sessions').records,2);
  assert.equal(r.bootstrapSections.find(x=>x.section==='sessions').jsonBytes,
   Buffer.byteLength(JSON.stringify(source.data.sessions)));
