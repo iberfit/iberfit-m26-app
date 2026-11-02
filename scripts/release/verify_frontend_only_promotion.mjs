@@ -149,3 +149,10 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
 // SIGNATURE U122 (2026-11-02): release-only exact-SHA gate renewal after the
 // concurrent P0 Supabase Free QA observability merge. All frontend-only scope,
 // frozen blob SHA enforcement, PROD identity lock and security logic unchanged.
+
+// SIGNATURE U123: end-to-end production gate source is CI-audited on the exact
+// Canary merge SHA; no operational, backend, permission or data behavior changes.
+
+// SIGNATURE U124 (2026-11-02): trigger all exact-source QA release gates for
+// the Coach real-pointer and IRI JSON reliability fix. This is inert source
+// commentary; PROD SHA lock, frozen QA blobs, scopes and security stay intact.

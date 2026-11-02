@@ -69,8 +69,12 @@ async function navigateViaActualControl(page,role,area){
   expect(hit.area,'U26 pointer must physically target selected route').toBe(area);
   expect(hit.disabled,'U26 navigation target must remain enabled').toBe(false);
   const pointerStart=Date.now();
-  if(hit.coarse)await page.touchscreen.tap(x,y);
-  else await page.mouse.click(x,y);
+  // Re-resolve the *same live control* at press time. The shell can replace
+  // navigation nodes during an authenticated bootstrap refresh after the
+  // geometric hit test; raw coordinates would then target a stale element.
+  // Locator tap/click sends genuine pointer input, never a synthetic DOM event.
+  if(hit.coarse)await choice.tap({noWaitAfter:true,timeout:12000});
+  else await choice.click({noWaitAfter:true,timeout:12000});
   await expect.poll(()=>activeArea(page),{message:'U26 real-pointer route transition '+role+'/'+area,timeout:12000}).toBe(area);
   console.log('SIGNATURE_U26_REAL_POINTER_ROUTE '+role+'/'+area+' '+(Date.now()-pointerStart)+'ms');
   await closeMore(page);
