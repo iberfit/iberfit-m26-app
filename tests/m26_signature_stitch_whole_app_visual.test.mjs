@@ -181,9 +181,9 @@ test('U66 Stitch authentic context landmark is not a wellbeing metric or duplica
     assert.match(html,new RegExp('data-m26-area="'+destination+'"'));
   assert.doesNotMatch(html,/data-client-session-preview|data-workflow-action="start-published-session"/);
   const {iberfitSurfaceTranslate}=await import('../src/m26/ui/i18n-surface.js');
-  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'en'}),'Athlete context');
-  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'fr'}),'Contexte de l’athlète');
-  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'pt'}),'Contexto do atleta');
+  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'en'}),'Your training space');
+  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'fr'}),'Votre espace d’entraînement');
+  assert.equal(iberfitSurfaceTranslate('Tu espacio de entrenamiento',{language:'pt'}),'O seu espaço de treino');
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const signature=css.split('U66 · Fidelity to the original Stitch contextual hierarchy')[1]||'';
   assert.match(signature,/max-width:370px/);
