@@ -60,3 +60,67 @@ test('body API errors never turn QA to pass and HTTP errors stay accounted',asyn
  assert.equal(out.endpoints[0].unreadableSamples,1);
  assert.equal(out.endpoints[0].sampledResponses,0);
 });
+
+test('bootstrap collection footprint emits only allowlisted counts and sizes',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ const secret='SECRET_CLIENT_PRIVATE_DATA_NOT_TO_LOG';
+ const source={user:{id:secret,role:'client'},remoteRevisions:{['session:'+secret]:22},data:{
+   sessions:[{id:secret,notes:secret},{id:'second'}],
+   m26Entities:[{id:secret,body:{values:[secret]}}],
+   checkins:[{notes:secret}],
+   secretCustomCollection:[{details:secret}],
+ }};
+ const body=Buffer.from(JSON.stringify(source),'utf8');
+ let reads=0;
+ ctx.emit('response',{url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26?jwt='+secret,
+  status:()=>200,body:async()=>{reads++;return body;}});
+ const out=await m.flush(),r=out.endpoints[0];
+ assert.equal(reads,1);
+ assert.equal(out.requestsIssuedByObserver,0);
+ assert.equal(r.sampledDecodedBytes,body.byteLength);
+ assert.equal(r.bootstrapParsedSamples,1);
+ assert.equal(r.bootstrapRemoteRevisionCount,1);
+ assert.equal(r.bootstrapRemoteRevisionJsonBytes,
+  Buffer.byteLength(JSON.stringify(source.remoteRevisions)));
+ assert.equal(r.bootstrapDataJsonBytes,Buffer.byteLength(JSON.stringify(source.data)));
+ assert.deepEqual(r.bootstrapSections.map(x=>x.section),['m26Entities','sessions','checkins']);
+ assert.equal(r.bootstrapSections.find(x=>x.section==='sessions').records,2);
+ assert.equal(r.bootstrapSections.find(x=>x.section==='sessions').jsonBytes,
+  Buffer.byteLength(JSON.stringify(source.data.sessions)));
+ assert.ok(r.bootstrapOtherDataJsonBytes>0);
+ assert.ok(!JSON.stringify(out).includes(secret));
+ assert.ok(!JSON.stringify(out).includes('secretCustomCollection'));
+});
+test('invalid, oversized or unsuccessful bootstraps never expose collection content',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ const secret='DO_NOT_PRINT_PRIVATE_BODY';
+ const events=[
+  {url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26',status:()=>401,
+   body:async()=>Buffer.from(JSON.stringify({data:{sessions:[secret]}}))},
+  {url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26',status:()=>200,
+   body:async()=>Buffer.from(secret)},
+  {url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26',status:()=>200,
+   body:async()=>Buffer.alloc(4_000_001,32)},
+ ];
+ events.forEach(e=>ctx.emit('response',e));
+ const out=await m.flush(),r=out.endpoints[0];
+ assert.equal(r.sampledResponses,3);
+ assert.equal(r.httpErrors,1);
+ assert.equal(r.bootstrapSections,undefined);
+ assert.equal(r.bootstrapParsedSamples,undefined);
+ assert.ok(!JSON.stringify(out).includes(secret));
+});
+test('bootstrap collection parser is one valid sample per context, not one per response',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ const a=Buffer.from(JSON.stringify({data:{sessions:[{i:1}]}}));
+ const b=Buffer.from(JSON.stringify({data:{sessions:Array(33).fill({i:2})}}));
+ for(const buf of [a,b]){
+  ctx.emit('response',{url:()=>QA+'/rest/v1/rpc/iberfit_bootstrap_v26',
+   status:()=>200,body:async()=>buf});
+ }
+ const out=await m.flush(),r=out.endpoints[0];
+ assert.equal(r.requests,2);
+ assert.equal(r.sampledResponses,2);
+ assert.equal(r.bootstrapParsedSamples,1);
+ assert.equal(r.bootstrapSections[0].records,1);
+});

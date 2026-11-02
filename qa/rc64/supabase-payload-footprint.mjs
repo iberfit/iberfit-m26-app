@@ -31,6 +31,48 @@ function fixedGroup(input){
   }catch{return null;}
 }
 
+
+// Fixed labels only; neither array contents nor arbitrary keys leave this scope.
+// One successful bootstrap sample per QA browser context is enough to rank
+// collections, keeping CPU and privacy exposure bounded.
+const BOOTSTRAP_SECTIONS=Object.freeze([
+ 'sessions','sessionExecutions','m26Entities','checkins','reports',
+ 'trainingCycles','iriAssessments','clientProfiles','domainEvents',
+ 'appointments','clients','habits','habitLogs','privateNotes',
+]);
+const BOOTSTRAP_MAX_PARSE_BYTES=4_000_000;
+function bootstrapCollectionFootprint(bytes){
+  try{
+    if(!bytes||!Number.isSafeInteger(bytes.byteLength)
+       ||bytes.byteLength>BOOTSTRAP_MAX_PARSE_BYTES)return null;
+    const parsed=JSON.parse(new TextDecoder().decode(bytes));
+    const data=parsed?.data;
+    if(!data||typeof data!=='object'||Array.isArray(data))return null;
+    const dataJsonBytes=Buffer.byteLength(JSON.stringify(data),'utf8');
+    let knownJsonBytes=0;
+    const sections=[];
+    for(const name of BOOTSTRAP_SECTIONS){
+      const rows=data[name];
+      if(!Array.isArray(rows))continue;
+      const jsonBytes=Buffer.byteLength(JSON.stringify(rows),'utf8');
+      knownJsonBytes+=jsonBytes;
+      sections.push({section:name,records:rows.length,jsonBytes});
+    }
+    sections.sort((a,b)=>b.jsonBytes-a.jsonBytes||a.section.localeCompare(b.section));
+    const revisions=parsed?.remoteRevisions;
+    const revisionBytes=revisions&&typeof revisions==='object'&&!Array.isArray(revisions)
+      ?Buffer.byteLength(JSON.stringify(revisions),'utf8'):0;
+    const revisionCount=revisions&&typeof revisions==='object'&&!Array.isArray(revisions)
+      ?Object.keys(revisions).length:0;
+    return {
+      dataJsonBytes,knownSectionJsonBytes:knownJsonBytes,
+      otherDataJsonBytes:Math.max(0,dataJsonBytes-knownJsonBytes),
+      remoteRevisionJsonBytes:revisionBytes,remoteRevisionCount:revisionCount,
+      sections,
+    };
+  }catch{return null;}
+}
+
 export function createQaSupabasePayloadFootprint(){
   const groups=new Map(),pending=new Set(),contexts=[];
   let closed=false;
@@ -54,6 +96,21 @@ export function createQaSupabasePayloadFootprint(){
       row.sampledDecodedBytes+=count;
       row.maxDecodedBytes=Math.max(row.maxDecodedBytes,count);
       row.sampledResponses++;
+      // Existing response only; once per collector, never more network I/O.
+      if(group==='rpc:iberfit_bootstrap_v26'
+         &&Number(response.status?.())===200
+         &&row.bootstrapParsedSamples!==1){
+        const footprint=bootstrapCollectionFootprint(bytes);
+        if(footprint){
+          row.bootstrapParsedSamples=1;
+          row.bootstrapDataJsonBytes=footprint.dataJsonBytes;
+          row.bootstrapKnownSectionJsonBytes=footprint.knownSectionJsonBytes;
+          row.bootstrapOtherDataJsonBytes=footprint.otherDataJsonBytes;
+          row.bootstrapRemoteRevisionJsonBytes=footprint.remoteRevisionJsonBytes;
+          row.bootstrapRemoteRevisionCount=footprint.remoteRevisionCount;
+          row.bootstrapSections=footprint.sections;
+        }
+      }
     }).catch(()=>{row.unreadableSamples++;}).finally(()=>{
       row.inFlightSamples--;pending.delete(work);
     });
