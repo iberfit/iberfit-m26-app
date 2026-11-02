@@ -142,10 +142,17 @@ test('canonical client onboarding survives release, rerender races and keeps eve
       kind,key:String(event?.key||'').slice(0,12),inputType:String(event?.inputType||'').slice(0,30),
       data:String(event?.data||'').slice(0,12),value:String(el.value||'').slice(0,20),
       focused:el===document.activeElement,connected:el.isConnected,
+      readOnly:el.readOnly,disabled:el.disabled,
+      ctrl:!!event?.ctrlKey,alt:!!event?.altKey,meta:!!event?.metaKey,
+      shift:!!event?.shiftKey,prevented:!!event?.defaultPrevented,
     });
     for(const type of ['keydown','beforeinput','input','keyup','compositionstart','compositionend','focus','blur'])
       el.addEventListener(type,(event)=>note(type,event),{capture:true});
     el.ownerDocument.addEventListener('m26:shell-rendered',()=>note('shell-rendered'),{capture:true});
+    // Observe defaultPrevented AFTER product-level bubbling handlers have run.
+    el.ownerDocument.addEventListener('keydown',(event)=>{
+      if(event.target===el)note('keydown-after-bubble',event);
+    });
     globalThis.__IBERFIT_QA_SEARCH_KEY_TRACE__=entries;
   });
   // Chromium touch emulation can dispatch an immediate keydown before its
