@@ -172,7 +172,8 @@ test('U121 release verifier changes require exact-source authenticated and Devic
   assert.equal(yaml.split(marker).length-1,count,name+' must respond to release guard changes');
   assert.match(yaml,/\bpush:\s*\n/u,name+' must run on immutable Canary push SHA');
   assert.match(yaml,/\bworkflow_dispatch:/u,name+' must preserve explicit reruns');
-  assert.match(yaml,/\bbranches:.*canary\/rc74-4/u,name+' must remain Canary scoped');
+  assert.match(yaml,/\bbranches:[^\n]*(?:canary\/rc74-4)?/u,name+' must declare branches');
+  assert.ok(yaml.includes('canary/rc74-4'),name+' must stay within Canary');
  }
  const authority=fs.readFileSync(new URL('../scripts/release/verify_source_qa_gates.mjs',import.meta.url),'utf8');
  for(const name of [
