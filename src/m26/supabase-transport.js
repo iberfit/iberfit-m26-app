@@ -809,6 +809,27 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return { ok: true, scope:normalizedScope };
   }
 
+  // P0 #1209: lightweight QA auth-only smoke; never used by ordinary Coach UX.
+  // The existing versioned SQL core endpoint enforces actual Coach auth,
+  // WebAuthn and assignment scope. This method does not bypass them.
+  async function bootstrapQaCoachCoreAuthSmoke(token,{assertOwner=()=>{},signal}={}){
+    if(runtime.qaOnly!==true||runtime.canary!==true
+       ||runtime.projectRef!==M26_QA_PROJECT_REF
+       ||runtime.url!==M26_QA_SUPABASE_ORIGIN)
+      throw new Error('M26_FREE_QA_CORE_SMOKE_ONLY');
+    if(!token||typeof assertOwner!=='function')
+      throw new Error('M26_FREE_QA_CORE_SMOKE_AUTH_REQUIRED');
+    assertOwner();
+    const core=await request('/rest/v1/rpc/iberfit_bootstrap_v26_core_u37_qa',{
+      method:'POST',token,body:'{}',signal,
+    });
+    assertOwner();
+    if(core?.environment!=='QA'||core?.user?.role!=='coach'
+       ||!Array.isArray(core?.data?.clients))
+      throw new Error('M26_FREE_QA_CORE_SMOKE_CONTEXT_INVALID');
+    return core;
+  }
+
   // SIGNATURE U39: opt-in QA Coach full-snapshot replacement.
   // Never expose or persist a partially hydrated snapshot. This is only
   // selected by the QA Coach test identity; PostgreSQL independently verifies
@@ -1946,6 +1967,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     verifyWebAuthn,
     bootstrap: bootstrapWithBoundedStatementTimeoutRecovery,
     bootstrapQaCoachWithHistory,
+    bootstrapQaCoachCoreAuthSmoke,
     clientCompletedHistoryPage,
     backendHealth,
     backendBootstrap,

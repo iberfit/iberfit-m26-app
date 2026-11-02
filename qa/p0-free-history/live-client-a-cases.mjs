@@ -46,7 +46,7 @@ test('Client A atomically restores full completed sessions AND execution results
  test.skip(testInfo.project.name!=='authenticated-readonly-chromium','Only the single read-only Chromium QA account A/browser probe');
  test.setTimeout(220000);
  environment();
- const blocked=await perimeter(context),pages=[],measured=[],jobs=[],fail=[],pageErrors=[];
+ const blocked=await perimeter(context),pages=[],measured=[],jobs=[],fail=[],pageErrors=[],compactBootstraps=[];
  page.on('pageerror',err=>pageErrors.push(String(err?.name||'Error').slice(0,30)));
  page.on('requestfailed',r=>{if(pathOf(r.url())?.pathname===PAGED)fail.push('transport')});
  page.on('response',res=>{
@@ -61,6 +61,56 @@ test('Client A atomically restores full completed sessions AND execution results
    if(archive){const p=JSON.parse(bytes.toString('utf8'));
     pages.push({schema:p.schema,section:p.section,total:p.total,ids:p.rows?.map(x=>x.entityId)||[],
      fingerprint:p.fingerprint,hasMore:p.hasMore,status:res.status()});
+   }else if(res.status()===200){
+    // P0_FREE_QA_COMPACT_REF_V1: use the same authenticated bootstrap already
+    // captured for wire measurement. No extra RPC and never persist response.
+    const payload=JSON.parse(bytes.toString('utf8'));
+    const data=payload?.data;
+    if(Array.isArray(data?.sessions)&&Array.isArray(data?.sessionExecutions)
+       &&Array.isArray(data?.m26Entities)){
+      const canon=new Set(data.m26Entities.map(e=>String(e?.entityType)+':'+String(e?.entityId)));
+      // Exact final public HTTP body: never log IDs, tokens or values.
+      const metaMark='__iberfitQaClientBodyMetaV1';
+      const compactedBodies=data.m26Entities.filter(e=>e&&typeof e==='object'
+        &&Object.hasOwn(e,metaMark));
+      const invalidBodies=compactedBodies.filter(e=>
+        e[metaMark]!==1
+        ||!['planning','session','session_execution'].includes(e.entityType)
+        ||!e.body||typeof e.body!=='object'||Array.isArray(e.body)
+        ||['id','clientId','status','revision','updatedAt']
+          .some(key=>Object.hasOwn(e.body,key)));
+      const canonicalBodyMeta={eligible:compactedBodies.length,invalid:invalidBodies.length};
+      const summarize=(rows,type)=>{
+        // Inspect the FINAL browser RPC after outer role/privacy projection.
+        // Sessions carry id+status+empty blocks so the outer publication
+        // filter retains them. Executions have id+empty safe projection.
+        const compact=rows.filter(x=>{
+          if(!x||typeof x.id!=='string')return false;
+          const keys=Object.keys(x);
+          if(type==='session')return keys.every(k=>['id','status','blocks'].includes(k))
+            &&keys.includes('status')&&x.status==='publicado'
+            &&Array.isArray(x.blocks)&&x.blocks.length===0;
+          return keys.every(k=>['id','results','feedback','planSnapshot','sourceSnapshot'].includes(k))
+            &&Array.isArray(x.results)&&x.results.length===0
+            &&!('revision' in x);
+        });
+        return {total:rows.length,compact:compact.length,
+          resolved:compact.filter(x=>canon.has(type+':'+x.id)).length};
+      };
+      // The source function already removes these synthetic QA write-fixtures
+      // from data.checkins. The revisions map must agree with visible rows.
+      // Log aggregates only, never identities/IDs/notes/response contents.
+      const revisionKeys=new Set(Object.keys(payload.remoteRevisions||{})
+        .filter(key=>key.startsWith('checkin:')));
+      const visibleCheckinIds=new Set((Array.isArray(data.checkins)?data.checkins:[])
+        .map(row=>String(row?.id||'')).filter(Boolean));
+      compactBootstraps.push({sessions:summarize(data.sessions,'session'),
+        executions:summarize(data.sessionExecutions,'session_execution'),
+        canonicalBodyMeta,
+        checkinRevisions:{visible:visibleCheckinIds.size,
+          mapped:revisionKeys.size,
+          everyVisibleMapped:[...visibleCheckinIds].every(id=>revisionKeys.has('checkin:'+id))}});
+    }
    }
   })();
   jobs.push(task);
@@ -80,16 +130,17 @@ test('Client A atomically restores full completed sessions AND execution results
  expect(fail).toEqual([]);
  expect(blocked,'QA current-source perimeter must reject no required operation').toEqual([]);
  expect(pageErrors).toEqual([]);
- expect(pages.length).toBeGreaterThanOrEqual(34);
- expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=24)).toBe(true);
+ expect(pages.length).toBeGreaterThanOrEqual(26);
+ expect(pages.every(p=>p.schema==='iberfit.client.completed-history.page.qa.v1'&&p.status===200&&p.ids.length<=32)).toBe(true);
  const totals={};
  for(const section of ['session','session_execution']){
   const group=pages.filter(p=>p.section===section);
-  expect(group.length,section+' must be paged by an explicit request').toBeGreaterThanOrEqual(17);
+  expect(group.length,section+' must be paged by an explicit request').toBeGreaterThanOrEqual(13);
   expect(new Set(group.map(p=>p.fingerprint)).size,section+' fingerprint stable').toBe(1);
   expect(new Set(group.map(p=>p.total)).size,section+' total stable').toBe(1);
   const total=group[0].total;
   expect(total,section+' historical count').toBeGreaterThanOrEqual(396);
+  expect(group.length,section+' no extra cursor requests').toBe(Math.ceil(total/32));
   expect(group.reduce((a,p)=>a+p.ids.length,0),section+' no partial history').toBe(total);
   expect(new Set(group.flatMap(p=>p.ids)).size,section+' no duplicate records').toBe(total);
   expect(group.filter(p=>p.hasMore===false),section+' exactly one terminal page').toHaveLength(1);
@@ -109,6 +160,30 @@ test('Client A atomically restores full completed sessions AND execution results
   blockedRequests:blocked.length,bodyOrJWTRecorded:false,notBillingEgress:true};
  expect(evidence.httpErrors).toBe(0);
  expect(evidence.chromiumNetworkBodyBytes).toBeGreaterThan(0);
+ // A legacy row without a safe canonical match must remain full, not be
+ // silently dropped. Compact references require the canon in this same reply.
+ expect(compactBootstraps.length,'authenticated Client A bootstrap present').toBeGreaterThan(0);
+ const compact=compactBootstraps.at(-1);
+ expect(compact.sessions.total).toBeGreaterThanOrEqual(396);
+ expect(compact.executions.total).toBeGreaterThanOrEqual(396);
+ expect(compact.sessions.compact).toBeGreaterThanOrEqual(396);
+ expect(compact.executions.compact).toBeGreaterThanOrEqual(396);
+ expect(compact.sessions.resolved).toBe(compact.sessions.compact);
+ expect(compact.executions.resolved).toBe(compact.executions.compact);
+ expect(compact.canonicalBodyMeta.invalid,'QA canonical envelope marker must be structurally valid').toBe(0);
+ if(process.env.M26_QA_BODY_META_EXPECT_ACTIVE==='true'){
+   expect(compact.canonicalBodyMeta.eligible,'QA Client A marker active only after explicit rollout')
+     .toBeGreaterThanOrEqual(1_000);
+ }
+ // Full-API test: hidden QA certification check-in revisions are omitted;
+ // real visible check-ins keep their conflict/revision metadata unchanged.
+ expect(compact.checkinRevisions.visible,'QA Client A visible check-ins').toBeGreaterThan(0);
+ expect(compact.checkinRevisions.mapped).toBe(compact.checkinRevisions.visible);
+ expect(compact.checkinRevisions.everyVisibleMapped).toBe(true);
+ evidence.checkinRevisions=compact.checkinRevisions;
+ evidence.compactLegacyRefs={sessions:compact.sessions,executions:compact.executions};
+ evidence.canonicalBodyMeta=compact.canonicalBodyMeta;
+ expect(evidence.notBillingEgress).toBe(true);
  await mkdir('recovery/p0-free-history',{recursive:true});
  await writeFile('recovery/p0-free-history/live-qa-wire.json',JSON.stringify(evidence,null,2)+'\n');
  console.log('P0_QA_FREE_HISTORY_WIRE:'+JSON.stringify(evidence));

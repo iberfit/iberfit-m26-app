@@ -14,6 +14,7 @@ import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
 import {createClientHistoryDemandController} from './client-history-demand-controller.js';
+import {canUseQaCoachCoreAuthSmoke} from './qa-coach-core-auth-smoke.js';
 import {createCommandBus} from '../command-bus.js';
 import {validatedRuntimeRegistry,M26_COMMAND_REGISTRY} from '../command-catalog.js';
 import {createKeyValueOperationRepository} from '../platform/offline-command-repository.js';
@@ -762,8 +763,16 @@ export async function createM26Application({root=document.querySelector('#app'),
       // preserve their existing bootstrap until independently certified.
       const qaAtomicCoach=runtime.qaOnly===true
         &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.coach@iberfit.cl';
+      // QA Coach auth-only smoke, double opt-in and always OFF by default.
+      // All normal Coach, Client and Admin journeys retain full hydration.
+      const qaCoreAuthSmoke=qaAtomicCoach&&canUseQaCoachCoreAuthSmoke({
+        runtime,runtimeConfig,email:session?.user?.email,reason,
+        probe:globalThis.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__===true,
+      });
       const primarySnapshot=qaAtomicCoach
-        ?transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner,signal})
+        ?qaCoreAuthSmoke
+          ?transport.bootstrapQaCoachCoreAuthSmoke(currentToken(),{assertOwner:requireOwner,signal})
+          :transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner,signal})
         :transport.bootstrap(currentToken(),{signal});
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
         primarySnapshot,

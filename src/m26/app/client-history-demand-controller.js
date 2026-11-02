@@ -73,7 +73,9 @@ export function createClientHistoryDemandController({
     try{
       // Both canonical sections must be complete before an atomic Client store commit.
       // This is exclusively user-triggered; no execution-history prefetch on route entry.
-      const sections=await loader.load({owner,clientId,sections:['session','session_execution']});
+      // QA-only demand path. The server and fail-closed pager both cap at 32.
+      // Fewer cursor round trips; no reduction of records or body content.
+      const sections=await loader.load({owner,clientId,sections:['session','session_execution'],limit:32});
       if(!current())return;
       store.incorporateClientCompletedHistory({
         ownerId:identityId,clientId,confirmedAt,lastAck,sections,
