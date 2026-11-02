@@ -233,6 +233,24 @@ export function expandQaClientCanonicalBodyEnvelope(snapshot){
   return {...snapshot,data:{...snapshot.data,m26Entities:result}};
 }
 
+// Multi-application QA Client/Admin sessions may switch active roles while the
+// backend still returns a Client-owned compact envelope. Reconstruct it against
+// the ORIGINAL authenticated Client role, after validating the original wire
+// budget, before applying the separately authorized application role.
+// Never widen expandQaClientCanonicalBodyEnvelope's scope or ownership checks.
+export function prepareQaClientEnvelopeForApplicationRole(snapshot,{qaOnly=false,activeRole='',authorizedRoles=[]}={}){
+  const originalRole=normalizeRole(snapshot?.user?.role);
+  const selectedRole=normalizeRole(activeRole);
+  if(qaOnly!==true||originalRole!=='client'||!['admin','coach'].includes(selectedRole))
+    return snapshot;
+  const entities=snapshot?.data?.m26Entities;
+  if(!Array.isArray(entities)||!entities.some(item=>item&&typeof item==='object'
+    &&Object.hasOwn(item,'__iberfitQaClientBodyMetaV1')))return snapshot;
+  if(!Array.isArray(authorizedRoles)||!authorizedRoles.includes(selectedRole))
+    throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
+  return expandQaClientCanonicalBodyEnvelope(assertProductionSnapshot(snapshot));
+}
+
 export function stateFromBootstrap(rawSnapshot, previous = createProductionState()) {
   qaStage('rc64-state-start');
   // Size and role checks apply to the authenticated, compact QA-only wire
