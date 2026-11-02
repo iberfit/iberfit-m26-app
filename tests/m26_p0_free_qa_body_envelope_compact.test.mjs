@@ -83,3 +83,14 @@ test('migration and rollback must be QA-only, hash guarded and default-off',()=>
  assert.ok(r.includes('P0_BODY_META_DISABLE_FLAG_FIRST'));
  assert.doesNotMatch(m,/GRANT\s+|ALTER\s+TABLE|DROP\s+TABLE/iu);
 });
+
+test('QA live history probe records marker shape without storing private values',()=>{
+ const body=readFileSync('qa/p0-free-history/live-client-a-cases.mjs','utf8');
+ assert.match(body,/canonicalBodyMeta=\{eligible:compactedBodies\.length,invalid:invalidBodies\.length\}/u);
+ assert.match(body,/canonicalBodyMeta\.invalid/u);
+ assert.match(body,/M26_QA_BODY_META_EXPECT_ACTIVE/u);
+ assert.match(body,/compact\.sessions\.resolved/u);
+ assert.match(body,/compact\.executions\.resolved/u);
+ assert.match(body,/chromiumNetworkBodyBytes/u);
+ assert.doesNotMatch(body,/console\.log\(.*compactedBodies/u);
+});
