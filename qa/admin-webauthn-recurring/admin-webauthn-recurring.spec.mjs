@@ -134,8 +134,34 @@ async function loginCompleteWebAuthnAndChooseAdmin(page,email,password){
   await expect(chooseClient).toBeVisible();
   await expect(chooseAdmin).toBeVisible();
   await expect(roleChoice.locator('[data-m26-switch-role="coach"]'),'Unauthorized Coach app must not be offered').toHaveCount(0);
+  // Only diagnostic CODE and non-identifying role/hydration state may leave QA.
+  // Capture the true role-switch rejection; never weaken the Admin shell gate.
+  await page.evaluate(()=>{
+    const codes=[];
+    globalThis.__IBERFIT_QA_ROLE_SWITCH_CODES__=codes;
+    globalThis.addEventListener('m26:diagnostic',(event)=>{
+      const detail=event?.detail||{};
+      if(detail.stage!=='role-switch')return;
+      codes.push(String(detail.code||'UNKNOWN').replace(/[^a-z0-9_-]/giu,'').slice(0,80));
+    });
+  });
   await chooseAdmin.click();
-  await expect(adminShell,'Admin app must open only after explicit app choice').toBeVisible({timeout:30_000});
+  try{
+    await expect(adminShell,'Admin app must open only after explicit app choice').toBeVisible({timeout:30_000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>{
+      const state=globalThis.__IBERFIT_M26_APP__?.getState?.()||{};
+      const access=state.applicationAccess||{};
+      return {
+        codes:[...(globalThis.__IBERFIT_QA_ROLE_SWITCH_CODES__||[])].slice(-4),
+        role:String(state.identity?.role||'').slice(0,12),
+        hydration:String(state.hydration?.status||'').slice(0,24),
+        choiceConfirmed:access.roleChoiceConfirmed===true,
+        authorizedRoleCount:Array.isArray(access.authorizedRoles)?access.authorizedRoles.length:0,
+      };
+    });
+    throw new Error('M26_ADMIN_CHOICE_GATE_FAILED '+JSON.stringify(diagnostic),{cause:error});
+  }
   await expect(adminShell,'Chosen Admin shell must become interactive').not.toHaveAttribute('inert','');
   await expect(adminShell,'Chosen Admin shell must leave the accessibility-hidden state').not.toHaveAttribute('aria-hidden','true');
   await expect(roleChoice).toHaveCount(0,{timeout:10_000});
