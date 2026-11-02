@@ -264,14 +264,16 @@ test('U72 real session context adapts to CARD width, never viewport-only columns
   assert.match(browser,/experienceGeometry\.overflow\)\.toBe\(false\)/);
 });
 
-test('U73 availability caption uses a full grid row instead of stealing a session column',()=>{
+test('U73 availability caption spans the grid when useful and stays absent for one ready session',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const qa=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
   const block=css.split('U73 · Session availability is a section caption')[1]?.split('.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-session-card{')[0]||'';
   assert.match(block,/\.m26-rc39-week > \.m26-session-available-summary\{/);
   assert.match(block,/grid-column:1 \/ -1/);
-  assert.match(qa,/Ready-session caption must span the full session grid/);
-  assert.match(qa,/Session cards must start below the caption row/);
+  assert.match(qa,/Mixed scenario has one ready guided session/);
+  assert.match(qa,/await expect\(screen\.locator\('\.m26-session-available-summary'\)\)\.toHaveCount\(0\)/);
+  assert.match(qa,/expect\(gridGeometry\.cardCount\)\.toBe\(2\)/);
+  assert.match(qa,/Two published sessions must not leave a third blank desktop column/);
 });
 
 test('U75 Client layout uses readable desktop tracks and WebKit-safe sticky scroll offset',()=>{
