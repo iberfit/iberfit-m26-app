@@ -149,6 +149,19 @@ test('R47 Client session offers one reachable authorized action before optional 
   await expect(card.locator('.m26-rc39-session-content')).not.toHaveAttribute('open','');
   await expect(card).not.toContainText('PRIVADO_NO_MOSTRAR');
   await expect(card).not.toContainText('Contenido completo');
+  // R48: do not bury the real action beneath three redundant explanation cards.
+  await expect(route.locator('[data-client-sessions-brief]')).toHaveCount(0);
+  await expect(route.locator('[data-signature-session-guidance]')).toHaveCount(0);
+  await expect(route.locator('[data-session-available-count="1"]')).toHaveCount(0);
+  const beforeScroll=await action.evaluate(el=>{
+    const button=el.getBoundingClientRect();
+    const dock=document.querySelector('.m26-client-bottom-nav-layer')?.getBoundingClientRect();
+    return {buttonTop:button.top,buttonBottom:button.bottom,dockTop:dock?.top??innerHeight};
+  });
+  if(width<=390){
+    expect(beforeScroll.buttonTop).toBeGreaterThanOrEqual(0);
+    expect(beforeScroll.buttonBottom).toBeLessThanOrEqual(beforeScroll.dockTop+1);
+  }
   await action.scrollIntoViewIfNeeded();
   await action.focus();
   const geometry=await page.evaluate(()=>{
@@ -172,6 +185,12 @@ test('R47 Client session offers one reachable authorized action before optional 
   await disclosure.locator('summary').click();
   await expect(disclosure).toHaveAttribute('open','');
   await expect(disclosure).toContainText('Carrera suave');
+  await expect(disclosure).toContainText('35 min');
+  await expect(disclosure).toContainText('5:30 min/km');
+  await expect(disclosure).toContainText('6 de 10');
+  await expect(disclosure).toContainText('Ritmo orientativo');
+  await expect(disclosure).not.toContainText('Distancia (km)');
+  await expect(disclosure.locator('dt')).not.toContainText('RPE');
   await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
   await testInfo.attach('r47-client-session-real-render-'+testInfo.project.name+'.png',{
     body:await page.screenshot({fullPage:true,animations:'disabled',caret:'hide'}),contentType:'image/png'});
