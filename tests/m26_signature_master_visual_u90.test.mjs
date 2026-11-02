@@ -253,3 +253,11 @@ test('U110 Admin tabular data remains horizontally inspectable on touch and keyb
 
  assert.match(source,/Desplaza la tabla lateralmente para ver todas las columnas y acciones/);
 });
+
+test('U111 Coach priority action never becomes a vertical letter stack',()=>{
+ const section=s.split('SIGNATURE U111 · Coach: readable priority actions')[1]?.split('SIGNATURE U110')[0]||'';
+ for(const token of ['.m26-coach-home-attention .m26-coach-priority-card','grid-template-columns:minmax(0,1fr)',
+   'flex-wrap:wrap','min-inline-size:max-content','min-block-size:44px','word-break:normal'])
+   assert.ok(section.includes(token),'Coach priority layout '+token);
+ assert.doesNotMatch(section,/display:none|visibility:hidden|pointer-events:none|!important/);
+});

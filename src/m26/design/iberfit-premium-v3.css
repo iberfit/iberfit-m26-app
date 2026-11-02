@@ -3862,6 +3862,35 @@
   }
 }
 
+
+/* SIGNATURE U111 · Coach: readable priority actions in a narrow desktop rail.
+ * Native browser evidence showed an action breaking letter by letter at 1440.
+ * Keep the full action, status and technical guidance on every viewport. */
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-content:start;
+  gap:.8rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card > div{
+  min-inline-size:0;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card .m26-list-card-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.65rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card .m26-list-card-actions button{
+  flex:0 0 auto;
+  min-inline-size:max-content;
+  max-inline-size:100%;
+  min-block-size:44px;
+  padding-inline:1rem;
+  overflow-wrap:normal;
+  word-break:normal;
+}
 /* SIGNATURE U110 · Admin factual tables: inspect all columns without clipping.
  * The original Stitch R38 showed partially cut-off actions on narrow layouts.
  * Keep genuine route tables as keyboard/touch scroll regions, not compressed

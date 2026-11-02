@@ -94,6 +94,25 @@ for(const role of ['client','coach','admin']){
         }
       }
 
+      // U111: screenshots showed Coach desktop priority buttons compressed to
+      // one letter per line. The rendered control must be readable at 320–1440.
+      if(role==='coach'&&area==='hoy'){
+        const action=page.locator('.m26-coach-home-attention .m26-coach-priority-card .m26-list-card-actions button').first();
+        await expect(action).toBeVisible();
+        const geometry=await action.evaluate(el=>{
+          const rect=el.getBoundingClientRect(),selection=document.createRange();
+          selection.selectNodeContents(el);
+          const lines=[...selection.getClientRects()].filter(r=>r.width>0&&r.height>0);
+          return {width:rect.width,height:rect.height,text:el.textContent.trim(),lines:lines.length,
+            computedBreak:getComputedStyle(el).overflowWrap};
+        });
+        expect(geometry.text.length).toBeGreaterThan(5);
+        expect(geometry.width,'Coach action keeps a usable horizontal touch target').toBeGreaterThanOrEqual(110);
+        expect(geometry.height).toBeGreaterThanOrEqual(44);
+        expect(geometry.lines,'Coach action does not split into stacked letters').toBeLessThanOrEqual(2);
+        expect(geometry.computedBreak).toBe('normal');
+      }
+
       // U94: real calendar date semantics must survive all device widths
       // without implying unverified sessions, health outcomes or writes.
       if(role==='client'&&area==='hoy'){
