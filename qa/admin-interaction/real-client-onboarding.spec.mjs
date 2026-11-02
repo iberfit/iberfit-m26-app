@@ -134,8 +134,30 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await page.waitForTimeout(180);
   await expectSameNode(search,'clientSearch');
   await expect(search).toBeFocused();
+  // Diagnose the real tablet Chromium key-loss regression without changing the
+  // form, delaying keys, retrying an assertion, or relaxing the E2E contract.
+  await search.evaluate((el)=>{
+    const entries=[];
+    const note=(kind,event)=>entries.push({
+      kind,key:String(event?.key||'').slice(0,12),inputType:String(event?.inputType||'').slice(0,30),
+      data:String(event?.data||'').slice(0,12),value:String(el.value||'').slice(0,20),
+      focused:el===document.activeElement,connected:el.isConnected,
+    });
+    for(const type of ['keydown','beforeinput','input','keyup','compositionstart','compositionend','focus','blur'])
+      el.addEventListener(type,(event)=>note(type,event),{capture:true});
+    el.ownerDocument.addEventListener('m26:shell-rendered',()=>note('shell-rendered'),{capture:true});
+    globalThis.__IBERFIT_QA_SEARCH_KEY_TRACE__=entries;
+  });
   await search.pressSequentially('María');
   await expectSameNode(search,'clientSearch');
+  const typed=await search.inputValue();
+  if(typed!=='María'){
+    const trace=await search.evaluate((el)=>({
+      final:el.value,focused:el===document.activeElement,connected:el.isConnected,
+      events:(globalThis.__IBERFIT_QA_SEARCH_KEY_TRACE__||[]).slice(-60)
+    }));
+    console.log('IBERFIT_COACH_SEARCH_TYPED_INPUT_DIAGNOSTIC:'+JSON.stringify(trace));
+  }
   await expect(search).toHaveValue('María');
 
   const iriFilter=page.locator('[data-client-filter="iri"]');
