@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "cf232f908a4f3e3058c42389fcd7a86e1d30b3ea",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "243627058fe58367726c62637613517188617471",
+  "notes": "IBERFIT SIGNATURE MASTER VISUAL U124 — frontend-only, exact certified Canary SHA, no production SQL, Edge or Hosted Auth changes"
+}
