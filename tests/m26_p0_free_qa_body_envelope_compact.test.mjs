@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {expandQaClientCanonicalBodyEnvelope} from '../src/m26/production-state.js';
+import {expandQaClientCanonicalBodyEnvelope,prepareQaClientEnvelopeForApplicationRole,stateFromBootstrap} from '../src/m26/production-state.js';
 
 const UUID='10000000-0000-4000-8000-000000000001';
 const ENTITY_ID='20000000-0000-4000-8000-000000000002';
@@ -50,6 +50,39 @@ test('enriched Client app environment QA restores exact JSON without relaxing PR
  assert.throws(()=>expandQaClientCanonicalBodyEnvelope(prod),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
  const synthetic={...decorated,environment:{...decorated.environment,mode:'SYNTHETIC_ONLY'}};
  assert.throws(()=>expandQaClientCanonicalBodyEnvelope(synthetic),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+});
+
+test('QA Client/Admin choice reconstructs original owner envelope BEFORE authorized role overlay',()=>{
+ const wire=envelope(compact(data()));
+ const selected={...wire,user:{...wire.user,role:'admin',authorizedRoles:['client','admin'],roleChoiceConfirmed:true}};
+ assert.throws(()=>stateFromBootstrap(selected),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+ const prepared=prepareQaClientEnvelopeForApplicationRole(wire,{
+  qaOnly:true,activeRole:'admin',authorizedRoles:['client','admin'],
+ });
+ assert.deepEqual(prepared,envelope(data()));
+ assert.notEqual(prepared,wire,'Do not mutate or reuse the unverified wire envelope');
+ assert.doesNotThrow(()=>stateFromBootstrap({
+  ...prepared,user:{...prepared.user,role:'admin',authorizedRoles:['client','admin'],roleChoiceConfirmed:true},
+ }));
+ assert.equal(JSON.stringify(prepared).includes(MARK),false);
+ assert.equal(JSON.stringify(wire).includes(MARK),true);
+});
+
+test('multi-role QA preparation remains fail-closed for PROD, unauthorized role and foreign owner',()=>{
+ const wire=envelope(compact(data()));
+ const options={qaOnly:true,activeRole:'admin',authorizedRoles:['client','admin']};
+ assert.equal(prepareQaClientEnvelopeForApplicationRole(wire,{...options,qaOnly:false}),wire);
+ assert.equal(prepareQaClientEnvelopeForApplicationRole(wire,{...options,activeRole:'client'}),wire);
+ assert.equal(prepareQaClientEnvelopeForApplicationRole({...wire,user:{...wire.user,role:'admin'}},options).data.m26Entities[0][MARK],1);
+ assert.throws(()=>prepareQaClientEnvelopeForApplicationRole(wire,{...options,authorizedRoles:['client']}),/M26_ROLE_SWITCH_FORBIDDEN/u);
+ assert.throws(()=>prepareQaClientEnvelopeForApplicationRole({...wire,environment:'PRODUCTION'},options),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+ assert.throws(()=>prepareQaClientEnvelopeForApplicationRole({...wire,user:{...wire.user,clientId:ENTITY_ID}},options),/M26_QA_BODY_META_INVALID/u);
+ assert.throws(()=>prepareQaClientEnvelopeForApplicationRole({...wire,canary:{...wire.canary,scope:'public'}},options),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+ const application=readFileSync('src/m26/app/application.js','utf8');
+ const guard=application.indexOf("if(requestedRole&&!authorizedRoles.includes(requestedRole))throw new Error('M26_ROLE_SWITCH_FORBIDDEN')");
+ const prepare=application.indexOf('const hydratedWire=prepareQaClientEnvelopeForApplicationRole(snapshot,');
+ const scope=application.indexOf('const scopedSnapshot=filterSnapshotForAssignmentScope(hydratedWire,');
+ assert.ok(guard>=0&&prepare>guard&&scope>prepare,'Authorize before QA reconstruction, and reconstruct before role projection');
 });
 
 test('default path returns original reference without mutation',()=>{

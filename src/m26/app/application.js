@@ -13,6 +13,7 @@ import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_L
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
 import {createCanonicalStore} from '../canonical-store.js';
+import {prepareQaClientEnvelopeForApplicationRole} from '../production-state.js';
 import {createClientHistoryDemandController} from './client-history-demand-controller.js';
 import {canUseQaCoachCoreAuthSmoke} from './qa-coach-core-auth-smoke.js';
 import {createCommandBus} from '../command-bus.js';
@@ -814,7 +815,13 @@ export async function createM26Application({root=document.querySelector('#app'),
       const activeRole=resolveActiveRole(authorizedRoles,preferredRole);
       if(!activeRole)throw new Error('M26_ROLE_CONTEXT_MISSING');
       const roleChoiceConfirmed=!roleChoiceRequired||Boolean(requestedRole);
-      const scopedSnapshot=filterSnapshotForAssignmentScope(snapshot,applicationContext,activeRole);
+      // Preserve QA Client owner validation before projecting a separately
+      // authorized Admin/Coach role; never reconstruct compact metadata after
+      // that role overlay (M26_QA_BODY_META_SCOPE_FORBIDDEN).
+      const hydratedWire=prepareQaClientEnvelopeForApplicationRole(snapshot,{
+        qaOnly:runtime.qaOnly===true,activeRole,authorizedRoles,
+      });
+      const scopedSnapshot=filterSnapshotForAssignmentScope(hydratedWire,applicationContext,activeRole);
       qaStage('rc64-hydrate-scope-ready');
       const [adminExtension,communicationExtension,v47Daily]=await Promise.all([
         activeRole==='admin'&&adminTransport?optionalAuthBootstrap(
