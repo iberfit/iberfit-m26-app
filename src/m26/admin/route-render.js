@@ -251,7 +251,7 @@ function renderHome(vm){
       <button type="button" class="m26-primary-action" data-m26-area="${e(adminNext.area)}">Abrir gestión</button>
     </nav>
     <section class="m26-admin-panel m26-admin-command m30-admin-decision-center" data-admin-priority-center aria-labelledby="m30-admin-priority-title">
-      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Incidencias abiertas por gravedad y plazo; después, recorridos de cliente por etapa y asignación.</p></div>${badge(clientCount?String(clientCount)+' clientes por revisar':'Clientes al día')}</div>
+      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Incidencias abiertas por gravedad y plazo; después, recorridos de cliente por etapa y asignación.</p></div>${badge(clientCount===1?'1 cliente por revisar':clientCount>1?String(clientCount)+' clientes por revisar':'Clientes al día')}</div>
       ${urgency}
       <div class="m26-admin-command-client-heading"><h4>Seguimiento de clientes</h4>${clientCount>8?'<span>Primeros 8 de '+clientCount+'</span>':''}</div>
       <div class="m26-admin-priority-list">${priorities}</div>

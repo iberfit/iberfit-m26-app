@@ -228,3 +228,12 @@ test('U107 authorized Admin command center is not preceded by a duplicate generi
  assert.match(rules,/@media\(max-width:480px\)/);
  assert.doesNotMatch(rules,/pointer-events:none|display:none!important|visibility:hidden/);
 });
+
+test('U108 Admin decision count remains grammatical and translatable without inventing priorities',()=>{
+ const source=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
+ const catalog=readFileSync(new URL('../src/m26/ui/i18n-surface-admin.js',import.meta.url),'utf8');
+ assert.match(source,/clientCount===1\?'1 cliente por revisar'/);
+ assert.match(source,/clientCount>1\?String\(clientCount\)\+' clientes por revisar'/);
+ assert.match(catalog,/\['1 cliente por revisar','1 client to review'/);
+ assert.ok(!source.includes("badge(clientCount?String(clientCount)+' clientes por revisar'"));
+});

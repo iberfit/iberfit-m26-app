@@ -353,6 +353,8 @@ test('SIGNATURE U106 · Admin permission denied by default, authorized synthetic
       await expect(main.locator('[data-admin-primary-action]')).toBeVisible();
       await expect(main.locator('[data-admin-priority-center]')).toBeVisible();
       await expect(main.locator('.m30-admin-kpis .m26-admin-stat')).toHaveCount(6);
+      await expect(main.getByText('1 cliente por revisar')).toBeVisible();
+      await expect(main.getByText('1 clientes por revisar')).toHaveCount(0);
       await expect(main.getByRole('heading',{name:'IBERFIT Command Center'})).toBeVisible();
       await expect(main.getByText('Permiso insuficiente')).toHaveCount(0);
       const columns=await auth.evaluate(()=>{
