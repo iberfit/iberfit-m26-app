@@ -284,6 +284,10 @@ export function createQaPublicRpcMemo({now=()=>Date.now(),sharedCacheRoot}={}){
 }
 const qaPublicRpcMemo=createQaPublicRpcMemo();
 
+// QA-only aggregate counters. Do not return cache keys, bodies, tokens or URLs.
+// Reading stats never creates a request to Supabase.
+export function qaPublicRpcMemoStats(){return qaPublicRpcMemo.stats();}
+
 export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{},allowQaSyntheticWrite=()=>false}){
   // A caller that explicitly supplies a synthetic-write policy is never memoized.
   // Preserve the exact canonical default write-denial contract and its tests.
