@@ -3863,81 +3863,28 @@
 }
 
 
-/* SIGNATURE U111 · Coach: readable priority actions in a narrow desktop rail.
- * Native browser evidence showed an action breaking letter by letter at 1440.
- * Keep the full action, status and technical guidance on every viewport. */
+/* SIGNATURE U111 · Coach: readable priority actions */
 .m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card{
-  display:grid;
-  grid-template-columns:minmax(0,1fr);
-  align-content:start;
-  gap:.8rem;
+ display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:.8rem;
+ >div{min-inline-size:0}
+ .m26-list-card-actions{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:.65rem;
+  button{flex:0 0 auto;min-inline-size:max-content;max-inline-size:100%;min-block-size:44px;padding-inline:1rem;overflow-wrap:normal;word-break:normal}
+ }
 }
-.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card > div{
-  min-inline-size:0;
-}
-.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card .m26-list-card-actions{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  justify-content:flex-start;
-  gap:.65rem;
-}
-.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-attention .m26-coach-priority-card .m26-list-card-actions button{
-  flex:0 0 auto;
-  min-inline-size:max-content;
-  max-inline-size:100%;
-  min-block-size:44px;
-  padding-inline:1rem;
-  overflow-wrap:normal;
-  word-break:normal;
-}
-/* SIGNATURE U110 · Admin factual tables: inspect all columns without clipping.
- * The original Stitch R38 showed partially cut-off actions on narrow layouts.
- * Keep genuine route tables as keyboard/touch scroll regions, not compressed
- * columns or hidden controls. All operational cells and forms remain intact. */
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"]{
-  display:block;
-  min-inline-size:0;
-  max-inline-size:100%;
-  overflow-x:auto;
-  overscroll-behavior-inline:contain;
-  scroll-padding-inline:1rem;
-  -webkit-overflow-scrolling:touch;
-  scrollbar-width:thin;
-  scrollbar-color:#C5A059 #102019;
-}
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] table{
-  inline-size:max-content;
-  min-inline-size:100%;
-  border-collapse:separate;
-  border-spacing:0;
-}
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] :is(th,td){
-  min-inline-size:8.25rem;
-  white-space:normal;
-  overflow-wrap:break-word;
-  vertical-align:middle;
-}
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] :is(th,td):first-child{
-  min-inline-size:10rem;
-}
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] :is(th,td):last-child{
-  min-inline-size:11.25rem;
-}
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"]:focus-visible{
-  outline:3px solid var(--iberfit-color-focus);
-  outline-offset:2px;
-}
-.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table-scroll-hint{
-  color:#d6ded6;
-  font-size:.8rem;
-  line-height:1.45;
-  margin-block:.35rem .65rem;
-}
-@media (forced-colors:active){
-  .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"]{
-    scrollbar-color:auto;
-    border-color:CanvasText;
-  }
+/* SIGNATURE U110 · Admin factual tables: columns inspectable on touch */
+.m26-shell[data-m26-role="admin"] .m26-main{
+ .m26-admin-table[role="region"]{
+  display:block;min-inline-size:0;max-inline-size:100%;overflow-x:auto;
+  overscroll-behavior-inline:contain;scroll-padding-inline:1rem;
+  -webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#C5A059 #102019;
+  table{inline-size:max-content;min-inline-size:100%;border-collapse:separate;border-spacing:0}
+  :is(th,td){min-inline-size:8.25rem;white-space:normal;overflow-wrap:break-word;vertical-align:middle}
+  :is(th,td):first-child{min-inline-size:10rem}
+  :is(th,td):last-child{min-inline-size:11.25rem}
+  &:focus-visible{outline:3px solid var(--iberfit-color-focus);outline-offset:2px}
+  @media (forced-colors:active){scrollbar-color:auto;border-color:CanvasText}
+ }
+ .m26-admin-table-scroll-hint{color:#d6ded6;font-size:.8rem;line-height:1.45;margin-block:.35rem .65rem}
 }
 /* END SIGNATURE MASTER U90 */
