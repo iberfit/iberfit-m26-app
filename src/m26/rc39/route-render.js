@@ -139,7 +139,34 @@ const previewName=(id,source={},catalog=new Map())=>{
   const exercise=catalog.get(String(id||''))||{};
   return String(exercise.name_es||exercise.name||source.name||source.title||id||'Ejercicio');
 };
-const previewFacts=(plan={})=>{
+// A Client needs practical goals, not internal training shorthand.
+// Values remain exactly the Coach's targets, never actual results.
+const previewFacts=(plan={},role='coach')=>{
+  if(role==='client'){
+    const sets=previewNumber(plan.sets,{min:1,max:100});
+    const effort=previewNumber(plan.targetRpe,{min:1,max:10});
+    const reserve=previewNumber(plan.targetRir,{max:10});
+    const rest=previewNumber(plan.restSeconds,{max:3600});
+    const duration=previewNumber(plan.plannedDurationMinutes,{min:1,max:1440});
+    const pace=String(plan.plannedPace||plan.plannedPacePer100M||'').trim();
+    const plainPace=/^\d{1,2}:\d{2}$/.test(pace);
+    const paceSuffix=plan.plannedPace?' min/km':plan.plannedPacePer100M?' min/100 m':'';
+    const facts=[
+      [sets===1&&duration&&!plan.reps?null:sets,'Series'],
+      [plan.reps||null,'Repeticiones o tiempo'],
+      [rest===null?null:rest+' s','Descanso'],
+      [effort===null?null:effort+' de 10','Esfuerzo orientativo'],
+      [reserve===null?null:reserve+' repeticiones','Repeticiones en reserva'],
+      [plan.tempo||null,'Ritmo del movimiento'],
+      [plan.plannedLoad||plan.load||null,'Carga orientativa'],
+      [duration===null?null:duration+' min','Tiempo de trabajo'],
+      [plan.plannedDistanceKm||null,'Distancia (km)'],
+      [plan.plannedDistanceM||null,'Distancia (m)'],
+      [pace?(plainPace?pace+paceSuffix:pace):null,'Ritmo orientativo'],
+      [plan.targetHeartRateZone||null,'Zona de pulso'],
+    ].filter(([value])=>value!==null&&value!==undefined&&String(value).trim()!=='');
+    return facts.length?'<dl class="m26-session-preview-facts" aria-label="Objetivos de tu entrenamiento">'+facts.map(([value,label])=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(value)+'</dd></div>').join('')+'</dl>':'';
+  }
   const facts=[
     [previewNumber(plan.sets,{min:1,max:100}),'Series'],
     [plan.reps||null,'Repeticiones / tiempo'],
@@ -169,7 +196,7 @@ const renderPreviewExercise=(id,plan,{catalog,mediaMap,role})=>{
     <div class="m26-session-preview-media">${media}</div>
     <div class="m26-session-preview-exercise-body"><h5>${escape(name)}</h5>
       ${exercise.equipment?`<p class="m26-session-preview-equipment">${escape(exercise.equipment)}</p>`:''}
-      ${previewFacts(plan)}
+      ${previewFacts(plan,role)}
       ${plan.prescriptionNotes?`<p class="m26-session-preview-cue">${escape(plan.prescriptionNotes)}</p>`:''}
       ${alternative?`<p class="m26-session-preview-cue"><strong>Alternativa:</strong> ${escape(alternative)}</p>`:''}
       ${tech.length||precautions.length?`<details class="m26-session-preview-technique"><summary>Cómo realizarlo</summary>
