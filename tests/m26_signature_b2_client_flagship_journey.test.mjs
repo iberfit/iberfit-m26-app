@@ -30,7 +30,9 @@ test('B2 available published Client sessions expose explanatory brief without gr
   };
   const html=renderRc39Route(fixture({rc39:{sessionProjections:[item],role:'client'}}));
   assert.match(html,/data-client-session-state="published"/u);
-  assert.match(html,/data-client-sessions-brief="published"/u);
+  assert.match(html,/data-signature-session-guidance="published"/u);
+  assert.doesNotMatch(html,/data-client-sessions-brief="published"/u);
+  assert.match(html,/Las dirigidas por tu Coach se realizan con su supervisión/u);
   assert.match(html,/data-client-session-card-state="supervised"/u);
   assert.doesNotMatch(html,/data-workflow-action="start-published-session"/u);
   assert.match(html,/Esta sesión la dirige tu Coach/u);
