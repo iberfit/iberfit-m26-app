@@ -216,9 +216,9 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
   const detailAvailable=canInspect&&sessionHasExecutableBlocks(item.session);
   const canResume=role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanResumeProjection(item);
   const inPreviewStart=canResume
-    ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Continuar entrenamiento</button></div>`
+    ?`<div class="m26-session-preview-actions" data-client-session-primary><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Continuar entrenamiento</button></div>`
     :role==='client'&&serviceActive&&experience.clientLiveWorkout&&clientCanStartProjection(item)
-      ?`<div class="m26-session-preview-actions"><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Preparar entrenamiento</button></div>`:'';
+      ?`<div class="m26-session-preview-actions" data-client-session-primary><button type="button" class="m26-primary-action m26-live-workout-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Preparar entrenamiento</button></div>`:'';
   const content=detailAvailable
     ? `<details class="m26-rc39-session-content m26-session-preview-disclosure"><summary>${role==='client'?'Ver sesión':'Revisar prescripción y vista del cliente'}</summary><div class="m26-session-preview-body">${role!=='client'?`<p class="m26-session-preview-client-note">${supervised?'Cliente: título, duración y cita; sin prescripción ni inicio autónomo.':'Cliente: ficha completa de ejercicios y comienzo autónomo habilitado según permisos.'}</p>`:''}${renderRc39SessionPreview(item.session,{catalog,mediaMap,role})}</div></details>`
     : `<p class="m26-rc39-summary-copy">${supervised
@@ -229,13 +229,13 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
   const experienceHtml=role==='client'&&supervised?'':experiencePanel(experience,role);
   const contractLabel=clientModalityLabel(contractModality);
   return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}"${role==='client'?` data-client-session-card-state="${supervised?'supervised':inPreviewStart?'ready':'published'}"`:''} tabindex="-1">
-    <header><div><p class="m26-eyebrow">${escape(ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3><p>${escape(formatDate(item.startAt))}</p>${summaryMeta}</div><div>${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${statusBadge(visibility,'neutral')}</div></header>
+    <header><div><p class="m26-eyebrow">${escape(ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3><p>${escape(formatDate(item.startAt))}</p>${summaryMeta}</div><div>${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${role==='client'&&item.visibility==='full'?'':statusBadge(visibility,'neutral')}</div></header>
+    ${inPreviewStart}
     ${experienceHtml}
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
     ${item.appointment?.changeRequest?.status==='pending'?`<aside class="m26-notice is-warning"><strong>Cambio solicitado por el cliente</strong><p>${escape(item.appointment.changeRequest.reason||'Sin motivo registrado')}</p></aside>`:''}
     ${content}
-    ${inPreviewStart}
     ${cardActions(item,role,experience,{serviceActive})}
     ${role==='client'&&item.confirmation?.canRequestChange&&item.changeRequestAvailable?`<form class="m26-rc39-change-form" data-rc39-change-form="${escape(item.appointmentId)}" hidden><label>Motivo o alternativa horaria<textarea name="reason" maxlength="500" required></textarea></label><div><button type="submit" class="m26-primary-action">Enviar solicitud</button><button type="button" data-rc39-action="close-change-request">Cancelar</button></div></form>`:''}
   </article>`;

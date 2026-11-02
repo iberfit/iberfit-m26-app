@@ -25,6 +25,42 @@ function html(role='client',items=[item('presencial','coach_led','summary_only')
   sessionPreviewAssets:{catalog:exercises,mediaMap:null},
   rc39:{role,sessionProjections:items,appointments:[]},selectedClient:{modality:'hibrido'}});
 }
+test('SIGNATURE R47 session primary remains one role-authorized action ahead of secondary content',()=>{
+ const guided=html('client',[item('guiada','guided_in_app','full')]);
+ const card=guided.split('<article class="m26-rc39-session-card')[1];
+ assert.ok(card);
+ const button=card.indexOf('data-client-session-primary');
+ const detail=card.indexOf('<details class="m26-rc39-session-content');
+ assert.ok(button>0&&detail>button);
+ assert.equal((guided.match(/data-client-session-primary/g)||[]).length,1);
+ assert.equal((guided.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
+ assert.doesNotMatch(guided,/Contenido completo/,'Client needs useful exercises rather than a technical visibility badge');
+ assert.match(guided,/Press de pecho|Remo TRX/,'all prescribed blocks remain accessible');
+ assert.doesNotMatch(guided,/NOTA PRIVADA NO MOSTRAR/);
+ for(const unsafe of [
+  {...item('guiada','guided_in_app','full'),visible:false},
+  {...item('guiada','guided_in_app','full'),canClientStart:false},
+  {...item('guiada','guided_in_app','full'),canClientExecute:false},
+ ]){
+  const htmlValue=html('client',[unsafe]);
+  assert.doesNotMatch(htmlValue,/data-client-session-primary|data-workflow-action="start-published-session"/);
+ }
+ const coach=html('coach',[item('guiada','guided_in_app','full')]);
+ assert.doesNotMatch(coach,/data-client-session-primary/);
+ assert.match(coach,/Revisar prescripción y vista del cliente/);
+ const supervised=html('client',[item('presencial','coach_led','summary_only')]);
+ assert.doesNotMatch(supervised,/data-client-session-primary|data-workflow-action="start-published-session"/);
+});
+test('SIGNATURE R47 current and recovery actions keep honest text without duplicating server commands',()=>{
+ const inProgress=item('guiada','guided_in_app','full');
+ inProgress.canClientResume=true;
+ inProgress.session={...inProgress.session,status:'en_curso'};
+ const value=html('client',[inProgress]);
+ assert.match(value,/Continuar entrenamiento/);
+ assert.doesNotMatch(value,/Preparar entrenamiento/);
+ assert.equal((value.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
+ assert.ok(value.indexOf('data-client-session-primary')<value.indexOf('<details class="m26-rc39-session-content'));
+});
 test('Cliente presencial: título y duración, nunca bloques ni prescripción',()=>{
  const value=html('client',[item('presencial','coach_led','summary_only')]);
  assert.match(value,/Fuerza presencial/);
@@ -43,7 +79,9 @@ test('Cliente autónomo: Ver sesión completo y ejercicios con medios honestos; 
  assert.equal((value.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
  const disclosure=value.indexOf('<details class="m26-rc39-session-content');
  const launch=value.indexOf('data-workflow-action="start-published-session"');
- assert.ok(disclosure>=0&&launch>value.indexOf('</details>',disclosure),'primary start is visible after optional preview');
+ assert.ok(disclosure>=0&&launch<disclosure,'primary action must precede the optional exercise preview');
+ assert.match(value,/<div class="m26-session-preview-actions" data-client-session-primary>/);
+ assert.match(value,/>Preparar entrenamiento<\/button>/);
  assert.doesNotMatch(value,/data-session-primary-start/);
  assert.match(value,/loading="lazy"|Sin referencia visual/);
  assert.doesNotMatch(value,/NOTA PRIVADA NO MOSTRAR/);

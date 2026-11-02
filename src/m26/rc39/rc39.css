@@ -832,6 +832,45 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   min-height:52px;
   border-radius:1.05rem;
 }
+/* SIGNATURE R47 · The next permitted action comes before optional session detail.
+   Keep one genuine app command, no sticky CTA overlay and no fake completion. */
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions
+ .m26-rc39-session-card > .m26-session-preview-actions[data-client-session-primary]{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  margin:.85rem 0 1rem;
+  padding:0;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions
+ .m26-rc39-session-card > .m26-session-preview-actions[data-client-session-primary] > button{
+  min-height:56px;
+  width:100%;
+  max-width:100%;
+  padding:.85rem 1.1rem;
+  font-weight:750;
+  letter-spacing:.005em;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  touch-action:manipulation;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions
+ .m26-rc39-session-card > .m26-session-preview-actions[data-client-session-primary] > button:focus-visible{
+  outline:3px solid var(--iberfit-color-focus);
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="client"] .m26-rc39-sessions
+ .m26-rc39-session-card[data-client-session-card-state="ready"] > header{
+  min-width:0;
+}
+@media(max-width:690px){
+  .m26-shell[data-m26-role="client"] .m26-rc39-sessions
+   .m26-rc39-session-card > .m26-session-preview-actions[data-client-session-primary]{
+    margin:.75rem 0 .9rem;
+  }
+}
+/* END SIGNATURE R47 */
+
 /* A missing exercise photo is honest information, not a gold-on-gold icon.
  * Explicit accessible ink/background protects against inherited high-level
  * Client surface variables, including on 320px and mobile WebKit. */

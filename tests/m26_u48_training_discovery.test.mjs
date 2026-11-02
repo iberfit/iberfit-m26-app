@@ -37,7 +37,9 @@ test('U48 Client has one ready CTA outside the optional exercise disclosure',()=
  const preview=html.indexOf('m26-session-preview-disclosure');
  const close=html.indexOf('</details>',preview);
  assert.equal((html.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
- assert.ok(start>close);assert.match(html,/Preparar entrenamiento/);
+ assert.ok(start>0&&preview>start&&close>preview,'one authorized CTA precedes optional exercise details');
+ assert.match(html,/data-client-session-primary/);
+ assert.match(html,/Preparar entrenamiento/);
 });
 test('U48 never offers autonomous start for paused, supervised or non-ready sessions',()=>{
  for(const [item,active] of [
