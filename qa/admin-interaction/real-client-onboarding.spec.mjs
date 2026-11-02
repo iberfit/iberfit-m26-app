@@ -148,7 +148,11 @@ test('canonical client onboarding survives release, rerender races and keeps eve
     el.ownerDocument.addEventListener('m26:shell-rendered',()=>note('shell-rendered'),{capture:true});
     globalThis.__IBERFIT_QA_SEARCH_KEY_TRACE__=entries;
   });
-  await search.pressSequentially('María');
+  // Chromium touch emulation can dispatch an immediate keydown before its
+  // native text-input pipeline is ready. 35ms is still faster than human
+  // typing; retain sequential real keyboard events and strict exact value.
+  await expect(search).toBeEditable();
+  await search.pressSequentially('María',{delay:35});
   await expectSameNode(search,'clientSearch');
   const typed=await search.inputValue();
   if(typed!=='María'){
