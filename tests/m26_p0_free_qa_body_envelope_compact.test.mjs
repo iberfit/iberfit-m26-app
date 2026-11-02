@@ -38,6 +38,20 @@ test('exact reconstruction of canonical session/execution/planning JSON and resu
   assert.equal(JSON.stringify(parsed).includes(MARK),false);
  }
 });
+test('enriched Client app environment QA restores exact JSON without relaxing PROD scope',()=>{
+ const full=data(),wire=compact(full);
+ const decorated=envelope(wire);
+ decorated.environment={
+  mode:'QA',reason:'login',commandRegistry:{ready:true},wearableV44:{ready:false},
+ };
+ const restored=expandQaClientCanonicalBodyEnvelope(decorated);
+ assert.deepEqual(restored,{...decorated,data:{...decorated.data,m26Entities:[full]}});
+ const prod={...decorated,environment:{...decorated.environment,mode:'PROD'}};
+ assert.throws(()=>expandQaClientCanonicalBodyEnvelope(prod),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+ const synthetic={...decorated,environment:{...decorated.environment,mode:'SYNTHETIC_ONLY'}};
+ assert.throws(()=>expandQaClientCanonicalBodyEnvelope(synthetic),/M26_QA_BODY_META_SCOPE_FORBIDDEN/u);
+});
+
 test('default path returns original reference without mutation',()=>{
  const v=envelope();
  assert.equal(expandQaClientCanonicalBodyEnvelope(v),v);
