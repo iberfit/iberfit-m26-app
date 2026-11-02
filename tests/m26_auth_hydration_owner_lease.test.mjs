@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createHydrationCoordinator} from '../src/m26/app/hydration-coordinator.js';
 import {mergeV47DailyIntoClientProgress} from '../src/m26/wearables/v47-progress-bridge.js';
+import {prepareQaClientEnvelopeForApplicationRole} from '../src/m26/production-state.js';
 
 function deferred(){
   let resolve,reject;
@@ -89,7 +90,7 @@ function fixture(){
   };
   const state={
     Promise,Error,session:a,hydrationLeaseFor,activeApplicationRole:null,runtime:{version:'26.0.0'},
-    qaStage(){},mergeV47DailyIntoClientProgress,currentToken(){return state.session?.token;},
+    qaStage(){},mergeV47DailyIntoClientProgress,prepareQaClientEnvelopeForApplicationRole,currentToken(){return state.session?.token;},
     refreshSessionIfNeeded:async()=>state.session,
     store:{
       setHydration:(status)=>statuses.push(status),
