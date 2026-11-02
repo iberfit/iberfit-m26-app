@@ -368,13 +368,14 @@
   background:#192B23!important;
 }
 
-/* Admin verified user counts use the same readable warm instrument surface. */
+/* U114 · Real Admin users: no ivory spotlight on neutral 'Activos' counts.
+ * Preserve all four instruments and their original semantics. */
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview > .m26-admin-stat:nth-child(2){
-  background:#EEE6D8!important;
-  border-color:rgba(25,48,37,.2)!important;
+  background:#192B23!important;
+  border-color:rgba(197,160,89,.18)!important;
 }
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user360-overview > .m26-admin-stat:nth-child(2) :is(span,strong,small){
-  color:#193025!important;
+  color:#F5F5F0!important;
 }
 /* Coach: low cognitive load, priority first */
 .m26-shell[data-m26-role="coach"] .m26-coach-home-command{

@@ -912,6 +912,17 @@ for(const role of ['client','coach','admin']){
       expect(metrics.body,role+' '+area+' genuine route must be visible').toBe(true);
       expect(metrics.placeholder,role+' '+area+' must not substitute fake route markup').toBe(false);
       if(role==='admin')expect(metrics.permissionDenied,role+' '+area+' must expose actual permitted synthetic Admin body').toBe(false);
+      if(role==='admin'&&area==='admin-usuarios'){
+        const metric=await page.locator('.m26-admin-user360-overview > .m26-admin-stat:nth-child(2)')
+          .evaluate(el=>{
+            const css=getComputedStyle(el);
+            return {label:el.textContent.trim(),rgb:(css.backgroundColor.match(/\d+(?:\.\d+)?/g)||[]).slice(0,3).map(Number)};
+          });
+        expect(metric.label,'Active users indicator is retained').toContain('Activos');
+        expect(metric.rgb,'Admin users KPI has computed RGB').toHaveLength(3);
+        expect(metric.rgb.every((v,i)=>v<[75,95,80][i]),
+          'Neutral Admin user KPI must not be an ivory spotlight').toBe(true);
+      }
       if(role==='admin'&&area==='admin-inicio'){
         expect(metrics.adminKpiRgb,'Admin KPI container exposes computed RGB').toHaveLength(3);
         expect(metrics.adminKpiRgb.every((v,i)=>v<[75,95,80][i]),

@@ -272,3 +272,14 @@ test('U113 Admin six-KPI backdrop is premium dark, not inherited ivory',()=>{
  const coach=beforeAdmin.slice(beforeAdmin.lastIndexOf('.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{')).split('}')[0];
  assert.match(coach,/background:var\(--iberfit-u50-paper\)/);
 });
+
+test('U114 Admin Users 360 has four sober KPI tiles without a false ivory accent',()=>{
+ const section=css.split('U114 · Real Admin users:')[1]?.split('/* Coach: low cognitive load')[0]||'';
+ assert.match(section,/\.m26-admin-user360-overview > \.m26-admin-stat:nth-child\(2\)/);
+ assert.match(section,/background:#192B23!important/);
+ assert.match(section,/color:#F5F5F0!important/);
+ assert.doesNotMatch(section,/background:#EEE6D8|display:none|visibility:hidden|pointer-events:none/);
+ const admin=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
+ for(const label of ['Usuarios','Activos','Invitaciones pendientes','Vínculos a revisar'])
+   assert.ok(admin.includes("stat('"+label+"'"),'KPI retained: '+label);
+});
