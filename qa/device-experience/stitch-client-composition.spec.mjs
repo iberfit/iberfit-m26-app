@@ -110,3 +110,69 @@ test('U66 real renderer keeps labelled navigation, focus and zero overflow',asyn
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.area())).toBe('sesion');
   expect(await page.evaluate(()=>Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)-document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
 });
+
+
+// SIGNATURE R47 · Real Client Session renderer inside the actual shell and dock.
+// Synthetic prescription; no fake remote ACK and no live account/session writes.
+test('R47 Client session offers one reachable authorized action before optional details, with dock clear',async({page},testInfo)=>{
+  const width=testInfo.project.use.viewport?.width;
+  test.skip(![320,390,768,820,1440].includes(width),'Session editorial reference device widths.');
+  await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real');
+  await page.evaluate(async()=>{
+    const {renderRc39Route}=await import('/src/m26/rc39/route-render.js');
+    const id='10000000-0000-4000-8000-000000004747';
+    const clientId='10000000-0000-4000-8000-000000004748';
+    const projection={id,title:'Carrera suave',visible:true,visibility:'full',
+      modality:'guiada_en_app',ownership:'guided_in_app',canClientStart:true,
+      canClientExecute:true,appointmentId:null,
+      session:{id,clientId,status:'publicado',deliveryOwnership:'guided_in_app',
+        deliveryModality:'guiada_en_app',clientVisibilityLevel:'full',durationMinutes:60,
+        blocks:[{id:'block1',type:'exercise',exerciseId:'e-run',
+          name:'Carrera suave',sets:1,plannedDurationMinutes:35,plannedPace:'5:30',targetRpe:6}],
+        coachPrivateNotes:'PRIVADO_NO_MOSTRAR'}};
+    const mock={kind:'sesion',role:'client',serviceActive:true,
+      selectedClient:{modality:'hibrido'},
+      rc39:{role:'client',sessionProjections:[projection],appointments:[]},
+      sessionPreviewAssets:{catalog:[{id:'e-run',name_es:'Carrera suave'}],mediaMap:null}};
+    const target=document.querySelector('.m26-route');
+    if(!target)throw Error('R47_REAL_SHELL_BODY_NOT_FOUND');
+    target.outerHTML=renderRc39Route(mock);
+  });
+  const route=page.locator('.m26-rc39-sessions');
+  const card=route.locator('.m26-rc39-session-card').first();
+  await expect(card).toBeVisible();
+  const action=card.locator('> .m26-session-preview-actions[data-client-session-primary] > button');
+  await expect(action).toBeVisible();
+  await expect(action).toContainText('Preparar entrenamiento');
+  await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
+  await expect(card.locator('.m26-rc39-session-content')).toHaveCount(1);
+  await expect(card.locator('.m26-rc39-session-content')).not.toHaveAttribute('open','');
+  await expect(card).not.toContainText('PRIVADO_NO_MOSTRAR');
+  await expect(card).not.toContainText('Contenido completo');
+  await action.scrollIntoViewIfNeeded();
+  await action.focus();
+  const geometry=await page.evaluate(()=>{
+    const b=document.querySelector('.m26-rc39-session-card [data-client-session-primary] button');
+    const d=document.querySelector('.m26-rc39-session-card .m26-rc39-session-content');
+    const nav=document.querySelector('.m26-client-bottom-nav-layer');
+    const r=el=>{const x=el.getBoundingClientRect();return {top:x.top,bottom:x.bottom,left:x.left,right:x.right,width:x.width,height:x.height}};
+    const btn=r(b),details=r(d),dock=nav?r(nav):null;
+    const hit=document.elementFromPoint(btn.left+btn.width/2,btn.top+btn.height/2);
+    return {btn,details,dock,focus:document.activeElement===b,
+      hit:hit===b||b.contains(hit),
+      horizontal:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-document.documentElement.clientWidth};
+  });
+  expect(geometry.btn.height).toBeGreaterThanOrEqual(52);
+  expect(geometry.btn.top).toBeLessThan(geometry.details.top);
+  expect(geometry.focus).toBe(true);
+  expect(geometry.hit).toBe(true);
+  expect(geometry.horizontal).toBeLessThanOrEqual(2);
+  if(width<=390&&geometry.dock)expect(geometry.btn.bottom).toBeLessThanOrEqual(geometry.dock.top+1);
+  const disclosure=card.locator('.m26-rc39-session-content');
+  await disclosure.locator('summary').click();
+  await expect(disclosure).toHaveAttribute('open','');
+  await expect(disclosure).toContainText('Carrera suave');
+  await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
+  await testInfo.attach('r47-client-session-real-render-'+testInfo.project.name+'.png',{
+    body:await page.screenshot({fullPage:true,animations:'disabled',caret:'hide'}),contentType:'image/png'});
+});
