@@ -3437,12 +3437,8 @@
   }
 }
 
-/* SIGNATURE MASTER U90 · Stitch art direction → existing authenticated product.
- * One source-level, role-aware composition pass across all 43 existing routes.
- * Layout and presentation only: no demo data, no new remote actions, no permissions.
- * Preserve legitimate input, focus, scrolling, local tables, chart semantics and
- * dialogs. Never replace role-specific data with the Stitch prototype's contents.
- */
+/* SIGNATURE MASTER U90 · Stitch applied to 43 real role routes. Visual only;
+ * preserve interactions, focus, data, permissions and dialogs. */
 .m26-shell[data-m26-role]{
   --iberfit-master-base:#0a1510;
   --iberfit-master-field:#0f2119;
@@ -3792,17 +3788,12 @@
 }
 
 /* U95 · No false low-contrast transitions during authenticated route updates.
- * The legacy .m26-route > * staggered entrance starts entire panels at zero
- * opacity on each real rerender, dimming labels and actions during navigation.
- * Restore immediate semantic visibility; preserve button/focus feedback and
- * deliberate heading-only motion, without changing state or permissions. */
+ * Keep real panels visible immediately; no auth or state changes. */
 .m26-shell[data-m26-role] .m26-main .m26-route > *{
   animation:none;
 }
 
-/* U90 WCAG regression gate: meaningful secondary actions must remain legible
- * against the actual dark surface across desktop and touch. These selectors
- * target real controls; do not lighten disabled actions or alter permissions. */
+/* U90 WCAG: secondary live controls need legible dark-surface contrast. */
 .m26-shell[data-m26-role="client"] .m26-main
   summary[data-m26-client-guide="secondary-actions"] > :is(span,small){
   color:#c6d0c8;
@@ -3811,9 +3802,7 @@
   .m26-text-action[data-m26-area="clientes"]{
   color:#dfc98f;
 }
-/* Source-verified WCAG correction for exact existing Client/Coach content.
- * The main hierarchy is real; never recolor only a fake Stitch prototype.
- * Maintain >4.5:1 for 12-16px captions on the real dark surfaces. */
+/* WCAG: source-verified small Client/Coach captions retain 4.5:1 contrast. */
 .m26-shell[data-m26-role="client"] .m26-main .m26-client-health-heading .m26-eyebrow{
   color:#e8c887;
 }
@@ -3851,8 +3840,7 @@
   color:#e0e8dd;
 }
 /* U91 · Stitch R37 Coach cartera: search must precede priority insights.
-   Keep every existing filter, priority item and client action operational.
-   Tablet and mobile prioritise one full-width search field, no floating layers. */
+ * Filters and actions remain operational on mobile/tablet. */
 .m26-shell[data-m26-role="coach"] .m26-main .m26-client-controls > label:first-child{
   min-inline-size:0;
 }
@@ -3883,8 +3871,7 @@
   display:block;box-sizing:border-box;min-inline-size:0;inline-size:min(100%,calc(100vw - 3rem));max-inline-size:100%;overflow-x:auto;
   overscroll-behavior-inline:contain;scroll-padding-inline:1rem;
   -webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#C5A059 #102019;
-  /* Existing legacy table widths override nested style. The explicit
-   * selectors below own actual table geometry, not just the viewport box. */
+  /* U115 owns table intrinsic width; U110 owns scrollport. */
   table{border-collapse:separate;border-spacing:0}
   :is(th,td){white-space:normal;overflow-wrap:break-word;vertical-align:middle}
   &:focus-visible{outline:3px solid var(--iberfit-color-focus);outline-offset:2px}
@@ -3892,8 +3879,7 @@
  }
  .m26-admin-table-scroll-hint{color:#d6ded6;font-size:.8rem;line-height:1.45;margin-block:.35rem .65rem}
 }
-/* U115 · Admin table owns intrinsic columns without legacy CSS priorities.
- * Preserve a local scrollport and readable data/actions on 320/390 screens. */
+/* U115 · Admin table owns intrinsic columns on touch, within U110 scrollport. */
 .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table{
   display:table;
   inline-size:max-content;
