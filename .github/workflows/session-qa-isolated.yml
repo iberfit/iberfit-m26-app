@@ -2,6 +2,8 @@ name: IBERFIT Session QA isolated
 
 on:
   pull_request:
+    # PRs leaving DRAFT must re-run qa-readonly at the same exact SHA.
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/workflows/session-*.js'

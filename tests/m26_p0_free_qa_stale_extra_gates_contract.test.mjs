@@ -31,6 +31,8 @@ test('P0 Supabase Free: daily-use visual QA rejects stale PR before shared crede
 
 test('P0 Supabase Free: isolated session QA rejects stale PR but preserves offline and local browser E2E',()=>{
   assertSafeCurrentPrGate(isolated,'  qa-readonly:','  offline:');
+  // Canary Policy requires qa-readonly success after Ready for Review, not a DRAFT skip.
+  assert.match(isolated,/types: \[opened, synchronize, reopened, ready_for_review, converted_to_draft\]/u);
   assert.match(isolated,/  qa-readonly:\n    needs: \[offline, pr-current-head\]/u);
   assert.match(isolated,/  offline:\n    if: github.event_name == 'workflow_dispatch'/u);
   assert.match(isolated,/  browser-live-workout:\n    needs: offline/u);
