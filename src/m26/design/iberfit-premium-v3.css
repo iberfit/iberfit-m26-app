@@ -3883,13 +3883,31 @@
   display:block;box-sizing:border-box;min-inline-size:0;inline-size:min(100%,calc(100vw - 3rem));max-inline-size:100%;overflow-x:auto;
   overscroll-behavior-inline:contain;scroll-padding-inline:1rem;
   -webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#C5A059 #102019;
-  table{inline-size:max-content;min-inline-size:100%;border-collapse:separate;border-spacing:0}
-  :is(th,td){min-inline-size:8.25rem;white-space:normal;overflow-wrap:break-word;vertical-align:middle}
-  :is(th,td):first-child{min-inline-size:10rem}
-  :is(th,td):last-child{min-inline-size:11.25rem}
+  /* Existing legacy table widths override nested style. The explicit
+   * selectors below own actual table geometry, not just the viewport box. */
+  table{border-collapse:separate;border-spacing:0}
+  :is(th,td){white-space:normal;overflow-wrap:break-word;vertical-align:middle}
   &:focus-visible{outline:3px solid var(--iberfit-color-focus);outline-offset:2px}
   @media (forced-colors:active){scrollbar-color:auto;border-color:CanvasText}
  }
  .m26-admin-table-scroll-hint{color:#d6ded6;font-size:.8rem;line-height:1.45;margin-block:.35rem .65rem}
+}
+/* U115 · Effective native table geometry: intrinsic columns, local scroll.
+ * Bounded .m26-admin-table already owns keyboard/touch overflow. !important
+ * is scoped to this legacy-rendered region to defeat old table width resets. */
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table{
+  display:table!important;
+  inline-size:max-content!important;
+  min-inline-size:100%!important;
+  table-layout:auto!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table :is(th,td){
+  min-inline-size:8.25rem!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table :is(th,td):first-child{
+  min-inline-size:10rem!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table :is(th,td):last-child{
+  min-inline-size:11.25rem!important;
 }
 /* END SIGNATURE MASTER U90 */
