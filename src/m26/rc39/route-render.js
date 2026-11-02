@@ -156,7 +156,7 @@ const previewFacts=(plan={},role='coach')=>{
       [plan.reps||null,'Repeticiones o tiempo'],
       [rest===null?null:rest+' s','Descanso'],
       [effort===null?null:effort+' de 10','Esfuerzo orientativo'],
-      [reserve===null?null:reserve+' repeticiones','Repeticiones en reserva'],
+      [reserve===null?null:reserve+' '+(reserve===1?'repetición':'repeticiones'),'Repeticiones en reserva'],
       [plan.tempo||null,'Ritmo del movimiento'],
       [plan.plannedLoad||plan.load||null,'Carga orientativa'],
       [duration===null?null:duration+' min','Tiempo de trabajo'],
