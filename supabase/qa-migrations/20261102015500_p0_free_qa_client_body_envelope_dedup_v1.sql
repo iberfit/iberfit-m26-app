@@ -3,7 +3,7 @@
 -- Never apply to PROD. Does not touch stored rows, RLS, grants or tokens.
 DO $p0_migrate$
 DECLARE v_source text; v_next text;
-  v_anchor text := E'  return jsonb_build_object(\\n';
+  v_anchor text := E'  return jsonb_build_object(\n';
   v_patch text := $p0_patch$
   -- P0 FREE QA: exact-envelope equality is required for EACH compacted body.
   -- The client rebuilds all five fields before canonical reconciliation.
