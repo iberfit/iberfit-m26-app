@@ -19,3 +19,6 @@ READ-ONLY QA SQL for synthetic Client A showed all **1,158 of 1,158** canonical 
 
 ## Outer public bootstrap boundary (critical security correction)
 The private/inner `rc29` function is **not** changed. The public `iberfit_bootstrap_v26()` independently reprojects Client fields and filters publication, and would discard an inner-only marker. For that reason the QA-only candidate runs strictly AFTER the public function's existing role/privacy filtering, immediately before its `return v_payload`. The source hash guard is the **outer** function MD5. The marker is inserted only after final safe projection. The SDK validates and reverses it BEFORE canonical reconciliation. Verify exact final Client HTTP with flag OFF and ON; a green inner SQL projection alone is insufficient.
+
+## Rollout enable gate
+The optional `supabase/qa-rollouts/20261102015500_p0_free_qa_client_body_envelope_dedup_v1.enable.sql` activates the QA pilot only after the public function patch is deployed and all earlier historical reference flags are true. It reconstructs the exact unpatched source and checks MD5 before enabling. It must **NOT** be executed until the UI release and same-SHA end-to-end suite are ready. The kill-switch only writes the QA setting false. All other role/security/permission flows stay unchanged.

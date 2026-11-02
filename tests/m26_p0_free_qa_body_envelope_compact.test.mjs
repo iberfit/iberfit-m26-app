@@ -94,3 +94,14 @@ test('QA live history probe records marker shape without storing private values'
  assert.match(body,/chromiumNetworkBodyBytes/u);
  assert.doesNotMatch(body,/console\.log\(.*compactedBodies/u);
 });
+
+test('feature enable script is guarded by exact outer source and prior Client history flags',()=>{
+ const sql=readFileSync('supabase/qa-rollouts/20261102015500_p0_free_qa_client_body_envelope_dedup_v1.enable.sql','utf8');
+ assert.match(sql,/P0_QA_SOURCE_DRIFT_OR_PATCH_NOT_APPLIED/u);
+ assert.match(sql,/free_client_completed_history_demand_qa/u);
+ assert.match(sql,/free_client_compact_legacy_refs_qa/u);
+ assert.match(sql,/free_client_hide_qa_fixture_checkin_revisions_v1/u);
+ assert.match(sql,/md5\(v_original\)/u);
+ assert.ok(sql.includes('public.iberfit_bootstrap_v26()'));
+ assert.doesNotMatch(sql,/ALTER\s+TABLE|GRANT\s+/iu);
+});
