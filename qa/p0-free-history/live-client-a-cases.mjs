@@ -69,6 +69,17 @@ test('Client A atomically restores full completed sessions AND execution results
     if(Array.isArray(data?.sessions)&&Array.isArray(data?.sessionExecutions)
        &&Array.isArray(data?.m26Entities)){
       const canon=new Set(data.m26Entities.map(e=>String(e?.entityType)+':'+String(e?.entityId)));
+      // Exact final public HTTP body: never log IDs, tokens or values.
+      const metaMark='__iberfitQaClientBodyMetaV1';
+      const compactedBodies=data.m26Entities.filter(e=>e&&typeof e==='object'
+        &&Object.hasOwn(e,metaMark));
+      const invalidBodies=compactedBodies.filter(e=>
+        e[metaMark]!==1
+        ||!['planning','session','session_execution'].includes(e.entityType)
+        ||!e.body||typeof e.body!=='object'||Array.isArray(e.body)
+        ||['id','clientId','status','revision','updatedAt']
+          .some(key=>Object.hasOwn(e.body,key)));
+      const canonicalBodyMeta={eligible:compactedBodies.length,invalid:invalidBodies.length};
       const summarize=(rows,type)=>{
         // Inspect the FINAL browser RPC after outer role/privacy projection.
         // Sessions carry id+status+empty blocks so the outer publication
@@ -95,6 +106,7 @@ test('Client A atomically restores full completed sessions AND execution results
         .map(row=>String(row?.id||'')).filter(Boolean));
       compactBootstraps.push({sessions:summarize(data.sessions,'session'),
         executions:summarize(data.sessionExecutions,'session_execution'),
+        canonicalBodyMeta,
         checkinRevisions:{visible:visibleCheckinIds.size,
           mapped:revisionKeys.size,
           everyVisibleMapped:[...visibleCheckinIds].every(id=>revisionKeys.has('checkin:'+id))}});
@@ -158,6 +170,11 @@ test('Client A atomically restores full completed sessions AND execution results
  expect(compact.executions.compact).toBeGreaterThanOrEqual(396);
  expect(compact.sessions.resolved).toBe(compact.sessions.compact);
  expect(compact.executions.resolved).toBe(compact.executions.compact);
+ expect(compact.canonicalBodyMeta.invalid,'QA canonical envelope marker must be structurally valid').toBe(0);
+ if(process.env.M26_QA_BODY_META_EXPECT_ACTIVE==='true'){
+   expect(compact.canonicalBodyMeta.eligible,'QA Client A marker active only after explicit rollout')
+     .toBeGreaterThanOrEqual(1_000);
+ }
  // Full-API test: hidden QA certification check-in revisions are omitted;
  // real visible check-ins keep their conflict/revision metadata unchanged.
  expect(compact.checkinRevisions.visible,'QA Client A visible check-ins').toBeGreaterThan(0);
@@ -165,6 +182,7 @@ test('Client A atomically restores full completed sessions AND execution results
  expect(compact.checkinRevisions.everyVisibleMapped).toBe(true);
  evidence.checkinRevisions=compact.checkinRevisions;
  evidence.compactLegacyRefs={sessions:compact.sessions,executions:compact.executions};
+ evidence.canonicalBodyMeta=compact.canonicalBodyMeta;
  expect(evidence.notBillingEgress).toBe(true);
  await mkdir('recovery/p0-free-history',{recursive:true});
  await writeFile('recovery/p0-free-history/live-qa-wire.json',JSON.stringify(evidence,null,2)+'\n');

@@ -193,6 +193,46 @@ function normalizeCollection(data, key) {
   return [];
 }
 
+// P0 Supabase Free: reversible, QA Client-only wire metadata compaction.
+// This restores the EXACT removed canonical body fields before ANY state or
+// role projection. Not a relaxation of owner, RLS, auth or publication checks.
+export function expandQaClientCanonicalBodyEnvelope(snapshot){
+  const entities=snapshot?.data?.m26Entities;
+  if(!Array.isArray(entities)||!entities.some(item=>item&&typeof item==='object'
+    &&Object.hasOwn(item,'__iberfitQaClientBodyMetaV1')))return snapshot;
+  // Application hydration enriches environment into {mode:'QA',...}.
+  // Match the existing verified snapshot environment helper, not raw string.
+  if(environmentMode(snapshot.environment)!=='QA'
+    ||!['cliente','client'].includes(snapshot.user?.role)
+    ||snapshot.canary?.active!==true||snapshot.canary?.scope!=='allowlist')
+    throw new Error('M26_QA_BODY_META_SCOPE_FORBIDDEN');
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+  const owner=String(snapshot.user?.clientId||'');
+  if(!uuid.test(owner))throw new Error('M26_QA_BODY_META_OWNER_REQUIRED');
+  const fields=['id','clientId','status','revision','updatedAt'];
+  const result=entities.map(item=>{
+    if(!item||typeof item!=='object'||!Object.hasOwn(item,'__iberfitQaClientBodyMetaV1'))
+      return item;
+    const body=item.body;
+    if(item['__iberfitQaClientBodyMetaV1']!==1
+      ||!['planning','session','session_execution'].includes(item.entityType)
+      ||!uuid.test(String(item.entityId||''))
+      ||String(item.clientId||'')!==owner
+      ||typeof item.status!=='string'||!item.status.trim()
+      ||!Number.isSafeInteger(item.revision)||item.revision<0
+      ||typeof item.updatedAt!=='string'||!Number.isFinite(Date.parse(item.updatedAt))
+      ||!body||typeof body!=='object'||Array.isArray(body)
+      ||fields.some(key=>Object.hasOwn(body,key)))
+      throw new Error('M26_QA_BODY_META_INVALID');
+    const clean={...item};
+    delete clean['__iberfitQaClientBodyMetaV1'];
+    clean.body={...body,id:item.entityId,clientId:item.clientId,status:item.status,
+      revision:item.revision,updatedAt:item.updatedAt};
+    return clean;
+  });
+  return {...snapshot,data:{...snapshot.data,m26Entities:result}};
+}
+
 export function stateFromBootstrap(rawSnapshot, previous = createProductionState()) {
   qaStage('rc64-state-start');
   // Size and role checks apply to the authenticated, compact QA-only wire
@@ -201,7 +241,8 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
   try{
     const envelope=assertProductionSnapshot(rawSnapshot);
     qaStage('rc64-state-wire-validated');
-    snapshot=expandQaCanonicalExecutionSummaries(envelope);
+    snapshot=expandQaCanonicalExecutionSummaries(
+      expandQaClientCanonicalBodyEnvelope(envelope));
     qaStage('rc64-state-reconstruction-validated');
   }catch(error){
     switch(String(error?.message||'')){
