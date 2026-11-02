@@ -15,6 +15,10 @@ on:
       - 'src/m26/rc39/rc39.css'
       - 'src/m26/modules/route-render.js'
       - 'tests/stitch_client_composition.test.mjs'
+      - 'src/m26/shell/shell-render.js'
+      - 'src/m26/admin/route-render.js'
+      - 'src/m26/ui/i18n-surface-admin.js'
+      - 'qa/visual/signature-route-shell.fixture.mjs'
   workflow_dispatch:
 permissions:
   contents: read
