@@ -130,6 +130,17 @@ Contrato crítico histórico:
 
 Todo cambio de formularios debe proteger este comportamiento con tests proporcionales.
 
+## Barra inferior Cliente · contrato estructural (SIGNATURE R46)
+
+En móvil y tablet compacta, la barra de navegación Cliente **permanece visualmente fija en el borde inferior**, pero **no se superpone al contenido**. La implementación real utiliza espacio reservado en el layout y un scrollport independiente para la ruta:
+
+- La barra vive como hermana del contenido desplazable en `.m26-client-route-shell`, no como un overlay `position:fixed` que tape tarjetas, controles o textos.
+- `.m26-shell[data-m26-role="client"]`, `.m26-workspace` y `.m26-main` delimitan el alto visible; el contenido hijo tiene `min-height:0` y `overflow-y:auto`; el dock mantiene su posición sin desplazar el documento.
+- Último botón, último mensaje y recuperación/reintento alcanzables por scroll y foco de teclado **por encima del dock**. Se reserva su altura física y `env(safe-area-inset-bottom)`; no basta con añadir un `padding-bottom` visual sobre contenido oculto.
+- Comprobar cambios de ruta, textos ampliados, altura reducida, teclado, orientación, 320/360/390/430 CSS px, DPR2/3, zoom y PWA; el menú «Más» debe conservar foco, acceso y cierre recuperable.
+- La referencia Stitch R45 es visual; R46 corrige la estructura del prototipo. **No importar directamente el `position:fixed` de un HTML de Stitch** a la aplicación. En la aplicación usar la estructura canónica en `src/m26/ui/client-bottom-nav.css`; mantener eventos, permisos y renderizado existentes.
+- `qa/device-experience/signature-route-shell.spec.mjs` protege el espacio reservado, el scroll de toda ruta Cliente y la accesibilidad del último botón. Es QA con identidad sintética, **no** certificación de autenticación ni de ejecución real.
+
 ## Responsive y dispositivos
 
 - desktop = analizar y construir;
