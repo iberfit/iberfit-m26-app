@@ -509,54 +509,53 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   // U67: this isolated QA must use the same CSS scoping hierarchy as
   // production. Previously it omitted .m26-workspace, so the screenshots
   // showed inline eyebrow/title and missed premium surface declarations.
-  const surface=await screen.locator('.m26-client-sessions-brief').evaluate(el=>{
-    const eyebrow=el.querySelector(':scope > .m26-eyebrow');
-    const title=el.querySelector(':scope > strong');
-    const copy=el.querySelector(':scope > p');
-    const a=eyebrow?.getBoundingClientRect();
-    const b=title?.getBoundingClientRect();
-    const c=copy?.getBoundingClientRect();
+  // R48: ready sessions no longer create a redundant notice ahead of the CTA.
+  await expect(screen.locator('.m26-client-sessions-brief')).toHaveCount(0);
+  await expect(screen.locator('[data-signature-session-guidance="ready"]')).toHaveCount(0);
+  const surface=await screen.locator(':scope > .m26-route-intro').evaluate(el=>{
+    const eyebrow=el.querySelector(':scope > div > .m26-eyebrow');
+    const heading=el.querySelector(':scope > div > h2');
+    const a=eyebrow?.getBoundingClientRect(),b=heading?.getBoundingClientRect();
     const box=el.getBoundingClientRect();
-    const css=getComputedStyle(el);
     return {
       hasWorkspace:Boolean(el.closest('.m26-shell > .m26-workspace')),
-      display:css.display,
-      columns:css.gridTemplateColumns,
-      text:el.textContent?.trim(),
+      display:getComputedStyle(el).display,
+      heading:heading?.textContent?.trim(),
       outerWidth:box.width,
       labelEnds:a?.bottom||0,titleStarts:b?.top||0,
-      titleEnds:b?.bottom||0,copyStarts:c?.top||0,
-      textWrap:getComputedStyle(title).overflowWrap,
+      headingWidth:b?.width||0,
+      scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,
     };
   });
   expect(surface.hasWorkspace,'QA must match the production shell CSS ancestry').toBe(true);
-  expect(surface.display,'Client status must use the actual premium grid').toBe('grid');
-  expect(surface.labelEnds,'Eyebrow must appear above the title').toBeLessThan(surface.titleStarts);
-  expect(surface.titleEnds,'Title must appear above explanation').toBeLessThan(surface.copyStarts);
+  expect(surface.display,'Client introduction retains premium grid composition').toBe('grid');
+  expect(surface.labelEnds,'Eyebrow must appear above the title').toBeLessThanOrEqual(surface.titleStarts+1);
+  expect(surface.heading).toBe('Tu entrenamiento');
   expect(surface.outerWidth).toBeGreaterThan(180);
-  expect(surface.textWrap).not.toBe('normal');
+  expect(surface.headingWidth).toBeLessThanOrEqual(surface.outerWidth+1);
+  expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth+2);
 
   await expect(screen.locator('[data-rc39-session]')).toHaveCount(2);
   // U73 · Count is editorial metadata for the entire session grid, not
   // a third desktop column that squeezes both session cards.
-  const captionGeometry=await screen.locator('.m26-rc39-week').evaluate(el=>{
-    const count=el.querySelector(':scope > .m26-session-available-summary');
-    const card=el.querySelector(':scope > .m26-rc39-session-card');
-    const r=el.getBoundingClientRect(),c=count?.getBoundingClientRect(),b=card?.getBoundingClientRect();
-    return {gridWidth:r.width,captionWidth:c?.width||0,captionBottom:c?.bottom||0,
-      firstCardTop:b?.top||0,captionLeft:c?.left||0,gridLeft:r.left};
+  // Mixed scenario has one ready guided session, so a "1 entrenamiento"
+  // caption is repetitive and must not squeeze the two real session cards.
+  await expect(screen.locator('.m26-session-available-summary')).toHaveCount(0);
+  const gridGeometry=await screen.locator('.m26-rc39-week').evaluate(el=>{
+    const rect=el.getBoundingClientRect();
+    const cards=[...el.querySelectorAll(':scope > .m26-rc39-session-card')];
+    return {gridWidth:rect.width,cardCount:cards.length,
+      horizontalOverflow:el.scrollWidth>el.clientWidth+1,
+      cardWidths:cards.map(item=>item.getBoundingClientRect().width)};
   });
-  expect(captionGeometry.captionWidth,'Ready-session caption must span the full session grid')
-    .toBeGreaterThanOrEqual(captionGeometry.gridWidth*.93);
-  expect(captionGeometry.captionBottom,'Session cards must start below the caption row')
-    .toBeLessThanOrEqual(captionGeometry.firstCardTop+1);
+  expect(gridGeometry.cardCount).toBe(2);
+  expect(gridGeometry.horizontalOverflow).toBe(false);
   if((testInfo.project.use.viewport?.width||0)>=1200){
-    const gridColumns=await screen.locator('.m26-rc39-week').evaluate(el=>
+    const columns=await screen.locator('.m26-rc39-week').evaluate(el=>
       getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length);
-    expect(gridColumns,'Two published sessions must not leave a third blank desktop column').toBe(2);
+    expect(columns,'Two published sessions must not leave a third blank desktop column').toBe(2);
   }
-  expect(Math.abs(captionGeometry.captionLeft-captionGeometry.gridLeft))
-    .toBeLessThanOrEqual(2);
+  expect(gridGeometry.cardWidths.every(width=>width>=150)).toBe(true);
 
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_COACH_NOTE_NEVER_CLIENT');
   await expect(page.locator('body')).not.toContainText('QA_PRIVATE_SUPERVISED_NEVER_CLIENT');
@@ -602,7 +601,8 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
   await expect(self).toContainText('Press de pecho');
   await expect(self).toContainText('Remo TRX');
   await expect(self).toContainText('3-1-1');
-  await expect(self).toContainText('RPE');
+  await expect(self).toContainText('Esfuerzo orientativo');
+  await expect(self.locator('.m26-session-preview-facts dt').filter({hasText:/^RPE$/})).toHaveCount(0);
   // A missing exercise image must remain legible in the *computed* theme.
   // This checks the actual painted CSS in Chromium and WebKit, not only a
   // stylesheet substring; an absent image cannot justify unreadable text.
@@ -660,24 +660,19 @@ test('SIGNATURE published mixed Client route separates real guided preview and C
         };
       });
       expect(compact.horizontalOverflow,'320 px must never hide a published-session action sideways').toBe(false);
-      const compactBrief=await screen.locator('.m26-client-sessions-brief').evaluate(el=>{
-        const eyebrow=el.querySelector(':scope > .m26-eyebrow').getBoundingClientRect();
-        const title=el.querySelector(':scope > strong').getBoundingClientRect();
-        const copy=el.querySelector(':scope > p').getBoundingClientRect();
-        const boundary=el.getBoundingClientRect();
-        return {
-          display:getComputedStyle(el).display,
-          eyebrowBottom:eyebrow.bottom,titleTop:title.top,
-          titleBottom:title.bottom,copyTop:copy.top,
-          left:boundary.left,right:boundary.right,viewport:document.documentElement.clientWidth,
-        };
+      // At 320 px the title and the authorized CTA remain readable without
+      // bringing back the three explanatory panels removed in R48.
+      const compactHeading=await screen.locator(':scope > .m26-route-intro').evaluate(el=>{
+        const heading=el.querySelector('h2');
+        const title=heading.getBoundingClientRect(),shell=el.getBoundingClientRect();
+        return {left:title.left,right:title.right,
+          shellLeft:shell.left,shellRight:shell.right,
+          overflow:el.scrollWidth>el.clientWidth+1};
       });
-      expect(compactBrief.display).toBe('grid');
-      expect(compactBrief.titleTop).toBeGreaterThan(compactBrief.eyebrowBottom);
-      expect(compactBrief.copyTop).toBeGreaterThan(compactBrief.titleBottom);
-      expect(compactBrief.left).toBeGreaterThanOrEqual(-1);
-      expect(compactBrief.right).toBeLessThanOrEqual(compactBrief.viewport+1);
-
+      expect(compactHeading.overflow).toBe(false);
+      expect(compactHeading.left).toBeGreaterThanOrEqual(compactHeading.shellLeft-1);
+      expect(compactHeading.right).toBeLessThanOrEqual(compactHeading.shellRight+1);
+      await expect(screen.locator('.m26-client-sessions-brief')).toHaveCount(0);
       expect(compact.startHeight).toBeGreaterThanOrEqual(44);
       expect(compact.startWidth).toBeGreaterThanOrEqual(44);
       await page.screenshot({path:out+'/live-workout-mobile-320-chromium-mixed-preview.png',fullPage:true,animations:'disabled'});
