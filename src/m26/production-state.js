@@ -200,7 +200,9 @@ export function expandQaClientCanonicalBodyEnvelope(snapshot){
   const entities=snapshot?.data?.m26Entities;
   if(!Array.isArray(entities)||!entities.some(item=>item&&typeof item==='object'
     &&Object.hasOwn(item,'__iberfitQaClientBodyMetaV1')))return snapshot;
-  if(snapshot.environment!=='QA'
+  // Application hydration enriches environment into {mode:'QA',...}.
+  // Match the existing verified snapshot environment helper, not raw string.
+  if(environmentMode(snapshot.environment)!=='QA'
     ||!['cliente','client'].includes(snapshot.user?.role)
     ||snapshot.canary?.active!==true||snapshot.canary?.scope!=='allowlist')
     throw new Error('M26_QA_BODY_META_SCOPE_FORBIDDEN');
