@@ -146,15 +146,16 @@ test('U99 Client primary action precedes real 7-day plan, then Entreno/Evolució
   assert.ok(html.includes('data-m26-area="'+area+'"'),area);
  assert.equal((html.match(/<time datetime=/g)||[]).length,7);
 });
-test('U99 Coach calendar retains genuine day/week navigation and role boundary',()=>{
+test('U99 Coach legacy FullCalendar v6 styling removed; genuine v7 day/week retained',()=>{
  const fullcalendar=readFileSync(new URL('../src/m26/agenda/fullcalendar-agenda.js',import.meta.url),'utf8');
  const css=readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
- const block=css.split('U99 · Stitch-informed Coach calendar')[1]?.split('/* IBERFIT M27')[0]||'';
- for(const name of ['.fc-toolbar-title','.fc-col-header-cell-cushion','.fc-day-today','.fc-timegrid-event','.fc-button-active'])
-  assert.ok(block.includes(name),'missing '+name);
- assert.ok(block.includes('@media (min-width:720px) and (max-width:1050px)'));
- assert.ok(block.includes('@media (forced-colors:active)'));
- assert.doesNotMatch(block,/display:none|pointer-events:none|position:fixed|content:url|!important/);
+ assert.doesNotMatch(css,/U99 · Stitch-informed Coach calendar/);
+ const v7=css.split('U102 · Actual FullCalendar 7 Monarch runtime contract')[1]?.split('/* IBERFIT M27')[0]||'';
+ for(const name of ['--fc-monarch-background:#101E17','--fc-monarch-primary:#D7BA7C',
+   '--fc-monarch-event-contrast:#F5F5F0','[role="heading"]','[role="tab"]'])
+  assert.ok(v7.includes(name),'native Monarch v7 '+name);
+ assert.ok(v7.includes('@media(forced-colors:active)'));
+ assert.doesNotMatch(v7,/display:none|pointer-events:none|position:fixed|content:url|!important/);
  assert.ok(fullcalendar.includes("initialView:compact?'timeGridDay':'timeGridWeek'"));
  assert.ok(fullcalendar.includes('timeZone:RC62_AGENDA_TIME_ZONE'));
  assert.ok(fullcalendar.includes('editable:false'));
