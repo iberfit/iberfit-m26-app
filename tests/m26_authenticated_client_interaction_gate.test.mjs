@@ -94,3 +94,20 @@ test('Client More cannot survive route navigation and settings geometry stays vi
   assert.ok(icons.includes('position:fixed!important'),'settings popover fixed geometry must override later visual skins');
   assert.ok(icons.includes('box-sizing:border-box'),'settings popover max-height must include padding and border');
 });
+
+
+test('P0 Free QA: Client interaction read-only suite avoids superseded PR login',()=>{
+  const guard=workflow.split('  pr-current-head:')[1]?.split('  authenticated-client-controls:')[0]||'';
+  const client=workflow.split('  authenticated-client-controls:')[1]||'';
+  assert.match(workflow,/pull-requests: read/u);
+  assert.match(guard,/GITHUB_API_URL.*GITHUB_REPOSITORY.*pulls.*PR_NUMBER/u);
+  assert.match(guard,/jq -r '\.draft \| tostring'/u);
+  assert.match(guard,/P0_QA_SUPERSEDED_PR_SKIP/u);
+  assert.doesNotMatch(guard,/SUPABASE_(SERVICE_ROLE|PUBLISHABLE_KEY)|M26_QA_.*PASSWORD/u);
+  assert.match(client,/needs: pr-current-head/u);
+  assert.match(client,/needs\.pr-current-head\.outputs\.current == 'true'/u);
+  assert.match(client,/environment: m26-canary-readonly/u);
+  assert.match(client,/M26_QA_CLIENT_B_PASSWORD/u);
+  assert.match(client,/group: iberfit-authenticated-client-interaction-readonly/u);
+  assert.match(client,/cancel-in-progress: false/u);
+});

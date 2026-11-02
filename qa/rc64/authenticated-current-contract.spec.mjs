@@ -11,6 +11,7 @@ import {
   isQaPrivateAvatarRead,
   isQaMissingPrivateAvatarResponse,
   unexpectedQaResourceErrors,
+  qaPublicRpcMemoStats,
 } from './secure-current-source-auth.mjs';
 import {evaluateRecoveredFirstFactor,mayRetryUserLoginAfterNetworkError} from './recovered-first-factor-contract.mjs';
 import {createQaSupabasePayloadFootprint} from './supabase-payload-footprint.mjs';
@@ -378,6 +379,7 @@ test('current authenticated contract separates privileged fail-closed identities
     });
     const payloadFootprint=createQaSupabasePayloadFootprint();
     payloadFootprint.attach(context);
+    const publicRpcCacheAtStart=qaPublicRpcMemoStats();
     const blocked=[];
     const externalFailures=[];
     const optionalReadFailures=[];
@@ -646,6 +648,20 @@ test('current authenticated contract separates privileged fail-closed identities
       });
       console.log(`RC64_CURRENT_AUTH_ACCOUNT_PASS:${account.name}`);
     }finally{
+      // Distinguish logical response size from real route.fetch() calls.
+      // Pure counters; no extra network requests or private response values.
+      const publicRpcCacheAtEnd=qaPublicRpcMemoStats();
+      const difference=(name)=>Math.max(0,publicRpcCacheAtEnd[name]-publicRpcCacheAtStart[name]);
+      console.log('M26_QA_PUBLIC_RPC_CACHE_TELEMETRY:'+JSON.stringify({
+        schema:'iberfit.qa.public-rpc-cache.telemetry.v1',
+        project:projectName,role:account.role,
+        backendNetworkReads:difference('networkReads'),
+        cacheHits:difference('cacheHits'),
+        sharedHits:difference('sharedHits'),
+        cacheEntries:publicRpcCacheAtEnd.entries,
+        extraHttpRequests:0,
+        containsPrivateData:false,
+      }));
       const sizes=await payloadFootprint.flush();
       console.log('M26_QA_SUPABASE_PAYLOAD_FOOTPRINT:'+JSON.stringify({
         project:projectName,role:account.role,...sizes,

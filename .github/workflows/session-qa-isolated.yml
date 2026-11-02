@@ -2,6 +2,8 @@ name: IBERFIT Session QA isolated
 
 on:
   pull_request:
+    # PRs leaving DRAFT must re-run qa-readonly at the same exact SHA.
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/workflows/session-*.js'
@@ -27,8 +29,52 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  pr-current-head:
+    name: P0 Supabase Free - reject superseded PR before QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      current: ${{ steps.verify.outputs.current }}
+    steps:
+      - name: Verify head of live PR without calling Supabase
+        id: verify
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_IS_DRAFT: ${{ github.event.pull_request.draft }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" != pull_request ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$PR_IS_DRAFT" == true ]]; then
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]] || { echo 'P0_QA_PR_NUMBER_INVALID' >&2; exit 41; }
+          [[ "$PR_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'P0_QA_PR_SHA_INVALID' >&2; exit 42; }
+          # Fail-closed on API failures rather than running stale QA.
+          response="$(curl --fail --silent --show-error --max-time 8 --retry 1 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          live_sha="$(jq -er '.head.sha' <<< "$response")"
+          live_state="$(jq -er '.state' <<< "$response")"
+          live_draft="$(jq -r '.draft | tostring' <<< "$response")"
+          if [[ "$live_sha" == "$PR_SHA" && "$live_state" == open && "$live_draft" == false ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "P0_QA_SUPERSEDED_PR_SKIP: no QA credentials or HTTP to Supabase"
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
   offline:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
@@ -106,7 +152,8 @@ jobs:
           retention-days: 7
 
   qa-readonly:
-    needs: offline
+    needs: [offline, pr-current-head]
+    if: ${{ needs.pr-current-head.outputs.current == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     runs-on: ubuntu-latest
     # Shared QA Coach/Client identities are exercised by Device Experience and
     # Canary deploy gates. Do not overlap their authenticated certification.
