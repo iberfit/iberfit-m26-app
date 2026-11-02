@@ -8,8 +8,8 @@ test('U26 enforces real physical pointer + hit test + route confirmation for eve
  assert.match(route,/document\.elementFromPoint\(x,y\)/u);
  assert.match(route,/expect\(hit\.area/u);
  assert.match(route,/expect\(hit\.disabled/u);
- assert.match(route,/page\.touchscreen\.tap\(x,y\)/u);
- assert.match(route,/page\.mouse\.click\(x,y\)/u);
+ assert.ok(route.includes('choice.tap({noWaitAfter:true,timeout:12000})'));
+ assert.ok(route.includes('choice.click({noWaitAfter:true,timeout:12000})'));
  assert.match(route,/expect\.poll\(\(\)=>activeArea\(page\)/u);
  assert.match(route,/must not cross role boundary/u);
  assert.match(route,/horizontal document overflow/u);
