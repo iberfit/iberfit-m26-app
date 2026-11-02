@@ -241,7 +241,7 @@ test('U108 Admin decision count remains grammatical and translatable without inv
 
 test('U110 Admin tabular data remains horizontally inspectable on touch and keyboard',()=>{
  const cssSection=s.split('SIGNATURE U110 · Admin factual tables:')[1]||'';
- for(const rule of ['.m26-admin-table[role="region"]','overflow-x:auto','inline-size:max-content',
+ for(const rule of ['.m26-admin-table[role="region"]','overflow-x:auto','inline-size:min(100%,calc(100vw - 3rem))','inline-size:max-content',
    'min-inline-size:100%','scrollbar-width:thin',':focus-visible','forced-colors:active'])
    assert.ok(cssSection.includes(rule),'required Admin table invariant '+rule);
  assert.doesNotMatch(cssSection,/display:none|visibility:hidden|pointer-events:none|transform:scale/);

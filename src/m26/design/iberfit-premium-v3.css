@@ -3880,7 +3880,7 @@
 /* SIGNATURE U110 · Admin factual tables: columns inspectable on touch */
 .m26-shell[data-m26-role="admin"] .m26-main{
  .m26-admin-table[role="region"]{
-  display:block;min-inline-size:0;max-inline-size:100%;overflow-x:auto;
+  display:block;box-sizing:border-box;min-inline-size:0;inline-size:min(100%,calc(100vw - 3rem));max-inline-size:100%;overflow-x:auto;
   overscroll-behavior-inline:contain;scroll-padding-inline:1rem;
   -webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#C5A059 #102019;
   table{inline-size:max-content;min-inline-size:100%;border-collapse:separate;border-spacing:0}

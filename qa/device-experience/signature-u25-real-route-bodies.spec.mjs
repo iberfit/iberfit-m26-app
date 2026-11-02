@@ -78,6 +78,7 @@ for(const role of ['client','coach','admin']){
             headings:headings.map(h=>h.textContent.trim()),
             columnScopes:headings.every(h=>h.scope==='col'),
             scrollable:el.scrollWidth>el.clientWidth+2,
+            geometry:{client:el.clientWidth,scroll:el.scrollWidth,viewport:document.documentElement.clientWidth,tableWidth:el.querySelector('table')?.getBoundingClientRect().width||0},
             scrolled:after>before,
             finalColumnVisible:Boolean(lastRect&&lastRect.right<=scrollRect.right+2&&lastRect.left>=scrollRect.left-2)};
           el.scrollLeft=before;
@@ -88,7 +89,7 @@ for(const role of ['client','coach','admin']){
         expect(table.columnScopes).toBe(true);
         expect(table.headings.at(-1)).toBe('Gestión');
         if(width<=390){
-          expect(table.scrollable,'Admin table should scroll rather than squash columns').toBe(true);
+          expect(table.scrollable,'Admin table must fit viewport and expose overflow, geometry: '+JSON.stringify(table.geometry)).toBe(true);
           expect(table.scrolled,'Admin table must scroll sideways').toBe(true);
           expect(table.finalColumnVisible,'Admin final action column fully inspectable').toBe(true);
         }
