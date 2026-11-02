@@ -5,7 +5,12 @@ import {renderHoyRoute} from '../src/m26/modules/route-render.js';
 
 const css=readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
 const marker='/* SIGNATURE B6 · Atelier Cliente';
-const b6=css.slice(css.indexOf(marker));
+// Keep B6 scoped to its original Client Today section. Later visual modules
+// (for example U78 prescription) are tested separately and must not inherit
+// B6's intentionally stricter Client Today selector-only contract.
+const b6Start=css.indexOf(marker);
+const b6End=css.indexOf('/* U78 · Editorial published prescription',b6Start);
+const b6=css.slice(b6Start,b6End>=0?b6End:undefined);
 
 function luminance(hex){
   const channels=[1,3,5].map(index=>Number.parseInt(hex.slice(index,index+2),16)/255);

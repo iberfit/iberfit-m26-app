@@ -180,7 +180,7 @@ const QUICK_ACTIONS=Object.freeze({
   ]),
 });
 
-function workspaceHome(vm){
+function workspaceHome(vm,{compactAdmin=false}={}){
   const role=vm.identity.role;
   const visible=role==='admin'?vm.activeArea==='admin-inicio':role==='coach'&&vm.activeArea==='hoy';
   if(!visible)return '';
@@ -191,11 +191,14 @@ function workspaceHome(vm){
     return `<button type="button" class="m26-workspace-action"${blocked?' disabled aria-disabled="true"':` data-m26-area="${escapeHtml(action.area)}"`}><span class="m26-workspace-action-icon">${renderIberfitIcon(areaIconName(action.area),{className:'m26-nav-icon'})}</span><span><strong>${escapeHtml(tx(action.title,action.area))}</strong><small>${escapeHtml(blocked?tx('common.clientRequired','Selecciona un cliente para continuar'):tx(action.copy,''))}</small></span><b aria-hidden="true">→</b></button>`;
   }).join('');
   const shortcuts=isAdmin
-    ?`<div class="m26-workspace-section-title"><strong>${escapeHtml(tx('workspace.admin.primary','Acceso rápido'))}</strong></div><div class="m26-workspace-actions">${cards}</div>`
+    ?compactAdmin
+      ?`<details class="m26-admin-quick-access" data-admin-quick-access><summary><strong>${escapeHtml(tx('workspace.admin.primary','Acceso rápido'))}</strong><span aria-hidden="true">＋</span></summary><div class="m26-workspace-actions">${cards}</div></details>`
+      :`<div class="m26-workspace-section-title"><strong>${escapeHtml(tx('workspace.admin.primary','Acceso rápido'))}</strong></div><div class="m26-workspace-actions">${cards}</div>`
     :`<details class="m26-workspace-shortcuts" data-m26-workspace-shortcuts="coach"><summary><strong>${escapeHtml(tx('workspace.coach.primary','Atajos de trabajo'))}</strong><span class="m26-workspace-shortcuts-toggle" aria-hidden="true">＋</span></summary><div class="m26-workspace-actions">${cards}</div></details>`;
   const hero=isAdmin
     ?`<div class="m26-workspace-hero"><div><p class="m26-eyebrow">${escapeHtml(tx('workspace.admin.eyebrow','IBERFIT'))}</p><h2>${escapeHtml(tx('workspace.admin.title','IBERFIT'))}</h2><p>${escapeHtml(tx('workspace.admin.copy',''))}</p></div><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"></div>`
     :'';
+  if(isAdmin&&compactAdmin)return shortcuts;
   return `<section class="m26-workspace-home" aria-label="${escapeHtml(tx(isAdmin?'workspace.admin.eyebrow':'workspace.coach.eyebrow','Centro de trabajo'))}" data-m26-workspace-role="${escapeHtml(role)}">${hero}${shortcuts}</section>`;
 }
 
@@ -223,7 +226,13 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more${mobileMoreActive?' is-active':''}"${mobileMoreActive?' data-m26-more-active="true"':''}><summary aria-expanded="false" aria-controls="m26-mobile-more-menu">${escapeHtml(tx('common.more','Más'))}</summary><div id="m26-mobile-more-menu" class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileAccountSlot}</div></details>` : '';
   const productivity=coachProductivityShell(vm);
   const pageTitle=tx(`area.${vm.activeArea}.label`,vm.page.label);
-  const workspace=workspaceHome(vm);
+  // U107: the real, permission-checked Admin Command Center already contains
+  // the full operational introduction and next decision. Avoid a redundant
+  // generic hero + four large cards above it. Keep the same four shortcuts
+  // in an accessible collapsed disclosure, rather than removing navigation.
+  const realAdminCommandCenter=vm.identity.role==='admin'&&vm.activeArea==='admin-inicio'
+    &&routeContent.includes('data-admin-surface="command-center"');
+  const workspace=workspaceHome(vm,{compactAdmin:realAdminCommandCenter});
   const journey=renderJourneyContinuity(vm);
   const coachToday=vm.identity?.role==='coach'&&vm.activeArea==='hoy';
   const mainContent=coachToday?`${routeContent}${workspace}`:`${workspace}${routeContent}`;
@@ -237,7 +246,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
     </aside>
     <section class="m26-workspace">
       <header class="m26-topbar">
-        <div class="m26-topbar-heading"><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
+        <div class="m26-topbar-heading"><img class="m26-topbar-brand-mark" src="/public/isotipo-iberfit.png" width="34" height="38" alt="" aria-hidden="true" decoding="async"><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
         <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}</div>
       </header>
       <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${guidedMainContent}</main>

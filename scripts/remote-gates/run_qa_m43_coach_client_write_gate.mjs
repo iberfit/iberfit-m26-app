@@ -5,6 +5,7 @@
  * No token, email, ID, personal metrics or raw medical data in evidence.
  */
 import {randomUUID} from 'node:crypto';
+import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-state.js';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
@@ -51,7 +52,13 @@ async function rpc(name,session,params={}){
     throw Error('M43_QA_RPC_'+name.toUpperCase()+'_'+r.status+'_'+String(r.body?.code||'UNKNOWN').slice(0,20));
   return r.body;
 }
-const bootstrap=session=>rpc('iberfit_bootstrap_v26',session);
+// QA Client A may receive the exact lossless body envelope introduced by the
+// Supabase Free pilot. Decode it through the SAME fail-closed owner/role/QA
+// validator used by authenticated app hydration BEFORE checking historical
+// M43 hashes or executing any write. Unmarked snapshots are returned intact.
+const bootstrap=async session=>expandQaClientCanonicalBodyEnvelope(
+  await rpc('iberfit_bootstrap_v26',session)
+);
 const contains=(snapshot,id,entity)=>(snapshot?.data?.m26Entities||[])
   .some(item=>item.entityType===entity&&String(item.entityId)===id);
 const baseContains=(snapshot,id,collection)=>(snapshot?.data?.[collection]||[])

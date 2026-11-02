@@ -7,10 +7,14 @@ import {createShellController} from '../../src/m26/shell/shell-controller.js';
 import {renderClientBottomNav} from '../../src/m26/modules/route-render.js';
 import {createRouteViewModel} from '../../src/m26/modules/route-view-model.js';
 import {renderRouteView} from '../../src/m26/modules/route-render.js';
+import {ADMIN_ROUTE_CAPABILITIES,normalizeAdminPermissions} from '../../src/m26/admin/permission-policy.js';
 
 const params=new URLSearchParams(location.search);
 const role=params.get('role');
 const realBodies=params.get('body')==='real';
+// Explicitly opted-in QA only: grant synthetic capabilities to an invented
+// Admin identity for ART-DIRECTION coverage. The default stays fail-closed.
+const authorizedAdminSynthetic=role==='admin'&&realBodies&&params.get('adminSurface')==='authorized-synthetic';
 if(!['client','coach','admin'].includes(role))throw new Error('SIGNATURE_QA_ROLE_INVALID');
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const root=document.querySelector('#qa-root');
@@ -20,6 +24,13 @@ const enabledAdminMediaReview=role==='admin'?{
   ...baseline.admin,
   available:true,
   reason:null,
+  permissions:authorizedAdminSynthetic
+    ?normalizeAdminPermissions({
+      capabilities:Object.values(ADMIN_ROUTE_CAPABILITIES),
+      scopeType:'organization',organizationId:'00000000-0000-4000-8000-000000000140',
+      issuedAt:'2026-10-20T12:00:00.000Z',
+    })
+    :baseline.admin.permissions,
   organization:{
     id:'00000000-0000-4000-8000-000000000140',
     name:'IBERFIT QA — organización ficticia',
@@ -56,7 +67,9 @@ const controller=createShellController({
 });
 controller.mount();
 globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__=Object.freeze({
-  role,bodyMode:realBodies?'real-synthetic':'placeholder',area:()=>store.getState().activeArea,
+  role,bodyMode:realBodies?'real-synthetic':'placeholder',
+  adminSurface:authorizedAdminSynthetic?'authorized-synthetic':'permission-denied',
+  area:()=>store.getState().activeArea,
   navigate:(area)=>store.navigate(area),
   rerender:()=>controller.render(),
 });

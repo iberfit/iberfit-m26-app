@@ -288,6 +288,94 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   .m26-rc62-agenda-calendar-panel{display:none!important}
 }
 
+/* U102 · Actual FullCalendar 7 Monarch runtime contract.
+ * v7 uses scoped fc-monarch-* design tokens and role-annotated markup;
+ * legacy v6 .fc-toolbar-title selectors above do not match v7. Variables are
+ * inherited by the genuine calendar subtree even when vendor CSS loads later.
+ * Read-only event actions, keyboard controls and accessible list remain intact. */
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell{
+  --fc-monarch-primary:#D7BA7C;
+  --fc-monarch-primary-foreground:#13221C;
+  --fc-monarch-primary-over:#E2C992;
+  --fc-monarch-primary-down:#EDD7A9;
+  --fc-monarch-secondary:#254233;
+  --fc-monarch-secondary-foreground:#F5F5F0;
+  --fc-monarch-secondary-over:#30523F;
+  --fc-monarch-secondary-down:#3A624B;
+  --fc-monarch-tertiary:#172D22;
+  --fc-monarch-tertiary-foreground:#F5F5F0;
+  --fc-monarch-event:#C5A059;
+  --fc-monarch-event-contrast:#F5F5F0;
+  --fc-monarch-highlight:rgba(215,186,124,.13);
+  --fc-monarch-now:#F0CC82;
+  --fc-monarch-selected:#D7BA7C;
+  --fc-monarch-selected-foreground:#13221C;
+  --fc-monarch-selected-over:#E4CC98;
+  --fc-monarch-selected-down:#F0DBAF;
+  --fc-monarch-outline:#E8CB8A;
+  --fc-monarch-background:#101E17;
+  --fc-monarch-popover:#182D22;
+  --fc-monarch-popover-foreground:#F5F5F0;
+  --fc-monarch-faint:rgba(245,245,240,.035);
+  --fc-monarch-muted:rgba(245,245,240,.08);
+  --fc-monarch-strong:rgba(215,186,124,.22);
+  --fc-monarch-stronger:rgba(215,186,124,.32);
+  --fc-monarch-strongest:rgba(215,186,124,.44);
+  --fc-monarch-foreground:#F5F5F0;
+  --fc-monarch-faint-foreground:#C9D2C7;
+  --fc-monarch-muted-foreground:#D2DBD0;
+  --fc-monarch-border:rgba(245,245,240,.16);
+  --fc-monarch-strong-border:rgba(215,186,124,.42);
+  color:#F5F5F0;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="heading"]{
+  font-family:var(--iberfit-font-family-editorial,"Source Serif 4 Variable",Georgia,serif);
+  font-size:clamp(1.3rem,2.1vw,1.85rem);
+  font-weight:550;
+  letter-spacing:-.026em;
+  color:#F5F5F0;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell :is([role="tab"],button[aria-label]){
+  touch-action:manipulation;
+  min-height:44px;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="tab"][aria-selected="true"]{
+  color:#13221C;
+  background:#D7BA7C;
+}
+/* U103 · The v7 Monarch 15%-tinted event background is dark on the IBERFIT
+ * calendar. Override only genuine interactive appointment labels, not status
+ * semantics, so the event copy retains accessible contrast in week and day. */
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button,
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button :is(span,small,strong){
+  color:#F5F5F0;
+  font-weight:650;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="columnheader"]{
+  color:#DEE4D8;
+  font-size:.78rem;
+  font-weight:650;
+}
+.m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell :is([role="tab"],[role="gridcell"] button):focus-visible{
+  outline:3px solid #E8CB8A;
+  outline-offset:2px;
+}
+@media(min-width:720px) and (max-width:1050px){
+  .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="heading"]{
+    font-size:clamp(1.18rem,2.5vw,1.5rem);
+  }
+}
+@media(forced-colors:active){
+  .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button,
+  .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="gridcell"] button :is(span,small,strong){
+    color:ButtonText;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-rc62-agenda-calendar-shell [role="tab"][aria-selected="true"]{
+    background:Highlight;
+    color:HighlightText;
+  }
+}
+
 /* IBERFIT M27 · Signature Session Experience */
 .m26-session-experience{
   display:grid;
@@ -362,12 +450,20 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
   font-size:.82rem;
   font-weight:750;
 }
+/* U72 · The context belongs to a CARD, not the full viewport.
+ * A 350px card can sit inside a 1440px screen. Never let "auto" capability
+ * pills squeeze the descriptive text into a 1-character column.
+ * auto-fit responds to the actual card content box, never viewport size. */
 @media (min-width:900px){
   .m26-session-experience{
-    grid-template-columns:minmax(0,1fr) auto;
-    align-items:center;
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));
+    align-items:start;
   }
-  .m26-session-experience__capabilities{justify-content:flex-end;max-width:27rem}
+  .m26-session-experience__capabilities{
+    min-width:0;
+    max-width:100%;
+    justify-content:flex-start;
+  }
 }
 @media (max-width:719px){
   .m26-session-experience{padding:.82rem}
