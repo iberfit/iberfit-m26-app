@@ -40,3 +40,27 @@ test('P0 Supabase Free: isolated session QA rejects stale PR but preserves offli
   assert.match(isolated,/M26_QA_CLIENT_A_PASSWORD/u);
   assert.match(isolated,/M26_QA_CLIENT_B_PASSWORD/u);
 });
+
+
+const m44=readFileSync('.github/workflows/m44-wip-report-quality.yml','utf8');
+test('P0 Supabase Free: M44 real negative HTTP gates reject only stale or draft PRs',()=>{
+  const guard=m44.split('  pr-current-head:')[1]?.split('  reports-contract:')[0]||'';
+  assert.ok(guard.length>500);
+  assert.match(m44,/pull-requests: read/u);
+  assert.match(guard,/GITHUB_API_URL.*GITHUB_REPOSITORY.*pulls.*PR_NUMBER/u);
+  assert.match(guard,/jq -r '\.draft \| tostring'/u);
+  assert.match(guard,/P0_QA_SUPERSEDED_PR_SKIP/u);
+  assert.doesNotMatch(guard,/SUPABASE_(SERVICE_ROLE|PUBLISHABLE_KEY)|M26_QA_.*PASSWORD/u);
+  for(const name of ['qa-edge-anonymous-denial','qa-authenticated-assurance-denial']){
+    const job=m44.split('  '+name+':')[1]?.split('\n  ')[0]||'';
+    assert.match(job,/needs: pr-current-head/u);
+    assert.match(job,/needs\.pr-current-head\.outputs\.current == 'true'/u);
+  }
+  assert.match(m44,/QA real password-only Coach and two Clients denied M44 privileges/u);
+  assert.match(m44,/QA live Edge anonymous HTTP and CORS negative gate/u);
+  assert.match(m44,/M44 and M43 canonical reporting contracts/u);
+  assert.match(m44,/M44 premium A4 Chromium desktop tablet mobile/u);
+  assert.match(m44,/M44 trusted Edge issuer and real pdf-lib PDF bytes/u);
+  assert.match(m44,/group: iberfit-qa-shared-auth-readonly/u);
+  assert.match(m44,/cancel-in-progress: false/u);
+});
