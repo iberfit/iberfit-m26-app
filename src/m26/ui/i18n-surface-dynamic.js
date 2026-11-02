@@ -47,7 +47,7 @@ function applyRules(value,language,translatePart){
     return pick(language,
       m[1]+' repetition'+(singular?'':'s'),
       m[1]+' répétition'+(singular?'':'s'),
-      m[1]+' repetição'+(singular?'':'ões'));
+      m[1]+' '+(singular?'repetição':'repetições'));
   }
   // U63 · Real published block counts and editorial disclosure labels.
   if((m=value.match(/^(\d+) bloque(?:s)?$/u))){
