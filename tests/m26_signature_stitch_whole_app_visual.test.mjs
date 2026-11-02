@@ -148,6 +148,24 @@ test('U64 Stitch published structure is localized in all four supported language
   assert.match(js,/data-client-session-preview role="group" aria-label="Ejercicios de tu entrenamiento"/);
 });
 
+test('SIGNATURE R48: human training targets and their numeric values are localized in ES EN FR PT',async()=>{
+ const {iberfitSurfaceTranslate:t}=await import('../src/m26/ui/i18n-surface.js');
+ const names=['Objetivos de tu entrenamiento','Esfuerzo orientativo',
+   'Tiempo de trabajo','Ritmo orientativo','Repeticiones en reserva'];
+ const expected={
+   en:['Your workout targets','Suggested effort','Work duration','Suggested pace','Repetitions in reserve'],
+   fr:['Objectifs de votre entraînement','Effort conseillé','Durée de l’effort','Allure conseillée','Répétitions en réserve'],
+   pt:['Objetivos do seu treino','Esforço orientativo','Tempo de trabalho','Ritmo orientativo','Repetições em reserva'],
+ };
+ for(const [language,values] of Object.entries(expected)){
+   assert.deepEqual(names.map(name=>t(name,{language})),values);
+   assert.equal(t('6 de 10',{language}),{en:'6 out of 10',fr:'6 sur 10',pt:'6 de 10'}[language]);
+   assert.equal(t('3 repeticiones',{language}),{en:'3 repetitions',fr:'3 répétitions',pt:'3 repetições'}[language]);
+   assert.equal(t('1 repetición',{language}),{en:'1 repetition',fr:'1 répétition',pt:'1 repetição'}[language]);
+   assert.equal(t('5:30 min/km',{language}),'5:30 min/km');
+   assert.equal(t('2:05 min/100 m',{language}),'2:05 min/100 m');
+ }
+});
 test('U65 published details remain owner-bound despite stale or foreign projections',()=>{
   const a='10000000-0000-4000-8000-000000006501';
   const b='10000000-0000-4000-8000-000000006502';
