@@ -350,7 +350,8 @@ test('Sesiones Cliente ofrece un único comienzo autorizado fuera del desplegabl
 
   assert.doesNotMatch(html, /data-session-primary-start/);
   assert.match(html, /<summary>Ver sesión<\/summary>/);
-   assert.ok(html.indexOf('data-workflow-action=\"start-published-session\"')>html.indexOf('</details>'));
+   assert.ok(html.indexOf('data-workflow-action="start-published-session"')<html.indexOf('<details class="m26-rc39-session-content'));
+  assert.match(html,/data-client-session-primary/);
   assert.equal([...html.matchAll(/data-workflow-action="start-published-session"/g)].length,1);
   assert.match(
     html,
