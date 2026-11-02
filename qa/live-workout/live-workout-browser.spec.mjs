@@ -843,10 +843,15 @@ for(const role of ['client','coach','admin']){
     page.on('request',request=>{
       if(!['GET','HEAD'].includes(request.method()))mutations.push(request.method());
     });
-    await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real',
+    // U112: the default Admin fixture denies access. For true ART coverage
+    // only, opt into fictitious capabilities; this is not authentication QA.
+    const artAdmin=role==='admin'?'&adminSurface=authorized-synthetic':'';
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real'+artAdmin,
       {waitUntil:'domcontentloaded'});
     await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode))
       .toBe('real-synthetic');
+    if(role==='admin')await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface))
+      .toBe('authorized-synthetic');
     const entries=u77Inventory.roles[role];
     expect(entries.length).toBe(role==='client'?9:17);
     // U80: all 43 canonical route bodies need individual evidence, not only
@@ -893,12 +898,14 @@ for(const role of ['client','coach','admin']){
           viewport:document.documentElement.clientWidth,
           inert:main?.inert||false,
           placeholder:Boolean(main?.querySelector('.m26-route-placeholder')),
+          permissionDenied:Boolean(main?.querySelector('.m26-admin-hero h2')?.textContent?.trim()==='Permiso insuficiente'),
         };
       });
       expect(errors.slice(previousErrorCount),role+' '+area+' runtime errors').toEqual([]);
       expect(metrics.role,role+' '+area+' never cross a role boundary').toBe(role);
       expect(metrics.body,role+' '+area+' genuine route must be visible').toBe(true);
       expect(metrics.placeholder,role+' '+area+' must not substitute fake route markup').toBe(false);
+      if(role==='admin')expect(metrics.permissionDenied,role+' '+area+' must expose actual permitted synthetic Admin body').toBe(false);
       expect(metrics.inert,role+' '+area+' main must not freeze').toBe(false);
       expect(metrics.heading.length,role+' '+area+' title required').toBeGreaterThan(0);
       expect(metrics.pageWidth,role+' '+area+' zero horizontal overflow').toBeLessThanOrEqual(metrics.viewport+2);
@@ -979,12 +986,13 @@ for(const role of ['client','coach','admin']){
         identity:'synthetic',
         authenticated:false,
         stitchParityCertified:false,
+        adminView:role==='admin'?'explicit-authorized-synthetic':'not-admin',
         project:testInfo.project.name,
         viewport:testInfo.project.use.viewport,
         role,
         areas:visualEvidenceAreas,
         scrollEvidence,
-        evidenceScope:'synthetic navigation geometry and top/end frames, never authenticated'
+        evidenceScope:'genuine authorized synthetic role bodies, navigation geometry and scroll frames; never authenticated'
       };
       const {writeFile}=await import('node:fs/promises');
       await writeFile(visualEvidenceDir+'/manifest.json',JSON.stringify(manifest,null,2),'utf8');
