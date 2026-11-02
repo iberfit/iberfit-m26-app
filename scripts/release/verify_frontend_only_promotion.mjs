@@ -146,3 +146,6 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
     process.exitCode=1;
   });
 }
+// SIGNATURE U122 (2026-11-02): release-only exact-SHA gate renewal after the
+// concurrent P0 Supabase Free QA observability merge. All frontend-only scope,
+// frozen blob SHA enforcement, PROD identity lock and security logic unchanged.
