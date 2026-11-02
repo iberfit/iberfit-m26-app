@@ -50,7 +50,7 @@ export function createQaSupabasePayloadFootprint(){
     if(Number(response.status?.())>=400)row.httpErrors++;
     if(row.sampledResponses+row.unreadableSamples+row.inFlightSamples>=3)return;
     row.inFlightSamples++;
-    const work=Promise.resolve().then(()=>response.body()).then(bytes=>{
+    const work=Promise.resolve().then(()=>response.body()).then(async bytes=>{
       const count=Number(bytes?.byteLength);
       if(!Number.isSafeInteger(count)||count<0)throw Error('UNREADABLE_QA_RESPONSE_SIZE');
       row.sampledDecodedBytes+=count;
