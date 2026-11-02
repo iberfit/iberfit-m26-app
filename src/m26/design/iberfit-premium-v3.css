@@ -3892,22 +3892,22 @@
  }
  .m26-admin-table-scroll-hint{color:#d6ded6;font-size:.8rem;line-height:1.45;margin-block:.35rem .65rem}
 }
-/* U115 · Effective native table geometry: intrinsic columns, local scroll.
- * Bounded .m26-admin-table already owns keyboard/touch overflow. !important
- * is scoped to this legacy-rendered region to defeat old table width resets. */
+/* U115 · Admin table owns intrinsic columns without legacy CSS priorities.
+ * Preserve a local scrollport and readable data/actions on 320/390 screens. */
 .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table{
-  display:table!important;
-  inline-size:max-content!important;
-  min-inline-size:100%!important;
-  table-layout:auto!important;
+  display:table;
+  inline-size:max-content;
+  min-inline-size:max(100%,46rem);
+  max-inline-size:none;
+  table-layout:auto;
 }
 .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table :is(th,td){
-  min-inline-size:8.25rem!important;
+  min-inline-size:8.25rem;
 }
 .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table :is(th,td):first-child{
-  min-inline-size:10rem!important;
+  min-inline-size:10rem;
 }
 .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table[role="region"] > table :is(th,td):last-child{
-  min-inline-size:11.25rem!important;
+  min-inline-size:11.25rem;
 }
 /* END SIGNATURE MASTER U90 */
