@@ -12,8 +12,14 @@ for(const role of ['client','coach','admin']){
     const pageErrors=[],writes=[];
     page.on('pageerror',error=>pageErrors.push(String(error.message||error).slice(0,250)));
     page.on('request',request=>{if(request.method()!=='GET')writes.push(request.method());});
-    await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real');
+    // The standard Admin fixture intentionally denies capabilities. For layout
+    // coverage, opt in to the separate fictitious Admin permission set; the
+    // fail-closed default is still checked by U106. No real Auth/RLS is used.
+    const adminOptIn=role==='admin'?'&adminSurface=authorized-synthetic':'';
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role='+role+'&body=real'+adminOptIn);
     await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.bodyMode)).toBe('real-synthetic');
+    if(role==='admin')await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__?.adminSurface))
+      .toBe('authorized-synthetic');
     const entries=inventory.roles[role];
 
     // U60: exercise the genuine route renderer, not mock page markup. Only two
@@ -44,7 +50,10 @@ for(const role of ['client','coach','admin']){
         const body=main?.querySelector('.m26-client-route-shell,.m26-route,.m26-admin-route,.m26-communication-route,.m26-rc39-planning,.m26-rc39-sessions,[data-admin-media-review-route]');
         const title=body?.querySelector('h1,h2,h3')||main?.querySelector('h1,h2,h3');
         const rect=body?.getBoundingClientRect();
-        return {role:root?.getAttribute('data-m26-role'),body:Boolean(body),visible:Boolean(rect&&rect.width>10&&rect.height>10),heading:Boolean(title&&title.textContent?.trim()),chars:String(body?.textContent||'').trim().length,placeholder:main?.querySelectorAll('.m26-route-placeholder')?.length||0,inert:main?.hasAttribute('inert')||false,width:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth),viewport:document.documentElement.clientWidth};
+        return {role:root?.getAttribute('data-m26-role'),body:Boolean(body),visible:Boolean(rect&&rect.width>10&&rect.height>10),heading:Boolean(title&&title.textContent?.trim()),chars:String(body?.textContent||'').trim().length,placeholder:main?.querySelectorAll('.m26-route-placeholder')?.length||0,
+          permissionDenied:Boolean([...main?.querySelectorAll('h1,h2,h3')||[]]
+            .some(h=>h.textContent?.trim()==='Permiso insuficiente')),
+          inert:main?.hasAttribute('inert')||false,width:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth),viewport:document.documentElement.clientWidth};
       });
       expect(pageErrors.slice(errorsBefore),role+' '+area+' page errors').toEqual([]);
       expect(actual.role,role+' '+area+' role boundary').toBe(role);
@@ -53,6 +62,7 @@ for(const role of ['client','coach','admin']){
       expect(actual.heading,role+' '+area+' heading').toBe(true);
       expect(actual.chars,role+' '+area+' substantive content').toBeGreaterThan(35);
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
+      if(role==='admin')expect(actual.permissionDenied,'Admin '+area+' must be the real authorized synthetic body, not a denial screen').toBe(false);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
       // U94: real calendar date semantics must survive all device widths
       // without implying unverified sessions, health outcomes or writes.
