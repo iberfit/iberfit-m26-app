@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   evaluateFrontendOnlyChanges,
-  verifyFrontendOnlyLiveIdentity,
+  verifyFrontendOnlyLiveIdentity,verifyFrozenQaArtifacts,FROZEN_QA_INERT_BLOBS,
 } from '../scripts/release/verify_frontend_only_promotion.mjs';
 
 const BASE='069ba68298dd57181a62cc88ce6c31112ac92176';
@@ -49,6 +49,42 @@ test('backend/auth changes and unknown Supabase paths always block frontend-only
       sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[...accepted,path],
     }),/FRONTEND_ONLY_BACKEND_CHANGED/,path);
   }
+});
+
+test('U120 exact QA source exception requires eight frozen Git blobs, never broad backend allowances',()=>{
+ const qaPaths=Object.keys(FROZEN_QA_INERT_BLOBS);
+ assert.equal(qaPaths.length,8);
+ assert.equal(qaPaths.filter(path=>path.startsWith('supabase/functions/')).length,1);
+ assert.ok(qaPaths.every(path=>
+   path==='supabase/functions/iberfit-qa-webauthn-cert-broker/index.ts'
+   ||/^supabase\/qa-rollouts\/2026[0-9]{10}_[a-z0-9_]+\.(?:enable|disable)\.sql$/u.test(path)));
+ assert.equal(evaluateFrontendOnlyChanges({
+   sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[...accepted,...qaPaths],
+ }).ok,true);
+ assert.deepEqual(verifyFrozenQaArtifacts({
+   sourceSha:TARGET,changedPaths:qaPaths,
+   blobAtSource:(sha,path)=>sha===TARGET?FROZEN_QA_INERT_BLOBS[path]:null,
+ }).paths,qaPaths);
+ assert.throws(()=>verifyFrozenQaArtifacts({
+   sourceSha:TARGET,changedPaths:qaPaths,
+ }),/FRONTEND_ONLY_QA_BLOB_READER_REQUIRED/u);
+ assert.throws(()=>verifyFrozenQaArtifacts({
+   sourceSha:TARGET,changedPaths:qaPaths,
+   blobAtSource:()=>BASE,
+ }),/FRONTEND_ONLY_QA_SOURCE_DRIFT/u);
+ for(const malicious of [
+  'supabase/functions/iberfit-qa-webauthn-cert-broker/other.ts',
+  'supabase/functions/iberfit-webauthn-v1/index.ts',
+  'supabase/qa-rollouts/20261102051000_p0_free_qa_client_body_envelope_dedup_v2.disable.sql',
+  'supabase/qa-rollouts/20261103000000_unreviewed.enable.sql',
+  'supabase/edge/functions.js',
+  'supabase/config.toml',
+ ])assert.throws(()=>evaluateFrontendOnlyChanges({
+   sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[...accepted,malicious],
+ }),/FRONTEND_ONLY_BACKEND_CHANGED/u,malicious);
+ const source=fs.readFileSync(new URL('../scripts/release/verify_frontend_only_promotion.mjs',import.meta.url),'utf8');
+ assert.match(source,/blobAtSource:\(source,path\)=>execFileSync\('git',\['rev-parse',source\+':'\+path\]/u);
+ assert.match(source,/frozenQaInertArtifactsVerified:qaArtifacts\.verified/u);
 });
 
 test('fail closed on invalid SHA, empty diff or path traversal',()=>{
@@ -121,4 +157,27 @@ test('U52 release scope accepts exactly inert QA SQL source and never marks it a
   assert.equal(result.backendServicesDeployed,false);
   assert.equal(result.hostedAuthMutated,false);
   assert.equal(result.unappliedMigrationFileCount,qaSql.length);
+});
+
+test('U121 release verifier changes require exact-source authenticated and Device QA push gates',()=>{
+ const workflows=[
+  ['admin-webauthn-recurring',2],
+  ['coach-webauthn-recurring',2],
+  ['device-experience-gate',2],
+  ['remote-gates',1],
+ ];
+ for(const [name,count] of workflows){
+  const yaml=fs.readFileSync(new URL('../.github/workflows/'+name+'.yml',import.meta.url),'utf8');
+  const marker="'scripts/release/verify_frontend_only_promotion.mjs'";
+  assert.equal(yaml.split(marker).length-1,count,name+' must respond to release guard changes');
+  assert.match(yaml,/\bpush:\s*\n/u,name+' must run on immutable Canary push SHA');
+  assert.match(yaml,/\bworkflow_dispatch:/u,name+' must preserve explicit reruns');
+  assert.match(yaml,/\bbranches:[^\n]*(?:canary\/rc74-4)?/u,name+' must declare branches');
+  assert.ok(yaml.includes('canary/rc74-4'),name+' must stay within Canary');
+ }
+ const authority=fs.readFileSync(new URL('../scripts/release/verify_source_qa_gates.mjs',import.meta.url),'utf8');
+ for(const name of [
+  'IBERFIT Admin WebAuthn Recurring','IBERFIT Coach WebAuthn Recurring',
+  'IBERFIT Device Experience Gate','IBERFIT M26 Gates remotos de solo lectura',
+ ])assert.ok(authority.includes(name),'Release gate must retain '+name);
 });

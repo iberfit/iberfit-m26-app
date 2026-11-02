@@ -23,6 +23,7 @@ on:
       - 'tests/m26_device_experience_gate_contract.test.mjs'
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
       - '.github/workflows/coach-webauthn-recurring.yml'
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   push:
@@ -45,6 +46,7 @@ on:
       - 'tests/m26_device_experience_gate_contract.test.mjs'
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
+      - 'scripts/release/verify_frontend_only_promotion.mjs'
       - '.github/workflows/coach-webauthn-recurring.yml'
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   workflow_dispatch:
