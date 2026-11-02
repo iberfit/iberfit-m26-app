@@ -130,6 +130,17 @@ Contrato crítico histórico:
 
 Todo cambio de formularios debe proteger este comportamiento con tests proporcionales.
 
+## Sesión Cliente · acción primero, indicaciones accesibles (SIGNATURE R47)
+
+La pantalla de sesiones Cliente conserva el renderizador y los permisos reales (sesiones guiadas, supervisadas y recuperables), pero **prioriza la única acción autorizada** delante de la vista previa opcional de ejercicios. Esto responde a la dirección editorial de Stitch R46 sin importar HTML/JS prototipo ni simular ACK.
+
+- El CTA **Preparar entrenamiento** o **Continuar entrenamiento** sólo existe cuando el servidor y la proyección habilitan esa operación; su evento original `start-published-session`, ID de sesión y flujo remoto no cambian.
+- El CTA aparece dentro de la tarjeta de sesión, en flujo normal **antes del desplegable** de ejercicios, no flotante; no tapa scroll, navegación fija, controles de sesión o recuperación. Mínimo táctil 52–56 px y foco visible.
+- Mantener `<details>` y la prescripción completa accesible para sesiones guiadas autorizadas; no revelar ejercicios en presencial, sesiones retiradas, proyecciones contradichas o sin permisos. Coach/Admin conservan su densidad técnica y acciones.
+- No mostrar al Cliente un distintivo «Contenido completo» redundante cuando el propio contenido está disponible; mantener estado de resumen limitado cuando corresponda.
+- Validar Cliente móvil 320/390 px, tablet 768/820 px y escritorio 1440 px con renderizador auténtico, hit-testing, navegación inferior y foco; además de tests de autorización, privacidad, CSS y recuperación.
+- No afirmar que la composición Stitch está completamente integrada ni que el fallo de inicio remoto (#919) está resuelto por cambiar el orden visual.
+
 ## Barra inferior Cliente · contrato estructural (SIGNATURE R46)
 
 En móvil y tablet compacta, la barra de navegación Cliente **permanece visualmente fija en el borde inferior**, pero **no se superpone al contenido**. La implementación real utiliza espacio reservado en el layout y un scrollport independiente para la ruta:
