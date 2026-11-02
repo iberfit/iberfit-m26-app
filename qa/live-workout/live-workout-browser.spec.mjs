@@ -898,6 +898,12 @@ for(const role of ['client','coach','admin']){
           viewport:document.documentElement.clientWidth,
           inert:main?.inert||false,
           placeholder:Boolean(main?.querySelector('.m26-route-placeholder')),
+          // U113 uses the actual live computed backdrop in the same 43-route
+          // browser sweep; CSS source alone cannot prove the final cascade.
+          adminKpiRgb:(()=>{
+            const panel=main?.querySelector('[data-admin-surface="command-center"] .m30-admin-kpis');
+            return panel?(getComputedStyle(panel).backgroundColor.match(/\d+(?:\.\d+)?/g)||[]).slice(0,3).map(Number):null;
+          })(),
           permissionDenied:Boolean(main?.querySelector('.m26-admin-hero h2')?.textContent?.trim()==='Permiso insuficiente'),
         };
       });
@@ -906,6 +912,11 @@ for(const role of ['client','coach','admin']){
       expect(metrics.body,role+' '+area+' genuine route must be visible').toBe(true);
       expect(metrics.placeholder,role+' '+area+' must not substitute fake route markup').toBe(false);
       if(role==='admin')expect(metrics.permissionDenied,role+' '+area+' must expose actual permitted synthetic Admin body').toBe(false);
+      if(role==='admin'&&area==='admin-inicio'){
+        expect(metrics.adminKpiRgb,'Admin KPI container exposes computed RGB').toHaveLength(3);
+        expect(metrics.adminKpiRgb.every((v,i)=>v<[75,95,80][i]),
+          'Admin KPI backdrop stays deep forest instead of ivory at every browser width').toBe(true);
+      }
       expect(metrics.inert,role+' '+area+' main must not freeze').toBe(false);
       expect(metrics.heading.length,role+' '+area+' title required').toBeGreaterThan(0);
       expect(metrics.pageWidth,role+' '+area+' zero horizontal overflow').toBeLessThanOrEqual(metrics.viewport+2);

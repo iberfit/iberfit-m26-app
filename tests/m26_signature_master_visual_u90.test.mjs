@@ -268,6 +268,7 @@ test('U113 Admin six-KPI backdrop is premium dark, not inherited ivory',()=>{
  assert.match(target,/background:#102019/);
  assert.match(target,/rgba\(197,160,89,\.22\)/);
  assert.doesNotMatch(target,/background:var\(--iberfit-u50-paper\)/);
- const coach=css.split('.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{')[1]?.split('}')[0]||'';
+ const beforeAdmin=css.split('/* U113: Admin oversight remains forest-dark')[0];
+ const coach=beforeAdmin.slice(beforeAdmin.lastIndexOf('.m26-shell[data-m26-role="coach"] .m26-coach-home-v1 .m26-coach-home-quick{')).split('}')[0];
  assert.match(coach,/background:var\(--iberfit-u50-paper\)/);
 });
