@@ -248,6 +248,8 @@ test('U110 Admin tabular data remains horizontally inspectable on touch and keyb
  const source=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
  assert.match(source,/role="region" aria-label="\$\{e\(scrollLabel\)\}" tabindex="0"/);
  assert.match(source,/scope="col"/);
- assert.match(source,/Desplaza la tabla lateralmente para consultar fechas/);
+ const i18n=readFileSync(new URL('../src/m26/ui/i18n-surface-admin.js',import.meta.url),'utf8');
+ assert.ok(i18n.includes('Desplaza la tabla lateralmente para ver todas las columnas y acciones.'));
+
  assert.match(source,/Desplaza la tabla lateralmente para ver todas las columnas y acciones/);
 });
