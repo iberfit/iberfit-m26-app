@@ -157,6 +157,10 @@ test('Client A atomically restores full completed sessions AND execution results
   chromiumNetworkHeadersBytes:h.reduce((a,x)=>a+(x.wireHeaders||0),0),
   networkSizesAvailable:h.filter(x=>x.wireBody!==null).length,
   decodedBootstrapBytes:measured.filter(x=>x.group==='bootstrap').reduce((a,x)=>a+x.decoded,0),
+  // Already-observed browser transport sizes, without extra backend calls.
+  chromiumBootstrapNetworkBodyBytes:measured.filter(x=>x.group==='bootstrap').reduce((a,x)=>a+(x.wireBody||0),0),
+  chromiumBootstrapNetworkHeadersBytes:measured.filter(x=>x.group==='bootstrap').reduce((a,x)=>a+(x.wireHeaders||0),0),
+  bootstrapNetworkSizesAvailable:measured.filter(x=>x.group==='bootstrap'&&x.wireBody!==null).length,
   blockedRequests:blocked.length,bodyOrJWTRecorded:false,notBillingEgress:true};
  expect(evidence.httpErrors).toBe(0);
  expect(evidence.chromiumNetworkBodyBytes).toBeGreaterThan(0);
