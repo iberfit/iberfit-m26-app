@@ -41,19 +41,34 @@ export function createQaSupabasePayloadFootprint(){
     if(!groups.has(group)){
       if(groups.size>=28)return;
       groups.set(group,{group,requests:0,httpErrors:0,sampledResponses:0,
-        sampledDecodedBytes:0,maxDecodedBytes:0,unreadableSamples:0,inFlightSamples:0});
+        sampledDecodedBytes:0,maxDecodedBytes:0,unreadableSamples:0,inFlightSamples:0,
+      sampledBrowserWireBodyBytes:0,sampledBrowserWireHeadersBytes:0,
+      browserWireSamples:0,browserWireUnavailable:0});
     }
     const row=groups.get(group);
     row.requests++;
     if(Number(response.status?.())>=400)row.httpErrors++;
     if(row.sampledResponses+row.unreadableSamples+row.inFlightSamples>=3)return;
     row.inFlightSamples++;
-    const work=Promise.resolve().then(()=>response.body()).then(bytes=>{
+    const work=Promise.resolve().then(()=>response.body()).then(async bytes=>{
       const count=Number(bytes?.byteLength);
       if(!Number.isSafeInteger(count)||count<0)throw Error('UNREADABLE_QA_RESPONSE_SIZE');
       row.sampledDecodedBytes+=count;
       row.maxDecodedBytes=Math.max(row.maxDecodedBytes,count);
       row.sampledResponses++;
+      // Playwright sizes() is local browser telemetry for this SAME response.
+      // It does not issue another request and is NOT Supabase billed Egress.
+      try{
+        const req=response.request?.();
+        const sizes=typeof req?.sizes==='function'?await req.sizes():null;
+        const wire=Number(sizes?.responseBodySize);
+        const headers=Number(sizes?.responseHeadersSize);
+        if(Number.isSafeInteger(wire)&&wire>=0&&Number.isSafeInteger(headers)&&headers>=0){
+          row.browserWireSamples++;
+          row.sampledBrowserWireBodyBytes+=wire;
+          row.sampledBrowserWireHeadersBytes+=headers;
+        }else row.browserWireUnavailable++;
+      }catch{row.browserWireUnavailable++;}
     }).catch(()=>{row.unreadableSamples++;}).finally(()=>{
       row.inFlightSamples--;pending.delete(work);
     });
@@ -73,6 +88,8 @@ export function createQaSupabasePayloadFootprint(){
         ...row,
         meanSampledDecodedBytes:row.sampledResponses
           ?Math.round(row.sampledDecodedBytes/row.sampledResponses):null,
+        meanSampledBrowserWireBodyBytes:row.browserWireSamples
+          ?Math.round(row.sampledBrowserWireBodyBytes/row.browserWireSamples):null,
       })).sort((a,b)=>b.sampledDecodedBytes-a.sampledDecodedBytes||b.requests-a.requests);
       return {
         schema:'iberfit.qa.supabase.payload-footprint.v1',
@@ -80,6 +97,7 @@ export function createQaSupabasePayloadFootprint(){
         privacy:'aggregate_fixed_endpoint_labels_only',
         responseBodyPersisted:false,
         requestsIssuedByObserver:0,
+        browserWireIsNotSupabaseBilling:true,
         endpoints,
       };
     },

@@ -60,3 +60,36 @@ test('body API errors never turn QA to pass and HTTP errors stay accounted',asyn
  assert.equal(out.endpoints[0].unreadableSamples,1);
  assert.equal(out.endpoints[0].sampledResponses,0);
 });
+
+// Read the same completed Playwright response; never create a second HTTP fetch.
+test('samples browser wire sizes alongside decoded payload without exposing headers or auth',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ let sizeCalls=0;
+ const r=response('/rest/v1/rpc/iberfit_bootstrap_v26?access_token=SECRET_NEVER_LOG',{size:1200});
+ r.request=()=>({sizes:async()=>{sizeCalls++;return {responseBodySize:246,responseHeadersSize:89};}});
+ ctx.emit('response',r);
+ const out=await m.flush(),row=out.endpoints[0];
+ assert.equal(r.reads(),1);
+ assert.equal(sizeCalls,1);
+ assert.equal(out.requestsIssuedByObserver,0);
+ assert.equal(out.browserWireIsNotSupabaseBilling,true);
+ assert.equal(row.sampledDecodedBytes,1200);
+ assert.equal(row.sampledBrowserWireBodyBytes,246);
+ assert.equal(row.sampledBrowserWireHeadersBytes,89);
+ assert.equal(row.browserWireSamples,1);
+ assert.equal(row.meanSampledBrowserWireBodyBytes,246);
+ assert.ok(!JSON.stringify(out).includes('SECRET_NEVER_LOG'));
+});
+test('wire telemetry absent/failing is explicit and never fabricated as billable bytes',async()=>{
+ const ctx=new EventEmitter(),m=createQaSupabasePayloadFootprint();m.attach(ctx);
+ const good=response('/rest/v1/rpc/iberfit_bootstrap_v26');
+ const failing=response('/rest/v1/rpc/iberfit_bootstrap_v26');
+ failing.request=()=>({sizes:async()=>{throw Error('transport telemetry unavailable')}});
+ ctx.emit('response',good);ctx.emit('response',failing);
+ const out=await m.flush(),row=out.endpoints[0];
+ assert.equal(row.sampledResponses,2);
+ assert.equal(row.browserWireSamples,0);
+ assert.equal(row.browserWireUnavailable,2);
+ assert.equal(row.meanSampledBrowserWireBodyBytes,null);
+ assert.equal(out.requestsIssuedByObserver,0);
+});
