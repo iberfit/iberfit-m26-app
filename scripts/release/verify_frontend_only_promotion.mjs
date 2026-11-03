@@ -156,3 +156,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
 // SIGNATURE U124 (2026-11-02): trigger all exact-source QA release gates for
 // the Coach real-pointer and IRI JSON reliability fix. This is inert source
 // commentary; PROD SHA lock, frozen QA blobs, scopes and security stay intact.
+
+// SIGNATURE R49 (2026-11-02): exact-source release QA gate renewal after the
+// merged R49 visual closure. This comment changes no runtime, backend, Auth,
+// permissions, production promotion safety, or client-visible behaviour.
