@@ -138,6 +138,8 @@ test('IRI photo failed initial load visibly recovers without a perpetual loading
   assert.match(source,/void load\(\{force:true\}\)\.catch\(reportLoadError\)/u);
   assert.match(source,/if\(!mounted\|\|loadInFlight\)return/u);
   assert.match(source,/loadError='';signedUrls/u);
+  assert.match(source,/loadError=friendlyIriPhotoError\(error\);\s*render\(\);\s*throw error/u);
+
   const css=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.css',import.meta.url),'utf8');
   assert.match(css,/\.m26-photo-recovery\{display:flex/u);
   assert.match(css,/\.m26-photo-recovery button:focus-visible/u);
