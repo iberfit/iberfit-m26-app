@@ -160,7 +160,7 @@ test('R47 Client session offers one reachable authorized action before optional 
     const rect=el=>el.getBoundingClientRect();
     return {
       goalsTop:rect(goals).top,goalsBottom:rect(goals).bottom,
-      buttonTop:rect(button).top,
+      buttonTop:rect(button).top,buttonBottom:rect(button).bottom,
       columns:getComputedStyle(goals).gridTemplateColumns,
       bg:getComputedStyle(card).backgroundColor,
       font:getComputedStyle(card.querySelector('h3')).fontFamily,
