@@ -6,6 +6,8 @@ on:
       - canary/rc74-4
     paths:
       - 'src/m26/app/**'
+      - 'src/m26/workflows/iri-photogrammetry-*.js'
+      - 'src/m26/workflows/iri-photogrammetry.css'
       - 'src/m26/security/**'
       - 'src/m26/qa/**'
       - 'src/m26/shell/role-policy.js'
