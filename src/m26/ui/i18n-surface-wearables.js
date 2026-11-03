@@ -1,4 +1,9 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  // Connected360 P0: stale but real health readings are never marketed as current.
+  ["Tu última actividad registrada","Your last recorded activity","Votre dernière activité enregistrée","A sua última atividade registada"],
+  ["No hay mediciones de los últimos 7 días. Puedes consultar tus registros anteriores y revisar la conexión.","No readings from the last 7 days. Review your previous records and check the connection.","Aucune mesure des sept derniers jours. Consultez vos anciens relevés et vérifiez la connexion.","Não há medições dos últimos 7 dias. Consulte os registos anteriores e verifique a ligação."],
+  ["Historial anterior: no representa tu estado actual. La conexión es opcional y no modifica los entrenamientos.","Previous history: this does not reflect your current condition. Connecting is optional and does not change your workouts.","Historique antérieur : il ne reflète pas votre état actuel. La connexion est facultative et ne modifie pas vos entraînements.","Histórico anterior: não representa o seu estado atual. A ligação é opcional e não altera os treinos."],
+  ["Último dato","Last reading","Dernière mesure","Último dado"],
   // Connected 360 Coach preparation: dated, consented summaries, never live measurements.
   ["Actividad y descanso registrados","Recorded activity and rest","Activité et repos enregistrés","Atividade e descanso registados"],
   ["FC reposo","Resting HR","FC au repos","FC em repouso"],
