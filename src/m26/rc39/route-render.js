@@ -288,8 +288,8 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
   const contractLabel=clientModalityLabel(contractModality);
   return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}"${role==='client'?` data-client-session-card-state="${supervised?'supervised':inPreviewStart?'ready':'published'}"${clientEditorial?' data-client-session-editorial="true"':''}`:''} tabindex="-1">
     <header><div><p class="m26-eyebrow">${escape(clientEditorial?(canResume?'Entrenamiento en curso':String(publishedBody(item.session).status||item.session?.status||'').toLowerCase()==='disponible'?'Disponible para entrenar':'Tu sesión guiada'):ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3>${item.startAt?`<p>${escape(formatDate(item.startAt))}</p>`:clientEditorial?'':`<p>${escape(formatDate(item.startAt))}</p>`}${summaryMeta}</div><div>${clientEditorial?'':`${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${role==='client'&&item.visibility==='full'?'':statusBadge(visibility,'neutral')}`}</div></header>
-    ${editorialFacts}
     ${inPreviewStart}
+    ${editorialFacts}
     ${clientEditorial?'':experienceHtml}
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
