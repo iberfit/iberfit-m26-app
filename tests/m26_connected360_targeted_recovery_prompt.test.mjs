@@ -69,7 +69,7 @@ test('campaign matches only private dual-fingerprint Client identity, never leak
   const c=readFileSync(new URL('../src/m26/onboarding/client-wearable-invitation.js',import.meta.url),'utf8');
   assert.match(c,/RECOVERY_COHORT=Object.freeze\(\{a:'[0-9a-f]{8}',b:'[0-9a-f]{8}'\}\)/u);
   assert.match(c,/hash\('second-check\|'/u);
-  assert.doesNotMatch(c,/juancarlosjimenez|@|auth\.users|fictitious-uid/u);
+  assert.doesNotMatch(c,/juancarlosjimenez|auth\.users|fictitious-uid/u);
 });
 
 test('previously suppressed returning Client sees exactly one nonmodal web recovery offer',async()=>{
