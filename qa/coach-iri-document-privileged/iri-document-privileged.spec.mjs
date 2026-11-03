@@ -354,14 +354,34 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   // This QA-only in-memory probe never records JWTs, URLs, health records,
   // client identifiers, form values or remote response bodies.
   await page.addInitScript(()=>{
-    const stages=[];
+    const stages=[],milestones=[];
+    // Keep the original bounded recent trace, but pin the first occurrence
+    // of every critical post-MFA transition. A 96-event tail can otherwise
+    // evict the hydration stages during IRI document navigation/cleanup.
+    const milestonesToKeep=new Set([
+      'rc64-login-setup-start','rc64-setup-start','rc64-hydrate-start',
+      'rc64-hydrate-primary-ready','rc64-hydrate-scope-ready',
+      'rc64-hydrate-secondary-ready','rc64-hydrate-store-start',
+      'rc64-hydrate-store-ready','rc64-hydrate-ready',
+      'rc64-setup-hydrate-ready','rc64-shell-mount-start',
+      'rc64-shell-frame-ready','rc64-shell-first-paint-ready',
+      'rc64-catalog-start','rc64-catalog-base-ready',
+      'rc64-catalog-media-ready','rc64-catalog-ready',
+      'rc64-setup-catalog-ready','rc64-setup-repositories-ready',
+      'rc64-setup-services-ready','rc64-setup-controllers-ready',
+      'rc64-shell-interactive-ready','rc64-shell-mount-ready',
+      'rc64-setup-ready','rc64-login-setup-ready',
+    ]);
     globalThis.__IBERFIT_M26_QA_STAGE__=(value)=>{
       const stage=String(value||'');
       if(!/^rc64-[a-z0-9-]{1,64}$/u.test(stage))return;
-      stages.push({stage,elapsedMs:Math.max(0,Math.round(performance.now()))});
+      const event={stage,elapsedMs:Math.max(0,Math.round(performance.now()))};
+      if(milestonesToKeep.has(stage)&&!milestones.some(item=>item.stage===stage))
+        milestones.push(event);
+      stages.push(event);
       if(stages.length>96)stages.shift();
     };
-    globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__={stages};
+    globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__={stages,milestones};
   });
   const consoleErrors=[];
   const pageErrors=[];
@@ -457,6 +477,10 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     evidence.safeAuthStages=await page.evaluate(()=>
       Array.isArray(globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__?.stages)
         ?globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__.stages.slice(-96):[]
+    ).catch(()=>[]);
+    evidence.safeAuthMilestones=await page.evaluate(()=>
+      Array.isArray(globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__?.milestones)
+        ?globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__.milestones.slice(0,25):[]
     ).catch(()=>[]);
     await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
     await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
