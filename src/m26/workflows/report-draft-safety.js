@@ -33,6 +33,38 @@ export function reportDraftScope(entityId){
   return scope;
 }
 
+// Local-only authoring is not approval or publication. Allow partial drafts
+// without an IRI or selected premium report type; the remote command remains
+// strictly validated by buildApproveReportDraftCommand and server evidence.
+const TRAINING_REPORT_TYPES=new Set([
+  'post-session','weekly','monthly','quarterly','year-in-iberfit',
+]);
+export function isStandaloneTrainingReportDraft(draft){
+  return TRAINING_REPORT_TYPES.has(String(draft?.reportType||'').trim());
+}
+export function localReportDraftCompatibleWithAssessment(draft,assessmentId){
+  // A training report belongs to its Client, not to a diagnostic assessment.
+  // Preliminary no-IRI notes also remain recoverable if an IRI arrives later.
+  const associated=String(draft?.assessmentId||'').trim();
+  return isStandaloneTrainingReportDraft(draft)||!associated||
+    associated===String(assessmentId||'').trim();
+}
+export function prepareLocalReportDraft(raw,{clientId,entityId}={}){
+  const data=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+  const owner=String(clientId||'').trim(),id=String(entityId||'').trim();
+  if(!SAFE_ID.test(owner))throw new Error('M43_REPORT_DRAFT_CLIENT_INVALID');
+  reportDraftScope(id);
+  const assessmentId=String(data.assessmentId||'').trim();
+  // A typed training report must never inherit the initial IRI just because
+  // the server rendered its ID in an otherwise shared editor.
+  return {
+    ...data,id,entityId:id,clientId:owner,
+    assessmentId:isStandaloneTrainingReportDraft(data)?null:assessmentId||null,
+    reportType:String(data.reportType||'').trim(),
+    reviewAccepted:data.reviewAccepted==='on'||data.reviewAccepted===true,
+  };
+}
+
 export function legacyReportDraftScope(assessmentId){
   const id=String(assessmentId||'').trim();
   if(!SAFE_ID.test(id)||id.length>64)throw new Error('M43_REPORT_ASSESSMENT_INVALID');
@@ -44,7 +76,7 @@ export async function restoreReportDraft(repository,clientId,assessmentId,entity
   if(scope){
     const current=await repository.load(clientId,scope);
     if(current){
-      if(String(current.value?.id||'')!==String(entityId)||String(current.value?.assessmentId||'')!==String(assessmentId||'')||String(current.value?.clientId||'')!==String(clientId))
+      if(String(current.value?.id||'')!==String(entityId)||!localReportDraftCompatibleWithAssessment(current.value,assessmentId)||String(current.value?.clientId||'')!==String(clientId))
         throw new Error('M43_REPORT_DRAFT_IDENTITY_CONFLICT');
       return current;
     }

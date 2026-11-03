@@ -17,8 +17,8 @@ import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
 import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
-import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
-import {reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision} from '../workflows/report-draft-safety.js';
+import {buildApproveReportDraftCommand,syncPremiumReportApprovalButton} from '../workflows/report-workflow.js';
+import {reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision,prepareLocalReportDraft,localReportDraftCompatibleWithAssessment} from '../workflows/report-draft-safety.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
 import {
@@ -1866,7 +1866,7 @@ export function createWorkflowController({
     const found=new Map();
     for(const record of records){
       const draft=record?.value,id=String(draft?.id||'').trim();
-      if(!id||String(draft?.clientId||'')!==String(clientId)||String(draft?.assessmentId||'')!==String(assessmentId||''))continue;
+      if(!id||String(draft?.clientId||'')!==String(clientId)||!localReportDraftCompatibleWithAssessment(draft,assessmentId))continue;
       let scoped;
       try{scoped=reportDraftScope(id);}catch{continue;}
       if(record.scope!==scoped&&!(assessmentId&&record.scope===legacyReportDraftScope(assessmentId)))continue;
@@ -1900,6 +1900,7 @@ export function createWorkflowController({
       const saved=await restoreReportDraft(draftRepository,clientId,assessmentId,selected.value.id);
       if(!saved?.value||context().clientId!==clientId||!root.contains?.(form))return;
       populateForm(form,{...saved.value,reviewAccepted:saved.value.reviewAccepted===true});
+      syncPremiumReportApprovalButton(form);
       picker.value=String(saved.value.id);
       syncGuidedWorkflowProgress(form);
       status(root,'report','Borrador de informe recuperado desde este dispositivo.','success');
@@ -1930,6 +1931,7 @@ export function createWorkflowController({
     if(!root.contains?.(form)||context().clientId!==clientId)return;
     if(!selectedId){
       form.reset();
+      syncPremiumReportApprovalButton(form);
       const entity=form.elements?.namedItem?.('entityId');if(entity)entity.value='';
       syncGuidedWorkflowProgress(form);
       status(root,'report','Nuevo informe preparado. Los borradores anteriores se conservan.','info');
@@ -1943,6 +1945,7 @@ export function createWorkflowController({
       return;
     }
     populateForm(form,{...saved.value,reviewAccepted:saved.value.reviewAccepted===true});
+    syncPremiumReportApprovalButton(form);
     syncGuidedWorkflowProgress(form);
     status(root,'report','Borrador seleccionado y recuperado.','success');
     await updateReportDraftChoices(form);
@@ -1955,19 +1958,19 @@ export function createWorkflowController({
     requireVisibleClient(clientId);
     if(reportFormClientIds.has(form)&&reportFormClientIds.get(form)!==clientId)throw new Error('M26_REPORT_DRAFT_CLIENT_CONTEXT_CHANGED');
     const raw=values(form);
-    const assessmentId=String(raw.assessmentId||'').trim();
-    const type=String(raw.reportType||'');
-    if(!assessmentId&&!['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(type))throw new Error('M26_REPORT_ASSESSMENT_REQUIRED');
+    // Local-only drafts can be exploratory. Never invent an evidence-backed
+    // premium type or attach a training report to the initial IRI as fallback.
     const stableId=String(raw.entityId||'').trim()||createM26Id();
     const scoped=reportDraftScope(stableId);
     const idField=form.elements?.namedItem?.('entityId');
     if(idField)idField.value=stableId;
-    const payload={...raw,id:stableId,entityId:stableId,clientId,assessmentId:assessmentId||null,
-      reviewAccepted:raw.reviewAccepted==='on'};
+    const payload=prepareLocalReportDraft(raw,{clientId,entityId:stableId});
     const write=reportDraftChain.then(()=>draftRepository.save(clientId,scoped,payload));
     reportDraftChain=write.catch(()=>{});
     await write;
-    if(!silent)status(root,'report','Borrador del informe guardado en este dispositivo. Puedes completarlo después.','success');
+    if(!silent)status(root,'report',!payload.reportType&&!payload.assessmentId?
+      'Borrador privado guardado. Para aprobarlo, selecciona un formato con evidencia confirmada.':
+      'Borrador del informe guardado en este dispositivo. Puedes completarlo después.','success');
     try{await updateReportDraftChoices(form);}catch(error){emit(root,'m26:workflow-warning',{action:'report-draft-selector',code:String(error?.message||error)});}
     return payload;
   }

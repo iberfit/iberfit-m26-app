@@ -179,12 +179,31 @@ function ensurePremiumReportStyles(document){
 }
 function createTextElement(document,tag,text,className=''){const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(text||'');return node;}
 function ensureHiddenField(form,document,name){if(form?.elements?.namedItem?.(name))return;const hidden=document.createElement('input');hidden.type='hidden';hidden.name=name;hidden.value='';form.append(hidden);}
+export function syncPremiumReportApprovalButton(form){
+  const approve=form?.querySelector?.('[data-workflow-action="approve-report"]');
+  if(!approve)return false;
+  const type=reportFormValue(form,'reportType');
+  const linkedIri=Boolean(reportFormValue(form,'assessmentId'));
+  const hasEvidenceSignature=Boolean(reportFormValue(form,'premiumEvidenceSignature'));
+  const training=['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(type);
+  // UI eligibility is never a replacement for the canonical approval gate.
+  const eligible=(training&&hasEvidenceSignature)||
+    (linkedIri&&(type===''||type==='iri'));
+  approve.disabled=!eligible;
+  if(eligible){
+    approve.removeAttribute?.('aria-disabled');
+    approve.removeAttribute?.('title');
+  }else{
+    approve.setAttribute?.('aria-disabled','true');
+    approve.setAttribute?.('title',training?
+      'Selecciona de nuevo el formato para confirmar la evidencia antes de aprobar.':
+      'Selecciona primero un informe de entrenamiento con evidencia confirmada');
+  }
+  return eligible;
+}
 function ensurePremiumEditorFields(form,document){
   ensureHiddenField(form,document,'reportType');ensureHiddenField(form,document,'premiumEvidenceSignature');
-  const approve=form.querySelector?.('[data-workflow-action="approve-report"]');
-  if(approve&&['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(reportFormValue(form,'reportType'))){
-    approve.disabled=false;approve.removeAttribute('aria-disabled');approve.removeAttribute('title');
-  }
+  syncPremiumReportApprovalButton(form);
   if(!form?.elements?.namedItem?.('coachComment')){const label=document.createElement('label');label.className='m26-premium-coach-comment';label.append(createTextElement(document,'span','Comentario del coach'));const textarea=document.createElement('textarea');textarea.name='coachComment';textarea.maxLength=2500;textarea.placeholder='Interpretación profesional, contexto o próximos pasos que quieras dejar registrados.';label.append(textarea);const approve=form.querySelector?.('[data-workflow-action="approve-report"]');if(approve)approve.before(label);else form.append(label);}
   if(!form.querySelector?.('[data-m44-report-preview]')){
     const button=document.createElement('button');button.type='button';
@@ -203,11 +222,7 @@ function renderPremiumReportCards(host,portfolio,document){
 function prefillPremiumReport(form,candidate){
   // Switching candidates always starts a new report identity; never reuse an older report ID.
   setReportFormValue(form,'entityId','');
-  const approve=form.querySelector?.('[data-workflow-action="approve-report"]');
-  if(approve&&['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(candidate.id)){
-    approve.disabled=false;approve.removeAttribute('aria-disabled');approve.removeAttribute('title');
-  }
-  setReportFormValue(form,'reportType',candidate.id);setReportFormValue(form,'premiumEvidenceSignature',premiumEvidenceSignature(candidate));setReportFormValue(form,'assessmentId',candidate.assessmentId);setReportFormValue(form,'title',candidate.title);setReportFormValue(form,'periodStart',candidate.periodStart);setReportFormValue(form,'periodEnd',candidate.periodEnd);setReportFormValue(form,'summary',candidate.summary);setReportFormValue(form,'conclusions',candidate.conclusions);setReportFormValue(form,'recommendations',candidate.recommendations);setReportFormValue(form,'coachComment','');const review=form.elements?.namedItem?.('reviewAccepted');if(review)review.checked=false;const status=form.ownerDocument?.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent=`${candidate.label} preparado con evidencia canónica. Revisa el contenido y añade tu comentario antes de aprobar.`;status.dataset.status='info';}form.scrollIntoView?.({behavior:'smooth',block:'start'});form.querySelector?.('[name="summary"]')?.focus?.({preventScroll:true});
+  setReportFormValue(form,'reportType',candidate.id);setReportFormValue(form,'premiumEvidenceSignature',premiumEvidenceSignature(candidate));setReportFormValue(form,'assessmentId',candidate.assessmentId);setReportFormValue(form,'title',candidate.title);setReportFormValue(form,'periodStart',candidate.periodStart);setReportFormValue(form,'periodEnd',candidate.periodEnd);setReportFormValue(form,'summary',candidate.summary);setReportFormValue(form,'conclusions',candidate.conclusions);setReportFormValue(form,'recommendations',candidate.recommendations);setReportFormValue(form,'coachComment','');const review=form.elements?.namedItem?.('reviewAccepted');if(review)review.checked=false;const status=form.ownerDocument?.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent=`${candidate.label} preparado con evidencia canónica. Revisa el contenido y añade tu comentario antes de aprobar.`;status.dataset.status='info';}syncPremiumReportApprovalButton(form);form.scrollIntoView?.({behavior:'smooth',block:'start'});form.querySelector?.('[name="summary"]')?.focus?.({preventScroll:true});
 }
 export function installPremiumReportUi({scope=globalThis,root=scope?.document?.querySelector?.('#app')}={}){
   const document=scope?.document;if(!document?.createElement||!root?.addEventListener||typeof scope.MutationObserver!=='function')return null;if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__)return scope.__IBERFIT_M26_PREMIUM_REPORT_UI__;ensurePremiumReportStyles(document);let destroyed=false;

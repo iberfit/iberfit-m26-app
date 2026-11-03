@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,validateReportDraft} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,validateReportDraft,syncPremiumReportApprovalButton} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
@@ -350,4 +350,28 @@ test('M44 editorial report never claims wearable activity is a confirmed improve
       assert.doesNotMatch(report.summary,/dispositivo.*mejora|mejora.*dispositivo/ui);
     }
   }
+});
+
+test('P1: approval eligibility recomputes after reset, restored drafts and IRI changes',()=>{
+  const fields={assessmentId:'',reportType:'',premiumEvidenceSignature:''};
+  const attrs=new Map();
+  const button={disabled:false,setAttribute:(key,value)=>attrs.set(key,value),
+    removeAttribute:key=>attrs.delete(key)};
+  const form={querySelector:selector=>selector.includes('approve-report')?button:null,
+    elements:{namedItem:name=>({get value(){return fields[name]||'';}})}};
+  assert.equal(syncPremiumReportApprovalButton(form),false);
+  assert.equal(button.disabled,true);
+  assert.equal(attrs.get('aria-disabled'),'true');
+  fields.reportType='monthly';
+  assert.equal(syncPremiumReportApprovalButton(form),false,'Type alone does not certify evidence');
+  fields.premiumEvidenceSignature='signed-evidence';
+  assert.equal(syncPremiumReportApprovalButton(form),true);
+  assert.equal(button.disabled,false);
+  fields.reportType='';fields.premiumEvidenceSignature='';
+  assert.equal(syncPremiumReportApprovalButton(form),false,'New untyped draft must never inherit an enabled button');
+  assert.equal(button.disabled,true);
+  fields.assessmentId='iri-confirmed';
+  assert.equal(syncPremiumReportApprovalButton(form),true,'Legacy linked IRI editor remains usable');
+  fields.reportType='reassessment';
+  assert.equal(syncPremiumReportApprovalButton(form),false,'Uncertified reassessment stays disabled');
 });
