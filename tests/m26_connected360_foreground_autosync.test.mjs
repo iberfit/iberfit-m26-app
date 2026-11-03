@@ -6,6 +6,7 @@ import {
   WEARABLE_FOREGROUND_MIN_INTERVAL_MS,
   assertWearableClientContinuity,
   createWearableForegroundSync,
+  createNativeForegroundHeartbeat,WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS,
   isCertifiedNativeAutoSyncSource,
 } from '../src/m26/wearables/foreground-sync.js';
 
@@ -265,4 +266,51 @@ test('Connected360 native foreground reads are cancelled on hidden, offline and 
   assert.match(c,/addEventListener\?\.\('pageshow',onPageShow\)/u);
   assert.match(c,/removeEventListener\?\.\('pageshow',onPageShow\)/u);
   assert.match(c,/if\(doc\?\.visibilityState!=='hidden'\)requestForegroundSync\(\)/u);
+});
+
+
+test('signed native heartbeat respects foreground consent, minimum interval and teardown',()=>{
+  let eligible=false,registered=0,stopped=0,ticks=0,handler=null;
+  const beat=createNativeForegroundHeartbeat({
+    onTick:()=>{ticks++;},
+    canRun:()=>eligible,
+    setTimer:(callback,ms)=>{
+      registered++;handler=callback;
+      assert.equal(ms,WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS);
+      return 0; // Real timer ID zero must be handled correctly.
+    },
+    clearTimer:id=>{assert.equal(id,0);stopped++;},
+  });
+  assert.equal(beat.start(),false);
+  eligible=true;
+  assert.equal(beat.start(),true);
+  assert.equal(beat.active,true);
+  assert.equal(beat.start(),false);
+  assert.equal(registered,1);
+  handler();assert.equal(ticks,1);
+  eligible=false;handler();assert.equal(ticks,1,'No polling after account/visibility loss');
+  assert.equal(beat.stop(),true);
+  assert.equal(beat.active,false);
+  assert.equal(beat.stop(),false);
+  assert.equal(stopped,1);
+  assert.equal(beat.start(),false);
+  assert.throws(()=>createNativeForegroundHeartbeat({
+    onTick:()=>{},canRun:()=>true,
+    intervalMs:WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS-1,
+  }),/HEARTBEAT_CONFIG_INVALID/u);
+});
+
+test('only production native Client heartbeat runs and hidden, offline and owner change stop it',()=>{
+  const c=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const body=c.slice(c.indexOf('const nativeForegroundHeartbeat=createNativeForegroundHeartbeat('),
+    c.indexOf('function onNativeHealthPermissionsReturned'));
+  assert.match(body,/Boolean\(productionSync\)/u);
+  assert.match(body,/actor\.role==='client'/u);
+  assert.match(body,/actor\.ownerId\|\|''/u);
+  assert.match(body,/visibilityState!=='hidden'/u);
+  assert.match(body,/onTick:\(\)=>requestForegroundSync\(\)/u);
+  assert.match(body,/nativeForegroundHeartbeat\.stop\(\)/u);
+  assert.match(c,/nativeForegroundHeartbeat\.start\(\)/u);
+  assert.match(c,/nativeForegroundHeartbeat\.stop\(\);\s*foregroundSync\.invalidate\(\)/u);
+  assert.doesNotMatch(body,/READ_HEALTH_DATA_IN_BACKGROUND|requestAuthorization\(/u);
 });
