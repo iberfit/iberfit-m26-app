@@ -47,10 +47,13 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
     &&item.policy?.productionAllowed===true
     &&providers.some(p=>p.key===item.provider&&p.usableNow===true));
   const importCount=active.length-automatic.length;
+  const historicalDate=/^\d{4}-\d{2}-\d{2}$/.test(String(wearable?.lastHistoricalDate||''))
+    ?wearable.lastHistoricalDate:null;
   const status=automatic.length
     ?`${automatic.length} fuente${automatic.length===1?'':'s'} vinculada${automatic.length===1?'':'s'}`
     :importCount?'Datos incorporados · sin enlace automático'
-    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos':'Sin mediciones confirmadas';
+    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos'
+      :historicalDate?'Último dato '+historicalDate:'Sin mediciones confirmadas';
   const primary=MAIN_SOURCES.map(key=>providers.find(item=>item.key===key)).filter(Boolean).map(item=>item.key==='health_connect'&&wearable?.productionNativeReady===true?{...item,productionNativeReady:true}:item);
   const others=providers.filter(item=>item.key!=='normalized_file'&&!MAIN_SOURCES.includes(item.key));
   const directAvailable=wearable?.productionNativeReady===true||providers.some(item=>item.usableNow&&item.nativeReady);
@@ -62,7 +65,9 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
       <p>Lo que compartes con IBERFIT se muestra aquí sin buscar ajustes. Estas mediciones no sustituyen cómo te sientes ni cambian tu plan automáticamente.</p></div>
       <span class="m26-device-link-state" role="status">${escapeHtml(status)}</span>
     </header>
-    ${stats||'<p class="m26-device-hub-empty">Aquí verás tus pasos, sueño y recuperación cuando existan datos confirmados. No es obligatorio conectar nada.</p>'}
+    ${stats||(historicalDate
+      ?'<p class="m26-device-hub-empty">Hay mediciones anteriores del '+escapeHtml(historicalDate)+'. No hay datos de los últimos siete días: consulta el historial y revisa la conexión antes de interpretar tu estado actual.</p>'
+      :'<p class="m26-device-hub-empty">Aquí verás tus pasos, sueño y recuperación cuando existan datos confirmados. No es obligatorio conectar nada.</p>')}
     ${stats?`<p class="m26-data-footnote">Medias de los últimos siete días · ${escapeHtml(summary.daysWithData||0)} día(s) con datos. El reloj físico no está verificado.</p>`:''}
     <details class="m26-device-link-picker" data-m26-device-link-picker${wearable?.productionNativeReady===true&&!active.length&&Number(summary.daysWithData||0)===0?' open':''}>
       <summary class="m26-device-link-cta">${stats?'Conexión y otras fuentes':'Conectar mi actividad'} <span aria-hidden="true">↗</span></summary>
