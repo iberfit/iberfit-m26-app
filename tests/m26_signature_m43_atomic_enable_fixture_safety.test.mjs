@@ -152,7 +152,7 @@ test('QA historical retention fingerprint preserves rows, rejects stale CAS and 
   assert.equal(retainedM43HistoricalFingerprint({...legacy,body:{...legacy.body,clientId:'foreign'}},new Set([legacyDigest])),false);
   const writer=readFileSync(new URL('../scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',import.meta.url),'utf8');
   assert.match(writer,/fixtureBudget=\{count:budget.count,total:budget.total,retained:budget.retained/u);
-  assert.match(writer,/budget.count<=budget.limit-2/u);
+  assert.match(writer,/budget.count<=budget.limit-3/u);
   assert.doesNotMatch(writer,/delete\s+from\s+.*domain_entities_v26/iu);
 });
 
