@@ -3897,3 +3897,200 @@
   min-inline-size:11.25rem;
 }
 /* END SIGNATURE MASTER U90 */
+
+/* SIGNATURE R49 · Visual handoff of R44/R46 human session hierarchy.
+ * Client only; no changes to running engine, permissions or prescription. */
+.m26-shell[data-m26-role="client"] .m26-workspace
+ :is(.m26-rc39-sessions,.m26-rc39-planning) .m26-rc39-session-card[data-client-session-editorial="true"]{
+  display:grid;
+  align-content:start;
+  gap:clamp(.75rem,1.8vw,1.1rem);
+  min-inline-size:0;
+  padding:clamp(1rem,2.2vw,1.6rem);
+  border:1px solid rgba(197,160,89,.45);
+  border-radius:1.2rem;
+  background:#16291f;
+  box-shadow:0 11px 26px rgba(0,0,0,.1);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header{
+  display:block;
+  min-inline-size:0;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header h3{
+  margin:.45rem 0 .25rem;
+  font-family:var(--iberfit-font-family-editorial,Georgia,serif);
+  font-size:clamp(1.55rem,2.7vw,2.25rem);
+  line-height:1.13;
+  font-weight:550;
+  letter-spacing:-.027em;
+  color:#f5f5f0;
+  text-wrap:balance;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header .m26-eyebrow{
+  color:#d7ba7c;
+  font-size:.77rem;
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  min-inline-size:0;
+  margin:0;
+  padding:.35rem .65rem;
+  border:1px solid rgba(244,238,214,.13);
+  border-radius:.88rem;
+  background:#102118;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals>div{
+  min-inline-size:0;
+  padding:clamp(.65rem,1.4vw,1rem);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals>div:nth-child(even){
+  border-inline-start:1px solid rgba(244,238,214,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals>div:nth-child(n+3){
+  border-block-start:1px solid rgba(244,238,214,.12);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals dt{
+  margin:0 0 .35rem;
+  font-size:.73rem;
+  line-height:1.4;
+  color:#c3cec2;
+  font-weight:550;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals dd{
+  margin:0;
+  min-inline-size:0;
+  font-size:clamp(1.05rem,2vw,1.48rem);
+  font-weight:720;
+  line-height:1.25;
+  letter-spacing:-.02em;
+  color:#f5f5f0;
+  overflow-wrap:anywhere;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-session-preview-actions[data-client-session-primary]{
+  display:block;
+  margin:0;
+  min-inline-size:0;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-session-preview-actions[data-client-session-primary]>button{
+  display:flex;
+  width:100%;
+  min-height:56px;
+  align-items:center;
+  justify-content:center;
+  padding:.9rem 1rem;
+  border-radius:.7rem;
+  background:#d7ba7c;
+  color:#152015;
+  font-weight:760;
+  line-height:1.2;
+  font-size:clamp(.96rem,2vw,1.1rem);
+  text-align:center;
+  white-space:normal;
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-session-preview-actions[data-client-session-primary]>button:hover{
+  background:#e4c992;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-session-preview-actions[data-client-session-primary]>button:focus-visible,
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-client-session-context>summary:focus-visible{
+  outline:3px solid #f5e2b7;
+  outline-offset:3px;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-client-session-context{
+  border-block-start:1px solid rgba(245,245,240,.13);
+  padding-block-start:.5rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-client-session-context>summary{
+  min-height:44px;
+  padding:.65rem .2rem;
+  display:list-item;
+  cursor:pointer;
+  color:#e6d8b7;
+  font-size:.9rem;
+  font-weight:620;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-client-session-context>.m26-session-experience{
+  margin-block:.5rem .7rem;
+  max-width:100%;
+}
+/* R49 tiny viewport: preserve all four prescribed goals AND keep the real
+ * action in the first fold above the dedicated R46 dock at 320px. No hiding
+ * labels, values, exercise details, or interactive controls. */
+@media(max-width:370px){
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]{
+  gap:.43rem;
+  padding:.7rem .78rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header h3{
+  font-size:1.42rem;
+  margin:.12rem 0;
+  line-height:1.1;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header .m26-eyebrow{
+  font-size:.72rem;
+  line-height:1.25;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals{
+  padding:0 .18rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals>div{
+  padding:.32rem .38rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals dt{
+  font-size:.71rem;
+  line-height:1.3;
+  margin-block-end:.1rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals dd{
+  font-size:1rem;
+  line-height:1.2;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>button{transition:none}
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"],
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals{
+  border-color:CanvasText;background:Canvas;color:CanvasText;box-shadow:none;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals :is(dt,dd){color:CanvasText}
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>.m26-session-preview-actions[data-client-session-primary]>button{
+  color:ButtonText;background:ButtonFace;border:1px solid ButtonText;
+ }
+}

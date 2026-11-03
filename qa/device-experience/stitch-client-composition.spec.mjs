@@ -145,6 +145,36 @@ test('R47 Client session offers one reachable authorized action before optional 
   await expect(action).toBeVisible();
   await expect(action).toContainText('Preparar entrenamiento');
   await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
+  await expect(card).toHaveAttribute('data-client-session-editorial','true');
+  const goals=card.locator('.m26-client-session-goals');
+  await expect(goals).toBeVisible();
+  await expect(goals).toContainText('60 min');
+  await expect(goals).toContainText('35 min');
+  await expect(goals).toContainText('5:30 min/km');
+  await expect(goals).toContainText('6 de 10');
+  const layout=await page.evaluate(()=>{
+    const card=document.querySelector('[data-client-session-editorial="true"]');
+    const goals=card?.querySelector('.m26-client-session-goals');
+    const button=card?.querySelector('[data-client-session-primary]>button');
+    if(!card||!goals||!button)return null;
+    const rect=el=>el.getBoundingClientRect();
+    return {
+      goalsTop:rect(goals).top,goalsBottom:rect(goals).bottom,
+      buttonTop:rect(button).top,buttonBottom:rect(button).bottom,
+      columns:getComputedStyle(goals).gridTemplateColumns,
+      bg:getComputedStyle(card).backgroundColor,
+      font:getComputedStyle(card.querySelector('h3')).fontFamily,
+      overflow:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)-document.documentElement.clientWidth,
+    };
+  });
+  expect(layout).not.toBeNull();
+  expect(layout.goalsTop).toBeGreaterThan(0);
+  expect(layout.buttonTop).toBeLessThanOrEqual(layout.goalsTop);
+  expect(layout.buttonBottom).toBeLessThanOrEqual(layout.goalsTop+1,
+    'the actual Client action stays before descriptive goals in DOM and view');
+  expect(layout.columns.split(' ').length).toBe(2);
+  expect(layout.overflow).toBeLessThanOrEqual(2);
+  await expect(card.locator('.m26-client-session-context summary')).toBeVisible();
   await expect(card.locator('.m26-rc39-session-content')).toHaveCount(1);
   await expect(card.locator('.m26-rc39-session-content')).not.toHaveAttribute('open','');
   await expect(card).not.toContainText('PRIVADO_NO_MOSTRAR');
@@ -194,4 +224,48 @@ test('R47 Client session offers one reachable authorized action before optional 
   await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
   await testInfo.attach('r47-client-session-real-render-'+testInfo.project.name+'.png',{
     body:await page.screenshot({fullPage:true,animations:'disabled',caret:'hide'}),contentType:'image/png'});
+});
+
+// R46 source-locked visual closure: exercise the actual Client route shell,
+// not a screenshot pasted on top. This is isolated synthetic QA, not Auth.
+test('SIGNATURE R49 R46 · the Client dock never covers real content across nine routes and short screens',async({page},testInfo)=>{
+  const width=testInfo.project.use.viewport?.width;
+  test.skip(![320,390,768,820].includes(width),'Native mobile/tablet layout only');
+  const heights=width===320?[568,800]:width===390?[650,844]:width===768?[800]:[900];
+  const areas=['hoy','planificacion','sesion','progreso','informes','actividad','mensajes','retos','ajustes'];
+  for(const height of heights){
+    await page.setViewportSize({width,height});
+    await page.goto('/qa/visual/signature-route-shell.fixture.html?role=client&body=real');
+    await expect(page.locator('.m26-client-bottom-nav-layer')).toBeVisible();
+    for(const area of areas){
+      await page.evaluate(target=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.navigate(target),area);
+      await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__.area())).toBe(area);
+      const layout=await page.evaluate(()=>{
+        const dock=document.querySelector('.m26-client-bottom-nav-layer');
+        const content=document.querySelector('.m26-client-route-shell > :not(.m26-client-bottom-nav-layer)');
+        const nav=document.querySelector('.m26-client-bottom-nav');
+        const first=nav?.querySelector('.m26-client-bottom-nav-item');
+        if(!dock||!content||!nav||!first)return null;
+        const rect=el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};
+        const before={dock:rect(dock),content:rect(content),nav:rect(nav),first:rect(first)};
+        const scroll=content.scrollHeight-content.clientHeight;
+        content.scrollTop=scroll;
+        const after=rect(dock);
+        const point=first.getBoundingClientRect();
+        const hit=document.elementFromPoint(point.left+point.width/2,point.top+point.height/2);
+        return {...before,after,scroll,hit:hit===first||first.contains(hit),
+          dockPosition:getComputedStyle(dock).position,
+          documentOverflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+      });
+      expect(layout,area+' must render a real Client shell').not.toBeNull();
+      expect(layout.dockPosition,area+' dock belongs to the viewport composition').toBe('relative');
+      expect(layout.content.bottom,area+' content stops above dock').toBeLessThanOrEqual(layout.dock.top+2);
+      expect(layout.dock.bottom,area+' dock fits viewport').toBeLessThanOrEqual(height+2);
+      expect(layout.after.top,area+' dock does not move during route scroll').toBeGreaterThanOrEqual(layout.dock.top-1);
+      expect(layout.after.bottom,area+' dock position stays fixed in its track').toBeLessThanOrEqual(layout.dock.bottom+1);
+      expect(layout.first.height,area+' touch target at least 44px').toBeGreaterThanOrEqual(44);
+      expect(layout.hit,area+' first nav target is actually touchable').toBe(true);
+      expect(layout.documentOverflow,area+' no global horizontal overflow').toBeLessThanOrEqual(2);
+    }
+  }
 });

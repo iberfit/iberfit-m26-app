@@ -43,7 +43,7 @@ const modalityIntro=(role,value)=>{
     if(modality==='online')return 'Tu experiencia online prioriza las sesiones autónomas guiadas desde IBERFIT, con RIR/RPE, descansos, historial y revisión posterior del Coach.';
     return 'Cada sesión respeta su forma real de entrega, visibilidad y permisos antes de permitir la ejecución.';
   }
-  if(role==='coach')return 'La experiencia del atleta cambia según su contrato y la entrega real de cada sesión. El Coach mantiene el control de las sesiones supervisadas y la progresión compartida.';
+  if(role==='coach')return 'La experiencia del cliente cambia según su servicio y la entrega real de cada sesión. El Coach mantiene el control de las sesiones supervisadas y la progresión compartida.';
   return 'Supervisión de sesiones por modalidad contractual y tipo real de entrega, sin alterar ownership, visibilidad ni permisos de ejecución.';
 };
 const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
@@ -58,7 +58,7 @@ const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
 const experiencePanel=(experience,role)=>{
   const caps=experience.capabilities.map((label)=>`<span class="m26-session-experience__capability">${escape(label)}</span>`).join('');
   const roleNote=role==='coach'
-    ? `<p class="m26-session-experience__role-note">Vista Coach · ${escape(experience.clientLiveWorkout?'el atleta puede ejecutar esta sesión desde entrenamiento guiado':'la ejecución permanece supervisada')}</p>`
+    ? `<p class="m26-session-experience__role-note">Vista Coach · ${escape(experience.clientLiveWorkout?'el cliente puede realizar esta sesión con la guía de la aplicación':'la ejecución permanece supervisada')}</p>`
     : role==='admin'
       ? '<p class="m26-session-experience__role-note">Vista Admin · supervisión sin cambiar la propiedad de ejecución</p>'
       : '';
@@ -232,6 +232,30 @@ function renderRc39SessionPreview(record,{catalog=[],mediaMap=null,role='client'
   }).join('');
   return `<ol class="m26-session-preview-blocks">${rows}</ol>${mediaMap?renderExerciseMediaCredit({compact:true}):''}`;
 }
+// R49 · The visual hero reads the exact authorized prescription, never DEMO
+// values or recorded results. No launch eligibility or command logic lives here.
+const clientEditorialSessionFacts=(record)=>{
+  const body=publishedBody(record);
+  const blocks=Array.isArray(body.blocks)?body.blocks.filter(b=>b&&typeof b==='object'&&!Array.isArray(b)):[];
+  const total=previewNumber(body.durationMinutes,{min:1,max:1440});
+  const result=[];
+  if(total!==null)result.push(['Duración total',total+' min']);
+  if(blocks.length===1&&String(blocks[0].type||'').toLowerCase()==='exercise'){
+    const plan=blocks[0];
+    const work=previewNumber(plan.plannedDurationMinutes,{min:1,max:1440});
+    const rpe=previewNumber(plan.targetRpe,{min:1,max:10});
+    const pace=String(plan.plannedPace||plan.plannedPacePer100M||'').trim();
+    if(work!==null)result.push(['Tiempo de trabajo',work+' min']);
+    if(/^\d{1,2}:\d{2}$/.test(pace))
+      result.push(['Ritmo orientativo',pace+(plan.plannedPace?' min/km':' min/100 m')]);
+    if(rpe!==null)result.push(['Esfuerzo orientativo',rpe+' de 10']);
+  }else if(blocks.length>1){
+    result.push(['Bloques de trabajo',String(blocks.length)]);
+  }
+  if(!result.length)return '';
+  return '<dl class="m26-client-session-goals" aria-label="Objetivos previstos de tu sesión">'+
+    result.slice(0,4).map(([label,value])=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(value)+'</dd></div>').join('')+'</dl>';
+};
 const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[],mediaMap=null}={})=>{
   const kind=item.ownership==='coach_led'?'coach':item.ownership==='live_online'?'online':'autonomous';
   const visibility=item.visibility==='summary_only'?'Solo resumen':item.visibility==='full'?'Contenido completo':'Oculta';
@@ -251,18 +275,27 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
     : `<p class="m26-rc39-summary-copy">${supervised
        ?(item.ownership==='coach_led'?'Esta sesión la dirige tu Coach.':'La sesión se realiza en directo con tu Coach.')
        :'El detalle de esta sesión estará disponible cuando tu Coach lo habilite.'}</p>`;
+  const clientEditorial=role==='client'&&!supervised&&Boolean(inPreviewStart)&&detailAvailable;
+  const editorialFacts=clientEditorial?clientEditorialSessionFacts(item.session):'';
   const duration=previewNumber(publishedBody(item.session).durationMinutes??item.session?.durationMinutes,{min:1,max:1440});
   const summaryMeta=role==='client'&&supervised?`<p class="m26-session-supervised-duration">${duration?`${escape(duration)} min · `:''}Con tu entrenador</p>`:'';
   const experienceHtml=role==='client'&&supervised?'':experiencePanel(experience,role);
+  // Keep every informational capability, but move the secondary explanation
+  // below the actionable session and its exercise details for Cliente.
+  const contextHtml=clientEditorial
+    ?'<details class="m26-client-session-context"><summary>Cómo se realiza esta sesión</summary>'+experienceHtml+'</details>'
+    :'';
   const contractLabel=clientModalityLabel(contractModality);
-  return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}"${role==='client'?` data-client-session-card-state="${supervised?'supervised':inPreviewStart?'ready':'published'}"`:''} tabindex="-1">
-    <header><div><p class="m26-eyebrow">${escape(ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3><p>${escape(formatDate(item.startAt))}</p>${summaryMeta}</div><div>${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${role==='client'&&item.visibility==='full'?'':statusBadge(visibility,'neutral')}</div></header>
+  return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}"${role==='client'?` data-client-session-card-state="${supervised?'supervised':inPreviewStart?'ready':'published'}"${clientEditorial?' data-client-session-editorial="true"':''}`:''} tabindex="-1">
+    <header><div><p class="m26-eyebrow">${escape(clientEditorial?(canResume?'Entrenamiento en curso':String(publishedBody(item.session).status||item.session?.status||'').toLowerCase()==='disponible'?'Disponible para entrenar':'Tu sesión guiada'):ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3>${item.startAt?`<p>${escape(formatDate(item.startAt))}</p>`:clientEditorial?'':`<p>${escape(formatDate(item.startAt))}</p>`}${summaryMeta}</div><div>${clientEditorial?'':`${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${role==='client'&&item.visibility==='full'?'':statusBadge(visibility,'neutral')}`}</div></header>
     ${inPreviewStart}
-    ${experienceHtml}
+    ${editorialFacts}
+    ${clientEditorial?'':experienceHtml}
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
     ${item.appointment?.changeRequest?.status==='pending'?`<aside class="m26-notice is-warning"><strong>Cambio solicitado por el cliente</strong><p>${escape(item.appointment.changeRequest.reason||'Sin motivo registrado')}</p></aside>`:''}
     ${content}
+    ${contextHtml}
     ${cardActions(item,role,experience,{serviceActive})}
     ${role==='client'&&item.confirmation?.canRequestChange&&item.changeRequestAvailable?`<form class="m26-rc39-change-form" data-rc39-change-form="${escape(item.appointmentId)}" hidden><label>Motivo o alternativa horaria<textarea name="reason" maxlength="500" required></textarea></label><div><button type="submit" class="m26-primary-action">Enviar solicitud</button><button type="button" data-rc39-action="close-change-request">Cancelar</button></div></form>`:''}
   </article>`;

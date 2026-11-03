@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
 import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 
@@ -270,4 +271,93 @@ test('SIGNATURE U48 continue requires an independently verified active execution
  assert.doesNotMatch(value,/Preparar entrenamiento/u);
  const denied=html('client',[{...forged,canClientResume:false}]);
  assert.doesNotMatch(denied,/Continuar entrenamiento|data-workflow-action="start-published-session"/u);
+});
+
+test('SIGNATURE R49: Coach language is personal, consistent and never calls a Cliente an athlete',()=>{
+  const rendered=html('coach',[item('guiada','guided_in_app','full')]);
+  assert.match(rendered,/el cliente puede realizar esta sesión con la guía de la aplicación/u);
+  assert.doesNotMatch(rendered,/atleta|athlete|Atelier/u);
+  const source=readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
+  assert.match(source,/La experiencia del cliente cambia según su servicio/u);
+  assert.doesNotMatch(source,/La experiencia del atleta|el atleta puede ejecutar/u);
+});
+
+test('SIGNATURE R49: running editorial reads only authenticated planned targets before one CTA',()=>{
+  const running=item('guiada','guided_in_app','full');
+  running.title='Carrera suave';
+  running.startAt=null;
+  running.session={...running.session,durationMinutes:60,blocks:[{
+    id:'run-1',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',
+    plannedDurationMinutes:35,plannedPace:'05:30',targetRpe:6,
+  }]};
+  const value=html('client',[running]);
+  const hero=value.indexOf('data-client-session-editorial="true"');
+  const goals=value.indexOf('m26-client-session-goals');
+  const action=value.indexOf('data-client-session-primary');
+  const detail=value.indexOf('m26-session-preview-disclosure');
+  const context=value.indexOf('m26-client-session-context');
+  assert.ok(hero>=0&&action>hero&&goals>action&&detail>goals&&context>detail,
+    'the primary action stays in the first mobile fold, before secondary planned facts');
+  assert.match(value,/Duración total<\/dt><dd>60 min/u);
+  assert.match(value,/Tiempo de trabajo<\/dt><dd>35 min/u);
+  assert.match(value,/Ritmo orientativo<\/dt><dd>05:30 min\/km/u);
+  assert.match(value,/Esfuerzo orientativo<\/dt><dd>6 de 10/u);
+  assert.doesNotMatch(value,/Distancia prevista|Distancia \(km\)<\/dt><dd>6[.,]5/u);
+  assert.doesNotMatch(value,/Fecha por definir/u,'editorial card should not invent a scheduled date');
+  assert.equal((value.match(/data-client-session-primary/gu)||[]).length,1);
+  assert.equal((value.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
+  assert.match(value,/Preparar entrenamiento/,'do not claim start before real server ACK');
+  assert.match(value,/Cómo se realiza esta sesión/,'retain secondary explanatory contract');
+});
+test('SIGNATURE R49: swimming preserves min\/100m and strength preserves every full exercise',()=>{
+  const swimming=item('guiada','guided_in_app','full');
+  swimming.session={...swimming.session,durationMinutes:45,blocks:[{
+    id:'swim',type:'exercise',exerciseId:'swim-100',
+    plannedDurationMinutes:30,plannedPacePer100M:'02:05',targetRpe:5,
+  }]};
+  const swim=html('client',[swimming]);
+  assert.match(swim,/02:05 min\/100 m/);
+  assert.doesNotMatch(swim,/02:05 min\/km/);
+  const strength=html('client',[item('guiada','guided_in_app','full')]);
+  assert.match(strength,/Bloques de trabajo<\/dt><dd>2/u);
+  assert.match(strength,/Press de pecho|Remo TRX/u);
+  assert.match(strength,/m26-session-preview-disclosure/u);
+  assert.equal((strength.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
+});
+test('SIGNATURE R49: unsafe or supervised Client cards never receive an editorial launch hero',()=>{
+  for(const data of [
+    {...item('guiada','guided_in_app','full'),canClientExecute:false},
+    {...item('guiada','guided_in_app','full'),visible:false},
+    {...item('guiada','guided_in_app','full'),canClientStart:false},
+    item('presencial','coach_led','summary_only'),
+  ]){
+    const value=html('client',[data]);
+    assert.doesNotMatch(value,/data-client-session-editorial|m26-client-session-goals/u);
+    assert.doesNotMatch(value,/data-workflow-action="start-published-session"/u);
+  }
+  const coach=html('coach',[item('guiada','guided_in_app','full')]);
+  assert.doesNotMatch(coach,/data-client-session-editorial|m26-client-session-goals|m26-client-session-context/u);
+});
+
+test('SIGNATURE R49: Planning and Sessions use one authorized editorial visual without false availability',()=>{
+  const running=item('guiada','guided_in_app','full');
+  running.title='Carrera suave';
+  running.session={...running.session,status:'disponible',durationMinutes:60,blocks:[{
+    id:'run',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',
+    plannedDurationMinutes:35,plannedPace:'05:30',targetRpe:6,
+  }]};
+  const base={role:'client',serviceActive:true,selectedClient:{modality:'hibrido'},
+    sessionPreviewAssets:{catalog:[],mediaMap:null},
+    rc39:{role:'client',sessionProjections:[running],planningItems:[running],appointments:[]}};
+  for(const kind of ['sesion','planificacion']){
+    const value=renderRc39Route({...base,kind});
+    assert.match(value,/data-client-session-editorial="true"/u);
+    assert.match(value,/Duración total<\/dt><dd>60 min/u);
+    assert.match(value,/Disponible para entrenar/u);
+    assert.equal((value.match(/data-workflow-action="start-published-session"/gu)||[]).length,1,kind);
+  }
+  const legacy={...running,session:{...running.session,status:'publicado'}};
+  const value=renderRc39Route({...base,kind:'sesion',rc39:{...base.rc39,sessionProjections:[legacy]}});
+  assert.doesNotMatch(value,/Disponible para entrenar/u,
+    'a published legacy state must not claim definitive server readiness');
 });

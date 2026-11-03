@@ -413,3 +413,16 @@ test('U83/U84 native Retina evidence is full device resolution and audits visibl
   assert.match(retina,/identity:'synthetic',authenticated:false/);
   assert.doesNotMatch(retina,/currentSrc:|src:img\.src|outerHTML|innerHTML/);
 });
+
+test('SIGNATURE R49 R46: actual Client mobile dock uses its own layout track, no overlay or fake padding compensation',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
+  const compact=css.split('SIGNATURE 360 · Non-overlapping Client mobile navigation.')[1]?.split('@media (max-width: 690px)')[0]||'';
+  assert.match(compact,/height: 100dvh;/u);
+  assert.match(compact,/\.m26-client-route-shell\s*\{/u);
+  assert.match(compact,/display: flex;[\s\S]*?flex-direction: column;/u);
+  assert.match(compact,/overflow-y: auto;/u);
+  assert.match(compact,/\.m26-client-bottom-nav-layer\s*\{[\s\S]*?position: relative;/u);
+  assert.match(compact,/flex: 0 0 auto;/u);
+  const source=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(source,/m26-client-route-shell[\s\S]*?renderClientBottomNav\(vm\)/u);
+});
