@@ -18,6 +18,16 @@ const ROWS=Object.freeze([
   ["El historial antiguo requiere conexión. Tus sesiones disponibles permanecen visibles.","Older training history requires an internet connection. Your available sessions remain visible.","L'ancien historique nécessite une connexion. Vos séances disponibles restent visibles.","O histórico antigo requer ligação à Internet. As sessões disponíveis continuam visíveis."],
   ["No se ha podido recuperar el historial completo. No se ha perdido ningún registro.","Unable to retrieve the complete history. No records have been lost.","Impossible de récupérer l'historique complet. Aucun enregistrement n'a été perdu.","Não foi possível recuperar o histórico completo. Nenhum registo foi perdido."],
   ["Reintentar historial","Retry history","Réessayer l'historique","Tentar novamente o histórico"],
+  // SIGNATURE R48 · Client training targets without unexplained RPE/RIR codes.
+  ["Objetivos de tu entrenamiento","Your workout targets","Objectifs de votre entraînement","Objetivos do seu treino"],
+  ["Esfuerzo orientativo","Suggested effort","Effort conseillé","Esforço orientativo"],
+  ["Tiempo de trabajo","Work duration","Durée de l’effort","Tempo de trabalho"],
+  ["Ritmo orientativo","Suggested pace","Allure conseillée","Ritmo orientativo"],
+  ["Repeticiones en reserva","Repetitions in reserve","Répétitions en réserve","Repetições em reserva"],
+  ["Repeticiones o tiempo","Repetitions or time","Répétitions ou durée","Repetições ou tempo"],
+  ["Ritmo del movimiento","Movement tempo","Tempo du mouvement","Ritmo do movimento"],
+  ["Carga orientativa","Suggested load","Charge conseillée","Carga orientativa"],
+  ["Zona de pulso","Heart-rate zone","Zone de fréquence cardiaque","Zona de frequência cardíaca"],
   // SIGNATURE R46 · Human-first Client labels, translations remain explicit and deterministic.
   ["Tu espacio de entrenamiento","Your training space","Votre espace d’entraînement","O seu espaço de treino"],
   ["Ejercicios de tu entrenamiento","Exercises in your workout","Exercices de votre entraînement","Exercícios do seu treino"],

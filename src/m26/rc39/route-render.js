@@ -139,7 +139,34 @@ const previewName=(id,source={},catalog=new Map())=>{
   const exercise=catalog.get(String(id||''))||{};
   return String(exercise.name_es||exercise.name||source.name||source.title||id||'Ejercicio');
 };
-const previewFacts=(plan={})=>{
+// A Client needs practical goals, not internal training shorthand.
+// Values remain exactly the Coach's targets, never actual results.
+const previewFacts=(plan={},role='coach')=>{
+  if(role==='client'){
+    const sets=previewNumber(plan.sets,{min:1,max:100});
+    const effort=previewNumber(plan.targetRpe,{min:1,max:10});
+    const reserve=previewNumber(plan.targetRir,{max:10});
+    const rest=previewNumber(plan.restSeconds,{max:3600});
+    const duration=previewNumber(plan.plannedDurationMinutes,{min:1,max:1440});
+    const pace=String(plan.plannedPace||plan.plannedPacePer100M||'').trim();
+    const plainPace=/^\d{1,2}:\d{2}$/.test(pace);
+    const paceSuffix=plan.plannedPace?' min/km':plan.plannedPacePer100M?' min/100 m':'';
+    const facts=[
+      [sets===1&&duration&&!plan.reps?null:sets,'Series'],
+      [plan.reps||null,'Repeticiones o tiempo'],
+      [rest===null?null:rest+' s','Descanso'],
+      [effort===null?null:effort+' de 10','Esfuerzo orientativo'],
+      [reserve===null?null:reserve+' '+(reserve===1?'repetición':'repeticiones'),'Repeticiones en reserva'],
+      [plan.tempo||null,'Ritmo del movimiento'],
+      [plan.plannedLoad||plan.load||null,'Carga orientativa'],
+      [duration===null?null:duration+' min','Tiempo de trabajo'],
+      [plan.plannedDistanceKm||null,'Distancia (km)'],
+      [plan.plannedDistanceM||null,'Distancia (m)'],
+      [pace?(plainPace?pace+paceSuffix:pace):null,'Ritmo orientativo'],
+      [plan.targetHeartRateZone||null,'Zona de pulso'],
+    ].filter(([value])=>value!==null&&value!==undefined&&String(value).trim()!=='');
+    return facts.length?'<dl class="m26-session-preview-facts" aria-label="Objetivos de tu entrenamiento">'+facts.map(([value,label])=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(value)+'</dd></div>').join('')+'</dl>':'';
+  }
   const facts=[
     [previewNumber(plan.sets,{min:1,max:100}),'Series'],
     [plan.reps||null,'Repeticiones / tiempo'],
@@ -169,7 +196,7 @@ const renderPreviewExercise=(id,plan,{catalog,mediaMap,role})=>{
     <div class="m26-session-preview-media">${media}</div>
     <div class="m26-session-preview-exercise-body"><h5>${escape(name)}</h5>
       ${exercise.equipment?`<p class="m26-session-preview-equipment">${escape(exercise.equipment)}</p>`:''}
-      ${previewFacts(plan)}
+      ${previewFacts(plan,role)}
       ${plan.prescriptionNotes?`<p class="m26-session-preview-cue">${escape(plan.prescriptionNotes)}</p>`:''}
       ${alternative?`<p class="m26-session-preview-cue"><strong>Alternativa:</strong> ${escape(alternative)}</p>`:''}
       ${tech.length||precautions.length?`<details class="m26-session-preview-technique"><summary>Cómo realizarlo</summary>
@@ -693,7 +720,7 @@ function renderClientSessionsProgressive(items,contractModality,options={}){
   const ordered=prioritizeClientPublishedSessions(items,{serviceActive:options.serviceActive!==false,contractModality});
   const display=clientSessionDisplayBuckets(ordered,actionable);
   const render=(item)=>sessionCard(item,'client',contractModality,options);
-  return `${display.readyCount?`<p class="m26-session-available-summary" data-session-available-count="${display.readyCount}">${display.readyCount} ${display.readyCount===1?'entrenamiento listo':'entrenamientos listos'} · Prepara uno cuando quieras.</p>`:''}${display.foreground.map(render).join('')}${display.additionalReady.length?`<details class="m26-signature-ready-overflow" data-signature-ready-overflow><summary>Ver otros ${display.additionalReady.length} entrenamientos disponibles</summary><div class="m26-signature-archive-list">${display.additionalReady.map(render).join('')}</div></details>`:''}${display.history.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${display.history.length} sesiones para consultar</summary><div class="m26-signature-archive-list">${display.history.map(render).join('')}</div></details>`:''}`;
+  return `${display.readyCount>1?`<p class="m26-session-available-summary" data-session-available-count="${display.readyCount}">${display.readyCount} entrenamientos disponibles</p>`:''}${display.foreground.map(render).join('')}${display.additionalReady.length?`<details class="m26-signature-ready-overflow" data-signature-ready-overflow><summary>Ver otros ${display.additionalReady.length} entrenamientos disponibles</summary><div class="m26-signature-archive-list">${display.additionalReady.map(render).join('')}</div></details>`:''}${display.history.length?`<details class="m26-signature-session-archive" data-signature-session-archive><summary>Ver otras ${display.history.length} sesiones para consultar</summary><div class="m26-signature-archive-list">${display.history.map(render).join('')}</div></details>`:''}`;
 }
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
@@ -708,19 +735,19 @@ function renderSessions(vm){
   const ready=client&&vm.serviceActive!==false&&items.some((item)=>
     experienceFor(item,role,contractModality).clientLiveWorkout&&clientSessionActionable(item));
   const clientState=!items.length?'empty':vm.serviceActive===false&&client?'paused':ready?'ready':'published';
-  const clientBrief=client&&items.length?{
-    ready:['Disponible para entrenar','Tienes una sesión guiada que puedes revisar antes de empezar.'],
-    published:['Sesiones para consultar','Tu Coach dirige o habilita el inicio según cada sesión publicada.'],
-    paused:['Entrenamiento en pausa','El contenido y el historial siguen disponibles; el inicio permanece deshabilitado.'],
-  }[clientState]:null;
-  const sessionJourney=client?`<p class="m26-signature-client-session-guidance" data-signature-session-guidance="${clientState}">${clientState==='ready'?'Revisa los ejercicios, inicia cuando estés preparado y registra tus resultados paso a paso.':clientState==='paused'?'Puedes consultar tus sesiones e historial. No se permite iniciar mientras el servicio esté en pausa.':clientState==='empty'?'Tu Coach publicará aquí el trabajo disponible. Mientras tanto, puedes registrar cómo te encuentras.':'Consulta los ejercicios y la modalidad. Las sesiones con Coach se ejecutan bajo su supervisión.'}</p>`:'';
-  const clientBriefMarkup=clientBrief?`<aside class="m26-client-sessions-brief" data-client-sessions-brief="${clientState}" aria-label="Estado de tus sesiones"><span class="m26-eyebrow">Tu entrenamiento</span><strong>${clientBrief[0]}</strong><p>${clientBrief[1]}</p></aside>`:'';
+  // One purpose per message. A ready Client sees the authorized session and
+  // its CTA immediately; no three competing explanatory boxes before it.
+  const clientBrief=clientState==='paused'?[
+    'Entrenamiento en pausa',
+    'Puedes consultar tus sesiones, pero todavía no puedes comenzar una nueva.',
+  ]:null;
+  const sessionJourney=client&&clientState==='published'
+    ?'<p class="m26-signature-client-session-guidance" data-signature-session-guidance="published">Consulta tus sesiones. Las dirigidas por tu Coach se realizan con su supervisión.</p>'
+    :'';
+  const clientBriefMarkup=clientBrief?'<aside class="m26-client-sessions-brief" data-client-sessions-brief="paused" aria-label="Estado de tus sesiones"><span class="m26-eyebrow">Tu entrenamiento</span><strong>'+clientBrief[0]+'</strong><p>'+clientBrief[1]+'</p></aside>':'';
   const empty=client
     ?'<section class="m26-empty m26-client-sessions-empty" data-client-session-empty><p class="m26-eyebrow">A tu ritmo, con criterio</p><h3>Sin sesiones</h3><p>Tu Coach todavía no ha publicado sesiones para ti. Puedes consultar tu planificación o registrar cómo te encuentras, sin esperar a tener un entrenamiento disponible.</p><div class="m26-inline-actions"><button type="button" class="m26-primary-action" data-m26-area="actividad">Registrar cómo estoy</button><button type="button" data-m26-area="planificacion">Revisar mi planificación</button></div></section>'
     :'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>';
-  const clientIntro=ready
-    ?'Abre una sesión para revisar los ejercicios. Solo podrás comenzar aquellas que estén habilitadas para ti.'
-    :'Consulta tus sesiones y su modalidad. Las dirigidas por tu Coach se realizan con su supervisión.';
   const introLabel=client&&normalizeClientModality(contractModality)===null
     ?'Sesiones · IBERFIT'
     :`Sesiones · ${escape(clientModalityLabel(contractModality))}`;
@@ -731,7 +758,7 @@ function renderSessions(vm){
         ?renderClientSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
         :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')
     :empty;
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client&&items.length===0?'':`<p>${client?escape(clientIntro):escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${sessionCards}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client?'':`<p>${escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${sessionCards}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;

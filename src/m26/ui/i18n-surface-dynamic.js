@@ -38,6 +38,17 @@ function lang(value){
 function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en;}
 function applyRules(value,language,translatePart){
   let m;
+  // SIGNATURE R48 · Planned Client targets need honest numeric translations.
+  // Never translate these values as measured outcomes or manufacture units.
+  if((m=value.match(/^([1-9]|10) de 10$/u)))
+    return pick(language,m[1]+' out of 10',m[1]+' sur 10',m[1]+' de 10');
+  if((m=value.match(/^(\d+(?:[.,]\d+)?) repetici(?:ón|ones)$/u))){
+    const singular=m[1]==='1';
+    return pick(language,
+      m[1]+' repetition'+(singular?'':'s'),
+      m[1]+' répétition'+(singular?'':'s'),
+      m[1]+' '+(singular?'repetição':'repetições'));
+  }
   // U63 · Real published block counts and editorial disclosure labels.
   if((m=value.match(/^(\d+) bloque(?:s)?$/u))){
     const n=m[1],plural=n!=='1';

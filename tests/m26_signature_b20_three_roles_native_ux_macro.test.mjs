@@ -57,7 +57,11 @@ test('B20 client Home renders a secondary activation action without hijacking pr
 test('B20 Client and Coach session routes retain role separation, no false start',()=>{
  const client=renderRc39Route({kind:'sesion',role:'client',serviceActive:false,
    rc39:{role:'client',sessionProjections:[]},selectedClient:{}});
- assert.match(client,/data-signature-session-guidance="empty"/);
+ assert.match(client,/data-client-session-state="empty"/);
+ assert.match(client,/data-client-session-empty/);
+ assert.match(client,/data-m26-area="planificacion"/);
+ assert.match(client,/data-m26-area="actividad"/);
+ assert.doesNotMatch(client,/data-workflow-action="start-published-session"/);
  assert.doesNotMatch(client,/data-workflow-action="open-session-builder"/);
  const coach=renderRc39Route({kind:'sesion',role:'coach',serviceActive:true,
    rc39:{role:'coach',sessionProjections:[]},selectedClient:{}});

@@ -148,6 +148,24 @@ test('U64 Stitch published structure is localized in all four supported language
   assert.match(js,/data-client-session-preview role="group" aria-label="Ejercicios de tu entrenamiento"/);
 });
 
+test('SIGNATURE R48: human training targets and their numeric values are localized in ES EN FR PT',async()=>{
+ const {iberfitSurfaceTranslate:t}=await import('../src/m26/ui/i18n-surface.js');
+ const names=['Objetivos de tu entrenamiento','Esfuerzo orientativo',
+   'Tiempo de trabajo','Ritmo orientativo','Repeticiones en reserva'];
+ const expected={
+   en:['Your workout targets','Suggested effort','Work duration','Suggested pace','Repetitions in reserve'],
+   fr:['Objectifs de votre entraînement','Effort conseillé','Durée de l’effort','Allure conseillée','Répétitions en réserve'],
+   pt:['Objetivos do seu treino','Esforço orientativo','Tempo de trabalho','Ritmo orientativo','Repetições em reserva'],
+ };
+ for(const [language,values] of Object.entries(expected)){
+   assert.deepEqual(names.map(name=>t(name,{language})),values);
+   assert.equal(t('6 de 10',{language}),{en:'6 out of 10',fr:'6 sur 10',pt:'6 de 10'}[language]);
+   assert.equal(t('3 repeticiones',{language}),{en:'3 repetitions',fr:'3 répétitions',pt:'3 repetições'}[language]);
+   assert.equal(t('1 repetición',{language}),{en:'1 repetition',fr:'1 répétition',pt:'1 repetição'}[language]);
+   assert.equal(t('5:30 min/km',{language}),'5:30 min/km');
+   assert.equal(t('2:05 min/100 m',{language}),'2:05 min/100 m');
+ }
+});
 test('U65 published details remain owner-bound despite stale or foreign projections',()=>{
   const a='10000000-0000-4000-8000-000000006501';
   const b='10000000-0000-4000-8000-000000006502';
@@ -246,14 +264,16 @@ test('U72 real session context adapts to CARD width, never viewport-only columns
   assert.match(browser,/experienceGeometry\.overflow\)\.toBe\(false\)/);
 });
 
-test('U73 availability caption uses a full grid row instead of stealing a session column',()=>{
+test('U73 availability caption spans the grid when useful and stays absent for one ready session',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const qa=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
   const block=css.split('U73 · Session availability is a section caption')[1]?.split('.m26-shell[data-m26-role="client"] .m26-workspace .m26-rc39-sessions .m26-rc39-session-card{')[0]||'';
   assert.match(block,/\.m26-rc39-week > \.m26-session-available-summary\{/);
   assert.match(block,/grid-column:1 \/ -1/);
-  assert.match(qa,/Ready-session caption must span the full session grid/);
-  assert.match(qa,/Session cards must start below the caption row/);
+  assert.match(qa,/Mixed scenario has one ready guided session/);
+  assert.match(qa,/await expect\(screen\.locator\('\.m26-session-available-summary'\)\)\.toHaveCount\(0\)/);
+  assert.match(qa,/expect\(gridGeometry\.cardCount\)\.toBe\(2\)/);
+  assert.match(qa,/Two published sessions must not leave a third blank desktop column/);
 });
 
 test('U75 Client layout uses readable desktop tracks and WebKit-safe sticky scroll offset',()=>{

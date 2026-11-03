@@ -61,6 +61,51 @@ test('SIGNATURE R47 current and recovery actions keep honest text without duplic
  assert.equal((value.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
  assert.ok(value.indexOf('data-client-session-primary')<value.indexOf('<details class="m26-rc39-session-content'));
 });
+test('SIGNATURE R48: running real targets, one calm action, no fabricated distance or technical jargon',()=>{
+ const running=item('guiada','guided_in_app','full');
+ running.title='Carrera suave';
+ running.session={...running.session,durationMinutes:60,blocks:[{
+   id:'running-continuous',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',
+   name:'Carrera suave',sets:1,plannedDurationMinutes:35,
+   plannedPace:'5:30',targetRpe:6,
+ }]};
+ const value=html('client',[running]);
+ assert.match(value,/Carrera suave/);
+ assert.match(value,/Tiempo de trabajo<\/dt><dd>35 min/);
+ assert.match(value,/Ritmo orientativo<\/dt><dd>5:30 min\/km/);
+ assert.match(value,/Esfuerzo orientativo<\/dt><dd>6 de 10/);
+ assert.doesNotMatch(value,/Distancia \(km\)|-- km|6[.,]5 km|1 serie continua|<dt>RPE<\/dt>|<dt>RIR<\/dt>/);
+ assert.doesNotMatch(value,/data-client-sessions-brief="ready"|data-signature-session-guidance="ready"|data-session-available-count="1"/);
+ assert.doesNotMatch(value,/Abre una sesión para revisar los ejercicios|Tienes una sesión guiada que puedes revisar/);
+ assert.ok(value.indexOf('data-client-session-primary')<value.indexOf('<details class="m26-rc39-session-content'));
+ assert.equal((value.match(/data-workflow-action="start-published-session"/g)||[]).length,1);
+ const coach=html('coach',[running]);
+ assert.match(coach,/<dt>RPE<\/dt><dd>6<\/dd>/);
+ assert.match(coach,/<dt>Duración \(min\)<\/dt><dd>35<\/dd>/);
+});
+test('SIGNATURE R48: planned swim pace remains per 100m, no km pace invented',()=>{
+ const swim=item('guiada','guided_in_app','full');
+ swim.session={...swim.session,blocks:[{
+   id:'swim',type:'exercise',exerciseId:'swim-100',name:'Natación continua',
+   plannedDurationMinutes:30,plannedPacePer100M:'2:05',
+ }]};
+ const value=html('client',[swim]);
+ assert.match(value,/2:05 min\/100 m/);
+ assert.doesNotMatch(value,/2:05 min\/km/);
+});
+test('SIGNATURE R48: unavailable training preserves one useful warning, not an actionable CTA',()=>{
+ const supervised=html('client',[item('presencial','coach_led','summary_only')]);
+ assert.match(supervised,/data-signature-session-guidance="published"/);
+ assert.doesNotMatch(supervised,/data-client-session-primary|data-client-sessions-brief="ready"/);
+ const paused=html('client',[item('guiada','guided_in_app','full')]);
+ assert.doesNotMatch(paused,/data-client-sessions-brief="paused"/);
+ const rendered=renderRc39Route({kind:'sesion',role:'client',serviceActive:false,
+    sessionPreviewAssets:{catalog:exercises,mediaMap:null},
+    rc39:{role:'client',sessionProjections:[item('guiada','guided_in_app','full')],appointments:[]},
+    selectedClient:{modality:'hibrido'}});
+ assert.match(rendered,/data-client-sessions-brief="paused"/);
+ assert.doesNotMatch(rendered,/data-client-session-primary|data-workflow-action="start-published-session"/);
+});
 test('Cliente presencial: título y duración, nunca bloques ni prescripción',()=>{
  const value=html('client',[item('presencial','coach_led','summary_only')]);
  assert.match(value,/Fuerza presencial/);
@@ -72,7 +117,7 @@ test('Cliente presencial: título y duración, nunca bloques ni prescripción',(
 });
 test('Cliente autónomo: Ver sesión completo y ejercicios con medios honestos; el CTA conserva ID exacto',()=>{
  const value=html('client',[item('guiada','guided_in_app','full')]);
- for(const visible of ['Ver sesión','Press de pecho','Remo TRX','Sentadilla','Biserie','3 rondas','8-12','60 s','RPE','RIR','3-1-1','Control escapular','Alternativa','Sin referencia visual','Preparar entrenamiento']){
+ for(const visible of ['Ver sesión','Press de pecho','Remo TRX','Sentadilla','Biserie','3 rondas','8-12','60 s','Esfuerzo orientativo','Repeticiones en reserva','3-1-1','Control escapular','Alternativa','Sin referencia visual','Preparar entrenamiento']){
    assert.ok(value.includes(visible),visible);
  }
  assert.match(value,/data-entity-id="guiada"/);
