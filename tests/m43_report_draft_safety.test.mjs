@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
   reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision,
+  isStandaloneTrainingReportDraft,localReportDraftCompatibleWithAssessment,prepareLocalReportDraft,
 } from '../src/m26/workflows/report-draft-safety.js';
 import {createMemoryEngagementDraftRepository} from '../src/m26/engagement/activity-drafts.js';
 import {buildApproveReportDraftCommand} from '../src/m26/workflows/report-workflow.js';
@@ -118,7 +119,9 @@ test('M44: the progression form is present even without initial IRI and cannot a
   assert.doesNotMatch(route,/const editor=vm\.canManage&&hasTrainingSurface\(vm\.serviceKind\)\?\(iriId\?/);
   assert.match(route,/Selecciona primero un informe de entrenamiento con evidencia confirmada/);
   const code=source('src/m26/app/workflow-controller.js');
-  assert.ok(code.includes("if(!assessmentId&&!['post-session','weekly'"));
+  const localSave=code.slice(code.indexOf('  async function saveReportDraft('),code.indexOf('  function queueReportSave('));
+  assert.match(localSave,/prepareLocalReportDraft\\(raw,\\{clientId,entityId:stableId\\}\\)/u);
+  assert.doesNotMatch(localSave,/M26_REPORT_ASSESSMENT_REQUIRED/u);
   assert.match(code,/assessmentId:assessmentId\|\|null/);
 });
 
@@ -167,4 +170,65 @@ test('M44: JSONB reordered object keys do not falsely create a new approved repo
   };
   assert.deepEqual(reportApprovalDecision([server],clientId,normalized),
     {kind:'already-approved',baseRevision:2});
+});
+
+
+test('P1: untyped training notes autosave locally without IRI and never gain remote approval',async()=>{
+  const repo=createMemoryEngagementDraftRepository({ownerId:'coach-p1-untyped-no-iri'});
+  const clientId='client-p1',id='draft-p1-1';
+  const raw={...data(id,'Evolución preliminar sin IRI'),assessmentId:'',reportType:'',
+    summary:'Registro pendiente de verificar',reviewAccepted:'off'};
+  const saved=prepareLocalReportDraft(raw,{clientId,entityId:id});
+  assert.equal(saved.clientId,clientId);
+  assert.equal(saved.assessmentId,null);
+  assert.equal(saved.reportType,'');
+  assert.equal(saved.reviewAccepted,false);
+  await repo.save(clientId,reportDraftScope(id),saved);
+  const recovered=await restoreReportDraft(repo,clientId,null,id);
+  assert.equal(recovered.value.title,'Evolución preliminar sin IRI');
+  assert.equal(recovered.value.summary,'Registro pendiente de verificar');
+  const rejected={...saved,reviewAccepted:true};
+  assert.throws(()=>buildApproveReportDraftCommand(rejected,0),
+    /M26_REPORT_DRAFT_INVALID:reportType/u,'A saved preliminary draft is not remotely approvable');
+  assert.equal(await restoreReportDraft(repo,'other-client',null,id),null);
+});
+
+test('P1: typed training draft remains independent of any initial IRI before and after confirmation',async()=>{
+  const clientId='client-p1',id='report-p1-monthly';
+  const repo=createMemoryEngagementDraftRepository({ownerId:'coach-p1-training-iri-isolation'});
+  const raw={...data(id,'Monthly training'),reportType:'monthly',assessmentId:'iri-old'};
+  const saved=prepareLocalReportDraft(raw,{clientId,entityId:id});
+  assert.equal(saved.assessmentId,null,'Training report must not inherit its IRI field');
+  assert.equal(isStandaloneTrainingReportDraft(saved),true);
+  assert.equal(localReportDraftCompatibleWithAssessment(saved,'iri-new'),true);
+  await repo.save(clientId,reportDraftScope(id),saved);
+  assert.equal((await restoreReportDraft(repo,clientId,'iri-old',id)).value.assessmentId,null);
+  assert.equal((await restoreReportDraft(repo,clientId,'iri-new',id)).value.assessmentId,null);
+  assert.equal((await restoreReportDraft(repo,clientId,null,id)).value.reportType,'monthly');
+  assert.equal(await restoreReportDraft(repo,'foreign',null,id),null);
+});
+
+test('P1: no-IRI preliminary drafts survive IRI arrival but foreign IRI drafts stay isolated',async()=>{
+  const clientId='client-p1',repo=createMemoryEngagementDraftRepository({ownerId:'coach-p1-iri-arrival'});
+  const noIri=prepareLocalReportDraft({...data('before-iri','Draft before assessment'),assessmentId:'',reportType:''},
+    {clientId,entityId:'before-iri'});
+  await repo.save(clientId,reportDraftScope('before-iri'),noIri);
+  assert.equal(localReportDraftCompatibleWithAssessment(noIri,'new-iri'),true);
+  assert.equal((await restoreReportDraft(repo,clientId,'new-iri','before-iri')).value.title,'Draft before assessment');
+  const bound=prepareLocalReportDraft({...data('iri-bound'),assessmentId:'iri-A',reportType:''},
+    {clientId,entityId:'iri-bound'});
+  await repo.save(clientId,reportDraftScope('iri-bound'),bound);
+  assert.equal(localReportDraftCompatibleWithAssessment(bound,'iri-B'),false);
+  assert.rejects(()=>restoreReportDraft(repo,clientId,'iri-B','iri-bound'),/M43_REPORT_DRAFT_IDENTITY_CONFLICT/u);
+  assert.equal((await restoreReportDraft(repo,clientId,'iri-A','iri-bound')).value.assessmentId,'iri-A');
+});
+
+test('P1: report selection guard cannot silently default to monthly or publish unverified dates',()=>{
+  const controller=source('src/m26/app/workflow-controller.js');
+  const save=controller.slice(controller.indexOf('  async function saveReportDraft('),controller.indexOf('  function queueReportSave('));
+  assert.doesNotMatch(save,/reportType\\s*:\\s*['"]monthly['"]/u);
+  assert.match(controller,/buildApproveReportDraftCommand\\(\\{id:stableId,\\.\\.\\.content\\},0\\)/u);
+  const workflow=source('src/m26/workflows/report-workflow.js');
+  assert.match(workflow,/premium-evidence-stale/u);
+  assert.match(workflow,/premiumEvidenceSignature\\(candidate\\)/u);
 });
