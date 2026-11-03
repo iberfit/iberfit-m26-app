@@ -246,3 +246,89 @@ test('photogrammetry state accepts PostgREST vendor JSON but rejects non-array p
   await assert.rejects(()=>malformed.state('jwt-test',{assessmentId:ASSESSMENT}),
     /M26_IRI_PHOTO_STATE_INVALID_RESPONSE/u);
 });
+
+test('IRI five-table state recovers exactly one malformed HTTP 200 GET without losing authorized data',async()=>{
+  const calls=[];
+  const fetchImpl=async(url,options)=>{
+    const table=new URL(url).pathname.split('/').at(-1);
+    calls.push({table,method:options.method,authorization:options.headers.authorization});
+    if(table==='iri_consents_v1'&&calls.filter(x=>x.table===table).length===1)
+      return jsonResponse({unexpected:'object'});
+    if(table==='iri_consents_v1')return jsonResponse([{
+      id:'55555555-5555-4555-8555-555555555555',client_id:CLIENT,assessment_id:ASSESSMENT,
+      consent_type:'photography',status:'revoked',document_version:IRI_PHOTO_CONSENT_VERSION,
+      recorded_at:'2026-10-02T10:00:00Z',
+    }]);
+    return jsonResponse([]);
+  };
+  const state=await createIriPhotogrammetryService({runtime:runtime(),fetchImpl})
+    .state('jwt-test',{assessmentId:ASSESSMENT});
+  assert.equal(state.photographyConsent.status,'revoked');
+  assert.equal(calls.length,6);
+  assert.equal(calls.filter(x=>x.table==='iri_consents_v1').length,2);
+  assert.ok(calls.every(x=>x.method==='GET'&&x.authorization==='Bearer jwt-test'));
+});
+
+test('IRI photogrammetry read retries a body JSON parse failure once, never concealing persistent corruption',async()=>{
+  let consentReads=0;
+  const fetchImpl=async(url)=>{
+    const table=new URL(url).pathname.split('/').at(-1);
+    if(table!=='iri_consents_v1')return jsonResponse([]);
+    consentReads++;
+    if(consentReads===1)return {...jsonResponse([]),json:async()=>{throw new SyntaxError('private-body');}};
+    return jsonResponse([]);
+  };
+  const state=await createIriPhotogrammetryService({runtime:runtime(),fetchImpl})
+    .state('jwt-test',{assessmentId:ASSESSMENT});
+  assert.deepEqual(state.consents,[]);
+  assert.equal(consentReads,2);
+
+  let invalidReads=0;
+  const persistent=async(url)=>{
+    if(new URL(url).pathname.endsWith('/iri_consents_v1')){
+      invalidReads++;
+      return jsonResponse({private:'NEVER_SERIALIZE'});
+    }
+    return jsonResponse([]);
+  };
+  const rejecting=createIriPhotogrammetryService({runtime:runtime(),fetchImpl:persistent});
+  await assert.rejects(()=>rejecting.state('jwt-test',{assessmentId:ASSESSMENT}),(error)=>{
+    assert.equal(error.message,'M26_IRI_PHOTO_STATE_INVALID_RESPONSE');
+    assert.equal(error.stateTable,'iri_consents_v1');
+    assert.equal(JSON.stringify(error).includes('NEVER_SERIALIZE'),false);
+    return true;
+  });
+  assert.equal(invalidReads,2);
+});
+
+test('IRI state fails closed on HTTP auth errors and aborted JSON body; no retries or fabricated empty arrays',async()=>{
+  for(const mode of ['forbidden','abort']){
+    let consentReads=0;
+    const fetchImpl=async(url)=>{
+      const table=new URL(url).pathname.split('/').at(-1);
+      if(table!=='iri_consents_v1')return jsonResponse([]);
+      consentReads++;
+      if(mode==='forbidden')return jsonResponse({message:'not authorized'},{status:403});
+      return {...jsonResponse([]),json:async()=>{
+        const error=new Error('aborted');error.name='AbortError';throw error;
+      }};
+    };
+    const service=createIriPhotogrammetryService({runtime:runtime(),fetchImpl});
+    await assert.rejects(()=>service.state('jwt-test',{assessmentId:ASSESSMENT}),
+      mode==='forbidden'?/not authorized/:/M26_IRI_PHOTO_TIMEOUT/);
+    assert.equal(consentReads,1);
+  }
+});
+
+test('IRI state never retries mutation after malformed HTTP 200 success response',async()=>{
+  let calls=0;
+  const fetchImpl=async()=>{calls++;return {
+    ...jsonResponse({ok:true}),json:async()=>{throw new SyntaxError('malformed');},
+  };};
+  const service=createIriPhotogrammetryService({runtime:runtime(),fetchImpl});
+  await assert.rejects(()=>service.recordConsent('jwt-test',{
+    clientId:CLIENT,assessmentId:ASSESSMENT,consentType:'photography',status:'granted',
+    documentVersion:IRI_PHOTO_CONSENT_VERSION,
+  }),/M26_IRI_PHOTO_JSON_PARSE_FAILED/);
+  assert.equal(calls,1);
+});
