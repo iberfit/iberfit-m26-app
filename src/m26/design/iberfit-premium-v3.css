@@ -4036,14 +4036,44 @@
   margin-block:.5rem .7rem;
   max-width:100%;
 }
+/* R49 tiny viewport: preserve all four prescribed goals AND keep the real
+ * action in the first fold above the dedicated R46 dock at 320px. No hiding
+ * labels, values, exercise details, or interactive controls. */
 @media(max-width:370px){
  .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]{
+  gap:.43rem;
+  padding:.7rem .78rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header h3{
+  font-size:1.42rem;
+  margin:.12rem 0;
+  line-height:1.1;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"]>header .m26-eyebrow{
+  font-size:.72rem;
+  line-height:1.25;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
  .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals{
-  padding-inline:.2rem;
+  padding:0 .18rem;
  }
  .m26-shell[data-m26-role="client"] .m26-workspace
  .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals>div{
-  padding:.65rem .45rem;
+  padding:.32rem .38rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals dt{
+  font-size:.71rem;
+  line-height:1.3;
+  margin-block-end:.1rem;
+ }
+ .m26-shell[data-m26-role="client"] .m26-workspace
+ .m26-rc39-session-card[data-client-session-editorial="true"] .m26-client-session-goals dd{
+  font-size:1rem;
+  line-height:1.2;
  }
 }
 @media(prefers-reduced-motion:reduce){
