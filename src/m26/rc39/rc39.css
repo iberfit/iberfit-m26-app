@@ -969,7 +969,10 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 /* P0 #919: session-entry errors and recovery survive route refresh.  Keep the
  * region empty until a real pending/error/ACK occurs; never reserve dead space. */
 .m26-rc39-sessions > .m26-session-entry-feedback:empty,
-.m26-rc39-planning > .m26-session-entry-feedback:empty{display:none}
+.m26-rc39-planning > .m26-session-entry-feedback:empty{
+  position:absolute;width:1px;height:1px;padding:0;margin:0;border:0;
+  overflow:hidden;clip-path:inset(50%);
+}
 .m26-rc39-sessions > .m26-session-entry-feedback,
 .m26-rc39-planning > .m26-session-entry-feedback{
   margin:.25rem 0 .6rem;
