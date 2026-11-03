@@ -296,7 +296,8 @@ test('SIGNATURE R49: running editorial reads only authenticated planned targets 
   const action=value.indexOf('data-client-session-primary');
   const detail=value.indexOf('m26-session-preview-disclosure');
   const context=value.indexOf('m26-client-session-context');
-  assert.ok(hero>=0&&goals>hero&&action>goals&&detail>action&&context>detail);
+  assert.ok(hero>=0&&action>hero&&goals>action&&detail>goals&&context>detail,
+    'the primary action stays in the first mobile fold, before secondary planned facts');
   assert.match(value,/Duración total<\/dt><dd>60 min/u);
   assert.match(value,/Tiempo de trabajo<\/dt><dd>35 min/u);
   assert.match(value,/Ritmo orientativo<\/dt><dd>05:30 min\/km/u);
