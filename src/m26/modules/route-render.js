@@ -3867,8 +3867,17 @@ export function renderActivityRoute(vm){
   if(lacksTrainingSurface(vm.serviceKind)){
     // A client who independently authorized health reading can view/revoke
     // their existing data without activating a paid training follow-up.
-    const ownedHealth=vm.role==='client'&&Number(vm.wearables?.summary?.daysWithData||0)>0
-      ?renderClientDeviceHub(vm.wearables):'';
+    const confirmedDays=Number(vm.wearables?.summary?.daysWithData||0)>0;
+    const historicalDays=Number(vm.wearables?.historicalRecords?.length||0)>0;
+    const healthHistory=confirmedDays?vm.wearables?.dailyRecords:vm.wearables?.historicalRecords;
+    const healthHistoryCards=healthHistory?.length
+      ?'<section class="m26-panel m26-wearable-history"><h3>'
+        +(confirmedDays?'Últimos registros diarios':'Historial anterior · registros no actuales')
+        +'</h3><div class="m26-wearable-day-grid">'
+        +healthHistory.map(item=>wearableDailyRecordCard(item,'client')).join('')
+        +'</div></section>':'';
+    const ownedHealth=vm.role==='client'&&(confirmedDays||historicalDays)
+      ?renderClientDeviceHub(vm.wearables,{dailyRecords:healthHistoryCards}):'';
     return `<div class="m26-route" data-service-kind="none">
       ${ownedHealth}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento diario no activado</h2><p>Hábitos, adherencia, wearables y check-ins longitudinales pertenecen al acompañamiento posterior, no al diagnóstico IRI inicial.</p></div>${badge('IRI separado del seguimiento','neutral')}</section>
