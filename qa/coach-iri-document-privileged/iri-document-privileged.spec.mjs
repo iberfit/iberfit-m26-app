@@ -350,6 +350,19 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   const session={accessToken:''};
   await installPolicy(context,evidence,session);
   const page=await context.newPage();
+  // Capture only bounded, allowlisted auth stage names and monotonic durations.
+  // This QA-only in-memory probe never records JWTs, URLs, health records,
+  // client identifiers, form values or remote response bodies.
+  await page.addInitScript(()=>{
+    const stages=[];
+    globalThis.__IBERFIT_M26_QA_STAGE__=(value)=>{
+      const stage=String(value||'');
+      if(!/^rc64-[a-z0-9-]{1,64}$/u.test(stage))return;
+      stages.push({stage,elapsedMs:Math.max(0,Math.round(performance.now()))});
+      if(stages.length>96)stages.shift();
+    };
+    globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__={stages};
+  });
   const consoleErrors=[];
   const pageErrors=[];
   const missingAvatar=[],avatarChecks=[],unexpectedAvatarFailures=[];
@@ -439,6 +452,12 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     await Promise.all(avatarChecks);
     evidence.expectedMissingPrivateAvatars=missingAvatar.length;
     evidence.unexpectedPrivateAvatarResponses=unexpectedAvatarFailures.length;
+    // Snapshot the stage categories even when a real WebAuthn/login test fails.
+    // Exclude all identity and transport data from the GitHub Actions artifact.
+    evidence.safeAuthStages=await page.evaluate(()=>
+      Array.isArray(globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__?.stages)
+        ?globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__.stages.slice(-96):[]
+    ).catch(()=>[]);
     await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
     await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
     await cdp.send('WebAuthn.disable').catch(()=>{});
