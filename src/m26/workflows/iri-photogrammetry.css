@@ -129,3 +129,11 @@
   .m26-photo-stage{min-height:24rem}
   .m26-photo-view.is-active{gap:.65rem}
 }
+
+
+/* Optional IRI read failure: visible, recoverable and consistent with SIGNATURE. */
+.m26-photo-recovery{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;border-left:2px solid var(--m26-gold,#c5a059);border-radius:.65rem;background:color-mix(in srgb,var(--m26-cream,#f3eee3) 5%,transparent)}
+.m26-photo-recovery p{margin:0;line-height:1.55}
+.m26-photo-recovery button{flex:0 0 auto;min-height:2.75rem;padding:.6rem 1rem;border:1px solid color-mix(in srgb,var(--m26-gold,#c5a059) 50%,transparent);border-radius:.55rem;background:transparent;color:var(--m26-gold-light,#d7ba7c);font:inherit;font-weight:650;cursor:pointer}
+.m26-photo-recovery button:focus-visible{outline:2px solid var(--m26-gold,#c5a059);outline-offset:3px}
+@media(max-width:640px){.m26-photo-recovery{flex-direction:column;align-items:stretch}.m26-photo-recovery button{width:100%}}

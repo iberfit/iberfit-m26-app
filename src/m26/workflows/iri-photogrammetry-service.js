@@ -345,9 +345,19 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
       const mediaType=String(contentType).split(';',1)[0].trim().toLowerCase();
       const isJson=mediaType==='application/json'||
         (mediaType.startsWith('application/')&&mediaType.endsWith('+json'));
+      // Never turn an aborted/failed body read into a valid-looking object:
+      // it previously surfaced as a misleading STATE_INVALID_RESPONSE.
       const payload=response.status===204?null:isJson
-        ?await response.json().catch(()=>({}))
-        :await response.text().catch(()=>'');
+        ?await response.json().catch((error)=>{
+          if(error?.name==='AbortError')throw error;
+          if(response.ok)throw new Error('M26_IRI_PHOTO_JSON_PARSE_FAILED');
+          return {};
+        })
+        :await response.text().catch((error)=>{
+          if(error?.name==='AbortError')throw error;
+          if(response.ok)throw new Error('M26_IRI_PHOTO_BODY_READ_FAILED');
+          return '';
+        });
       if(!response.ok){
         const failure=new Error(responseMessage(payload,response.status));
         failure.status=response.status;failure.body=payload;throw failure;
@@ -359,15 +369,38 @@ export function createIriPhotogrammetryService({runtime,fetchImpl=globalThis.fet
     }finally{clearTimeout(timer);}
   }
 
+  // Read-only PostgREST GETs can be retried exactly once when HTTP 2xx
+  // returned an invalid representation. Do not retry 401/403/5xx, timeouts,
+  // mutations or stale/foreign authorization. A second invalid response
+  // remains a hard error; no empty arrays are fabricated.
+  async function readStateRows(path,token,{table,maxRows=null}={}){
+    for(let attempt=0;attempt<2;attempt++){
+      let rows;
+      try{rows=await request(path,{token});}
+      catch(error){
+        if(attempt===0&&error?.message==='M26_IRI_PHOTO_JSON_PARSE_FAILED')continue;
+        throw error;
+      }
+      if(Array.isArray(rows)&&(maxRows===null||rows.length<=maxRows))return rows;
+      if(attempt===1){
+        const error=new Error('M26_IRI_PHOTO_STATE_INVALID_RESPONSE');
+        // Fixed, non-sensitive table enum. No request path, ID or body attached.
+        error.stateTable=table;
+        throw error;
+      }
+    }
+    throw new Error('M26_IRI_PHOTO_STATE_INVALID_RESPONSE');
+  }
+
   async function state(token,{assessmentId}={}){
     const assessment=validateUuid(assessmentId,'M26_IRI_PHOTO_ASSESSMENT_INVALID');
     const query=(select,extra='')=>`select=${encodeURIComponent(select)}&assessment_id=eq.${encodeURIComponent(assessment)}${extra}`;
     const [consentRows,captureRows,analysisRows,analysisV2Rows,permissionRows]=await Promise.all([
-      request(`/rest/v1/iri_consents_v1?${query(CONSENT_SELECT,'&order=recorded_at.desc&limit=50')}`,{token}),
-      request(`/rest/v1/iri_photogrammetry_captures_v1?${query(CAPTURE_SELECT,'&order=captured_at.desc&limit=40')}`,{token}),
-      request(`/rest/v1/iri_photogrammetry_analyses_v1?${query(ANALYSIS_SELECT,'&limit=1')}`,{token}),
-      request(`/rest/v1/iri_photogrammetry_analyses_v2?${query(ANALYSIS_V2_SELECT,'&order=revision.desc&limit=1')}`,{token}),
-      request(`/rest/v1/iri_photo_report_permissions_v1?${query(REPORT_PERMISSION_SELECT,'&order=recorded_at.desc&limit=1')}`,{token}),
+      readStateRows(`/rest/v1/iri_consents_v1?${query(CONSENT_SELECT,'&order=recorded_at.desc&limit=50')}`,token,{table:'iri_consents_v1',maxRows:50}),
+      readStateRows(`/rest/v1/iri_photogrammetry_captures_v1?${query(CAPTURE_SELECT,'&order=captured_at.desc&limit=40')}`,token,{table:'iri_photogrammetry_captures_v1',maxRows:40}),
+      readStateRows(`/rest/v1/iri_photogrammetry_analyses_v1?${query(ANALYSIS_SELECT,'&limit=1')}`,token,{table:'iri_photogrammetry_analyses_v1',maxRows:1}),
+      readStateRows(`/rest/v1/iri_photogrammetry_analyses_v2?${query(ANALYSIS_V2_SELECT,'&order=revision.desc&limit=1')}`,token,{table:'iri_photogrammetry_analyses_v2',maxRows:1}),
+      readStateRows(`/rest/v1/iri_photo_report_permissions_v1?${query(REPORT_PERMISSION_SELECT,'&order=recorded_at.desc&limit=1')}`,token,{table:'iri_photo_report_permissions_v1',maxRows:1}),
     ]);
     if(!Array.isArray(consentRows)||!Array.isArray(captureRows)||!Array.isArray(analysisRows)||!Array.isArray(analysisV2Rows)||!Array.isArray(permissionRows)||analysisRows.length>1||analysisV2Rows.length>1||permissionRows.length>1){
       throw new Error('M26_IRI_PHOTO_STATE_INVALID_RESPONSE');
