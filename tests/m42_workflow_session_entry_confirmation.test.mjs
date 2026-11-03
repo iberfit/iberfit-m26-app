@@ -7,7 +7,11 @@ if(typeof globalThis.CustomEvent!=='function'){
   };
 }
 function setup({reject=false,completionMode='promise'}={}){
-  const handlers=new Map(),events=[],status={textContent:'',dataset:{}};
+  const handlers=new Map(),events=[],status={textContent:'',dataset:{},
+    focused:false,scrolled:false,
+    focus(options){this.focused=true;this.focusOptions=options;},
+    scrollIntoView(options){this.scrolled=true;this.scrollOptions=options;},
+  };
   let release,requests=0;
   const root={
     addEventListener(type,fn){handlers.set(type,fn);},
@@ -61,6 +65,10 @@ test('M42 failed async workspace opening never paints false success',async()=>{
   assert.equal(s.status.dataset.status,'pending');
   s.finish();await first;
   assert.equal(s.status.dataset.status,'error');
+  assert.equal(s.status.focused,true,'the real Client must reach the error with keyboard/screen reader');
+  assert.deepEqual(s.status.focusOptions,{preventScroll:true});
+  assert.equal(s.status.scrolled,true,'error below or above the clicked card must be brought into view');
+  assert.deepEqual(s.status.scrollOptions,{block:'nearest',behavior:'auto'});
   assert.equal(s.events.some(e=>e.type==='m26:workflow-error'),true);
   s.ctrl.destroy();
 });
