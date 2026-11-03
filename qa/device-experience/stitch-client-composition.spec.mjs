@@ -169,7 +169,9 @@ test('R47 Client session offers one reachable authorized action before optional 
   });
   expect(layout).not.toBeNull();
   expect(layout.goalsTop).toBeGreaterThan(0);
-  expect(layout.buttonTop).toBeGreaterThanOrEqual(layout.goalsBottom);
+  expect(layout.buttonTop).toBeLessThanOrEqual(layout.goalsTop);
+  expect(layout.buttonBottom).toBeLessThanOrEqual(layout.goalsTop+1,
+    'the actual Client action stays before descriptive goals in DOM and view');
   expect(layout.columns.split(' ').length).toBe(2);
   expect(layout.overflow).toBeLessThanOrEqual(2);
   await expect(card.locator('.m26-client-session-context summary')).toBeVisible();
