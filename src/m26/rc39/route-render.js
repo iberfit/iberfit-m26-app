@@ -43,7 +43,7 @@ const modalityIntro=(role,value)=>{
     if(modality==='online')return 'Tu experiencia online prioriza las sesiones autónomas guiadas desde IBERFIT, con RIR/RPE, descansos, historial y revisión posterior del Coach.';
     return 'Cada sesión respeta su forma real de entrega, visibilidad y permisos antes de permitir la ejecución.';
   }
-  if(role==='coach')return 'La experiencia del atleta cambia según su contrato y la entrega real de cada sesión. El Coach mantiene el control de las sesiones supervisadas y la progresión compartida.';
+  if(role==='coach')return 'La experiencia del cliente cambia según su servicio y la entrega real de cada sesión. El Coach mantiene el control de las sesiones supervisadas y la progresión compartida.';
   return 'Supervisión de sesiones por modalidad contractual y tipo real de entrega, sin alterar ownership, visibilidad ni permisos de ejecución.';
 };
 const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
@@ -58,7 +58,7 @@ const experienceFor=(item,role,contractModality)=>resolveSessionExperience({
 const experiencePanel=(experience,role)=>{
   const caps=experience.capabilities.map((label)=>`<span class="m26-session-experience__capability">${escape(label)}</span>`).join('');
   const roleNote=role==='coach'
-    ? `<p class="m26-session-experience__role-note">Vista Coach · ${escape(experience.clientLiveWorkout?'el atleta puede ejecutar esta sesión desde entrenamiento guiado':'la ejecución permanece supervisada')}</p>`
+    ? `<p class="m26-session-experience__role-note">Vista Coach · ${escape(experience.clientLiveWorkout?'el cliente puede realizar esta sesión con la guía de la aplicación':'la ejecución permanece supervisada')}</p>`
     : role==='admin'
       ? '<p class="m26-session-experience__role-note">Vista Admin · supervisión sin cambiar la propiedad de ejecución</p>'
       : '';
