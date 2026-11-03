@@ -145,6 +145,34 @@ test('R47 Client session offers one reachable authorized action before optional 
   await expect(action).toBeVisible();
   await expect(action).toContainText('Preparar entrenamiento');
   await expect(card.locator('[data-workflow-action="start-published-session"]')).toHaveCount(1);
+  await expect(card).toHaveAttribute('data-client-session-editorial','true');
+  const goals=card.locator('.m26-client-session-goals');
+  await expect(goals).toBeVisible();
+  await expect(goals).toContainText('60 min');
+  await expect(goals).toContainText('35 min');
+  await expect(goals).toContainText('5:30 min/km');
+  await expect(goals).toContainText('6 de 10');
+  const layout=await page.evaluate(()=>{
+    const card=document.querySelector('[data-client-session-editorial="true"]');
+    const goals=card?.querySelector('.m26-client-session-goals');
+    const button=card?.querySelector('[data-client-session-primary]>button');
+    if(!card||!goals||!button)return null;
+    const rect=el=>el.getBoundingClientRect();
+    return {
+      goalsTop:rect(goals).top,goalsBottom:rect(goals).bottom,
+      buttonTop:rect(button).top,
+      columns:getComputedStyle(goals).gridTemplateColumns,
+      bg:getComputedStyle(card).backgroundColor,
+      font:getComputedStyle(card.querySelector('h3')).fontFamily,
+      overflow:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)-document.documentElement.clientWidth,
+    };
+  });
+  expect(layout).not.toBeNull();
+  expect(layout.goalsTop).toBeGreaterThan(0);
+  expect(layout.buttonTop).toBeGreaterThanOrEqual(layout.goalsBottom);
+  expect(layout.columns.split(' ').length).toBe(2);
+  expect(layout.overflow).toBeLessThanOrEqual(2);
+  await expect(card.locator('.m26-client-session-context summary')).toBeVisible();
   await expect(card.locator('.m26-rc39-session-content')).toHaveCount(1);
   await expect(card.locator('.m26-rc39-session-content')).not.toHaveAttribute('open','');
   await expect(card).not.toContainText('PRIVADO_NO_MOSTRAR');
