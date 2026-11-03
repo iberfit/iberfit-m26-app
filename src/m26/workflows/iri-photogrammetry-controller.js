@@ -419,9 +419,11 @@ export function createIriPhotogrammetryController({
     loadInFlight=run;loadInFlightKey=key;loadInFlightHost=node;
     try{return await run;}
     catch(error){
-      // A stale, now-hidden photogrammetry panel must never report a late timeout
-      // as a fresh Coach/WebAuthn failure. An active panel still reports it.
+      // Stale loads cannot report into a different account/IRI. An active
+      // failure, including a readback after a write, must never leave a spinner.
       if(!stillCurrent())return null;
+      loadError=friendlyIriPhotoError(error);
+      render();
       throw error;
     }
     finally{
