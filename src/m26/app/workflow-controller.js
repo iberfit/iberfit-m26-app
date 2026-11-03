@@ -2275,8 +2275,17 @@ export function createWorkflowController({
     }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const isEvolutionPdf=['issue-evolution-pdf','open-issued-evolution-pdf','show-issued-evolution-history','withdraw-issued-evolution-pdf'].includes(action);const scope=isEvolutionPdf?'report':isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');
       // Some Client routes show a workout CTA without a session-status node.
       // Never let a failed workspace entry become an invisible no-op.
-      if(action==='start-published-session'&&!root.querySelector?.('[data-workflow-status="session"]')){
-        try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:friendlyError(error)}}));}catch{}
+      if(action==='start-published-session'){
+        const feedback=root.querySelector?.('[data-workflow-status="session"]');
+        if(feedback){
+          // Error can occur after a long authoritative hydration, while the
+          // Client is scrolled to a CTA well below the route heading.
+          // Bring the real recoverable message into view without a full reroute.
+          try{feedback.focus?.({preventScroll:true});}catch{}
+          try{feedback.scrollIntoView?.({block:'nearest',behavior:'auto'});}catch{}
+        }else{
+          try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:friendlyError(error)}}));}catch{}
+        }
       }
       emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
     finally{
