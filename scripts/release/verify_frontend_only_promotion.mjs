@@ -160,3 +160,10 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
 // SIGNATURE R49 (2026-11-02): exact-source release QA gate renewal after the
 // merged R49 visual closure. This comment changes no runtime, backend, Auth,
 // permissions, production promotion safety, or client-visible behaviour.
+
+// FUNCTIONAL360 R50 (2026-11-03): renew exact-source release certifications for
+// running first-click recovery, next-open wearable permission invitation,
+// seven-report draft safety and Client/Coach/ Admin chart views. This inert
+// comment triggers required Coach/Admin WebAuthn and remote QA on the same
+// Canary SHA; it does not change release checks, production, Auth, RLS,
+// data, permissions, application runtime, or privacy policy.
