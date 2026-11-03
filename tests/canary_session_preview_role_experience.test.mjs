@@ -271,3 +271,10 @@ test('SIGNATURE U48 continue requires an independently verified active execution
  const denied=html('client',[{...forged,canClientResume:false}]);
  assert.doesNotMatch(denied,/Continuar entrenamiento|data-workflow-action="start-published-session"/u);
 });
+
+test('P0 #919: Coach session view also exposes durable status without altering authorizations',()=>{
+  const value=html('coach',[item('guiada','guided_in_app','full')]);
+  assert.equal((value.match(/data-workflow-status="session"/gu)||[]).length,1);
+  assert.match(value,/role="status" aria-live="polite"/u);
+  assert.match(value,/data-workflow-action="start-published-session"/u);
+});
