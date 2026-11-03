@@ -42,6 +42,10 @@ const WRITES=new Set([
 ]);
 
 test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context},testInfo)=>{
+  // One fixture now runs two COMPLETE, independent server-ACKed sports lifecycles.
+  // Keep every individual interaction deadline unchanged; only the aggregate
+  // Playwright test timeout accounts for the extra authenticated workout.
+  test.setTimeout(360_000);
   for(const name of ['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
     'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_'+OWNER_FIXTURE+'_EMAIL','M26_QA_CLIENT_'+OWNER_FIXTURE+'_PASSWORD']){
     expect(process.env[name],name+' required').toBeTruthy();
