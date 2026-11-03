@@ -4,6 +4,7 @@ import {test,expect} from '@playwright/test';
 import {certifyM44VerifiedAssuranceBoundary} from '../m44/verified-webauthn-readonly.mjs';
 import {certifyM44PositiveEvolutionPdf} from '../m44/positive-webauthn-issued-pdf.mjs';
 import {isAuthorizedQaAvatarRead} from './qa-avatar-traffic-policy.mjs';
+import {createQaCoachHistoryLatencyProbe} from './qa-privileged-history-latency.mjs';
 import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
@@ -350,6 +351,10 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
   const session={accessToken:''};
   await installPolicy(context,evidence,session);
   const page=await context.newPage();
+  const historyLatency=createQaCoachHistoryLatencyProbe();
+  page.on('request',(request)=>historyLatency.start(request));
+  page.on('response',(response)=>historyLatency.finish(response.request(),response.status()));
+  page.on('requestfailed',(request)=>historyLatency.fail(request));
   // Capture only bounded, allowlisted auth stage names and monotonic durations.
   // This QA-only in-memory probe never records JWTs, URLs, health records,
   // client identifiers, form values or remote response bodies.
@@ -409,6 +414,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     await logout.evaluate((element)=>element.click());
     await expect(page.getByRole('textbox',{name:'Correo',exact:true})).toBeVisible({timeout:20_000});
 
+    historyLatency.setPhase('second');
     const secondStart=evidence.webauthnActions.length;
     await loginWithWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
     const second=evidence.webauthnActions.slice(secondStart);
@@ -474,6 +480,8 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     evidence.unexpectedPrivateAvatarResponses=unexpectedAvatarFailures.length;
     // Snapshot the stage categories even when a real WebAuthn/login test fails.
     // Exclude all identity and transport data from the GitHub Actions artifact.
+    // Only endpoint/section enums, request counts and timing distributions; never payload or identity.
+    evidence.safeHistoryLatency=historyLatency.snapshot();
     evidence.safeAuthStages=await page.evaluate(()=>
       Array.isArray(globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__?.stages)
         ?globalThis.__IBERFIT_M26_QA_SAFE_AUTH_STAGES__.stages.slice(-96):[]
