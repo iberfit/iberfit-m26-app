@@ -281,3 +281,59 @@ test('SIGNATURE R49: Coach language is personal, consistent and never calls a Cl
   assert.match(source,/La experiencia del cliente cambia según su servicio/u);
   assert.doesNotMatch(source,/La experiencia del atleta|el atleta puede ejecutar/u);
 });
+
+test('SIGNATURE R49: running editorial reads only authenticated planned targets before one CTA',()=>{
+  const running=item('guiada','guided_in_app','full');
+  running.title='Carrera suave';
+  running.startAt=null;
+  running.session={...running.session,durationMinutes:60,blocks:[{
+    id:'run-1',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',
+    plannedDurationMinutes:35,plannedPace:'05:30',targetRpe:6,
+  }]};
+  const value=html('client',[running]);
+  const hero=value.indexOf('data-client-session-editorial="true"');
+  const goals=value.indexOf('m26-client-session-goals');
+  const action=value.indexOf('data-client-session-primary');
+  const detail=value.indexOf('m26-session-preview-disclosure');
+  const context=value.indexOf('m26-client-session-context');
+  assert.ok(hero>=0&&goals>hero&&action>goals&&detail>action&&context>detail);
+  assert.match(value,/Duración total<\/dt><dd>60 min/u);
+  assert.match(value,/Tiempo de trabajo<\/dt><dd>35 min/u);
+  assert.match(value,/Ritmo orientativo<\/dt><dd>05:30 min\/km/u);
+  assert.match(value,/Esfuerzo orientativo<\/dt><dd>6 de 10/u);
+  assert.doesNotMatch(value,/Distancia prevista|Distancia \(km\)<\/dt><dd>6[.,]5/u);
+  assert.doesNotMatch(value,/Fecha por definir/u,'editorial card should not invent a scheduled date');
+  assert.equal((value.match(/data-client-session-primary/gu)||[]).length,1);
+  assert.equal((value.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
+  assert.match(value,/Preparar entrenamiento/,'do not claim start before real server ACK');
+  assert.match(value,/Cómo se realiza esta sesión/,'retain secondary explanatory contract');
+});
+test('SIGNATURE R49: swimming preserves min\/100m and strength preserves every full exercise',()=>{
+  const swimming=item('guiada','guided_in_app','full');
+  swimming.session={...swimming.session,durationMinutes:45,blocks:[{
+    id:'swim',type:'exercise',exerciseId:'swim-100',
+    plannedDurationMinutes:30,plannedPacePer100M:'02:05',targetRpe:5,
+  }]};
+  const swim=html('client',[swimming]);
+  assert.match(swim,/02:05 min\/100 m/);
+  assert.doesNotMatch(swim,/02:05 min\/km/);
+  const strength=html('client',[item('guiada','guided_in_app','full')]);
+  assert.match(strength,/Bloques de trabajo<\/dt><dd>2/u);
+  assert.match(strength,/Press de pecho|Remo TRX/u);
+  assert.match(strength,/m26-session-preview-disclosure/u);
+  assert.equal((strength.match(/data-workflow-action="start-published-session"/gu)||[]).length,1);
+});
+test('SIGNATURE R49: unsafe or supervised Client cards never receive an editorial launch hero',()=>{
+  for(const data of [
+    {...item('guiada','guided_in_app','full'),canClientExecute:false},
+    {...item('guiada','guided_in_app','full'),visible:false},
+    {...item('guiada','guided_in_app','full'),canClientStart:false},
+    item('presencial','coach_led','summary_only'),
+  ]){
+    const value=html('client',[data]);
+    assert.doesNotMatch(value,/data-client-session-editorial|m26-client-session-goals/u);
+    assert.doesNotMatch(value,/data-workflow-action="start-published-session"/u);
+  }
+  const coach=html('coach',[item('guiada','guided_in_app','full')]);
+  assert.doesNotMatch(coach,/data-client-session-editorial|m26-client-session-goals|m26-client-session-context/u);
+});
