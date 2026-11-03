@@ -126,7 +126,8 @@ test('M44: the progression form is present even without initial IRI and cannot a
   const localSave=code.slice(code.indexOf('  async function saveReportDraft('),code.indexOf('  function queueReportSave('));
   assert.match(localSave,/prepareLocalReportDraft\(raw,\{clientId,entityId:stableId\}\)/u);
   assert.doesNotMatch(localSave,/M26_REPORT_ASSESSMENT_REQUIRED/u);
-  assert.match(code,/assessmentId:assessmentId\|\|null/);
+  assert.match(code,/prepareLocalReportDraft\(raw,\{clientId,entityId:stableId\}\)/u);
+  assert.match(source('src/m26/workflows/report-draft-safety.js'),/assessmentId:isStandaloneTrainingReportDraft\(data\)\?null:assessmentId\|\|null/u);
 });
 
 
