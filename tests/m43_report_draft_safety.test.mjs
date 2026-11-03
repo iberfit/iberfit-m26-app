@@ -237,3 +237,11 @@ test('P1: report selection guard cannot silently default to monthly or publish u
   assert.match(workflow,/premium-evidence-stale/u);
   assert.match(workflow,/premiumEvidenceSignature\(candidate\)/u);
 });
+
+test('P1: controller recomputes report approval eligibility when reopening or clearing drafts',()=>{
+  const controller=source('src/m26/app/workflow-controller.js');
+  assert.match(controller,/syncPremiumReportApprovalButton\(form\)/u);
+  const premium=source('src/m26/workflows/report-workflow.js');
+  assert.match(premium,/const eligible=\(training&&hasEvidenceSignature\)/u);
+  assert.match(premium,/syncPremiumReportApprovalButton\(form\);form\.scrollIntoView/u);
+});

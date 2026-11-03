@@ -17,7 +17,7 @@ import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
 import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
-import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
+import {buildApproveReportDraftCommand,syncPremiumReportApprovalButton} from '../workflows/report-workflow.js';
 import {reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision,prepareLocalReportDraft,localReportDraftCompatibleWithAssessment} from '../workflows/report-draft-safety.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
@@ -1900,6 +1900,7 @@ export function createWorkflowController({
       const saved=await restoreReportDraft(draftRepository,clientId,assessmentId,selected.value.id);
       if(!saved?.value||context().clientId!==clientId||!root.contains?.(form))return;
       populateForm(form,{...saved.value,reviewAccepted:saved.value.reviewAccepted===true});
+      syncPremiumReportApprovalButton(form);
       picker.value=String(saved.value.id);
       syncGuidedWorkflowProgress(form);
       status(root,'report','Borrador de informe recuperado desde este dispositivo.','success');
@@ -1930,6 +1931,7 @@ export function createWorkflowController({
     if(!root.contains?.(form)||context().clientId!==clientId)return;
     if(!selectedId){
       form.reset();
+      syncPremiumReportApprovalButton(form);
       const entity=form.elements?.namedItem?.('entityId');if(entity)entity.value='';
       syncGuidedWorkflowProgress(form);
       status(root,'report','Nuevo informe preparado. Los borradores anteriores se conservan.','info');
@@ -1943,6 +1945,7 @@ export function createWorkflowController({
       return;
     }
     populateForm(form,{...saved.value,reviewAccepted:saved.value.reviewAccepted===true});
+    syncPremiumReportApprovalButton(form);
     syncGuidedWorkflowProgress(form);
     status(root,'report','Borrador seleccionado y recuperado.','success');
     await updateReportDraftChoices(form);
