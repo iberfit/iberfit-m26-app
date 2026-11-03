@@ -112,7 +112,7 @@ test('P0 #919: Client Session and Planning expose one persistent live status bef
       kind,rc39:{role:'client',sessionProjections:[item],planningItems:[item]},
     }));
     assert.equal((html.match(/data-workflow-status="session"/gu)||[]).length,1,kind);
-    assert.match(html,/<p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true"><\/p>/u,kind);
+    assert.match(html,/<p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true" tabindex="-1"><\/p>/u,kind);
     const feedback=html.indexOf('data-workflow-status="session"');
     const cta=html.indexOf('data-workflow-action="start-published-session"');
     assert.ok(feedback>=0&&cta>feedback,kind+': status must precede the actionable card');
