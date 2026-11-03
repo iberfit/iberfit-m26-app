@@ -98,3 +98,27 @@ test('B2 presentation flags cannot authorize backend writes or session execution
   assert.match(source,/data-client-session-card-state/u);
   assert.doesNotMatch(cssB2,/data-workflow-action|data-session-action=/u);
 });
+
+test('P0 #919: Client Session and Planning expose one persistent live status before a published workout CTA',()=>{
+  const session={id:'running',title:'Carrera continua',status:'disponible',
+    deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',
+    clientVisibilityLevel:'full',visibleToClient:true,
+    blocks:[{id:'run',type:'exercise',exerciseId:'run',plannedDurationMinutes:35}]};
+  const item={id:'running',visible:true,canClientStart:true,canClientExecute:true,
+    ownership:'guided_in_app',visibility:'full',modality:'guiada_en_app',
+    title:'Carrera continua',session};
+  for(const kind of ['sesion','planificacion']){
+    const html=renderRc39Route(fixture({
+      kind,rc39:{role:'client',sessionProjections:[item],planningItems:[item]},
+    }));
+    assert.equal((html.match(/data-workflow-status="session"/gu)||[]).length,1,kind);
+    assert.match(html,/<p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true"><\/p>/u,kind);
+    const feedback=html.indexOf('data-workflow-status="session"');
+    const cta=html.indexOf('data-workflow-action="start-published-session"');
+    assert.ok(feedback>=0&&cta>feedback,kind+': status must precede the actionable card');
+    assert.equal((html.match(/data-workflow-action="start-published-session"/gu)||[]).length,1,kind);
+  }
+  const missing=renderRc39Route(fixture());
+  assert.match(missing,/data-workflow-status="session"/u,
+    'even an empty Client surface must show a rejection if workspace preparation fails');
+});
