@@ -429,7 +429,6 @@ test('Functional360 selección reversible, valor inválido fail-soft y sin métr
   }));
   assert.equal(applyEvolutionMetricSelection(cards,'sleepMinutes'),'sleepMinutes');
   assert.deepEqual(cards.map(card=>card.hidden),[true,false,true]);
-  assert.deepEqual(cards.map(card=>card.style.display),['none','','none']);
   assert.equal(applyEvolutionMetricSelection(cards,'all'),'all');
   assert.deepEqual(cards.map(card=>card.hidden),[false,false,false]);
   assert.equal(applyEvolutionMetricSelection(cards,'nonexistent'),'steps');
@@ -449,4 +448,12 @@ test('Functional360 consulta exclusivamente colección autorizada sin lecturas e
   assert.match(feature,/applyEvolutionMetricSelection/u);
   assert.match(feature,/disconnectedCallback\(\)/u);
   assert.match(feature,/get\?\.\('m26-evolution-explorer'\)/u);
+});
+
+test('Functional360 strict CSP: CSS autorizado oculta tarjetas sin estilos inline',()=>{
+  const ui=read('src/m26/data-experience/longitudinal-ui.js');
+  const css=read('src/m26/design/primitives.css');
+  assert.doesNotMatch(ui,/card\.style\.|<m26-evolution-explorer[^>]*style=/u);
+  assert.match(css,/m26-evolution-explorer \.m26-data-metric-card\[hidden\]/u);
+  assert.match(css,/m26-evolution-explorer \{/u);
 });

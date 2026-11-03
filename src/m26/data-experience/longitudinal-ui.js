@@ -299,7 +299,6 @@ export function applyEvolutionMetricSelection(cards,requested=''){
   for(const card of items){
     const show=chosen==='all'||card.dataset?.metric===chosen;
     card.hidden=!show;
-    if(card.style)card.style.display=show?'':'none';
   }
   return chosen;
 }
@@ -357,7 +356,7 @@ function renderEvolutionMetricExplorer(aggregate,metrics,role){
     ?'m26-data-grid m26-data-grid-professional':'m26-data-grid')+'">'+
     available.map((key)=>metricCard(aggregate,key,role)).join('')+'</div>';
   // If custom elements are unavailable, native HTML retains every card and table.
-  return '<m26-evolution-explorer style="display:block" data-m26-evolution-explorer>'+
+  return '<m26-evolution-explorer data-m26-evolution-explorer>'+
     select+grid+'</m26-evolution-explorer>';
 }
 

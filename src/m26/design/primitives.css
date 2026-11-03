@@ -1030,6 +1030,22 @@
     stroke: CanvasText;
   }
 }
+/* Functional360: first-party CSP-safe metric selection and layout.
+   Keep hidden cards in the DOM for the reversible "Todas" view, but never
+   render them until chosen (author CSS overrides .m26-data-metric-card grid). */
+m26-evolution-explorer {
+  display: block;
+  min-width: 0;
+}
+
+m26-evolution-explorer .m26-evolution-query {
+  margin-bottom: var(--iberfit-space-4);
+}
+
+m26-evolution-explorer .m26-data-metric-card[hidden] {
+  display: none;
+}
+
 /* IBERFIT RC59.4 · Data Experience / ECharts */
 .m26-data-experience {
   gap: var(--iberfit-space-5);
