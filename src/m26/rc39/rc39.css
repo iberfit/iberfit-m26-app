@@ -965,3 +965,29 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
  vertical-align:middle;border-radius:50%;background:#b5975a;
 }
 @media(max-width:420px){.m26-shell[data-m26-role="client"] .m26-rc39-session-card[data-client-session-card-state="ready"]{padding:1rem;gap:.8rem}}
+
+/* P0 #919: session-entry errors and recovery survive route refresh.  Keep the
+ * region empty until a real pending/error/ACK occurs; never reserve dead space. */
+.m26-rc39-sessions > .m26-session-entry-feedback:empty,
+.m26-rc39-planning > .m26-session-entry-feedback:empty{display:none}
+.m26-rc39-sessions > .m26-session-entry-feedback,
+.m26-rc39-planning > .m26-session-entry-feedback{
+  margin:.25rem 0 .6rem;
+  padding:.75rem 1rem;
+  border:1px solid var(--iberfit-color-border-strong,var(--m26-line));
+  border-radius:.85rem;
+  color:var(--iberfit-color-cream-100,var(--m26-text));
+  background:var(--iberfit-color-surface-base,transparent);
+  font-size:.91rem;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.m26-rc39-sessions > .m26-session-entry-feedback[data-status="error"],
+.m26-rc39-planning > .m26-session-entry-feedback[data-status="error"]{
+  border-color:var(--m26-gold-300);
+  background:rgba(197,160,89,.09);
+}
+@media(forced-colors:active){
+  .m26-rc39-sessions > .m26-session-entry-feedback,
+  .m26-rc39-planning > .m26-session-entry-feedback{border:1px solid CanvasText}
+}
