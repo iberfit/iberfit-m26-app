@@ -53,3 +53,49 @@ test('cross-client row is denied and unrelated provider data are retained',()=>{
   assert.equal(safe.find(x=>x.provider==='garmin_connect').metrics.steps,5000);
   assert.equal(safe.find(x=>x.provider==='health_connect').metrics.steps,7821);
 });
+
+
+test('P0: old but real V47 data appear only as a clearly dated history',async()=>{
+  const {buildWearableViewModel}=await import('../src/m26/wearables/view-model.js');
+  const {renderClientTodayHealth}=await import('../src/m26/wearables/client-health-snapshot.js');
+  const records=mergeV47DailyIntoClientProgress({clientId:a,dailyHealth:[row]});
+  const vm=buildWearableViewModel({records,role:'client',
+    now:new Date('2026-11-03T12:00:00Z'),scope:{}});
+  assert.equal(vm.summary.daysWithData,0);
+  assert.equal(vm.summary.metrics.steps,null);
+  assert.equal(vm.dailyRecords.length,0);
+  assert.equal(vm.lastHistoricalDate,'2026-10-12');
+  assert.equal(vm.historicalRecords.length,1);
+  assert.equal(vm.historicalRecords[0].metrics.sleepMinutes,455);
+  const markup=renderClientTodayHealth(vm);
+  assert.match(markup,/No hay mediciones de los últimos 7 días/u);
+  assert.match(markup,/Último registro 12\/10\/2026/u);
+  assert.doesNotMatch(markup,/Pasos medios|Sueño medio|7 h 35 min/u);
+  assert.match(markup,/no representa tu estado actual/u);
+  const oneMonthLater=buildWearableViewModel({records,role:'client',
+    now:new Date('2026-12-03T12:00:00Z'),scope:{}});
+  assert.equal(oneMonthLater.lastHistoricalDate,null);
+  assert.equal(oneMonthLater.summary.daysWithData,0);
+});
+
+test('P0: historical Client activity is explicitly dated; never converts it to current status',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const route=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(route,/data-wearable-historical/u);
+  assert.match(route,/No reflejan el estado actual/u);
+  assert.match(route,/dailyRecords:dailyRecords\+historicalRecords/u);
+});
+
+test('P0: historical health stays accessible to Client even when training service is inactive',async()=>{
+  const {buildWearableViewModel}=await import('../src/m26/wearables/view-model.js');
+  const {renderActivityRoute}=await import('../src/m26/modules/route-render.js');
+  const records=mergeV47DailyIntoClientProgress({clientId:a,dailyHealth:[row]});
+  const wearables=buildWearableViewModel({records,role:'client',now:new Date('2026-11-03T12:00:00Z'),scope:{}});
+  const html=renderActivityRoute({role:'client',serviceKind:'none',wearables});
+  assert.match(html,/data-m26-device-hub/u);
+  assert.match(html,/Historial anterior/u);
+  assert.match(html,/2026-10-12/u);
+  assert.doesNotMatch(html,/Sin mediciones confirmadas/u);
+  assert.match(html,/No hay datos de los últimos siete días/u);
+  assert.doesNotMatch(html,/Medias de los últimos siete días/u);
+});

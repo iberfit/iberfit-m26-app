@@ -86,3 +86,33 @@ export function isCertifiedNativeAutoSyncSource(connection){
     &&Array.isArray(record.scopes)
     &&record.scopes.length>0;
 }
+
+/**
+ * A low-frequency tick only while the signed Android Client is foregrounded.
+ * This never opens OS permission dialogs and never schedules background reads.
+ */
+export const WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS=30*60*1000;
+export function createNativeForegroundHeartbeat({
+  onTick,canRun,
+  setTimer=(fn,ms)=>globalThis.setInterval(fn,ms),
+  clearTimer=handle=>globalThis.clearInterval(handle),
+  intervalMs=WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS,
+}={}){
+  if(typeof onTick!=='function'||typeof canRun!=='function'
+    ||typeof setTimer!=='function'||typeof clearTimer!=='function'
+    ||!Number.isInteger(intervalMs)||intervalMs<WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS)
+    throw new Error('M26_WEARABLE_HEARTBEAT_CONFIG_INVALID');
+  let timer=null;
+  function start(){
+    if(timer!==null||!canRun())return false;
+    const handle=setTimer(()=>{if(canRun())onTick();},intervalMs);
+    if(handle===null||handle===undefined)throw new Error('M26_WEARABLE_HEARTBEAT_TIMER_UNAVAILABLE');
+    timer=handle;return true;
+  }
+  function stop(){
+    if(timer===null)return false;
+    const prior=timer;timer=null;
+    clearTimer(prior);return true;
+  }
+  return Object.freeze({start,stop,get active(){return timer!==null;}});
+}

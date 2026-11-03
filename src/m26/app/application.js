@@ -1391,6 +1391,11 @@ export async function createM26Application({root=document.querySelector('#app'),
           throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
         return wearables.startProductionHealthConnection(scopes);
       },
+      reviewNativeHealth:async()=>{
+        if(!wearables?.reviewProductionHealthPermissions)
+          throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
+        return wearables.reviewProductionHealthPermissions();
+      },
     });
     mediaExperience=createExerciseVideoExperienceController({root});
     avatarController=createClientAvatarController({root,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getIdentity:()=>store.getState().identity||{}});
