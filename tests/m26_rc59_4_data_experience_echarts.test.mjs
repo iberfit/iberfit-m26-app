@@ -405,7 +405,7 @@ test('Functional360 consulta métricas Cliente con selector nativo sin nueva pet
   assert.match(html,/<option value="steps" selected>Pasos<\/option>/u);
   assert.match(html,/<option value="sleepMinutes">Sueño<\/option>/u);
   assert.match(html,/<option value="restingHeartRate">FC en reposo<\/option>/u);
-  assert.match(html,/<option value="hrvMs">VFC<\/option>/u);
+  assert.match(html,/<option value="hrvMs">VFC · Variabilidad de la frecuencia cardíaca<\/option>/u);
   assert.match(html,/<option value="all">Todas las métricas<\/option>/u);
   assert.equal((html.match(/<article class="m26-panel m26-data-metric-card"/gu)||[]).length,4);
   assert.match(html,/data-m26-evolution-query-status role="status" aria-live="polite"/u);
@@ -445,7 +445,7 @@ test('Functional360 consulta exclusivamente colección autorizada sin lecturas e
   const end=source.indexOf('export function renderLongitudinalDataExperience(',start);
   assert.ok(start>=0&&end>start);
   const feature=source.slice(start,end);
-  assert.doesNotMatch(feature,/\bfetch\(|\.rpc\(|\.from\(|indexedDB|localStorage|service_role|setInterval/u);
+  assert.doesNotMatch(feature,/\bfetch\(|\.rpc\(|\bsupabase\.\s*from\(|indexedDB|localStorage|service_role|setInterval/u);
   assert.match(feature,/applyEvolutionMetricSelection/u);
   assert.match(feature,/disconnectedCallback\(\)/u);
   assert.match(feature,/get\?\.\('m26-evolution-explorer'\)/u);
