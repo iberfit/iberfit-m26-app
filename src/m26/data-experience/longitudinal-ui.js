@@ -287,6 +287,79 @@ function trustPanel(aggregate,role){
   return `<section class="m26-panel m26-panel-soft m26-data-trust"><p class="m26-eyebrow">Confianza y método</p><h3>Lectura profesional trazable</h3><dl><div><dt>Fuente</dt><dd>${escapeHtml(trust.wearableSourceCollection||'—')}</dd></div><div><dt>Baseline</dt><dd>28 días actuales vs. 28 inmediatamente previos</dd></div><div><dt>Tendencia</dt><dd>Regresión lineal de medias diarias · 90 días</dd></div><div><dt>Multifuente</dt><dd>Media diaria por proveedor antes de la tendencia</dd></div><div><dt>Datos faltantes</dt><dd>No imputados · cobertura visible</dd></div><div><dt>VFC</dt><dd>Mismo método conocido obligatorio para comparar</dd></div></dl></section>`;
 }
 
+
+// Functional360: metric consultation works exclusively on the already-authorized
+// longitudinal aggregate. No new Supabase read, sensor access or persistent cache.
+export function applyEvolutionMetricSelection(cards,requested=''){
+  const items=Array.from(cards||[]).filter((card)=>card&&typeof card==='object');
+  const valid=items.map((card)=>String(card.dataset?.metric||'')).filter(Boolean);
+  const chosen=requested==='all'?'all'
+    :valid.includes(String(requested||''))?String(requested)
+      :(valid[0]||null);
+  for(const card of items){
+    const show=chosen==='all'||card.dataset?.metric===chosen;
+    card.hidden=!show;
+  }
+  return chosen;
+}
+
+function registerEvolutionMetricExplorer(){
+  const registry=globalThis.customElements;
+  const Base=globalThis.HTMLElement;
+  if(!registry||typeof registry.define!=='function'||typeof Base!=='function'
+    ||registry.get?.('m26-evolution-explorer'))return false;
+  registry.define('m26-evolution-explorer',class extends Base{
+    #select=null;
+    #change=null;
+    connectedCallback(){
+      this.#select=this.querySelector?.('[data-m26-evolution-metric]')||null;
+      if(!this.#select)return;
+      const cards=this.querySelectorAll?.('[data-metric]')||[];
+      this.#change=()=>{
+        const chosen=applyEvolutionMetricSelection(cards,this.#select.value);
+        if(chosen&&this.#select.value!==chosen)this.#select.value=chosen;
+        const status=this.querySelector?.('[data-m26-evolution-query-status]');
+        if(status)status.textContent=chosen==='all'
+          ?'Mostrando todas las métricas.'
+          :'Mostrando '+String(this.#select.selectedOptions?.[0]?.textContent||'la métrica seleccionada')+'.';
+      };
+      this.#select.addEventListener?.('change',this.#change);
+      this.#change();
+    }
+    disconnectedCallback(){
+      if(this.#select&&this.#change)this.#select.removeEventListener?.('change',this.#change);
+      this.#select=null;
+      this.#change=null;
+    }
+  });
+  return true;
+}
+registerEvolutionMetricExplorer();
+
+function renderEvolutionMetricExplorer(aggregate,metrics,role){
+  const professional=role!=='client';
+  const window=professional?aggregate?.windows?.d90:aggregate?.windows?.d28;
+  const available=metrics.filter((key)=>Boolean(window?.metrics?.[key]));
+  if(!available.length)return '';
+  const preferred=available.find((key)=>window.metrics[key]?.points?.length>0)||available[0];
+  const options=available.map((key)=>
+    '<option value="'+escapeHtml(key)+'"'+(key===preferred?' selected':'')+'>'+
+    escapeHtml(metricMeta(window.metrics[key],key).label)+'</option>'
+  ).join('');
+  const select='<div class="m26-panel m26-panel-soft m26-evolution-query" data-m26-evolution-query>'+
+    '<label for="m26-evolution-metric-query">Consultar evolución de</label>'+
+    '<select id="m26-evolution-metric-query" data-m26-evolution-metric aria-label="Elegir métrica para consultar su evolución">'+
+    options+'<option value="all">Todas las métricas</option></select>'+
+    '<p data-m26-evolution-query-status role="status" aria-live="polite">'+
+    'Selecciona una métrica. Para ver el conjunto completo, elige Todas las métricas.</p></div>';
+  const grid='<div class="'+(professional
+    ?'m26-data-grid m26-data-grid-professional':'m26-data-grid')+'">'+
+    available.map((key)=>metricCard(aggregate,key,role)).join('')+'</div>';
+  // If custom elements are unavailable, native HTML retains every card and table.
+  return '<m26-evolution-explorer data-m26-evolution-explorer>'+
+    select+grid+'</m26-evolution-explorer>';
+}
+
 export function renderLongitudinalDataExperience(
   aggregate,
   {role='client'}={}
@@ -299,7 +372,7 @@ export function renderLongitudinalDataExperience(
   const professional=normalizedRole!=='client';
   const metrics=professional?COACH_METRICS:CLIENT_METRICS;
 
-  return `<section class="m26-stack m26-data-experience" data-role-density="${professional?'professional':'simple'}"><section class="m26-panel m26-panel-hero m26-data-hero"><p class="m26-eyebrow">Datos y evolución</p><h2>${professional?'Análisis longitudinal':'Tu evolución'}</h2><p>${professional?'Comparativas 7/28/90 días, baseline, tendencia, cobertura y procedencia para apoyar una decisión profesional.':'Una lectura sencilla de tus últimas semanas: cada tarjeta explica el cambio disponible y el siguiente paso sin rellenar días que faltan.'}</p></section>${adherencePanel(aggregate,normalizedRole)}<div class="${professional?'m26-data-grid m26-data-grid-professional':'m26-data-grid'}">${metrics.map((key)=>metricCard(aggregate,key,normalizedRole)).join('')}</div>${trustPanel(aggregate,normalizedRole)}<p class="m26-notice m26-data-decision-rule">Dato → contexto → entrenador decide. Las tendencias no cambian automáticamente tu entrenamiento ni constituyen una clasificación clínica.</p></section>`;
+  return `<section class="m26-stack m26-data-experience" data-role-density="${professional?'professional':'simple'}"><section class="m26-panel m26-panel-hero m26-data-hero"><p class="m26-eyebrow">Datos y evolución</p><h2>${professional?'Análisis longitudinal':'Tu evolución'}</h2><p>${professional?'Comparativas 7/28/90 días, baseline, tendencia, cobertura y procedencia para apoyar una decisión profesional.':'Una lectura sencilla de tus últimas semanas: cada tarjeta explica el cambio disponible y el siguiente paso sin rellenar días que faltan.'}</p></section>${adherencePanel(aggregate,normalizedRole)}${renderEvolutionMetricExplorer(aggregate,metrics,normalizedRole)}${trustPanel(aggregate,normalizedRole)}<p class="m26-notice m26-data-decision-rule">Dato → contexto → entrenador decide. Las tendencias no cambian automáticamente tu entrenamiento ni constituyen una clasificación clínica.</p></section>`;
 }
 
 export const __longitudinalUiInternals=Object.freeze({

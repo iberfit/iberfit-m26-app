@@ -10,6 +10,7 @@ import {
 } from '../src/m26/data-experience/echarts-element.js';
 import {
   renderLongitudinalDataExperience,
+  applyEvolutionMetricSelection,
 } from '../src/m26/data-experience/longitudinal-ui.js';
 import {
   buildLongitudinalAggregation,
@@ -394,4 +395,65 @@ test('Premium Report Parity queda fijado como gate transversal al nivel IRI',()=
   assert.match(spec,/A4\/PDF-grade output/u);
   assert.match(workflow,/format:'a4-premium'/u);
   assert.match(iri,/m26-premium-report-v3/u);
+});
+test('Functional360 consulta métricas Cliente con selector nativo sin nueva petición remota',()=>{
+  const aggregate=buildLongitudinalAggregation(stateFixture(),CLIENT,{now:NOW});
+  const html=renderLongitudinalDataExperience(aggregate,{role:'client'});
+  assert.match(html,/<m26-evolution-explorer\b/u);
+  assert.match(html,/data-m26-evolution-metric/u);
+  assert.match(html,/Consultar evolución de/u);
+  assert.match(html,/<option value="steps" selected>Pasos<\/option>/u);
+  assert.match(html,/<option value="sleepMinutes">Sueño<\/option>/u);
+  assert.match(html,/<option value="restingHeartRate">FC en reposo<\/option>/u);
+  assert.match(html,/<option value="hrvMs">VFC · Variabilidad de la frecuencia cardíaca<\/option>/u);
+  assert.match(html,/<option value="all">Todas las métricas<\/option>/u);
+  assert.equal((html.match(/<article class="m26-panel m26-data-metric-card"/gu)||[]).length,4);
+  assert.match(html,/data-m26-evolution-query-status role="status" aria-live="polite"/u);
+  assert.doesNotMatch(html,/CLIENT-RC594/u);
+});
+
+test('Functional360 Coach mantiene siete métricas, tablas y comparativa sin nueva consulta',()=>{
+  const aggregate=buildLongitudinalAggregation(stateFixture(),CLIENT,{now:NOW});
+  const html=renderLongitudinalDataExperience(aggregate,{role:'coach'});
+  for(const key of ['steps','activeMinutes','sleepMinutes','restingHeartRate','hrvMs','activeEnergyKcal','workoutMinutes']){
+    assert.match(html,new RegExp('<option value="'+key+'"','u'));
+  }
+  assert.equal((html.match(/<article class="m26-panel m26-data-metric-card"/gu)||[]).length,7);
+  assert.match(html,/Ver datos del gráfico/u);
+  assert.match(html,/Confianza y método/u);
+});
+
+test('Functional360 selección reversible, valor inválido fail-soft y sin métricas eliminadas',()=>{
+  const cards=['steps','sleepMinutes','hrvMs'].map(metric=>({
+    dataset:{metric},style:{display:''},hidden:false,
+  }));
+  assert.equal(applyEvolutionMetricSelection(cards,'sleepMinutes'),'sleepMinutes');
+  assert.deepEqual(cards.map(card=>card.hidden),[true,false,true]);
+  assert.equal(applyEvolutionMetricSelection(cards,'all'),'all');
+  assert.deepEqual(cards.map(card=>card.hidden),[false,false,false]);
+  assert.equal(applyEvolutionMetricSelection(cards,'nonexistent'),'steps');
+  assert.deepEqual(cards.map(card=>card.hidden),[false,true,true]);
+  assert.equal(applyEvolutionMetricSelection([], 'steps'),null);
+  assert.equal(applyEvolutionMetricSelection(cards,'hrvMs'),'hrvMs');
+  assert.deepEqual(cards.map(card=>card.hidden),[true,true,false]);
+});
+
+test('Functional360 consulta exclusivamente colección autorizada sin lecturas extra a Supabase',()=>{
+  const source=read('src/m26/data-experience/longitudinal-ui.js');
+  const start=source.indexOf('// Functional360: metric consultation');
+  const end=source.indexOf('export function renderLongitudinalDataExperience(',start);
+  assert.ok(start>=0&&end>start);
+  const feature=source.slice(start,end);
+  assert.doesNotMatch(feature,/\bfetch\(|\.rpc\(|\bsupabase\.\s*from\(|indexedDB|localStorage|service_role|setInterval/u);
+  assert.match(feature,/applyEvolutionMetricSelection/u);
+  assert.match(feature,/disconnectedCallback\(\)/u);
+  assert.match(feature,/get\?\.\('m26-evolution-explorer'\)/u);
+});
+
+test('Functional360 strict CSP: CSS autorizado oculta tarjetas sin estilos inline',()=>{
+  const ui=read('src/m26/data-experience/longitudinal-ui.js');
+  const css=read('src/m26/design/primitives.css');
+  assert.doesNotMatch(ui,/card\.style\.|<m26-evolution-explorer[^>]*style=/u);
+  assert.match(css,/m26-evolution-explorer \.m26-data-metric-card\[hidden\]/u);
+  assert.match(css,/m26-evolution-explorer \{/u);
 });
