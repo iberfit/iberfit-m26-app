@@ -9,7 +9,7 @@ import {
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
-import {setPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
+import {setPendingSessionEntry,peekPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
@@ -1052,14 +1052,23 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!context?.execution||!context?.session)throw new Error('M26_SESSION_EXECUTION_REQUIRED');
     if(context.execution.status!=='ready')return false;
     startPending=true;
+    let localRecoveryWarning=false;
     const task=async()=>{
-      await flushAutosave(context);
+      // The remote start must not depend on a previous local draft write:
+      // browser storage may fail even when the session is server-authorized.
+      try{await flushAutosave(context);}
+      catch{localRecoveryWarning=true;}
+      // A delayed autosave must not send a command under another account or
+      // after another execution replaced the original workspace.
+      if(!sameLiveExecutionOwner(context,getContext())||context.execution.status!=='ready')
+        throw new Error('M26_SESSION_ACTION_OWNER_CHANGED');
       const result=dispatchSessionAction({...context,action:'start',payload:{appointmentId:context.appointmentId,sessionRevision:context.sessionRevision}});
       return await result.value;
     };
     try{
       const outcome=context.actionState?await runAction(context.actionState,task):{ok:true,value:await task()};
       if(!outcome.ok){
+        if(!sameLiveExecutionOwner(context,getContext()))return false;
         // Global diagnostics may supply a generic message. The action-specific
         // recovery message must be the last committed UI state, not overwritten.
         onError(outcome.error);
@@ -1067,20 +1076,24 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
         if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
         renderSession();return false;
       }
+      // The ACK is authoritative, but no stale continuation may operate on
+      // another owner's workspace after an async network round-trip.
+      if(!sameLiveExecutionOwner(context,getContext()))return true;
       // A confirmed SESION_INICIAR is the source of truth. Local checkpoint
       // persistence can fail (private mode, quota, crash, another tab) but
       // must never relabel an already-committed workout as "failed to start".
       try{void telemetry.start(context.execution);}catch{}
-      try{await persistContext(getContext());}
-      catch(error){
-        if(context?.actionState){
-          context.actionState.status='retry';
-          context.actionState.message='Entrenamiento iniciado y confirmado. No se pudo guardar la copia de recuperación en este dispositivo; comprueba la sincronización antes de salir.';
-        }
+      try{await persistContext(context);}
+      catch{localRecoveryWarning=true;}
+      if(localRecoveryWarning&&context?.actionState){
+        context.actionState.status='retry';
+        context.actionState.message='Entrenamiento iniciado y confirmado. No se pudo completar un guardado local en este dispositivo; comprueba la sincronización antes de salir.';
       }
       renderSession();
       return true;
     }catch(error){
+      if(!sameLiveExecutionOwner(context,getContext()))
+        return context?.execution?.status==='active';
       if(context?.execution?.status==='active'){
         if(context?.actionState){
           context.actionState.status='retry';
@@ -1110,13 +1123,25 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   }
   async function onShellRendered(){
     bindSessionStickyTop();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());
-    const pending=consumePendingSessionEntry(root);
+    // A shell render can still show the previous area, a loading transition or
+    // a different session. Do not consume the user's 30-second entry intent
+    // until the exact authorized execution has been mounted and revalidated.
+    const pending=peekPendingSessionEntry(root);
     if(!pending)return;
     const context=getContext();
+    const actorClientId=String(context?.actor?.clientId||'').trim();
+    if(actorClientId&&actorClientId!==pending.clientId){
+      clearPendingSessionEntry(root);
+      return;
+    }
     const execution=context?.execution;
     const session=context?.session;
     if(!execution||!session)return;
-    if(String(execution.clientId||'')!==pending.clientId||String(session.id||'')!==pending.sessionId)return;
+    if(String(execution.clientId||'')!==pending.clientId||
+       String(session.id||'')!==pending.sessionId)return;
+    // Consume before awaiting the remote ACK; a second shell render must
+    // never produce a second SESION_INICIAR for the same tap.
+    consumePendingSessionEntry(root);
     if(String(execution.status||'').trim().toLowerCase()!=='ready')return;
     if(pending.decision?.directStartAllowed!==true||pending.decision?.level!=='normal')return;
     await start();

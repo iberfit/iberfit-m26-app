@@ -6,6 +6,7 @@ import {buildAdaptiveSessionContext} from '../src/m26/intelligence/adaptive-cont
 import {buildSessionEntryDecision} from '../src/m26/intelligence/session-entry-policy.js';
 import {
   setPendingSessionEntry,
+  peekPendingSessionEntry,
   revalidatePendingSessionEntry,
 } from '../src/m26/intelligence/session-entry-intent.js';
 import {buildClientHomeSnapshot} from '../src/m26/ui/progress-continuity.js';
@@ -230,6 +231,143 @@ test('revisión adaptativa y ejecución recuperada no pueden autoarrancar',async
     assert.equal(execution.events.filter((item)=>item.type==='SESSION_STARTED').length,0,scenario.name);
     controller.destroy();
   }
+});
+
+
+test('Running first intent survives a loading render and starts exactly once after the matching workspace mounts',async()=>{
+  const root=fakeRoot();
+  const session=publishedSession();
+  const execution=createExecution({session,clientId,executionId:'execution-running-race'});
+  let context=null,starts=0;
+  const controller=createSessionController({
+    root,getContext:()=>context,render:()=>{},
+    liveTelemetryController:{start(){starts+=1;},pause(){},resume(){},stop(){}},
+  });
+  controller.mount();
+  setPendingSessionEntry(root,{clientId,sessionId});
+  revalidatePendingSessionEntry(root,{
+    state:{},now,buildContext:()=>({decision:{level:'normal'}}),
+    buildDecision:({decision})=>({level:decision.level,directStartAllowed:true}),
+  });
+  await root.emit('m26:shell-rendered');
+  assert.ok(peekPendingSessionEntry(root),'an intermediate shell must not discard the first click');
+  context={session,execution,online:true,sessionRevision:3,actor:{role:'client',clientId,userId:'owner-running'}};
+  await root.emit('m26:shell-rendered');
+  assert.equal(execution.status,'active');
+  assert.equal(execution.events.filter(x=>x.type==='SESSION_STARTED').length,1);
+  assert.equal(starts,1);
+  assert.equal(peekPendingSessionEntry(root),null,'the matching execution consumes intent once');
+  await root.emit('m26:shell-rendered');
+  assert.equal(starts,1);
+  controller.destroy();
+});
+
+test('Running first intent survives stale previous session but refuses foreign account',async()=>{
+  const root=fakeRoot(),session=publishedSession();
+  const former={...session,id:'other-session'};
+  const previous=createExecution({session:former,clientId,executionId:'execution-former'});
+  const target=createExecution({session,clientId,executionId:'execution-target'});
+  let context={session:former,execution:previous,actor:{role:'client',clientId,userId:'owner-running'}};
+  const controller=createSessionController({root,getContext:()=>context,render:()=>{},
+    liveTelemetryController:{start(){},pause(){},resume(){},stop(){}},
+  });
+  controller.mount();
+  setPendingSessionEntry(root,{clientId,sessionId});
+  revalidatePendingSessionEntry(root,{state:{},now,buildContext:()=>({}),
+    buildDecision:()=>({level:'normal',directStartAllowed:true}),
+  });
+  await root.emit('m26:shell-rendered');
+  assert.ok(peekPendingSessionEntry(root),'stale previous training does not eat first click');
+  assert.equal(previous.status,'ready');
+  context={session,execution:target,actor:{role:'client',clientId,userId:'owner-running'}};
+  await root.emit('m26:shell-rendered');
+  assert.equal(target.status,'active');
+  controller.destroy();
+
+  const foreignRoot=fakeRoot();
+  let foreignContext={actor:{role:'client',clientId:'other-client'},session:null,execution:null};
+  const foreign=createSessionController({root:foreignRoot,getContext:()=>foreignContext,render:()=>{},
+    liveTelemetryController:{start(){},pause(){},resume(){},stop(){}},
+  });
+  foreign.mount();
+  setPendingSessionEntry(foreignRoot,{clientId,sessionId});
+  revalidatePendingSessionEntry(foreignRoot,{state:{},now,buildContext:()=>({}),
+    buildDecision:()=>({level:'normal',directStartAllowed:true}),
+  });
+  await foreignRoot.emit('m26:shell-rendered');
+  assert.equal(peekPendingSessionEntry(foreignRoot),null,'account switch revokes pending intent');
+  foreignContext={session,execution:createExecution({session,clientId}),actor:{role:'client',clientId,userId:'owner-running'}};
+  await foreignRoot.emit('m26:shell-rendered');
+  assert.equal(foreignContext.execution.status,'ready','revoked intent cannot start later');
+  foreign.destroy();
+});
+
+test('Running auto-start with failed local autosave still obtains one remote ACK and shows recovery warning',async()=>{
+  const root=fakeRoot();
+  const session=publishedSession();
+  const execution=createExecution({session,clientId,executionId:'execution-quota'});
+  const commands=[];
+  const actionState={status:'idle',message:''};
+  const context={session,execution,actor:{role:'client',clientId,userId:'owner-running'},
+    online:true,sessionRevision:3,actionState,
+    draft:{id:'draft-quota',title:'Running'},
+    autosaveDraft:async()=>{throw new Error('LOCAL_QUOTA');},
+    commandBus:{execute:async command=>{
+      commands.push(command);
+      return {ok:true,kind:'ack',command:{operationId:'start-quota'},response:{executionRevision:1,remoteRevision:4}};
+    }},
+  };
+  const errors=[];
+  const controller=createSessionController({root,getContext:()=>context,render:()=>{},onError:e=>errors.push(e),
+    liveTelemetryController:{start(){},pause(){},resume(){},stop(){}},
+  });
+  controller.mount();
+  const field={value:'Running',getAttribute:()=> 'title'};
+  await root.emit('input',{target:{closest(selector){return selector==='[data-session-draft-field]'?field:null;}}});
+  setPendingSessionEntry(root,{clientId,sessionId});
+  revalidatePendingSessionEntry(root,{state:{},now,buildContext:()=>({}),
+    buildDecision:()=>({level:'normal',directStartAllowed:true}),
+  });
+  await root.emit('m26:shell-rendered');
+  assert.equal(commands.length,1);
+  assert.equal(commands[0].type,'SESION_INICIAR');
+  assert.equal(execution.status,'active');
+  assert.match(actionState.message,/iniciado y confirmado/i);
+  await root.emit('m26:shell-rendered');
+  assert.equal(commands.length,1);
+  controller.destroy();
+});
+
+test('Running delayed start does not issue remote command after owner or execution changes',async()=>{
+  const root=fakeRoot(),session=publishedSession();
+  const execution=createExecution({session,clientId,executionId:'execution-delayed'});
+  let resolveAutosave;
+  const barrier=new Promise(resolve=>{resolveAutosave=resolve;});
+  const commands=[];
+  const base={session,execution,actor:{role:'client',clientId,userId:'owner-running'},
+    online:true,sessionRevision:3,draft:{id:'draft-delayed',title:'Running'},
+    autosaveDraft:async()=>barrier,
+    commandBus:{execute:async cmd=>{commands.push(cmd);return {ok:true,kind:'ack',response:{remoteRevision:4}};}},
+  };
+  let current=base;
+  const controller=createSessionController({root,getContext:()=>current,render:()=>{},
+    liveTelemetryController:{start(){},pause(){},resume(){},stop(){}},
+  });
+  controller.mount();
+  const field={value:'Running',getAttribute:()=> 'title'};
+  await root.emit('input',{target:{closest(selector){return selector==='[data-session-draft-field]'?field:null;}}});
+  setPendingSessionEntry(root,{clientId,sessionId});
+  revalidatePendingSessionEntry(root,{state:{},now,buildContext:()=>({}),
+    buildDecision:()=>({level:'normal',directStartAllowed:true}),
+  });
+  const startAttempt=root.emit('m26:shell-rendered');
+  current={...base,actor:{role:'client',clientId:'other-client',userId:'other-owner'},
+    execution:createExecution({session,clientId,executionId:'execution-foreign'})};
+  resolveAutosave();
+  await startAttempt;
+  assert.equal(commands.length,0);
+  assert.equal(execution.status,'ready');
+  controller.destroy();
 });
 
 test('contrato RC74.15 conserva política única, recuperación y ausencia de atajos inseguros',async()=>{

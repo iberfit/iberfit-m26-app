@@ -85,7 +85,8 @@ test('M42: failed start keeps action-specific diagnostic after global onError',(
 test('M42: remote-ACK start is not turned into failure by local checkpoint failure',()=>{
   const controller=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   const start=controller.slice(controller.indexOf('async function start(){'),controller.indexOf('function captureSessionEntryIntent('));
-  assert.match(start,/try\{await persistContext\(getContext\(\)\);\}/u);
+  assert.match(start,/try\{await persistContext\(context\);\}/u,
+    'post-ACK recovery must persist the original authorized session, not a newly switched client');
   assert.match(start,/context\.actionState\.message='Entrenamiento iniciado y confirmado/u);
   assert.match(start,/if\(context\?\.execution\?\.status==='active'\)/u);
   assert.match(start,/return true;/u);
