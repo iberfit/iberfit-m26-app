@@ -337,3 +337,26 @@ test('SIGNATURE R49: unsafe or supervised Client cards never receive an editoria
   const coach=html('coach',[item('guiada','guided_in_app','full')]);
   assert.doesNotMatch(coach,/data-client-session-editorial|m26-client-session-goals|m26-client-session-context/u);
 });
+
+test('SIGNATURE R49: Planning and Sessions use one authorized editorial visual without false availability',()=>{
+  const running=item('guiada','guided_in_app','full');
+  running.title='Carrera suave';
+  running.session={...running.session,status:'disponible',durationMinutes:60,blocks:[{
+    id:'run',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',
+    plannedDurationMinutes:35,plannedPace:'05:30',targetRpe:6,
+  }]};
+  const base={role:'client',serviceActive:true,selectedClient:{modality:'hibrido'},
+    sessionPreviewAssets:{catalog:[],mediaMap:null},
+    rc39:{role:'client',sessionProjections:[running],planningItems:[running],appointments:[]}};
+  for(const kind of ['sesion','planificacion']){
+    const value=renderRc39Route({...base,kind});
+    assert.match(value,/data-client-session-editorial="true"/u);
+    assert.match(value,/Duración total<\/dt><dd>60 min/u);
+    assert.match(value,/Disponible para entrenar/u);
+    assert.equal((value.match(/data-workflow-action="start-published-session"/gu)||[]).length,1,kind);
+  }
+  const legacy={...running,session:{...running.session,status:'publicado'}};
+  const value=renderRc39Route({...base,kind:'sesion',rc39:{...base.rc39,sessionProjections:[legacy]}});
+  assert.doesNotMatch(value,/Disponible para entrenar/u,
+    'a published legacy state must not claim definitive server readiness');
+});
