@@ -120,7 +120,7 @@ test('M44: the progression form is present even without initial IRI and cannot a
   assert.match(route,/Selecciona primero un informe de entrenamiento con evidencia confirmada/);
   const code=source('src/m26/app/workflow-controller.js');
   const localSave=code.slice(code.indexOf('  async function saveReportDraft('),code.indexOf('  function queueReportSave('));
-  assert.match(localSave,/prepareLocalReportDraft\\(raw,\\{clientId,entityId:stableId\\}\\)/u);
+  assert.match(localSave,/prepareLocalReportDraft\(raw,\{clientId,entityId:stableId\}\)/u);
   assert.doesNotMatch(localSave,/M26_REPORT_ASSESSMENT_REQUIRED/u);
   assert.match(code,/assessmentId:assessmentId\|\|null/);
 });
@@ -226,9 +226,9 @@ test('P1: no-IRI preliminary drafts survive IRI arrival but foreign IRI drafts s
 test('P1: report selection guard cannot silently default to monthly or publish unverified dates',()=>{
   const controller=source('src/m26/app/workflow-controller.js');
   const save=controller.slice(controller.indexOf('  async function saveReportDraft('),controller.indexOf('  function queueReportSave('));
-  assert.doesNotMatch(save,/reportType\\s*:\\s*['"]monthly['"]/u);
-  assert.match(controller,/buildApproveReportDraftCommand\\(\\{id:stableId,\\.\\.\\.content\\},0\\)/u);
+  assert.doesNotMatch(save,/reportType\s*:\s*['"]monthly['"]/u);
+  assert.match(controller,/buildApproveReportDraftCommand\(\{id:stableId,\.\.\.content\},0\)/u);
   const workflow=source('src/m26/workflows/report-workflow.js');
   assert.match(workflow,/premium-evidence-stale/u);
-  assert.match(workflow,/premiumEvidenceSignature\\(candidate\\)/u);
+  assert.match(workflow,/premiumEvidenceSignature\(candidate\)/u);
 });
