@@ -85,3 +85,17 @@ test('P0: historical Client activity is explicitly dated; never converts it to c
   assert.match(route,/No reflejan el estado actual/u);
   assert.match(route,/dailyRecords:dailyRecords\+historicalRecords/u);
 });
+
+test('P0: historical health stays accessible to Client even when training service is inactive',async()=>{
+  const {buildWearableViewModel}=await import('../src/m26/wearables/view-model.js');
+  const {renderActivityRoute}=await import('../src/m26/modules/route-render.js');
+  const records=mergeV47DailyIntoClientProgress({clientId:a,dailyHealth:[row]});
+  const wearables=buildWearableViewModel({records,role:'client',now:new Date('2026-11-03T12:00:00Z'),scope:{}});
+  const html=renderActivityRoute({role:'client',serviceKind:'none',wearables});
+  assert.match(html,/data-m26-device-hub/u);
+  assert.match(html,/Historial anterior/u);
+  assert.match(html,/2026-10-12/u);
+  assert.doesNotMatch(html,/Sin mediciones confirmadas/u);
+  assert.match(html,/No hay datos de los últimos siete días/u);
+  assert.doesNotMatch(html,/Medias de los últimos siete días/u);
+});
