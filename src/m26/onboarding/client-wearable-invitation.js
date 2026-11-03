@@ -8,6 +8,11 @@ import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-ch
 export const CONNECTED360_INVITATION_SCHEMA='iberfit.connected360.invitation.v1';
 const PREFIX='iberfit.m26.connected360.invitation.v1:';
 const NATIVE_PREFIX='iberfit.m26.connected360.native-invitation.v1:';
+const RECOVERY_PREFIX='iberfit.m26.connected360.recovery.20261103:';
+// Privacy-safe, double-hashed target account cohort. Never store a user ID,
+// name, email, clinical measurements or grant in a public feature flag.
+// This is UI targeting only; authorizations remain server + OS enforced.
+const RECOVERY_COHORT=Object.freeze({a:'7c5ae781',b:'6f1b4c3f'});
 const NATIVE_SCOPES=Object.freeze([
   ['steps','Pasos diarios'],['sleepMinutes','Duración del sueño'],
   ['restingHeartRate','Frecuencia cardíaca en reposo'],
@@ -31,7 +36,7 @@ const STYLE=[
   '[data-m26-connected360-invitation] button:disabled{opacity:.55;cursor:wait}',
   '[data-m26-connected360-invitation] .m26-connected360-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.15rem}',
   '[data-m26-connected360-invitation] button{min-height:44px;padding:.65rem 1rem;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}',
-  '[data-m26-connected360-action=start]{background:#b99348;border:1px solid #89652a;color:#192b20}',
+  '[data-m26-connected360-action=start],[data-m26-connected360-action=resume]{background:#b99348;border:1px solid #89652a;color:#192b20}',
   '[data-m26-connected360-action=later]{background:transparent;border:1px solid rgba(23,55,43,.32);color:#18362a}',
   '[data-m26-connected360-invitation] button:focus-visible{outline:3px solid #74531b;outline-offset:3px}',
   '[data-m26-connected360-invitation] .m26-connected360-privacy{font-size:.77rem;line-height:1.5;margin-top:1.15rem;color:#51645a}',
@@ -39,6 +44,13 @@ const STYLE=[
   '@media(prefers-reduced-motion:reduce){[data-m26-connected360-invitation]{scroll-behavior:auto;animation:none;transition:none}}',
 ].join('\n');
 function hash(value){let result=0x811c9dc5;for(const char of String(value||'')){result^=char.charCodeAt(0);result=Math.imul(result,0x01000193);}return (result>>>0).toString(16).padStart(8,'0');}
+export function connected360RecoveryCampaignKey({role='',userId=''}={}){
+  const id=String(userId||'').trim();
+  if(String(role||'').toLowerCase()!=='client'||!id)return null;
+  if(hash('iberfit|c360|recovery|20261103|'+id)!==RECOVERY_COHORT.a
+    ||hash('second-check|'+id+'|c360')!==RECOVERY_COHORT.b)return null;
+  return RECOVERY_PREFIX+hash(id+'|20261103|recovery');
+}
 function clean(value,max=240){return String(value??'').trim().slice(0,max);}
 function storageFrom(storage,scope){if(storage!==undefined)return storage;try{return scope?.localStorage||null;}catch{return null;}}
 function readJson(storage,key){try{const raw=storage?.getItem?.(key);return raw?JSON.parse(raw):null;}catch{return null;}}
@@ -98,12 +110,28 @@ export function connected360InvitationMarkup(capabilities,language='es'){
     +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
     +'<p class="m26-connected360-privacy">'+t('Es opcional. No se importa nada sin tu autorización; puedes gestionar tus datos desde Ajustes.')+'</p></section>';
 }
-export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,connectNativeHealth=null,nativeHealthReady=()=>true,storage,scope=globalThis}={}){
+export function connected360RecoveryMarkup(capabilities,language='es'){
+  const t=value=>iberfitSurfaceTranslate(value,{language});
+  const native=capabilities?.nativeReady===true;
+  return '<section data-m26-connected360-invitation data-m26-connected360-recovery role="dialog" aria-modal="false" aria-labelledby="m26-connected360-heading" aria-describedby="m26-connected360-desc">'
+    +'<span class="m26-connected360-eyebrow">'+t('Tu salud, actualizada')+'</span>'
+    +'<h2 id="m26-connected360-heading">'+t('Revisar conexión de actividad')+'</h2>'
+    +'<p id="m26-connected360-desc">'+t('Hay registros anteriores de actividad. Revisa la conexión para recibir nuevas mediciones, sin modificar los datos ya guardados.')+'</p>'
+    +'<p class="m26-connected360-provider">'+t(native?'Health Connect · Android':'Versión web · sin lectura directa de Health Connect')+'</p>'
+    +'<p>'+t(native
+      ?'Comprueba los permisos del teléfono. IBERFIT volverá a leer únicamente las categorías autorizadas al regresar a la aplicación.'
+      :'Para sincronizar automáticamente Health Connect es necesaria la aplicación Android de IBERFIT. La web no puede acceder a las mediciones del teléfono.')+'</p>'
+    +'<div class="m26-connected360-actions"><button type="button" data-m26-connected360-action="resume">'
+    +t(native?'Revisar permisos en Android':'Ver opciones de dispositivos')+'</button>'
+    +'<button type="button" data-m26-connected360-action="later">'+t('Ahora no')+'</button></div>'
+    +'<p class="m26-connected360-privacy">'+t('Opcional. Ningún permiso se concede automáticamente. Puedes desconectar o eliminar tus datos en cualquier momento.')+'</p></section>';
+}
+export function createClientWearableInvitationController({root,identityProvider=()=>({}),stateProvider=()=>null,connectNativeHealth=null,reviewNativeHealth=null,nativeHealthReady=()=>true,storage,scope=globalThis,recoveryCampaignKey=connected360RecoveryCampaignKey}={}){
   if(!root?.addEventListener)throw new Error('M26_CONNECTED360_ROOT_REQUIRED');
   const doc=root.ownerDocument||scope?.document;
   const storageValue=storageFrom(storage,scope);
   const memory=new Map();
-  let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null,busy=false;
+  let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null,activeRecoveryKey=null,busy=false;
   // OS callbacks may arrive before the native request promise resolves, or
   // after WebView pageshow. Neither lifecycle may manufacture a consent.
   let pendingNativeKey=null,recoverableNativeKey=null,nativeRequestKey=null;
@@ -115,7 +143,7 @@ export function createClientWearableInvitationController({root,identityProvider=
   }
   function record(key){return readJson(storageValue,key)||memory.get(key)||null;}
   function write(key,status){memory.set(key,{schema:CONNECTED360_INVITATION_SCHEMA,status});persist(storageValue,key,status);}
-  function close(){dialog?.remove?.();dialog=null;activeKey=null;}
+  function close(){dialog?.remove?.();dialog=null;activeKey=null;activeRecoveryKey=null;}
   function ensureStyle(){
     if(doc?.querySelector?.('['+STYLE_ID+']'))return;
     style=doc?.createElement?.('style')||null;if(!style)return;
@@ -151,13 +179,25 @@ export function createClientWearableInvitationController({root,identityProvider=
     let connections=[];try{connections=stateProvider?.()?.collections?.wearableConnections||[];}catch{}
     const capabilities=connected360Capabilities(scope);
     const decision=connected360InvitationDecision({role:ctx.role,userId:ctx.userId,recorded:state,guideStatus:welcome,connections,capabilities});
+    const campaignKey=recoveryCampaignKey({role:ctx.role,userId:ctx.userId});
+    // Respect explicit opt-out and connected sources. The designated account
+    // receives a single recovery offer if prior onboarding was auto-suppressed
+    // or a previous permission attempt was acknowledged but data is stale.
+    const linked=connections.some(item=>ACTIVE.has(clean(item?.status||item?.state,32).toLowerCase()));
+    const campaign=Boolean(campaignKey&&!linked&&state
+      &&['chosen','suppressed'].includes(state.status)
+      &&!['chosen','dismissed'].includes(record(campaignKey)?.status)
+      &&['completed','skipped'].includes(welcome));
     const area=clean(root.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area'),60);
-    if(!decision.show||guideIsActive()||(area&&area!=='hoy')){close();return;}
-    if(dialog&&activeKey===ctx.key)return;
+    if((!decision.show&&!campaign)||guideIsActive()||(area&&area!=='hoy')){close();return;}
+    if(dialog&&activeKey===ctx.key&&Boolean(activeRecoveryKey)===campaign)return;
     close();ensureStyle();if(!doc?.body?.insertAdjacentHTML)return;
-    doc.body.insertAdjacentHTML('beforeend',connected360InvitationMarkup(capabilities,getIberfitLanguage()));
+    doc.body.insertAdjacentHTML('beforeend',campaign
+      ?connected360RecoveryMarkup(capabilities,getIberfitLanguage())
+      :connected360InvitationMarkup(capabilities,getIberfitLanguage()));
     dialog=doc.querySelector?.('[data-m26-connected360-invitation]')||null;
     activeKey=dialog?ctx.key:null;
+    activeRecoveryKey=campaign&&dialog?campaignKey:null;
     if(ctx.native&&nativePermissionRetry){
       const status=dialog?.querySelector?.('[data-m26-connected360-status]');
       if(status)status.textContent=iberfitSurfaceTranslate(
@@ -229,6 +269,30 @@ export function createClientWearableInvitationController({root,identityProvider=
       busy=false;button.disabled=false;
     }
   }
+  async function resumeRecovery(ctx,btn){
+    const ticket=activeRecoveryKey;
+    if(!ticket||busy)return;
+    if(!ctx.native){
+      if(navigate()){write(ticket,'chosen');close();}
+      return;
+    }
+    if(typeof reviewNativeHealth!=='function')return;
+    const note=dialog?.querySelector?.('.m26-connected360-provider');
+    busy=true;btn.disabled=true;
+    try{
+      const outcome=await reviewNativeHealth();
+      if(outcome?.requested!==true)throw new Error('M26_V46_PROD_PERMISSION_REVIEW_FAILED');
+      if(!mounted||identity()?.key!==ctx.key)return;
+      // Records only that an OS settings screen was opened voluntarily.
+      // Never treat this as an actual permission grant or successful upload.
+      write(ticket,'chosen');close();
+    }catch{
+      if(mounted&&identity()?.key===ctx.key&&note)note.textContent=iberfitSurfaceTranslate(
+        'No se pudieron abrir los permisos de Android. Puedes reintentarlo desde Dispositivos.',
+        {language:getIberfitLanguage()},
+      );
+    }finally{busy=false;btn.disabled=false;}
+  }
   function click(event){
     const btn=event.target?.closest?.('[data-m26-connected360-action]');
     if(!btn||!dialog?.contains?.(btn))return;
@@ -238,8 +302,9 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(action==='later'){
       pendingNativeKey=null;recoverableNativeKey=null;
       nativeRequestKey=null;earlyNativeOutcome=null;
-      write(ctx.key,'dismissed');close();return;
+      write(activeRecoveryKey||ctx.key,'dismissed');close();return;
     }
+    if(action==='resume'&&activeRecoveryKey){void resumeRecovery(ctx,btn);return;}
     if(action==='start'&&ctx.native){void startNative(ctx,btn);return;}
     if(action==='start'&&navigate()){write(ctx.key,'chosen');close();return;}
     const hint=dialog.querySelector?.('.m26-connected360-provider');
@@ -280,7 +345,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(event?.key!=='Escape'||!dialog)return;
     pendingNativeKey=null;recoverableNativeKey=null;
     nativeRequestKey=null;earlyNativeOutcome=null;
-    const ctx=identity();if(ctx)write(ctx.key,'dismissed');close();
+    const ctx=identity();if(ctx)write(activeRecoveryKey||ctx.key,'dismissed');close();
   }
   return Object.freeze({
     mount(){

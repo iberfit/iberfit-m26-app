@@ -1058,6 +1058,22 @@ export function createWearableController({
     });
   }
 
+  // User-initiated existing OS-permissions review: absolutely no consent
+  // mutation, no new scopes, no upload from the button itself.
+  async function reviewProductionHealthPermissions(){
+    const account=qaClientIdentity();
+    if(!mounted||!productionSync||!productionNative
+      ||account.role!=='client'||!account.ownerId||!account.clientId)
+      throw new Error('M26_V46_PROD_CLIENT_REQUIRED');
+    const flags=await productionSync.availability();
+    const latest=qaClientIdentity();
+    if(flags.serverEnabled!==true||latest.ownerId!==account.ownerId
+      ||latest.clientId!==account.clientId||!mounted)
+      throw new Error('M26_V46_PROD_PERMISSION_REVIEW_UNAVAILABLE');
+    productionNative.requestPermissions([]);
+    return Object.freeze({requested:true,permissionReviewOnly:true});
+  }
+
   // Same authenticated native route for the first-day welcome and the
   // Devices screen. No implicit grant, background consent or legacy QA path.
   async function startProductionHealthConnection(scopes){
@@ -2035,6 +2051,7 @@ export function createWearableController({
     syncPending,
     connectHealthConnect,
     startProductionHealthConnection,
+    reviewProductionHealthPermissions,
     productionHealthReady:()=>mounted&&Boolean(productionSync),
     connectNativeProvider,
     autoSyncNativeProviders,
