@@ -15,6 +15,7 @@ import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 import {isQaBootstrapRequest,sanitizeQaBootstrapResponse,summarizeQaBootstrapSamples,summarizeQaBootstrapPayload} from './qa-bootstrap-response-metrics.mjs';
+import {qaIriPhotoStateTable,summarizeQaIriPhotoStateResponse,summarizeQaIriPhotoStateChecks} from './qa-iri-photo-response-metrics.mjs';
 
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
@@ -478,6 +479,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
   // from an unexpected HTTP error. Never ignore an unverified 400/404.
   const errorResponseChecks=[];
   const bootstrapChecks=[];
+  const iriPhotoStateChecks=[];
   // Count only the exact QA U38 history RPC; never log JWT, bodies or client IDs.
   // First registration login is auth-only, second login proves lossless history.
   let u38HistoryRequests=0;
@@ -487,6 +489,25 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       u38HistoryRequests++;
   });
   let bootstrapPayloadSample=null;
+  // Capture only shape, status and duration of existing QA GET responses.
+  // Raw private payload remains ephemeral in this QA process, never in evidence.
+  page.on('requestfinished',(request)=>{
+    const table=qaIriPhotoStateTable(request,SUPABASE_ORIGIN);
+    if(!table)return;
+    iriPhotoStateChecks.push(Promise.resolve(request.response()).then(async(response)=>{
+      const rawText=response?await response.text():null;
+      return summarizeQaIriPhotoStateResponse({
+        table,status:response?.status()||0,
+        contentType:response?.headers()?.['content-type']||'',
+        rawText,timing:request.timing(),
+      });
+    }).catch(()=>summarizeQaIriPhotoStateResponse({table,networkFailure:true,timing:request.timing()})));
+  });
+  page.on('requestfailed',(request)=>{
+    const table=qaIriPhotoStateTable(request,SUPABASE_ORIGIN);
+    if(table)iriPhotoStateChecks.push(Promise.resolve(
+      summarizeQaIriPhotoStateResponse({table,networkFailure:true,timing:request.timing()})));
+  });
   page.on('requestfinished',(request)=>{
     if(!isQaBootstrapRequest(request,SUPABASE_ORIGIN)
       &&!isU39QaBootstrapOrHistory(request))return;
@@ -751,6 +772,10 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     // Persist privacy-safe evidence even when an earlier MFA or console assertion fails.
     // Do not redact an HTTP 500 into success or swallow an unexpected page error.
     try{
+      // Even a failing WebAuthn/console assertion produces no sensitive data.
+      const iriPhotoResults=await Promise.allSettled(iriPhotoStateChecks);
+      evidence.safeIriPhotoState=summarizeQaIriPhotoStateChecks(
+        iriPhotoResults.filter(item=>item.status==='fulfilled').map(item=>item.value));
       evidence.bootstrap=await snapshotBootstrap();
       evidence.bootstrapPayload=bootstrapPayloadSample?await bootstrapPayloadSample:null;
       evidence.safeAuthStages=await page.evaluate(()=>{
