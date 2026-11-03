@@ -14,7 +14,7 @@ test('M43 identity is unique for both run and attempt and labels all related fix
   const otherRun=m43QaRunMarkers({runId:'39545369988',attempt:'1'});
   const nextAttempt=m43QaRunMarkers({runId:'39545369987',attempt:'2'});
   assert.equal(current.sessionTitle,'IBERFIT QA M43 · multideporte · run-39545369987-a1');
-  for(const key of ['sessionTitle','interactiveSessionTitle','publishedCycleTitle','unpublishedCycleTitle']){
+  for(const key of ['sessionTitle','interactiveSessionTitle','runningInteractiveSessionTitle','publishedCycleTitle','unpublishedCycleTitle']){
     assert.match(current[key],/run-39545369987-a1$/u);
     assert.notEqual(current[key],otherRun[key]);
     assert.notEqual(current[key],nextAttempt[key]);
@@ -57,9 +57,15 @@ test('M43 real backend writer and Client browser share exact CI run and attempt'
 
 test('U34 interactive QA requires exact synthetic run fixture, scoped server commands and real buttons',()=>{
   assert.match(writer,/title:RUN_MARKERS\.interactiveSessionTitle/u);
-  assert.match(writer,/check\(budget\.count<=budget\.limit-2/u);
+  assert.match(writer,/check\(budget\.count<=budget\.limit-3/u);
   assert.match(writer,/INTERACTIVE_SESSION_ATOMIC_ENABLEMENT/u);
   assert.match(writer,/INTERACTIVE_SESSION_FOREIGN_PRIVATE/u);
+  assert.match(writer,/RUN_MARKERS\\.runningInteractiveSessionTitle/u);
+  assert.match(writer,/RUNNING_INTERACTIVE_ATOMIC_ENABLEMENT/u);
+  assert.match(writer,/RUNNING_INTERACTIVE_FOREIGN_PRIVATE/u);
+  assert.match(interactive,/\\.runningInteractiveSessionTitle/u);
+  assert.match(interactive,/real running completion must reach Client history exactly once/u);
+  assert.match(interactive,/serverStartCommands:1,serverProgressAcks:2,serverCompletionCommands:1/u);
   assert.match(interactive,/m43QaRunMarkers\(\{runId:process\.env\.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT\|\|process\.env\.GITHUB_RUN_ATTEMPT\}\)/u);
   assert.match(interactive,/\.interactiveSessionTitle/u);
   assert.match(interactive,/allowQaSyntheticWrite:allowExactSyntheticWrite/u);
