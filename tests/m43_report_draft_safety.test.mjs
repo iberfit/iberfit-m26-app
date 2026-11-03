@@ -102,6 +102,10 @@ test('M43: premium candidate begins a new report identity and Coach sees a recov
   const route=source('src/m26/modules/route-render.js');
   assert.match(route,/data-report-draft-choice/);
   assert.match(route,/Preparar un informe nuevo/);
+  // Form field is present before the MutationObserver premium enhancement,
+  // so early edits and restored drafts cannot lose their selected report type.
+  assert.match(route,/name="reportType" value=""/u);
+  assert.match(route,/Selecciona primero un informe de entrenamiento con evidencia confirmada/u);
 });
 
 test('M44: report draft without IRI remains recoverable under its own client and report identity',async()=>{
