@@ -175,6 +175,10 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
     runId:process.env.GITHUB_RUN_ID,
     attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT,
   }).interactiveSessionTitle;
+  const runningInteractiveMarker=m43QaRunMarkers({
+    runId:process.env.GITHUB_RUN_ID,
+    attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT,
+  }).runningInteractiveSessionTitle;
   const blocked=[],pageErrors=[],serverErrors=[];
   await installCurrentSourceQaNetworkPolicy(context,{
     readOnlyRpcs:READ_ONLY_RPCS,
@@ -213,7 +217,7 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
   // never attach or log the private payload itself.
   const serializedProjection=JSON.stringify(snapshot.data);
   // Assert absence in the real backend response, not just CSS-hidden UI cards.
-  for(const marker of [LIVE_MARKER,interactiveMarker]){
+  for(const marker of [LIVE_MARKER,interactiveMarker,runningInteractiveMarker]){
     expect(serializedProjection.includes(marker),
       'Cliente B must never receive Client A data anywhere in bootstrap').toBe(false);
     expect(ownEntities.some(item=>String(item?.body?.title||'').includes(marker)),
@@ -239,7 +243,7 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
   const sessions=page.locator('[data-m27-session-surface="sessions"]');
   await expect(sessions).toBeVisible({timeout:15_000});
   await expect(sessions.getByRole('heading',{name:'Tu entrenamiento',exact:true})).toBeVisible();
-  for(const marker of [LIVE_MARKER,interactiveMarker]){
+  for(const marker of [LIVE_MARKER,interactiveMarker,runningInteractiveMarker]){
     await expect(sessions.getByText(marker,{exact:false}),
       'Foreign run marker must not be visible in sessions').toHaveCount(0);
     await expect(page.locator('[data-m43-session-history] [data-m43-completed-session]')
@@ -249,7 +253,7 @@ test('M43 authenticated Cliente B never sees Cliente A workout in server bootstr
   const planning=page.locator('[data-m27-session-surface="planning"]');
   await expect(planning).toBeVisible({timeout:15_000});
   await expect(planning.getByRole('heading',{name:'Tu planificación',exact:true})).toBeVisible();
-  for(const marker of [LIVE_MARKER,interactiveMarker]){
+  for(const marker of [LIVE_MARKER,interactiveMarker,runningInteractiveMarker]){
     await expect(planning.getByText(marker,{exact:false}),
       'Foreign run marker must not be visible in planning').toHaveCount(0);
   }

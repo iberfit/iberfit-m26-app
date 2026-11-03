@@ -104,9 +104,9 @@ async function main(){
   const budget=assessM43SyntheticFixtureBudget(a);
   evidence.fixtureBudget={count:budget.count,total:budget.total,retained:budget.retained,limit:budget.limit,exhausted:budget.exhausted};
   check(!budget.exhausted,'SYNTHETIC_FIXTURE_BUDGET_EXHAUSTED');
-  // This run creates TWO synthetic sessions: one RPC-certified and one
-  // browser-driven. Never exhaust the isolated fixture budget mid-run.
-  check(budget.count<=budget.limit-2,'INTERACTIVE_FIXTURE_BUDGET_RESERVED');
+  // Reserve all THREE real QA fixtures before any mutation: RPC-certified
+  // multideporte, browser strength and browser running. No silent history deletion.
+  check(budget.count<=budget.limit-3,'INTERACTIVE_FIXTURE_BUDGET_RESERVED');
   // The prior browser job can time out after an ACKed PAUSE. Leaving its
   // active-execution lock behind blocks every later synthetic Client run.
   // Keep the server lock; close only an old M43-marked, isolated QA execution
@@ -292,6 +292,34 @@ async function main(){
   // Browser completion MUST occur in the downstream authenticated test,
   // not in this Node writer. Otherwise a fake read-only test can pass.
   check(uiCanonical?.status==='disponible','INTERACTIVE_SESSION_READY_FOR_BROWSER');
+  // P0 #919: running needs an independent, genuinely browser-driven start.
+  // The generic strength UI test and its real ACKs remain intact.
+  // This fixture cannot be mistaken for the earlier multideporte RPC run.
+  const runningDraft=createSessionDraft({
+    clientId:idA,title:RUN_MARKERS.runningInteractiveSessionTitle,
+    durationMinutes:38,deliveryModality:'guiada_en_app',
+  });
+  runningDraft.cycleId=planId;
+  addCatalogExercise(runningDraft,'qa-m43-run',catalog,{
+    sets:1,plannedDistanceKm:'6.5',plannedDurationMinutes:'36',
+    plannedPace:'05:30',restSeconds:0,targetRpe:6,targetRir:0,
+  });
+  acceptSessionPreview(runningDraft,catalog);
+  const runningPublished=await send(coach,buildPublishSessionCommand(runningDraft,catalog,0),
+    'RUNNING_INTERACTIVE_SESSION_PUBLISH');
+  const [runningClient,runningOther]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const runningCanonical=runningClient?.data?.m26Entities?.find(item=>
+    item.entityType==='session'&&String(item.entityId)===String(runningDraft.id));
+  check(verifyM43AtomicGuidedEnablement({
+    canonical:runningCanonical,publishedResult:runningPublished.result,
+    sessionId:runningDraft.id,clientId:idA,
+  }).ok,'RUNNING_INTERACTIVE_ATOMIC_ENABLEMENT');
+  check(!contains(runningOther,runningDraft.id,'session')&&
+    !baseContains(runningOther,runningDraft.id,'sessions'),
+    'RUNNING_INTERACTIVE_FOREIGN_PRIVATE');
+  check(runningCanonical?.status==='disponible','RUNNING_INTERACTIVE_READY_FOR_BROWSER');
+  // No SESION_INICIAR is issued by this writer for the running fixture.
+  // Only the Client UI may start, record and finalize it in the downstream test.
   evidence.phase='complete';
   evidence.passed=true;
 }

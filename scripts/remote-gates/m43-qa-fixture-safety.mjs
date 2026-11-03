@@ -64,6 +64,7 @@ export function m43QaRunMarkers({runId,attempt}={}){
   return Object.freeze({
     sessionTitle:'IBERFIT QA M43 · multideporte · '+suffix,
     interactiveSessionTitle:'IBERFIT QA M43 · sesión interactiva · '+suffix,
+    runningInteractiveSessionTitle:'IBERFIT QA M43 · running interactivo · '+suffix,
     publishedCycleTitle:'IBERFIT QA M43 · ciclo principal · '+suffix,
     unpublishedCycleTitle:'IBERFIT QA M43 · ciclo no publicado · '+suffix,
   });

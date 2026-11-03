@@ -41,7 +41,11 @@ const WRITES=new Set([
   'EJECUCION_GUARDAR_PROGRESO','EJECUCION_COMPLETAR',
 ]);
 
-test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context},testInfo)=>{
+test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context,browser},testInfo)=>{
+  // One fixture now runs two COMPLETE, independent server-ACKed sports lifecycles.
+  // Keep every individual interaction deadline unchanged; only the aggregate
+  // Playwright test timeout accounts for the extra authenticated workout.
+  test.setTimeout(420_000);
   for(const name of ['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',
     'M26_SUPABASE_PUBLISHABLE_KEY','M26_QA_CLIENT_'+OWNER_FIXTURE+'_EMAIL','M26_QA_CLIENT_'+OWNER_FIXTURE+'_PASSWORD']){
     expect(process.env[name],name+' required').toBeTruthy();
@@ -303,4 +307,172 @@ test('Client executes exact synthetic guided workout through real UI and confirm
       writesAfterReload:allowed.length-writesBeforeReload},null,2)),
     contentType:'application/json',
   });
+
+  // P0 #919: independent running prescription, opened and executed by the real
+  // Client browser. The earlier strength workout must already be server-confirmed,
+  // exited and restored without replay before these counters are scoped to running.
+  const RUNNING=m43QaRunMarkers({
+    runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT,
+  }).runningInteractiveSessionTitle;
+  allowed.length=0;
+  confirmedProgress.length=0;
+  sessionId=null;
+  executionId=null;
+
+  // The production complaint occurred on desktop. A genuinely independent
+  // desktop mouse context must use the very same authenticated QA author and
+  // Client fixture; mobile strength remains certified above.
+  const runningDesktopContext=await browser.newContext({
+    viewport:{width:1440,height:900},hasTouch:false,isMobile:false,
+    locale:'es-ES',timezoneId:'America/Santiago',
+    serviceWorkers:'block',reducedMotion:'reduce',
+  });
+  await installCurrentSourceQaNetworkPolicy(runningDesktopContext,{
+    readOnlyRpcs:READ_ONLY_RPCS,
+    allowQaSyntheticWrite:allowExactSyntheticWrite,
+    onBlocked:label=>blocked.push(label),
+  });
+  const desktopPage=await runningDesktopContext.newPage();
+  desktopPage.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
+  desktopPage.on('response',async response=>{
+    try{
+      const url=new URL(response.url());
+      if(url.origin!==SUPABASE_ORIGIN)return;
+      if(response.status()>=500)unexpectedHttp.push(String(response.status())+' '+url.pathname);
+      if(url.pathname==='/rest/v1/rpc/iberfit_execute_command_v26'&&response.status()===200){
+        const submitted=response.request().postDataJSON()?.p_command;
+        if(submitted?.type==='EJECUCION_GUARDAR_PROGRESO'
+          &&String(submitted.entityId)===executionId){
+          const ack=await response.json();
+          if(ack?.kind==='ack'&&String(ack?.operationId)===String(submitted.operationId))
+            confirmedProgress.push(String(submitted.operationId));
+        }
+      }
+      if(url.pathname==='/rest/v1/rpc/iberfit_bootstrap_v26'&&response.status()===200){
+        const body=await response.json();
+        const value=String(body?.user?.clientId||'');
+        if(['client','cliente'].includes(String(body?.user?.role||''))&&UUID.test(value))
+          clientId=value;
+      }
+    }catch{}
+  });
+  await desktopPage.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:25_000});
+  await desktopPage.getByRole('textbox',{name:'Correo',exact:true}).fill(ownerEmail());
+  await desktopPage.locator('#m26-login-password').fill(ownerPassword());
+  await desktopPage.getByRole('button',{name:'Entrar',exact:true}).click();
+  await expect(desktopPage.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:40_000});
+  await expect(desktopPage.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
+  await expect.poll(()=>clientId,{timeout:12_000}).toMatch(UUID);
+  const desktopWelcome=desktopPage.locator('[data-m26-client-guided-welcome]');
+  if(await desktopWelcome.isVisible().catch(()=>false)){
+    const pause=desktopPage.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count())await pause.click();
+  }
+  for(const selector of ['[data-m26-guided-tour-close]:visible','[data-m26-client-context-guide-close]:visible']){
+    const close=desktopPage.locator(selector).first();
+    if(await close.count())await close.click();
+  }
+  await desktopPage.locator('[data-m26-area="sesion"]:visible').first().click();
+  await expect(desktopPage.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
+
+  const runningCard=desktopPage.locator('[data-rc39-session]').filter({hasText:RUNNING});
+  await expect(runningCard,'Run-specific Coach-published running is visible to its Client')
+    .toHaveCount(1,{timeout:25_000});
+  sessionId=await runningCard.getAttribute('data-rc39-session');
+  expect(sessionId).toMatch(UUID);
+  const runningDisclosure=runningCard.locator('details.m26-session-preview-disclosure');
+  await expect(runningDisclosure).toBeVisible();
+  await runningDisclosure.locator(':scope > summary').click();
+  const runningEntry=runningCard.locator('[data-workflow-action="start-published-session"]');
+  await expect(runningEntry).toBeVisible();
+  await runningEntry.click();
+  await expect(desktopPage.locator('[data-session-live-state="ready"]'),
+    'First running CTA must actually open the prepared workout workspace')
+    .toBeVisible({timeout:25_000});
+  await desktopPage.locator('[data-session-action="start"]').click();
+  await expect(desktopPage.locator('[data-session-live-state="active"]')).toBeVisible({timeout:25_000});
+  await expect.poll(()=>allowed.filter(x=>x.type==='SESION_INICIAR'&&
+    x.rpc==='iberfit_execute_command_v26').length,{timeout:15_000}).toBe(1);
+
+  // Only measured running results go into the execution, never prescribed
+  // targets or a synthetic summary masquerading as an ACK.
+  await desktopPage.locator('[data-set-field="durationMinutes"]').first().fill('36');
+  await desktopPage.locator('[data-set-field="distanceKm"]').first().fill('6.5');
+  await desktopPage.locator('[data-set-field="rpe"]').first().fill('6');
+  const paceOptions=desktopPage.locator('[data-session-cardio-entry] .m26-session-options').first();
+  await paceOptions.locator('summary').click();
+  await desktopPage.locator('[data-set-field="paceMinPerKm"]').first().fill('05:30');
+  await expect(desktopPage.locator('[data-session-action="complete-set"]')).toHaveCount(1);
+  const runningComplete=desktopPage.locator('[data-session-action="complete-set"]:visible').first();
+  await expect(runningComplete,'Real running record action is reachable by desktop mouse').toBeVisible();
+  await runningComplete.click();
+  await expect.poll(()=>confirmedProgress.length,{timeout:25_000}).toBe(1);
+  await expect(desktopPage.locator('[data-m26-session-action-pending="true"]')).toHaveCount(0,{timeout:25_000});
+  const runningNext=desktopPage.locator('[data-session-action="next"]:visible').first();
+  await expect(runningNext).toBeEnabled({timeout:25_000});
+  await runningNext.click();
+  await expect(desktopPage.locator('[data-session-live-state="feedback"]')).toBeVisible({timeout:25_000});
+  await expect.poll(()=>confirmedProgress.length,{timeout:25_000}).toBe(2);
+  await desktopPage.locator('[data-session-feedback-rpe]').fill('6');
+  await desktopPage.locator('[data-session-feedback-comment]').fill('IBERFIT QA M43 · running sintético UI');
+  const runningFinish=desktopPage.locator('[data-session-action="finish"]');
+  await expect(runningFinish).toBeEnabled({timeout:25_000});
+  await runningFinish.scrollIntoViewIfNeeded();
+  await expect(runningFinish).toBeInViewport({ratio:0.75});
+  await runningFinish.click();
+  await expect(desktopPage.locator('[data-session-live-state="completed"]')).toBeVisible({timeout:25_000});
+  await expect(desktopPage.locator('[data-session-live-state="completed"]')).toContainText('Confirmada');
+  await desktopPage.locator('[data-session-action="exit-session"]').first().click();
+  await expect(desktopPage.locator('[data-m27-session-surface="sessions"]')).toBeVisible({timeout:25_000});
+  const runningHistory=desktopPage.locator('[data-m43-session-history] [data-m43-completed-session]')
+    .filter({hasText:RUNNING});
+  await expect(runningHistory,'A real running completion must reach Client history exactly once')
+    .toHaveCount(1,{timeout:25_000});
+  await expect(runningHistory).toContainText('Completada');
+  await expect(runningHistory).toContainText('1 registro');
+  const runningWritesBeforeReload=allowed.length;
+
+  await desktopPage.reload({waitUntil:'domcontentloaded',timeout:25_000});
+  await expect(desktopPage.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:40_000});
+  await expect(desktopPage.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25_000});
+  const runningReloadWelcome=desktopPage.locator('[data-m26-client-guided-welcome]');
+  if(await runningReloadWelcome.isVisible().catch(()=>false)){
+    const pause=desktopPage.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count())await pause.click();
+  }
+  for(const selector of ['[data-m26-guided-tour-close]:visible','[data-m26-client-context-guide-close]:visible']){
+    const close=desktopPage.locator(selector).first();
+    if(await close.count())await close.click();
+  }
+  await desktopPage.locator('[data-m26-area="sesion"]:visible').first().click();
+  await expect(desktopPage.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
+  const runningRecovered=desktopPage.locator('[data-m43-session-history] [data-m43-completed-session]')
+    .filter({hasText:RUNNING});
+  await expect(runningRecovered,'Server-confirmed running must survive an app restart exactly once')
+    .toHaveCount(1,{timeout:25_000});
+  await expect(runningRecovered).toContainText('1 registro');
+  await expect(desktopPage.locator('[data-rc39-session]').filter({hasText:RUNNING})).toHaveCount(0);
+  expect(allowed,'Running reload must never replay a write').toHaveLength(runningWritesBeforeReload);
+  expect(allowed.filter(x=>x.type==='SESION_INICIAR'&&
+    x.rpc==='iberfit_execute_command_v26')).toHaveLength(1);
+  expect(allowed.filter(x=>x.type==='EJECUCION_GUARDAR_PROGRESO'&&
+    x.rpc==='iberfit_execute_command_v26')).toHaveLength(2);
+  expect(new Set(confirmedProgress).size,'Two independently ACKed running transitions').toBe(2);
+  expect(allowed.filter(x=>x.type==='EJECUCION_COMPLETAR'&&
+    x.rpc==='iberfit_execute_command_v26')).toHaveLength(1);
+  expect(blocked.filter(x=>/iberfit_execute_command_v26|iberfit_command_preflight_v26/.test(x))).toEqual([]);
+  expect(unexpectedHttp).toEqual([]);
+  expect(pageErrors).toEqual([]);
+  await desktopPage.screenshot({path:join(dir,'m43-client-running-completed.png'),fullPage:true});
+  await testInfo.attach('m43-interactive-running-evidence',{
+    body:Buffer.from(JSON.stringify({schema:'iberfit.m43.running-interactive-ui.v1',
+      runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT,
+      sourceSport:'running',input:'desktop-mouse',viewportWidth:1440,touch:false,
+      synthetic:true,productionTouched:false,
+      realClientUi:true,serverStartCommands:1,serverProgressAcks:2,serverCompletionCommands:1,
+      historyAfterReload:1,duplicateWritesAfterReload:allowed.length-runningWritesBeforeReload,
+      networkErrors:unexpectedHttp.length,blockedWrites:0},null,2)),
+    contentType:'application/json',
+  });
+  await runningDesktopContext.close();
 });
