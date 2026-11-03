@@ -6,6 +6,7 @@ import {
   iriPhotoAnalysisMatchesCapture,
   iriPhotoMutationRequiresReload,
   iriPhotoLoadStillCurrent,
+  iriPhotoLoadStatusMarkup,
   landmarksForLatestCaptures,
 } from '../src/m26/workflows/iri-photogrammetry-controller.js';
 
@@ -119,4 +120,22 @@ test('stale optional IRI loads never masquerade as live Coach errors, but active
   assert.equal(iriPhotoLoadStillCurrent({...input,currentContext:{...ctx,canManage:false}}),false,'privilege lost');
   assert.equal(iriPhotoLoadStillCurrent({...input,currentKey:'coach:client-A:iri-B'}),false,'a newer async load owns the panel');
   assert.equal(iriPhotoLoadStillCurrent({...input,mounted:false}),false,'destroyed controller/logout');
+});
+
+test('IRI photo failed initial load visibly recovers without a perpetual loading spinner or data leaks',()=>{
+  const loading=iriPhotoLoadStatusMarkup();
+  assert.match(loading,/role="status"/u);
+  assert.match(loading,/Cargando evidencia fotográfica privada/u);
+  const failure=iriPhotoLoadStatusMarkup('La conexión se interrumpió. Puedes reintentar.');
+  assert.match(failure,/role="alert"/u);
+  assert.match(failure,/data-iri-photo-retry/u);
+  assert.match(failure,/Reintentar carga privada/u);
+  assert.doesNotMatch(failure,/Cargando evidencia fotográfica privada/u);
+  assert.equal(iriPhotoLoadStatusMarkup('<script>private</script>').includes('<script>'),false);
+  assert.match(iriPhotoLoadStatusMarkup('<script>'),/&lt;script&gt;/u);
+  const source=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
+  assert.match(source,/loadError=friendlyIriPhotoError\(error\)/u);
+  assert.match(source,/void load\(\{force:true\}\)\.catch\(reportLoadError\)/u);
+  assert.match(source,/if\(!mounted\|\|loadInFlight\)return/u);
+  assert.match(source,/loadError='';signedUrls/u);
 });
