@@ -16,7 +16,7 @@ import {
   createWearableRemoteSync,
 } from './remote-sync.js';
 import {formatSleepDuration} from './duration-format.js';
-import {assertWearableClientContinuity,createWearableForegroundSync,isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
+import {assertWearableClientContinuity,createWearableForegroundSync,createNativeForegroundHeartbeat,isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -986,25 +986,44 @@ export function createWearableController({
     });
   }
 
+  // Only a signed Android production host may refresh periodically and only
+  // while the same consenting Client is active in the visible foreground.
+  const nativeForegroundHeartbeat=createNativeForegroundHeartbeat({
+    canRun:()=>{
+      const actor=context(store),doc=root.ownerDocument||globalThis.document;
+      return mounted&&Boolean(productionSync)&&actor.role==='client'
+        &&Boolean(actor.clientId)&&String(actor.ownerId||'')===String(ownerId)
+        &&Boolean(isOnline())&&doc?.visibilityState!=='hidden';
+    },
+    onTick:()=>requestForegroundSync(),
+  });
   function onForegroundVisibility(){
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState==='hidden'){
+      nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       productionSync?.invalidate();
       return;
     }
-    if(doc?.visibilityState==='visible')requestForegroundSync();
+    if(doc?.visibilityState==='visible'){
+      nativeForegroundHeartbeat.start();
+      requestForegroundSync();
+    }
   }
 
   function onPageHide(){
     // Background/BFCache must not resume a stale health read or identity lease.
+    nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
     productionSync?.invalidate();
   }
 
   function onPageShow(){
     const doc=root.ownerDocument||globalThis.document;
-    if(doc?.visibilityState!=='hidden')requestForegroundSync();
+    if(doc?.visibilityState!=='hidden'){
+      nativeForegroundHeartbeat.start();
+      requestForegroundSync();
+    }
   }
   function onNativeHealthPermissionsReturned(){
     // Android only signals that its permission screen returned, NOT whether
@@ -1881,12 +1900,14 @@ export function createWearableController({
         error,
       );
     });
+    nativeForegroundHeartbeat.start();
     requestForegroundSync({force:true});
   }
 
   function onOffline(){
     lastOnline=false;
     // A network loss must retire in-flight native reads and any old grant lease.
+    nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
   }
 
@@ -1939,6 +1960,7 @@ export function createWearableController({
 
       enhanceControls();
       mounted=true;
+      nativeForegroundHeartbeat.start();
 
       if(syncInitial){
         requestForegroundSync({force:true});
@@ -1961,6 +1983,7 @@ export function createWearableController({
       if(!mounted)return;
       nativeIdentityEpoch+=1;
       productionSummaryEpoch+=1;
+      nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       mounted=false;
 
@@ -2024,6 +2047,7 @@ export function createWearableController({
     clearOwner:()=>{
       nativeIdentityEpoch+=1;
       productionSummaryEpoch+=1;
+      nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       qaReadEpoch+=1;
       appleReadEpoch+=1;
