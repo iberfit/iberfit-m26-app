@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "1362e858bfdbba669c5f988d9446084ea22685d5",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "cf232f908a4f3e3058c42389fcd7a86e1d30b3ea",
+  "notes": "IBERFIT SIGNATURE MASTER VISUAL R49 final visual closure; frontend-only exact Canary SHA certified by 7/7 QA gates; no production SQL, Supabase Edge, Hosted Auth or RLS writes; fail-closed identity, Lighthouse, restore and rollback proof"
+}
