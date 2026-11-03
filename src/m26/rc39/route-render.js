@@ -246,7 +246,7 @@ const clientEditorialSessionFacts=(record)=>{
     const rpe=previewNumber(plan.targetRpe,{min:1,max:10});
     const pace=String(plan.plannedPace||plan.plannedPacePer100M||'').trim();
     if(work!==null)result.push(['Tiempo de trabajo',work+' min']);
-    if(/^\\d{1,2}:\\d{2}$/.test(pace))
+    if(/^\d{1,2}:\d{2}$/.test(pace))
       result.push(['Ritmo orientativo',pace+(plan.plannedPace?' min/km':' min/100 m')]);
     if(rpe!==null)result.push(['Esfuerzo orientativo',rpe+' de 10']);
   }else if(blocks.length>1){
