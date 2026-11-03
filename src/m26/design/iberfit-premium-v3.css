@@ -3901,7 +3901,7 @@
 /* SIGNATURE R49 · Visual handoff of R44/R46 human session hierarchy.
  * Client only; no changes to running engine, permissions or prescription. */
 .m26-shell[data-m26-role="client"] .m26-workspace
- .m26-rc39-sessions .m26-rc39-session-card[data-client-session-editorial="true"]{
+ :is(.m26-rc39-sessions,.m26-rc39-planning) .m26-rc39-session-card[data-client-session-editorial="true"]{
   display:grid;
   align-content:start;
   gap:clamp(.75rem,1.8vw,1.1rem);
