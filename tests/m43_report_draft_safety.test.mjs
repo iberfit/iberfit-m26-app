@@ -105,6 +105,8 @@ test('M43: premium candidate begins a new report identity and Coach sees a recov
   // Form field is present before the MutationObserver premium enhancement,
   // so early edits and restored drafts cannot lose their selected report type.
   assert.match(route,/name="reportType" value=""/u);
+  assert.match(route,/name="premiumEvidenceSignature" value=""/u);
+  assert.match(route,/name="coachComment" maxlength="2500"/u);
   assert.match(route,/Selecciona primero un informe de entrenamiento con evidencia confirmada/u);
 });
 
