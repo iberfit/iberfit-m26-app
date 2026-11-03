@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
 import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 
