@@ -60,10 +60,10 @@ test('U34 interactive QA requires exact synthetic run fixture, scoped server com
   assert.match(writer,/check\(budget\.count<=budget\.limit-3/u);
   assert.match(writer,/INTERACTIVE_SESSION_ATOMIC_ENABLEMENT/u);
   assert.match(writer,/INTERACTIVE_SESSION_FOREIGN_PRIVATE/u);
-  assert.match(writer,/RUN_MARKERS\\.runningInteractiveSessionTitle/u);
+  assert.match(writer,/RUN_MARKERS\.runningInteractiveSessionTitle/u);
   assert.match(writer,/RUNNING_INTERACTIVE_ATOMIC_ENABLEMENT/u);
   assert.match(writer,/RUNNING_INTERACTIVE_FOREIGN_PRIVATE/u);
-  assert.match(interactive,/\\.runningInteractiveSessionTitle/u);
+  assert.match(interactive,/\.runningInteractiveSessionTitle/u);
   assert.match(interactive,/real running completion must reach Client history exactly once/u);
   assert.match(interactive,/serverStartCommands:1,serverProgressAcks:2,serverCompletionCommands:1/u);
   assert.match(interactive,/m43QaRunMarkers\(\{runId:process\.env\.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT\|\|process\.env\.GITHUB_RUN_ATTEMPT\}\)/u);
