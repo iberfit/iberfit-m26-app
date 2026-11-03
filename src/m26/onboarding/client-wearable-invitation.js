@@ -36,7 +36,7 @@ const STYLE=[
   '[data-m26-connected360-invitation] button:disabled{opacity:.55;cursor:wait}',
   '[data-m26-connected360-invitation] .m26-connected360-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.15rem}',
   '[data-m26-connected360-invitation] button{min-height:44px;padding:.65rem 1rem;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}',
-  '[data-m26-connected360-action=start]{background:#b99348;border:1px solid #89652a;color:#192b20}',
+  '[data-m26-connected360-action=start],[data-m26-connected360-action=resume]{background:#b99348;border:1px solid #89652a;color:#192b20}',
   '[data-m26-connected360-action=later]{background:transparent;border:1px solid rgba(23,55,43,.32);color:#18362a}',
   '[data-m26-connected360-invitation] button:focus-visible{outline:3px solid #74531b;outline-offset:3px}',
   '[data-m26-connected360-invitation] .m26-connected360-privacy{font-size:.77rem;line-height:1.5;margin-top:1.15rem;color:#51645a}',
