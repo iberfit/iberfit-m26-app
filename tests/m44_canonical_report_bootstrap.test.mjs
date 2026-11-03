@@ -45,7 +45,9 @@ test('M44 training-only approval is enabled only when a confirmed premium candid
   const route=await get('src/m26/modules/route-render.js');
   const premium=await get('src/m26/workflows/report-workflow.js');
   assert.match(route,/Selecciona primero un informe de entrenamiento con evidencia confirmada/);
-  assert.match(premium,/approve\.disabled=false/);
+  assert.match(premium,/const eligible=\(training&&hasEvidenceSignature\)\|\|/u);
+  assert.match(premium,/approve\.disabled=!eligible/u);
+  assert.match(premium,/syncPremiumReportApprovalButton\(form\);form\.scrollIntoView/u);
   assert.match(premium,/candidate\.id/);
 });
 
