@@ -9,6 +9,13 @@ function status(value){const key=String(value||'').trim().toLowerCase();return [
 
 export function buildWearableViewModel({records=[],connections=[],role='client',now=new Date(),scope=globalThis}={}){
   const summary=summarizeWearableData(records,{now,days:7});
+  // Keep a bounded historical view of real older samples without confusing
+  // them with the current 7-day health summary or a recovery recommendation.
+  const historical=summary.daysWithData===0
+    ?summarizeWearableData(records,{now,days:30}):null;
+  const historicalRecords=Object.freeze((historical?.records||[])
+    .slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7));
+  const lastHistoricalDate=historicalRecords[0]?.date||null;
   const connectionRows=(Array.isArray(connections)?connections:[]).map((item)=>{
     const definition=wearableProviderDefinition(item?.provider||item?.source);
     if(!definition){
@@ -26,5 +33,6 @@ export function buildWearableViewModel({records=[],connections=[],role='client',
     const legacyStatus=status(item.status);const state=createWearableConnectionState({provider:definition?.key||item.provider||item.source,state:legacyStatus==='conectado'?'connected':legacyStatus==='pausado'?'paused':legacyStatus==='revocado'?'revoked':'available',grantedScopes:Array.isArray(item.scopes)?item.scopes:[],lastSyncedAt:item.lastSyncedAt||item.last_synced_at||null});return Object.freeze({id:item.id||null,provider:state.provider,label:definition?.label||'Fuente desconocida',status:legacyStatus,state:state.state,mode:String(item.metadata?.mode||'').trim()||null,lastSyncedAt:state.lastSyncedAt,scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),policy:wearableZeroCostPolicy(state.provider)});});
   const providers=zeroCostProviderReadiness(providerReadiness(scope));
   const coverage=Object.freeze({fileImport:providers.filter((item)=>item.importReady).length,nativeBridge:providers.filter((item)=>item.nativeReady).length,directBlocked:providers.filter((item)=>item.directBlocked).length,total:providers.length});
-  return Object.freeze({summary,dailyRecords:summary.records,connections:Object.freeze(connectionRows),providers,coverage,productionNativeReady:String(role||'').toLowerCase()==='client'&&isConnected360ProdNativeAvailable(scope),canControl:String(role||'').toLowerCase()==='client',zeroCostOnly:true});
+  return Object.freeze({summary,dailyRecords:summary.records,
+    historicalRecords,lastHistoricalDate,connections:Object.freeze(connectionRows),providers,coverage,productionNativeReady:String(role||'').toLowerCase()==='client'&&isConnected360ProdNativeAvailable(scope),canControl:String(role||'').toLowerCase()==='client',zeroCostOnly:true});
 }
