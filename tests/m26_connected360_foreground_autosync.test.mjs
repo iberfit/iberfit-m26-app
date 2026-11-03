@@ -265,7 +265,7 @@ test('Connected360 native foreground reads are cancelled on hidden, offline and 
   assert.match(c,/removeEventListener\?\.\('pagehide',onPageHide\)/u);
   assert.match(c,/addEventListener\?\.\('pageshow',onPageShow\)/u);
   assert.match(c,/removeEventListener\?\.\('pageshow',onPageShow\)/u);
-  assert.match(c,/if\(doc\?\.visibilityState!=='hidden'\)requestForegroundSync\(\)/u);
+  assert.match(c,/if\(doc\?\.visibilityState!=='hidden'\)\{\s*nativeForegroundHeartbeat\.start\(\);\s*requestForegroundSync\(\);/u);
 });
 
 
