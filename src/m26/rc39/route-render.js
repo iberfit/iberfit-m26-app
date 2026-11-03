@@ -395,7 +395,7 @@ function renderClientPlanning(vm){
   const planningIntro=hasPublished
     ?'Consulta tus sesiones publicadas, cuándo realizarlas y cuáles puedes iniciar desde la aplicación.'
     :'Aquí tendrás tus sesiones y próximas citas cuando estén confirmadas.';
-  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section><p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true"></p>${focus}${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
+  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section><p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true" tabindex="-1"></p>${focus}${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
 }
 function renderCoachToday(vm){
   const items=vm.rc39?.sessionProjections||[];
@@ -758,7 +758,7 @@ function renderSessions(vm){
         ?renderClientSessionsProgressive(items,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})
         :items.map((item)=>sessionCard(item,role,contractModality,{serviceActive:vm.serviceActive!==false,...(vm.sessionPreviewAssets||{})})).join('')
     :empty;
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client?'':`<p>${escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section><p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true"></p>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${sessionCards}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-session-state="${client?clientState:'professional'}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">${introLabel}</p><h2>${client?'Tu entrenamiento':'Preparación y ejecución'}</h2>${client?'':`<p>${escape(modalityIntro(role,contractModality))}</p>`}</div>${routePrimary}</section><p class="m26-session-entry-feedback" data-workflow-status="session" role="status" aria-live="polite" aria-atomic="true" tabindex="-1"></p>${sessionJourney}${clientBriefMarkup}<section class="m26-rc39-week">${sessionCards}</section>${client?renderCompletedSessionHistory(vm,{hideEmpty:!items.length}):''}</div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
