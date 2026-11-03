@@ -271,3 +271,12 @@ test('SIGNATURE U48 continue requires an independently verified active execution
  const denied=html('client',[{...forged,canClientResume:false}]);
  assert.doesNotMatch(denied,/Continuar entrenamiento|data-workflow-action="start-published-session"/u);
 });
+
+test('SIGNATURE R49: Coach language is personal, consistent and never calls a Cliente an athlete',()=>{
+  const rendered=html('coach',[item('guiada','guided_in_app','full')]);
+  assert.match(rendered,/el cliente puede realizar esta sesión con la guía de la aplicación/u);
+  assert.doesNotMatch(rendered,/atleta|athlete|Atelier/u);
+  const source=readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
+  assert.match(source,/La experiencia del cliente cambia según su servicio/u);
+  assert.doesNotMatch(source,/La experiencia del atleta|el atleta puede ejecutar/u);
+});
