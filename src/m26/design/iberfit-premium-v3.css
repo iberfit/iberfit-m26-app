@@ -3918,8 +3918,6 @@
   min-inline-size:0;
 }
 .m26-shell[data-m26-role="client"] .m26-workspace
- .m26-rc39-session-card[data-client-session-editorial="true"]>header>div:last-child:empty{display:none}
-.m26-shell[data-m26-role="client"] .m26-workspace
  .m26-rc39-session-card[data-client-session-editorial="true"]>header h3{
   margin:.45rem 0 .25rem;
   font-family:var(--iberfit-font-family-editorial,Georgia,serif);
