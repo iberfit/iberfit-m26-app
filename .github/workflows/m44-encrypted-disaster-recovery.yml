@@ -1,5 +1,9 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# R50 2026-11-04 protected refresh: run existing encrypted PROD DB+Storage
+# archive, isolated PostgreSQL 17 restore and object parity on Canary merge.
+# Trigger metadata only; unchanged jobs, permissions, secrets, safeguards and DDL.
+
 # SIGNATURE 2026-10-30 PROD parity: refresh independent encrypted PROD DB + Storage
 # and prove isolated PG17 restore before certified Canary-to-production promotion.
 # Trigger-only comment: unchanged job logic, permissions, secrets and guardrails.
