@@ -64,7 +64,12 @@ test('U35 existing single guided appointment keeps legitimate legacy start, unsc
   assert.equal(unscheduled.length,1);
   assert.equal(unscheduled[0].appointmentId,null);
   assert.equal(unscheduled[0].canClientStart,true);
-  assert.match(renderRc39Route(view(unscheduled)),/Sesiones sin fecha asignada/);
+  const rendered=renderRc39Route(view(unscheduled));
+  // R50's single-date legacy layout keeps its immediate CTA and should not
+  // introduce a misleading empty calendar just to mimic U35 staging markup.
+  assert.match(rendered,/data-rc39-session="10000000-0000-4000-8000-000000000103"/);
+  assert.match(rendered,/data-workflow-action="start-published-session"/);
+  assert.doesNotMatch(rendered,/aria-label="Fechas de entrenamiento programadas"/);
 });
 
 test('U35 date navigation is keyboard accessible, responsive and not a phantom button',()=>{

@@ -66,8 +66,8 @@ test('protecciones históricas de caché y mutaciones permanecen intactas',()=>{
   assert.match(legacySw,/NEVER_CACHE_MEDIA_PREFIXES/u);
   assert.match(legacySw,/request\.method!=='GET'/u);
   assert.match(legacySw,/isMutableReleaseMetadata/u);
-  assert.match(legacySw,/VERSION='m26-rc63-4'/u);
-  assert.match(legacySw,/PREVIOUS_VERSION='m26-rc63-3'/u);
+  assert.match(legacySw,/VERSION='m26-rc63-5'/u);
+  assert.match(legacySw,/PREVIOUS_VERSION='m26-rc63-4'/u);
 });
 
 test('el worker canónico queda fuera del APP_SHELL generado para evitar autocaché',()=>{

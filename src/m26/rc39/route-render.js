@@ -472,7 +472,7 @@ function renderClientPlanning(vm){
   const cards=hasPublished
     ?multipleDates
       ?renderClientDatedPlanning(prioritizedItems,{contractModality,serviceActive:vm.serviceActive!==false,
-        assets:vm.sessionPreviewAssets||{},expandAll:readyItems.length>0})
+        assets:vm.sessionPreviewAssets||{},expandAll:false})
       :`${display.foreground.map(makePlanningCard).join('')}${display.additionalReady.length
         ?`<details class="m26-signature-ready-overflow" data-signature-ready-overflow><summary>Ver otros ${display.additionalReady.length} entrenamientos disponibles</summary><div class="m26-signature-archive-list">${display.additionalReady.map(makePlanningCard).join('')}</div></details>`:''}${display.history.length
         ?`<details class="m26-signature-session-archive" data-signature-planning-archive><summary>Ver otras ${display.history.length} sesiones publicadas</summary><div class="m26-signature-archive-list">${display.history.map(makePlanningCard).join('')}</div></details>`:''}`
