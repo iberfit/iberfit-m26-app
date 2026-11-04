@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "008d8647356c4f5b36dc86500fb19b4324ce26c4",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "1362e858bfdbba669c5f988d9446084ea22685d5",
+  "notes": "Functional360 R50: sesion activa, Connected360 y siete informes; despliegue frontend-only protegido sin SQL/Edge/Hosted Auth"
+}
