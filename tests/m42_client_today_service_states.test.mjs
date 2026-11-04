@@ -91,3 +91,20 @@ test('M42 legacy display status alone never certifies initial IRI',()=>{
   assert.doesNotMatch(html,/Tu punto de partida confirmado/);
   assert.match(html,/Consulta el estado de tu evaluación IRI/);
 });
+
+
+test('Cliente Hoy keeps unsafe operation facts in a calm disclosure, not a top red banner',()=>{
+ const html=renderHoyRoute(clientVM({
+   operations:{pending:9,conflicts:1,rejected:1},
+ }));
+ assert.match(html,/data-m26-client-sync-disclosure/u);
+ assert.match(html,/<summary>Revisar cambios pendientes<\/summary>/u);
+ assert.match(html,/9 cambios pendientes/u);
+ assert.match(html,/1 conflicto/u);
+ assert.match(html,/data-m26-area="ajustes">Consultar sincronización/u);
+ assert.doesNotMatch(html,/Sincronización protegida|class="m26-notice is-danger"/u);
+ assert.ok(html.indexOf('data-m26-client-sync-disclosure')>html.indexOf('m26-client-home-stage'),
+   'operation detail belongs below the main Client task');
+ const clear=renderHoyRoute(clientVM({operations:{pending:0,conflicts:0,rejected:0}}));
+ assert.doesNotMatch(clear,/data-m26-client-sync-disclosure/u);
+});

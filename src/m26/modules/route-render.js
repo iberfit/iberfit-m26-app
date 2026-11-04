@@ -73,6 +73,27 @@ function operationBanner(operations) {
   const kind = operations.conflicts ? 'danger' : operations.rejected ? 'warning' : 'pending';
   return `<section class="m26-notice is-${kind}" role="status"><strong>Sincronización protegida</strong><p>${escapeHtml(parts.join(' · '))}. Ningún cambio se muestra como confirmado hasta completar la sincronización segura.</p></section>`;
 }
+
+// A progress/recovery count is diagnostic, never a red alarm on the Client
+// welcome screen. Preserve access to exact pending/rejected counts inside a
+// calm, collapsed disclosure; do not pretend a failed write was confirmed.
+function clientOperationDisclosure(operations={}){
+  const pending=Number.isSafeInteger(operations.pending)?Math.max(0,operations.pending):0;
+  const conflicts=Number.isSafeInteger(operations.conflicts)?Math.max(0,operations.conflicts):0;
+  const rejected=Number.isSafeInteger(operations.rejected)?Math.max(0,operations.rejected):0;
+  if(!pending&&!conflicts&&!rejected)return '';
+  const issues=conflicts+rejected;
+  const parts=[
+    pending?countLabel(pending,'cambio pendiente','cambios pendientes'):null,
+    conflicts?countLabel(conflicts,'conflicto','conflictos'):null,
+    rejected?countLabel(rejected,'cambio por revisar','cambios por revisar'):null,
+  ].filter(Boolean).join(' · ');
+  return '<details class="m26-client-sync-disclosure" data-m26-client-sync-disclosure>'
+    +'<summary>'+(issues?'Revisar cambios pendientes':'Estado de tus cambios')+'</summary>'
+    +'<div><p>'+escapeHtml(parts)+'. Los cambios todavía no confirmados no aparecen como completados.</p>'
+    +'<button type="button" data-m26-area="ajustes">Consultar sincronización</button></div>'
+    +'</details>';
+}
 function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
   const detail=[item.modality,item.location]
     .filter(Boolean)
@@ -840,8 +861,6 @@ function renderClientHoyRoute(vm) {
     :'';
 
   return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3 m26-client-home-stitch-v23" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
-    ${operationBanner(vm.operations||{})}
-
     <section class="m26-client-home-stage" aria-label="Inicio y actividad de hoy">
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
       <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
@@ -908,6 +927,7 @@ function renderClientHoyRoute(vm) {
     ${trainingSurface?challengePreviewMarkup:''}
 
     ${nextActionMarkup}
+    ${clientOperationDisclosure(vm.operations||{})}
 
     ${agendaItems.length?`<section class="m26-panel m26-client-home-agenda">
       <div class="m26-panel-heading">

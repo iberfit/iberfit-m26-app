@@ -4,8 +4,13 @@ function num(x,min,max){return typeof x==='number'&&Number.isFinite(x)&&x>=min&&
 export function clientHealthSnapshot(wearables){
   const s=wearables?.summary;
   if(!s||!Number.isSafeInteger(s.daysWithData)||s.daysWithData<1||s.daysWithData>7)return null;
+  // These are server-confirmed seven-day descriptive means, not today's live
+  // measurements. Never compute recovery scores or show absent data as zero.
   return Object.freeze({days:s.daysWithData,steps:num(s.metrics?.steps,0,200000),
-    sleep:num(s.metrics?.sleepMinutes,0,1440),rest:num(s.metrics?.restingHeartRate,25,240)});
+    sleep:num(s.metrics?.sleepMinutes,0,1440),
+    rest:num(s.metrics?.restingHeartRate,25,240),
+    active:num(s.metrics?.activeMinutes,0,1440),
+    workouts:num(s.metrics?.workoutMinutes,0,1440)});
 }
 /** Confirmed owner-scoped daily summaries; never infer the physical watch or auto-change loads. */
 export function renderClientTodayHealth(wearables){
@@ -17,6 +22,8 @@ export function renderClientTodayHealth(wearables){
     ['Pasos medios',m.steps==null?'Sin dato':Math.round(m.steps).toLocaleString('es-CL')],
     ['Sueño medio',m.sleep==null?'Sin dato':formatSleepDuration(m.sleep)],
     ['FC en reposo media',m.rest==null?'Sin dato':Math.round(m.rest)+' lpm'],
+    ...(m.active==null?[]:[['Actividad diaria media',Math.round(m.active)+' min']]),
+    ...(m.workouts==null?[]:[['Entrenamiento diario medio',Math.round(m.workouts)+' min']]),
   ].map(([k,v])=>'<div class="m26-client-health-metric"><span>'+e(k)+'</span><strong>'+e(v)+'</strong></div>').join('')+'</div>':'';
   return '<section class="m26-client-health'+(m?'':' is-empty')+'" data-m26-client-health aria-label="Tu actividad y salud">'
     +'<div class="m26-client-health-heading"><div><p class="m26-eyebrow">Actividad y salud</p>'

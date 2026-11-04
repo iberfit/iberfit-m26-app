@@ -921,6 +921,61 @@
   line-height:1.35;
 }
 
+/* Client sync is a calm, optional detail after the daily action — never a
+   red diagnostic ribbon above the primary training CTA. Only real, pending
+   operations appear and remain inspectable on demand. */
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure{
+  min-width:0;
+  margin-block:.8rem;
+  border-block:1px solid rgba(216,192,138,.12);
+  background:transparent;
+  color:var(--iberfit-color-text-secondary);
+}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure > summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-height:44px;
+  padding:.65rem .25rem;
+  cursor:pointer;
+  list-style:none;
+  font-size:.875rem;
+  font-weight:650;
+  color:var(--iberfit-color-text-secondary);
+}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure > summary::-webkit-details-marker{display:none}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure > summary::after{
+  content:'＋';color:var(--iberfit-color-accent-strong);padding-inline:.3rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure[open] > summary::after{content:'−'}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure > summary:focus-visible,
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure button:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline-offset:2px;
+  border-radius:.55rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure > div{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:.55rem;
+  padding:.1rem .25rem .75rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure p{
+  flex:1 1 17rem;margin:0;
+  font-size:.83rem;line-height:1.55;
+  color:var(--iberfit-color-text-secondary);
+}
+.m26-shell[data-m26-role="client"] .m26-client-sync-disclosure button{
+  flex:0 0 auto;min-height:44px;min-width:0;
+  padding:.45rem .7rem;
+  border:1px solid rgba(216,192,138,.25);
+  border-radius:.6rem;background:transparent;
+  color:var(--iberfit-color-text-primary);
+  font:inherit;font-size:.84rem;cursor:pointer;
+}
+@media(max-width:480px){
+  .m26-shell[data-m26-role="client"] .m26-client-sync-disclosure button{width:100%}
+}
+
 .m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure{
   min-width:0;
   border-top:1px solid rgba(216,192,138,.10);
@@ -3085,4 +3140,30 @@
   color:var(--iberfit-color-text-secondary);
   line-height:1.4;
   overflow-wrap:anywhere;
+}
+
+/* Historical records remain available on explicit request, but never
+   outrank the active workout in the Client visual hierarchy. */
+.m26-shell[data-m26-role="client"] .m26-client-history-quiet-disclosure{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:.65rem;
+  min-width:0;margin-block:1rem;
+  padding:.85rem .2rem;
+  border-top:1px solid rgba(216,192,138,.12);
+  background:transparent;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.84rem;line-height:1.55;
+}
+.m26-shell[data-m26-role="client"] .m26-client-history-quiet-disclosure button{
+  min-height:44px;padding:.55rem .85rem;
+  border:1px solid rgba(216,192,138,.22);
+  background:transparent;color:var(--iberfit-color-text-primary);
+  font:inherit;border-radius:.65rem;cursor:pointer;
+}
+.m26-shell[data-m26-role="client"] .m26-client-history-quiet-disclosure button:focus-visible{
+  outline:3px solid var(--iberfit-color-focus,#f2dca8);
+  outline-offset:2px;
+}
+@media(max-width:480px){
+  .m26-shell[data-m26-role="client"] .m26-client-history-quiet-disclosure button{width:100%}
 }

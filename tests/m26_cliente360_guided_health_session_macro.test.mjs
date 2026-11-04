@@ -68,3 +68,23 @@ test('IRI-only client with consented health can still view recorded data; longit
   const noData=renderActivityRoute({...capability,wearables:{...wearables,summary:{daysWithData:0,metrics:{}}}});
   assert.doesNotMatch(noData,/data-m26-device-hub/u);
 });
+
+
+test('Connected360 Client Today shows verified activity and sport without inventing health interpretation',()=>{
+ const data={summary:{daysWithData:4,days:7,metrics:{
+   steps:8200,sleepMinutes:435,restingHeartRate:59,
+   activeMinutes:47.5,workoutMinutes:32,
+ }}};
+ const vm=clientHealthSnapshot(data);
+ assert.equal(vm.active,47.5);
+ assert.equal(vm.workouts,32);
+ const html=renderClientTodayHealth(data);
+ assert.match(html,/Actividad diaria media<\/span><strong>48 min/u);
+ assert.match(html,/Entrenamiento diario medio<\/span><strong>32 min/u);
+ assert.match(html,/Sueño medio<\/span><strong>7 h 15 min/u);
+ assert.doesNotMatch(html,/riesgo|salud mala|debes entrenar|recovery score/iu);
+ const invalid=renderClientTodayHealth({summary:{daysWithData:2,metrics:{
+   steps:8200,activeMinutes:-3,workoutMinutes:9999,
+ }}});
+ assert.doesNotMatch(invalid,/Actividad diaria media|Entrenamiento diario medio/u);
+});

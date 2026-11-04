@@ -4,6 +4,7 @@ import {zeroCostProviderReadiness} from '../wearables/free-policy.js';
 import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
 import {isConnected360ProdNativeAvailable} from '../wearables/v46-prod-native-channel.js';
+import {isCertifiedNativeAutoSyncSource} from '../wearables/foreground-sync.js';
 
 export const CONNECTED360_INVITATION_SCHEMA='iberfit.connected360.invitation.v1';
 const PREFIX='iberfit.m26.connected360.invitation.v1:';
@@ -72,10 +73,28 @@ export function connected360Capabilities(scope=globalThis){
     importReady:rows.some(item=>item.key==='normalized_file'&&item.importReady&&item.usableNow),
   });
 }
+// Native connection status alone is not proof of an OS-authorized sync.
+// Keep the opt-in invitation until the owner actually has confirmed source
+// evidence; never infer a watch model or override an explicit opt-out.
+function verifiedLinkedSource(connections,capabilities={}){
+  if(!Array.isArray(connections))return false;
+  if(capabilities.nativeReady===true){
+    return connections.some(item=>{
+      if(String(item?.provider||item?.source||'').toLowerCase()!=='health_connect'
+        ||!isCertifiedNativeAutoSyncSource(item))return false;
+      const proof=item.lastSyncedAt||item.last_synced_at
+        ||item.metadata?.lastConfirmedSyncAt;
+      return typeof proof==='string'&&proof.length>0
+        &&Number.isFinite(Date.parse(proof));
+    });
+  }
+  return connections.some(item=>ACTIVE.has(
+    clean(item?.status||item?.state,32).toLowerCase()
+  ));
+}
 export function connected360InvitationDecision({role='',userId='',recorded=null,guideStatus='never',connections=[],capabilities={direct:[],importReady:false}}={}){
   if(!connected360InvitationKey({role,userId}))return Object.freeze({show:false,status:'unavailable'});
-  if(Array.isArray(connections)&&connections.some(item=>(!capabilities.nativeReady||clean(item?.provider||item?.source,32)==='health_connect')
-    &&ACTIVE.has(clean(item?.status||item?.state,32).toLowerCase())))
+  if(verifiedLinkedSource(connections,capabilities))
     return Object.freeze({show:false,status:'connected'});
   const current=FINAL.has(recorded?.status)?recorded.status:'pending';
   if(FINAL.has(current))return Object.freeze({show:false,status:current});
@@ -183,7 +202,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     // Respect explicit opt-out and connected sources. The designated account
     // receives a single recovery offer if prior onboarding was auto-suppressed
     // or a previous permission attempt was acknowledged but data is stale.
-    const linked=connections.some(item=>ACTIVE.has(clean(item?.status||item?.state,32).toLowerCase()));
+    const linked=verifiedLinkedSource(connections,capabilities);
     const campaign=Boolean(campaignKey&&!linked&&state
       &&['chosen','suppressed'].includes(state.status)
       &&!['chosen','dismissed'].includes(record(campaignKey)?.status)
