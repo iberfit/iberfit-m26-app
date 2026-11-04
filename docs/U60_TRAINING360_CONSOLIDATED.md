@@ -81,3 +81,11 @@ La proyección de decisión Training360 replica ahora el contrato de estados U33
 ### Recuperación y métricas diferenciadas por rol
 
 Una ocurrencia completada sin ejecución espejo verificada se registra como evidencia insuficiente, **no como 0 % de adherencia**. Coach recibe una acción de comprobación de integridad; Cliente no recibe alarmas de infraestructura ni un porcentaje engañoso. Los estados de la cita y los fallos de integridad se mantienen como responsabilidad operativa del Coach/Admin.
+
+## U60 — Cierre de bloqueo de recuperación Coach (operación definitiva)
+
+El publicador de lotes U60 ya distingue resultados **definitivos** del servidor U32 (rechazo/conflicto con operationId y razón válidos) de un fallo de transporte o una respuesta incierta. El SQL U32 auditable retorna todos los `kind=rejected/conflict` antes de su primer `INSERT INTO training_session_occurrences_v1`; por tanto es seguro liberar la reclamación cifrada tras verificar esa respuesta y completar el `clearPending` atómico. El Coach podrá volver a planificar con un **nuevo operationId y revisión correcta**. Un rechazo mal formado, error de red, cambio de identidad o fallo al borrar el journal nunca libera la operación; permanece recuperable mediante replay exacto. Regresiones añadidas para esas cuatro rutas. No se abre U36, se modifica SQL ni se habilita el runtime.
+
+### Contrato de calendario Cliente U33 reforzado
+
+El coordinador de fechas comprueba ahora la **matriz exacta** de estados de cita/ocurrencia igual que la proyección SQL U33 y Training360: ninguna `planificada` ni `confirmada` con cita pendiente/cancelada llega al Cliente como dato actionable. Las fechas canceladas o completadas legítimas permanecen disponibles como historial. La vista Coach sigue pudiendo inspeccionar estados inconsistentes para resolverlos. Se añaden 15 combinaciones de estados como regresión, manteniendo `U36` sin permisos hasta la activación certificada.

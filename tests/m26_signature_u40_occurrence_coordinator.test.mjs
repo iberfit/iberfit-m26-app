@@ -29,7 +29,8 @@ const cmd=(type='OCURRENCIA_CONFIRMAR',o=A,op=OP)=>
     baseRevision:0,
   });
 const item=(id,localDate='2026-10-27',extra={})=>({
-  id,sessionId:SESSION,clientId:CLIENT,appointmentId:A,localDate,
+  id,sessionId:SESSION,clientId:CLIENT,appointmentId:A,
+  appointmentStatus:'confirmada',localDate,
   revision:1,status:'confirmada',...extra,
 });
 const noop={occurrenceCalendar:async()=>{},occurrenceCommand:async()=>{}};
@@ -208,4 +209,29 @@ test('U47 start ACK must identify the same execution ID',async()=>{
  await assert.rejects(svc.send(start),/U40_EXECUTION_REVISION_UNVERIFIED/);
  assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
  journalStore.clear();
+});
+
+test('U60 Client calendar verifies the exact U33 appointment-state visibility matrix',async()=>{
+ actor={userId:CLIENT_USER,role:'cliente',clientId:CLIENT,accessToken:'jwt'};
+ const matrix=[
+   ['confirmada','confirmada',true],['confirmada','pendiente',false],
+   ['confirmada','cancelada',false],
+   ['en_curso','confirmada',true],['en_curso','cancelada',true],
+   ['en_curso','pendiente',false],
+   ['completada','confirmada',true],['completada','cancelada',true],
+   ['completada','completada',true],['completada','pendiente',false],
+   ['cancelada','confirmada',true],['cancelada','cancelada',true],
+   ['cancelada','completada',true],['cancelada','pendiente',false],
+   ['planificada','confirmada',false],
+ ];
+ for(const [status,appointmentStatus,allowed] of matrix){
+   const svc=make({transport:{...noop,occurrenceCalendar:async()=>({
+     kind:'calendar',clientId:CLIENT,count:1,hasMore:false,
+     occurrences:[item(A,undefined,{status,appointmentStatus})],
+   })}});
+   const request={clientId:CLIENT,startDate:'2026-10-25',endDate:'2026-11-01'};
+   if(allowed)assert.equal((await svc.calendar(request)).count,1);
+   else await assert.rejects(svc.calendar(request),
+     /U40_CLIENT_CALENDAR_PRIVACY_DRIFT/);
+ }
 });

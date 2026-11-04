@@ -106,9 +106,18 @@ function verifyCalendarRow(row,owner,start,end,role){
     (row.executionId!=null&&!UUID.test(String(row.executionId)))||
     (row.appointmentId!=null&&!UUID.test(String(row.appointmentId))))
     throw error('CALENDAR_ROW_INVALID');
-  if(isClient(role)&&(
-    row.status==='planificada'||!UUID.test(String(row.appointmentId||''))
-  ))throw error('CLIENT_CALENDAR_PRIVACY_DRIFT');
+  if(isClient(role)){
+    // U33 is authoritative, but the browser must reject role/appointment
+    // drift instead of displaying a prematurely published training date.
+    const validAppointment=(
+      (row.status==='confirmada'&&row.appointmentStatus==='confirmada')||
+      (row.status==='en_curso'&&['confirmada','cancelada'].includes(row.appointmentStatus))||
+      (['completada','cancelada'].includes(row.status)&&
+        ['confirmada','cancelada','completada'].includes(row.appointmentStatus))
+    );
+    if(!UUID.test(String(row.appointmentId||''))||!validAppointment)
+      throw error('CLIENT_CALENDAR_PRIVACY_DRIFT');
+  }
   // U33 must never provide private prescription snapshots or queued writes.
   if(Object.keys(row).some(key=>[
     'prescriptionSnapshot','prescription_snapshot','queue',

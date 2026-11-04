@@ -86,14 +86,63 @@ test('U60 batch rejects foreign or mismatched acknowledgement and keeps recovery
  await assert.rejects(svc.publish(args),/U60_BATCH_ACK_MISMATCH/);
  assert.equal(entries.size,1);
 });
-test('U60 batch retains a definitive rejection as recoverable until reconciled',async()=>{
- const {svc,entries}=setup({send:async()=>({
-   kind:'conflict',operationId:OP,reason:'SOURCE_REVISION_MISMATCH',
+test('U60 definitive U32 conflict clears journal and permits corrected new operation',async()=>{
+ const {svc,entries,history}=setup({send:async(_token,cmd)=>({
+   kind:'conflict',operationId:cmd.operationId,
+   reason:'SOURCE_REVISION_MISMATCH',remoteRevision:3,
  })});
  const outcome=await svc.publish(args);
  assert.equal(outcome.kind,'conflict');
- assert.equal(outcome.localRecoveryPending,true);
+ assert.equal(outcome.localRecoveryPending,false);
+ assert.equal(entries.size,0);
+ assert.deepEqual(history,['write','remote','clear']);
+ assert.equal(await svc.hasPending({clientId:CLIENT,sessionId:SESSION}),false);
+ await assert.rejects(svc.retryPending({clientId:CLIENT,sessionId:SESSION}),
+   /U60_BATCH_NO_VERIFIED_PENDING_BATCH/);
+ const corrected=await svc.publish({...args,baseRevision:3,
+   preview:{...preview,occurrences:preview.occurrences.map(row=>({
+     ...row,prescriptionRevision:3,
+   }))},
+   operationId:'10000000-0000-4000-8000-000000000199'});
+ assert.equal(corrected.kind,'conflict');
+ assert.equal(entries.size,0);
+});
+test('U60 rejected U32 operation does not permanently lock Coach publishing',async()=>{
+ const {svc,history,entries}=setup({send:async()=>({
+   kind:'rejected',operationId:OP,reason:'PUBLISHED_CYCLE_REQUIRED',
+ })});
+ const result=await svc.publish(args);
+ assert.equal(result.kind,'rejected');
+ assert.equal(result.localRecoveryPending,false);
+ assert.equal(entries.size,0);
+ assert.deepEqual(history,['write','remote','clear']);
+});
+test('U60 malformed refusal cannot clear the only durable operation',async()=>{
+ const {svc,history,entries}=setup({send:async()=>({
+   kind:'conflict',operationId:OP,reason:'',
+ })});
+ await assert.rejects(svc.publish(args),/U60_BATCH_REJECTION_UNVERIFIED/);
  assert.equal(entries.size,1);
+ assert.deepEqual(history,['write','remote']);
+});
+test('U60 definitive conflict with failed journal deletion remains recoverable',async()=>{
+ const entries=new Map(),history=[],key=COACH+'|'+CLIENT+'|'+SESSION;
+ const journal={capability:'encrypted-owner-bound',
+   readPending:async name=>entries.get(name)||null,
+   writePending:async(name,cmd)=>{entries.set(name,structuredClone(cmd));history.push('write');},
+   clearPending:async()=>{history.push('clear-attempt');throw Error('IDB_WRITER_LOST');},
+ };
+ const svc=createCoachOccurrenceBatchPublisher({
+   enabled:true,getAuthContext:async()=>actor,journal,
+   transport:{occurrenceCommand:async()=>{history.push('remote');return {
+     kind:'conflict',operationId:OP,reason:'SOURCE_REVISION_MISMATCH',
+   };}},
+ });
+ const result=await svc.publish(args);
+ assert.equal(result.localRecoveryPending,true);
+ assert.equal(await svc.hasPending({clientId:CLIENT,sessionId:SESSION}),true);
+ assert.ok(entries.has(key));
+ assert.deepEqual(history,['write','remote','clear-attempt']);
 });
 test('U60 batch guards actor switch before reporting remote success',async()=>{
  let n=0;
