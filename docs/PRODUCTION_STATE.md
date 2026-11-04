@@ -1,3 +1,14 @@
+## P0 IRI fotografia y optimización Free · WIP seguro · 04/11/2026 (propuesta NO FUSIONADA)
+
+- **Canary LIVE base confirmado**: `c93cccd4e74d9fa2c75fd11a881b612498a2ab26`, Supabase QA `gjztkdwfmunnzhtvxrsu`. **PROD LIVE** `1362e858bfdbba669c5f988d9446084ea22685d5` (Supabase PROD `pjhmrhejsoofmouedavw`); no se ha promovido R50.
+- Postmerge PR #1269 en SHA base: seis workflows SUCCESS, pero Coach WebAuthn real #41745218607 **FAILURE**, consola `M26_IRI_PHOTO_TIMEOUT`. Registro privado: MFA `true`, 5 respuestas de estado IRI HTTP 200 + JSON arrays en 0,868–0,932s; no se encontró fallo HTTP de esos cinco GET. **No se adjudica el timeout a Supabase** sin prueba. Device, CI, Audit, Remote, Admin y Canary Exact verdes.
+- **Causa adicional comprobada**: etapa opcional Fotografía número 7/8 está inicialmente oculta (`hidden`), pero el controlador se montaba y disparaba `state()` de 5 lecturas PostgREST al detectarla en DOM, aunque Coach no visitara la etapa. Este WIP suprime autolecturas de la etapa oculta; observa cambios `hidden` al abrirla y conserva fetch directo para informe/consentimiento y retry en caso de error. No se modifica seguridad, consentimiento, Auth, JWT, RLS, SQL, funciones Edge, fotografías ni datos de PROD.
+- **Resiliencia añadida al mismo WIP**: una carga en vuelo no añade manejadores duplicados; un error visible no se reintenta por mutaciones DOM, exige acción explícita de reintento y preserva el error; un nuevo contexto IRI puede leerse normalmente.
+- **Nivel de verificación del WIP**: código candidato + tests dirigidos incluidos en rama independiente; **NO CI/Canary LIVE/PROD certificados aún**. Un solo PR coherente, gate 7/7 SHA posterior y M44 fresco con restore aislado antes de promoción.
+- Continuidad y evidencias en issue #1260 y #1262; no repetir CI por cambios cosméticos.
+
+---
+
 ## P0 Supabase Free · estado CANARY y siguiente macrobloque QA · 31/10/2026
 
 - **Canary LIVE certificado**: PR #1226 fusionada; SHA `baee0beee3c52478f64c92049ccf7e97a0096fec`, desplegado en `m26-canary.iberfit.cl` por workflow #41215846674 (SUCCESS). 13/13 workflows del SHA postmerge SUCCESS, incluidos Remote Gate recuperado #41215846606, Device y QA Real Write. PROD no tocada.

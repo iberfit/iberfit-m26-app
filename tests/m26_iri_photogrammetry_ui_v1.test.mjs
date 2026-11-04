@@ -6,6 +6,8 @@ import {
   iriPhotoAnalysisMatchesCapture,
   iriPhotoMutationRequiresReload,
   iriPhotoLoadStillCurrent,
+  iriPhotoAutoLoadEligible,
+  iriPhotoAutomaticLoadDecision,
   iriPhotoLoadStatusMarkup,
   landmarksForLatestCaptures,
 } from '../src/m26/workflows/iri-photogrammetry-controller.js';
@@ -39,6 +41,64 @@ test('photogrammetry observer ignores self-renders and reloads for route/context
   assert.equal(iriPhotoMutationRequiresReload([{target:child}],host),false);
   assert.equal(iriPhotoMutationRequiresReload([{target:outside}],host),true);
   assert.equal(iriPhotoMutationRequiresReload([{target:outside}],null),true);
+});
+
+test('optional IRI photography does not prefetch Supabase while stage 7 is hidden',()=>{
+  const step={
+    hidden:true,
+    hasAttribute:(name)=>name==='hidden',
+    getAttribute:(name)=>name==='data-iri-step'?'fotografia':null,
+  };
+  const host={isConnected:true,closest:()=>step};
+  assert.equal(iriPhotoAutoLoadEligible(host),false,'initial step must not fetch photos');
+  step.hidden=false;
+  step.hasAttribute=()=>false;
+  assert.equal(iriPhotoAutoLoadEligible(host),true,'first explicit photo stage opens the load');
+  step.hidden=true;
+  step.hasAttribute=(name)=>name==='hidden';
+  assert.equal(iriPhotoAutoLoadEligible(host),false,'leaving the step suspends background reads');
+  assert.equal(iriPhotoAutoLoadEligible({...host,isConnected:false}),false,'detached DOM cannot load');
+  assert.equal(iriPhotoAutoLoadEligible(null),false);
+  assert.equal(iriPhotoAutoLoadEligible({closest:()=>null}),true,'legacy standalone host is supported');
+  assert.equal(iriPhotoAutoLoadEligible({closest:()=>({...step,hidden:false,
+    hasAttribute:()=>false,getAttribute:()=> 'revision'})}),false,
+  'photo reads must not start from an unrelated IRI step');
+});
+
+test('IRI photo auto-load never retries a failed view or subscribes twice to one in-flight GET',()=>{
+  const step={hidden:false,hasAttribute:()=>false,getAttribute:()=> 'fotografia'};
+  const host={isConnected:true,closest:()=>step};
+  const key='coach:client-A:iri-A';
+  const base={hostNode:host,contextKey:key,nextKey:key};
+  assert.equal(iriPhotoAutomaticLoadDecision(base),'ready');
+  assert.equal(iriPhotoAutomaticLoadDecision({...base,loadError:'No se pudo cargar'}),'explicit-retry',
+    'an error requires an explicit retry instead of another read on every DOM rerender');
+  assert.equal(iriPhotoAutomaticLoadDecision({...base,loadError:'No se pudo cargar',nextKey:'coach:client-B:iri-B'}),'ready',
+    'switching dossier scopes permits an independent read, never reuses old private state');
+  assert.equal(iriPhotoAutomaticLoadDecision({...base,loadInFlight:true,loadInFlightKey:key,
+    loadInFlightHost:host}),'in-flight');
+  assert.equal(iriPhotoAutomaticLoadDecision({...base,loadInFlight:true,loadInFlightKey:key,
+    loadInFlightHost:{}}),'ready','a replaced host can recover independently');
+  step.hidden=true;
+  step.hasAttribute=(name)=>name==='hidden';
+  assert.equal(iriPhotoAutomaticLoadDecision({...base,loadError:'No se pudo cargar'}),'hidden');
+});
+
+test('photogrammetry subscription detects hidden stage transitions and retains explicit operations',()=>{
+  const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
+  const route=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(route,/iriStep\(6,'fotografia','Fotogrametría · opcional'/u);
+  assert.match(route,/index===0\?' is-active':''/u);
+  assert.match(controller,/if\(!iriPhotoAutoLoadEligible\(host\(\)\)\)return;/u);
+  assert.match(controller,/if\(!force&&!iriPhotoAutoLoadEligible\(node\)\)return null;/u);
+  assert.match(controller,/if\(!force&&loadError&&contextKey===key\)/u);
+  assert.match(controller,/if\(decision==='explicit-retry'\)\{render\(\);return;\}/u);
+  assert.match(controller,/attributeFilter:\['hidden'\]/u);
+  assert.match(controller,/const snapshot=await service\.state\(token,\{assessmentId:requested\}\)/u,
+    'consent-gated on-demand PDF reads remain reachable from other IRI steps');
+  assert.match(controller,/if\(retry\)/u);
+  assert.match(controller,/void load\(\{force:true\}\)\.catch\(reportLoadError\)/u,
+    'explicit recovery remains available');
 });
 
 test('photogrammetry load is single-flight per dossier context',()=>{
