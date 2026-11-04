@@ -99,6 +99,6 @@ test('U62 health: valid zero measurement is distinct from unavailable metrics',(
  assert.equal(observed.sleep,null);
  const html=renderClientTodayHealth(record);
  assert.match(html,/Tu actividad, a la vista/u);
- assert.match(html,/Pasos medios<\\/span><strong>0<\\/strong>/u);
+ assert.match(html,/Pasos medios<\/span><strong>0<\/strong>/u);
  assert.doesNotMatch(html,/sin dispositivo vinculado/iu);
 });
