@@ -139,3 +139,37 @@ test('U60 runtime defaults to owner-authenticated private reader; opt-in only',(
   assert.match(src,/enabled=false/u);
   assert.match(src,/readPrivateOccurrence:privateRead/u);
 });
+
+
+test('U60 QA audit is read-only and matches eight source fingerprints before ledger repair',()=>{
+  const script=readFileSync(new URL(
+    '../scripts/u60/qa_readonly_reconciliation.sql',import.meta.url),'utf8');
+  const migration=readFileSync(new URL(
+    '../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',
+    import.meta.url),'utf8');
+  const normalizedAudit=script.replace(/^--.*$/gmu,'');
+  assert.doesNotMatch(normalizedAudit,/\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT|REVOKE|TRUNCATE|DO)\b/iu);
+  const names=['iberfit_u30_occurrence_snapshot_guard_v1',
+    'iberfit_u31_occurrence_transition_v1',
+    'iberfit_u32_build_execution_queue_v1',
+    'iberfit_u32_create_occurrences_batch_v1',
+    'iberfit_u32_appointment_writer_fence_v1',
+    'iberfit_u33_occurrence_calendar_v1',
+    'iberfit_u34_coach_occurrence_change_v1',
+    'iberfit_occurrence_api_v1'];
+  for(const name of names){
+    assert.match(script,new RegExp("'"+name+"'"));
+    assert.match(migration,new RegExp("'"+name+"'"));
+  }
+  assert.match(script,/ledger_versions_present/u);
+  assert.match(script,/ready_for_u60/u);
+  assert.match(migration,/ledger_rows=7 AND verified_functions=8 AND drifted_functions=0/u);
+  assert.match(migration,/u60_reconciliation_required_before_schema_changes/u);
+  assert.match(migration,/v_typed\.execution_status IS DISTINCT FROM 'activa'/u);
+  assert.match(migration,/v_typed\.execution_status IS DISTINCT FROM 'cerrada_confirmada'/u);
+  assert.match(migration,/v_typed\.remote_confirmed_at IS NULL/u);
+  assert.ok(migration.indexOf('u60_reconciliation_required_before_schema_changes') <
+    migration.indexOf('CREATE FUNCTION private.iberfit_u60_occurrence_detail_v1'),
+    'preflight must execute BEFORE new privileged functions are created');
+  assert.doesNotMatch(script,/PJHM|pjhmrhejsoofmouedavw/iu,'never query PROD in the QA-only reconciliation');
+});

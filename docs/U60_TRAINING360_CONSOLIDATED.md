@@ -51,3 +51,14 @@ Los objetos SQL del archivo `20261104150000_u60_closed_private_read_legacy_write
 5. **Producción**: ningún SQL/Edge/Auth aplicado por este documento o este PR. Evaluar SQL/rollback por carril protegido en una ventana posterior; promoción frontend solo cuando backend esté realmente disponible. La versión U60 no debe afirmar que la ejecución multifecha funciona mientras está cerrada.
 
 **Cadencia**: preservar el WIP único #1273, agrupar cambios y fallos, un solo commit de integración/ciclo CI para el lote grande y checkpoint #1260 con distinción preparación/commit/Canary/PROD.
+
+
+## Reconciliación QA U30–U36 verificada por catálogo (READ-ONLY)
+
+Auditoría del 04/11/2026 sobre Supabase QA `gjztkdwfmunnzhtvxrsu`: la comparación exacta de los cuerpos de 8 funciones (incluido helper U32), propietarios `postgres`, `search_path`, volatilidad, `SECURITY DEFINER` y EXECUTE confirman 8/8 fuentes idénticas y 0 grants públicos. RLS y ACL privados de la tabla, dos triggers U30/U32, FK del mismo Cliente, FK de ejecución, índices de unicidad y lock `active_execution_client:` del ejecutor RC29 comprobados. **Falta la procedencia del historial**: 0/7 entradas de migraciones U30–U36 en `supabase_migrations.schema_migrations`. No es una razón válida para volver a ejecutar las migraciones históricas.
+
+Se incorpora `scripts/u60/qa_readonly_reconciliation.sql`: manifiesto de huellas SHA-256 de definiciones comprobadas y diagnóstico sin mutaciones (`ready_for_u60=false` mientras siga sin conciliar el historial). La migración U60 exige explícitamente **7/7 entradas del historial, 8/8 huellas coincidentes, ACL/RLS seguros, FK, triggers, índices y lock legacy** antes de crear ninguna función o trigger. El gate falla cerrado; no existe reparación automática del ledger ni DDL ejecutado por estas comprobaciones.
+
+**Reparación autorizable:** tras revisión SQL final, usar reparación oficial del historial de migraciones solo para las siete versiones exactas verificadas, con inventario previo, prueba de no diferencia de schema, evidencia trazable y rollback del propio historial. No editar manualmente el ledger mientras la paridad integral no esté certificada. A continuación aplicar el SQL U60 cerrado en QA, probar rollback y role/IDOR/CAS con JWT reales y únicamente después valorar una migración de permisos específica. **Ninguna función U60 expuesta y ninguna mutación de QA/PROD se ha realizado aquí.**
+
+El lector privado U60 también contrasta `execution_status` del mirror tipado con los estados canónicos y exige `remote_confirmed_at` para ejecuciones completadas, rechazando inconsistencias antes de presentar datos.
