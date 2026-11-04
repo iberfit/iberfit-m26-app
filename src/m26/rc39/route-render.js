@@ -438,6 +438,28 @@ function renderClientDatedPlanning(items,options){
   return calendarNav+'<div class="m26-rc39-date-groups" data-rc39-date-mode="'+
     (options.expandAll===true?'all':'single')+'">'+groups+'</div>';
 }
+// U60: display only server-scoped dates with verified independent executions.
+// This surface makes no new network request and never authorizes a workout.
+function renderTraining360DecisionSummary(vm,{coach=false}={}){
+  const data=vm.rc39?.training360;
+  const metrics=data?.summary;
+  if(!metrics||metrics.scheduledDates<1)return '';
+  const completed=metrics.completedDue;
+  const due=metrics.dueDates;
+  const ratio=metrics.verifiedAdherencePct;
+  const next=data.nextDecision;
+  const main=coach
+    ?`${completed} ejecuciones confirmadas de ${due} fechas vencidas`
+    :due?`${completed} de ${due} entrenamientos previstos hasta hoy, registrados y verificados`
+      :`${metrics.scheduledDates} fechas de entrenamiento programadas`;
+  return `<aside class="m26-rc39-training360-summary" data-training360-evidence="server-scoped"
+    aria-label="Seguimiento de entrenamiento por fecha">
+    <p class="m26-eyebrow">Seguimiento por fecha</p>
+    <p><strong>${escape(main)}</strong>${ratio!==null
+      ?`<span> · ${escape(ratio)}% de fechas vencidas verificadas</span>`:''}</p>
+    ${next?`<p>${escape(next.label)}: ${escape(next.reason)}</p>`:''}
+  </aside>`;
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   // Client-only appointments were scoped by ownership, publication and time in the view model.
@@ -490,6 +512,7 @@ function renderClientPlanning(vm){
       <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>entrenamiento guiado</small></div>
     </div>`:''}
   </section>`;
+  const training360Summary=renderTraining360DecisionSummary(vm);
   const nextAppointmentPanel=`<section id="m26-client-next-appointment" class="m26-panel m30-planning-appointments${clientAppointments.length?'':' is-empty'}" aria-label="Tus próximas citas confirmadas">
     <div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda confirmada</p><h3>Próximas citas</h3>${clientAppointments.length?'<p>Consulta fecha, modalidad y lugar de tus citas confirmadas.</p>':''}</div></div>
     ${clientAppointments.length?`<div class="m26-stack">${clientAppointments.map((item)=>`<article class="m26-list-card m30-planning-appointment"><div><p class="m26-eyebrow">${escape(item.dateLabel||'Por confirmar')}</p><h4>${escape(item.title||'Sesión IBERFIT')}</h4><p>${escape([item.modality,item.location].filter(Boolean).join(' · ')||'Modalidad pendiente de definir')}</p></div>${statusBadge(item.status||'Confirmada','success')}</article>`).join('')}</div>`:`<div class="m30-planning-appointment-empty"><strong>Sin próximas citas confirmadas</strong><p>Cuando tu Coach confirme una cita, aparecerá aquí.</p></div>`}
@@ -499,7 +522,7 @@ function renderClientPlanning(vm){
   const planningIntro=hasPublished
     ?'Consulta tus sesiones publicadas, cuándo realizarlas y cuáles puedes iniciar desde la aplicación.'
     :'Aquí tendrás tus sesiones y próximas citas cuando estén confirmadas.';
-  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section>${focus}${overview}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
+  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>${escape(planningTitle)}</h2><p>${escape(planningIntro)}</p></div>${hasPublished?statusBadge(sessionCountShort,'neutral'):''}</section>${focus}${overview}${training360Summary}${nextAppointmentPanel}${hasPublished?`<section class="m26-rc39-week">${cards}</section>`:''}</div>`;
 }
 function renderCoachToday(vm){
   const items=vm.rc39?.sessionProjections||[];
@@ -511,11 +534,12 @@ function renderCoachToday(vm){
     if(!item.startAt)return false;
     return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(new Date(item.startAt))===todayKey;
   });
+  const training360Summary=renderTraining360DecisionSummary(vm,{coach:true});
   const list=todayAppointments.length?todayAppointments.map((appointment)=>{
     const projection=items.find((item)=>item.appointmentId===appointment.id&&(vm.role!=='client'||item.visible===true));
     return projection?sessionCard(projection,vm.role,contractModality,vm.sessionPreviewAssets||{}):`<article class="m26-list-card"><div><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</article>`;
   }).join(''):`<section class="m26-empty"><h3>Sin citas para hoy</h3><p>La agenda no contiene sesiones programadas para este día.</p></section>`;
-  return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Hoy en IBERFIT'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section><section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
+  return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Hoy en IBERFIT'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section>${training360Summary}<section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
 }
 function agendaAppointmentStatus(appointment={}){
   return String(appointment.status||'').trim().toLowerCase();

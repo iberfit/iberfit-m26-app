@@ -49,6 +49,7 @@ const QA_RC_EMAIL_PATTERN=/^qa\.rc\d+(?:-\d+)?(?:\.[a-z0-9][a-z0-9-]{0,63})+@ibe
 function isQaAuthorizedEmail(email){const normalized=String(email||'').trim().toLowerCase();const legacyAlias=normalized.startsWith('iberfit.cl+qa.')&&normalized.endsWith('@gmail.com');return QA_RC_EMAIL_PATTERN.test(normalized)||legacyAlias||QA_AUTHORIZED_EMAILS.has(normalized);}
 const MAX_RESPONSE_BYTES=20_000_000;
 const OCCURRENCE_STAGED_RPC='iberfit_occurrence_api_v1';
+const OCCURRENCE_PRIVATE_READ_RPC='iberfit_occurrence_detail_v1';
 const OCCURRENCE_ACTIONS=Object.freeze({
   OCURRENCIAS_CREAR_LOTE:'CREAR_LOTE',
   OCURRENCIA_CONFIRMAR:'TRANSICION',
@@ -989,6 +990,29 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       ||typeof result.hasMore!=='boolean')
       throw new Error('M26_OCCURRENCE_CALENDAR_RESPONSE_INVALID');
     return Object.freeze({...result,occurrences:Object.freeze(result.occurrences)});
+  }
+
+  // U60 opt-in QA only. The SQL detail RPC is CLOSED by default; no legacy
+  // fallback and no automatic JWT write/retry. Owner is enforced by SQL and
+  // verified again after the response in createOccurrencePrivateReader.
+  async function occurrencePrivateRead(token,query){
+    if(!runtime.qaOnly)throw new Error('M26_OCCURRENCE_PRIVATE_READ_NOT_RELEASED');
+    if(!query||typeof query!=='object'||Array.isArray(query)
+      ||Object.keys(query).length!==2
+      ||Object.keys(query).some(key=>!['clientId','occurrenceId'].includes(key))
+      ||!UUID_PATTERN.test(String(query.clientId||''))
+      ||!UUID_PATTERN.test(String(query.occurrenceId||'')))
+      throw new Error('M26_OCCURRENCE_PRIVATE_READ_FILTER_INVALID');
+    const result=await request('/rest/v1/rpc/'+OCCURRENCE_PRIVATE_READ_RPC,{
+      method:'POST',token,
+      body:JSON.stringify({p_client_id:query.clientId,p_occurrence_id:query.occurrenceId}),
+    });
+    if(!result||typeof result!=='object'||Array.isArray(result)
+      ||result.kind!=='private-occurrence'
+      ||String(result.occurrence?.id||'').toLowerCase()!==query.occurrenceId.toLowerCase()
+      ||String(result.occurrence?.clientId||'').toLowerCase()!==query.clientId.toLowerCase())
+      throw new Error('M26_OCCURRENCE_PRIVATE_READ_RESPONSE_INVALID');
+    return result;
   }
 
   async function occurrenceCommand(token,command){
@@ -2066,6 +2090,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     commandRegistry,
     readExistingExecution,
     occurrenceCalendar,
+    occurrencePrivateRead,
     occurrenceCommand,
     clientOnboardingPreflight,
     createReportDraft,

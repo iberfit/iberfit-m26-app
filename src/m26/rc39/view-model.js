@@ -12,6 +12,7 @@ export {deriveCoachSelfLaunchJourney};
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {buildRetentionHealth} from '../engagement/retention-health.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
+import {buildTraining360DecisionPack} from '../intelligence/training360-decision-pack.js';
 
 const field=(record,...keys)=>{
   const body=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};
@@ -263,6 +264,16 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
       recurringAwaitingActivation:recurrenceGuard(base.id),
     });
   });
+  // Data already scoped by the server and selected Client. This is a
+  // non-authoritative decision view, not an access grant or an execution path.
+  const decisionRows=Array.isArray(existingOccurrences)?existingOccurrences:[];
+  const training360=routeClientId&&decisionRows.length>0
+    ?buildTraining360DecisionPack({
+      role,clientId:String(routeClientId),sessions:relevantSessions,
+      appointments:scopedAppointments,occurrences:decisionRows,
+      executions:state.collections?.sessionExecutions||[],now,
+    })
+    :null;
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
@@ -270,7 +281,7 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const retentionVm=enrichClientsRetention(vm,role,state,now);
   const decisionVm=enrichExpedienteDecision(retentionVm,role);
   const enrichedVm=enrichExpedienteRetention(decisionVm,role,state,routeClientId,now);
-  return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,generatedAt:new Date(now).toISOString()})});
+  return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,...(training360?{training360}:{}),generatedAt:new Date(now).toISOString()})});
 }
 export function augmentRc39ShellViewModel(vm,state){
   if(!vm||vm.mode!=='authenticated')return vm;
