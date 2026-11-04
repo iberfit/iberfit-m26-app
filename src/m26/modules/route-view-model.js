@@ -32,6 +32,7 @@ import {
 import { buildAdaptiveSessionContext } from '../intelligence/adaptive-context.js';
 import { deriveAdaptiveExperience } from '../experience/adaptive-experience.js';
 import { buildWearableViewModel } from '../wearables/view-model.js';
+import {buildClientDayContext} from '../experience/client-day-context.js';
 import {
   IBERFIT_UI_LOCALE,
   castilianStatusLabel,
@@ -569,6 +570,18 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
           })
         :null;
 
+    // Reuse the same owner-scoped in-memory observations for the day context.
+    // No additional Supabase request, timer or second wearable aggregation.
+    const clientWearableRows=overview.role==='client'&&clientId
+      ?recordsForClient(state,'wearableDailySummaries',clientId):[];
+    const clientWearables=overview.role==='client'&&clientId&&
+      (selectedHasTraining||clientWearableRows.length>0)
+      ?buildWearableViewModel({records:clientWearableRows,
+        connections:recordsForClient(state,'wearableConnections',clientId),role:'client',now})
+      :null;
+    const clientDayContext=overview.role==='client'&&clientId
+      ?buildClientDayContext({clientId,progress:clientProgressSummary,
+        wearables:clientWearables,now}):null;
     qaStage('rc64-hoy-ready');
 
     return Object.freeze({
@@ -582,11 +595,8 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       challengePreview:challengePreview?Object.freeze({...challengePreview}):null,
       // Derived once above from confirmed, owner-scoped records.
       clientProgressSummary:overview.role==='client'?clientProgressSummary:null,
-      wearables:overview.role==='client'&&clientId&&
-        (selectedHasTraining||recordsForClient(state,'wearableDailySummaries',clientId).length>0)
-        ?buildWearableViewModel({records:recordsForClient(state,'wearableDailySummaries',clientId),
-          connections:recordsForClient(state,'wearableConnections',clientId),role:'client',now})
-        :null,
+      wearables:clientWearables,
+      clientDayContext,
       clientGuide,
       operations: Object.freeze(overview.operations),
       alerts: Object.freeze(alerts),

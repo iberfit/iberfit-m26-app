@@ -11,6 +11,7 @@ import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
 import {clientWearableActivation} from '../wearables/activation-experience.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
+import {renderClientDayContext} from '../experience/client-day-context.js';
 import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
@@ -892,6 +893,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
+    ${renderClientDayContext(vm.clientDayContext)}
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">

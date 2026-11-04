@@ -39,3 +39,20 @@ Entrenamiento multifecha independiente (sesión = prescripción, ocurrencia = fe
 - Idempotencia visual y seguridad: si una misma ocurrencia aparece duplicada con idéntico UUID/revisión pero campos contradictorios, su proyección se excluye por ambigüedad, sin depender del orden de respuesta. La anomalía se reporta como evidencia insuficiente; no altera el registro origen ni concede permisos.
 - Connected360: días observados con todas las métricas inválidas o ausentes presentan un estado vacío honesto, sin afirmar mediciones verificadas; un cero real sigue siendo un dato válido.
 - Contratos unitarios agregados al paquete U60/U61 para hoy, pasado, ejecución en curso, duplicados adversariales, métricas ausentes y ceros observados. No habilita U60 backend, no toca Supabase, permisos, PWA, ni PROD. Gates exact-SHA exigidos tras el commit.
+
+
+## U63 · App Intelligence 30/10–04/11: auditoría de pertinencia y vida diaria
+
+El archivo recibido reúne cinco cortes históricos READ-ONLY. Sus SHA son checkpoints de esas fechas, no el estado actual ni evidencia de release. Matriz de decisiones frente al PR único #1273:
+
+- Running U47, primer clic y recorrido Coach→Cliente (#919/#1078): la ejecución QA histórica fue confirmada; mantener pruebas reales de primer clic, ACK, pausa, finalización, recarga y readback. U60 continúa cerrado hasta la reconciliación QA segura.
+- PWA escritorio, navegación y Admin WebAuthn: no recuperar candidatos de octubre divergentes ni duplicar la corrección visual R49/R50. Revalidar Device y WebAuthn en HEAD exacto del PR.
+- IRI Fotografía (#1262): la carga de etapa oculta y el fallo temporizado son una investigación válida; comprobar WebAuthn real del SHA actual antes de modificar de nuevo controladores. No atribuir HTTP 200 a funcionamiento correcto del DOM.
+- Historial bajo demanda, compactación bootstrap SQL y Supabase Free (#1209): conservar las sesiones publicadas en respuesta HTTP final, integridad sesiones+ejecuciones, mínimo egress, sin prefetch. Un descenso de JSON decodificado no demuestra GB facturados ahorrados.
+- Datos V47 antiguos, permiso/consentimiento nativo Connected360 (#944/#1255): mantener lectura histórica separada de valores actuales; M44 y permisos certificados antes de abrir la RPC histórica. No inventar conectividad Apple Health desde PWA.
+- Informes sin IRI: no perder borradores de seguimiento; diagnóstico inicial IRI y evolución distintos; aprobación profesional basada en evidencia.
+- Privacidad y RLS: conservar comprobaciones negativas por rol, no reabrir grants por una captura histórica de 129/129 tablas; revisar SECURITY DEFINER por contrato, no por cifra aislada.
+
+**Funcionalidad nueva incorporada en el mismo WIP U63**: visión unificada de vida diaria en Cliente Hoy, después de la acción principal de entrenamiento. Muestra bienestar autoinformado con escala 0–10 y fecha, movimiento observado de un día específico (pasos, minutos, sueño, deporte) y sesiones confirmadas de los últimos 28 días con tendencia de carga solo si es comparable. Datos actuales frente a anteriores/históricos rotulados explícitamente. Un mismo día con dos fuentes contradictorias NO suma pasos ni elige arbitrariamente una cifra: el dato ambiguo se deja ausente. Cero medido es distinto de sin dato. No hay score clínico, recomendación médica, cambios automáticos de carga, nueva telemetría ni consultas remotas. Doble fence por clientId. Los registros se obtienen de selecciones autorizadas ya disponibles en memoria. Diseño como una sola superficie sobria, responsive, táctil y accesible, sin proliferar tarjetas.
+
+**Pruebas**: 11 casos puros ejecutados localmente (PASS 11/11) antes de subir el lote; una verificación adicional de wiring/origen/no nueva red se añade a CI. No confundir con E2E autenticado ni con despliegue. Próxima integración sigue bloqueada por ledger QA U30–U36 (0/7), gateway U60 ausente, pruebas reales JWT y restauración M44 fresca. No aplicar SQL a PROD desde este PR.

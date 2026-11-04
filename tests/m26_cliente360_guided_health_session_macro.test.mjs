@@ -54,7 +54,8 @@ test('Hydrated owner-scoped data feeds Hoy and live session without cross-accoun
   const vm=readFileSync('src/m26/modules/route-view-model.js','utf8');
   const app=readFileSync('src/m26/app/application.js','utf8');
   const css=readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
-  assert.match(vm,/wearables:overview.role==='client'&&clientId&&/u);
+  assert.match(vm,/const clientWearables=overview.role==='client'&&clientId&&/u);
+  assert.match(vm,/buildClientDayContext/u);
   assert.match(vm,/recordsForClient\(state,'wearableDailySummaries',clientId\)/u);
   assert.match(app,/wearableContext:role==='client'&&memoryClientId/u);
   assert.match(app,/identity\?\.clientId/u);
