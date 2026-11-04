@@ -35,6 +35,7 @@ on:
       - 'playwright.authenticated-visual.config.mjs'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/production-promote.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/release/verify_frontend_only_promotion.mjs'
   push:
     branches: [canary/rc74-4]
@@ -70,6 +71,7 @@ on:
       - 'playwright.authenticated-visual.config.mjs'
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/production-promote.yml'
+      - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/release/verify_frontend_only_promotion.mjs'
   workflow_dispatch:
 
