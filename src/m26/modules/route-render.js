@@ -20,6 +20,8 @@ import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine
 import {renderIberfitIcon} from '../design/icons.js';
 import {renderAthleticClientEvidence} from '../design/athletic-client-evidence.js';
 import {renderPosthogConsentPanel} from '../analytics/posthog-manual.js';
+import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
+import {getIberfitLanguage} from '../ui/i18n.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -83,15 +85,17 @@ function clientOperationDisclosure(operations={}){
   const rejected=Number.isSafeInteger(operations.rejected)?Math.max(0,operations.rejected):0;
   if(!pending&&!conflicts&&!rejected)return '';
   const issues=conflicts+rejected;
+  const tx=value=>iberfitSurfaceTranslate(value,{language:getIberfitLanguage()});
+  const count=(n,singular,plural)=>n+' '+tx(n===1?singular:plural);
   const parts=[
-    pending?countLabel(pending,'cambio pendiente','cambios pendientes'):null,
-    conflicts?countLabel(conflicts,'conflicto','conflictos'):null,
-    rejected?countLabel(rejected,'cambio por revisar','cambios por revisar'):null,
+    pending?count(pending,'cambio pendiente','cambios pendientes'):null,
+    conflicts?count(conflicts,'conflicto','conflictos'):null,
+    rejected?count(rejected,'cambio por revisar','cambios por revisar'):null,
   ].filter(Boolean).join(' · ');
   return '<details class="m26-client-sync-disclosure" data-m26-client-sync-disclosure>'
-    +'<summary>'+(issues?'Revisar cambios pendientes':'Estado de tus cambios')+'</summary>'
-    +'<div><p>'+escapeHtml(parts)+'. Los cambios todavía no confirmados no aparecen como completados.</p>'
-    +'<button type="button" data-m26-area="ajustes">Consultar sincronización</button></div>'
+    +'<summary>'+escapeHtml(tx(issues?'Revisar cambios pendientes':'Estado de tus cambios'))+'</summary>'
+    +'<div><p>'+escapeHtml(parts)+'. '+escapeHtml(tx('Los cambios todavía no confirmados no aparecen como completados.'))+'</p>'
+    +'<button type="button" data-m26-area="ajustes">'+escapeHtml(tx('Consultar sincronización'))+'</button></div>'
     +'</details>';
 }
 function appointmentCard(item,{canManage=false,canStartSession=false}={}) {

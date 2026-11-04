@@ -125,5 +125,5 @@ test('on-demand Client historical archive never opens with a red top banner',()=
  assert.match(source,/status==='loading'\?'status':'group'/u);
  assert.match(source,/status==='loading'\?'polite':'off'/u);
  assert.match(source,/if\(explicit!==true\)/u,'lazy history must remain user-driven');
- assert.doesNotMatch(source,/route\.prepend\(node\);\s*}\s*node\.textContent/u);
+ assert.doesNotMatch(source,/route\.prepend\(node\);\s*\}\s*node\.textContent/u);
 });
