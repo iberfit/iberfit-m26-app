@@ -130,8 +130,16 @@ export function buildTraining360DecisionPack({
     const isClient=['client','cliente'].includes(lower(role));
     const serverPublished=p.status==='disponible'&&
       ['guiada_en_app'].includes(p.modality);
-    const dateVisible=!isClient||Boolean(serverPublished&&o.appointmentId&&authorizedAp
-      &&['confirmada','en_curso','completada','cancelada'].includes(o.status));
+    // Strict Client parity with U33's server-side calendar projection:
+    // existence of a linked appointment never makes an invalid state visible.
+    // Coach remains able to inspect and repair unlinked/withdrawn dates.
+    const visibleAppointmentState=Boolean(
+      (o.status==='confirmada'&&appointmentStatus==='confirmada')||
+      (o.status==='en_curso'&&['confirmada','cancelada'].includes(appointmentStatus))||
+      (o.status==='completada'&&['confirmada','cancelada','completada'].includes(appointmentStatus))||
+      (o.status==='cancelada'&&['confirmada','cancelada','completada'].includes(appointmentStatus)));
+    const dateVisible=!isClient||Boolean(serverPublished&&o.appointmentId
+      &&authorizedAp&&visibleAppointmentState);
     // These are advice/display hints only. Server always authorizes writes.
     return Object.freeze({
       id:o.id,sessionId:o.sessionId,localDate:o.localDate,
@@ -150,7 +158,12 @@ export function buildTraining360DecisionPack({
   const due=items.filter(x=>x.localDate<=today&&
     ['confirmada','en_curso','completada'].includes(x.status));
   const completed=due.filter(x=>x.status==='completada'&&x.executionVerified);
-  const needsRecovery=items.filter(x=>x.status==='en_curso'&&!x.executionVerified);
+  // Missing mirrored evidence is a Coach integrity task, not a Client alarm.
+  // A server-completed workout without an independently verified execution
+  // must never be reported as missed adherence.
+  const inconsistentExecution=items.filter(x=>
+    ['en_curso','completada'].includes(x.status)&&!x.executionVerified);
+  const needsRecovery=lower(role)==='coach'?inconsistentExecution:[];
   const awaiting=due.filter(x=>x.status==='confirmada');
   const upcoming=items.filter(x=>x.localDate>=today&&
     x.status==='confirmada').slice(0,14);
@@ -164,7 +177,10 @@ export function buildTraining360DecisionPack({
     complete:entries.length>0&&entries.every(e=>e.status==='completada'
       &&e.executionVerified),
   }));
-  const possibleAdherence=due.length>0?Math.round(100*completed.length/due.length):null;
+  const unverifiedCompletedDue=due.some(x=>
+    x.status==='completada'&&!x.executionVerified);
+  const possibleAdherence=due.length>0&&!unverifiedCompletedDue
+    ?Math.round(100*completed.length/due.length):null;
   const visibleIds=new Set(items.map(item=>item.id));
   const recommendation=needsRecovery.length
     ?Object.freeze({type:'verify-execution',label:'Verificar ejecución pendiente',
@@ -189,7 +205,8 @@ export function buildTraining360DecisionPack({
       pendingPast:awaiting.filter(x=>x.localDate<today).length,
       cancelled:items.filter(x=>x.status==='cancelada').length,
       verifiedAdherencePct:possibleAdherence,
-      insufficientEvidence:dates.some(x=>!visibleIds.has(x.id)),
+      insufficientEvidence:unverifiedCompletedDue||
+        dates.some(x=>!visibleIds.has(x.id)),
     }),
     days:Object.freeze(days),upcoming:Object.freeze(upcoming),
     needsRecovery:Object.freeze(needsRecovery),

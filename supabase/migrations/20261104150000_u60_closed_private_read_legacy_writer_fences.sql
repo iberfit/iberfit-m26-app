@@ -132,6 +132,7 @@ DECLARE
   v_execution public.domain_entities_v26%rowtype;
   v_typed public.session_executions%rowtype;
   v_ap_status text;
+  v_ap public.appointments%rowtype;
   v_snapshot jsonb;
   v_execution_snapshot jsonb;
   v_execution_body jsonb;
@@ -160,12 +161,19 @@ BEGIN
     RAISE EXCEPTION 'U60_SOURCE_NOT_AVAILABLE' USING errcode='42501';
   END IF;
   IF v_occ.appointment_id IS NOT NULL THEN
-    SELECT status INTO v_ap_status FROM public.appointments
+    SELECT * INTO v_ap FROM public.appointments
       WHERE id=v_occ.appointment_id AND client_id=v_occ.client_id
         AND session_id=v_occ.session_id;
-    IF NOT FOUND THEN
+    IF NOT FOUND OR v_ap.start_at IS DISTINCT FROM v_occ.starts_at
+      OR v_ap.end_at IS DISTINCT FROM v_occ.ends_at
+      OR v_ap.time_zone IS DISTINCT FROM v_occ.time_zone
+      OR (v_occ.starts_at AT TIME ZONE v_occ.time_zone)::date
+        IS DISTINCT FROM v_occ.local_date
+      OR (v_occ.starts_at AT TIME ZONE v_occ.time_zone)::time
+        IS DISTINCT FROM v_occ.local_time THEN
       RAISE EXCEPTION 'U60_LINKED_APPOINTMENT_DRIFT' USING errcode='42501';
     END IF;
+    v_ap_status:=v_ap.status;
   END IF;
   -- Match the Client visibility conditions of U33, including cancellation
   -- after an in-flight execution. No unpublished draft or unlinked read.

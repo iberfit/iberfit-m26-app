@@ -235,3 +235,15 @@ test('U60 QA-only reconciliation and migration share an identical catalog prefli
   assert.match(migration,/source_triggers_count/u);
   assert.match(migration,/c\.confrelid=to_regclass\('public\.training_session_occurrences_v1'\)/u);
 });
+
+
+test('U60 private detail fails closed on rescheduled appointment clock drift',()=>{
+ const sql=readFileSync(new URL(
+  '../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',
+  import.meta.url),'utf8');
+ assert.match(sql,/v_ap\.start_at IS DISTINCT FROM v_occ\.starts_at/u);
+ assert.match(sql,/v_ap\.end_at IS DISTINCT FROM v_occ\.ends_at/u);
+ assert.match(sql,/v_ap\.time_zone IS DISTINCT FROM v_occ\.time_zone/u);
+ assert.match(sql,/AT TIME ZONE v_occ\.time_zone/u);
+ assert.match(sql,/U60_LINKED_APPOINTMENT_DRIFT/u);
+});

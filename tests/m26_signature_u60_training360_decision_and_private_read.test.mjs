@@ -55,7 +55,9 @@ test('U60 decision: independent due dates, verified completion, no double-counti
 test('U60 decision: never count incomplete execution evidence as completed',()=>{
  const value=buildTraining360DecisionPack(setup({executions:[]}));
  assert.equal(value.summary.completedDue,0);
- assert.equal(value.summary.verifiedAdherencePct,0);
+ assert.equal(value.summary.verifiedAdherencePct,null,
+   'Unverified completed workout cannot count as a missed training');
+ assert.equal(value.summary.insufficientEvidence,true);
  assert.equal(value.days[0].complete,false);
 });
 test('U60 decision: missing evidence is null, not an invented adherence number',()=>{
@@ -219,4 +221,55 @@ test('U60 source/UI wiring is advisory and never exposes a new start command',()
  assert.match(ui,/renderTraining360DecisionSummary/u);
  assert.match(ui,/data-training360-evidence="server-scoped"/u);
  assert.doesNotMatch(ui,/data-workflow-action="occurrence-start"/u);
+});
+
+
+test('U60 Client visibility matches U33 occurrence/appointment status matrix',()=>{
+ const cases=[
+   ['confirmada','confirmada',true],
+   ['confirmada','cancelada',false],
+   ['confirmada','pendiente',false],
+   ['en_curso','confirmada',true],
+   ['en_curso','cancelada',true],
+   ['en_curso','pendiente',false],
+   ['completada','confirmada',true],
+   ['completada','cancelada',true],
+   ['completada','completada',true],
+   ['cancelada','confirmada',true],
+   ['cancelada','cancelada',true],
+   ['cancelada','completada',true],
+   ['planificada','confirmada',false],
+ ];
+ for(const [status,appointmentStatus,expected] of cases){
+   const result=buildTraining360DecisionPack(setup({
+     sessions:[published],
+     appointments:[appointment(APPT_B,appointmentStatus)],
+     occurrences:[occ(OCC_B,'2026-11-05',status,{appointmentId:APPT_B})],
+     executions:[],
+   }));
+   assert.equal(result.summary.scheduledDates,expected?1:0,
+     'Client date visibility must match U33: '+status+'/'+appointmentStatus);
+   assert.equal(result.summary.insufficientEvidence,!expected,
+     'Filtered data cannot be presented as complete evidence');
+ }
+ const coach=buildTraining360DecisionPack(setup({
+   role:'coach',appointments:[appointment(APPT_B,'pendiente')],
+   occurrences:[occ(OCC_B,'2026-11-05','confirmada',{appointmentId:APPT_B})],
+   executions:[],
+ }));
+ assert.equal(coach.summary.scheduledDates,1,
+   'Coach must retain access for correcting inconsistent scheduling');
+});
+
+
+test('U60 Client hides internal integrity alarms while Coach gets a recovery decision',()=>{
+ const broken=setup({executions:[]});
+ const client=buildTraining360DecisionPack(broken);
+ assert.deepEqual(client.needsRecovery,[]);
+ assert.equal(client.summary.verifiedAdherencePct,null);
+ assert.notEqual(client.nextDecision?.type,'verify-execution');
+ const coach=buildTraining360DecisionPack({...broken,role:'coach'});
+ assert.equal(coach.needsRecovery.length,1);
+ assert.equal(coach.nextDecision?.type,'verify-execution');
+ assert.equal(coach.summary.insufficientEvidence,true);
 });

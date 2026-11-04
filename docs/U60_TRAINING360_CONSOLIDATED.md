@@ -73,3 +73,11 @@ Esto sigue siendo SQL *staging cerrado*, no probado todavía con dos transaccion
 ### Auditoría ampliada de dependencias reales (U60)
 
 El gate read-only ahora también comprueba la cadena V26 completa (cuatro funciones críticas con huellas SHA-256/propietarios/ACL contrastadas en QA), la tabla y el índice de recibos necesarios para el trigger diferido, las **tablas concretas** de los dos triggers, los **destinos de las FK** y la unicidad real de los índices de ocurrencia/ejecución. No basta con que exista un objeto de nombre parecido. En QA todos estos controles son verdaderos; el único bloqueo de reconciliación sigue siendo el ledger 0/7. No se han aplicado SQL ni permisos. La huella de V26 deberá actualizarse y certificarse si futuros cambios legítimos modifican los ejecutores.
+
+### Paridad de estados Cliente y defensa contra horario desincronizado
+
+La proyección de decisión Training360 replica ahora el contrato de estados U33 en sus cuatro fases visibles: confirmado solo con cita confirmada; en curso con confirmada/cancelada; completado y cancelado con los estados históricos compatibles. No se cuenta ni se ofrece como disponible una cita pendiente o una confirmación incoherente. El Coach conserva una vista diagnóstica de esas fechas, sin conceder permisos de escritura. La lectura privada U60 también exige concordancia del inicio, fin, zona y fecha/hora local de Santiago entre la ocurrencia y su cita. Todo sigue cerrado, pendiente de E2E QA autenticado.
+
+### Recuperación y métricas diferenciadas por rol
+
+Una ocurrencia completada sin ejecución espejo verificada se registra como evidencia insuficiente, **no como 0 % de adherencia**. Coach recibe una acción de comprobación de integridad; Cliente no recibe alarmas de infraestructura ni un porcentaje engañoso. Los estados de la cita y los fallos de integridad se mantienen como responsabilidad operativa del Coach/Admin.
