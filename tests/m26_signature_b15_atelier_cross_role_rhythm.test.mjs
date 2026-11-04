@@ -4,7 +4,9 @@ import {readFileSync} from 'node:fs';
 const css=readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
 const rc=readFileSync(new URL('../src/m26/rc39/route-render.js',import.meta.url),'utf8');
 const start=css.indexOf('/* SIGNATURE B15 · Atelier Performance: calendar and role interaction rhythm.');
-const part=css.slice(start);
+const end=css.indexOf('/* U60 B15 legacy style boundary:',start);
+assert.ok(end>start,'B15 scope marker must separate staged styles from R50 design');
+const part=css.slice(start,end);
 test('B15 global Atelier additions live in existing design source without CSS specificity debt',()=>{
  assert.ok(start>0);
  assert.doesNotMatch(part,/!important/u);
