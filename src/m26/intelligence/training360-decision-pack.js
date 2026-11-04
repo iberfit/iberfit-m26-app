@@ -106,11 +106,25 @@ export function buildTraining360DecisionPack({
     .map(row=>[cleanId(field(row,'id','entityId','entity_id')),row])
     .filter(([id])=>Boolean(id)));
   const rows=new Map();
+  const ambiguousOccurrenceIds=new Set();
   for(const input of occurrences){
     const o=normalizedOccurrence(input,owner);
-    if(!o||!prescriptions.has(o.sessionId))continue;
+    if(!o||!prescriptions.has(o.sessionId)||ambiguousOccurrenceIds.has(o.id))continue;
     const prior=rows.get(o.id);
-    if(prior&&prior.revision>=o.revision)continue;
+    if(prior){
+      if(prior.revision>o.revision)continue;
+      if(prior.revision===o.revision){
+        // Two different records claiming the same UUID and revision are not
+        // trustworthy evidence. Do not silently prefer the input array order.
+        const fields=['clientId','sessionId','localDate','status','revision',
+          'appointmentId','executionId'];
+        if(fields.some(key=>prior[key]!==o[key])){
+          rows.delete(o.id);
+          ambiguousOccurrenceIds.add(o.id);
+        }
+        continue;
+      }
+    }
     rows.set(o.id,o);
   }
   const executionMap=new Map(executions.map(row=>
@@ -179,8 +193,18 @@ export function buildTraining360DecisionPack({
   }));
   const unverifiedCompletedDue=due.some(x=>
     x.status==='completada'&&!x.executionVerified);
-  const possibleAdherence=due.length>0&&!unverifiedCompletedDue
-    ?Math.round(100*completed.length/due.length):null;
+  const unresolvedInProgress=due.some(x=>x.status==='en_curso');
+  // A date still available today is not a missed workout. Past confirmed
+  // dates can contribute to adherence, as can verified completions today.
+  // An ongoing/ambiguous/unmirrored execution must yield unknown, never 0.
+  const adherenceEligible=due.filter(x=>x.localDate<today
+    ||x.status==='completada');
+  const possibleAdherence=adherenceEligible.length>0
+    &&!unverifiedCompletedDue&&!unresolvedInProgress
+    &&ambiguousOccurrenceIds.size===0
+    ?Math.round(100*adherenceEligible.filter(x=>
+      x.status==='completada'&&x.executionVerified).length
+      /adherenceEligible.length):null;
   const visibleIds=new Set(items.map(item=>item.id));
   const recommendation=needsRecovery.length
     ?Object.freeze({type:'verify-execution',label:'Verificar ejecución pendiente',
@@ -205,8 +229,8 @@ export function buildTraining360DecisionPack({
       pendingPast:awaiting.filter(x=>x.localDate<today).length,
       cancelled:items.filter(x=>x.status==='cancelada').length,
       verifiedAdherencePct:possibleAdherence,
-      insufficientEvidence:unverifiedCompletedDue||
-        dates.some(x=>!visibleIds.has(x.id)),
+      insufficientEvidence:unverifiedCompletedDue||unresolvedInProgress
+        ||ambiguousOccurrenceIds.size>0||dates.some(x=>!visibleIds.has(x.id)),
     }),
     days:Object.freeze(days),upcoming:Object.freeze(upcoming),
     needsRecovery:Object.freeze(needsRecovery),

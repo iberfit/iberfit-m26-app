@@ -24,8 +24,11 @@ test('No-data, invalid and partial permissions never fabricate zeros or guessed 
   assert.equal(clientHealthSnapshot({summary:{daysWithData:8,metrics:{steps:999}}}),null);
   assert.match(renderClientTodayHealth(null),/Sin datos todavía/u);
   const invalid=renderClientTodayHealth({summary:{daysWithData:1,metrics:{steps:-5,sleepMinutes:15000,restingHeartRate:NaN}}});
-  assert.equal((invalid.match(/Sin dato/g)||[]).length,3);
-  assert.doesNotMatch(invalid,/15.000|NaN/u);
+  assert.equal(clientHealthSnapshot({summary:{daysWithData:1,metrics:{
+    steps:-5,sleepMinutes:15000,restingHeartRate:NaN,
+  }}}),null);
+  assert.match(invalid,/Sin datos todavía/u);
+  assert.doesNotMatch(invalid,/m26-client-health-metrics|15.000|NaN/u);
 });
 test('Activity describes received daily health truthfully without false disconnected badge',()=>{
   const html=renderClientDeviceHub(wearables);
@@ -87,4 +90,15 @@ test('Connected360 Client Today shows verified activity and sport without invent
    steps:8200,activeMinutes:-3,workoutMinutes:9999,
  }}});
  assert.doesNotMatch(invalid,/Actividad diaria media|Entrenamiento diario medio/u);
+});
+
+test('U62 health: valid zero measurement is distinct from unavailable metrics',()=>{
+ const record={summary:{daysWithData:1,metrics:{steps:0}}};
+ const observed=clientHealthSnapshot(record);
+ assert.equal(observed.steps,0);
+ assert.equal(observed.sleep,null);
+ const html=renderClientTodayHealth(record);
+ assert.match(html,/Tu actividad, a la vista/u);
+ assert.match(html,/Pasos medios<\\/span><strong>0<\\/strong>/u);
+ assert.doesNotMatch(html,/sin dispositivo vinculado/iu);
 });

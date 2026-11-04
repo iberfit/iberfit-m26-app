@@ -273,3 +273,53 @@ test('U60 Client hides internal integrity alarms while Coach gets a recovery dec
  assert.equal(coach.nextDecision?.type,'verify-execution');
  assert.equal(coach.summary.insufficientEvidence,true);
 });
+
+
+test('U62 adherence never marks an unfinished training day as missed',()=>{
+ const today=occ(OCC_C,'2026-11-04','confirmada',{appointmentId:APPT_B});
+ const current=buildTraining360DecisionPack(setup({
+   occurrences:[today],executions:[],
+ }));
+ assert.equal(current.summary.dueDates,1);
+ assert.equal(current.summary.verifiedAdherencePct,null);
+ const withPrevious=buildTraining360DecisionPack(setup({
+   occurrences:[completed,today],
+ }));
+ assert.equal(withPrevious.summary.completedDue,1);
+ assert.equal(withPrevious.summary.verifiedAdherencePct,100,
+   'an unstarted appointment today cannot reduce past adherence');
+});
+test('U62 ongoing executions never produce a false zero or certainty',()=>{
+ const inProgress=occ(OCC_C,'2026-11-03','en_curso',{
+   appointmentId:APPT_B,executionId:EXEC,
+ });
+ const value=buildTraining360DecisionPack(setup({
+   occurrences:[inProgress],executions:[],
+ }));
+ assert.equal(value.summary.verifiedAdherencePct,null);
+ assert.equal(value.summary.insufficientEvidence,true);
+});
+test('U62 same-ID same-revision conflicting source is excluded regardless of order',()=>{
+ const conflict={...completed,status:'confirmada'};
+ for(const occurrences of [[completed,conflict,future],[conflict,completed,future]]){
+   const value=buildTraining360DecisionPack(setup({occurrences}));
+   assert.equal(value.summary.scheduledDates,1);
+   assert.equal(value.summary.dueDates,0);
+   assert.equal(value.summary.verifiedAdherencePct,null);
+   assert.equal(value.summary.insufficientEvidence,true);
+ }
+});
+test('U62 verified completion today counts without penalizing another pending date',()=>{
+ const todayCompleted=occ(OCC_C,'2026-11-04','completada',{
+   appointmentId:APPT_A,executionId:EXEC,
+ });
+ const todayPending=occ(OCC_B,'2026-11-04','confirmada',{
+   appointmentId:APPT_B,
+ });
+ const execution={...activeExecution,occurrenceId:OCC_C};
+ const result=buildTraining360DecisionPack(setup({
+   occurrences:[todayCompleted,todayPending],executions:[execution],
+ }));
+ assert.equal(result.summary.completedDue,1);
+ assert.equal(result.summary.verifiedAdherencePct,100);
+});

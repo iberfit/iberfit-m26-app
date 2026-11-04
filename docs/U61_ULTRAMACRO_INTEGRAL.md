@@ -32,3 +32,10 @@ Entrenamiento multifecha independiente (sesión = prescripción, ocurrencia = fe
 - Lanzamiento: preparar M44 cifrado + restauración DB/Storage reciente, y promover por carriles protegidos Canary SHA exacto y PROD separadamente. Los workflows con jobs remotos `skipped` no equivalen a E2E autenticado.
 
 **No hay atajo seguro que permita certificar hoy una función cuya API no está instalada en QA.** Se puede acelerar la integración del código agrupando las pruebas y la publicación, pero no sustituir la evidencia de autorizaciones, integridad, sesiones independientes ni backups.
+
+## U62 · integridad de métricas y fuentes ambiguas (mismo PR, 04/11/2026)
+
+- Training360: una fecha confirmada durante el día de hoy no cuenta como incumplimiento antes de terminar el día; un resultado completado hoy sí puede contar cuando su ejecución está confirmada. Una ejecución todavía en curso o sin mirror deja la adherencia indeterminada en lugar de fabricar un 0. Se conservan recuentos separados y tareas de verificación Coach.
+- Idempotencia visual y seguridad: si una misma ocurrencia aparece duplicada con idéntico UUID/revisión pero campos contradictorios, su proyección se excluye por ambigüedad, sin depender del orden de respuesta. La anomalía se reporta como evidencia insuficiente; no altera el registro origen ni concede permisos.
+- Connected360: días observados con todas las métricas inválidas o ausentes presentan un estado vacío honesto, sin afirmar mediciones verificadas; un cero real sigue siendo un dato válido.
+- Contratos unitarios agregados al paquete U60/U61 para hoy, pasado, ejecución en curso, duplicados adversariales, métricas ausentes y ceros observados. No habilita U60 backend, no toca Supabase, permisos, PWA, ni PROD. Gates exact-SHA exigidos tras el commit.

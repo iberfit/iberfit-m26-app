@@ -6,11 +6,17 @@ export function clientHealthSnapshot(wearables){
   if(!s||!Number.isSafeInteger(s.daysWithData)||s.daysWithData<1||s.daysWithData>7)return null;
   // These are server-confirmed seven-day descriptive means, not today's live
   // measurements. Never compute recovery scores or show absent data as zero.
-  return Object.freeze({days:s.daysWithData,steps:num(s.metrics?.steps,0,200000),
+  const metrics={
+    steps:num(s.metrics?.steps,0,200000),
     sleep:num(s.metrics?.sleepMinutes,0,1440),
     rest:num(s.metrics?.restingHeartRate,25,240),
     active:num(s.metrics?.activeMinutes,0,1440),
-    workouts:num(s.metrics?.workoutMinutes,0,1440)});
+    workouts:num(s.metrics?.workoutMinutes,0,1440),
+  };
+  // An upstream count with zero usable metrics is not proof of a health
+  // measurement. Show an honest empty state; preserve measured numeric zero.
+  if(Object.values(metrics).every(value=>value===null))return null;
+  return Object.freeze({days:s.daysWithData,...metrics});
 }
 /** Confirmed owner-scoped daily summaries; never infer the physical watch or auto-change loads. */
 export function renderClientTodayHealth(wearables){
