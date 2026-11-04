@@ -1,3 +1,4 @@
+import {isFutureIssuedJwtClockSkew} from '../../src/m26/supabase-transport.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createQaPublicRpcRunCache} from './qa-public-rpc-run-cache.mjs';
@@ -66,14 +67,53 @@ export async function isQaMissingPrivateAvatarResponse(response){
       String(body?.error||'').toLowerCase()!=='unauthorized';
   }catch{return false;}
 }
-export function unexpectedQaResourceErrors(errors,missingAvatarCount=0){
+// QA-only: a rejected just-issued JWT can be *observed* only when the
+// identical bearer token subsequently receives a valid assurance response.
+// All URL, bearer and JSON checks remain in memory; never serialize them.
+export function isQaPrivilegedAssuranceResponse(response){
+  try{
+    const url=new URL(response.url());
+    return url.origin===SUPABASE_ORIGIN
+      &&url.pathname==='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d'
+      &&url.search===''&&url.hash===''
+      &&response.request().method().toUpperCase()==='POST';
+  }catch{return false;}
+}
+export async function isQaProvenRecoveredFutureIat({failure,success}={}){
+  if(!isQaPrivilegedAssuranceResponse(failure)||!isQaPrivilegedAssuranceResponse(success)
+    ||failure.status()!==401||success.status()!==200)return false;
+  const failureBody=await failure.json().catch(()=>null);
+  if(!isFutureIssuedJwtClockSkew({status:401,body:failureBody}))return false;
+  const [failedBearer,successBearer]=await Promise.all([
+    failure.request().headerValue('authorization'),
+    success.request().headerValue('authorization'),
+  ]).catch(()=>[null,null]);
+  if(typeof failedBearer!=='string'
+    ||!/^Bearer [A-Za-z0-9_.~-]+$/u.test(failedBearer)
+    ||failedBearer!==successBearer)return false;
+  const resolved=await success.json().catch(()=>null);
+  return Boolean(resolved&&typeof resolved==='object'&&!Array.isArray(resolved)
+    &&resolved.ok===true&&typeof resolved.privileged==='boolean'
+    &&typeof resolved.mfaRequired==='boolean'
+    &&typeof resolved.webauthnRequired==='boolean'
+    &&resolved.privileged===resolved.mfaRequired
+    &&resolved.privileged===resolved.webauthnRequired);
+}
+
+export function unexpectedQaResourceErrors(errors,missingAvatarCount=0,provenFutureIatCount=0){
   const source=Array.isArray(errors)?errors:[];
   let allowed=0;
+  let allowedFutureIat=0;
+  const maxFutureIat=Number.isInteger(provenFutureIatCount)&&provenFutureIatCount>0&&provenFutureIatCount<=3
+    ?provenFutureIatCount:0;
   const unexpected=[];
   for(const message of source){
     const text=String(message||'');
     if(allowed<missingAvatarCount&&/^Failed to load resource: the server responded with a status of (?:400|404)\b/iu.test(text)){
       ++allowed;
+    }else if(allowedFutureIat<maxFutureIat
+      &&/^Failed to load resource: the server responded with a status of 401 \(\)$/u.test(text)){
+      ++allowedFutureIat;
     }else unexpected.push(text);
   }
   return unexpected;

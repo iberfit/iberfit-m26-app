@@ -10,6 +10,8 @@ import {
   isQaPrivateAvatarRead,
   isQaMissingPrivateAvatarResponse,
   unexpectedQaResourceErrors,
+  isQaPrivilegedAssuranceResponse,
+  isQaProvenRecoveredFutureIat,
 } from './secure-current-source-auth.mjs';
 
 const OUT_DIR='recovery/rc64-authenticated-visual';
@@ -207,6 +209,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
     const unexpectedFailures=[];
     const consoleErrors=[];
     const avatarChecks=[],missingAvatar=[];
+    const assuranceResponses=[],unexpected401Responses=[];
     const pageErrors=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
@@ -215,6 +218,8 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
     const page=await context.newPage();
     page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
     page.on('response',(response)=>{
+      if(isQaPrivilegedAssuranceResponse(response))assuranceResponses.push(response);
+      else if(response.status()===401)unexpected401Responses.push('QA_UNRELATED_HTTP_401');
       if(isQaPrivateAvatarRead(response.request())&&response.status()>=400){
         avatarChecks.push(isQaMissingPrivateAvatarResponse(response).then(ok=>{
           if(ok)missingAvatar.push(true);
@@ -622,10 +627,29 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
           .toEqual(CLIENT_SIGNATURE_U24_AREAS);
       }
 
+      // Never blanket-ignore console 401. Only a documented PostgREST
+      // PGRST303 future-issued JWT followed by a valid 200 using the SAME
+      // bearer token can explain one transient browser resource error.
+      // Other 401s, un-recovered denials and extra console errors still fail.
+      const verifiedFutureIat=[];
+      for(const [index,response] of assuranceResponses.entries()){
+        if(response.status()!==401)continue;
+        let recovered=false;
+        for(const later of assuranceResponses.slice(index+1)){
+          if(await isQaProvenRecoveredFutureIat({failure:response,success:later})){
+            recovered=true;
+            break;
+          }
+        }
+        verifiedFutureIat.push(recovered);
+      }
+      expect(verifiedFutureIat.length,'Future-iat retry count must remain bounded').toBeLessThanOrEqual(3);
+      expect(verifiedFutureIat.every(Boolean),'Unknown or unrecovered assurance 401').toBe(true);
       await Promise.all(avatarChecks);
       expect(blocked,'Visual evidence attempted a business mutation or foreign request').toEqual([]);
       expect(unexpectedFailures).toEqual([]);
-      expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length)).toEqual([]);
+      expect(unexpected401Responses,'Non-assurance HTTP 401 must fail closed').toEqual([]);
+      expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length,verifiedFutureIat.length)).toEqual([]);
       expect(pageErrors).toEqual([]);
     }finally{
       await context.close().catch(()=>{});

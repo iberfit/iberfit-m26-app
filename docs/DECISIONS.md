@@ -83,3 +83,12 @@ Fuentes primarias revisadas: Cole et al., NEJM 1999, DOI 10.1056/NEJM19991028341
 ## D-023 · Macrobloques funcionales como entrega estándar (2026-10-11)
 
 Para cualquier ámbito de IBERFIT, reducir esperas de GitHub agrupando una capacidad completa por rama y PR coherentes: UX, frontend, backend, esquema QA, privacidad, recuperación, rendimiento y regresiones relevantes. Preparar pruebas dirigidas antes de emitir múltiples revisiones y ejecutar CI completo sobre HEAD estabilizado, con auditoría proporcional, Canary SHA exacto, rollback y promoción separada a producción. Dividir solo por riesgo material, independencia real o dependencia externa (p. ej. hardware). Esta decisión sustituye la preferencia de microentregas fragmentadas sin reducir controles. Contrato en `AGENTS.md` y `docs/CHATGPT_WORKFLOW.md`.
+
+
+## D-024 · Ultramacrobloques de preparación local y mínimo consumo (2026-11-03)
+
+Profundiza D-023: para un objetivo vertical completo, reunir en una sola fase de análisis el alcance Cliente/Coach/Admin, contratos de datos, autorización, UX, pruebas de regresión, filtros de CI y economía de QA. Preparar el conjunto coherente antes del primer push, con un único HEAD estabilizado y un PR principal; reducir rondas GitHub, escrituras sintéticas y consultas Supabase QA duplicadas. Paralelizar investigación y pruebas independientes, **serializar Auth, RLS, migraciones y despliegues**.
+
+No agrupar cambios sin dependencia funcional real, no transformar el monorepo entero en un único lote sin rollback y no sacrificar tests E2E, matriz 7/7 exact SHA, restore M44 ni QA móvil/tablet/desktop para ahorrar. No modificar PROD hasta certificación y release protegido. Ante una regresión importante, corregirla dentro del mismo PR coherente antes de fusionar; no introducir excepciones de tests ni silenciar errores inesperados.
+
+El checkpoint maestro del WIP es GitHub issue #1260. Al cerrar cada bloque registrar qué está PREPARADO, PR, MERGED, CANARY LIVE y PROD LIVE; el trabajo en el chat no sustituye el estado del repositorio.
