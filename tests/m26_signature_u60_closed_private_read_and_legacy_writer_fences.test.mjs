@@ -247,3 +247,25 @@ test('U60 private detail fails closed on rescheduled appointment clock drift',()
  assert.match(sql,/AT TIME ZONE v_occ\.time_zone/u);
  assert.match(sql,/U60_LINKED_APPOINTMENT_DRIFT/u);
 });
+
+
+test('U60 gateway preserves closed U36 and normalizes only two exact U34 conflicts',()=>{
+ const sql=readFileSync(new URL(
+   '../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',
+   import.meta.url),'utf8');
+ const rollback=readFileSync(new URL(
+   '../supabase/rollbacks/20261104150000_u60_closed_private_read_legacy_writer_fences.rollback.sql',
+   import.meta.url),'utf8');
+ const transport=readFileSync(new URL(
+   '../src/m26/supabase-transport.js',import.meta.url),'utf8');
+ assert.match(sql,/CREATE FUNCTION public\.iberfit_occurrence_api_u60_v1/u);
+ assert.match(sql,/v_reply:=public\.iberfit_occurrence_api_v1\(p_action,p_payload\)/u);
+ assert.match(sql,/v_reply='\{"kind":"conflict","reason":"APPOINTMENT_ALREADY_TERMINAL"\}'::jsonb/u);
+ assert.match(sql,/v_reply='\{"kind":"conflict","reason":"APPOINTMENT_REVISION_DRIFT"\}'::jsonb/u);
+ assert.match(sql,/v_reply\|\|jsonb_build_object\('operationId',p_payload->'operationId'\)/u);
+ assert.match(sql,/REVOKE ALL ON FUNCTION public\.iberfit_occurrence_api_u60_v1\(text,jsonb\)/u);
+ assert.match(rollback,/DROP FUNCTION IF EXISTS public\.iberfit_occurrence_api_u60_v1\(text,jsonb\)/u);
+ assert.match(transport,/const OCCURRENCE_STAGED_RPC='iberfit_occurrence_api_u60_v1'/u);
+ assert.doesNotMatch(sql,/CREATE OR REPLACE FUNCTION public\.iberfit_occurrence_api_v1/u);
+ assert.doesNotMatch(sql,/^\s*GRANT EXECUTE/gmu);
+});

@@ -16,5 +16,6 @@ DROP FUNCTION IF EXISTS private.iberfit_u60_dated_execution_identity_guard_v1();
 DROP FUNCTION IF EXISTS private.iberfit_u60_occurrence_insert_fence_v1();
 DROP FUNCTION IF EXISTS private.iberfit_u60_active_lock_fence_v1();
 DROP FUNCTION IF EXISTS private.iberfit_u60_typed_execution_fence_v1();
+DROP FUNCTION IF EXISTS public.iberfit_occurrence_api_u60_v1(text,jsonb);
 DROP FUNCTION IF EXISTS public.iberfit_occurrence_detail_v1(uuid,uuid);
 DROP FUNCTION IF EXISTS private.iberfit_u60_occurrence_detail_v1(uuid,uuid);

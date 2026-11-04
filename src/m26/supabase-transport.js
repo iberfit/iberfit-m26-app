@@ -48,7 +48,7 @@ const QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com']);
 const QA_RC_EMAIL_PATTERN=/^qa\.rc\d+(?:-\d+)?(?:\.[a-z0-9][a-z0-9-]{0,63})+@iberfit\.cl$/u;
 function isQaAuthorizedEmail(email){const normalized=String(email||'').trim().toLowerCase();const legacyAlias=normalized.startsWith('iberfit.cl+qa.')&&normalized.endsWith('@gmail.com');return QA_RC_EMAIL_PATTERN.test(normalized)||legacyAlias||QA_AUTHORIZED_EMAILS.has(normalized);}
 const MAX_RESPONSE_BYTES=20_000_000;
-const OCCURRENCE_STAGED_RPC='iberfit_occurrence_api_v1';
+const OCCURRENCE_STAGED_RPC='iberfit_occurrence_api_u60_v1';
 const OCCURRENCE_PRIVATE_READ_RPC='iberfit_occurrence_detail_v1';
 const OCCURRENCE_ACTIONS=Object.freeze({
   OCURRENCIAS_CREAR_LOTE:'CREAR_LOTE',

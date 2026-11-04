@@ -31,7 +31,7 @@ test('U36 transport remains inert until explicitly invoked, uses exact QA URL an
   });
   assert.equal(result.count,0);
   assert.equal(requestLog.length,1);
-  assert.equal(requestLog[0].url,M26_QA_SUPABASE_ORIGIN+'/rest/v1/rpc/iberfit_occurrence_api_v1');
+  assert.equal(requestLog[0].url,M26_QA_SUPABASE_ORIGIN+'/rest/v1/rpc/iberfit_occurrence_api_u60_v1');
   assert.equal(requestLog[0].opts.headers.authorization,'Bearer qa_signed_jwt');
   assert.equal(requestLog[0].body.p_action,'CALENDARIO');
   assert.equal(requestLog[0].body.p_payload.clientId,cid);

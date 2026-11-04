@@ -118,6 +118,41 @@ WITH expected(schema_name,function_name,body_sha256,definer,volatility) AS (
 SELECT 1 / CASE WHEN coalesce((ledger_rows=7 AND verified_functions=8 AND drifted_functions=0 AND signature_count_ok AND table_private AND same_client_fk AND execution_fk AND source_triggers_count AND unique_index_guards AND legacy_write_chain_fingerprints AND receipt_schema_ready AND legacy_lock_shared),false) THEN 1 ELSE 0 END
  AS u60_reconciliation_required_before_schema_changes FROM flags;
 
+
+-- U60 closed Coach conflict normalization over unchanged U36/U34 functions.
+-- Two U34 legacy conflict branches omit operationId, which prevents exact
+-- encrypted-journal reconciliation. Never invent an ACK or normalize unknown
+-- server errors. The pinned U34 fingerprint above validates the contract.
+CREATE FUNCTION public.iberfit_occurrence_api_u60_v1(
+  p_action text,p_payload jsonb
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $u60_gateway$
+DECLARE
+  v_reply jsonb;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'AUTH_REQUIRED' USING errcode='42501';
+  END IF;
+  -- U36 validates action, filters, payload and role using the ORIGINAL
+  -- caller JWT; its EXECUTE privileges remain revoked to public roles.
+  v_reply:=public.iberfit_occurrence_api_v1(p_action,p_payload);
+  IF p_action='CAMBIO' AND (
+    v_reply='{"kind":"conflict","reason":"APPOINTMENT_ALREADY_TERMINAL"}'::jsonb
+    OR v_reply='{"kind":"conflict","reason":"APPOINTMENT_REVISION_DRIFT"}'::jsonb
+  ) THEN
+    -- U34 already checked this request's operationId and Coach permission
+    -- before returning either side-effect-free conflict. The exact ID can
+    -- therefore be returned for safe encrypted-journal cleanup.
+    RETURN v_reply||jsonb_build_object('operationId',p_payload->'operationId');
+  END IF;
+  RETURN v_reply;
+END;
+$u60_gateway$;
+REVOKE ALL ON FUNCTION public.iberfit_occurrence_api_u60_v1(text,jsonb)
+  FROM PUBLIC,anon,authenticated,service_role;
+COMMENT ON FUNCTION public.iberfit_occurrence_api_u60_v1(text,jsonb)
+  IS 'U60 CLOSED: U36 passthrough with exact, side-effect-free U34 conflict identification. No public EXECUTE or fallback.';
+
 -- The dated read returns an explicit allowlist. Never return publishedSnapshot,
 -- a raw domain_entities row, receipts, or unscoped Coach/private fields.
 CREATE FUNCTION private.iberfit_u60_occurrence_detail_v1(
