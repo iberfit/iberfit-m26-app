@@ -113,3 +113,18 @@ test('U63 authenticated Client only, scoped records, no new fetches or altered s
  assert.doesNotMatch(readFileSync(new URL('../src/m26/experience/client-day-context.js',import.meta.url),'utf8'),
   /fetch\(|setInterval\(|rpc\(|localStorage/u);
 });
+
+test('U63 same-day observations with no valid comparable metrics are not called historical',()=>{
+ const vm=build({wearables:{dailyRecords:[
+  record('2026-11-04',{steps:5500}),
+  record('2026-11-04',{steps:8500},'apple_health')]}});
+ assert.equal(vm.movement.status,'missing');
+ assert.equal(vm.movement.ambiguous,true);
+ assert.match(renderClientDayContext(vm),/Datos del 04\/11\/2026 sin valores comparables/u);
+ assert.doesNotMatch(renderClientDayContext(vm),/no son de hoy/u);
+});
+test('U63 a same-day checkin without valid values does not imply a prior dated checkin',()=>{
+ const vm=build({progress:{...progress,latestCheckin:{energy:'?',stress:99}}});
+ assert.equal(vm.wellbeing.status,'missing');
+ assert.match(renderClientDayContext(vm),/Registro del 04\/11\/2026 sin valores comparables/u);
+});

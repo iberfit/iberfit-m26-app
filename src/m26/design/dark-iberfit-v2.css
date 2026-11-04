@@ -3223,7 +3223,7 @@
   margin:.15rem 0 0;font-weight:650;font-size:1rem;
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
 }
-.m26-shell .m26-client-day-empty{margin-top:.75rem!important;font-size:.82rem}
+.m26-shell .m26-client-day-column>p.m26-client-day-empty{margin-top:.75rem;font-size:.82rem}
 .m26-shell .m26-client-day-footer{
   border-top:1px solid rgba(216,192,138,.13);padding-top:.85rem;
   display:flex;align-items:center;justify-content:space-between;gap:.75rem;

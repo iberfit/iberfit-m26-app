@@ -110,12 +110,15 @@ export function renderClientDayContext(snapshot){
   const activityData=ACTIVITY_FIELDS.filter(([key,,min,max])=>value(movement.metrics?.[key],min,max)!==null);
   const wellbeingCopy=wellbeing.status==='today'?'Tu registro de hoy'
     :wellbeing.status==='recent'?'Último registro: '+dateLabel(wellbeing.date)
-    :wellbeing.date?'Registro anterior: '+dateLabel(wellbeing.date)
+    :wellbeing.date?'Registro del '+dateLabel(wellbeing.date)+' sin valores comparables'
       :'Sin registro de bienestar en los últimos 7 días';
+  const activityAge=ageDays(movement.date,snapshot.asOf);
   const activityCopy=movement.status==='today'?'Mediciones del día de hoy'
     :movement.status==='recent'?'Último día con datos: '+dateLabel(movement.date)
-      :movement.date?'Datos históricos del '+dateLabel(movement.date)+'; no son de hoy'
-        :'Sin datos recientes de dispositivos';
+      :movement.date&&activityAge!==null&&activityAge>=0&&activityAge<=6
+        ?'Datos del '+dateLabel(movement.date)+' sin valores comparables'
+        :movement.date?'Datos históricos del '+dateLabel(movement.date)+'; no son de hoy'
+          :'Sin datos recientes de dispositivos';
   const activityMetrics=activityData.map(([key,label])=>{
     const n=movement.metrics[key];
     return metric(label,key==='steps'?Math.round(n).toLocaleString('es-CL')
