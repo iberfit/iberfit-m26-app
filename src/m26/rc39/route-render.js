@@ -117,7 +117,7 @@ const cardActions=(item,role,experience,{serviceActive=true}={})=>{
   if(role==='coach'){
     const isAppointmentConfirmed=!item.appointment||['confirmada','confirmado','confirmed'].includes(appointmentStatus);
     const needsAppointment=sessionRequiresConfirmedAppointment({role,session:item.session,appointment:item.appointment});
-    if(serviceActive&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
+    if(serviceActive&&!item.recurringAwaitingActivation&&sessionReadyToStart(item.session)&&(!needsAppointment||(Boolean(item.appointmentId)&&isAppointmentConfirmed))){
       actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escape(item.id)}">Comenzar con Coach</button>`);
     }
     if(item.appointment?.changeRequest?.status==='pending'){
@@ -289,6 +289,11 @@ const sessionCard=(item,role,contractModality=null,{serviceActive=true,catalog=[
   return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}" data-session-experience-card="${escape(experience.kind)}"${role==='client'?` data-client-session-card-state="${supervised?'supervised':inPreviewStart?'ready':'published'}"${clientEditorial?' data-client-session-editorial="true"':''}`:''} tabindex="-1">
     <header><div><p class="m26-eyebrow">${escape(clientEditorial?(canResume?'Entrenamiento en curso':String(publishedBody(item.session).status||item.session?.status||'').toLowerCase()==='disponible'?'Disponible para entrenar':'Tu sesión guiada'):ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3>${item.startAt?`<p>${escape(formatDate(item.startAt))}</p>`:clientEditorial?'':`<p>${escape(formatDate(item.startAt))}</p>`}${summaryMeta}</div><div>${clientEditorial?'':`${normalizeClientModality(contractModality)?statusBadge(contractLabel,'neutral'):''}${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${role==='client'&&item.visibility==='full'?'':statusBadge(visibility,'neutral')}`}</div></header>
     ${inPreviewStart}
+    ${item.recurringAwaitingActivation
+      ?`<p class="m26-rc39-occurrence-pending" role="status">${escape(role==='client'
+        ?'Este entrenamiento tiene varias fechas. Cada una tendrá un inicio independiente cuando se habilite su ejecución.'
+        :'Hay varias fechas vinculadas a esta prescripción. El inicio independiente aún no está habilitado; la sesión original permanece intacta.')}</p>`
+      :''}
     ${editorialFacts}
     ${clientEditorial?'':experienceHtml}
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}

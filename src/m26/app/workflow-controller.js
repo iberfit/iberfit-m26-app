@@ -16,7 +16,7 @@ import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
-import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand,syncPremiumReportApprovalButton} from '../workflows/report-workflow.js';
 import {reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision,prepareLocalReportDraft,localReportDraftCompatibleWithAssessment} from '../workflows/report-draft-safety.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
@@ -1756,6 +1756,19 @@ export function createWorkflowController({
     const resumeExisting=['client','cliente'].includes(String(role||'').toLowerCase())&&
       normalizedStatus(session)==='en_curso'&&
       actorCanExecuteSession({role,session})&&sessionHasExecutableBlocks(session);
+    // U60: repeated prescriptions cannot be consumed through the legacy
+    // SESION_INICIAR path. Do not block a separately verified R50 resume.
+    if(!resumeExisting&&legacyStartNeedsOccurrence({
+      appointments:state.collections?.appointments||[],
+      occurrences:state.collections?.trainingOccurrences||
+        state.collections?.sessionOccurrences||[],
+      sessionId:String(session.id||session.body?.id||''),
+      clientId,
+    })){
+      const error=new Error('M26_OCCURRENCE_EXECUTOR_REQUIRED');
+      error.userMessage='Este entrenamiento tiene varias fechas independientes. El inicio por fecha todavía no está habilitado; la prescripción original permanece intacta.';
+      throw error;
+    }
     if(!sessionReadyToStart(session)&&!resumeExisting){
       const error=new Error('M38_SESSION_NOT_YET_AVAILABLE');
       error.userMessage=normalizedStatus(session)==='en_curso'

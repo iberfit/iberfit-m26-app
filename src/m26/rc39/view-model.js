@@ -3,6 +3,7 @@ import {
   buildClientPlanningItems,
   clientSessionProjection,
   appointmentForSession,
+  legacyStartNeedsOccurrence,
 } from './session-policy.js';
 import {isClientVisibleAppointment} from '../domain/appointment.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
@@ -235,13 +236,33 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
     }
   }
   const canResume=(id)=>role==='client'&&resumableSessionIds.has(String(id||''));
-  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable,canClientResume:canResume(item.id)})));
+  // U60: repeated prescriptions require a date-scoped executor; R50 resume
+  // remains tied to the same confirmed execution across canonical collections.
+  const existingOccurrences=state.collections?.trainingOccurrences||
+    state.collections?.sessionOccurrences||[];
+  const awaitingOccurrenceApi=new Set(relevantSessions.filter(session=>
+    legacyStartNeedsOccurrence({
+      appointments:role==='client'?scopedAppointments:relevantAppointments,
+      occurrences:existingOccurrences,
+      sessionId:sessionId(session),clientId:clientId(session),
+    })
+  ).map(session=>sessionId(session)));
+  const recurrenceGuard=(id)=>awaitingOccurrenceApi.has(String(id||''));
+  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({
+    ...item,changeRequestAvailable,canClientResume:canResume(item.id),
+    canClientStart:recurrenceGuard(item.id)?false:item.canClientStart,
+    recurringAwaitingActivation:recurrenceGuard(item.id),
+  })));
   const operationalAppointments=(role==='client'?scopedAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
-  const sessionProjections=relevantSessions.map((session)=>Object.freeze({
-    ...clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now),
-    changeRequestAvailable,
-    canClientResume:canResume(sessionId(session)),
-  }));
+  const sessionProjections=relevantSessions.map((session)=>{
+    const base=clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now);
+    return Object.freeze({
+      ...base,changeRequestAvailable,
+      canClientResume:canResume(sessionId(session)),
+      canClientStart:recurrenceGuard(base.id)?false:base.canClientStart,
+      recurringAwaitingActivation:recurrenceGuard(base.id),
+    });
+  });
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;

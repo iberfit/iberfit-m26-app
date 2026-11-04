@@ -18,7 +18,29 @@ function run(name,command,args){
   const cause=result.error?.code||
    (result.signal?'SIGNAL_'+result.signal:
     Number.isInteger(result.status)?'EXIT_'+result.status:'UNKNOWN');
-  throw new Error('RC29_VALIDATION_FAILED:'+name+':'+cause);
+  // A legacy build can exit 1 after a long buffered test output, causing
+  // its diagnostics to be lost when the parent process exits. Surface only
+  // bounded, non-sensitive numerical budget evidence or safe error codes;
+  // never emit arbitrary stderr, environment or credentials in this reason.
+  let detail='';
+  if(name==='build'){
+    try{
+      const meta=JSON.parse((result.stdout||'').trim());
+      const budget=meta?.budgets||{};
+      if(meta?.budgetOk===false){
+        detail=':BUDGET_'+[
+          'javascriptBytes','javascriptLimit','cssBytes','cssLimit',
+          'coreBytes','coreTotalLimit','mediaBytes','mediaTotalLimit'
+        ].map((key)=>key+'='+String(Number(budget[key]??0))).join(',');
+      }
+    }catch{
+      const safeCode=(result.stderr||'').match(
+        /(?:RC29_BUILD_SOURCE_MISSING|ENOENT|ENOSPC|ENOMEM|EMFILE|EACCES)/u
+      )?.[0];
+      if(safeCode)detail=':'+safeCode;
+    }
+  }
+  throw new Error('RC29_VALIDATION_FAILED:'+name+':'+cause+detail);
  }
  return result.stdout;
 }
