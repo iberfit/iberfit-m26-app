@@ -167,3 +167,6 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
 // comment triggers required Coach/Admin WebAuthn and remote QA on the same
 // Canary SHA; it does not change release checks, production, Auth, RLS,
 // data, permissions, application runtime, or privacy policy.
+
+// R50 M44 path-filter convergence 2026-11-04: renew all seven exact-source
+// QA gates after protected M44 backup; no executable promotion behavior changed.
