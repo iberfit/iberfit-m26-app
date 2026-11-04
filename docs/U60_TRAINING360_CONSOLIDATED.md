@@ -62,3 +62,10 @@ Se incorpora `scripts/u60/qa_readonly_reconciliation.sql`: manifiesto de huellas
 **Reparación autorizable:** tras revisión SQL final, usar reparación oficial del historial de migraciones solo para las siete versiones exactas verificadas, con inventario previo, prueba de no diferencia de schema, evidencia trazable y rollback del propio historial. No editar manualmente el ledger mientras la paridad integral no esté certificada. A continuación aplicar el SQL U60 cerrado en QA, probar rollback y role/IDOR/CAS con JWT reales y únicamente después valorar una migración de permisos específica. **Ninguna función U60 expuesta y ninguna mutación de QA/PROD se ha realizado aquí.**
 
 El lector privado U60 también contrasta `execution_status` del mirror tipado con los estados canónicos y exige `remote_confirmed_at` para ejecuciones completadas, rechazando inconsistencias antes de presentar datos.
+
+
+### Blindaje de actualización legacy (misma entrega U60)
+
+La inspección real del ejecutor RC29 confirma que comparte `active_execution_client:`, mientras `iberfit_persist_entity_v26_rc29` inserta/actualiza `session_executions` por `ON CONFLICT` y nunca establece el nuevo `occurrence_id`. Por ello U60 no puede limitarse a un guard de INSERT: una ejecución U31 ya iniciada podría recibir una actualización legacy sobre la misma fila tipada. Se añade un trigger BEFORE UPDATE de identidad/revisión (conserva las ejecuciones históricas con `occurrence_id IS NULL`) y un **constraint trigger diferido hasta COMMIT** para las filas U31 que verifica un recibo real de la misma transacción, actor autenticado, Cliente, ocurrencia, ejecución, revisión y tipo de comando U31. Tanto progreso como completado U31 son válidos; un cambio legacy de fecha queda rechazado y se revierte íntegramente.
+
+Esto sigue siendo SQL *staging cerrado*, no probado todavía con dos transacciones reales ni activado en QA/PROD. El rollback elimina ambos triggers y sus funciones sin tocar filas. El gate de ejecución U60 no debe abrirse hasta la prueba E2E transaccional de progresar/completar, intercalando una escritura legacy prohibida.

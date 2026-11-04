@@ -296,6 +296,86 @@ CREATE TRIGGER u60_active_lock_fence
   BEFORE INSERT ON public.active_execution_locks_v26 FOR EACH ROW
   EXECUTE FUNCTION private.iberfit_u60_active_lock_fence_v1();
 
+
+-- U60 dated UPDATE boundary. Legacy V26's upsert-on-conflict can UPDATE
+-- session_executions, not only INSERT it. Without these two triggers it could
+-- mutate a U31-owned execution after the initial dated start. No direct role
+-- grants; receipt verification runs at transaction COMMIT, after U31 journals.
+CREATE FUNCTION private.iberfit_u60_dated_execution_identity_guard_v1()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $u60_update_identity$
+BEGIN
+  -- Historical legacy executions remain unaffected. Dated ownership is an
+  -- irreversible binding, including when a legacy writer attempts rebind.
+  IF OLD.occurrence_id IS NULL AND NEW.occurrence_id IS NULL THEN RETURN NEW;END IF;
+  IF OLD.occurrence_id IS NULL OR
+    NEW.occurrence_id IS DISTINCT FROM OLD.occurrence_id OR
+    NEW.id IS DISTINCT FROM OLD.id OR
+    NEW.client_id IS DISTINCT FROM OLD.client_id OR
+    NEW.session_id IS DISTINCT FROM OLD.session_id THEN
+    RAISE EXCEPTION 'U60_DATED_EXECUTION_IDENTITY_IMMUTABLE' USING errcode='23514';
+  END IF;
+  IF NEW.revision IS DISTINCT FROM OLD.revision+1 OR
+    NEW.summary->>'id' IS DISTINCT FROM NEW.id::text OR
+    NEW.summary->>'clientId' IS DISTINCT FROM NEW.client_id::text OR
+    NEW.summary->>'sessionId' IS DISTINCT FROM NEW.session_id::text OR
+    NEW.summary->>'occurrenceId' IS DISTINCT FROM NEW.occurrence_id::text OR
+    NEW.summary->>'revision' IS DISTINCT FROM NEW.revision::text THEN
+    RAISE EXCEPTION 'U60_DATED_EXECUTION_REVISION_OR_SCOPE_DRIFT'
+      USING errcode='23514';
+  END IF;
+  RETURN NEW;
+END;
+$u60_update_identity$;
+REVOKE ALL ON FUNCTION private.iberfit_u60_dated_execution_identity_guard_v1()
+  FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER u60_dated_execution_update_identity
+  BEFORE UPDATE ON public.session_executions FOR EACH ROW
+  EXECUTE FUNCTION private.iberfit_u60_dated_execution_identity_guard_v1();
+
+-- A deferred constraint is essential: U31 inserts its idempotent receipt
+-- AFTER the mirrored UPDATE. At COMMIT the exact actor, client, occurrence,
+-- execution, revision, command and status must all match an in-transaction
+-- U31 receipt. A V26 update cannot manufacture that private receipt.
+CREATE FUNCTION private.iberfit_u60_dated_mirror_receipt_guard_v1()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $u60_update_receipt$
+BEGIN
+  IF NEW.occurrence_id IS NULL THEN RETURN NEW; END IF;
+  IF auth.uid() IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.command_receipts_v26 r
+    WHERE r.entity_type='training_occurrence'
+      AND r.entity_id=NEW.occurrence_id AND r.client_id=NEW.client_id
+      AND r.actor_user_id=auth.uid()
+      AND r.response->>'executionId'=NEW.id::text
+      AND r.response->>'executionRevision'=NEW.revision::text
+      AND r.response->>'kind'='ack'
+      AND r.processed_at >= transaction_timestamp()
+      AND (
+        (r.command_type='OCURRENCIA_GUARDAR_PROGRESO'
+          AND r.response->>'status'='en_curso'
+          AND NEW.execution_status='activa'
+          AND NEW.summary->>'status'='en_curso')
+        OR
+        (r.command_type='OCURRENCIA_COMPLETAR'
+          AND r.response->>'status'='completada'
+          AND NEW.execution_status='cerrada_confirmada'
+          AND NEW.summary->>'status'='completada')
+      )
+  ) THEN
+    RAISE EXCEPTION 'U60_DATED_EXECUTION_UPDATE_REQUIRES_U31_RECEIPT'
+      USING errcode='23514';
+  END IF;
+  RETURN NEW;
+END;
+$u60_update_receipt$;
+REVOKE ALL ON FUNCTION private.iberfit_u60_dated_mirror_receipt_guard_v1()
+  FROM PUBLIC,anon,authenticated,service_role;
+CREATE CONSTRAINT TRIGGER u60_dated_execution_update_receipt
+  AFTER UPDATE ON public.session_executions
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+  EXECUTE FUNCTION private.iberfit_u60_dated_mirror_receipt_guard_v1();
+
 -- A Coach cannot introduce dates for a session still executing through the
 -- legacy runtime. U32 already holds schedule_client before INSERT.
 CREATE FUNCTION private.iberfit_u60_occurrence_insert_fence_v1()

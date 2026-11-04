@@ -173,3 +173,30 @@ test('U60 QA audit is read-only and matches eight source fingerprints before led
     'preflight must execute BEFORE new privileged functions are created');
   assert.doesNotMatch(script,/PJHM|pjhmrhejsoofmouedavw/iu,'never query PROD in the QA-only reconciliation');
 });
+
+
+test('U60 legacy UPDATE cannot mutate dated execution without fresh U31 receipt',()=>{
+  const sql=readFileSync(new URL(
+    '../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',
+    import.meta.url),'utf8');
+  const rollback=readFileSync(new URL(
+    '../supabase/rollbacks/20261104150000_u60_closed_private_read_legacy_writer_fences.rollback.sql',
+    import.meta.url),'utf8');
+  assert.match(sql,/CREATE TRIGGER u60_dated_execution_update_identity/u);
+  assert.match(sql,/CREATE CONSTRAINT TRIGGER u60_dated_execution_update_receipt/u);
+  assert.match(sql,/DEFERRABLE INITIALLY DEFERRED FOR EACH ROW/u);
+  assert.match(sql,/U60_DATED_EXECUTION_IDENTITY_IMMUTABLE/u);
+  assert.match(sql,/U60_DATED_EXECUTION_REVISION_OR_SCOPE_DRIFT/u);
+  assert.match(sql,/U60_DATED_EXECUTION_UPDATE_REQUIRES_U31_RECEIPT/u);
+  assert.match(sql,/r\.response->>'executionRevision'=NEW.revision::text/u);
+  assert.match(sql,/r\.processed_at >= transaction_timestamp\(\)/u);
+  assert.match(sql,/r\.entity_type='training_occurrence'/u);
+  assert.match(sql,/r\.actor_user_id=auth.uid\(\)/u);
+  assert.match(sql,/OCURRENCIA_GUARDAR_PROGRESO/u);
+  assert.match(sql,/OCURRENCIA_COMPLETAR/u);
+  assert.match(rollback,/DROP TRIGGER IF EXISTS u60_dated_execution_update_receipt/u);
+  assert.match(rollback,/DROP TRIGGER IF EXISTS u60_dated_execution_update_identity/u);
+  assert.match(rollback,/DROP FUNCTION IF EXISTS private.iberfit_u60_dated_mirror_receipt_guard_v1/u);
+  assert.match(rollback,/DROP FUNCTION IF EXISTS private.iberfit_u60_dated_execution_identity_guard_v1/u);
+  assert.doesNotMatch(rollback,/DROP TABLE|TRUNCATE|DELETE FROM/iu);
+});
