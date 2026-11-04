@@ -91,10 +91,13 @@ test('U60 decision: appointment from same client but other prescription is not l
    appointments:[appointment(APPT_A,'completada'),
      appointment(APPT_B,'confirmada',{sessionId:OCC_C})],
  }));
- assert.equal(value.upcoming[0].canRequestStartHint,false);
+ assert.equal(value.upcoming.length,0,'foreign-source appointment must hide the Client date');
+ assert.equal(value.summary.scheduledDates,1);
+ assert.equal(value.summary.insufficientEvidence,true);
 });
 test('U60 decision: deduplicates revisions and preserves date-only cancellations',()=>{
  const value=buildTraining360DecisionPack(setup({
+   role:'coach', // Coach sees its unlinked date-only cancelled records; Client does not.
    occurrences:[completed,{...completed,revision:2},future,
      occ(OCC_C,'2026-11-03','cancelada')],
  }));
@@ -190,7 +193,9 @@ test('U60 private reader requires a matching independent execution to resume',as
    privateReader({read:async()=>result}).read({clientId:CLIENT,occurrenceId:OCC_B}),
    /U60_PRIVATE_EXECUTION_DRIFT/);
  result.executionBody={id:EXEC,clientId:CLIENT,sessionId:SESSION,occurrenceId:OCC_B,
-   status:'en_curso',revision:1,sourceSnapshot:structuredClone(result.prescriptionSnapshot)};
+   status:'en_curso',revision:1,
+   queue:structuredClone(result.prescriptionSnapshot.queue),
+   sourceSnapshot:structuredClone(result.prescriptionSnapshot)};
  const ok=await privateReader({read:async()=>result}).read({
    clientId:CLIENT,occurrenceId:OCC_B});
  assert.equal(ok.executionBody.id,EXEC);

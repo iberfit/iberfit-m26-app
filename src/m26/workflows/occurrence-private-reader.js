@@ -88,7 +88,9 @@ export function createOccurrencePrivateReader({
     const after=actorFrom(await getAuthContext());
     if(!sameActor(before,after))fail('AUTH_CONTEXT_CHANGED');
     const verified=verifyResponse(result,owner,id);
-    if(before.role!=='coach'&&verified.occurrence.status==='planificada')
+    if(before.role!=='coach'&&(
+      verified.occurrence.status==='planificada'||
+      !UUID.test(String(verified.occurrence.appointmentId||''))))
       fail('CLIENT_UNPUBLISHED_FORBIDDEN');
     return verified;
   }

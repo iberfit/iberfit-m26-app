@@ -11,6 +11,7 @@ const CLIENT='10000000-0000-4000-8000-000000000101';
 const OTHER='10000000-0000-4000-8000-000000000102';
 const SESSION='10000000-0000-4000-8000-000000000103';
 const OCC='10000000-0000-4000-8000-000000000104';
+const APPT='10000000-0000-4000-8000-000000000106';
 const ACTOR='10000000-0000-4000-8000-000000000105';
 const snapshot={
   clientId:CLIENT,sessionId:SESSION,cycleId:null,title:'Entrenamiento guiado',
@@ -19,7 +20,7 @@ const snapshot={
 };
 const privateResult={
   kind:'private-occurrence',
-  occurrence:{id:OCC,clientId:CLIENT,sessionId:SESSION,appointmentId:null,
+  occurrence:{id:OCC,clientId:CLIENT,sessionId:SESSION,appointmentId:APPT,
     localDate:'2026-11-05',localTime:null,timeZone:'America/Santiago',
     startsAt:null,endsAt:null,durationMinutes:60,status:'confirmada',
     revision:1,executionId:null},
@@ -54,6 +55,17 @@ test('U60 private read is a single scoped JWT POST and cannot use role filters',
   await assert.rejects(reader.read({clientId:OTHER,occurrenceId:OCC}),
     /U60_PRIVATE_CLIENT_SCOPE_FORBIDDEN/);
   assert.equal(sent.length,1);
+});
+
+test('U60 client cannot receive an unlinked or unpublished dated prescription',async()=>{
+  const reader=createOccurrencePrivateReader({
+    enabled:true,getAuthContext:auth,
+    transport:{occurrencePrivateRead:async()=>({
+      ...privateResult,occurrence:{...privateResult.occurrence,appointmentId:null},
+    })},
+  });
+  await assert.rejects(reader.read({clientId:CLIENT,occurrenceId:OCC}),
+    /U60_PRIVATE_CLIENT_UNPUBLISHED_FORBIDDEN/);
 });
 
 test('U60 private detail rejects a different server owner before exposing data',async()=>{
