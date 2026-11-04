@@ -83,12 +83,38 @@ export function iriPhotoMutationRequiresReload(records,hostNode){
   });
 }
 
+
+// IRI fotografia is stage 7/8, hidden until the Coach explicitly opens it.
+// A mounted but hidden DOM host must NEVER trigger optional Supabase reads.
+// An explicit PDF/consent service call remains independent of this UI guard.
+export function iriPhotoAutoLoadEligible(hostNode){
+  if(!hostNode||hostNode.isConnected===false)return false;
+  const step=hostNode.closest?.('[data-iri-step]');
+  if(!step)return true; // Standalone legacy host without an IRI wizard.
+  if(step.getAttribute?.('data-iri-step')!=='fotografia')return false;
+  return step.hidden!==true&&step.hasAttribute?.('hidden')!==true;
+}
+
+
+/** A hidden panel and a pending/rejected request must not schedule another
+ * optional read. A different IRI context can still be opened normally. */
+export function iriPhotoAutomaticLoadDecision({
+  hostNode,contextKey='',nextKey='',loadError='',loadInFlight=false,
+  loadInFlightKey='',loadInFlightHost=null,
+}={}){
+  if(!iriPhotoAutoLoadEligible(hostNode))return 'hidden';
+  if(loadInFlight&&loadInFlightKey===nextKey&&loadInFlightHost===hostNode)return 'in-flight';
+  if(loadError&&contextKey===nextKey)return 'explicit-retry';
+  return 'ready';
+}
+
 /** Optional IRI reads may finish after the professional switches clients, routes or sessions.
  * A response/error from a detached host is stale; current-panel failures remain errors.
  * Never infer authorization from a cached snapshot; only scope async UI ownership.
  */
 export function iriPhotoLoadStillCurrent({mounted,originalHost,currentHost,originalKey,currentKey,currentContext}={}){
   if(mounted!==true||!originalHost||originalHost!==currentHost||originalKey!==currentKey)return false;
+  if(!iriPhotoAutoLoadEligible(originalHost))return false;
   if(currentContext?.canManage!==true||!currentContext?.assessmentId)return false;
   return `${currentContext.role}:${currentContext.clientId||''}:${currentContext.assessmentId||''}`===originalKey;
 }
@@ -373,12 +399,26 @@ export function createIriPhotogrammetryController({
     }
   }
   function reportLoadError(error){
+    // No delayed diagnostic from an inactive optional stage may pollute
+    // an authenticated Coach journey that never opened photo evidence.
+    if(!iriPhotoAutoLoadEligible(host()))return;
     loadError=friendlyIriPhotoError(error);
     onDiagnostic('iri-photogrammetry-load',error);
     render();
   }
   function scheduleLoad(){
-    if(loadScheduled)return;loadScheduled=true;
+    const node=host();
+    // Most Coach navigation modifies DOM outside this optional IRI panel.
+    // Avoid repeated Supabase reads and duplicate rejection handlers.
+    if(!iriPhotoAutoLoadEligible(node))return;
+    const ctx=context(),key=`${ctx.role}:${ctx.clientId||''}:${ctx.assessmentId||''}`;
+    const decision=iriPhotoAutomaticLoadDecision({
+      hostNode:node,contextKey,nextKey:key,loadError,
+      loadInFlight:Boolean(loadInFlight),loadInFlightKey,loadInFlightHost,
+    });
+    if(decision==='explicit-retry'){render();return;}
+    if(decision!=='ready'||loadScheduled)return;
+    loadScheduled=true;
     queueMicrotask(()=>{loadScheduled=false;void load().catch(reportLoadError);});
   }
   async function signedUrlsFor(remoteState,token){
@@ -392,7 +432,11 @@ export function createIriPhotogrammetryController({
   }
   async function load({force=false}={}){
     const node=host();if(!node)return null;
+    // Only explicit user actions may force a read from an inactive stage.
+    // Auto-loading a hidden photo panel wastes five private PostgREST GETs.
+    if(!force&&!iriPhotoAutoLoadEligible(node))return null;
     const ctx=context();const key=`${ctx.role}:${ctx.clientId||''}:${ctx.assessmentId||''}`;
+    if(!force&&loadError&&contextKey===key){render();return null;}
     const stillCurrent=()=>iriPhotoLoadStillCurrent({mounted,originalHost:node,currentHost:host(),originalKey:key,currentKey:contextKey,currentContext:context()});
     if(!ctx.canManage||!ctx.assessmentId){contextKey=key;remote=null;loadError='';signedUrls={};landmarks={};calibrationByView={};render();return null;}
     if(!force&&remote&&contextKey===key){
@@ -699,7 +743,9 @@ export function createIriPhotogrammetryController({
       observer=new MutationObserver((records)=>{
         if(iriPhotoMutationRequiresReload(records,host()))scheduleLoad();
       });
-      observer.observe(root,{childList:true,subtree:true});
+      // Stage navigation changes `hidden` in-place: childList alone misses
+      // the first genuine visit to Fotografia and would leave a spinner.
+      observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
     }
     scheduleLoad();mounted=true;
   }
