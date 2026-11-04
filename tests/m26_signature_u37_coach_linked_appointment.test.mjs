@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
 import {syncAppointmentFormState} from '../src/m26/app/workflow-controller.js';
+import {linkableSessionsForCoachAgenda,resolveCoachAppointmentSessionLink,santiagoAppointmentInstant} from '../src/m26/workflows/agenda-workflow.js';
 
 const CLIENT='10000000-0000-4000-8000-000000000101';
 const OTHER='10000000-0000-4000-8000-000000000102';
@@ -13,8 +14,14 @@ const session={id:SESSION,clientId:CLIENT,status:'disponible',title:'Entrenamien
  blocks:[{type:'exercise',exerciseId:'sentadilla',sets:3}]};
 
 test('U37 Coach appointment editor offers only published scoped sessions and keeps free appointments',()=>{
+ const scopedState={collections:{sessions:[session,
+  {...session,id:OTHER,clientId:OTHER},
+  {...session,id:'session-draft',status:'borrador'}]}};
+ const scoped=linkableSessionsForCoachAgenda(scopedState,[CLIENT]);
+ assert.deepEqual(scoped.map(item=>item.id),[SESSION],'R50 server-owned selector scopes client and published status');
  const vm={kind:'agenda',role:'coach',selectedClientId:CLIENT,
-  clients:[{id:CLIENT,name:'Cliente de ensayo'}],rc39:{
+  clients:[{id:CLIENT,name:'Cliente de ensayo'}],
+  linkableSessions:scoped,rc39:{
   appointments:[],confirmationOpen:0,changeRequests:0,needsPreparation:0,
   sessionProjections:[{
    id:SESSION,clientId:CLIENT,title:'Entrenamiento de fuerza',visible:true,
@@ -27,8 +34,8 @@ test('U37 Coach appointment editor offers only published scoped sessions and kee
  };
  const html=renderRc39Route(vm);
  assert.match(html,/<select name="sessionId"/);
- assert.match(html,/Vincular sesión publicada/);
- assert.match(html,/Cita general sin sesión vinculada/);
+ assert.match(html,/Entrenamiento de esta cita/);
+ assert.match(html,/Sin entrenamiento vinculado/);
  assert.match(html,new RegExp('value="'+SESSION+'"'));
  assert.doesNotMatch(html,new RegExp('value="'+OTHER+'"'));
  assert.doesNotMatch(html,/value="session-draft"/);
@@ -62,15 +69,42 @@ test('U37 switching the client clears a foreign prescription and auto-fills from
  assert.equal(foreign.disabled,false);
 });
 
-test('U37 submit revalidates Client identity and published status against authenticated source',()=>{
+test('U37 Coach submit retains R50 scoped, typed source and Santiago civil-time validation',()=>{
  const source=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
  const start=source.indexOf('async function createAppointment(){');
  const end=source.indexOf('async function confirmAppointment(',start);
  assert.ok(start>=0&&end>start);
  const fn=source.slice(start,end);
- assert.match(fn,/const sessionId=String\(raw\.sessionId\|\|''\)\.trim\(\)/);
- assert.match(fn,/String\(item\?\.clientId\|\|item\?\.client_id\|\|body\.clientId\|\|body\.client_id\|\|''\)===clientId/);
- assert.match(fn,/M26_APPOINTMENT_LINKED_SESSION_NOT_AVAILABLE/);
- assert.match(fn,/draft\.sessionId=sessionId/);
- assert.match(fn,/buildAppointmentCommand\(draft,0\)/);
+ assert.match(fn,/const selectedId=String\(raw\.sessionId\|\|''\)\.trim\(\)/u);
+ assert.match(fn,/resolveCoachAppointmentSessionLink\(context\(\)\.state,\{clientId,sessionId:selectedId\}\)/u);
+ assert.match(fn,/santiagoAppointmentInstant\(raw\.startAt\)/u);
+ assert.match(fn,/santiagoAppointmentInstant\(raw\.endAt\)/u);
+ assert.match(fn,/M26_APPOINTMENT_LINKED_MODALITY_MISMATCH/u);
+ assert.match(fn,/draft\.sessionId=linked\.id/u);
+ assert.match(fn,/buildAppointmentCommand\(draft,0\)/u);
+ assert.match(fn,/linkVerified/u);
+ assert.match(fn,/m26AppointmentUnverified/u);
+});
+
+test('U37 authenticated Coach selector rejects foreign client, drafts and withdrawn sessions',()=>{
+ const other={...session,id:OTHER,clientId:OTHER};
+ const draft={...session,id:'session-draft',status:'borrador'};
+ const withdrawn={...session,id:'session-withdrawn',status:'retirado'};
+ const state={collections:{sessions:[session,other,draft,withdrawn]}};
+ assert.equal(resolveCoachAppointmentSessionLink(state,{clientId:CLIENT,sessionId:SESSION})?.id,SESSION);
+ assert.equal(resolveCoachAppointmentSessionLink(state,{clientId:CLIENT,sessionId:''}),null);
+ for(const id of [OTHER,'session-draft','session-withdrawn','no-such-session']){
+   assert.throws(()=>resolveCoachAppointmentSessionLink(state,{clientId:CLIENT,sessionId:id}),
+     /M26_APPOINTMENT_LINKED_SESSION_NOT_AVAILABLE/u);
+ }
+ assert.throws(()=>resolveCoachAppointmentSessionLink(state,{clientId:'',sessionId:SESSION}),
+   /M26_APPOINTMENT_CLIENT_REQUIRED/u);
+});
+
+test('U37 Santiago appointment conversion rejects DST gaps and ambiguous folds',()=>{
+ assert.equal(santiagoAppointmentInstant('2026-10-27T10:00'),'2026-10-27T13:00:00.000Z');
+ assert.throws(()=>santiagoAppointmentInstant('2026-09-06T00:30'),
+   /M26_APPOINTMENT_DST_GAP/u);
+ assert.throws(()=>santiagoAppointmentInstant('2026-04-04T23:30'),
+   /M26_APPOINTMENT_DST_AMBIGUOUS/u);
 });
