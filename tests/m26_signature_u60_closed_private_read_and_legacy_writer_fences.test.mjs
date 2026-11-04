@@ -200,3 +200,38 @@ test('U60 legacy UPDATE cannot mutate dated execution without fresh U31 receipt'
   assert.match(rollback,/DROP FUNCTION IF EXISTS private.iberfit_u60_dated_execution_identity_guard_v1/u);
   assert.doesNotMatch(rollback,/DROP TABLE|TRUNCATE|DELETE FROM/iu);
 });
+
+test('U60 catalog preflight validates legacy write chain and exact relational guards',()=>{
+  const audit=readFileSync(new URL('../scripts/u60/qa_readonly_reconciliation.sql',import.meta.url),'utf8');
+  const migration=readFileSync(new URL('../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',import.meta.url),'utf8');
+  for(const sql of [audit,migration]){
+    assert.match(sql,/legacy_write_chain_fingerprints/u);
+    assert.match(sql,/receipt_schema_ready/u);
+    assert.match(sql,/source_triggers_count/u);
+    assert.match(sql,/pg_get_expr\(ix\.indpred,ix\.indrelid\)/u);
+    assert.match(sql,/pg_get_userbyid\(p\.proowner\)='postgres'/u);
+    assert.match(sql,/c\.confrelid=to_regclass\('public\.training_session_occurrences_v1'\)/u);
+    assert.match(sql,/to_regprocedure\('public\.iberfit_execute_command_v26_rc29\(jsonb\)'\)/u);
+    assert.match(sql,/to_regclass\('public\.command_receipts_v26_entity_idx'\)/u);
+  }
+  assert.match(migration,/AND legacy_write_chain_fingerprints AND receipt_schema_ready AND legacy_lock_shared/u);
+  assert.doesNotMatch(audit.replace(/^--.*$/gmu,''),/\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT|REVOKE|TRUNCATE|DO)\b/iu);
+});
+
+
+test('U60 QA-only reconciliation and migration share an identical catalog preflight',()=>{
+  const audit=readFileSync(new URL('../scripts/u60/qa_readonly_reconciliation.sql',import.meta.url),'utf8');
+  const migration=readFileSync(new URL('../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',import.meta.url),'utf8');
+  const preflight=s=>{
+    const start=s.indexOf('WITH expected(');
+    const end=s.indexOf('\n)\n\nSELECT',start);
+    assert.ok(start>=0&&end>start,'canonical SQL guard must exist');
+    return s.slice(start,end+2);
+  };
+  assert.equal(preflight(audit),preflight(migration),
+    'QA preflight must never diverge from deployed migration precondition');
+  assert.match(migration,/legacy_write_chain_fingerprints/u);
+  assert.match(migration,/receipt_schema_ready/u);
+  assert.match(migration,/source_triggers_count/u);
+  assert.match(migration,/c\.confrelid=to_regclass\('public\.training_session_occurrences_v1'\)/u);
+});
