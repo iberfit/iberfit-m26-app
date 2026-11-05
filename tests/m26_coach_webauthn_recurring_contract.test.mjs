@@ -43,6 +43,17 @@ test('trusted Canary workflow owns OIDC reset, real ceremony and cleanup',async(
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/u);
 });
 
+test('U80 Coach navigation changes must trigger trusted real WebAuthn on Canary push, not just PR contract',async()=>{
+  const workflow=await read('.github/workflows/coach-webauthn-recurring.yml');
+  const paths=["      - 'src/m26/shell/**'","      - 'src/m26/experience/route-view-transitions.js'"];
+  for(const path of paths){
+    assert.equal(workflow.split(path).length-1,2,
+      path+' must be covered by both PR and protected Canary push triggers');
+  }
+  assert.match(workflow,/live-coach-webauthn:[\s\S]*if: github\.event_name != 'pull_request'/u,
+    'Real credential ceremonies remain forbidden on untrusted PRs');
+});
+
 test('browser contract proves both registration and assertion on current source',async()=>{
   const spec=await read('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
   const config=await read('playwright.coach-webauthn-recurring.config.mjs');
