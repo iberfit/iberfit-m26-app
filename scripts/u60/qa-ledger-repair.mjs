@@ -131,9 +131,10 @@ export const U60_INSTALLED_ALIAS='20261105003645';
 const U60_MIGRATION_FILE='supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql';
 
 export function buildCanonicalProbeSql(stage){
-  if(stage!=='before'&&stage!=='after')throw Error('QA_CANONICAL_PROBE_STAGE_INVALID');
+  if(!['before','after','installed'].includes(stage))throw Error('QA_CANONICAL_PROBE_STAGE_INVALID');
   const canonical=stage==='before'?0:1;
   const alias=stage==='before'?1:0;
+  const installed=stage==='installed';
   const fn=[
     'public.iberfit_occurrence_api_u60_v1(text,jsonb)',
     'public.iberfit_occurrence_detail_v1(uuid,uuid)',
@@ -150,6 +151,11 @@ export function buildCanonicalProbeSql(stage){
     'u60_dated_execution_update_identity','u60_dated_execution_update_receipt',
     'u60_occurrence_insert_fence',
   ];
+  const expectedAuthenticated=[
+    'public.iberfit_occurrence_api_u60_v1(text,jsonb)',
+    'public.iberfit_occurrence_detail_v1(uuid,uuid)',
+  ];
+  const authorized=expectedAuthenticated.map(x=>"to_regprocedure('"+x+"')").join(',');
   const old=VERSIONS.map(x=>"'"+x+"'").join(',');
   const triggerList=triggers.map(x=>"'"+x+"'").join(',');
   return "WITH facts AS (SELECT"
@@ -160,10 +166,16 @@ export function buildCanonicalProbeSql(stage){
     +" AND pg_get_userbyid(proowner)='postgres'"
     +" AND proconfig @> ARRAY['search_path=\"\"']::text[]"
     +" AND NOT has_function_privilege('anon',oid,'EXECUTE')"
-    +" AND NOT has_function_privilege('authenticated',oid,'EXECUTE')"
+    +(installed
+      ?" AND has_function_privilege('authenticated',oid,'EXECUTE') = (oid IN ("+authorized+"))"
+      :" AND NOT has_function_privilege('authenticated',oid,'EXECUTE')")
     +" AND NOT has_function_privilege('service_role',oid,'EXECUTE')) AS functions,"
-    +" (SELECT count(*) FROM pg_trigger WHERE tgname IN ("+triggerList+") AND NOT tgisinternal) AS triggers)"
+    +" (SELECT count(*) FROM pg_trigger WHERE tgname IN ("+triggerList+") AND NOT tgisinternal) AS triggers,"
+    +" (SELECT relrowsecurity AND NOT has_table_privilege('anon',oid,'SELECT')"
+    +" AND NOT has_table_privilege('authenticated',oid,'SELECT')"
+    +" FROM pg_class WHERE oid=to_regclass('public.training_session_occurrences_v1')) AS table_private)"
     +" SELECT CASE WHEN ledger_rows=7 AND canonical="+canonical+" AND alias="+alias+" AND functions=8 AND triggers=5"
+    +" AND table_private"
     +" THEN 'U60_QA_PROBE_GO' ELSE 'U60_QA_PROBE_BLOCKED' END AS verification,"
     +" ledger_rows,functions AS verified_functions,(8-functions) AS drifted_functions FROM facts;";
 }
@@ -200,6 +212,25 @@ async function main(){
     verified:false,repaired:false,
   };
   verifyRemote(canonical?7:0);
+  // Once the official version was reconciled and U67 narrowly authorized two
+  // public RPCs, any future source-audit change must be READ-ONLY no-op.
+  // It must never try the old alias repair against an already applied version.
+  if(canonical&&attemptStage==='preflight'){
+    let installed=false;
+    try{verifyCanonical('installed');installed=true;}
+    catch(err){
+      if(!String(err?.message||'').includes('QA_U60_VERSION_ALIAS_PARITY_FAILED_installed'))
+        throw err;
+    }
+    if(installed){
+      evidence.verified=true;
+      evidence.repaired=false;
+      evidence.status='QA_ALREADY_CANONICAL_AND_AUTHORIZED_READONLY';
+      save(evidence);
+      process.stdout.write('IBERFIT_QA_U60_INSTALLED_LEDGER_READ_ONLY_VERIFIED\n');
+      return;
+    }
+  }
   if(canonical)verifyCanonical('before');
   evidence.verified=true;
   if(attemptStage==='preflight'){

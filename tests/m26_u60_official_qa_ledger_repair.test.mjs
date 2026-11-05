@@ -44,6 +44,24 @@ test('Supabase v3 remote QA audit always passes explicit read-only flag',()=>{
   assert.match(js,/'--remote='\+QA/);
 });
 test('U60 exact canonical version alias requires full closed grants and five triggers',()=>{ const sql=buildCanonicalProbeSql('before'); assert.ok(sql.includes(U60_CANONICAL));assert.ok(sql.includes(U60_INSTALLED_ALIAS));assert.ok(sql.includes('functions=8 AND triggers=5'));assert.ok(sql.includes("NOT has_function_privilege('authenticated'"));assert.throws(()=>buildCanonicalProbeSql('garbage')); });
+test('U76 installed and already-authorized QA U60 is audited read-only; rerun never repairs it',()=>{
+  const installed=buildCanonicalProbeSql('installed');
+  assert.ok(installed.includes(U60_CANONICAL));
+  assert.ok(installed.includes(U60_INSTALLED_ALIAS));
+  assert.ok(installed.includes('canonical=1 AND alias=0'));
+  assert.ok(installed.includes('functions=8 AND triggers=5'));
+  assert.ok(installed.includes('table_private'));
+  assert.ok(installed.includes("has_function_privilege('authenticated',oid,'EXECUTE') = (oid IN ("));
+  assert.ok(installed.includes("NOT has_function_privilege('service_role',oid,'EXECUTE')"));
+  assert.ok(installed.includes("NOT has_function_privilege('anon',oid,'EXECUTE')"));
+  const source=readFileSync(new URL('../scripts/u60/qa-ledger-repair.mjs',import.meta.url),'utf8');
+  assert.ok(source.includes("if(canonical&&attemptStage==='preflight')"));
+  assert.ok(source.includes("evidence.status='QA_ALREADY_CANONICAL_AND_AUTHORIZED_READONLY'"));
+  assert.ok(source.includes("if(canonical)verifyCanonical('before')"));
+  assert.ok(source.indexOf("evidence.status='QA_ALREADY_CANONICAL_AND_AUTHORIZED_READONLY'")<
+    source.indexOf("if(canonical)verifyCanonical('before')"));
+  assert.ok(source.includes("original.status!=='APPROVED_FOR_EXPLICIT_RERUN'"));
+});
 test('Repo canonical QA proof is read-only and compatible',()=>{
   const sql=readFileSync(new URL('../scripts/u60/qa_readonly_reconciliation.sql',import.meta.url),'utf8');
   const clean=sql.replace(/--[^\n]*/g,'');
