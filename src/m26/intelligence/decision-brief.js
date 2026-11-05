@@ -116,15 +116,12 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  if(recentCompletedDate(safeSummary.lastExecutionAt,{now,days:safeSummary.days})){
+  const recentExecution=recentCompletedDate(safeSummary.lastExecutionAt,{now,days:safeSummary.days});
+  if(recentExecution){
     signals.push(
       'Existe una sesión confirmada reciente para contextualizar la siguiente decisión.'
     );
     evidenceCount+=1;
-  }else if(safeSummary.lastExecutionAt){
-    limitations.push(
-      'La última ejecución conocida no acredita una sesión reciente.'
-    );
   }
 
   const checkins=number(safeSummary.checkins);
@@ -170,6 +167,13 @@ export function buildIberfitDecisionBrief({
   if(unconfirmed>0){
     limitations.push(
       `${unconfirmed} ejecución${unconfirmed===1?'':'es'} queda${unconfirmed===1?'':'n'} fuera del análisis por no estar confirmada${unconfirmed===1?'':'s'}.`
+    );
+  }
+  // Do not displace higher-priority missing check-in or device evidence in
+  // the Coach cockpit; the old date still remains an explicit limitation.
+  if(safeSummary.lastExecutionAt&&!recentExecution){
+    limitations.push(
+      'La última ejecución conocida no acredita una sesión reciente.'
     );
   }
 

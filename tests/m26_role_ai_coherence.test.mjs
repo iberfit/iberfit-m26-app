@@ -151,6 +151,9 @@ test(
   'Copiloto IBERFIT usa evidencia y no toma decisiones automáticas',
   ()=>{
     const brief=buildIberfitDecisionBrief({
+      // Explicit historical fixture clock: the recorded workout was one day earlier.
+      // A current-date default must not reinterpret September 2026 as recent.
+      now:new Date('2026-09-02T10:00:00Z'),
       summary:{
         adherence:.75,
         completedSessions:3,
