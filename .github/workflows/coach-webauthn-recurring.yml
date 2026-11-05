@@ -23,6 +23,10 @@ on:
       - 'src/m26/security/**'
       - 'src/m26/shell/role-policy.js'
       - 'src/m26/supabase-transport.js'
+      # Historical U38 wire projection is part of live Coach WebAuthn assurance.
+      - 'src/m26/domain/qa-canonical-summary-transport.js'
+      - 'src/m26/domain/privileged-history-assembler.js'
+      - 'tests/m26_u81_coach_history_tuple_transport.test.mjs'
       - 'src/m26/production-state.js'
       - 'src/m26/qa/authenticated-canary.js'
       - 'src/m26/rc39/multi-role.js'
@@ -62,6 +66,10 @@ on:
       - 'src/m26/security/**'
       - 'src/m26/shell/role-policy.js'
       - 'src/m26/supabase-transport.js'
+      # Historical U38 wire projection is part of live Coach WebAuthn assurance.
+      - 'src/m26/domain/qa-canonical-summary-transport.js'
+      - 'src/m26/domain/privileged-history-assembler.js'
+      - 'tests/m26_u81_coach_history_tuple_transport.test.mjs'
       - 'src/m26/production-state.js'
       - 'src/m26/qa/authenticated-canary.js'
       - 'src/m26/rc39/multi-role.js'

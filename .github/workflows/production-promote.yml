@@ -194,6 +194,14 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/ops/verify_m44_prod_schema.mjs
 
+      # A compatible legacy schema does not prove U30–U60 are installed.
+      # All release modes, including frontend-only, must fail closed when the
+      # dated-occurrence ledger, privileged RPC or RLS boundaries are absent.
+      - name: Certify U30-U60 production occurrence ledger and isolation (fail closed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/verify_u30_u60_prod_schema.mjs
+
       - name: Full regression before production
         shell: bash
         run: |
