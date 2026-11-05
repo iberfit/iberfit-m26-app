@@ -133,6 +133,17 @@ test('U60 SQL closed stage preserves roles and fences legacy writes atomically',
   assert.doesNotMatch(sql,/DISABLE ROW LEVEL SECURITY|TRUNCATE|DROP TABLE/iu);
 });
 
+test('U74 legacy write lineage remains exact after CRLF-only canonicalization',()=>{
+  const sql=readFileSync(new URL('../supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql',import.meta.url),'utf8');
+  assert.ok(sql.includes(String.raw`replace(p.prosrc,E'\r\n',E'\n')`));
+  assert.ok(sql.includes(String.raw`position(E'\r' IN replace(p.prosrc,E'\r\n',''))=0`));
+  assert.match(sql,/d436dd82a48644ce8701aa797b1323ebafe9b2b1dbde36872cd83c170374a9e9/u);
+  assert.match(sql,/legacy_write_chain_fingerprints/u);
+  assert.match(sql,/ledger_rows=7 AND verified_functions=8/u);
+  assert.match(sql,/has_function_privilege\('authenticated',p\.oid,'EXECUTE'\)=req\.auth_exec/u);
+  assert.match(sql,/NOT has_function_privilege\('anon',p\.oid,'EXECUTE'\)/u);
+});
+
 test('U60 runtime defaults to owner-authenticated private reader; opt-in only',()=>{
   const src=readFileSync(new URL('../src/m26/workflows/occurrence-runtime.js',import.meta.url),'utf8');
   assert.match(src,/createOccurrencePrivateReader\(\{\s*enabled:true,transport,getAuthContext/u);
