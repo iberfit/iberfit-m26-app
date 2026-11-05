@@ -3889,6 +3889,23 @@ function lastCheckinSummary(last){
   const body=last.body||{};
   return `<div class="m26-wellbeing-grid m26-wellbeing-grid-compact">${wellbeingMeter('Energía',body.energy,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',body.sleep,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',body.stress,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',body.pain,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',body.fatigue,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',body.motivation,'0 ninguna · 10 máxima')}</div>`;
 }
+// Life360: priority is a presentation choice; no confirmed record is discarded.
+// Archives are never actionable. Preserve legacy >3 active habits under disclosure.
+export function projectHabitFocus(habits=[],maxVisible=3){
+  const rows=Array.isArray(habits)?habits.filter(item=>item&&typeof item==='object'):[];
+  const archived=rows.filter(item=>/^(archiv|archived|inactive|inactiv|anulad|cancelad|deleted|eliminad)/iu
+    .test(String(item.statusRaw||item.status||'').trim()));
+  const inactive=new Set(archived);
+  const active=rows.filter(item=>!inactive.has(item));
+  const count=Math.max(1,Math.min(3,Number.isInteger(maxVisible)?maxVisible:3));
+  return Object.freeze({
+    featured:Object.freeze(active.slice(0,count)),
+    additional:Object.freeze(active.slice(count)),
+    archived:Object.freeze(archived),
+    activeCount:active.length,
+    totalCount:rows.length,
+  });
+}
 export function renderActivityRoute(vm){
   if(lacksTrainingSurface(vm.serviceKind)){
     // A client who independently authorized health reading can view/revoke
@@ -3910,8 +3927,25 @@ export function renderActivityRoute(vm){
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
     </div>`;
   }
-  const last=vm.checkins[0];const wearable=vm.wearables||{summary:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'},connections:[],providers:[],canControl:false};const wearableSummary=wearable.summary;
-  const habits=vm.habits.length?vm.habits.map((item)=>`<article class="m26-list-card"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.status)} · ${escapeHtml(item.dateLabel)}</p></div><div class="m26-inline-actions">${badge(item.status,'neutral')}<button type="button" data-engagement-action="log-habit" data-habit-id="${escapeHtml(item.id)}" aria-label="Registrar hoy: ${escapeHtml(item.title)}"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Registrar hoy</button></div></article>`).join(''):emptyState('Sin hábitos publicados',vm.capabilities.habits.ready?'Define el primer hábito para iniciar su seguimiento.':'La publicación de hábitos todavía no está disponible; el borrador puede prepararse sin mostrarlo como confirmado.');
+  // The newest confirmed wellbeing check-in, not transport array order.
+  // Invalid or missing timestamps stay after dated records.
+  const latestCheckins=Array.isArray(vm.checkins)?[...vm.checkins].sort((a,b)=>{
+    const x=Date.parse(String(a?.date||'')),y=Date.parse(String(b?.date||''));
+    return (Number.isFinite(y)?y:-Infinity)-(Number.isFinite(x)?x:-Infinity);
+  }):[];
+  const last=latestCheckins[0]||null;const wearable=vm.wearables||{summary:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'},connections:[],providers:[],canControl:false};const wearableSummary=wearable.summary;
+  const habitFocus=projectHabitFocus(vm.habits);
+  const habitCard=(item,{archived=false}={})=>`<article class="m26-list-card"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.status)} · ${escapeHtml(item.dateLabel)}</p></div><div class="m26-inline-actions">${badge(item.status,'neutral')}${archived?'':`<button type="button" data-engagement-action="log-habit" data-habit-id="${escapeHtml(item.id)}" aria-label="Registrar hoy: ${escapeHtml(item.title)}"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Registrar hoy</button>`}</div></article>`;
+  const primaryHabits=habitFocus.featured.length
+    ?habitFocus.featured.map(item=>habitCard(item)).join('')
+    :emptyState('Sin hábitos publicados',vm.capabilities.habits.ready
+      ?'Acuerda con tu entrenador el primer hábito que quieres trabajar.'
+      :'La publicación de hábitos todavía no está disponible; el borrador puede prepararse sin mostrarlo como confirmado.');
+  const overflowHabits=habitFocus.additional.length
+    ?`<details class="m26-habit-history"><summary>Otros hábitos en seguimiento (${habitFocus.additional.length})</summary><div class="m26-stack">${habitFocus.additional.map(item=>habitCard(item)).join('')}</div></details>`:'';
+  const archivedHabits=habitFocus.archived.length
+    ?`<details class="m26-habit-history"><summary>Historial de hábitos archivados (${habitFocus.archived.length})</summary><div class="m26-stack">${habitFocus.archived.map(item=>habitCard(item,{archived:true})).join('')}</div></details>`:'';
+  const habits=primaryHabits+overflowHabits+archivedHabits;
   const manager=vm.canManageHabits?`<form class="m26-panel m26-panel-soft" data-engagement-form="habit-definition" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Entrenador</p><h2>Definir hábito</h2></div></div><div class="m26-field-grid"><label>Nombre<input name="title" maxlength="120" required></label><label>Objetivo<input name="target" type="number" min="1" step="1" required></label><label>Unidad<input name="unit" maxlength="40" placeholder="Ej. veces, minutos, días"></label><label>Frecuencia<select name="frequency" required><option value="">Seleccionar frecuencia</option><option value="diario">Diario</option><option value="semanal">Semanal</option><option value="dias_especificos">Días específicos</option></select></label><label class="m26-wide">Descripción<textarea name="description" maxlength="500"></textarea></label></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><div class="m26-action-grid"><button type="button" data-engagement-action="save-habit-draft">Guardar borrador</button><button type="submit" class="m26-primary-action" data-engagement-action="define-habit"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Publicar hábito</button></div><p class="m26-form-status" data-engagement-status="habit" role="status" aria-live="polite"></p></form>`:'';
   const importer=wearable.canControl?`<form class="m26-panel m26-panel-soft" data-wearable-import aria-describedby="wearable-import-help"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Privacidad primero</p><h2>Revisar una exportación</h2></div>${badge('Solo vista previa local · gratuito','success')}</div><p id="wearable-import-help">La importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.</p><div class="m26-field-grid"><label>Origen del archivo<select name="wearableProvider" required><option value="normalized_file">Archivo normalizado IBERFIT</option><option value="health_connect">Exportación Health Connect</option><option value="samsung_health">Exportación Samsung Health</option><option value="strava">Exportación Strava</option><option value="apple_health">Exportación Apple Health</option><option value="fitbit">Exportación Google Health API / Fitbit</option><option value="oura">Exportación Oura</option><option value="garmin_connect">Exportación Garmin</option></select></label><label>Archivo JSON o CSV<input type="file" name="wearableFile" accept=".json,.csv,.tsv,application/json,text/csv,text/tab-separated-values" required></label></div><div class="m26-action-grid"><button type="button" data-wearable-action="download-template">Descargar plantilla</button><button type="submit" class="m26-primary-action">Analizar archivo</button><button type="button" data-wearable-action="clear-preview">Limpiar vista previa</button></div><p class="m26-form-status" data-wearable-status role="status" aria-live="polite" aria-atomic="true"></p><section class="m26-wearable-preview" data-wearable-preview hidden aria-live="polite"></section></form>`:`<aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Control del cliente</p><h2>Conexiones de dispositivos</h2><p>El cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.</p></aside>`;
   const connectionCopy=wearable.connections.length?wearable.connections.map((item)=>`${item.label}: ${castilianStatusLabel(item.status)}`).join(' · '):'No hay conexiones remotas confirmadas.';
@@ -3950,7 +3984,7 @@ export function renderActivityRoute(vm){
     </section>
     ${capabilityNotice(vm.capabilities.habits,'La publicación de hábitos')}
     ${manager}
-    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2></div>${badge(countLabel(vm.habits.length,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
+    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2><p>Hasta tres hábitos en primer plano. Los demás y el historial siguen disponibles sin generar nuevas obligaciones.</p></div>${badge(countLabel(habitFocus.activeCount,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
     ${wearable.canControl?'':`<details class="m26-panel m26-optional-section"><summary>Actividad confirmada de dispositivos</summary><div class="m26-optional-section-body"><p>El cliente decide qué datos autoriza. El entrenador recibe únicamente resúmenes confirmados.</p>${deviceSummary}${dailyRecords}${wearableCoveragePanel(wearable)}</div></details>`}
   </div>`;
 }
