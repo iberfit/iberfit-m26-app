@@ -65,8 +65,15 @@ export function migrationFilesDigest(items){
 function run(bin,args){
   try{
     return execFileSync(bin,args,{encoding:'utf8',timeout:120000,maxBuffer:3000000,stdio:['ignore','pipe','pipe']}).trim();
-  }catch{
-    throw Error('QA_OFFICIAL_COMMAND_FAILED_'+String(args[0]).toUpperCase().replace(/[^A-Z]/g,''));
+  }catch(err){
+    const detail=String(err?.stderr||'').toLowerCase();
+    const category=/hostedmutationconsentrequired|consent required/.test(detail)?'CONSENT_REQUIRED'
+      :/unknown flag|flag provided but not defined|invalid option/.test(detail)?'CLI_FLAG_UNSUPPORTED'
+      :/failed to connect|could not connect|connection refused|dial tcp|timeout/.test(detail)?'DB_CONNECT_FAILED'
+      :/permission denied|403|unauthorized|401|forbidden/.test(detail)?'AUTHZ_REJECTED'
+      :/parse|config|deprecated|unsupported|invalid/.test(detail)?'CONFIG_REJECTED'
+      :'REMOTE_CLI_UNKNOWN';
+    throw Error('QA_OFFICIAL_COMMAND_FAILED_'+String(args[0]).toUpperCase().replace(/[^A-Z]/g,'')+'_'+category);
   }
 }
 function digestLocal(){
@@ -105,7 +112,7 @@ function verifyRemote(rows){
   try{
     const sql=join(dir,'probe.sql');
     writeFileSync(sql,buildProbeSql(readFileSync(AUDIT_FILE,'utf8'),rows),{mode:0o600});
-    const raw=run('supabase',['db','query','--file',sql,'--remote='+QA,'--output','json']);
+    const raw=run('supabase',['db','query','--read-only','--file',sql,'--remote='+QA,'--output','json']);
     let data;
     try{data=JSON.parse(raw);}catch{throw Error('QA_CLI_QUERY_OUTPUT_INVALID_JSON');}
     const record=extractRow(data);

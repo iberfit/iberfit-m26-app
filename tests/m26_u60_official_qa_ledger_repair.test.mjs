@@ -38,6 +38,11 @@ test('Source mutation changes manifest digest',()=>{
   assert.match(a,/^[0-9a-f]{64}$/);
   assert.notEqual(a,b);
 });
+test('Supabase v3 remote QA audit always passes explicit read-only flag',()=>{
+  const js=readFileSync(new URL('../scripts/u60/qa-ledger-repair.mjs',import.meta.url),'utf8');
+  assert.match(js,/\['db','query','--read-only','--file'/);
+  assert.match(js,/'--remote='\+QA/);
+});
 test('Repo canonical QA proof is read-only and compatible',()=>{
   const sql=readFileSync(new URL('../scripts/u60/qa_readonly_reconciliation.sql',import.meta.url),'utf8');
   const clean=sql.replace(/--[^\n]*/g,'');
