@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {QA,REPO,BRANCH,VERSIONS,buildProbeSql,extractRow,migrationFilesDigest} from '../scripts/u60/qa-ledger-repair.mjs';
+import {QA,REPO,BRANCH,VERSIONS,buildProbeSql,extractRow,migrationFilesDigest,buildCanonicalProbeSql,U60_CANONICAL,U60_INSTALLED_ALIAS} from '../scripts/u60/qa-ledger-repair.mjs';
 const sample="WITH flags AS (SELECT 0 AS ledger_rows) SELECT jsonb_build_object('schema','iberfit.u60.qa-reconciliation.v1') AS report FROM flags;";
 test('Canonical QA, source branch and exactly seven migrations',()=>{
   assert.equal(QA,'gjztkdwfmunnzhtvxrsu');
@@ -43,6 +43,7 @@ test('Supabase v3 remote QA audit always passes explicit read-only flag',()=>{
   assert.match(js,/\['db','query','--read-only','--file'/);
   assert.match(js,/'--remote='\+QA/);
 });
+test('U60 exact canonical version alias requires full closed grants and five triggers',()=>{ const sql=buildCanonicalProbeSql('before'); assert.ok(sql.includes(U60_CANONICAL));assert.ok(sql.includes(U60_INSTALLED_ALIAS));assert.ok(sql.includes('functions=8 AND triggers=5'));assert.ok(sql.includes("NOT has_function_privilege('authenticated'"));assert.throws(()=>buildCanonicalProbeSql('garbage')); });
 test('Repo canonical QA proof is read-only and compatible',()=>{
   const sql=readFileSync(new URL('../scripts/u60/qa_readonly_reconciliation.sql',import.meta.url),'utf8');
   const clean=sql.replace(/--[^\n]*/g,'');

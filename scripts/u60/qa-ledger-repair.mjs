@@ -125,44 +125,118 @@ function save(v){
   mkdirSync(OUT,{recursive:true,mode:0o700});
   writeFileSync(PROOF,JSON.stringify(v,null,2)+'\n',{mode:0o600});
 }
+
+export const U60_CANONICAL='20261104150000';
+export const U60_INSTALLED_ALIAS='20261105003645';
+const U60_MIGRATION_FILE='supabase/migrations/20261104150000_u60_closed_private_read_legacy_writer_fences.sql';
+
+export function buildCanonicalProbeSql(stage){
+  if(stage!=='before'&&stage!=='after')throw Error('QA_CANONICAL_PROBE_STAGE_INVALID');
+  const canonical=stage==='before'?0:1;
+  const alias=stage==='before'?1:0;
+  const fn=[
+    'public.iberfit_occurrence_api_u60_v1(text,jsonb)',
+    'public.iberfit_occurrence_detail_v1(uuid,uuid)',
+    'private.iberfit_u60_occurrence_detail_v1(uuid,uuid)',
+    'private.iberfit_u60_typed_execution_fence_v1()',
+    'private.iberfit_u60_active_lock_fence_v1()',
+    'private.iberfit_u60_dated_execution_identity_guard_v1()',
+    'private.iberfit_u60_dated_mirror_receipt_guard_v1()',
+    'private.iberfit_u60_occurrence_insert_fence_v1()',
+  ];
+  const oo=fn.map(x=>"to_regprocedure('"+x+"')").join(',');
+  const triggers=[
+    'u60_typed_execution_fence','u60_active_lock_fence',
+    'u60_dated_execution_update_identity','u60_dated_execution_update_receipt',
+    'u60_occurrence_insert_fence',
+  ];
+  const old=VERSIONS.map(x=>"'"+x+"'").join(',');
+  const triggerList=triggers.map(x=>"'"+x+"'").join(',');
+  return "WITH facts AS (SELECT"
+    +" (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version IN ("+old+")) AS ledger_rows,"
+    +" (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='"+U60_CANONICAL+"') AS canonical,"
+    +" (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='"+U60_INSTALLED_ALIAS+"' AND name='u60_closed_private_read_legacy_writer_fences_20261104150000') AS alias,"
+    +" (SELECT count(*) FROM pg_proc WHERE oid IN ("+oo+") AND prosecdef"
+    +" AND pg_get_userbyid(proowner)='postgres'"
+    +" AND proconfig @> ARRAY['search_path=\"\"']::text[]"
+    +" AND NOT has_function_privilege('anon',oid,'EXECUTE')"
+    +" AND NOT has_function_privilege('authenticated',oid,'EXECUTE')"
+    +" AND NOT has_function_privilege('service_role',oid,'EXECUTE')) AS functions,"
+    +" (SELECT count(*) FROM pg_trigger WHERE tgname IN ("+triggerList+") AND NOT tgisinternal) AS triggers)"
+    +" SELECT CASE WHEN ledger_rows=7 AND canonical="+canonical+" AND alias="+alias+" AND functions=8 AND triggers=5"
+    +" THEN 'U60_QA_PROBE_GO' ELSE 'U60_QA_PROBE_BLOCKED' END AS verification,"
+    +" ledger_rows,functions AS verified_functions,(8-functions) AS drifted_functions FROM facts;";
+}
+function verifyCanonical(stage){
+  const dir=mkdtempSync(join(tmpdir(),'iberfit-u60-version-'));
+  try{
+    const sql=join(dir,'probe.sql');
+    writeFileSync(sql,buildCanonicalProbeSql(stage),{mode:0o600});
+    const raw=run('supabase',['db','query','--read-only','--file',sql,'--remote='+QA,'--output','json']);
+    let data;
+    try{data=JSON.parse(raw);}catch{throw Error('QA_VERSION_PROBE_NOT_JSON');}
+    const row=extractRow(data);
+    if(row?.verification!=='U60_QA_PROBE_GO'||Number(row.ledger_rows)!==7
+       ||Number(row.verified_functions)!==8||Number(row.drifted_functions)!==0)
+       throw Error('QA_U60_VERSION_ALIAS_PARITY_FAILED_'+stage);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+}
+
 async function main(){
   const stage=process.argv[2];
-  if(stage!=='preflight'&&stage!=='apply')throw Error('QA_STAGE_REQUIRED');
-  const ctx=checkContext(stage);
+  const canonical=stage==='canonical-preflight'||stage==='canonical-apply';
+  if(!['preflight','apply','canonical-preflight','canonical-apply'].includes(stage))
+    throw Error('QA_STAGE_REQUIRED');
+  // Map each allowed logical mode onto the original exact GitHub job attempt.
+  const attemptStage=stage.endsWith('preflight')?'preflight':'apply';
+  const ctx=checkContext(attemptStage);
   await checkCurrentHead(ctx.e);
   const evidence={
-    schema:'iberfit.u60.qa-ledger-proof.v1',stage,project:QA,branch:BRANCH,
+    schema:'iberfit.u60.qa-ledger-proof.v2',stage,project:QA,branch:BRANCH,
     sha:ctx.e.GITHUB_SHA,runId:ctx.e.GITHUB_RUN_ID,
     createdAt:new Date().toISOString(),versions:VERSIONS,
     filesHash:ctx.filesHash,sqlHash:ctx.sqlHash,cli:ctx.cli,
+    u60SourceHash:hash(readFileSync(U60_MIGRATION_FILE,'utf8')),
     verified:false,repaired:false,
   };
-  verifyRemote(0);
+  verifyRemote(canonical?7:0);
+  if(canonical)verifyCanonical('before');
   evidence.verified=true;
-  if(stage==='preflight'){
+  if(attemptStage==='preflight'){
     evidence.status='APPROVED_FOR_EXPLICIT_RERUN';
     save(evidence);
-    process.stdout.write('IBERFIT_QA_U60_READ_ONLY_PREFLIGHT_VERIFIED\n');
+    process.stdout.write('IBERFIT_QA_U60_CANONICAL_READ_ONLY_PREFLIGHT_VERIFIED\n');
     return;
   }
   const original=JSON.parse(readFileSync('.tmp/u60-original/qa-evidence.json','utf8'));
   const age=Date.now()-Date.parse(original.createdAt);
-  if(original.schema!==evidence.schema||original.stage!=='preflight'
+  if(original.schema!==evidence.schema
+    ||original.stage!==(canonical?'canonical-preflight':'preflight')
     ||original.status!=='APPROVED_FOR_EXPLICIT_RERUN'
     ||original.sha!==evidence.sha||original.runId!==evidence.runId
     ||original.project!==QA||original.filesHash!==evidence.filesHash
     ||original.sqlHash!==evidence.sqlHash||original.cli!==evidence.cli
+    ||original.u60SourceHash!==evidence.u60SourceHash
     ||original.verified!==true||!Number.isFinite(age)||age<0||age>7200000)
     throw Error('QA_ORIGINAL_PREFLIGHT_INVALID_OR_STALE');
   evidence.status='OFFICIAL_REPAIR_REQUESTED';
   save(evidence);
-  run('supabase',['migration','repair',...VERSIONS,'--status','applied','--remote='+QA,'--yes']);
-  verifyRemote(7);
+  if(canonical){
+    // Two official metadata-only commands; never duplicate DDL.
+    run('supabase',['migration','repair',U60_CANONICAL,'--status','applied','--remote='+QA,'--yes']);
+    run('supabase',['migration','repair',U60_INSTALLED_ALIAS,'--status','reverted','--remote='+QA,'--yes']);
+    verifyRemote(7);
+    verifyCanonical('after');
+  }else{
+    run('supabase',['migration','repair',...VERSIONS,'--status','applied','--remote='+QA,'--yes']);
+    verifyRemote(7);
+  }
   evidence.repaired=true;
-  evidence.status='QA_LEDGER_SEVEN_OF_SEVEN_VERIFIED';
+  evidence.status=canonical?'QA_U60_CANONICAL_VERSION_CONFIRMED':'QA_LEDGER_SEVEN_OF_SEVEN_VERIFIED';
   save(evidence);
-  process.stdout.write('IBERFIT_QA_U60_OFFICIAL_LEDGER_7_OF_7_VERIFIED\n');
+  process.stdout.write('IBERFIT_QA_U60_OFFICIAL_VERSION_METADATA_VERIFIED\n');
 }
+
 if(process.argv[1]?.endsWith('/qa-ledger-repair.mjs')){
   main().catch(error=>{
     process.stderr.write('IBERFIT_QA_LEDGER_FAIL_CLOSED: '+String(error?.message||'UNKNOWN').slice(0,140)+'\n');

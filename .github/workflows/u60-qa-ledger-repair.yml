@@ -1,6 +1,6 @@
 name: IBERFIT U60 QA Official Ledger Repair (two-attempt fail-closed)
 
-# First push is read-only. Only an explicit rerun of the same successful job
+# First push verifies U60's official version alias read-only. Only a deliberate rerun of the same job
 # within 2h, with immutable exact-SHA evidence, may repair seven QA records.
 # Neither attempt touches PROD, client data, SQL DDL or public RPC grants.
 on:
@@ -60,7 +60,7 @@ jobs:
         run: node --test tests/m26_u60_official_qa_ledger_repair.test.mjs
       - name: Read-only QA proof of fingerprints, ACLs, FKs, legacy writers, and missing history
         if: ${{ github.run_attempt == 1 }}
-        run: node scripts/u60/qa-ledger-repair.mjs preflight
+        run: node scripts/u60/qa-ledger-repair.mjs canonical-preflight
       - name: Store immutable preflight proof without personal data
         if: ${{ github.run_attempt == 1 }}
         uses: actions/upload-artifact@v4
@@ -79,7 +79,7 @@ jobs:
           run-id: ${{ github.run_id }}
       - name: Apply ONLY official QA migration-history repair and verify
         if: ${{ github.run_attempt == 2 }}
-        run: node scripts/u60/qa-ledger-repair.mjs apply
+        run: node scripts/u60/qa-ledger-repair.mjs canonical-apply
       - name: Preserve post-repair metadata evidence
         if: ${{ always() && github.run_attempt == 2 }}
         uses: actions/upload-artifact@v4
