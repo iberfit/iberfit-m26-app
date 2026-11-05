@@ -1,5 +1,12 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# IBERFIT U30-U60 PROD release readiness · 2026-11-05.
+# Request one NEW independent encrypted PROD DB+Storage archive and isolated
+# PG17 restore ON PROTECTED CANARY MERGE after Life360 #1279 gates 10/10 GREEN.
+# Trigger marker only: no jobs, credentials, permissions, data writes,
+# rollback guarantees or release gates are changed by this checkpoint.
+# The resulting M44 proof is valid only while within the strict <=2h window.
+
 # R50 2026-11-04 protected refresh: run existing encrypted PROD DB+Storage
 # archive, isolated PostgreSQL 17 restore and object parity on Canary merge.
 # Trigger metadata only; unchanged jobs, permissions, secrets, safeguards and DDL.
