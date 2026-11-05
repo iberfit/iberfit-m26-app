@@ -267,7 +267,8 @@ test('SIGNATURE U104 · Client mobile week 320/360/430 px, truthful empty state 
       const rail=page.locator('[data-client-week-rail]');
       await expect(rail).toBeVisible();
       await expect(rail).toHaveAttribute('data-week-confirmed-count','0');
-      await expect(rail.getByText('Sin citas confirmadas esta semana')).toBeVisible();
+      await expect(rail.getByText('No se muestran próximas citas confirmadas esta semana')).toBeVisible();
+      await expect(rail.getByText('Sin citas confirmadas esta semana')).toHaveCount(0);
       const plan=rail.getByRole('button',{name:'Ver planificación semanal'});
       await expect(plan).toBeVisible();
       await expect(rail.locator('li time[datetime]')).toHaveCount(7);
