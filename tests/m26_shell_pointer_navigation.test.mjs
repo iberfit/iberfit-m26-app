@@ -109,3 +109,9 @@ test('touch pointerup inside mobile Más activates the route before the native c
   assert.ok(click>release,'the proven DOM click path must run after pointer lock release');
   assert.ok(fallback>click,'normal pointer release must remain the fallback');
 });
+test('Coach route commits synchronously while Client/Admin retain existing transition policy',()=>{
+  const block=areaNavigationBlock();
+  assert.match(block,/forceSync:String\(current\.identity\?\.role\|\|''\)==='coach'/u);
+  assert.match(block,/store\.navigate\(decision\.area\)/u);
+  assert.match(block,/reconcileRouteRender\(decision\.area\)/u);
+});

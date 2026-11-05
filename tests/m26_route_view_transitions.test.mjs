@@ -122,3 +122,20 @@ test('route view transitions fail soft by skipping a stalled native transition',
   assert.equal(skips,1);
 });
 
+
+test('U80 Coach route commit bypasses a stalled decorative transition without changing other roles',()=>{
+  let updates=0;
+  let nativeStarts=0;
+  const documentLike={startViewTransition(){nativeStarts+=1;return {
+    finished:new Promise(()=>{}),skipTransition(){},
+  };}};
+  const windowLike={matchMedia:()=>media(false),navigator:{maxTouchPoints:0}};
+  const result=runRouteViewTransition(()=>{updates+=1;},{
+    documentLike,windowLike,forceSync:true,
+  });
+  assert.equal(result,null);
+  assert.equal(nativeStarts,0,'Coach navigation cannot depend on native animation');
+  assert.equal(updates,1,'the route is committed once, immediately');
+  assert.equal(routeViewTransitionsEnabled({documentLike,windowLike}),true,
+    'native transitions remain available to other roles');
+});
